@@ -12,7 +12,7 @@ internal struct RappShippingConfigurationTests {
     case missingExtensionAttributes
   }
 
-  private static let classID = "fi.refineid.refineid.rapp-token"
+  private static let classID = "fi.refineid.ReFineID.rapp-token"
   private static let service = "_refineid-rly._tcp"
 
   // MARK: Static Computed Properties
@@ -204,7 +204,7 @@ internal struct RappShippingConfigurationTests {
         path: "Scripts/apple-app-store-connect-release-manager.swift"),
       encoding: .utf8)
     #expect(source.contains("RefineIDRappTokenExtension.appex"))
-    #expect(source.contains("fi.refineid.refineid.rapp-token"))
+    #expect(source.contains("fi.refineid.ReFineID.rapp-token"))
     #expect(source.contains("RAPP and direct-reader entitlements are separated"))
     #expect(!source.contains("network entitlements match the gated-relay shape"))
     // Both candidates carry the remote card: the RAPP extension, the

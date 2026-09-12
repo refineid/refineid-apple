@@ -730,7 +730,7 @@ private func inspectReleaseArchive(_ archive: URL) {
     let rappConfiguration = releaseExtensionConfiguration(at: layout.rappPlist)
     guard rappConfiguration.point == "com.apple.ctk-tokens",
       rappConfiguration.attributes["com.apple.ctk.class-id"] as? String
-        == "fi.refineid.refineid.rapp-token",
+        == "fi.refineid.ReFineID.rapp-token",
       rappConfiguration.attributes["com.apple.ctk.driver-class"] as? String
         == "RefineIDRappTokenExtension.PersistentTokenDriver",
       rappConfiguration.attributes["com.apple.ctk.token-type"] == nil

@@ -174,7 +174,7 @@ extensions:
   entitlement.
 - `RefineIDRappTokenExtension.appex` is the persistent-token requester on
   macOS and iOS. Its CryptoTokenKit class identifier is
-  `fi.refineid.refineid.rapp-token`, and its driver class is
+  `fi.refineid.ReFineID.rapp-token`, and its driver class is
   `PersistentTokenDriver`. It is the only token extension that owns the RAPP
   requester transport.
 

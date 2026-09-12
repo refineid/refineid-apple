@@ -632,7 +632,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "fi.refineid.refineid.rapp-token";
+				PRODUCT_BUNDLE_IDENTIFIER = "fi.refineid.ReFineID.rapp-token";
 				PRODUCT_MODULE_NAME = RefineIDRappTokenExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -1444,7 +1444,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "fi.refineid.refineid.rapp-token";
+				PRODUCT_BUNDLE_IDENTIFIER = "fi.refineid.ReFineID.rapp-token";
 				PRODUCT_MODULE_NAME = RefineIDRappTokenExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -1477,7 +1477,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "fi.refineid.refineid.rapp-token";
+				PRODUCT_BUNDLE_IDENTIFIER = "fi.refineid.ReFineID.rapp-token";
 				PRODUCT_MODULE_NAME = RefineIDRappTokenExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -1561,7 +1561,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "fi.refineid.refineid.rapp-token";
+				PRODUCT_BUNDLE_IDENTIFIER = "fi.refineid.ReFineID.rapp-token";
 				PRODUCT_MODULE_NAME = RefineIDRappTokenExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
