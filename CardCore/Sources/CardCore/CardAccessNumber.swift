@@ -21,8 +21,8 @@ import Foundation
 /// re-presentable; that is the one respect in which it is looser than
 /// `Pin1`, and the reason is stated here rather than left to be inferred.
 ///
-/// Provenance: the CAN handling of the ReFineID iOS browser donor
-/// `Sources/ReFineIDBrowserKit/Card/Pace.swift`, whose `establish` took the
+/// Provenance: the CAN handling of the RefineID iOS browser donor
+/// `Sources/RefineIDBrowserKit/Card/Pace.swift`, whose `establish` took the
 /// six digits as a bare `String` and validated them inline.
 public struct CardAccessNumber: Sendable {
   /// The exact number of digits a card access number carries.

@@ -7,7 +7,7 @@
   import os.log
   import SwiftUI
 
-  /// Whether the system has a ReFineID login identity to offer right now.
+  /// Whether the system has a RefineID login identity to offer right now.
   ///
   /// Identity availability comes exclusively from token events; this model
   /// never polls the card. The earlier failure mode was an event-engine bug

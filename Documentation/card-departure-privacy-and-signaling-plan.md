@@ -4,7 +4,7 @@
 
 This document specifies the architecture, threat model, and cryptographic protocol
 design for real-time, privacy-preserving smart card departure notification in the
-ReFineID Authenticated Peer Protocol (RAPP).
+RefineID Authenticated Peer Protocol (RAPP).
 
 When a citizen smart card is physically removed from a card reader connected to an
 iPhone, macOS must withdraw the borrowed CryptoTokenKit (CTK) token immediately

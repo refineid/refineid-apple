@@ -25,7 +25,7 @@
       .formStyle(.grouped)
       .onAppear(perform: reload)
       .alert(
-        "Erase all ReFineID keychain data?",
+        "Erase all RefineID keychain data?",
         isPresented: $showsEraseConfirmation
       ) {
         Button("Erase everything", role: .destructive) {
@@ -79,10 +79,10 @@
     private var eraseSection: some View {
       Section("Erase everything") {
         Text(
-          "Deletes every card number, pairing, and credential ReFineID keeps in the keychain."
+          "Deletes every card number, pairing, and credential RefineID keeps in the keychain."
         )
         .foregroundStyle(.secondary)
-        Button("Erase all ReFineID keychain data", role: .destructive) {
+        Button("Erase all RefineID keychain data", role: .destructive) {
           showsEraseConfirmation = true
         }
         if let eraseResult {

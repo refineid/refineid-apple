@@ -24,6 +24,6 @@ jobs:
         with:
           xcode-version: '26'
       - name: Build
-        run: xcodebuild -project ReFineID.xcodeproj -scheme RefineID CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO build
+        run: xcodebuild -project RefineID.xcodeproj -scheme RefineID CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO build
       - name: Run tests
         run: swift test --package-path CardCore -v

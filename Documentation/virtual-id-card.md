@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Virtual ID Card is the deterministic card and device harness for the ReFineID
+Virtual ID Card is the deterministic card and device harness for the RefineID
 Apple platforms (iOS, iPadOS, and macOS) UI. It exists for three jobs:
 
 1. Exercise state-machine behavior without spending attempts on a physical card.
@@ -137,7 +137,7 @@ NFC, Keychain, or credential dependency.
 
 ### XCUITest
 
-Tests/ReFineIDUITests/VirtualIDCardUITests.swift enters an empty virtual mode,
+Tests/RefineIDUITests/VirtualIDCardUITests.swift enters an empty virtual mode,
 opens the floating card, and configures scenarios, faults, credentials, and
 retry counters through the visible editor. It then drives the production UI
 through activation, authentication, every PIN change/reset operation, reader
@@ -203,11 +203,11 @@ outcomes from being mistaken for a real card result.
 
 ## Xcode Cloud
 
-The shared ReFineID scheme already selects ReFineID.xctestplan, which contains
-CardCoreTests, ReFineIDTests, and ReFineIDUITests. A Cloud workflow can therefore
+The shared RefineID scheme already selects RefineID.xctestplan, which contains
+CardCoreTests, RefineIDTests, and RefineIDUITests. A Cloud workflow can therefore
 run the framework without hardware:
 
-1. Add a Test action for iOS Simulator and the ReFineID scheme.
+1. Add a Test action for iOS Simulator and the RefineID scheme.
 2. Use Scheme Settings so the checked-in test plan controls targets.
 3. Run CardCore and one representative iPhone simulator on every pull request.
 4. Run the wider simulator/device and accessibility matrix on a schedule.

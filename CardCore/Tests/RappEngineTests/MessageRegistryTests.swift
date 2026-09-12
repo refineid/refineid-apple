@@ -30,7 +30,7 @@ internal struct MessageRegistryTests {
   private static func pairingBody(for messageType: MessageType) -> [String: WireValue] {
     switch messageType {
     case .pairingHello:
-      ["parameters": .map([:]), "display_name": .text("ReFineID"), "platform": .text("iOS")]
+      ["parameters": .map([:]), "display_name": .text("RefineID"), "platform": .text("iOS")]
 
     case .pairingConfirm:
       ["granted_profiles": .array([.text("fi.refineid.authentication.v1")])]

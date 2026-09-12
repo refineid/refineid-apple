@@ -21,7 +21,7 @@ internal enum KeyLabel {
   /// X.500 attribute OIDs used to compose the label.
   private static let commonNameOid = "2.5.4.3"
 
-  /// The token-ID marker preceding the card number in ReFineID token
+  /// The token-ID marker preceding the card number in RefineID token
   /// instance identifiers.
   private static let cardNumberMarker = "refineid-card-"
 
@@ -63,7 +63,7 @@ internal enum KeyLabel {
     return attributes
   }
 
-  /// The card number carried in a ReFineID token instance identifier,
+  /// The card number carried in a RefineID token instance identifier,
   /// uppercased as printed on the card; nil for other tokens.
   private static func cardNumber(tokenID: String) -> String? {
     guard let range = tokenID.range(of: cardNumberMarker) else { return nil }

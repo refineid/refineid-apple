@@ -18,8 +18,8 @@ import Foundation
 /// constant time so that comparing two sessions cannot become a byte-by-byte
 /// oracle.
 ///
-/// Provenance: replaces `PaceSession` of the ReFineID iOS browser donor
-/// `Sources/ReFineIDBrowserKit/Card/Pace.swift`, whose fields were mutable
+/// Provenance: replaces `PaceSession` of the RefineID iOS browser donor
+/// `Sources/RefineIDBrowserKit/Card/Pace.swift`, whose fields were mutable
 /// `[UInt8]` with no length validation.
 public struct PaceSessionKeys: Equatable, Sendable {
   /// The length in bytes of each derived key: an AES-256 key.

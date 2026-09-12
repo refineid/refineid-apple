@@ -13,7 +13,7 @@ Character limits:
 
 ## Name
 
-ReFineID (all languages)
+RefineID (all languages)
 
 ## Subtitle (<=30 characters)
 
@@ -34,35 +34,35 @@ documents since 26.8.16.
 
 ### English
 
-ReFineID brings the Finnish identity card to iPhone.
+RefineID brings the Finnish identity card to iPhone.
 
 Read your card with a USB-C smart-card reader, or wirelessly on iPhone,
 then sign in to e-services directly in Safari with the certificate on
-your card. Pick a PDF in ReFineID to sign it with a qualified signature.
+your card. Pick a PDF in RefineID to sign it with a qualified signature.
 
-ReFineID is open source: github.com/refineid/refineid-apple
+RefineID is open source: github.com/refineid/refineid-apple
 
 ### Suomi
 
-ReFineID tuo suomalaisen henkilökortin iPhoneen.
+RefineID tuo suomalaisen henkilökortin iPhoneen.
 
 Lue korttisi USB-C-kortinlukijalla, tai iPhonessa langattomasti, ja
 kirjaudu sähköisiin palveluihin suoraan Safarissa kortin varmenteella.
-Valitse PDF ReFineID:ssä ja allekirjoita se hyväksytyllä sähköisellä
+Valitse PDF RefineID:ssä ja allekirjoita se hyväksytyllä sähköisellä
 allekirjoituksella.
 
-ReFineID on avointa lähdekoodia: github.com/refineid/refineid-apple
+RefineID on avointa lähdekoodia: github.com/refineid/refineid-apple
 
 ### Svenska
 
-ReFineID tar det finländska identitetskortet till iPhone.
+RefineID tar det finländska identitetskortet till iPhone.
 
 Läs kortet med en USB-C-kortläsare, eller trådlöst på iPhone, och logga
 in på e-tjänster direkt i Safari med kortets certifikat. Välj en PDF i
-ReFineID för att underteckna den med en kvalificerad elektronisk
+RefineID för att underteckna den med en kvalificerad elektronisk
 underskrift.
 
-ReFineID är öppen källkod: github.com/refineid/refineid-apple
+RefineID är öppen källkod: github.com/refineid/refineid-apple
 
 ## macOS description
 
@@ -76,9 +76,9 @@ A reader for the Finnish identity card.
 
 Insert your identity card into a USB smart-card reader and sign in to
 e-services directly in Safari with the certificate on your card. Drop a
-PDF on ReFineID to sign it with a qualified signature.
+PDF on RefineID to sign it with a qualified signature.
 
-ReFineID is open source: github.com/refineid/refineid-apple
+RefineID is open source: github.com/refineid/refineid-apple
 
 ### Suomi
 
@@ -86,20 +86,20 @@ Suomalaisen henkilökortin lukija.
 
 Aseta henkilökortti USB-kortinlukijaan ja kirjaudu sähköisiin
 palveluihin suoraan Safarissa kortin varmenteella. Pudota PDF
-ReFineID:hen ja allekirjoita se hyväksytyllä sähköisellä
+RefineID:hen ja allekirjoita se hyväksytyllä sähköisellä
 allekirjoituksella.
 
-ReFineID on avointa lähdekoodia: github.com/refineid/refineid-apple
+RefineID on avointa lähdekoodia: github.com/refineid/refineid-apple
 
 ### Svenska
 
 En läsare för det finländska identitetskortet.
 
 Sätt identitetskortet i en USB-kortläsare och logga in på e-tjänster
-direkt i Safari med kortets certifikat. Släpp en PDF på ReFineID för
+direkt i Safari med kortets certifikat. Släpp en PDF på RefineID för
 att underteckna den med en kvalificerad elektronisk underskrift.
 
-ReFineID är öppen källkod: github.com/refineid/refineid-apple
+RefineID är öppen källkod: github.com/refineid/refineid-apple
 
 ## Keywords
 

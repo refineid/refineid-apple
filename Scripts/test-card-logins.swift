@@ -136,7 +136,7 @@ func runTest(target: TestTarget, identity: SecIdentity, certificate: SecCertific
 
 func main() async {
   print("============================================================")
-  print("ReFineID Automated CryptoTokenKit Login Test Tool")
+  print("RefineID Automated CryptoTokenKit Login Test Tool")
   print("============================================================")
 
   guard let (identity, cert, subject) = findCardIdentity() else {
@@ -159,11 +159,11 @@ func main() async {
     let site = args[siteIndex + 1]
     switch site {
     case "card":
-      targets.append(TestTarget(name: "ReFineID Card Auth", url: URL(string: "https://card.refineid.fi")!))
+      targets.append(TestTarget(name: "RefineID Card Auth", url: URL(string: "https://card.refineid.fi")!))
     case "suomi":
       targets.append(TestTarget(name: "Suomi.fi Identification", url: URL(string: "https://tunnistus.suomi.fi")!))
     case "all":
-      targets.append(TestTarget(name: "ReFineID Card Auth", url: URL(string: "https://card.refineid.fi")!))
+      targets.append(TestTarget(name: "RefineID Card Auth", url: URL(string: "https://card.refineid.fi")!))
       targets.append(TestTarget(name: "Suomi.fi Identification", url: URL(string: "https://tunnistus.suomi.fi")!))
     default:
       if let customURL = URL(string: site) {
@@ -171,7 +171,7 @@ func main() async {
       }
     }
   } else {
-    targets.append(TestTarget(name: "ReFineID Card Auth", url: URL(string: "https://card.refineid.fi")!))
+    targets.append(TestTarget(name: "RefineID Card Auth", url: URL(string: "https://card.refineid.fi")!))
     targets.append(TestTarget(name: "Suomi.fi Identification", url: URL(string: "https://tunnistus.suomi.fi")!))
   }
 

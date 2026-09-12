@@ -1,15 +1,15 @@
-**Objet :** déclaration de fourniture d'un moyen de cryptologie -- ReFineID
+**Objet :** déclaration de fourniture d'un moyen de cryptologie -- RefineID
 
 Madame, Monsieur,
 
 Je vous prie de bien vouloir trouver ci-joint la déclaration de
 fourniture et de transfert depuis un État membre de l'Union européenne
-du moyen de cryptologie dénommé ReFineID, établie au titre de l'article
+du moyen de cryptologie dénommé RefineID, établie au titre de l'article
 30 de la loi n° 2004-575 du 21 juin 2004 pour la confiance dans
 l'économie numérique et du décret n° 2007-663 du 2 mai 2007 pris pour
 son application.
 
-Le déclarant est un particulier : ReFineID est un nom commercial que
+Le déclarant est un particulier : RefineID est un nom commercial que
 j'emploie en mon nom propre et ne désigne aucune personne morale.
 
 Le dossier reprend les rubriques A à F de votre annexe I, dans le même

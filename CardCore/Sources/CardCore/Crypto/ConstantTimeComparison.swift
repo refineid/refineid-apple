@@ -17,9 +17,9 @@ import Foundation
 /// wire -- so revealing that two buffers differ in length reveals nothing an
 /// observer did not already have.
 ///
-/// Provenance: the `constantTimeEqual` helpers of the ReFineID iOS browser
-/// donor `Sources/ReFineIDBrowserKit/Card/Pace.swift` and
-/// `Sources/ReFineIDBrowserKit/Card/SecureMessaging.swift`, which carried
+/// Provenance: the `constantTimeEqual` helpers of the RefineID iOS browser
+/// donor `Sources/RefineIDBrowserKit/Card/Pace.swift` and
+/// `Sources/RefineIDBrowserKit/Card/SecureMessaging.swift`, which carried
 /// one private copy each.
 internal enum ConstantTimeComparison {
   /// True when both buffers have the same length and the same contents.

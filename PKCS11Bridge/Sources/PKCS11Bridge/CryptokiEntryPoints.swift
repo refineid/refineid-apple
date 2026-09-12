@@ -11,7 +11,7 @@ import Synchronization
 /// CCryptoki target: stubs and the exported CK_FUNCTION_LIST.
 internal enum CryptokiEntryPoints {
   /// Module identification reported by C_GetInfo.
-  private static let manufacturerName = "ReFineID"
+  private static let manufacturerName = "RefineID"
 
   /// Library description reported by C_GetInfo; at most 32 characters.
   private static let libraryName = "PKCS#11 over CryptoTokenKit"

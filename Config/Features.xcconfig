@@ -15,7 +15,7 @@
 //       container, and macOS creates a ~/Library/Group Containers
 //       folder the moment that group is touched. Off, no such folder
 //       exists and the app-group entitlement stays out of
-//       Config/ReFineID.entitlements and Config/TokenExtension.entitlements.
+//       Config/RefineID.entitlements and Config/TokenExtension.entitlements.
 //       macOS only: on iPhone, built-in NFC is a required production
 //       transport and is not gated by this flag.
 //

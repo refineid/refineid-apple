@@ -68,7 +68,7 @@ public enum DriverConfiguredCredentials {
 
   /// Drops only card-identity configurations, preserving stored setup.
   ///
-  /// The driver class is ReFineID's private namespace, so every entry
+  /// The driver class is RefineID's private namespace, so every entry
   /// except the two named setup channels is an identity published by
   /// this app or an earlier version of it. This deliberately catches
   /// legacy ATR-hash instance names as well as current

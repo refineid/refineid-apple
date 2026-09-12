@@ -128,7 +128,7 @@ if [ "$target_simulator" = true ]; then
       xcrun simctl boot "$sim_id" 2>/dev/null || true
       sim_derived_data="/tmp/refineid-ipad-sim"
       xcodebuild \
-        -project ReFineID.xcodeproj \
+        -project RefineID.xcodeproj \
         -scheme RefineID \
         -destination "platform=iOS Simulator,id=${sim_id}" \
         -derivedDataPath "$sim_derived_data" \
@@ -137,7 +137,7 @@ if [ "$target_simulator" = true ]; then
         ENABLE_CODE_COVERAGE=NO \
         -quiet \
         build
-      xcrun simctl install "$sim_id" "${sim_derived_data}/Build/Products/Debug-iphonesimulator/ReFineID.app"
+      xcrun simctl install "$sim_id" "${sim_derived_data}/Build/Products/Debug-iphonesimulator/RefineID.app"
       xcrun simctl launch --terminate-running-process "$sim_id" fi.refineid.ReFineID
       open -a Simulator --args -CurrentDeviceUDID "$sim_id"
       osascript -e 'tell application "Simulator" to activate' 2>/dev/null || true

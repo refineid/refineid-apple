@@ -2,9 +2,9 @@
 
 ## 1. Executive Summary
 
-This document specifies the architecture, cryptographic protocol, security model, and implementation roadmap for **Automatic & Secure Same-AppleID Device Pairing** in ReFineID.
+This document specifies the architecture, cryptographic protocol, security model, and implementation roadmap for **Automatic & Secure Same-AppleID Device Pairing** in RefineID.
 
-When a user has the ReFineID card installed/read on their iPhone, any Mac or iPad signed into the same Apple ID will automatically and securely discover and pair with the iPhone upon opening the app—**with zero manual pairing code entry**, while preserving strict end-to-end cryptographic boundaries and hardware-backed card security.
+When a user has the RefineID card installed/read on their iPhone, any Mac or iPad signed into the same Apple ID will automatically and securely discover and pair with the iPhone upon opening the app—**with zero manual pairing code entry**, while preserving strict end-to-end cryptographic boundaries and hardware-backed card security.
 
 ---
 
@@ -78,11 +78,11 @@ sequenceDiagram
 ## 4. Architecture, Device Priority & Multi-Device Topology
 
 ### 4.1 Card Reader Priority & Seamless Fallback
-When an application or Safari requests smartcard services on a Mac or iPad, ReFineID applies a strict hardware-first arbitration order:
+When an application or Safari requests smartcard services on a Mac or iPad, RefineID applies a strict hardware-first arbitration order:
 1. **Priority 1 (Direct Physical Reader)**:
    - If a physical smart card reader (USB-C, CCID, or built-in reader) is connected and contains a card, CryptoTokenKit and the app communicate directly with the local card.
 2. **Priority 2 (Automatic Fallback to Paired iPhone)**:
-   - If no physical card is detected locally, ReFineID transparently routes the request to the auto-paired iPhone holding the identity over RAPP.
+   - If no physical card is detected locally, RefineID transparently routes the request to the auto-paired iPhone holding the identity over RAPP.
 
 ### 4.2 Multi-Device Topology (1:N Simultaneous Pairing)
 - **Standing Multi-Device Trust**: One card-holding iPhone can be simultaneously paired with multiple requesting devices (e.g. both a MacBook Pro and an iPad Pro).
@@ -113,7 +113,7 @@ public struct RappCloudDeviceRecord: Codable, Sendable, Identifiable {
 
 ## 5. Unrelated & Cross-OS Device Pairing (Android, Windows, Linux, Cross-Account)
 
-For devices that **do not share an Apple ID** (e.g. pairing an Android phone with a Mac/iPad, or sharing across different user accounts), zero-step iCloud distribution is unavailable. ReFineID uses clean 6-digit numeric pairing:
+For devices that **do not share an Apple ID** (e.g. pairing an Android phone with a Mac/iPad, or sharing across different user accounts), zero-step iCloud distribution is unavailable. RefineID uses clean 6-digit numeric pairing:
 
 ### 5.1 6-Digit Numeric Pairing Code
 1. **Offer Generation**:

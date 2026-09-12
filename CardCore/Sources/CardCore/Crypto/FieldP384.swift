@@ -14,8 +14,8 @@
 /// single-use PACE key agreement, matching the posture of the Rust reference
 /// implementation.
 ///
-/// Provenance: lifted from the ReFineID iOS browser donor
-/// `Sources/ReFineIDBrowserKit/Crypto/FieldP384.swift`.
+/// Provenance: lifted from the RefineID iOS browser donor
+/// `Sources/RefineIDBrowserKit/Crypto/FieldP384.swift`.
 internal struct FieldP384: Equatable, Sendable {
   /// A full 384-by-384-bit product plus one carry limb for reduction.
   ///

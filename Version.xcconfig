@@ -1,4 +1,4 @@
-// The version of ReFineID, in the one place that defines it.
+// The version of RefineID, in the one place that defines it.
 //
 // Apple splits a release into two numbers with different jobs, and both
 // are build settings -- which default to per target, per configuration.
@@ -56,5 +56,5 @@ TARGETED_DEVICE_FAMILY[config=Release] = 1,2
 
 DEVELOPMENT_TEAM = 4ZJC3SFJR2
 
-MARKETING_VERSION = 26.9.9
-CURRENT_PROJECT_VERSION = 104
+MARKETING_VERSION = 26.9.12
+CURRENT_PROJECT_VERSION = 202

@@ -10,8 +10,8 @@ import Foundation
 /// become a point without passing the curve equation, so nothing downstream
 /// has to re-check what it was handed.
 ///
-/// Provenance: lifted from the ReFineID iOS browser donor
-/// `Sources/ReFineIDBrowserKit/Crypto/BrainpoolP384.swift`.
+/// Provenance: lifted from the RefineID iOS browser donor
+/// `Sources/RefineIDBrowserKit/Crypto/BrainpoolP384.swift`.
 public struct BrainpoolPoint: Equatable, Sendable {
   /// The point at infinity, the additive identity of the curve group.
   public static let infinity = Self(affine: nil)

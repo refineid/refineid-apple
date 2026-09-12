@@ -13,9 +13,9 @@
 /// the generator satisfies the curve equation, and `n * G` is the point at
 /// infinity. No wrong limb survives all three.
 ///
-/// Provenance: lifted from the ReFineID iOS browser donor
-/// `Sources/ReFineIDBrowserKit/Crypto/BrainpoolP384.swift` and
-/// `Sources/ReFineIDBrowserKit/Crypto/FieldP384.swift`, whose big-endian hex
+/// Provenance: lifted from the RefineID iOS browser donor
+/// `Sources/RefineIDBrowserKit/Crypto/BrainpoolP384.swift` and
+/// `Sources/RefineIDBrowserKit/Crypto/FieldP384.swift`, whose big-endian hex
 /// constants these limbs encode.
 internal enum BrainpoolP384r1Values {
   /// The field prime `p`.

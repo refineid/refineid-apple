@@ -17,8 +17,8 @@ import Foundation
 /// anything but `secureRandom`.
 ///
 /// Provenance: replaces the `nextScalar` closure parameter and
-/// `PACE.randomScalar` of the ReFineID iOS browser donor
-/// `Sources/ReFineIDBrowserKit/Card/Pace.swift`.
+/// `PACE.randomScalar` of the RefineID iOS browser donor
+/// `Sources/RefineIDBrowserKit/Card/Pace.swift`.
 public struct PaceEphemeralScalarSource {
   /// The shipping source: rejection sampling over the platform CSPRNG.
   ///

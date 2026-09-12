@@ -31,7 +31,7 @@ protocol milestone.
 
 ## Release blockers
 
-None. The non-UI suite (CardCoreTests and ReFineIDTests, 597 tests across 107 suites) is fully green on main.
+None. The non-UI suite (CardCoreTests and RefineIDTests, 597 tests across 107 suites) is fully green on main.
 
 The RAPP physical qualification matrix now gates the full-version
 TestFlight and the macOS release (Phase E below); the gates it used to
@@ -86,7 +86,7 @@ Read `Documentation/same-apple-id-automatic-pairing.md` for architecture and cry
 
 - [x] Phase 1: Cloud synchronization layer (`RappCloudSyncCoordinator`) backed by `NSUbiquitousKeyValueStore` to securely distribute public keys, device metadata, and rendezvous seeds across user's devices without syncing private keys.
 - [x] Phase 2: Noise IK / KK (`Noise_KK_25519_ChaChaPoly_SHA256`) pre-authenticated mutual handshake derivation (`RappSameAccountPairBuilder`, `RappDeviceIdentity`) for zero-interaction pairing between devices on the same Apple ID.
-- [x] Phase 3: Hardware-first priority arbitration (`CardSourceArbitrator`) and automatic background service sync (`RappAutoPairingService`) when a Mac or iPad opens ReFineID and requests smart card operations from the card-holding iPhone.
+- [x] Phase 3: Hardware-first priority arbitration (`CardSourceArbitrator`) and automatic background service sync (`RappAutoPairingService`) when a Mac or iPad opens RefineID and requests smart card operations from the card-holding iPhone.
 - [x] Phase 4: Full test coverage and end-to-end integration test (`RappAutoPairingIntegrationTests`) verifying multi-device 1:N reconciliation across iPhone, iPad, and Mac.
 
 ## RAPP

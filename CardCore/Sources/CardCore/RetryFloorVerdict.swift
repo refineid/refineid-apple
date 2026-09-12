@@ -16,7 +16,7 @@ public enum RetryFloorVerdict: Equatable, Sendable {
   case refuseBlocked
 
   /// One or two attempts remain: refuse before prompting for or sending
-  /// any credential. ReFineID never consumes a near-last attempt.
+  /// any credential. RefineID never consumes a near-last attempt.
   case refuseLowAttempts
 
   /// The retry state was missing, malformed, stale, or unreadable: fail

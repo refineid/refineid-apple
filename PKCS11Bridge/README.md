@@ -3,7 +3,7 @@
 A PKCS#11 v2.40 module (read-and-sign only) implemented on top of
 CryptoTokenKit and Security.framework. It never touches the card:
 identities come from the keychain's token items and signatures from
-`SecKeyCreateSignature`, so the system token daemon and the ReFineID
+`SecKeyCreateSignature`, so the system token daemon and the RefineID
 token extension do all card communication and PIN handling. The module
 advertises the protected authentication path, so PIN entry uses the
 system dialog; `REFINEID_PKCS11_PIN_ENTRY=textual` withdraws that flag

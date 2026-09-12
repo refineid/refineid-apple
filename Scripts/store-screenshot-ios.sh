@@ -55,7 +55,7 @@ import subprocess, json
 def get_udid():
     out = subprocess.check_output(['xcrun', 'simctl', 'list', 'devices', 'available', '-j'])
     data = json.loads(out)
-    preferred_names = ['iPhone 16 Plus', 'iPhone 15 Pro Max', 'iPhone 14 Pro Max', 'ReFineID-Screenshot-iPhone16Plus']
+    preferred_names = ['iPhone 16 Plus', 'iPhone 15 Pro Max', 'iPhone 14 Pro Max', 'RefineID-Screenshot-iPhone16Plus']
     for runtime, devices in data.get('devices', {}).items():
         if 'iOS' not in runtime:
             continue
@@ -71,7 +71,7 @@ def get_udid():
     runtime_id = ios_runtimes[-1]
     created = subprocess.check_output([
         'xcrun', 'simctl', 'create',
-        'ReFineID-Screenshot-iPhone16Plus',
+        'RefineID-Screenshot-iPhone16Plus',
         'com.apple.CoreSimulator.SimDeviceType.iPhone-16-Plus',
         runtime_id
     ]).decode('utf-8').strip()
@@ -111,14 +111,14 @@ xcrun simctl status_bar "$DEVICE_UDID" override \
 
 echo "==> Building RefineID for iOS Simulator..."
 xcodebuild build \
-  -project "$REPO_ROOT/ReFineID.xcodeproj" \
+  -project "$REPO_ROOT/RefineID.xcodeproj" \
   -scheme RefineID \
   -destination "platform=iOS Simulator,id=$DEVICE_UDID" \
   -configuration Debug \
   -quiet
 
-DERIVED_DATA_DIR="$(xcodebuild -project "$REPO_ROOT/ReFineID.xcodeproj" -scheme RefineID -showBuildSettings -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE_UDID" | grep -m 1 "TARGET_BUILD_DIR =" | awk -F '= ' '{print $2}')"
-APP_BUNDLE="$DERIVED_DATA_DIR/ReFineID.app"
+DERIVED_DATA_DIR="$(xcodebuild -project "$REPO_ROOT/RefineID.xcodeproj" -scheme RefineID -showBuildSettings -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE_UDID" | grep -m 1 "TARGET_BUILD_DIR =" | awk -F '= ' '{print $2}')"
+APP_BUNDLE="$DERIVED_DATA_DIR/RefineID.app"
 
 if [[ ! -d "$APP_BUNDLE" ]]; then
   echo "Error: Built app bundle not found at $APP_BUNDLE" >&2

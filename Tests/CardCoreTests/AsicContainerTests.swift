@@ -166,7 +166,7 @@ internal struct AsicContainerTests {
     )
     defer { try? FileManager.default.removeItem(at: directory) }
 
-    let dossier = Data("ReFineID ASiC interoperability dossier".utf8)
+    let dossier = Data("RefineID ASiC interoperability dossier".utf8)
     let objects = [
       AsicContainer.DataObject(
         name: "dossier.pdf", mimeType: "application/pdf", content: dossier

@@ -21,7 +21,7 @@ public enum BleProfile {
   /// The maximum allowed byte count for a service UUID string parameter.
   public static let maxServiceUUIDByteCount = 64
 
-  /// Primary Service UUID for ReFineID RAPP over BLE.
+  /// Primary Service UUID for RefineID RAPP over BLE.
   public static let defaultServiceUUIDString = "FA1D0001-C34A-4836-843B-7603B5749A32"
 
   /// L2CAP PSM Characteristic UUID.

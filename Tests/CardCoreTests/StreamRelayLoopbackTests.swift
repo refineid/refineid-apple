@@ -33,7 +33,7 @@ internal struct StreamRelayLoopbackTests {
   /// holder finds it, with no peer framework between them.
   @Test
   internal func aBrowserFindsTheListenerAndTheDialerReachesIt() async throws {
-    let name = "ReFineID test \(UUID().uuidString.prefix(6))"
+    let name = "RefineID test \(UUID().uuidString.prefix(6))"
     let greeting = Data("found you".utf8)
 
     let heard = StreamRelayMailbox()
@@ -81,7 +81,7 @@ internal struct StreamRelayLoopbackTests {
     let listener = StreamRelayListener { event in
       Task { await heard.record(event) }
     }
-    listener.start(displayName: "ReFineID test \(UUID().uuidString.prefix(6))")
+    listener.start(displayName: "RefineID test \(UUID().uuidString.prefix(6))")
     defer { listener.cancel() }
 
     // A listener reports port zero until it is actually listening, and a
@@ -125,7 +125,7 @@ internal struct StreamRelayLoopbackTests {
   /// Presence reports a find and then a loss when the listener stops.
   @Test
   internal func presenceReportsFindThenLoss() async throws {
-    let name = "ReFineID test \(UUID().uuidString.prefix(6))"
+    let name = "RefineID test \(UUID().uuidString.prefix(6))"
     let box = StreamRelayPresenceBox()
     let listener = StreamRelayListener { _ in
       // presence only watches the name; it does not take a dial

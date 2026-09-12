@@ -6,7 +6,7 @@ Document version: 26.8.17.233
 Supersedes: 26.8.16.85  
 Protocol wire version: 26.8  
 Date: 2026-08-17  
-Change controller: ReFineID project  
+Change controller: RefineID project  
 Companion model: [RAPP state machine 26.8.17.233](rapp-state-machine-v26.8.17.233.yaml)  
 Conformance corpus: [RAPP vectors 26.8.17.233](vectors/rapp-v26.8.17.233.json)
 

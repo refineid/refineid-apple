@@ -35,7 +35,7 @@ internal struct RetryFloorTests {
   @Test
   internal func floorIsAboveTheLastTwoAttempts() {
     // The invariant behind the numbers: the floor must keep at least two
-    // attempts out of reach so ReFineID can never consume the last one.
+    // attempts out of reach so RefineID can never consume the last one.
     #expect(RetryFloor.minimumAttemptsToProceed >= 3)
   }
 

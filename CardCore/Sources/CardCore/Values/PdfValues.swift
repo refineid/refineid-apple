@@ -33,7 +33,7 @@ internal enum PdfValues {
   /// A reader ignores keys it does not know; the next signing counts
   /// them, so a second signer's mark stands beside the first rather
   /// than on it.
-  internal static let stampMarker = "/ReFineIDStamp"
+  internal static let stampMarker = "/RefineIDStamp"
 
   /// A4, for a page that states no box of its own.
   internal static let a4Width = 595.276

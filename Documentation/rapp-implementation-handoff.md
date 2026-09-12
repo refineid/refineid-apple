@@ -3,7 +3,7 @@
 Status date: 2026-08-17
 
 This document is the implementation handoff for Remote Authorization Proxy
-Protocol (RAPP) support in ReFineID on Apple platforms. It describes what is
+Protocol (RAPP) support in RefineID on Apple platforms. It describes what is
 present in this repository, where the protocol authority lives, what has been
 measured, and what the next agent must do. It is not a security approval or a
 claim that RAPP is production-ready.
@@ -152,7 +152,7 @@ The application layer is under `Sources/App/`:
   the selected RAPP pair.
 - `Sources/RappTokenExtension/PersistentTokenDriver.swift` connects macOS
   CryptoTokenKit requester work to the RAPP client.
-- `ReFineIDApp.swift`, `ReaderIdentityRootView.swift`, and `StatusView.swift`
+- `RefineIDApp.swift`, `ReaderIdentityRootView.swift`, and `StatusView.swift`
   expose pairing and RAPP state in the existing application UI.
 
 Remote document signing is wired through `DocumentSigner.swift`,
@@ -169,12 +169,12 @@ not automatically repaired after a fail-stop event. A holder must pair again.
 The macOS application embeds two deliberately separate CryptoTokenKit
 extensions:
 
-- `ReFineIDTokenExtension.appex` remains the direct smart-card reader driver.
+- `RefineIDTokenExtension.appex` remains the direct smart-card reader driver.
   It uses the existing smart-card token identity and has no RAPP network
   entitlement.
-- `ReFineIDRappTokenExtension.appex` is the persistent-token requester on
+- `RefineIDRappTokenExtension.appex` is the persistent-token requester on
   macOS and iOS. Its CryptoTokenKit class identifier is
-  `fi.refineid.ReFineID.rapp-token`, and its driver class is
+  `fi.refineid.refineid.rapp-token`, and its driver class is
   `PersistentTokenDriver`. It is the only token extension that owns the RAPP
   requester transport.
 
@@ -198,9 +198,9 @@ The following was measured before this handoff:
 - The formal transition tests prove state, event, and role legality and exact
   ordered emitted-action equality against every role-qualified YAML rule.
 - `swift build --package-path CardCore` passes.
-- The ReFineID Xcode scheme builds for macOS and generic iOS arm64.
+- The RefineID Xcode scheme builds for macOS and generic iOS arm64.
 - The current macOS Debug application graph builds with both
-  `ReFineIDTokenExtension.appex` and `ReFineIDRappTokenExtension.appex`
+  `RefineIDTokenExtension.appex` and `RefineIDRappTokenExtension.appex`
   embedded. The current arm64 iOS device application graph builds with the
   reader and discovery extensions and without the macOS-only RAPP extension.
 - `RappShippingConfigurationTests` passes and checks the distinct
@@ -291,10 +291,10 @@ network permission, CryptoTokenKit, or Safari system-sheet behavior.
    build unrelated macOS unit-test products:
 
    ```sh
-   xcodebuild test -project ReFineID.xcodeproj \
+   xcodebuild test -project RefineID.xcodeproj \
      -scheme RefineID-iOS-UI \
      -destination 'platform=iOS,id=<device-identifier>' \
-     -only-testing:ReFineIDUITests/<test-class>/<test-method>
+     -only-testing:RefineIDUITests/<test-class>/<test-method>
    ```
 
    The project declares macOS `arm64` in every configuration. The engine no
@@ -324,12 +324,12 @@ All three were pushed to `origin/main` before this handoff was written.
 
 ### 2026-08-17 monotonic offer-expiry ABI refresh
 
-- Checked-in `ReFineIDRappFFI.xcframework` and generated Swift bindings were rebuilt from Rust revision `c745bb0cbab18b82877ddfa1143690c9fb4ce0ab` using the Swift release manager's `rapp-bindings` command.
+- Checked-in `RefineIDRappFFI.xcframework` and generated Swift bindings were rebuilt from Rust revision `c745bb0cbab18b82877ddfa1143690c9fb4ce0ab` using the Swift release manager's `rapp-bindings` command.
 - The shared Rust bridge now enforces the one-use offer's monotonic deadline before transport selection, throughout Noise XXpsk3, and before authenticated confirmation. Apple keeps its visible expiry task active over the same phases and maps core expiry to `offerExpired`.
 - The shared Rust bridge retains the requester's original live offer and deadline after unauthenticated handshake garbage, while proxy candidates and authenticated or cancelled attempts remain terminal. Apple rebuilds the candidate transport around that retained offer and ignores stale transport callbacks.
 - Apple commit `746f45a` contains the regenerated artifact, requester recovery coordinator/UI integration, and dedicated recovery tests. Commit `7fc1ff5` updates the integration harness for the restored-offer event.
 - `cargo test -p refineid-lib-core rapp` passes 15 focused Rust tests. Independent macOS runs of `RappPairingRecoveryTests`, `RappOfferExpiryTests`, and `RappIntegrationTests` all pass. A combined Apple invocation can stall while Xcode finalizes its test record, so these suites are intentionally recorded from separate successful runs.
-- The complete `refineid-lib-core` Rust test suite and the complete non-UI Apple `CardCoreTests` plus `ReFineIDTests` suites pass on the source-pinned revisions.
+- The complete `refineid-lib-core` Rust test suite and the complete non-UI Apple `CardCoreTests` plus `RefineIDTests` suites pass on the source-pinned revisions.
 
 ### 2026-08-17 separate persistent-token shipping topology
 
@@ -343,7 +343,7 @@ All three were pushed to `origin/main` before this handoff was written.
   `14b1c715d2ae13f5ca45246d7c7a649d9a9701ae`, pushed to the Apple repository's
   `origin/main`.
 - That Apple revision adds a separate macOS-only
-  `ReFineIDRappTokenExtension`, keeps `ReFineIDTokenExtension` as the direct
+  `RefineIDRappTokenExtension`, keeps `RefineIDTokenExtension` as the direct
   smart-card reader driver, declares the containing app's local-network and
   Bonjour metadata, and adds static shipping-configuration regression tests.
 - Standalone RAPP-extension Debug, full macOS Debug, and full arm64 iOS-device
@@ -376,7 +376,7 @@ All three were pushed to `origin/main` before this handoff was written.
 
 ### 2026-08-17 stream transport and protocol 26.8.17.233
 
-- The checked-in `ReFineIDRappFFI.xcframework` and generated Swift binding
+- The checked-in `RefineIDRappFFI.xcframework` and generated Swift binding
   were rebuilt from crate `refineid-rapp` version `26.8.5`, whose clippy
   and `--features bindings` test gates passed before regeneration. The
   binding adds `rendezvousToken` and `streamEndpoints` to

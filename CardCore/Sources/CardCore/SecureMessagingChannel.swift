@@ -26,10 +26,10 @@ import Foundation
 /// directions, so a command uses counter `n` and its response `n + 1`, in
 /// lockstep with the card.
 ///
-/// Provenance: lifted from the ReFineID iOS browser donor
-/// `Sources/ReFineIDBrowserKit/Card/SecureMessaging.swift` and the
+/// Provenance: lifted from the RefineID iOS browser donor
+/// `Sources/RefineIDBrowserKit/Card/SecureMessaging.swift` and the
 /// `SecureCardSession` transmit of
-/// `Sources/ReFineIDBrowserKit/Card/CardSession.swift`.
+/// `Sources/RefineIDBrowserKit/Card/CardSession.swift`.
 public final class SecureMessagingChannel: CardChannel {
   /// Why a protected exchange was refused.
   public enum Failure: Error, Equatable {

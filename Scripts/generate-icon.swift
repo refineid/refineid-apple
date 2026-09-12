@@ -1,6 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-// The ReFineID app-icon source artwork, as code - SVG only.
+// The RefineID app-icon source artwork, as code - SVG only.
 //
 // Design: an identity card and its gold chip, over the Finnish flag blue.
 //

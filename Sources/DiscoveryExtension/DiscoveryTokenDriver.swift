@@ -17,7 +17,7 @@ import Foundation
 /// minted, and `registerSmartCard` fails. The two roles therefore live in
 /// separate extensions with different class-ids -- this one advertises the
 /// AID (Config/DiscoveryExtension-Info.plist), and
-/// `ReFineIDTokenExtension.TokenDriver` mints the real token from a plist
+/// `RefineIDTokenExtension.TokenDriver` mints the real token from a plist
 /// that declares no AID.
 ///
 /// The advertised AID is the ICAO eMRTD LDS application, chosen because a
@@ -73,7 +73,7 @@ internal final class DiscoveryTokenDriver: TKSmartCardTokenDriver,
   ///
   /// `tokenNotFound` tells CryptoTokenKit that this driver does not handle
   /// the card, which is the safe refusal -- the system moves on and lets
-  /// `ReFineIDTokenExtension` mint for the slot the app registered.
+  /// `RefineIDTokenExtension` mint for the slot the app registered.
   ///
   /// The refusal is traced, and that line matters more than it looks: it
   /// is the proof that `ctkd` polled a card with the advertised AID at

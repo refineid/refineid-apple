@@ -16,7 +16,7 @@ import Testing
 /// octets a verifier computes. The keys come from `openssl`, standing
 /// in for the card.
 ///
-/// Skipped silently when the two tools are not installed; the ReFineID
+/// Skipped silently when the two tools are not installed; the RefineID
 /// build gates do not require them.
 @Suite
 internal struct XadesInteropTests {
@@ -83,7 +83,7 @@ internal struct XadesInteropTests {
       "openssl",
       [
         "req", "-x509", "-newkey", "rsa:2048", "-sha384", "-days", "1",
-        "-nodes", "-subj", "/CN=ReFineID XAdES interop",
+        "-nodes", "-subj", "/CN=RefineID XAdES interop",
         "-keyout", "key.pem", "-out", "cert.pem",
       ],
       in: directory
@@ -104,7 +104,7 @@ internal struct XadesInteropTests {
       AsicContainer.DataObject(
         name: "dossier.pdf",
         mimeType: "application/pdf",
-        content: Data("ReFineID XAdES interoperability dossier".utf8)
+        content: Data("RefineID XAdES interoperability dossier".utf8)
       ),
       AsicContainer.DataObject(
         name: "Nimetön.docx",

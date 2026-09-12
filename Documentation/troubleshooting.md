@@ -12,7 +12,7 @@ type -- but no identity is published, `security list-smartcards` says
 hour ago fail, and they fail differently from each other, which invites
 theories about TLS versions, readers and server configuration.
 
-**Cause.** Replacing `ReFineIDTokenExtension.appex` while `ctkd` is
+**Cause.** Replacing `RefineIDTokenExtension.appex` while `ctkd` is
 running leaves PlugInKit holding the previous copy. `ctkd` says so:
 
     Token driver extension fi.refineid.ReFineID.token failed to start:
@@ -137,7 +137,7 @@ completed a TLS 1.3 signature for `card.refineid.fi`, but the DVV TLS 1.2
 test page failed without invoking the token extension. Terminating only
 Safari and reopening the same DVV page made it request
 `ecdsaMessageSHA256`; two card signatures then passed local verification
-and the page succeeded. No card, token, or ReFineID state changed.
+and the page succeeded. No card, token, or RefineID state changed.
 
 This evidence establishes stale Safari process state, not the internal
 form or lifetime of that state. Do not reset the card identity in
@@ -169,11 +169,11 @@ certificate request entirely, so reloading the page cannot recover.
 **What to do.**
 1. In Safari, close inactive mTLS tabs when finished and turn off **"Preload Top Hit"** in iOS Settings > Safari.
 2. In Mail, ensure S/MIME Signing is turned off unless actively needed.
-3. If you only use ReFineID for Mac pairing (RAPP) or in-app signing, tap **Reset / Unregister Safari Identities** in the app to remove the global `ctkd` hook without deleting your stored card data (`PrimeStore`).
+3. If you only use RefineID for Mac pairing (RAPP) or in-app signing, tap **Reset / Unregister Safari Identities** in the app to remove the global `ctkd` hook without deleting your stored card data (`PrimeStore`).
 
 ## Uninstalling, and what a trashed app leaves behind
 
-Moving `ReFineID.app` to the Trash removes the app and deregisters the
+Moving `RefineID.app` to the Trash removes the app and deregisters the
 CryptoTokenKit driver with it: once the bundle is gone the smart-card
 system no longer lists the extension, so the card stops being offered
 system-wide. That much a trash is enough for.

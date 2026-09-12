@@ -16,7 +16,7 @@
 			<key>com.apple.ctk.class-id</key>
 			<string>fi.refineid.ReFineID.token</string>
 			<key>com.apple.ctk.driver-class</key>
-			<string>ReFineIDTokenExtension.TokenDriver</string>
+			<string>RefineIDTokenExtension.TokenDriver</string>
 			<key>com.apple.ctk.token-type</key>
 			<string>smartcard</string>
 		</dict>

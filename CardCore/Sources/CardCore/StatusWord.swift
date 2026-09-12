@@ -3,7 +3,7 @@
 /// Decoded ISO 7816-4 status word, typed after the Rust reference
 /// implementation's classification.
 ///
-/// Coverage is specific to what ReFineID uses: when a new layer matches
+/// Coverage is specific to what RefineID uses: when a new layer matches
 /// on an additional SW, add a case here rather than a raw literal.
 /// Unrecognised values land in `other` carrying the raw 16-bit word -
 /// unknown never silently maps to a valid state
@@ -21,7 +21,7 @@ public enum StatusWord: Equatable, Sendable {
   /// `6A82`: file or application not found.
   case fileNotFound
 
-  /// Any status word ReFineID does not model, carried verbatim.
+  /// Any status word RefineID does not model, carried verbatim.
   case other(UInt16)
 
   /// `63Cx`: verification failed or probed; `remaining` is the retry

@@ -123,7 +123,7 @@ internal struct AsicVerificationTests {
     #expect(sig.documentIntact)
     #expect(sig.signatureValid)
     #expect(sig.coversWholeDocument)
-    #expect(sig.signerName.contains("ReFineID Document CMS Test"))
+    #expect(sig.signerName.contains("RefineID Document CMS Test"))
   }
 
   @Test

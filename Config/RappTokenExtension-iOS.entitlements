@@ -9,7 +9,7 @@
      refuses with noActivePair, and no delegated signature is possible.
 
      The group must stay FIRST in the app's array in
-     Config/ReFineID-iOS.entitlements for the same reason recorded in
+     Config/RefineID-iOS.entitlements for the same reason recorded in
      Config/TokenExtension-iOS.entitlements. -->
 <dict>
 	<key>keychain-access-groups</key>

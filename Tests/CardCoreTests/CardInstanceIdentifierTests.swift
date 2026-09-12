@@ -78,7 +78,7 @@ internal struct CardInstanceIdentifierTests {
     // Under its own driver class the remote card is where it belongs.
     #expect(
       !CardTokenNamespace.isDisplacedRemoteCardToken(
-        tokenIdentifier: "fi.refineid.ReFineID.rapp-token:refineid-rapp-card-0011aabb"))
+        tokenIdentifier: "fi.refineid.refineid.rapp-token:refineid-rapp-card-0011aabb"))
   }
 
   @Test

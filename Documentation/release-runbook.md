@@ -1,7 +1,7 @@
 # macOS App Store release runbook
 
 This is the operational procedure for producing, testing, submitting, and
-releasing ReFineID for macOS through the App Store. It is written for a human
+releasing RefineID for macOS through the App Store. It is written for a human
 release operator or an automation agent.
 
 The policy and product gates remain in [release-plan.md](release-plan.md) and
@@ -150,7 +150,7 @@ The command must:
 The inspected archive is:
 
 ```text
-build/testflight/ReFineID-macos.xcarchive
+build/testflight/RefineID-macos.xcarchive
 ```
 
 Do not manually stamp `Version.xcconfig` before this workflow. The release

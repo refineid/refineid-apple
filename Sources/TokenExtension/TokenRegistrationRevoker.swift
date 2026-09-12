@@ -4,7 +4,7 @@ import CardCore
 import CryptoTokenKit
 import Foundation
 
-/// Removes stored ReFineID registrations that should no longer be offered.
+/// Removes stored RefineID registrations that should no longer be offered.
 internal enum TokenRegistrationRevoker {
   /// Why an automatic registration no longer represents the desired path.
   internal enum Reason {
@@ -64,15 +64,15 @@ internal enum TokenRegistrationRevoker {
     #endif
   }
 
-  /// Removes every persistent ReFineID smart-card registration now.
+  /// Removes every persistent RefineID smart-card registration now.
   ///
   /// A connected-reader mint calls this before returning its live token.
   /// The registration manager lists absent-card registrations, not live
   /// reader tokens; filtering with ``CardTokenNamespace/owns`` destroys
-  /// every ReFineID NFC route without touching Apple, third-party, or the
+  /// every RefineID NFC route without touching Apple, third-party, or the
   /// reader token that was just published.
   ///
-  /// Returns how many registrations were removed. The ReFineID prime
+  /// Returns how many registrations were removed. The RefineID prime
   /// store is already empty when this runs, so even a registration whose
   /// removal fails cannot mint an NFC token.
   @discardableResult

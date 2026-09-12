@@ -10,8 +10,8 @@ import Foundation
 public enum RappSameAccountPairBuilder {
   // MARK: Static Constants
 
-  private static let pairDomain = Data("ReFineID:SameAccountPair:v1".utf8)
-  private static let rendezvousDomain = Data("ReFineID:SameAccountRendezvous:v1".utf8)
+  private static let pairDomain = Data("RefineID:SameAccountPair:v1".utf8)
+  private static let rendezvousDomain = Data("RefineID:SameAccountRendezvous:v1".utf8)
   private static let defaultProfiles = [
     ProfileName.cardStatus,
     ProfileName.authentication,

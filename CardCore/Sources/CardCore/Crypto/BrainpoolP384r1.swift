@@ -13,8 +13,8 @@
 /// stated posture of the Rust reference implementation; it must not be given
 /// a long-lived private key.
 ///
-/// Provenance: lifted from the ReFineID iOS browser donor
-/// `Sources/ReFineIDBrowserKit/Crypto/BrainpoolP384.swift`.
+/// Provenance: lifted from the RefineID iOS browser donor
+/// `Sources/RefineIDBrowserKit/Crypto/BrainpoolP384.swift`.
 public enum BrainpoolP384r1 {
   /// A curve point in Jacobian coordinates, where the represented affine
   /// point is `(X / Z^2, Y / Z^3)` and `Z == 0` means infinity.

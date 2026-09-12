@@ -19,8 +19,8 @@ import Foundation
 /// The secret and the derived keys are key material: neither may be logged,
 /// formatted, or persisted.
 ///
-/// Provenance: lifted from the ReFineID iOS browser donor
-/// `Sources/ReFineIDBrowserKit/Crypto/KDF.swift`.
+/// Provenance: lifted from the RefineID iOS browser donor
+/// `Sources/RefineIDBrowserKit/Crypto/KDF.swift`.
 internal enum PaceKeyDerivation {
   /// Which of the three PACE keys a derivation produces.
   ///

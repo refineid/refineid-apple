@@ -102,7 +102,7 @@ if [[ -n "$channel" ]]; then
     echo "stamped ${version} (${bucket}), NOT tagged: commit the stamp first, then re-run" >&2
     exit 1
   fi
-  git tag -a "$tag" -m "ReFineID ${version} (${bucket}), ${channel}"
+  git tag -a "$tag" -m "RefineID ${version} (${bucket}), ${channel}"
   echo "stamped ${version} (${bucket}) and tagged ${tag}. Push it with: git push origin ${tag}"
   exit 0
 fi

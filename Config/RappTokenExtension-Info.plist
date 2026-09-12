@@ -16,7 +16,7 @@
 		<key>NSExtensionAttributes</key>
 		<dict>
 			<key>com.apple.ctk.class-id</key>
-			<string>fi.refineid.ReFineID.rapp-token</string>
+			<string>fi.refineid.refineid.rapp-token</string>
 			<key>com.apple.ctk.driver-class</key>
 			<string>$(PRODUCT_MODULE_NAME).PersistentTokenDriver</string>
 		</dict>

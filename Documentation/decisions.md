@@ -94,7 +94,7 @@ uses the durable store the holder wrote at Enable.
 ## 2026-08-23 Pairing outlives the card; tokens do not
 
 This repository is the change controller for the Remote Authorization
-Proxy Protocol as ReFineID ships it. When product behaviour needs a
+Proxy Protocol as RefineID ships it. When product behaviour needs a
 wire event the draft does not name, the draft is amended here.
 
 A household keeps pairings. Pulling a reader card, or unplugging the
@@ -153,9 +153,9 @@ was already excluded from the shipping embed phases on every platform.
 
 What was missing was the macOS artifact's shape. The shipping
 configurations now point the Mac app at
-`Config/ReFineID-Store-Info.plist`, which drops the local-network and
+`Config/RefineID-Store-Info.plist`, which drops the local-network and
 Bonjour declarations only the remote card uses, and sign it with
-`Config/ReFineID-Store.entitlements`, which drops
+`Config/RefineID-Store.entitlements`, which drops
 `com.apple.security.network.server` - the entitlement that exists only
 for the remote card's relay listener. The client side stays for
 timestamps and revocation checks, and Debug and Profile keep the
@@ -321,8 +321,8 @@ than at first launch. Post-MVP roadmap: TASKS.md section 15.
 ## 2026-08-10 The ATS exception is macOS-only
 
 The app's Info.plist is split per SDK, the same way its entitlements
-already were: `Config/ReFineID-iOS-Info.plist` is the base
-`INFOPLIST_FILE` and `Config/ReFineID-Info.plist` is the
+already were: `Config/RefineID-iOS-Info.plist` is the base
+`INFOPLIST_FILE` and `Config/RefineID-Info.plist` is the
 `[sdk=macosx*]` override.
 
 `NSAllowsArbitraryLoads` stays in the macOS plist, with its rationale
@@ -355,7 +355,7 @@ discovery, and signing path. It is not debug-only and it is not future
 work.
 
 An observed unsolicited system "Ready to Scan" sheet while an unrelated
-app was in the foreground is a ReFineID bug to diagnose. A valid fix may
+app was in the foreground is a RefineID bug to diagnose. A valid fix may
 narrow when the registered identity is requested or activated, but it must
 preserve deliberate NFC setup and client-certificate authentication end to
 end. Removing NFC, excluding it from a shipping configuration, or treating
@@ -617,7 +617,7 @@ Profile bundle when pointed at it.
 
 CryptoTokenKit creates and retains a live token for every supported card
 inserted in a connected reader. Every live token publishes its signed
-authentication certificate and key. ReFineID does not rank cards, retain a
+authentication certificate and key. RefineID does not rank cards, retain a
 preference, or implement a second certificate picker.
 
 Safari owns certificate selection. A live iOS 26.5 test with two tokens proved
@@ -625,7 +625,7 @@ that Safari renders the signed X.509 subject in its client-certificate picker,
 even when the CTK certificate and key carry distinct `kSecAttrLabel` values.
 Two cards issued to the same person can therefore have identical-looking rows;
 cards issued to different people show their different certificate subjects.
-ReFineID must not alter the signed certificate to change that text.
+RefineID must not alter the signed certificate to change that text.
 
 This is the smallest and most compatible boundary: CryptoTokenKit publishes
 the identities, Safari selects one, and the app reports only whether one or
@@ -645,13 +645,13 @@ must not contain dormant engineering screens, while the optimized Profile
 configuration used for live card development still needs the same
 instruments that made the NFC path measurable.
 
-## 2026-07-29 A reader mint supersedes every ReFineID NFC identity
+## 2026-07-29 A reader mint supersedes every RefineID NFC identity
 
 On iOS, successfully minting a token for a card in a connected reader
-removes every stored ReFineID contactless prime and synchronously
-unregisters every persistent ReFineID smart-card identity before the
+removes every stored RefineID contactless prime and synchronously
+unregisters every persistent RefineID smart-card identity before the
 reader mint returns. Inserting a reader and a usable card is an explicit
-global transport choice within ReFineID; Safari must not also wake the
+global transport choice within RefineID; Safari must not also wake the
 phone's NFC field. Apple and third-party identities are untouched.
 
 The first implementation scoped removal to the reader card's printed
@@ -659,7 +659,7 @@ serial. A live trace disproved that boundary: the USB reader published an
 RSA card while an EC card remained registered for NFC, so Safari still
 chose NFC. The transport decision is therefore independent of card
 serial, ATR, and key profile. Stored CAN, PIN1, card-directory entries,
-NFC primes, and ReFineID Safari registrations are removed; the newly
+NFC primes, and RefineID Safari registrations are removed; the newly
 minted live reader token remains published. If the holder later wants NFC
 again, "Set identity" performs the deliberate one-time contactless setup
 again.
@@ -799,7 +799,7 @@ and produced repeated card/certificate/card prompts.
 
 The stored item remains `WhenUnlockedThisDeviceOnly` and
 non-synchronizable. The tradeoff is explicit: possession of an unlocked
-phone plus the card can authorize a signature without reopening ReFineID.
+phone plus the card can authorize a signature without reopening RefineID.
 The system certificate-consent UI remains outside the extension and cannot
 be preselected by it.
 
@@ -829,10 +829,10 @@ driver even for the app's own registered slot, nothing is minted, and
 `registerSmartCard` fails. Splitting the roles across separate extensions
 with different class-ids is what made system-Safari login work at all.
 
-- Minting: `fi.refineid.ReFineID.token`, `ReFineIDTokenExtension`, declares
+- Minting: `fi.refineid.ReFineID.token`, `RefineIDTokenExtension`, declares
   no AID.
 - Discovery: `fi.refineid.ReFineID.discovery`,
-  `ReFineIDDiscoveryExtension`, declares the AID and refuses every
+  `RefineIDDiscoveryExtension`, declares the AID and refuses every
   `createToken` with `tokenNotFound`.
 
 The advertised AID is `A0000002471001`, the ICAO eMRTD LDS application. A
@@ -930,7 +930,7 @@ from a card that was never primed.
 `Config/TokenExtension-iOS.entitlements` therefore grants exactly one
 group, `$(AppIdentifierPrefix)fi.refineid.ReFineID` - the app's own. It is
 also the FIRST entry of the app's array in
-`Config/ReFineID-iOS.entitlements`, which is what makes the app's writes
+`Config/RefineID-iOS.entitlements`, which is what makes the app's writes
 land there: an item added without an explicit `kSecAttrAccessGroup` goes
 to the first group of the writer's entitlement. Reordering that array
 would silently move every write out of the extension's reach.
@@ -946,7 +946,7 @@ the release manager's `inspect-archive` command for no working feature.
 
 ## 2026-07-28 Select the available card transport automatically
 
-ReFineID reaches the card over a contact/PC-SC reader and, on iOS 26+,
+RefineID reaches the card over a contact/PC-SC reader and, on iOS 26+,
 over the phone's own NFC antenna. Native CryptoTokenKit mTLS over NFC was
 proven end to end on device on 2026-07-25 (the card signs the TLS
 CertificateVerify; the site returns HTTP 200), which removes the reason
@@ -1012,7 +1012,7 @@ raising after release is disruptive.
 
 ## 2026-07-22 Entitlements (complete list, per target)
 
-Application (`Config/ReFineID.entitlements`):
+Application (`Config/RefineID.entitlements`):
 
 - `com.apple.security.app-sandbox` - App Store requirement
 - `com.apple.security.smartcard` - the status window reads retry counters

@@ -152,7 +152,7 @@ internal enum CertificateRevocationListFixtures {
   /// Controllable CRL fields for negative tests.
   internal struct Options {
     /// The issuer name shared by normal certificate and CRL fixtures.
-    private static let issuerCommonName = "ReFineID CRL Test CA"
+    private static let issuerCommonName = "RefineID CRL Test CA"
 
     /// A future boundary relative to the fixed verification time.
     private static let standardNextUpdate = "20260901000000Z"
@@ -256,10 +256,10 @@ internal enum CertificateRevocationListFixtures {
   internal static let booleanTrue: UInt8 = 0xFF
 
   /// The issuer common name used in certificates and normal CRLs.
-  internal static let issuerCommonName = "ReFineID CRL Test CA"
+  internal static let issuerCommonName = "RefineID CRL Test CA"
 
   /// The target certificate common name.
-  internal static let targetCommonName = "ReFineID CRL Test Leaf"
+  internal static let targetCommonName = "RefineID CRL Test Leaf"
 
   /// A positive serial for the test root.
   private static let issuerSerial = Data([0x01])

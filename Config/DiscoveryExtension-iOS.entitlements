@@ -25,7 +25,7 @@
      The trade is recorded here rather than left to be discovered.
 
      The group must stay FIRST in the app's array in
-     Config/ReFineID-iOS.entitlements: an item added without an explicit
+     Config/RefineID-iOS.entitlements: an item added without an explicit
      kSecAttrAccessGroup lands in the first group of the writer's
      entitlement, so reordering that array silently moves every write out
      of reach of both extensions. -->

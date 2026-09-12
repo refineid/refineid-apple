@@ -1,6 +1,6 @@
 # Card transports: contact reader, iPhone NFC, and RAPP remote proxy
 
-ReFineID reaches a Finnish identity card over three operational transports.
+RefineID reaches a Finnish identity card over three operational transports.
 They terminate in the same place -- a CryptoTokenKit token extension that
 publishes the card's certificate and key to the keychain, so Safari,
 `URLSession`, and any other system consumer use the card as an ordinary
@@ -174,18 +174,18 @@ The token extension makes the same decision from the slot that caused
 CryptoTokenKit to invoke it. macOS offers only contact slots; iOS can
 offer contact or built-in NFC.
 
-On iOS, a successful connected-reader mint removes every stored ReFineID
-NFC prime and persistent ReFineID smart-card registration. Connecting a
+On iOS, a successful connected-reader mint removes every stored RefineID
+NFC prime and persistent RefineID smart-card registration. Connecting a
 reader and inserting a usable card is the holder's global transport
-choice within ReFineID, even when the reader card and a previously primed
+choice within RefineID, even when the reader card and a previously primed
 NFC card have different serials or key profiles. Apple and third-party
-identities are untouched. The live reader token is then the sole ReFineID
+identities are untouched. The live reader token is then the sole RefineID
 transport until the holder deliberately mints an NFC identity again.
 
 When several readers contain supported cards, CryptoTokenKit still mints
 and keeps one live token for every card. Every live token publishes its
 authentication certificate and key. Safari's native client-certificate
-sheet selects the identity; ReFineID does not rank the cards or add a
+sheet selects the identity; RefineID does not rank the cards or add a
 second picker.
 
 Safari renders the signed X.509 subject in that sheet, not the CTK item's

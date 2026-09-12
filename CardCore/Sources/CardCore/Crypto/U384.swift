@@ -9,8 +9,8 @@ import Foundation
 /// its own, so `addingReportingCarry` and `subtractingReportingBorrow`
 /// report the bit that leaves the 384-bit window instead of hiding it.
 ///
-/// Provenance: lifted from the ReFineID iOS browser donor
-/// `Sources/ReFineIDBrowserKit/Crypto/FieldP384.swift`. The donor's
+/// Provenance: lifted from the RefineID iOS browser donor
+/// `Sources/RefineIDBrowserKit/Crypto/FieldP384.swift`. The donor's
 /// hex-string initializer force-unwrapped `UInt8(_:radix:)` and its limb
 /// initializer used `precondition`; both are replaced here by a total
 /// six-limb initializer (curve constants live in `BrainpoolP384r1Values`)

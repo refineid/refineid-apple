@@ -8,7 +8,7 @@
 -->
 <scxml xmlns="http://www.w3.org/2005/07/scxml"
        version="1.0"
-       name="ReFineIDCardSetup"
+       name="RefineIDCardSetup"
        initial="home">
   <state id="home">
     <transition event="identity.loaded" target="identityHome"/>

@@ -113,7 +113,7 @@
       guard let madeListener = try? NWListener(using: parameters) else { return }
       let shortID = String(localIdentity.deviceID.uuidString.prefix(Constants.shortIDPrefixLength))
       madeListener.service = NWListener.Service(
-        name: "ReFineID-\(shortID)",
+        name: "RefineID-\(shortID)",
         type: serviceType,
         domain: nil,
         txtRecord: txtRecord
@@ -196,7 +196,7 @@
 
       // If TXT record is unavailable or delayed by mDNS multicast snooping, connect directly over TCP
       guard case .service(let name, _, _, _) = result.endpoint,
-        name.hasPrefix("ReFineID-"),
+        name.hasPrefix("RefineID-"),
         !name.contains(
           String(localIdentity.deviceID.uuidString.prefix(Constants.shortIDPrefixLength)))
       else { return }

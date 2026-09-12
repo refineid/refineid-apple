@@ -12,8 +12,8 @@ import Foundation
 /// internal home means the safety class of a command stays readable from its
 /// type, and nothing outside PACE can reach them.
 ///
-/// Provenance: the command builders inside the ReFineID iOS browser donor
-/// `Sources/ReFineIDBrowserKit/Card/Pace.swift`.
+/// Provenance: the command builders inside the RefineID iOS browser donor
+/// `Sources/RefineIDBrowserKit/Card/Pace.swift`.
 internal enum PaceCommand {
   /// The largest data field a short-form command APDU can carry.
   private static let maximumDataLength: Int = 255

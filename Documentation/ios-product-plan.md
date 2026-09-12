@@ -1,4 +1,4 @@
-# iOS product plan: ReFineID for iPhone (lead product)
+# iOS product plan: RefineID for iPhone (lead product)
 
 Status: accepted direction, 2026-07-23
 

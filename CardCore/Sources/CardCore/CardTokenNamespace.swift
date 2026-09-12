@@ -1,6 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-/// The CryptoTokenKit namespace owned by ReFineID.
+/// The CryptoTokenKit namespace owned by RefineID.
 ///
 /// The driver class identifier is fixed by the extension manifest. Keeping
 /// its token-ID spelling here gives the app and extension one source of truth
@@ -9,10 +9,10 @@ public enum CardTokenNamespace {
   /// The token driver's class identifier.
   public static let driverClassIdentifier = "fi.refineid.ReFineID.token"
 
-  /// Driver class identifiers shipped by older ReFineID builds.
+  /// Driver class identifiers shipped by older RefineID builds.
   ///
   /// They no longer create tokens, but a persistent Safari registration
-  /// can outlive the build that created it. Destructive ReFineID cleanup
+  /// can outlive the build that created it. Destructive RefineID cleanup
   /// owns these registrations too; it must not mistake "old" for
   /// "somebody else's".
   private static let legacyDriverClassIdentifiers = [
@@ -22,10 +22,10 @@ public enum CardTokenNamespace {
   /// CryptoTokenKit separates the class and instance identifiers with this.
   private static let identifierSeparator = ":"
 
-  /// Prefix shared by every ReFineID smart-card token identifier.
+  /// Prefix shared by every RefineID smart-card token identifier.
   public static let tokenPrefix = driverClassIdentifier + identifierSeparator
 
-  /// Every token prefix ever issued by ReFineID.
+  /// Every token prefix ever issued by RefineID.
   private static let ownedTokenPrefixes =
     ([driverClassIdentifier] + legacyDriverClassIdentifiers)
     .map { $0 + identifierSeparator }

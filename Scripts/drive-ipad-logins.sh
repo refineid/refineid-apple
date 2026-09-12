@@ -106,10 +106,10 @@ run_uitest_login() {
   TEST_RUNNER_REFINEID_REAL_CARD_TESTS=1 \
   TEST_RUNNER_REFINEID_SAFARI_OPEN_VIA_APP=1 \
   xcodebuild test \
-    -project "$REPO_ROOT/ReFineID.xcodeproj" \
+    -project "$REPO_ROOT/RefineID.xcodeproj" \
     -scheme "RefineID" \
     -destination "platform=iOS Simulator,id=$IPAD_UDID" \
-    -only-testing:"ReFineIDUITests/SafariCardLoginUITests/$test_method" \
+    -only-testing:"RefineIDUITests/SafariCardLoginUITests/$test_method" \
     CODE_SIGNING_ALLOWED=NO \
     CODE_SIGN_IDENTITY=""
 }

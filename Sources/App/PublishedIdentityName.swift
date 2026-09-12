@@ -45,13 +45,13 @@
     // MARK: Static Functions
 
     #if os(macOS)
-      /// The holder's name from whichever ReFineID token is published,
+      /// The holder's name from whichever RefineID token is published,
       /// or nil when none is.
       internal static func current() -> String? {
         current(tokenIDs: [])
       }
 
-      /// The holder's name from known ReFineID tokens, or nil when none is.
+      /// The holder's name from known RefineID tokens, or nil when none is.
       internal static func current(tokenIDs: [String]) -> String? {
         for tokenID in tokenIDs {
           if let name = Self.name(ofTokenIdentifier: tokenID) {
@@ -161,7 +161,7 @@
       return (nil, status)
     }
 
-    /// Whether the item belongs to a ReFineID driver, local card or
+    /// Whether the item belongs to a RefineID driver, local card or
     /// remote card.
     private static func owns(tokenIdentifier: String) -> Bool {
       CardTokenNamespace.owns(tokenIdentifier: tokenIdentifier)

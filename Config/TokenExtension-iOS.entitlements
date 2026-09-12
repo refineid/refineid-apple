@@ -14,7 +14,7 @@
      and no contactless login is possible at all.
 
      The group is the app's own, and it must stay FIRST in the app's
-     array in Config/ReFineID-iOS.entitlements: an item added without an
+     array in Config/RefineID-iOS.entitlements: an item added without an
      explicit kSecAttrAccessGroup lands in the first group of the
      writer's entitlement, so reordering that array silently moves every
      write out of this extension's reach.

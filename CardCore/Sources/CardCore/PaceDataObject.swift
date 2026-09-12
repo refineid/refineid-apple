@@ -10,8 +10,8 @@ import Foundation
 /// flow reads as the protocol and each wire shape has one place it is built
 /// and one place it is checked.
 ///
-/// Provenance: the `Tlv` usage inside the ReFineID iOS browser donor
-/// `Sources/ReFineIDBrowserKit/Card/Pace.swift`.
+/// Provenance: the `Tlv` usage inside the RefineID iOS browser donor
+/// `Sources/RefineIDBrowserKit/Card/Pace.swift`.
 internal enum PaceDataObject {
   /// The `7C` template carrying one context data object.
   internal static func dynamicAuthenticationData(

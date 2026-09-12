@@ -108,10 +108,10 @@ internal func runPairing(
   var proxyConfirmation = try proxy.intoConfirmation()
 
   let requesterHello = try requesterConfirmation.sendHello(
-    displayName: "ReFineID iPad", platform: "iPadOS")
+    displayName: "RefineID iPad", platform: "iPadOS")
   _ = try proxyConfirmation.receiveHello(requesterHello)
   let proxyHello = try proxyConfirmation.sendHello(
-    displayName: "ReFineID iPhone", platform: "iOS")
+    displayName: "RefineID iPhone", platform: "iOS")
   _ = try requesterConfirmation.receiveHello(proxyHello)
 
   let proxyConfirm = try proxyConfirmation.sendConfirmation(grantedProfiles: grants)

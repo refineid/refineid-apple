@@ -5,7 +5,7 @@
 - **Target Profile Identifier**: `fi.refineid.ble.v1`
 - **Status**: Vetted Architecture & Implementation Plan
 - **Date**: 2026-08-26
-- **Applies To**: `ReFineID-Apple` (iOS/macOS), `ReFineID-Unix` (Linux), `ReFineID-Android`
+- **Applies To**: `RefineID-Apple` (iOS/macOS), `RefineID-Unix` (Linux), `RefineID-Android`
 
 ---
 
@@ -40,7 +40,7 @@ Like the TCP stream profile (`fi.refineid.stream.v1`), every RAPP frame over BLE
 ### 2.3 GATT Service & Discovery Layout (Fallback / Bootstrap)
 
 ```
-Primary Service UUID: FA1D0001-C34A-4836-843B-7603B5749A32 (ReFineID RAPP Service)
+Primary Service UUID: FA1D0001-C34A-4836-843B-7603B5749A32 (RefineID RAPP Service)
 
 Characteristics:
 ├── L2CAP PSM Characteristic (Read)
@@ -59,7 +59,7 @@ When advertising BLE support in the 6-digit code pairing offer, the `transport-c
 
 ```cddl
 ble-parameters = {
-  "service_uuid": tstr,             ; 128-bit ReFineID Service UUID
+  "service_uuid": tstr,             ; 128-bit RefineID Service UUID
   ? "psm": uint                     ; L2CAP PSM if statically known
 }
 ```
@@ -89,7 +89,7 @@ ble-rendezvous = [
 
 ---
 
-## 4. Architecture in `ReFineID-Apple`
+## 4. Architecture in `RefineID-Apple`
 
 ### 4.1 Implementation Files in `CardCore/Sources/CardCore/`
 - **`BleRelaySession.swift`**: Manages `CBCentralManager` (client) and `CBPeripheralManager` (server) lifecycle.

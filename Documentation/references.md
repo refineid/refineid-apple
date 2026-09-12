@@ -193,10 +193,10 @@ rather than evidence.
 
 **W3C, State Chart XML (SCXML): State Machine Notation for Control Abstraction 1.0**
 
-The canonical card-setup grammar uses SCXML's standard representation of explicit states, events, targets, and an initial state. A transition omitted from a state is treated by ReFineID as a rejected event rather than an implicit self-transition.
+The canonical card-setup grammar uses SCXML's standard representation of explicit states, events, targets, and an initial state. A transition omitted from a state is treated by RefineID as a rejected event rather than an implicit self-transition.
 
 - Supports: the machine-readable syntax and execution vocabulary used by `card-setup-state-machine.scxml`.
-- Does NOT prove: that ReFineID's chosen product states or card-policy decisions are correct; those remain project requirements verified by model and UI tests.
+- Does NOT prove: that RefineID's chosen product states or card-policy decisions are correct; those remain project requirements verified by model and UI tests.
 - Source quality: normative.
 
 ### harel_statecharts_1987
@@ -206,7 +206,7 @@ The canonical card-setup grammar uses SCXML's standard representation of explici
 Harel's statechart work provides the formal engineering basis for representing reactive behavior as explicit states and event-driven transitions instead of timing-dependent UI branches.
 
 - Supports: the explicit event/state modeling approach and the separation of behavior from rendering.
-- Does NOT prove: protocol correctness, NFC reliability, or any ReFineID-specific transition.
+- Does NOT prove: protocol correctness, NFC reliability, or any RefineID-specific transition.
 - Source quality: peer-reviewed.
 
 ### utting_legeard_model_based_testing_2007

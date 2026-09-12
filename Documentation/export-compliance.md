@@ -1,6 +1,6 @@
 # Export compliance
 
-What ReFineID declares to Apple about its cryptography, what it actually
+What RefineID declares to Apple about its cryptography, what it actually
 implements, and the exact text submitted. Written so a later submission
 says the same thing as this one, and so a reviewer asking "why did you
 answer that" gets an answer rather than a shrug.
@@ -11,8 +11,8 @@ supporting detail.
 
 ## What is declared
 
-`Config/ReFineID-Info.plist` (macOS) and
-`Config/ReFineID-iOS-Info.plist` (iOS) both carry:
+`Config/RefineID-Info.plist` (macOS) and
+`Config/RefineID-iOS-Info.plist` (iOS) both carry:
 
     ITSAppUsesNonExemptEncryption = false
 
@@ -49,7 +49,7 @@ report to BIS, which Apple's guidance names for exactly this case.
 App Store Connect asks for this in step 1 of App Encryption
 Documentation, capped at 300 characters. Submitted verbatim:
 
-> ReFineID is middleware for the Finnish national identity card. It
+> RefineID is middleware for the Finnish national identity card. It
 > reads the card over NFC or a smart-card reader, opens a PACE secure
 > channel with the card access number, and publishes the card's
 > certificate and key to the system keychain so Safari and other apps
@@ -60,7 +60,7 @@ is for, how it reaches the card, and what it hands to the system.
 
 ## What the app actually implements
 
-This is the part that decides the answer. ReFineID does not merely call
+This is the part that decides the answer. RefineID does not merely call
 the platform's cryptography -- it implements the card-side protocols in
 Swift, in `CardCore`, because no Apple framework speaks them:
 
@@ -115,7 +115,7 @@ accepted deliberately rather than by default.
 
 ## The publicly available source route
 
-`ReFineID-Apple` is a public repository, so the source-code question is
+`RefineID-Apple` is a public repository, so the source-code question is
 separate from the App Store binary question. The current EAR provision
 to check for publicly available encryption source code is 15 CFR
 742.15(b), not the old 740.13(e) text. The 2026-08-03 email that cited
@@ -123,7 +123,7 @@ to check for publicly available encryption source code is 15 CFR
 operative notice.
 
 Do not re-send mechanically. 742.15(b) is framed around publicly
-available encryption source code, and ReFineID implements published
+available encryption source code, and RefineID implements published
 standard algorithms rather than non-standard cryptography. Confirm
 whether any source-code notice is actually owed before sending another
 one. If one is sent, it should cite the current provision and keep the
@@ -134,7 +134,7 @@ scope to the public source repository, for example:
     Under 15 CFR 742.15(b), notice is given that the following publicly
     available encryption source code is available at no cost:
 
-    ReFineID - Finnish identity card middleware for Apple platforms
+    RefineID - Finnish identity card middleware for Apple platforms
     https://github.com/refineid/refineid-apple
 
     The software implements PACE (ICAO 9303-11, BSI TR-03110) with ECDH on
@@ -143,7 +143,7 @@ scope to the public source repository, for example:
     by international standard bodies; none are proprietary.
 
     Petri Koistinen
-    ReFineID
+    RefineID
     Finland
     petri.koistinen@refineid.fi
 
@@ -176,12 +176,12 @@ pipeline that produced the filed artifact:
     pandoc Documentation/anssi-declaration.md --pdf-engine=typst \
       --pdf-engine-opt=--pdf-standard=a-2b \
       -V papersize=a4 -M lang=fr-FR \
-      -M "title=ReFineID — déclaration d'un moyen de cryptologie" \
-      -o "ReFineID - ANSSI declaration dossier.pdf"
+      -M "title=RefineID — déclaration d'un moyen de cryptologie" \
+      -o "RefineID - ANSSI declaration dossier.pdf"
 
     refineid card sign-document --format pades \
-      --in  "ReFineID - ANSSI declaration dossier.pdf" \
-      --out "ReFineID - ANSSI declaration dossier - signed.pdf" \
+      --in  "RefineID - ANSSI declaration dossier.pdf" \
+      --out "RefineID - ANSSI declaration dossier - signed.pdf" \
       --reason "Declaration d'un moyen de cryptologie -- decret 2007-663" \
       --location "Helsinki, Finlande" \
       --timestamp eu-qualified \
@@ -189,7 +189,7 @@ pipeline that produced the filed artifact:
 
     curl -s -X POST https://dvv.fineid.fi/api/v1/validate \
       -F locale=en -F includeDetails=true \
-      -F "file=@ReFineID - ANSSI declaration dossier - signed.pdf"
+      -F "file=@RefineID - ANSSI declaration dossier - signed.pdf"
 
 `eu-qualified` is the three authorities below, asked in that order. It
 is a name rather than a default because a signing tool that reaches
@@ -244,7 +244,7 @@ cryptography passes. Nothing is wrong with the token; the file simply
 reads better without a line that invites a question with no good
 answer.
 
-RFC 3161 sends a digest rather than the document. ReFineID accepts a
+RFC 3161 sends a digest rather than the document. RefineID accepts a
 reply only after checking its message-imprint algorithm, digest, nonce,
 CMS signature, timestamp-signing certificate chain, and the signer's
 identity against the EU trusted lists. Some qualified authorities still
@@ -386,7 +386,7 @@ its own: it is the technical documentation attached to ANSSI's own form.
    one under Article 25(2) of Regulation (EU) No 910/2014, and the
    attestation requires the declaration to be "datée et signée", not
    inked.
-3. Email `controle@ssi.gouv.fr`, subject `[formalités] ReFineID – ReFineID`,
+3. Email `controle@ssi.gouv.fr`, subject `[formalités] RefineID – RefineID`,
    attaching the signed declaration. The covering text is in
    `Documentation/anssi-submission-email.txt`.
 
@@ -457,7 +457,7 @@ liability there.
 2. That attestation attached to App Encryption Documentation in App
    Store Connect.
 3. The code Apple issues in return, added to both
-   `Config/ReFineID-Info.plist` and `Config/ReFineID-iOS-Info.plist`
+   `Config/RefineID-Info.plist` and `Config/RefineID-iOS-Info.plist`
    as `ITSEncryptionExportComplianceCode`, with
    `ITSAppUsesNonExemptEncryption` flipped to `true` in both files in
    the same commit.

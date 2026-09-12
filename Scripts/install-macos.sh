@@ -2,7 +2,7 @@
 # Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 # 
 
-# Build, verify and install ReFineID into /Applications on this Mac.
+# Build, verify and install RefineID into /Applications on this Mac.
 #
 # /Applications is the only place a copy may live. A CryptoTokenKit
 # driver is registered by the system from wherever it finds the bundle,
@@ -29,7 +29,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-app_name="ReFineID.app"
+app_name="RefineID.app"
 installed="/Applications/${app_name}"
 derived_data="/tmp/refineid-macos-install"
 configuration="Debug"
@@ -123,7 +123,7 @@ remove_stray_copies() {
       mdfind -name "$app_name" 2>/dev/null | grep -F "/${app_name}" || true
       # Deep enough to reach a build nested inside a scratch directory:
       # /private/tmp/<agent>/<session>/scratchpad/<build>/Build/Products/
-      # <configuration>/ReFineID.app is already nine levels down.
+      # <configuration>/RefineID.app is already nine levels down.
       # The build/ directory in this checkout holds the archives a
       # release is cut from, which mdfind stops reporting once the tree
       # is hidden from the index.
@@ -195,7 +195,7 @@ remove_stale_build_trees() {
     freed=$((freed + 1))
   done < <(
     find /private/tmp -maxdepth 1 -mindepth 1 \
-      \( -iname 'refineid*' -o -iname 'ReFineID*' \) \
+      \( -iname 'refineid*' -o -iname 'RefineID*' \) \
       -mmin "+${minimum_age_minutes}" 2>/dev/null | sort
   )
   [[ "$freed" -eq 0 ]] && note "no stale build trees found"
@@ -210,7 +210,7 @@ report_registrations() {
   note "what the smart-card system sees:"
   system_profiler SPSmartCardsDataType 2>/dev/null \
     | sed -n '/SmartCard Drivers/,/Available SmartCards (keychain)/p' \
-    | grep -i refineid | sed 's/^/  /' || note "  (no ReFineID driver listed)"
+    | grep -i refineid | sed 's/^/  /' || note "  (no RefineID driver listed)"
 }
 
 # Whether the built extension would run the same code as the installed
@@ -222,12 +222,12 @@ report_registrations() {
 # never executes.
 #
 # Every executable in the appex, not just the named one: a Debug
-# build carries its code in ReFineIDTokenExtension.debug.dylib and
+# build carries its code in RefineIDTokenExtension.debug.dylib and
 # leaves the executable a loader stub, so the stub matches across any
 # code change and answered "unchanged" for builds that were not.
 extension_is_unchanged() {
   local name built_dir live_dir binary live_binary
-  for name in ReFineIDTokenExtension ReFineIDRappTokenExtension; do
+  for name in RefineIDTokenExtension RefineIDRappTokenExtension; do
     built_dir="${built}/Contents/PlugIns/${name}.appex/Contents/MacOS"
     live_dir="${installed}/Contents/PlugIns/${name}.appex/Contents/MacOS"
     [[ -d "$built_dir" ]] || continue
@@ -255,14 +255,14 @@ unsigned_hash() {
   rm -f "$scratch"
 }
 
-# The iOS Simulator process is also named ReFineID. Only the macOS
+# The iOS Simulator process is also named RefineID. Only the macOS
 # bundle layout has Contents/MacOS, so a name match would terminate
 # a simulator install this script does not own.
 macos_app_is_running() {
-  pgrep -f "/ReFineID.app/Contents/MacOS/ReFineID" >/dev/null 2>&1
+  pgrep -f "/RefineID.app/Contents/MacOS/RefineID" >/dev/null 2>&1
 }
 
-# Ends every macOS ReFineID process so the bundle can be replaced.
+# Ends every macOS RefineID process so the bundle can be replaced.
 kill_macos_app() {
   local pid
   macos_app_is_running || return 0
@@ -270,7 +270,7 @@ kill_macos_app() {
   while IFS= read -r pid; do
     [[ -z "$pid" ]] && continue
     kill -KILL "$pid" 2>/dev/null || true
-  done < <(pgrep -f "/ReFineID.app/Contents/MacOS/ReFineID" || true)
+  done < <(pgrep -f "/RefineID.app/Contents/MacOS/RefineID" || true)
   for _ in 1 2 3 4 5 6 7 8 9 10; do
     macos_app_is_running || return 0
     sleep 0.1
@@ -340,11 +340,11 @@ wait_for_card_release() {
 # leaves. Ending our processes is sufficient; the next insertion starts
 # the copy inside the newly installed app.
 stop_refineid_extensions() {
-  pkill -f "/ReFineIDTokenExtension.appex/Contents/MacOS/ReFineIDTokenExtension" \
+  pkill -f "/RefineIDTokenExtension.appex/Contents/MacOS/RefineIDTokenExtension" \
     2>/dev/null || true
-  pkill -f "/ReFineIDDiscoveryExtension.appex/Contents/MacOS/ReFineIDDiscoveryExtension" \
+  pkill -f "/RefineIDDiscoveryExtension.appex/Contents/MacOS/RefineIDDiscoveryExtension" \
     2>/dev/null || true
-  pkill -f "/ReFineIDRappTokenExtension.appex/Contents/MacOS/ReFineIDRappTokenExtension" \
+  pkill -f "/RefineIDRappTokenExtension.appex/Contents/MacOS/RefineIDRappTokenExtension" \
     2>/dev/null || true
 }
 
@@ -362,7 +362,7 @@ hide_from_spotlight derivedData
 
 note "building ${configuration} for macOS"
 xcodebuild \
-  -project ReFineID.xcodeproj \
+  -project RefineID.xcodeproj \
   -scheme RefineID \
   -configuration "$configuration" \
   -destination 'platform=macOS,arch=arm64' \

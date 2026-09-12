@@ -78,7 +78,7 @@ internal struct QualifiedDocumentCmsTests {
     let privateKey = try #require(
       SecKeyCreateRandomKey(attributes as CFDictionary, &error)
     )
-    let commonName = "ReFineID Document CMS Test"
+    let commonName = "RefineID Document CMS Test"
     let name = CertificateRevocationListFixtures.name(commonName)
     let encodedCertificate = try CertificateRevocationListFixtures.certificate(
       description: .init(

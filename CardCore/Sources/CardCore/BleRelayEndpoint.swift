@@ -6,7 +6,7 @@ import Foundation
   import CoreBluetooth
 #endif
 
-/// A Bluetooth Low Energy endpoint definition for ReFineID RAPP.
+/// A Bluetooth Low Energy endpoint definition for RefineID RAPP.
 public struct BleRelayEndpoint: Sendable, Equatable {
   /// The 128-bit Primary Service UUID string.
   public let serviceUUIDString: String

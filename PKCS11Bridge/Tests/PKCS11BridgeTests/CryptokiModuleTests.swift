@@ -129,7 +129,7 @@ internal struct CryptokiModuleTests {
         String(bytes: raw, encoding: .utf8)
       }
     )
-    #expect(manufacturer.hasPrefix("ReFineID"))
+    #expect(manufacturer.hasPrefix("RefineID"))
     #expect(manufacturer.hasSuffix(" "))
 
     var slotCount = CK_ULONG(0)

@@ -81,7 +81,7 @@
     }
 
     /// The first mode named on the command line, or nil.
-    private static func selected() -> DebugLaunchMode? {
+    internal static func selected() -> DebugLaunchMode? {
       let arguments = ProcessInfo.processInfo.arguments
       return DebugLaunchMode.allCases.first { arguments.contains($0.rawValue) }
     }

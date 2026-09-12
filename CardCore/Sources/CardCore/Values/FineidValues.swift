@@ -166,7 +166,7 @@ internal enum FineidValues {
   /// CRDO tag for the key reference inside MSE:SET data (S1 v4.2 §3.6.3).
   internal static let crdoKeyReferenceTag: UInt8 = 0x84
 
-  /// CRDO value length: ReFineID emits one-byte algorithm and key
+  /// CRDO value length: RefineID emits one-byte algorithm and key
   /// references.
   internal static let crdoValueLength: UInt8 = 0x01
 

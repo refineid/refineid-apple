@@ -218,7 +218,7 @@ private func releaseArchiveLayout(at archive: URL) -> ReleaseArchiveLayout {
     archive
     .appendingPathComponent("Products")
     .appendingPathComponent("Applications")
-    .appendingPathComponent("ReFineID.app")
+    .appendingPathComponent("RefineID.app")
   guard releaseIsDirectory(app) else {
     releaseFail("expected exactly \(app.path)")
   }
@@ -226,25 +226,25 @@ private func releaseArchiveLayout(at archive: URL) -> ReleaseArchiveLayout {
   let contents = app.appendingPathComponent("Contents")
   if releaseIsDirectory(contents) {
     let plugins = contents.appendingPathComponent("PlugIns")
-    let tokenBundle = plugins.appendingPathComponent("ReFineIDTokenExtension.appex")
-    let rappBundle = plugins.appendingPathComponent("ReFineIDRappTokenExtension.appex")
-    let discoveryBundle = plugins.appendingPathComponent("ReFineIDDiscoveryExtension.appex")
+    let tokenBundle = plugins.appendingPathComponent("RefineIDTokenExtension.appex")
+    let rappBundle = plugins.appendingPathComponent("RefineIDRappTokenExtension.appex")
+    let discoveryBundle = plugins.appendingPathComponent("RefineIDDiscoveryExtension.appex")
     return ReleaseArchiveLayout(
       platform: "macOS",
       app: app,
-      appExecutable: contents.appendingPathComponent("MacOS/ReFineID"),
+      appExecutable: contents.appendingPathComponent("MacOS/RefineID"),
       appPlist: contents.appendingPathComponent("Info.plist"),
       appResources: contents.appendingPathComponent("Resources"),
       plugins: plugins,
       tokenBundle: tokenBundle,
       rappBundle: rappBundle,
       discoveryBundle: discoveryBundle,
-      tokenExecutable: tokenBundle.appendingPathComponent("Contents/MacOS/ReFineIDTokenExtension"),
+      tokenExecutable: tokenBundle.appendingPathComponent("Contents/MacOS/RefineIDTokenExtension"),
       rappExecutable: rappBundle.appendingPathComponent(
-        "Contents/MacOS/ReFineIDRappTokenExtension"
+        "Contents/MacOS/RefineIDRappTokenExtension"
       ),
       discoveryExecutable: discoveryBundle.appendingPathComponent(
-        "Contents/MacOS/ReFineIDDiscoveryExtension"
+        "Contents/MacOS/RefineIDDiscoveryExtension"
       ),
       tokenPlist: tokenBundle.appendingPathComponent("Contents/Info.plist"),
       rappPlist: rappBundle.appendingPathComponent("Contents/Info.plist"),
@@ -259,22 +259,22 @@ private func releaseArchiveLayout(at archive: URL) -> ReleaseArchiveLayout {
   }
 
   let plugins = app.appendingPathComponent("PlugIns")
-  let tokenBundle = plugins.appendingPathComponent("ReFineIDTokenExtension.appex")
-  let rappBundle = plugins.appendingPathComponent("ReFineIDRappTokenExtension.appex")
-  let discoveryBundle = plugins.appendingPathComponent("ReFineIDDiscoveryExtension.appex")
+  let tokenBundle = plugins.appendingPathComponent("RefineIDTokenExtension.appex")
+  let rappBundle = plugins.appendingPathComponent("RefineIDRappTokenExtension.appex")
+  let discoveryBundle = plugins.appendingPathComponent("RefineIDDiscoveryExtension.appex")
   return ReleaseArchiveLayout(
     platform: "iOS",
     app: app,
-    appExecutable: app.appendingPathComponent("ReFineID"),
+    appExecutable: app.appendingPathComponent("RefineID"),
     appPlist: app.appendingPathComponent("Info.plist"),
     appResources: app,
     plugins: plugins,
     tokenBundle: tokenBundle,
     rappBundle: rappBundle,
     discoveryBundle: discoveryBundle,
-    tokenExecutable: tokenBundle.appendingPathComponent("ReFineIDTokenExtension"),
-    rappExecutable: rappBundle.appendingPathComponent("ReFineIDRappTokenExtension"),
-    discoveryExecutable: discoveryBundle.appendingPathComponent("ReFineIDDiscoveryExtension"),
+    tokenExecutable: tokenBundle.appendingPathComponent("RefineIDTokenExtension"),
+    rappExecutable: rappBundle.appendingPathComponent("RefineIDRappTokenExtension"),
+    discoveryExecutable: discoveryBundle.appendingPathComponent("RefineIDDiscoveryExtension"),
     tokenPlist: tokenBundle.appendingPathComponent("Info.plist"),
     rappPlist: rappBundle.appendingPathComponent("Info.plist"),
     discoveryPlist: discoveryBundle.appendingPathComponent("Info.plist"),
@@ -720,7 +720,7 @@ private func inspectReleaseArchive(_ archive: URL) {
     readerConfiguration.attributes["com.apple.ctk.class-id"] as? String
       == "fi.refineid.ReFineID.token",
     readerConfiguration.attributes["com.apple.ctk.driver-class"] as? String
-      == "ReFineIDTokenExtension.TokenDriver",
+      == "RefineIDTokenExtension.TokenDriver",
     readerConfiguration.attributes["com.apple.ctk.token-type"] as? String
       == "smartcard"
   else {
@@ -730,9 +730,9 @@ private func inspectReleaseArchive(_ archive: URL) {
     let rappConfiguration = releaseExtensionConfiguration(at: layout.rappPlist)
     guard rappConfiguration.point == "com.apple.ctk-tokens",
       rappConfiguration.attributes["com.apple.ctk.class-id"] as? String
-        == "fi.refineid.ReFineID.rapp-token",
+        == "fi.refineid.refineid.rapp-token",
       rappConfiguration.attributes["com.apple.ctk.driver-class"] as? String
-        == "ReFineIDRappTokenExtension.PersistentTokenDriver",
+        == "RefineIDRappTokenExtension.PersistentTokenDriver",
       rappConfiguration.attributes["com.apple.ctk.token-type"] == nil
     else {
       releaseFail("RAPP persistent-token extension configuration is incorrect")
@@ -1143,7 +1143,7 @@ private func releaseEnsureProfiles(
       continue
     }
     let record = ensureBundleRecord(identifier)
-    let profileName = "ReFineID \(platform == .ios ? "iOS" : "Mac") App Store \(identifier)"
+    let profileName = "RefineID \(platform == .ios ? "iOS" : "Mac") App Store \(identifier)"
     let created = releaseAPI(
       "POST", "/v1/profiles",
       body: [
@@ -1298,7 +1298,7 @@ private func releaseCandidate(_ arguments: [String]) {
   )
   for platform in platforms {
     let archive = outputRoot.appendingPathComponent(
-      "ReFineID-\(platform.rawValue).xcarchive"
+      "RefineID-\(platform.rawValue).xcarchive"
     )
     let exportDirectory = outputRoot.appendingPathComponent("export-\(platform.rawValue)")
     let exportOptions = outputRoot.appendingPathComponent(
@@ -1321,7 +1321,7 @@ private func releaseCandidate(_ arguments: [String]) {
       "/usr/bin/xcodebuild",
       [
         "archive",
-        "-project", "ReFineID.xcodeproj",
+        "-project", "RefineID.xcodeproj",
         "-scheme", "RefineID",
         "-configuration", "TestFlight",
         "-destination", platform.destination,

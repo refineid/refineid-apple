@@ -9,7 +9,7 @@ import Foundation
 /// until the card has told it which variants and domain parameters it
 /// supports (ICAO 9303-11 section 9.2.11).
 ///
-/// ReFineID runs a fixed suite rather than negotiating one, so nothing
+/// RefineID runs a fixed suite rather than negotiating one, so nothing
 /// in the login path reads this file. It is read to answer a question
 /// the fixed suite cannot: whether the card would accept a cheaper one.
 /// Generic mapping costs the card a Diffie-Hellman that integrated

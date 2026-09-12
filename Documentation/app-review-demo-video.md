@@ -64,7 +64,7 @@ Landscape, 1080p or better, three minutes or less. Narrate or caption in
 English. Keep the card and the phone screen in frame together whenever
 the card is being read.
 
-1. **Version.** TestFlight showing `ReFineID 26.8.16 (114)`, then open
+1. **Version.** TestFlight showing `RefineID 26.8.16 (114)`, then open
    the app from there.
 2. **The hardware.** Hold up the identity card, masked as below, and say
    what it is: a Finnish identity card issued by the Police, whose
@@ -78,7 +78,7 @@ the card is being read.
    is the pairing App Review asked to see; the app has no other pairing
    step.
 4. **Workflow, authentication.** Open Safari, go to a Finnish public
-   e-service that asks for a certificate, choose the ReFineID identity,
+   e-service that asks for a certificate, choose the RefineID identity,
    present the card again when the system asks, enter PIN 1 off camera,
    and show the service reporting a completed sign-in.
 5. **Workflow, signing.** Back in the app, pick a PDF, sign it with

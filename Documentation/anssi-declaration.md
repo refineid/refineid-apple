@@ -26,7 +26,7 @@ l'Union européenne d'un moyen de cryptologie, au titre de l'article 30
 de la loi n° 2004-575 du 21 juin 2004 pour la confiance dans l'économie
 numérique et du chapitre II du décret n° 2007-663 du 2 mai 2007.
 
-ReFineID est un intergiciel qui permet aux titulaires d'une carte
+RefineID est un intergiciel qui permet aux titulaires d'une carte
 nationale d'identité finlandaise résidant en France de l'utiliser comme
 identité numérique sur les plateformes Apple.
 
@@ -48,7 +48,7 @@ Le déclarant demande la délivrance de l'attestation de déclaration.
 
 | | |
 |:---------------------------|:-----------------------------------------------|
-| Nom | ReFineID |
+| Nom | RefineID |
 | Désignation générique | Intergiciel pour carte nationale d'identité |
 | Référence commerciale | Aucune |
 | Version | 26 |
@@ -132,7 +132,7 @@ Aucune autorisation antérieure.
 
 ## E. Pièces à joindre
 
-ReFineID est un logiciel libre. Le code source et la documentation sont
+RefineID est un logiciel libre. Le code source et la documentation sont
 disponibles ici :
 
 ```{=typst}

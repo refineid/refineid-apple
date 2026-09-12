@@ -15,8 +15,8 @@ import Foundation
 /// `sequence(in:)` reads back.
 ///
 /// Provenance: replaces the encoding half (`encode`, `pushLength`) of
-/// the ReFineID iOS browser donor
-/// `Sources/ReFineIDBrowserKit/Card/Tlv.swift`. That donor's parsing
+/// the RefineID iOS browser donor
+/// `Sources/RefineIDBrowserKit/Card/Tlv.swift`. That donor's parsing
 /// half is already covered by `DerTlvRecord.sequence(in:)` and is not
 /// ported again.
 extension DerTlvRecord {

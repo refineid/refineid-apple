@@ -13,7 +13,7 @@ import Testing
 /// repository, and the structure is what these tests are about.
 internal struct CardAccessFileTests {
   /// `0.4.0.127.0.7.2.2.4.2.4` -- PACE-ECDH-GM-AES-CBC-CMAC-256, the
-  /// suite ReFineID runs.
+  /// suite RefineID runs.
   private static let ecdhGenericAes256: [UInt8] = [
     0x04, 0x00, 0x7F, 0x00, 0x07, 0x02, 0x02, 0x04, 0x02, 0x04,
   ]

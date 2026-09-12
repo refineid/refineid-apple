@@ -1,6 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-// Cryptoki.h -- minimal PKCS#11 v3.2 ABI subset for the ReFineID bridge.
+// Cryptoki.h -- minimal PKCS#11 v3.2 ABI subset for the RefineID bridge.
 //
 // Hand-written against the OASIS standard "PKCS #11 Specification
 // Version 3.2" and the header material it normatively defines

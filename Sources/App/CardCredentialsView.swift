@@ -14,7 +14,7 @@ import SwiftUI
 /// starting over is instead the explicit forget action below.
 ///
 /// Every control a test drives carries an accessibility identifier, and
-/// the register of them is `UITestIdentifiers` in `Tests/ReFineIDUITests`.
+/// the register of them is `UITestIdentifiers` in `Tests/RefineIDUITests`.
 /// Identifiers rather than labels, because a label is localized: a device
 /// set to Finnish would otherwise fail every query for a reason that has
 /// nothing to do with the card. They cost nothing at runtime and they are

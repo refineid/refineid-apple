@@ -3,7 +3,7 @@
 Last reviewed: 2026-09-10
 
 This document defines the product, security, validation, and distribution gates
-for the Swift macOS ReFineID release. [TASKS.md](../TASKS.md) is the
+for the Swift macOS RefineID release. [TASKS.md](../TASKS.md) is the
 checkable execution list. If the two documents disagree, this plan controls until
 the disagreement is resolved in a reviewed change.
 
@@ -20,7 +20,7 @@ in its TestFlight and App Store builds. Its scope is controlled by
 
 ## Release objective
 
-Ship a small, trustworthy macOS App Store product named **ReFineID**.
+Ship a small, trustworthy macOS App Store product named **RefineID**.
 
 The application contains the CryptoTokenKit smart-card extension that macOS
 loads for a supported card, with direct contact reader signing, contactless
@@ -32,9 +32,9 @@ topology instead of Debug builds.
 
 User story is:
 
-1. Install ReFineID from the Mac App Store.
+1. Install RefineID from the Mac App Store.
 2. Insert supported Finnish identity card into a reader.
-3. Open ReFineID and see that the extension, reader, and card are available.
+3. Open RefineID and see that the extension, reader, and card are available.
 4. See PIN1, PIN2, and PUK retry state.
 5. Use the card's authentication certificate in a system CryptoTokenKit client.
 6. Enter PIN1 through the system authentication flow when required.
@@ -98,19 +98,19 @@ implementation.
 The shipping App Store archive embeds the direct smart-card token extension:
 
 ```text
-ReFineID.app
-|-- Contents/MacOS/ReFineID
-|-- Contents/PlugIns/ReFineIDTokenExtension.appex
+RefineID.app
+|-- Contents/MacOS/RefineID
+|-- Contents/PlugIns/RefineIDTokenExtension.appex
 `-- Contents/Resources/...
 ```
 
 Every configuration embeds both extensions, enabling RAPP use and testing:
 
 ```text
-ReFineID.app (Debug/Profile)
-|-- Contents/MacOS/ReFineID
-|-- Contents/PlugIns/ReFineIDTokenExtension.appex
-|-- Contents/PlugIns/ReFineIDRappTokenExtension.appex
+RefineID.app (Debug/Profile)
+|-- Contents/MacOS/RefineID
+|-- Contents/PlugIns/RefineIDTokenExtension.appex
+|-- Contents/PlugIns/RefineIDRappTokenExtension.appex
 `-- Contents/Resources/...
 ```
 

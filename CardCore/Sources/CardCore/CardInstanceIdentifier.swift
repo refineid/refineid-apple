@@ -9,7 +9,7 @@ import Foundation
 /// diagnostics report can be checked against the plastic without translating
 /// an ATR hash or certificate fingerprint.
 public struct CardInstanceIdentifier: Equatable, Hashable, Sendable {
-  /// Namespace owned by the ReFineID token driver.
+  /// Namespace owned by the RefineID token driver.
   private static let prefix = "refineid-card-"
 
   /// The public CTK instance identifier.

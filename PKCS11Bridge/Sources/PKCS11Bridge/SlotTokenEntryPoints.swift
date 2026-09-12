@@ -11,7 +11,7 @@ import Foundation
 /// PIN entry happens in the system dialog, not through the bridge.
 internal enum SlotTokenEntryPoints {
   /// Manufacturer reported for slots and tokens.
-  private static let manufacturerName = "ReFineID"
+  private static let manufacturerName = "RefineID"
 
   /// Model reported in CK_TOKEN_INFO.
   private static let modelName = "CTK bridge"

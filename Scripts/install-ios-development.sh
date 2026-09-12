@@ -41,7 +41,7 @@ version="${yy}.$((10#$mm)).$((10#$dd))"
 build=$((10#$hh * 10 + 10#$mn / 10))
 derived_data="/tmp/refineid-apple-development"
 configuration="Profile"
-app_path="${derived_data}/Build/Products/${configuration}-iphoneos/ReFineID.app"
+app_path="${derived_data}/Build/Products/${configuration}-iphoneos/RefineID.app"
 
 if [[ "$device" =~ ^[0-9a-fA-F-]+$ ]]; then
   destination="platform=iOS,id=${device}"
@@ -51,7 +51,7 @@ fi
 
 echo "building RefineID ${version} (${build}) (${configuration}, optimized) for ${device}"
 xcodebuild \
-  -project ReFineID.xcodeproj \
+  -project RefineID.xcodeproj \
   -scheme RefineID \
   -configuration "$configuration" \
   -destination "$destination" \
@@ -79,4 +79,4 @@ else
     fi.refineid.ReFineID
 fi
 
-echo "installed and launched ReFineID ${version} (${build})"
+echo "installed and launched RefineID ${version} (${build})"

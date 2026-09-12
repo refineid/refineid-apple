@@ -24,8 +24,8 @@ import Foundation
 /// Failing PACE consumes no retry counter -- the CAN has none -- so a wrong
 /// CAN is a recoverable user error, unlike a wrong PIN.
 ///
-/// Provenance: lifted from the ReFineID iOS browser donor
-/// `Sources/ReFineIDBrowserKit/Card/Pace.swift`, which was in turn ported
+/// Provenance: lifted from the RefineID iOS browser donor
+/// `Sources/RefineIDBrowserKit/Card/Pace.swift`, which was in turn ported
 /// byte-exact from the Rust reference implementation and proven against a
 /// live card.
 public struct PaceEstablishment {

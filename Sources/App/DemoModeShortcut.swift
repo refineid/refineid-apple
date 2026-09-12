@@ -6,7 +6,7 @@
 
   /// The Home Screen action that starts a demonstration.
   ///
-  /// Declared statically in `Config/ReFineID-iOS-Info.plist`, so it is on
+  /// Declared statically in `Config/RefineID-iOS-Info.plist`, so it is on
   /// the icon from the moment the app is installed and before it has ever
   /// been launched; its title is localized through
   /// `Sources/App/InfoPlist.xcstrings`.

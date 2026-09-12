@@ -17,8 +17,8 @@ import Foundation
 /// CommonCrypto's -- the system AES, the same posture as leaning on CryptoKit
 /// elsewhere.
 ///
-/// Provenance: lifted from the ReFineID iOS browser donor
-/// `Sources/ReFineIDBrowserKit/Crypto/AES.swift`.
+/// Provenance: lifted from the RefineID iOS browser donor
+/// `Sources/RefineIDBrowserKit/Crypto/AES.swift`.
 public enum AesCbc {
   /// Why an AES operation was refused.
   ///

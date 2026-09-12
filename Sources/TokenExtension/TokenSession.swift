@@ -111,7 +111,7 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
     algorithm: TKTokenKeyAlgorithm
   ) -> Bool {
     guard let token = token as? Token else {
-      TokenLog.error("supports: session token is not a ReFineID Token")
+      TokenLog.error("supports: session token is not a RefineID Token")
       return false
     }
     guard !token.isRevoked else { return false }

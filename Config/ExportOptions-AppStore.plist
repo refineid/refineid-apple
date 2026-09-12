@@ -5,7 +5,7 @@
      Used as:
 
        xcodebuild -exportArchive \
-         -archivePath build/ReFineID.xcarchive \
+         -archivePath build/RefineID.xcarchive \
          -exportOptionsPlist Config/ExportOptions-AppStore.plist \
          -exportPath build/export
 

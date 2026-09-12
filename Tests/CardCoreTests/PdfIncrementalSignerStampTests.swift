@@ -53,7 +53,7 @@ internal struct PdfIncrementalSignerStampTests {
     let text = Self.text(filled)
     #expect(text.contains("/P 3 0 R"))
     #expect(text.contains("/AP << /N 6 0 R >>"))
-    #expect(text.contains("/ReFineIDStamp true"))
+    #expect(text.contains("/RefineIDStamp true"))
     #expect(text.contains("/F 132"))
     #if canImport(PDFKit)
       let doc = PDFDocument(data: filled)

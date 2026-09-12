@@ -103,7 +103,7 @@ macOS Safari client certificate authentication to `https://card.refineid.fi`
 over TLS 1.3 was completed end-to-end using an Android phone (Samsung Galaxy S22)
 acting as the contactless NFC reader. Safari presented the borrowed leaf
 certificate `Perus (PIN 1) (KOISTINEN PETRI 14037871J)`, requested ECDSA P-384
-signing through `ReFineIDRappTokenExtension`, which relayed the request over
+signing through `RefineIDRappTokenExtension`, which relayed the request over
 the encrypted Noise stream to the phone. The phone verified PIN 1 on the card
 via NFC and returned the 96-byte signature, completing login.
 
@@ -272,7 +272,7 @@ optimized Profile build and an HID OMNIKEY reader:
 | `card.refineid.fi` | TLS 1.3 | `ecdsaMessageSHA384`, 130 B | local verify OK, 104 B, 336 ms |
 
 `oma.posti.fi` also completed its login with this token. After clearing
-Safari's website state and creating a clean ReFineID identity,
+Safari's website state and creating a clean RefineID identity,
 `suomi.fi` presented the identity-certificate consent and PIN1 sheets
 and completed its login too. `admin.iki.fi` then completed its
 renegotiated client-certificate login from the same clean state. The
@@ -286,9 +286,9 @@ Terminating only Safari and reopening the page made the exchanges above
 appear and the page succeed. That is a stale Safari client-identity/TLS
 process state signature: never asked is not a card or token failure.
 
-A successful reader mint removes every stored ReFineID NFC prime and
-persistent ReFineID smart-card registration. The connected reader is
-then the only offered ReFineID transport, even when the reader card and a
+A successful reader mint removes every stored RefineID NFC prime and
+persistent RefineID smart-card registration. The connected reader is
+then the only offered RefineID transport, even when the reader card and a
 previously primed NFC card have different serials or key profiles, until
 NFC is deliberately minted again. Apple and third-party identities are
 untouched.
@@ -429,7 +429,7 @@ multiplications cost what they cost.
 
 Chip-authentication mapping is not a saving either. CAM folds chip
 authentication into the mapping step, which is worth having when a
-terminal performs chip authentication separately; ReFineID does not, so
+terminal performs chip authentication separately; RefineID does not, so
 CAM would add the verification work of a protocol we do not run to a
 handshake that would not get shorter. The suite stays as it is.
 
@@ -565,8 +565,8 @@ other half: `ctkd` then stops invoking that driver even for the app's own
 slot, nothing is minted, and registration fails on a token that does not
 exist.
 
-So the roles are split. `ReFineIDTokenExtension` mints and holds the
-registration and declares no identifier; `ReFineIDDiscoveryExtension`
+So the roles are split. `RefineIDTokenExtension` mints and holds the
+registration and declares no identifier; `RefineIDDiscoveryExtension`
 declares the eMRTD identifier and refuses to create tokens. The
 identifier is the travel-document application, which a Finnish identity
 card genuinely implements and which is selectable before PACE -- unlike

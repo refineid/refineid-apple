@@ -77,7 +77,7 @@ public final class RappDeviceVault: @unchecked Sendable {
     /// This non-CBOR marker gives acknowledged proxy records one durable,
     /// portable representation without deleting their Rust-owned journal
     /// bytes.
-    internal static let noRetainedResult = Data("ReFineID:RAPP:no-retained-result:v1".utf8)
+    internal static let noRetainedResult = Data("RefineID:RAPP:no-retained-result:v1".utf8)
   }
 
   /// The keychain service namespace holding pairs, journals, selection,

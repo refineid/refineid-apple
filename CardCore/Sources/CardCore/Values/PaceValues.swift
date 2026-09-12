@@ -16,9 +16,9 @@ import Foundation
 /// This file is the only sanctioned home for these literals
 /// (`.swiftlint.yml` `unexplained_hex`).
 ///
-/// Provenance: lifted from the ReFineID iOS browser donor
-/// `Sources/ReFineIDBrowserKit/Card/Pace.swift` and
-/// `Sources/ReFineIDBrowserKit/Card/SecureMessaging.swift`, which were in
+/// Provenance: lifted from the RefineID iOS browser donor
+/// `Sources/RefineIDBrowserKit/Card/Pace.swift` and
+/// `Sources/RefineIDBrowserKit/Card/SecureMessaging.swift`, which were in
 /// turn ported byte-exact from the Rust reference implementation and
 /// proven against a live card.
 internal enum PaceValues {
@@ -136,7 +136,7 @@ internal enum PaceValues {
   /// object (ICAO 9303-11 section 9.2.1 Table: 1 = MRZ, 2 = CAN,
   /// 3 = PIN, 4 = PUK).
   ///
-  /// ReFineID only ever authenticates with the CAN, the six digits
+  /// RefineID only ever authenticates with the CAN, the six digits
   /// printed on the card.
   internal static let passwordReferenceCan: UInt8 = 0x02
 

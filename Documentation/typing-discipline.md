@@ -1,6 +1,6 @@
 # Typing discipline (Swift)
 
-ReFineID uses Swift's type system as a security control, following the
+RefineID uses Swift's type system as a security control, following the
 discipline proven in the Rust reference implementation. The goal is not
 "more types" for their own sake; the goal is to make invalid protocol
 states and trust transitions unrepresentable where that is practical.

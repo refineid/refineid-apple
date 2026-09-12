@@ -1,9 +1,9 @@
 À : controle@ssi.gouv.fr
-Objet : [formalités] ReFineID – ReFineID
+Objet : [formalités] RefineID – RefineID
 
 Bonjour,
 
-Veuillez trouver ci-joint la déclaration ReFineID signée électroniquement.
+Veuillez trouver ci-joint la déclaration RefineID signée électroniquement.
 
 Cordialement,
 Petri Koistinen

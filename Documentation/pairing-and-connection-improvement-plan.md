@@ -2,7 +2,7 @@
 
 ## 1. Summary
 
-This document specifies the improvements to the ReFineID Authenticated Peer
+This document specifies the improvements to the RefineID Authenticated Peer
 Protocol (RAPP) pairing experience, security threat model, and persistent
 connection lifecycle between borrowing devices (iPad, Mac) and card-holding
 devices (iPhone).

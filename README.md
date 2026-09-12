@@ -11,8 +11,8 @@ Available at https://apps.apple.com/fi/app/refineid/id6796444289
 Requires Xcode 26 on macOS 26. From a fresh clone, no other setup:
 
 ```sh
-xcodebuild -project ReFineID.xcodeproj -scheme RefineID build
-xcodebuild -project ReFineID.xcodeproj -scheme RefineID test
+xcodebuild -project RefineID.xcodeproj -scheme RefineID build
+xcodebuild -project RefineID.xcodeproj -scheme RefineID test
 ```
 
 For an iPhone timing build, use the optimized `Profile` configuration and
@@ -20,7 +20,7 @@ override Xcode's Swift-package coverage injection:
 
 ```sh
 xcodebuild build \
-  -project ReFineID.xcodeproj \
+  -project RefineID.xcodeproj \
   -scheme RefineID \
   -configuration Profile \
   -destination 'generic/platform=iOS' \

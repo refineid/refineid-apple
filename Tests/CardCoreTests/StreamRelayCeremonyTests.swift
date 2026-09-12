@@ -171,7 +171,7 @@ import Testing
       let listener = StreamRelayListener { event in
         Task { await inbound.deliver(event) }
       }
-      listener.start(displayName: "ReFineID ceremony \(testID.prefix(6))")
+      listener.start(displayName: "RefineID ceremony \(testID.prefix(6))")
       defer { listener.cancel() }
       let port = try await Self.boundPort(of: listener)
 

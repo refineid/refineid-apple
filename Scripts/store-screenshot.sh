@@ -2,7 +2,7 @@
 # Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 # 
 
-# Capture the frontmost ReFineID window onto an App-Store-ready
+# Capture the frontmost RefineID window onto an App-Store-ready
 # canvas: 2880x1800 (16:10), window centred, dark background.
 #
 #   Scripts/store-screenshot.sh NAME
@@ -18,7 +18,7 @@ out_dir="$HOME/Desktop/refineid-store-screenshots"
 mkdir -p "$out_dir"
 
 bounds="$(osascript -e '
-  tell application "System Events" to tell (first process whose name is "ReFineID")
+  tell application "System Events" to tell (first process whose name is "RefineID")
     set p to position of window 1
     set s to size of window 1
     return ((item 1 of p) as text) & "," & ((item 2 of p) as text) & "," & ((item 1 of s) as text) & "," & ((item 2 of s) as text)

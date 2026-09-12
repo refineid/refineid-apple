@@ -5,7 +5,7 @@ import Foundation
 /// Stable coordinates shared by the hosting app and persistent token driver.
 public enum PersistentTokenIdentity {
   /// The CryptoTokenKit class identifier both processes configure under.
-  public static let classID = "fi.refineid.ReFineID.rapp-token"
+  public static let classID = "fi.refineid.refineid.rapp-token"
 
   /// CryptoTokenKit separates the class and instance identifiers with this.
   private static let identifierSeparator = ":"

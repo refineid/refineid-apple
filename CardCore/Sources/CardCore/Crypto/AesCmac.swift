@@ -17,8 +17,8 @@ import Foundation
 /// Tag comparison is the caller's responsibility and must be done in
 /// constant time on any value that a card or a peer supplied.
 ///
-/// Provenance: lifted from the ReFineID iOS browser donor
-/// `Sources/ReFineIDBrowserKit/Crypto/CMAC.swift`.
+/// Provenance: lifted from the RefineID iOS browser donor
+/// `Sources/RefineIDBrowserKit/Crypto/CMAC.swift`.
 public enum AesCmac {
   /// The full CMAC tag length in bytes, which is one AES block.
   public static let tagLength = AesCbc.blockSize

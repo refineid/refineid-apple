@@ -60,9 +60,9 @@ went stale, so the text is not repeated: read it there.
 
 - Export compliance rationale: `Documentation/export-compliance.md`.
 - Sandbox and entitlement rationale: comments in
-  `Config/ReFineID.entitlements`.
-- ATS rationale: comments in both `Config/ReFineID-Info.plist` and
-  `Config/ReFineID-iOS-Info.plist`. Both binaries make network
+  `Config/RefineID.entitlements`.
+- ATS rationale: comments in both `Config/RefineID-Info.plist` and
+  `Config/RefineID-iOS-Info.plist`. Both binaries make network
   requests when signing a document: the time-stamp authority and
   revocation endpoints an archival signature needs.
 

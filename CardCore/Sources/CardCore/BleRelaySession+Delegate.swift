@@ -244,7 +244,7 @@ import Foundation
       peripheralManager?.add(service)
       peripheralManager?.startAdvertising([
         CBAdvertisementDataServiceUUIDsKey: [serviceUUID],
-        CBAdvertisementDataLocalNameKey: "ReFineID-RAPP",
+        CBAdvertisementDataLocalNameKey: "RefineID-RAPP",
       ])
     }
   }
