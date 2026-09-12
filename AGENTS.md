@@ -8,7 +8,9 @@
 - Never commit test PINs or card secrets.
 
 # Rule #3 – Comments describe the code, never its history
-- Comments state what the code does or the constraint it honors, never why it changed. A past bug, a deprecation, or the reasoning for a fix belongs in the git commit message, not the source.
+- Comments explain what the code does now and the constraints it honors.
+  Past bugs, previous implementations, and explanations of what a fix changed
+  belong in commit messages, not source comments.
 
 # Rule #4 – Everything the software stores in the keychain lives under `fi.refineid`
 - Every keychain service the software creates starts with `fi.refineid`. That prefix is the whole deletable namespace: wiping it forgets every card number, pairing, and credential the app holds, and nothing else.
@@ -72,3 +74,12 @@
 - Always test and verify features with automated tests and end-to-end
   verification before handing over to the user. Never claim features work
   without automated verification.
+
+## Commits and integration
+
+- Commits are cheap backups. Make small, focused commits often, without
+  asking for permission, once the required commit checks pass.
+- Complete the integration without waiting for another instruction: push
+  the task branch, open a pull request, and merge it into `main` once the
+  required checks pass. Sync local `main` with the merged remote.
+  Use merge commits to preserve the branch history; do not squash it.
