@@ -88,9 +88,18 @@ internal struct RequesterOperationEngine {
     guard let operationIdentifier = message.referencedOperationIdentifier else {
       return .notOperation(message)
     }
-    guard let index = index(of: operationIdentifier),
-      !operations[index].record.state.isTerminal
-    else { return Self.stale(operationIdentifier) }
+    guard let index = index(of: operationIdentifier) else {
+      if case .operationProgress = message {
+        return .ignoredProgress(operationIdentifier: operationIdentifier)
+      }
+      return Self.stale(operationIdentifier)
+    }
+    guard !operations[index].record.state.isTerminal else {
+      if case .operationProgress = message {
+        return .ignoredProgress(operationIdentifier: operationIdentifier)
+      }
+      return Self.stale(operationIdentifier)
+    }
 
     return try receiveActiveOperation(
       message, index: index, operationIdentifier: operationIdentifier, store: &store)
@@ -108,7 +117,14 @@ internal struct RequesterOperationEngine {
       return .prepared(operationIdentifier: operationIdentifier)
 
     case .operationProgress(let progress):
-      try operations[index].receiveProgress(progress)
+      do {
+        try operations[index].receiveProgress(progress)
+      } catch {
+        return .ignoredProgress(operationIdentifier: operationIdentifier)
+      }
+      guard progress.event != .unknown else {
+        return .ignoredProgress(operationIdentifier: operationIdentifier)
+      }
       return .progress(operationIdentifier: operationIdentifier, event: progress.event)
 
     case .operationResult(let result):

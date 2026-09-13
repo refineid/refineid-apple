@@ -33,6 +33,8 @@
     }
 
     internal func start() {
+      guard !TestCredentialEnvironment.isTestMode else { return }
+      // The host RefineID application is the sole consumer of UserNotifications in this bundle.
       let center = UNUserNotificationCenter.current()
       center.delegate = self
       center.requestAuthorization(options: [.alert]) { _, _ in
@@ -103,6 +105,10 @@
     }
 
     // MARK: - UNUserNotificationCenterDelegate
+
+    // Specifying [.banner] while omitting .list ensures the notification appears transiently
+    // as a banner and is not persisted into Notification Center history (per Apple
+    // UserNotifications documentation for UNNotificationPresentationOptions).
 
     nonisolated internal func userNotificationCenter(
       _: UNUserNotificationCenter,

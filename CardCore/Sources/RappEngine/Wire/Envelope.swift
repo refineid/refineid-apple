@@ -157,11 +157,6 @@ internal struct Envelope: Equatable {
         throw WireError.invalidValue(field: "error")
       }
 
-    case .operationProgress:
-      guard let event = discriminant("event"), FieldSpec.progressEvents.contains(event) else {
-        throw WireError.invalidValue(field: "event")
-      }
-
     default:
       break
     }

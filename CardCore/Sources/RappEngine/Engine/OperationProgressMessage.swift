@@ -16,14 +16,13 @@ internal struct OperationProgressMessage: Equatable {
   internal static func from(wireBody: [String: WireValue]) throws -> Self {
     var body = wireBody
     guard let eventValue = body.removeValue(forKey: "event"),
-      case .text(let eventName) = eventValue,
-      let parsedEvent = ProgressEvent(rawValue: eventName)
+      case .text(let eventName) = eventValue
     else {
       throw MessageFieldError.invalidField("event")
     }
     return Self(
       reference: try OperationReference.from(wireBody: body),
-      event: parsedEvent
+      event: ProgressEvent(wireValue: eventName)
     )
   }
 }

@@ -6,6 +6,8 @@ import Foundation
 internal enum RequesterDispatch: Equatable {
   /// A peer cancellation was journaled.
   case cancellationReceived(operationIdentifier: Data, state: OperationState)
+  /// An advisory progress event was ignored without an error response.
+  case ignoredProgress(operationIdentifier: Data)
   /// A stale reference; answer it and change nothing.
   case ignoredStale(operationIdentifier: Data, response: TypedMessage)
   /// Not an operation message; the operation layer is unaffected.

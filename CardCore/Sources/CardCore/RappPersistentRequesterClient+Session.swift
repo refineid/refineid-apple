@@ -128,8 +128,8 @@
       case .established:
         await beginOperation(on: coordinator)
 
-      case .progress(_, let progressEvent):
-        handleProgress(progressEvent: progressEvent)
+      case .progress(let operationID, let progressEvent):
+        handleProgress(operationID: operationID, progressEvent: progressEvent)
 
       case .completed(_, let result):
         await handleCompleted(result, on: coordinator)
@@ -151,7 +151,8 @@
       }
     }
 
-    private func handleProgress(progressEvent: ProgressEvent) {
+    private func handleProgress(operationID: Data, progressEvent: ProgressEvent) {
+      guard !operationID.isEmpty else { return }
       if progressEvent == .waitingForCard {
         postDistributedNotification(RappCardPromptNotificationNames.cardNeededDarwinNotification)
       } else if progressEvent == .cardWaitEnded {

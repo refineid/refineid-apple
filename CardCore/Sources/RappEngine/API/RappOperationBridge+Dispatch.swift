@@ -264,6 +264,9 @@ extension RappOperationBridge {
     case .ignoredStale(let operationIdentifier, let response):
       try staleAction(operationIdentifier: operationIdentifier, response: response)
 
+    case .ignoredProgress(let operationIdentifier):
+      RappBridgeAction(kind: .noAction, operationId: operationIdentifier)
+
     case .notOperation:
       RappBridgeAction(kind: .noAction)
 

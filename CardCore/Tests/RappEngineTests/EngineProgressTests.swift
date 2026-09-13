@@ -85,7 +85,7 @@ internal struct EngineProgressTests {
     #expect(failedAsExpected)
   }
 
-  @Test("Requester rejects progress message with mismatched reference")
+  @Test("Requester silently ignores progress message with mismatched reference")
   internal func progressReferenceMismatch() throws {
     var store = MemoryJournalStore()
     var requester = RequesterOperationEngine(recovered: [])
@@ -101,16 +101,11 @@ internal struct EngineProgressTests {
       OperationProgressMessage(reference: mismatchedRef, event: .waitingForCard)
     )
 
-    var failedAsExpected = false
-    do {
-      _ = try requester.receive(badMsg, store: &store)
-    } catch EngineError.authenticatedProtocolViolation(.referenceMismatch) {
-      failedAsExpected = true
-    }
-    #expect(failedAsExpected)
+    let dispatch = try requester.receive(badMsg, store: &store)
+    #expect(dispatch == .ignoredProgress(operationIdentifier: identifier))
   }
 
-  @Test("Requester ignores progress message on terminal or completed operation")
+  @Test("Requester silently ignores progress message on terminal or completed operation")
   internal func progressIgnoredOnTerminalOperation() throws {
     var store = MemoryJournalStore()
     var requester = RequesterOperationEngine(recovered: [])
@@ -127,10 +122,71 @@ internal struct EngineProgressTests {
       OperationProgressMessage(reference: reference, event: .waitingForCard)
     )
     let dispatch = try requester.receive(progressMsg, store: &store)
-    guard case .ignoredStale(let staleID, _) = dispatch else {
-      #expect(Bool(false), "expected ignoredStale on terminal operation")
-      return
-    }
-    #expect(staleID == identifier)
+    #expect(dispatch == .ignoredProgress(operationIdentifier: identifier))
+  }
+
+  @Test("Requester silently ignores progress message on unknown operation")
+  internal func progressIgnoredOnUnknownOperation() throws {
+    var store = MemoryJournalStore()
+    var requester = RequesterOperationEngine(recovered: [])
+    let unknownID = Data(repeating: 0x88, count: 16)
+    let reference = OperationReference(
+      operationIdentifier: unknownID,
+      requestHash: Data(repeating: 0x99, count: 32)
+    )
+    let progressMsg = TypedMessage.operationProgress(
+      OperationProgressMessage(reference: reference, event: .waitingForCard)
+    )
+    let dispatch = try requester.receive(progressMsg, store: &store)
+    #expect(dispatch == .ignoredProgress(operationIdentifier: unknownID))
+  }
+
+  @Test("Unknown progress event decodes cleanly and is ignored as no-op")
+  internal func progressUnknownEventIgnored() throws {
+    var store = MemoryJournalStore()
+    var requester = RequesterOperationEngine(recovered: [])
+    let request = try engineRequest(operation: signingOperation())
+    let identifier = request.operationIdentifier
+    _ = try requester.begin(request, store: &store)
+
+    let reference = OperationReference(
+      operationIdentifier: identifier,
+      requestHash: try request.requestHash()
+    )
+    let unknownEventMsg = TypedMessage.operationProgress(
+      OperationProgressMessage(
+        reference: reference,
+        event: ProgressEvent(wireValue: "future_event")
+      )
+    )
+
+    #expect(ProgressEvent(wireValue: "future_event") == .unknown)
+
+    let dispatch = try requester.receive(unknownEventMsg, store: &store)
+    #expect(dispatch == .ignoredProgress(operationIdentifier: identifier))
+  }
+
+  @Test("Envelope decodes unknown future progress event without error")
+  internal func envelopeDecodesFutureProgressEvent() throws {
+    let identifier = Data(repeating: 0x42, count: 16)
+    let requestHash = Data(repeating: 0x53, count: 32)
+    let envelope = Envelope(
+      messageType: .operationProgress,
+      sessionIdentifier: Data(repeating: 0x01, count: 16),
+      sequence: 1,
+      body: [
+        "operation_id": .bytes(identifier),
+        "request_hash": .bytes(requestHash),
+        "event": .text("device_pin_requested_future"),
+      ],
+      critical: [],
+      extensions: [:]
+    )
+    let encoded = try envelope.encoded()
+    let decoded = try Envelope.decode(encoded)
+    #expect(decoded.messageType == .operationProgress)
+    let progress = try OperationProgressMessage.from(wireBody: decoded.body)
+    #expect(progress.event == .unknown)
+    #expect(progress.reference.operationIdentifier == identifier)
   }
 }
