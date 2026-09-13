@@ -18,7 +18,7 @@
     internal static let notificationIdentifier = "fi.refineid.card.needed"
     internal static let cardNeededDarwinNotification = "fi.refineid.card.needed"
     internal static let cardDismissDarwinNotification = "fi.refineid.card.dismiss"
-    private static let promptGracePeriodSeconds: TimeInterval = 5.0
+    private static let promptGracePeriodSeconds: TimeInterval = 1.5
 
     private var distributedNeededObserver: (any NSObjectProtocol)?
     private var distributedDismissObserver: (any NSObjectProtocol)?
@@ -63,7 +63,7 @@
         postPromptNotification()
       }
       pendingPresentWorkItem = workItem
-      // Grace period of 5 seconds: if the card is already present and immediately
+      // Grace period of 1.5 seconds: if the card is already present and immediately
       // available, the operation completes smoothly without ever displaying a notification.
       DispatchQueue.main.asyncAfter(
         deadline: .now() + Self.promptGracePeriodSeconds,

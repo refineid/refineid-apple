@@ -27,8 +27,10 @@ public struct RappBridgeAction: Equatable, Sendable {
   /// authenticated protocol violation, and a peer's authenticated
   /// revocation notice. A card leaving is not among them.
   public var revokesPairing: Bool
-  /// When the caller should next poll liveness, on the monotonic clock.
+  /// Monotonic time of the next required liveness poll.
   public var nextPollAtMs: UInt64?
+  /// Advisory progress event reported by peer.
+  public var progressEvent: ProgressEvent?
 
   /// Describes one step, carrying only what that step needs.
   public init(
@@ -40,7 +42,8 @@ public struct RappBridgeAction: Equatable, Sendable {
     terminalReason: RappTerminalReason? = nil,
     closeSessionAfterSend: Bool = false,
     revokesPairing: Bool = false,
-    nextPollAtMs: UInt64? = nil
+    nextPollAtMs: UInt64? = nil,
+    progressEvent: ProgressEvent? = nil
   ) {
     self.kind = kind
     self.operationId = operationId
@@ -51,5 +54,6 @@ public struct RappBridgeAction: Equatable, Sendable {
     self.closeSessionAfterSend = closeSessionAfterSend
     self.revokesPairing = revokesPairing
     self.nextPollAtMs = nextPollAtMs
+    self.progressEvent = progressEvent
   }
 }

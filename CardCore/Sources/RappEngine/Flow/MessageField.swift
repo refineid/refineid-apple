@@ -4,7 +4,10 @@ import Foundation
 
 /// The wire version every parameter echo repeats.
 internal var wireVersionValue: WireValue {
-  .array([.unsigned(RappNoise.wireVersion.major), .unsigned(RappNoise.wireVersion.minor)])
+  .array([
+    .unsigned(RappNoise.wireVersion.major), .unsigned(RappNoise.wireVersion.minor),
+    .unsigned(RappNoise.wireVersion.patch),
+  ])
 }
 
 internal func requireVersion(_ map: inout [String: WireValue]) throws {

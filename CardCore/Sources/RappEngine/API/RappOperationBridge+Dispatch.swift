@@ -211,9 +211,16 @@ extension RappOperationBridge {
 
   /// The caller's next step for one requester dispatch.
   internal func action(for dispatch: RequesterDispatch) throws -> RappBridgeAction {
+    if let action = try sessionAction(for: dispatch) { return action }
     switch dispatch {
     case .prepared(let operationIdentifier):
       return try preparedAction(operationIdentifier: operationIdentifier)
+
+    case .progress(let operationIdentifier, let event):
+      return RappBridgeAction(
+        kind: .progress,
+        operationId: operationIdentifier,
+        progressEvent: event)
 
     case .sendResultAcknowledgement(let operationIdentifier, let message):
       return RappBridgeAction(
@@ -238,20 +245,30 @@ extension RappOperationBridge {
         kind: .cancelled, operationId: operationIdentifier, terminalState: state.rawValue,
         terminalReason: .cancelled)
 
+    default:
+      throw RappBindingError.WrongPhase
+    }
+  }
+
+  private func sessionAction(for dispatch: RequesterDispatch) throws -> RappBridgeAction? {
+    switch dispatch {
     case .peerBusy:
-      return RappBridgeAction(kind: .peerBusy)
+      RappBridgeAction(kind: .peerBusy)
 
     case .peerUnknownOperation(let operationIdentifier):
-      return RappBridgeAction(kind: .peerUnknownOperation, operationId: operationIdentifier)
+      RappBridgeAction(kind: .peerUnknownOperation, operationId: operationIdentifier)
 
     case .statusAnnotated(let operationIdentifier):
-      return RappBridgeAction(kind: .noAction, operationId: operationIdentifier)
+      RappBridgeAction(kind: .noAction, operationId: operationIdentifier)
 
     case .ignoredStale(let operationIdentifier, let response):
-      return try staleAction(operationIdentifier: operationIdentifier, response: response)
+      try staleAction(operationIdentifier: operationIdentifier, response: response)
 
     case .notOperation:
-      return RappBridgeAction(kind: .noAction)
+      RappBridgeAction(kind: .noAction)
+
+    default:
+      nil
     }
   }
 

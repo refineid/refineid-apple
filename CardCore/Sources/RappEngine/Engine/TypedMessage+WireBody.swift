@@ -12,6 +12,9 @@ extension TypedMessage {
     case .operationPrepared:
       .operationPrepared
 
+    case .operationProgress:
+      .operationProgress
+
     case .operationCommit:
       .operationCommit
 
@@ -53,6 +56,9 @@ extension TypedMessage {
       .operationCommit(let reference),
       .operationResultAck(let reference):
       reference.wireBody
+
+    case .operationProgress(let progress):
+      progress.wireBody
 
     case .operationCancel(let cancellation):
       try cancellation.wireBody()

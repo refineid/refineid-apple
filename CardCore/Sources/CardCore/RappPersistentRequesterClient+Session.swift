@@ -128,28 +128,17 @@
       case .established:
         await beginOperation(on: coordinator)
 
+      case .progress(_, let progressEvent):
+        handleProgress(progressEvent)
+
       case .completed(_, let result):
-        let response = self.response(for: result)
-        await coordinator.close()
-        if let response {
-          finish(response: response)
-        } else {
-          Self.logger.notice("[RappRequester] completed with unexpected result")
-          finish(error: .unexpectedResult)
-        }
+        await handleCompleted(result, on: coordinator)
 
       case .terminal(_, _, let reason):
-        Self.logger.notice(
-          "[RappRequester] coordinator terminal reason: \(String(describing: reason), privacy: .public)"
-        )
-        await coordinator.close()
-        finish(error: .terminal(reason))
+        await handleTerminal(reason, on: coordinator)
 
       case .closed(let reason):
-        Self.logger.notice(
-          "[RappRequester] coordinator closed: \(String(describing: reason), privacy: .public)"
-        )
-        finish(error: .transport)
+        handleClosed(reason)
 
       case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
         .executeCardCommand, .advisoryCancellation, .operationFinished,
@@ -160,6 +149,60 @@
         await coordinator.close()
         finish(error: .protocolFailure)
       }
+    }
+
+    private func handleProgress(_ progressEvent: ProgressEvent) {
+      if progressEvent == .waitingForCard {
+        postDistributedNotification("fi.refineid.card.needed")
+      } else if progressEvent == .cardWaitEnded {
+        postDistributedNotification("fi.refineid.card.dismiss")
+      }
+    }
+
+    private func handleCompleted(
+      _ result: RappOperationDriver.Result,
+      on coordinator: RappConnectionCoordinator
+    ) async {
+      postDistributedNotification("fi.refineid.card.dismiss")
+      let response = self.response(for: result)
+      await coordinator.close()
+      if let response {
+        finish(response: response)
+      } else {
+        Self.logger.notice("[RappRequester] completed with unexpected result")
+        finish(error: .unexpectedResult)
+      }
+    }
+
+    private func handleTerminal(
+      _ reason: RappOperationDriver.TerminalReason?,
+      on coordinator: RappConnectionCoordinator
+    ) async {
+      postDistributedNotification("fi.refineid.card.dismiss")
+      Self.logger.notice(
+        "[RappRequester] coordinator terminal reason: \(String(describing: reason), privacy: .public)"
+      )
+      await coordinator.close()
+      finish(error: .terminal(reason))
+    }
+
+    private func handleClosed(_ reason: RappConnectionCoordinator.CloseReason) {
+      postDistributedNotification("fi.refineid.card.dismiss")
+      Self.logger.notice(
+        "[RappRequester] coordinator closed: \(String(describing: reason), privacy: .public)"
+      )
+      finish(error: .transport)
+    }
+
+    private func postDistributedNotification(_ name: String) {
+      #if os(macOS)
+        DistributedNotificationCenter.default().postNotificationName(
+          Notification.Name(name),
+          object: nil,
+          userInfo: nil,
+          deliverImmediately: true
+        )
+      #endif
     }
 
     /// Asks for the operation this request was made for, once.

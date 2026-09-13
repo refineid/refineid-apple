@@ -16,6 +16,8 @@ internal enum RequesterDispatch: Equatable {
   case peerUnknownOperation(operationIdentifier: Data?)
   /// The proxy is ready; the requester decides whether to commit.
   case prepared(operationIdentifier: Data)
+  /// An advisory progress event arrived for this active operation.
+  case progress(operationIdentifier: Data, event: ProgressEvent)
   /// Release this acknowledgement for the completed result.
   case sendResultAcknowledgement(operationIdentifier: Data, message: TypedMessage)
   /// An authenticated status report was stored as an annotation.

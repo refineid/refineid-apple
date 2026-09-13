@@ -9,7 +9,10 @@ internal struct Envelope: Equatable {
   ]
 
   private static var versionValue: WireValue {
-    .array([.unsigned(RappNoise.wireVersion.major), .unsigned(RappNoise.wireVersion.minor)])
+    .array([
+      .unsigned(RappNoise.wireVersion.major), .unsigned(RappNoise.wireVersion.minor),
+      .unsigned(RappNoise.wireVersion.patch),
+    ])
   }
 
   internal let messageType: MessageType
@@ -58,6 +61,7 @@ internal struct Envelope: Equatable {
     guard
       version == [
         .unsigned(RappNoise.wireVersion.major), .unsigned(RappNoise.wireVersion.minor),
+        .unsigned(RappNoise.wireVersion.patch),
       ]
     else { throw WireError.unsupportedVersion }
   }
@@ -151,6 +155,11 @@ internal struct Envelope: Equatable {
     case .error:
       guard let error = discriminant("error"), FieldSpec.protocolErrors.contains(error) else {
         throw WireError.invalidValue(field: "error")
+      }
+
+    case .operationProgress:
+      guard let event = discriminant("event"), FieldSpec.progressEvents.contains(event) else {
+        throw WireError.invalidValue(field: "event")
       }
 
     default:

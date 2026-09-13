@@ -14,6 +14,9 @@ internal enum SessionMessageCodec {
     sessionIdentifier: Data,
     nowMilliseconds: UInt64
   ) throws -> TypedMessage {
+    if let message = try referenceMessage(from: envelope) {
+      return message
+    }
     switch envelope.messageType {
     case .operationRequest:
       return .operationRequest(
@@ -23,14 +26,8 @@ internal enum SessionMessageCodec {
           sessionIdentifier: sessionIdentifier,
           localStartMilliseconds: nowMilliseconds))
 
-    case .operationPrepared:
-      return .operationPrepared(try OperationReference.from(wireBody: envelope.body))
-
-    case .operationCommit:
-      return .operationCommit(try OperationReference.from(wireBody: envelope.body))
-
-    case .operationResultAck:
-      return .operationResultAck(try OperationReference.from(wireBody: envelope.body))
+    case .operationProgress:
+      return .operationProgress(try OperationProgressMessage.from(wireBody: envelope.body))
 
     case .operationCancel:
       return .operationCancel(try CancelMessage.from(wireBody: envelope.body))
@@ -51,6 +48,22 @@ internal enum SessionMessageCodec {
 
     default:
       return .other(envelope.messageType)
+    }
+  }
+
+  private static func referenceMessage(from envelope: Envelope) throws -> TypedMessage? {
+    switch envelope.messageType {
+    case .operationPrepared:
+      .operationPrepared(try OperationReference.from(wireBody: envelope.body))
+
+    case .operationCommit:
+      .operationCommit(try OperationReference.from(wireBody: envelope.body))
+
+    case .operationResultAck:
+      .operationResultAck(try OperationReference.from(wireBody: envelope.body))
+
+    default:
+      nil
     }
   }
 

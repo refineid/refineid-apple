@@ -33,6 +33,8 @@ public enum RappBridgeActionKind: Equatable, Sendable {
   case advisoryCancellation
   /// The peer acknowledged the retained result.
   case resultAcknowledged
+  /// Advisory progress update reported by peer.
+  case progress
   /// The peer already serves an operation on this pairing.
   case peerBusy
   /// The peer answered a stale reference; an ordinary race.

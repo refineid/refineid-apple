@@ -62,6 +62,7 @@ internal struct PairingOffer: Sendable {
     guard
       try offerTakeArray(&map, "version") == [
         .unsigned(RappNoise.wireVersion.major), .unsigned(RappNoise.wireVersion.minor),
+        .unsigned(RappNoise.wireVersion.patch),
       ]
     else { throw PairingOfferError.unsupportedVersion }
     let decodedOfferIdentifier = try offerTakeBytes(&map, "offer_id")
@@ -136,6 +137,7 @@ internal struct PairingOffer: Sendable {
       "scheme": .text(offerSchemeName),
       "version": .array([
         .unsigned(RappNoise.wireVersion.major), .unsigned(RappNoise.wireVersion.minor),
+        .unsigned(RappNoise.wireVersion.patch),
       ]),
       "offer_id": .bytes(offerIdentifier),
       "suites": .array(suites.map(WireValue.text)),

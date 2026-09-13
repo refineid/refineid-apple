@@ -390,6 +390,7 @@
       case operationFinished(operationID: Data?)
       case peerBusy(operationID: Data?)
       case peerUnknownOperation(operationID: Data?)
+      case progress(operationID: Data, event: ProgressEvent)
       case scheduleLiveness(atMonotonicMilliseconds: UInt64)
       case closed(CloseReason)
     }

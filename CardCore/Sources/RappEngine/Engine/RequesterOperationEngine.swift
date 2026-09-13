@@ -92,10 +92,24 @@ internal struct RequesterOperationEngine {
       !operations[index].record.state.isTerminal
     else { return Self.stale(operationIdentifier) }
 
+    return try receiveActiveOperation(
+      message, index: index, operationIdentifier: operationIdentifier, store: &store)
+  }
+
+  private mutating func receiveActiveOperation(
+    _ message: TypedMessage,
+    index: Int,
+    operationIdentifier: Data,
+    store: inout some RequesterJournalStore
+  ) throws -> RequesterDispatch {
     switch message {
     case .operationPrepared(let reference):
       try operations[index].receivePrepared(reference, to: &store)
       return .prepared(operationIdentifier: operationIdentifier)
+
+    case .operationProgress(let progress):
+      try operations[index].receiveProgress(progress)
+      return .progress(operationIdentifier: operationIdentifier, event: progress.event)
 
     case .operationResult(let result):
       let action = try operations[index].receiveResult(result, to: &store)

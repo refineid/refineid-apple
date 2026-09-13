@@ -45,6 +45,7 @@
       case operationFinished(operationID: Data?)
       case peerBusy(operationID: Data?)
       case peerUnknownOperation(operationID: Data?)
+      case progress(operationID: Data, event: ProgressEvent)
       case closed(CloseReason)
 
       internal init?(_ command: RappOperationDriver.Command) {
@@ -72,7 +73,7 @@
           .executeCardCommand(operationID: operationID, operation: operation)
 
         case .completed, .terminal, .advisoryCancellation,
-          .operationFinished, .peerBusy, .peerUnknownOperation,
+          .operationFinished, .peerBusy, .peerUnknownOperation, .progress,
           .send, .scheduleLiveness, .closed:
           nil
         }
@@ -97,6 +98,9 @@
 
         case .peerUnknownOperation(let operationID):
           .peerUnknownOperation(operationID: operationID)
+
+        case .progress(let operationID, let event):
+          .progress(operationID: operationID, event: event)
 
         case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
           .executeCardCommand, .send, .scheduleLiveness, .closed:
