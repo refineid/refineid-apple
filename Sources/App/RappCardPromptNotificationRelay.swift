@@ -83,7 +83,6 @@
     private func postPromptNotification() {
       let content = UNMutableNotificationContent()
       content.title = String(localized: "Your phone needs an ID card, please.")
-      content.body = String(localized: "Please hold your ID card against the back of the phone.")
       // No sound by default on macOS
 
       let request = UNNotificationRequest(
