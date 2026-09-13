@@ -5,6 +5,20 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-09-13 Technical identifiers keep the ReFineID spelling
+
+The product rename to RefineID covers display strings, docs, comments,
+and file names. Bundle IDs, the CryptoTokenKit class-id, and the
+keychain group keep `fi.refineid.ReFineID`: the parent app bundle ID is
+shipped, so renaming it breaks the update chain and orphans installed
+keychain items, and Apple requires an embedded binary bundle ID to carry
+the parent prefix, which pins `fi.refineid.ReFineID.rapp-token` as well.
+The class-id stays equal to the extension bundle ID by test
+(`RappShippingConfigurationTests`); splitting them would give one token
+two names. The app group already uses the new spelling
+(`group.fi.refineid.RefineID`). A full rename needs a new App Store SKU
+with credential migration and is not planned.
+
 ## 2026-09-10 First full version: TestFlight and Release ship every feature
 
 The month since the iPhone MVP proved the pieces live: RAPP proxy web
