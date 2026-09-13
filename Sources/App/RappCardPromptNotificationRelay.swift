@@ -6,7 +6,7 @@
   import Foundation
   import UserNotifications
 
-  /// Relays transient ID card prompts from the persistent token driver to macOS UserNotifications.
+  /// Relays transient ID card prompts from the authenticated requester client to macOS UserNotifications.
   ///
   /// When an authentication or signing request is waiting for the card on the phone,
   /// this relay displays a temporary banner. As soon as the card is detected or the
