@@ -51,11 +51,19 @@
         Text(verbatim: "RefineID debug: " + mode.rawValue)
       }
       .padding()
-      .task(id: scenePhase) {
-        guard mode != .activationProbe, scenePhase == .active, !hasStarted else { return }
-        hasStarted = true
-        await Self.run(mode)
-      }
+      #if os(macOS)
+        .task {
+          guard mode != .activationProbe, !hasStarted else { return }
+          hasStarted = true
+          await Self.run(mode)
+        }
+      #else
+        .task(id: scenePhase) {
+          guard mode != .activationProbe, scenePhase == .active, !hasStarted else { return }
+          hasStarted = true
+          await Self.run(mode)
+        }
+      #endif
     }
 
     /// Runs the mode and ends the process with its status.
