@@ -4,8 +4,11 @@ import os
 
 /// PIN1 the named card has accepted, held by one live token.
 ///
-/// Remembers the PIN entry, never a successful VERIFY result: every
-/// signature still sends VERIFY PIN1 to the card. The memory only
+/// Remembers the verified PIN entry bound to this live token.
+///
+/// When the card session is already in the verified state and has
+/// valid checked-out PIN1 memory, subsequent signature operations
+/// can reuse the verified state (FINEID S1 v4.2 §3.5). The memory
 /// spares the holder from retyping while this token remains. The token
 /// dies when the card or reader leaves, and the PIN dies with it.
 ///

@@ -9,7 +9,7 @@ import Security
 /// The verdict is computed entirely offline: document integrity from
 /// the declared byte ranges, the signature over the canonical signed
 /// attributes, the ESS-bound signer certificate, its chain step to the
-/// bundled issuer, and every signature timestamp against the token's
+/// issuer, and every signature timestamp against the token's
 /// own authenticated chain. Revocation is deliberately not answered
 /// here; the caller holds the signer and issuer and decides which
 /// evidence basis to consult.
@@ -25,7 +25,7 @@ public enum DocumentVerification {
     /// The signer certificate, for revocation checks.
     public let signerCertificate: Data
 
-    /// The bundled issuer the chain step was proven against, when one
+    /// The issuer the chain step was proven against, when one
     /// matched.
     public let issuerCertificate: Data?
 
@@ -35,7 +35,7 @@ public enum DocumentVerification {
     /// Whether the signature verifies over the canonical attributes.
     public let signatureValid: Bool
 
-    /// Whether the signer is directly issued by the bundled issuer.
+    /// Whether the signer is directly issued by the issuer.
     public let chainVerified: Bool
 
     /// The earliest verified signature-timestamp time.
@@ -81,11 +81,10 @@ public enum DocumentVerification {
 
   /// Verifies every signature and document timestamp of the document.
   public static func verify(
-    document: Data,
-    bundle: Bundle = .main
+    document: Data
   ) throws -> DocumentReport {
     if AsicVerification.isAsicContainer(document) {
-      return try AsicVerification.verify(container: document, bundle: bundle)
+      return try AsicVerification.verify(container: document)
     }
     let found: [PdfSignatureReader.FoundSignature]
     do {
@@ -98,7 +97,7 @@ public enum DocumentVerification {
     let signatures =
       try found
       .filter { $0.subFilter == Self.signatureSubFilter }
-      .map { try report(of: $0, bundle: bundle) }
+      .map { try report(of: $0) }
     guard !signatures.isEmpty else {
       throw found.isEmpty ? Failure.noSignatures : Failure.unsupportedProfile
     }
@@ -129,8 +128,7 @@ public enum DocumentVerification {
   }
 
   private static func report(
-    of signature: PdfSignatureReader.FoundSignature,
-    bundle: Bundle
+    of signature: PdfSignatureReader.FoundSignature
   ) throws -> SignatureReport {
     let read: QualifiedDocumentCms.ReadSignature
     do {
@@ -158,8 +156,7 @@ public enum DocumentVerification {
     let timestampedAt = timestamps.min()
     let issuer = chainIssuer(
       of: read.signerCertificate,
-      at: timestampedAt ?? Date(),
-      bundle: bundle
+      at: timestampedAt ?? Date()
     )
 
     return SignatureReport(
@@ -198,15 +195,14 @@ public enum DocumentVerification {
     return (facts, profile)
   }
 
-  /// The bundled issuer that provably issued the signer, or nil when
-  /// no bundled issuer matches or the chain step fails.
+  /// The issuer that provably issued the signer, or nil when
+  /// no cached issuer matches or the chain step fails.
   private static func chainIssuer(
     of signer: Data,
-    at referenceTime: Date,
-    bundle: Bundle
+    at referenceTime: Date
   ) -> Data? {
     guard
-      let issuer = BundledIssuerCertificate.der(matching: signer, in: bundle),
+      let issuer = IssuerCertificate.der(matching: signer),
       CertificateIssuer.isDirectlyIssued(signer, by: issuer, at: referenceTime)
     else {
       return nil

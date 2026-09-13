@@ -8,27 +8,32 @@
   import Security
   import Testing
 
-  /// Tests for the dynamic in-memory TrustRootsCache and BundledIssuerCertificate fallback.
-  @Suite
-  internal struct BundledIssuerCertificateTests {
+  /// Tests for the dynamic in-memory TrustRootsCache and IssuerCertificate fallback.
+  @Suite(.serialized)
+  internal struct IssuerCertificateTests {
     @Test
-    internal func pinnedRootFingerprintsMatchKnownValues() {
-      let rsaBytes = TrustRootsCache.pinnedDvvG3RsaSha256
-      let eccBytes = TrustRootsCache.pinnedDvvG3EccSha256
+    internal func trustedRootMatchesRegisteredCertificates() throws {
+      let cache = TrustRootsCache()
+      defer { cache.reset() }
 
-      #expect(rsaBytes.count == 32)
-      #expect(eccBytes.count == 32)
-
-      #expect(TrustRootsCache.shared.isTrustedRoot(fingerprint: Data(rsaBytes)))
-      #expect(TrustRootsCache.shared.isTrustedRoot(fingerprint: Data(eccBytes)))
+      let rootSigner = try SignerCertificateFixtures.makeSigner(
+        for: .rsaSha256,
+        certificateProfile: .certificateAuthority
+      )
+      let rootFp = Data(SHA256.hash(data: rootSigner.certificate))
 
       let untrusted = Data(repeating: 0x42, count: 32)
-      #expect(!TrustRootsCache.shared.isTrustedRoot(fingerprint: untrusted))
+      #expect(!cache.isTrustedRoot(fingerprint: untrusted))
+      #expect(!cache.isTrustedRoot(fingerprint: rootFp))
+
+      cache.registerRoot(rootSigner.certificate)
+      #expect(cache.isTrustedRoot(fingerprint: rootFp))
     }
 
     @Test
     internal func dynamicRegistrationAndMatching() throws {
       let cache = TrustRootsCache()
+      defer { cache.reset() }
 
       let caSigner = try SignerCertificateFixtures.makeSigner(
         for: .rsaSha256,
@@ -62,8 +67,8 @@
 
       TrustRootsCache.shared.register(caSigner.certificate)
       defer { TrustRootsCache.shared.reset() }
-      let bundledMatch = BundledIssuerCertificate.der(matching: leaf.certificate)
-      #expect(bundledMatch == caSigner.certificate)
+      let issuerMatch = IssuerCertificate.der(matching: leaf.certificate)
+      #expect(issuerMatch == caSigner.certificate)
     }
   }
 
