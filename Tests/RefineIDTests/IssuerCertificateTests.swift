@@ -8,9 +8,9 @@
   import Security
   import Testing
 
-  /// Tests for the dynamic in-memory TrustRootsCache and BundledIssuerCertificate fallback.
+  /// Tests for the dynamic in-memory TrustRootsCache and IssuerCertificate fallback.
   @Suite(.serialized)
-  internal struct BundledIssuerCertificateTests {
+  internal struct IssuerCertificateTests {
     @Test
     internal func pinnedRootFingerprintsMatchKnownValues() {
       let rsaBytes = TrustRootsCache.pinnedDvvG3RsaSha256
@@ -63,8 +63,8 @@
 
       TrustRootsCache.shared.register(caSigner.certificate)
       defer { TrustRootsCache.shared.reset() }
-      let bundledMatch = BundledIssuerCertificate.der(matching: leaf.certificate)
-      #expect(bundledMatch == caSigner.certificate)
+      let issuerMatch = IssuerCertificate.der(matching: leaf.certificate)
+      #expect(issuerMatch == caSigner.certificate)
     }
   }
 

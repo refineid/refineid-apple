@@ -40,8 +40,9 @@ extension TrustRootsCache {
     return search
   }
 
-  /// Verifies that certificate bytes are within their validity window and represent a trusted root or CA.
-  internal static func isAuthenticAndValid(_ der: Data) -> Bool {
+  /// Verifies that certificate bytes are within their validity window and
+  /// assert authority status (pinned root or self-asserted CA).
+  internal static func meetsPersistencePolicy(_ der: Data) -> Bool {
     guard let window = CertificateValidity.window(inDer: der) else {
       return false
     }
@@ -57,9 +58,9 @@ extension TrustRootsCache {
     return isPinnedRoot || isCa
   }
 
-  /// Saves a newly registered certificate to persistent storage if authentic and unexpired.
+  /// Saves a newly registered certificate to persistent storage if it meets the persistence policy.
   internal static func persistCertificate(_ der: Data) {
-    guard isAuthenticAndValid(der) else {
+    guard meetsPersistencePolicy(der) else {
       return
     }
     let fingerprint = Data(SHA256.hash(data: der))
@@ -76,7 +77,12 @@ extension TrustRootsCache {
     if status == errSecDuplicateItem {
       let updateQuery = query(account: account)
       let replacement = [kSecValueData as String: der]
-      _ = SecItemUpdate(updateQuery as CFDictionary, replacement as CFDictionary)
+      let updateStatus = SecItemUpdate(updateQuery as CFDictionary, replacement as CFDictionary)
+      if updateStatus != errSecSuccess {
+        ExtensionTrace.append("TrustRootsCache SecItemUpdate failed: \(updateStatus)")
+      }
+    } else if status != errSecSuccess {
+      ExtensionTrace.append("TrustRootsCache SecItemAdd failed: \(status)")
     }
   }
 
@@ -87,7 +93,10 @@ extension TrustRootsCache {
       return
     }
     let deleteQuery = baseSearchQuery()
-    _ = SecItemDelete(deleteQuery as CFDictionary)
+    let status = SecItemDelete(deleteQuery as CFDictionary)
+    if status != errSecSuccess, status != errSecItemNotFound {
+      ExtensionTrace.append("TrustRootsCache deletePersistentCas failed: \(status)")
+    }
   }
 
   /// Loads persisted certificates on startup, purging any expired or invalid ones.
@@ -95,7 +104,7 @@ extension TrustRootsCache {
     if TestCredentialEnvironment.isTestMode {
       let items = TestCredentialEnvironment.allTrustedCas().sorted { $0.account < $1.account }
       for (account, data) in items {
-        if !Self.isAuthenticAndValid(data) {
+        if !Self.meetsPersistencePolicy(data) {
           TestCredentialEnvironment.deleteTrustedCa(account: account)
           continue
         }
@@ -128,9 +137,12 @@ extension TrustRootsCache {
     let sortedItems = mapped.sorted { $0.account < $1.account }
 
     for (account, data) in sortedItems {
-      if !Self.isAuthenticAndValid(data) {
+      if !Self.meetsPersistencePolicy(data) {
         let deleteQuery = Self.query(account: account)
-        _ = SecItemDelete(deleteQuery as CFDictionary)
+        let deleteStatus = SecItemDelete(deleteQuery as CFDictionary)
+        if deleteStatus != errSecSuccess, deleteStatus != errSecItemNotFound {
+          ExtensionTrace.append("TrustRootsCache SecItemDelete expired CA failed: \(deleteStatus)")
+        }
         continue
       }
       loadValidCertificate(data)

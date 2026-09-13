@@ -226,8 +226,8 @@ internal enum ValidationMaterialCollector {
     signerCertificate: Data,
     timestampTokens: [TimestampTokenVerifier.VerifiedToken]
   ) async throws -> PdfValidationStore.Material {
-    let bundled = BundledIssuerCertificate.der(matching: signerCertificate)
-    let signerTrust = bundled.map { Set([$0]) } ?? []
+    let issuer = IssuerCertificate.der(matching: signerCertificate)
+    let signerTrust = issuer.map { Set([$0]) } ?? []
     return try await Self.collect(
       signerCertificate: signerCertificate,
       timestampTokens: timestampTokens,
@@ -252,8 +252,8 @@ internal enum ValidationMaterialCollector {
     )
     var collection = Collection()
     collection.addCandidate(signerCertificate)
-    if let bundled = BundledIssuerCertificate.der(matching: signerCertificate) {
-      collection.addCandidate(bundled)
+    if let issuer = IssuerCertificate.der(matching: signerCertificate) {
+      collection.addCandidate(issuer)
     }
     for token in timestampTokens {
       for certificate in token.verifiedCertificateChain {

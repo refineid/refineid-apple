@@ -70,6 +70,10 @@ public final class TrustRootsCache: @unchecked Sendable {
   }
 
   /// Registers an on-card issuing intermediate CA certificate.
+  ///
+  /// In-memory indexing unconditionally holds the certificate to support
+  /// runtime chain matching for non-conforming card certs, while persistence
+  /// independently validates that it meets the persistence policy.
   public func register(_ certificateDER: Data) {
     lock.lock()
     intermediateCaDER = certificateDER

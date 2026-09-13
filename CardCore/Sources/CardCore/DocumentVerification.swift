@@ -95,10 +95,11 @@ public enum DocumentVerification {
     } catch {
       throw Failure.unreadable
     }
+    _ = bundle
     let signatures =
       try found
       .filter { $0.subFilter == Self.signatureSubFilter }
-      .map { try report(of: $0, bundle: bundle) }
+      .map { try report(of: $0) }
     guard !signatures.isEmpty else {
       throw found.isEmpty ? Failure.noSignatures : Failure.unsupportedProfile
     }
@@ -129,8 +130,7 @@ public enum DocumentVerification {
   }
 
   private static func report(
-    of signature: PdfSignatureReader.FoundSignature,
-    bundle: Bundle
+    of signature: PdfSignatureReader.FoundSignature
   ) throws -> SignatureReport {
     let read: QualifiedDocumentCms.ReadSignature
     do {
@@ -158,8 +158,7 @@ public enum DocumentVerification {
     let timestampedAt = timestamps.min()
     let issuer = chainIssuer(
       of: read.signerCertificate,
-      at: timestampedAt ?? Date(),
-      bundle: bundle
+      at: timestampedAt ?? Date()
     )
 
     return SignatureReport(
@@ -202,11 +201,10 @@ public enum DocumentVerification {
   /// no bundled issuer matches or the chain step fails.
   private static func chainIssuer(
     of signer: Data,
-    at referenceTime: Date,
-    bundle: Bundle
+    at referenceTime: Date
   ) -> Data? {
     guard
-      let issuer = BundledIssuerCertificate.der(matching: signer, in: bundle),
+      let issuer = IssuerCertificate.der(matching: signer),
       CertificateIssuer.isDirectlyIssued(signer, by: issuer, at: referenceTime)
     else {
       return nil

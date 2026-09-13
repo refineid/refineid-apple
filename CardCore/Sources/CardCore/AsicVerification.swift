@@ -85,11 +85,11 @@ public enum AsicVerification {
       }
     )
 
+    _ = bundle
     let reports = parseAndVerifyReports(
       signatureFiles: signatureFiles,
       entries: entries,
-      carriedFileNames: carriedFileNames,
-      bundle: bundle
+      carriedFileNames: carriedFileNames
     )
 
     guard !reports.isEmpty else {
@@ -105,8 +105,7 @@ public enum AsicVerification {
   private static func parseAndVerifyReports(
     signatureFiles: [String],
     entries: [String: Data],
-    carriedFileNames: Set<String>,
-    bundle: Bundle
+    carriedFileNames: Set<String>
   ) -> [DocumentVerification.SignatureReport] {
     var signatureReports: [DocumentVerification.SignatureReport] = []
 
@@ -122,8 +121,7 @@ public enum AsicVerification {
         if let report = verifySignature(
           parsed: parsed,
           entries: entries,
-          carriedFileNames: carriedFileNames,
-          bundle: bundle
+          carriedFileNames: carriedFileNames
         ) {
           signatureReports.append(report)
         }
@@ -136,8 +134,7 @@ public enum AsicVerification {
   private static func verifySignature(
     parsed: ParsedSignature,
     entries: [String: Data],
-    carriedFileNames: Set<String>,
-    bundle: Bundle
+    carriedFileNames: Set<String>
   ) -> DocumentVerification.SignatureReport? {
     guard let signerCertDer = parsed.signerCertificateDer,
       let secCert = SecCertificateCreateWithData(nil, signerCertDer as CFData),
@@ -159,8 +156,7 @@ public enum AsicVerification {
     let (timestampsValid, timestampedAt) = verifyTimestamps(parsed: parsed)
     let issuer = chainIssuer(
       of: signerCertDer,
-      at: timestampedAt ?? Date(),
-      bundle: bundle
+      at: timestampedAt ?? Date()
     )
 
     return DocumentVerification.SignatureReport(
@@ -227,11 +223,10 @@ public enum AsicVerification {
 
   private static func chainIssuer(
     of signer: Data,
-    at referenceTime: Date,
-    bundle: Bundle
+    at referenceTime: Date
   ) -> Data? {
     guard
-      let issuer = BundledIssuerCertificate.der(matching: signer, in: bundle),
+      let issuer = IssuerCertificate.der(matching: signer),
       CertificateIssuer.isDirectlyIssued(signer, by: issuer, at: referenceTime)
     else {
       return nil
