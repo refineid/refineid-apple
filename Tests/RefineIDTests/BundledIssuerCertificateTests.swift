@@ -9,7 +9,7 @@
   import Testing
 
   /// Tests for the dynamic in-memory TrustRootsCache and BundledIssuerCertificate fallback.
-  @Suite
+  @Suite(.serialized)
   internal struct BundledIssuerCertificateTests {
     @Test
     internal func pinnedRootFingerprintsMatchKnownValues() {
@@ -29,6 +29,7 @@
     @Test
     internal func dynamicRegistrationAndMatching() throws {
       let cache = TrustRootsCache()
+      defer { cache.reset() }
 
       let caSigner = try SignerCertificateFixtures.makeSigner(
         for: .rsaSha256,

@@ -109,7 +109,13 @@ internal enum ReaderSignature {
     let (serial, pin1Outcome) = try Self.probePin1AndReadSerial(operations)
 
     let raw: Data
-    if pin1Outcome == .verified {
+    // Citing FINEID S1 v4.2 §3.5: when pin1Outcome is verified and this token session
+    // already holds custody of accepted PIN1, redundant VERIFY PIN1 is skipped.
+    // When the holder enters an explicit PIN, it must always be tested against the card.
+    if enteredPin == nil,
+      pin1Outcome == .verified,
+      let cachedPin = token.acceptedPin1.checkout(serial: serial)
+    {
       do {
         TokenLog.info("sign: session already verified; skipping redundant VERIFY PIN1")
         raw = try operations.computeAuthenticationSignature(
@@ -121,10 +127,9 @@ internal enum ReaderSignature {
         where statusWord == .securityNotSatisfied
       {
         TokenLog.info("sign: card reported security not satisfied; falling back to VERIFY PIN1")
-        let pin1 = try Self.pin(entered: enteredPin, serial: serial, token: token)
         raw = try Self.verifyAndComputeSignature(
           operations: operations,
-          pin1: pin1,
+          pin1: cachedPin,
           serial: serial,
           request: request,
           token: token

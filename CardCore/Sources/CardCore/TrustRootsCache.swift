@@ -6,9 +6,9 @@ import Security
 
 /// Dynamic in-memory cache and accessors for FINEID root and intermediate CA certificates.
 ///
-/// Rather than bundling static CA certificate files in the application, certificates
-/// are fetched directly from the smart card (`EF.4334` for Root CA, `EF.4336` for
+/// Certificates are read from the smart card (`EF.4334` for Root CA, `EF.4336` for
 /// Intermediate CA) or received over the RAPP protocol when an application starts.
+/// Valid certificates are persisted in Keychain or test store.
 ///
 /// Thread safety is ensured via an internal `NSLock`.
 public final class TrustRootsCache: @unchecked Sendable {
@@ -69,68 +69,30 @@ public final class TrustRootsCache: @unchecked Sendable {
     return subject == issuer
   }
 
-  /// Query coordinates for a persistent CA certificate item.
-  private static func query(account: String) -> [String: Any] {
-    var query: [String: Any] = [
-      kSecClass as String: kSecClassGenericPassword,
-      kSecAttrService as String: service,
-      kSecAttrAccount as String: account,
-      kSecAttrSynchronizable as String: false,
-    ]
-    if KeychainPlatform.usesDataProtection {
-      query[kSecUseDataProtectionKeychain as String] = true
-      query[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-    }
-    return query
-  }
-
-  /// Saves a newly registered certificate to persistent storage if unexpired.
-  private static func persistCertificate(_ der: Data) {
-    if let window = CertificateValidity.window(inDer: der), window.notAfter < Date() {
-      return
-    }
-    let fingerprint = Data(SHA256.hash(data: der))
-    let account = fingerprint.map { String(format: "%02x", $0) }.joined()
-
-    if TestCredentialEnvironment.isTestMode {
-      TestCredentialEnvironment.storeTrustedCa(der, account: account)
-      return
-    }
-
-    var coordinates = query(account: account)
-    coordinates[kSecValueData as String] = der
-    let status = SecItemAdd(coordinates as CFDictionary, nil)
-    if status == errSecDuplicateItem {
-      let updateQuery = query(account: account)
-      let replacement = [kSecValueData as String: der]
-      _ = SecItemUpdate(updateQuery as CFDictionary, replacement as CFDictionary)
-    }
-  }
-
   /// Registers an on-card issuing intermediate CA certificate.
   public func register(_ certificateDER: Data) {
     lock.lock()
-    defer { lock.unlock() }
     intermediateCaDER = certificateDER
     indexCertificate(certificateDER)
+    lock.unlock()
     Self.persistCertificate(certificateDER)
   }
 
   /// Registers an on-card root CA certificate.
   public func registerRoot(_ certificateDER: Data) {
     lock.lock()
-    defer { lock.unlock() }
     rootCaDER = certificateDER
     indexCertificate(certificateDER)
+    lock.unlock()
     Self.persistCertificate(certificateDER)
   }
 
   /// Registers an extra CA certificate.
   public func registerExtra(_ certificateDER: Data) {
     lock.lock()
-    defer { lock.unlock() }
     extraCasDER.append(certificateDER)
     indexCertificate(certificateDER)
+    lock.unlock()
     Self.persistCertificate(certificateDER)
   }
 
@@ -167,10 +129,6 @@ public final class TrustRootsCache: @unchecked Sendable {
 
   /// Registers card-supplied CA certificates when the cache holds no
   /// issuer for `leafDER`, and answers the match.
-  ///
-  /// Evidence collection ends only at an explicitly approved anchor,
-  /// and only this process's cache can supply it: registrations made
-  /// in another process never arrive here.
   public func ensureIssuer(
     for leafDER: Data,
     cardIssuer: Data?,
@@ -205,18 +163,22 @@ public final class TrustRootsCache: @unchecked Sendable {
     return fingerprint == rsa || fingerprint == ecc
   }
 
-  /// Resets the cache (primarily for tests).
-  public func reset() {
+  /// Completely clears in-memory and persistent CA storage.
+  public func forgetAll() {
     lock.lock()
-    defer { lock.unlock() }
     rootCaDER = nil
     intermediateCaDER = nil
     extraCasDER.removeAll()
     certsBySubject.removeAll()
     certsByFingerprint.removeAll()
-    if TestCredentialEnvironment.isTestMode {
-      TestCredentialEnvironment.forgetAllTrustedCas()
-    }
+    lock.unlock()
+
+    Self.deletePersistentCas()
+  }
+
+  /// Resets the cache (primarily for tests).
+  public func reset() {
+    forgetAll()
   }
 
   /// All cached certificates.
@@ -246,7 +208,7 @@ public final class TrustRootsCache: @unchecked Sendable {
   }
 
   /// Loads an unexpired certificate into the memory caches.
-  private func loadValidCertificate(_ der: Data) {
+  internal func loadValidCertificate(_ der: Data) {
     indexCertificate(der)
     if Self.isSelfSigned(der) {
       if rootCaDER == nil {
@@ -258,55 +220,6 @@ public final class TrustRootsCache: @unchecked Sendable {
       } else if !extraCasDER.contains(der) {
         extraCasDER.append(der)
       }
-    }
-  }
-
-  /// Loads persisted certificates on startup, purging any expired ones.
-  private func loadPersistedCas() {
-    let now = Date()
-    if TestCredentialEnvironment.isTestMode {
-      let items = TestCredentialEnvironment.allTrustedCas()
-      for (account, data) in items {
-        if let window = CertificateValidity.window(inDer: data), window.notAfter < now {
-          TestCredentialEnvironment.deleteTrustedCa(account: account)
-          continue
-        }
-        loadValidCertificate(data)
-      }
-      return
-    }
-
-    var search: [String: Any] = [
-      kSecClass as String: kSecClassGenericPassword,
-      kSecAttrService as String: Self.service,
-      kSecMatchLimit as String: kSecMatchLimitAll,
-      kSecReturnData as String: true,
-      kSecReturnAttributes as String: true,
-      kSecAttrSynchronizable as String: false,
-    ]
-    if KeychainPlatform.usesDataProtection {
-      search[kSecUseDataProtectionKeychain as String] = true
-    }
-    var result: CFTypeRef?
-    guard SecItemCopyMatching(search as CFDictionary, &result) == errSecSuccess,
-      let items = result as? [[String: Any]]
-    else {
-      return
-    }
-
-    for item in items {
-      guard
-        let account = item[kSecAttrAccount as String] as? String,
-        let data = item[kSecValueData as String] as? Data
-      else {
-        continue
-      }
-      if let window = CertificateValidity.window(inDer: data), window.notAfter < now {
-        let deleteQuery = Self.query(account: account)
-        SecItemDelete(deleteQuery as CFDictionary)
-        continue
-      }
-      loadValidCertificate(data)
     }
   }
 }

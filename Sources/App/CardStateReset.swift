@@ -38,6 +38,7 @@ internal enum CardStateReset {
       || PrimeStore.storedCount() > 0
       || DriverConfiguredCredentials.identityTokenConfigurationCount() > 0
       || !Self.registeredOurTokenIDs().isEmpty
+      || !TrustRootsCache.shared.allCertificates.isEmpty
   }
 
   /// Clears registrations, identity configurations, primes, and trace.
@@ -51,6 +52,9 @@ internal enum CardStateReset {
 
     PrimeStore.forgetAll()
     lines.append("RefineID prime store: cleared")
+
+    TrustRootsCache.shared.forgetAll()
+    lines.append("RefineID trusted CAs: cleared")
     #if os(iOS) && REFINEID_LOCAL_CARD
       Task { @MainActor in HolderCardServing.availabilityChanged() }
     #endif

@@ -114,6 +114,36 @@
       #expect(TestCredentialEnvironment.readTrustedCa(account: "expired-authority") == nil)
       #expect(reloaded.der(matching: expiredAuthority.certificate) == nil)
     }
+
+    @Test
+    internal func unauthenticCertIsNotPersisted() throws {
+      let cache = TrustRootsCache()
+      defer { cache.reset() }
+
+      let leaf = try SignerCertificateFixtures.makeSigner(for: .rsaSha256)
+      cache.register(leaf.certificate)
+
+      #expect(TestCredentialEnvironment.allTrustedCas().isEmpty)
+    }
+
+    @Test
+    internal func forgetAllClearsBothMemoryAndPersistentStore() throws {
+      let cache = TrustRootsCache()
+      defer { cache.reset() }
+
+      let authority = try SignerCertificateFixtures.makeSigner(
+        for: .rsaSha256,
+        certificateProfile: .certificateAuthority
+      )
+      cache.register(authority.certificate)
+      #expect(!TestCredentialEnvironment.allTrustedCas().isEmpty)
+      #expect(cache.intermediateCertificate != nil)
+
+      cache.forgetAll()
+      #expect(TestCredentialEnvironment.allTrustedCas().isEmpty)
+      #expect(cache.intermediateCertificate == nil)
+      #expect(cache.allCertificates.isEmpty)
+    }
   }
 
 #endif
