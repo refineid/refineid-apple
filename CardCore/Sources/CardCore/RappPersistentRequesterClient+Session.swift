@@ -129,7 +129,7 @@
         await beginOperation(on: coordinator)
 
       case .progress(_, let progressEvent):
-        handleProgress(progressEvent)
+        handleProgress(progressEvent: progressEvent)
 
       case .completed(_, let result):
         await handleCompleted(result, on: coordinator)
@@ -151,11 +151,11 @@
       }
     }
 
-    private func handleProgress(_ progressEvent: ProgressEvent) {
+    private func handleProgress(progressEvent: ProgressEvent) {
       if progressEvent == .waitingForCard {
-        postDistributedNotification("fi.refineid.card.needed")
+        postDistributedNotification(RappCardPromptNotificationNames.cardNeededDarwinNotification)
       } else if progressEvent == .cardWaitEnded {
-        postDistributedNotification("fi.refineid.card.dismiss")
+        postDistributedNotification(RappCardPromptNotificationNames.cardDismissDarwinNotification)
       }
     }
 
@@ -163,7 +163,7 @@
       _ result: RappOperationDriver.Result,
       on coordinator: RappConnectionCoordinator
     ) async {
-      postDistributedNotification("fi.refineid.card.dismiss")
+      postDistributedNotification(RappCardPromptNotificationNames.cardDismissDarwinNotification)
       let response = self.response(for: result)
       await coordinator.close()
       if let response {
@@ -178,7 +178,7 @@
       _ reason: RappOperationDriver.TerminalReason?,
       on coordinator: RappConnectionCoordinator
     ) async {
-      postDistributedNotification("fi.refineid.card.dismiss")
+      postDistributedNotification(RappCardPromptNotificationNames.cardDismissDarwinNotification)
       Self.logger.notice(
         "[RappRequester] coordinator terminal reason: \(String(describing: reason), privacy: .public)"
       )
@@ -187,7 +187,7 @@
     }
 
     private func handleClosed(_ reason: RappConnectionCoordinator.CloseReason) {
-      postDistributedNotification("fi.refineid.card.dismiss")
+      postDistributedNotification(RappCardPromptNotificationNames.cardDismissDarwinNotification)
       Self.logger.notice(
         "[RappRequester] coordinator closed: \(String(describing: reason), privacy: .public)"
       )

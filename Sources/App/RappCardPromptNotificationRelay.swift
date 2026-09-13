@@ -2,6 +2,7 @@
 
 #if os(macOS)
   import AppKit
+  import CardCore
   import Foundation
   import UserNotifications
 
@@ -15,9 +16,12 @@
   internal final class RappCardPromptNotificationRelay: NSObject, UNUserNotificationCenterDelegate {
     internal static let shared = RappCardPromptNotificationRelay()
 
-    internal static let notificationIdentifier = "fi.refineid.card.needed"
-    internal static let cardNeededDarwinNotification = "fi.refineid.card.needed"
-    internal static let cardDismissDarwinNotification = "fi.refineid.card.dismiss"
+    internal static let notificationIdentifier =
+      RappCardPromptNotificationNames.userNotificationRequestIdentifier
+    internal static let cardNeededDarwinNotification =
+      RappCardPromptNotificationNames.cardNeededDarwinNotification
+    internal static let cardDismissDarwinNotification =
+      RappCardPromptNotificationNames.cardDismissDarwinNotification
     private static let promptGracePeriodSeconds: TimeInterval = 1.5
 
     private var distributedNeededObserver: (any NSObjectProtocol)?
@@ -31,7 +35,7 @@
     internal func start() {
       let center = UNUserNotificationCenter.current()
       center.delegate = self
-      center.requestAuthorization(options: [.alert, .sound]) { _, _ in
+      center.requestAuthorization(options: [.alert]) { _, _ in
         // Authorization requested for user notifications.
       }
 
@@ -57,10 +61,13 @@
     }
 
     private func schedulePromptNotification() {
-      pendingPresentWorkItem?.cancel()
+      guard pendingPresentWorkItem == nil else { return }
       let workItem = DispatchWorkItem { [weak self] in
         guard let self else { return }
-        postPromptNotification()
+        MainActor.assumeIsolated {
+          self.pendingPresentWorkItem = nil
+          self.postPromptNotification()
+        }
       }
       pendingPresentWorkItem = workItem
       // Grace period of 1.5 seconds: if the card is already present and immediately
@@ -75,7 +82,7 @@
       let content = UNMutableNotificationContent()
       content.title = String(localized: "Your phone needs an ID card, please.")
       content.body = String(localized: "Please hold your ID card against the back of the phone.")
-      // No sound per default on macOS
+      // No sound by default on macOS
 
       let request = UNNotificationRequest(
         identifier: Self.notificationIdentifier,

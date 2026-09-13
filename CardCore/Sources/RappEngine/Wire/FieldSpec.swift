@@ -33,9 +33,9 @@ internal struct FieldSpec {
     "completed", "denied", "cancelled", "rejected", "credential_rejected", "ambiguous",
   ]
 
-  internal static let progressEvents: Set<String> = [
-    "waiting_for_card", "card_wait_ended",
-  ]
+  internal static let progressEvents: Set<String> = Set(
+    ProgressEvent.allCases.map(\.rawValue)
+  )
 
   internal static let protocolErrors: Set<String> = ["busy", "unknown_operation"]
 

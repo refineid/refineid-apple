@@ -176,7 +176,7 @@
           let hexShort = pair.pairID.prefix(Layout.idPrefixBytes)
             .map { String(format: "%02x", $0) }
             .joined()
-          pairName = String(localized: "Remote Device (\(hexShort)…)")
+          pairName = String(localized: "Remote Device (\(hexShort)...)")
         }
         let isPreferred =
           idStr == effectivePreferredID
