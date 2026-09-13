@@ -1,8 +1,8 @@
 # Vendored RAPP protocol documents
 
-`rapp-v26.9.7.70.md` and `rapp-state-machine-v26.9.7.70.yaml` are copied
+`rapp-v26.9.13.md` and `rapp-state-machine-v26.9.13.yaml` are copied
 verbatim from the RefineID project's canonical protocol tree, document version
-26.9.7.70, wire version 26.9.
+26.9.13, wire version 26.9.13.
 
 They are the specification this repository's Swift RAPP engine implements, and
 the state model its transition tables are transcribed from. The conformance

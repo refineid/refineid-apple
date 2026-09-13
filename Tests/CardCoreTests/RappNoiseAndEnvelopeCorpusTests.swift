@@ -40,6 +40,7 @@ internal final class RappNoiseAndEnvelopeCorpusTests: XCTestCase {
         encodeArray([
           encodeUnsigned(RappNoiseAndEnvelopeCorpusSupport.wire.major),
           encodeUnsigned(RappNoiseAndEnvelopeCorpusSupport.wire.minor),
+          encodeUnsigned(RappNoiseAndEnvelopeCorpusSupport.wire.patch),
         ]),
         encodeText(vector.suite),
         encodeBytes(decodeHex(try XCTUnwrap(vector.offerHashHex))),
@@ -54,6 +55,7 @@ internal final class RappNoiseAndEnvelopeCorpusTests: XCTestCase {
         encodeArray([
           encodeUnsigned(RappNoiseAndEnvelopeCorpusSupport.wire.major),
           encodeUnsigned(RappNoiseAndEnvelopeCorpusSupport.wire.minor),
+          encodeUnsigned(RappNoiseAndEnvelopeCorpusSupport.wire.patch),
         ]),
         encodeText(vector.suite),
         encodeBytes(decodeHex(vector.pairIDHex)),

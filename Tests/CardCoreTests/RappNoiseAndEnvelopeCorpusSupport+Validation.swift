@@ -66,12 +66,16 @@ extension RappNoiseAndEnvelopeCorpusSupport {
     guard Set(envelope.keys).isSubset(of: allowed) else { return "UnknownField" }
 
     guard let version = envelope["version"] else { return "MissingField { field: \"version\" }" }
-    guard case .array(let parts) = version,
-      parts.count == Constants.majorLengthRange.count,
-      case .unsigned(let major) = parts[0],
-      case .unsigned(let minor) = parts[1]
-    else { return "WrongType { field: \"version\" }" }
-    guard major == wire.major, minor == wire.minor else { return "UnsupportedVersion" }
+    guard case .array(let parts) = version else { return "WrongType { field: \"version\" }" }
+    guard
+      parts == [
+        .unsigned(wire.major),
+        .unsigned(wire.minor),
+        .unsigned(wire.patch),
+      ]
+    else {
+      return "UnsupportedVersion"
+    }
     return nil
   }
 

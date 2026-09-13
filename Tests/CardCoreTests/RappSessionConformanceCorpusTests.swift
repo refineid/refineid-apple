@@ -7,7 +7,7 @@ import Testing
 internal struct RappSessionConformanceCorpusTests {
   // MARK: Static Properties
 
-  private static let supportedWireVersion: [UInt16] = [26, 9]
+  private static let supportedWireVersion: [UInt16] = [26, 9, 13]
 
   // MARK: Static Functions
 
@@ -20,7 +20,7 @@ internal struct RappSessionConformanceCorpusTests {
       repository
       .appendingPathComponent("Documentation")
       .appendingPathComponent("rapp-conformance")
-      .appendingPathComponent("rapp-v26.9.7.70.json")
+      .appendingPathComponent("rapp-v26.9.13.json")
     let decoder = JSONDecoder()
     decoder.keyDecodingStrategy = .convertFromSnakeCase
     return try decoder.decode(
@@ -69,7 +69,7 @@ internal struct RappSessionConformanceCorpusTests {
   @Test
   internal func visibleWireVersionRejectsDowngradesAndUnknownUpgrades() throws {
     let vectors = try Self.corpus().wireVersion
-    #expect(vectors.count == 5)
+    #expect(vectors.count == 9)
     for vector in vectors {
       let decision =
         vector.version == Self.supportedWireVersion
