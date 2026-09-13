@@ -108,6 +108,28 @@ internal final class PersistentTokenDriver: TKTokenDriver,
       #endif
     }
 
+    private static func postCardPromptNeeded() {
+      #if os(macOS)
+        DistributedNotificationCenter.default().postNotificationName(
+          Notification.Name("fi.refineid.card.needed"),
+          object: nil,
+          userInfo: nil,
+          deliverImmediately: true
+        )
+      #endif
+    }
+
+    private static func postCardPromptDismissed() {
+      #if os(macOS)
+        DistributedNotificationCenter.default().postNotificationName(
+          Notification.Name("fi.refineid.card.dismiss"),
+          object: nil,
+          userInfo: nil,
+          deliverImmediately: true
+        )
+      #endif
+    }
+
     fileprivate func tokenSession(
       _: TKTokenSession,
       supports operation: TKTokenOperation,
@@ -153,6 +175,10 @@ internal final class PersistentTokenDriver: TKTokenDriver,
       }
       let started = Date()
       Self.say("rapp sign asked")
+      Self.postCardPromptNeeded()
+      defer {
+        Self.postCardPromptDismissed()
+      }
       let raw = try performRelaySign(
         request: request,
         algorithm: relayAlgorithm,

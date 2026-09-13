@@ -11,7 +11,23 @@ extension RappDeviceVault {
       || status == cssmErrNoUserInteraction
       || status == errSecAuthFailed
       || status == errSecMissingEntitlement
+      || status == errSecInvalidOwnerEdit
   }
+
+  #if os(macOS)
+    @discardableResult
+    private static func deleteKeychainItemRef(query: [String: Any]) -> OSStatus {
+      var refQuery = query
+      refQuery[kSecReturnRef as String] = true
+      var refOutput: CFTypeRef?
+      guard SecItemCopyMatching(refQuery as CFDictionary, &refOutput) == errSecSuccess,
+        let ref = refOutput,
+        CFGetTypeID(ref) == SecKeychainItemGetTypeID()
+      else { return errSecItemNotFound }
+      let itemRef = unsafeDowncast(ref, to: SecKeychainItem.self)
+      return SecKeychainItemDelete(itemRef)
+    }
+  #endif
 
   internal func persistProxyValue(
     pairID: Data,
@@ -255,8 +271,13 @@ extension RappDeviceVault {
   internal func deleteItem(service: String, account: String) throws {
     inMemoryStore[service]?.removeValue(forKey: account)
     if TestCredentialEnvironment.isTestMode { return }
-    let status = SecItemDelete(
-      itemQuery(service: service, account: account) as CFDictionary)
+    let query = itemQuery(service: service, account: account)
+    var status = SecItemDelete(query as CFDictionary)
+    #if os(macOS)
+      if status == errSecInvalidOwnerEdit {
+        status = Self.deleteKeychainItemRef(query: query)
+      }
+    #endif
     if Self.isInteractionNotAllowed(status) { return }
     guard status == errSecSuccess || status == errSecItemNotFound else {
       throw Failure.unavailable(status)
@@ -266,7 +287,13 @@ extension RappDeviceVault {
   internal func deleteAll(service: String) throws {
     inMemoryStore.removeValue(forKey: service)
     if TestCredentialEnvironment.isTestMode { return }
-    let status = SecItemDelete(itemQuery(service: service) as CFDictionary)
+    let query = itemQuery(service: service)
+    var status = SecItemDelete(query as CFDictionary)
+    #if os(macOS)
+      if status == errSecInvalidOwnerEdit {
+        status = Self.deleteKeychainItemRef(query: query)
+      }
+    #endif
     if Self.isInteractionNotAllowed(status) { return }
     guard status == errSecSuccess || status == errSecItemNotFound else {
       throw Failure.unavailable(status)
@@ -293,14 +320,20 @@ extension RappDeviceVault {
       }
       var deleted = 0
       for dataProtection in [false, true] {
-        for coordinate in try namespaceCoordinates(
-          prefix: prefix, dataProtection: dataProtection)
-        {
-          try deleteNamespacedItem(
-            service: coordinate.service,
-            account: coordinate.account,
-            dataProtection: dataProtection)
-          deleted += 1
+        guard
+          let coordinates = try? namespaceCoordinates(
+            prefix: prefix, dataProtection: dataProtection)
+        else { continue }
+        for coordinate in coordinates {
+          do {
+            try deleteNamespacedItem(
+              service: coordinate.service,
+              account: coordinate.account,
+              dataProtection: dataProtection)
+            deleted += 1
+          } catch {
+            // Tolerate individual locked item failure to ensure remaining items are erased
+          }
         }
       }
       return deleted
@@ -344,7 +377,12 @@ extension RappDeviceVault {
     var query = itemQuery(service: service, account: account)
     query[kSecUseDataProtectionKeychain as String] = dataProtection
     query.removeValue(forKey: kSecAttrAccessGroup as String)
-    let status = SecItemDelete(query as CFDictionary)
+    var status = SecItemDelete(query as CFDictionary)
+    #if os(macOS)
+      if status == errSecInvalidOwnerEdit {
+        status = Self.deleteKeychainItemRef(query: query)
+      }
+    #endif
     if Self.isInteractionNotAllowed(status) { return }
     guard status == errSecSuccess || status == errSecItemNotFound else {
       throw Failure.unavailable(status)

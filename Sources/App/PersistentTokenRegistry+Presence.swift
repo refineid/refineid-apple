@@ -45,6 +45,7 @@
       }
       let services = Self.activeHolderServiceNames()
       guard !services.isEmpty else {
+        stopWatchingPresence()
         Self.withdrawPublishedIdentity()
         return
       }

@@ -106,10 +106,19 @@ extension RappPairingModel {
   /// pairs with more than one other, and those records are not this one's
   /// to revoke.
   internal func supersedeOlderPairings(with keptPairID: Data) {
-    guard let keptName = RappPairNames.name(forPairID: keptPairID) else { return }
+    let keptName = RappPairNames.name(forPairID: keptPairID)
     let superseded = ((try? vault.activePairIDs()) ?? [])
       .filter { pairID in
-        pairID != keptPairID && RappPairNames.name(forPairID: pairID) == keptName
+        guard pairID != keptPairID else { return false }
+        let olderName = RappPairNames.name(forPairID: pairID)
+        if let keptName, let olderName, olderName == keptName {
+          return true
+        }
+        let trimmed = olderName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if olderName == nil || trimmed?.isEmpty == true {
+          return true
+        }
+        return false
       }
     let now = UInt64(Date().timeIntervalSince1970 * millisecondsPerSecond)
     for pairID in superseded {

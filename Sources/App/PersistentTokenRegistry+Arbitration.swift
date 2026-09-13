@@ -66,8 +66,7 @@
     internal func seedHolderLine() {
       let hasPairs = (try? RappDeviceVault().activePairIDs().isEmpty == false) ?? false
       guard hasPairs else {
-        holderLine = nil
-        certificateDER = nil
+        Self.withdrawPublishedIdentity()
         return
       }
       guard let der = certificateDER ?? Self.publishedCertificateDER() else { return }

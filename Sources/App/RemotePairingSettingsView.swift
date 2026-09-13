@@ -11,6 +11,7 @@
     private enum Layout {
       static let rowSpacing: CGFloat = 6
       static let refreshIntervalSeconds: TimeInterval = 3
+      static let idPrefixBytes = 4
     }
 
     private struct DisplayedDevice {
@@ -88,6 +89,7 @@
         guard pair.role == .requester else { return false }
         guard !derivedRemotePairIDs.contains(pair.pairID) else { return false }
         let pairName = RappPairNames.name(forPairID: pair.pairID) ?? ""
+        guard !pairName.isEmpty else { return true }
         return !validRemoteDevices.contains { remote in
           remote.deviceName.caseInsensitiveCompare(pairName) == .orderedSame
             || remote.modelName.caseInsensitiveCompare(pairName) == .orderedSame
@@ -95,11 +97,13 @@
       }
 
       var seenExtraNames = Set<String>()
+      var seenPairIDs = Set<Data>()
       let deduplicatedExtraPairs = validExtraPairs.filter { pair in
+        guard seenPairIDs.insert(pair.pairID).inserted else { return false }
         let name = (RappPairNames.name(forPairID: pair.pairID) ?? "")
           .trimmingCharacters(in: .whitespacesAndNewlines)
           .lowercased()
-        guard !name.isEmpty else { return false }
+        guard !name.isEmpty else { return true }
         return seenExtraNames.insert(name).inserted
       }
 
@@ -118,33 +122,21 @@
         let idStr = device.deviceID.uuidString
         let isPreferred = idStr == effectivePreferredID
 
-        let derivedPairID: Data?
-        if let localPublicKey {
-          derivedPairID = RappSameAccountPairBuilder.derivePairIdentifier(
-            publicKeyA: localPublicKey,
+        let derivedPairID = localPublicKey.flatMap { publicKey in
+          RappSameAccountPairBuilder.derivePairIdentifier(
+            publicKeyA: publicKey,
             publicKeyB: device.staticPublicKey
           )
-        } else {
-          derivedPairID = nil
         }
-
-        let isCurrentPair: Bool
-        if let derivedPairID, let activePairID {
-          isCurrentPair = (derivedPairID == activePairID)
-        } else {
-          isCurrentPair = isPreferred
-        }
-
+        let isCurrentPair =
+          (derivedPairID != nil && activePairID != nil)
+          ? (derivedPairID == activePairID) : isPreferred
         let isOnline =
           RappAutoPairingService.shared.isDeviceOnline(
             deviceID: device.deviceID,
             deviceName: device.deviceName
           ) || (isCurrentPair && PersistentTokenRegistry.shared.holderIsAdvertising)
-        let isConnected =
-          isCurrentPair
-          && isOnline
-          && PersistentTokenRegistry.shared.holderIsAdvertising
-          && PersistentTokenRegistry.shared.certificateDER != nil
+        let isConnected = isPairConnected(isCurrent: isCurrentPair, isOnline: isOnline)
 
         list.append(
           DisplayedDevice(
@@ -175,28 +167,28 @@
 
       for pair in deduplicatedExtraPairs {
         let idStr = pair.pairID.base64EncodedString()
-        let pairName = RappPairNames.name(forPairID: pair.pairID) ?? ""
+        let rawName = RappPairNames.name(forPairID: pair.pairID)?
+          .trimmingCharacters(in: .whitespacesAndNewlines)
+        let pairName: String
+        if let rawName, !rawName.isEmpty {
+          pairName = rawName
+        } else {
+          let hexShort = pair.pairID.prefix(Layout.idPrefixBytes)
+            .map { String(format: "%02x", $0) }
+            .joined()
+          pairName = String(localized: "Remote Device (\(hexShort)…)")
+        }
         let isPreferred =
           idStr == effectivePreferredID
           || (model.selectedPairID == pair.pairID)
 
-        let isCurrentPair: Bool
-        if let activePairID {
-          isCurrentPair = (pair.pairID == activePairID)
-        } else {
-          isCurrentPair = isPreferred
-        }
-
+        let isCurrentPair = activePairID.map { pair.pairID == $0 } ?? isPreferred
         let isOnline =
           RappAutoPairingService.shared.isDeviceOnline(
             deviceID: nil,
             deviceName: pairName
           ) || (isCurrentPair && PersistentTokenRegistry.shared.holderIsAdvertising)
-        let isConnected =
-          isCurrentPair
-          && isOnline
-          && PersistentTokenRegistry.shared.holderIsAdvertising
-          && PersistentTokenRegistry.shared.certificateDER != nil
+        let isConnected = isPairConnected(isCurrent: isCurrentPair, isOnline: isOnline)
 
         list.append(
           DisplayedDevice(
@@ -225,15 +217,9 @@
       }
 
       return list.sorted { lhs, rhs in
-        if lhs.isPreferred != rhs.isPreferred {
-          return lhs.isPreferred && !rhs.isPreferred
-        }
-        if lhs.isConnected != rhs.isConnected {
-          return lhs.isConnected && !rhs.isConnected
-        }
-        if lhs.isOnline != rhs.isOnline {
-          return lhs.isOnline && !rhs.isOnline
-        }
+        if lhs.isPreferred != rhs.isPreferred { return lhs.isPreferred }
+        if lhs.isConnected != rhs.isConnected { return lhs.isConnected }
+        if lhs.isOnline != rhs.isOnline { return lhs.isOnline }
         return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
       }
     }
@@ -265,6 +251,10 @@
               preferredDeviceID = ""
               RappAutoPairingService.shared.clearAllRemoteDevices()
               model.revokeAll()
+              PersistentTokenRegistry.withdrawPublishedIdentity()
+              #if REFINEID_STREAM_TRANSPORT
+                PersistentTokenRegistry.shared.stopWatchingPresence()
+              #endif
               reload()
             }
             .buttonStyle(.borderless)
@@ -279,6 +269,11 @@
     private func reload() {
       model.refresh()
       remoteDevices = RappAutoPairingService.shared.remoteDevices
+    }
+
+    private func isPairConnected(isCurrent: Bool, isOnline: Bool) -> Bool {
+      isCurrent && isOnline && PersistentTokenRegistry.shared.holderIsAdvertising
+        && PersistentTokenRegistry.shared.certificateDER != nil
     }
   }
 

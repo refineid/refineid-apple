@@ -68,9 +68,16 @@
             .foregroundStyle(.secondary)
         } else {
           ForEach(pairIDs, id: \.self) { pairID in
-            Text(
-              RappPairNames.name(forPairID: pairID)
-                ?? pairID.map { String(format: "%02x", $0) }.joined())
+            HStack {
+              Text(
+                RappPairNames.name(forPairID: pairID)
+                  ?? pairID.map { String(format: "%02x", $0) }.joined())
+              Spacer()
+              Button("Delete", role: .destructive) {
+                RappPairingModel().revoke(pairID: pairID)
+                reload()
+              }
+            }
           }
         }
       }
@@ -104,6 +111,12 @@
       } catch {
         eraseResult = "Erase failed: \(error.localizedDescription)"
       }
+      CardCanOffer.withdraw()
+      PersistentTokenRegistry.withdrawPublishedIdentity()
+      #if REFINEID_STREAM_TRANSPORT
+        PersistentTokenRegistry.shared.stopWatchingPresence()
+      #endif
+      RappPairNames.forgetAll()
       reload()
     }
   }
