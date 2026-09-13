@@ -21,6 +21,9 @@ public final class TrustRootsCache: @unchecked Sendable {
   /// Well-known pinned DVV Gov. Root CA - G3 ECC SHA-256 fingerprint.
   public static let pinnedDvvG3EccSha256: [UInt8] = FineidValues.pinnedDvvG3EccSha256
 
+  /// Keychain service the trusted CA certificates live under.
+  public static let service = "fi.refineid.trust"
+
   private let lock = NSLock()
   private var rootCaDER: Data?
   private var intermediateCaDER: Data?
@@ -49,9 +52,59 @@ public final class TrustRootsCache: @unchecked Sendable {
     return lockedAllCertificates()
   }
 
-  /// Creates a new, empty in-memory trust roots cache.
+  /// Creates a new trust roots cache and loads valid persisted CAs.
   public init() {
-    // In-memory cache is initialized empty.
+    loadPersistedCas()
+  }
+
+  /// Determines whether a certificate is self-signed (root CA).
+  private static func isSelfSigned(_ der: Data) -> Bool {
+    guard
+      let cert = SecCertificateCreateWithData(nil, der as CFData),
+      let subject = SecCertificateCopyNormalizedSubjectSequence(cert) as Data?,
+      let issuer = SecCertificateCopyNormalizedIssuerSequence(cert) as Data?
+    else {
+      return false
+    }
+    return subject == issuer
+  }
+
+  /// Query coordinates for a persistent CA certificate item.
+  private static func query(account: String) -> [String: Any] {
+    var query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: service,
+      kSecAttrAccount as String: account,
+      kSecAttrSynchronizable as String: false,
+    ]
+    if KeychainPlatform.usesDataProtection {
+      query[kSecUseDataProtectionKeychain as String] = true
+      query[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+    }
+    return query
+  }
+
+  /// Saves a newly registered certificate to persistent storage if unexpired.
+  private static func persistCertificate(_ der: Data) {
+    if let window = CertificateValidity.window(inDer: der), window.notAfter < Date() {
+      return
+    }
+    let fingerprint = Data(SHA256.hash(data: der))
+    let account = fingerprint.map { String(format: "%02x", $0) }.joined()
+
+    if TestCredentialEnvironment.isTestMode {
+      TestCredentialEnvironment.storeTrustedCa(der, account: account)
+      return
+    }
+
+    var coordinates = query(account: account)
+    coordinates[kSecValueData as String] = der
+    let status = SecItemAdd(coordinates as CFDictionary, nil)
+    if status == errSecDuplicateItem {
+      let updateQuery = query(account: account)
+      let replacement = [kSecValueData as String: der]
+      _ = SecItemUpdate(updateQuery as CFDictionary, replacement as CFDictionary)
+    }
   }
 
   /// Registers an on-card issuing intermediate CA certificate.
@@ -60,6 +113,7 @@ public final class TrustRootsCache: @unchecked Sendable {
     defer { lock.unlock() }
     intermediateCaDER = certificateDER
     indexCertificate(certificateDER)
+    Self.persistCertificate(certificateDER)
   }
 
   /// Registers an on-card root CA certificate.
@@ -68,6 +122,7 @@ public final class TrustRootsCache: @unchecked Sendable {
     defer { lock.unlock() }
     rootCaDER = certificateDER
     indexCertificate(certificateDER)
+    Self.persistCertificate(certificateDER)
   }
 
   /// Registers an extra CA certificate.
@@ -76,6 +131,7 @@ public final class TrustRootsCache: @unchecked Sendable {
     defer { lock.unlock() }
     extraCasDER.append(certificateDER)
     indexCertificate(certificateDER)
+    Self.persistCertificate(certificateDER)
   }
 
   /// Returns the matching cached intermediate/root certificate for a given leaf.
@@ -158,6 +214,9 @@ public final class TrustRootsCache: @unchecked Sendable {
     extraCasDER.removeAll()
     certsBySubject.removeAll()
     certsByFingerprint.removeAll()
+    if TestCredentialEnvironment.isTestMode {
+      TestCredentialEnvironment.forgetAllTrustedCas()
+    }
   }
 
   /// All cached certificates.
@@ -184,5 +243,70 @@ public final class TrustRootsCache: @unchecked Sendable {
       return
     }
     certsBySubject[subject] = der
+  }
+
+  /// Loads an unexpired certificate into the memory caches.
+  private func loadValidCertificate(_ der: Data) {
+    indexCertificate(der)
+    if Self.isSelfSigned(der) {
+      if rootCaDER == nil {
+        rootCaDER = der
+      }
+    } else {
+      if intermediateCaDER == nil {
+        intermediateCaDER = der
+      } else if !extraCasDER.contains(der) {
+        extraCasDER.append(der)
+      }
+    }
+  }
+
+  /// Loads persisted certificates on startup, purging any expired ones.
+  private func loadPersistedCas() {
+    let now = Date()
+    if TestCredentialEnvironment.isTestMode {
+      let items = TestCredentialEnvironment.allTrustedCas()
+      for (account, data) in items {
+        if let window = CertificateValidity.window(inDer: data), window.notAfter < now {
+          TestCredentialEnvironment.deleteTrustedCa(account: account)
+          continue
+        }
+        loadValidCertificate(data)
+      }
+      return
+    }
+
+    var search: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: Self.service,
+      kSecMatchLimit as String: kSecMatchLimitAll,
+      kSecReturnData as String: true,
+      kSecReturnAttributes as String: true,
+      kSecAttrSynchronizable as String: false,
+    ]
+    if KeychainPlatform.usesDataProtection {
+      search[kSecUseDataProtectionKeychain as String] = true
+    }
+    var result: CFTypeRef?
+    guard SecItemCopyMatching(search as CFDictionary, &result) == errSecSuccess,
+      let items = result as? [[String: Any]]
+    else {
+      return
+    }
+
+    for item in items {
+      guard
+        let account = item[kSecAttrAccount as String] as? String,
+        let data = item[kSecValueData as String] as? Data
+      else {
+        continue
+      }
+      if let window = CertificateValidity.window(inDer: data), window.notAfter < now {
+        let deleteQuery = Self.query(account: account)
+        SecItemDelete(deleteQuery as CFDictionary)
+        continue
+      }
+      loadValidCertificate(data)
+    }
   }
 }

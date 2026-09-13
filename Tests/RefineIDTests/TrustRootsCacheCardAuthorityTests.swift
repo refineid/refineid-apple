@@ -12,11 +12,12 @@
   /// A card-supplied issuing certificate becomes the explicit anchor
   /// the evidence walk requires; a warm cache answers without asking
   /// the card again.
-  @Suite
+  @Suite(.serialized)
   internal struct TrustRootsCacheCardAuthorityTests {
     @Test
     internal func cardSuppliedIssuerResolvesAnAnchorlessLeaf() throws {
       let cache = TrustRootsCache()
+      defer { cache.reset() }
       let authority = try SignerCertificateFixtures.makeSigner(
         for: .rsaSha256,
         certificateProfile: .certificateAuthority
@@ -48,6 +49,7 @@
     @Test
     internal func warmCacheAnswersWithoutCardAuthorities() throws {
       let cache = TrustRootsCache()
+      defer { cache.reset() }
       let authority = try SignerCertificateFixtures.makeSigner(
         for: .rsaSha256,
         certificateProfile: .certificateAuthority
@@ -69,6 +71,48 @@
 
       #expect(anchor == authority.certificate)
       #expect(cache.rootCertificate == nil)
+    }
+
+    @Test
+    internal func persistedCaSurvivesAcrossCacheInstances() throws {
+      let cache1 = TrustRootsCache()
+      defer { cache1.reset() }
+
+      let authority = try SignerCertificateFixtures.makeSigner(
+        for: .rsaSha256,
+        certificateProfile: .certificateAuthority
+      )
+      let authorityFacts = try #require(
+        CertificateFacts(der: authority.certificate)
+      )
+      let leaf = try SignerCertificateFixtures.makeSigner(
+        for: .rsaSha256,
+        issuerName: authorityFacts.subjectName
+      )
+      cache1.register(authority.certificate)
+      #expect(cache1.der(matching: leaf.certificate) == authority.certificate)
+
+      let cache2 = TrustRootsCache()
+      #expect(cache2.der(matching: leaf.certificate) == authority.certificate)
+    }
+
+    @Test
+    internal func expiredCaIsPrunedOnStartup() throws {
+      let cache = TrustRootsCache()
+      defer { cache.reset() }
+
+      let expiredAuthority = try SignerCertificateFixtures.makeSigner(
+        for: .rsaSha256,
+        certificateProfile: .expiredBeforeIssue
+      )
+      TestCredentialEnvironment.storeTrustedCa(
+        expiredAuthority.certificate,
+        account: "expired-authority"
+      )
+
+      let reloaded = TrustRootsCache()
+      #expect(TestCredentialEnvironment.readTrustedCa(account: "expired-authority") == nil)
+      #expect(reloaded.der(matching: expiredAuthority.certificate) == nil)
     }
   }
 

@@ -20,6 +20,8 @@ public enum TestCredentialEnvironment {
   nonisolated(unsafe) private static var credentials: [String: String] = [:]
   nonisolated(unsafe) private static var primedIdentities: [String: Data] = [:]
 
+  nonisolated(unsafe) private static var trustedCas: [String: Data] = [:]
+
   internal static func credentialExists(account: String) -> Bool {
     lock.withLock { credentials[account] != nil }
   }
@@ -60,5 +62,25 @@ public enum TestCredentialEnvironment {
 
   internal static func forgetAllPrimes() {
     lock.withLock { primedIdentities.removeAll() }
+  }
+
+  internal static func readTrustedCa(account: String) -> Data? {
+    lock.withLock { trustedCas[account] }
+  }
+
+  internal static func storeTrustedCa(_ payload: Data, account: String) {
+    lock.withLock { trustedCas[account] = payload }
+  }
+
+  internal static func deleteTrustedCa(account: String) {
+    _ = lock.withLock { trustedCas.removeValue(forKey: account) }
+  }
+
+  internal static func allTrustedCas() -> [(account: String, data: Data)] {
+    lock.withLock { trustedCas.map { ($0.key, $0.value) } }
+  }
+
+  internal static func forgetAllTrustedCas() {
+    lock.withLock { trustedCas.removeAll() }
   }
 }

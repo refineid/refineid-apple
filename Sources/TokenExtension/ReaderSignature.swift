@@ -106,12 +106,62 @@ internal enum ReaderSignature {
   ) throws -> Data {
     let operations = CardOperations(channel: channel)
     try operations.selectFineidApplication()
-    let serial = try Self.probePin1AndReadSerial(operations)
+    let (serial, pin1Outcome) = try Self.probePin1AndReadSerial(operations)
 
-    // Where the PIN came from is not a second answer to be returned:
-    // reaching this line without one entered means the cache supplied it.
-    let pin1 = try Self.pin(entered: enteredPin, serial: serial, token: token)
+    let raw: Data
+    if pin1Outcome == .verified {
+      do {
+        TokenLog.info("sign: session already verified; skipping redundant VERIFY PIN1")
+        raw = try operations.computeAuthenticationSignature(
+          overDigest: request.digest,
+          algorithm: request.algorithm,
+          expectedSignatureLength: request.expectedSignatureLength
+        )
+      } catch CardOperationError.signRejected(let statusWord)
+        where statusWord == .securityNotSatisfied
+      {
+        TokenLog.info("sign: card reported security not satisfied; falling back to VERIFY PIN1")
+        let pin1 = try Self.pin(entered: enteredPin, serial: serial, token: token)
+        raw = try Self.verifyAndComputeSignature(
+          operations: operations,
+          pin1: pin1,
+          serial: serial,
+          request: request,
+          token: token
+        )
+      }
+    } else {
+      let pin1 = try Self.pin(entered: enteredPin, serial: serial, token: token)
+      raw = try Self.verifyAndComputeSignature(
+        operations: operations,
+        pin1: pin1,
+        serial: serial,
+        request: request,
+        token: token
+      )
+    }
 
+    guard let signature = request.wireSignature(from: raw) else {
+      TokenLog.error("sign: raw signature \(raw.count) bytes has wrong shape")
+      throw TokenError.signatureMalformed
+    }
+    guard request.isSatisfied(by: signature, from: token.leafPublicKey) else {
+      TokenLog.error("sign: local verify FAILED - card returned a bad signature")
+      throw TokenError.signatureMalformed
+    }
+    TokenLog.info("sign: local verify OK, \(signature.count) wire bytes")
+    Self.rememberOnSuccess(enteredPin: enteredPin, serial: serial, token: token)
+    return signature
+  }
+
+  /// Verifies PIN1 on card and computes the authentication signature.
+  private static func verifyAndComputeSignature(
+    operations: CardOperations,
+    pin1: consuming Pin1,
+    serial: TokenSerial,
+    request: SignRequest,
+    token: Token
+  ) throws -> Data {
     let fingerprint = pin1.fingerprint(boundTo: serial)
     guard !CredentialMemory.rejectedPins.isKnownRejected(fingerprint) else {
       TokenLog.error("sign: PIN already rejected this session - refusing to resend")
@@ -134,22 +184,11 @@ internal enum ReaderSignature {
     }
 
     TokenLog.info("sign: PIN1 verified; MSE:SET + PSO:HASH + PSO:CDS")
-    let raw = try operations.computeAuthenticationSignature(
+    return try operations.computeAuthenticationSignature(
       overDigest: request.digest,
       algorithm: request.algorithm,
       expectedSignatureLength: request.expectedSignatureLength
     )
-    guard let signature = request.wireSignature(from: raw) else {
-      TokenLog.error("sign: raw signature \(raw.count) bytes has wrong shape")
-      throw TokenError.signatureMalformed
-    }
-    guard request.isSatisfied(by: signature, from: token.leafPublicKey) else {
-      TokenLog.error("sign: local verify FAILED - card returned a bad signature")
-      throw TokenError.signatureMalformed
-    }
-    TokenLog.info("sign: local verify OK, \(signature.count) wire bytes")
-    Self.rememberOnSuccess(enteredPin: enteredPin, serial: serial, token: token)
-    return signature
   }
 
   /// Reads only the retry state of the credential this operation spends.
@@ -159,7 +198,7 @@ internal enum ReaderSignature {
   /// without protecting PIN1.
   private static func probePin1AndReadSerial(
     _ operations: CardOperations
-  ) throws -> TokenSerial {
+  ) throws -> (serial: TokenSerial, outcome: RetryProbeOutcome) {
     TokenLog.info("sign: PIN1 retry-floor probe")
     let outcome = try operations.probeRetryCounter(role: .pin1)
     let verdict = RetryFloor.evaluate(probeOutcome: outcome)
@@ -169,7 +208,8 @@ internal enum ReaderSignature {
       )
       throw TokenError.signRefused
     }
-    return try operations.readTokenSerial()
+    let serial = try operations.readTokenSerial()
+    return (serial, outcome)
   }
 
   /// Remembers a freshly entered PIN only after the card accepted it.
