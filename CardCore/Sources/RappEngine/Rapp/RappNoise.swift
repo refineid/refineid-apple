@@ -5,7 +5,25 @@ import Foundation
 
 /// Constants and derivations the specification fixes for RAPP's handshakes.
 internal enum RappNoise {
-  internal static let wireVersion: (major: UInt64, minor: UInt64) = (26, 9)
+  internal struct WireVersion: Sendable, Equatable {
+    internal let major: UInt64
+    internal let minor: UInt64
+    internal let patch: UInt64
+
+    internal var year: UInt64 { major }
+    internal var month: UInt64 { minor }
+    internal var day: UInt64 { patch }
+  }
+
+  private static let wireMajor: UInt64 = 26
+  private static let wireMinor: UInt64 = 9
+  private static let wirePatch: UInt64 = 13
+
+  internal static let wireVersion = WireVersion(
+    major: wireMajor,
+    minor: wireMinor,
+    patch: wirePatch
+  )
 
   internal static let pairingSuite = "Noise_XXpsk3_25519_ChaChaPoly_SHA256"
   internal static let sessionSuite = "Noise_KK_25519_ChaChaPoly_SHA256"
@@ -21,7 +39,9 @@ internal enum RappNoise {
   private static let identifierLength = 16
 
   private static var versionValue: WireValue {
-    .array([.unsigned(wireVersion.major), .unsigned(wireVersion.minor)])
+    .array([
+      .unsigned(wireVersion.major), .unsigned(wireVersion.minor), .unsigned(wireVersion.patch),
+    ])
   }
 
   /// Binds the pairing handshake to the offer it answers.

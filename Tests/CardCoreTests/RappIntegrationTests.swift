@@ -245,6 +245,9 @@ import Testing
       let reason = try await requesterOutcome.value
       let progress = try await proxyOutcome.value
 
+      await connection.requester.close()
+      await connection.proxy.close()
+
       #expect(reason == .credentialRejected)
       #expect(
         progress

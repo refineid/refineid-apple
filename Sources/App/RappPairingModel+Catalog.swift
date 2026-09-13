@@ -30,6 +30,12 @@ extension RappPairingModel {
     }
     try? vault.clearSelectedPair()
     RappPairNames.forgetAll()
+    #if os(macOS) || os(iOS)
+      PersistentTokenRegistry.withdrawPublishedIdentity()
+      #if REFINEID_STREAM_TRANSPORT
+        PersistentTokenRegistry.shared.stopWatchingPresence()
+      #endif
+    #endif
     // Sweeping a thousand journals takes seconds; the list is already
     // empty in memory, so the wipe leaves the main thread.
     Task.detached(priority: .userInitiated) {
@@ -67,6 +73,15 @@ extension RappPairingModel {
       try? vault.clearSelectedPair()
     }
     refresh()
+    #if os(macOS) || os(iOS)
+      let remaining = (try? vault.activePairIDs()) ?? []
+      if remaining.isEmpty || PersistentTokenRegistry.activePairID == pairID {
+        PersistentTokenRegistry.withdrawPublishedIdentity()
+      }
+      #if REFINEID_STREAM_TRANSPORT
+        PersistentTokenRegistry.shared.restartWatchingPresence()
+      #endif
+    #endif
     NotificationCenter.default.post(name: Self.pairingsDidChangeNotification, object: nil)
   }
 
@@ -82,6 +97,12 @@ extension RappPairingModel {
     pairs = []
     selectedPairID = nil
     phase = .idle
+    #if os(macOS) || os(iOS)
+      PersistentTokenRegistry.withdrawPublishedIdentity()
+      #if REFINEID_STREAM_TRANSPORT
+        PersistentTokenRegistry.shared.stopWatchingPresence()
+      #endif
+    #endif
     RappAutoPairingService.shared.reconcile()
   }
 }

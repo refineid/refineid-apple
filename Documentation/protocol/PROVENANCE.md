@@ -1,8 +1,8 @@
 # Vendored RAPP protocol documents
 
-`rapp-v26.9.7.70.md` and `rapp-state-machine-v26.9.7.70.yaml` are copied
+`rapp-v26.9.13.md` and `rapp-state-machine-v26.9.13.yaml` are copied
 verbatim from the RefineID project's canonical protocol tree, document version
-26.9.7.70, wire version 26.9.
+26.9.13, wire version 26.9.13.
 
 They are the specification this repository's Swift RAPP engine implements, and
 the state model its transition tables are transcribed from. The conformance
@@ -16,18 +16,21 @@ does not name, regenerate the corpus that the change touches, and keep
 the engine on the same revision. A silent workaround is not a substitute.
 
 `../rapp-conformance/rapp-transport-v26.9.7.70.json` records post-handshake
-frames generated from the canonical Rust engine at wire version 26.9, using the
-same fixed keys as the conformance corpus's handshake transcripts. The corpus
-proves the handshake but stops there, so without these the framing that carries
+frames generated from the canonical Rust engine at wire version 26.9.13 (refineid-core
+commit 7bd6507), using the same fixed keys as the conformance corpus's handshake transcripts.
+The corpus proves the handshake but stops there, so without these the framing that carries
 every operation would have no golden vectors: sixteen frames per suite, both
 directions, with counters running well past their first value.
 
 `../rapp-conformance/rapp-flow-v26.9.7.70.json` and
 `../rapp-conformance/rapp-operation-v26.9.7.70.json` record message bodies
-generated from the canonical Rust engine at wire version 26.9, with every input
-fixed and recorded beside the bytes so the Swift engine can build the same
-values. The conformance corpus covers the envelope and the handshake but no
-message body above them, so without these the pairing, session, and operation
-bodies would be checked only for round-trip: an encoding both sides of one
-implementation agree on can still be one no peer accepts.
+generated from the canonical Rust engine at wire version 26.9.13 (refineid-core
+commit 7bd6507), with every input fixed and recorded beside the bytes so the Swift
+engine can build the same values. Section 12.7 specifies the advisory non-revocation
+and silent-ignore semantics for operation progress, while inbound operation requests
+are subject to proxy rate limiting (line 1327). The conformance corpus covers the
+envelope and the handshake but no message body above them, so without these the
+pairing, session, and operation bodies would be checked only for round-trip: an
+encoding both sides of one implementation agree on can still be one no peer accepts.
+
 

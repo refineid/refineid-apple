@@ -76,6 +76,16 @@ internal struct RequesterOperation {
     try persist(&store, state: .prepared)
   }
 
+  /// Accepts an advisory progress notice from the proxy.
+  ///
+  /// Progress notices never advance or mutate the operation state.
+  internal func receiveProgress(_ progress: OperationProgressMessage) throws {
+    try requireReference(progress.reference)
+    guard !record.state.isTerminal else {
+      throw EngineError.authenticatedProtocolViolation(.illegalOperationTransition)
+    }
+  }
+
   /// Writes the requester's point of no return before releasing the commit.
   internal mutating func commit(
     to store: inout some RequesterJournalStore

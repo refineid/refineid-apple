@@ -128,28 +128,17 @@
       case .established:
         await beginOperation(on: coordinator)
 
+      case .progress(let operationID, let progressEvent):
+        handleProgress(operationID: operationID, progressEvent: progressEvent)
+
       case .completed(_, let result):
-        let response = self.response(for: result)
-        await coordinator.close()
-        if let response {
-          finish(response: response)
-        } else {
-          Self.logger.notice("[RappRequester] completed with unexpected result")
-          finish(error: .unexpectedResult)
-        }
+        await handleCompleted(result, on: coordinator)
 
       case .terminal(_, _, let reason):
-        Self.logger.notice(
-          "[RappRequester] coordinator terminal reason: \(String(describing: reason), privacy: .public)"
-        )
-        await coordinator.close()
-        finish(error: .terminal(reason))
+        await handleTerminal(reason, on: coordinator)
 
       case .closed(let reason):
-        Self.logger.notice(
-          "[RappRequester] coordinator closed: \(String(describing: reason), privacy: .public)"
-        )
-        finish(error: .transport)
+        handleClosed(reason)
 
       case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
         .executeCardCommand, .advisoryCancellation, .operationFinished,
@@ -160,6 +149,61 @@
         await coordinator.close()
         finish(error: .protocolFailure)
       }
+    }
+
+    private func handleProgress(operationID: Data, progressEvent: ProgressEvent) {
+      guard !operationID.isEmpty else { return }
+      if progressEvent == .waitingForCard {
+        postDistributedNotification(RappCardPromptNotificationNames.cardNeededDarwinNotification)
+      } else if progressEvent == .cardWaitEnded {
+        postDistributedNotification(RappCardPromptNotificationNames.cardDismissDarwinNotification)
+      }
+    }
+
+    private func handleCompleted(
+      _ result: RappOperationDriver.Result,
+      on coordinator: RappConnectionCoordinator
+    ) async {
+      postDistributedNotification(RappCardPromptNotificationNames.cardDismissDarwinNotification)
+      let response = self.response(for: result)
+      await coordinator.close()
+      if let response {
+        finish(response: response)
+      } else {
+        Self.logger.notice("[RappRequester] completed with unexpected result")
+        finish(error: .unexpectedResult)
+      }
+    }
+
+    private func handleTerminal(
+      _ reason: RappOperationDriver.TerminalReason?,
+      on coordinator: RappConnectionCoordinator
+    ) async {
+      postDistributedNotification(RappCardPromptNotificationNames.cardDismissDarwinNotification)
+      Self.logger.notice(
+        "[RappRequester] coordinator terminal reason: \(String(describing: reason), privacy: .public)"
+      )
+      await coordinator.close()
+      finish(error: .terminal(reason))
+    }
+
+    private func handleClosed(_ reason: RappConnectionCoordinator.CloseReason) {
+      postDistributedNotification(RappCardPromptNotificationNames.cardDismissDarwinNotification)
+      Self.logger.notice(
+        "[RappRequester] coordinator closed: \(String(describing: reason), privacy: .public)"
+      )
+      finish(error: .transport)
+    }
+
+    private func postDistributedNotification(_ name: String) {
+      #if os(macOS)
+        DistributedNotificationCenter.default().postNotificationName(
+          Notification.Name(name),
+          object: nil,
+          userInfo: nil,
+          deliverImmediately: true
+        )
+      #endif
     }
 
     /// Asks for the operation this request was made for, once.

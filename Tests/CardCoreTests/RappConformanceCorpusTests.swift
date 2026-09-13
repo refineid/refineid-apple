@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -32,7 +32,7 @@ internal struct RappConformanceCorpusTests {
     return try Data(
       contentsOf:
         repositoryRoot
-        .appendingPathComponent("Documentation/rapp-conformance/rapp-v26.9.7.70.json")
+        .appendingPathComponent("Documentation/rapp-conformance/rapp-v26.9.13.json")
     )
   }
 
@@ -44,13 +44,13 @@ internal struct RappConformanceCorpusTests {
     let digest = Data(SHA256.hash(data: source))
     #expect(
       RappConformanceCorpusSupport.hex(digest)
-        == "25b9379ac2baa1a0ea83c4746247426a061b76f180b03c30fd2d5295112fb36b")
+        == "89df6051b100c2a3fcea3df8f2675ffef67b5bc3b7244b41e8466afd901776fe")
 
     let corpus = try JSONDecoder().decode(
       RappConformanceCorpusSupport.Corpus.self,
       from: source)
     #expect(corpus.format == "fi.refineid.rapp.conformance-v1")
-    #expect(corpus.protocolDocumentVersion == "26.9.7.70")
+    #expect(corpus.protocolDocumentVersion == "26.9.13")
     #expect(corpus.deterministicCBOR.count == 15)
     #expect(corpus.identifierDerivation.count == 2)
     #expect(corpus.grantsHash.count == 3)

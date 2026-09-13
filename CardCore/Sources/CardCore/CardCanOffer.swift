@@ -59,7 +59,7 @@ public enum CardCanOffer {
   }
 
   /// Withdraws the offer, marker included.
-  internal static func withdraw() {
+  public static func withdraw() {
     clearRefusal()
     CardCredentialStore.deleteShared(account: offerAccount)
     // Migration: builds before the data-protection opt-in wrote these

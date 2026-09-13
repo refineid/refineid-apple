@@ -41,6 +41,20 @@ extension RappOperationBridge {
     try finishFailure(operationId: operationId, error: .userDenied)
   }
 
+  /// Reports authenticated advisory progress on an active operation.
+  public func reportProgress(operationId: Data, event: ProgressEvent) throws -> RappBridgeAction {
+    try locked {
+      guard case .proxy(let engine) = side else { throw RappBindingError.WrongPhase }
+      let message = try mapping {
+        try engine.reportProgress(operationIdentifier: operationId, event: event)
+      }
+      return RappBridgeAction(
+        kind: .sendFrame,
+        operationId: operationId,
+        frame: try sealedMessage(message))
+    }
+  }
+
   /// Refuses a request this endpoint cannot present or serve.
   public func requestInvalidOrUnsupported(operationId: Data) throws -> RappBridgeAction {
     try finishFailure(operationId: operationId, error: .requestInvalidOrUnsupported)

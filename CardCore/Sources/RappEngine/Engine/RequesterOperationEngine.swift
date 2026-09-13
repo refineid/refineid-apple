@@ -88,14 +88,44 @@ internal struct RequesterOperationEngine {
     guard let operationIdentifier = message.referencedOperationIdentifier else {
       return .notOperation(message)
     }
-    guard let index = index(of: operationIdentifier),
-      !operations[index].record.state.isTerminal
-    else { return Self.stale(operationIdentifier) }
+    guard let index = index(of: operationIdentifier) else {
+      if case .operationProgress = message {
+        return .ignoredProgress(operationIdentifier: operationIdentifier)
+      }
+      return Self.stale(operationIdentifier)
+    }
+    guard !operations[index].record.state.isTerminal else {
+      if case .operationProgress = message {
+        return .ignoredProgress(operationIdentifier: operationIdentifier)
+      }
+      return Self.stale(operationIdentifier)
+    }
 
+    return try receiveActiveOperation(
+      message, index: index, operationIdentifier: operationIdentifier, store: &store)
+  }
+
+  private mutating func receiveActiveOperation(
+    _ message: TypedMessage,
+    index: Int,
+    operationIdentifier: Data,
+    store: inout some RequesterJournalStore
+  ) throws -> RequesterDispatch {
     switch message {
     case .operationPrepared(let reference):
       try operations[index].receivePrepared(reference, to: &store)
       return .prepared(operationIdentifier: operationIdentifier)
+
+    case .operationProgress(let progress):
+      do {
+        try operations[index].receiveProgress(progress)
+      } catch {
+        return .ignoredProgress(operationIdentifier: operationIdentifier)
+      }
+      guard progress.event != .unknown else {
+        return .ignoredProgress(operationIdentifier: operationIdentifier)
+      }
+      return .progress(operationIdentifier: operationIdentifier, event: progress.event)
 
     case .operationResult(let result):
       let action = try operations[index].receiveResult(result, to: &store)

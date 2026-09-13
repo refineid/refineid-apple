@@ -48,7 +48,7 @@ extension ProxyOperationEngine {
     case .error, .other:
       return .notOperation(message)
 
-    case .operationPrepared, .operationResult, .operationStatus:
+    case .operationPrepared, .operationResult, .operationStatus, .operationProgress:
       return try refuseRequesterOnlyMessage(message)
     }
   }
@@ -123,6 +123,24 @@ extension ProxyOperationEngine {
       return .sendFailure(
         message: .operationResult(result), closeSession: Self.closesSession(failure))
     }
+  }
+
+  /// Create an authenticated advisory progress message for an active operation.
+  internal func reportProgress(
+    operationIdentifier: Data, event: ProgressEvent
+  ) throws -> TypedMessage {
+    guard
+      let operation = operations.first(where: { candidate in
+        candidate.reference.operationIdentifier == operationIdentifier
+      })
+    else {
+      throw EngineError.unknownLocalOperation
+    }
+    guard !operation.operationState.isTerminal, event != .unknown else {
+      throw EngineError.invalidLocalTransition
+    }
+    return .operationProgress(
+      OperationProgressMessage(reference: operation.reference, event: event))
   }
 
   /// Classifies every live operation when the session closes.

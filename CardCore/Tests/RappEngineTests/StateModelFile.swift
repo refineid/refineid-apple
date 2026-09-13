@@ -6,10 +6,10 @@ import Foundation
 
 /// The vendored formal state model the transcription is checked against.
 internal enum StateModelFile {
-  private static let name = "rapp-state-machine-v26.9.7.70.yaml"
+  private static let name = "rapp-state-machine-v26.9.13.yaml"
 
   /// The document revision this transcription was made from.
-  internal static let expectedDocumentVersion = "26.9.7.70"
+  internal static let expectedDocumentVersion = "26.9.13"
 
   /// Test sources sit four directories below the repository root.
   private static let depthBelowRepositoryRoot = 4

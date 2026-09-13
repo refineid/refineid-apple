@@ -102,6 +102,7 @@ internal enum RappAction: String, CaseIterable, Sendable {
   case revokePairAfterCredentialRejection = "revoke_pair_after_credential_rejection"
   case requestSessionCloseAmbiguous = "request_session_close_ambiguous"
   case sendOperationCancel = "send_operation_cancel"
+  case sendOperationProgress = "send_operation_progress"
 
   // The commit point and the single card transmission.
   case durablyWriteCommitBeforeTransmission = "durably_write_commit_before_transmission"

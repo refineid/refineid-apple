@@ -11,6 +11,7 @@ internal enum TypedMessage: Equatable {
   case operationCancel(CancelMessage)
   case operationCommit(OperationReference)
   case operationPrepared(OperationReference)
+  case operationProgress(OperationProgressMessage)
   case operationRequest(OperationRequest)
   case operationResult(OperationResultMessage)
   case operationResultAck(OperationReference)
@@ -32,6 +33,9 @@ internal enum TypedMessage: Equatable {
       .operationCommit(let reference),
       .operationResultAck(let reference):
       reference.operationIdentifier
+
+    case .operationProgress(let progress):
+      progress.reference.operationIdentifier
 
     case .operationCancel(let cancellation):
       cancellation.reference.operationIdentifier

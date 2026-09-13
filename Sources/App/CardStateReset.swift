@@ -58,6 +58,15 @@ internal enum CardStateReset {
     let revoked = Self.revokeEveryPairing()
     lines.append("RefineID pairings revoked: \(revoked)")
 
+    #if os(macOS) || os(iOS)
+      Task { @MainActor in
+        PersistentTokenRegistry.withdrawPublishedIdentity()
+        #if REFINEID_STREAM_TRANSPORT
+          PersistentTokenRegistry.shared.stopWatchingPresence()
+        #endif
+      }
+    #endif
+
     let traceStatus = ExtensionTrace.clear()
     let traceCleared = traceStatus == errSecSuccess || traceStatus == errSecItemNotFound
     lines.append(

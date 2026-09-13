@@ -200,7 +200,7 @@ import Testing
 
         case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
           .executeCardCommand, .advisoryCancellation, .operationFinished,
-          .peerBusy, .peerUnknownOperation:
+          .peerBusy, .peerUnknownOperation, .progress:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
         }
       }
@@ -224,7 +224,7 @@ import Testing
 
         case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
           .executeCardCommand, .completed, .advisoryCancellation,
-          .operationFinished, .peerBusy, .peerUnknownOperation:
+          .operationFinished, .peerBusy, .peerUnknownOperation, .progress:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
         }
       }

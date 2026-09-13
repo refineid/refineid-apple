@@ -128,6 +128,10 @@
       shared.certificateDER = nil
       shared.holderIsAdvertising = false
       shared.hasSeenHolderAdvertisement = false
+      #if REFINEID_STREAM_TRANSPORT
+        shared.advertisementLossTask?.cancel()
+        shared.advertisementLossTask = nil
+      #endif
       #if os(macOS)
         LoginIdentityModel.shared.refresh()
       #endif

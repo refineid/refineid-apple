@@ -11,11 +11,31 @@ import Security
 /// atomic without decoding Rust-owned journal bytes.
 public final class RappDeviceVault: @unchecked Sendable {
   /// Storage failures surfaced by vault operations.
-  public enum Failure: Error, Equatable, Sendable {
+  public enum Failure: Error, Equatable, Sendable, LocalizedError, CustomStringConvertible {
     case duplicate
     case malformed
     case notFound
     case unavailable(OSStatus)
+
+    /// A localized description of the vault error suitable for display.
+    public var errorDescription: String? {
+      description
+    }
+
+    /// A text representation describing the failure and its underlying code.
+    public var description: String {
+      switch self {
+      case .duplicate:
+        return "Duplicate item in device vault"
+      case .malformed:
+        return "Malformed item in device vault"
+      case .notFound:
+        return "Item not found in device vault"
+      case .unavailable(let status):
+        let message = SecCopyErrorMessageString(status, nil) as String? ?? "OSStatus \(status)"
+        return "Device vault unavailable: \(message) (\(status))"
+      }
+    }
   }
 
   /// One proxy operation journal and its optionally retained result.

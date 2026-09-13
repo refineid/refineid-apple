@@ -32,9 +32,18 @@ internal enum RappNoiseAndEnvelopeCorpusSupport {
     internal static let byteCountUInt64 = 8
     internal static let wireMajor: UInt64 = 26
     internal static let wireMinor: UInt64 = 9
+    internal static let wirePatch: UInt64 = 13
+    internal static let versionLength = 3
+    internal static let patchIndex = 2
     internal static let sessionIDLength = 16
     internal static let challengeLength = 32
     internal static let hashPrefixLength = 16
+  }
+
+  internal struct WireVersion: Sendable, Equatable {
+    internal let major: UInt64
+    internal let minor: UInt64
+    internal let patch: UInt64
   }
 
   private enum CBORMajor: UInt8 {
@@ -62,9 +71,10 @@ internal enum RappNoiseAndEnvelopeCorpusSupport {
     case unsupported
   }
 
-  internal static let wire: (major: UInt64, minor: UInt64) = (
+  internal static let wire = WireVersion(
     major: Constants.wireMajor,
-    minor: Constants.wireMinor
+    minor: Constants.wireMinor,
+    patch: Constants.wirePatch
   )
 
   internal static func encodeUnsigned(_ value: UInt64) -> Data {
@@ -155,7 +165,7 @@ internal enum RappNoiseAndEnvelopeCorpusSupport {
       repositoryRoot
       .appendingPathComponent("Documentation")
       .appendingPathComponent("rapp-conformance")
-      .appendingPathComponent("rapp-v26.9.7.70.json")
+      .appendingPathComponent("rapp-v26.9.13.json")
     return try JSONDecoder().decode(Corpus.self, from: Data(contentsOf: url))
   }
 

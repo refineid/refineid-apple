@@ -65,6 +65,12 @@ internal struct MessageRegistryTests {
     case .operationPrepared, .operationCommit, .operationResultAck:
       ["operation_id": .bytes(operation), "request_hash": .bytes(digest)]
 
+    case .operationProgress:
+      [
+        "operation_id": .bytes(operation), "request_hash": .bytes(digest),
+        "event": .text("waiting_for_card"),
+      ]
+
     case .operationCancel:
       [
         "operation_id": .bytes(operation), "request_hash": .bytes(digest),

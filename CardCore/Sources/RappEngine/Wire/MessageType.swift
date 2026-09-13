@@ -10,6 +10,7 @@ internal enum MessageType: String, CaseIterable {
   case operationCancel = "operation.cancel"
   case operationCommit = "operation.commit"
   case operationPrepared = "operation.prepared"
+  case operationProgress = "operation.progress"
   case operationRequest = "operation.request"
   case operationResult = "operation.result"
   case operationResultAck = "operation.result_ack"

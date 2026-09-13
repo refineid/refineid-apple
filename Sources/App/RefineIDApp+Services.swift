@@ -40,6 +40,9 @@ extension RefineIDApp {
     #else
       PersistentTokenRegistry.shared.start()
     #endif
+    #if os(macOS)
+      RappCardPromptNotificationRelay.shared.start()
+    #endif
     RappAutoPairingService.shared.start()
 
     pairingsChangeObserver = NotificationCenter.default.addObserver(

@@ -9,7 +9,10 @@ internal struct Envelope: Equatable {
   ]
 
   private static var versionValue: WireValue {
-    .array([.unsigned(RappNoise.wireVersion.major), .unsigned(RappNoise.wireVersion.minor)])
+    .array([
+      .unsigned(RappNoise.wireVersion.major), .unsigned(RappNoise.wireVersion.minor),
+      .unsigned(RappNoise.wireVersion.patch),
+    ])
   }
 
   internal let messageType: MessageType
@@ -58,6 +61,7 @@ internal struct Envelope: Equatable {
     guard
       version == [
         .unsigned(RappNoise.wireVersion.major), .unsigned(RappNoise.wireVersion.minor),
+        .unsigned(RappNoise.wireVersion.patch),
       ]
     else { throw WireError.unsupportedVersion }
   }

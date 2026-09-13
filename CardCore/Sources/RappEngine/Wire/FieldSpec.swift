@@ -104,6 +104,12 @@ internal struct FieldSpec {
     case .operationPrepared, .operationCommit, .operationResultAck:
       [Self("operation_id", operationIdentifier), Self("request_hash", requestHash)]
 
+    case .operationProgress:
+      [
+        Self("operation_id", operationIdentifier), Self("request_hash", requestHash),
+        Self("event", .text),
+      ]
+
     case .operationCancel:
       [
         Self("operation_id", operationIdentifier), Self("request_hash", requestHash),
