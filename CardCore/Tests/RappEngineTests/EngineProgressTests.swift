@@ -85,10 +85,31 @@ internal struct EngineProgressTests {
     #expect(failedAsExpected)
   }
 
+  @Test("Progress reporting rejects unknown event")
+  internal func progressReportingRejectsUnknownEvent() throws {
+    var store = MemoryJournalStore()
+    var proxy = ProxyOperationEngine(grantedProfiles: [.authentication], recovered: [])
+    let request = try engineRequest(operation: signingOperation())
+    let identifier = request.operationIdentifier
+
+    _ = try proxy.receive(
+      .operationRequest(request), store: &store, nowMilliseconds: EngineFixture.nowMilliseconds,
+      maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
+
+    var failedAsExpected = false
+    do {
+      _ = try proxy.reportProgress(operationIdentifier: identifier, event: .unknown)
+    } catch EngineError.invalidLocalTransition {
+      failedAsExpected = true
+    }
+    #expect(failedAsExpected)
+  }
+
   @Test("Requester silently ignores progress message with mismatched reference")
   internal func progressReferenceMismatch() throws {
     var store = MemoryJournalStore()
     var requester = RequesterOperationEngine(recovered: [])
+
     let request = try engineRequest(operation: signingOperation())
     let identifier = request.operationIdentifier
     _ = try requester.begin(request, store: &store)

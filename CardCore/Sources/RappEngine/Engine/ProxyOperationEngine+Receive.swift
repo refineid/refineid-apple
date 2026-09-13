@@ -136,7 +136,7 @@ extension ProxyOperationEngine {
     else {
       throw EngineError.unknownLocalOperation
     }
-    guard !operation.operationState.isTerminal else {
+    guard !operation.operationState.isTerminal, event != .unknown else {
       throw EngineError.invalidLocalTransition
     }
     return .operationProgress(
