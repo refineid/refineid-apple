@@ -41,7 +41,7 @@ extension TrustRootsCache {
   }
 
   /// Verifies that certificate bytes are within their validity window and
-  /// assert authority status (pinned root or self-asserted CA).
+  /// assert certificate authority status.
   internal static func meetsPersistencePolicy(_ der: Data) -> Bool {
     guard let window = CertificateValidity.window(inDer: der) else {
       return false
@@ -50,12 +50,7 @@ extension TrustRootsCache {
     guard window.notBefore <= now, now < window.notAfter else {
       return false
     }
-    let fingerprint = Data(SHA256.hash(data: der))
-    let rsa = Data(pinnedDvvG3RsaSha256)
-    let ecc = Data(pinnedDvvG3EccSha256)
-    let isPinnedRoot = fingerprint == rsa || fingerprint == ecc
-    let isCa = CertificateFacts(der: der)?.isCertificateAuthority == true
-    return isPinnedRoot || isCa
+    return CertificateFacts(der: der)?.isCertificateAuthority == true
   }
 
   /// Saves a newly registered certificate to persistent storage if it meets the persistence policy.

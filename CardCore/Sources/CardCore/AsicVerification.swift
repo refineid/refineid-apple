@@ -59,8 +59,7 @@ public enum AsicVerification {
 
   /// Verifies an ASiC-E or BDOC container, returning a complete DocumentReport.
   public static func verify(
-    container: Data,
-    bundle: Bundle = .main
+    container: Data
   ) throws -> DocumentVerification.DocumentReport {
     let entries = ZipReader.read(archive: container)
     guard !entries.isEmpty else {
@@ -85,7 +84,6 @@ public enum AsicVerification {
       }
     )
 
-    _ = bundle
     let reports = parseAndVerifyReports(
       signatureFiles: signatureFiles,
       entries: entries,

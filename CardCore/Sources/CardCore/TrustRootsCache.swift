@@ -15,12 +15,6 @@ public final class TrustRootsCache: @unchecked Sendable {
   /// Shared global instance.
   public static let shared = TrustRootsCache()
 
-  /// Well-known pinned DVV Gov. Root CA - G3 RSA SHA-256 fingerprint.
-  public static let pinnedDvvG3RsaSha256: [UInt8] = FineidValues.pinnedDvvG3RsaSha256
-
-  /// Well-known pinned DVV Gov. Root CA - G3 ECC SHA-256 fingerprint.
-  public static let pinnedDvvG3EccSha256: [UInt8] = FineidValues.pinnedDvvG3EccSha256
-
   /// Keychain service the trusted CA certificates live under.
   public static let service = "fi.refineid.trust"
 
@@ -83,6 +77,9 @@ public final class TrustRootsCache: @unchecked Sendable {
   }
 
   /// Registers an on-card root CA certificate.
+  ///
+  /// In-memory indexing unconditionally holds the certificate, while persistence
+  /// independently validates that it meets the persistence policy.
   public func registerRoot(_ certificateDER: Data) {
     lock.lock()
     rootCaDER = certificateDER
@@ -92,6 +89,9 @@ public final class TrustRootsCache: @unchecked Sendable {
   }
 
   /// Registers an extra CA certificate.
+  ///
+  /// In-memory indexing unconditionally holds the certificate, while persistence
+  /// independently validates that it meets the persistence policy.
   public func registerExtra(_ certificateDER: Data) {
     lock.lock()
     extraCasDER.append(certificateDER)
@@ -159,12 +159,15 @@ public final class TrustRootsCache: @unchecked Sendable {
 
   /// Checks whether a SHA-256 fingerprint matches a trusted root CA.
   public func isTrustedRoot(fingerprint: Data) -> Bool {
-    if containsFingerprint(fingerprint) {
+    lock.lock()
+    defer { lock.unlock() }
+    if let rootDer = rootCaDER, Data(SHA256.hash(data: rootDer)) == fingerprint {
       return true
     }
-    let rsa = Data(Self.pinnedDvvG3RsaSha256)
-    let ecc = Data(Self.pinnedDvvG3EccSha256)
-    return fingerprint == rsa || fingerprint == ecc
+    if let certDer = certsByFingerprint[fingerprint], Self.isSelfSigned(certDer) {
+      return true
+    }
+    return false
   }
 
   /// Completely clears in-memory and persistent CA storage.
