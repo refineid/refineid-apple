@@ -50,6 +50,15 @@ internal final class HeldCardSession: @unchecked Sendable {
     case failed(any Error)
   }
 
+  /// Maximum time a signer waits for PACE in the system-owned NFC field.
+  private static let preparationWaitSeconds: TimeInterval = 8
+
+  /// Default duration before an unclaimed held field is dismissed to reveal user prompts.
+  internal static let defaultActivityTimeoutSeconds: TimeInterval = 0.35
+
+  /// Milliseconds per second for diagnostic timing formatting.
+  private static let millisecondsPerSecond: Double = 1_000
+
   /// Coordinates the early PACE worker and the later signer.
   private let condition = NSCondition()
 
@@ -65,6 +74,10 @@ internal final class HeldCardSession: @unchecked Sendable {
   /// Whether the slot observation has ended this hold.
   private var ended = false
 
+  /// Timer that releases the held session if no cryptographic operation
+  /// claims it before the timeout.
+  private var activityTimeoutWorkItem: DispatchWorkItem?
+
   /// The held channel, or nil when none is held.
   internal var current: SmartCardChannel? {
     condition.lock()
@@ -72,14 +85,84 @@ internal final class HeldCardSession: @unchecked Sendable {
     return channel
   }
 
+  /// Whether a valid channel is currently retained and not ended.
+  internal var isAvailable: Bool {
+    condition.lock()
+    defer { condition.unlock() }
+    return channel != nil && !ended
+  }
+
+  /// Waits until a valid channel is retained and ready, or until the timeout expires.
+  internal func waitForAvailable(timeout: TimeInterval) -> Bool {
+    condition.lock()
+    defer { condition.unlock() }
+    if channel != nil, !ended {
+      return true
+    }
+    let deadline = Date().addingTimeInterval(timeout)
+    while channel == nil || ended, Date() < deadline {
+      if !condition.wait(until: deadline) {
+        break
+      }
+    }
+    return channel != nil && !ended
+  }
+
   /// Takes ownership of `channel`, whose session is already open.
   internal func retain(_ channel: SmartCardChannel) {
     condition.lock()
+    activityTimeoutWorkItem?.cancel()
+    activityTimeoutWorkItem = nil
     self.channel = channel
     preparation = .idle
     ended = false
+    condition.broadcast()
     condition.unlock()
     TokenLog.trace("held session: taken")
+  }
+
+  /// Schedules a timeout releasing the held session if no sign or auth operation arrives.
+  ///
+  /// In contactless Safari authentication, the browser often queries token certificates
+  /// while presenting a modal certificate acceptance prompt behind SpringBoard's NFC sheet.
+  /// Releasing the retained field after a brief delay dismisses the NFC sheet promptly so
+  /// the user can interact with Safari's prompt without waiting for the full slot idle timeout.
+  internal func scheduleActivityTimeout(seconds: TimeInterval) {
+    condition.lock()
+    activityTimeoutWorkItem?.cancel()
+    let workItem = DispatchWorkItem { [weak self] in
+      guard let self else { return }
+      condition.lock()
+      guard channel != nil, !ended else {
+        condition.unlock()
+        return
+      }
+      condition.unlock()
+      let milliseconds = Int(seconds * Self.millisecondsPerSecond)
+      TokenLog.notice(
+        "held session: activity timeout (\(milliseconds)ms) - releasing contactless field"
+      )
+      release()
+    }
+    activityTimeoutWorkItem = workItem
+    condition.unlock()
+    DispatchQueue.global(qos: .userInitiated).asyncAfter(
+      deadline: .now() + seconds,
+      execute: workItem
+    )
+  }
+
+  /// Schedules the default activity timeout releasing the held session if unclaimed.
+  internal func scheduleActivityTimeout() {
+    scheduleActivityTimeout(seconds: Self.defaultActivityTimeoutSeconds)
+  }
+
+  /// Cancels any scheduled activity timeout when an active operation claims this session.
+  internal func cancelActivityTimeout() {
+    condition.lock()
+    activityTimeoutWorkItem?.cancel()
+    activityTimeoutWorkItem = nil
+    condition.unlock()
   }
 
   /// Starts PACE immediately on a worker, ahead of Safari's sign call.
@@ -106,6 +189,7 @@ internal final class HeldCardSession: @unchecked Sendable {
   internal func preparedChannel(
     accessNumber: CardAccessNumber
   ) throws -> PreparedChannelLease {
+    cancelActivityTimeout()
     var prepareHere = false
     condition.lock()
     guard channel != nil, !ended else {
@@ -123,8 +207,12 @@ internal final class HeldCardSession: @unchecked Sendable {
     }
 
     condition.lock()
+    let deadline = Date().addingTimeInterval(Self.preparationWaitSeconds)
     while case .running = preparation {
-      condition.wait()
+      guard condition.wait(until: deadline) else {
+        condition.unlock()
+        throw CardOperationError.sessionUnavailable
+      }
     }
     let finalState = preparation
     condition.unlock()
@@ -199,6 +287,8 @@ internal final class HeldCardSession: @unchecked Sendable {
   /// still the same card.
   internal func release() {
     condition.lock()
+    activityTimeoutWorkItem?.cancel()
+    activityTimeoutWorkItem = nil
     let outgoing = channel
     channel = nil
     ended = true

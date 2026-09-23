@@ -85,48 +85,6 @@
       internal var credentialReport: CredentialProbeReport?
     }
 
-    /// Why a priming run stopped short.
-    internal enum Failure: Error {
-      /// The card still needs its first holder PIN values.
-      ///
-      /// Carries what the live card reported, so the caller can open the
-      /// activation route it names without reading the card again.
-      case activationRequired(scheme: ActivationScheme, needs: CardActivationNeeds)
-
-      /// No card access number is stored, so PACE cannot be run.
-      case cardAccessNumberMissing
-
-      /// The certificate came off the card but is not a certificate.
-      case certificateUnreadable
-
-      /// One or two attempts remain. The exact card-reported count survives
-      /// into the UI instead of being collapsed into an opaque safety error.
-      case pin1LowAttempts(RetryCount)
-
-      /// PIN1 does not fit its digit rules, so there is nothing to store.
-      ///
-      /// Shape is a property of the value and is checked before the slot
-      /// opens. Whether the card accepts it is a property of the card at
-      /// the instant it signs, and is checked there.
-      case pin1Malformed
-
-      /// PIN1 was malformed or its retry counter could not be read.
-      case pin1Unavailable
-
-      /// The prime could not be written, so nothing would be there to
-      /// serve the next login.
-      case primeNotStored
-
-      /// The slot reported no answer to reset, so the card cannot be
-      /// named -- and an unnamed card would be served another card's
-      /// primed identity.
-      case unidentifiedCard
-
-      /// The card refused the offered access number, so this is a
-      /// different card than the digits describe.
-      case wrongCardAccessNumber
-    }
-
     /// Shown under Apple's own "Ready to Scan" title whenever the system
     /// later asks for this card.
     ///
@@ -188,7 +146,7 @@
     /// same session that consumes it.
     internal static func prime(
       cardAccessNumber: String,
-      pin1: String,
+      pin1: String?,
       progress: @escaping Progress,
       step: @escaping StepReport
     ) async -> Outcome {
@@ -196,11 +154,18 @@
         step(.found, .failed)
         return Self.failure(Failure.cardAccessNumberMissing)
       }
-      // Shape is the one thing about a PIN that is knowable without a
-      // card, so it is the one thing checked before the slot opens.
-      guard Pin1(digits: pin1) != nil else {
-        step(.found, .failed)
-        return Self.failure(Failure.pin1Malformed)
+      if let pin1 {
+        // Shape is the one thing about a PIN that is knowable without a
+        // card, so it is the one thing checked before the slot opens.
+        guard Pin1(digits: pin1) != nil else {
+          step(.found, .failed)
+          return Self.failure(Failure.pin1Malformed)
+        }
+      } else {
+        guard OnDemandPinExperiment.isEnabled else {
+          step(.found, .failed)
+          return Self.failure(Failure.pin1Malformed)
+        }
       }
       // Marked BEFORE the slot opens: `ctkd` asks the extension for a
       // token the moment the card arrives, and a mark written after that
@@ -354,8 +319,7 @@
       progress(String(localized: "Card details stored on this iPhone."))
 
       return await Self.finish(
-        instance: payload.instance,
-        credentialReport: payload.credentialReport,
+        payload: payload,
         sheet: sheet,
         progress: progress,
         step: step)
@@ -367,15 +331,16 @@
     /// with the card in the slot, which is why it takes the live session
     /// rather than being called after the hold.
     private static func finish(
-      instance: CardInstanceIdentifier,
-      credentialReport: CredentialProbeReport?,
+      payload: Payload,
       sheet: PrimingSheetReporter,
       progress: @escaping Progress,
       step: StepReport
     ) async -> Outcome {
       step(.registered, .running)
       let registered = await Self.register(
-        instance: instance, session: sheet.session, progress: progress)
+        instance: payload.instance,
+        session: sheet.session,
+        progress: progress)
       step(.registered, registered ? .done : .failed)
       if !registered {
         sheet.fail(String(localized: "Safari setup did not finish"))
@@ -390,7 +355,7 @@
               The card details were stored, but Safari setup did not \
               finish. Try priming the card again.
               """),
-        credentialReport: credentialReport)
+        credentialReport: payload.credentialReport)
     }
   }
 

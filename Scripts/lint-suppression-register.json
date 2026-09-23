@@ -17,6 +17,14 @@
       "count": 1
     },
     {
+      "file": "CardCore/Sources/CardCore/CardTokenPublicationItems.swift",
+      "command": "disable:next",
+      "rules": [
+        "legacy_objc_type"
+      ],
+      "count": 1
+    },
+    {
       "file": "CardCore/Sources/CardCore/MultipeerDiscoveryHelper.swift",
       "command": "disable",
       "rules": [
@@ -693,14 +701,6 @@
       "count": 1
     },
     {
-      "file": "Sources/TokenExtension/Token+IdentityPublication.swift",
-      "command": "disable:next",
-      "rules": [
-        "legacy_objc_type"
-      ],
-      "count": 1
-    },
-    {
       "file": "Sources/TokenExtension/Token+SessionLifecycle.swift",
       "command": "disable:next",
       "rules": [
@@ -710,6 +710,14 @@
     },
     {
       "file": "Sources/TokenExtension/Token+Validation.swift",
+      "command": "disable:previous",
+      "rules": [
+        "attributes"
+      ],
+      "count": 1
+    },
+    {
+      "file": "Sources/TokenExtension/TokenSession+FieldSigning.swift",
       "command": "disable:previous",
       "rules": [
         "attributes"

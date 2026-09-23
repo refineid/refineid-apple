@@ -223,18 +223,30 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
     // system gives the mint, and the line is written out by whichever
     // `createToken` outcome line follows it.
     TokenLog.trace(
-      "mintFromPrime: prime HIT for \(instanceID.value) "
+      "mintFromPrime: prime HIT "
         + "leaf=\(match.identity.certDER.count)B "
         + "issuer=\(match.identity.issuerDER?.count ?? -1)B "
         + "registration=\(match.isRegistrationField)"
     )
+    let experimentEnabled = OnDemandPinExperiment.isEnabled
+    let pinAvailable =
+      experimentEnabled
+      && (CardCredentialStore.contents().hasPin1
+        || TransientCandidatePin1.shared.hasPending(for: instanceID)
+        || VolatileAcceptedPin1.shared.hasPin(for: instanceID))
+    let needsSigningField = OnDemandPinExperiment.needsSigningField(
+      isRegistrationField: match.isRegistrationField,
+      experimentEnabled: experimentEnabled,
+      pinAvailable: pinAvailable
+    )
+    TokenLog.trace("mintFromPrime: signing field needed=\(needsSigningField)")
     return try Token(
       primedSmartCard: smartCard,
       aid: aid,
       tokenDriver: tokenDriver,
       instanceID: instanceID,
       primed: match.identity,
-      shouldHoldSession: !match.isRegistrationField
+      shouldHoldSession: needsSigningField
     )
   }
 }

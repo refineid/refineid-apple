@@ -10,7 +10,8 @@ extension Token {
     // Which interface this card is on is the useful half: it says which
     // sign path is about to run. `TKToken` publishes no instance
     // identifier to name it with.
-    TokenLog.info("createSession: session requested, interface=\(interface)")
+    TokenLog.info(
+      "createSession: session requested, token=\(tokenID) interface=\(interface)")
     return TokenSession(token: self)
   }
 
@@ -40,6 +41,7 @@ extension Token {
     if let accessNumber = sealedAccessNumber {
       heldSession.startPACE(with: accessNumber)
     }
+    heldSession.scheduleActivityTimeout()
   }
 
   /// Releases the held session and the cached PIN1 when the card is gone.
@@ -51,8 +53,9 @@ extension Token {
   /// what forgets it.
   internal func observeSlotState(of smartCard: TKSmartCard) {
     slotStateObservation = smartCard.slot.observe(\.state, options: [.new]) {
-      [held = heldSession, pin1 = acceptedPin1] observed, change in
+      [held = heldSession, pin1 = acceptedPin1, id = tokenID] observed, change in
       let state = change.newValue ?? observed.state
+      TokenLog.trace("slotState: token=\(id) state=\(state)")
       guard state == .missing else { return }
       held.release()
       pin1.clearAll()

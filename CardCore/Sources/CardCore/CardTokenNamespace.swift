@@ -9,6 +9,15 @@ public enum CardTokenNamespace {
   /// The token driver's class identifier.
   public static let driverClassIdentifier = "fi.refineid.ReFineID.token"
 
+  /// Object identifier for the client authentication key and certificate.
+  public static let authKeyObjectID = "auth"
+
+  /// Object identifier for the issuer certificate.
+  public static let issuerCertificateObjectID = "issuer-ca"
+
+  /// Access control constraint gating client-authentication signing with PIN 1.
+  public static let pin1SignDataConstraint = "fi.refineid.pin1.signData"
+
   /// Driver class identifiers shipped by older RefineID builds.
   ///
   /// They no longer create tokens, but a persistent Safari registration

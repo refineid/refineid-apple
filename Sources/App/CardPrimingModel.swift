@@ -57,14 +57,19 @@
       allowsNearField = SupportedCardTransports.offersNearField
     }
 
+    /// Primes the card using CAN alone for on-demand authentication.
+    internal func prime(cardAccessNumber: String) async {
+      await prime(cardAccessNumber: cardAccessNumber, pin1: nil)
+    }
+
     /// Primes the card for later system-driven logins through the selected backend.
     ///
     /// The access number is supplied rather than read from storage, because
     /// a first setup has not stored one yet: this hold is what proves it.
-    internal func prime(cardAccessNumber: String, pin1: String) async {
+    internal func prime(cardAccessNumber: String, pin1: String?) async {
       guard !isRunning else { return }
       if DemoMode.shared.isActive {
-        await primeVirtualCard(cardAccessNumber: cardAccessNumber, pin1: pin1)
+        await primeVirtualCard(cardAccessNumber: cardAccessNumber, pin1: pin1 ?? "")
         return
       }
       refresh()

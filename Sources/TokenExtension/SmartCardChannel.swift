@@ -100,13 +100,17 @@ internal struct SmartCardChannel: CardChannel {
   /// signature about the same -- so a legitimate queue still clears,
   /// while a holder that is never letting go becomes an error instead of
   /// a hang.
-  private static let sessionWaitSeconds: Int = 8
+  private static let sessionWaitSeconds: Int = 10
 
   /// The same budget, in the units `DispatchSemaphore` wants.
   private static let sessionWaitBudget: DispatchTimeInterval = .seconds(sessionWaitSeconds)
 
-  /// The phone budget: the system field is gone past this anyway.
-  private static let nearFieldResponseSeconds: Int = 2
+  /// Maximum time allowed for an individual APDU response on near-field.
+  ///
+  /// On-card private key operations like RSA-3072 modular exponentiation
+  /// require several seconds on low-power card chips. The card issues
+  /// ISO 14443-4 WTX (waiting time extension) frames while calculating.
+  private static let nearFieldResponseSeconds: Int = 10
 
   /// The reader budget: room for the card's slowest legal answer.
   private static let readerResponseSeconds: Int = 10
@@ -142,9 +146,8 @@ internal struct SmartCardChannel: CardChannel {
   /// This is the one place every exchange the extension makes passes
   /// through -- plain and secure-messaged alike, since the secure channel
   /// wraps this one -- so it is where the trace is taken. The recorded
-  /// Debug records the complete command and response through
-  /// ``CardExchangeTrace``. ``TokenLog`` compiles the trace sink out of
-  /// shipped builds.
+  /// line contains instruction, status, and timing from ``CardExchangeTrace``.
+  /// ``TokenLog`` compiles the trace sink out of shipped builds.
   internal func transmit(_ payload: Data) throws -> Data {
     let reply = Box<Data?>(nil)
     let transportError = Box<Error?>(nil)
@@ -169,6 +172,7 @@ internal struct SmartCardChannel: CardChannel {
     )
     guard let response = reply.value else {
       if let callbackError = transportError.value {
+        TokenLog.error("apdu: transmit failed: \(callbackError)")
         throw callbackError
       }
       throw CardOperationError.malformedResponse
@@ -176,45 +180,17 @@ internal struct SmartCardChannel: CardChannel {
     return response
   }
 
-  /// Starts either the structured signature send or the byte-exact send.
+  /// Sends the payload directly over the card transport.
   private func startTransmit(
     _ payload: Data,
     reply: Box<Data?>,
     transportError: Box<Error?>,
     semaphore: DispatchSemaphore
   ) {
-    if let command = CommandApdu.structuredProtectedSignature(payload) {
-      // A protected modulus-wide RSA response needs continuation: RSA-3072
-      // is too wide by itself, and RSA-2048 crosses the short-response limit
-      // once secure messaging wraps it. Keeping continuation inside CTK's
-      // structured operation prevents the built-in NFC field from ending
-      // between a raw 61xx and our next GET RESPONSE callback.
-      let previousClass = smartCard.cla
-      smartCard.cla = command.cla
-      smartCard.send(
-        ins: command.ins,
-        p1: command.parameter1,
-        p2: command.parameter2,
-        data: command.data,
-        le: command.expectedLength
-      ) { response, statusWord, error in
-        smartCard.cla = previousClass
-        if let response {
-          var complete = response
-          complete.append(
-            UInt8(truncatingIfNeeded: statusWord >> Self.statusWordByteShift))
-          complete.append(UInt8(truncatingIfNeeded: statusWord))
-          reply.value = complete
-        }
-        transportError.value = error
-        semaphore.signal()
-      }
-    } else {
-      smartCard.transmit(payload) { response, error in
-        reply.value = response
-        transportError.value = error
-        semaphore.signal()
-      }
+    smartCard.transmit(payload) { response, error in
+      reply.value = response
+      transportError.value = error
+      semaphore.signal()
     }
   }
 

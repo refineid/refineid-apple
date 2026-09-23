@@ -3904,6 +3904,28 @@
         }
       }
     },
+    "Read Identity Card": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read Identity Card"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lue henkilökortti"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läs av identitetskort"
+          }
+        }
+      }
+    },
     "Reader": {
       "extractionState": "stale",
       "localizations": {

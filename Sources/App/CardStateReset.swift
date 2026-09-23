@@ -53,6 +53,9 @@ internal enum CardStateReset {
     PrimeStore.forgetAll()
     lines.append("RefineID prime store: cleared")
 
+    VolatileAcceptedPin1.shared.clearAll()
+    TransientCandidatePin1.shared.clearAll()
+
     TrustRootsCache.shared.forgetAll()
     lines.append("RefineID trusted CAs: cleared")
     #if os(iOS) && REFINEID_LOCAL_CARD

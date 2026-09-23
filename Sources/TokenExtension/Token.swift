@@ -17,11 +17,12 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
   // MARK: Static Properties
 
   /// The auth certificate and its key share this keychain object ID.
-  internal static let authObjectID = "auth"
+  internal static let authObjectID = CardTokenNamespace.authKeyObjectID
   /// The qualified-signature certificate and key share this object ID.
   internal static let signObjectID = "sign"
   /// The published issuing-CA certificate's object ID (cert-only).
-  internal static let issuerObjectID = "issuer-ca"
+  internal static let issuerObjectID = CardTokenNamespace.issuerCertificateObjectID
+  private static let tokenIDPrefixLength = 8
 
   // MARK: Properties
 
@@ -85,6 +86,9 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
   /// rejection bankrupts this live token and its stored registration.
   internal let cardInstanceID: CardInstanceIdentifier
 
+  /// Ephemeral identifier for diagnostic logging without printing card serials.
+  internal let tokenID = "tok-" + UUID().uuidString.prefix(tokenIDPrefixLength)
+
   /// The card session taken at the mint and kept open for the signature.
   ///
   /// Empty on the contact path, which opens a session per operation.
@@ -136,7 +140,9 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
     )
     delegate = self
     observeSlotState(of: smartCard)
-    TokenLog.info("Token.init: super.init done, profile=\(String(describing: material.profile))")
+    TokenLog.info(
+      "Token.init(reader): id=\(tokenID) profile=\(String(describing: material.profile))"
+    )
     try publish(
       material.identity,
       leaf: material.leaf,
@@ -171,7 +177,6 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
     // out by the `createToken` outcome that follows. Each refusal is
     // named, because they all leave the same error at the boundary and
     // the difference between them is the diagnosis.
-    TokenLog.trace("Token.init(primed): instance=\(instanceID.value)")
     let material = try Self.validated(primed: primed, instanceID: instanceID)
     self.keyProfile = material.profile
     self.leafPublicKey = material.publicKey
@@ -188,6 +193,7 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
       tokenDriver: tokenDriver
     )
     delegate = self
+    TokenLog.info("Token.init(primed): id=\(tokenID)")
     if shouldHoldSession {
       observeSlotState(of: smartCard)
       holdSession(on: smartCard)
@@ -214,6 +220,8 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
     revoked = true
     revocationLock.unlock()
     acceptedPin1.clearAll()
+    VolatileAcceptedPin1.shared.clear(for: cardInstanceID)
+    TransientCandidatePin1.shared.clear(for: cardInstanceID)
     heldSession.release()
   }
 
@@ -225,6 +233,7 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
   /// the busy answer ``NearFieldCardSession`` has to retry through -
   /// about 2.5 seconds of the holder's time for nothing.
   deinit {
+    TokenLog.info("Token.deinit: id=\(tokenID)")
     acceptedPin1.clearAll()
     heldSession.release()
     // Last chance to get the trace out of a process ctkd is dropping: a

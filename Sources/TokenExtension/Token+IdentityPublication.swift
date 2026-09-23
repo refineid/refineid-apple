@@ -30,47 +30,18 @@ extension Token {
     interface: CardInterface,
     issuerDER: Data?
   ) throws -> [TKTokenKeychainItem] {
-    guard
-      let keychainCertificate = TKTokenKeychainCertificate(
-        certificate: leaf,
-        objectID: Self.authObjectID
-      ),
-      let keychainKey = TKTokenKeychainKey(
-        certificate: leaf,
-        objectID: Self.authObjectID
-      )
-    else {
+    let hasStoredPin = CardCredentialStore.contents().hasPin1
+    let requiresPin =
+      interface != .fieldWithDeadline || (OnDemandPinExperiment.isEnabled && !hasStoredPin)
+    let items = CardTokenPublicationItems.makeItems(
+      leaf: leaf,
+      profile: profile,
+      issuerDER: issuerDER,
+      requiresPinConstraint: requiresPin
+    )
+    guard !items.isEmpty else {
       TokenLog.error("publish: keychain item construction failed")
       throw TokenError.keychainItemConstructionFailed
-    }
-
-    keychainKey.keyType = profile.keyType
-    keychainKey.keySizeInBits = profile.keySizeInBits
-    keychainKey.canSign = true
-    keychainKey.canDecrypt = false
-    keychainKey.canPerformKeyExchange = false
-    keychainKey.isSuitableForLogin = true
-    if interface != .fieldWithDeadline {
-      // The signature is gated behind PIN1: this constraint is what makes
-      // CryptoTokenKit call beginAuth (the PIN sheet) before signing. The
-      // contactless path signs from its stored credential inside the
-      // two-second field deadline and sets no constraint here.
-      // swiftlint:disable:next legacy_objc_type
-      let signOperationKey = NSNumber(value: TKTokenOperation.signData.rawValue)
-      keychainKey.constraints = [signOperationKey: Pin1AuthOperation.signDataConstraint]
-    }
-    keychainCertificate.label = Self.authenticationLabel
-    keychainKey.label = Self.authenticationLabel
-
-    var items: [TKTokenKeychainItem] = [keychainCertificate, keychainKey]
-    if let issuerDER,
-      let issuer = SecCertificateCreateWithData(nil, issuerDER as CFData),
-      let issuerItem = TKTokenKeychainCertificate(
-        certificate: issuer,
-        objectID: Self.issuerObjectID
-      )
-    {
-      items.append(issuerItem)
     }
     return items
   }

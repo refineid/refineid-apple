@@ -31,6 +31,7 @@ extension CardCredentialsView {
           signingSection
           if offersNearField || hasReaderIdentity {
             cardSection
+            readIdentityCardSection
           }
         }
       #endif
@@ -122,7 +123,7 @@ extension CardCredentialsView {
       .onValueChange(of: isCardAccessNumberEntryComplete) { complete in
         if complete {
           #if os(iOS)
-            isPin1FieldFocused = true
+            isCardAccessNumberFieldFocused = false
           #endif
           return
         }

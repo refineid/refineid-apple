@@ -52,7 +52,9 @@ extension CardCredentialsView {
     internal var signingSection: some View {
       Section {
         verifyRouteButton
-        signRouteButton
+        if signingAvailable {
+          signRouteButton
+        }
       } header: {
         compactSectionHeader(
           verbatim: String(
@@ -84,12 +86,9 @@ extension CardCredentialsView {
       Section {
         if offersNearField, !hasReaderIdentity, identityHolder == nil {
           cardAccessNumberRow
-          pin1Row
         }
-        if offersNearField || hasReaderIdentity {
+        if identityHolder != nil || hasReaderIdentity {
           remoteRouteRow
-        }
-        if offersNearField || hasReaderIdentity {
           cardManagementButton
         }
         #if REFINEID_LOCAL_CARD
@@ -107,6 +106,16 @@ extension CardCredentialsView {
             isPairingInputActive = false
             pairingCodeDigits = ""
           }
+        }
+      }
+    }
+
+    @ViewBuilder internal var readIdentityCardSection: some View {
+      if offersNearField, !hasReaderIdentity, identityHolder == nil {
+        Section {
+          readIdentityCardButton
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
         }
       }
     }
@@ -213,6 +222,31 @@ extension CardCredentialsView {
         in: RoundedRectangle(cornerRadius: Layout.cacheButtonCornerRadius)
       )
       .disabled(!canCachePin1)
+      .accessibilityIdentifier("primeStartButton")
+    }
+
+    private var readIdentityCardButton: some View {
+      Button {
+        isCardAccessNumberFieldFocused = false
+        connectIdentityCard()
+      } label: {
+        Label(
+          String(localized: "Read Identity Card"),
+          systemImage: "person.badge.key.fill"
+        )
+        .font(.body.weight(.semibold))
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity)
+        .frame(height: Layout.primaryActionButtonHeight)
+        .background(
+          canReadIdentityCard
+            ? Color.accentColor : Color.secondary.opacity(Layout.disabledActionOpacity),
+          in: Capsule()
+        )
+        .contentShape(Capsule())
+      }
+      .buttonStyle(.borderless)
+      .disabled(!canReadIdentityCard)
       .accessibilityIdentifier("primeStartButton")
     }
   #endif

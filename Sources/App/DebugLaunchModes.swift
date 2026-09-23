@@ -98,16 +98,10 @@
       case .diagnostics:
         DebugModeReport(lines: DebugDiagnosticsReport.lines(), succeeded: true)
 
-      case .forgetCan:
-        Self.forgetCardAccessNumber()
+      case .disableOnDemandPin, .enableOnDemandPin, .forgetPin1, .statusOnDemandPin:
+        Self.experimentReport(for: mode)
 
-      case .paceCheck:
-        DebugPaceCheck.perform()
-
-      case .resetCardState:
-        DebugModeReport(lines: DebugCardStateReset.perform(), succeeded: true)
-
-      case .setCan, .setPin1, .setPin2:
+      case .forgetCan, .setCan, .setPin1, .setPin2:
         Self.credentialReport(for: mode)
 
       case .localNetworkProbe:
@@ -129,7 +123,7 @@
             succeeded: false)
         #endif
 
-      case .signDocument, .signProbe, .tokenPublishProbe, .trace:
+      case .paceCheck, .resetCardState, .signDocument, .signProbe, .tokenPublishProbe, .trace:
         Self.probeReport(for: mode)
       }
     }
@@ -176,6 +170,12 @@
     /// The modes that drive a reader or read what one left behind.
     private static func probeReport(for mode: DebugLaunchMode) -> DebugModeReport {
       switch mode {
+      case .paceCheck:
+        DebugPaceCheck.perform()
+
+      case .resetCardState:
+        DebugModeReport(lines: DebugCardStateReset.perform(), succeeded: true)
+
       case .signDocument:
         Self.documentSignatureReport()
 
@@ -256,6 +256,8 @@
 
     private static func credentialReport(for mode: DebugLaunchMode) -> DebugModeReport {
       switch mode {
+      case .forgetCan:
+        Self.forgetCardAccessNumber()
       case .setCan:
         Self.storeCardAccessNumber()
       case .setPin1:

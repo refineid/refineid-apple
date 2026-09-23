@@ -37,10 +37,14 @@ internal enum DisplacedRemoteCardWithdrawal {
     performed = true
     Task.detached(priority: .utility) {
       let dropped = DriverConfiguredCredentials.dropDisplacedRemoteCardConfigurations()
+      let droppedIdentities = DriverConfiguredCredentials.dropIdentityTokenConfigurations()
       #if DEBUG
-        Self.log.info("withdrew \(dropped) displaced remote-card configuration(s)")
+        Self.log.info(
+          "withdrew \(dropped) displaced remote-card and \(droppedIdentities) identity configuration(s)"
+        )
       #else
         _ = dropped
+        _ = droppedIdentities
       #endif
     }
   }

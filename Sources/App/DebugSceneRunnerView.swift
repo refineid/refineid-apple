@@ -104,9 +104,10 @@
       case .prime:
         DebugConsole.finish(succeeded: await Self.prime())
 
-      case .diagnostics, .forgetCan, .localNetworkProbe, .paceCheck,
-        .resetCardState, .selectPair, .setCan,
-        .setPin1, .setPin2, .signDocument, .signProbe, .tokenPublishProbe, .trace:
+      case .diagnostics, .disableOnDemandPin, .enableOnDemandPin, .forgetCan, .forgetPin1,
+        .localNetworkProbe, .paceCheck, .resetCardState, .selectPair, .setCan,
+        .setPin1, .setPin2, .signDocument, .signProbe, .statusOnDemandPin,
+        .tokenPublishProbe, .trace:
         DebugConsole.emit(mode.rawValue + ": runs before the window opens, not here")
         DebugConsole.finish(succeeded: false)
       }

@@ -82,23 +82,37 @@ internal struct FieldSignature {
     if let fingerprint, CredentialMemory.rejectedPins.isKnownRejected(fingerprint) {
       throw TokenError.pinAlreadyRejected
     }
+    let pendingAcceptance: VolatileAcceptedPin1.PendingAcceptance?
+    if OnDemandPinExperiment.isEnabled {
+      pendingAcceptance = VolatileAcceptedPin1.shared.prepareAcceptance(
+        of: pin1,
+        for: token.cardInstanceID
+      )
+    } else {
+      pendingAcceptance = nil
+    }
     do {
       try operations.verifyPin1(pin1.consumeForSingleTransmission())
-    } catch CardOperationError.pinRejected {
+    } catch CardOperationError.pinRejected, CardOperationError.pinBlocked {
+      TransientCandidatePin1.shared.clear(for: token.cardInstanceID)
+      VolatileAcceptedPin1.shared.clear(for: token.cardInstanceID)
       if let serial = token.primedSerial, let fingerprint {
         token.revokeAutomaticIdentityAfterPin1Rejection(
           serial: serial,
           fingerprint: fingerprint)
       }
       throw TokenError.pinRejected
-    } catch CardOperationError.pinBlocked {
-      if let serial = token.primedSerial, let fingerprint {
-        token.revokeAutomaticIdentityAfterPin1Rejection(
-          serial: serial,
-          fingerprint: fingerprint)
+    } catch {
+      // Ambiguous transport/communication failure during or after VERIFY transmission:
+      // clear unverified candidate store, but preserve previously accepted memory.
+      if !VolatileAcceptedPin1.shared.hasPin(for: token.cardInstanceID) {
+        TransientCandidatePin1.shared.clear(for: token.cardInstanceID)
       }
-      throw TokenError.pinRejected
+      throw error
     }
+    // VERIFY succeeded on the physical card: promote to accepted memory and clear candidate.
+    TransientCandidatePin1.shared.clear(for: token.cardInstanceID)
+    pendingAcceptance?.commit()
     let raw = try operations.computeAuthenticationSignature(
       overDigest: request.digest,
       algorithm: request.algorithm,

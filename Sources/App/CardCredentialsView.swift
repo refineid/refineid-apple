@@ -33,6 +33,8 @@ internal struct CardCredentialsView: View {
     internal static let cacheButtonHorizontalPadding: CGFloat = 12
     internal static let cacheButtonVerticalPadding: CGFloat = 6
     internal static let cacheButtonCornerRadius: CGFloat = 8
+    internal static let primaryActionButtonHeight: CGFloat = 50
+    internal static let disabledActionOpacity = 0.3
   }
 
   // MARK: Static Properties
@@ -244,17 +246,18 @@ internal struct CardCredentialsView: View {
   internal var canPrepareIdentity: Bool {
     #if os(iOS)
       if isDemonstration {
-        return demoMode.hasValidatedConnection && isPin1EntryComplete
+        return demoMode.hasValidatedConnection
+          && (isPin1EntryComplete || OnDemandPinExperiment.isEnabled)
       }
     #endif
-    return model.contents.hasCardAccessNumber && isPin1EntryComplete
+    return model.contents.hasCardAccessNumber
+      && (isPin1EntryComplete || OnDemandPinExperiment.isEnabled)
   }
 
   #if os(iOS)
     /// Whether a qualified signature can start right now.
     internal var signingAvailable: Bool {
-      hasIdentity || hasReaderIdentity || isCardAccessNumberEntryComplete
-        || hasRemoteSigningIdentity
+      hasIdentity || hasReaderIdentity || hasRemoteSigningIdentity
     }
 
     /// Whether a paired phone has already named a person to sign as.
@@ -282,6 +285,18 @@ internal struct CardCredentialsView: View {
       guard
         isCardAccessNumberEntryComplete,
         isPin1EntryComplete,
+        !model.isConnecting
+      else { return false }
+      #if REFINEID_LOCAL_CARD
+        if primingModel.isRunning { return false }
+      #endif
+      return true
+    }
+
+    /// Whether Read Identity Card can start the NFC hold that primes the card.
+    internal var canReadIdentityCard: Bool {
+      guard
+        isCardAccessNumberEntryComplete,
         !model.isConnecting
       else { return false }
       #if REFINEID_LOCAL_CARD
