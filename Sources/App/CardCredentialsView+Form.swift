@@ -50,16 +50,9 @@ extension CardCredentialsView {
     #if os(iOS)
       .listSections(spacing: Self.sectionSpacing)
       .scrollDismissesKeyboard(.interactively)
-      .toolbar {
-        ToolbarItemGroup(placement: .keyboard) {
-          Spacer()
-          Button(String(localized: "Done")) {
-            isCardAccessNumberFieldFocused = false
-            isPin1FieldFocused = false
-          }
-          .font(.body.weight(.semibold))
-          .accessibilityIdentifier("dismissKeyboard")
-        }
+      .onTapGesture {
+        isCardAccessNumberFieldFocused = false
+        isPin1FieldFocused = false
       }
       .navigationDestination(
         isPresented: Binding(
