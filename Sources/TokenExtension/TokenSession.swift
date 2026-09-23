@@ -174,7 +174,6 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
       TokenLog.error("supports: session token is not a RefineID Token")
       return false
     }
-    token.heldSession.cancelActivityTimeout()
     guard !token.isRevoked else { return false }
     guard let profile = Self.profile(for: keyObjectID, of: token) else {
       return false
@@ -213,6 +212,7 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
         keyObjectID: keyObjectID,
         algorithm: algorithm
       )
+      PendingSigningState.shared.clear()
       TokenLog.notice(
         "sign: exit ok session=\(sessionID) out=\(signature.count)B ms=\(Self.elapsed(since: started))"
       )

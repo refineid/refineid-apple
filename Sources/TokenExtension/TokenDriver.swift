@@ -228,25 +228,42 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
         + "issuer=\(match.identity.issuerDER?.count ?? -1)B "
         + "registration=\(match.isRegistrationField)"
     )
-    let experimentEnabled = OnDemandPinExperiment.isEnabled
-    let pinAvailable =
-      experimentEnabled
-      && (CardCredentialStore.contents().hasPin1
-        || TransientCandidatePin1.shared.hasPending(for: instanceID)
-        || VolatileAcceptedPin1.shared.hasPin(for: instanceID))
-    let needsSigningField = OnDemandPinExperiment.needsSigningField(
+    let isPendingSign = PendingSigningState.shared.isPendingSign
+    let needsSigningField = resolveSigningNeed(
+      instanceID: instanceID,
       isRegistrationField: match.isRegistrationField,
-      experimentEnabled: experimentEnabled,
-      pinAvailable: pinAvailable
+      isPendingSign: isPendingSign
     )
-    TokenLog.trace("mintFromPrime: signing field needed=\(needsSigningField)")
+    TokenLog.trace(
+      "mintFromPrime: signing field needed=\(needsSigningField) (pendingSign=\(isPendingSign))"
+    )
     return try Token(
       primedSmartCard: smartCard,
       aid: aid,
       tokenDriver: tokenDriver,
       instanceID: instanceID,
       primed: match.identity,
-      shouldHoldSession: needsSigningField
+      shouldHoldSession: needsSigningField,
+      isPendingSign: isPendingSign
     )
+  }
+
+  private func resolveSigningNeed(
+    instanceID: CardInstanceIdentifier,
+    isRegistrationField: Bool,
+    isPendingSign: Bool
+  ) -> Bool {
+    let experimentEnabled = OnDemandPinExperiment.isEnabled
+    let pinAvailable =
+      experimentEnabled
+      && (CardCredentialStore.contents().hasPin1
+        || TransientCandidatePin1.shared.hasPending(for: instanceID)
+        || VolatileAcceptedPin1.shared.hasPin(for: instanceID))
+    return isPendingSign
+      || OnDemandPinExperiment.needsSigningField(
+        isRegistrationField: isRegistrationField,
+        experimentEnabled: experimentEnabled,
+        pinAvailable: pinAvailable
+      )
   }
 }

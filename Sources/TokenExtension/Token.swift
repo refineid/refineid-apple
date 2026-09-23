@@ -86,6 +86,9 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
   /// rejection bankrupts this live token and its stored registration.
   internal let cardInstanceID: CardInstanceIdentifier
 
+  /// The underlying smart card instance provided by CryptoTokenKit.
+  internal let smartCard: TKSmartCard
+
   /// Ephemeral identifier for diagnostic logging without printing card serials.
   internal let tokenID = "tok-" + UUID().uuidString.prefix(tokenIDPrefixLength)
 
@@ -132,6 +135,7 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
     self.interface = material.accessNumber == nil ? .contact : .steadyField
     self.primedSerial = nil
     self.cardInstanceID = material.instanceID
+    self.smartCard = smartCard
     super.init(
       smartCard: smartCard,
       aid: aid,
@@ -170,7 +174,8 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
     tokenDriver: TKSmartCardTokenDriver,
     instanceID: CardInstanceIdentifier,
     primed: PrimedIdentity,
-    shouldHoldSession: Bool
+    shouldHoldSession: Bool,
+    isPendingSign: Bool
   ) throws {
     // Recorded, not written: this whole initializer runs inside the two
     // seconds the system gives the mint, and every line here is written
@@ -186,6 +191,7 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
     self.interface = .fieldWithDeadline
     self.primedSerial = material.serial
     self.cardInstanceID = instanceID
+    self.smartCard = smartCard
     super.init(
       smartCard: smartCard,
       aid: aid,
@@ -196,7 +202,7 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
     TokenLog.info("Token.init(primed): id=\(tokenID)")
     if shouldHoldSession {
       observeSlotState(of: smartCard)
-      holdSession(on: smartCard)
+      holdSession(on: smartCard, isPendingSign: isPendingSign)
     }
     try publish(
       PublishedIdentity(

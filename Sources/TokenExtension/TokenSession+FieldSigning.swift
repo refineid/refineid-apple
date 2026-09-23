@@ -36,10 +36,24 @@ extension TokenSession {
     // The next sign call then requests a fresh field with the entered PIN ready.
     let pin1 = try resolveAuthorizedPin(token: token)
 
-    // The user may have spent longer than the system field allows in the PIN
-    // sheet, or the field was released early during certificate selection.
-    // A replacement token will take a new field and prepare PACE.
+    // When approval of the certificate is requested, the prior contactless field
+    // from the discovery/selection phase is expected to be gone before approval appears.
+    // If the card is not physically in the slot or the retained session has already ended,
+    // immediately mark a pending sign, release stale state, and throw tokenNotFound so ctkd
+    // prompts the user without delay.
+    let slotState = token.smartCard.slot.state
+    guard slotState == .validCard, token.heldSession.isAvailable else {
+      PendingSigningState.shared.recordPendingSign()
+      TokenLog.notice(
+        "sign: contactless card absent (slotState=\(slotState.rawValue)) "
+          + "- tokenNotFound session=\(sessionID)"
+      )
+      token.heldSession.release()
+      throw TKError(.tokenNotFound)
+    }
+
     guard token.heldSession.waitForAvailable(timeout: Self.heldSessionWaitSeconds) else {
+      PendingSigningState.shared.recordPendingSign()
       TokenLog.notice(
         "sign: retained field unavailable before verify (released or expired) - tokenNotFound session=\(sessionID)"
       )
@@ -97,46 +111,54 @@ extension TokenSession {
         accessNumber: accessNumber
       )
       return try signature.perform(pin1: pin1, request: request)
-    } catch SmartCardChannel.TransportError.responseTimedOut {
-      // A timed-out transmit leaves the card and our secure-messaging
-      // counter in an unknowable state (card moved away from antenna).
-      // Release held session and request fresh card scan via tokenNotFound.
-      TokenLog.notice(
-        "sign: transport timed out - requesting card scan via tokenNotFound session=\(sessionID)"
-      )
-      token.heldSession.release()
-      throw TKError(.tokenNotFound)
-    } catch let error as SecureMessagingChannel.Failure {
-      // The retained channel is desynchronized or broken by link drop.
-      // Release the hold and request a fresh scan via tokenNotFound.
-      TokenLog.error(
-        "sign: secure channel failed (\(error)) - requesting card scan via tokenNotFound session=\(sessionID)"
-      )
-      token.heldSession.release()
-      throw TKError(.tokenNotFound)
-    } catch CardOperationError.sessionUnavailable {
-      // The system ended the mint field before Safari asked us to sign.
-      // `tokenNotFound` tells CryptoTokenKit that this token instance no
-      // longer has a card behind it, so a retry may open a replacement
-      // NFC field and mint a fresh instance. Keep every real
-      // PACE, APDU and card failure on the communication-error path below.
-      TokenLog.notice(
-        "sign: retained field unavailable - requesting fresh token via tokenNotFound session=\(sessionID)"
-      )
-      token.heldSession.release()
-      throw TKError(.tokenNotFound)
-    } catch let error as TokenError {
-      token.heldSession.release()
-      throw error.asTKError
-    } catch let error as TKError {
-      token.heldSession.release()
-      throw error
     } catch {
-      // A PACE refusal, a secure-messaging fault or a signing SW must not
-      // escape unmapped, and must not look like a wrong PIN: a genuine
-      // card failure ends the handshake instead of re-looping the prompt.
-      token.heldSession.release()
-      throw TKError(.communicationError)
+      throw mapFieldFailure(error, token: token)
+    }
+  }
+
+  private func mapFieldFailure(
+    _ error: any Error,
+    token: Token
+  ) -> any Error {
+    token.heldSession.release()
+    switch error {
+    case SmartCardChannel.TransportError.responseTimedOut:
+      PendingSigningState.shared.recordPendingSign()
+      TokenLog.notice(
+        "sign: transport timed out - requesting scan via tokenNotFound session=\(sessionID)"
+      )
+      return TKError(.tokenNotFound)
+
+    case let channelError as SecureMessagingChannel.Failure:
+      PendingSigningState.shared.recordPendingSign()
+      TokenLog.error(
+        "sign: secure channel failed (\(channelError)) - requesting scan session=\(sessionID)"
+      )
+      return TKError(.tokenNotFound)
+
+    case CardOperationError.sessionUnavailable:
+      PendingSigningState.shared.recordPendingSign()
+      TokenLog.notice(
+        "sign: retained field unavailable - requesting fresh token session=\(sessionID)"
+      )
+      return TKError(.tokenNotFound)
+
+    case let cardError as CardOperationError:
+      _ = cardError
+      return TKError(.communicationError)
+
+    case let tokenError as TokenError:
+      return tokenError.asTKError
+
+    case let tkError as TKError:
+      return tkError
+
+    default:
+      PendingSigningState.shared.recordPendingSign()
+      TokenLog.error(
+        "sign: transport failure (\(error)) - requesting scan via tokenNotFound session=\(sessionID)"
+      )
+      return TKError(.tokenNotFound)
     }
   }
 }
