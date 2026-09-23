@@ -82,20 +82,16 @@ internal struct FieldSignature {
     if let fingerprint, CredentialMemory.rejectedPins.isKnownRejected(fingerprint) {
       throw TokenError.pinAlreadyRejected
     }
-    let pendingAcceptance: VolatileAcceptedPin1.PendingAcceptance?
-    if OnDemandPinExperiment.isEnabled {
-      pendingAcceptance = VolatileAcceptedPin1.shared.prepareAcceptance(
-        of: pin1,
-        for: token.cardInstanceID
-      )
-    } else {
-      pendingAcceptance = nil
-    }
+    let pendingAcceptance = VolatileAcceptedPin1.shared.prepareAcceptance(
+      of: pin1,
+      for: token.cardInstanceID
+    )
     do {
       try operations.verifyPin1(pin1.consumeForSingleTransmission())
     } catch CardOperationError.pinRejected, CardOperationError.pinBlocked {
       TransientCandidatePin1.shared.clear(for: token.cardInstanceID)
       VolatileAcceptedPin1.shared.clear(for: token.cardInstanceID)
+      CardCredentialStore.forgetPin1()
       if let serial = token.primedSerial, let fingerprint {
         token.revokeAutomaticIdentityAfterPin1Rejection(
           serial: serial,

@@ -53,18 +53,15 @@ public final class VolatileAcceptedPin1: Sendable {
 
   // MARK: Functions
 
-  /// Whether an accepted PIN1 is available for this card instance under the active experiment.
+  /// Whether an accepted PIN1 is available in memory for this card instance under the active experiment.
   public func hasPin(for instanceID: CardInstanceIdentifier) -> Bool {
     guard OnDemandPinExperiment.isEnabled else {
       return false
     }
-    if CardCredentialStore.contents().hasPin1 {
-      return true
-    }
     return entries.withLock { $0[instanceID] != nil }
   }
 
-  /// A reusable PIN1 for this card instance, or nil when none was accepted or experiment is disabled.
+  /// A reusable PIN1 for this card instance from memory, or nil when none was accepted.
   public func checkout(for instanceID: CardInstanceIdentifier) -> Pin1? {
     guard OnDemandPinExperiment.isEnabled else {
       return nil
@@ -75,10 +72,10 @@ public final class VolatileAcceptedPin1: Sendable {
       }
       return ZeroizingDigitStore(bytes: entry.bytes)
     }
-    if let store {
-      return Pin1(owning: store)
+    guard let store else {
+      return nil
     }
-    return CardCredentialStore.pin1()
+    return Pin1(owning: store)
   }
 
   /// Prepares to accept `pin` if and only if the card later accepts it.
@@ -121,7 +118,6 @@ public final class VolatileAcceptedPin1: Sendable {
     entries.withLock { entries in
       entries[instanceID] = nil
     }
-    CardCredentialStore.forgetPin1()
   }
 
   /// Drops all accepted PIN values.
@@ -129,6 +125,5 @@ public final class VolatileAcceptedPin1: Sendable {
     entries.withLock { entries in
       entries.removeAll()
     }
-    CardCredentialStore.forgetPin1()
   }
 }

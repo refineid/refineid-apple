@@ -52,31 +52,24 @@ extension TokenSession {
   }
 
   private func resolveAuthorizedPin(token: Token) throws -> Pin1 {
-    if OnDemandPinExperiment.isEnabled {
-      if let accepted = VolatileAcceptedPin1.shared.checkout(for: token.cardInstanceID) {
-        TokenLog.trace(
-          "sign: session=\(sessionID) token=\(token.tokenID) pin1 source=accepted authorized=true"
-        )
-        return accepted
-      }
-      if let candidate = TransientCandidatePin1.shared.checkout(for: token.cardInstanceID) {
-        TokenLog.trace(
-          "sign: session=\(sessionID) token=\(token.tokenID) pin1 source=candidate authorized=true"
-        )
-        return candidate
-      }
-      if let stored = CardCredentialStore.pin1() {
-        TokenLog.trace(
-          "sign: session=\(sessionID) token=\(token.tokenID) pin1 source=stored authorized=true"
-        )
-        return stored
-      }
+    if let accepted = VolatileAcceptedPin1.shared.checkout(for: token.cardInstanceID) {
       TokenLog.trace(
-        "sign: session=\(sessionID) token=\(token.tokenID) pin1 source=none authorized=false"
+        "sign: session=\(sessionID) token=\(token.tokenID) pin1 source=accepted authorized=true"
       )
-      throw TKError(.authenticationNeeded)
+      return accepted
     }
-
+    if let candidate = TransientCandidatePin1.shared.checkout(for: token.cardInstanceID) {
+      TokenLog.trace(
+        "sign: session=\(sessionID) token=\(token.tokenID) pin1 source=candidate authorized=true"
+      )
+      return candidate
+    }
+    if let stored = CardCredentialStore.pin1() {
+      TokenLog.trace(
+        "sign: session=\(sessionID) token=\(token.tokenID) pin1 source=stored authorized=true"
+      )
+      return stored
+    }
     let entered = collectedPin.flatMap { $0.isEmpty ? nil : $0 }
     collectedPin = nil
     if let entered, let pin = Pin1(digits: entered) {
@@ -84,12 +77,6 @@ extension TokenSession {
         "sign: session=\(sessionID) token=\(token.tokenID) pin1 source=prompt authorized=true"
       )
       return pin
-    }
-    if let stored = CardCredentialStore.pin1() {
-      TokenLog.trace(
-        "sign: session=\(sessionID) token=\(token.tokenID) pin1 source=stored authorized=true"
-      )
-      return stored
     }
     TokenLog.trace(
       "sign: session=\(sessionID) token=\(token.tokenID) pin1 source=none authorized=false"
@@ -112,17 +99,21 @@ extension TokenSession {
       return try signature.perform(pin1: pin1, request: request)
     } catch SmartCardChannel.TransportError.responseTimedOut {
       // A timed-out transmit leaves the card and our secure-messaging
-      // counter in an unknowable state. End and forget that held session
-      // so the next system attempt starts with a genuinely fresh field.
+      // counter in an unknowable state (card moved away from antenna).
+      // Release held session and request fresh card scan via tokenNotFound.
+      TokenLog.notice(
+        "sign: transport timed out - requesting card scan via tokenNotFound session=\(sessionID)"
+      )
       token.heldSession.release()
-      throw TKError(.communicationError)
+      throw TKError(.tokenNotFound)
     } catch let error as SecureMessagingChannel.Failure {
-      // The retained channel is no longer trustworthy and fail-stops, so
-      // a retry through it can only fail the same way. Release the hold;
-      // the next attempt gets tokenNotFound and a genuinely fresh mint.
-      TokenLog.error("sign: secure channel failed \(error)")
+      // The retained channel is desynchronized or broken by link drop.
+      // Release the hold and request a fresh scan via tokenNotFound.
+      TokenLog.error(
+        "sign: secure channel failed (\(error)) - requesting card scan via tokenNotFound session=\(sessionID)"
+      )
       token.heldSession.release()
-      throw TKError(.communicationError)
+      throw TKError(.tokenNotFound)
     } catch CardOperationError.sessionUnavailable {
       // The system ended the mint field before Safari asked us to sign.
       // `tokenNotFound` tells CryptoTokenKit that this token instance no

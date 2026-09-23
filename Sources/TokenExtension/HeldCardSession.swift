@@ -92,15 +92,18 @@ internal final class HeldCardSession: @unchecked Sendable {
     return channel != nil && !ended
   }
 
-  /// Waits until a valid channel is retained and ready, or until the timeout expires.
+  /// Waits until a valid channel is retained and ready, or returns immediately if ended/unavailable.
   internal func waitForAvailable(timeout: TimeInterval) -> Bool {
     condition.lock()
     defer { condition.unlock() }
-    if channel != nil, !ended {
+    if ended {
+      return false
+    }
+    if channel != nil {
       return true
     }
     let deadline = Date().addingTimeInterval(timeout)
-    while channel == nil || ended, Date() < deadline {
+    while channel == nil, !ended, Date() < deadline {
       if !condition.wait(until: deadline) {
         break
       }

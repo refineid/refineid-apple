@@ -117,18 +117,18 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
     operation: TKTokenOperation
   ) -> TKTokenAuthOperation {
     let correlationID = "pin-" + UUID().uuidString.prefix(Self.idPrefixLength)
+    let instanceID = cardToken.cardInstanceID
+    let hasAccepted = VolatileAcceptedPin1.shared.hasPin(for: instanceID)
+    let hasPending = TransientCandidatePin1.shared.hasPending(for: instanceID)
+    let hasStored = CardCredentialStore.contents().hasPin1
+    if hasAccepted || hasPending || hasStored {
+      TokenLog.info(
+        "beginAuth: op=\(operation.rawValue) correlation=\(correlationID) "
+          + "session=\(sessionID) - satisfied from memory"
+      )
+      return TKTokenAuthOperation()
+    }
     if OnDemandPinExperiment.isEnabled, cardToken.interface == .fieldWithDeadline {
-      let instanceID = cardToken.cardInstanceID
-      let hasAccepted = VolatileAcceptedPin1.shared.hasPin(for: instanceID)
-      let hasPending = TransientCandidatePin1.shared.hasPending(for: instanceID)
-      let hasStored = CardCredentialStore.contents().hasPin1
-      if hasAccepted || hasPending || hasStored {
-        TokenLog.info(
-          "beginAuth: op=\(operation.rawValue) correlation=\(correlationID) "
-            + "session=\(sessionID) - satisfied from memory"
-        )
-        return TKTokenAuthOperation()
-      }
       TokenLog.notice(
         "beginAuth: op=\(operation.rawValue) correlation=\(correlationID) "
           + "session=\(sessionID) - presenting PIN sheet"

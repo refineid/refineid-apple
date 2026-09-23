@@ -84,13 +84,15 @@ internal enum ReaderSignature {
       }
       return built
     }
-    guard
-      let cached = token.acceptedPin1.checkout(serial: serial)
-    else {
-      throw TokenError.authenticationRequired
+    if let cached = token.acceptedPin1.checkout(serial: serial) {
+      TokenLog.info("sign: reusing cached PIN1 - no prompt")
+      return cached
     }
-    TokenLog.info("sign: reusing cached PIN1 - no prompt")
-    return cached
+    if let stored = CardCredentialStore.pin1() {
+      TokenLog.info("sign: reusing stored PIN1 - no prompt")
+      return stored
+    }
+    throw TokenError.authenticationRequired
   }
 
   /// The full contact sign flow, inside the caller's exclusive session.
@@ -225,6 +227,7 @@ internal enum ReaderSignature {
   ) {
     if let entered = enteredPin, let accepted = Pin1(digits: entered) {
       token.acceptedPin1.store(accepted, serial: serial)
+      CardCredentialStore.save(pin1: entered)
     }
   }
 }

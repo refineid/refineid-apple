@@ -168,13 +168,17 @@ extension CardCredentialStore {
       coordinates as CFDictionary,
       replacement as CFDictionary)
     if updated == errSecSuccess { return updated }
-    guard updated == errSecItemNotFound else { return updated }
 
     var insertion = coordinates
     insertion[kSecValueData as String] = data
     insertion[kSecAttrAccessible as String] =
       kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-    return SecItemAdd(insertion as CFDictionary, nil)
+    let added = SecItemAdd(insertion as CFDictionary, nil)
+    if added == errSecDuplicateItem {
+      SecItemDelete(coordinates as CFDictionary)
+      return SecItemAdd(insertion as CFDictionary, nil)
+    }
+    return added
   }
 
   /// Removes an item.
