@@ -209,6 +209,7 @@ extension CardCredentialsView {
 
   /// Sets the identity up in one hold.
   internal func connectIdentityCard() {
+    if !pin1Entry.isEmpty, !isPin1EntryComplete { return }
     let pin1 = enteredPin1()
     guard isCardAccessNumberEntryComplete, pin1 != nil || OnDemandPinExperiment.isEnabled else {
       #if DEBUG

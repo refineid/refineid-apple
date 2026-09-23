@@ -86,6 +86,7 @@ extension CardCredentialsView {
       Section {
         if offersNearField, !hasReaderIdentity, identityHolder == nil {
           cardAccessNumberRow
+          pin1Row
         }
         if identityHolder != nil || hasReaderIdentity {
           remoteRouteRow
@@ -164,12 +165,6 @@ extension CardCredentialsView {
         .textContentType(nil)
         .focused($isCardAccessNumberFieldFocused)
         .accessibilityIdentifier("cardAccessNumberField")
-        .onAppear {
-          DispatchQueue.main.async {
-            guard shouldFocusCardAccessNumber else { return }
-            isCardAccessNumberFieldFocused = true
-          }
-        }
         .onValueChange(of: cardAccessNumberEntry) { typed in
           cardAccessNumberEntry = LimitedDigits.cardAccessNumber(typed)
         }
@@ -210,24 +205,10 @@ extension CardCredentialsView {
   #endif
 
   #if os(iOS)
-    private var pin1CacheButton: some View {
-      Button(String(localized: "Cache")) {
-        connectIdentityCard()
-      }
-      .font(.subheadline.weight(.semibold))
-      .padding(.horizontal, Layout.cacheButtonHorizontalPadding)
-      .padding(.vertical, Layout.cacheButtonVerticalPadding)
-      .background(
-        .quaternary,
-        in: RoundedRectangle(cornerRadius: Layout.cacheButtonCornerRadius)
-      )
-      .disabled(!canCachePin1)
-      .accessibilityIdentifier("primeStartButton")
-    }
-
     private var readIdentityCardButton: some View {
       Button {
         isCardAccessNumberFieldFocused = false
+        isPin1FieldFocused = false
         connectIdentityCard()
       } label: {
         Label(
@@ -274,7 +255,6 @@ extension CardCredentialsView {
         .alignmentGuide(.listRowSeparatorLeading) { dimensions in
           dimensions[.leading]
         }
-        pin1CacheButton
       }
       .buttonStyle(.borderless)
     #else

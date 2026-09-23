@@ -141,14 +141,6 @@ internal struct CardCredentialsView: View {
     cardAccessNumberEntry.count == CardAccessNumber.digitCount
   }
 
-  /// CAN receives initial focus as the first input of an unconfigured card.
-  internal var shouldFocusCardAccessNumber: Bool {
-    !hasIdentity
-      && offersNearField
-      && !isHolding
-      && !isCardAccessNumberEntryComplete
-  }
-
   /// Disclosure follows a validated connection, never digit count alone.
   internal var hasConfiguredCard: Bool {
     #if os(iOS)
@@ -280,19 +272,6 @@ internal struct CardCredentialsView: View {
       return model.contents.hasPin1
     }
 
-    /// Whether Cache can start the NFC hold that stores PIN 1.
-    internal var canCachePin1: Bool {
-      guard
-        isCardAccessNumberEntryComplete,
-        isPin1EntryComplete,
-        !model.isConnecting
-      else { return false }
-      #if REFINEID_LOCAL_CARD
-        if primingModel.isRunning { return false }
-      #endif
-      return true
-    }
-
     /// Whether Read Identity Card can start the NFC hold that primes the card.
     internal var canReadIdentityCard: Bool {
       guard
@@ -301,6 +280,7 @@ internal struct CardCredentialsView: View {
       else { return false }
       #if REFINEID_LOCAL_CARD
         if primingModel.isRunning { return false }
+        if !pin1Entry.isEmpty, !isPin1EntryComplete { return false }
       #endif
       return true
     }

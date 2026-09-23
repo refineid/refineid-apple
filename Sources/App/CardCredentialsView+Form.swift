@@ -49,6 +49,18 @@ extension CardCredentialsView {
     }
     #if os(iOS)
       .listSections(spacing: Self.sectionSpacing)
+      .scrollDismissesKeyboard(.interactively)
+      .toolbar {
+        ToolbarItemGroup(placement: .keyboard) {
+          Spacer()
+          Button(String(localized: "Done")) {
+            isCardAccessNumberFieldFocused = false
+            isPin1FieldFocused = false
+          }
+          .font(.body.weight(.semibold))
+          .accessibilityIdentifier("dismissKeyboard")
+        }
+      }
       .navigationDestination(
         isPresented: Binding(
           get: { flowDestination.wrappedValue != nil },
@@ -114,16 +126,12 @@ extension CardCredentialsView {
         ) { _ in
           isCardAccessNumberFieldFocused = false
           isPin1FieldFocused = false
-          DispatchQueue.main.async {
-            guard shouldFocusCardAccessNumber else { return }
-            isCardAccessNumberFieldFocused = true
-          }
         }
       #endif
       .onValueChange(of: isCardAccessNumberEntryComplete) { complete in
         if complete {
           #if os(iOS)
-            isCardAccessNumberFieldFocused = false
+            isPin1FieldFocused = true
           #endif
           return
         }
