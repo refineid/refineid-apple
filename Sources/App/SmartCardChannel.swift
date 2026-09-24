@@ -73,6 +73,12 @@ internal struct SmartCardChannel: CardChannel {
     }
   }
 
+  /// How long one APDU may wait, set by the transport that owns the field.
+  internal enum ResponseWait: Sendable, Equatable {
+    case nearField
+    case reader
+  }
+
   /// How long to wait for whoever else has the card.
   ///
   /// Shorter than the driver's budget on purpose. This is the status
@@ -83,16 +89,14 @@ internal struct SmartCardChannel: CardChannel {
   /// The same budget, in the units `DispatchSemaphore` wants.
   private static let sessionWaitBudget: DispatchTimeInterval = .seconds(sessionWaitSeconds)
 
-  /// How long one APDU may wait for its reply.
-  ///
-  /// The app's adapter serves both the near-field and the reader paths,
-  /// so the budget is the reader's: room for the card's slowest legal
-  /// answer, while a card pulled mid-APDU - whose callback never fires -
-  /// becomes an error instead of a queue parked forever.
-  private static let responseSeconds: Int = 10
+  /// Maximum time allowed for an individual APDU response on near-field.
+  internal static let nearFieldResponseSeconds: Int = 10
 
-  /// The same budget, in the units `DispatchSemaphore` wants.
-  private static let responseBudget: DispatchTimeInterval = .seconds(responseSeconds)
+  /// The reader budget: room for the card's slowest legal answer.
+  ///
+  /// Accommodates progressive CAN-PACE delays (up to 45-50+ seconds) and
+  /// cryptographic calculations on continuous-power desktop PC/SC readers.
+  internal static let readerResponseSeconds: Int = 60
 
   /// A reader hands back exactly the bytes the card produced, so a
   /// chunked read may ask for the plain chunk.
@@ -101,9 +105,27 @@ internal struct SmartCardChannel: CardChannel {
   }
 
   private let smartCard: TKSmartCard
+  private let responseBudget: DispatchTimeInterval
+
+  internal init(_ smartCard: TKSmartCard, waits: ResponseWait) {
+    self.smartCard = smartCard
+    switch waits {
+    case .nearField:
+      self.responseBudget = .seconds(Self.nearFieldResponseSeconds)
+    case .reader:
+      self.responseBudget = .seconds(Self.readerResponseSeconds)
+    }
+  }
 
   internal init(_ smartCard: TKSmartCard) {
-    self.smartCard = smartCard
+    self.init(
+      smartCard,
+      waits: Self.defaultWait(forSlotNamed: smartCard.slot.name))
+  }
+
+  /// Determines the appropriate wait policy for a given smart card slot name.
+  internal static func defaultWait(forSlotNamed name: String) -> ResponseWait {
+    CardTransport.transport(forSlotNamed: name) == .nearField ? .nearField : .reader
   }
 
   /// Sends one command and waits for the card, tracing the exchange.
@@ -123,7 +145,7 @@ internal struct SmartCardChannel: CardChannel {
       transportError.value = error
       semaphore.signal()
     }
-    guard semaphore.wait(timeout: .now() + Self.responseBudget) == .success else {
+    guard semaphore.wait(timeout: .now() + responseBudget) == .success else {
       let elapsed = started.duration(to: ContinuousClock.now)
       AppTrace.append(
         CardExchangeTrace.line(request: payload, response: nil, elapsed: elapsed)

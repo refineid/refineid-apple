@@ -48,7 +48,7 @@
     #if FEATURE_CONTACTLESS
       /// Whether the holder has enabled contactless card reading.
       @AppStorage(AppSettings.contactlessEnabled)
-      private var contactlessEnabled = false
+      private var contactlessEnabled = true
     #endif
 
     /// The signing state, readable by the split-out outcome section.

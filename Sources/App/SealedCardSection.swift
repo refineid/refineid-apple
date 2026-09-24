@@ -74,8 +74,9 @@
     ///
     /// Nonisolated: the watching runs off the main actor. Long,
     /// because the verdict waits for the holder to take the card off
-    /// and put it back; the watch ends early with the verdict.
-    nonisolated private static let verdictPolls = 120
+    /// and put it back, plus card PACE delay on NFC readers (which can
+    /// take 40-50+ seconds); the watch ends early with the verdict.
+    nonisolated private static let verdictPolls = 240
 
     /// The pause between looks, in milliseconds.
     nonisolated private static let refusalPollMilliseconds = 500

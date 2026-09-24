@@ -100,10 +100,8 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
   /// signature about the same -- so a legitimate queue still clears,
   /// while a holder that is never letting go becomes an error instead of
   /// a hang.
-  private static let sessionWaitSeconds: Int = 10
-
-  /// The same budget, in the units `DispatchSemaphore` wants.
-  private static let sessionWaitBudget: DispatchTimeInterval = .seconds(sessionWaitSeconds)
+  private static let nearFieldSessionWaitSeconds: Int = 10
+  private static let readerSessionWaitSeconds: Int = 60
 
   /// Maximum time allowed for an individual APDU response on near-field.
   ///
@@ -113,7 +111,11 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
   private static let nearFieldResponseSeconds: Int = 10
 
   /// The reader budget: room for the card's slowest legal answer.
-  private static let readerResponseSeconds: Int = 10
+  ///
+  /// Long enough to accommodate progressive CAN-PACE delay (where
+  /// GENERAL AUTHENTICATE for the encrypted nonce can take 40-50+ seconds)
+  /// and intensive cryptographic calculations over PC/SC readers with WTX frames.
+  private static let readerResponseSeconds: Int = 60
 
   /// Shift from a status word to its high byte.
   private static let statusWordByteShift: Int = 8
@@ -129,16 +131,20 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
   /// The response budget the constructing transport chose.
   private let responseBudget: DispatchTimeInterval
 
+  /// The session wait budget the constructing transport chose.
+  private let sessionWaitBudget: DispatchTimeInterval
+
   internal init(_ smartCard: TKSmartCard, waits: ResponseWait) {
     self.smartCard = smartCard
-    self.responseBudget =
-      switch waits {
-      case .nearField:
-        .seconds(Self.nearFieldResponseSeconds)
+    switch waits {
+    case .nearField:
+      self.responseBudget = .seconds(Self.nearFieldResponseSeconds)
+      self.sessionWaitBudget = .seconds(Self.nearFieldSessionWaitSeconds)
 
-      case .reader:
-        .seconds(Self.readerResponseSeconds)
-      }
+    case .reader:
+      self.responseBudget = .seconds(Self.readerResponseSeconds)
+      self.sessionWaitBudget = .seconds(Self.readerSessionWaitSeconds)
+    }
   }
 
   /// Sends one APDU, and records what it was and what it cost.
@@ -223,7 +229,7 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
         wait.releaseIfAbandoned(opened: opened)
         semaphore.signal()
       }
-      guard semaphore.wait(timeout: .now() + Self.sessionWaitBudget) == .success else {
+      guard semaphore.wait(timeout: .now() + sessionWaitBudget) == .success else {
         wait.giveUp()
         TokenLog.trace(
           "session: gave up waiting after "
