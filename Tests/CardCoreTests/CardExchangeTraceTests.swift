@@ -22,10 +22,6 @@ internal struct CardExchangeTraceTests {
 
   // MARK: Static Functions
 
-  private static func hex(_ bytes: Data) -> String {
-    bytes.map { String(format: "%02X", $0) }.joined()
-  }
-
   /// Production construction of CHANGE REFERENCE DATA for PIN 1.
   private static func changeReferenceDataRequest() -> Data {
     guard
@@ -74,26 +70,21 @@ internal struct CardExchangeTraceTests {
   }
 
   @Test
-  internal func debugIncludesCompleteVerifyExchange() {
+  internal func verifyExchangeOmitsCredentialBytesAndLength() {
     let line = CardExchangeTrace.line(
       request: Self.verifyRequest,
       response: Data([0x63, 0xC4]),
       elapsed: .milliseconds(8))
     #expect(line.contains("ins=20"))
     #expect(line.contains("sw=63C4"))
-    #if DEBUG
-      #expect(line.contains("tx=13"))
-      #expect(line.contains("request=" + Self.hex(Self.verifyRequest)))
-      #expect(line.contains("response=63C4"))
-      #expect(!line.contains("redacted"))
-    #else
-      #expect(line.contains("redacted"))
-      #expect(!line.contains("tx=13"))
-    #endif
+    #expect(line.contains("redacted"))
+    #expect(!line.contains("tx=13"))
+    #expect(!line.contains("request="))
+    #expect(!line.contains("response="))
   }
 
   @Test
-  internal func debugIncludesCompleteCredentialMutations() {
+  internal func credentialMutationsOmitBytesAndLengths() {
     let requests = [
       Self.changeReferenceDataRequest(),
       Self.resetRetryCounterRequest(),
@@ -104,16 +95,11 @@ internal struct CardExchangeTraceTests {
         response: Data([0x63, 0xC4]),
         elapsed: .milliseconds(9))
       #expect(line.contains("sw=63C4"))
-      #if DEBUG
-        #expect(line.contains("tx=\(request.count)"))
-        #expect(line.contains("request=" + Self.hex(request)))
-        #expect(line.contains("response=63C4"))
-        #expect(!line.contains("redacted"))
-      #else
-        #expect(line.contains("credential"))
-        #expect(line.contains("redacted"))
-        #expect(!line.contains("tx=\(request.count)"))
-      #endif
+      #expect(line.contains("credential"))
+      #expect(line.contains("redacted"))
+      #expect(!line.contains("tx=\(request.count)"))
+      #expect(!line.contains("request="))
+      #expect(!line.contains("response="))
     }
   }
 
@@ -135,9 +121,7 @@ internal struct CardExchangeTraceTests {
       elapsed: .zero)
     #expect(line.contains("ins=?"))
     #expect(line.contains("sw=9000"))
-    #if DEBUG
-      #expect(line.contains("request=00"))
-      #expect(line.contains("response=9000"))
-    #endif
+    #expect(!line.contains("request="))
+    #expect(!line.contains("response="))
   }
 }

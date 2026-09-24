@@ -14,7 +14,7 @@ import Foundation
 /// through Swift concurrency. Blocking the ctkd thread this way is safe
 /// and is what the proven reference does; an async/await bridge on that
 /// thread is not (it hangs the sign, looping the PIN prompt).
-internal struct SmartCardChannel: CardChannel {
+internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChannel {
   /// A transport failure before the card produced a protocol response.
   internal enum TransportError: Error, Equatable, Sendable {
     /// CryptoTokenKit did not complete one APDU within the field budget.
@@ -100,16 +100,22 @@ internal struct SmartCardChannel: CardChannel {
   /// signature about the same -- so a legitimate queue still clears,
   /// while a holder that is never letting go becomes an error instead of
   /// a hang.
-  private static let sessionWaitSeconds: Int = 8
+  private static let nearFieldSessionWaitSeconds: Int = 10
+  private static let readerSessionWaitSeconds: Int = 60
 
-  /// The same budget, in the units `DispatchSemaphore` wants.
-  private static let sessionWaitBudget: DispatchTimeInterval = .seconds(sessionWaitSeconds)
-
-  /// The phone budget: the system field is gone past this anyway.
-  private static let nearFieldResponseSeconds: Int = 2
+  /// Maximum time allowed for an individual APDU response on near-field.
+  ///
+  /// On-card private key operations like RSA-3072 modular exponentiation
+  /// require several seconds on low-power card chips. The card issues
+  /// ISO 14443-4 WTX (waiting time extension) frames while calculating.
+  private static let nearFieldResponseSeconds: Int = 10
 
   /// The reader budget: room for the card's slowest legal answer.
-  private static let readerResponseSeconds: Int = 10
+  ///
+  /// Long enough to accommodate progressive CAN-PACE delay (where
+  /// GENERAL AUTHENTICATE for the encrypted nonce can take 40-50+ seconds)
+  /// and intensive cryptographic calculations over PC/SC readers with WTX frames.
+  private static let readerResponseSeconds: Int = 60
 
   /// Shift from a status word to its high byte.
   private static let statusWordByteShift: Int = 8
@@ -125,16 +131,20 @@ internal struct SmartCardChannel: CardChannel {
   /// The response budget the constructing transport chose.
   private let responseBudget: DispatchTimeInterval
 
+  /// The session wait budget the constructing transport chose.
+  private let sessionWaitBudget: DispatchTimeInterval
+
   internal init(_ smartCard: TKSmartCard, waits: ResponseWait) {
     self.smartCard = smartCard
-    self.responseBudget =
-      switch waits {
-      case .nearField:
-        .seconds(Self.nearFieldResponseSeconds)
+    switch waits {
+    case .nearField:
+      self.responseBudget = .seconds(Self.nearFieldResponseSeconds)
+      self.sessionWaitBudget = .seconds(Self.nearFieldSessionWaitSeconds)
 
-      case .reader:
-        .seconds(Self.readerResponseSeconds)
-      }
+    case .reader:
+      self.responseBudget = .seconds(Self.readerResponseSeconds)
+      self.sessionWaitBudget = .seconds(Self.readerSessionWaitSeconds)
+    }
   }
 
   /// Sends one APDU, and records what it was and what it cost.
@@ -142,9 +152,8 @@ internal struct SmartCardChannel: CardChannel {
   /// This is the one place every exchange the extension makes passes
   /// through -- plain and secure-messaged alike, since the secure channel
   /// wraps this one -- so it is where the trace is taken. The recorded
-  /// Debug records the complete command and response through
-  /// ``CardExchangeTrace``. ``TokenLog`` compiles the trace sink out of
-  /// shipped builds.
+  /// line contains instruction, status, and timing from ``CardExchangeTrace``.
+  /// ``TokenLog`` compiles the trace sink out of shipped builds.
   internal func transmit(_ payload: Data) throws -> Data {
     let reply = Box<Data?>(nil)
     let transportError = Box<Error?>(nil)
@@ -169,6 +178,7 @@ internal struct SmartCardChannel: CardChannel {
     )
     guard let response = reply.value else {
       if let callbackError = transportError.value {
+        TokenLog.error("apdu: transmit failed: \(callbackError)")
         throw callbackError
       }
       throw CardOperationError.malformedResponse
@@ -176,45 +186,17 @@ internal struct SmartCardChannel: CardChannel {
     return response
   }
 
-  /// Starts either the structured signature send or the byte-exact send.
+  /// Sends the payload directly over the card transport.
   private func startTransmit(
     _ payload: Data,
     reply: Box<Data?>,
     transportError: Box<Error?>,
     semaphore: DispatchSemaphore
   ) {
-    if let command = CommandApdu.structuredProtectedSignature(payload) {
-      // A protected modulus-wide RSA response needs continuation: RSA-3072
-      // is too wide by itself, and RSA-2048 crosses the short-response limit
-      // once secure messaging wraps it. Keeping continuation inside CTK's
-      // structured operation prevents the built-in NFC field from ending
-      // between a raw 61xx and our next GET RESPONSE callback.
-      let previousClass = smartCard.cla
-      smartCard.cla = command.cla
-      smartCard.send(
-        ins: command.ins,
-        p1: command.parameter1,
-        p2: command.parameter2,
-        data: command.data,
-        le: command.expectedLength
-      ) { response, statusWord, error in
-        smartCard.cla = previousClass
-        if let response {
-          var complete = response
-          complete.append(
-            UInt8(truncatingIfNeeded: statusWord >> Self.statusWordByteShift))
-          complete.append(UInt8(truncatingIfNeeded: statusWord))
-          reply.value = complete
-        }
-        transportError.value = error
-        semaphore.signal()
-      }
-    } else {
-      smartCard.transmit(payload) { response, error in
-        reply.value = response
-        transportError.value = error
-        semaphore.signal()
-      }
+    smartCard.transmit(payload) { response, error in
+      reply.value = response
+      transportError.value = error
+      semaphore.signal()
     }
   }
 
@@ -247,7 +229,7 @@ internal struct SmartCardChannel: CardChannel {
         wait.releaseIfAbandoned(opened: opened)
         semaphore.signal()
       }
-      guard semaphore.wait(timeout: .now() + Self.sessionWaitBudget) == .success else {
+      guard semaphore.wait(timeout: .now() + sessionWaitBudget) == .success else {
         wait.giveUp()
         TokenLog.trace(
           "session: gave up waiting after "

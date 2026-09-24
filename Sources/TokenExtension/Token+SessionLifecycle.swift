@@ -10,7 +10,8 @@ extension Token {
     // Which interface this card is on is the useful half: it says which
     // sign path is about to run. `TKToken` publishes no instance
     // identifier to name it with.
-    TokenLog.info("createSession: session requested, interface=\(interface)")
+    TokenLog.info(
+      "createSession: session requested, token=\(tokenID) interface=\(interface)")
     return TokenSession(token: self)
   }
 
@@ -27,7 +28,7 @@ extension Token {
   /// Best effort by design: a token that could not hold a session is
   /// still perfectly usable wherever the card stays present, so a
   /// failure here is swallowed rather than failing the mint.
-  internal func holdSession(on smartCard: TKSmartCard) {
+  internal func holdSession(on smartCard: TKSmartCard, isPendingSign: Bool) {
     guard heldSession.current == nil else { return }
     let channel = SmartCardChannel(smartCard, waits: .nearField)
     do {
@@ -40,20 +41,22 @@ extension Token {
     if let accessNumber = sealedAccessNumber {
       heldSession.startPACE(with: accessNumber)
     }
+    if !isPendingSign {
+      heldSession.scheduleActivityTimeout()
+    }
   }
 
   /// Releases the held session and the cached PIN1 when the card is gone.
   ///
-  /// Only `.missing` counts. Releasing on any other non-valid state was
-  /// measured tearing a signature down part way through a read: a card
-  /// momentarily out of the field is still the same card, and the slot
-  /// says so a moment later. PIN1 is this token's: the card leaving is
-  /// what forgets it.
+  /// For contactless slots, any non-validCard state indicates that the NFC field
+  /// has ended or the card has been moved away from the antenna. Releasing immediately
+  /// ensures subsequent operations do not hang against a dead field.
   internal func observeSlotState(of smartCard: TKSmartCard) {
     slotStateObservation = smartCard.slot.observe(\.state, options: [.new]) {
-      [held = heldSession, pin1 = acceptedPin1] observed, change in
+      [held = heldSession, pin1 = acceptedPin1, id = tokenID] observed, change in
       let state = change.newValue ?? observed.state
-      guard state == .missing else { return }
+      TokenLog.trace("slotState: token=\(id) state=\(state)")
+      guard state != .validCard else { return }
       held.release()
       pin1.clearAll()
     }

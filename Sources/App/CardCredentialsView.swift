@@ -33,6 +33,8 @@ internal struct CardCredentialsView: View {
     internal static let cacheButtonHorizontalPadding: CGFloat = 12
     internal static let cacheButtonVerticalPadding: CGFloat = 6
     internal static let cacheButtonCornerRadius: CGFloat = 8
+    internal static let primaryActionButtonHeight: CGFloat = 50
+    internal static let disabledActionOpacity = 0.3
   }
 
   // MARK: Static Properties
@@ -139,14 +141,6 @@ internal struct CardCredentialsView: View {
     cardAccessNumberEntry.count == CardAccessNumber.digitCount
   }
 
-  /// CAN receives initial focus as the first input of an unconfigured card.
-  internal var shouldFocusCardAccessNumber: Bool {
-    !hasIdentity
-      && offersNearField
-      && !isHolding
-      && !isCardAccessNumberEntryComplete
-  }
-
   /// Disclosure follows a validated connection, never digit count alone.
   internal var hasConfiguredCard: Bool {
     #if os(iOS)
@@ -244,17 +238,18 @@ internal struct CardCredentialsView: View {
   internal var canPrepareIdentity: Bool {
     #if os(iOS)
       if isDemonstration {
-        return demoMode.hasValidatedConnection && isPin1EntryComplete
+        return demoMode.hasValidatedConnection
+          && (isPin1EntryComplete || OnDemandPinExperiment.isEnabled)
       }
     #endif
-    return model.contents.hasCardAccessNumber && isPin1EntryComplete
+    return model.contents.hasCardAccessNumber
+      && (isPin1EntryComplete || OnDemandPinExperiment.isEnabled)
   }
 
   #if os(iOS)
     /// Whether a qualified signature can start right now.
     internal var signingAvailable: Bool {
-      hasIdentity || hasReaderIdentity || isCardAccessNumberEntryComplete
-        || hasRemoteSigningIdentity
+      hasIdentity || hasReaderIdentity || hasRemoteSigningIdentity
     }
 
     /// Whether a paired phone has already named a person to sign as.
@@ -277,15 +272,15 @@ internal struct CardCredentialsView: View {
       return model.contents.hasPin1
     }
 
-    /// Whether Cache can start the NFC hold that stores PIN 1.
-    internal var canCachePin1: Bool {
+    /// Whether Read Identity Card can start the NFC hold that primes the card.
+    internal var canReadIdentityCard: Bool {
       guard
         isCardAccessNumberEntryComplete,
-        isPin1EntryComplete,
         !model.isConnecting
       else { return false }
       #if REFINEID_LOCAL_CARD
         if primingModel.isRunning { return false }
+        if !pin1Entry.isEmpty, !isPin1EntryComplete { return false }
       #endif
       return true
     }

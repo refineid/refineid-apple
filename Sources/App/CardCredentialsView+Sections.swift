@@ -52,7 +52,9 @@ extension CardCredentialsView {
     internal var signingSection: some View {
       Section {
         verifyRouteButton
-        signRouteButton
+        if signingAvailable {
+          signRouteButton
+        }
       } header: {
         compactSectionHeader(
           verbatim: String(
@@ -86,10 +88,8 @@ extension CardCredentialsView {
           cardAccessNumberRow
           pin1Row
         }
-        if offersNearField || hasReaderIdentity {
+        if identityHolder != nil || hasReaderIdentity {
           remoteRouteRow
-        }
-        if offersNearField || hasReaderIdentity {
           cardManagementButton
         }
         #if REFINEID_LOCAL_CARD
@@ -107,6 +107,16 @@ extension CardCredentialsView {
             isPairingInputActive = false
             pairingCodeDigits = ""
           }
+        }
+      }
+    }
+
+    @ViewBuilder internal var readIdentityCardSection: some View {
+      if offersNearField, !hasReaderIdentity, identityHolder == nil {
+        Section {
+          readIdentityCardButton
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
         }
       }
     }
@@ -155,12 +165,6 @@ extension CardCredentialsView {
         .textContentType(nil)
         .focused($isCardAccessNumberFieldFocused)
         .accessibilityIdentifier("cardAccessNumberField")
-        .onAppear {
-          DispatchQueue.main.async {
-            guard shouldFocusCardAccessNumber else { return }
-            isCardAccessNumberFieldFocused = true
-          }
-        }
         .onValueChange(of: cardAccessNumberEntry) { typed in
           cardAccessNumberEntry = LimitedDigits.cardAccessNumber(typed)
         }
@@ -201,18 +205,29 @@ extension CardCredentialsView {
   #endif
 
   #if os(iOS)
-    private var pin1CacheButton: some View {
-      Button(String(localized: "Cache")) {
+    private var readIdentityCardButton: some View {
+      Button {
+        isCardAccessNumberFieldFocused = false
+        isPin1FieldFocused = false
         connectIdentityCard()
+      } label: {
+        Label(
+          String(localized: "Read Identity Card"),
+          systemImage: "person.badge.key.fill"
+        )
+        .font(.body.weight(.semibold))
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity)
+        .frame(height: Layout.primaryActionButtonHeight)
+        .background(
+          canReadIdentityCard
+            ? Color.accentColor : Color.secondary.opacity(Layout.disabledActionOpacity),
+          in: Capsule()
+        )
+        .contentShape(Capsule())
       }
-      .font(.subheadline.weight(.semibold))
-      .padding(.horizontal, Layout.cacheButtonHorizontalPadding)
-      .padding(.vertical, Layout.cacheButtonVerticalPadding)
-      .background(
-        .quaternary,
-        in: RoundedRectangle(cornerRadius: Layout.cacheButtonCornerRadius)
-      )
-      .disabled(!canCachePin1)
+      .buttonStyle(.borderless)
+      .disabled(!canReadIdentityCard)
       .accessibilityIdentifier("primeStartButton")
     }
   #endif
@@ -240,7 +255,6 @@ extension CardCredentialsView {
         .alignmentGuide(.listRowSeparatorLeading) { dimensions in
           dimensions[.leading]
         }
-        pin1CacheButton
       }
       .buttonStyle(.borderless)
     #else

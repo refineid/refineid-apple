@@ -25,7 +25,7 @@ import Foundation
 /// contactless branch was proven on device.
 internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriverDelegate {
   /// How many times the mint looks for a prime before giving up.
-  private static let primeWaitAttempts = 20
+  private static let primeWaitAttempts = 48
 
   /// How long the mint waits between looks for a prime.
   private static let primeWaitInterval: TimeInterval = 0.25
@@ -47,14 +47,14 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
   /// becomes the prime -- so the first lookup finds nothing, and on a
   /// plain miss nothing ever asks again, leaving no token to register.
   ///
-  /// Waiting a little converts that race into a hit. The wait is short
-  /// and bounded because a card that was genuinely never primed must
-  /// still fail rather than hold the field indefinitely. The five-second
-  /// ceiling comes from a clean iPhone measurement: PACE plus the reads
-  /// needed by the prime reached the store about 3.6 seconds after the
-  /// mint began, before the bundled-issuer match removed about 0.7
-  /// seconds of that. An already-primed card hits on the first read and
-  /// waits not at all.
+  /// Waiting converts that race into a hit. The wait is a deadline,
+  /// not a delay on the happy path: an already-primed card hits on the
+  /// first look and waits not at all, and a new prime returns the instant
+  /// the foreground hold writes it to the store. The twelve-second
+  /// ceiling accommodates cards where PACE key agreement and chunked
+  /// certificate reads take several seconds over NFC (such as ECC citizen
+  /// cards on Thales MultiApp v5), while still ensuring an unprimed card
+  /// eventually fails rather than holding the field indefinitely.
   private static func awaitPrime(
     lookupID: PrimeLookupIdentifier
   ) -> PrimeStore.ContactlessMatch? {
@@ -223,10 +223,19 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
     // system gives the mint, and the line is written out by whichever
     // `createToken` outcome line follows it.
     TokenLog.trace(
-      "mintFromPrime: prime HIT for \(instanceID.value) "
+      "mintFromPrime: prime HIT "
         + "leaf=\(match.identity.certDER.count)B "
         + "issuer=\(match.identity.issuerDER?.count ?? -1)B "
         + "registration=\(match.isRegistrationField)"
+    )
+    let isPendingSign = PendingSigningState.shared.isPendingSign
+    let needsSigningField = resolveSigningNeed(
+      instanceID: instanceID,
+      isRegistrationField: match.isRegistrationField,
+      isPendingSign: isPendingSign
+    )
+    TokenLog.trace(
+      "mintFromPrime: signing field needed=\(needsSigningField) (pendingSign=\(isPendingSign))"
     )
     return try Token(
       primedSmartCard: smartCard,
@@ -234,7 +243,27 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
       tokenDriver: tokenDriver,
       instanceID: instanceID,
       primed: match.identity,
-      shouldHoldSession: !match.isRegistrationField
+      shouldHoldSession: needsSigningField,
+      isPendingSign: isPendingSign
     )
+  }
+
+  private func resolveSigningNeed(
+    instanceID: CardInstanceIdentifier,
+    isRegistrationField: Bool,
+    isPendingSign: Bool
+  ) -> Bool {
+    let experimentEnabled = OnDemandPinExperiment.isEnabled
+    let pinAvailable =
+      experimentEnabled
+      && (CardCredentialStore.contents().hasPin1
+        || TransientCandidatePin1.shared.hasPending(for: instanceID)
+        || VolatileAcceptedPin1.shared.hasPin(for: instanceID))
+    return isPendingSign
+      || OnDemandPinExperiment.needsSigningField(
+        isRegistrationField: isRegistrationField,
+        experimentEnabled: experimentEnabled,
+        pinAvailable: pinAvailable
+      )
   }
 }

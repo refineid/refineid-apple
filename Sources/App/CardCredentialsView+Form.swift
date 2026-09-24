@@ -31,6 +31,7 @@ extension CardCredentialsView {
           signingSection
           if offersNearField || hasReaderIdentity {
             cardSection
+            readIdentityCardSection
           }
         }
       #endif
@@ -48,6 +49,11 @@ extension CardCredentialsView {
     }
     #if os(iOS)
       .listSections(spacing: Self.sectionSpacing)
+      .scrollDismissesKeyboard(.interactively)
+      .onTapGesture {
+        isCardAccessNumberFieldFocused = false
+        isPin1FieldFocused = false
+      }
       .navigationDestination(
         isPresented: Binding(
           get: { flowDestination.wrappedValue != nil },
@@ -113,10 +119,6 @@ extension CardCredentialsView {
         ) { _ in
           isCardAccessNumberFieldFocused = false
           isPin1FieldFocused = false
-          DispatchQueue.main.async {
-            guard shouldFocusCardAccessNumber else { return }
-            isCardAccessNumberFieldFocused = true
-          }
         }
       #endif
       .onValueChange(of: isCardAccessNumberEntryComplete) { complete in

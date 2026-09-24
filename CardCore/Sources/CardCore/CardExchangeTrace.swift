@@ -4,13 +4,9 @@ import Foundation
 
 /// One card exchange, as the single line a trace records it on.
 ///
-/// Debug traces are deliberately complete: every command and raw response
-/// byte is present, including credential-bearing commands. This is the trace
-/// used while bringing up card protocols and comparing implementations.
-///
-/// Non-Debug formatting remains payload-safe. Credential commands retain only
-/// their instruction, status word, and timing, while other commands retain
-/// sizes. The app and token-extension trace sinks compile out of Release.
+/// Traces record instruction, status and timing without card payloads.
+/// Credential commands omit command sizes as well, because their size may
+/// reveal the typed credential length.
 public enum CardExchangeTrace {
   /// Position of the instruction byte in a command APDU: CLA INS P1 P2.
   private static let instructionIndex: Int = 1
@@ -36,10 +32,8 @@ public enum CardExchangeTrace {
   public static func line(request: Data, response: Data?, elapsed: Duration) -> String {
     let answer = response.flatMap(ResponseApdu.init(raw:))
     let status = answer.map { String(format: Self.wordFormat, $0.statusWord.encoded) }
-    let received = answer.map { String($0.payload.count) }
     let tail =
-      " rx=" + (received ?? Self.unknown)
-      + " sw=" + (status ?? Self.unknown)
+      " sw=" + (status ?? Self.unknown)
       + " ms=" + TraceTiming.milliseconds(elapsed)
     let instruction = Self.instruction(of: request)
     let named =
@@ -47,26 +41,12 @@ public enum CardExchangeTrace {
       + (instruction.map { byte in
         String(format: Self.byteFormat, byte)
       } ?? Self.unknown)
-    #if DEBUG
-      let rawResponse = response.map(Self.hex) ?? Self.unknown
-      return named
-        + " tx=\(request.count) request=" + Self.hex(request)
-        + " response=" + rawResponse
-        + tail
-    #else
-      guard let instruction else {
-        return named + " tx=\(request.count)" + tail
-      }
-      guard !Self.isCredentialBearing(instruction) else {
-        return named + " credential tx=" + Self.redacted + tail
-      }
-      return named + " tx=\(request.count)" + tail
-    #endif
-  }
-
-  /// Complete uppercase hexadecimal representation of one byte string.
-  private static func hex(_ bytes: Data) -> String {
-    bytes.map { String(format: Self.byteFormat, $0) }.joined()
+    guard let instruction else { return named + tail }
+    guard !Self.isCredentialBearing(instruction) else {
+      return named + " credential tx=" + Self.redacted + tail
+    }
+    let received = answer.map { String($0.payload.count) } ?? Self.unknown
+    return named + " tx=\(request.count) rx=" + received + tail
   }
 
   /// The instruction byte, or nil when the payload is too short to have

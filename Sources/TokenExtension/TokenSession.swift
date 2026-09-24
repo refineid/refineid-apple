@@ -27,10 +27,12 @@ import Security
 /// transport was a Rust FFI relay; here it is CardCore's own PACE,
 /// secure messaging and card operations.
 internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelegate {
+  private static let idPrefixLength = 8
+
   /// PIN1 collected by the most recent `beginAuth`, consumed by the next
   /// `sign` and cleared immediately after (one prompt = one signature =
   /// one PIN use).
-  private var collectedPin: String?
+  internal var collectedPin: String?
 
   /// PIN2 collected by a qualified `beginAuth`, held for a minute.
   ///
@@ -40,13 +42,20 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
   /// ``Pin2Window`` for what that window does and does not do.
   internal var pin2Window = Pin2Window()
 
+  /// Ephemeral session identifier for logging correlation.
+  internal let sessionID: String
+
   /// Installs this session as CryptoTokenKit's operation delegate.
   ///
   /// CryptoTokenKit dispatches key operations only through this weak
   /// delegate. Conformance alone does not install it.
   override internal init(token: TKToken) {
+    let sess = "sess-" + UUID().uuidString.prefix(Self.idPrefixLength)
+    self.sessionID = String(sess)
     super.init(token: token)
     delegate = self
+    let tokenDesc = (token as? Token)?.tokenID ?? "unknown"
+    TokenLog.info("TokenSession.init: session=\(sessionID) token=\(tokenDesc)")
   }
 
   /// How long something started at `instant` has taken, in milliseconds.
@@ -87,8 +96,7 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
       return Pin2AuthOperation { [weak self] pin in self?.pin2Window.hold(pin) }
 
     case Pin1AuthOperation.signDataConstraint:
-      TokenLog.notice("beginAuth: op=\(operation.rawValue) - presenting PIN sheet")
-      return Pin1AuthOperation { [weak self] pin in self?.collectedPin = pin }
+      return beginPin1Auth(cardToken: cardToken, operation: operation)
 
     default:
       // Each key names the credential it spends, and a constraint that
@@ -101,6 +109,58 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
           + "\(String(describing: constraint)); refusing"
       )
       throw TKError(.authenticationFailed)
+    }
+  }
+
+  private func beginPin1Auth(
+    cardToken: Token,
+    operation: TKTokenOperation
+  ) -> TKTokenAuthOperation {
+    let correlationID = "pin-" + UUID().uuidString.prefix(Self.idPrefixLength)
+    let instanceID = cardToken.cardInstanceID
+    let hasAccepted = VolatileAcceptedPin1.shared.hasPin(for: instanceID)
+    let hasPending = TransientCandidatePin1.shared.hasPending(for: instanceID)
+    let hasStored = CardCredentialStore.contents().hasPin1
+    if hasAccepted || hasPending || hasStored {
+      TokenLog.info(
+        "beginAuth: op=\(operation.rawValue) correlation=\(correlationID) "
+          + "session=\(sessionID) - satisfied from memory"
+      )
+      return TKTokenAuthOperation()
+    }
+    if OnDemandPinExperiment.isEnabled, cardToken.interface == .fieldWithDeadline {
+      TokenLog.notice(
+        "beginAuth: op=\(operation.rawValue) correlation=\(correlationID) "
+          + "session=\(sessionID) - presenting PIN sheet"
+      )
+      // Cancel activity timeout while presenting native PIN sheet so the live
+      // session is retained for the signature that follows.
+      cardToken.heldSession.cancelActivityTimeout()
+      let operationID = UUID()
+      return Pin1AuthOperation(
+        correlationID: correlationID,
+        operationID: operationID,
+        capture: { pin in
+          let staged = TransientCandidatePin1.shared.stage(
+            digits: pin,
+            for: instanceID,
+            operationID: operationID,
+            correlationID: correlationID
+          )
+          TokenLog.notice("pinAuth: staged candidate correlation=\(correlationID) staged=\(staged)")
+        },
+        onCancel: { cancelledOpID in
+          TransientCandidatePin1.shared.cancel(operationID: cancelledOpID)
+          TokenLog.notice("pinAuth: cancelled candidate correlation=\(correlationID)")
+        }
+      )
+    }
+
+    TokenLog.notice(
+      "beginAuth: op=\(operation.rawValue) correlation=\(correlationID) session=\(sessionID) - presenting PIN sheet"
+    )
+    return Pin1AuthOperation(correlationID: correlationID) { [weak self] pin in
+      self?.collectedPin = pin
     }
   }
 
@@ -143,7 +203,7 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
   ) throws -> Data {
     let started = ContinuousClock.now
     TokenLog.notice(
-      "sign: entry input=\(dataToSign.count)B "
+      "sign: entry session=\(sessionID) input=\(dataToSign.count)B "
         + "algo=\(SigningAlgorithmResolver.describe(algorithm))"
     )
     do {
@@ -152,12 +212,14 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
         keyObjectID: keyObjectID,
         algorithm: algorithm
       )
+      PendingSigningState.shared.clear()
       TokenLog.notice(
-        "sign: exit ok out=\(signature.count)B ms=\(Self.elapsed(since: started))"
+        "sign: exit ok session=\(sessionID) out=\(signature.count)B ms=\(Self.elapsed(since: started))"
       )
       return signature
     } catch {
-      TokenLog.error("sign: exit failed \(error) ms=\(Self.elapsed(since: started))")
+      TokenLog.error(
+        "sign: exit failed session=\(sessionID) \(error) ms=\(Self.elapsed(since: started))")
       throw error
     }
   }
@@ -172,6 +234,7 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
     guard let cardToken = token as? Token else {
       throw TKError(.badParameter)
     }
+    cardToken.heldSession.cancelActivityTimeout()
     guard !cardToken.isRevoked else {
       throw TKError(.tokenNotFound)
     }
@@ -278,114 +341,7 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
     }
   }
 
-  /// The contactless signature, in the order the field allows.
-  ///
-  /// That order is the whole of it, and no other order works. Nothing on
-  /// this path writes: the lines it takes are recorded in memory and
-  /// written out by the exit line in ``tokenSession(_:sign:keyObjectID:algorithm:)``,
-  /// because a keychain round trip inside the field is exactly the kind
-  /// of cost that was measured losing the handshake.
-  private func signInField(
-    token: Token,
-    accessNumber: CardAccessNumber,
-    dataToSign: Data,
-    algorithm: TKTokenKeyAlgorithm
-  ) throws -> Data {
-    guard
-      let request = SigningAlgorithmResolver.resolve(
-        algorithm,
-        input: dataToSign,
-        profile: token.keyProfile
-      )
-    else {
-      throw TKError(.badParameter)
-    }
-    // The PIN the system collected through beginAuth, or the one the
-    // holder explicitly chose to store for automatic signing. The
-    // system-driven path often asks for a signature with no usable PIN
-    // interface, so the stored value is what makes Safari independent of
-    // the containing app after one-time setup.
-    let entered = collectedPin.flatMap { $0.isEmpty ? nil : $0 }
-    collectedPin = nil
-    let authorized: Pin1?
-    let pinSource: String
-    if let entered {
-      authorized = Pin1(digits: entered)
-      pinSource = "prompt"
-    } else if let stored = CardCredentialStore.pin1() {
-      authorized = consume stored
-      pinSource = "stored"
-    } else {
-      authorized = nil
-      pinSource = "none"
-    }
-    // Which of the two supplied the PIN is the first thing a failed
-    // contactless login needs to know, and it is sayable without saying
-    // anything about the PIN itself.
-    //
-    // Taken as a `Bool` first, and not asked inside the trace call:
-    // ``TokenLog/trace(_:)`` takes an autoclosure so a shipped build
-    // never builds the line, and a closure that borrows the noncopyable
-    // `authorized` here makes the compiler report a copy of a
-    // noncopyable value at the `consume` above.
-    let authorizedPinPresent = authorized != nil
-    TokenLog.trace("sign: pin1 source=\(pinSource) authorized=\(authorizedPinPresent)")
-    // Ask for the PIN BEFORE touching the card. A contactless token uses
-    // its explicitly stored credential rather than the live token's
-    // accepted-PIN memory, so a signature with no PIN can
-    // only end in this throw - and reaching it after PACE leaves the card
-    // mid-secure-channel, where the next PACE attempt dies on SELECT with
-    // SW 6999.
-    guard let pin1 = authorized else {
-      throw TKError(.authenticationNeeded)
-    }
-    return try performedInField(
-      token: token, accessNumber: accessNumber, pin1: pin1, request: request)
-  }
-
-  /// Runs the field signature and maps every way it can end.
-  private func performedInField(
-    token: Token,
-    accessNumber: CardAccessNumber,
-    pin1: consuming Pin1,
-    request: SignRequest
-  ) throws -> Data {
-    do {
-      let signature = FieldSignature(
-        token: token,
-        accessNumber: accessNumber
-      )
-      return try signature.perform(pin1: pin1, request: request)
-    } catch SmartCardChannel.TransportError.responseTimedOut {
-      // A timed-out transmit leaves the card and our secure-messaging
-      // counter in an unknowable state. End and forget that held session
-      // so the next system attempt starts with a genuinely fresh field.
-      token.heldSession.release()
-      throw TKError(.communicationError)
-    } catch let error as SecureMessagingChannel.Failure {
-      // The retained channel is no longer trustworthy and fail-stops, so
-      // a retry through it can only fail the same way. Release the hold;
-      // the next attempt gets tokenNotFound and a genuinely fresh mint.
-      TokenLog.error("sign: secure channel failed \(error)")
-      token.heldSession.release()
-      throw TKError(.communicationError)
-    } catch CardOperationError.sessionUnavailable {
-      // The system ended the mint field before Safari asked us to sign.
-      // `tokenNotFound` tells CryptoTokenKit that this token instance no
-      // longer has a card behind it, so a retry may open a replacement
-      // NFC field and mint a fresh instance. Keep every real
-      // PACE, APDU and card failure on the communication-error path below.
-      TokenLog.trace("sign: retained field unavailable - requesting a fresh token")
-      throw TKError(.tokenNotFound)
-    } catch let error as TokenError {
-      throw error.asTKError
-    } catch let error as TKError {
-      throw error
-    } catch {
-      // A PACE refusal, a secure-messaging fault or a signing SW must not
-      // escape unmapped, and must not look like a wrong PIN: a genuine
-      // card failure ends the handshake instead of re-looping the prompt.
-      throw TKError(.communicationError)
-    }
+  deinit {
+    TokenLog.info("TokenSession.deinit: session=\(sessionID)")
   }
 }

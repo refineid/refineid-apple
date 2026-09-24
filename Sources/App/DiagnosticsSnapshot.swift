@@ -125,8 +125,14 @@ internal struct DiagnosticsSnapshot: Sendable {
   private static func driverConfigurations() -> Section {
     let configurations = TKTokenDriver.Configuration.driverConfigurations
     let lines = configurations.keys.sorted().map { classID -> String in
-      let count = configurations[classID]?.tokenConfigurations.count ?? 0
-      return classID + ": \(count) token configuration(s)"
+      guard let driver = configurations[classID] else {
+        return classID + ": 0 token configuration(s)"
+      }
+      var desc = classID + ": \(driver.tokenConfigurations.count) token configuration(s)"
+      for (instance, config) in driver.tokenConfigurations.sorted(by: { $0.key < $1.key }) {
+        desc += " [\(instance): \(config.keychainItems.count) item(s)]"
+      }
+      return desc
     }
     return Section(
       title: "Driver configurations (\(configurations.count))",
@@ -217,13 +223,17 @@ internal struct DiagnosticsSnapshot: Sendable {
   /// Presence only. A diagnostic must never read or print the digits.
   private static func credentialPolicy() -> Section {
     let contents = CardCredentialStore.contents()
+    var lines = [
+      "CAN stored: " + Self.yesNo(contents.hasCardAccessNumber),
+      "PIN 1 stored: " + Self.yesNo(contents.hasPin1),
+      "policy: direct use, no software expiry",
+    ]
+    if OnDemandPinExperiment.isEnabled {
+      lines.append("on-demand PIN experiment: active (native PIN sheet constraint enabled)")
+    }
     return Section(
       title: "Contactless signing credential",
-      lines: [
-        "CAN stored: " + Self.yesNo(contents.hasCardAccessNumber),
-        "PIN 1 stored: " + Self.yesNo(contents.hasPin1),
-        "policy: direct use, no software expiry",
-      ])
+      lines: lines)
   }
 
   /// Which transports the platform can offer.

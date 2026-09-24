@@ -209,8 +209,25 @@ extension CardCredentialsView {
 
   /// Sets the identity up in one hold.
   internal func connectIdentityCard() {
-    guard let pin1 = enteredPin1(), isCardAccessNumberEntryComplete else { return }
-    guard transition(.startBrowserClassification) else { return }
+    if !pin1Entry.isEmpty, !isPin1EntryComplete { return }
+    let pin1 = enteredPin1()
+    guard isCardAccessNumberEntryComplete, pin1 != nil || OnDemandPinExperiment.isEnabled else {
+      #if DEBUG
+        DebugConsole.emit(
+          "connectIdentityCard: guard failed complete=\(isCardAccessNumberEntryComplete) pin1=\(pin1 != nil)"
+        )
+      #endif
+      return
+    }
+    if flowState != .home {
+      flowState = .home
+    }
+    guard transition(.startBrowserClassification) else {
+      #if DEBUG
+        DebugConsole.emit("connectIdentityCard: transition rejected from flowState=\(flowState)")
+      #endif
+      return
+    }
     let entered = cardAccessNumberEntry
     activationScheme = nil
     activationNeeds = nil

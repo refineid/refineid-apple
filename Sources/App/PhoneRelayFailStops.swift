@@ -46,7 +46,7 @@
       case .established, .inspectPrerequisites, .awaitUserApproval,
         .executeSafeRead, .executeCardCommand, .completed,
         .advisoryCancellation, .operationFinished, .peerBusy,
-        .peerUnknownOperation:
+        .peerUnknownOperation, .progress:
         return false
       }
     }

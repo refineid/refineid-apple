@@ -29,7 +29,8 @@
     /// that stale index as ready hid the mint action after a revocation.
     internal static var hasRegisteredIdentity: Bool {
       let credentials = CardCredentialStore.contents()
-      return credentials.hasPin1
+      let pin1Ready = credentials.hasPin1 || OnDemandPinExperiment.isEnabled
+      return pin1Ready
         && !PrimeStore.primedHolderNames().isEmpty
         && TKSmartCardTokenRegistrationManager.default.registeredSmartCardTokens
           .contains { CardTokenNamespace.owns(tokenIdentifier: $0) }
@@ -114,7 +115,9 @@
       // commits. Everything after the tap is Apple's NFC sheet.
       Button {
         Task { @MainActor in
-          guard let pin1 = enteredPin1(), let accessNumber = cardAccessNumber() else { return }
+          guard let accessNumber = cardAccessNumber() else { return }
+          let pin1 = enteredPin1()
+          guard pin1 != nil || OnDemandPinExperiment.isEnabled else { return }
           onRegistrationStarted()
           let succeeded = await Self.registerIdentity(
             cardAccessNumber: accessNumber,
@@ -154,16 +157,18 @@
     @MainActor
     internal static func registerIdentity(
       cardAccessNumber: String,
-      pin1: String,
+      pin1: String?,
       model: CardPrimingModel,
       commit: IdentityCommitments
     ) async -> Bool {
       defer { commit.clearPin1Entry() }
       await model.prime(cardAccessNumber: cardAccessNumber, pin1: pin1)
       guard case .succeeded = model.lastRunResult,
-        commit.storeCardAccessNumber(cardAccessNumber),
-        commit.storeVerifiedPin1(pin1)
+        commit.storeCardAccessNumber(cardAccessNumber)
       else { return false }
+      if let pin1 {
+        guard commit.storeVerifiedPin1(pin1) else { return false }
+      }
       commit.markRegistered()
       return true
     }

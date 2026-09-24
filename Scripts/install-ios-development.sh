@@ -25,9 +25,9 @@ cd "$(dirname "$0")/.."
 
 device="${1:-}"
 if [[ -z "$device" ]]; then
-  device=$(xcrun devicectl list devices 2>/dev/null | grep -E "iPhone|iPad" | grep -v "Simulator" | awk '{print $3}' | head -n 1 || true)
+  device=$(xcrun devicectl list devices 2>/dev/null | grep -E "iPhone|iPad" | grep "available" | grep -oE "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}" | head -n 1 || true)
   if [[ -z "$device" ]]; then
-    device=$(xcrun devicectl list devices 2>/dev/null | grep -E "[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}" | awk '{print $3}' | head -n 1 || true)
+    device=$(xcrun devicectl list devices 2>/dev/null | grep -E "iPhone|iPad" | grep -v "Simulator" | grep -oE "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}" | head -n 1 || true)
   fi
   if [[ -z "$device" ]]; then
     echo "install-ios-development: no physical iOS device found; specify device name or identifier as argument" >&2
