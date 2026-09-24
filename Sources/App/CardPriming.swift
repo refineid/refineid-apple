@@ -103,7 +103,7 @@
 
     /// How many times the token watcher is asked whether `ctkd` has
     /// published the token for this card yet.
-    internal static let tokenPollLimit: Int = 20
+    internal static let tokenPollLimit: Int = 40
 
     /// Wait between two looks at the token watcher.
     internal static let tokenPollInterval: Duration = .milliseconds(100)
