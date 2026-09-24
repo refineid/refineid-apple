@@ -14,7 +14,7 @@ import Foundation
 /// through Swift concurrency. Blocking the ctkd thread this way is safe
 /// and is what the proven reference does; an async/await bridge on that
 /// thread is not (it hangs the sign, looping the PIN prompt).
-internal struct SmartCardChannel: CardChannel {
+internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChannel {
   /// A transport failure before the card produced a protocol response.
   internal enum TransportError: Error, Equatable, Sendable {
     /// CryptoTokenKit did not complete one APDU within the field budget.
