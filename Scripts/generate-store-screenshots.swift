@@ -352,9 +352,7 @@ func renderIOS(locale: String, slide: SlideData) {
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
     }
 
-    var currentTopY = CGFloat(height) - 180
-
-    // 2. Title
+    // 2. Title metrics
     let titleLength = slide.title.count
     let titleFontSize: CGFloat = titleLength > 36 ? 94 : (titleLength > 25 ? 100 : 108)
     let titleFont = NSFont.systemFont(ofSize: titleFontSize, weight: .bold)
@@ -372,11 +370,8 @@ func renderIOS(locale: String, slide: SlideData) {
         attributes: titleAttr
     )
     let titleHeight = ceil(titleBounding.height)
-    let titleRect = CGRect(x: 50, y: currentTopY - titleHeight, width: CGFloat(width - 100), height: titleHeight)
-    (slide.title as NSString).draw(in: titleRect, withAttributes: titleAttr)
-    currentTopY -= (titleHeight + 32)
 
-    // 3. Subtitle
+    // 3. Subtitle metrics
     let subLength = slide.subtitle.count
     let subFontSize: CGFloat = subLength > 50 ? 58 : 64
     let subFont = NSFont.systemFont(ofSize: subFontSize, weight: .medium)
@@ -394,20 +389,30 @@ func renderIOS(locale: String, slide: SlideData) {
         attributes: subAttr
     )
     let subHeight = ceil(subBounding.height)
-    let subRect = CGRect(x: 60, y: currentTopY - subHeight, width: CGFloat(width - 120), height: subHeight)
+
+    // 4. Spatial Geometry & Hierarchy
+    // Compromise: Title-to-Subtitle has breathing room (64px), Subtitle-to-Card is pulled closer (175px)
+    let phoneY: CGFloat = 330
+    let subToCardGap: CGFloat = 175
+    let titleToSubGap: CGFloat = 64
+
+    let rawCropHeight: CGFloat = 1920
+    let targetWidth: CGFloat = 1160
+    let targetHeight = targetWidth * (rawCropHeight / 1290.0) // ~1726.5 px
+    let phoneX = (CGFloat(width) - targetWidth) / 2
+    let cornerRadius: CGFloat = 56.0
+
+    let subBottomY = phoneY + targetHeight + subToCardGap
+    let subRect = CGRect(x: 60, y: subBottomY, width: CGFloat(width - 120), height: subHeight)
+    let titleBottomY = subBottomY + subHeight + titleToSubGap
+    let titleRect = CGRect(x: 50, y: titleBottomY, width: CGFloat(width - 100), height: titleHeight)
+
+    (slide.title as NSString).draw(in: titleRect, withAttributes: titleAttr)
     (slide.subtitle as NSString).draw(in: subRect, withAttributes: subAttr)
 
-    // 4. Phone Screen presentation
+    // 5. Phone Screen presentation
     let phoneURL = assetsDir.appendingPathComponent(slide.assetName)
     if let phoneImg = NSImage(contentsOf: phoneURL) {
-        let rawCropHeight: CGFloat = 1920
-        let targetWidth: CGFloat = 1160
-        let targetHeight = targetWidth * (rawCropHeight / 1290.0) // ~1726.5 px
-        let phoneX = (CGFloat(width) - targetWidth) / 2
-        let subBottomY = subRect.origin.y
-        let availableSpace = subBottomY
-        let phoneY = round((availableSpace - targetHeight) / 2)
-        let cornerRadius: CGFloat = 56.0
 
         // Bezel & Ambient Shadow
         context.saveGState()
@@ -506,9 +511,7 @@ func renderIPad(locale: String, slide: SlideData) {
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
     }
 
-    var currentTopY = CGFloat(height) - 200
-
-    // 2. Title
+    // 2. Title metrics
     let titleLength = slide.title.count
     let titleFontSize: CGFloat = titleLength > 45 ? 116 : (titleLength > 30 ? 126 : 136)
     let titleFont = NSFont.systemFont(ofSize: titleFontSize, weight: .bold)
@@ -526,11 +529,8 @@ func renderIPad(locale: String, slide: SlideData) {
         attributes: titleAttr
     )
     let titleHeight = ceil(titleBounding.height)
-    let titleRect = CGRect(x: 80, y: currentTopY - titleHeight, width: CGFloat(width - 160), height: titleHeight)
-    (slide.title as NSString).draw(in: titleRect, withAttributes: titleAttr)
-    currentTopY -= (titleHeight + 36)
 
-    // 3. Subtitle
+    // 3. Subtitle metrics
     let subLength = slide.subtitle.count
     let subFontSize: CGFloat = subLength > 55 ? 68 : 74
     let subFont = NSFont.systemFont(ofSize: subFontSize, weight: .medium)
@@ -548,20 +548,29 @@ func renderIPad(locale: String, slide: SlideData) {
         attributes: subAttr
     )
     let subHeight = ceil(subBounding.height)
-    let subRect = CGRect(x: 100, y: currentTopY - subHeight, width: CGFloat(width - 200), height: subHeight)
+
+    // 4. Spatial Geometry & Hierarchy
+    let ipadY: CGFloat = 580
+    let subToCardGap: CGFloat = 260
+    let titleToSubGap: CGFloat = 72
+
+    let rawCropHeight: CGFloat = 1340
+    let targetWidth: CGFloat = 1860
+    let targetHeight = targetWidth * (rawCropHeight / 2048.0) // ~1217 px
+    let ipadX = (CGFloat(width) - targetWidth) / 2
+    let cornerRadius: CGFloat = 44.0
+
+    let subBottomY = ipadY + targetHeight + subToCardGap
+    let subRect = CGRect(x: 100, y: subBottomY, width: CGFloat(width - 200), height: subHeight)
+    let titleBottomY = subBottomY + subHeight + titleToSubGap
+    let titleRect = CGRect(x: 80, y: titleBottomY, width: CGFloat(width - 160), height: titleHeight)
+
+    (slide.title as NSString).draw(in: titleRect, withAttributes: titleAttr)
     (slide.subtitle as NSString).draw(in: subRect, withAttributes: subAttr)
 
-    // 4. iPad Screen presentation
+    // 5. iPad Screen presentation
     let ipadURL = assetsDir.appendingPathComponent(slide.assetName)
     if let ipadImg = NSImage(contentsOf: ipadURL) {
-        let rawCropHeight: CGFloat = 1340
-        let targetWidth: CGFloat = 1860
-        let targetHeight = targetWidth * (rawCropHeight / 2048.0) // ~1217 px
-        let ipadX = (CGFloat(width) - targetWidth) / 2
-        let subBottomY = subRect.origin.y
-        let availableSpace = subBottomY
-        let ipadY = round((availableSpace - targetHeight) / 2)
-        let cornerRadius: CGFloat = 44.0
 
         // Bezel & Ambient Shadow
         context.saveGState()
