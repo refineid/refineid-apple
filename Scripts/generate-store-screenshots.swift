@@ -1,17 +1,18 @@
 #!/usr/bin/env swift
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-// Generate App Store marketing screenshots for RefineID macOS.
+// Generate App Store marketing screenshots for RefineID macOS and iOS.
 //
-// Composes 2880x1800 (16:10) marketing screenshots with zero alpha channel,
-// matching Apple App Store Connect specifications and legal standards.
-// Uses official Apple desktop wallpapers and native UI language captures for each locale.
+// Composes marketing screenshots with zero alpha channel,
+// matching Apple App Store Connect specifications and legal standards:
+//   - macOS (APP_DESKTOP): 2880x1800 (16:10)
+//   - iOS (APP_IPHONE_67): 1290x2796 (iPhone 6.7"/6.9")
+//   - iPadOS (APP_IPAD_PRO_3GEN_129): 2048x2732 (iPad Pro 12.9"/13")
 //
-// Slide 1: Tunnistautuminen ja puhelintuki (Virtuaalikortti etusivulla)
-// Slide 2: Dokumenttien allekirjoitus ja tarkastus (Allekirjoitusnäyttö)
+// Uses official Golden Gate dark wallpaper and native UI captures for each locale.
 //
 // Usage:
-//   swift Scripts/generate-store-screenshots.swift [--locale <fi|en-US|sv|all>]
+//   swift Scripts/generate-store-screenshots.swift [--platform <macos|ios|ipad|all>] [--locale <fi|en-US|sv|all>]
 
 import Cocoa
 
@@ -19,22 +20,22 @@ struct SlideData {
     let filename: String
     let title: String
     let subtitle: String
-    let windowAsset: String
+    let assetName: String
 }
 
-let catalog: [String: [SlideData]] = [
+let macosCatalog: [String: [SlideData]] = [
     "fi": [
         SlideData(
             filename: "01-authentication.png",
             title: "Tunnistaudu henkilökortilla verkkopalveluihin",
             subtitle: "Voit käyttää myös puhelinta langattomana kortinlukijana.",
-            windowAsset: "window-card-fi.png"
+            assetName: "window-card-fi.png"
         ),
         SlideData(
             filename: "02-documents.png",
             title: "Allekirjoita asiakirjoja",
             subtitle: "Luo ja tarkasta hyväksyttyjä sähköisiä allekirjoituksia.",
-            windowAsset: "window-documents-fi.png"
+            assetName: "window-documents-fi.png"
         )
     ],
     "en-US": [
@@ -42,13 +43,13 @@ let catalog: [String: [SlideData]] = [
             filename: "01-authentication.png",
             title: "Log in to web services with your identity card",
             subtitle: "You can also use your phone as a wireless card reader.",
-            windowAsset: "window-card-en.png"
+            assetName: "window-card-en.png"
         ),
         SlideData(
             filename: "02-documents.png",
             title: "Sign documents",
             subtitle: "Create and verify qualified electronic signatures.",
-            windowAsset: "window-documents-en.png"
+            assetName: "window-documents-en.png"
         )
     ],
     "sv": [
@@ -56,175 +57,569 @@ let catalog: [String: [SlideData]] = [
             filename: "01-authentication.png",
             title: "Identifiera dig till e-tjänster med identitetskort",
             subtitle: "Du kan även använda telefonen som trådlös kortläsare.",
-            windowAsset: "window-card-sv.png"
+            assetName: "window-card-sv.png"
         ),
         SlideData(
             filename: "02-documents.png",
             title: "Underteckna dokument",
             subtitle: "Skapa och granska kvalificerade elektroniska underskrifter.",
-            windowAsset: "window-documents-sv.png"
+            assetName: "window-documents-sv.png"
         )
     ]
 ]
 
-func parseLocale() -> [String] {
+let iosCatalog: [String: [SlideData]] = [
+    "fi": [
+        SlideData(
+            filename: "01-app-main.png",
+            title: "Tunnistaudu henkilökortilla verkkopalveluihin",
+            subtitle: "Voit käyttää myös puhelinta langattomana kortinlukijana.",
+            assetName: "iphone-main-fi.png"
+        ),
+        SlideData(
+            filename: "02-documents.png",
+            title: "Allekirjoita asiakirjoja",
+            subtitle: "Luo ja tarkasta hyväksyttyjä sähköisiä allekirjoituksia.",
+            assetName: "iphone-documents-fi.png"
+        )
+    ],
+    "en-US": [
+        SlideData(
+            filename: "01-app-main.png",
+            title: "Log in to web services with your identity card",
+            subtitle: "You can also use your phone as a wireless card reader.",
+            assetName: "iphone-main-en.png"
+        ),
+        SlideData(
+            filename: "02-documents.png",
+            title: "Sign documents",
+            subtitle: "Create and verify qualified electronic signatures.",
+            assetName: "iphone-documents-en.png"
+        )
+    ],
+    "sv": [
+        SlideData(
+            filename: "01-app-main.png",
+            title: "Identifiera dig till e-tjänster med identitetskort",
+            subtitle: "Du kan även använda telefonen som trådlös kortläsare.",
+            assetName: "iphone-main-sv.png"
+        ),
+        SlideData(
+            filename: "02-documents.png",
+            title: "Underteckna dokument",
+            subtitle: "Skapa och granska kvalificerade elektroniska underskrifter.",
+            assetName: "iphone-documents-sv.png"
+        )
+    ]
+]
+
+let ipadCatalog: [String: [SlideData]] = [
+    "fi": [
+        SlideData(
+            filename: "01-main.png",
+            title: "Tunnistaudu henkilökortilla verkkopalveluihin",
+            subtitle: "Voit käyttää myös puhelinta langattomana kortinlukijana.",
+            assetName: "ipad-main-fi.png"
+        ),
+        SlideData(
+            filename: "02-documents.png",
+            title: "Allekirjoita asiakirjoja",
+            subtitle: "Luo ja tarkasta hyväksyttyjä sähköisiä allekirjoituksia.",
+            assetName: "ipad-documents-fi.png"
+        )
+    ],
+    "en-US": [
+        SlideData(
+            filename: "01-main.png",
+            title: "Log in to web services with your identity card",
+            subtitle: "You can also use your phone as a wireless card reader.",
+            assetName: "ipad-main-en.png"
+        ),
+        SlideData(
+            filename: "02-documents.png",
+            title: "Sign documents",
+            subtitle: "Create and verify qualified electronic signatures.",
+            assetName: "ipad-documents-en.png"
+        )
+    ],
+    "sv": [
+        SlideData(
+            filename: "01-main.png",
+            title: "Identifiera dig till e-tjänster med identitetskort",
+            subtitle: "Du kan även använda telefonen som trådlös kortläsare.",
+            assetName: "ipad-main-sv.png"
+        ),
+        SlideData(
+            filename: "02-documents.png",
+            title: "Underteckna dokument",
+            subtitle: "Skapa och granska kvalificerade elektroniska underskrifter.",
+            assetName: "ipad-documents-sv.png"
+        )
+    ]
+]
+
+func parseArgs() -> (locales: [String], platforms: [String]) {
+    var locales = ["fi"]
+    var platforms = ["macos", "ios", "ipad"]
+    var explicitPlatform = false
+
     let args = CommandLine.arguments
-    for i in 0..<args.count {
+    var i = 1
+    while i < args.count {
         if args[i] == "--locale" && i + 1 < args.count {
             let loc = args[i + 1]
-            if loc == "all" { return ["fi", "en-US", "sv"] }
-            return [loc]
+            locales = (loc == "all") ? ["fi", "en-US", "sv"] : [loc]
+            i += 2
+        } else if args[i] == "--platform" && i + 1 < args.count {
+            let plat = args[i + 1]
+            platforms = (plat == "all") ? ["macos", "ios", "ipad"] : [plat]
+            explicitPlatform = true
+            i += 2
+        } else {
+            i += 1
         }
     }
-    return ["fi"]
+
+    if !explicitPlatform && CommandLine.arguments.contains("--locale") {
+        // If only --locale is passed, default to all platforms
+        platforms = ["macos", "ios", "ipad"]
+    }
+
+    return (locales, platforms)
 }
 
-let locales = parseLocale()
+let (locales, platforms) = parseArgs()
 let scriptURL = URL(fileURLWithPath: CommandLine.arguments[0])
 let repoRoot = scriptURL.deletingLastPathComponent().deletingLastPathComponent()
-
-let width = 2880
-let height = 1800
+let assetsDir = repoRoot.appendingPathComponent("Metadata/screenshots/assets")
+let goldenGatePNGURL = assetsDir.appendingPathComponent("golden-gate-dark.png")
 
 guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) else {
     FileHandle.standardError.write(Data("Error: Failed to obtain sRGB color space.\n".utf8))
     exit(1)
 }
 
-let assetsDir = repoRoot.appendingPathComponent("Metadata/screenshots/assets")
-let goldenGatePNGURL = assetsDir.appendingPathComponent("golden-gate-dark.png")
 let wallpaperImage = FileManager.default.fileExists(atPath: goldenGatePNGURL.path)
     ? NSImage(contentsOf: goldenGatePNGURL)
     : nil
 
-for locale in locales {
-    guard let slides = catalog[locale] else {
-        FileHandle.standardError.write(Data("Unknown locale: \(locale)\n".utf8))
-        continue
-    }
-
+func renderMacOS(locale: String, slide: SlideData) {
+    let width = 2880
+    let height = 1800
     let targetDir = repoRoot.appendingPathComponent("Metadata/screenshots/\(locale)/APP_DESKTOP")
     try? FileManager.default.createDirectory(at: targetDir, withIntermediateDirectories: true)
 
-    for slide in slides {
-        // Strict CGImageAlphaInfo.noneSkipLast eliminates any alpha channel for App Store Connect
-        guard let context = CGContext(
-            data: nil,
-            width: width,
-            height: height,
-            bitsPerComponent: 8,
-            bytesPerRow: width * 4,
-            space: colorSpace,
-            bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
-        ) else {
-            fatalError("Failed to allocate CGContext")
+    guard let context = CGContext(
+        data: nil,
+        width: width,
+        height: height,
+        bitsPerComponent: 8,
+        bytesPerRow: width * 4,
+        space: colorSpace,
+        bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+    ) else { fatalError("Failed to allocate CGContext") }
+
+    let nsContext = NSGraphicsContext(cgContext: context, flipped: false)
+    NSGraphicsContext.current = nsContext
+
+    // 1. Wallpaper
+    if let bg = wallpaperImage {
+        let imgW = bg.size.width
+        let imgH = bg.size.height
+        let scale = max(CGFloat(width) / imgW, CGFloat(height) / imgH)
+        let drawW = imgW * scale
+        let drawH = imgH * scale
+        let drawX = (CGFloat(width) - drawW) / 2
+        let drawY = (CGFloat(height) - drawH) / 2
+        bg.draw(in: CGRect(x: drawX, y: drawY, width: drawW, height: drawH))
+
+        // Dark top veil
+        context.saveGState()
+        let veilColors = [
+            NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.82).cgColor,
+            NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.35).cgColor,
+            NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.0).cgColor
+        ] as CFArray
+        if let gradient = CGGradient(colorsSpace: colorSpace, colors: veilColors, locations: [0.0, 0.45, 1.0]) {
+            context.drawLinearGradient(gradient, start: CGPoint(x: width / 2, y: height), end: CGPoint(x: width / 2, y: 0), options: [])
         }
+        context.restoreGState()
+    } else {
+        NSColor(calibratedRed: 0x1C/255.0, green: 0x1C/255.0, blue: 0x1E/255.0, alpha: 1.0).setFill()
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+    }
 
-        let nsContext = NSGraphicsContext(cgContext: context, flipped: false)
-        NSGraphicsContext.current = nsContext
+    var currentTopY = CGFloat(height) - 150
 
-        // 1. Draw Apple Official Desktop Wallpaper (aspect-fill centered)
-        if let bg = wallpaperImage {
-            let imgW = bg.size.width
-            let imgH = bg.size.height
-            let scale = max(CGFloat(width) / imgW, CGFloat(height) / imgH)
-            let drawW = imgW * scale
-            let drawH = imgH * scale
-            let drawX = (CGFloat(width) - drawW) / 2
-            let drawY = (CGFloat(height) - drawH) / 2
-            bg.draw(in: CGRect(x: drawX, y: drawY, width: drawW, height: drawH))
+    // 2. Title
+    let titleFontSize: CGFloat = slide.title.count > 45 ? 68 : 76
+    let titleFont = NSFont.systemFont(ofSize: titleFontSize, weight: .bold)
+    let titleStyle = NSMutableParagraphStyle()
+    titleStyle.alignment = .center
+    titleStyle.lineBreakMode = .byWordWrapping
+    let titleAttr: [NSAttributedString.Key: Any] = [
+        .font: titleFont,
+        .foregroundColor: NSColor.white,
+        .paragraphStyle: titleStyle
+    ]
+    let titleRect = CGRect(x: 120, y: currentTopY - 110, width: CGFloat(width - 240), height: 110)
+    (slide.title as NSString).draw(in: titleRect, withAttributes: titleAttr)
+    currentTopY -= 130
 
-            // Soft dark top veil for text readability while preserving Apple wallpaper aesthetics
-            context.saveGState()
-            let veilColors = [
-                NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.82).cgColor,
-                NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.35).cgColor,
-                NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.0).cgColor
-            ] as CFArray
-            if let gradient = CGGradient(colorsSpace: colorSpace, colors: veilColors, locations: [0.0, 0.45, 1.0]) {
-                context.drawLinearGradient(
-                    gradient,
-                    start: CGPoint(x: width / 2, y: height),
-                    end: CGPoint(x: width / 2, y: 0),
-                    options: []
-                )
+    // 3. Subtitle
+    let subFontSize: CGFloat = slide.subtitle.count > 80 ? 36 : 40
+    let subFont = NSFont.systemFont(ofSize: subFontSize, weight: .medium)
+    let subStyle = NSMutableParagraphStyle()
+    subStyle.alignment = .center
+    subStyle.lineBreakMode = .byWordWrapping
+    let subAttr: [NSAttributedString.Key: Any] = [
+        .font: subFont,
+        .foregroundColor: NSColor(calibratedWhite: 0.84, alpha: 1.0),
+        .paragraphStyle: subStyle
+    ]
+    let subRect = CGRect(x: 180, y: currentTopY - 100, width: CGFloat(width - 360), height: 100)
+    (slide.subtitle as NSString).draw(in: subRect, withAttributes: subAttr)
+    currentTopY -= 110
+
+    // 4. Window Asset
+    let windowURL = assetsDir.appendingPathComponent(slide.assetName)
+    if let winImg = NSImage(contentsOf: windowURL) {
+        let maxAvailableWidth = CGFloat(width) - 300
+        let maxAvailableHeight = currentTopY - 60
+        let imgW = winImg.size.width
+        let imgH = winImg.size.height
+        var scale = min(maxAvailableWidth / imgW, maxAvailableHeight / imgH)
+        if scale > 2.05 { scale = 2.05 }
+        let drawW = imgW * scale
+        let drawH = imgH * scale
+        let drawX = (CGFloat(width) - drawW) / 2
+        let drawY = max(50, (currentTopY - drawH) / 2 + 25)
+        winImg.draw(in: CGRect(x: drawX, y: drawY, width: drawW, height: drawH))
+    }
+
+    // 5. Output
+    guard let cgImage = context.makeImage() else { fatalError("Failed to render CGImage") }
+    let rep = NSBitmapImageRep(cgImage: cgImage)
+    guard let pngData = rep.representation(using: .png, properties: [:]) else { fatalError("Failed to encode PNG") }
+    let destination = targetDir.appendingPathComponent(slide.filename)
+    try? pngData.write(to: destination)
+    print("Wrote \(destination.path) [\(width)x\(height), 0% alpha]")
+}
+
+func renderIOS(locale: String, slide: SlideData) {
+    let width = 1290
+    let height = 2796
+    let targetDir = repoRoot.appendingPathComponent("Metadata/screenshots/\(locale)/APP_IPHONE_67")
+    try? FileManager.default.createDirectory(at: targetDir, withIntermediateDirectories: true)
+
+    guard let context = CGContext(
+        data: nil,
+        width: width,
+        height: height,
+        bitsPerComponent: 8,
+        bytesPerRow: width * 4,
+        space: colorSpace,
+        bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+    ) else { fatalError("Failed to allocate CGContext") }
+
+    let nsContext = NSGraphicsContext(cgContext: context, flipped: false)
+    NSGraphicsContext.current = nsContext
+
+    // 1. Wallpaper
+    if let bg = wallpaperImage {
+        let imgW = bg.size.width
+        let imgH = bg.size.height
+        let scale = max(CGFloat(width) / imgW, CGFloat(height) / imgH)
+        let drawW = imgW * scale
+        let drawH = imgH * scale
+        let drawX = (CGFloat(width) - drawW) / 2
+        let drawY = (CGFloat(height) - drawH) / 2
+        bg.draw(in: CGRect(x: drawX, y: drawY, width: drawW, height: drawH))
+
+        // Dark top veil
+        context.saveGState()
+        let veilColors = [
+            NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.88).cgColor,
+            NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.45).cgColor,
+            NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.0).cgColor
+        ] as CFArray
+        if let gradient = CGGradient(colorsSpace: colorSpace, colors: veilColors, locations: [0.0, 0.42, 1.0]) {
+            context.drawLinearGradient(gradient, start: CGPoint(x: width / 2, y: height), end: CGPoint(x: width / 2, y: height - 1000), options: [])
+        }
+        context.restoreGState()
+    } else {
+        NSColor(calibratedRed: 0x1C/255.0, green: 0x1C/255.0, blue: 0x1E/255.0, alpha: 1.0).setFill()
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+    }
+
+    var currentTopY = CGFloat(height) - 120
+
+    // 2. Title
+    let titleLength = slide.title.count
+    let titleFontSize: CGFloat = titleLength > 36 ? 56 : (titleLength > 25 ? 62 : 68)
+    let titleFont = NSFont.systemFont(ofSize: titleFontSize, weight: .bold)
+    let titleStyle = NSMutableParagraphStyle()
+    titleStyle.alignment = .center
+    titleStyle.lineBreakMode = .byWordWrapping
+    let titleAttr: [NSAttributedString.Key: Any] = [
+        .font: titleFont,
+        .foregroundColor: NSColor.white,
+        .paragraphStyle: titleStyle
+    ]
+    let titleBounding = (slide.title as NSString).boundingRect(
+        with: CGSize(width: CGFloat(width - 140), height: 300),
+        options: [.usesLineFragmentOrigin, .usesFontLeading],
+        attributes: titleAttr
+    )
+    let titleHeight = ceil(titleBounding.height)
+    let titleRect = CGRect(x: 70, y: currentTopY - titleHeight, width: CGFloat(width - 140), height: titleHeight)
+    (slide.title as NSString).draw(in: titleRect, withAttributes: titleAttr)
+    currentTopY -= (titleHeight + 20)
+
+    // 3. Subtitle
+    let subLength = slide.subtitle.count
+    let subFontSize: CGFloat = subLength > 50 ? 34 : 38
+    let subFont = NSFont.systemFont(ofSize: subFontSize, weight: .medium)
+    let subStyle = NSMutableParagraphStyle()
+    subStyle.alignment = .center
+    subStyle.lineBreakMode = .byWordWrapping
+    let subAttr: [NSAttributedString.Key: Any] = [
+        .font: subFont,
+        .foregroundColor: NSColor(calibratedWhite: 0.86, alpha: 1.0),
+        .paragraphStyle: subStyle
+    ]
+    let subBounding = (slide.subtitle as NSString).boundingRect(
+        with: CGSize(width: CGFloat(width - 160), height: 200),
+        options: [.usesLineFragmentOrigin, .usesFontLeading],
+        attributes: subAttr
+    )
+    let subHeight = ceil(subBounding.height)
+    let subRect = CGRect(x: 80, y: currentTopY - subHeight, width: CGFloat(width - 160), height: subHeight)
+    (slide.subtitle as NSString).draw(in: subRect, withAttributes: subAttr)
+
+    // 4. Phone Screen presentation
+    let phoneURL = assetsDir.appendingPathComponent(slide.assetName)
+    if let phoneImg = NSImage(contentsOf: phoneURL) {
+        let targetWidth: CGFloat = 1000
+        let targetHeight: CGFloat = targetWidth * (2796.0 / 1290.0) // 2167.44
+        let phoneX = (CGFloat(width) - targetWidth) / 2
+        let phoneY: CGFloat = 90
+        let cornerRadius: CGFloat = 54.0
+
+        // Bezel & Ambient Shadow
+        context.saveGState()
+        let bezelRect = CGRect(x: phoneX - 8, y: phoneY - 8, width: targetWidth + 16, height: targetHeight + 16)
+        let bezelRadius = cornerRadius + 6.0
+        let bezelPath = NSBezierPath(roundedRect: bezelRect, xRadius: bezelRadius, yRadius: bezelRadius)
+
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor(calibratedWhite: 0.0, alpha: 0.58)
+        shadow.shadowBlurRadius = 50.0
+        shadow.shadowOffset = NSSize(width: 0, height: -24)
+        shadow.set()
+
+        NSColor(calibratedRed: 0.12, green: 0.12, blue: 0.14, alpha: 1.0).setFill()
+        bezelPath.fill()
+        context.restoreGState()
+
+        // Bezel Highlight Stroke
+        context.saveGState()
+        let highlightPath = NSBezierPath(roundedRect: bezelRect, xRadius: bezelRadius, yRadius: bezelRadius)
+        highlightPath.lineWidth = 1.5
+        NSColor(calibratedRed: 0.30, green: 0.31, blue: 0.34, alpha: 0.8).setStroke()
+        highlightPath.stroke()
+        context.restoreGState()
+
+        // Clipped Screen
+        context.saveGState()
+        let screenRect = CGRect(x: phoneX, y: phoneY, width: targetWidth, height: targetHeight)
+        let screenPath = NSBezierPath(roundedRect: screenRect, xRadius: cornerRadius, yRadius: cornerRadius)
+        screenPath.addClip()
+        phoneImg.draw(in: screenRect)
+
+        NSColor(calibratedWhite: 0.0, alpha: 0.25).setStroke()
+        screenPath.lineWidth = 1.0
+        screenPath.stroke()
+        context.restoreGState()
+    }
+
+    // 5. Output
+    guard let cgImage = context.makeImage() else { fatalError("Failed to render CGImage") }
+    let rep = NSBitmapImageRep(cgImage: cgImage)
+    guard let pngData = rep.representation(using: .png, properties: [:]) else { fatalError("Failed to encode PNG") }
+    let destination = targetDir.appendingPathComponent(slide.filename)
+    try? pngData.write(to: destination)
+    print("Wrote \(destination.path) [\(width)x\(height), 0% alpha]")
+}
+
+func renderIPad(locale: String, slide: SlideData) {
+    let width = 2048
+    let height = 2732
+    let targetDir = repoRoot.appendingPathComponent("Metadata/screenshots/\(locale)/APP_IPAD_PRO_3GEN_129")
+    try? FileManager.default.createDirectory(at: targetDir, withIntermediateDirectories: true)
+
+    guard let context = CGContext(
+        data: nil,
+        width: width,
+        height: height,
+        bitsPerComponent: 8,
+        bytesPerRow: width * 4,
+        space: colorSpace,
+        bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+    ) else { fatalError("Failed to allocate CGContext") }
+
+    let nsContext = NSGraphicsContext(cgContext: context, flipped: false)
+    NSGraphicsContext.current = nsContext
+
+    // 1. Wallpaper
+    if let bg = wallpaperImage {
+        let imgW = bg.size.width
+        let imgH = bg.size.height
+        let scale = max(CGFloat(width) / imgW, CGFloat(height) / imgH)
+        let drawW = imgW * scale
+        let drawH = imgH * scale
+        let drawX = (CGFloat(width) - drawW) / 2
+        let drawY = (CGFloat(height) - drawH) / 2
+        bg.draw(in: CGRect(x: drawX, y: drawY, width: drawW, height: drawH))
+
+        // Dark top veil
+        context.saveGState()
+        let veilColors = [
+            NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.88).cgColor,
+            NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.45).cgColor,
+            NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.0).cgColor
+        ] as CFArray
+        if let gradient = CGGradient(colorsSpace: colorSpace, colors: veilColors, locations: [0.0, 0.42, 1.0]) {
+            context.drawLinearGradient(gradient, start: CGPoint(x: width / 2, y: height), end: CGPoint(x: width / 2, y: height - 1000), options: [])
+        }
+        context.restoreGState()
+    } else {
+        NSColor(calibratedRed: 0x1C/255.0, green: 0x1C/255.0, blue: 0x1E/255.0, alpha: 1.0).setFill()
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+    }
+
+    var currentTopY = CGFloat(height) - 140
+
+    // 2. Title
+    let titleLength = slide.title.count
+    let titleFontSize: CGFloat = titleLength > 45 ? 68 : 74
+    let titleFont = NSFont.systemFont(ofSize: titleFontSize, weight: .bold)
+    let titleStyle = NSMutableParagraphStyle()
+    titleStyle.alignment = .center
+    titleStyle.lineBreakMode = .byWordWrapping
+    let titleAttr: [NSAttributedString.Key: Any] = [
+        .font: titleFont,
+        .foregroundColor: NSColor.white,
+        .paragraphStyle: titleStyle
+    ]
+    let titleBounding = (slide.title as NSString).boundingRect(
+        with: CGSize(width: CGFloat(width - 200), height: 350),
+        options: [.usesLineFragmentOrigin, .usesFontLeading],
+        attributes: titleAttr
+    )
+    let titleHeight = ceil(titleBounding.height)
+    let titleRect = CGRect(x: 100, y: currentTopY - titleHeight, width: CGFloat(width - 200), height: titleHeight)
+    (slide.title as NSString).draw(in: titleRect, withAttributes: titleAttr)
+    currentTopY -= (titleHeight + 24)
+
+    // 3. Subtitle
+    let subLength = slide.subtitle.count
+    let subFontSize: CGFloat = subLength > 55 ? 38 : 42
+    let subFont = NSFont.systemFont(ofSize: subFontSize, weight: .medium)
+    let subStyle = NSMutableParagraphStyle()
+    subStyle.alignment = .center
+    subStyle.lineBreakMode = .byWordWrapping
+    let subAttr: [NSAttributedString.Key: Any] = [
+        .font: subFont,
+        .foregroundColor: NSColor(calibratedWhite: 0.86, alpha: 1.0),
+        .paragraphStyle: subStyle
+    ]
+    let subBounding = (slide.subtitle as NSString).boundingRect(
+        with: CGSize(width: CGFloat(width - 240), height: 250),
+        options: [.usesLineFragmentOrigin, .usesFontLeading],
+        attributes: subAttr
+    )
+    let subHeight = ceil(subBounding.height)
+    let subRect = CGRect(x: 120, y: currentTopY - subHeight, width: CGFloat(width - 240), height: subHeight)
+    (slide.subtitle as NSString).draw(in: subRect, withAttributes: subAttr)
+
+    // 4. iPad Screen presentation
+    let ipadURL = assetsDir.appendingPathComponent(slide.assetName)
+    if let ipadImg = NSImage(contentsOf: ipadURL) {
+        let targetWidth: CGFloat = 1580
+        let targetHeight: CGFloat = targetWidth * (2732.0 / 2048.0) // ~2107.66
+        let ipadX = (CGFloat(width) - targetWidth) / 2
+        let ipadY: CGFloat = 110
+        let cornerRadius: CGFloat = 38.0
+
+        // Bezel & Ambient Shadow
+        context.saveGState()
+        let bezelRect = CGRect(x: ipadX - 10, y: ipadY - 10, width: targetWidth + 20, height: targetHeight + 20)
+        let bezelRadius = cornerRadius + 8.0
+        let bezelPath = NSBezierPath(roundedRect: bezelRect, xRadius: bezelRadius, yRadius: bezelRadius)
+
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor(calibratedWhite: 0.0, alpha: 0.58)
+        shadow.shadowBlurRadius = 55.0
+        shadow.shadowOffset = NSSize(width: 0, height: -28)
+        shadow.set()
+
+        NSColor(calibratedRed: 0.12, green: 0.12, blue: 0.14, alpha: 1.0).setFill()
+        bezelPath.fill()
+        context.restoreGState()
+
+        // Bezel Highlight Stroke
+        context.saveGState()
+        let highlightPath = NSBezierPath(roundedRect: bezelRect, xRadius: bezelRadius, yRadius: bezelRadius)
+        highlightPath.lineWidth = 1.5
+        NSColor(calibratedRed: 0.30, green: 0.31, blue: 0.34, alpha: 0.8).setStroke()
+        highlightPath.stroke()
+        context.restoreGState()
+
+        // Clipped Screen
+        context.saveGState()
+        let screenRect = CGRect(x: ipadX, y: ipadY, width: targetWidth, height: targetHeight)
+        let screenPath = NSBezierPath(roundedRect: screenRect, xRadius: cornerRadius, yRadius: cornerRadius)
+        screenPath.addClip()
+        ipadImg.draw(in: screenRect)
+
+        NSColor(calibratedWhite: 0.0, alpha: 0.25).setStroke()
+        screenPath.lineWidth = 1.0
+        screenPath.stroke()
+        context.restoreGState()
+    }
+
+    // 5. Output
+    guard let cgImage = context.makeImage() else { fatalError("Failed to render CGImage") }
+    let rep = NSBitmapImageRep(cgImage: cgImage)
+    guard let pngData = rep.representation(using: .png, properties: [:]) else { fatalError("Failed to encode PNG") }
+    let destination = targetDir.appendingPathComponent(slide.filename)
+    try? pngData.write(to: destination)
+    print("Wrote \(destination.path) [\(width)x\(height), 0% alpha]")
+}
+
+for locale in locales {
+    if platforms.contains("macos") {
+        if let slides = macosCatalog[locale] {
+            for slide in slides {
+                renderMacOS(locale: locale, slide: slide)
             }
-            context.restoreGState()
-        } else {
-            NSColor(calibratedRed: 0x1C/255.0, green: 0x1C/255.0, blue: 0x1E/255.0, alpha: 1.0).setFill()
-            context.fill(CGRect(x: 0, y: 0, width: width, height: height))
         }
+    }
 
-        var currentTopY = CGFloat(height) - 150
-
-        // 2. Title
-        let titleFontSize: CGFloat = slide.title.count > 45 ? 68 : 76
-        let titleFont = NSFont.systemFont(ofSize: titleFontSize, weight: .bold)
-        let titleStyle = NSMutableParagraphStyle()
-        titleStyle.alignment = .center
-        titleStyle.lineBreakMode = .byWordWrapping
-        let titleAttr: [NSAttributedString.Key: Any] = [
-            .font: titleFont,
-            .foregroundColor: NSColor.white,
-            .paragraphStyle: titleStyle
-        ]
-
-        let titleRect = CGRect(x: 120, y: currentTopY - 110, width: CGFloat(width - 240), height: 110)
-        (slide.title as NSString).draw(in: titleRect, withAttributes: titleAttr)
-        currentTopY -= 130
-
-        // 3. Subtitle
-        let subFontSize: CGFloat = slide.subtitle.count > 80 ? 36 : 40
-        let subFont = NSFont.systemFont(ofSize: subFontSize, weight: .medium)
-        let subStyle = NSMutableParagraphStyle()
-        subStyle.alignment = .center
-        subStyle.lineBreakMode = .byWordWrapping
-        let subAttr: [NSAttributedString.Key: Any] = [
-            .font: subFont,
-            .foregroundColor: NSColor(calibratedWhite: 0.84, alpha: 1.0),
-            .paragraphStyle: subStyle
-        ]
-
-        let subRect = CGRect(x: 180, y: currentTopY - 100, width: CGFloat(width - 360), height: 100)
-        (slide.subtitle as NSString).draw(in: subRect, withAttributes: subAttr)
-        currentTopY -= 110
-
-        // 4. Load and Draw Window Asset (Native Locale)
-        let windowURL = assetsDir.appendingPathComponent(slide.windowAsset)
-        if let winImg = NSImage(contentsOf: windowURL) {
-            let maxAvailableWidth = CGFloat(width) - 300
-            let maxAvailableHeight = currentTopY - 60
-            
-            let imgW = winImg.size.width
-            let imgH = winImg.size.height
-            
-            var scale = min(maxAvailableWidth / imgW, maxAvailableHeight / imgH)
-            if scale > 2.05 { scale = 2.05 }
-            
-            let drawW = imgW * scale
-            let drawH = imgH * scale
-            let drawX = (CGFloat(width) - drawW) / 2
-            let drawY = max(50, (currentTopY - drawH) / 2 + 25)
-            
-            winImg.draw(in: CGRect(x: drawX, y: drawY, width: drawW, height: drawH))
+    if platforms.contains("ios") {
+        if let slides = iosCatalog[locale] {
+            for slide in slides {
+                renderIOS(locale: locale, slide: slide)
+            }
         }
+    }
 
-        // 5. Write PNG with strict zero alpha
-        guard let cgImage = context.makeImage() else {
-            fatalError("Failed to render CGImage")
-        }
-
-        let rep = NSBitmapImageRep(cgImage: cgImage)
-        guard let pngData = rep.representation(using: .png, properties: [:]) else {
-            fatalError("Failed to encode PNG representation")
-        }
-
-        let destination = targetDir.appendingPathComponent(slide.filename)
-        do {
-            try pngData.write(to: destination)
-            print("Wrote \(destination.path) [\(width)x\(height), 0% alpha]")
-        } catch {
-            FileHandle.standardError.write(Data("Error writing to \(destination.path): \(error)\n".utf8))
+    if platforms.contains("ipad") {
+        if let slides = ipadCatalog[locale] {
+            for slide in slides {
+                renderIPad(locale: locale, slide: slide)
+            }
         }
     }
 }

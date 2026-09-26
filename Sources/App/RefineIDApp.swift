@@ -330,6 +330,13 @@ internal struct RefineIDApp: App {
         }
       #endif
       DemoMode.shared.activateFromLaunchArguments()
+      #if os(iOS)
+        if args.contains("--open-document-signing") {
+          var state = DemoMode.shared.state
+          state.device.pendingSigningRequest = true
+          DemoMode.shared.replace(with: state)
+        }
+      #endif
     #endif
   }
 }

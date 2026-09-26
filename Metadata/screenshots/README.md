@@ -59,17 +59,23 @@ Options:
 - `--scenario <name>`: Drives a specific Virtual ID Card scenario (e.g., `registered-nfc`, `factory-fresh-nfc`).
 - `--output-dir <path>`: Directs outputs to a custom directory instead of `Metadata/screenshots/`.
 
-### macOS (Marketing Screenshots Generation)
+### Marketing Screenshots Generation (macOS, iOS & iPadOS)
 
 ```sh
-# Generate marketing screenshots for all supported locales:
+# Generate marketing screenshots for all supported platforms and locales:
 swift Scripts/generate-store-screenshots.swift --locale all
 
-# Or for a specific locale:
-swift Scripts/generate-store-screenshots.swift --locale fi
+# Or for a specific platform and locale:
+swift Scripts/generate-store-screenshots.swift --platform ios --locale fi
+swift Scripts/generate-store-screenshots.swift --platform ipad --locale fi
+swift Scripts/generate-store-screenshots.swift --platform macos --locale fi
 ```
 
-Produces 2880×1800 (16:10) images with strict 0% alpha channel matching App Store Connect specifications.
+Produces:
+- macOS (`APP_DESKTOP`): 2880×1800 (16:10)
+- iOS (`APP_IPHONE_67`): 1290×2796 (iPhone 6.7"/6.9")
+- iPadOS (`APP_IPAD_PRO_3GEN_129`): 2048×2732 (iPad Pro 12.9"/13")
+with strict 0% alpha channel matching App Store Connect specifications.
 
 ```sh
 # Or raw single window capture onto canvas:

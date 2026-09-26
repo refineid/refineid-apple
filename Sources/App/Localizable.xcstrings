@@ -2390,38 +2390,6 @@
         }
       }
     },
-    "In each PDF": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Jokaiseen PDF-tiedostoon"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "I varje PDF-fil"
-          }
-        }
-      }
-    },
-    "In the PDF": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PDF-tiedostoon"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "I PDF-filen"
-          }
-        }
-      }
-    },
     "Insert your card": {
       "localizations": {
         "fi": {
@@ -3032,6 +3000,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Åtgärden avvisades"
+          }
+        }
+      }
+    },
+    "PDF": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PDF"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PDF"
           }
         }
       }

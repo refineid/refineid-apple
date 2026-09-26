@@ -94,6 +94,11 @@ extension CardCredentialsView {
         refreshRegistration()
         showStoredCardAccessNumber()
         synchronizeIdentityState()
+        #if DEBUG && os(iOS)
+          if ProcessInfo.processInfo.arguments.contains("--open-document-signing") {
+            transition(.openDocumentSigning)
+          }
+        #endif
       }
       #if os(iOS)
         .task(id: readerHolderReadKey) {
