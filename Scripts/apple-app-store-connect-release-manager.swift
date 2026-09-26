@@ -1,4 +1,11 @@
-#!/usr/bin/env swift  // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.  //  // Drive the complete Apple release lifecycle in the language this project  // is written in and with no shell release entry points.  //  // Local commands archive, inspect, export, and optionally upload a candidate.  // The remaining web-UI steps are JSON-over-HTTP calls, and doing them by hand
+#!/usr/bin/env swift
+// Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
+//
+// Drive the complete Apple release lifecycle in the language this project
+// is written in and with no shell release entry points.
+//
+// Local commands archive, inspect, export, and optionally upload a candidate.
+// The remaining web-UI steps are JSON-over-HTTP calls, and doing them by hand
 // leaves no record of what was done. This composes all of them into named
 // commands. CryptoKit signs the ES256 token from the
 // .p8 (which is a P-256 key), URLSession makes the calls, and
@@ -528,12 +535,13 @@ private func inspectReleaseArchive(_ archive: URL) {
       "com.apple.security.files.user-selected.read-write",
       "com.apple.security.network.client",
       "com.apple.security.smartcard",
+      "keychain-access-groups",
     ]).union(layout.hasRapp ? ["com.apple.security.network.server"] : [])
     var rules: [(bundle: URL, allowed: Set<String>, required: Set<String>)] = [
       (
         layout.app,
         signingEntitlements.union(appEntitlements),
-        appEntitlements
+        appEntitlements.subtracting(["keychain-access-groups"])
       ),
       (
         layout.tokenBundle,
@@ -541,6 +549,7 @@ private func inspectReleaseArchive(_ archive: URL) {
           "com.apple.security.app-sandbox",
           "com.apple.security.application-groups",
           "com.apple.security.smartcard",
+          "keychain-access-groups",
         ]),
         [
           "com.apple.security.app-sandbox",

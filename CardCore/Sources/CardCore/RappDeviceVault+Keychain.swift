@@ -102,6 +102,7 @@ extension RappDeviceVault {
     query[kSecReturnAttributes as String] = kCFBooleanTrue
     query[kSecReturnData as String] = kCFBooleanTrue
     query[kSecMatchLimit as String] = kSecMatchLimitOne
+    query[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUISkip
     var output: CFTypeRef?
     let status = SecItemCopyMatching(query as CFDictionary, &output)
     switch status {
@@ -153,6 +154,7 @@ extension RappDeviceVault {
     var query = itemQuery(service: service)
     query[kSecReturnAttributes as String] = kCFBooleanTrue
     query[kSecMatchLimit as String] = kSecMatchLimitAll
+    query[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUISkip
     var output: CFTypeRef?
     let status = SecItemCopyMatching(query as CFDictionary, &output)
     #if DEBUG

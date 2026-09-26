@@ -83,6 +83,7 @@ extension RappDeviceVault {
       kSecMatchLimit as String: kSecMatchLimitAll,
       kSecReturnAttributes as String: kCFBooleanTrue as Any,
       kSecUseDataProtectionKeychain as String: dataProtection,
+      kSecUseAuthenticationUI as String: kSecUseAuthenticationUISkip,
     ]
     var output: CFTypeRef?
     let status = SecItemCopyMatching(query as CFDictionary, &output)
@@ -111,6 +112,7 @@ extension RappDeviceVault {
   ) throws {
     var query = itemQuery(service: service, account: account)
     query[kSecUseDataProtectionKeychain as String] = dataProtection
+    query[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUISkip
     query.removeValue(forKey: kSecAttrAccessGroup as String)
     var status = SecItemDelete(query as CFDictionary)
     #if os(macOS)

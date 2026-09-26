@@ -14,6 +14,12 @@ public enum TestCredentialEnvironment {
       || ProcessInfo.processInfo.arguments.contains("-XCTest")
       || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
       || ProcessInfo.processInfo.environment["XCInjectBundleInto"] != nil
+      || ProcessInfo.processInfo.environment["XCTestBundlePath"] != nil
+      || ProcessInfo.processInfo.environment["SWIFT_TESTING"] != nil
+      || ProcessInfo.processInfo.processName.localizedCaseInsensitiveContains("test")
+      || ProcessInfo.processInfo.arguments.contains { $0.localizedCaseInsensitiveContains("test") }
+      || NSClassFromString("XCTest") != nil
+      || NSClassFromString("Testing.Test") != nil
   }()
 
   private static let lock = NSLock()
