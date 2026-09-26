@@ -226,6 +226,9 @@ for LOCALE in "${TARGET_LOCALES[@]}"; do
   # Capture iPad if targeted
   if [[ -n "$IPAD_UDID" ]]; then
     echo "==> Capturing iPad screenshot for locale: $LOCALE..."
+    xcrun simctl spawn "$IPAD_UDID" defaults write "Apple Global Domain" AppleLanguages -array "$LANG_CODE" 2>/dev/null || true
+    xcrun simctl spawn "$IPAD_UDID" defaults write "Apple Global Domain" AppleLocale -string "$LOCALE" 2>/dev/null || true
+
     SCENARIO_NAME="${SCENARIO:-activated-reader}"
     LAUNCH_ARGS=("-AppleLanguages" "($LANG_CODE)" "-AppleLocale" "$LOCALE" "--hide-diagnostics" "--mock-remote-connected" "--virtual-card" "$SCENARIO_NAME")
 
@@ -242,6 +245,22 @@ for LOCALE in "${TARGET_LOCALES[@]}"; do
 
     OUT_FILE="$OUT_DIR/01-main.png"
     xcrun simctl io "$IPAD_UDID" screenshot "$OUT_FILE"
+    # Keep iPad status bar clean and timeless with time (9.41) only, removing calendar date
+    swift - "$OUT_FILE" << 'SWIFTEOF' 2>/dev/null || true
+import AppKit
+let path = CommandLine.arguments[1]
+guard let img = NSImage(contentsOfFile: path),
+      let cgImg = img.cgImage(forProposedRect: nil, context: nil, hints: nil) else { exit(0) }
+let w = cgImg.width, h = cgImg.height
+let space = CGColorSpace(name: CGColorSpace.sRGB)!
+guard let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4, space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { exit(0) }
+ctx.draw(cgImg, in: CGRect(x: 0, y: 0, width: w, height: h))
+ctx.setFillColor(CGColor(srgbRed: 242.0/255.0, green: 242.0/255.0, blue: 247.0/255.0, alpha: 1.0))
+ctx.fill(CGRect(x: 88, y: h - 55, width: 345, height: 55))
+if let res = ctx.makeImage(), let data = NSBitmapImageRep(cgImage: res).representation(using: .png, properties: [:]) {
+    try? data.write(to: URL(fileURLWithPath: path))
+}
+SWIFTEOF
     WIDTH="$(sips -g pixelWidth "$OUT_FILE" | awk '/pixelWidth/ {print $2}')"
     HEIGHT="$(sips -g pixelHeight "$OUT_FILE" | awk '/pixelHeight/ {print $2}')"
     echo "    Saved: $OUT_FILE ($WIDTH x $HEIGHT)"
