@@ -145,6 +145,8 @@ import SwiftUI
       .buttonStyle(.bordered)
       .tint(isActivelyConnected ? .green : .secondary)
       .controlSize(.small)
+      .lineLimit(1)
+      .fixedSize(horizontal: true, vertical: false)
       .allowsHitTesting(!isActivelyConnected)
     }
 

@@ -352,7 +352,7 @@ func renderIOS(locale: String, slide: SlideData) {
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
     }
 
-    var currentTopY = CGFloat(height) - 180
+    var currentTopY = CGFloat(height) - 160
 
     // 2. Title
     let titleLength = slide.title.count
@@ -374,7 +374,7 @@ func renderIOS(locale: String, slide: SlideData) {
     let titleHeight = ceil(titleBounding.height)
     let titleRect = CGRect(x: 50, y: currentTopY - titleHeight, width: CGFloat(width - 100), height: titleHeight)
     (slide.title as NSString).draw(in: titleRect, withAttributes: titleAttr)
-    currentTopY -= (titleHeight + 32)
+    currentTopY -= (titleHeight + 28)
 
     // 3. Subtitle
     let subLength = slide.subtitle.count
@@ -400,11 +400,12 @@ func renderIOS(locale: String, slide: SlideData) {
     // 4. Phone Screen presentation
     let phoneURL = assetsDir.appendingPathComponent(slide.assetName)
     if let phoneImg = NSImage(contentsOf: phoneURL) {
-        let targetWidth: CGFloat = 1180
-        let targetHeight: CGFloat = targetWidth * (2796.0 / 1290.0) // 2557.55
+        let rawCropHeight: CGFloat = 1920
+        let targetWidth: CGFloat = 1160
+        let targetHeight = targetWidth * (rawCropHeight / 1290.0) // ~1726.5 px
         let phoneX = (CGFloat(width) - targetWidth) / 2
-        let phoneY: CGFloat = -780
-        let cornerRadius: CGFloat = 58.0
+        let phoneY: CGFloat = 460
+        let cornerRadius: CGFloat = 56.0
 
         // Bezel & Ambient Shadow
         context.saveGState()
@@ -413,9 +414,9 @@ func renderIOS(locale: String, slide: SlideData) {
         let bezelPath = NSBezierPath(roundedRect: bezelRect, xRadius: bezelRadius, yRadius: bezelRadius)
 
         let shadow = NSShadow()
-        shadow.shadowColor = NSColor(calibratedWhite: 0.0, alpha: 0.58)
+        shadow.shadowColor = NSColor(calibratedWhite: 0.0, alpha: 0.65)
         shadow.shadowBlurRadius = 50.0
-        shadow.shadowOffset = NSSize(width: 0, height: -24)
+        shadow.shadowOffset = NSSize(width: 0, height: -22)
         shadow.set()
 
         NSColor(calibratedRed: 0.12, green: 0.12, blue: 0.14, alpha: 1.0).setFill()
@@ -426,7 +427,7 @@ func renderIOS(locale: String, slide: SlideData) {
         context.saveGState()
         let highlightPath = NSBezierPath(roundedRect: bezelRect, xRadius: bezelRadius, yRadius: bezelRadius)
         highlightPath.lineWidth = 1.5
-        NSColor(calibratedRed: 0.30, green: 0.31, blue: 0.34, alpha: 0.8).setStroke()
+        NSColor(calibratedRed: 0.32, green: 0.33, blue: 0.36, alpha: 0.85).setStroke()
         highlightPath.stroke()
         context.restoreGState()
 
@@ -435,7 +436,12 @@ func renderIOS(locale: String, slide: SlideData) {
         let screenRect = CGRect(x: phoneX, y: phoneY, width: targetWidth, height: targetHeight)
         let screenPath = NSBezierPath(roundedRect: screenRect, xRadius: cornerRadius, yRadius: cornerRadius)
         screenPath.addClip()
-        phoneImg.draw(in: screenRect)
+
+        let imgW = phoneImg.size.width
+        let imgH = phoneImg.size.height
+        let sourceCropH = imgH * (rawCropHeight / 2796.0)
+        let fromRect = CGRect(x: 0, y: imgH - sourceCropH, width: imgW, height: sourceCropH)
+        phoneImg.draw(in: screenRect, from: fromRect, operation: .copy, fraction: 1.0)
 
         NSColor(calibratedWhite: 0.0, alpha: 0.25).setStroke()
         screenPath.lineWidth = 1.0
@@ -498,7 +504,7 @@ func renderIPad(locale: String, slide: SlideData) {
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
     }
 
-    var currentTopY = CGFloat(height) - 280
+    var currentTopY = CGFloat(height) - 200
 
     // 2. Title
     let titleLength = slide.title.count
@@ -546,22 +552,23 @@ func renderIPad(locale: String, slide: SlideData) {
     // 4. iPad Screen presentation
     let ipadURL = assetsDir.appendingPathComponent(slide.assetName)
     if let ipadImg = NSImage(contentsOf: ipadURL) {
-        let targetWidth: CGFloat = 1920
-        let targetHeight: CGFloat = targetWidth * (2732.0 / 2048.0) // ~2561.25
+        let rawCropHeight: CGFloat = 1340
+        let targetWidth: CGFloat = 1860
+        let targetHeight = targetWidth * (rawCropHeight / 2048.0) // ~1217 px
         let ipadX = (CGFloat(width) - targetWidth) / 2
-        let ipadY: CGFloat = -1200
+        let ipadY: CGFloat = 720
         let cornerRadius: CGFloat = 44.0
 
         // Bezel & Ambient Shadow
         context.saveGState()
         let bezelRect = CGRect(x: ipadX - 10, y: ipadY - 10, width: targetWidth + 20, height: targetHeight + 20)
-        let bezelRadius = cornerRadius + 8.0
+        let bezelRadius = cornerRadius + 6.0
         let bezelPath = NSBezierPath(roundedRect: bezelRect, xRadius: bezelRadius, yRadius: bezelRadius)
 
         let shadow = NSShadow()
-        shadow.shadowColor = NSColor(calibratedWhite: 0.0, alpha: 0.58)
+        shadow.shadowColor = NSColor(calibratedWhite: 0.0, alpha: 0.65)
         shadow.shadowBlurRadius = 55.0
-        shadow.shadowOffset = NSSize(width: 0, height: -28)
+        shadow.shadowOffset = NSSize(width: 0, height: -24)
         shadow.set()
 
         NSColor(calibratedRed: 0.12, green: 0.12, blue: 0.14, alpha: 1.0).setFill()
@@ -572,7 +579,7 @@ func renderIPad(locale: String, slide: SlideData) {
         context.saveGState()
         let highlightPath = NSBezierPath(roundedRect: bezelRect, xRadius: bezelRadius, yRadius: bezelRadius)
         highlightPath.lineWidth = 1.5
-        NSColor(calibratedRed: 0.30, green: 0.31, blue: 0.34, alpha: 0.8).setStroke()
+        NSColor(calibratedRed: 0.32, green: 0.33, blue: 0.36, alpha: 0.85).setStroke()
         highlightPath.stroke()
         context.restoreGState()
 
@@ -581,7 +588,12 @@ func renderIPad(locale: String, slide: SlideData) {
         let screenRect = CGRect(x: ipadX, y: ipadY, width: targetWidth, height: targetHeight)
         let screenPath = NSBezierPath(roundedRect: screenRect, xRadius: cornerRadius, yRadius: cornerRadius)
         screenPath.addClip()
-        ipadImg.draw(in: screenRect)
+
+        let imgW = ipadImg.size.width
+        let imgH = ipadImg.size.height
+        let sourceCropH = imgH * (rawCropHeight / 2732.0)
+        let fromRect = CGRect(x: 0, y: imgH - sourceCropH, width: imgW, height: sourceCropH)
+        ipadImg.draw(in: screenRect, from: fromRect, operation: .copy, fraction: 1.0)
 
         NSColor(calibratedWhite: 0.0, alpha: 0.25).setStroke()
         screenPath.lineWidth = 1.0
