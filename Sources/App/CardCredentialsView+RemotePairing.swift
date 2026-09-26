@@ -62,7 +62,7 @@ import SwiftUI
           }
         }
         .frame(width: PersonRowLabel.iconWidth)
-        Text(String(localized: "Remote"))
+        Text(String(localized: "Remote Access"))
           .foregroundStyle(
             remoteCardAvailable ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)
           )

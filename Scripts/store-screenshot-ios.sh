@@ -73,7 +73,7 @@ for rt, devs in out.get('devices', {}).items():
 
 set_pristine_status_bar() {
   local udid="$1"
-  xcrun simctl ui "$udid" appearance light
+  xcrun simctl ui "$udid" appearance dark
   xcrun simctl status_bar "$udid" override \
     --time "9:41" \
     --batteryState charged \
@@ -255,7 +255,9 @@ let w = cgImg.width, h = cgImg.height
 let space = CGColorSpace(name: CGColorSpace.sRGB)!
 guard let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4, space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { exit(0) }
 ctx.draw(cgImg, in: CGRect(x: 0, y: 0, width: w, height: h))
-ctx.setFillColor(CGColor(srgbRed: 242.0/255.0, green: 242.0/255.0, blue: 247.0/255.0, alpha: 1.0))
+let rep = NSBitmapImageRep(cgImage: cgImg)
+let bgCol = rep.colorAt(x: 20, y: 20) ?? NSColor.black
+ctx.setFillColor(bgCol.cgColor)
 ctx.fill(CGRect(x: 88, y: h - 55, width: 345, height: 55))
 if let res = ctx.makeImage(), let data = NSBitmapImageRep(cgImage: res).representation(using: .png, properties: [:]) {
     try? data.write(to: URL(fileURLWithPath: path))

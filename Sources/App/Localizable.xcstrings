@@ -4051,13 +4051,29 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Etä"
+            "value": "Etäkäyttö"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fjärr"
+            "value": "Fjärråtkomst"
+          }
+        }
+      }
+    },
+    "Remote Access": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Etäkäyttö"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fjärråtkomst"
           }
         }
       }
