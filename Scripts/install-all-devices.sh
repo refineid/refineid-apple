@@ -139,7 +139,7 @@ if [ "$target_simulator" = true ]; then
         build
       xcrun simctl install "$sim_id" "${sim_derived_data}/Build/Products/Debug-iphonesimulator/RefineID.app"
       xcrun simctl launch --terminate-running-process "$sim_id" fi.refineid.ReFineID
-      open -a Simulator --args -CurrentDeviceUDID "$sim_id"
+      open -a Simulator --args -CurrentDeviceUDID "$sim_id" 2>/dev/null || true
       osascript -e 'tell application "Simulator" to activate' 2>/dev/null || true
       echo "iPad simulator updated and running."
     ) &

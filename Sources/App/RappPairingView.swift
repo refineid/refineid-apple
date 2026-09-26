@@ -60,7 +60,7 @@ internal struct RappPairingView: View {
           servingCardCodeEntry
         }
       }
-      .navigationTitle(String(localized: "Remote"))
+      .navigationTitle(String(localized: "Remote Access"))
       #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
       #endif

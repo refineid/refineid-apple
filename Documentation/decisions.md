@@ -5,6 +5,30 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-09-27 App Store marketing screenshot design system and top-anchored layout
+
+Marketing screenshots across macOS (2880×1800), iPhone 6.7" (1290×2796), and
+iPad Pro 12.9" 3rd Gen (2048×2732) follow a unified dark aesthetic with
+strict spatial rhythm, zero alpha (`hasAlpha: no`), and top-anchored headline
+positioning.
+
+1. **Top-Anchored Visual Alignment**: Headlines on consecutive slides start at
+   the exact same horizontal top baseline (`titleTopMargin = 236 px` on iPhone,
+   `280 px` on iPad) rather than floating relative to text height or centering.
+   This eliminates vertical headline jumping during slide transitions in the
+   App Store gallery while maintaining consistent vertical spacing between
+   titles, subtitles, and hardware mockup frames (~170–176 px on iPhone,
+   ~265–273 px on iPad).
+2. **Bottom Crop and Card Framing**: Mockup viewports cut off at the canvas bottom
+   edge without artificial internal frame padding or excessive negative space,
+   maximizing readability of app controls and document details while adhering to
+   Apple Review Guidelines §2.3.3.
+3. **Automated Multi-Screen Asset Pipeline**: `Scripts/store-screenshot-ios.sh`
+   automates simulator state setup (appearance, 9:41 status bar time, battery,
+   iPad date removal) and captures both primary views (Authentication and Document
+   Signing with `--open-document-signing`) directly into raw assets, feeding
+   `Scripts/generate-store-screenshots.swift` for reproducible composition.
+
 ## 2026-09-26 Time stamp configuration feature gated in Settings
 
 For the initial App Store release, the "Time Stamp" authority settings pane

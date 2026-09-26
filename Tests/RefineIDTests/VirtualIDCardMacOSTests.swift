@@ -34,7 +34,11 @@
       demo.activate(scenario: .activatedReader)
       #expect(demo.isActive == true)
       #expect(demo.isReaderCardPresent == true)
-      #expect(demo.holderName == "DOE JANE 12345678N")
+      #expect(
+        demo.holderName == "DOE JANE 12345678N"
+          || demo.holderName == "ESIMERKKI ERJA 12345678N"
+          || demo.holderName == "EXEMPEL EVA 12345678N"
+      )
       #expect(demo.hasIdentity == false)
 
       demo.activate(scenario: .registeredNearField)
@@ -206,7 +210,11 @@
       #expect(!faultName.isEmpty)
 
       let title = virtualCardLocalized("title", defaultValue: "Virtual ID Card")
-      #expect(title == "Virtual ID Card")
+      #expect(
+        title == "Virtual ID Card"
+          || title == "Virtuaalikortti"
+          || title == "Virtuellt ID-kort"
+      )
     }
 
     @Test

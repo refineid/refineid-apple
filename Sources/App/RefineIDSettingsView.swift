@@ -79,7 +79,7 @@
       }
       RemotePairingSettingsView()
         .tabItem {
-          Label(String(localized: "Remote"), systemImage: "key.radiowaves.forward")
+          Label(String(localized: "Remote Access"), systemImage: "key.radiowaves.forward")
         }
         .tag(Pane.remote)
     }

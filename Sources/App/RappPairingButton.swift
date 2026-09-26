@@ -25,7 +25,7 @@ internal struct RappPairingButton: View {
     } label: {
       RemotePairingGlyph(isConnected: isConnected)
     }
-    .accessibilityLabel(String(localized: "Remote"))
+    .accessibilityLabel(String(localized: "Remote Access"))
     .accessibilityValue(
       isConnected ? "Paired device selected" : "No paired device selected"
     )

@@ -32,12 +32,9 @@
     }
 
     internal var body: some View {
-      // The shapes by what they do, not by their standards' acronyms:
-      // the acronyms explain nothing to someone choosing where a
-      // signature goes, and the words alone already distinguish the
-      // two. The standards are named in the documentation.
+      // The shapes: PDF (PAdES) or Container (ASiC-E).
       Picker("Format", selection: $format) {
-        Text(documents.count > 1 ? "In each PDF" : "In the PDF")
+        Text("PDF")
           .tag(SignatureFormat.pades)
         Text("Container").tag(SignatureFormat.asice)
       }

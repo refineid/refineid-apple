@@ -62,7 +62,7 @@ import SwiftUI
           }
         }
         .frame(width: PersonRowLabel.iconWidth)
-        Text(String(localized: "Remote"))
+        Text(String(localized: "Remote Access"))
           .foregroundStyle(
             remoteCardAvailable ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)
           )
@@ -145,6 +145,8 @@ import SwiftUI
       .buttonStyle(.bordered)
       .tint(isActivelyConnected ? .green : .secondary)
       .controlSize(.small)
+      .lineLimit(1)
+      .fixedSize(horizontal: true, vertical: false)
       .allowsHitTesting(!isActivelyConnected)
     }
 
