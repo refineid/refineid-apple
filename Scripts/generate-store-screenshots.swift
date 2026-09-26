@@ -339,12 +339,12 @@ func renderIOS(locale: String, slide: SlideData) {
         // Dark top veil
         context.saveGState()
         let veilColors = [
-            NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.88).cgColor,
-            NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.45).cgColor,
+            NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.90).cgColor,
+            NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.50).cgColor,
             NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.0).cgColor
         ] as CFArray
-        if let gradient = CGGradient(colorsSpace: colorSpace, colors: veilColors, locations: [0.0, 0.42, 1.0]) {
-            context.drawLinearGradient(gradient, start: CGPoint(x: width / 2, y: height), end: CGPoint(x: width / 2, y: height - 1000), options: [])
+        if let gradient = CGGradient(colorsSpace: colorSpace, colors: veilColors, locations: [0.0, 0.45, 1.0]) {
+            context.drawLinearGradient(gradient, start: CGPoint(x: width / 2, y: height), end: CGPoint(x: width / 2, y: height - 1150), options: [])
         }
         context.restoreGState()
     } else {
@@ -352,11 +352,11 @@ func renderIOS(locale: String, slide: SlideData) {
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
     }
 
-    var currentTopY = CGFloat(height) - 130
+    var currentTopY = CGFloat(height) - 180
 
     // 2. Title
     let titleLength = slide.title.count
-    let titleFontSize: CGFloat = titleLength > 36 ? 70 : (titleLength > 25 ? 76 : 82)
+    let titleFontSize: CGFloat = titleLength > 36 ? 92 : (titleLength > 25 ? 98 : 106)
     let titleFont = NSFont.systemFont(ofSize: titleFontSize, weight: .bold)
     let titleStyle = NSMutableParagraphStyle()
     titleStyle.alignment = .center
@@ -367,18 +367,18 @@ func renderIOS(locale: String, slide: SlideData) {
         .paragraphStyle: titleStyle
     ]
     let titleBounding = (slide.title as NSString).boundingRect(
-        with: CGSize(width: CGFloat(width - 120), height: 400),
+        with: CGSize(width: CGFloat(width - 100), height: 500),
         options: [.usesLineFragmentOrigin, .usesFontLeading],
         attributes: titleAttr
     )
     let titleHeight = ceil(titleBounding.height)
-    let titleRect = CGRect(x: 60, y: currentTopY - titleHeight, width: CGFloat(width - 120), height: titleHeight)
+    let titleRect = CGRect(x: 50, y: currentTopY - titleHeight, width: CGFloat(width - 100), height: titleHeight)
     (slide.title as NSString).draw(in: titleRect, withAttributes: titleAttr)
-    currentTopY -= (titleHeight + 24)
+    currentTopY -= (titleHeight + 32)
 
     // 3. Subtitle
     let subLength = slide.subtitle.count
-    let subFontSize: CGFloat = subLength > 50 ? 40 : 44
+    let subFontSize: CGFloat = subLength > 50 ? 48 : 52
     let subFont = NSFont.systemFont(ofSize: subFontSize, weight: .medium)
     let subStyle = NSMutableParagraphStyle()
     subStyle.alignment = .center
@@ -389,22 +389,22 @@ func renderIOS(locale: String, slide: SlideData) {
         .paragraphStyle: subStyle
     ]
     let subBounding = (slide.subtitle as NSString).boundingRect(
-        with: CGSize(width: CGFloat(width - 140), height: 250),
+        with: CGSize(width: CGFloat(width - 120), height: 350),
         options: [.usesLineFragmentOrigin, .usesFontLeading],
         attributes: subAttr
     )
     let subHeight = ceil(subBounding.height)
-    let subRect = CGRect(x: 70, y: currentTopY - subHeight, width: CGFloat(width - 140), height: subHeight)
+    let subRect = CGRect(x: 60, y: currentTopY - subHeight, width: CGFloat(width - 120), height: subHeight)
     (slide.subtitle as NSString).draw(in: subRect, withAttributes: subAttr)
 
     // 4. Phone Screen presentation
     let phoneURL = assetsDir.appendingPathComponent(slide.assetName)
     if let phoneImg = NSImage(contentsOf: phoneURL) {
-        let targetWidth: CGFloat = 1040
-        let targetHeight: CGFloat = targetWidth * (2796.0 / 1290.0) // 2254.14
+        let targetWidth: CGFloat = 1180
+        let targetHeight: CGFloat = targetWidth * (2796.0 / 1290.0) // 2557.55
         let phoneX = (CGFloat(width) - targetWidth) / 2
-        let phoneY: CGFloat = -180
-        let cornerRadius: CGFloat = 56.0
+        let phoneY: CGFloat = -780
+        let cornerRadius: CGFloat = 58.0
 
         // Bezel & Ambient Shadow
         context.saveGState()
@@ -485,12 +485,12 @@ func renderIPad(locale: String, slide: SlideData) {
         // Dark top veil
         context.saveGState()
         let veilColors = [
-            NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.88).cgColor,
-            NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.45).cgColor,
+            NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.90).cgColor,
+            NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.50).cgColor,
             NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.10, alpha: 0.0).cgColor
         ] as CFArray
-        if let gradient = CGGradient(colorsSpace: colorSpace, colors: veilColors, locations: [0.0, 0.42, 1.0]) {
-            context.drawLinearGradient(gradient, start: CGPoint(x: width / 2, y: height), end: CGPoint(x: width / 2, y: height - 1000), options: [])
+        if let gradient = CGGradient(colorsSpace: colorSpace, colors: veilColors, locations: [0.0, 0.45, 1.0]) {
+            context.drawLinearGradient(gradient, start: CGPoint(x: width / 2, y: height), end: CGPoint(x: width / 2, y: height - 1300), options: [])
         }
         context.restoreGState()
     } else {
@@ -498,11 +498,11 @@ func renderIPad(locale: String, slide: SlideData) {
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
     }
 
-    var currentTopY = CGFloat(height) - 150
+    var currentTopY = CGFloat(height) - 280
 
     // 2. Title
     let titleLength = slide.title.count
-    let titleFontSize: CGFloat = titleLength > 45 ? 82 : (titleLength > 30 ? 88 : 94)
+    let titleFontSize: CGFloat = titleLength > 45 ? 112 : (titleLength > 30 ? 122 : 132)
     let titleFont = NSFont.systemFont(ofSize: titleFontSize, weight: .bold)
     let titleStyle = NSMutableParagraphStyle()
     titleStyle.alignment = .center
@@ -513,18 +513,18 @@ func renderIPad(locale: String, slide: SlideData) {
         .paragraphStyle: titleStyle
     ]
     let titleBounding = (slide.title as NSString).boundingRect(
-        with: CGSize(width: CGFloat(width - 160), height: 450),
+        with: CGSize(width: CGFloat(width - 160), height: 550),
         options: [.usesLineFragmentOrigin, .usesFontLeading],
         attributes: titleAttr
     )
     let titleHeight = ceil(titleBounding.height)
     let titleRect = CGRect(x: 80, y: currentTopY - titleHeight, width: CGFloat(width - 160), height: titleHeight)
     (slide.title as NSString).draw(in: titleRect, withAttributes: titleAttr)
-    currentTopY -= (titleHeight + 28)
+    currentTopY -= (titleHeight + 36)
 
     // 3. Subtitle
     let subLength = slide.subtitle.count
-    let subFontSize: CGFloat = subLength > 55 ? 44 : 48
+    let subFontSize: CGFloat = subLength > 55 ? 56 : 62
     let subFont = NSFont.systemFont(ofSize: subFontSize, weight: .medium)
     let subStyle = NSMutableParagraphStyle()
     subStyle.alignment = .center
@@ -535,7 +535,7 @@ func renderIPad(locale: String, slide: SlideData) {
         .paragraphStyle: subStyle
     ]
     let subBounding = (slide.subtitle as NSString).boundingRect(
-        with: CGSize(width: CGFloat(width - 200), height: 300),
+        with: CGSize(width: CGFloat(width - 200), height: 400),
         options: [.usesLineFragmentOrigin, .usesFontLeading],
         attributes: subAttr
     )
@@ -546,11 +546,11 @@ func renderIPad(locale: String, slide: SlideData) {
     // 4. iPad Screen presentation
     let ipadURL = assetsDir.appendingPathComponent(slide.assetName)
     if let ipadImg = NSImage(contentsOf: ipadURL) {
-        let targetWidth: CGFloat = 1680
-        let targetHeight: CGFloat = targetWidth * (2732.0 / 2048.0) // ~2241.09
+        let targetWidth: CGFloat = 1920
+        let targetHeight: CGFloat = targetWidth * (2732.0 / 2048.0) // ~2561.25
         let ipadX = (CGFloat(width) - targetWidth) / 2
-        let ipadY: CGFloat = -240
-        let cornerRadius: CGFloat = 40.0
+        let ipadY: CGFloat = -1200
+        let cornerRadius: CGFloat = 44.0
 
         // Bezel & Ambient Shadow
         context.saveGState()
