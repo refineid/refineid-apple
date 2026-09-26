@@ -39,7 +39,9 @@ internal struct RefineIDApp: App {
     /// Title drawn in the macOS main window title bar.
     internal static var statusWindowTitle: String {
       #if DEBUG
-        if let version = BundledVersions.read(from: .main).application {
+        if !ProcessInfo.processInfo.arguments.contains("--hide-diagnostics"),
+          let version = BundledVersions.read(from: .main).application
+        {
           return "RefineID - \(version)"
         }
       #endif

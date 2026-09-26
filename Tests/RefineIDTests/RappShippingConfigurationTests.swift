@@ -135,11 +135,11 @@ internal struct RappShippingConfigurationTests {
     #expect(
       features.contains("REFINEID_ACTIVATION_FEATURE[config=Release] = FEATURE_CARD_ACTIVATION"))
 
-    // The full version enables contactless reading, the visible PDF
-    // stamp, and the SCS loopback server in every configuration.
+    // The full version enables contactless reading and the SCS loopback
+    // server in every configuration.
     #expect(
       features.contains(
-        "REFINEID_FEATURES = FEATURE_PDF_STAMP FEATURE_CONTACTLESS FEATURE_SCS"))
+        "REFINEID_FEATURES = FEATURE_CONTACTLESS FEATURE_SCS"))
   }
 
   @Test("Retired store files are referenced by no build configuration")

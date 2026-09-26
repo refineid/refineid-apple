@@ -59,13 +59,22 @@ Options:
 - `--scenario <name>`: Drives a specific Virtual ID Card scenario (e.g., `registered-nfc`, `factory-fresh-nfc`).
 - `--output-dir <path>`: Directs outputs to a custom directory instead of `Metadata/screenshots/`.
 
-### macOS (Window Capture)
+### macOS (Marketing Screenshots Generation)
 
 ```sh
-Scripts/store-screenshot.sh NAME
+# Generate marketing screenshots for all supported locales:
+swift Scripts/generate-store-screenshots.swift --locale all
+
+# Or for a specific locale:
+swift Scripts/generate-store-screenshots.swift --locale fi
 ```
 
-Captures the frontmost RefineID window onto a 2880×1800 App Store canvas.
+Produces 2880×1800 (16:10) images with strict 0% alpha channel matching App Store Connect specifications.
+
+```sh
+# Or raw single window capture onto canvas:
+Scripts/store-screenshot.sh NAME
+```
 
 ## Uploading to App Store Connect
 
