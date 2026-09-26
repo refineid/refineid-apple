@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 # Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-# Automates capturing App-Store-ready iPhone screenshots (APP_IPHONE_67: 1290x2796)
-# using an iOS Simulator with clean status bar and localized app states.
+# Automates capturing App-Store-ready iPhone and iPad screenshots:
+#   - APP_IPHONE_67: 1290x2796 (iPhone 6.7"/6.9")
+#   - APP_IPAD_PRO_3GEN_129: 2048x2732 (iPad Pro 12.9")
+# using iOS Simulators with clean status bars and localized app states.
 #
 # Usage:
-#   Scripts/store-screenshot-ios.sh [--all] [--locale <en-US|fi|sv>] [--scenario <name>] [--output-dir <path>]
-#
-# Defaults to generating 01-app-main.png for all supported locales (en-US, fi, sv)
-# and saving them into Metadata/screenshots/<locale>/APP_IPHONE_67/01-app-main.png.
+#   Scripts/store-screenshot-ios.sh [--all] [--device <iphone|ipad|all>] [--locale <en-US|fi|sv>] [--scenario <name>] [--output-dir <path>]
 
 set -euo pipefail
 
@@ -18,11 +17,16 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TARGET_LOCALES=("en-US" "fi" "sv")
 CUSTOM_OUTPUT_DIR=""
 SCENARIO=""
+TARGET_DEVICE="all"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --locale)
       TARGET_LOCALES=("$2")
+      shift 2
+      ;;
+    --device)
+      TARGET_DEVICE="$2"
       shift 2
       ;;
     --scenario)
@@ -35,10 +39,11 @@ while [[ $# -gt 0 ]]; do
       ;;
     --all)
       TARGET_LOCALES=("en-US" "fi" "sv")
+      TARGET_DEVICE="all"
       shift
       ;;
     -h|--help)
-      echo "Usage: Scripts/store-screenshot-ios.sh [--all] [--locale <en-US|fi|sv>] [--scenario <name>] [--output-dir <path>]"
+      echo "Usage: Scripts/store-screenshot-ios.sh [--all] [--device <iphone|ipad|all>] [--locale <en-US|fi|sv>] [--scenario <name>] [--output-dir <path>]"
       exit 0
       ;;
     *)
@@ -48,8 +53,40 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-echo "==> Finding or creating 6.7\"/6.9\" iPhone simulator device..."
-DEVICE_UDID="$(python3 - << 'PYEOF'
+ensure_booted() {
+  local udid="$1"
+  local state
+  state="$(python3 -c "
+import subprocess, json
+out = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'devices', '-j']))
+for rt, devs in out.get('devices', {}).items():
+    for d in devs:
+        if d['udid'] == '$udid':
+            print(d.get('state', ''))
+")"
+  if [[ "$state" != "Booted" ]]; then
+    echo "==> Booting simulator ($udid)..."
+    xcrun simctl boot "$udid"
+  fi
+  xcrun simctl bootstatus "$udid"
+}
+
+set_pristine_status_bar() {
+  local udid="$1"
+  xcrun simctl ui "$udid" appearance light
+  xcrun simctl status_bar "$udid" override \
+    --time "9:41" \
+    --batteryState charged \
+    --batteryLevel 100 \
+    --wifiBars 3 \
+    --cellularBars 4
+}
+
+# 1. Resolve iPhone UDID if needed
+IPHONE_UDID=""
+if [[ "$TARGET_DEVICE" == "all" || "$TARGET_DEVICE" == "iphone" ]]; then
+  echo "==> Finding or creating 6.7\"/6.9\" iPhone simulator device..."
+  IPHONE_UDID="$(python3 - << 'PYEOF'
 import subprocess, json
 
 def get_udid():
@@ -63,7 +100,6 @@ def get_udid():
             for d in devices:
                 if d.get('name') == name and d.get('isAvailable', True):
                     return d['udid']
-    # If not found, create one
     runtimes = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'runtimes', '-j'])).get('runtimes', [])
     ios_runtimes = [r['identifier'] for r in runtimes if 'iOS' in r.get('name', '') and r.get('isAvailable', True)]
     if not ios_runtimes:
@@ -79,45 +115,63 @@ def get_udid():
 
 print(get_udid())
 PYEOF
-)"
-
-echo "Using simulator UDID: $DEVICE_UDID"
-
-# Boot device if not already booted
-DEV_STATE="$(python3 -c "
-import subprocess, json
-out = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'devices', '-j']))
-for rt, devs in out.get('devices', {}).items():
-    for d in devs:
-        if d['udid'] == '$DEVICE_UDID':
-            print(d.get('state', ''))
-" )"
-
-if [[ "$DEV_STATE" != "Booted" ]]; then
-  echo "==> Booting simulator..."
-  xcrun simctl boot "$DEVICE_UDID"
+  )"
+  echo "Using iPhone simulator UDID: $IPHONE_UDID"
+  ensure_booted "$IPHONE_UDID"
+  set_pristine_status_bar "$IPHONE_UDID"
 fi
 
-echo "==> Waiting for simulator to finish booting..."
-xcrun simctl bootstatus "$DEVICE_UDID"
+# 2. Resolve iPad UDID if needed
+IPAD_UDID=""
+if [[ "$TARGET_DEVICE" == "all" || "$TARGET_DEVICE" == "ipad" ]]; then
+  echo "==> Finding or creating iPad Pro 12.9\" simulator device..."
+  IPAD_UDID="$(python3 - << 'PYEOF'
+import subprocess, json
 
-echo "==> Setting clean status bar (9:41, full battery, full signal)..."
-xcrun simctl status_bar "$DEVICE_UDID" override \
-  --time "9:41" \
-  --batteryState charged \
-  --batteryLevel 100 \
-  --wifiBars 3 \
-  --cellularBars 4
+def get_ipad_udid():
+    out = subprocess.check_output(['xcrun', 'simctl', 'list', 'devices', 'available', '-j'])
+    data = json.loads(out)
+    preferred_names = ['RefineID-Screenshot-iPadPro129', 'iPad Pro (12.9-inch) (6th generation)']
+    for runtime, devices in data.get('devices', {}).items():
+        if 'iOS' not in runtime:
+            continue
+        for name in preferred_names:
+            for d in devices:
+                if name.lower() in d.get('name', '').lower() and d.get('isAvailable', True):
+                    return d['udid']
+    runtimes = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'runtimes', '-j'])).get('runtimes', [])
+    ios_runtimes = [r['identifier'] for r in runtimes if 'iOS' in r.get('name', '') and r.get('isAvailable', True)]
+    if not ios_runtimes:
+        raise RuntimeError("No available iOS simulator runtime found")
+    runtime_id = ios_runtimes[-1]
+    created = subprocess.check_output([
+        'xcrun', 'simctl', 'create',
+        'RefineID-Screenshot-iPadPro129',
+        'com.apple.CoreSimulator.SimDeviceType.iPad-Pro-12-9-inch-6th-generation-16GB',
+        runtime_id
+    ]).decode('utf-8').strip()
+    return created
 
-echo "==> Building RefineID for iOS Simulator..."
+print(get_ipad_udid())
+PYEOF
+  )"
+  echo "Using iPad simulator UDID: $IPAD_UDID"
+  ensure_booted "$IPAD_UDID"
+  set_pristine_status_bar "$IPAD_UDID"
+fi
+
+# Build destination simulator
+BUILD_SIM_UDID="${IPHONE_UDID:-$IPAD_UDID}"
+
+echo "==> Building RefineID for iOS/iPadOS Simulator..."
 xcodebuild build \
   -project "$REPO_ROOT/RefineID.xcodeproj" \
   -scheme RefineID \
-  -destination "platform=iOS Simulator,id=$DEVICE_UDID" \
+  -destination "platform=iOS Simulator,id=$BUILD_SIM_UDID" \
   -configuration Debug \
   -quiet
 
-DERIVED_DATA_DIR="$(xcodebuild -project "$REPO_ROOT/RefineID.xcodeproj" -scheme RefineID -showBuildSettings -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE_UDID" | grep -m 1 "TARGET_BUILD_DIR =" | awk -F '= ' '{print $2}')"
+DERIVED_DATA_DIR="$(xcodebuild -project "$REPO_ROOT/RefineID.xcodeproj" -scheme RefineID -showBuildSettings -configuration Debug -destination "platform=iOS Simulator,id=$BUILD_SIM_UDID" | grep -m 1 "TARGET_BUILD_DIR =" | awk -F '= ' '{print $2}')"
 APP_BUNDLE="$DERIVED_DATA_DIR/RefineID.app"
 
 if [[ ! -d "$APP_BUNDLE" ]]; then
@@ -125,45 +179,74 @@ if [[ ! -d "$APP_BUNDLE" ]]; then
   exit 1
 fi
 
-echo "==> Installing app on simulator..."
-xcrun simctl uninstall "$DEVICE_UDID" fi.refineid.ReFineID 2>/dev/null || true
-xcrun simctl install "$DEVICE_UDID" "$APP_BUNDLE"
+# Install on targets
+if [[ -n "$IPHONE_UDID" ]]; then
+  echo "==> Installing app on iPhone simulator..."
+  xcrun simctl uninstall "$IPHONE_UDID" fi.refineid.ReFineID 2>/dev/null || true
+  xcrun simctl install "$IPHONE_UDID" "$APP_BUNDLE"
+fi
+
+if [[ -n "$IPAD_UDID" ]]; then
+  echo "==> Installing app on iPad simulator..."
+  xcrun simctl uninstall "$IPAD_UDID" fi.refineid.ReFineID 2>/dev/null || true
+  xcrun simctl install "$IPAD_UDID" "$APP_BUNDLE"
+fi
 
 for LOCALE in "${TARGET_LOCALES[@]}"; do
-  echo "==> Capturing screenshot for locale: $LOCALE..."
-  
   LANG_CODE="$LOCALE"
   if [[ "$LOCALE" == "en-US" ]]; then
     LANG_CODE="en"
   fi
-  
-  SCENARIO_NAME="${SCENARIO:-registered-nfc}"
-  LAUNCH_ARGS=("-AppleLanguages" "($LANG_CODE)" "-AppleLocale" "$LOCALE" "--hide-diagnostics" "--mock-remote-connected" "--virtual-card" "$SCENARIO_NAME")
 
-  xcrun simctl ui "$DEVICE_UDID" appearance light
+  # Capture iPhone if targeted
+  if [[ -n "$IPHONE_UDID" ]]; then
+    echo "==> Capturing iPhone screenshot for locale: $LOCALE..."
+    SCENARIO_NAME="${SCENARIO:-registered-nfc}"
+    LAUNCH_ARGS=("-AppleLanguages" "($LANG_CODE)" "-AppleLocale" "$LOCALE" "--hide-diagnostics" "--mock-remote-connected" "--virtual-card" "$SCENARIO_NAME")
 
-  xcrun simctl terminate "$DEVICE_UDID" fi.refineid.ReFineID 2>/dev/null || true
-  xcrun simctl launch "$DEVICE_UDID" fi.refineid.ReFineID "${LAUNCH_ARGS[@]}"
+    xcrun simctl terminate "$IPHONE_UDID" fi.refineid.ReFineID 2>/dev/null || true
+    xcrun simctl launch "$IPHONE_UDID" fi.refineid.ReFineID "${LAUNCH_ARGS[@]}"
+    sleep 5
 
-  # Wait for UI to settle (virtual card state needs extra time)
-  sleep 5
-  
-  if [[ -n "$CUSTOM_OUTPUT_DIR" ]]; then
-    OUT_DIR="$CUSTOM_OUTPUT_DIR/$LOCALE/APP_IPHONE_67"
-  else
-    OUT_DIR="$REPO_ROOT/Metadata/screenshots/$LOCALE/APP_IPHONE_67"
+    if [[ -n "$CUSTOM_OUTPUT_DIR" ]]; then
+      OUT_DIR="$CUSTOM_OUTPUT_DIR/$LOCALE/APP_IPHONE_67"
+    else
+      OUT_DIR="$REPO_ROOT/Metadata/screenshots/$LOCALE/APP_IPHONE_67"
+    fi
+    mkdir -p "$OUT_DIR"
+
+    OUT_FILE="$OUT_DIR/01-app-main.png"
+    xcrun simctl io "$IPHONE_UDID" screenshot "$OUT_FILE"
+    WIDTH="$(sips -g pixelWidth "$OUT_FILE" | awk '/pixelWidth/ {print $2}')"
+    HEIGHT="$(sips -g pixelHeight "$OUT_FILE" | awk '/pixelHeight/ {print $2}')"
+    echo "    Saved: $OUT_FILE ($WIDTH x $HEIGHT)"
+    xcrun simctl terminate "$IPHONE_UDID" fi.refineid.ReFineID 2>/dev/null || true
   fi
-  mkdir -p "$OUT_DIR"
-  
-  OUT_FILE="$OUT_DIR/01-app-main.png"
-  xcrun simctl io "$DEVICE_UDID" screenshot "$OUT_FILE"
-  
-  # Verify dimensions
-  WIDTH="$(sips -g pixelWidth "$OUT_FILE" | awk '/pixelWidth/ {print $2}')"
-  HEIGHT="$(sips -g pixelHeight "$OUT_FILE" | awk '/pixelHeight/ {print $2}')"
-  echo "    Saved: $OUT_FILE ($WIDTH x $HEIGHT)"
-  
-  xcrun simctl terminate "$DEVICE_UDID" fi.refineid.ReFineID 2>/dev/null || true
+
+  # Capture iPad if targeted
+  if [[ -n "$IPAD_UDID" ]]; then
+    echo "==> Capturing iPad screenshot for locale: $LOCALE..."
+    SCENARIO_NAME="${SCENARIO:-activated-reader}"
+    LAUNCH_ARGS=("-AppleLanguages" "($LANG_CODE)" "-AppleLocale" "$LOCALE" "--hide-diagnostics" "--mock-remote-connected" "--virtual-card" "$SCENARIO_NAME")
+
+    xcrun simctl terminate "$IPAD_UDID" fi.refineid.ReFineID 2>/dev/null || true
+    xcrun simctl launch "$IPAD_UDID" fi.refineid.ReFineID "${LAUNCH_ARGS[@]}"
+    sleep 5
+
+    if [[ -n "$CUSTOM_OUTPUT_DIR" ]]; then
+      OUT_DIR="$CUSTOM_OUTPUT_DIR/$LOCALE/APP_IPAD_PRO_3GEN_129"
+    else
+      OUT_DIR="$REPO_ROOT/Metadata/screenshots/$LOCALE/APP_IPAD_PRO_3GEN_129"
+    fi
+    mkdir -p "$OUT_DIR"
+
+    OUT_FILE="$OUT_DIR/01-main.png"
+    xcrun simctl io "$IPAD_UDID" screenshot "$OUT_FILE"
+    WIDTH="$(sips -g pixelWidth "$OUT_FILE" | awk '/pixelWidth/ {print $2}')"
+    HEIGHT="$(sips -g pixelHeight "$OUT_FILE" | awk '/pixelHeight/ {print $2}')"
+    echo "    Saved: $OUT_FILE ($WIDTH x $HEIGHT)"
+    xcrun simctl terminate "$IPAD_UDID" fi.refineid.ReFineID 2>/dev/null || true
+  fi
 done
 
-echo "==> App Store iPhone screenshot generation complete."
+echo "==> App Store screenshot generation complete."
