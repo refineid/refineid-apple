@@ -166,7 +166,17 @@ func parseArgs() -> (locales: [String], platforms: [String]) {
     let args = CommandLine.arguments
     var i = 1
     while i < args.count {
-        if args[i] == "--locale" && i + 1 < args.count {
+        if args[i] == "-h" || args[i] == "--help" {
+            print("""
+            Usage: swift Scripts/generate-store-screenshots.swift [options]
+
+            Options:
+              --platform <macos|ios|ipad|all>   Target platform (default: all)
+              --locale <fi|en-US|sv|all>        Target locale (default: fi, or all if --locale all)
+              -h, --help                        Show this help message
+            """)
+            exit(0)
+        } else if args[i] == "--locale" && i + 1 < args.count {
             let loc = args[i + 1]
             locales = (loc == "all") ? ["fi", "en-US", "sv"] : [loc]
             i += 2

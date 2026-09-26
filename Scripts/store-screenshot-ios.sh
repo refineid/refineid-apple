@@ -18,6 +18,7 @@ TARGET_LOCALES=("en-US" "fi" "sv")
 CUSTOM_OUTPUT_DIR=""
 SCENARIO=""
 TARGET_DEVICE="all"
+CAPTURE_ASSETS=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -37,13 +38,17 @@ while [[ $# -gt 0 ]]; do
       CUSTOM_OUTPUT_DIR="$2"
       shift 2
       ;;
+    --capture-assets)
+      CAPTURE_ASSETS=true
+      shift
+      ;;
     --all)
       TARGET_LOCALES=("en-US" "fi" "sv")
       TARGET_DEVICE="all"
       shift
       ;;
     -h|--help)
-      echo "Usage: Scripts/store-screenshot-ios.sh [--all] [--device <iphone|ipad|all>] [--locale <en-US|fi|sv>] [--scenario <name>] [--output-dir <path>]"
+      echo "Usage: Scripts/store-screenshot-ios.sh [--all] [--device <iphone|ipad|all>] [--locale <en-US|fi|sv>] [--scenario <name>] [--capture-assets] [--output-dir <path>]"
       exit 0
       ;;
     *)
@@ -80,6 +85,27 @@ set_pristine_status_bar() {
     --batteryLevel 100 \
     --wifiBars 3 \
     --cellularBars 4
+}
+
+sanitize_ipad_status_bar() {
+  local file="$1"
+  swift - "$file" << 'SWIFTEOF' 2>/dev/null || true
+import AppKit
+let path = CommandLine.arguments[1]
+guard let img = NSImage(contentsOfFile: path),
+      let cgImg = img.cgImage(forProposedRect: nil, context: nil, hints: nil) else { exit(0) }
+let w = cgImg.width, h = cgImg.height
+let space = CGColorSpace(name: CGColorSpace.sRGB)!
+guard let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4, space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { exit(0) }
+ctx.draw(cgImg, in: CGRect(x: 0, y: 0, width: w, height: h))
+let rep = NSBitmapImageRep(cgImage: cgImg)
+let bgCol = rep.colorAt(x: 20, y: 20) ?? NSColor.black
+ctx.setFillColor(bgCol.cgColor)
+ctx.fill(CGRect(x: 88, y: h - 55, width: 345, height: 55))
+if let res = ctx.makeImage(), let data = NSBitmapImageRep(cgImage: res).representation(using: .png, properties: [:]) {
+    try? data.write(to: URL(fileURLWithPath: path))
+}
+SWIFTEOF
 }
 
 # 1. Resolve iPhone UDID if needed
@@ -194,80 +220,96 @@ fi
 
 for LOCALE in "${TARGET_LOCALES[@]}"; do
   LANG_CODE="$LOCALE"
+  LOC_SUFFIX="$LOCALE"
   if [[ "$LOCALE" == "en-US" ]]; then
     LANG_CODE="en"
+    LOC_SUFFIX="en"
   fi
+
+  if [[ -n "$CUSTOM_OUTPUT_DIR" ]]; then
+    IPHONE_OUT_DIR="$CUSTOM_OUTPUT_DIR/$LOCALE/APP_IPHONE_67"
+    IPAD_OUT_DIR="$CUSTOM_OUTPUT_DIR/$LOCALE/APP_IPAD_PRO_3GEN_129"
+  else
+    IPHONE_OUT_DIR="$REPO_ROOT/Metadata/screenshots/$LOCALE/APP_IPHONE_67"
+    IPAD_OUT_DIR="$REPO_ROOT/Metadata/screenshots/$LOCALE/APP_IPAD_PRO_3GEN_129"
+  fi
+  ASSETS_DIR="$REPO_ROOT/Metadata/screenshots/assets"
+  mkdir -p "$IPHONE_OUT_DIR" "$IPAD_OUT_DIR" "$ASSETS_DIR"
 
   # Capture iPhone if targeted
   if [[ -n "$IPHONE_UDID" ]]; then
-    echo "==> Capturing iPhone screenshot for locale: $LOCALE..."
+    echo "==> Capturing iPhone screenshots for locale: $LOCALE..."
     SCENARIO_NAME="${SCENARIO:-registered-nfc}"
-    LAUNCH_ARGS=("-AppleLanguages" "($LANG_CODE)" "-AppleLocale" "$LOCALE" "--hide-diagnostics" "--mock-remote-connected" "--virtual-card" "$SCENARIO_NAME")
 
+    # 1. Main screen
+    LAUNCH_ARGS=("-AppleLanguages" "($LANG_CODE)" "-AppleLocale" "$LOCALE" "--hide-diagnostics" "--mock-remote-connected" "--virtual-card" "$SCENARIO_NAME")
     xcrun simctl terminate "$IPHONE_UDID" fi.refineid.ReFineID 2>/dev/null || true
     xcrun simctl launch "$IPHONE_UDID" fi.refineid.ReFineID "${LAUNCH_ARGS[@]}"
     sleep 5
-
-    if [[ -n "$CUSTOM_OUTPUT_DIR" ]]; then
-      OUT_DIR="$CUSTOM_OUTPUT_DIR/$LOCALE/APP_IPHONE_67"
+    if [[ "$CAPTURE_ASSETS" == "true" ]]; then
+      OUT_FILE="$ASSETS_DIR/iphone-main-${LOC_SUFFIX}.png"
     else
-      OUT_DIR="$REPO_ROOT/Metadata/screenshots/$LOCALE/APP_IPHONE_67"
+      OUT_FILE="$IPHONE_OUT_DIR/01-app-main.png"
     fi
-    mkdir -p "$OUT_DIR"
-
-    OUT_FILE="$OUT_DIR/01-app-main.png"
     xcrun simctl io "$IPHONE_UDID" screenshot "$OUT_FILE"
-    WIDTH="$(sips -g pixelWidth "$OUT_FILE" | awk '/pixelWidth/ {print $2}')"
-    HEIGHT="$(sips -g pixelHeight "$OUT_FILE" | awk '/pixelHeight/ {print $2}')"
-    echo "    Saved: $OUT_FILE ($WIDTH x $HEIGHT)"
+    echo "    Saved: $OUT_FILE ($(sips -g pixelWidth -g pixelHeight "$OUT_FILE" | awk '/pixel/ {printf "%s ", $2}'))"
+    xcrun simctl terminate "$IPHONE_UDID" fi.refineid.ReFineID 2>/dev/null || true
+
+    # 2. Document signing screen
+    LAUNCH_ARGS=("-AppleLanguages" "($LANG_CODE)" "-AppleLocale" "$LOCALE" "--hide-diagnostics" "--open-document-signing" "--virtual-card" "$SCENARIO_NAME")
+    xcrun simctl launch "$IPHONE_UDID" fi.refineid.ReFineID "${LAUNCH_ARGS[@]}"
+    sleep 5
+    if [[ "$CAPTURE_ASSETS" == "true" ]]; then
+      OUT_FILE="$ASSETS_DIR/iphone-documents-${LOC_SUFFIX}.png"
+    else
+      OUT_FILE="$IPHONE_OUT_DIR/02-documents.png"
+    fi
+    xcrun simctl io "$IPHONE_UDID" screenshot "$OUT_FILE"
+    echo "    Saved: $OUT_FILE ($(sips -g pixelWidth -g pixelHeight "$OUT_FILE" | awk '/pixel/ {printf "%s ", $2}'))"
     xcrun simctl terminate "$IPHONE_UDID" fi.refineid.ReFineID 2>/dev/null || true
   fi
 
   # Capture iPad if targeted
   if [[ -n "$IPAD_UDID" ]]; then
-    echo "==> Capturing iPad screenshot for locale: $LOCALE..."
+    echo "==> Capturing iPad screenshots for locale: $LOCALE..."
     xcrun simctl spawn "$IPAD_UDID" defaults write "Apple Global Domain" AppleLanguages -array "$LANG_CODE" 2>/dev/null || true
     xcrun simctl spawn "$IPAD_UDID" defaults write "Apple Global Domain" AppleLocale -string "$LOCALE" 2>/dev/null || true
-
     SCENARIO_NAME="${SCENARIO:-activated-reader}"
-    LAUNCH_ARGS=("-AppleLanguages" "($LANG_CODE)" "-AppleLocale" "$LOCALE" "--hide-diagnostics" "--mock-remote-connected" "--virtual-card" "$SCENARIO_NAME")
 
+    # 1. Main screen
+    LAUNCH_ARGS=("-AppleLanguages" "($LANG_CODE)" "-AppleLocale" "$LOCALE" "--hide-diagnostics" "--mock-remote-connected" "--virtual-card" "$SCENARIO_NAME")
     xcrun simctl terminate "$IPAD_UDID" fi.refineid.ReFineID 2>/dev/null || true
     xcrun simctl launch "$IPAD_UDID" fi.refineid.ReFineID "${LAUNCH_ARGS[@]}"
     sleep 5
-
-    if [[ -n "$CUSTOM_OUTPUT_DIR" ]]; then
-      OUT_DIR="$CUSTOM_OUTPUT_DIR/$LOCALE/APP_IPAD_PRO_3GEN_129"
+    if [[ "$CAPTURE_ASSETS" == "true" ]]; then
+      OUT_FILE="$ASSETS_DIR/ipad-main-${LOC_SUFFIX}.png"
     else
-      OUT_DIR="$REPO_ROOT/Metadata/screenshots/$LOCALE/APP_IPAD_PRO_3GEN_129"
+      OUT_FILE="$IPAD_OUT_DIR/01-main.png"
     fi
-    mkdir -p "$OUT_DIR"
-
-    OUT_FILE="$OUT_DIR/01-main.png"
     xcrun simctl io "$IPAD_UDID" screenshot "$OUT_FILE"
-    # Keep iPad status bar clean and timeless with time (9.41) only, removing calendar date
-    swift - "$OUT_FILE" << 'SWIFTEOF' 2>/dev/null || true
-import AppKit
-let path = CommandLine.arguments[1]
-guard let img = NSImage(contentsOfFile: path),
-      let cgImg = img.cgImage(forProposedRect: nil, context: nil, hints: nil) else { exit(0) }
-let w = cgImg.width, h = cgImg.height
-let space = CGColorSpace(name: CGColorSpace.sRGB)!
-guard let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4, space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { exit(0) }
-ctx.draw(cgImg, in: CGRect(x: 0, y: 0, width: w, height: h))
-let rep = NSBitmapImageRep(cgImage: cgImg)
-let bgCol = rep.colorAt(x: 20, y: 20) ?? NSColor.black
-ctx.setFillColor(bgCol.cgColor)
-ctx.fill(CGRect(x: 88, y: h - 55, width: 345, height: 55))
-if let res = ctx.makeImage(), let data = NSBitmapImageRep(cgImage: res).representation(using: .png, properties: [:]) {
-    try? data.write(to: URL(fileURLWithPath: path))
-}
-SWIFTEOF
-    WIDTH="$(sips -g pixelWidth "$OUT_FILE" | awk '/pixelWidth/ {print $2}')"
-    HEIGHT="$(sips -g pixelHeight "$OUT_FILE" | awk '/pixelHeight/ {print $2}')"
-    echo "    Saved: $OUT_FILE ($WIDTH x $HEIGHT)"
+    sanitize_ipad_status_bar "$OUT_FILE"
+    echo "    Saved: $OUT_FILE ($(sips -g pixelWidth -g pixelHeight "$OUT_FILE" | awk '/pixel/ {printf "%s ", $2}'))"
+    xcrun simctl terminate "$IPAD_UDID" fi.refineid.ReFineID 2>/dev/null || true
+
+    # 2. Document signing screen
+    LAUNCH_ARGS=("-AppleLanguages" "($LANG_CODE)" "-AppleLocale" "$LOCALE" "--hide-diagnostics" "--open-document-signing" "--virtual-card" "$SCENARIO_NAME")
+    xcrun simctl launch "$IPAD_UDID" fi.refineid.ReFineID "${LAUNCH_ARGS[@]}"
+    sleep 5
+    if [[ "$CAPTURE_ASSETS" == "true" ]]; then
+      OUT_FILE="$ASSETS_DIR/ipad-documents-${LOC_SUFFIX}.png"
+    else
+      OUT_FILE="$IPAD_OUT_DIR/02-documents.png"
+    fi
+    xcrun simctl io "$IPAD_UDID" screenshot "$OUT_FILE"
+    sanitize_ipad_status_bar "$OUT_FILE"
+    echo "    Saved: $OUT_FILE ($(sips -g pixelWidth -g pixelHeight "$OUT_FILE" | awk '/pixel/ {printf "%s ", $2}'))"
     xcrun simctl terminate "$IPAD_UDID" fi.refineid.ReFineID 2>/dev/null || true
   fi
 done
+
+if [[ "$CAPTURE_ASSETS" == "true" ]]; then
+  echo "==> Re-generating final marketing screenshots via generate-store-screenshots.swift..."
+  swift "$REPO_ROOT/Scripts/generate-store-screenshots.swift" --platform all --locale all
+fi
 
 echo "==> App Store screenshot generation complete."
