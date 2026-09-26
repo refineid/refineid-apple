@@ -12,7 +12,6 @@
       #endif
       case pinCodes
       case remote
-      case storedData
       case timeStamp
     }
 
@@ -74,11 +73,6 @@
           Label(String(localized: "Remote"), systemImage: "key.radiowaves.forward")
         }
         .tag(Pane.remote)
-      StoredDataSettingsView()
-        .tabItem {
-          Label(String(localized: "Stored Data"), systemImage: "key.fill")
-        }
-        .tag(Pane.storedData)
       TimestampAuthoritiesSettingsView()
         .tabItem {
           Label(String(localized: "Time Stamp"), systemImage: "clock.badge.checkmark")

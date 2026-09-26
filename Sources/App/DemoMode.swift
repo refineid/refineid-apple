@@ -68,7 +68,8 @@
     }
 
     internal var holderName: String {
-      state.card.holderName + " " + state.card.electronicClientIdentifier
+      let raw = state.card.holderName + " " + state.card.electronicClientIdentifier
+      return Bundle.main.localizedString(forKey: raw, value: nil, table: nil)
     }
 
     internal var hasValidatedConnection: Bool {

@@ -50,7 +50,7 @@
 // version; the store candidate builds from the TestFlight
 // configuration, so it carries them too).
 
-REFINEID_FEATURES = FEATURE_PDF_STAMP FEATURE_CONTACTLESS FEATURE_SCS
+REFINEID_FEATURES = FEATURE_CONTACTLESS FEATURE_SCS
 
 // The local card: this build talks to a card the device itself holds,
 // over its own antenna. On by default, because every shipping iPhone

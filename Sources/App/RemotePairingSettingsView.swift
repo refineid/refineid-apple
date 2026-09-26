@@ -69,9 +69,7 @@
     }
 
     private var displayedDevices: [DisplayedDevice] {
-      let validRemoteDevices = remoteDevices.filter { device in
-        device.role == .holder
-      }
+      let validRemoteDevices = remoteDevices.filter { $0.role == .holder }
 
       let localPublicKey = RappAutoPairingService.shared.localIdentity?.publicKeyData
 
@@ -86,8 +84,9 @@
       )
 
       let validExtraPairs = model.pairs.filter { pair in
-        guard pair.role == .requester else { return false }
-        guard !derivedRemotePairIDs.contains(pair.pairID) else { return false }
+        guard pair.role == .requester, !derivedRemotePairIDs.contains(pair.pairID) else {
+          return false
+        }
         let pairName = RappPairNames.name(forPairID: pair.pairID) ?? ""
         guard !pairName.isEmpty else { return true }
         return !validRemoteDevices.contains { remote in
@@ -244,26 +243,32 @@
       } header: {
         Text("Etälaitteet")
       } footer: {
-        if !devices.isEmpty {
-          HStack {
-            Spacer()
-            Button("Poista kaikki etälaitteet", role: .destructive) {
-              preferredDeviceID = ""
-              RappAutoPairingService.shared.clearAllRemoteDevices()
-              model.revokeAll()
-              PersistentTokenRegistry.withdrawPublishedIdentity()
-              #if REFINEID_STREAM_TRANSPORT
-                PersistentTokenRegistry.shared.stopWatchingPresence()
-              #endif
-              reload()
-            }
-            .buttonStyle(.borderless)
-            .font(.caption)
-            .foregroundStyle(.red)
+        HStack {
+          Spacer()
+          Button("Poista kaikki", role: .destructive) {
+            clearAll()
           }
-          .padding(.top, Layout.rowSpacing)
+          .buttonStyle(.borderless)
+          .font(.caption)
+          .foregroundStyle(.red)
         }
+        .padding(.top, Layout.rowSpacing)
       }
+    }
+
+    private func clearAll() {
+      preferredDeviceID = ""
+      RappAutoPairingService.shared.clearAllRemoteDevices()
+      model.revokeAll()
+      CardCanOffer.storedSerials().forEach { CardCanOffer.forget(printedSerial: $0) }
+      CardCanOffer.withdraw()
+      _ = try? RappDeviceVault().deleteServiceNamespace()
+      RappPairNames.forgetAll()
+      PersistentTokenRegistry.withdrawPublishedIdentity()
+      #if REFINEID_STREAM_TRANSPORT
+        PersistentTokenRegistry.shared.stopWatchingPresence()
+      #endif
+      reload()
     }
 
     private func reload() {

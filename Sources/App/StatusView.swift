@@ -83,11 +83,6 @@
 
     internal var body: some View {
       VStack(alignment: .leading, spacing: Self.spacing) {
-        HStack {
-          Text(verbatim: "RefineID")
-            .font(.largeTitle.bold())
-          Spacer()
-        }
         statusForm
         if demoMode.isActive {
           CardSetupFooter(isDemonstration: true)
