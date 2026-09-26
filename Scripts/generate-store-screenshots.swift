@@ -391,10 +391,10 @@ func renderIOS(locale: String, slide: SlideData) {
     let subHeight = ceil(subBounding.height)
 
     // 4. Spatial Geometry & Hierarchy
-    // Compromise: Title-to-Subtitle has breathing room (64px), Subtitle-to-Card is pulled closer (175px)
-    let phoneY: CGFloat = 330
-    let subToCardGap: CGFloat = 175
-    let titleToSubGap: CGFloat = 64
+    // Harmonized top-anchored alignment: Title starts at the exact same level across all slides (titleTopMargin = 236)
+    let titleTopMargin: CGFloat = 236
+    let titleToSubGap: CGFloat = titleHeight > 150 ? 56 : 64
+    let phoneY: CGFloat = titleHeight > 150 ? 250 : 330
 
     let rawCropHeight: CGFloat = 1920
     let targetWidth: CGFloat = 1160
@@ -402,9 +402,12 @@ func renderIOS(locale: String, slide: SlideData) {
     let phoneX = (CGFloat(width) - targetWidth) / 2
     let cornerRadius: CGFloat = 56.0
 
-    let subBottomY = phoneY + targetHeight + subToCardGap
+    let titleTopY = CGFloat(height) - titleTopMargin
+    let titleBottomY = titleTopY - titleHeight
+    let subTopY = titleBottomY - titleToSubGap
+    let subBottomY = subTopY - subHeight
+
     let subRect = CGRect(x: 60, y: subBottomY, width: CGFloat(width - 120), height: subHeight)
-    let titleBottomY = subBottomY + subHeight + titleToSubGap
     let titleRect = CGRect(x: 50, y: titleBottomY, width: CGFloat(width - 100), height: titleHeight)
 
     (slide.title as NSString).draw(in: titleRect, withAttributes: titleAttr)
@@ -550,9 +553,10 @@ func renderIPad(locale: String, slide: SlideData) {
     let subHeight = ceil(subBounding.height)
 
     // 4. Spatial Geometry & Hierarchy
-    let ipadY: CGFloat = 580
-    let subToCardGap: CGFloat = 260
-    let titleToSubGap: CGFloat = 72
+    // Harmonized top-anchored alignment: Title starts at the exact same level across all slides (titleTopMargin = 280)
+    let titleTopMargin: CGFloat = 280
+    let titleToSubGap: CGFloat = titleHeight > 200 ? 64 : 72
+    let ipadY: CGFloat = titleHeight > 200 ? 520 : 580
 
     let rawCropHeight: CGFloat = 1340
     let targetWidth: CGFloat = 1860
@@ -560,9 +564,12 @@ func renderIPad(locale: String, slide: SlideData) {
     let ipadX = (CGFloat(width) - targetWidth) / 2
     let cornerRadius: CGFloat = 44.0
 
-    let subBottomY = ipadY + targetHeight + subToCardGap
+    let titleTopY = CGFloat(height) - titleTopMargin
+    let titleBottomY = titleTopY - titleHeight
+    let subTopY = titleBottomY - titleToSubGap
+    let subBottomY = subTopY - subHeight
+
     let subRect = CGRect(x: 100, y: subBottomY, width: CGFloat(width - 200), height: subHeight)
-    let titleBottomY = subBottomY + subHeight + titleToSubGap
     let titleRect = CGRect(x: 80, y: titleBottomY, width: CGFloat(width - 160), height: titleHeight)
 
     (slide.title as NSString).draw(in: titleRect, withAttributes: titleAttr)
