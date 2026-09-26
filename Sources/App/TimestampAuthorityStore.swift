@@ -39,7 +39,11 @@ internal enum TimestampAuthorityStore {
 
   /// The configured list, or the defaults when nothing was changed.
   internal static func load() -> [String] {
-    UserDefaults.standard.stringArray(forKey: Self.key) ?? Self.defaults
+    #if FEATURE_TIMESTAMP_CONFIG
+      UserDefaults.standard.stringArray(forKey: Self.key) ?? Self.defaults
+    #else
+      Self.defaults
+    #endif
   }
 
   /// Persists an edited list.

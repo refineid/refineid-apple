@@ -12,7 +12,9 @@
       #endif
       case pinCodes
       case remote
-      case timeStamp
+      #if FEATURE_TIMESTAMP_CONFIG
+        case timeStamp
+      #endif
     }
 
     private static let paneWidth: CGFloat = 680
@@ -49,6 +51,13 @@
           }
           .tag(Pane.pdfStamp)
       #endif
+      #if FEATURE_TIMESTAMP_CONFIG
+        TimestampAuthoritiesSettingsView()
+          .tabItem {
+            Label(String(localized: "Time Stamp"), systemImage: "clock.badge.checkmark")
+          }
+          .tag(Pane.timeStamp)
+      #endif
     }
 
     @ViewBuilder private var mainSettingsTabs: some View {
@@ -73,11 +82,6 @@
           Label(String(localized: "Remote"), systemImage: "key.radiowaves.forward")
         }
         .tag(Pane.remote)
-      TimestampAuthoritiesSettingsView()
-        .tabItem {
-          Label(String(localized: "Time Stamp"), systemImage: "clock.badge.checkmark")
-        }
-        .tag(Pane.timeStamp)
     }
   }
 

@@ -5,6 +5,13 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-09-26 Time stamp configuration feature gated in Settings
+
+For the initial App Store release, the "Time Stamp" authority settings pane
+is feature gated behind `FEATURE_TIMESTAMP_CONFIG`. The hardcoded qualified
+Sectigo timestamp server (`http://timestamp.sectigo.com/qualified`) is used
+as the single trusted authority.
+
 ## 2026-09-13 Technical identifiers keep the ReFineID spelling
 
 The product rename to RefineID covers display strings, docs, comments,
