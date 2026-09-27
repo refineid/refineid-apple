@@ -1,6 +1,29 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Enter %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter %1$@"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Syötä %1$@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ange %1$@"
+          }
+        }
+      }
+    },
     "Signing Service": {
       "extractionState": "manual",
       "localizations": {
@@ -4810,13 +4833,13 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Allekirjoitustunnusluku (PIN 2)"
+            "value": "Allekirjoitus (PIN 2)"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Signaturkod (PIN 2)"
+            "value": "Signaturkoden (PIN 2)"
           }
         }
       }

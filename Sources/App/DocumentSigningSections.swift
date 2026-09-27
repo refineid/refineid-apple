@@ -103,12 +103,12 @@
       if requiresRequesterPIN2 {
         Section(text("signing.authorization", "Signature authorization")) {
           CredentialSecretField(
-            name: text("signing.pin2", "Signature (PIN 2)"),
+            name: CredentialLabels.name(for: .pin2),
             text: $pin2,
             revealIdentifier: "signingPIN2Reveal",
             field: {
               SecureField(
-                text("signing.pin2", "Signature (PIN 2)"),
+                CredentialLabels.name(for: .pin2),
                 text: $pin2
               )
               .keyboardType(.numberPad)
