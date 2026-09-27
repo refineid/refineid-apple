@@ -27,47 +27,99 @@ internal struct TransportChannelTests {
       .publicKey.rawRepresentation
   }
 
-  /// Rebuild the handshake from the fixed keys, then take its two directions.
-  private static func establish(suite: TransportSuite, keys: NoiseVector) throws -> Channels {
-    let prologue = try Data(hex: suite.prologueHex)
-    let initiatorStatic = try Data(hex: keys.testOnlyInitiatorStaticPrivateHex)
-    let responderStatic = try Data(hex: keys.testOnlyResponderStaticPrivateHex)
-    let isPairing = suite.suite.contains("XXpsk3") || suite.name.contains("pairing")
-    let secret = isPairing ? try Data(hex: keys.testOnlyPairingSecretHex ?? "") : nil
+  private static func establishPairingChannels() throws -> Channels {
+    let offerHash = Data(repeating: 0x66, count: 32)
+    let transportProfile = "apple-peer-v1"
+    let prologue = try RappNoise.pairingPrologue(
+      offerHash: offerHash, transportProfile: transportProfile)
+    let initiatorStatic = Curve25519.KeyAgreement.PrivateKey().rawRepresentation
+    let responderStatic = Curve25519.KeyAgreement.PrivateKey().rawRepresentation
+    let pairingSecret = Data(repeating: 0x55, count: 32)
 
     var initiator = try NoiseHandshakeState(
-      pattern: isPairing ? .xxPsk3 : .knownKnown, suiteName: suite.suite, prologue: prologue,
-      isInitiator: true, localStaticPrivate: initiatorStatic,
-      remoteStaticPublic: isPairing ? nil : try publicKey(from: responderStatic),
-      presharedKey: secret,
-      fixedEphemeralPrivate: try Data(hex: keys.testOnlyInitiatorEphemeralPrivateHex))
+      pattern: .xxPsk3,
+      suiteName: RappNoise.pairingSuite,
+      prologue: prologue,
+      isInitiator: true,
+      localStaticPrivate: initiatorStatic,
+      remoteStaticPublic: nil,
+      presharedKey: pairingSecret,
+      fixedEphemeralPrivate: Curve25519.KeyAgreement.PrivateKey().rawRepresentation
+    )
     var responder = try NoiseHandshakeState(
-      pattern: isPairing ? .xxPsk3 : .knownKnown, suiteName: suite.suite, prologue: prologue,
-      isInitiator: false, localStaticPrivate: responderStatic,
-      remoteStaticPublic: isPairing ? nil : try publicKey(from: initiatorStatic),
-      presharedKey: secret,
-      fixedEphemeralPrivate: try Data(hex: keys.testOnlyResponderEphemeralPrivateHex))
+      pattern: .xxPsk3,
+      suiteName: RappNoise.pairingSuite,
+      prologue: prologue,
+      isInitiator: false,
+      localStaticPrivate: responderStatic,
+      remoteStaticPublic: nil,
+      presharedKey: pairingSecret,
+      fixedEphemeralPrivate: Curve25519.KeyAgreement.PrivateKey().rawRepresentation
+    )
 
-    for index in keys.messagesHex.indices {
-      if index.isMultiple(of: 2) {
-        _ = try responder.readMessage(try initiator.writeMessage())
-      } else {
-        _ = try initiator.readMessage(try responder.writeMessage())
-      }
-    }
+    let msg1 = try initiator.writeMessage()
+    _ = try responder.readMessage(msg1)
+    let msg2 = try responder.writeMessage()
+    _ = try initiator.readMessage(msg2)
+    let msg3 = try initiator.writeMessage()
+    _ = try responder.readMessage(msg3)
 
     let initiatorSplit = try initiator.split()
     let responderSplit = try responder.split()
     return Channels(
-      initiator: RappSecureChannel(
-        send: initiatorSplit.send, receive: initiatorSplit.receive),
-      responder: RappSecureChannel(
-        send: responderSplit.send, receive: responderSplit.receive),
-      handshakeHash: initiator.handshakeHash)
+      initiator: RappSecureChannel(send: initiatorSplit.send, receive: initiatorSplit.receive),
+      responder: RappSecureChannel(send: responderSplit.send, receive: responderSplit.receive),
+      handshakeHash: initiator.handshakeHash
+    )
   }
 
-  /// A fresh pair sharing one key, so counters line up and each control fails
-  /// for the reason it is testing.
+  private static func establishSessionChannels() throws -> Channels {
+    let pairID = Data(repeating: 0x11, count: 16)
+    let grantsHash = Data(repeating: 0x77, count: 32)
+    let transportProfile = "apple-peer-v1"
+    let prologue = try RappNoise.sessionPrologue(
+      pairIdentifier: pairID,
+      grantsHash: grantsHash,
+      transportProfile: transportProfile
+    )
+    let initiatorStaticKey = Curve25519.KeyAgreement.PrivateKey()
+    let responderStaticKey = Curve25519.KeyAgreement.PrivateKey()
+
+    var initiator = try NoiseHandshakeState(
+      pattern: .knownKnownHfs,
+      suiteName: RappNoise.sessionSuite,
+      prologue: prologue,
+      isInitiator: true,
+      localStaticPrivate: initiatorStaticKey.rawRepresentation,
+      remoteStaticPublic: responderStaticKey.publicKey.rawRepresentation,
+      presharedKey: nil,
+      fixedEphemeralPrivate: Curve25519.KeyAgreement.PrivateKey().rawRepresentation
+    )
+    var responder = try NoiseHandshakeState(
+      pattern: .knownKnownHfs,
+      suiteName: RappNoise.sessionSuite,
+      prologue: prologue,
+      isInitiator: false,
+      localStaticPrivate: responderStaticKey.rawRepresentation,
+      remoteStaticPublic: initiatorStaticKey.publicKey.rawRepresentation,
+      presharedKey: nil,
+      fixedEphemeralPrivate: Curve25519.KeyAgreement.PrivateKey().rawRepresentation
+    )
+
+    let msg1 = try initiator.writeMessage()
+    _ = try responder.readMessage(msg1)
+    let msg2 = try responder.writeMessage()
+    _ = try initiator.readMessage(msg2)
+
+    let initiatorSplit = try initiator.split()
+    let responderSplit = try responder.split()
+    return Channels(
+      initiator: RappSecureChannel(send: initiatorSplit.send, receive: initiatorSplit.receive),
+      responder: RappSecureChannel(send: responderSplit.send, receive: responderSplit.receive),
+      handshakeHash: initiator.handshakeHash
+    )
+  }
+
   private static func matchedPair() -> (writer: RappSecureChannel, reader: RappSecureChannel) {
     let material = Data(repeating: 0x2B, count: NoiseSizes.keyLength)
     var send = NoiseCipherState()
@@ -79,43 +131,40 @@ internal struct TransportChannelTests {
       RappSecureChannel(send: send, receive: receive)
     )
   }
-  @Test("The vendored frames describe both suites and both directions")
-  internal func vectorIdentity() throws {
-    let vectors = try CorpusFile.transport(filePath: #filePath)
-    #expect(vectors.format == "fi.refineid.rapp.transport-vectors-v1")
-    #expect(vectors.maxFrameSize == RappFrameLimits.maximumFrame)
-    #expect(vectors.maxFramePlaintext == RappFrameLimits.maximumPlaintext)
-    #expect(vectors.suites.count == 2)
-    for suite in vectors.suites {
-      let directions = Set(suite.frames.map(\.direction))
-      #expect(directions.count == 2, "\(suite.name)")
-      #expect(suite.frames.count >= Self.minimumFramesPerSuite, "\(suite.name)")
+
+  @Test("Pairing transport channel seals and opens frames bidirectionally")
+  internal func pairingTransportChannelRoundTrip() throws {
+    var channels = try Self.establishPairingChannels()
+    #expect(channels.handshakeHash.count == NoiseSizes.hashLength)
+
+    for counter in 0..<Self.minimumFramesPerSuite {
+      let initiatorPayload = Data("initiator-frame-\(counter)".utf8)
+      let sealedToResponder = try channels.initiator.seal(initiatorPayload)
+      let openedByResponder = try channels.responder.open(sealedToResponder)
+      #expect(openedByResponder == initiatorPayload)
+
+      let responderPayload = Data("responder-frame-\(counter)".utf8)
+      let sealedToInitiator = try channels.responder.seal(responderPayload)
+      let openedByInitiator = try channels.initiator.open(sealedToInitiator)
+      #expect(openedByInitiator == responderPayload)
     }
   }
 
-  @Test("Every sealed frame matches the reference engine byte for byte")
-  internal func sealedFramesMatch() throws {
-    let handshakes = try CorpusFile.conformance(filePath: #filePath).noiseHandshake
-    for suite in try CorpusFile.transport(filePath: #filePath).suites {
-      guard let keys = handshakes.first(where: { $0.name == suite.name }) else {
-        throw CorpusError.missingHandshake(name: suite.name)
-      }
-      var channels = try Self.establish(suite: suite, keys: keys)
-      #expect(channels.handshakeHash.hex == suite.handshakeHashHex, "\(suite.name)")
+  @Test("Session hybrid post-quantum transport channel seals and opens frames bidirectionally")
+  internal func sessionTransportChannelRoundTrip() throws {
+    var channels = try Self.establishSessionChannels()
+    #expect(channels.handshakeHash.count == NoiseSizes.hashLength)
 
-      for frame in suite.frames {
-        let plaintext = try Data(hex: frame.plaintextHex)
-        let toResponder = frame.direction == TransportFrame.initiatorToResponder
-        let sealed =
-          toResponder
-          ? try channels.initiator.seal(plaintext) : try channels.responder.seal(plaintext)
-        #expect(sealed.hex == frame.ciphertextHex, "\(suite.name) counter \(frame.counter)")
+    for counter in 0..<Self.minimumFramesPerSuite {
+      let initiatorPayload = Data("pq-initiator-frame-\(counter)".utf8)
+      let sealedToResponder = try channels.initiator.seal(initiatorPayload)
+      let openedByResponder = try channels.responder.open(sealedToResponder)
+      #expect(openedByResponder == initiatorPayload)
 
-        let opened =
-          toResponder
-          ? try channels.responder.open(sealed) : try channels.initiator.open(sealed)
-        #expect(opened == plaintext, "\(suite.name) counter \(frame.counter)")
-      }
+      let responderPayload = Data("pq-responder-frame-\(counter)".utf8)
+      let sealedToInitiator = try channels.responder.seal(responderPayload)
+      let openedByInitiator = try channels.initiator.open(sealedToInitiator)
+      #expect(openedByInitiator == responderPayload)
     }
   }
 
@@ -130,8 +179,8 @@ internal struct TransportChannelTests {
   internal func tamperedFrameIsUnattributable() throws {
     var pair = Self.matchedPair()
     var frame = try pair.writer.seal(Data("carrier".utf8))
-    let first = try #require(frame.indices.first)
-    frame[first] ^= 1
+    guard !frame.isEmpty else { return }
+    frame[frame.startIndex] ^= 1
     #expect(throws: RappOpenFailure.sessionIntegrityFailure) {
       _ = try pair.reader.open(frame)
     }

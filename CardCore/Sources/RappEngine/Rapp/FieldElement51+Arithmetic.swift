@@ -62,7 +62,7 @@ extension FieldElement51 {
 
   private static func carryReduce(_ prod: CrossProducts) -> Self {
     let mask = Self.mask51
-    var prod0 = prod.prod0
+    let prod0 = prod.prod0
     var prod1 = prod.prod1
     var prod2 = prod.prod2
     var prod3 = prod.prod3

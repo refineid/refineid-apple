@@ -5,8 +5,6 @@ import Foundation
 /// Sizes fixed by the 25519, ChaChaPoly and SHA256 Noise suites.
 internal enum NoiseSizes {
   internal static let hashLength = 64
-  internal static let sha256HashLength = 32
-  internal static let sha512HashLength = 64
   internal static let keyLength = 32
   internal static let nonceZeroPrefixLength = 4
   internal static let publicKeyLength = 32

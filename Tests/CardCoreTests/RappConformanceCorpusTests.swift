@@ -32,7 +32,7 @@ internal struct RappConformanceCorpusTests {
     return try Data(
       contentsOf:
         repositoryRoot
-        .appendingPathComponent("Documentation/rapp-conformance/rapp-v26.9.13.json")
+        .appendingPathComponent("Documentation/rapp-conformance/rapp-v26.9.28.json")
     )
   }
 
@@ -44,13 +44,13 @@ internal struct RappConformanceCorpusTests {
     let digest = Data(SHA256.hash(data: source))
     #expect(
       RappConformanceCorpusSupport.hex(digest)
-        == "89df6051b100c2a3fcea3df8f2675ffef67b5bc3b7244b41e8466afd901776fe")
+        == "3b6c09e19b208e34396f36d8e3ad1ea860ef305f3208af9eba2845052180e328")
 
     let corpus = try JSONDecoder().decode(
       RappConformanceCorpusSupport.Corpus.self,
       from: source)
     #expect(corpus.format == "fi.refineid.rapp.conformance-v1")
-    #expect(corpus.protocolDocumentVersion == "26.9.13")
+    #expect(corpus.protocolDocumentVersion == "26.9.28")
     #expect(corpus.deterministicCBOR.count == 15)
     #expect(corpus.identifierDerivation.count == 2)
     #expect(corpus.grantsHash.count == 3)
@@ -75,9 +75,9 @@ internal struct RappConformanceCorpusTests {
       let pairInput = Data("RAPP-pair-id-v1".utf8) + handshakeHash
       let sessionInput = Data("RAPP-session-id-v1".utf8) + handshakeHash
       let rendezvousInput = Data("RAPP-rendezvous-v1".utf8) + handshakeHash
-      let pairID = Data(SHA256.hash(data: pairInput).prefix(16))
-      let sessionID = Data(SHA256.hash(data: sessionInput).prefix(16))
-      let rendezvousToken = Data(SHA256.hash(data: rendezvousInput).prefix(16))
+      let pairID = Data(SHA512.hash(data: pairInput).prefix(16))
+      let sessionID = Data(SHA512.hash(data: sessionInput).prefix(16))
+      let rendezvousToken = Data(SHA512.hash(data: rendezvousInput).prefix(16))
       let expectedPairID = try RappConformanceCorpusSupport.data(fromHex: vector.pairIDHex)
       let expectedSessionID = try RappConformanceCorpusSupport.data(fromHex: vector.sessionIDHex)
       let expectedRendezvousToken = try RappConformanceCorpusSupport.data(

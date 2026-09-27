@@ -14,10 +14,10 @@ The vendored documents are the authority, and the Swift engine in
 `CardCore/Sources/RappEngine` implements them. There is no compiled protocol
 artifact in this repository.
 
-- Specification: `Documentation/protocol/rapp-v26.9.13.md`
+- Specification: `Documentation/protocol/rapp-v26.9.28.md`
 - Formal state model: `Documentation/protocol/rapp-state-machine-v26.9.13.yaml`
-- Conformance corpus: `Documentation/rapp-conformance/rapp-v26.9.13.json`
-  (`SHA-256 89df6051b100c2a3fcea3df8f2675ffef67b5bc3b7244b41e8466afd901776fe`)
+- Conformance corpus: `Documentation/rapp-conformance/rapp-v26.9.28.json`
+  (`SHA-256 3b6c09e19b208e34396f36d8e3ad1ea860ef305f3208af9eba2845052180e328`)
 - Vectors generated from the reference engine, covering what the corpus does
   not reach: `rapp-transport-v26.9.7.70.json` (post-handshake framing),
   `rapp-flow-v26.9.7.70.json` (ceremony bodies), and

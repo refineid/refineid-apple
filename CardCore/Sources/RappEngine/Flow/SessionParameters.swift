@@ -10,32 +10,6 @@ internal struct SessionParameters: Equatable {
 
   internal var grantsHash: Data
 
-  internal var suite: String
-
-  internal init(
-    transportProfile: String,
-    candidateIdentifier: String,
-    grantsHash: Data
-  ) {
-    self.init(
-      transportProfile: transportProfile,
-      candidateIdentifier: candidateIdentifier,
-      grantsHash: grantsHash,
-      suite: RappNoise.sessionSuite)
-  }
-
-  internal init(
-    transportProfile: String,
-    candidateIdentifier: String,
-    grantsHash: Data,
-    suite: String
-  ) {
-    self.transportProfile = transportProfile
-    self.candidateIdentifier = candidateIdentifier
-    self.grantsHash = grantsHash
-    self.suite = suite
-  }
-
   internal static func from(map: [String: WireValue]) throws -> Self {
     var fields = map
     try requireVersion(&fields)
@@ -54,8 +28,7 @@ internal struct SessionParameters: Equatable {
     return Self(
       transportProfile: decodedTransportProfile,
       candidateIdentifier: decodedCandidateIdentifier,
-      grantsHash: decodedGrantsHash,
-      suite: decodedSuite)
+      grantsHash: decodedGrantsHash)
   }
 
   internal func asMap() throws -> [String: WireValue] {
@@ -63,7 +36,7 @@ internal struct SessionParameters: Equatable {
     try validateLabel(candidateIdentifier, "candidate_id")
     return [
       "version": wireVersionValue,
-      "suite": .text(suite),
+      "suite": .text(RappNoise.sessionSuite),
       "transport_profile": .text(transportProfile),
       "candidate_id": .text(candidateIdentifier),
       "grants_hash": .bytes(grantsHash),

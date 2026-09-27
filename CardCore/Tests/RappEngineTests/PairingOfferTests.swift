@@ -17,12 +17,14 @@ internal struct PairingOfferTests {
 
   @Test("The offer hash matches the reference implementation")
   internal func offerHashMatchesReference() throws {
-    #expect(try makeOffer().offerHash().hex == expectedOfferHashHex)
+    let hash = try makeOffer().offerHash().hex
+    #expect(hash == expectedOfferHashHex)
   }
 
   @Test("The offer URI matches the reference implementation")
   internal func offerUriMatchesReference() throws {
-    #expect(try makeOffer().uri() == goldenUri)
+    let uri = try makeOffer().uri()
+    #expect(uri == goldenUri)
   }
 
   @Test("A URI round trip preserves every field")

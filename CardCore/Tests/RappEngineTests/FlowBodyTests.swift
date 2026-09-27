@@ -27,8 +27,7 @@ internal struct FlowBodyTests {
       parameters: NegotiatedParameters(
         offerHash: try Data(hex: inputs.offerHashHex),
         transportProfile: inputs.transportProfile,
-        candidateIdentifier: inputs.candidateIdentifier,
-        suite: "Noise_XXpsk3_25519_ChaChaPoly_SHA256"),
+        candidateIdentifier: inputs.candidateIdentifier),
       offered: inputs.offeredProfiles.compactMap { ProfileName(rawValue: $0) },
       nonce: try Data(hex: inputs.readyNonceHex))
   }
@@ -112,8 +111,7 @@ internal struct FlowBodyTests {
       let parameters = SessionParameters(
         transportProfile: fixed.inputs.transportProfile,
         candidateIdentifier: fixed.inputs.candidateIdentifier,
-        grantsHash: try Data(hex: grantsHashHex),
-        suite: "Noise_KK_25519_ChaChaPoly_SHA256")
+        grantsHash: try Data(hex: grantsHashHex))
       #expect(
         try Self.body(SessionReady(parameters: parameters, nonce: fixed.nonce).body())
           == (try Self.expected(corpus, name)), "\(name)")

@@ -12,4 +12,4 @@ internal enum OfferLimit {
 }
 
 /// The pairing suite every offer must list.
-internal let mandatoryPairingSuite = "Noise_XXpsk3_25519_ChaChaPoly_SHA256"
+internal let mandatoryPairingSuite = RappNoise.pairingSuite

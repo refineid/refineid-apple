@@ -13,32 +13,6 @@ internal struct NegotiatedParameters: Equatable {
 
   internal var candidateIdentifier: String
 
-  internal var suite: String
-
-  internal init(
-    offerHash: Data,
-    transportProfile: String,
-    candidateIdentifier: String
-  ) {
-    self.init(
-      offerHash: offerHash,
-      transportProfile: transportProfile,
-      candidateIdentifier: candidateIdentifier,
-      suite: RappNoise.pairingSuite)
-  }
-
-  internal init(
-    offerHash: Data,
-    transportProfile: String,
-    candidateIdentifier: String,
-    suite: String
-  ) {
-    self.offerHash = offerHash
-    self.transportProfile = transportProfile
-    self.candidateIdentifier = candidateIdentifier
-    self.suite = suite
-  }
-
   internal static func from(map: [String: WireValue]) throws -> Self {
     var fields = map
     try requireVersion(&fields)
@@ -59,7 +33,7 @@ internal struct NegotiatedParameters: Equatable {
     try validateLabel(candidateIdentifier, "candidate_id")
     return [
       "version": wireVersionValue,
-      "suite": .text(suite),
+      "suite": .text(RappNoise.pairingSuite),
       "offer_hash": .bytes(offerHash),
       "transport_profile": .text(transportProfile),
       "candidate_id": .text(candidateIdentifier),
