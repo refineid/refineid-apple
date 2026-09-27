@@ -20,6 +20,7 @@
     private static let allowTitles = ["Allow", "Salli", "Tillåt"]
     private static let denyTitles = ["Don't Allow", "Älä salli", "Tillåt inte"]
     private static let settingsBackTapLimit = 6
+    private static let switchSettleTimeout: TimeInterval = 3
 
     // MARK: Static Functions
 
@@ -215,13 +216,21 @@
       XCTAssertTrue(
         toggle.waitForExistence(timeout: Self.appearTimeout),
         "the RefineID system switch never appeared")
-      let value = toggle.value
-      let isOn =
-        (value as? String == "1") || (value as? Int == 1)
-        || (value as? Bool == true)
-      if isOn != enabled {
+      if isOn(toggle) != enabled {
         toggle.tap()
       }
+      let deadline = Date().addingTimeInterval(Self.switchSettleTimeout)
+      while Date() < deadline, isOn(toggle) != enabled {
+        RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+      }
+      XCTAssertEqual(
+        isOn(toggle),
+        enabled,
+        "the RefineID system switch reads \(String(describing: toggle.value))")
+      let shot = XCTAttachment(screenshot: settings.screenshot())
+      shot.name = "local-network-switch"
+      shot.lifetime = .keepAlways
+      add(shot)
       // Launching the app under test foregrounds it again; Settings
       // stays suspended and needs no teardown.
     }
