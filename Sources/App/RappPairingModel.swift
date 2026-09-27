@@ -137,6 +137,9 @@ internal final class RappPairingModel: ObservableObject {
 
   internal func createOffer(customCode: String?) {
     resetAttempt()
+    #if os(iOS)
+      RemoteAccessServing.setEnabled(true)
+    #endif
     #if REFINEID_LOCAL_CARD && os(iOS)
       PhonePersistentTokenRelay.shared.suspendForPairing()
     #endif

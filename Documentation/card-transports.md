@@ -148,6 +148,11 @@ held on the phone without requiring a smart card slot or USB reader on the Mac.
    PIN 1 exists only in volatile memory during the physical insertion. The moment
    the card is disconnected or the reader unplugged, cached PIN 1 state is
    immediately zeroized.
+4. **Opt-in serving on iPhone.** Remote serving is off by default: a fresh
+   install never advertises, browses, or asks for notification permission
+   until the holder turns Remote Access on or enters a pairing code shown
+   on the requesting computer. Pairings stay stored while serving is off,
+   so turning it back on reconnects without a new code.
 4. **Encrypted in-band card departure.** When a card is disconnected during an
    active proxy session, the proxy immediately transmits an encrypted in-band
    `session.close(card_unavailable)` message. This unblocks the Mac browser

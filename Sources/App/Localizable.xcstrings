@@ -6325,6 +6325,72 @@
           }
         }
       }
+    },
+    "Off": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pois"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Av"
+          }
+        }
+      }
+    },
+    "When on, your Mac or PC finds this iPhone on the local network.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When on, your Mac or PC finds this iPhone on the local network."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kun käytössä, Mac tai PC löytää tämän iPhonen lähiverkosta."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "När funktionen är på hittar din Mac eller pc den här iPhonen i det lokala nätverket."
+          }
+        }
+      }
+    },
+    "Pair with the 6-digit code shown on your computer.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pair with the 6-digit code shown on your computer."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yhdistä tietokoneella näkyvällä 6-numeroisella koodilla."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parkoppla med den 6-siffriga koden som visas på datorn."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

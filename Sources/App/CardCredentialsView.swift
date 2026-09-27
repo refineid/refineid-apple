@@ -103,6 +103,9 @@ internal struct CardCredentialsView: View {
     /// The 6-digit numeric pairing code typed on iPhone.
     @State internal var pairingCodeDigits = ""
 
+    /// The Remote Access toggle, synced with the persisted holder choice.
+    @State internal var remoteAccessEnabled = false
+
     @FocusState internal var isPairingFieldFocused: Bool
   #endif
   // swiftlint:enable private_swiftui_state

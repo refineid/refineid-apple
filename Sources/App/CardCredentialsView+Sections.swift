@@ -89,7 +89,6 @@ extension CardCredentialsView {
           pin1Row
         }
         if identityHolder != nil || hasReaderIdentity {
-          remoteRouteRow
           cardManagementButton
         }
         #if REFINEID_LOCAL_CARD

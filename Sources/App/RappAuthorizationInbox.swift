@@ -20,11 +20,22 @@
     private var continuation: CheckedContinuation<RappAuthorizationDecision, Never>?
 
     private init() {
+      // The authorization prompt waits for the holder's opt-in: asking
+      // here would put it on the very first launch, before any remote
+      // use was ever chosen.
+    }
+
+    /// Asks for the notification authorization the prompts need.
+    ///
+    /// Called when Remote Access is enabled, with the toggle's own
+    /// explanation on screen. The approval alert below shows in the app
+    /// regardless; the notification carries it when backgrounded.
+    internal func ensureAuthorization() {
       guard SupportedCardTransports.offersNearField else { return }
       UNUserNotificationCenter.current().requestAuthorization(
         options: [.alert, .sound, .badge]
       ) { _, _ in
-        // Notification authorization requested for near-field card holder.
+        // Notification authorization requested for an opted-in holder.
       }
     }
 

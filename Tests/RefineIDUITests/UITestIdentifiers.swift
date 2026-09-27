@@ -115,6 +115,9 @@ internal enum UITestIdentifiers {
   /// be reached.
   internal static let remoteCard = "remoteCard"
 
+  /// The holder's opt-in switch for serving the card over the network.
+  internal static let remoteAccessToggle = "remoteAccessToggle"
+
   /// The code a requesting device shows for a phone to scan.
   internal static let pairingCode = "pairingCode"
 

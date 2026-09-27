@@ -172,22 +172,13 @@
 
       // 2. Start local network discovery (Bonjour / LAN)
       #if canImport(Network)
-        let discovery = RappLocalDiscovery(
-          localIdentity: identity,
-          localRole: role,
-          onLiveDevicesChanged: { [weak self] ids, names in
-            self?.updateOnlineDevices(ids: ids, names: names)
-          },
-          onDiscovered: { [weak self] discovered in
-            guard let self, let coordinator else { return }
-            Task {
-              await coordinator.registerDiscoveredDevice(discovered)
-              self.reconcile()
-            }
+        #if os(iOS)
+          if RemoteAccessGate.isEnabled {
+            startLocalDiscovery(identity: identity, role: role)
           }
-        )
-        discovery.start()
-        self.localDiscovery = discovery
+        #else
+          startLocalDiscovery(identity: identity, role: role)
+        #endif
       #endif
 
       // 3. Observe iCloud external changes
@@ -200,6 +191,29 @@
           self?.reconcile()
         }
       }
+    }
+
+    /// Starts or stops local-network discovery for the holder's choice.
+    ///
+    /// iCloud sync and reconciliation run regardless; only the Bonjour
+    /// advertisement and browse that summon the system prompt are gated.
+    /// A stopped discovery cannot be restarted, so enabling builds a new one.
+    public func setLocalDiscoveryEnabled(_ enabled: Bool) {
+      #if canImport(Network)
+        lock.lock()
+        defer { lock.unlock() }
+        if enabled {
+          guard localDiscovery == nil else { return }
+          guard
+            let identity = coordinator?.localIdentity ?? (try? RappDeviceIdentity())
+          else { return }
+          startLocalDiscovery(identity: identity, role: discoveryRole())
+        } else {
+          let discovery = localDiscovery
+          localDiscovery = nil
+          discovery?.cancel()
+        }
+      #endif
     }
 
     /// Triggers an immediate reconciliation of the cloud directory against the local device vault.
@@ -243,6 +257,46 @@
       lock.lock()
       cachedRemoteDevices = remotes
       lock.unlock()
+    }
+
+    #if canImport(Network)
+      /// Builds and starts one local discovery for the given identity.
+      private func startLocalDiscovery(
+        identity: RappDeviceIdentity,
+        role: RappDeviceRole
+      ) {
+        let discovery = RappLocalDiscovery(
+          localIdentity: identity,
+          localRole: role,
+          onLiveDevicesChanged: { [weak self] ids, names in
+            self?.updateOnlineDevices(ids: ids, names: names)
+          },
+          onDiscovered: { [weak self] discovered in
+            guard let self, let coordinator else { return }
+            Task {
+              await coordinator.registerDiscoveredDevice(discovered)
+              self.reconcile()
+            }
+          }
+        )
+        discovery.start()
+        self.localDiscovery = discovery
+      }
+    #endif
+
+    /// The role discovery announces, from the coordinator when it exists.
+    private func discoveryRole() -> RappDeviceRole {
+      if let role = coordinator?.localRole {
+        return role
+      }
+      #if os(iOS)
+        guard SupportedCardTransports.offersNearField else {
+          return .requester
+        }
+        return .holder
+      #else
+        return .requester
+      #endif
     }
 
     deinit {

@@ -32,6 +32,9 @@ extension CardCredentialsView {
           if offersNearField || hasReaderIdentity {
             cardSection
             readIdentityCardSection
+            if identityHolder != nil || hasReaderIdentity {
+              remoteAccessSection
+            }
           }
         }
       #endif

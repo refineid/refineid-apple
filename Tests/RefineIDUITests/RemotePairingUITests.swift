@@ -23,6 +23,24 @@
       super.tearDown()
     }
 
+    /// Remote access starts off: nothing may enable it before the holder.
+    ///
+    /// The toggle is the opt-in, so a fresh launch shows it off even with
+    /// a registered identity present. Each launch decides from its own
+    /// arguments, so no earlier run can leak an on state into this one.
+    internal func testRemoteAccessDefaultsOff() {
+      let app = UITestApp.launchVirtualCard(scenario: "registered-nfc")
+      let toggle = element("remoteAccessToggle", in: app)
+      XCTAssertTrue(
+        toggle.waitForExistence(timeout: Self.appearTimeout),
+        "the Remote Access toggle did not appear")
+      let value = toggle.value
+      let isOff =
+        (value as? String == "0") || (value as? Int == 0)
+        || (value as? Bool == false)
+      XCTAssertTrue(isOff, "remote access was on without the holder opting in")
+    }
+
     /// Tapping Connect opens inline pairing controls.
     ///
     /// The holder row is served only where a card can be reached, so the
