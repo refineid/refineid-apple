@@ -1,17 +1,19 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 #if os(iOS)
+  import CardCore
   import Foundation
   import Network
   import os
 
-  /// Reads the local-network permission from a connection's own verdict.
+  /// Reads the local-network permission from the Bonjour gate itself.
   ///
-  /// Browsing refusal is silent, but a direct connection to the LAN
-  /// reports a state: reaching the router at all means access was
-  /// granted, while the permission failure means it was denied. An
-  /// undecided prompt leaves the connection waiting, which reads as
-  /// neither and lets the flow proceed under watch instead of guessing.
+  /// Browsing and advertising ride the gated path, so a short-lived
+  /// browser and advertiser report what the permission decides: ready
+  /// means access was granted, while the permission failure means it
+  /// was denied. An undecided prompt leaves both waiting, which reads
+  /// as neither and lets the flow proceed under watch instead of
+  /// guessing.
   internal enum LocalNetworkAccessDetector {
     // MARK: Nested Types
 
@@ -26,14 +28,21 @@
       case undecided
     }
 
-    /// Carries one probe connection across the cancellation boundary.
-    private final class ConnectionBox: @unchecked Sendable {
+    /// Carries one probe's cancel across the cancellation boundary.
+    private final class CancelBox: @unchecked Sendable {
       private let lock = NSLock()
-      private var stored: NWConnection?
+      private var stored: (() -> Void)?
 
-      var connection: NWConnection? {
-        get { lock.withLock { stored } }
-        set { lock.withLock { stored = newValue } }
+      func set(_ cancel: @escaping () -> Void) {
+        lock.withLock { stored = cancel }
+      }
+
+      func take() -> (() -> Void)? {
+        lock.withLock {
+          let cancel = stored
+          stored = nil
+          return cancel
+        }
       }
     }
 
@@ -59,17 +68,10 @@
 
     // MARK: Static Properties
 
-    private static let wifiInterfaceName = "en0"
-    private static let gatewayHostOffset: UInt32 = 1
-    private static let fallbackGatewayLastOctet: UInt32 = 254
-    private static let octetShift: UInt32 = 8
-    /// One IPv4 octet's worth of bits, for splitting an address to print.
-    private static let octetMask: UInt32 = 255
-    private static let octetCount = 4
-    private static let routerHTTPPort: UInt16 = 80
-    private static let routerHTTPSPort: UInt16 = 443
-    private static let routerDNSPort: UInt16 = 53
-    private static let probePorts: [UInt16] = [routerHTTPPort, routerHTTPSPort, routerDNSPort]
+    /// The probe advertises under its own name on the discovery type.
+    private static let probeServiceName = "RefineID-Probe"
+    private static let probeTXTKey = "probe"
+    private static let probeTXTValue = "1"
     private static let quickVerdictSeconds: UInt64 = 5
     private static let denialWatchSeconds: UInt64 = 120
 
@@ -89,14 +91,9 @@
     /// Answers whether this app may use the local network.
     ///
     /// Decided states answer fast from the probe. A still-waiting
-    /// probe means the system prompt is up or the gateway is quiet;
-    /// either way the caller proceeds and watches for the denial.
+    /// probe means the system prompt is up; either way the caller
+    /// proceeds and watches for the denial.
     internal static func currentAccess() async -> Access {
-      guard let target = lanProbeTarget() else {
-        logger.info("local-network probe has no target, assuming allowed")
-        return .allowed
-      }
-      logger.info("local-network probe target \(target, privacy: .public)")
       if let quick = await raceProbes(deadlineSeconds: quickVerdictSeconds) {
         let access: Access = quick == .denied ? .denied : .allowed
         logger.info(
@@ -115,7 +112,6 @@
     /// window passes.
     internal static func watchForDenial(windowSeconds: UInt64) {
       Task.detached {
-        guard lanProbeTarget() != nil else { return }
         if await raceProbes(deadlineSeconds: windowSeconds) == .denied {
           NotificationCenter.default.post(name: accessDeniedNotification, object: nil)
         }
@@ -124,54 +120,11 @@
 
     // MARK: Private Helpers
 
-    /// The likeliest gateway address from the Wi-Fi interface, if any.
-    ///
-    /// The first address past the subnet base answers on all but the
-    /// most exotic home gateways; exotic ones simply never answer and
-    /// the flow proceeds under watch instead of blocking on them.
-    private static func lanProbeTarget() -> String? {
-      var interfaces: UnsafeMutablePointer<ifaddrs>?
-      guard getifaddrs(&interfaces) == 0, let first = interfaces else { return nil }
-      defer { freeifaddrs(first) }
-      var cursor: UnsafeMutablePointer<ifaddrs>? = first
-      while let current = cursor {
-        defer { cursor = current.pointee.ifa_next }
-        guard
-          String(cString: current.pointee.ifa_name) == wifiInterfaceName,
-          let address = current.pointee.ifa_addr,
-          address.pointee.sa_family == UInt8(AF_INET),
-          let mask = current.pointee.ifa_netmask
-        else { continue }
-        let own = address.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { socket in
-          UInt32(bigEndian: socket.pointee.sin_addr.s_addr)
-        }
-        let netmask = mask.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { socket in
-          UInt32(bigEndian: socket.pointee.sin_addr.s_addr)
-        }
-        let base = own & netmask
-        var candidate = base + gatewayHostOffset
-        if candidate == own {
-          candidate = base | fallbackGatewayLastOctet
-        }
-        guard candidate != own else { return nil }
-        var octets: [String] = []
-        var remaining = candidate
-        for _ in 0..<octetCount {
-          octets.append(String(remaining & octetMask))
-          remaining >>= octetShift
-        }
-        return octets.reversed().joined(separator: ".")
-      }
-      return nil
-    }
-
-    /// Races one probe per port; nil when all still wait at the deadline.
+    /// Races browsing against advertising; nil when both still wait.
     private static func raceProbes(deadlineSeconds: UInt64) async -> ProbeVerdict? {
-      guard let router = lanProbeTarget() else { return nil }
-      return await withTaskGroup(of: ProbeVerdict.self) { group in
-        for port in probePorts {
-          group.addTask { await probe(host: router, port: port) }
-        }
+      await withTaskGroup(of: ProbeVerdict.self) { group in
+        group.addTask { await probeBrowsing() }
+        group.addTask { await probeAdvertising() }
         group.addTask {
           try? await Task.sleep(for: .seconds(deadlineSeconds))
           return .undecided
@@ -184,67 +137,136 @@
       }
     }
 
-    /// Probes one router port until it answers or the race is cancelled.
-    private static func probe(host: String, port: UInt16) async -> ProbeVerdict {
-      let connectionBox = ConnectionBox()
+    /// Browses the discovery type until the gate answers or cancels.
+    private static func probeBrowsing() async -> ProbeVerdict {
+      let cancelBox = CancelBox()
       return await withTaskCancellationHandler(
         operation: {
           await withCheckedContinuation { continuation in
             let settled = ProbeSettlement()
-            guard let endpointPort = NWEndpoint.Port(rawValue: port) else {
-              settled.finish(with: .allowed, continuation: continuation)
-              return
+            let settle: @Sendable (ProbeVerdict) -> Void = { verdict in
+              cancelBox.take()?()
+              settled.finish(with: verdict, continuation: continuation)
             }
-            let connection = NWConnection(
-              host: NWEndpoint.Host(host), port: endpointPort, using: .tcp)
-            connection.stateUpdateHandler = { state in
-              handleProbeState(
-                state,
-                connection: connection,
-                settled: settled,
-                continuation: continuation)
+            let browser = NWBrowser(
+              for: .bonjour(type: RappLocalDiscovery.serviceType, domain: nil),
+              using: .tcp
+            )
+            browser.stateUpdateHandler = { state in
+              handleBrowserState(state, settle: settle)
             }
-            connectionBox.connection = connection
+            browser.browseResultsChangedHandler = { results, _ in
+              logger.info(
+                "local-network browse probe sees \(results.count, privacy: .public) results")
+            }
+            cancelBox.set { browser.cancel() }
             guard !Task.isCancelled else {
-              connection.cancel()
-              settled.finish(with: .allowed, continuation: continuation)
+              settle(.allowed)
               return
             }
-            connection.start(queue: .global(qos: .userInitiated))
+            browser.start(queue: .global(qos: .userInitiated))
           }
         },
         onCancel: {
-          connectionBox.connection?.cancel()
+          cancelBox.take()?()
         })
     }
 
-    /// Settles one probe from a connection state change.
-    private static func handleProbeState(
-      _ state: NWConnection.State,
-      connection: NWConnection,
-      settled: ProbeSettlement,
-      continuation: CheckedContinuation<ProbeVerdict, Never>
+    /// Advertises a probe instance until the gate answers or cancels.
+    private static func probeAdvertising() async -> ProbeVerdict {
+      let cancelBox = CancelBox()
+      return await withTaskCancellationHandler(
+        operation: {
+          await withCheckedContinuation { continuation in
+            let settled = ProbeSettlement()
+            let settle: @Sendable (ProbeVerdict) -> Void = { verdict in
+              cancelBox.take()?()
+              settled.finish(with: verdict, continuation: continuation)
+            }
+            guard let listener = makeProbeListener() else {
+              logger.info("local-network advertise probe has no listener")
+              settle(.allowed)
+              return
+            }
+            listener.stateUpdateHandler = { state in
+              handleListenerState(state, settle: settle)
+            }
+            cancelBox.set { listener.cancel() }
+            guard !Task.isCancelled else {
+              settle(.allowed)
+              return
+            }
+            listener.start(queue: .global(qos: .userInitiated))
+          }
+        },
+        onCancel: {
+          cancelBox.take()?()
+        })
+    }
+
+    /// Builds the probe advertiser on the discovery type.
+    private static func makeProbeListener() -> NWListener? {
+      guard let listener = try? NWListener(using: .tcp) else { return nil }
+      var txtRecord = NWTXTRecord()
+      txtRecord[probeTXTKey] = probeTXTValue
+      listener.service = NWListener.Service(
+        name: probeServiceName,
+        type: RappLocalDiscovery.serviceType,
+        domain: nil,
+        txtRecord: txtRecord
+      )
+      listener.newConnectionHandler = { connection in
+        connection.cancel()
+      }
+      return listener
+    }
+
+    /// Settles the browse probe from a browser state change.
+    private static func handleBrowserState(
+      _ state: NWBrowser.State,
+      settle: @Sendable (ProbeVerdict) -> Void
     ) {
       switch state {
       case .ready:
-        logger.info("local-network probe ready")
-        connection.cancel()
-        settled.finish(with: .allowed, continuation: continuation)
+        logger.info("local-network browse probe ready")
+        settle(.allowed)
       case .failed(let error):
-        logger.info("local-network probe failed: \(String(describing: error))")
-        connection.cancel()
-        settled.finish(
-          with: isPermissionError(error) ? .denied : .allowed,
-          continuation: continuation)
+        logger.info("local-network browse probe failed: \(String(describing: error))")
+        settle(isPermissionError(error) ? .denied : .allowed)
       case .cancelled:
-        settled.finish(with: .allowed, continuation: continuation)
+        settle(.allowed)
       case .waiting(let error):
         if isPermissionError(error) {
-          logger.info("local-network probe waiting on permission, reading denied")
-          connection.cancel()
-          settled.finish(with: .denied, continuation: continuation)
+          logger.info("local-network browse probe waiting on permission, reading denied")
+          settle(.denied)
         }
-      case .preparing, .setup:
+      case .setup:
+        break
+      @unknown default:
+        break
+      }
+    }
+
+    /// Settles the advertise probe from a listener state change.
+    private static func handleListenerState(
+      _ state: NWListener.State,
+      settle: @Sendable (ProbeVerdict) -> Void
+    ) {
+      switch state {
+      case .ready:
+        logger.info("local-network advertise probe ready")
+        settle(.allowed)
+      case .failed(let error):
+        logger.info("local-network advertise probe failed: \(String(describing: error))")
+        settle(isPermissionError(error) ? .denied : .allowed)
+      case .cancelled:
+        settle(.allowed)
+      case .waiting(let error):
+        if isPermissionError(error) {
+          logger.info("local-network advertise probe waiting on permission, reading denied")
+          settle(.denied)
+        }
+      case .setup:
         break
       @unknown default:
         break
