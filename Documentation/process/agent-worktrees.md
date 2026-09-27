@@ -64,3 +64,22 @@ resume work or clean up. In particular:
 
 Hardware and physical test devices are owner-coordinated.
 Agents do not arbitrate, reserve, or toggle transports or physical smart cards.
+
+## Documentation-only GitHub checks
+
+GitHub classifies the complete changed-path set before selecting a runner.
+Changes limited to `README.md`, `AGENTS.md`, `TASKS.md`, and Markdown or
+bibliography files under `Documentation/` run lightweight Linux whitespace
+checks. They do not compile the application or run Swift package tests.
+
+Code, scripts, workflow configuration, metadata, mixed changes, and unknown
+paths retain full macOS verification. The required `build` status remains
+present for both paths. Classification failures fail that check.
+
+The classifier is `Scripts/ci-change-scope.py`; its verification entry point is
+`python3 Scripts/test-ci-change-scope.py`. Local mandatory git hooks remain
+active for every commit and push.
+
+GitHub warns that filtering out an entire required workflow can leave its
+status pending. This workflow instead selects the appropriate work inside the
+required check: [GitHub required-check documentation](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks).
