@@ -234,3 +234,11 @@ Normative Apple platform documentation. Supports automatic scaling from larger
 screenshots and using Media Manager for size-specific assets. Does not establish
 that faded inherited thumbnails represent faded source images, or document the
 opacity of App Store Connect controls.
+
+### apple_swift_testing_parallelization
+
+[Apple: Running tests serially or in parallel](https://developer.apple.com/documentation/testing/parallelization).
+Normative Apple platform documentation. Supports recursive serialization of a
+suite's nested tests and suites. Does not serialize unrelated peer suites or
+prove that test fixtures are isolated. Certificate-cache tests sharing the
+process-wide test store belong under the same serialized parent suite.
