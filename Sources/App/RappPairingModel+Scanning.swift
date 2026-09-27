@@ -29,6 +29,9 @@ extension RappPairingModel {
       fail(String(localized: "The pairing code is invalid or expired"))
       return
     }
+    #if os(iOS)
+      RemoteAccessServing.setEnabled(true)
+    #endif
     do {
       let (_, uri) = try RappPairingCode.pairingOffer(
         for: code,

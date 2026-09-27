@@ -30,6 +30,9 @@ extension RappPairingModel {
     }
     try? vault.clearSelectedPair()
     RappPairNames.forgetAll()
+    #if os(iOS)
+      RemoteAccessServing.setEnabled(false)
+    #endif
     #if os(macOS) || os(iOS)
       PersistentTokenRegistry.withdrawPublishedIdentity()
       #if REFINEID_STREAM_TRANSPORT
@@ -90,6 +93,7 @@ extension RappPairingModel {
       // A revoked pretend pairing stays revoked.
       pretendPaired = false
     #endif
+    // Revoking every pair disables serving too; see revokeEveryStoredPair.
     #if REFINEID_LOCAL_CARD && os(iOS)
       PhonePersistentTokenRelay.shared.stopListening()
     #endif

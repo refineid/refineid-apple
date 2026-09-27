@@ -6394,6 +6394,182 @@
           }
         }
       }
+    },
+    "OK": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selvä"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        }
+      }
+    },
+    "Open Settings": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Settings"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avaa asetukset"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna inställningar"
+          }
+        }
+      }
+    },
+    "Allow Notifications": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow Notifications"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salli ilmoitukset"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tillåt notiser"
+          }
+        }
+      }
+    },
+    "Local Network Access Is Off": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local Network Access Is Off"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lähiverkon käyttö on pois päältä"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Åtkomst till lokalt nätverk är av"
+          }
+        }
+      }
+    },
+    "Remote Access needs it to let other devices find this iPhone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote Access needs it to let other devices find this iPhone."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Etäkäyttö tarvitsee sitä, jotta muut laitteet löytävät tämän iPhonen."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fjärråtkomst behöver det för att andra enheter ska hitta den här iPhonen."
+          }
+        }
+      }
+    },
+    "Get notified when a nearby device needs this iPhone; without it, Remote Access works only while open.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get notified when a nearby device needs this iPhone; without it, Remote Access works only while open."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saat ilmoituksen, kun lähilaite tarvitsee tätä iPhonea; ilman sitä etäkäyttö toimii vain sovelluksen ollessa auki."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Få en notis när en närliggande enhet behöver den här iPhonen; utan den fungerar fjärråtkomst endast när appen är öppen."
+          }
+        }
+      }
+    },
+    "Remote Card Use": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote Card Use"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kortin etäkäyttö"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fjärranvändning av kort"
+          }
+        }
+      }
+    },
+    "Network access is required.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Network access is required."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tämä vaatii lähiverkkoyhteyden."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detta kräver åtkomst till lokalt nätverk."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

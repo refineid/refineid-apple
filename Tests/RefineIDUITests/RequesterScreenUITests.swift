@@ -52,7 +52,7 @@
 
       for absent in [
         UITestIdentifiers.pinManagementButton,
-        UITestIdentifiers.remoteCard,
+        UITestIdentifiers.remoteAccessToggle,
         UITestIdentifiers.cardAccessNumberField,
         UITestIdentifiers.pin1Field,
       ] {

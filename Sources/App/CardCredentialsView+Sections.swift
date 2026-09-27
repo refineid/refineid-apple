@@ -89,8 +89,9 @@ extension CardCredentialsView {
           pin1Row
         }
         if identityHolder != nil || hasReaderIdentity {
-          remoteRouteRow
           cardManagementButton
+          remoteAccessToggleRow
+          remotePairingCodeRow
         }
         #if REFINEID_LOCAL_CARD
           if let failure = primingModel.failure {
@@ -101,13 +102,44 @@ extension CardCredentialsView {
       } header: {
         compactSectionHeader("Card")
       }
+      .onAppear {
+        syncRemoteAccessToggle()
+        pairingModel.refresh()
+        RappAutoPairingService.shared.reconcile()
+        #if os(iOS) && REFINEID_LOCAL_CARD
+          phoneRelay.updatePeerOnlineState()
+        #endif
+      }
       .onReceive(pairingModel.$phase) { phase in
         if case .paired = phase {
           withAnimation {
-            isPairingInputActive = false
             pairingCodeDigits = ""
           }
         }
+        syncRemoteAccessToggle()
+      }
+      .onReceive(
+        NotificationCenter.default.publisher(
+          for: RappPairingModel.pairingsDidChangeNotification)
+      ) { _ in
+        pairingModel.refresh()
+        syncRemoteAccessToggle()
+      }
+      .onReceive(
+        NotificationCenter.default.publisher(
+          for: RappAutoPairingService.pairingsDidChangeNotification)
+      ) { _ in
+        pairingModel.refresh()
+        #if os(iOS) && REFINEID_LOCAL_CARD
+          phoneRelay.updatePeerOnlineState()
+        #endif
+        syncRemoteAccessToggle()
+      }
+      .onReceive(
+        NotificationCenter.default.publisher(
+          for: LocalNetworkAccessDetector.accessDeniedNotification)
+      ) { _ in
+        handleLocalNetworkDenial()
       }
     }
 

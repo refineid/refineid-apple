@@ -88,6 +88,9 @@
 
     internal func start() {
       updatePeerOnlineState()
+      // Remote serving is opt-in: without the holder's choice nothing
+      // advertises, so no local-network prompt can surprise them.
+      guard RemoteAccessGate.isEnabled else { return }
       // A proxy without an antenna is not a proxy: only near-field
       // devices advertise as the card holder.
       guard SupportedCardTransports.offersNearField else { return }
