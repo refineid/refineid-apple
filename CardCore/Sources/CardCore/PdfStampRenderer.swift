@@ -1,5 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
+import CoreText
 import Foundation
 
 /// Renders the visual red electronic signature stamp.
@@ -11,6 +12,18 @@ public enum PdfStampRenderer {
     internal let middleLines: [String]
     internal let topBorderText: String
     internal let bottomBorderText: String
+  }
+
+  internal struct TextMetrics {
+    internal let advance: Double
+    internal let bounds: CGRect
+  }
+
+  internal struct CenterLine {
+    internal let text: String
+    internal let fontSize: Double
+    internal let origin: CGPoint
+    internal let bounds: CGRect
   }
 
   /// The outer circular radius of the stamp in points.
@@ -26,37 +39,20 @@ public enum PdfStampRenderer {
 
   private static let outerRingLineWidth = 1.8
   private static let borderSeparatorLineWidth = 0.9
-  private static let innerRingLineWidth = 0.5
-  private static let subtleRingOffset = 3.0
-  private static let arcTextRadius = 55.5
-  private static let topStartAngleDegrees = 168.0
-  private static let topSweepAngleDegrees = -156.0
-  private static let bottomStartAngleDegrees = -168.0
-  private static let bottomSweepAngleDegrees = 156.0
-  private static let semiCircleDegrees = 180.0
-  private static let degreesToRadians = Double.pi / semiCircleDegrees
-  private static let topStartAngle = topStartAngleDegrees * degreesToRadians
-  private static let topSweepAngle = topSweepAngleDegrees * degreesToRadians
-  private static let bottomStartAngle = bottomStartAngleDegrees * degreesToRadians
-  private static let bottomSweepAngle = bottomSweepAngleDegrees * degreesToRadians
+  private static let arcFontSize = 4.8
+  private static let arcBandCenterRadius = 56.0
+  private static let arcSweepDegrees = 156.0
+  private static let semicircleDegrees = 180.0
+  private static let arcSweep = arcSweepDegrees * Double.pi / semicircleDegrees
   private static let rightAngle = Double.pi * half
   private static let half = 0.5
-
-  private static let bulletFontSize = 4.5
-  private static let bulletOffset = 1.0
-  private static let bulletRightOffset = 2.0
-  private static let bulletY = -1.50
-
-  private static let centerFontSize = 5.2
-  private static let centerLineHeightFactor = 1.45
-  private static let centerStartYFactor = 0.3
-  private static let centerCharWidthFactor = 0.56
-
-  private static let longCharThreshold = 40
-  private static let mediumCharThreshold = 30
-  private static let smallFontSize = 2.9
-  private static let mediumFontSize = 3.3
-  private static let largeFontSize = 3.6
+  private static let centerCommandFontSize = 11.0
+  private static let centerBodyFontSize = 9.0
+  private static let centerLineGap = 4.0
+  private static let centerWidthFraction = 0.82
+  private static let diameterFactor = 2.0
+  private static let bulletRadius = 0.55
+  private static let fontName = "Helvetica-Bold"
 
   private static let asciiPrintableMin: UInt8 = 32
   private static let asciiPrintableMax: UInt8 = 126
@@ -74,6 +70,22 @@ public enum PdfStampRenderer {
     "\u{00C5}": "\\305",
     "\u{2022}": "\\225",
   ]
+
+  internal static func textMetrics(_ text: String, fontSize: Double) -> TextMetrics {
+    let font = CTFontCreateWithName(fontName as CFString, fontSize, nil)
+    let line = CTLineCreateWithAttributedString(
+      NSAttributedString(
+        string: text,
+        attributes: [
+          .init(kCTFontAttributeName as String): font,
+          .init(kCTKernAttributeName as String): 0,
+        ])
+    )
+    return TextMetrics(
+      advance: CTLineGetTypographicBounds(line, nil, nil, nil),
+      bounds: CTLineGetBoundsWithOptions(line, [.useGlyphPathBounds])
+    )
+  }
 
   /// Creates a ready-to-place stamp mark with the localized advice.
   public static func stampMark(locale: Locale = .current) -> StampMark {
@@ -105,104 +117,102 @@ public enum PdfStampRenderer {
     output += "\(borderSeparatorLineWidth) w\n"
     appendCircle(into: &output, radius: borderInnerRadius)
     output += "S\n"
-
-    output += "\(innerRingLineWidth) w\n"
-    appendCircle(into: &output, radius: borderInnerRadius - subtleRingOffset)
-    output += "S\n"
   }
 
   private static func appendTopArc(into output: inout String, text: String) {
-    let characters = Array(text)
-    let count = characters.count
-    let fontSize = calculatePdfFontSize(characterCount: count)
-
-    output += "BT\n"
-    output += String(format: "/F1 %.1f Tf\n", fontSize)
-    for index in characters.indices {
-      let fraction = count > 1 ? Double(index) / Double(count - 1) : half
-      let angle = topStartAngle + fraction * topSweepAngle
-      let pointX = arcTextRadius * cos(angle)
-      let pointY = arcTextRadius * sin(angle)
-
-      let textAngle = angle - rightAngle
-      let cosA = cos(textAngle)
-      let sinA = sin(textAngle)
-
-      output += String(
-        format: "%.4f %.4f %.4f %.4f %.2f %.2f Tm\n",
-        cosA, sinA, -sinA, cosA, pointX, pointY
-      )
-      output += "(\(escapePdfString(characters[index]))) Tj\n"
-    }
+    appendArc(into: &output, text: text, top: true)
   }
 
   private static func appendBottomArc(into output: inout String, text: String) {
-    let characters = Array(text)
-    let count = characters.count
-    let fontSize = calculatePdfFontSize(characterCount: count)
+    appendArc(into: &output, text: text, top: false)
+  }
 
-    output += String(format: "/F1 %.1f Tf\n", fontSize)
-    for index in characters.indices {
-      let fraction = count > 1 ? Double(index) / Double(count - 1) : half
-      let angle = bottomStartAngle + fraction * bottomSweepAngle
-      let pointX = arcTextRadius * cos(angle)
-      let pointY = arcTextRadius * sin(angle)
+  private static func appendArc(into output: inout String, text: String, top: Bool) {
+    let metrics = textMetrics(text, fontSize: arcFontSize)
+    let radius = arcBandCenterRadius + (top ? -metrics.bounds.midY : metrics.bounds.midY)
+    let advances = text.map { textMetrics(String($0), fontSize: arcFontSize).advance }
+    let totalAdvance = advances.reduce(0, +)
+    let tracking = (radius * arcSweep - totalAdvance) / Double(max(text.count - 1, 1))
+    let length = totalAdvance + tracking * Double(max(text.count - 1, 0))
+    var distance = -length * half
+    let direction = top ? -1.0 : 1.0
+    let centerAngle = top ? rightAngle : -rightAngle
 
-      let textAngle = angle + rightAngle
+    output += "BT\n"
+    output += String(format: "/F1 %.2f Tf\n", arcFontSize)
+    for (character, advance) in zip(text, advances) {
+      let angle = centerAngle + direction * (distance + advance * half) / radius
+      let textAngle = angle + (top ? -rightAngle : rightAngle)
       let cosA = cos(textAngle)
       let sinA = sin(textAngle)
-
+      let pointX = radius * cos(angle) - advance * half * cosA
+      let pointY = radius * sin(angle) - advance * half * sinA
       output += String(
         format: "%.4f %.4f %.4f %.4f %.2f %.2f Tm\n",
         cosA, sinA, -sinA, cosA, pointX, pointY
       )
-      output += "(\(escapePdfString(characters[index]))) Tj\n"
+      output += "(\(escapePdfString(character))) Tj\n"
+      distance += advance + tracking
     }
-  }
-
-  private static func appendBullets(into output: inout String) {
-    output += String(format: "/F1 %.1f Tf\n", bulletFontSize)
-    output += String(
-      format: "1.0000 0.0000 0.0000 1.0000 %.2f %.2f Tm\n",
-      -arcTextRadius - bulletOffset,
-      bulletY
-    )
-    output += "(\\225) Tj\n"
-    output += String(
-      format: "1.0000 0.0000 0.0000 1.0000 %.2f %.2f Tm\n",
-      arcTextRadius - bulletRightOffset,
-      bulletY
-    )
-    output += "(\\225) Tj\n"
     output += "ET\n"
   }
 
-  private static func appendCenterLines(into output: inout String, lines: [String]) {
-    let lineHeight = centerFontSize * centerLineHeightFactor
-    let totalHeight = Double(lines.count - 1) * lineHeight
-    let startY = (totalHeight * half) - (centerFontSize * centerStartYFactor)
+  private static func appendBullets(into output: inout String) {
+    for pointX in [-arcBandCenterRadius, arcBandCenterRadius] {
+      output += String(format: "1 0 0 1 %.2f 0 cm\n", pointX)
+      appendCircle(into: &output, radius: bulletRadius)
+      output += "f\n"
+      output += String(format: "1 0 0 1 %.2f 0 cm\n", -pointX)
+    }
+  }
 
+  internal static func centerLayout(lines: [String]) -> [CenterLine] {
+    var baseline = 0.0
+    var layout: [CenterLine] = []
+    for (index, text) in lines.enumerated() {
+      let preferredSize = index == 0 ? centerCommandFontSize : centerBodyFontSize
+      let preferred = textMetrics(text, fontSize: preferredSize)
+      let maxWidth = borderInnerRadius * diameterFactor * centerWidthFraction
+      let fontSize = min(preferredSize, preferredSize * maxWidth / preferred.bounds.width)
+      let metrics = textMetrics(text, fontSize: fontSize)
+      if let previous = layout.last {
+        baseline = previous.origin.y + previous.bounds.minY - centerLineGap - metrics.bounds.maxY
+      }
+      layout.append(
+        CenterLine(
+          text: text, fontSize: fontSize,
+          origin: CGPoint(x: -metrics.bounds.midX, y: baseline), bounds: metrics.bounds
+        ))
+    }
+    let inkBounds = layout.reduce(CGRect.null) { bounds, line in
+      bounds.union(line.bounds.offsetBy(dx: line.origin.x, dy: line.origin.y))
+    }
+    return layout.map { line in
+      CenterLine(
+        text: line.text, fontSize: line.fontSize,
+        origin: CGPoint(x: line.origin.x, y: line.origin.y - inkBounds.midY), bounds: line.bounds
+      )
+    }
+  }
+
+  private static func appendCenterLines(into output: inout String, lines: [String]) {
     output += "BT\n"
-    output += String(format: "/F1 %.1f Tf\n", centerFontSize)
-    for (index, line) in lines.enumerated() {
-      let pointY = startY - Double(index) * lineHeight
-      let approxWidth = Double(line.count) * (centerFontSize * centerCharWidthFactor)
-      let pointX = -(approxWidth * half)
+    for line in centerLayout(lines: lines) {
+      output += String(format: "/F1 %.2f Tf\n", line.fontSize)
       output += String(
         format: "1.0000 0.0000 0.0000 1.0000 %.2f %.2f Tm\n",
-        pointX, pointY
+        line.origin.x, line.origin.y
       )
-      let escapedLine = line.map(escapePdfString).joined()
-      output += "(\(escapedLine)) Tj\n"
+      output += "(\(line.text.map(escapePdfString).joined())) Tj\n"
     }
     output += "ET\n"
   }
 
   internal static func resolveStampTexts(locale: Locale) -> StampTexts {
     let language = locale.language.languageCode?.identifier.lowercased() ?? "en"
-    let fiTitle = ["TARKASTA ASIAKIRJAN", "S\u{00C4}HK\u{00D6}INEN", "ALLEKIRJOITUS"]
-    let svTitle = ["KONTROLLERA DOKUMENTETS", "ELEKTRONISKA", "SIGNATUR"]
-    let enTitle = ["CHECK DOCUMENT", "ELECTRONIC", "SIGNATURE"]
+    let fiTitle = ["TARKASTA", "ASIAKIRJAN", "S\u{00C4}HK\u{00D6}INEN", "ALLEKIRJOITUS"]
+    let svTitle = ["KONTROLLERA", "DOKUMENTETS", "ELEKTRONISKA", "SIGNATUR"]
+    let enTitle = ["CHECK", "DOCUMENT", "ELECTRONIC", "SIGNATURE"]
 
     let fiBorder = "TARKASTA ASIAKIRJAN S\u{00C4}HK\u{00D6}INEN ALLEKIRJOITUS"
     let svBorder = "KONTROLLERA DOKUMENTETS ELEKTRONISKA SIGNATUR"
@@ -229,16 +239,6 @@ public enum PdfStampRenderer {
         topBorderText: fiBorder,
         bottomBorderText: svBorder
       )
-    }
-  }
-
-  private static func calculatePdfFontSize(characterCount: Int) -> Double {
-    if characterCount > longCharThreshold {
-      smallFontSize
-    } else if characterCount > mediumCharThreshold {
-      mediumFontSize
-    } else {
-      largeFontSize
     }
   }
 

@@ -19,15 +19,16 @@ internal struct PdfStampRendererTests {
   @Test
   internal func localizedTextsMatchLanguages() {
     let fiTexts = PdfStampRenderer.resolveStampTexts(locale: Locale(identifier: "fi_FI"))
-    #expect(fiTexts.middleLines.contains("TARKASTA ASIAKIRJAN"))
+    #expect(
+      fiTexts.middleLines == ["TARKASTA", "ASIAKIRJAN", "S\u{00C4}HK\u{00D6}INEN", "ALLEKIRJOITUS"])
     #expect(fiTexts.bottomBorderText == "CHECK DOCUMENT ELECTRONIC SIGNATURE")
 
     let svTexts = PdfStampRenderer.resolveStampTexts(locale: Locale(identifier: "sv_SE"))
-    #expect(svTexts.middleLines.contains("KONTROLLERA DOKUMENTETS"))
+    #expect(svTexts.middleLines == ["KONTROLLERA", "DOKUMENTETS", "ELEKTRONISKA", "SIGNATUR"])
     #expect(svTexts.bottomBorderText == "CHECK DOCUMENT ELECTRONIC SIGNATURE")
 
     let enTexts = PdfStampRenderer.resolveStampTexts(locale: Locale(identifier: "en_US"))
-    #expect(enTexts.middleLines.contains("CHECK DOCUMENT"))
+    #expect(enTexts.middleLines == ["CHECK", "DOCUMENT", "ELECTRONIC", "SIGNATURE"])
     #expect(enTexts.bottomBorderText == "KONTROLLERA DOKUMENTETS ELEKTRONISKA SIGNATUR")
   }
 
@@ -38,5 +39,35 @@ internal struct PdfStampRendererTests {
     #expect(operators.contains("Tj"))
     #expect(operators.hasPrefix("q\n"))
     #expect(operators.hasSuffix("Q\n"))
+  }
+
+  @Test(arguments: ["en_US", "fi_FI", "sv_SE"])
+  internal func centerInkIsCenteredAndClearsCircle(localeIdentifier: String) {
+    let texts = PdfStampRenderer.resolveStampTexts(locale: Locale(identifier: localeIdentifier))
+    let layout = PdfStampRenderer.centerLayout(lines: texts.middleLines)
+    let inkBounds = layout.reduce(CGRect.null) { bounds, line in
+      let ink = line.bounds.offsetBy(dx: line.origin.x, dy: line.origin.y)
+      #expect(abs(ink.midX) < 0.001)
+      for pointX in [ink.minX, ink.maxX] {
+        for pointY in [ink.minY, ink.maxY] {
+          #expect(hypot(pointX, pointY) < 46.0)
+        }
+      }
+      #expect(line.fontSize >= 8.0)
+      return bounds.union(ink)
+    }
+    #expect(abs(inkBounds.midY) < 0.001)
+    #expect(layout.count == 4)
+    #expect(layout[0].fontSize > layout[1].fontSize)
+  }
+
+  @Test
+  internal func ringsAndArcTypographyHaveExpectedGeometry() {
+    let operators = PdfStampRenderer.generateStampOperators(locale: Locale(identifier: "en_US"))
+    #expect(operators.components(separatedBy: "\nS\n").count - 1 == 2)
+    #expect(!operators.contains("45.00 0.00 m"))
+    #expect(operators.components(separatedBy: "/F1 4.80 Tf").count - 1 == 2)
+    #expect(operators.components(separatedBy: "BT\n").count - 1 == 3)
+    #expect(operators.components(separatedBy: "ET\n").count - 1 == 3)
   }
 }
