@@ -1417,30 +1417,6 @@ private func printReleaseManagerUsage() {
   )
 }
 
-private let releaseManagerArguments = Array(CommandLine.arguments.dropFirst())
-if releaseManagerArguments.isEmpty
-  || ["help", "--help", "-h"].contains(releaseManagerArguments[0])
-{
-  printReleaseManagerUsage()
-  exit(0)
-}
-switch releaseManagerArguments[0] {
-case "candidate":
-  releaseCandidate(Array(releaseManagerArguments.dropFirst()))
-  exit(0)
-case "inspect-archive":
-  guard releaseManagerArguments.count == 2 else {
-    releaseFail("usage: inspect-archive <path-to-xcarchive>")
-  }
-  inspectReleaseArchive(URL(fileURLWithPath: releaseManagerArguments[1]))
-  exit(0)
-case "capture-screenshots":
-  releaseCaptureScreenshots(Array(releaseManagerArguments.dropFirst()))
-  exit(0)
-default:
-  break
-}
-
 let bundleID = "fi.refineid.ReFineID"
 let apiBase = "https://api.appstoreconnect.apple.com"
 let platforms = ["ios": "IOS", "macos": "MAC_OS"]
@@ -1679,8 +1655,14 @@ func existingLocalizations(_ path: String) -> [String: String] {
 // Create or update each locale's version localization from the JSON.
 // The description is the platform's own; the rest is shared.
 func pushMetadata(_ platformName: String, _ version: String) {
-  _ = apiPlatform(platformName)
+  let platform = apiPlatform(platformName)
   let versionID = ensureVersion(platformName, version)
+  let hasLiveVersion = !dataArray(
+    api(
+      "GET",
+      "/v1/apps/\(appID())/appStoreVersions?filter[platform]=\(platform)&filter[appStoreState]=READY_FOR_SALE&limit=1"
+    )
+  ).isEmpty
   // Copyright lives on the version itself, not on a localization.
   if let copyright = metadata["copyright"] as? String {
     api(
@@ -1700,6 +1682,12 @@ func pushMetadata(_ platformName: String, _ version: String) {
     guard let description = (entry["description"] as? [String: Any])?[platformName] as? String
     else { continue }
     var attributes: [String: Any] = ["description": description]
+    if hasLiveVersion,
+      let whatsNew = (entry["whatsNew"] as? [String: Any])?[platformName] as? String
+        ?? entry["whatsNew"] as? String
+    {
+      attributes["whatsNew"] = whatsNew
+    }
     if let keywords = entry["keywords"] as? String { attributes["keywords"] = keywords }
     // Per platform, like the description: the Mac signs documents
     // and the iPhone does not yet, so one sentence cannot serve both.
@@ -2375,10 +2363,20 @@ func state() {
 }
 
 let arguments = Array(CommandLine.arguments.dropFirst())
+if arguments.isEmpty || ["help", "--help", "-h"].contains(arguments[0]) {
+  printReleaseManagerUsage()
+  exit(0)
+}
 guard let command = arguments.first else { die("a command is required; see the header") }
 let rest = Array(arguments.dropFirst())
 
 switch (command, rest.count) {
+case ("candidate", _):
+  releaseCandidate(rest)
+case ("inspect-archive", 1):
+  inspectReleaseArchive(URL(fileURLWithPath: rest[0]))
+case ("capture-screenshots", _):
+  releaseCaptureScreenshots(rest)
 case ("get", 1):
   printJSON(api("GET", rest[0]))
 case ("api", 2):
