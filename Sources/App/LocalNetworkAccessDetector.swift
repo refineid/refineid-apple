@@ -6,14 +6,15 @@
   import Network
   import os
 
-  /// Reads the local-network permission from the Bonjour gate itself.
+  /// Reads the local-network permission from Bonjour self-discovery.
   ///
-  /// Browsing and advertising ride the gated path, so a short-lived
-  /// browser and advertiser report what the permission decides: ready
-  /// means access was granted, while the permission failure means it
-  /// was denied. An undecided prompt leaves both waiting, which reads
-  /// as neither and lets the flow proceed under watch instead of
-  /// guessing.
+  /// Denial is silent at the state level: browsing and advertising
+  /// both report ready and never raise the permission failure. What
+  /// denial stops is the announcements themselves, so the probe
+  /// advertises an instance and browses for it: the first sighting
+  /// proves access, while a window that stays dark reads as denied.
+  /// Without Wi-Fi there is no permission question to answer, so the
+  /// flow proceeds and pairing reports its own outcome.
   internal enum LocalNetworkAccessDetector {
     // MARK: Nested Types
 
@@ -72,16 +73,8 @@
     private static let probeServiceName = "RefineID-Probe"
     private static let probeTXTKey = "probe"
     private static let probeTXTValue = "1"
-    private static let quickVerdictSeconds: UInt64 = 5
-    private static let denialWatchSeconds: UInt64 = 120
-
-    /// Posted when the permission failure lands after the flow moved on.
-    ///
-    /// The observer must re-check that remote access is still on; the
-    /// holder may have turned it off meanwhile.
-    internal static let accessDeniedNotification = Notification.Name(
-      "fi.refineid.localNetworkAccessDenied"
-    )
+    private static let wifiInterfaceName = "en0"
+    private static let quickVerdictSeconds: UInt64 = 10
 
     private static let logger = Logger(
       subsystem: "fi.refineid.ReFineID", category: "local-network-access")
@@ -90,45 +83,46 @@
 
     /// Answers whether this app may use the local network.
     ///
-    /// Decided states answer fast from the probe. A still-waiting
-    /// probe means the system prompt is up; either way the caller
-    /// proceeds and watches for the denial.
+    /// The first sighting settles the answer early; only a window
+    /// that stays fully dark reads as denied.
     internal static func currentAccess() async -> Access {
-      if let quick = await raceProbes(deadlineSeconds: quickVerdictSeconds) {
-        let access: Access = quick == .denied ? .denied : .allowed
-        logger.info(
-          "local-network access reads \(access == .allowed ? "allowed" : "denied", privacy: .public)"
-        )
-        return access
+      guard hasWiFiInterface() else {
+        logger.info("local-network probe has no Wi-Fi, assuming allowed")
+        return .allowed
       }
-      watchForDenial(windowSeconds: denialWatchSeconds)
-      logger.info("local-network access undecided, proceeding under watch")
-      return .allowed
-    }
-
-    /// Watches for a late permission failure within the window.
-    ///
-    /// The watch ends on the first terminal probe verdict or when the
-    /// window passes.
-    internal static func watchForDenial(windowSeconds: UInt64) {
-      Task.detached {
-        if await raceProbes(deadlineSeconds: windowSeconds) == .denied {
-          NotificationCenter.default.post(name: accessDeniedNotification, object: nil)
-        }
-      }
+      let verdict = await raceProbes(deadlineSeconds: quickVerdictSeconds)
+      let access: Access = verdict == .allowed ? .allowed : .denied
+      logger.info(
+        "local-network access reads \(access == .allowed ? "allowed" : "denied", privacy: .public)"
+      )
+      return access
     }
 
     // MARK: Private Helpers
 
-    /// Races browsing against advertising; nil when both still wait.
+    /// Whether the Wi-Fi interface holds an IPv4 address.
+    private static func hasWiFiInterface() -> Bool {
+      var interfaces: UnsafeMutablePointer<ifaddrs>?
+      guard getifaddrs(&interfaces) == 0, let first = interfaces else { return false }
+      defer { freeifaddrs(first) }
+      var cursor: UnsafeMutablePointer<ifaddrs>? = first
+      while let current = cursor {
+        defer { cursor = current.pointee.ifa_next }
+        guard
+          String(cString: current.pointee.ifa_name) == wifiInterfaceName,
+          let address = current.pointee.ifa_addr,
+          address.pointee.sa_family == UInt8(AF_INET)
+        else { continue }
+        return true
+      }
+      return false
+    }
+
+    /// Races browsing against the window; nil when nothing arrived.
     private static func raceProbes(deadlineSeconds: UInt64) async -> ProbeVerdict? {
       await withTaskGroup(of: ProbeVerdict.self) { group in
         group.addTask { await probeBrowsing() }
-        group.addTask { await probeAdvertising() }
-        group.addTask {
-          try? await Task.sleep(for: .seconds(deadlineSeconds))
-          return .undecided
-        }
+        group.addTask { await advertiseForWindow(seconds: deadlineSeconds) }
         for await verdict in group {
           group.cancelAll()
           return verdict == .undecided ? nil : verdict
@@ -137,7 +131,26 @@
       }
     }
 
-    /// Browses the discovery type until the gate answers or cancels.
+    /// Advertises the probe instance for the window, then yields.
+    ///
+    /// The advertisement guarantees a discoverable instance on quiet
+    /// networks; its own states carry no verdict.
+    private static func advertiseForWindow(seconds: UInt64) async -> ProbeVerdict {
+      guard let listener = makeProbeListener() else {
+        logger.info("local-network advertise probe has no listener")
+        try? await Task.sleep(for: .seconds(seconds))
+        return .undecided
+      }
+      listener.stateUpdateHandler = { state in
+        logger.info("local-network advertise probe \(String(describing: state))")
+      }
+      listener.start(queue: .global(qos: .userInitiated))
+      defer { listener.cancel() }
+      try? await Task.sleep(for: .seconds(seconds))
+      return .undecided
+    }
+
+    /// Browses the discovery type until a sighting or the race ends.
     private static func probeBrowsing() async -> ProbeVerdict {
       let cancelBox = CancelBox()
       return await withTaskCancellationHandler(
@@ -158,6 +171,9 @@
             browser.browseResultsChangedHandler = { results, _ in
               logger.info(
                 "local-network browse probe sees \(results.count, privacy: .public) results")
+              if !results.isEmpty {
+                settle(.allowed)
+              }
             }
             cancelBox.set { browser.cancel() }
             guard !Task.isCancelled else {
@@ -165,38 +181,6 @@
               return
             }
             browser.start(queue: .global(qos: .userInitiated))
-          }
-        },
-        onCancel: {
-          cancelBox.take()?()
-        })
-    }
-
-    /// Advertises a probe instance until the gate answers or cancels.
-    private static func probeAdvertising() async -> ProbeVerdict {
-      let cancelBox = CancelBox()
-      return await withTaskCancellationHandler(
-        operation: {
-          await withCheckedContinuation { continuation in
-            let settled = ProbeSettlement()
-            let settle: @Sendable (ProbeVerdict) -> Void = { verdict in
-              cancelBox.take()?()
-              settled.finish(with: verdict, continuation: continuation)
-            }
-            guard let listener = makeProbeListener() else {
-              logger.info("local-network advertise probe has no listener")
-              settle(.allowed)
-              return
-            }
-            listener.stateUpdateHandler = { state in
-              handleListenerState(state, settle: settle)
-            }
-            cancelBox.set { listener.cancel() }
-            guard !Task.isCancelled else {
-              settle(.allowed)
-              return
-            }
-            listener.start(queue: .global(qos: .userInitiated))
           }
         },
         onCancel: {
@@ -229,7 +213,6 @@
       switch state {
       case .ready:
         logger.info("local-network browse probe ready")
-        settle(.allowed)
       case .failed(let error):
         logger.info("local-network browse probe failed: \(String(describing: error))")
         settle(isPermissionError(error) ? .denied : .allowed)
@@ -238,32 +221,6 @@
       case .waiting(let error):
         if isPermissionError(error) {
           logger.info("local-network browse probe waiting on permission, reading denied")
-          settle(.denied)
-        }
-      case .setup:
-        break
-      @unknown default:
-        break
-      }
-    }
-
-    /// Settles the advertise probe from a listener state change.
-    private static func handleListenerState(
-      _ state: NWListener.State,
-      settle: @Sendable (ProbeVerdict) -> Void
-    ) {
-      switch state {
-      case .ready:
-        logger.info("local-network advertise probe ready")
-        settle(.allowed)
-      case .failed(let error):
-        logger.info("local-network advertise probe failed: \(String(describing: error))")
-        settle(isPermissionError(error) ? .denied : .allowed)
-      case .cancelled:
-        settle(.allowed)
-      case .waiting(let error):
-        if isPermissionError(error) {
-          logger.info("local-network advertise probe waiting on permission, reading denied")
           settle(.denied)
         }
       case .setup:

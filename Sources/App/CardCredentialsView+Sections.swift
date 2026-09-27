@@ -135,12 +135,6 @@ extension CardCredentialsView {
         #endif
         syncRemoteAccessToggle()
       }
-      .onReceive(
-        NotificationCenter.default.publisher(
-          for: LocalNetworkAccessDetector.accessDeniedNotification)
-      ) { _ in
-        handleLocalNetworkDenial()
-      }
     }
 
     @ViewBuilder internal var readIdentityCardSection: some View {
