@@ -1377,6 +1377,12 @@ private func releaseCandidate(_ arguments: [String]) {
       exportArguments,
       currentDirectory: releaseRepositoryRoot
     )
+    if upload {
+      print("Syncing App Store metadata and screenshots for \(platform.rawValue)...")
+      _ = ensureVersion(platform.rawValue, marketingVersion)
+      pushMetadata(platform.rawValue, marketingVersion)
+      pushScreenshots(platform.rawValue, marketingVersion)
+    }
   }
   print("Candidate complete: \(marketingVersion) (\(buildNumber)), commit \(commit)")
 }
@@ -1585,6 +1591,7 @@ func appID() -> String {
 func findVersion(_ platform: String) -> (id: String, version: String)? {
   let path =
     "/v1/apps/\(appID())/appStoreVersions?filter[platform]=\(platform)"
+    + "&filter[appStoreState]=PREPARE_FOR_SUBMISSION,DEVELOPER_REJECTED,REJECTED,METADATA_REJECTED,WAITING_FOR_REVIEW"
     + "&fields[appStoreVersions]=versionString"
   guard let first = dataArray(api("GET", path)).first,
     let id = first["id"] as? String,
@@ -1626,10 +1633,12 @@ func ensureVersion(_ platformName: String, _ version: String) -> String {
 }
 
 func attachBuild(_ platformName: String, _ version: String, _ number: String) {
+  let platform = apiPlatform(platformName)
   let versionID = ensureVersion(platformName, version)
-  let path = "/v1/builds?filter[app]=\(appID())&filter[version]=\(number)&limit=1"
+  let path =
+    "/v1/builds?filter[app]=\(appID())&filter[version]=\(number)&filter[preReleaseVersion.platform]=\(platform)&limit=1"
   guard let build = dataArray(api("GET", path)).first, let buildID = build["id"] as? String else {
-    die("build \(number) not found; has it finished processing?")
+    die("build \(number) for \(platformName) not found; has it finished processing?")
   }
   api(
     "PATCH", "/v1/appStoreVersions/\(versionID)/relationships/build",
@@ -2279,6 +2288,11 @@ func distribute(_ platformName: String, _ groupName: String) {
     print("submitted \(platformName) build for beta review")
   } else {
     print("beta review already exists for the \(platformName) build")
+  }
+  if let buildNumber = (build["attributes"] as? [String: Any])?["version"] as? String,
+    let versionInfo = findVersion(platform)
+  {
+    attachBuild(platformName, versionInfo.version, buildNumber)
   }
 }
 
