@@ -71,6 +71,7 @@
 
     /// The probe advertises under its own name on the discovery type.
     private static let probeServiceName = "RefineID-Probe"
+    private static let ownServiceNamePrefix = "RefineID-"
     private static let probeTXTKey = "probe"
     private static let probeTXTValue = "1"
     private static let wifiInterfaceName = "en0"
@@ -169,8 +170,7 @@
               handleBrowserState(state, settle: settle)
             }
             browser.browseResultsChangedHandler = { results, _ in
-              logger.info(
-                "local-network browse probe sees \(results.count, privacy: .public) results")
+              logResultComposition(results)
               if !results.isEmpty {
                 settle(.allowed)
               }
@@ -186,6 +186,30 @@
         onCancel: {
           cancelBox.take()?()
         })
+    }
+
+    /// Logs what the browse probe sees without naming foreign peers.
+    private static func logResultComposition(_ results: Set<NWBrowser.Result>) {
+      var probeCount = 0
+      var ownCount = 0
+      var otherCount = 0
+      for result in results {
+        guard case .service(let name, _, _, _) = result.endpoint else {
+          otherCount += 1
+          continue
+        }
+        if name.hasPrefix(probeServiceName) {
+          probeCount += 1
+        } else if name.hasPrefix(ownServiceNamePrefix) {
+          ownCount += 1
+        } else {
+          otherCount += 1
+        }
+      }
+      let composition = "probe \(probeCount) own \(ownCount) other \(otherCount)"
+      logger.info(
+        "local-network browse sees \(results.count, privacy: .public) \(composition, privacy: .public)"
+      )
     }
 
     /// Builds the probe advertiser on the discovery type.
