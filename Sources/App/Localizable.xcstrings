@@ -1,6 +1,76 @@
 {
   "sourceLanguage": "en",
   "strings": {
+      "Web Signing": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Web Signing"
+            }
+          },
+          "fi": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Verkkoallekirjoitus"
+            }
+          },
+          "sv": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Webbsignering"
+            }
+          }
+        }
+      },
+      "Enable local web signing (SCS)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Enable local web signing (SCS)"
+            }
+          },
+          "fi": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Ota paikallinen verkkoallekirjoitus käyttöön (SCS)"
+            }
+          },
+          "sv": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Aktivera lokal webbsignering (SCS)"
+            }
+          }
+        }
+      },
+      "Allows websites to request card signatures through this Mac. Disabled by default. Enabling starts a local HTTPS server at 127.0.0.1:53952 and may ask you to trust its certificate in a system dialog. Each signature requires your approval. Turning this off closes the server and its connections; it does not remove existing certificate trust.": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Allows websites to request card signatures through this Mac. Disabled by default. Enabling starts a local HTTPS server at 127.0.0.1:53952 and may ask you to trust its certificate in a system dialog. Each signature requires your approval. Turning this off closes the server and its connections; it does not remove existing certificate trust."
+            }
+          },
+          "fi": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Sallii verkkosivustojen pyytää korttiallekirjoituksia tämän Macin kautta. Oletuksena pois käytöstä. Käyttöönotto käynnistää paikallisen HTTPS-palvelimen osoitteessa 127.0.0.1:53952 ja saattaa pyytää luottamaan sen varmenteeseen järjestelmän valintaikkunassa. Jokainen allekirjoitus vaatii hyväksyntäsi. Poistaminen käytöstä sulkee palvelimen ja sen yhteydet; se ei poista varmenteeseen aiemmin myöntämääsi luottamusta."
+            }
+          },
+          "sv": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Tillåter webbplatser att begära kortsignaturer via denna Mac. Avstängt som standard. Aktivering startar en lokal HTTPS-server på 127.0.0.1:53952 och kan be dig att lita på dess certifikat i en systemdialog. Varje signatur kräver ditt godkännande. Avaktivering stänger servern och dess anslutningar; befintlig tillit till certifikatet tas inte bort."
+            }
+          }
+        }
+      }
+,
     "Your phone needs an ID card, please.": {
       "extractionState": "manual",
       "localizations": {

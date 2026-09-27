@@ -21,28 +21,59 @@
     private let queue = DispatchQueue(label: "fi.refineid.scs.server")
     private let backend = ScsCardBackend()
     private let transactions = ScsTransactionManager()
+    private let makeParameters: () -> NWParameters?
+    private let observeState: @Sendable (NWListener.State) -> Void
+    private let lifecycleLock = NSLock()
     private var listener: NWListener?
+    private var connections: [ObjectIdentifier: NWConnection] = [:]
 
-    /// Binds and starts serving; failures are logged, never fatal
-    /// to the app.
-    internal func start() {
+    internal var localPort: NWEndpoint.Port? {
+      lifecycleLock.withLock { listener?.port }
+    }
+
+    internal convenience init() {
+      self.init(
+        makeParameters: Self.localTLSParameters,
+        observeState: { _ in
+          // Production listener status is reported through ScsLog.
+        })
+    }
+
+    internal init(
+      makeParameters: @escaping () -> NWParameters?,
+      observeState: @escaping @Sendable (NWListener.State) -> Void
+    ) {
+      self.makeParameters = makeParameters
+      self.observeState = observeState
+    }
+
+    private static func localTLSParameters() -> NWParameters? {
       guard let identity = ScsIdentityStore.obtain() else {
         ScsLog.error("server: no TLS identity; SCS not started")
-        return
+        return nil
       }
       guard let secIdentity = sec_identity_create(identity) else {
         ScsLog.error("server: identity rejected by Network framework")
-        return
+        return nil
       }
       let tls = NWProtocolTLS.Options()
       sec_protocol_options_set_local_identity(tls.securityProtocolOptions, secIdentity)
       let parameters = NWParameters(tls: tls)
       guard let port = NWEndpoint.Port(rawValue: ScsDispatcher.port) else {
         ScsLog.error("server: invalid port")
-        return
+        return nil
       }
       parameters.requiredLocalEndpoint = NWEndpoint.hostPort(
         host: NWEndpoint.Host("127.0.0.1"), port: port)
+      return parameters
+    }
+
+    /// Binds and starts serving; failures are logged, never fatal
+    /// to the app.
+    @MainActor
+    internal func start() {
+      guard lifecycleLock.withLock({ listener == nil }) else { return }
+      guard let parameters = makeParameters() else { return }
       let bound: NWListener
       do {
         bound = try NWListener(using: parameters)
@@ -50,7 +81,8 @@
         ScsLog.error("server: bind failed; another SCS already running?")
         return
       }
-      bound.stateUpdateHandler = { state in
+      bound.stateUpdateHandler = { [observeState] state in
+        observeState(state)
         switch state {
         case .ready:
           ScsLog.info("server: listening on https://127.0.0.1:\(ScsDispatcher.port)")
@@ -62,16 +94,61 @@
           break
         }
       }
-      bound.newConnectionHandler = { [weak self] connection in
-        guard let self else {
+      bound.newConnectionHandler = { [weak self, weak bound] connection in
+        guard let self, let bound else {
           connection.cancel()
           return
         }
-        connection.start(queue: queue)
-        receive(connection, buffered: Data())
+        accept(connection, from: bound)
       }
-      listener = bound
+      lifecycleLock.withLock { listener = bound }
       bound.start(queue: queue)
+    }
+
+    private func accept(_ connection: NWConnection, from bound: NWListener) {
+      let accepted = lifecycleLock.withLock {
+        guard listener === bound else { return false }
+        connections[ObjectIdentifier(connection)] = connection
+        connection.start(queue: queue)
+        return true
+      }
+      guard accepted else {
+        connection.cancel()
+        return
+      }
+      connection.stateUpdateHandler = { [weak self] state in
+        switch state {
+        case .cancelled, .failed:
+          self?.forget(connection)
+        default:
+          break
+        }
+      }
+      receive(connection, buffered: Data())
+    }
+
+    /// Cancels the listener and accepted connections, including queued requests.
+    @MainActor
+    internal func stop() {
+      let active = lifecycleLock.withLock {
+        let active = (listener, Array(connections.values))
+        listener = nil
+        connections.removeAll()
+        return active
+      }
+      active.0?.cancel()
+      for connection in active.1 { connection.cancel() }
+    }
+
+    private func forget(_ connection: NWConnection) {
+      lifecycleLock.withLock {
+        _ = connections.removeValue(forKey: ObjectIdentifier(connection))
+      }
+      connection.stateUpdateHandler = nil
+    }
+
+    private func permits(_ connection: NWConnection) -> Bool {
+      lifecycleLock.withLock { connections[ObjectIdentifier(connection)] != nil }
     }
 
     /// Accumulates one request's bytes and dispatches it when
@@ -82,6 +159,10 @@
         maximumLength: Self.readChunkLength
       ) { [weak self] content, _, isComplete, error in
         guard let self else {
+          connection.cancel()
+          return
+        }
+        guard permits(connection) else {
           connection.cancel()
           return
         }
@@ -109,6 +190,10 @@
     /// Dispatches one assembled exchange and closes the connection
     /// after the answer, per the SCS's one-request connections.
     private func respond(to exchange: ScsHttpExchange, over connection: NWConnection) {
+      guard permits(connection) else {
+        connection.cancel()
+        return
+      }
       ScsLog.info("server: \(exchange.request.method) \(exchange.request.path)")
       let response = ScsDispatcher.dispatch(
         request: exchange.request,
