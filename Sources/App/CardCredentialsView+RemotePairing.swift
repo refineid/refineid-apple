@@ -93,27 +93,16 @@ import SwiftUI
         #endif
         syncRemoteAccessToggle()
       }
-      .onValueChange(of: remoteAccessEnabled) { enabled in
-        RemoteAccessServing.setEnabled(enabled)
-        if !enabled {
-          isPairingInputActive = false
-          pairingCodeDigits = ""
-          isPairingFieldFocused = false
-          pairingModel.cancel()
-        }
-        syncRemoteAccessToggle()
-      }
     }
 
     private var remoteAccessToggleRow: some View {
-      Toggle(isOn: $remoteAccessEnabled) {
+      Toggle(isOn: remoteAccessBinding) {
         HStack(spacing: RemotePairingLayout.inputSpacing) {
           RemotePairingGlyph(
             isConnected: isActivelyConnected
           )
           .frame(width: PersonRowLabel.iconWidth)
           Text(String(localized: "Remote Access"))
-            .accessibilityIdentifier("remoteCard")
         }
       }
       .accessibilityIdentifier("remoteAccessToggle")
@@ -245,9 +234,33 @@ import SwiftUI
 
     // MARK: Functions
 
+    /// The toggle's binding: the holder's flip reaches the gate first.
+    ///
+    /// The gate leads so a sync landing mid-flip converges instead of
+    /// reverting: it can only ever read the choice just made. Syncs from
+    /// pairing and notification observers flow the other way, into the
+    /// switch, and never touch the radios themselves.
+    private var remoteAccessBinding: Binding<Bool> {
+      Binding(
+        get: { remoteAccessEnabled },
+        set: { setRemoteAccessEnabled($0) }
+      )
+    }
+
+    private func setRemoteAccessEnabled(_ enabled: Bool) {
+      RemoteAccessServing.setEnabled(enabled)
+      if !enabled {
+        isPairingInputActive = false
+        pairingCodeDigits = ""
+        isPairingFieldFocused = false
+        pairingModel.cancel()
+      }
+      syncRemoteAccessToggle()
+    }
+
     private func retryRemoteConnection() {
       if !remoteAccessEnabled {
-        remoteAccessEnabled = true
+        setRemoteAccessEnabled(true)
         return
       }
       #if os(iOS) && REFINEID_LOCAL_CARD

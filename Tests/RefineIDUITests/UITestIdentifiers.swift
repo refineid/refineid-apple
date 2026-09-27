@@ -111,11 +111,8 @@ internal enum UITestIdentifiers {
   /// Drops that borrowed holder, and the pairing it arrived through.
   internal static let forgetRemoteIdentity = "forgetRemoteIdentity"
 
-  /// The row that opens the card-serving route, absent where no card can
-  /// be reached.
-  internal static let remoteCard = "remoteCard"
-
-  /// The holder's opt-in switch for serving the card over the network.
+  /// The holder's opt-in switch for serving the card over the network,
+  /// absent where no card can be reached.
   internal static let remoteAccessToggle = "remoteAccessToggle"
 
   /// The code a requesting device shows for a phone to scan.

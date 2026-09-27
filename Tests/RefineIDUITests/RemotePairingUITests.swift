@@ -41,6 +41,30 @@
       XCTAssertTrue(isOff, "remote access was on without the holder opting in")
     }
 
+    /// Flipping the toggle on enables remote access for the session.
+    ///
+    /// The switch is the opt-in, so tapping it must take effect without
+    /// any other step. A dead toggle would leave the holder paired but
+    /// silent, with no control showing why.
+    internal func testToggleEnablesRemoteAccess() {
+      let app = UITestApp.launchVirtualCard(scenario: "registered-nfc")
+      let toggle = element("remoteAccessToggle", in: app)
+      XCTAssertTrue(
+        toggle.waitForExistence(timeout: Self.appearTimeout),
+        "the Remote Access toggle did not appear")
+      // The switch element spans the row; a center tap lands on the
+      // label, so the tap goes to the switch control itself.
+      toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
+      XCTAssertTrue(
+        toggle.waitForExistence(timeout: Self.appearTimeout),
+        "the Remote Access toggle went missing after the tap")
+      let value = toggle.value
+      let isOn =
+        (value as? String == "1") || (value as? Int == 1)
+        || (value as? Bool == true)
+      XCTAssertTrue(isOn, "tapping the toggle did not enable remote access")
+    }
+
     /// Tapping Connect opens inline pairing controls.
     ///
     /// The holder row is served only where a card can be reached, so the
@@ -48,7 +72,7 @@
     /// the device antenna exists.
     internal func testConnectOpensInlinePairingControls() {
       let app = UITestApp.launchVirtualCard(scenario: "registered-nfc")
-      let row = element(UITestIdentifiers.remoteCard, in: app)
+      let row = element(UITestIdentifiers.remoteAccessToggle, in: app)
       XCTAssertTrue(
         row.waitForExistence(timeout: Self.appearTimeout),
         "the remote card row did not appear")
