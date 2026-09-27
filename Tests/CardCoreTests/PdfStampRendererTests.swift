@@ -70,4 +70,34 @@ internal struct PdfStampRendererTests {
     #expect(operators.components(separatedBy: "BT\n").count - 1 == 3)
     #expect(operators.components(separatedBy: "ET\n").count - 1 == 3)
   }
+
+  @Test(arguments: [5.0, 10.0, 15.0])
+  internal func completeStampRotatesCounterclockwiseWithoutChangingReach(degrees: Double) throws {
+    let mark = PdfStampRenderer.stampMark(
+      locale: Locale(identifier: "sv_SE"), rotationDegrees: degrees)
+    let matrixLine = try #require(mark.operators.split(separator: "\n").dropFirst().first)
+    let values = matrixLine.split(separator: " ").prefix(6).compactMap { Double($0) }
+    #expect(values.count == 6)
+    let radians = degrees * Double.pi / 180.0
+    #expect(abs(values[0] - cos(radians)) < 0.00000001)
+    #expect(abs(values[1] - sin(radians)) < 0.00000001)
+    #expect(values[1] > 0)
+    #expect(values[2] == -values[1])
+    #expect(values[3] == values[0])
+    #expect(values[4] == 0 && values[5] == 0)
+    #expect(abs(hypot(values[0], values[1]) - 1) < 0.00000001)
+    #expect(mark.radius == 64.0 && mark.reach == 68.0)
+    #expect(mark.operators.hasPrefix("q\n"))
+    #expect(mark.operators.hasSuffix("Q\n"))
+  }
+
+  @Test
+  internal func newlyCreatedStampChoosesAngleInReadableRange() throws {
+    let mark = PdfStampRenderer.stampMark(locale: Locale(identifier: "en_US"))
+    let matrixLine = try #require(mark.operators.split(separator: "\n").dropFirst().first)
+    let values = matrixLine.split(separator: " ").prefix(2).compactMap { Double($0) }
+    let degrees = atan2(values[1], values[0]) * 180.0 / Double.pi
+    #expect(degrees >= 4.999999 && degrees <= 15.000001)
+  }
+
 }

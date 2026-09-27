@@ -1,10 +1,12 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-import CardCore
 import Foundation
 import Testing
 
+@testable import CardCore
+
 #if canImport(PDFKit)
+  import CoreGraphics
   import PDFKit
 #endif
 
@@ -41,6 +43,34 @@ internal struct PdfIncrementalSignerStampTests {
   private static func text(_ document: Data) -> String {
     String(bytes: document, encoding: .isoLatin1) ?? ""
   }
+
+  #if canImport(PDFKit)
+    private static func appearances(in data: Data) throws -> [String] {
+      let provider = try #require(CGDataProvider(data: data as CFData))
+      let document = try #require(CGPDFDocument(provider))
+      let page = try #require(document.page(at: 1))
+      var annotationArray: CGPDFArrayRef?
+      let pageDictionary = try #require(page.dictionary)
+      #expect(CGPDFDictionaryGetArray(pageDictionary, "Annots", &annotationArray))
+      let annotations = try #require(annotationArray)
+      return try (0..<CGPDFArrayGetCount(annotations)).compactMap { index -> String? in
+        var annotationDictionary: CGPDFDictionaryRef?
+        #expect(CGPDFArrayGetDictionary(annotations, index, &annotationDictionary))
+        let annotation = try #require(annotationDictionary)
+        var appearanceDictionary: CGPDFDictionaryRef?
+        guard CGPDFDictionaryGetDictionary(annotation, "AP", &appearanceDictionary) else {
+          return nil
+        }
+        let appearance = try #require(appearanceDictionary)
+        var normalStream: CGPDFStreamRef?
+        #expect(CGPDFDictionaryGetStream(appearance, "N", &normalStream))
+        let stream = try #require(normalStream)
+        var format = CGPDFDataFormat.raw
+        let decoded = try #require(CGPDFStreamCopyData(stream, &format))
+        return String(bytes: decoded as Data, encoding: .isoLatin1)
+      }
+    }
+  #endif
 
   @Test
   internal func signatureWidgetIncludesPageReferenceAndStampMarker() throws {
@@ -100,4 +130,38 @@ internal struct PdfIncrementalSignerStampTests {
       #expect(page?.annotations.first?.type == "Widget")
     #endif
   }
+
+  @Test
+  internal func adviceTiltPersistsInAppearanceWhenFilledAndSignedAgain() throws {
+    let original = Self.pdf(catalog: "<< /Type /Catalog /Pages 2 0 R >>")
+    let firstMark = PdfStampRenderer.stampMark(
+      locale: Locale(identifier: "sv_SE"), rotationDegrees: 5)
+    let prepared = try PdfIncrementalSigner.prepare(
+      original, revision: .signature(Self.claim), appending: firstMark
+    )
+    let first = try prepared.filled(with: WireHex.data("30030101FF"))
+    #expect(Self.text(first).contains(firstMark.operators))
+    #expect(Self.text(first).contains("/BBox [-68.0000 -68.0000 68.0000 68.0000]"))
+    let secondMark = PdfStampRenderer.stampMark(
+      locale: Locale(identifier: "sv_SE"), rotationDegrees: 15)
+    let secondPrepared = try PdfIncrementalSigner.prepare(
+      first, revision: .signature(Self.claim), appending: secondMark
+    )
+    let second = try secondPrepared.filled(with: WireHex.data("30030101FF"))
+    #expect(second.starts(with: first))
+    #expect(Self.text(second).contains(firstMark.operators))
+    #expect(!Self.text(second).contains(secondMark.operators))
+    #if canImport(PDFKit)
+      let reopened = try #require(PDFDocument(data: second))
+      #expect(reopened.page(at: 0)?.annotations.count == 2)
+      let saved = try #require(reopened.dataRepresentation())
+      let savedDocument = try #require(PDFDocument(data: saved))
+      #expect(savedDocument.page(at: 0)?.annotations.count == 2)
+      let savedAppearances = try Self.appearances(in: saved)
+      #expect(savedAppearances.contains(firstMark.operators))
+      #expect(savedAppearances.count == 1)
+      #expect(!savedAppearances.contains(secondMark.operators))
+    #endif
+  }
+
 }
