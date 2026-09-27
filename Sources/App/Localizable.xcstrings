@@ -6326,68 +6326,178 @@
         }
       }
     },
-    "Off": {
+    "OK": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Off"
+            "value": "OK"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pois"
+            "value": "OK"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Av"
+            "value": "OK"
           }
         }
       }
     },
-    "When on, your Mac or PC finds this iPhone on the local network.": {
+    "Open Settings": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "When on, your Mac or PC finds this iPhone on the local network."
+            "value": "Open Settings"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kun käytössä, Mac tai PC löytää tämän iPhonen lähiverkosta."
+            "value": "Avaa asetukset"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "När funktionen är på hittar din Mac eller pc den här iPhonen i det lokala nätverket."
+            "value": "Öppna inställningar"
           }
         }
       }
     },
-    "Pair with the 6-digit code shown on your computer.": {
+    "Allow Local Network Access": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pair with the 6-digit code shown on your computer."
+            "value": "Allow Local Network Access"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yhdistä tietokoneella näkyvällä 6-numeroisella koodilla."
+            "value": "Salli lähiverkon käyttö"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Parkoppla med den 6-siffriga koden som visas på datorn."
+            "value": "Tillåt åtkomst till lokalt nätverk"
+          }
+        }
+      }
+    },
+    "Your Mac or PC finds this iPhone on the local network. Tap OK, then Allow on the next screen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your Mac or PC finds this iPhone on the local network. Tap OK, then Allow on the next screen."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac tai PC löytää tämän iPhonen lähiverkosta. Napauta OK ja sitten Salli seuraavassa näytössä."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Din Mac eller pc hittar den här iPhonen i det lokala nätverket. Tryck på OK och sedan på Tillåt på nästa skärm."
+          }
+        }
+      }
+    },
+    "Allow Notifications": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow Notifications"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salli ilmoitukset"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tillåt notiser"
+          }
+        }
+      }
+    },
+    "Local Network Access Is Off": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local Network Access Is Off"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lähiverkon käyttö on pois päältä"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Åtkomst till lokalt nätverk är av"
+          }
+        }
+      }
+    },
+    "Remote Access needs it to let other devices find this iPhone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote Access needs it to let other devices find this iPhone."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Etäkäyttö tarvitsee sitä, jotta muut laitteet löytävät tämän iPhonen."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fjärråtkomst behöver det för att andra enheter ska hitta den här iPhonen."
+          }
+        }
+      }
+    },
+    "Get notified when a nearby device needs this iPhone; without it, Remote Access works only while open.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get notified when a nearby device needs this iPhone; without it, Remote Access works only while open."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saat ilmoituksen, kun lähilaite tarvitsee tätä iPhonea; ilman sitä etäkäyttö toimii vain sovelluksen ollessa auki."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Få en notis när en närliggande enhet behöver den här iPhonen; utan den fungerar fjärråtkomst endast när appen är öppen."
           }
         }
       }

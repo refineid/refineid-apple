@@ -6,16 +6,16 @@
 
   /// Turns the holder's Remote Access choice into running services.
   ///
-  /// Enabling records the choice, asks for the notification
-  /// authorization the approval prompts need, and starts discovery and
-  /// serving. Disabling stops them again. Pairings stay stored either
-  /// way, so turning it back on reconnects without a new code.
+  /// Enabling records the choice and starts discovery and serving; the
+  /// notification authorization the approval prompts need is asked
+  /// separately, after its own explanation. Disabling stops the
+  /// services; the caller wipes the pairings too, so off leaves no
+  /// remote state behind.
   @MainActor
   internal enum RemoteAccessServing {
     internal static func setEnabled(_ enabled: Bool) {
       RemoteAccessGate.setEnabled(enabled)
       if enabled {
-        RappAuthorizationInbox.shared.ensureAuthorization()
         RappAutoPairingService.shared.setLocalDiscoveryEnabled(true)
         #if REFINEID_LOCAL_CARD
           if SupportedCardTransports.offersNearField {

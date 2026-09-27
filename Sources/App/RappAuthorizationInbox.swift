@@ -27,9 +27,10 @@
 
     /// Asks for the notification authorization the prompts need.
     ///
-    /// Called when Remote Access is enabled, with the toggle's own
-    /// explanation on screen. The approval alert below shows in the app
-    /// regardless; the notification carries it when backgrounded.
+    /// Called after the notifications explanation is confirmed. The
+    /// approval alert shows in the app regardless; the notification
+    /// carries it when backgrounded, so declining only costs the
+    /// backgrounded case.
     internal func ensureAuthorization() {
       guard SupportedCardTransports.offersNearField else { return }
       UNUserNotificationCenter.current().requestAuthorization(

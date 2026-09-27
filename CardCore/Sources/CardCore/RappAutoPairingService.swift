@@ -221,7 +221,15 @@
       guard let coordinator else { return }
       let vault = RappDeviceVault()
       Task {
-        _ = (try? await coordinator.reconcileVault(vault: vault)) ?? []
+        // Remote access is opt-in: while the holder has it off, nothing
+        // may re-enter the vault, or turning it off would not hold.
+        #if os(iOS)
+          if RemoteAccessGate.isEnabled {
+            _ = (try? await coordinator.reconcileVault(vault: vault)) ?? []
+          }
+        #else
+          _ = (try? await coordinator.reconcileVault(vault: vault)) ?? []
+        #endif
         let remotes = await coordinator.remoteDevices()
         self.updateCachedRemoteDevices(remotes)
         await MainActor.run {

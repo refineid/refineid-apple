@@ -4,13 +4,15 @@ import CardCore
 import SwiftUI
 
 #if os(iOS)
+  import UIKit
+#endif
+
+#if os(iOS)
   extension CardCredentialsView {
     // MARK: Nested Types
 
     private enum RemotePairingLayout {
       static let inputSpacing: CGFloat = 8
-      static let tapTargetSide: CGFloat = 44
-      static let forgetButtonGap: CGFloat = 4
       static let caretWidth: CGFloat = 2
       static let caretVerticalInset: CGFloat = 2
       static let spinnerSlotSide: CGFloat = 20
@@ -46,56 +48,8 @@ import SwiftUI
       return false
     }
 
-    /// The holder's Remote Access section: one toggle and the pairing it guards.
-    ///
-    /// Remote serving is opt-in and off by default. The toggle records the
-    /// choice; entering a valid pairing code or tapping Disconnect flips it
-    /// the same way, so the switch always shows what the radios are doing.
-    internal var remoteAccessSection: some View {
-      Section {
-        remoteAccessToggleRow
-        remotePairingControlsRow
-      } header: {
-        compactSectionHeader("Remote Access")
-      } footer: {
-        Text(
-          String(localized: "When on, your Mac or PC finds this iPhone on the local network.")
-        )
-        Text(
-          String(localized: "Pair with the 6-digit code shown on your computer.")
-        )
-      }
-      .onAppear {
-        syncRemoteAccessToggle()
-        pairingModel.refresh()
-        RappAutoPairingService.shared.reconcile()
-        #if os(iOS) && REFINEID_LOCAL_CARD
-          phoneRelay.updatePeerOnlineState()
-        #endif
-      }
-      .onReceive(pairingModel.$phase) { _ in
-        syncRemoteAccessToggle()
-      }
-      .onReceive(
-        NotificationCenter.default.publisher(
-          for: RappPairingModel.pairingsDidChangeNotification)
-      ) { _ in
-        pairingModel.refresh()
-        syncRemoteAccessToggle()
-      }
-      .onReceive(
-        NotificationCenter.default.publisher(
-          for: RappAutoPairingService.pairingsDidChangeNotification)
-      ) { _ in
-        pairingModel.refresh()
-        #if os(iOS) && REFINEID_LOCAL_CARD
-          phoneRelay.updatePeerOnlineState()
-        #endif
-        syncRemoteAccessToggle()
-      }
-    }
-
-    private var remoteAccessToggleRow: some View {
+    /// The toggle row; the code boxes join it below while unpaired.
+    internal var remoteAccessToggleRow: some View {
       Toggle(isOn: remoteAccessBinding) {
         HStack(spacing: RemotePairingLayout.inputSpacing) {
           RemotePairingGlyph(
@@ -106,74 +60,66 @@ import SwiftUI
         }
       }
       .accessibilityIdentifier("remoteAccessToggle")
+      .alert(
+        String(localized: "Allow Local Network Access"),
+        isPresented: $showingLocalNetworkExplainer
+      ) {
+        Button(String(localized: "OK")) {
+          continueAfterLocalNetworkExplainer()
+        }
+      } message: {
+        Text(
+          String(
+            localized:
+              "Your Mac or PC finds this iPhone on the local network. Tap OK, then Allow on the next screen."
+          )
+        )
+      }
+      .alert(
+        String(localized: "Allow Notifications"),
+        isPresented: $showingNotificationsExplainer
+      ) {
+        Button(String(localized: "OK")) {
+          continueAfterNotificationsExplainer()
+        }
+      } message: {
+        Text(
+          String(
+            localized:
+              "Get notified when a nearby device needs this iPhone; without it, Remote Access works only while open."
+          )
+        )
+      }
+      .alert(
+        String(localized: "Local Network Access Is Off"),
+        isPresented: $showingLocalNetworkDenied
+      ) {
+        Button(String(localized: "Open Settings")) {
+          openSystemSettings()
+        }
+        Button(String(localized: "Cancel"), role: .cancel) {
+          // Dismisses the redirect; the switch stays off.
+        }
+      } message: {
+        Text(
+          String(
+            localized: "Remote Access needs it to let other devices find this iPhone."
+          )
+        )
+      }
     }
 
-    @ViewBuilder private var remotePairingControlsRow: some View {
-      if isPairingInputActive {
+    /// The pairing-code boxes, shown while on and unpaired.
+    @ViewBuilder internal var remotePairingCodeRow: some View {
+      if remoteAccessEnabled, !pairingModel.hasActivePairs {
         inlinePairingControls
-      } else if pairingModel.hasActivePairs {
-        HStack(spacing: RemotePairingLayout.forgetButtonGap) {
-          connectedStatusChip
-          Spacer()
-          disconnectButton
-        }
-      } else {
-        HStack {
-          Spacer()
-          Button(String(localized: "Connect")) {
-            togglePairingInput()
+          .onAppear {
+            if shouldFocusPairingEntry {
+              shouldFocusPairingEntry = false
+              isPairingFieldFocused = true
+            }
           }
-          .buttonStyle(.bordered)
-          .controlSize(.small)
-          .accessibilityIdentifier("remoteConnectButton")
-        }
       }
-    }
-
-    private var disconnectButton: some View {
-      Button(role: .destructive) {
-        withAnimation {
-          isPairingInputActive = false
-          pairingCodeDigits = ""
-          isPairingFieldFocused = false
-          pairingModel.revokeAll()
-          syncRemoteAccessToggle()
-        }
-      } label: {
-        Image(systemName: "minus.circle")
-          .font(.title3)
-          .foregroundStyle(.red)
-      }
-      .buttonStyle(.borderless)
-      .frame(
-        width: RemotePairingLayout.tapTargetSide,
-        height: RemotePairingLayout.tapTargetSide
-      )
-      .contentShape(Rectangle())
-      .accessibilityLabel(Text("Disconnect"))
-      .accessibilityIdentifier("remoteDisconnectButton")
-    }
-
-    private var statusChipTitle: String {
-      if !remoteAccessEnabled {
-        String(localized: "Off")
-      } else if isActivelyConnected {
-        String(localized: "Connected")
-      } else {
-        String(localized: "Offline")
-      }
-    }
-
-    private var connectedStatusChip: some View {
-      Button(statusChipTitle) {
-        retryRemoteConnection()
-      }
-      .buttonStyle(.bordered)
-      .tint(remoteAccessEnabled && isActivelyConnected ? .green : .secondary)
-      .controlSize(.small)
-      .lineLimit(1)
-      .fixedSize(horizontal: true, vertical: false)
-      .allowsHitTesting(!isActivelyConnected || !remoteAccessEnabled)
     }
 
     @ViewBuilder private var inlinePairingControls: some View {
@@ -236,10 +182,8 @@ import SwiftUI
 
     /// The toggle's binding: the holder's flip reaches the gate first.
     ///
-    /// The gate leads so a sync landing mid-flip converges instead of
-    /// reverting: it can only ever read the choice just made. Syncs from
-    /// pairing and notification observers flow the other way, into the
-    /// switch, and never touch the radios themselves.
+    /// Flipping on opens the education flow instead of enabling
+    /// directly; flipping off wipes every remote trace at once.
     private var remoteAccessBinding: Binding<Bool> {
       Binding(
         get: { remoteAccessEnabled },
@@ -248,30 +192,61 @@ import SwiftUI
     }
 
     private func setRemoteAccessEnabled(_ enabled: Bool) {
-      RemoteAccessServing.setEnabled(enabled)
-      if !enabled {
-        isPairingInputActive = false
+      if enabled {
+        remoteAccessFlowID = UUID()
+        showingLocalNetworkExplainer = true
+      } else {
+        remoteAccessFlowID = nil
         pairingCodeDigits = ""
         isPairingFieldFocused = false
-        pairingModel.cancel()
+        pairingModel.revokeAll()
+        syncRemoteAccessToggle()
       }
-      syncRemoteAccessToggle()
     }
 
-    private func retryRemoteConnection() {
-      if !remoteAccessEnabled {
-        setRemoteAccessEnabled(true)
-        return
-      }
-      #if os(iOS) && REFINEID_LOCAL_CARD
-        if !isActivelyConnected {
-          phoneRelay.resumeAfterUserAction()
-          RappAutoPairingService.shared.reconcile()
+    /// Starts serving after the local-network explanation is confirmed.
+    private func continueAfterLocalNetworkExplainer() {
+      let flow = remoteAccessFlowID
+      Task { @MainActor in
+        guard flow != nil, flow == remoteAccessFlowID else { return }
+        RemoteAccessServing.setEnabled(true)
+        syncRemoteAccessToggle()
+        let access = await LocalNetworkAccessDetector.currentAccess()
+        guard flow == remoteAccessFlowID else { return }
+        switch access {
+        case .allowed:
+          showingNotificationsExplainer = true
+        case .denied:
+          handleLocalNetworkDenial()
         }
-      #endif
+      }
     }
 
-    private func syncRemoteAccessToggle() {
+    /// Asks for notifications after their explanation is confirmed.
+    private func continueAfterNotificationsExplainer() {
+      RappAuthorizationInbox.shared.ensureAuthorization()
+      shouldFocusPairingEntry = true
+    }
+
+    /// Turns remote access back off when the network says no.
+    ///
+    /// Runs for the fast denial and for the late one the watch reports;
+    /// either way the switch must not claim an access it lacks.
+    internal func handleLocalNetworkDenial() {
+      guard RemoteAccessGate.isEnabled else { return }
+      remoteAccessFlowID = nil
+      pairingModel.revokeAll()
+      syncRemoteAccessToggle()
+      showingLocalNetworkDenied = true
+    }
+
+    private func openSystemSettings() {
+      if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+        UIApplication.shared.open(settingsURL)
+      }
+    }
+
+    internal func syncRemoteAccessToggle() {
       let enabled = RemoteAccessGate.isEnabled
       if remoteAccessEnabled != enabled {
         remoteAccessEnabled = enabled
@@ -311,22 +286,6 @@ import SwiftUI
         pairingModel.acceptPairingCode(normalized)
       } else if pairingModel.phase != .codeEntry {
         pairingModel.startCodeEntry()
-      }
-    }
-
-    private func togglePairingInput() {
-      withAnimation {
-        if isPairingInputActive {
-          isPairingInputActive = false
-          pairingModel.cancel()
-          pairingCodeDigits = ""
-          isPairingFieldFocused = false
-        } else {
-          isPairingInputActive = true
-          pairingModel.startCodeEntry()
-          pairingCodeDigits = ""
-          isPairingFieldFocused = true
-        }
       }
     }
   }
