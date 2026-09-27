@@ -34,57 +34,56 @@ protocol milestone.
   and shared credential labels. Tests, CI, and device installs passed; see
   [release status and evidence](Documentation/release-plan.md#scs-release-status).
 
-## Release blockers
+## Remaining macOS release decisions and checks
 
-Release qualification remains open in the sections below. Passing automated
-unit tests does not complete safety proofs, accessibility coverage, archive
-inspection, or exact-candidate hardware qualification.
+Established functionality is not an open implementation gate. The owner-recorded
+real-card testing in [26.8.16](Documentation/releases/26.8.16.md), the live Mac/iPhone
+verification above, and the [2026-09-11 cross-platform qualification decision](Documentation/decisions.md#2026-09-11-6-digit-pairing-standard-cross-platform-qualification-and-macos-store-gates)
+remain valid evidence. Do not require the whole product to be proven again merely
+because an older checklist was left unchecked.
 
-The RAPP physical qualification matrix now gates the full-version
-TestFlight and the macOS release (Phase E below); the gates it used to
-hold are open since 2026-09-10, so the matrix runs against the exact
-shipping topology instead of Debug builds.
+- [ ] Inspect the exact candidate through the release manager: signing,
+  entitlements, both CTK extensions, version/provenance, and exclusion of the
+  debug harness. Existing inspection automation is implemented; retain this
+  candidate's result.
+- [ ] Review the changes since the last hardware verification and perform a
+  focused candidate smoke check for affected paths. Reuse established RAPP and
+  direct-reader evidence; expand only where changes or failures justify it.
+- [ ] Review current localized screenshots, `Metadata/appstore.json`,
+  [reviewer instructions](Documentation/app-store-review-notes.md), and
+  human-approved What's New for this candidate. The Mac screenshot pipeline
+  and metadata synchronization already exist.
+- [ ] Record which current accessibility journeys have passed and resolve any
+  actual failures. Keyboard, localization, and accessibility audit suites exist;
+  their existence alone does not prove every shipping state was audited.
+- [ ] Resolve the independent RAPP security-review requirement with the release
+  owner: the handoff records no completed independent review. Cross-platform
+  interoperability is already qualified and must not be listed as missing.
 
-## Deterministic safety verification
+## Established implementation and evidence
 
+- Virtual ID Card is available on macOS; activation, editor, signing, credential,
+  localization, keyboard, and accessibility UI test suites exist.
+- Mac marketing capture/generation is documented in
+  [App Store screenshots](Documentation/app-store-screenshots.md) and implemented
+  by `Scripts/store-screenshot.sh` and `Scripts/generate-store-screenshots.swift`.
+- A blocked PIN remains eligible for PUK recovery; it does not spend another
+  PIN attempt. The release owner confirmed this policy on 2026-09-27.
+- Retry-policy tests cover unreadable, low, healthy, verified, and blocked
+  states. The reader probe and the measured system-NFC deadline exception are
+  documented in the release plan and the 2026-07-28 decision. These are not
+  missing implementations. A complete per-path command-count audit is not
+  established by this document review.
+- RAPP pairing, authorization, operation lifecycle, refusal, failure, and
+  revocation have automated coverage and recorded cross-platform qualification.
+- Archive inspection and release distribution run through
+  `Scripts/apple-app-store-connect-release-manager.swift`.
 
-- [ ] Make the retry floor provable: the NFC deadline path transmits PIN 1
-  without an immediately preceding probe (doc and exception must agree); zero
-  attempts transmits instead of refusing (`refuseBlocked` unreachable);
-  enforcement is convention, not type; no test proves zero credential
-  commands on a floor refusal. Never exercise a real card's final attempt.
-- [ ] Instrument test transports on every credential path; prove exact
-  card-command counts for success, rejection, ambiguity, retry refusal.
-- [ ] Cover retry states unknown, malformed, 0–4, pristine, including
-  wrong-at-three → two with no later transmission.
-- [ ] Finish the Virtual ID Card XCUITest harness: state machine, editor,
-  VoiceOver, localization, transports, injected failures through the same
-  paths as real cards.
-- [ ] Prove store archives contain no diagnostics, logging, credential APDUs,
-  secrets, personal data, or debug-only UI.
-- [ ] Run keyboard, VoiceOver, Dynamic Type, contrast, reduced-motion,
-  focus-order, error-announcement, and Accessibility Inspector coverage for
-  every shipping state.
+## Optional delivery infrastructure
 
-## Exact-build hardware evidence
-
-- [ ] Verify activation
-
-## App Store release
-
-- [x] Port Virtual ID Card to macOS: add "Explore with a Virtual Demo Card" in `StatusView` empty state and lift `DemoMode` to macOS for reviewer testing without hardware (Guideline 2.1(a)).
-- [ ] Develop Mac App Store screenshot pipeline: capture localized 2880x1800 screenshots with synthetic demo states.
-- [ ] Give App Review accurate card/reader instructions, Virtual ID Card steps, hardware limitations, extension behavior.
-- [ ] Localized `What's New` drafts from the exact diff, human-approved.
-
-## Xcode Cloud
-
-- [ ] Connect with minimum access and a deterministic verification workflow
-  on the committed shared scheme.
-- [ ] Tag-driven internal, beta, and rc workflows; no automatic distribution
-  per source change.
-- [ ] Retain build, test, analysis, inspection, and rc evidence beyond Xcode
-  Cloud's retention window.
+Xcode Cloud onboarding and tag-driven distribution are infrastructure work,
+not prerequisites for a release produced and inspected by the existing release
+manager. Retain release evidence regardless of the build provider.
 
 ## Automatic & Secure Same-AppleID Device Pairing
 
@@ -97,8 +96,8 @@ Read `Documentation/same-apple-id-automatic-pairing.md` for architecture and cry
 
 ## RAPP
 
-- [ ] Prototype interoperable non-Apple requesters and authorizers after the
-  Apple release baseline is frozen.
+Cross-platform pairing and card proxying are qualified in the 2026-09-11
+decision. Further independent-peer development is future protocol work.
 
 ## RAPP handoff
 
@@ -120,13 +119,9 @@ operations are qualified and verified across Android - Mac, Android - Linux,
 Mac - iPhone, Mac - Android, Linux - Android, and Windows. Formal Phase E
 archive qualification runs against the exact candidate artifact without dev-only crutches.
 
-Next: blocker 1; then the hardware-free harness (start at `RappPairingUI`,
-`RappAuthorizationInbox`, `RappPhoneProxyDispatcher`,
-`PhonePersistentTokenRelay`; inject below the dispatcher/card boundary); then
-bounded UI-test shards (pairing, approve/deny, PIN 2, fail-stop,
-revocation/re-pair, VoiceOver, Dynamic Type, fi/sv/en). Push each coherent
-increment; update the handoff when the pinned Rust revision or evidence
-changes.
+The phase descriptions below preserve the engineering acceptance criteria.
+They are not a list of unimplemented features. Reconcile an individual criterion
+with current tests and recorded qualification before opening new work.
 
 ### RAPP plan
 

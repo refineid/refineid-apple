@@ -113,34 +113,34 @@ and [shared labels and prompts, PR 39](https://github.com/refineid/refineid-appl
 The implementation baseline is `13ebf91`. Operational behavior is documented in
 [the release runbook](release-runbook.md#macos-local-web-signing).
 
-SCS implementation is no longer an open release task. This does not complete
-M4 or the remaining safety, accessibility, archive, activation, and physical
-qualification gates in [TASKS.md](../TASKS.md). Those still apply to the exact
-App Store candidate before submission.
+### Release evidence reconciliation
+
+The September 10 checklist predates recorded cross-platform qualification,
+the Mac screenshot pipeline, and the completed SCS work. Established behavior
+and earlier owner-observed hardware verification remain valid evidence; an
+unchecked historical task is not proof of an unfinished feature.
+
+[TASKS.md](../TASKS.md#remaining-macos-release-decisions-and-checks) now separates
+candidate checks from established implementation. The remaining work is an
+exact-candidate archive inspection, focused regression verification based on
+changed paths, review of current store assets and accessibility evidence, and
+resolution of the outstanding independent RAPP security-review requirement. No blanket repeat of the complete
+hardware or interoperability matrix is required by this reconciliation.
 
 ### Delivery sequence
 
 | Milestone | Outcome |
 | --- | --- |
-| M4 - Release evidence | Security, clean-archive, accessibility, clean-Mac, and real-card hardware matrices pass for an exact cloud build. |
-| M5 - TestFlight | Explicit development, beta, and release-candidate tags distribute through the configured tester groups. |
-| M6 - App Store | The exact tested candidate passes App Review and is released manually with public source and support ready. |
+| M4 - Candidate evidence | Inspect the exact release-manager candidate, review changed paths and existing evidence, and resolve identified policy or verification gaps. |
+| M5 - TestFlight | Distribute that inspected candidate through the release manager and record feedback. |
+| M6 - App Store | Submit the tested candidate with reviewed metadata; release automatically on approval under the standing owner policy. |
 
 ## Architecture
 
-The shipping App Store archive embeds the direct smart-card token extension:
+The shipping App Store archive embeds both token extensions:
 
 ```text
 RefineID.app
-|-- Contents/MacOS/RefineID
-|-- Contents/PlugIns/RefineIDTokenExtension.appex
-`-- Contents/Resources/...
-```
-
-Every configuration embeds both extensions, enabling RAPP use and testing:
-
-```text
-RefineID.app (Debug/Profile)
 |-- Contents/MacOS/RefineID
 |-- Contents/PlugIns/RefineIDTokenExtension.appex
 |-- Contents/PlugIns/RefineIDRappTokenExtension.appex
@@ -169,7 +169,9 @@ revokes that automatic identity. It still never probes PIN2 or PUK.
 
 - Three or more attempts remaining: the CTK operation may proceed.
 - One or two attempts remaining: refuse before prompting for or sending the PIN.
-- Zero attempts remaining: report the credential as blocked.
+- Zero attempts remaining: report the credential as blocked and allow PUK
+  recovery. A blocked PIN cannot spend another PIN attempt; its blocked state
+  must not prevent an unblock operation using an eligible PUK.
 - Missing, malformed, stale, or unreadable retry state: reject attempt to talk to card.
 - CTK has no expert override.
 
@@ -220,7 +222,7 @@ Guidelines and is built from owned source artwork.
   uniqueness only within one version string and the version changes daily.
 - TestFlight and App Store Connect display the pair as `26.7.23 (130)`.
 
-Xcode Cloud owns App Store signing. The repository contains no certificate
+The release manager owns candidate archiving, inspection, export, and upload. The repository contains no certificate
 private keys, provisioning profiles, API keys, or Apple account credentials.
 Secret environment values, if ever required, are redacted in Xcode Cloud.
 
