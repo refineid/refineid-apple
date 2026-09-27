@@ -26,6 +26,16 @@ internal struct NoisePattern {
       [.ephemeral, .ephemeralEphemeral, .staticEphemeral],
     ])
 
+  /// `KKhfs`: both statics known, hybrid forward secrecy with ML-KEM-768.
+  internal static let knownKnownHfs = Self(
+    name: "KKhfs",
+    initiatorPreMessage: [.staticKey],
+    responderPreMessage: [.staticKey],
+    messages: [
+      [.ephemeral, .ephemeralStatic, .ephemeralKem, .staticStatic],
+      [.ephemeral, .ephemeralEphemeral, .kemCiphertext, .staticEphemeral],
+    ])
+
   internal let name: String
   internal let initiatorPreMessage: [NoiseToken]
   internal let responderPreMessage: [NoiseToken]

@@ -35,16 +35,18 @@ internal struct NoiseHandshakeCorpusTests {
     let initiatorPublic = try publicKey(from: initiatorStatic)
     let responderPublic = try publicKey(from: responderStatic)
 
-    let isPairing = vector.suite == RappNoise.pairingSuite
+    let isPairing = vector.name.contains("pairing") || vector.suite.contains("XXpsk3")
     let prologue =
       isPairing
       ? try RappNoise.pairingPrologue(
         offerHash: try Data(hex: vector.offerHashHex ?? ""),
-        transportProfile: vector.transportProfile)
+        transportProfile: vector.transportProfile,
+        suite: vector.suite)
       : try RappNoise.sessionPrologue(
         pairIdentifier: try Data(hex: vector.pairIDHex),
         grantsHash: try Data(hex: vector.grantsHashHex ?? ""),
-        transportProfile: vector.transportProfile)
+        transportProfile: vector.transportProfile,
+        suite: vector.suite)
 
     let pattern = isPairing ? NoisePattern.xxPsk3 : NoisePattern.knownKnown
     let secret = isPairing ? try Data(hex: vector.testOnlyPairingSecretHex ?? "") : nil
@@ -92,7 +94,8 @@ internal struct NoiseHandshakeCorpusTests {
 
       let hash = initiator.handshakeHash
       #expect(RappNoise.sessionIdentifier(handshakeHash: hash).hex == vector.sessionIDHex)
-      if vector.suite == RappNoise.pairingSuite {
+      let isPairing = vector.name.contains("pairing") || vector.suite.contains("XXpsk3")
+      if isPairing {
         #expect(RappNoise.pairIdentifier(handshakeHash: hash).hex == vector.pairIDHex)
         #expect(
           RappNoise.rendezvousToken(handshakeHash: hash).hex == vector.rendezvousTokenHex)

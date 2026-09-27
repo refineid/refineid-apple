@@ -11,8 +11,8 @@ import Testing
 
 /// Two channels wired to each other, as a completed handshake would leave them.
 internal func makeChannelPair() -> (RappSecureChannel, RappSecureChannel) {
-  let firstKey = Data(repeating: RuntimeFixture.firstKeyFill, count: NoiseSizes.hashLength)
-  let secondKey = Data(repeating: RuntimeFixture.secondKeyFill, count: NoiseSizes.hashLength)
+  let firstKey = Data(repeating: RuntimeFixture.firstKeyFill, count: NoiseSizes.keyLength)
+  let secondKey = Data(repeating: RuntimeFixture.secondKeyFill, count: NoiseSizes.keyLength)
   var initiatorSend = NoiseCipherState()
   var initiatorReceive = NoiseCipherState()
   var responderSend = NoiseCipherState()

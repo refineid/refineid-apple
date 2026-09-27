@@ -10,10 +10,39 @@ internal struct SessionParameters: Equatable {
 
   internal var grantsHash: Data
 
+  internal var suite: String
+
+  internal init(
+    transportProfile: String,
+    candidateIdentifier: String,
+    grantsHash: Data
+  ) {
+    self.init(
+      transportProfile: transportProfile,
+      candidateIdentifier: candidateIdentifier,
+      grantsHash: grantsHash,
+      suite: RappNoise.sessionSuite)
+  }
+
+  internal init(
+    transportProfile: String,
+    candidateIdentifier: String,
+    grantsHash: Data,
+    suite: String
+  ) {
+    self.transportProfile = transportProfile
+    self.candidateIdentifier = candidateIdentifier
+    self.grantsHash = grantsHash
+    self.suite = suite
+  }
+
   internal static func from(map: [String: WireValue]) throws -> Self {
     var fields = map
     try requireVersion(&fields)
-    try requireSuite(&fields, RappNoise.sessionSuite)
+    let decodedSuite = try takeMessageText(&fields, "suite")
+    guard decodedSuite == RappNoise.sessionSuite else {
+      throw MessageFieldError.invalidField("suite")
+    }
     let decodedTransportProfile = try takeMessageText(&fields, "transport_profile")
     let decodedCandidateIdentifier = try takeMessageText(&fields, "candidate_id")
     let decodedGrantsHash = try takeMessageBytes(&fields, "grants_hash")
@@ -25,7 +54,8 @@ internal struct SessionParameters: Equatable {
     return Self(
       transportProfile: decodedTransportProfile,
       candidateIdentifier: decodedCandidateIdentifier,
-      grantsHash: decodedGrantsHash)
+      grantsHash: decodedGrantsHash,
+      suite: decodedSuite)
   }
 
   internal func asMap() throws -> [String: WireValue] {
@@ -33,7 +63,7 @@ internal struct SessionParameters: Equatable {
     try validateLabel(candidateIdentifier, "candidate_id")
     return [
       "version": wireVersionValue,
-      "suite": .text(RappNoise.sessionSuite),
+      "suite": .text(suite),
       "transport_profile": .text(transportProfile),
       "candidate_id": .text(candidateIdentifier),
       "grants_hash": .bytes(grantsHash),

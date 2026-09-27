@@ -32,7 +32,7 @@ internal struct TransportChannelTests {
     let prologue = try Data(hex: suite.prologueHex)
     let initiatorStatic = try Data(hex: keys.testOnlyInitiatorStaticPrivateHex)
     let responderStatic = try Data(hex: keys.testOnlyResponderStaticPrivateHex)
-    let isPairing = suite.suite == RappNoise.pairingSuite
+    let isPairing = suite.suite.contains("XXpsk3") || suite.name.contains("pairing")
     let secret = isPairing ? try Data(hex: keys.testOnlyPairingSecretHex ?? "") : nil
 
     var initiator = try NoiseHandshakeState(
@@ -69,7 +69,7 @@ internal struct TransportChannelTests {
   /// A fresh pair sharing one key, so counters line up and each control fails
   /// for the reason it is testing.
   private static func matchedPair() -> (writer: RappSecureChannel, reader: RappSecureChannel) {
-    let material = Data(repeating: 0x2B, count: NoiseSizes.hashLength)
+    let material = Data(repeating: 0x2B, count: NoiseSizes.keyLength)
     var send = NoiseCipherState()
     var receive = NoiseCipherState()
     send.initializeKey(material)

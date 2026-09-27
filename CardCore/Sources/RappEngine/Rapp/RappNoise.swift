@@ -25,8 +25,8 @@ internal enum RappNoise {
     patch: wirePatch
   )
 
-  internal static let pairingSuite = "Noise_XXpsk3_25519_ChaChaPoly_SHA256"
-  internal static let sessionSuite = "Noise_KK_25519_ChaChaPoly_SHA256"
+  internal static let pairingSuite = "Noise_XXpsk3_25519_ChaChaPoly_SHA512"
+  internal static let sessionSuite = "Noise_KKhfs_25519+MLKEM768_ChaChaPoly_SHA512"
 
   private static let pairingPrologueDomain = "RAPP-pairing-v1"
   private static let sessionPrologueDomain = "RAPP-session-v1"
@@ -45,11 +45,26 @@ internal enum RappNoise {
   }
 
   /// Binds the pairing handshake to the offer it answers.
-  internal static func pairingPrologue(offerHash: Data, transportProfile: String) throws -> Data {
+  internal static func pairingPrologue(
+    offerHash: Data,
+    transportProfile: String
+  ) throws -> Data {
+    try pairingPrologue(
+      offerHash: offerHash,
+      transportProfile: transportProfile,
+      suite: pairingSuite)
+  }
+
+  /// Binds the pairing handshake to the offer it answers and specific suite.
+  internal static func pairingPrologue(
+    offerHash: Data,
+    transportProfile: String,
+    suite: String
+  ) throws -> Data {
     let value = WireValue.array([
       .text(pairingPrologueDomain),
       versionValue,
-      .text(pairingSuite),
+      .text(suite),
       .bytes(offerHash),
       .text(transportProfile),
     ])
@@ -58,12 +73,28 @@ internal enum RappNoise {
 
   /// Binds the session handshake to the pairing and the agreed grants.
   internal static func sessionPrologue(
-    pairIdentifier: Data, grantsHash: Data, transportProfile: String
+    pairIdentifier: Data,
+    grantsHash: Data,
+    transportProfile: String
+  ) throws -> Data {
+    try sessionPrologue(
+      pairIdentifier: pairIdentifier,
+      grantsHash: grantsHash,
+      transportProfile: transportProfile,
+      suite: sessionSuite)
+  }
+
+  /// Binds the session handshake to the pairing, agreed grants, and specific suite.
+  internal static func sessionPrologue(
+    pairIdentifier: Data,
+    grantsHash: Data,
+    transportProfile: String,
+    suite: String
   ) throws -> Data {
     let value = WireValue.array([
       .text(sessionPrologueDomain),
       versionValue,
-      .text(sessionSuite),
+      .text(suite),
       .bytes(pairIdentifier),
       .bytes(grantsHash),
       .text(transportProfile),
@@ -72,7 +103,14 @@ internal enum RappNoise {
   }
 
   private static func identifier(domain: String, handshakeHash: Data) -> Data {
-    Data(SHA256.hash(data: Data(domain.utf8) + handshakeHash).prefix(identifierLength))
+    let input = Data(domain.utf8) + handshakeHash
+    let digest: Data
+    if handshakeHash.count == NoiseSizes.hashLength {
+      digest = Data(SHA512.hash(data: input))
+    } else {
+      digest = Data(SHA256.hash(data: input))
+    }
+    return Data(digest.prefix(identifierLength))
   }
 
   internal static func sessionIdentifier(handshakeHash: Data) -> Data {
