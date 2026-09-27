@@ -18,7 +18,7 @@ internal struct ScsPinPromptTests {
   }
 
   @Test(arguments: ["en", "fi", "sv"])
-  internal func localizedPrompt(language: String) throws {
+  internal func localizedPrompt(language: String) async throws {
     let path = try #require(Bundle.main.path(forResource: language, ofType: "lproj"))
     let bundle = try #require(Bundle(path: path))
     let alert = ScsPinPrompt.makeAlert(role: .pin2, bundle: bundle)
@@ -44,9 +44,18 @@ internal struct ScsPinPromptTests {
     #expect(alert.informativeText.isEmpty)
     #expect(alert.buttons.map(\.title) == [expected.sign, expected.cancel])
     #expect(alert.accessoryView is NSSecureTextField)
-    DispatchQueue.main.async {
-      NSApp.stopModal(withCode: .alertSecondButtonReturn)
+    let window = NSWindow(
+      contentRect: .zero, styleMask: .titled, backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    defer { window.close() }
+    let response = await withCheckedContinuation { continuation in
+      alert.beginSheetModal(for: window) { response in
+        continuation.resume(returning: response)
+      }
+      DispatchQueue.main.async {
+        alert.buttons.last?.performClick(nil)
+      }
     }
-    #expect(alert.runModal() == .alertSecondButtonReturn)
+    #expect(response == .alertSecondButtonReturn)
   }
 }
