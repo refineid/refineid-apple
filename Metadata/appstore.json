@@ -27,12 +27,12 @@
   },
   "localizations": {
     "en-US": {
-      "subtitle": "Use your identity card online",
+      "subtitle": "Authenticate and sign",
       "privacyPolicyUrl": "https://www.refineid.fi/privacy-policy/",
       "keywords": "identity card",
       "promotionalText": {
-        "macos": "Log in to services with your identity card and sign documents.",
-        "ios": "Log in to services with your identity card and sign documents."
+        "macos": "Authenticate and sign with your identity card.",
+        "ios": "Authenticate and sign with your identity card."
       },
       "description": {
         "macos": "Identity card reader and signing tool.\n\nYou can also use your phone wirelessly as a card reader.\n\n• Sign in to online services: Authenticate to e-services.\n• Sign and verify documents: Create a qualified electronic signature and verify signed documents.\n• Card and certificate management: Card activation and PIN code management.\n• Privacy: No ads or tracking, open source: github.com/refineid",
@@ -40,12 +40,12 @@
       }
     },
     "fi": {
-      "subtitle": "Käytä henkilökorttia verkossa",
+      "subtitle": "Tunnistaudu ja allekirjoita",
       "privacyPolicyUrl": "https://www.refineid.fi/tietosuojaseloste/",
       "keywords": "henkilökortti",
       "promotionalText": {
-        "macos": "Kirjaudu palveluihin henkilökortilla ja allekirjoita asiakirjoja.",
-        "ios": "Kirjaudu palveluihin henkilökortilla ja allekirjoita asiakirjoja."
+        "macos": "Tunnistaudu ja allekirjoita henkilökortilla.",
+        "ios": "Tunnistaudu ja allekirjoita henkilökortilla."
       },
       "description": {
         "macos": "Henkilökortinlukija ja allekirjoitustyökalu.\n\nVoit käyttää myös puhelinta langattomasti kortinlukijana.\n\n• Kirjaudu verkkopalveluihin: Tunnistaudu sähköisiin asiointipalveluihin.\n• Allekirjoita ja tarkasta asiakirjoja: Tee asiakirjoihin hyväksytty sähköinen allekirjoitus ja tarkasta allekirjoitukset.\n• Kortin ja varmenteiden hallinta: Kortin aktivointi ja tunnuslukujen hallinta.\n• Yksityisyys: Ei mainoksia tai seurantaa, avointa lähdekoodia: github.com/refineid",
@@ -53,12 +53,12 @@
       }
     },
     "sv": {
-      "subtitle": "Använd identitetskortet online",
+      "subtitle": "Identifiera och underteckna",
       "privacyPolicyUrl": "https://www.refineid.fi/integritetspolicy/",
       "keywords": "identitetskort",
       "promotionalText": {
-        "macos": "Logga in på tjänster med ditt identitetskort och underteckna dokument.",
-        "ios": "Logga in på tjänster med ditt identitetskort och underteckna dokument."
+        "macos": "Identifiera dig och underteckna med identitetskortet.",
+        "ios": "Identifiera dig och underteckna med identitetskortet."
       },
       "description": {
         "macos": "Identitetskortläsare och underskriftsverktyg.\n\nDu kan även använda telefonen trådlöst som kortläsare.\n\n• Logga in på e-tjänster: Identifiera dig i e-tjänster.\n• Underteckna och granska dokument: Skapa en kvalificerad elektronisk underskrift och granska dokument.\n• Hantering av kort och certifikat: Aktivering av kort och hantering av koder.\n• Integritet: Ingen reklam eller spårning, öppen källkod: github.com/refineid",
