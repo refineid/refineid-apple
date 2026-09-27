@@ -198,7 +198,7 @@ for the intended next action.
 
 ### macOS local web signing
 
-SCS is off by default. In **Settings > Signature Creation Service**, the holder
+SCS is off by default. In **Settings > Signing Service**, the holder
 can turn the service on or off. Only enabling it, or restoring a saved opt-in, starts the
 server and obtains its TLS identity. Disabling closes the listener and accepted
 connections; it does not remove certificate trust already granted by the holder.

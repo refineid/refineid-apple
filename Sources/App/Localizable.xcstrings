@@ -1,13 +1,13 @@
 {
   "sourceLanguage": "en",
   "strings": {
-    "Signature Creation Service": {
+    "Signing Service": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Signature Creation Service"
+            "value": "Signing Service"
           }
         },
         "fi": {
@@ -20,6 +20,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Signeringstjänst"
+          }
+        }
+      }
+    },
+    "Signature Creation Service": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signature Creation Service"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allekirjoituspalvelu (Signature Creation Service)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signeringstjänst (Signature Creation Service)"
           }
         }
       }
