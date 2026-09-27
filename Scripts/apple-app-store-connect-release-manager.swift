@@ -33,6 +33,9 @@
 //   apple-app-store-connect-release-manager.swift app-info
 //   apple-app-store-connect-release-manager.swift review-contact <ios|macos> <versionString>
 //   apple-app-store-connect-release-manager.swift screenshots <ios|macos> <versionString>
+//       Updates App Store version assets. TestFlight invitations use screenshots
+//       from the latest approved version in Ready for Distribution.
+//       See Documentation/release-runbook.md for screenshot visibility rules.
 //   apple-app-store-connect-release-manager.swift age-rating
 //   apple-app-store-connect-release-manager.swift export-compliance <ios|macos>
 //   apple-app-store-connect-release-manager.swift pricing
@@ -1413,6 +1416,12 @@ private func printReleaseManagerUsage() {
       get, api, app-id, state, builds, distribute, add-tester, remove-tester, invite
       ensure-version, attach-build, metadata, app-info, review-contact
       screenshots, age-rating, export-compliance, pricing, submissions, submit
+
+    Screenshot visibility:
+      screenshots updates App Store version assets, not beta build assets.
+      TestFlight invitations use the latest approved Ready for Distribution version.
+      Draft screenshots and new beta builds do not update invitation screenshots.
+      See Documentation/release-runbook.md for sources and verification steps.
     """
   )
 }
@@ -2171,6 +2180,8 @@ func platform(_ platformName: String, shows folderName: String) -> Bool {
 // Uploads every PNG under Metadata/screenshots/<locale>/<DISPLAY_TYPE>/
 // for a platform's version, one screenshot set per display type.
 func pushScreenshots(_ platformName: String, _ version: String) {
+  print("Uploading App Store version screenshots; TestFlight invitations use the latest approved")
+  print("Ready for Distribution version. Draft screenshots do not update TestFlight invitations.")
   let versionID = ensureVersion(platformName, version)
   let versionLocalizations = existingLocalizations(
     "/v1/appStoreVersions/\(versionID)/appStoreVersionLocalizations?limit=50")
