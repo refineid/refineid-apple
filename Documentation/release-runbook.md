@@ -196,6 +196,35 @@ for the intended next action.
 
 ## 4. Distribute through TestFlight
 
+### Screenshot visibility
+
+TestFlight invitation screenshots come from the latest approved App Store
+version in **Ready for Distribution**, when **TestFlight > Test Information >
+Invitation Experience > App Information** is enabled. Uploading screenshots
+with the release manager changes the named App Store version's assets;
+it does not attach screenshots to a beta build. Screenshots in **Prepare for
+Submission** and uploading or distributing a new beta build do not replace
+invitation screenshots. The new App Store version must reach **Ready for
+Distribution** to become the source. To hide the existing invitation screenshots
+and category, deselect **App Information**.
+
+Verify the source version's state, platform, and localization in App Store
+Connect before comparing invitation images. Apple documents the source-version
+rule, but does not specify a refresh delay or promise immediate propagation to
+cached invitations. See
+[apple_testflight_information](references.md#apple_testflight_information).
+
+For App Store screenshot inspection, open **View All Sizes in Media Manager**
+and select the uploaded source display size. Apple automatically scales larger
+screenshots for smaller displays. A panel labelled **Using 6.9" Display** is
+using that larger set. Faded thumbnails and disabled upload/delete controls
+were observed in an inherited 6.5-inch panel; that appearance is an interface
+observation, not evidence that the uploaded files are faded. Inspect the source
+images to verify their quality. Apple documents scaling, not that visual
+interface treatment. See
+[apple_screenshot_upload](references.md#apple_screenshot_upload).
+
+
 After explicit approval for the named tester group:
 
 ```sh

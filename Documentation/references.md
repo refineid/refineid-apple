@@ -218,3 +218,19 @@ The model tests apply model-based testing principles by treating the transition 
 - Supports: deriving systematic tests from a behavioral model and checking implementation conformance against that model.
 - Does NOT prove: complete correctness of platform frameworks, card firmware, or UI rendering outside the modeled scenarios.
 - Source quality: industry-published.
+
+### apple_testflight_information
+
+[Apple: Provide test information](https://developer.apple.com/help/app-store-connect/test-a-beta-version/provide-test-information/).
+Normative Apple platform documentation. Supports that TestFlight invitation
+screenshots and category come from the latest approved version in Ready for
+Distribution, and that App Information can hide them. Does not specify refresh
+latency, caching behavior, or screenshots on every TestFlight surface.
+
+### apple_screenshot_upload
+
+[Apple: Upload app previews and screenshots](https://developer.apple.com/help/app-store-connect/manage-app-information/upload-app-previews-and-screenshots/).
+Normative Apple platform documentation. Supports automatic scaling from larger
+screenshots and using Media Manager for size-specific assets. Does not establish
+that faded inherited thumbnails represent faded source images, or document the
+opacity of App Store Connect controls.
