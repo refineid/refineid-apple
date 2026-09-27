@@ -1,6 +1,6 @@
 # Apple release task list
 
-Last reviewed: 2026-09-10. Completed work is removed; this file holds only
+Last reviewed: 2026-09-27. Completed work is removed; this file holds only
 outcomes still required for a beta, an App Store release, or the next
 protocol milestone.
 
@@ -29,9 +29,16 @@ protocol milestone.
   `nfc` required capability. Enforced by the archive inspector and
   `RappShippingConfigurationTests`.
 
+- SCS macOS release work is complete and accepted for this release on
+  2026-09-27: default-off opt-in, listener lifecycle, concise localized prompts,
+  and shared credential labels. Tests, CI, and device installs passed; see
+  [release status and evidence](Documentation/release-plan.md#scs-release-status).
+
 ## Release blockers
 
-None. The non-UI suite (CardCoreTests and RefineIDTests, 597 tests across 107 suites) is fully green on main.
+Release qualification remains open in the sections below. Passing automated
+unit tests does not complete safety proofs, accessibility coverage, archive
+inspection, or exact-candidate hardware qualification.
 
 The RAPP physical qualification matrix now gates the full-version
 TestFlight and the macOS release (Phase E below); the gates it used to
@@ -66,7 +73,6 @@ shipping topology instead of Debug builds.
 ## App Store release
 
 - [x] Port Virtual ID Card to macOS: add "Explore with a Virtual Demo Card" in `StatusView` empty state and lift `DemoMode` to macOS for reviewer testing without hardware (Guideline 2.1(a)).
-- [x] Make SCS server opt-in in macOS Settings: defer listener start and `SecTrustSettingsSetTrustSettings` behind the default-off Signature Creation Service toggle.
 - [ ] Develop Mac App Store screenshot pipeline: capture localized 2880x1800 screenshots with synthetic demo states.
 - [ ] Give App Review accurate card/reader instructions, Virtual ID Card steps, hardware limitations, extension behavior.
 - [ ] Localized `What's New` drafts from the exact diff, human-approved.

@@ -1,6 +1,6 @@
 # macOS App Store release plan
 
-Last reviewed: 2026-09-10
+Last reviewed: 2026-09-27
 
 This document defines the product, security, validation, and distribution gates
 for the Swift macOS RefineID release. [TASKS.md](../TASKS.md) is the
@@ -24,7 +24,7 @@ Ship a small, trustworthy macOS App Store product named **RefineID**.
 
 The application contains the CryptoTokenKit smart-card extension that macOS
 loads for a supported card, with direct contact reader signing, contactless
-reading, card activation, and the SCS loopback signing server enabled in the
+reading, card activation, and the opt-in SCS loopback signing server included in the
 first full version (owner decision 2026-09-10). A separate persistent-token
 extension for a RAPP-paired iPhone authorizer ships in every configuration
 (`hasRapp: true`); physical qualification runs against this exact shipping
@@ -84,6 +84,39 @@ holder consent before the server starts or invokes any system trust prompts.
 Card management and PIN2 signing entered scope on 2026-08-04 (see
 `Documentation/decisions.md`); iPadOS and iOS follow the macOS
 implementation.
+
+### SCS release status
+
+Complete for this release; accepted by the release owner on 2026-09-27.
+
+- **Settings:** Signature Creation Service is off by default. A saved opt-in
+  restores the listener; turning it off closes the listener and accepted
+  connections. Certificate trust is requested only on the enabled path, and
+  existing holder-granted trust is retained when the service is disabled.
+- **Localization:** Settings topics use short localized names. Finnish and
+  Swedish switch labels include the English service name in parentheses.
+  Entry prompts and action buttons are localized in English, Finnish, and
+  Swedish, with no explanatory paragraph. `CredentialLabels` owns the shared
+  credential names, including Finnish `Perus (PIN 1)` and Swedish
+  `Signaturkoden (PIN 2)`.
+- **Verification:** Automated tests cover default-off behavior, saved opt-in,
+  live loopback connection shutdown and listener restart, localized Settings,
+  and dialog presentation/cancellation without entering credentials. Lint,
+  iOS compilation, the macOS unit suite, package tests, and CI passed. The
+  production changes were installed on Mac, connected iOS hardware, and the
+  iPad simulator; installed Finnish Settings and compiled prompt translations
+  were checked.
+
+Integrated changes: [SCS opt-in, PR 37](https://github.com/refineid/refineid-apple/pull/37),
+[Settings translations, PR 38](https://github.com/refineid/refineid-apple/pull/38),
+and [shared labels and prompts, PR 39](https://github.com/refineid/refineid-apple/pull/39).
+The implementation baseline is `13ebf91`. Operational behavior is documented in
+[the release runbook](release-runbook.md#macos-local-web-signing).
+
+SCS implementation is no longer an open release task. This does not complete
+M4 or the remaining safety, accessibility, archive, activation, and physical
+qualification gates in [TASKS.md](../TASKS.md). Those still apply to the exact
+App Store candidate before submission.
 
 ### Delivery sequence
 
