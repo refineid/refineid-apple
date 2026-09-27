@@ -34,6 +34,7 @@
         "macos": "Authenticate and sign with your identity card.",
         "ios": "Authenticate and sign with your identity card."
       },
+      "whatsNew": "• Card activation and PIN code management\n• Improved document signing and general performance improvements",
       "description": {
         "macos": "Identity card reader and signing tool.\n\nYou can also use your phone wirelessly as a card reader.\n\n• Sign in to online services: Authenticate to e-services.\n• Sign and verify documents: Create a qualified electronic signature and verify signed documents.\n• Card and certificate management: Card activation and PIN code management.\n• Privacy: No ads or tracking, open source: github.com/refineid",
         "ios": "Identity card reader and signing tool.\n\nYou can also use your phone wirelessly as a card reader.\n\n• Sign in to online services: Authenticate to e-services.\n• Sign and verify documents: Create a qualified electronic signature and verify signed documents.\n• Card and certificate management: Card activation and PIN code management.\n• Privacy: No ads or tracking, open source: github.com/refineid"
@@ -47,6 +48,7 @@
         "macos": "Tunnistaudu ja allekirjoita henkilökortilla.",
         "ios": "Tunnistaudu ja allekirjoita henkilökortilla."
       },
+      "whatsNew": "• Kortin aktivointi ja tunnuslukujen hallinta\n• Parannettu asiakirjojen allekirjoitus ja suorituskyky",
       "description": {
         "macos": "Henkilökortinlukija ja allekirjoitustyökalu.\n\nVoit käyttää myös puhelinta langattomasti kortinlukijana.\n\n• Kirjaudu verkkopalveluihin: Tunnistaudu sähköisiin asiointipalveluihin.\n• Allekirjoita ja tarkasta asiakirjoja: Tee asiakirjoihin hyväksytty sähköinen allekirjoitus ja tarkasta allekirjoitukset.\n• Kortin ja varmenteiden hallinta: Kortin aktivointi ja tunnuslukujen hallinta.\n• Yksityisyys: Ei mainoksia tai seurantaa, avointa lähdekoodia: github.com/refineid",
         "ios": "Henkilökortinlukija ja allekirjoitustyökalu.\n\nVoit käyttää myös puhelinta langattomasti kortinlukijana.\n\n• Kirjaudu verkkopalveluihin: Tunnistaudu sähköisiin asiointipalveluihin.\n• Allekirjoita ja tarkasta asiakirjoja: Tee asiakirjoihin hyväksytty sähköinen allekirjoitus ja tarkasta allekirjoitukset.\n• Kortin ja varmenteiden hallinta: Kortin aktivointi ja tunnuslukujen hallinta.\n• Yksityisyys: Ei mainoksia tai seurantaa, avointa lähdekoodia: github.com/refineid"
@@ -60,6 +62,7 @@
         "macos": "Identifiera dig och underteckna med identitetskortet.",
         "ios": "Identifiera dig och underteckna med identitetskortet."
       },
+      "whatsNew": "• Aktivering av kort och hantering av koder\n• Förbättrad dokumentunderteckning och prestanda",
       "description": {
         "macos": "Identitetskortläsare och underskriftsverktyg.\n\nDu kan även använda telefonen trådlöst som kortläsare.\n\n• Logga in på e-tjänster: Identifiera dig i e-tjänster.\n• Underteckna och granska dokument: Skapa en kvalificerad elektronisk underskrift och granska dokument.\n• Hantering av kort och certifikat: Aktivering av kort och hantering av koder.\n• Integritet: Ingen reklam eller spårning, öppen källkod: github.com/refineid",
         "ios": "Identitetskortläsare och underskriftsverktyg.\n\nDu kan även använda telefonen trådlöst som kortläsare.\n\n• Logga in på e-tjänster: Identifiera dig i e-tjänster.\n• Underteckna och granska dokument: Skapa en kvalificerad elektronisk underskrift och granska dokument.\n• Hantering av kort och certifikat: Aktivering av kort och hantering av koder.\n• Integritet: Ingen reklam eller spårning, öppen källkod: github.com/refineid"
