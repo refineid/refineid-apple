@@ -58,7 +58,7 @@ internal struct PdfStampRendererTests {
     }
     #expect(abs(inkBounds.midY) < 0.001)
     #expect(layout.count == 4)
-    #expect(layout[0].fontSize > layout[1].fontSize)
+    #expect(Set(layout.map(\.fontSize)).count == 1)
   }
 
   @Test

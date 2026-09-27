@@ -46,8 +46,7 @@ public enum PdfStampRenderer {
   private static let arcSweep = arcSweepDegrees * Double.pi / semicircleDegrees
   private static let rightAngle = Double.pi * half
   private static let half = 0.5
-  private static let centerCommandFontSize = 11.0
-  private static let centerBodyFontSize = 9.0
+  private static let centerFontSize = 9.0
   private static let centerLineGap = 4.0
   private static let centerWidthFraction = 0.82
   private static let diameterFactor = 2.0
@@ -169,11 +168,10 @@ public enum PdfStampRenderer {
   internal static func centerLayout(lines: [String]) -> [CenterLine] {
     var baseline = 0.0
     var layout: [CenterLine] = []
-    for (index, text) in lines.enumerated() {
-      let preferredSize = index == 0 ? centerCommandFontSize : centerBodyFontSize
-      let preferred = textMetrics(text, fontSize: preferredSize)
-      let maxWidth = borderInnerRadius * diameterFactor * centerWidthFraction
-      let fontSize = min(preferredSize, preferredSize * maxWidth / preferred.bounds.width)
+    let maxWidth = borderInnerRadius * diameterFactor * centerWidthFraction
+    let widestLine = lines.map { textMetrics($0, fontSize: centerFontSize).bounds.width }.max() ?? 0
+    let fontSize = widestLine > maxWidth ? centerFontSize * maxWidth / widestLine : centerFontSize
+    for text in lines {
       let metrics = textMetrics(text, fontSize: fontSize)
       if let previous = layout.last {
         baseline = previous.origin.y + previous.bounds.minY - centerLineGap - metrics.bounds.maxY
