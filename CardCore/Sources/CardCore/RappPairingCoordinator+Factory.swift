@@ -84,6 +84,8 @@
       public let transport: any RappFrameTransport
       /// Clock source; defaults to the platform clock.
       public let clock: RappPlatformClock
+      /// Optional manual pairing code for CPace key agreement.
+      public let code: String?
 
       // MARK: Lifecycle
 
@@ -95,7 +97,8 @@
         platform: String,
         vault: RappDeviceVault,
         transport: any RappFrameTransport,
-        clock: RappPlatformClock = RappPlatformClock()
+        clock: RappPlatformClock = RappPlatformClock(),
+        code: String? = nil
       ) {
         self.scannedOfferURI = scannedOfferURI
         self.selectedCandidateID = selectedCandidateID
@@ -104,6 +107,7 @@
         self.vault = vault
         self.transport = transport
         self.clock = clock
+        self.code = code
       }
     }
 
@@ -141,7 +145,8 @@
         clock: options.clock,
         offerDeadlineMilliseconds: deadline(
           startedAt: startedAt, lifetime: options.offerLifetimeMilliseconds
-        )
+        ),
+        pairingCode: options.code
       )
     }
 
@@ -164,7 +169,8 @@
         clock: options.clock,
         offerDeadlineMilliseconds: deadline(
           startedAt: startedAt, lifetime: bridge.offerTtlMs()
-        )
+        ),
+        pairingCode: options.code
       )
     }
 
@@ -209,7 +215,8 @@
       platform: String,
       vault: RappDeviceVault,
       transport: any RappFrameTransport,
-      clock: RappPlatformClock = RappPlatformClock()
+      clock: RappPlatformClock = RappPlatformClock(),
+      code: String? = nil
     ) throws -> RappPairingCoordinator {
       try proxy(
         options: ProxyOptions(
@@ -219,7 +226,8 @@
           platform: platform,
           vault: vault,
           transport: transport,
-          clock: clock
+          clock: clock,
+          code: code
         )
       )
     }

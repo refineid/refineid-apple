@@ -70,6 +70,12 @@
           Text(request.requester)
             .multilineTextAlignment(.trailing)
         }
+        if let displayContext = request.displayContext, !displayContext.isEmpty {
+          LabeledContent(request.action == .documentSignature ? "Document" : "Origin") {
+            Text(displayContext)
+              .multilineTextAlignment(.trailing)
+          }
+        }
       }
     }
 

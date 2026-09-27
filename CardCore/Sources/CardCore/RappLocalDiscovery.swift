@@ -32,7 +32,7 @@
     internal let localRole: RappDeviceRole
     /// The Bonjour service type used by this discovery instance.
     public let serviceType: String
-    internal let onDiscovered: @Sendable (RappCloudDeviceRecord) -> Void
+    internal let onDiscovered: (@Sendable (RappCloudDeviceRecord) -> Void)?
     internal let queue = DispatchQueue(label: "fi.refineid.local-discovery")
     private let onLiveDevicesChanged: (@Sendable (Set<UUID>, Set<String>) -> Void)?
     private var listener: NWListener?
@@ -41,7 +41,6 @@
       private var multipeerHelper: MultipeerDiscoveryHelper?
     #endif
     private var isCancelled = false
-    private var contactedEndpoints = Set<String>()
 
     // MARK: Initialization
 
@@ -52,7 +51,7 @@
       localRole: RappDeviceRole,
       serviceType: String = RappLocalDiscovery.serviceType,
       onLiveDevicesChanged: (@Sendable (Set<UUID>, Set<String>) -> Void)? = nil,
-      onDiscovered: @escaping @Sendable (RappCloudDeviceRecord) -> Void
+      onDiscovered: (@Sendable (RappCloudDeviceRecord) -> Void)? = nil
     ) {
       self.localIdentity = localIdentity
       self.localRole = localRole
@@ -118,12 +117,9 @@
         domain: nil,
         txtRecord: txtRecord
       )
-      madeListener.newConnectionHandler = { [weak self] connection in
-        guard let self else {
-          connection.cancel()
-          return
-        }
-        handleIncomingDiscovery(connection)
+      madeListener.newConnectionHandler = { connection in
+        // Inbound TCP connections are rejected; discovery is presence-only.
+        connection.cancel()
       }
       madeListener.start(queue: queue)
       self.listener = madeListener
@@ -166,6 +162,7 @@
     }
 
     private func handleBrowseResult(_ result: NWBrowser.Result) {
+      guard let onDiscovered else { return }
       if case .bonjour(let txt) = result.metadata,
         let devIDString = txt["devid"],
         let devID = UUID(uuidString: devIDString),
@@ -191,20 +188,7 @@
           updatedAt: Date()
         )
         onDiscovered(record)
-        return
       }
-
-      // If TXT record is unavailable or delayed by mDNS multicast snooping, connect directly over TCP
-      guard case .service(let name, _, _, _) = result.endpoint,
-        name.hasPrefix("RefineID-"),
-        !name.contains(
-          String(localIdentity.deviceID.uuidString.prefix(Constants.shortIDPrefixLength)))
-      else { return }
-
-      let endpointKey = "\(name)"
-      guard contactedEndpoints.insert(endpointKey).inserted else { return }
-
-      connectAndExchange(endpoint: result.endpoint)
     }
   }
 

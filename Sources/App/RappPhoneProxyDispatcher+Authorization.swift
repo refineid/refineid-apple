@@ -45,9 +45,9 @@
       let request = RappAuthorizationRequest(
         requestID: operationID.base64EncodedString(),
         requester: await Self.requesterName()
-          ?? operation.displayContext
           ?? String(localized: "Paired device"),
-        action: action
+        action: action,
+        displayContext: operation.displayContext
       )
       #if DEBUG
         HolderTrace.say("handleApproval: asking holder authorization for \(operation.kind)")
@@ -73,15 +73,6 @@
           HolderTrace.say("handleApproval: safe read auto-approved")
         #endif
         return true
-      }
-      if operation.kind == .signDocument {
-        if let pin2 = pin2Window.current() {
-          #if DEBUG
-            HolderTrace.say("handleApproval: using held pin2 window")
-          #endif
-          pin2ByOperation[operationID] = pin2
-          return true
-        }
       }
       if operation.kind == .browserAuthenticate {
         let isReader = await MainActor.run { CardPresence.shared.isReaderCardPresent }

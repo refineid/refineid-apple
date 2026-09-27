@@ -1,6 +1,7 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 import Foundation
+
 #if canImport(OSLog)
   import OSLog
 #endif

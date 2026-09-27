@@ -52,20 +52,22 @@
       let holderDisc = RappLocalDiscovery(
         localIdentity: holderID,
         localRole: .holder,
-        serviceType: "_refineid-tst._tcp"
-      ) { record in
-        holderDiscovered.set(record)
-      }
+        serviceType: "_refineid-tst._tcp",
+        onDiscovered: { record in
+          holderDiscovered.set(record)
+        }
+      )
 
       let requesterDisc = RappLocalDiscovery(
         localIdentity: requesterID,
         localRole: .requester,
-        serviceType: "_refineid-tst._tcp"
-      ) { record in
-        if record.deviceID == holderID.deviceID {
-          requesterDiscovered.set(record)
+        serviceType: "_refineid-tst._tcp",
+        onDiscovered: { record in
+          if record.deviceID == holderID.deviceID {
+            requesterDiscovered.set(record)
+          }
         }
-      }
+      )
 
       holderDisc.start()
       requesterDisc.start()

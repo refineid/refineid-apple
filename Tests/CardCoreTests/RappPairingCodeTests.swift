@@ -134,7 +134,8 @@ import Testing
         transport: RappClosureFrameTransport(
           sender: { frame in await proxyOutbound.send(frame) },
           closer: { await proxyOutbound.close() }
-        )
+        ),
+        code: code
       )
       await requesterOutbound.install { frame in await proxy.receive(frame) }
       await proxyOutbound.install { frame in await requester.receive(frame) }

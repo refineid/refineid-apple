@@ -62,7 +62,10 @@
       return filtered.count == codeLength
     }
 
-    /// Derives the pairing secret deterministically from the 4-character code.
+    /// Derives the placeholder pairing secret for the initial offer URI.
+    ///
+    /// The true 32-byte shared pairing secret is dynamically established via
+    /// CPace PAKE (draft-irtf-cfrg-cpace-21) during the pairing handshake.
     public static func pairingSecret(for rawCode: String) -> Data {
       let code = normalize(rawCode)
       let count = Int(
@@ -74,15 +77,15 @@
       return Data(hash) + Data(repeating: 0, count: count - sha256ByteCount)
     }
 
-    /// Derives the pairing offer identifier deterministically from the 4-character code.
+    /// Derives the pairing offer identifier deterministically from the 6-digit code
+    /// using CPace manual offer derivation.
     public static func offerIdentifier(for rawCode: String) -> Data {
       let code = normalize(rawCode)
-      let count = Int((try? RappPlatformEntropy().offerID().count) ?? defaultOfferIdByteCount)
-      let hash = SHA256.hash(data: Data("refineid-rapp-offer-id-v1:\(code)".utf8))
-      if count <= sha256ByteCount {
-        return Data(hash.prefix(count))
+      if let offerId = try? cpaceDeriveManualOfferId(code: code) {
+        return offerId
       }
-      return Data(hash) + Data(repeating: 0, count: count - sha256ByteCount)
+      let hash = SHA256.hash(data: Data("refineid-rapp-offer-id-v1:\(code)".utf8))
+      return Data(hash)
     }
 
     /// Derives the full pairing offer for the given 4-character code and candidate.
