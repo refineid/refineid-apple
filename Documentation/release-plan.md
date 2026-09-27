@@ -127,6 +127,18 @@ changed paths, review of current store assets and accessibility evidence, and
 resolution of the outstanding independent RAPP security-review requirement. No blanket repeat of the complete
 hardware or interoperability matrix is required by this reconciliation.
 
+Established evidence includes the Mac screenshot pipeline in
+[App Store screenshots](app-store-screenshots.md), the macOS Virtual ID Card
+and its UI test suites, retry-policy unit tests, RAPP lifecycle/conformance tests,
+and the [September 11 cross-platform qualification decision](decisions.md#2026-09-11-6-digit-pairing-standard-cross-platform-qualification-and-macos-store-gates).
+Earlier owner-observed physical testing is recorded in
+[the August 16 release](releases/26.8.16.md). These sources establish implemented
+capabilities and recorded observations; they do not assert that every current
+accessibility state or every credential path has a retained test result.
+
+Blocked PINs remain eligible for recovery using an eligible PUK, as confirmed by
+the release owner on September 27. This is established policy, not an open gate.
+
 ### Delivery sequence
 
 | Milestone | Outcome |
