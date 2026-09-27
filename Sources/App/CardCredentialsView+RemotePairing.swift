@@ -61,19 +61,14 @@ import SwiftUI
       }
       .accessibilityIdentifier("remoteAccessToggle")
       .alert(
-        String(localized: "Allow Local Network Access"),
+        String(localized: "Remote Card Use"),
         isPresented: $showingLocalNetworkExplainer
       ) {
         Button(String(localized: "OK")) {
           continueAfterLocalNetworkExplainer()
         }
       } message: {
-        Text(
-          String(
-            localized:
-              "Your Mac or PC finds this iPhone on the local network. Tap OK, then Allow on the next screen."
-          )
-        )
+        Text(String(localized: "Network access is required."))
       }
       .alert(
         String(localized: "Allow Notifications"),

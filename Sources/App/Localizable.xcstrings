@@ -6337,7 +6337,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "OK"
+            "value": "Selvä"
           }
         },
         "sv": {
@@ -6366,50 +6366,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öppna inställningar"
-          }
-        }
-      }
-    },
-    "Allow Local Network Access": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Allow Local Network Access"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Salli lähiverkon käyttö"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tillåt åtkomst till lokalt nätverk"
-          }
-        }
-      }
-    },
-    "Your Mac or PC finds this iPhone on the local network. Tap OK, then Allow on the next screen.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your Mac or PC finds this iPhone on the local network. Tap OK, then Allow on the next screen."
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mac tai PC löytää tämän iPhonen lähiverkosta. Napauta OK ja sitten Salli seuraavassa näytössä."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Din Mac eller pc hittar den här iPhonen i det lokala nätverket. Tryck på OK och sedan på Tillåt på nästa skärm."
           }
         }
       }
@@ -6498,6 +6454,50 @@
           "stringUnit": {
             "state": "translated",
             "value": "Få en notis när en närliggande enhet behöver den här iPhonen; utan den fungerar fjärråtkomst endast när appen är öppen."
+          }
+        }
+      }
+    },
+    "Remote Card Use": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote Card Use"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kortin etäkäyttö"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fjärranvändning av kort"
+          }
+        }
+      }
+    },
+    "Network access is required.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Network access is required."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tämä vaatii lähiverkkoyhteyden."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detta kräver åtkomst till lokalt nätverk."
           }
         }
       }

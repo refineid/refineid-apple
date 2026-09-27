@@ -19,6 +19,7 @@
 
     private static let allowTitles = ["Allow", "Salli", "Tillåt"]
     private static let denyTitles = ["Don't Allow", "Älä salli", "Tillåt inte"]
+    private static let settingsBackTapLimit = 6
 
     // MARK: Static Functions
 
@@ -66,7 +67,7 @@
     internal func testToggleOnCompletesEducationFlow() {
       let app = UITestApp.launchVirtualCard(scenario: "registered-nfc")
       flipToggle(in: app)
-      confirmAlert(titled: "Allow Local Network Access", in: app)
+      confirmAlert(titled: "Remote Card Use", in: app)
       confirmAlert(titled: "Allow Notifications", in: app)
       let toggle = element("remoteAccessToggle", in: app)
       XCTAssertTrue(isOn(toggle), "the toggle did not stay on after the explanations")
@@ -83,7 +84,7 @@
     internal func testToggleOffWipesRemoteState() {
       let app = UITestApp.launchVirtualCard(scenario: "registered-nfc")
       flipToggle(in: app)
-      confirmAlert(titled: "Allow Local Network Access", in: app)
+      confirmAlert(titled: "Remote Card Use", in: app)
       confirmAlert(titled: "Allow Notifications", in: app)
       flipToggle(in: app)
       let toggle = element("remoteAccessToggle", in: app)
@@ -95,17 +96,16 @@
 
     /// Denying local-network access keeps Remote Access turned off.
     ///
-    /// Device only, and the install must hold undecided permission
-    /// (uninstall first): after Don't Allow on the system prompt the
-    /// app returns to the main screen with the switch off.
+    /// Device only. The Settings switch decides the permission first
+    /// (reinstalls do not reset it); after the denial the app returns
+    /// to the main screen with the switch off and a Settings redirect.
     internal func testLocalNetworkDenialKeepsRemoteOff() throws {
       try requireDevice()
+      setSystemLocalNetworkAccess(enabled: false)
       let app = UITestApp.launchVirtualCard(scenario: "registered-nfc")
       flipToggle(in: app)
-      confirmAlert(titled: "Allow Local Network Access", in: app)
-      XCTAssertTrue(
-        answerSystemPrompt(titles: Self.denyTitles, in: app),
-        "the system local-network prompt never appeared")
+      confirmAlert(titled: "Remote Card Use", in: app)
+      _ = answerSystemPrompt(titles: Self.denyTitles, in: app, within: 4)
       let denied = app.alerts["Local Network Access Is Off"]
       XCTAssertTrue(
         denied.waitForExistence(timeout: Self.appearTimeout),
@@ -118,17 +118,16 @@
 
     /// Allowing local-network access completes the flow to the code boxes.
     ///
-    /// Device only, and the install must hold undecided permission
-    /// (uninstall first): after Allow on the system prompt the
-    /// notifications explanation follows then the code boxes appear.
+    /// Device only. The Settings switch decides the permission first;
+    /// after it the notifications explanation follows then the code
+    /// boxes appear, leaving the phone as the test found it.
     internal func testLocalNetworkAllowShowsCodeEntry() throws {
       try requireDevice()
+      setSystemLocalNetworkAccess(enabled: true)
       let app = UITestApp.launchVirtualCard(scenario: "registered-nfc")
       flipToggle(in: app)
-      confirmAlert(titled: "Allow Local Network Access", in: app)
-      XCTAssertTrue(
-        answerSystemPrompt(titles: Self.allowTitles, in: app),
-        "the system local-network prompt never appeared")
+      confirmAlert(titled: "Remote Card Use", in: app)
+      _ = answerSystemPrompt(titles: Self.allowTitles, in: app, within: 4)
       confirmAlert(titled: "Allow Notifications", in: app)
       // The notifications decision is the holder's own; declining only
       // costs the backgrounded case, so the prompt is left standing.
@@ -166,9 +165,16 @@
     }
 
     /// Answers the system local-network prompt with the first title found.
-    private func answerSystemPrompt(titles: [String], in app: XCUIApplication) -> Bool {
+    ///
+    /// The prompt only appears for undecided permission; the Settings
+    /// switch normally decides it first, so absence is the routine case.
+    private func answerSystemPrompt(
+      titles: [String],
+      in app: XCUIApplication,
+      within seconds: TimeInterval
+    ) -> Bool {
       let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-      let deadline = Date().addingTimeInterval(12)
+      let deadline = Date().addingTimeInterval(seconds)
       while Date() < deadline {
         for owner in [app, springboard] {
           for prompt in [owner.alerts.firstMatch, owner.sheets.firstMatch]
@@ -183,6 +189,70 @@
         RunLoop.current.run(until: Date().addingTimeInterval(0.25))
       }
       return false
+    }
+
+    /// Sets this app's system local-network switch to the wanted state.
+    private func setSystemLocalNetworkAccess(enabled: Bool) {
+      let settings = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
+      settings.launch()
+      XCTAssertTrue(
+        settings.wait(for: .runningForeground, timeout: Self.appearTimeout),
+        "Settings never reached the foreground")
+      backToSettingsRoot(settings)
+      openSettingsCell(
+        titles: [
+          "Privacy & Security",
+          "Tietosuoja ja suojaus",
+          "Integritet och säkerhet",
+        ],
+        in: settings)
+      openSettingsCell(titles: ["Local Network", "Lähiverkko", "Lokalt nätverk"], in: settings)
+      let row = settings.descendants(matching: .any)["RefineID"].firstMatch
+      XCTAssertTrue(
+        row.waitForExistence(timeout: Self.appearTimeout),
+        "RefineID is missing from the system Local Network list")
+      let toggle = row.descendants(matching: .switch).firstMatch
+      XCTAssertTrue(
+        toggle.waitForExistence(timeout: Self.appearTimeout),
+        "the RefineID system switch never appeared")
+      let value = toggle.value
+      let isOn =
+        (value as? String == "1") || (value as? Int == 1)
+        || (value as? Bool == true)
+      if isOn != enabled {
+        toggle.tap()
+      }
+      // Launching the app under test foregrounds it again; Settings
+      // stays suspended and needs no teardown.
+    }
+
+    /// Returns Settings to its root list; it reopens where left off.
+    private func backToSettingsRoot(_ settings: XCUIApplication) {
+      for _ in 0..<Self.settingsBackTapLimit {
+        let back = settings.navigationBars.firstMatch.buttons.firstMatch
+        guard back.exists else { return }
+        back.tap()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+      }
+    }
+
+    /// Opens the first matching Settings cell, scrolling until it shows.
+    private func openSettingsCell(titles: [String], in settings: XCUIApplication) {
+      let deadline = Date().addingTimeInterval(Self.appearTimeout)
+      while Date() < deadline {
+        for title in titles {
+          let cell = settings.descendants(matching: .any)[title].firstMatch
+          if cell.exists {
+            cell.tap()
+            return
+          }
+        }
+        settings.swipeUp()
+      }
+      XCTFail(
+        "Settings cell \(titles.first ?? "") never appeared: "
+          + String(settings.debugDescription.prefix(1_500))
+      )
     }
 
     private func isOn(_ toggle: XCUIElement) -> Bool {

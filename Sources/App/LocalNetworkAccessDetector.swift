@@ -92,11 +92,20 @@
     /// probe means the system prompt is up or the gateway is quiet;
     /// either way the caller proceeds and watches for the denial.
     internal static func currentAccess() async -> Access {
-      guard lanProbeTarget() != nil else { return .allowed }
+      guard let target = lanProbeTarget() else {
+        logger.info("local-network probe has no target, assuming allowed")
+        return .allowed
+      }
+      logger.info("local-network probe target \(target, privacy: .public)")
       if let quick = await raceProbes(deadlineSeconds: quickVerdictSeconds) {
-        return quick == .denied ? .denied : .allowed
+        let access: Access = quick == .denied ? .denied : .allowed
+        logger.info(
+          "local-network access reads \(access == .allowed ? "allowed" : "denied", privacy: .public)"
+        )
+        return access
       }
       watchForDenial(windowSeconds: denialWatchSeconds)
+      logger.info("local-network access undecided, proceeding under watch")
       return .allowed
     }
 
@@ -218,18 +227,24 @@
     ) {
       switch state {
       case .ready:
-        logger.debug("local-network probe ready")
+        logger.info("local-network probe ready")
         connection.cancel()
         settled.finish(with: .allowed, continuation: continuation)
       case .failed(let error):
-        logger.debug("local-network probe failed: \(String(describing: error))")
+        logger.info("local-network probe failed: \(String(describing: error))")
         connection.cancel()
         settled.finish(
           with: isPermissionError(error) ? .denied : .allowed,
           continuation: continuation)
       case .cancelled:
         settled.finish(with: .allowed, continuation: continuation)
-      case .waiting, .preparing, .setup:
+      case .waiting(let error):
+        if isPermissionError(error) {
+          logger.info("local-network probe waiting on permission, reading denied")
+          connection.cancel()
+          settled.finish(with: .denied, continuation: continuation)
+        }
+      case .preparing, .setup:
         break
       @unknown default:
         break
@@ -238,9 +253,14 @@
 
     /// Whether the failure is the permission gate rather than the network.
     private static func isPermissionError(_ error: NWError) -> Bool {
+      if case .posix(let code) = error {
+        logger.info("local-network probe posix code \(code.rawValue, privacy: .public)")
+        return code.rawValue == EPERM
+      }
       let reported = error as NSError
-      logger.debug(
-        "local-network probe error domain \(reported.domain) code \(reported.code)")
+      logger.info(
+        "local-network probe error domain \(reported.domain, privacy: .public) code \(reported.code, privacy: .public)"
+      )
       return reported.domain == NSPOSIXErrorDomain
         && reported.code == Int(EPERM)
     }
