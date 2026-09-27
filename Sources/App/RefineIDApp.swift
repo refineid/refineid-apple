@@ -283,16 +283,10 @@ internal struct RefineIDApp: App {
     // restarting the app blocked before it had a window to say so in.
     // It happens off the launch path now, from the status screen.
     //
-    // The localhost SCS: web pages sign through it, so it lives for
-    // as long as the app runs. Binding a loopback socket touches no
-    // other process, so unlike the driver configuration above this
-    // is safe on the launch path; the PIN prompts it may later show
-    // run on their own worker exchanges. Behind its feature: the MVP
-    // ships without it, so a first launch binds no socket and asks
-    // for no localhost-certificate trust.
+    // The local signing server restores only a stored holder opt-in.
     #if os(macOS)
       #if FEATURE_SCS
-        ScsService.startIfNeeded()
+        ScsService.shared.restore()
       #endif
 
       // The offered access number lives for the app run: the status

@@ -18,6 +18,11 @@
     /// it turns it on in Settings; contact readers need no setting.
     internal static let contactlessEnabled = "contactlessEnabled"
 
+    /// Whether the holder permits the local web signing server.
+    ///
+    /// Off by default.
+    internal static let scsEnabled = "fi.refineid.scs.enabled"
+
     /// Whether automatic same-account device pairing via iCloud is enabled.
     ///
     /// On by default. Devices sharing the same Apple Account securely

@@ -78,8 +78,8 @@ User story is:
   analytics, accounts, and cloud services.
 
 The SCS server binds only the loopback interface and is strictly opt-in via
-Settings; it starts only after explicit holder consent, explaining the local
-loopback port and user certificate trust before invoking any system trust prompts.
+Settings; the default-off Signature Creation Service toggle records explicit
+holder consent before the server starts or invokes any system trust prompts.
 
 Card management and PIN2 signing entered scope on 2026-08-04 (see
 `Documentation/decisions.md`); iPadOS and iOS follow the macOS

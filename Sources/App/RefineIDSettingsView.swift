@@ -12,6 +12,9 @@
       #endif
       case pinCodes
       case remote
+      #if FEATURE_SCS
+        case webSigning
+      #endif
       #if FEATURE_TIMESTAMP_CONFIG
         case timeStamp
       #endif
@@ -44,6 +47,13 @@
     }
 
     @ViewBuilder private var featureSettingsTabs: some View {
+      #if FEATURE_SCS
+        ScsSettingsView()
+          .tabItem {
+            Label(String(localized: "Signature Creation Service"), systemImage: "network")
+          }
+          .tag(Pane.webSigning)
+      #endif
       #if FEATURE_PDF_STAMP
         DocumentStampSettingsView()
           .tabItem {

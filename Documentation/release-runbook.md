@@ -196,6 +196,17 @@ for the intended next action.
 
 ## 4. Distribute through TestFlight
 
+### macOS local web signing
+
+SCS is off by default. In **Settings > Signature Creation Service**, the holder
+can turn the service on or off. Only enabling it, or restoring a saved opt-in, starts the
+server and obtains its TLS identity. Disabling closes the listener and accepted
+connections; it does not remove certificate trust already granted by the holder.
+An operation already executing on the card cannot be undone by closing a socket.
+Verify a fresh installation, enable/disable, and restart behavior on the exact
+candidate. No real card credentials belong in test evidence.
+
+
 ### Screenshot visibility
 
 TestFlight invitation screenshots come from the latest approved App Store
