@@ -6,12 +6,24 @@ import XCTest
   @MainActor
   internal final class ScsSettingsUITests: XCTestCase {
     internal func testLocalWebSigningStartsDisabledInSettings() throws {
+      try check(language: "en", label: "Signature Creation Service")
+    }
+
+    internal func testFinnishServiceName() throws {
+      try check(language: "fi", label: "Allekirjoituspalvelu (Signature Creation Service)")
+    }
+
+    internal func testSwedishServiceName() throws {
+      try check(language: "sv", label: "Signeringstj\u{00E4}nst (Signature Creation Service)")
+    }
+
+    private func check(language: String, label: String) throws {
       let app = XCUIApplication()
-      app.launchArguments = ["-fi.refineid.scs.enabled", "NO", "-AppleLanguages", "(en)"]
+      app.launchArguments = ["-fi.refineid.scs.enabled", "NO", "-AppleLanguages", "(\(language))"]
       app.launch()
       defer { app.terminate() }
       app.typeKey(",", modifierFlags: .command)
-      let tab = app.buttons["Signature Creation Service"]
+      let tab = app.buttons[label]
       XCTAssertTrue(tab.waitForExistence(timeout: 5))
       tab.click()
       let toggle = app.switches["scsEnabled"]

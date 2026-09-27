@@ -13,13 +13,13 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Allekirjoituspalvelu"
+            "value": "Allekirjoituspalvelu (Signature Creation Service)"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Signeringstjänst"
+            "value": "Signeringstjänst (Signature Creation Service)"
           }
         }
       }
