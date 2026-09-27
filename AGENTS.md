@@ -56,9 +56,9 @@
 - One task, one worktree (`~/src/wt/refineid-apple-<topic>`) on one
   `agent/<topic>` branch, one pull request per branch. All agent worktrees
   MUST live strictly under `~/src/wt/`, never loose beside repositories or under `/tmp/`.
-  Each worktree carries a `WHATSUP.md` work log; run `Scripts/agent-housekeeping.sh`
-  when starting and keep the house clean. Merge the pull request once CI is green, then
-  remove the worktree and branch and fast-forward `main`. Full workflow:
+  Run `Scripts/agent-housekeeping.sh` when starting and keep the house clean.
+  Merge the pull request once CI is green, then remove the worktree and branch
+  and fast-forward `main`. Full workflow:
   `Documentation/process/agent-worktrees.md`.
 - Never poll background commands or set rapid check timers (e.g. 10s-30s).
   When running builds, tests, or async tasks, execute asynchronously and

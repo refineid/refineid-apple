@@ -26,55 +26,27 @@ colliding and keeps the main checkout pristine for integration.
 4. Never copy distribution or release signing credentials: worktrees build debug only;
    store and TestFlight distribution stays in the main checkout via
    `Scripts/apple-app-store-connect-release-manager.swift`.
-5. Write `WHATSUP.md` in the worktree root (see below).
-6. Run `Scripts/agent-housekeeping.sh` and act on what it reports.
+5. Run `Scripts/agent-housekeeping.sh` and act on what it reports.
 
 Swift Package Manager and Xcode caches live outside the checkout
 (`~/Library/Caches/org.swift.swiftpm` and DerivedData), so a fresh worktree
 downloads nothing and reuses compiled artifacts.
 
-## WHATSUP.md
-
-Every worktree carries a `WHATSUP.md` work log in its root: plain Markdown
-so owners and agents can both read it. It records why the worktree was
-born, where the work stopped, and whether it is worth resuming. Work gets
-diverted to another focus at random; that is normal, and the log is what
-makes a diverted worktree evaluable later instead of mysterious.
-
-```markdown
-# WHATSUP
-
-branch: agent/virtual-card-review
-purpose: Refine virtual ID card accessibility and App Store review instructions.
-started: 2026-09-12T15:30+03:00 by antigravity
-heartbeat: 2026-09-12T15:45+03:00
-status: in-progress
-```
-
-Fields (each value stays on its own single line so tooling can read it):
-
-- `purpose`: why this worktree exists, one or two sentences on one line.
-- `started`: timestamp and owner (session name plus human or agent).
-- `heartbeat`: last time the owner touched the work; refresh it when
-  starting, pausing, or finishing.
-- `status`: `in-progress`, `paused-diverted` (with a note saying what
-  diverted it and how to resume), or `done-pending-merge`.
-
 ## Housekeeping
 
 `Scripts/agent-housekeeping.sh` reports every worktree with its branch,
-merge state, dirty files, unpushed commits, claim freshness, and disk use.
+merge state, dirty files, unpushed commits, activity freshness, and disk use.
 With `--clean` it removes only what is provably done:
 
 - The branch is merged into main, the tree is clean, and nothing is
   unpushed. The work is fully preserved in main, so deleting the worktree
   loses nothing. The branch goes with it.
 
-Everything else is reported, never destroyed, with the `WHATSUP.md`
-purpose and status quoted so the evaluator — owner or agent — can decide
-in seconds whether to resume work or clean up. In particular:
+Everything else is reported, never destroyed, with the latest commit headline
+quoted so the evaluator — owner or agent — can decide in seconds whether to
+resume work or clean up. In particular:
 
-- A fresh claim is hands off, unconditionally.
+- Fresh activity (or dirty working tree) is hands off, unconditionally.
 - Uncommitted changes or unpushed commits are never auto-deleted.
 
 ## Finishing a task
