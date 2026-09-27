@@ -20,6 +20,12 @@
     private static let allowTitles = ["Allow", "Salli", "Tillåt"]
     private static let denyTitles = ["Don't Allow", "Älä salli", "Tillåt inte"]
     private static let settingsBackTapLimit = 6
+    private static let switchSettleTimeout: TimeInterval = 3
+
+    /// Whether the tests run where no system prompt can appear.
+    private static var runsOnSimulator: Bool {
+      ProcessInfo.processInfo.environment["SIMULATOR_DEVICE_NAME"] != nil
+    }
 
     // MARK: Static Functions
 
@@ -65,6 +71,7 @@
     /// the notifications explanation; only then may the switch stay on
     /// and the pairing-code boxes appear for the requester's code.
     internal func testToggleOnCompletesEducationFlow() {
+      ensureSystemLocalNetworkAccess()
       let app = UITestApp.launchVirtualCard(scenario: "registered-nfc")
       flipToggle(in: app)
       confirmAlert(titled: "Remote Card Use", in: app)
@@ -82,6 +89,7 @@
     /// Off means off: the switch, the code boxes, and the stored
     /// pairings all go, with no separate disconnect step.
     internal func testToggleOffWipesRemoteState() {
+      ensureSystemLocalNetworkAccess()
       let app = UITestApp.launchVirtualCard(scenario: "registered-nfc")
       flipToggle(in: app)
       confirmAlert(titled: "Remote Card Use", in: app)
@@ -141,8 +149,18 @@
 
     /// Skips permission tests where no system prompt can appear.
     private func requireDevice() throws {
-      if ProcessInfo.processInfo.environment["SIMULATOR_DEVICE_NAME"] != nil {
+      if Self.runsOnSimulator {
         throw XCTSkip("the system local-network prompt needs a device")
+      }
+    }
+
+    /// Switches the system permission on; the education flow needs it.
+    ///
+    /// Each toggle test sets its own precondition, so the suite passes
+    /// in any order. Simulator runs skip this: nothing gates them.
+    private func ensureSystemLocalNetworkAccess() {
+      if !Self.runsOnSimulator {
+        setSystemLocalNetworkAccess(enabled: true)
       }
     }
 
@@ -215,13 +233,22 @@
       XCTAssertTrue(
         toggle.waitForExistence(timeout: Self.appearTimeout),
         "the RefineID system switch never appeared")
-      let value = toggle.value
-      let isOn =
-        (value as? String == "1") || (value as? Int == 1)
-        || (value as? Bool == true)
-      if isOn != enabled {
-        toggle.tap()
+      if isOn(toggle) != enabled {
+        // The row body navigates to a detail page; only the knob toggles.
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
       }
+      let deadline = Date().addingTimeInterval(Self.switchSettleTimeout)
+      while Date() < deadline, isOn(toggle) != enabled {
+        RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+      }
+      XCTAssertEqual(
+        isOn(toggle),
+        enabled,
+        "the RefineID system switch reads \(String(describing: toggle.value))")
+      let shot = XCTAttachment(screenshot: settings.screenshot())
+      shot.name = "local-network-switch"
+      shot.lifetime = .keepAlways
+      add(shot)
       // Launching the app under test foregrounds it again; Settings
       // stays suspended and needs no teardown.
     }

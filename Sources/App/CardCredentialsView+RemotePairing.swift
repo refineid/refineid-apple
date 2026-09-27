@@ -225,8 +225,7 @@ import SwiftUI
 
     /// Turns remote access back off when the network says no.
     ///
-    /// Runs for the fast denial and for the late one the watch reports;
-    /// either way the switch must not claim an access it lacks.
+    /// The switch must not claim an access it lacks.
     internal func handleLocalNetworkDenial() {
       guard RemoteAccessGate.isEnabled else { return }
       remoteAccessFlowID = nil

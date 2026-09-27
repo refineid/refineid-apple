@@ -8,10 +8,9 @@
   /// Tries one connection to an address on this network and says what
   /// happened.
   ///
-  /// Local network access is refused silently: browsing returns no peers,
-  /// no error is raised, and nothing is logged. A direct connection is
-  /// gated by the same permission but does report a state, so this turns
-  /// an absence into something a reader can act on.
+  /// The outcome says nothing about the permission: unicast TCP reaches
+  /// the gateway even with access denied, so only the gated Bonjour
+  /// paths can tell the holder's choice apart from a quiet network.
   internal enum DebugLocalNetworkProbe {
     /// How long to wait before calling the attempt inconclusive.
     private static let deadlineSeconds = 8
