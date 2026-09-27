@@ -28,6 +28,12 @@ positioning.
    iPad date removal) and captures both primary views (Authentication and Document
    Signing with `--open-document-signing`) directly into raw assets, feeding
    `Scripts/generate-store-screenshots.swift` for reproducible composition.
+4. **Automated Store Metadata & Screenshot Sync on Candidate Upload**:
+   `Scripts/apple-app-store-connect-release-manager.swift` automatically ensures
+   the editable App Store version (`PREPARE_FOR_SUBMISSION`), syncs localized
+   metadata, and uploads screenshots on candidate upload. `distribute` automatically
+   attaches the verified build to the App Store version, ensuring TestFlight
+   previews reflect the latest marketing assets immediately upon distribution.
 
 ## 2026-09-26 Time stamp configuration feature gated in Settings
 
