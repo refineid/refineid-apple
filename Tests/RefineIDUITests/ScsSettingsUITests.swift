@@ -11,7 +11,7 @@ import XCTest
       app.launch()
       defer { app.terminate() }
       app.typeKey(",", modifierFlags: .command)
-      let tab = app.buttons["Web Signing"]
+      let tab = app.buttons["Signature Creation Service"]
       XCTAssertTrue(tab.waitForExistence(timeout: 5))
       tab.click()
       let toggle = app.switches["scsEnabled"]

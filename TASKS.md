@@ -66,7 +66,7 @@ shipping topology instead of Debug builds.
 ## App Store release
 
 - [x] Port Virtual ID Card to macOS: add "Explore with a Virtual Demo Card" in `StatusView` empty state and lift `DemoMode` to macOS for reviewer testing without hardware (Guideline 2.1(a)).
-- [x] Make SCS server opt-in in macOS Settings: defer listener start and `SecTrustSettingsSetTrustSettings` behind an explicit toggle with explanatory UI.
+- [x] Make SCS server opt-in in macOS Settings: defer listener start and `SecTrustSettingsSetTrustSettings` behind the default-off Signature Creation Service toggle.
 - [ ] Develop Mac App Store screenshot pipeline: capture localized 2880x1800 screenshots with synthetic demo states.
 - [ ] Give App Review accurate card/reader instructions, Virtual ID Card steps, hardware limitations, extension behavior.
 - [ ] Localized `What's New` drafts from the exact diff, human-approved.

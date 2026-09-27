@@ -50,7 +50,7 @@
       #if FEATURE_SCS
         ScsSettingsView()
           .tabItem {
-            Label(String(localized: "Web Signing"), systemImage: "network")
+            Label(String(localized: "Signature Creation Service"), systemImage: "network")
           }
           .tag(Pane.webSigning)
       #endif
