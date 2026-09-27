@@ -76,6 +76,7 @@ internal struct SmartCardChannel: CardChannel {
   /// How long one APDU may wait, set by the transport that owns the field.
   internal enum ResponseWait: Sendable, Equatable {
     case nearField
+    case nearFieldRecovery
     case reader
   }
 
@@ -91,6 +92,12 @@ internal struct SmartCardChannel: CardChannel {
 
   /// Maximum time allowed for an individual APDU response on near-field.
   internal static let nearFieldResponseSeconds: Int = 10
+
+  /// Maximum time allowed for an individual APDU response on near-field during recovery.
+  ///
+  /// Accommodates card anti-tamper penalty delays (FIA_AFL.1/PACE, typically 40-45+ seconds)
+  /// within the hard ceiling of the system NFC slot session.
+  internal static let nearFieldRecoveryResponseSeconds: Int = 50
 
   /// The reader budget: room for the card's slowest legal answer.
   ///
@@ -112,6 +119,8 @@ internal struct SmartCardChannel: CardChannel {
     switch waits {
     case .nearField:
       self.responseBudget = .seconds(Self.nearFieldResponseSeconds)
+    case .nearFieldRecovery:
+      self.responseBudget = .seconds(Self.nearFieldRecoveryResponseSeconds)
     case .reader:
       self.responseBudget = .seconds(Self.readerResponseSeconds)
     }

@@ -42,6 +42,10 @@
       /// primed identity.
       case unidentifiedCard
 
+      /// PACE timed out while establishing the secure channel, typically
+      /// caused by the card's anti-tamper penalty delay (FIA_AFL.1/PACE).
+      case secureChannelTimedOut
+
       /// The card refused the offered access number, so this is a
       /// different card than the digits describe.
       case wrongCardAccessNumber

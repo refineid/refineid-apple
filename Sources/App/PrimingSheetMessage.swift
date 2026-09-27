@@ -49,6 +49,19 @@
         .joined(separator: Self.markerGap)
     }
 
+    /// The recovery meter: one ball per step plus a countdown of remaining seconds.
+    ///
+    /// Kept short to prevent Apple's NFC sheet from collapsing newlines or
+    /// truncating what will not fit on its single message line.
+    internal static func recoveryMeter(
+      states: [CardPrimingStep: CardPrimingStep.State],
+      remainingSeconds: Int
+    ) -> String {
+      let progress = meter(states: states)
+      guard remainingSeconds > 0 else { return progress }
+      return "\(progress)  \(remainingSeconds)s"
+    }
+
     /// The marker one step's state is drawn as.
     ///
     /// A step being worked on right now counts as reached: the holder is

@@ -85,6 +85,14 @@
       internal var credentialReport: CredentialProbeReport?
     }
 
+    /// Context needed to read, store, and register a live card hold.
+    private struct HoldExecution: Sendable {
+      let sheet: PrimingSheetReporter
+      let lookup: PrimeLookupIdentifier
+      let accessNumber: ProvenAccessNumber
+      let isRecovery: Bool
+    }
+
     /// Shown under Apple's own "Ready to Scan" title whenever the system
     /// later asks for this card.
     ///
@@ -144,9 +152,26 @@
     /// is true of the card at the instant it signs rather than of this
     /// setup -- so it is checked there, where the counter is read in the
     /// same session that consumes it.
+    /// Primes the card the holder is about to present.
     internal static func prime(
       cardAccessNumber: String,
       pin1: String?,
+      progress: @escaping Progress,
+      step: @escaping StepReport
+    ) async -> Outcome {
+      await prime(
+        cardAccessNumber: cardAccessNumber,
+        pin1: pin1,
+        isRecovery: false,
+        progress: progress,
+        step: step)
+    }
+
+    /// Primes the card, optionally using extended recovery mode for throttled cards.
+    internal static func prime(
+      cardAccessNumber: String,
+      pin1: String?,
+      isRecovery: Bool,
       progress: @escaping Progress,
       step: @escaping StepReport
     ) async -> Outcome {
@@ -205,6 +230,7 @@
       let outcome = await Self.hold(
         sheet: sheet,
         accessNumber: ProvenAccessNumber(value: accessNumber, digits: cardAccessNumber),
+        isRecovery: isRecovery,
         progress: progress,
         step: report)
       await CardPrimingFeedback.report(succeeded: outcome.stored && outcome.registered)
@@ -218,6 +244,7 @@
     private static func hold(
       sheet: PrimingSheetReporter,
       accessNumber: ProvenAccessNumber,
+      isRecovery: Bool,
       progress: @escaping Progress,
       step: @escaping StepReport
     ) async -> Outcome {
@@ -229,10 +256,13 @@
         return Self.failure(Failure.unidentifiedCard)
       }
 
-      return await Self.readStoreRegister(
+      let execution = HoldExecution(
         sheet: sheet,
         lookup: lookup,
         accessNumber: accessNumber,
+        isRecovery: isRecovery)
+      return await Self.readStoreRegister(
+        execution: execution,
         progress: progress,
         step: step)
     }
@@ -253,6 +283,9 @@
       case .wrongCardAccessNumber:
         .wrongCardAccessNumber
 
+      case .secureChannelTimedOut:
+        .secureChannelTimedOut
+
       case .activationRequired(let scheme, let needs):
         .activationRequired(scheme: scheme, needs: needs)
 
@@ -263,9 +296,7 @@
 
     /// Reads the card in this same field, stores the prime, registers.
     private static func readStoreRegister(
-      sheet: PrimingSheetReporter,
-      lookup: PrimeLookupIdentifier,
-      accessNumber: ProvenAccessNumber,
+      execution: HoldExecution,
       progress: @escaping Progress,
       step: @escaping StepReport
     ) async -> Outcome {
@@ -274,8 +305,9 @@
       do {
         payload = try await Self.onCardQueue {
           try Self.read(
-            from: sheet,
-            accessNumber: accessNumber.value,
+            from: execution.sheet,
+            accessNumber: execution.accessNumber.value,
+            isRecovery: execution.isRecovery,
             progress: progress,
             step: step)
         }
@@ -283,16 +315,17 @@
         // The sheet is the only thing a holder can see while holding, so
         // it carries the detail rather than a shrug. Nothing here names
         // a PIN, CAN or the holder.
-        sheet.fail(Self.sheetMessage(for: error))
+        execution.sheet.fail(Self.sheetMessage(for: error))
         return Self.failure(error)
       }
 
       // The read above opened the secure channel with this number, so it
       // is proven, and the record built below is stored under it.
-      guard CardCredentialStore.save(cardAccessNumber: accessNumber.digits) == errSecSuccess
+      guard
+        CardCredentialStore.save(cardAccessNumber: execution.accessNumber.digits) == errSecSuccess
       else {
         step(.stored, .failed)
-        sheet.fail(String(localized: "Could not save card details"))
+        execution.sheet.fail(String(localized: "Could not save card details"))
         return Self.failure(Failure.primeNotStored)
       }
 
@@ -309,10 +342,10 @@
           tokenSerial: payload.tokenSerial,
           activationCheck: payload.activationCheck,
           signatureCertificate: payload.signatureCertificate),
-        PrimeStore.store(identity, forLookup: lookup)
+        PrimeStore.store(identity, forLookup: execution.lookup)
       else {
         step(.stored, .failed)
-        sheet.fail(String(localized: "Could not save card details"))
+        execution.sheet.fail(String(localized: "Could not save card details"))
         return Self.failure(Failure.primeNotStored)
       }
       step(.stored, .done)
@@ -320,7 +353,7 @@
 
       return await Self.finish(
         payload: payload,
-        sheet: sheet,
+        sheet: execution.sheet,
         progress: progress,
         step: step)
     }

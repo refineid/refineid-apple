@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-# Refuses any commit while the lint gate fails. Clean tree: no output.
-# Findings print to stderr. The gate is Scripts/lint.sh.
+# Refuses any commit containing whitespace errors or failing the lint gate.
+# The gate is Scripts/test.sh commit.
 #
 # Activate once per clone:
 #   git config core.hooksPath Scripts/githooks
 
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
-Scripts/lint.sh
+Scripts/test.sh commit

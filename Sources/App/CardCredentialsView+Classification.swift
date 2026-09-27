@@ -285,7 +285,7 @@ extension CardCredentialsView {
         activationNeeds = needs
         transition(.classificationActivationRequired)
 
-      case nil:
+      case .secureChannelTimedOut, nil:
         clearPin1Entry()
         transition(.classificationFailed)
       }

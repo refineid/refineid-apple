@@ -18,6 +18,13 @@
       // and heavy cryptographic operations over PC/SC without timing out prematurely.
       #expect(SmartCardChannel.readerResponseSeconds >= 60)
       #expect(SmartCardChannel.nearFieldResponseSeconds == 10)
+      #expect(SmartCardChannel.nearFieldRecoveryResponseSeconds >= 45)
+      #expect(SmartCardChannel.nearFieldRecoveryResponseSeconds <= 55)
+    }
+
+    @Test
+    internal func recoveryWaitPolicyIsDistinctFromNormalNearField() {
+      #expect(SmartCardChannel.ResponseWait.nearField != .nearFieldRecovery)
     }
 
     @Test
