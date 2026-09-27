@@ -20,6 +20,9 @@
       case failed
     }
 
+    /// Threshold of consecutive phase 2 stalls required to trigger recovery mode.
+    private static let recoveryStallThreshold: Int = 2
+
     /// What the device currently holds, so the screen can say whether
     /// priming is even possible.
     @Published internal private(set) var contents = CardCredentialStore.contents()
@@ -51,6 +54,17 @@
     /// The credential counters the last hold read.
     @Published internal private(set) var credentialReport: CredentialProbeReport?
 
+    /// Number of consecutive times priming stalled at phase 2 (secureChannel / PACE).
+    @Published internal private(set) var consecutiveSecureChannelStalls: Int = 0
+
+    /// Whether the next priming attempt will run in recovery mode with an extended budget and countdown.
+    ///
+    /// Stalling twice in a row at phase 2 (2/5) is the clear signature of a card
+    /// enforcing an anti-tamper penalty delay (FIA_AFL.1/PACE).
+    internal var isRecoveryModeNext: Bool {
+      consecutiveSecureChannelStalls >= Self.recoveryStallThreshold
+    }
+
     /// Refreshes what is stored, without touching any secret.
     internal func refresh() {
       contents = CardCredentialStore.contents()
@@ -79,9 +93,11 @@
       failure = nil
       refusal = nil
       credentialReport = nil
+      let isRecovery = isRecoveryModeNext
       let outcome = await CardPriming.prime(
         cardAccessNumber: cardAccessNumber,
         pin1: pin1,
+        isRecovery: isRecovery,
         progress: { _ in
           // The meter on the system NFC sheet carries progress; the
           // holder is looking at the card, not at this screen.
@@ -98,11 +114,25 @@
         lastRunResult = .notRun
         failure = nil
       } else if outcome.stored, outcome.registered {
+        consecutiveSecureChannelStalls = 0
         lastRunResult = .succeeded
         failure = nil
       } else {
         lastRunResult = .failed
-        failure = outcome.summary
+        if outcome.refusal == .secureChannelTimedOut {
+          consecutiveSecureChannelStalls += 1
+        } else {
+          consecutiveSecureChannelStalls = 0
+        }
+        if isRecoveryModeNext {
+          failure = String(
+            localized: """
+              Card security delay detected. Try again and hold the card \
+              firmly against the phone while the countdown finishes.
+              """)
+        } else {
+          failure = outcome.summary
+        }
       }
       refresh()
       isRunning = false

@@ -18,6 +18,9 @@
       if case Failure.pin1LowAttempts = error {
         return String(localized: "Operation refused")
       }
+      if case Failure.secureChannelTimedOut = error {
+        return String(localized: "Connection timed out")
+      }
       if let failure = error as? CardOperationError {
         switch failure {
         case .pinRejected:
@@ -70,6 +73,9 @@
 
       case Failure.cardAccessNumberMissing:
         String(localized: "Store the card access number first, then try again.")
+
+      case Failure.secureChannelTimedOut:
+        String(localized: "The card security delay timed out. Hold the card still and try again.")
 
       case Failure.wrongCardAccessNumber:
         String(localized: "The Card Access Number (CAN) is incorrect.")

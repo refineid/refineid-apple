@@ -357,15 +357,19 @@
       session.end()
     }
 
-    /// Runs `body` inside the card's exclusive session.
-    ///
-    /// The session is begun before `body` sends anything and ended when
-    /// it returns. Nothing else may transmit: a sessionless exchange on
-    /// this slot never comes back.
+    /// Runs `body` inside the card's exclusive session with the default near-field wait budget.
     internal func withCardSession<Value>(
       _ body: (SmartCardChannel) throws -> Value
     ) throws -> Value {
-      try SmartCardChannel(card).withSession(body)
+      try withCardSession(waits: .nearField, body)
+    }
+
+    /// Runs `body` inside the card's exclusive session with an explicit wait budget.
+    internal func withCardSession<Value>(
+      waits: SmartCardChannel.ResponseWait,
+      _ body: (SmartCardChannel) throws -> Value
+    ) throws -> Value {
+      try SmartCardChannel(card, waits: waits).withSession(body)
     }
 
     deinit {

@@ -43,56 +43,91 @@
     internal static func read(
       from sheet: PrimingSheetReporter,
       accessNumber: CardAccessNumber,
+      isRecovery: Bool,
       progress: Progress,
       step: StepReport
     ) throws -> Payload {
-      try sheet.session.withCardSession { channel in
-        // PACE runs from the main file. The card was discovered by
-        // selecting the eMRTD application, and MSE:Set AT from an applet
-        // context is answered 6985, so the main file is made current on
-        // the plain channel before the first PACE command.
-        //
-        // Best effort on purpose: card generations differ in which SELECT
-        // variant they acknowledge, and one that refuses both may still be
-        // at the main file. PACE itself is the authoritative check --
-        // its first command is the one that has to be accepted -- so a
-        // refused reposition is not turned into a failure here.
-        try? CardOperations(channel: channel).selectMainFile()
+      let waitBudget: SmartCardChannel.ResponseWait = isRecovery ? .nearFieldRecovery : .nearField
+      return try sheet.session.withCardSession(waits: waitBudget) { channel in
         progress(String(localized: "Opening a connection to the card."))
         let keys: PaceSessionKeys
         do {
-          keys = try PaceEstablishment(channel: channel).establish(with: accessNumber)
-        } catch PaceEstablishment.Failure.authenticationTokenMismatch {
-          // PACE is the access number's proof: the session keys derive
-          // from it, so a card that will not agree is a card these
-          // digits do not describe.
-          step(.secureChannel, .failed)
-          throw Failure.wrongCardAccessNumber
-        } catch PaceEstablishment.Failure.cardRejected(.authenticationFailed) {
-          // A FINEID card may answer the terminal's final PACE token with
-          // 6300 rather than returning its own for local comparison. Both
-          // outcomes mean the derived keys did not match.
-          step(.secureChannel, .failed)
-          throw Failure.wrongCardAccessNumber
+          keys = try Self.establishPace(
+            channel: channel,
+            accessNumber: accessNumber,
+            sheet: sheet,
+            isRecovery: isRecovery)
         } catch {
           step(.secureChannel, .failed)
           throw error
         }
         step(.secureChannel, .done)
-        step(.certificate, .running)
-        progress(String(localized: "Connection opened."))
-        let operations = CardOperations(
-          channel: SecureMessagingChannel(wrapping: channel, sessionKeys: keys))
-        progress(String(localized: "Reading the certificate from the card."))
-        do {
-          let payload = try Self.readIdentity(operations: operations)
-          step(.certificate, .done)
-          progress(String(localized: "Card identity read."))
-          return payload
-        } catch {
-          step(.certificate, .failed)
-          throw error
-        }
+        return try Self.readSecuredPayload(
+          channel: channel,
+          keys: keys,
+          progress: progress,
+          step: step)
+      }
+    }
+
+    /// Runs PACE against the card, managing recovery feedback and error translation.
+    private static func establishPace(
+      channel: SmartCardChannel,
+      accessNumber: CardAccessNumber,
+      sheet: PrimingSheetReporter,
+      isRecovery: Bool
+    ) throws -> PaceSessionKeys {
+      // PACE runs from the main file. The card was discovered by
+      // selecting the eMRTD application, and MSE:Set AT from an applet
+      // context is answered 6985, so the main file is made current on
+      // the plain channel before the first PACE command.
+      //
+      // Best effort on purpose: card generations differ in which SELECT
+      // variant they acknowledge, and one that refuses both may still be
+      // at the main file. PACE itself is the authoritative check --
+      // its first command is the one that has to be accepted -- so a
+      // refused reposition is not turned into a failure here.
+      try? CardOperations(channel: channel).selectMainFile()
+      if isRecovery {
+        sheet.startRecovery()
+      }
+      defer {
+        sheet.stopRecovery()
+      }
+      do {
+        return try PaceEstablishment(channel: channel).establish(with: accessNumber)
+      } catch SmartCardChannel.TransportError.responseTimedOut {
+        throw Failure.secureChannelTimedOut
+      } catch PaceEstablishment.Failure.authenticationTokenMismatch,
+        PaceEstablishment.Failure.cardRejected(.authenticationFailed)
+      {
+        // PACE is the access number's proof: the session keys derive
+        // from it, so a card that will not agree is a card these
+        // digits do not describe. A FINEID card may answer with 6300.
+        throw Failure.wrongCardAccessNumber
+      }
+    }
+
+    /// Reads identity certificates and counters behind the established secure channel.
+    private static func readSecuredPayload(
+      channel: SmartCardChannel,
+      keys: PaceSessionKeys,
+      progress: Progress,
+      step: StepReport
+    ) throws -> Payload {
+      step(.certificate, .running)
+      progress(String(localized: "Connection opened."))
+      let operations = CardOperations(
+        channel: SecureMessagingChannel(wrapping: channel, sessionKeys: keys))
+      progress(String(localized: "Reading the certificate from the card."))
+      do {
+        let payload = try Self.readIdentity(operations: operations)
+        step(.certificate, .done)
+        progress(String(localized: "Card identity read."))
+        return payload
+      } catch {
+        step(.certificate, .failed)
+        throw error
       }
     }
 
