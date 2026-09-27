@@ -125,25 +125,14 @@ For devices that **do not share an Apple ID** (e.g. pairing an Android phone wit
 
 ---
 
-## 6. Phased Implementation Plan
+## 6. Remaining Release Work
 
-### Phase 1: Storage & Cloud Synchronization Layer
-- [ ] Define `RappCloudDeviceRecord` and `RappCloudSyncCoordinator` using `NSUbiquitousKeyValueStore`.
-- [ ] Add iCloud entitlement (`com.apple.developer.ubiquity-kvstore-identifier`) to iOS and macOS targets.
-- [ ] Integrate `RappCloudSyncCoordinator` with `RappDeviceVault` to auto-import trusted same-account peers.
+The repository task list records storage/cloud synchronization, same-account
+handshakes, hardware-first arbitration, background pairing, and multi-device
+integration coverage as implemented. Cross-platform 6-digit pairing and card
+proxying were qualified in the 2026-09-11 decision. Completed implementation
+phases are no longer maintained as pending or checked tasks here.
 
-### Phase 2: Reader Priority Arbitration & Noise IK Handshake
-- [ ] Implement reader arbitration logic in `CardCore`: Prefer local physical smart card if present; fallback to auto-paired RAPP iPhone if absent.
-- [ ] Implement `Noise_IK_25519_ChaChaPoly_SHA256` pattern in `CardCore` alongside existing `Noise_XXpsk3`.
-- [ ] Auto-negotiate Noise IK for same-account peers.
-
-### Phase 3: Automatic Background Discovery & Connection
-- [ ] Monitor network reachability and mDNS advertisements for same-account `rendezvousToken` hashes.
-- [ ] Auto-dial the card-holding iPhone when Mac or iPad app opens and requests smart card operations.
-- [ ] Reconnection & self-healing management when roaming across networks.
-
-### Phase 4: Cross-OS 6-Digit Code Pairing & Verification
-- [x] Implement 6-digit numeric pairing code with Noise XXpsk3 handshake for cross-OS pairing.
-- [x] Qualified and verified cross-platform interoperability across Android - Mac, Android - Linux, Mac - iPhone, Mac - Android, Linux - Android, and Windows.
-- [x] Unit & integration tests for multi-device topology (Mac + iPad simultaneously connected to 1 iPhone).
-- [ ] Formal release candidate archive qualification.
+Candidate archive inspection and focused regression checks are tracked only in
+[TASKS.md](../TASKS.md#remaining-macos-release-decisions-and-checks), avoiding a
+second release checklist that can drift out of date.

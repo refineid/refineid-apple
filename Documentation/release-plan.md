@@ -1,6 +1,6 @@
 # macOS App Store release plan
 
-Last reviewed: 2026-09-10
+Last reviewed: 2026-09-27
 
 This document defines the product, security, validation, and distribution gates
 for the Swift macOS RefineID release. [TASKS.md](../TASKS.md) is the
@@ -24,7 +24,7 @@ Ship a small, trustworthy macOS App Store product named **RefineID**.
 
 The application contains the CryptoTokenKit smart-card extension that macOS
 loads for a supported card, with direct contact reader signing, contactless
-reading, card activation, and the SCS loopback signing server enabled in the
+reading, card activation, and the opt-in SCS loopback signing server included in the
 first full version (owner decision 2026-09-10). A separate persistent-token
 extension for a RAPP-paired iPhone authorizer ships in every configuration
 (`hasRapp: true`); physical qualification runs against this exact shipping
@@ -85,29 +85,74 @@ Card management and PIN2 signing entered scope on 2026-08-04 (see
 `Documentation/decisions.md`); iPadOS and iOS follow the macOS
 implementation.
 
+### SCS release status
+
+Complete for this release; accepted by the release owner on 2026-09-27.
+
+- **Settings:** Signature Creation Service is off by default. A saved opt-in
+  restores the listener; turning it off closes the listener and accepted
+  connections. Certificate trust is requested only on the enabled path, and
+  existing holder-granted trust is retained when the service is disabled.
+- **Localization:** Settings topics use short localized names. Finnish and
+  Swedish switch labels include the English service name in parentheses.
+  Entry prompts and action buttons are localized in English, Finnish, and
+  Swedish, with no explanatory paragraph. `CredentialLabels` owns the shared
+  credential names, including Finnish `Perus (PIN 1)` and Swedish
+  `Signaturkoden (PIN 2)`.
+- **Verification:** Automated tests cover default-off behavior, saved opt-in,
+  live loopback connection shutdown and listener restart, localized Settings,
+  and dialog presentation/cancellation without entering credentials. Lint,
+  iOS compilation, the macOS unit suite, package tests, and CI passed. The
+  production changes were installed on Mac, connected iOS hardware, and the
+  iPad simulator; installed Finnish Settings and compiled prompt translations
+  were checked.
+
+Integrated changes: [SCS opt-in, PR 37](https://github.com/refineid/refineid-apple/pull/37),
+[Settings translations, PR 38](https://github.com/refineid/refineid-apple/pull/38),
+and [shared labels and prompts, PR 39](https://github.com/refineid/refineid-apple/pull/39).
+The implementation baseline is `13ebf91`. Operational behavior is documented in
+[the release runbook](release-runbook.md#macos-local-web-signing).
+
+### Release evidence reconciliation
+
+The September 10 checklist predates recorded cross-platform qualification,
+the Mac screenshot pipeline, and the completed SCS work. Established behavior
+and earlier owner-observed hardware verification remain valid evidence; an
+unchecked historical task is not proof of an unfinished feature.
+
+[TASKS.md](../TASKS.md#remaining-macos-release-decisions-and-checks) now separates
+candidate checks from established implementation. The remaining work is an
+exact-candidate archive inspection, focused regression verification based on
+changed paths, review of current store assets and accessibility evidence, and
+resolution of the outstanding independent RAPP security-review requirement. No blanket repeat of the complete
+hardware or interoperability matrix is required by this reconciliation.
+
+Established evidence includes the Mac screenshot pipeline in
+[App Store screenshots](app-store-screenshots.md), the macOS Virtual ID Card
+and its UI test suites, retry-policy unit tests, RAPP lifecycle/conformance tests,
+and the [September 11 cross-platform qualification decision](decisions.md#2026-09-11-6-digit-pairing-standard-cross-platform-qualification-and-macos-store-gates).
+Earlier owner-observed physical testing is recorded in
+[the August 16 release](releases/26.8.16.md). These sources establish implemented
+capabilities and recorded observations; they do not assert that every current
+accessibility state or every credential path has a retained test result.
+
+Blocked PINs remain eligible for recovery using an eligible PUK, as confirmed by
+the release owner on September 27. This is established policy, not an open gate.
+
 ### Delivery sequence
 
 | Milestone | Outcome |
 | --- | --- |
-| M4 - Release evidence | Security, clean-archive, accessibility, clean-Mac, and real-card hardware matrices pass for an exact cloud build. |
-| M5 - TestFlight | Explicit development, beta, and release-candidate tags distribute through the configured tester groups. |
-| M6 - App Store | The exact tested candidate passes App Review and is released manually with public source and support ready. |
+| M4 - Candidate evidence | Inspect the exact release-manager candidate, review changed paths and existing evidence, and resolve identified policy or verification gaps. |
+| M5 - TestFlight | Distribute that inspected candidate through the release manager and record feedback. |
+| M6 - App Store | Submit the tested candidate with reviewed metadata; release automatically on approval under the standing owner policy. |
 
 ## Architecture
 
-The shipping App Store archive embeds the direct smart-card token extension:
+The shipping App Store archive embeds both token extensions:
 
 ```text
 RefineID.app
-|-- Contents/MacOS/RefineID
-|-- Contents/PlugIns/RefineIDTokenExtension.appex
-`-- Contents/Resources/...
-```
-
-Every configuration embeds both extensions, enabling RAPP use and testing:
-
-```text
-RefineID.app (Debug/Profile)
 |-- Contents/MacOS/RefineID
 |-- Contents/PlugIns/RefineIDTokenExtension.appex
 |-- Contents/PlugIns/RefineIDRappTokenExtension.appex
@@ -136,7 +181,9 @@ revokes that automatic identity. It still never probes PIN2 or PUK.
 
 - Three or more attempts remaining: the CTK operation may proceed.
 - One or two attempts remaining: refuse before prompting for or sending the PIN.
-- Zero attempts remaining: report the credential as blocked.
+- Zero attempts remaining: report the credential as blocked and allow PUK
+  recovery. A blocked PIN cannot spend another PIN attempt; its blocked state
+  must not prevent an unblock operation using an eligible PUK.
 - Missing, malformed, stale, or unreadable retry state: reject attempt to talk to card.
 - CTK has no expert override.
 
@@ -187,7 +234,7 @@ Guidelines and is built from owned source artwork.
   uniqueness only within one version string and the version changes daily.
 - TestFlight and App Store Connect display the pair as `26.7.23 (130)`.
 
-Xcode Cloud owns App Store signing. The repository contains no certificate
+The release manager owns candidate archiving, inspection, export, and upload. The repository contains no certificate
 private keys, provisioning profiles, API keys, or Apple account credentials.
 Secret environment values, if ever required, are redacted in Xcode Cloud.
 
