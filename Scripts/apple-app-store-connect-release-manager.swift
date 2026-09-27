@@ -1410,7 +1410,7 @@ private func printReleaseManagerUsage() {
           Capture localized App Store screenshots on simulator (e.g. --all, --locale fi).
 
     App Store Connect commands:
-      get, api, app-id, state, builds, distribute, add-tester, invite
+      get, api, app-id, state, builds, distribute, add-tester, remove-tester, invite
       ensure-version, attach-build, metadata, app-info, review-contact
       screenshots, age-rating, export-compliance, pricing, submissions, submit
     """
@@ -2308,6 +2308,26 @@ func addTester(_ email: String, _ groupName: String) {
   print("added \(email) to group '\(groupName)'")
 }
 
+// Removes a beta tester from a beta group.
+func removeTester(_ email: String, _ groupName: String) {
+  let groups = dataArray(api("GET", "/v1/apps/\(appID())/betaGroups?limit=50"))
+  guard
+    let groupID = groups.first(where: {
+      ($0["attributes"] as? [String: Any])?["name"] as? String == groupName
+    })?["id"] as? String
+  else { die("no beta group named '\(groupName)'") }
+  let testers = dataArray(api("GET", "/v1/betaTesters?filter[email]=\(email)"))
+  guard let testerID = testers.first?["id"] as? String else {
+    die("no beta tester with email \(email)")
+  }
+  api(
+    "DELETE", "/v1/betaGroups/\(groupID)/relationships/betaTesters",
+    body: [
+      "data": [["type": "betaTesters", "id": testerID]]
+    ])
+  print("removed \(email) from group '\(groupName)'")
+}
+
 // Sends a TestFlight invitation email to an existing beta tester. The
 // tester must already be on the app (in a group or assigned a build);
 // this is the "resend invite" the App Store Connect UI offers.
@@ -2390,6 +2410,8 @@ case ("distribute", 1): distribute(rest[0], "Beta")
 case ("distribute", 2): distribute(rest[0], rest[1])
 case ("add-tester", 1): addTester(rest[0], "Beta")
 case ("add-tester", 2): addTester(rest[0], rest[1])
+case ("remove-tester", 1): removeTester(rest[0], "Beta")
+case ("remove-tester", 2): removeTester(rest[0], rest[1])
 case ("invite", 1): invite(rest[0])
 case ("ensure-version", 2): print(ensureVersion(rest[0], rest[1]))
 case ("attach-build", 3): attachBuild(rest[0], rest[1], rest[2])
