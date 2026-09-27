@@ -1,7 +1,7 @@
-import AppKit
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
-// Usage: Scripts/render-stamp-samples.sh [output-directory]
+// Usage: Scripts/render-stamp-samples.sh [output-directory] [rotation-degrees]
 // Generates standard-font PDFs using the production renderer for visual comparison.
+import AppKit
 import Foundation
 import PDFKit
 
@@ -9,10 +9,18 @@ import PDFKit
 struct RenderStampSamples {
   static func main() throws {
     let destination = CommandLine.arguments[1]
+    let requestedAngle = CommandLine.arguments.count > 2 ? Double(CommandLine.arguments[2]) : nil
+    if CommandLine.arguments.count > 2,
+      requestedAngle.map({ PdfStampRenderer.rotationDegreesRange.contains($0) }) != true
+    {
+      throw CocoaError(.validationMissingMandatoryProperty)
+    }
     for language in ["en", "fi", "sv"] {
-      let operators =
-        "q 1 0 0 1 72 72 cm\n"
-        + PdfStampRenderer.generateStampOperators(locale: Locale(identifier: language)) + "Q\n"
+      let angle = requestedAngle ?? Double.random(in: PdfStampRenderer.rotationDegreesRange)
+      let mark = PdfStampRenderer.stampMark(
+        locale: Locale(identifier: language), rotationDegrees: angle)
+      let operators = "q 1 0 0 1 72 72 cm\n" + mark.operators + "Q\n"
+      print(String(format: "%@: %.2f degrees counterclockwise", language, angle))
       let objects = [
         "<< /Type /Catalog /Pages 2 0 R >>",
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
@@ -31,7 +39,8 @@ struct RenderStampSamples {
       for offset in offsets.dropFirst() { pdf += String(format: "%010d 00000 n \n", offset) }
       pdf += "trailer\n<< /Size \(objects.count + 1) /Root 1 0 R >>\nstartxref\n\(start)\n%%EOF\n"
       let data = Data(pdf.utf8)
-      try data.write(to: URL(fileURLWithPath: "\(destination)/signature-stamp-\(language).pdf"))
+      try data.write(
+        to: URL(fileURLWithPath: "\(destination)/signature-stamp-\(language)-tilted.pdf"))
       guard let document = PDFDocument(data: data), let page = document.page(at: 0) else {
         throw CocoaError(.fileReadCorruptFile)
       }
@@ -49,7 +58,7 @@ struct RenderStampSamples {
       page.draw(with: .mediaBox, to: context.cgContext)
       NSGraphicsContext.restoreGraphicsState()
       try bitmap.representation(using: .png, properties: [:])!.write(
-        to: URL(fileURLWithPath: "\(destination)/signature-stamp-\(language).png")
+        to: URL(fileURLWithPath: "\(destination)/signature-stamp-\(language)-tilted.png")
       )
     }
   }

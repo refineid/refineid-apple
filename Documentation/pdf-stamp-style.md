@@ -6,6 +6,12 @@ The PDF signature, rather than the visible stamp, supplies that verification.
 
 - Outer radius: 64 points; separator radius: 48 points. Exactly two rings.
 - Strokes: 1.8 points outer, 0.9 points separator. Red RGB: 0.7765, 0.1569, 0.1569.
+- Rotation: randomly choose 5-15 degrees counterclockwise once when creating
+  each advice stamp. Apply the rotation to the complete vector mark around its
+  center. Store the chosen transform in its PDF signature appearance stream;
+  displaying, saving, or adding another signature does not choose another angle.
+  The circular footprint and placement reach stay the same. Identity/portrait/QR
+  stamps use their own styles and are outside this rule.
 - Font: Helvetica Bold, matching the PDF appearance's Helvetica-Bold resource.
 - Center: four lines, with the command on its own line. All four lines use
   one shared size per locale, preferably 9 points. Fit the entire block uniformly
@@ -20,7 +26,10 @@ The PDF signature, rather than the visible stamp, supplies that verification.
 - FI center: TARKASTA / ASIAKIRJAN / SÄHKÖINEN / ALLEKIRJOITUS; SV above, EN below.
 - SV center: KONTROLLERA / DOKUMENTETS / ELEKTRONISKA / SIGNATUR; FI above, EN below.
 
-Run `Scripts/render-stamp-samples.sh` to produce three PNGs on the Desktop from
-production vector operators using Apple's PDFKit. The temporary PDFs stay under
+Run `Scripts/render-stamp-samples.sh` to produce three randomly tilted PNGs on
+the Desktop from production vector operators using Apple's PDFKit. Filenames
+end in `-tilted.png`, preserving upright reference samples. Pass an output
+directory and a fixed angle from 5 to 15 for repeatable examples, such as
+`Scripts/render-stamp-samples.sh ~/Desktop 10`. The temporary PDFs stay under
 `tmp/pdfs/`. Other platforms should match this geometry and type fitting; their
 renderers have not yet been migrated.

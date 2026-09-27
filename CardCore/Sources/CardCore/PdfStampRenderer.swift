@@ -33,6 +33,8 @@ public enum PdfStampRenderer {
   /// The total reach from center including stroke bleed.
   public static let stampReach = 66.0
 
+  internal static let rotationDegreesRange = 5.0...15.0
+
   private static let borderInnerRadius = 48.0
   private static let inkColor = "0.7765 0.1569 0.1569"
   private static let circleKappa = 0.5522847498307935
@@ -86,17 +88,30 @@ public enum PdfStampRenderer {
     )
   }
 
-  /// Creates a ready-to-place stamp mark with the localized advice.
+  /// Chooses one counterclockwise tilt and stores it in the ready-to-place mark.
   public static func stampMark(locale: Locale = .current) -> StampMark {
+    stampMark(locale: locale, rotationDegrees: Double.random(in: rotationDegreesRange))
+  }
+
+  internal static func stampMark(locale: Locale, rotationDegrees: Double) -> StampMark {
     StampMark(
       radius: stampRadius,
-      operators: generateStampOperators(locale: locale)
+      operators: generateStampOperators(locale: locale, rotationDegrees: rotationDegrees)
     )
   }
 
-  /// Generates the PDF graphics stream operators drawing the complete stamp.
+  /// Generates the complete stamp with a newly chosen counterclockwise tilt.
   public static func generateStampOperators(locale: Locale = .current) -> String {
+    generateStampOperators(locale: locale, rotationDegrees: Double.random(in: rotationDegreesRange))
+  }
+
+  internal static func generateStampOperators(locale: Locale, rotationDegrees: Double) -> String {
+    precondition(rotationDegreesRange.contains(rotationDegrees))
+    let radians = rotationDegrees * Double.pi / semicircleDegrees
+    let cosine = cos(radians)
+    let sine = sin(radians)
     var output = "q\n"
+    output += String(format: "%.8f %.8f %.8f %.8f 0 0 cm\n", cosine, sine, -sine, cosine)
     output += "\(inkColor) RG \(inkColor) rg\n"
     appendRings(into: &output)
     let stampTexts = resolveStampTexts(locale: locale)
