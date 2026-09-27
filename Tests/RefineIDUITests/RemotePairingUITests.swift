@@ -217,7 +217,8 @@
         toggle.waitForExistence(timeout: Self.appearTimeout),
         "the RefineID system switch never appeared")
       if isOn(toggle) != enabled {
-        toggle.tap()
+        // The row body navigates to a detail page; only the knob toggles.
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
       }
       let deadline = Date().addingTimeInterval(Self.switchSettleTimeout)
       while Date() < deadline, isOn(toggle) != enabled {
