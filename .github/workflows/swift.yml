@@ -13,17 +13,51 @@ permissions:
   contents: read
 
 jobs:
-  build:
-
-    runs-on: macos-26
-
+  scope:
+    runs-on: ubuntu-latest
+    outputs:
+      change: ${{ steps.scope.outputs.change }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - name: Classify changes and check whitespace
+        id: scope
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python3 Scripts/test-ci-change-scope.py
+          if git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            git diff --check "$BASE" "$HEAD"
+            change=$(python3 Scripts/ci-change-scope.py "$BASE" "$HEAD")
+          else
+            change=code
+          fi
+          echo "change=$change" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: scope
+    if: ${{ always() }}
+    runs-on: ${{ needs.scope.outputs.change == 'documentation' && 'ubuntu-latest' || 'macos-26' }}
+    steps:
+      - name: Require successful scope check
+        env:
+          SCOPE_RESULT: ${{ needs.scope.result }}
+        run: test "$SCOPE_RESULT" = success
+      - name: Documentation checks passed
+        if: ${{ needs.scope.outputs.change == 'documentation' }}
+        run: echo 'Documentation-only change; no application build or code tests required.'
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        if: ${{ needs.scope.outputs.change != 'documentation' }}
       - name: Select Xcode 26
+        if: ${{ needs.scope.outputs.change != 'documentation' }}
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: '26'
       - name: Build
+        if: ${{ needs.scope.outputs.change != 'documentation' }}
         run: xcodebuild -project RefineID.xcodeproj -scheme RefineID CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO build
       - name: Run tests
+        if: ${{ needs.scope.outputs.change != 'documentation' }}
         run: swift test --package-path CardCore -v
