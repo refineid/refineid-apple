@@ -46,7 +46,7 @@
     /// Both certificates on a card share one subject, so the label is the
     /// only field that names the PIN 1 identity in DVV's wording.
     internal static var authenticationLabel: String {
-      String(localized: "Basic (PIN 1)")
+      CredentialLabels.name(for: .pin1)
     }
 
     /// The pair ID of the currently selected or active remote holder.

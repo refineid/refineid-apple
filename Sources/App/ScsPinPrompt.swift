@@ -26,25 +26,28 @@
       return answer
     }
 
-    /// Builds and runs the modal alert; main thread only.
+    /// Builds the localized prompt without explanatory text.
     @MainActor
-    private static func presentPrompt(role: CredentialRole) -> String? {
-      NSApp.activate(ignoringOtherApps: true)
+    internal static func makeAlert(role: CredentialRole, bundle: Bundle) -> NSAlert {
       let alert = NSAlert()
-      alert.messageText =
-        role == .pin1
-        ? "Enter PIN 1 for the signing service"
-        : "Enter PIN 2 (signature) for the signing service"
-      alert.informativeText =
-        "A web page is requesting a card signature through the local "
-        + "signing service (SCS)."
+      alert.messageText = CredentialLabels.entryPrompt(for: role, bundle: bundle)
       let field = NSSecureTextField(
         frame: NSRect(x: 0, y: 0, width: Self.fieldWidth, height: Self.fieldHeight))
       alert.accessoryView = field
-      alert.addButton(withTitle: "Sign")
-      alert.addButton(withTitle: "Cancel")
+      alert.addButton(withTitle: String(localized: "Sign", bundle: bundle))
+      alert.addButton(withTitle: String(localized: "Cancel", bundle: bundle))
       alert.window.initialFirstResponder = field
-      guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+      return alert
+    }
+
+    /// Runs the modal prompt; cancellation returns no credential.
+    @MainActor
+    private static func presentPrompt(role: CredentialRole) -> String? {
+      NSApp.activate(ignoringOtherApps: true)
+      let alert = makeAlert(role: role, bundle: .main)
+      guard alert.runModal() == .alertFirstButtonReturn,
+        let field = alert.accessoryView as? NSSecureTextField
+      else { return nil }
       return field.stringValue
     }
   }

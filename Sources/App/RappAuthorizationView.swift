@@ -76,11 +76,11 @@
     private var authPin1Section: some View {
       Section("Authentication") {
         CredentialSecretField(
-          name: String(localized: "Basic (PIN 1)"),
+          name: CredentialLabels.name(for: .pin1),
           text: $pin1,
           revealIdentifier: "rappPin1Reveal"
         ) {
-          SecureField("Basic (PIN 1)", text: $pin1)
+          SecureField(CredentialLabels.name(for: .pin1), text: $pin1)
             .keyboardType(.numberPad)
             .textContentType(.none)
             .onValueChange(of: pin1) { typed in
@@ -95,11 +95,11 @@
     private var signPin2Section: some View {
       Section("Signature authorization") {
         CredentialSecretField(
-          name: String(localized: "Signature (PIN 2)"),
+          name: CredentialLabels.name(for: .pin2),
           text: $pin2,
           revealIdentifier: "rappPin2Reveal"
         ) {
-          SecureField("Signature (PIN 2)", text: $pin2)
+          SecureField(CredentialLabels.name(for: .pin2), text: $pin2)
             .keyboardType(.numberPad)
             .textContentType(.none)
             .onValueChange(of: pin2) { typed in
