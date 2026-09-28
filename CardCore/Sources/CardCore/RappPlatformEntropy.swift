@@ -7,6 +7,8 @@
 
   /// System randomness at the byte counts the Rust core publishes.
   public struct RappPlatformEntropy: Sendable {
+    private static let cpaceRandomByteCount: UInt64 = 64
+
     /// Creates a stateless entropy source.
     public init() {
       // platform default
@@ -20,6 +22,11 @@
     /// Returns a fresh pairing secret.
     public func pairingSecret() throws -> Data {
       try bytes(count: rappRandomByteCounts().pairingSecret)
+    }
+
+    /// Returns 64 fresh random bytes for CPace scalar sampling.
+    public func cpaceRandom() throws -> Data {
+      try bytes(count: Self.cpaceRandomByteCount)
     }
 
     /// Returns a fresh session-ready nonce.

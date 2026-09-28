@@ -13,7 +13,10 @@ internal struct SessionParameters: Equatable {
   internal static func from(map: [String: WireValue]) throws -> Self {
     var fields = map
     try requireVersion(&fields)
-    try requireSuite(&fields, RappNoise.sessionSuite)
+    let decodedSuite = try takeMessageText(&fields, "suite")
+    guard decodedSuite == RappNoise.sessionSuite else {
+      throw MessageFieldError.invalidField("suite")
+    }
     let decodedTransportProfile = try takeMessageText(&fields, "transport_profile")
     let decodedCandidateIdentifier = try takeMessageText(&fields, "candidate_id")
     let decodedGrantsHash = try takeMessageBytes(&fields, "grants_hash")

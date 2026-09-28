@@ -123,6 +123,8 @@
 
     internal enum State: Equatable {
       case offer
+      case awaitingRequesterCpace
+      case awaitingResponderCpace
       case awaitingRequesterHandshake
       case awaitingResponderHandshake
       case awaitingFinalRequesterHandshake
@@ -149,6 +151,7 @@
     internal let platform: String
     internal let clock: RappPlatformClock
     internal let offerDeadlineMilliseconds: UInt64
+    internal let pairingCode: String?
     internal let continuation: AsyncStream<Event>.Continuation
     internal var state = State.offer
     internal var peer: Peer?
@@ -168,7 +171,8 @@
       vault: RappDeviceVault,
       transport: any RappFrameTransport,
       clock: RappPlatformClock,
-      offerDeadlineMilliseconds: UInt64
+      offerDeadlineMilliseconds: UInt64,
+      pairingCode: String?
     ) {
       self.role = role
       self.bridge = bridge
@@ -180,6 +184,7 @@
       self.transport = transport
       self.clock = clock
       self.offerDeadlineMilliseconds = offerDeadlineMilliseconds
+      self.pairingCode = pairingCode
 
       var capturedContinuation: AsyncStream<Event>.Continuation?
       self.events = AsyncStream { capturedContinuation = $0 }

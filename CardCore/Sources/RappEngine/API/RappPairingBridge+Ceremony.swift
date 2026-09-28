@@ -56,7 +56,7 @@ extension RappPairingBridge {
   }
 
   /// Names a ceremony failure in the public vocabulary.
-  private static func bindingError(_ error: PairingError) -> RappBindingError {
+  internal static func bindingError(_ error: PairingError) -> RappBindingError {
     switch error {
     case .offerExpired:
       .OfferExpired
@@ -293,10 +293,14 @@ extension RappPairingBridge {
   /// - Throws: ``RappBindingError/WrongPhase`` when no candidate is running.
   public func candidateFailed(nowMonotonicMs: UInt64) throws -> Bool {
     try locked {
-      guard case .handshaking = phase else { throw RappBindingError.WrongPhase }
-      guard deadline.isLive(nowMilliseconds: nowMonotonicMs) else { return false }
-      phase = .offer
-      return true
+      switch phase {
+      case .handshaking, .cpace:
+        guard deadline.isLive(nowMilliseconds: nowMonotonicMs) else { return false }
+        phase = .offer
+        return true
+      default:
+        throw RappBindingError.WrongPhase
+      }
     }
   }
 
@@ -317,11 +321,5 @@ extension RappPairingBridge {
         throw RappBindingError.ProtocolFailure
       }
     }
-  }
-
-  private func locked<Value>(_ body: () throws -> Value) rethrows -> Value {
-    lock.lock()
-    defer { lock.unlock() }
-    return try body()
   }
 }

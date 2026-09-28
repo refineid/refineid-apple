@@ -32,7 +32,7 @@ internal enum RappNoiseAndEnvelopeCorpusSupport {
     internal static let byteCountUInt64 = 8
     internal static let wireMajor: UInt64 = 26
     internal static let wireMinor: UInt64 = 9
-    internal static let wirePatch: UInt64 = 13
+    internal static let wirePatch: UInt64 = 28
     internal static let versionLength = 3
     internal static let patchIndex = 2
     internal static let sessionIDLength = 16
@@ -165,14 +165,14 @@ internal enum RappNoiseAndEnvelopeCorpusSupport {
       repositoryRoot
       .appendingPathComponent("Documentation")
       .appendingPathComponent("rapp-conformance")
-      .appendingPathComponent("rapp-v26.9.13.json")
+      .appendingPathComponent("rapp-v26.9.28.json")
     return try JSONDecoder().decode(Corpus.self, from: Data(contentsOf: url))
   }
 
   internal static func deriveIdentifier(domain: String, handshakeHash: Data) -> String {
     var input = Data(domain.utf8)
     input.append(handshakeHash)
-    return encodeHex(Data(SHA256.hash(data: input)).prefix(Constants.hashPrefixLength))
+    return encodeHex(Data(SHA512.hash(data: input)).prefix(Constants.hashPrefixLength))
   }
 
   internal static func validateVectorHex(_ value: String) -> Data {

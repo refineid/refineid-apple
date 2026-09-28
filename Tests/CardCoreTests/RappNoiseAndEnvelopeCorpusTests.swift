@@ -49,21 +49,6 @@ internal final class RappNoiseAndEnvelopeCorpusTests: XCTestCase {
       expectedMessageLengths = [48, 96, 64]
       XCTAssertEqual(decodeHex(try XCTUnwrap(vector.testOnlyPairingSecretHex)).count, 32)
 
-    case "session-kk-fixed-transcript":
-      expectedPrologue = encodeArray([
-        encodeText("RAPP-session-v1"),
-        encodeArray([
-          encodeUnsigned(RappNoiseAndEnvelopeCorpusSupport.wire.major),
-          encodeUnsigned(RappNoiseAndEnvelopeCorpusSupport.wire.minor),
-          encodeUnsigned(RappNoiseAndEnvelopeCorpusSupport.wire.patch),
-        ]),
-        encodeText(vector.suite),
-        encodeBytes(decodeHex(vector.pairIDHex)),
-        encodeBytes(decodeHex(try XCTUnwrap(vector.grantsHashHex))),
-        encodeText(vector.transportProfile),
-      ])
-      expectedMessageLengths = [48, 48]
-
     default:
       XCTFail("Unknown Noise vector: \(vector.name)")
       return
@@ -77,14 +62,14 @@ internal final class RappNoiseAndEnvelopeCorpusTests: XCTestCase {
 
   internal func testFixedNoiseInputsProloguesAndIdentifiers() throws {
     let corpus = try loadCorpus()
-    XCTAssertEqual(corpus.noiseHandshake.count, 2)
+    XCTAssertEqual(corpus.noiseHandshake.count, 1)
 
     for vector in corpus.noiseHandshake {
       try checkStaticKeys(vector)
       try checkPrologue(vector)
 
       let handshakeHash = decodeHex(vector.handshakeHashHex)
-      XCTAssertEqual(handshakeHash.count, 32, vector.name)
+      XCTAssertEqual(handshakeHash.count, 64, vector.name)
       XCTAssertEqual(
         deriveIdentifier(domain: "RAPP-session-id-v1", handshakeHash: handshakeHash),
         vector.sessionIDHex,

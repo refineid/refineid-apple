@@ -6,7 +6,9 @@ import Foundation
 internal enum NoiseToken {
   case ephemeral
   case ephemeralEphemeral
+  case ephemeralKem
   case ephemeralStatic
+  case kemCiphertext
   case presharedKey
   case staticEphemeral
   case staticKey

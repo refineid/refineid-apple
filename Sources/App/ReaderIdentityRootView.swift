@@ -57,6 +57,12 @@
         presenting: authorizationInbox.request
       ) { req in
         alertActions(for: req)
+      } message: { req in
+        if let displayContext = req.displayContext, !displayContext.isEmpty {
+          Text("\(req.requester)\n\(displayContext)")
+        } else {
+          Text(req.requester)
+        }
       }
     }
 

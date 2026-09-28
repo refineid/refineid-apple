@@ -325,6 +325,70 @@
       "count": 1
     },
     {
+      "file": "CardCore/Sources/RappEngine/Rapp/FieldElement51+Arithmetic.swift",
+      "command": "disable",
+      "rules": [
+        "no_magic_numbers"
+      ],
+      "count": 1
+    },
+    {
+      "file": "CardCore/Sources/RappEngine/Rapp/FieldElement51+Arithmetic.swift",
+      "command": "enable",
+      "rules": [
+        "no_magic_numbers"
+      ],
+      "count": 1
+    },
+    {
+      "file": "CardCore/Sources/RappEngine/Rapp/FieldElement51.swift",
+      "command": "disable",
+      "rules": [
+        "no_magic_numbers"
+      ],
+      "count": 1
+    },
+    {
+      "file": "CardCore/Sources/RappEngine/Rapp/FieldElement51.swift",
+      "command": "enable",
+      "rules": [
+        "no_magic_numbers"
+      ],
+      "count": 1
+    },
+    {
+      "file": "CardCore/Sources/RappEngine/Rapp/RappCpaceState.swift",
+      "command": "disable",
+      "rules": [
+        "no_magic_numbers"
+      ],
+      "count": 1
+    },
+    {
+      "file": "CardCore/Sources/RappEngine/Rapp/RappCpaceState.swift",
+      "command": "enable",
+      "rules": [
+        "no_magic_numbers"
+      ],
+      "count": 1
+    },
+    {
+      "file": "CardCore/Sources/RappEngine/Rapp/RistrettoPoint.swift",
+      "command": "disable",
+      "rules": [
+        "no_magic_numbers"
+      ],
+      "count": 1
+    },
+    {
+      "file": "CardCore/Sources/RappEngine/Rapp/RistrettoPoint.swift",
+      "command": "enable",
+      "rules": [
+        "no_magic_numbers"
+      ],
+      "count": 1
+    },
+    {
       "file": "CardCore/Sources/RappEngine/Runtime/LivenessDecision.swift",
       "command": "disable",
       "rules": [

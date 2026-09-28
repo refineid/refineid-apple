@@ -17,7 +17,7 @@ internal enum RappNoise {
 
   private static let wireMajor: UInt64 = 26
   private static let wireMinor: UInt64 = 9
-  private static let wirePatch: UInt64 = 13
+  private static let wirePatch: UInt64 = 28
 
   internal static let wireVersion = WireVersion(
     major: wireMajor,
@@ -25,8 +25,8 @@ internal enum RappNoise {
     patch: wirePatch
   )
 
-  internal static let pairingSuite = "Noise_XXpsk3_25519_ChaChaPoly_SHA256"
-  internal static let sessionSuite = "Noise_KK_25519_ChaChaPoly_SHA256"
+  internal static let pairingSuite = "Noise_XXpsk3_25519_ChaChaPoly_SHA512"
+  internal static let sessionSuite = "Noise_KKhfs_25519+MLKEM768_ChaChaPoly_SHA512"
 
   private static let pairingPrologueDomain = "RAPP-pairing-v1"
   private static let sessionPrologueDomain = "RAPP-session-v1"
@@ -45,7 +45,10 @@ internal enum RappNoise {
   }
 
   /// Binds the pairing handshake to the offer it answers.
-  internal static func pairingPrologue(offerHash: Data, transportProfile: String) throws -> Data {
+  internal static func pairingPrologue(
+    offerHash: Data,
+    transportProfile: String
+  ) throws -> Data {
     let value = WireValue.array([
       .text(pairingPrologueDomain),
       versionValue,
@@ -58,7 +61,9 @@ internal enum RappNoise {
 
   /// Binds the session handshake to the pairing and the agreed grants.
   internal static func sessionPrologue(
-    pairIdentifier: Data, grantsHash: Data, transportProfile: String
+    pairIdentifier: Data,
+    grantsHash: Data,
+    transportProfile: String
   ) throws -> Data {
     let value = WireValue.array([
       .text(sessionPrologueDomain),
@@ -72,7 +77,9 @@ internal enum RappNoise {
   }
 
   private static func identifier(domain: String, handshakeHash: Data) -> Data {
-    Data(SHA256.hash(data: Data(domain.utf8) + handshakeHash).prefix(identifierLength))
+    let input = Data(domain.utf8) + handshakeHash
+    let digest = Data(SHA512.hash(data: input))
+    return Data(digest.prefix(identifierLength))
   }
 
   internal static func sessionIdentifier(handshakeHash: Data) -> Data {

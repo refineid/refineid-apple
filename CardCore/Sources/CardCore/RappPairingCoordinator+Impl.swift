@@ -33,14 +33,33 @@
       }
       scheduleOfferExpiry()
       do {
-        try bridge.begin(candidateId: candidateID, nowMonotonicMs: clock.monotonicMilliseconds())
-        switch role {
-        case .requester:
-          let frame = try bridge.writeHandshakeFrame(nowMonotonicMs: clock.monotonicMilliseconds())
-          state = .awaitingResponderHandshake
-          try await transport.send(frame)
-        case .proxy:
-          state = .awaitingRequesterHandshake
+        if let pairingCode {
+          let randomBytes = try RappPlatformEntropy().cpaceRandom()
+          try bridge.beginCpace(
+            candidateId: candidateID,
+            pairingCode: pairingCode,
+            randomBytes64: randomBytes,
+            nowMonotonicMs: clock.monotonicMilliseconds()
+          )
+          switch role {
+          case .requester:
+            let frame = try bridge.writeCpaceFrame(nowMonotonicMs: clock.monotonicMilliseconds())
+            state = .awaitingResponderCpace
+            try await transport.send(frame)
+          case .proxy:
+            state = .awaitingRequesterCpace
+          }
+        } else {
+          try bridge.begin(candidateId: candidateID, nowMonotonicMs: clock.monotonicMilliseconds())
+          switch role {
+          case .requester:
+            let frame = try bridge.writeHandshakeFrame(
+              nowMonotonicMs: clock.monotonicMilliseconds())
+            state = .awaitingResponderHandshake
+            try await transport.send(frame)
+          case .proxy:
+            state = .awaitingRequesterHandshake
+          }
         }
       } catch RappBindingError.OfferExpired {
         await fail(.offerExpired)
@@ -105,7 +124,9 @@
       switch state {
       case .offer:
         return
-      case .awaitingRequesterHandshake,
+      case .awaitingRequesterCpace,
+        .awaitingResponderCpace,
+        .awaitingRequesterHandshake,
         .awaitingResponderHandshake,
         .awaitingFinalRequesterHandshake:
         await recoverOrFail(.transportFailure, closeCandidate: false)
@@ -128,6 +149,10 @@
     /// Routes an inbound frame to the appropriate per-state handler.
     internal func receiveFrame(_ frame: Data) async throws {
       switch state {
+      case .awaitingRequesterCpace:
+        try await receiveRequesterCpace(frame)
+      case .awaitingResponderCpace:
+        try await receiveResponderCpace(frame)
       case .awaitingRequesterHandshake:
         try await receiveRequesterHandshake(frame)
       case .awaitingResponderHandshake:
@@ -151,6 +176,22 @@
     }
 
     // MARK: Handshake Handlers
+
+    private func receiveRequesterCpace(_ frame: Data) async throws {
+      let response = try bridge.writeCpaceFrame(nowMonotonicMs: clock.monotonicMilliseconds())
+      try bridge.readCpaceFrame(bytes: frame, nowMonotonicMs: clock.monotonicMilliseconds())
+      state = .awaitingRequesterHandshake
+      try await transport.send(response)
+    }
+
+    private func receiveResponderCpace(_ frame: Data) async throws {
+      try bridge.readCpaceFrame(bytes: frame, nowMonotonicMs: clock.monotonicMilliseconds())
+      let handshakeFrame = try bridge.writeHandshakeFrame(
+        nowMonotonicMs: clock.monotonicMilliseconds()
+      )
+      state = .awaitingResponderHandshake
+      try await transport.send(handshakeFrame)
+    }
 
     private func receiveRequesterHandshake(_ frame: Data) async throws {
       try bridge.readHandshakeFrame(bytes: frame, nowMonotonicMs: clock.monotonicMilliseconds())
@@ -266,7 +307,9 @@
       switch state {
       case .offer:
         break
-      case .awaitingRequesterHandshake,
+      case .awaitingRequesterCpace,
+        .awaitingResponderCpace,
+        .awaitingRequesterHandshake,
         .awaitingResponderHandshake,
         .awaitingFinalRequesterHandshake:
         do {
@@ -319,6 +362,8 @@
     private func expireOffer() async {
       guard
         state == .offer
+          || state == .awaitingRequesterCpace
+          || state == .awaitingResponderCpace
           || state == .awaitingRequesterHandshake
           || state == .awaitingResponderHandshake
           || state == .awaitingFinalRequesterHandshake

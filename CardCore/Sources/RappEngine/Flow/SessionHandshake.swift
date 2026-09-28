@@ -37,7 +37,7 @@ internal struct SessionHandshake {
   private static func begin(pair: PairRecord) throws -> Self {
     do {
       let decodedNoise = try NoiseHandshakeState(
-        pattern: .knownKnown,
+        pattern: .knownKnownHfs,
         suiteName: RappNoise.sessionSuite,
         prologue: try RappNoise.sessionPrologue(
           pairIdentifier: pair.pairIdentifier,

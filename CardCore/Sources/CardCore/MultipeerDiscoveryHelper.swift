@@ -16,15 +16,22 @@
     private static let serviceType = "refineid-disc"
     private let localPeer: MCPeerID
     private let discoveryInfo: [String: String]
-    private let onDiscovered: @Sendable (RappCloudDeviceRecord) -> Void
+    private let onDiscovered: (@Sendable (RappCloudDeviceRecord) -> Void)?
     private var advertiser: MCNearbyServiceAdvertiser?
     private var browser: MCNearbyServiceBrowser?
     private let localDeviceID: UUID
 
+    internal convenience init(
+      localIdentity: RappDeviceIdentity,
+      localRole: RappDeviceRole
+    ) {
+      self.init(localIdentity: localIdentity, localRole: localRole, onDiscovered: nil)
+    }
+
     internal init(
       localIdentity: RappDeviceIdentity,
       localRole: RappDeviceRole,
-      onDiscovered: @escaping @Sendable (RappCloudDeviceRecord) -> Void
+      onDiscovered: (@Sendable (RappCloudDeviceRecord) -> Void)?
     ) {
       self.localDeviceID = localIdentity.deviceID
       let rolePrefix = localRole == .holder ? "card" : "host"
@@ -123,7 +130,7 @@
         ),
         updatedAt: Date()
       )
-      onDiscovered(record)
+      onDiscovered?(record)
     }
 
     // swiftlint:enable discouraged_optional_collection

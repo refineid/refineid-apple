@@ -278,13 +278,6 @@
           localRole: role,
           onLiveDevicesChanged: { [weak self] ids, names in
             self?.updateOnlineDevices(ids: ids, names: names)
-          },
-          onDiscovered: { [weak self] discovered in
-            guard let self, let coordinator else { return }
-            Task {
-              await coordinator.registerDiscoveredDevice(discovered)
-              self.reconcile()
-            }
           }
         )
         discovery.start()

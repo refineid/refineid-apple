@@ -11,6 +11,7 @@ public final class RappPairingBridge: @unchecked Sendable {
   /// Where the ceremony has reached.
   internal enum Phase {
     case offer
+    case cpace(cpace: RappCpaceState, offer: PairingOffer, candidateId: String)
     case handshaking(PairingHandshake)
     case confirming(PairingConfirmation)
     case finished
@@ -38,5 +39,11 @@ public final class RappPairingBridge: @unchecked Sendable {
       throw RappBindingError.InvalidInput
     }
     self.localKeys = PairKeyMaterial()
+  }
+
+  internal func locked<Value>(_ body: () throws -> Value) rethrows -> Value {
+    lock.lock()
+    defer { lock.unlock() }
+    return try body()
   }
 }

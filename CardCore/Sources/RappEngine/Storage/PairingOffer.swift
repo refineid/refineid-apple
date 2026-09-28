@@ -151,6 +151,18 @@ internal struct PairingOffer: Sendable {
     return map
   }
 
+  /// Returns a copy of this offer with a freshly derived pairing secret (e.g. from CPace).
+  internal func withPairingSecret(_ newSecret: Data) throws -> Self {
+    try Self(
+      offerIdentifier: offerIdentifier,
+      pairingSecret: newSecret,
+      suites: suites,
+      profiles: profiles,
+      transports: transports,
+      offerLifetimeMilliseconds: offerLifetimeMilliseconds
+    )
+  }
+
   /// Hash of the deterministic offer with the bearer secret removed.
   internal func offerHash() throws -> Data {
     let encoded = try WireValue.map(asMap(includingSecret: false)).encoded()
