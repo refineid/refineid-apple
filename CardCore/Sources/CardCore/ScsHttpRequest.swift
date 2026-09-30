@@ -2,11 +2,14 @@
 
 import Foundation
 
-/// One parsed SCS HTTP request head.
+/// One parsed SCS request head.
 ///
-/// The SCS serves exactly one request per connection and closes it
-/// (DVV SCS specification v1.3 §2.4), so the head plus a
-/// `Content-Length` body is the whole exchange. Only the fields the
+/// The SCS serves exactly one request per connection and closes it, so
+/// the head plus a `Content-Length` body is the whole exchange. That
+/// is a local framing choice rather than a specified one: the
+/// specification's own examples use `Connection: keep-alive` (v1.3
+/// §2.4), and single-use connections remove any question of one
+/// request's bytes being read as another's. Only the fields the
 /// protocol acts on are kept: the method and path route, the Origin
 /// binds challenges and CORS answers, the content type selects the
 /// JSON or JWT branch.

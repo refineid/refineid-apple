@@ -31,7 +31,7 @@ internal enum ScsTransactionExecution {
       content: content,
       signatureType: payload.signatureType,
       hash: hash,
-      purpose: state.purpose,
+      state: state,
       backend: backend
     ) {
     case .success(let bytes):
@@ -109,12 +109,16 @@ internal enum ScsTransactionExecution {
     content: Data,
     signatureType: String,
     hash: SigningHash,
-    purpose: ScsSignPurpose,
+    state: ScsAgreedTransaction,
     backend: any ScsSigningBackend
   ) -> Result<Data, ScsTransactionError> {
+    let purpose = state.purpose
     guard signatureType == "cms-pades" else {
       do {
-        return .success(try backend.sign(purpose: purpose, hash: hash, data: content))
+        return .success(
+          try backend.sign(
+            ScsSignRequest(
+              purpose: purpose, hash: hash, data: content, origin: state.origin)))
       } catch {
         return .failure(.wrapping(error))
       }
@@ -133,7 +137,8 @@ internal enum ScsTransactionExecution {
     }
     do {
       let cardSignature = try backend.sign(
-        purpose: purpose, hash: hash, data: cms.signedAttributes)
+        ScsSignRequest(
+          purpose: purpose, hash: hash, data: cms.signedAttributes, origin: state.origin))
       return .success(cms.signedData(signature: cardSignature))
     } catch {
       return .failure(.wrapping(error))

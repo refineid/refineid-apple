@@ -82,6 +82,28 @@ Counts are how often each is cited across this tree.
   evaluated under Common Criteria. It describes product behavior but
   leaves recovery parameters undisclosed.
 
+### dvv_scs_v1_3
+
+- **Supports:** the SCS's normative requirements. §2.1 requires
+  `Access-Control-Allow-Origin: *` on every response, an HTTPS-scheme
+  Origin, a certificate-selection dialog on every signature creation
+  request, and that the end user **be shown the Origin header's
+  content**. §2.4 is the CORS preflight and nothing else. §3.2 scopes
+  the `origin;nonce` challenge to *authentication* signatures, stating
+  that other types "do not validate the origin and do not add a proof of
+  origin". Verified byte-identical to the copy dvv.fi serves, SHA-256
+  `e54743f4...adcbb`, so quotes from it are primary.
+- **Does NOT prove:** that any origin may be trusted. The wildcard is a
+  statement about reachability, not about the requester. Nor does the
+  document define a trusted-origins or allowlist concept to narrow it
+  with - there is none, and no upstream DVV list of one exists. §3.7
+  permits signing without showing the content, and §3.10 declines to
+  address the local-application threat, so neither the payload digest
+  nor a refusal of remote-origin qualified signing is required.
+- **Source quality:** normative, the specification DVV publishes for
+  implementers. Chapter 3 is explicitly non-normative; only chapter 2
+  decides behaviour.
+
 #### Certificates, revocation, signatures
 
 - **RFC 5280** (`rfc5280`, 43) — X.509 certificate and CRL profile.

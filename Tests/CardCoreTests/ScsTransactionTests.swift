@@ -130,6 +130,10 @@ internal struct ScsTransactionTests {
     let attributes = try #require(scripted.signedData.last)
     #expect(attributes.first == 0x31)
     #expect(attributes.firstRange(of: digest) != nil)
+    // Both signs carry the origin, including the one that signs
+    // derived CMS attributes: the end user is asked to approve each
+    // sign, and the approval names the origin.
+    #expect(scripted.signedOrigins == [Self.origin, Self.origin])
   }
 
   @Test

@@ -7,8 +7,8 @@ import Foundation
 /// The transport hands over whatever it has read so far; assembly
 /// answers whether the buffer already holds the complete request. The
 /// caller keeps accumulating until `complete` or `invalid` - one
-/// request per connection, per the SCS exchange shape (DVV SCS
-/// specification v1.3 §2.4).
+/// request per connection, which this implementation chooses so a
+/// connection's bytes can only ever form one request.
 public enum ScsHttpAssembly: Equatable, Sendable {
   /// The buffer holds a complete request head and body.
   case complete(ScsHttpExchange)

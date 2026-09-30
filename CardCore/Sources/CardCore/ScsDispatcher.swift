@@ -166,7 +166,8 @@ public enum ScsDispatcher {
       )
     }
     do {
-      let signature = try backend.sign(purpose: purpose, hash: .sha256, data: raw)
+      let signature = try backend.sign(
+        ScsSignRequest(purpose: purpose, hash: .sha256, data: raw, origin: origin))
       let response = ScsSignResponseDocument.ok(
         signature: signature.base64EncodedString(),
         signatureAlgorithm: backend.keyAlgorithm(for: purpose).scsName(hash: .sha256),

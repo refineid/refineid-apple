@@ -1,6 +1,75 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Digest (%@): %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Digest (%1$@): %2$@"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiiviste (%1$@): %2$@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Digest (%1$@): %2$@"
+          }
+        }
+      }
+    },
+    "Origin: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Origin: %1$@"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Origin: %1$@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Origin: %1$@"
+          }
+        }
+      }
+    },
+    "Origin: (none - the request sent no Origin header)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Origin: (none - the request sent no Origin header)"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Origin: (ei mitään - pyyntö ei lähettänyt Origin-otsaketta)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Origin: (ingen - begäran skickade ingen Origin-header)"
+          }
+        }
+      }
+    },
     "Enter %@": {
       "extractionState": "manual",
       "localizations": {

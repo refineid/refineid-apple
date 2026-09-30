@@ -17,8 +17,13 @@ public protocol ScsSigningBackend {
   /// `signatureAlgorithm` field.
   func keyAlgorithm(for purpose: ScsSignPurpose) -> ScsKeyAlgorithm
 
-  /// Signs `data` with the `purpose` key after hashing it with
-  /// `hash`. Throws `ScsBackendFailure` so the protocol layer can
-  /// answer the specified reason code.
-  func sign(purpose: ScsSignPurpose, hash: SigningHash, data: Data) throws -> Data
+  /// Signs `request` with the `purpose` key after hashing its data.
+  /// Throws `ScsBackendFailure` so the protocol layer can answer the
+  /// specified reason code.
+  ///
+  /// The request carries the origin the signature was asked for, which
+  /// only the backend can put in front of the end user, so the origin
+  /// travels with the sign rather than being re-read from the request
+  /// later.
+  func sign(_ request: ScsSignRequest) throws -> Data
 }
