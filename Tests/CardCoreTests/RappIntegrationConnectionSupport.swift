@@ -6,6 +6,9 @@ import Testing
 
 @testable import CardCore
 
+/// The six-digit code the two fixtures here key their CPace PAKE on.
+private let fixturePairingCode = "246813"
+
 #if canImport(RappEngine)
   import RappEngine
   internal enum RappIntegrationConnectionSupport {
@@ -107,7 +110,8 @@ import Testing
         displayName: "Requester Mac",
         platform: "macOS",
         vault: vault,
-        transport: transport
+        transport: transport,
+        code: fixturePairingCode
       )
     }
 
@@ -122,7 +126,8 @@ import Testing
         displayName: "Authorizer iPhone",
         platform: "iOS",
         vault: vault,
-        transport: transport
+        transport: transport,
+        code: fixturePairingCode
       )
     }
 

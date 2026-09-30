@@ -6,9 +6,11 @@ import Testing
 
 @testable import CardCore
 
+/// The six-digit code the two fixtures here key their CPace PAKE on.
+private let fixturePairingCode = "246813"
+
 #if canImport(RappEngine)
   import RappEngine
-
   /// A pairing made the way two devices make one, for tests that need a
   /// stored pair record on each side.
   internal struct SignRelayPairing {
@@ -28,6 +30,54 @@ import Testing
     internal let requesterPrefix: String
     internal let proxyPrefix: String
 
+    /// The half that owns the offer and shows the code.
+    private static func makeRequester(
+      profiles: [String],
+      transportProfile: String,
+      candidateID: String,
+      vault: RappDeviceVault,
+      outbound: SignRelayFrameEndpoint
+    ) throws -> RappPairingCoordinator {
+      try RappPairingCoordinator.requester(
+        profiles: profiles,
+        candidates: [
+          .init(
+            profile: transportProfile,
+            candidateID: candidateID,
+            parametersCBOR: emptyParameters)
+        ],
+        selectedCandidateID: candidateID,
+        offerLifetimeMilliseconds: offerLifetimeMilliseconds,
+        displayName: "Requester",
+        platform: "macOS",
+        vault: vault,
+        transport: RappClosureFrameTransport(
+          sender: { frame in await outbound.send(frame) },
+          closer: { await outbound.close() }),
+        code: fixturePairingCode
+      )
+    }
+
+    /// The half that answers an offer it was handed.
+    private static func makeProxy(
+      offerURI: String,
+      candidateID: String,
+      vault: RappDeviceVault,
+      outbound: SignRelayFrameEndpoint
+    ) throws -> RappPairingCoordinator {
+      try RappPairingCoordinator.proxy(
+        scannedOfferURI: offerURI,
+        selectedCandidateID: candidateID,
+        displayName: "Proxy",
+        platform: "iOS",
+        vault: vault,
+        transport: RappClosureFrameTransport(
+          sender: { frame in await outbound.send(frame) },
+          closer: { await outbound.close() }),
+        code: fixturePairingCode
+      )
+    }
+
     /// Runs the ceremony between two fresh vaults.
     internal static func make(
       profiles: [String],
@@ -44,33 +94,17 @@ import Testing
 
       let requesterOutbound = SignRelayFrameEndpoint()
       let proxyOutbound = SignRelayFrameEndpoint()
-      let requester = try RappPairingCoordinator.requester(
+      let requester = try makeRequester(
         profiles: profiles,
-        candidates: [
-          .init(
-            profile: transportProfile,
-            candidateID: candidateID,
-            parametersCBOR: Self.emptyParameters)
-        ],
-        selectedCandidateID: candidateID,
-        offerLifetimeMilliseconds: Self.offerLifetimeMilliseconds,
-        displayName: "Requester",
-        platform: "macOS",
+        transportProfile: transportProfile,
+        candidateID: candidateID,
         vault: madeRequesterVault,
-        transport: RappClosureFrameTransport(
-          sender: { frame in await requesterOutbound.send(frame) },
-          closer: { await requesterOutbound.close() })
-      )
-      let proxy = try RappPairingCoordinator.proxy(
-        scannedOfferURI: try #require(requester.offerURI),
-        selectedCandidateID: candidateID,
-        displayName: "Proxy",
-        platform: "iOS",
+        outbound: requesterOutbound)
+      let proxy = try makeProxy(
+        offerURI: try #require(requester.offerURI),
+        candidateID: candidateID,
         vault: madeProxyVault,
-        transport: RappClosureFrameTransport(
-          sender: { frame in await proxyOutbound.send(frame) },
-          closer: { await proxyOutbound.close() })
-      )
+        outbound: proxyOutbound)
       await requesterOutbound.install { frame in await proxy.receive(frame) }
       await proxyOutbound.install { frame in await requester.receive(frame) }
 

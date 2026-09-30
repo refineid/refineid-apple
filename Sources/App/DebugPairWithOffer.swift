@@ -47,10 +47,23 @@
       DebugConsole.emit("pair-with-offer: offer characters: " + String(offerURI.count))
       let trimmed = offerURI.trimmingCharacters(in: .whitespacesAndNewlines)
       let normalizedCode = RappPairingCode.normalize(trimmed)
-      if trimmed.count <= maxPairingCodeLength, RappPairingCode.isValid(normalizedCode) {
+      if trimmed.count <= maxPairingCodeLength, trimmed == normalizedCode {
         model.acceptPairingCode(normalizedCode)
       } else {
-        model.acceptOfferWithoutScanning(trimmed)
+        // A full offer is not a substitute for the code it is keyed on.
+        // The PAKE gives the two peers their shared secret, and that
+        // secret is not carried in the offer, so pairing without the code
+        // would be pairing without one.
+        let code = DebugLaunchModes.offerCode()
+        guard RappPairingCode.isValid(code) else {
+          return DebugModeReport(
+            lines: [
+              "pair-with-offer: an offer needs the code it is keyed on",
+              "pair-with-offer: set " + DebugLaunchModes.offerCodeVariable,
+            ],
+            succeeded: false)
+        }
+        model.acceptOfferWithoutScanning(trimmed, code: code)
       }
 
       for _ in 0..<attempts {

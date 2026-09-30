@@ -5,6 +5,9 @@ import XCTest
 
 @testable import CardCore
 
+/// The six-digit code the two fixtures here key their CPace PAKE on.
+private let fixturePairingCode = "246813"
+
 #if canImport(RappEngine)
   internal final class RappPairingRecoveryTests: XCTestCase {
     private actor RecordingTransport: RappFrameTransport {
@@ -41,7 +44,8 @@ import XCTest
         displayName: "Requester",
         platform: "macOS",
         vault: RappDeviceVault(accessGroup: nil),
-        transport: transport
+        transport: transport,
+        code: fixturePairingCode
       )
     }
 

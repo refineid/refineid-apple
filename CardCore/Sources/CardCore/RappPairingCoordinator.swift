@@ -151,7 +151,7 @@
     internal let platform: String
     internal let clock: RappPlatformClock
     internal let offerDeadlineMilliseconds: UInt64
-    internal let pairingCode: String?
+    internal let pairingCode: String
     internal let continuation: AsyncStream<Event>.Continuation
     internal var state = State.offer
     internal var peer: Peer?
@@ -172,7 +172,7 @@
       transport: any RappFrameTransport,
       clock: RappPlatformClock,
       offerDeadlineMilliseconds: UInt64,
-      pairingCode: String?
+      pairingCode: String
     ) {
       self.role = role
       self.bridge = bridge
