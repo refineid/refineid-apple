@@ -7,7 +7,7 @@ import Testing
 
 /// Regression tests for `HeldCardSession` verifying race-free activity timeout behavior
 /// and coordination between early PACE preparation, idle release, and channel leasing.
-@Suite
+@Suite(.serialized)
 internal struct HeldCardSessionTests {
   // MARK: Nested Types
 
@@ -126,7 +126,7 @@ internal struct HeldCardSessionTests {
 
     // Wait until PACE worker has started and is actively in transmit holding operationLock.
     let started = paceStartedSemaphore.wait(timeout: .now() + 5)
-    #expect(started == .success, "PACE worker did not start within timeout")
+    try #require(started == .success, "PACE worker did not start within timeout")
 
     // The activity timeout fires while PACE is actively in flight.
     heldSession.fireActivityTimeoutForTesting()
@@ -163,7 +163,7 @@ internal struct HeldCardSessionTests {
 
     // Wait until PACE preparation finishes.
     let ready = heldSession.waitForPreparation(timeout: 5)
-    #expect(ready, "PACE preparation did not finish within timeout")
+    try #require(ready, "PACE preparation did not finish within timeout")
 
     // Channel is prepared, but unclaimed by any signer.
     #expect(!testChannel.isSessionEnded, "Channel ended prematurely before timeout")
