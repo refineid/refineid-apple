@@ -39,5 +39,6 @@ private let package = Package(
       name: "PKCS11BridgeTests",
       dependencies: ["PKCS11Bridge", "CCryptoki"],
       swiftSettings: warningsAsErrors),
-  ]
+  ],
+  swiftLanguageModes: [.v6]
 )

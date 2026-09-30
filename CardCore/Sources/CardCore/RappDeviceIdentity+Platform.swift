@@ -1,5 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
+import Darwin
 import Foundation
 
 #if canImport(UIKit)
@@ -28,7 +29,7 @@ extension RappDeviceIdentity {
       if !machine.isEmpty, let marketing = friendlyMarketingName(from: machine) {
         return marketing
       }
-      return machine.isEmpty ? UIDevice.current.model : machine
+      return machine.isEmpty ? currentDeviceModel() : machine
     #elseif os(macOS)
       let model = readSysctlString("hw.model") ?? ""
       if !model.isEmpty, let marketing = friendlyMarketingName(from: model) {
@@ -62,6 +63,24 @@ extension RappDeviceIdentity {
   }
 
   #if os(iOS)
+    private static func currentDeviceModel() -> String {
+      guard !Thread.isMainThread else {
+        return MainActor.assumeIsolated { UIDevice.current.model }
+      }
+      return DispatchQueue.main.sync {
+        MainActor.assumeIsolated { UIDevice.current.model }
+      }
+    }
+
+    private static func currentDeviceName() -> String {
+      guard !Thread.isMainThread else {
+        return MainActor.assumeIsolated { UIDevice.current.name }
+      }
+      return DispatchQueue.main.sync {
+        MainActor.assumeIsolated { UIDevice.current.name }
+      }
+    }
+
     private static func resolveIOSDeviceName() -> String {
       let deviceNameStorageKey = "fi.refineid.rapp.device-name"
       let args = ProcessInfo.processInfo.arguments
@@ -73,7 +92,7 @@ extension RappDeviceIdentity {
         }
       }
 
-      let current = UIDevice.current.name.trimmingCharacters(in: .whitespacesAndNewlines)
+      let current = currentDeviceName().trimmingCharacters(in: .whitespacesAndNewlines)
       if !current.isEmpty,
         current.caseInsensitiveCompare("iPhone") != .orderedSame,
         current.caseInsensitiveCompare("iPad") != .orderedSame,
@@ -96,7 +115,7 @@ extension RappDeviceIdentity {
         return cached.trimmingCharacters(in: .whitespacesAndNewlines)
       }
 
-      return current.isEmpty ? UIDevice.current.name : current
+      return current.isEmpty ? currentDeviceName() : current
     }
 
     private static func resolveHostPrefix(from host: String) -> String? {

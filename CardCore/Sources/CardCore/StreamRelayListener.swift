@@ -118,13 +118,14 @@ import Foundation
     }
 
     private func accept(_ candidate: NWConnection) {
-      queue.async {
-        guard self.connection == nil, !self.isFinished else {
+      queue.async { [weak self] in
+        guard let self else { return }
+        guard connection == nil, !isFinished else {
           candidate.cancel()
           return
         }
-        self.connection = candidate
-        self.pending = Data()
+        connection = candidate
+        pending = Data()
         candidate.stateUpdateHandler = { [weak self] state in
           guard let self else { return }
           switch state {
@@ -132,14 +133,16 @@ import Foundation
             onEvent(.connected)
 
           case .failed, .cancelled:
-            queue.async { self.handleConnectionClosure(.disconnected) }
+            queue.async { [weak self] in
+              self?.handleConnectionClosure(.disconnected)
+            }
 
           default:
             break
           }
         }
-        candidate.start(queue: self.queue)
-        self.receiveNext(candidate)
+        candidate.start(queue: queue)
+        receiveNext(candidate)
       }
     }
 

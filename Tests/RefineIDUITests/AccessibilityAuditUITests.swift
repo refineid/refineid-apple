@@ -195,22 +195,55 @@
     /// accessibility.
     internal func testPinSettingsPanePassesTheAudit() throws {
       let app = UITestApp.launch()
+      app.activate()
+      XCTAssertTrue(
+        app.windows.firstMatch.waitForExistence(timeout: UITestApp.appearTimeout),
+        "no main window"
+      )
       app.typeKey(",", modifierFlags: .command)
-      let pinTab = app.toolbars.buttons["PIN"]
-      XCTAssertTrue(pinTab.waitForExistence(timeout: 10), "no settings window")
-      pinTab.click()
+      let settingsCandidates = app.windows.matching(NSPredicate(format: "identifier != 'status'"))
+      if !settingsCandidates.firstMatch.waitForExistence(timeout: 3) {
+        let appMenu = app.menuBars.menuBarItems.firstMatch
+        if appMenu.waitForExistence(timeout: 2) {
+          appMenu.click()
+          let settingsItem = app.menuItems.matching(
+            NSPredicate(format: "title CONTAINS[c] 'Settings' OR title CONTAINS[c] 'Preferences'")
+          ).firstMatch
+          if settingsItem.waitForExistence(timeout: 3) {
+            settingsItem.click()
+          }
+        }
+      }
+      let settings =
+        settingsCandidates.firstMatch.exists
+        ? settingsCandidates.firstMatch
+        : app.windows["Settings"]
+      XCTAssertTrue(
+        settings.waitForExistence(timeout: UITestApp.appearTimeout), "no settings window")
+
+      let pinTab =
+        settings.toolbars.buttons["PIN Codes"].exists
+        ? settings.toolbars.buttons["PIN Codes"]
+        : settings.toolbars.buttons["PIN"]
+      if pinTab.exists {
+        pinTab.click()
+      }
+
       // The pane's body follows the card: the task picker for a card in
-      // use or none at all, the activation form for a factory card.
+      // use or none at all, the activation form for a factory card, or
+      // the placeholder to connect a card reader if none is attached.
       // Either is a pane worth auditing; neither appearing means the
       // pane did not open.
       let picker = app.descendants(matching: .any)[UITestIdentifiers.managementTask]
+      let attempts = app.staticTexts["Attempts left:"]
+      let readerPrompt = app.staticTexts["Connect a card reader and insert your card."]
       XCTAssertTrue(
         picker.waitForExistence(timeout: 10)
-          || app.staticTexts["Attempts left:"].waitForExistence(timeout: 5),
+          || attempts.waitForExistence(timeout: 5)
+          || readerPrompt.waitForExistence(timeout: 5),
         "the PIN pane did not open"
       )
       attachScreenshot(app.screenshot(), named: "02-pin-settings-pane")
-      let settings = app.windows.containing(.toolbar, identifier: nil).firstMatch
       try audit(app, subject: settings, named: "pin-settings")
     }
   }

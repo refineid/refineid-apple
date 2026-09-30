@@ -1,21 +1,14 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 import Foundation
+import ObjCExceptionGuard
 import Security
 
 extension RappDeviceVault {
   #if os(macOS)
     @discardableResult
     internal static func deleteKeychainItemRef(query: [String: Any]) -> OSStatus {
-      var refQuery = query
-      refQuery[kSecReturnRef as String] = true
-      var refOutput: CFTypeRef?
-      guard SecItemCopyMatching(refQuery as CFDictionary, &refOutput) == errSecSuccess,
-        let ref = refOutput,
-        CFGetTypeID(ref) == SecKeychainItemGetTypeID()
-      else { return errSecItemNotFound }
-      let itemRef = unsafeDowncast(ref, to: SecKeychainItem.self)
-      return SecKeychainItemDelete(itemRef)
+      CardCoreDeleteKeychainItemRef(query as CFDictionary)
     }
   #endif
 
