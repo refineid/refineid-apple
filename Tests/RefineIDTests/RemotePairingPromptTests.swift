@@ -9,6 +9,7 @@
 
   /// A connected reader disables the phone path: the prompt names the
   /// reader alone and holds no pairing offer.
+  @MainActor
   @Suite
   internal struct RemotePairingPromptTests {
     @Test
