@@ -58,6 +58,9 @@ jobs:
       - name: Build
         if: ${{ needs.scope.outputs.change != 'documentation' }}
         run: xcodebuild -project RefineID.xcodeproj -scheme RefineID CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO build
-      - name: Run tests
+      - name: Run CardCore package tests
         if: ${{ needs.scope.outputs.change != 'documentation' }}
         run: swift test --package-path CardCore -v
+      - name: Run application unit tests
+        if: ${{ needs.scope.outputs.change != 'documentation' }}
+        run: xcodebuild -project RefineID.xcodeproj -scheme RefineID -destination 'platform=macOS' -only-testing:RefineIDTests CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO test
