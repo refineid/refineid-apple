@@ -9,4 +9,5 @@
 
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
+Scripts/QualityReceipt.py verify-push
 Scripts/test.sh pr

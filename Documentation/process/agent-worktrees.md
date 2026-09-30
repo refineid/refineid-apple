@@ -28,9 +28,16 @@ colliding and keeps the main checkout pristine for integration.
    `Scripts/apple-app-store-connect-release-manager.swift`.
 5. Run `Scripts/agent-housekeeping.sh` and act on what it reports.
 
-Swift Package Manager and Xcode caches live outside the checkout
-(`~/Library/Caches/org.swift.swiftpm` and DerivedData), so a fresh worktree
-downloads nothing and reuses compiled artifacts.
+Swift Package Manager's package download cache and Xcode DerivedData live
+outside the checkout (`~/Library/Caches/org.swift.swiftpm` and DerivedData).
+Package downloads can be reused between worktrees. Keep Xcode's writable
+DerivedData separate between concurrent worktrees.
+
+Successful local lint receipts live outside worktrees in
+`~/Library/Caches/RefineID/QualityReceipts`. They match the full Git tree and
+the selected lint toolchain, allowing a staged-tree lint pass to satisfy the
+later pre-push lint for the same commit. These receipts are local cache data,
+not remote attestations. Required GitHub checks continue to run.
 
 ## Housekeeping
 
@@ -51,8 +58,8 @@ resume work or clean up. In particular:
 
 ## Finishing a task
 
-1. Run the quality gates (`Scripts/lint.sh`, `swift test` in `CardCore` and `PKCS11Bridge`)
-   in the worktree.
+1. Run `Scripts/test.sh pr` in the clean worktree. This includes lint, Swift
+   package tests for CardCore and PKCS11Bridge, the iOS build, and RefineIDTests.
 2. Commit on the task branch (subject and body only; strictly no AI attribution trailers)
    and push.
 3. Open one pull request for the branch.

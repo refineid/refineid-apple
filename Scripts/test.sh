@@ -4,10 +4,10 @@
 # Tiered test and quality gate runner for RefineID.
 #
 # Usage:
-#   Scripts/test.sh           # default: runs PR tier (lint, iOS/macOS build, targeted unit tests)
+#   Scripts/test.sh           # default: runs PR tier (lint, package tests, iOS build, targeted unit tests)
 #   Scripts/test.sh commit    # fast pre-commit tier (whitespace check + lint)
-#   Scripts/test.sh pr        # PR / pre-push tier (lint, dual-platform build, RefineIDTests)
-#   Scripts/test.sh full      # release tier (runs all test suites in isolated invocations)
+#   Scripts/test.sh pr        # PR / pre-push tier (lint, package tests, iOS build, RefineIDTests)
+#   Scripts/test.sh full      # release regression tier (PR checks plus core and isolated RAPP tests)
 #   Scripts/test.sh macos-mvp # localized local-card UI and excluded-service checks
 
 set -euo pipefail
@@ -26,29 +26,55 @@ fail() {
 
 case "${mode}" in
   commit)
+    if ! git diff --cached --quiet -- Scripts/QualityReceipt.py Scripts/TestQualityReceipt.py; then
+      step "Checking quality receipt gate behavior"
+      python3 -B Scripts/TestQualityReceipt.py \
+        || fail "Quality receipt gate tests failed."
+    fi
+
     step "Checking for whitespace errors in staged changes"
     if ! git diff --cached --check; then
       fail "Staged changes contain trailing whitespace or whitespace errors."
     fi
 
     step "Running lint and layout gate (Scripts/lint.sh)"
-    Scripts/lint.sh || fail "Lint gate failed."
+    Scripts/QualityReceipt.py lint-index || fail "Lint gate failed."
     printf 'Commit gate passed.\n'
     ;;
 
   pr)
-    step "1. Running lint and layout gate (Scripts/lint.sh)"
-    Scripts/lint.sh || fail "Lint gate failed."
+    Scripts/QualityReceipt.py verify-clean-head \
+      || fail "Push checks require a clean checkout."
+    checked_head="$(git rev-parse HEAD)"
+    checked_tree="$(git rev-parse 'HEAD^{tree}')"
 
-    step "2. Verifying iOS compilation"
+    step "1. Testing exact-tree lint receipts"
+    python3 -B Scripts/TestQualityReceipt.py \
+      || fail "Quality receipt gate tests failed."
+
+    step "2. Running lint and layout gate for HEAD"
+    Scripts/QualityReceipt.py lint-head || fail "Lint gate failed."
+
+    step "3. Running CardCore package tests"
+    swift test --package-path CardCore \
+      || fail "CardCore package tests failed."
+
+    step "4. Running PKCS11Bridge package tests"
+    swift test --package-path PKCS11Bridge \
+      || fail "PKCS11Bridge package tests failed."
+
+    step "5. Verifying iOS compilation"
     xcodebuild -scheme RefineID -destination 'generic/platform=iOS' -quiet build CODE_SIGNING_ALLOWED=NO \
       || fail "iOS build failed. Check for platform-conditional compilation issues."
 
-    step "3. Running unit test suite (RefineIDTests on macOS)"
+    step "6. Running unit test suite (RefineIDTests on macOS)"
     xcodebuild test -scheme RefineID -destination 'platform=macOS' -only-testing:RefineIDTests -quiet \
       || fail "Unit tests failed."
 
-    printf '\nPR gate passed: Code is properly formatted, builds on both platforms, and unit tests pass.\n'
+    Scripts/QualityReceipt.py verify-head "${checked_head}" "${checked_tree}" \
+      || fail "The checked-out commit changed during push checks."
+
+    printf '\nPR gate passed: Lint, package tests, iOS compilation, and app unit tests pass.\n'
     ;;
 
   macos-mvp)
@@ -66,11 +92,14 @@ case "${mode}" in
     "$0" pr
 
     step "2. Running isolated CardCore crypto & protocol tests"
-    # Runs CardCore tests excluding heavy loopbacks that trigger Xcode runner hang
     xcodebuild test -scheme RefineID -destination 'platform=macOS' -only-testing:CardCoreTests -skip-testing:CardCoreTests/RappIntegrationTests -quiet \
       || fail "CardCore tests failed."
 
-    printf '\nFull release test suite passed.\n'
+    step "3. Running isolated RAPP integration tests"
+    xcodebuild test -scheme RefineID -destination 'platform=macOS' -only-testing:CardCoreTests/RappIntegrationTests -quiet \
+      || fail "RAPP integration tests failed."
+
+    printf '\nAutomated release regression suites passed.\n'
     ;;
 
   *)
