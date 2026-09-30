@@ -195,7 +195,7 @@
         localized: "Open RefineID on phone (code \(code))."
       )
       #expect(prompt.contains(code))
-      let readerPrompt = String(localized: "Insert card to reader")
+      let readerPrompt = String(localized: "Insert your identity card into the reader")
       #expect(!readerPrompt.isEmpty)
     }
 

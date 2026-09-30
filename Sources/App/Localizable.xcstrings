@@ -1604,7 +1604,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Liitä kortinlukija"
+            "value": "Kytke kortinlukija"
           }
         },
         "sv": {
@@ -1620,13 +1620,13 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Liitä kortinlukija ja aseta kortti siihen."
+            "value": "Kytke kortinlukija ja laita henkilökortti siihen."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Anslut en kortläsare och sätt i ditt kort."
+            "value": "Anslut en kortläsare och sätt in identitetskortet i den."
           }
         }
       }
