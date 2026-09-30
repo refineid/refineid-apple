@@ -66,16 +66,16 @@
       _ requestID: String,
       pin1: String
     ) {
-      guard Pin1(digits: pin1) != nil else { return }
-      complete(requestID, with: .approvedBrowserAuthentication(pin1: pin1))
+      guard let pin1Digits = Pin1AuthorizationDigits(digits: pin1) else { return }
+      complete(requestID, with: .approvedBrowserAuthentication(pin1: pin1Digits))
     }
 
     internal func approveDocumentSignature(
       _ requestID: String,
       pin2: String
     ) {
-      guard Pin2(digits: pin2) != nil else { return }
-      complete(requestID, with: .approvedDocumentSignature(pin2: pin2))
+      guard let pin2Digits = Pin2AuthorizationDigits(digits: pin2) else { return }
+      complete(requestID, with: .approvedDocumentSignature(pin2: pin2Digits))
     }
 
     internal func deny(_ requestID: String) {

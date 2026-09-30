@@ -25,7 +25,7 @@ internal enum HolderTrace {
       print(formatted)
       fflush(stdout)
     #endif
-    logger.notice("\(formatted, privacy: .public)")
+    logger.notice("\(formatted, privacy: .private)")
     AppTrace.append(formatted)
   }
 }
