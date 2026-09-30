@@ -57,7 +57,8 @@
   `agent/<topic>` branch, one pull request per branch. All agent worktrees
   MUST live strictly under `~/src/wt/`, never loose beside repositories or under `/tmp/`.
   Run `Scripts/agent-housekeeping.sh` when starting and keep the house clean.
-  Merge the pull request once CI is green, then remove the worktree and branch
+  Merge the pull request after mandatory local verification and any distinct
+  required remote checks pass, then remove the worktree and branch
   and fast-forward `main`. Full workflow:
   `Documentation/process/agent-worktrees.md`.
 - Never poll background commands or set rapid check timers (e.g. 10s-30s).
@@ -81,7 +82,9 @@
   asking for permission, once the required commit checks pass.
 - Complete the integration without waiting for another instruction: push
   the task branch, open a pull request, and merge it into `main` once the
-  required checks pass. Sync local `main` with the merged remote.
+  required checks pass. Apple build and test checks run locally; the GitHub
+  Swift workflow is manual-only and is not a merge requirement. Sync local
+  `main` with the merged remote.
   Use squash merges to keep the `main` history linear; do not use merge commits.
 
 ## Record deferred findings
