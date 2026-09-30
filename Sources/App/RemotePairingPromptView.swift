@@ -80,7 +80,7 @@
       case .readerOnly:
         bullets([
           String(
-            localized: "Insert card to reader"
+            localized: "Insert your identity card into the reader"
           )
         ])
 
