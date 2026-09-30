@@ -46,7 +46,9 @@ because an older checklist was left unchecked.
   and metadata synchronization already exist.
 - [ ] Record which current accessibility journeys have passed and resolve any
   actual failures. Keyboard, localization, and accessibility audit suites exist;
-  their existence alone does not prove every shipping state was audited.
+  their existence alone does not prove every shipping state was audited. See the
+  [September 30 assessment](Documentation/macos-accessibility-assessment-2026-09-30.md)
+  for recorded failures, findings, and unverified journeys.
 - [ ] Verify SCS remains off with a saved opt-in and RAPP remains inactive
   with saved pairings; confirm no remote controls or listener appear.
 - [ ] Upload the inspected release candidate and make it available to the
