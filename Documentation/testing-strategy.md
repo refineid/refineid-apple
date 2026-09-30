@@ -7,7 +7,7 @@ This document defines the tiered testing, formatting, and release quality gates 
 | Tier | When | Gate / Tool | Scope & Objectives |
 | --- | --- | --- | --- |
 | **1. Commit** | Every local commit | `Scripts/test.sh commit` (`pre-commit`) | Checks staged whitespace, exercises the quality receipt gate when its files change, and runs lint against the exact staged Git tree. |
-| **2. Push / PR** | Every push / PR update | `Scripts/test.sh pr` (`pre-push`) | Requires a clean checkout and checks local gate behavior, lint, CardCore and PKCS11Bridge Swift packages, iOS compilation, and `RefineIDTests`. |
+| **2. Push / PR** | Every local push / PR update | `Scripts/test.sh pr` (`pre-push`) | Requires a clean checkout and checks local gate behavior, lint, CardCore and PKCS11Bridge Swift packages, iOS compilation, and `RefineIDTests`. |
 | **3. TestFlight** | Staging candidate builds | `Scripts/apple-app-store-connect-release-manager.swift candidate` | Verifies archive export, provisioning profiles, entitlements, and diagnostic exclusions. Real-device smoke tests on iPhone (NFC card priming) and Mac (USB CCID reader). |
 | **4. App Store** | Public release production | `Scripts/test.sh full` + `inspect-archive` | Runs the PR floor, CardCore tests, and isolated RAPP integration tests. macOS UI and device compliance checks remain separate gates. |
 
@@ -26,7 +26,7 @@ This document defines the tiered testing, formatting, and release quality gates 
 - **Script**: `Scripts/test.sh pr` (automatically driven by `Scripts/githooks/pre-push`).
 - **Verification Steps**:
   1. **Gate Tests**: `python3 -B Scripts/TestQualityReceipt.py` checks exact snapshots, tool changes, failures, corrupted receipts, and concurrent callers.
-  2. **Lint Gate**: `Scripts/QualityReceipt.py lint-head` runs `Scripts/lint.sh` against the clean `HEAD` tree. The receipt includes the tree and the selected toolchain; GitHub still runs its required checks independently.
+  2. **Lint Gate**: `Scripts/QualityReceipt.py lint-head` runs `Scripts/lint.sh` against the clean `HEAD` tree. The receipt includes the tree and the selected toolchain. GitHub build and test verification is manual-only; it is not repeated on pushes or pull requests.
   3. **Package Tests**: Runs `swift test --package-path CardCore` and `swift test --package-path PKCS11Bridge`.
   4. **Multi-Platform Build**: Verifies iOS compilation using the generic iOS destination.
   5. **Targeted Unit Tests**: Executes `RefineIDTests` via `xcodebuild test -scheme RefineID -destination 'platform=macOS' -only-testing:RefineIDTests`.
@@ -53,3 +53,10 @@ This document defines the tiered testing, formatting, and release quality gates 
     - PIN1 authentication and PIN2 qualified document signature operations.
     - Premature card tear / departure handling.
   - Review notes, export compliance declarations, and App Store metadata verification.
+
+## Optional GitHub diagnostic run
+
+The Swift workflow runs only when explicitly dispatched. The mandatory local
+commit and push hooks enforce the normal quality floor. A manual GitHub run
+is available for investigating clean-runner differences and is not a merge
+requirement.

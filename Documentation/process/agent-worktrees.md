@@ -37,7 +37,9 @@ Successful local lint receipts live outside worktrees in
 `~/Library/Caches/RefineID/QualityReceipts`. They match the full Git tree and
 the selected lint toolchain, allowing a staged-tree lint pass to satisfy the
 later pre-push lint for the same commit. These receipts are local cache data,
-not remote attestations. Required GitHub checks continue to run.
+not remote attestations. The mandatory local push gate verifies changes before
+a pull request is opened. GitHub does not repeat Apple build and test gates
+on pushes or pull requests.
 
 ## Housekeeping
 
@@ -63,7 +65,10 @@ resume work or clean up. In particular:
 2. Commit on the task branch (subject and body only; strictly no AI attribution trailers)
    and push.
 3. Open one pull request for the branch.
-4. Squash-merge once CI is green, so the `main` history stays linear. The pull request preserves the branch history.
+4. Squash-merge after the mandatory local push gate passes and any distinct
+   required remote checks pass. The Apple build and tests are local gates;
+   GitHub does not repeat them for pull requests. The pull request preserves
+   the branch history.
 5. Remove the worktree (`git worktree remove`), delete the branch, and
    fast-forward local main.
 
@@ -72,21 +77,12 @@ resume work or clean up. In particular:
 Hardware and physical test devices are owner-coordinated.
 Agents do not arbitrate, reserve, or toggle transports or physical smart cards.
 
-## Documentation-only GitHub checks
+## GitHub verification
 
-GitHub classifies the complete changed-path set before selecting a runner.
-Changes limited to `README.md`, `AGENTS.md`, `TASKS.md`, and Markdown or
-bibliography files under `Documentation/` run lightweight Linux whitespace
-checks. They do not compile the application or run Swift package tests.
+`.github/workflows/swift.yml` is manual-only (`workflow_dispatch`). It provides
+an optional clean-runner diagnostic build and test run. Pushes and pull
+requests do not repeat the mandatory local verification.
 
-Code, scripts, workflow configuration, metadata, mixed changes, and unknown
-paths retain full macOS verification. The required `build` status remains
-present for both paths. Classification failures fail that check.
-
-The classifier is `Scripts/ci-change-scope.py`; its verification entry point is
-`python3 Scripts/test-ci-change-scope.py`. Local mandatory git hooks remain
-active for every commit and push.
-
-GitHub warns that filtering out an entire required workflow can leave its
-status pending. This workflow instead selects the appropriate work inside the
-required check: [GitHub required-check documentation](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks).
+Do not require the manual workflow's status for merging. Local hooks remain
+mandatory for every commit and push. Local receipts accelerate matching lint
+checks; they do not provide independent or tamper-resistant attestation.
