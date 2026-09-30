@@ -97,7 +97,7 @@
     }
 
     /// Resolves the prompt for a pairing phase and reader state.
-    internal static func content(
+    nonisolated internal static func content(
       phase: RappPairingModel.Phase,
       readerConnected: Bool
     ) -> Content {
@@ -121,7 +121,7 @@
     /// No offer while a reader is connected: the offer would
     /// advertise a phone path the prompt itself refuses to show.
     /// A finished pairing is never replaced by a fresh offer.
-    internal static func wantsOffer(
+    nonisolated internal static func wantsOffer(
       phase: RappPairingModel.Phase,
       readerConnected: Bool
     ) -> Bool {

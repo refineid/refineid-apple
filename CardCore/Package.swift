@@ -66,5 +66,6 @@ private let package = Package(
       linkerSettings: [
         .linkedFramework("PCSC", .when(platforms: [.macOS]))
       ]),
-  ]
+  ],
+  swiftLanguageModes: [.v6]
 )

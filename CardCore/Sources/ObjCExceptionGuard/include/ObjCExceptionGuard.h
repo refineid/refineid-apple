@@ -1,6 +1,7 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 #import <Foundation/Foundation.h>
+#import <Security/Security.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -12,5 +13,10 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// Returns the exception raised, or nil when the block finished.
 NSException *_Nullable CardCoreCatchException(void (NS_NOESCAPE ^block)(void));
+
+#if TARGET_OS_OSX
+/// Deletes a macOS keychain item by reference if SecItemDelete returned errSecInvalidOwnerEdit.
+OSStatus CardCoreDeleteKeychainItemRef(CFDictionaryRef query);
+#endif
 
 NS_ASSUME_NONNULL_END

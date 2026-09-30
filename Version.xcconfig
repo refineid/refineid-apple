@@ -24,6 +24,9 @@
 
 #include "Config/Features.xcconfig"
 
+// Strict concurrency checking across all targets and configurations.
+SWIFT_STRICT_CONCURRENCY = complete
+
 // The Apple Team the app and its extensions sign under, in one place
 // rather than repeated in every target's build settings. It is a
 // public identifier - it is stamped into every signed binary - so it
