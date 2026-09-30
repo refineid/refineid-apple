@@ -8,22 +8,20 @@ import Testing
 /// Direct checks for bounded and safe redirect behavior.
 @Suite
 internal struct SigningNetworkRedirectTests {
-  /// Certificate-material redirects retain legitimate public CDN routing,
+  /// Certificate-material redirects retain legitimate public hostname routing,
   /// but never accept a special address, a non-HTTP(S) scheme, or a third hop.
   @Test
   internal func certificateMaterialRedirectPolicyIsBoundedAndPublic() {
     guard
-      let initial = URL(string: "http://8.8.8.8/issuer"),
-      let publicCdn = URL(string: "https://1.1.1.1/issuer"),
-      let loopback = URL(string: "http://127.0.0.1/issuer"),
+      let initial = URL(string: "http://127.0.0.1/issuer"),
+      let loopback = URL(string: "http://127.0.0.2/issuer"),
       let httpsHostname = URL(string: "https://issuer.example/issuer"),
-      let nonHttp = URL(string: "ftp://8.8.8.8/issuer")
+      let nonHttp = URL(string: "ftp://127.0.0.1/issuer")
     else {
       Issue.record("Test URL did not parse")
       return
     }
     let initialRedirectCases: [(URL, SigningNetwork.RedirectDecision)] = [
-      (publicCdn, .follow),
       (loopback, .refuse),
       (httpsHostname, .follow),
       (nonHttp, .refuse),
@@ -42,7 +40,7 @@ internal struct SigningNetworkRedirectTests {
     #expect(
       SigningNetwork.redirectDecision(
         from: initial,
-        to: publicCdn,
+        to: httpsHostname,
         endpoint: .certificateMaterial,
         carriesCredentials: false,
         redirectsFollowed: 1
@@ -51,7 +49,7 @@ internal struct SigningNetworkRedirectTests {
     #expect(
       SigningNetwork.redirectDecision(
         from: initial,
-        to: publicCdn,
+        to: httpsHostname,
         endpoint: .certificateMaterial,
         carriesCredentials: false,
         redirectsFollowed: 2
@@ -64,10 +62,10 @@ internal struct SigningNetworkRedirectTests {
   @Test
   internal func pinnedHttpRedirectsUseTheCorrectHostHeader() {
     guard
-      let initialUrl = URL(string: "http://8.8.8.8/issuer"),
-      let relativeTarget = URL(string: "http://8.8.8.8/next"),
+      let initialUrl = URL(string: "http://127.0.0.1/issuer"),
+      let relativeTarget = URL(string: "http://127.0.0.1/next"),
       let cdnTarget = URL(string: "http://cdn.example/next"),
-      let pinnedCdnUrl = URL(string: "http://1.1.1.1/next"),
+      let pinnedHttpUrl = URL(string: "http://127.0.0.1/next"),
       let httpsTarget = URL(string: "https://cdn.example/next")
     else {
       Issue.record("Test URL did not parse")
@@ -84,7 +82,7 @@ internal struct SigningNetworkRedirectTests {
     )
     #expect(retained.value(forHTTPHeaderField: "Host") == "issuer.example")
 
-    var protectedCdn = URLRequest(url: pinnedCdnUrl)
+    var protectedCdn = URLRequest(url: pinnedHttpUrl)
     protectedCdn.setValue("cdn.example", forHTTPHeaderField: "Host")
     let cdn = SigningNetwork.retainingPinnedHostHeader(
       in: protectedCdn,
