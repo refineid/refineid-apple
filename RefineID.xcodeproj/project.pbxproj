@@ -443,7 +443,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastUpgradeCheck = 2660;
+				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					4D0000000000000000000001 = {
 						CreatedOnToolsVersion = 26.6;
@@ -617,6 +617,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Config/RappTokenExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -635,6 +636,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "fi.refineid.ReFineID.rapp-token";
 				PRODUCT_MODULE_NAME = RefineIDRappTokenExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -649,6 +651,7 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				"ARCHS[sdk=macosx*]" = arm64;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_ENABLE_MODULES = YES;
@@ -678,6 +681,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 4ZJC3SFJR2;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -704,6 +708,7 @@
 				OTHER_SWIFT_FLAGS = "-warnings-as-errors";
 				RUN_CLANG_STATIC_ANALYZER = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_STRICT_CONCURRENCY = complete;
@@ -720,6 +725,7 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				"ARCHS[sdk=macosx*]" = arm64;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_ENABLE_MODULES = YES;
@@ -749,6 +755,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 4ZJC3SFJR2;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -768,6 +775,7 @@
 				OTHER_SWIFT_FLAGS = "-warnings-as-errors";
 				RUN_CLANG_STATIC_ANALYZER = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "TESTFLIGHT $(inherited)";
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_STRICT_CONCURRENCY = complete;
@@ -784,6 +792,7 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				"ARCHS[sdk=macosx*]" = arm64;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_ENABLE_MODULES = YES;
@@ -813,6 +822,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 4ZJC3SFJR2;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -832,6 +842,7 @@
 				OTHER_SWIFT_FLAGS = "-warnings-as-errors";
 				RUN_CLANG_STATIC_ANALYZER = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_SUPPRESS_WARNINGS = NO;
@@ -848,6 +859,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Config/RefineID-Store.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -871,6 +883,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -885,6 +898,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Config/RefineID-Store.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -914,6 +928,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -928,6 +943,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Config/RefineID-Store.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -957,6 +973,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -970,6 +987,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Config/TokenExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -987,6 +1005,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.token;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -1001,6 +1020,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Config/TokenExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1018,6 +1038,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.token;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -1032,6 +1053,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Config/TokenExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1049,6 +1071,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.token;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -1060,6 +1083,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.CardCoreTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1071,6 +1095,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.CardCoreTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1082,6 +1107,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.CardCoreTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1096,6 +1122,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Config/DiscoveryExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1113,6 +1140,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.discovery;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -1127,6 +1155,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Config/DiscoveryExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1144,6 +1173,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.discovery;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -1158,6 +1188,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Config/DiscoveryExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1175,6 +1206,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.discovery;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -1186,6 +1218,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.UITests;
@@ -1200,6 +1233,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.UITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1213,6 +1247,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.UITests;
@@ -1230,6 +1265,7 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				"ARCHS[sdk=macosx*]" = arm64;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_COVERAGE_MAPPING = NO;
@@ -1260,6 +1296,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 4ZJC3SFJR2;
 				ENABLE_CODE_COVERAGE = NO;
@@ -1287,6 +1324,7 @@
 				OTHER_SWIFT_FLAGS = "-warnings-as-errors";
 				RUN_CLANG_STATIC_ANALYZER = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
@@ -1305,6 +1343,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Config/RefineID-Store.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -1328,6 +1367,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -1342,6 +1382,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Config/TokenExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1359,6 +1400,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.token;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -1371,6 +1413,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.CardCoreTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1386,6 +1429,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Config/DiscoveryExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1403,6 +1447,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.discovery;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -1415,6 +1460,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.UITests;
@@ -1433,6 +1479,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Config/RappTokenExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1451,6 +1498,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "fi.refineid.ReFineID.rapp-token";
 				PRODUCT_MODULE_NAME = RefineIDRappTokenExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -1466,6 +1514,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Config/RappTokenExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1484,6 +1533,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "fi.refineid.ReFineID.rapp-token";
 				PRODUCT_MODULE_NAME = RefineIDRappTokenExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -1496,6 +1546,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.Tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1509,6 +1560,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.Tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1522,6 +1574,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.Tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1535,6 +1588,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.Tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1550,6 +1604,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Config/RappTokenExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1568,6 +1623,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "fi.refineid.ReFineID.rapp-token";
 				PRODUCT_MODULE_NAME = RefineIDRappTokenExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";

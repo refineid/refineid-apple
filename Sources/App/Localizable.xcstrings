@@ -271,23 +271,6 @@
         }
       }
     },
-    "%lld/%lld": {
-      "extractionState": "manual",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld/%lld"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld/%lld"
-          }
-        }
-      }
-    },
     "%u attempts remaining": {
       "localizations": {
         "fi": {
