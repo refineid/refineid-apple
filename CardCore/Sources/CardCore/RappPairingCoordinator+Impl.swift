@@ -33,33 +33,20 @@
       }
       scheduleOfferExpiry()
       do {
-        if let pairingCode {
-          let randomBytes = try RappPlatformEntropy().cpaceRandom()
-          try bridge.beginCpace(
-            candidateId: candidateID,
-            pairingCode: pairingCode,
-            randomBytes64: randomBytes,
-            nowMonotonicMs: clock.monotonicMilliseconds()
-          )
-          switch role {
-          case .requester:
-            let frame = try bridge.writeCpaceFrame(nowMonotonicMs: clock.monotonicMilliseconds())
-            state = .awaitingResponderCpace
-            try await transport.send(frame)
-          case .proxy:
-            state = .awaitingRequesterCpace
-          }
-        } else {
-          try bridge.begin(candidateId: candidateID, nowMonotonicMs: clock.monotonicMilliseconds())
-          switch role {
-          case .requester:
-            let frame = try bridge.writeHandshakeFrame(
-              nowMonotonicMs: clock.monotonicMilliseconds())
-            state = .awaitingResponderHandshake
-            try await transport.send(frame)
-          case .proxy:
-            state = .awaitingRequesterHandshake
-          }
+        let randomBytes = try RappPlatformEntropy().cpaceRandom()
+        try bridge.beginCpace(
+          candidateId: candidateID,
+          pairingCode: pairingCode,
+          randomBytes64: randomBytes,
+          nowMonotonicMs: clock.monotonicMilliseconds()
+        )
+        switch role {
+        case .requester:
+          let frame = try bridge.writeCpaceFrame(nowMonotonicMs: clock.monotonicMilliseconds())
+          state = .awaitingResponderCpace
+          try await transport.send(frame)
+        case .proxy:
+          state = .awaitingRequesterCpace
         }
       } catch RappBindingError.OfferExpired {
         await fail(.offerExpired)

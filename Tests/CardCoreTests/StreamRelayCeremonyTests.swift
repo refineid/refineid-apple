@@ -5,9 +5,11 @@ import Testing
 
 @testable import CardCore
 
+/// The six-digit code the two fixtures here key their CPace PAKE on.
+private let fixturePairingCode = "246813"
+
 #if canImport(RappEngine)
   import RappEngine
-
   /// The reader's ceremony, over the transport the devices use.
   ///
   /// Everything here is real: a pairing made over a listener and a dialled
@@ -95,7 +97,8 @@ import Testing
           vault: vault,
           transport: RappClosureFrameTransport(
             sender: { frame in try listener.send(frame) },
-            closer: { listener.cancel() })
+            closer: { listener.cancel() }),
+          code: fixturePairingCode
         )
       )
     }
@@ -115,7 +118,8 @@ import Testing
           vault: vault,
           transport: RappClosureFrameTransport(
             sender: { frame in try await dialer.send(frame) },
-            closer: { dialer.cancel() })
+            closer: { dialer.cancel() }),
+          code: fixturePairingCode
         )
       )
     }

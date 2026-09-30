@@ -60,6 +60,13 @@
     /// The name of the variable carrying an offer to pair with.
     internal static let offerVariable = "REFINEID_PAIR_OFFER"
 
+    /// The name of the variable carrying the code that offer is keyed on.
+    ///
+    /// Both peers run the same CPace PAKE, and an offer does not carry the
+    /// secret that PAKE agrees on, so a holder given a full offer still
+    /// needs the code the requester chose.
+    internal static let offerCodeVariable = "REFINEID_PAIR_CODE"
+
     /// The selected mode when it needs a window, otherwise nil.
     ///
     /// The app roots its scene in ``DebugSceneRunnerView`` when this is
@@ -334,6 +341,11 @@
     /// and never printed, stored or defaulted.
     internal static func offerURI() -> String {
       ProcessInfo.processInfo.environment[offerVariable] ?? ""
+    }
+
+    /// The code the pairing offer in ``offerVariable`` is keyed on.
+    internal static func offerCode() -> String {
+      ProcessInfo.processInfo.environment[offerCodeVariable] ?? ""
     }
 
     /// The digits following a value-taking flag, or nil.

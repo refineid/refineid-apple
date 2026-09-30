@@ -31,8 +31,8 @@
       public let entropy: RappPlatformEntropy
       /// Clock source; defaults to the platform clock.
       public let clock: RappPlatformClock
-      /// Pre-derived six-digit code; when valid, overrides random entropy.
-      public let code: String?
+      /// Six-digit code the two peers key the CPace PAKE on.
+      public let code: String
 
       // MARK: Lifecycle
 
@@ -46,9 +46,9 @@
         platform: String,
         vault: RappDeviceVault,
         transport: any RappFrameTransport,
+        code: String,
         entropy: RappPlatformEntropy = RappPlatformEntropy(),
-        clock: RappPlatformClock = RappPlatformClock(),
-        code: String? = nil
+        clock: RappPlatformClock = RappPlatformClock()
       ) {
         self.profiles = profiles
         self.candidates = candidates
@@ -84,8 +84,8 @@
       public let transport: any RappFrameTransport
       /// Clock source; defaults to the platform clock.
       public let clock: RappPlatformClock
-      /// Optional manual pairing code for CPace key agreement.
-      public let code: String?
+      /// Six-digit code the two peers key the CPace PAKE on.
+      public let code: String
 
       // MARK: Lifecycle
 
@@ -97,8 +97,8 @@
         platform: String,
         vault: RappDeviceVault,
         transport: any RappFrameTransport,
-        clock: RappPlatformClock = RappPlatformClock(),
-        code: String? = nil
+        code: String,
+        clock: RappPlatformClock = RappPlatformClock()
       ) {
         self.scannedOfferURI = scannedOfferURI
         self.selectedCandidateID = selectedCandidateID
@@ -116,15 +116,10 @@
     /// Creates the requester side owning a fresh one-use offer.
     public static func requester(options: RequesterOptions) throws -> RappPairingCoordinator {
       let startedAt = options.clock.monotonicMilliseconds()
-      let offerId: Data
-      let pairingSecret: Data
-      if let code = options.code, RappPairingCode.isValid(code) {
-        offerId = RappPairingCode.offerIdentifier(for: code)
-        pairingSecret = RappPairingCode.pairingSecret(for: code)
-      } else {
-        offerId = try options.entropy.offerID()
-        pairingSecret = try options.entropy.pairingSecret()
-      }
+      let code = RappPairingCode.normalize(options.code)
+      guard RappPairingCode.isValid(code) else { throw RappBindingError.InvalidInput }
+      let offerId = RappPairingCode.offerIdentifier(for: code)
+      let pairingSecret = RappPairingCode.pairingSecret(for: code)
       let bridge = try RappPairingBridge.createRequesterOffer(
         offerId: offerId,
         pairingSecret: pairingSecret,
@@ -146,13 +141,15 @@
         offerDeadlineMilliseconds: deadline(
           startedAt: startedAt, lifetime: options.offerLifetimeMilliseconds
         ),
-        pairingCode: options.code
+        pairingCode: code
       )
     }
 
     /// Creates the proxy side from a scanned requester offer.
     public static func proxy(options: ProxyOptions) throws -> RappPairingCoordinator {
       let startedAt = options.clock.monotonicMilliseconds()
+      let code = RappPairingCode.normalize(options.code)
+      guard RappPairingCode.isValid(code) else { throw RappBindingError.InvalidInput }
       let bridge = try RappPairingBridge.fromScannedOffer(
         uri: options.scannedOfferURI,
         startedAtMonotonicMs: startedAt
@@ -170,7 +167,7 @@
         offerDeadlineMilliseconds: deadline(
           startedAt: startedAt, lifetime: bridge.offerTtlMs()
         ),
-        pairingCode: options.code
+        pairingCode: code
       )
     }
 
@@ -186,9 +183,9 @@
       platform: String,
       vault: RappDeviceVault,
       transport: any RappFrameTransport,
+      code: String,
       entropy: RappPlatformEntropy = RappPlatformEntropy(),
-      clock: RappPlatformClock = RappPlatformClock(),
-      code: String? = nil
+      clock: RappPlatformClock = RappPlatformClock()
     ) throws -> RappPairingCoordinator {
       try requester(
         options: RequesterOptions(
@@ -200,9 +197,9 @@
           platform: platform,
           vault: vault,
           transport: transport,
+          code: code,
           entropy: entropy,
-          clock: clock,
-          code: code
+          clock: clock
         )
       )
     }
@@ -215,8 +212,8 @@
       platform: String,
       vault: RappDeviceVault,
       transport: any RappFrameTransport,
-      clock: RappPlatformClock = RappPlatformClock(),
-      code: String? = nil
+      code: String,
+      clock: RappPlatformClock = RappPlatformClock()
     ) throws -> RappPairingCoordinator {
       try proxy(
         options: ProxyOptions(
@@ -226,8 +223,8 @@
           platform: platform,
           vault: vault,
           transport: transport,
-          clock: clock,
-          code: code
+          code: code,
+          clock: clock
         )
       )
     }

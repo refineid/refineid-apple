@@ -39,7 +39,7 @@ extension RappPairingModel {
         candidate: Self.offeredCandidate.binding,
         lifetimeMilliseconds: Self.defaultOfferLifetimeMilliseconds
       )
-      beginPairing(uri)
+      beginPairing(uri, code: code)
       schedulePairingTimeout()
     } catch {
       fail(String(localized: "The pairing code is invalid or expired"))
@@ -61,23 +61,23 @@ extension RappPairingModel {
 
   #if DEBUG
     /// Pairs with an offer URI directly.
-    internal func acceptOfferWithoutScanning(_ uri: String) {
+    internal func acceptOfferWithoutScanning(_ uri: String, code: String) {
       resetAttempt()
       #if REFINEID_LOCAL_CARD && os(iOS)
         PhonePersistentTokenRelay.shared.suspendForPairing()
       #endif
-      beginPairing(uri)
+      beginPairing(uri, code: code)
     }
   #endif
 
-  private func beginPairing(_ uri: String) {
+  private func beginPairing(_ uri: String, code: String) {
     phase = .connecting
     do {
       let candidates = try RappScannedOffer.candidates(scannedOfferURI: uri)
       if let applePeer = candidates.first(where: { candidate in
         candidate.profile == RappApplePeerProfile.name
       }) {
-        try startApplePeerPairing(uri: uri, candidateID: applePeer.candidateID)
+        try startApplePeerPairing(uri: uri, candidateID: applePeer.candidateID, code: code)
       } else if let stream = candidates.first(where: { candidate in
         candidate.profile == rappStreamProfileName() && !candidate.streamEndpoints.isEmpty
       }) {
@@ -85,7 +85,8 @@ extension RappPairingModel {
           try startStreamPairing(
             uri: uri,
             candidateID: stream.candidateID,
-            endpoints: stream.streamEndpoints
+            endpoints: stream.streamEndpoints,
+            code: code
           )
         #else
           fail(String(localized: "The pairing code is invalid or expired"))
@@ -93,7 +94,7 @@ extension RappPairingModel {
       } else if let stream = candidates.first(where: { candidate in
         candidate.profile == rappStreamProfileName()
       }) {
-        try startApplePeerPairing(uri: uri, candidateID: stream.candidateID)
+        try startApplePeerPairing(uri: uri, candidateID: stream.candidateID, code: code)
       } else {
         fail(String(localized: "The pairing code is invalid or expired"))
       }
@@ -106,7 +107,8 @@ extension RappPairingModel {
     private func startStreamPairing(
       uri: String,
       candidateID: String,
-      endpoints: [String]
+      endpoints: [String],
+      code: String
     ) throws {
       let relay = makeRelay(role: .cardHolder)
       let transport = makeTransport(relay: relay)
@@ -124,7 +126,8 @@ extension RappPairingModel {
           displayName: displayName,
           platform: platform,
           vault: vault,
-          transport: transport
+          transport: transport,
+          code: code
         )
       )
       install(coordinator: coordinator, relay: relay)
@@ -132,7 +135,7 @@ extension RappPairingModel {
     }
   #endif
 
-  private func startApplePeerPairing(uri: String, candidateID: String) throws {
+  private func startApplePeerPairing(uri: String, candidateID: String, code: String) throws {
     let relay = makeRelay(role: .cardHolder)
     let transport = makeTransport(relay: relay)
     #if os(macOS)
@@ -149,7 +152,8 @@ extension RappPairingModel {
         displayName: displayName,
         platform: platform,
         vault: vault,
-        transport: transport
+        transport: transport,
+        code: code
       )
     )
     install(coordinator: coordinator, relay: relay)
