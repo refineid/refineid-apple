@@ -196,16 +196,14 @@ for the intended next action.
 
 ## 4. Distribute through TestFlight
 
-### macOS local web signing
+### macOS MVP scope
 
-SCS is off by default. In **Settings > Signing Service**, the holder
-can turn the service on or off. Only enabling it, or restoring a saved opt-in, starts the
-server and obtains its TLS identity. Disabling closes the listener and accepted
-connections; it does not remove certificate trust already granted by the holder.
-An operation already executing on the card cannot be undone by closing a socket.
-Verify a fresh installation, enable/disable, and restart behavior on the exact
-candidate. No real card credentials belong in test evidence.
-
+The candidate retains local card authentication, activation, PIN management,
+and document signing. SCS and RAPP are excluded. Verify a saved SCS opt-in
+cannot start a listener or request certificate trust, and saved RAPP pairings
+cannot start discovery, reconnect, publish an identity, or expose pairing UI.
+The archive must contain only the local token extension, with no server
+entitlement or local-network declarations. iOS scope is unchanged.
 
 ### Screenshot visibility
 
@@ -239,8 +237,11 @@ interface treatment. See
 After explicit approval for the named tester group:
 
 ```sh
-Scripts/apple-app-store-connect-release-manager.swift distribute macos <group>
+Scripts/apple-app-store-connect-release-manager.swift distribute macos <group> <build-id>
 ```
+
+Use the exact uploaded build identifier. Internal distribution does not submit
+beta review, and TestFlight distribution does not attach an App Store build.
 
 Test the exact uploaded build. At minimum, retain evidence for:
 
@@ -251,8 +252,7 @@ Test the exact uploaded build. At minimum, retain evidence for:
 - Reader insertion, removal, contention, sleep, wake, extension restart, app
   restart, and Mac restart.
 - Activated-card identity publication and signing.
-- Pairing with an iPhone, iPhone-backed identity publication, Safari
-  authentication, relay rejection, peer removal, and reconnection.
+- Absence of SCS and RAPP on fresh installs and upgrades with saved preferences.
 - Factory-fresh card detection without activation unless that specific test is
   separately approved.
 - Retry counters before and after any credential operation.

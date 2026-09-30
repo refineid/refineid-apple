@@ -6,6 +6,14 @@ All marketing screenshots are generated with zero alpha channel, top-anchored ty
 
 ---
 
+## macOS MVP
+
+The macOS catalog contains one screenshot per locale: `01-authentication.png`.
+It shows a local card and reader. SCS, phone pairing, and wireless-reader claims
+must not appear. iOS and iPadOS retain their two-image catalogs.
+Recapture the macOS window from this build before composing the final assets;
+older `window-card-*` inputs can contain remote connection indicators.
+
 ## 1. Specifications and Display Types
 
 | Platform | App Store `DISPLAY_TYPE` | Target Device | Canvas Resolution | Aspect Ratio | Color Space & Alpha |
@@ -89,7 +97,7 @@ Metadata/screenshots/
 │   ├── window-card-{fi,en,sv}.png               # macOS Screen 01 (Authentication window)
 │   └── window-documents-{fi,en,sv}.png          # macOS Screen 02 (Document signing window)
 ├── fi/                                          # Finnish App Store Screenshots
-│   ├── APP_DESKTOP/                             # 2880x1800 macOS (01-authentication, 02-documents)
+│   ├── APP_DESKTOP/                             # 2880x1800 macOS (01-authentication)
 │   ├── APP_IPHONE_67/                           # 1290x2796 iPhone (01-app-main, 02-documents)
 │   └── APP_IPAD_PRO_3GEN_129/                   # 2048x2732 iPad (01-main, 02-documents)
 ├── en-US/                                       # English App Store Screenshots (same hierarchy)

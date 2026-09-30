@@ -11,11 +11,19 @@
       static let glyphPointSize: CGFloat = 22
     }
 
+    private static var symbolName: String {
+      #if REFINEID_REMOTE_CARD
+        "key.radiowaves.forward"
+      #else
+        "key"
+      #endif
+    }
+
     internal let pinLevel: CredentialRetryHealth.Level?
     internal let routeAvailable: Bool
 
     internal var body: some View {
-      Image(systemName: "key.radiowaves.forward")
+      Image(systemName: Self.symbolName)
         .font(.system(size: Layout.glyphPointSize))
         .symbolRenderingMode(.palette)
         .foregroundStyle(keyColor, waveColor)
@@ -26,21 +34,29 @@
     }
 
     private var isRemoteHolderConnected: Bool {
-      if PersistentTokenRegistry.shared.holderIsAdvertising {
-        return true
-      }
-      return RappAutoPairingService.shared.remoteDevices.contains { $0.role == .holder }
+      #if REFINEID_REMOTE_CARD
+        if PersistentTokenRegistry.shared.holderIsAdvertising {
+          return true
+        }
+        return RappAutoPairingService.shared.remoteDevices.contains { $0.role == .holder }
+      #else
+        return false
+      #endif
     }
 
     private var accessibilityValue: String {
-      let link =
-        isRemoteHolderConnected
-        ? String(localized: "Phone connected")
-        : String(localized: "Phone not connected")
-      if let pins = pinLevel?.accessibilityValue {
-        return pins + ", " + link
-      }
-      return link
+      #if REFINEID_REMOTE_CARD
+        let link =
+          isRemoteHolderConnected
+          ? String(localized: "Phone connected")
+          : String(localized: "Phone not connected")
+        if let pins = pinLevel?.accessibilityValue {
+          return pins + ", " + link
+        }
+        return link
+      #else
+        return pinLevel?.accessibilityValue ?? ""
+      #endif
     }
 
     /// Green, yellow, or red from the card's retry class; grey without a card.

@@ -22,6 +22,14 @@
 
     internal static let shared = PersistentTokenRegistry()
 
+    internal static var isRemoteCardEnabled: Bool {
+      #if REFINEID_REMOTE_CARD
+        true
+      #else
+        false
+      #endif
+    }
+
     internal static let fetchStateDidChangeNotification = Notification.Name(
       "fi.refineid.PersistentTokenRegistry.fetchStateDidChange"
     )
@@ -142,6 +150,10 @@
     /// Fetches and publishes once at launch on the requesting device when
     /// an identity is needed.
     internal func start() {
+      guard Self.isRemoteCardEnabled else {
+        Self.withdrawPublishedIdentity()
+        return
+      }
       if CardPresence.shared.isReaderCardPresent {
         Self.withdrawPublishedIdentity()
         _ = DriverConfiguredCredentials.dropDisplacedRemoteCardConfigurations()
@@ -164,6 +176,10 @@
     /// Fetches the borrowed certificate after a pairing, replacing any
     /// identity a previous pair left behind.
     internal func startAfterPairing() {
+      guard Self.isRemoteCardEnabled else {
+        Self.withdrawPublishedIdentity()
+        return
+      }
       if CardPresence.shared.isReaderCardPresent {
         Self.withdrawPublishedIdentity()
         return
@@ -176,6 +192,10 @@
     }
 
     internal func startFetch(replacing: Bool) {
+      guard Self.isRemoteCardEnabled else {
+        Self.withdrawPublishedIdentity()
+        return
+      }
       guard !CardPresence.shared.isReaderCardPresent else { return }
       guard !isRunning else { return }
       let hasPairs = (try? RappDeviceVault().activePairIDs().isEmpty == false) ?? false

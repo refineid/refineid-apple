@@ -11,7 +11,9 @@
         case pdfStamp
       #endif
       case pinCodes
-      case remote
+      #if REFINEID_REMOTE_CARD
+        case remote
+      #endif
       #if FEATURE_SCS
         case webSigning
       #endif
@@ -26,7 +28,11 @@
     @ObservedObject private var cardPresence = CardPresence.shared
     @ObservedObject private var demoMode = DemoMode.shared
 
-    @State private var pane = Pane.remote
+    #if REFINEID_REMOTE_CARD
+      @State private var pane = Pane.remote
+    #else
+      @State private var pane = Pane.pinCodes
+    #endif
 
     /// Whether a reader card is present and the PIN pane should be shown.
     private var readerCardIsPresent: Bool {
@@ -40,9 +46,11 @@
       }
       .frame(minWidth: Self.paneWidth, minHeight: Self.paneHeight)
       .onChange(of: readerCardIsPresent) { _, present in
-        if !present, pane == .pinCodes {
-          pane = .remote
-        }
+        #if REFINEID_REMOTE_CARD
+          if !present, pane == .pinCodes {
+            pane = .remote
+          }
+        #endif
       }
     }
 
@@ -87,11 +95,19 @@
         }
         .tag(Pane.pinCodes)
       }
-      RemotePairingSettingsView()
-        .tabItem {
-          Label(String(localized: "Remote Access"), systemImage: "key.radiowaves.forward")
+      #if REFINEID_REMOTE_CARD
+        RemotePairingSettingsView()
+          .tabItem {
+            Label(String(localized: "Remote Access"), systemImage: "key.radiowaves.forward")
+          }
+          .tag(Pane.remote)
+      #else
+        if !readerCardIsPresent {
+          Text("Connect a card reader and insert your card.")
+            .tabItem { Label(String(localized: "PIN Codes"), systemImage: "key") }
+            .tag(Pane.pinCodes)
         }
-        .tag(Pane.remote)
+      #endif
     }
   }
 

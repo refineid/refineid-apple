@@ -4,28 +4,13 @@
 // Version.xcconfig, which every configuration inherits. A flag absent
 // here compiles its UI entry points away; the code beneath them stays
 // built and tested either way, so turning a feature back on is this
-// one line and nothing else.
+// flag plus the matching project packaging and archive inspection policy.
 //
 //   FEATURE_CONTACTLESS
-//       Contactless card reading on macOS: the CAN entry that
-//       unseals a card on a contactless reader, and its Settings
-//       toggle. Out of the first App Store release by decision
-//       (Documentation/decisions.md, 2026-08-11): the access number
-//       reaches the token driver through a shared app-group
-//       container, and macOS creates a ~/Library/Group Containers
-//       folder the moment that group is touched. Off, no such folder
-//       exists and the app-group entitlement stays out of
-//       Config/RefineID.entitlements and Config/TokenExtension.entitlements.
-//       macOS only: on iPhone, built-in NFC is a required production
-//       transport and is not gated by this flag.
-//
-//       The flag alone is not enough to test contactless locally: the
-//       access-number channel needs the app-group entitlement, so a
-//       local build must restore com.apple.security.application-groups
-//       (4ZJC3SFJR2.fi.refineid) on both targets as well as setting
-//       the flag. The flag without the entitlement compiles the entry
-//       points but the channel finds no group container and the mint
-//       fails.
+//       Contactless card reading on macOS: the CAN entry and its toggle.
+//       The app and local token extension share the access number through
+//       their app-group container. On iPhone, built-in NFC is required
+//       and is not gated by this flag.
 //
 //   FEATURE_PDF_STAMP
 //       The visible PDF stamp: the CAN-gated mark carrying the
@@ -34,15 +19,9 @@
 //       no stamp UI is offered.
 //
 //   FEATURE_SCS
-//       The Signature Creation Service: the loopback HTTPS server
-//       (127.0.0.1:53952, DVV spec v1.3) that web pages sign
-//       through. Out of the first App Store release by decision
-//       (Documentation/decisions.md, 2026-08-11): to serve HTTPS it
-//       modifies the user's certificate trust settings, which is a
-//       review risk kept out of the binary entirely. Off, no SCS socket
-//       is bound and no trust is touched. A local build testing it must
-//       restore the network-server entitlement, which shipping builds
-//       do not carry.
+//       The loopback HTTPS signing service. When excluded, neither the UI
+//       nor startup can enable it, even with a saved opt-in. Local testing
+//       of an enabled service also requires a network-server entitlement.
 //
 //   FEATURE_TIMESTAMP_CONFIG
 //       The configurable time-stamp authority settings: allows adding,
@@ -51,13 +30,12 @@
 //       (Documentation/decisions.md, 2026-09-26); the hardcoded qualified
 //       Sectigo server (http://timestamp.sectigo.com/qualified) is used directly.
 //
-// Flags are space-separated. The full TestFlight carries all three:
-// contactless macOS reading, the visible PDF stamp, and the SCS
-// loopback signing server (owner decision 2026-09-10: first full
-// version; the store candidate builds from the TestFlight
-// configuration, so it carries them too).
+// macOS ships local card authentication, management and document signing.
+// Its MVP excludes SCS and RAPP in every build configuration.
+// iOS keeps its remote-card support.
 
 REFINEID_FEATURES = FEATURE_CONTACTLESS FEATURE_SCS
+REFINEID_FEATURES[sdk=macosx*] = FEATURE_CONTACTLESS
 
 // The local card: this build talks to a card the device itself holds,
 // over its own antenna. On by default, because every shipping iPhone
@@ -70,6 +48,7 @@ REFINEID_LOCAL_CARD_FEATURE = REFINEID_LOCAL_CARD
 REFINEID_REMOTE_CARD_FEATURE = REFINEID_REMOTE_CARD
 REFINEID_REMOTE_CARD_FEATURE[config=TestFlight] = REFINEID_REMOTE_CARD
 REFINEID_REMOTE_CARD_FEATURE[config=Release] = REFINEID_REMOTE_CARD
+REFINEID_REMOTE_CARD_FEATURE[sdk=macosx*] =
 
 // FEATURE_CARD_ACTIVATION
 //     Taking a factory-fresh card into use: the activation form.

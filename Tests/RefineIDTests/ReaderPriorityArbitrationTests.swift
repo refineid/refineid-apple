@@ -16,6 +16,22 @@
   @Suite(.serialized)
   @MainActor
   internal struct ReaderPriorityArbitrationTests {
+    #if !REFINEID_REMOTE_CARD
+      @Test
+      internal func disabledRemoteCardCannotRestartAfterReaderRemoval() {
+        let registry = PersistentTokenRegistry.shared
+        registry.readerCardPresenceChanged(isReaderCardPresent: false)
+        registry.start()
+        registry.startAfterPairing()
+        registry.startFetch(replacing: true)
+        #expect(!PersistentTokenRegistry.isRemoteCardEnabled)
+        #expect(!registry.isRunning)
+        #expect(registry.certificateDER == nil)
+        #expect(!registry.holderIsAdvertising)
+        #expect(!DocumentSigner.usesRappSigning)
+      }
+    #endif
+
     @Test
     internal func readerCardPresenceSuppressesPublishing() throws {
       let initialPresence = CardPresence.shared.isReaderCardPresent

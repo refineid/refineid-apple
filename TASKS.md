@@ -1,6 +1,6 @@
 # Apple release task list
 
-Last reviewed: 2026-09-27. Completed work is removed; this file holds only
+Last reviewed: 2026-09-30. Completed work is removed; this file holds only
 outcomes still required for a beta, an App Store release, or the next
 protocol milestone.
 
@@ -19,20 +19,11 @@ protocol milestone.
   Experimental iOS 16 backport dropped; platform floor is firmly 26.0 for iOS/macOS.
 - Ships: one-step NFC priming, Safari login, document signing and checking,
   PIN changes, USB-C reader signing, demo mode (virtual card starts activated).
-- First full version (owner decision 2026-09-10): every configuration
-  ships the remote card (`REFINEID_REMOTE_CARD`), card activation
-  (`FEATURE_CARD_ACTIVATION`), macOS contactless (`FEATURE_CONTACTLESS`),
-  the visible PDF stamp (`FEATURE_PDF_STAMP`), and the SCS loopback
-  server (`FEATURE_SCS`). All configurations point at the development
-  Info.plists and entitlements; the `Config/*-Store-*` files stay as the
-  retired gated reference. Shipping configs: floor 26, iPhone-only,
-  `nfc` required capability. Enforced by the archive inspector and
-  `RappShippingConfigurationTests`.
-
-- SCS macOS release work is complete and accepted for this release on
-  2026-09-27: default-off opt-in, listener lifecycle, concise localized prompts,
-  and shared credential labels. Tests, CI, and device installs passed; see
-  [release status and evidence](Documentation/release-plan.md#scs-release-status).
+- macOS MVP (owner decision 2026-09-30): keep local authentication,
+  contact/contactless reading, activation, PIN management, and document signing.
+  Exclude SCS and RAPP, including UI, startup, server entitlement, local-network
+  declarations, and the remote token extension. iOS scope is unchanged.
+- Store presentation: one local-card screenshot per macOS localization.
 
 ## Remaining macOS release decisions and checks
 
@@ -43,11 +34,11 @@ remain valid evidence. Do not require the whole product to be proven again merel
 because an older checklist was left unchecked.
 
 - [ ] Inspect the exact candidate through the release manager: signing,
-  entitlements, both CTK extensions, version/provenance, and exclusion of the
+  entitlements, the local CTK extension and absence of the RAPP extension, version/provenance, and exclusion of the
   debug harness. Existing inspection automation is implemented; retain this
   candidate's result.
 - [ ] Review the changes since the last hardware verification and perform a
-  focused candidate smoke check for affected paths. Reuse established RAPP and
+  focused candidate smoke check for affected paths. Reuse established
   direct-reader evidence; expand only where changes or failures justify it.
 - [ ] Review current localized screenshots, `Metadata/appstore.json`,
   [reviewer instructions](Documentation/app-store-review-notes.md), and
@@ -56,9 +47,13 @@ because an older checklist was left unchecked.
 - [ ] Record which current accessibility journeys have passed and resolve any
   actual failures. Keyboard, localization, and accessibility audit suites exist;
   their existence alone does not prove every shipping state was audited.
-- [ ] Resolve the independent RAPP security-review requirement with the release
-  owner: the handoff records no completed independent review. Cross-platform
-  interoperability is already qualified and must not be listed as missing.
+- [ ] Verify SCS remains off with a saved opt-in and RAPP remains inactive
+  with saved pairings; confirm no remote controls or listener appear.
+- [ ] Upload the inspected release candidate and make it available to the
+  intended TestFlight group; record its exact version, build, and source.
+
+The independent RAPP security review is deferred with that excluded feature;
+it must be resolved before a future macOS release enables RAPP.
 
 ## Optional delivery infrastructure
 

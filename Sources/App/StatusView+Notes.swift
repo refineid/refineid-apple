@@ -33,7 +33,7 @@
 
     /// Whether the paired phone is on the network and serving a card.
     private var holderIsAdvertising: Bool {
-      #if REFINEID_STREAM_TRANSPORT
+      #if REFINEID_REMOTE_CARD && REFINEID_STREAM_TRANSPORT
         remoteRegistry.holderIsAdvertising
       #else
         false
@@ -42,18 +42,26 @@
 
     /// Whether to prompt the user to connect a card reader or phone.
     internal var shouldShowPairingPrompt: Bool {
-      !DemoMode.shared.isActive
-        && !cardPresence.isReaderCardPresent
-        && !holderIsAdvertising
-        && availability == .noCard
-        && signingModel.pending == nil
-        && signingModel.queued.isEmpty
-        && !signingModel.working
+      #if REFINEID_REMOTE_CARD
+        !DemoMode.shared.isActive
+          && !cardPresence.isReaderCardPresent
+          && !holderIsAdvertising
+          && availability == .noCard
+          && signingModel.pending == nil
+          && signingModel.queued.isEmpty
+          && !signingModel.working
+      #else
+        false
+      #endif
     }
 
     /// Whether a paired phone has already answered with a certificate.
     private var hasBorrowedIdentity: Bool {
-      remoteRegistry.holderIsAdvertising && remoteRegistry.holderLine != nil
+      #if REFINEID_REMOTE_CARD
+        remoteRegistry.holderIsAdvertising && remoteRegistry.holderLine != nil
+      #else
+        false
+      #endif
     }
 
     /// Whether this window collects PIN 2, or the paired phone does.
@@ -69,7 +77,9 @@
     }
 
     @ViewBuilder internal var pairingPromptSection: some View {
-      RemotePairingPromptView()
+      #if REFINEID_REMOTE_CARD
+        RemotePairingPromptView()
+      #endif
     }
 
     /// The signature style every dropped document can take.

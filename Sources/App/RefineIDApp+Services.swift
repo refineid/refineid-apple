@@ -27,42 +27,44 @@ extension RefineIDApp {
   #endif
 
   internal static func startRemoteServices() {
-    guard !TestCredentialEnvironment.isTestMode else { return }
-    #if DEBUG
-      if DebugLaunchModes.selected() != nil { return }
-    #endif
+    #if REFINEID_REMOTE_CARD
+      guard !TestCredentialEnvironment.isTestMode else { return }
+      #if DEBUG
+        if DebugLaunchModes.selected() != nil { return }
+      #endif
 
-    #if REFINEID_LOCAL_CARD && os(iOS)
-      HolderCardServing.availabilityChanged()
-      PhonePersistentTokenRelay.shared.start()
-      if !SupportedCardTransports.offersNearField {
+      #if REFINEID_LOCAL_CARD && os(iOS)
+        HolderCardServing.availabilityChanged()
+        PhonePersistentTokenRelay.shared.start()
+        if !SupportedCardTransports.offersNearField {
+          PersistentTokenRegistry.shared.start()
+        }
+      #else
         PersistentTokenRegistry.shared.start()
-      }
-    #else
-      PersistentTokenRegistry.shared.start()
-    #endif
-    #if os(macOS)
-      RappCardPromptNotificationRelay.shared.start()
-    #endif
-    RappAutoPairingService.shared.start()
+      #endif
+      #if os(macOS)
+        RappCardPromptNotificationRelay.shared.start()
+      #endif
+      RappAutoPairingService.shared.start()
 
-    pairingsChangeObserver = NotificationCenter.default.addObserver(
-      forName: Notification.Name("fi.refineid.pairingsDidChange"),
-      object: nil,
-      queue: .main
-    ) { _ in
-      MainActor.assumeIsolated {
-        #if os(macOS)
-          PersistentTokenRegistry.shared.startAfterPairing()
-        #elseif os(iOS) && REFINEID_LOCAL_CARD
-          if let ids = try? RappDeviceVault().activePairIDs(), !ids.isEmpty {
-            PhonePersistentTokenRelay.shared.resumeAfterUserAction()
-          }
-          if !SupportedCardTransports.offersNearField {
+      pairingsChangeObserver = NotificationCenter.default.addObserver(
+        forName: Notification.Name("fi.refineid.pairingsDidChange"),
+        object: nil,
+        queue: .main
+      ) { _ in
+        MainActor.assumeIsolated {
+          #if os(macOS)
             PersistentTokenRegistry.shared.startAfterPairing()
-          }
-        #endif
+          #elseif os(iOS) && REFINEID_LOCAL_CARD
+            if let ids = try? RappDeviceVault().activePairIDs(), !ids.isEmpty {
+              PhonePersistentTokenRelay.shared.resumeAfterUserAction()
+            }
+            if !SupportedCardTransports.offersNearField {
+              PersistentTokenRegistry.shared.startAfterPairing()
+            }
+          #endif
+        }
       }
-    }
+    #endif
   }
 }

@@ -56,7 +56,11 @@
     /// it.
     @State private var holder: String?
 
-    @State private var isPeerOnline = RappAutoPairingService.shared.isAnyPairedPeerOnline
+    #if REFINEID_REMOTE_CARD
+      @State private var isPeerOnline = RappAutoPairingService.shared.isAnyPairedPeerOnline
+    #else
+      @State private var isPeerOnline = false
+    #endif
     @State private var isFetching = PersistentTokenRegistry.shared.isRunning
 
     private var isPairedDeviceOnline: Bool {
@@ -98,7 +102,9 @@
             for: RappAutoPairingService.pairingsDidChangeNotification
           )
         ) { _ in
-          isPeerOnline = RappAutoPairingService.shared.isAnyPairedPeerOnline
+          #if REFINEID_REMOTE_CARD
+            isPeerOnline = RappAutoPairingService.shared.isAnyPairedPeerOnline
+          #endif
         }
         .onReceive(
           NotificationCenter.default.publisher(
