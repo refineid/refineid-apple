@@ -54,7 +54,7 @@
       #endif
       let decision = await inbox.ask(request)
       #if DEBUG
-        HolderTrace.say("handleApproval: holder decided \(decision)")
+        HolderTrace.say("handleApproval: holder decided \(decision.summary)")
       #endif
       await resolveApprovalDecision(
         decision,
@@ -101,7 +101,7 @@
       coordinator: RappConnectionCoordinator
     ) async {
       #if DEBUG
-        HolderTrace.say("resolveApprovalDecision: \(decision) for \(operation.kind)")
+        HolderTrace.say("resolveApprovalDecision: \(decision.summary) for \(operation.kind)")
       #endif
       switch decision {
       case .approved:
@@ -112,10 +112,10 @@
           try? await coordinator.requestInvalidOrUnsupported(operationID: operationID)
           return
         }
-        pin1ByOperation[operationID] = pin1
+        pin1ByOperation[operationID] = pin1.digits
         let isReader = await MainActor.run { CardPresence.shared.isReaderCardPresent }
         if isReader {
-          await rememberReaderPin1(pin1)
+          await rememberReaderPin1(pin1.digits)
         }
         try? await coordinator.approve(operationID: operationID)
 
@@ -124,8 +124,8 @@
           try? await coordinator.requestInvalidOrUnsupported(operationID: operationID)
           return
         }
-        pin2Window.hold(pin2)
-        pin2ByOperation[operationID] = pin2
+        pin2Window.hold(pin2.digits)
+        pin2ByOperation[operationID] = pin2.digits
         try? await coordinator.approve(operationID: operationID)
 
       case .denied:
