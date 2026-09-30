@@ -168,7 +168,8 @@ internal enum ScsTransactionBegin {
     let signingInput = encodedHeader + "." + encodedPayload
     do {
       let signature = try backend.sign(
-        purpose: purpose, hash: hash, data: Data(signingInput.utf8))
+        ScsSignRequest(
+          purpose: purpose, hash: hash, data: Data(signingInput.utf8), origin: state.origin))
       return .success(
         Outcome(
           response: signingInput + "." + Base64Url.encode(signature),

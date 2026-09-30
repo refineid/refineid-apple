@@ -4,8 +4,8 @@ import CardCore
 import Foundation
 import Testing
 
-/// The one-request-per-connection HTTP framing of the SCS exchange
-/// (DVV SCS specification v1.3 §2.4).
+/// The one-request-per-connection HTTP framing this implementation
+/// uses for the SCS exchange.
 @Suite
 internal struct ScsHttpTests {
   @Test

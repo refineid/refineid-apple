@@ -5,10 +5,12 @@ import Foundation
 /// Builders for the SCS's HTTP responses.
 ///
 /// Every response carries the CORS headers the browser needs to hand
-/// the answer to the calling page: the request's own Origin is echoed
-/// (the SCS is same-machine, origin-bound by challenge rather than by
-/// CORS allowlist), and the preflight answers 200 as the
-/// specification's example shows (DVV SCS specification v1.3 §2.4).
+/// the answer to the calling page. The specification requires the
+/// Access-Control-Allow-Origin header on every response and fixes its
+/// value to "*" (DVV SCS specification v1.3 §2.1); echoing the
+/// request's own Origin instead is a narrowing of that, which is why
+/// `Vary: Origin` accompanies it. The preflight answers 200 with the
+/// headers §2.1 lists, whose example response is the one §2.4 shows.
 /// Connections are single-use: every response closes.
 public enum ScsHttpResponse {
   /// A JSON response with CORS headers.

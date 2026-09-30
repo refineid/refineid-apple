@@ -30,23 +30,22 @@
     /// One floor-guarded, PIN-prompted sign inside an open session.
     private static func performSign(
       _ operations: CardOperations,
-      purpose: ScsSignPurpose,
+      request: ScsSignRequest,
       digest: Data,
       algorithm: SigningAlgorithm,
       expectedSignatureLength: ExpectedResponseLength?
     ) -> Result<Data, ScsBackendFailure> {
+      let purpose = request.purpose
       if let refused = contextRefusal(operations, purpose: purpose) {
         return .failure(refused)
       }
-      let role: CredentialRole = purpose == .authentication ? .pin1 : .pin2
-      guard
-        let probe = try? operations.probeRetryCounter(role: role),
-        RetryFloor.evaluate(probeOutcome: probe) == .proceed
-      else {
-        return .failure(.credentialRefused("credential retry state refuses the sign"))
-      }
-      guard let entered = ScsPinPrompt.request(role: role) else {
-        return .failure(.credentialRefused("PIN entry was cancelled"))
+      let entered: String
+      switch authorizedPin(operations, request: request, digest: digest, algorithm: algorithm) {
+      case .success(let pin):
+        entered = pin
+
+      case .failure(let refusal):
+        return .failure(refusal)
       }
       do {
         switch purpose {
@@ -79,6 +78,38 @@
       } catch {
         return .failure(refusal(from: error))
       }
+    }
+
+    /// The holder's answer, once the card can still afford to sign and
+    /// the request has been shown for what it is.
+    ///
+    /// The floor probe runs before the prompt so a blocked credential
+    /// never costs the holder a PIN entry, and the prompt names the
+    /// requesting origin and the digest the card is about to sign.
+    private static func authorizedPin(
+      _ operations: CardOperations,
+      request: ScsSignRequest,
+      digest: Data,
+      algorithm: SigningAlgorithm
+    ) -> Result<String, ScsBackendFailure> {
+      let role: CredentialRole = request.purpose == .authentication ? .pin1 : .pin2
+      guard
+        let probe = try? operations.probeRetryCounter(role: role),
+        RetryFloor.evaluate(probeOutcome: probe) == .proceed
+      else {
+        return .failure(.credentialRefused("credential retry state refuses the sign"))
+      }
+      guard
+        let entered = ScsPinPrompt.request(
+          role: role,
+          origin: request.origin,
+          digest: digest,
+          hash: algorithm.hash
+        )
+      else {
+        return .failure(.credentialRefused("PIN entry was cancelled"))
+      }
+      return .success(entered)
     }
 
     /// Enters the directory the sign must run in, when the card has
@@ -143,25 +174,22 @@
       }
     }
 
-    internal func sign(
-      purpose: ScsSignPurpose,
-      hash: SigningHash,
-      data: Data
-    ) throws -> Data {
+    internal func sign(_ request: ScsSignRequest) throws -> Data {
       let digest: Data
-      switch hash {
+      switch request.hash {
       case .sha1, .sha224:
         throw ScsBackendFailure.signingUnavailable("unsupported digest")
 
       case .sha256:
-        digest = Data(SHA256.hash(data: data))
+        digest = Data(SHA256.hash(data: request.data))
 
       case .sha384:
-        digest = Data(SHA384.hash(data: data))
+        digest = Data(SHA384.hash(data: request.data))
 
       case .sha512:
-        digest = Data(SHA512.hash(data: data))
+        digest = Data(SHA512.hash(data: request.data))
       }
+      let purpose = request.purpose
       guard let profile = profile(for: purpose) else {
         throw ScsBackendFailure.signingUnavailable("card certificate unavailable")
       }
@@ -173,12 +201,12 @@
       case .rsa2048, .rsa3072:
         scheme = .rsaPkcs1
       }
-      let algorithm = SigningAlgorithm(hash: hash, scheme: scheme)
+      let algorithm = SigningAlgorithm(hash: request.hash, scheme: scheme)
       let expected = profile.expectedSignatureLength
       let outcome: Result<Data, ScsBackendFailure>? = withCard { operations in
         Self.performSign(
           operations,
-          purpose: purpose,
+          request: request,
           digest: digest,
           algorithm: algorithm,
           expectedSignatureLength: expected

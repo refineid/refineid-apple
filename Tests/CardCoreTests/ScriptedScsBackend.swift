@@ -14,6 +14,7 @@ internal final class ScriptedScsBackend: ScsSigningBackend {
   internal private(set) var signedData: [Data] = []
   internal private(set) var signedHashes: [SigningHash] = []
   internal private(set) var signedPurposes: [ScsSignPurpose] = []
+  internal private(set) var signedOrigins: [String?] = []
 
   internal init(
     chain: [Data],
@@ -33,17 +34,14 @@ internal final class ScriptedScsBackend: ScsSigningBackend {
     algorithm
   }
 
-  internal func sign(
-    purpose: ScsSignPurpose,
-    hash: SigningHash,
-    data: Data
-  ) throws -> Data {
+  internal func sign(_ request: ScsSignRequest) throws -> Data {
     if let refusal {
       throw refusal
     }
-    signedData.append(data)
-    signedHashes.append(hash)
-    signedPurposes.append(purpose)
+    signedData.append(request.data)
+    signedHashes.append(request.hash)
+    signedPurposes.append(request.purpose)
+    signedOrigins.append(request.origin)
     return signature
   }
 }
