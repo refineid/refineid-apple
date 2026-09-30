@@ -16,6 +16,10 @@
     /// When the reader card leaves:
     /// - Presence watching resumes if pairings exist, allowing remote card discovery when no physical card is present.
     internal func readerCardPresenceChanged(isReaderCardPresent: Bool) {
+      guard Self.isRemoteCardEnabled else {
+        Self.withdrawPublishedIdentity()
+        return
+      }
       if isReaderCardPresent {
         Self.withdrawPublishedIdentity()
         _ = DriverConfiguredCredentials.dropDisplacedRemoteCardConfigurations()
@@ -42,6 +46,10 @@
     /// The physical reader has absolute priority. When a reader card is present,
     /// remote identities are withdrawn.
     internal func ensurePublished() {
+      guard Self.isRemoteCardEnabled else {
+        Self.withdrawPublishedIdentity()
+        return
+      }
       if CardPresence.shared.isReaderCardPresent {
         Self.withdrawPublishedIdentity()
         return
@@ -64,6 +72,10 @@
 
     /// Fills the person line from a certificate this process already holds.
     internal func seedHolderLine() {
+      guard Self.isRemoteCardEnabled else {
+        Self.withdrawPublishedIdentity()
+        return
+      }
       let hasPairs = (try? RappDeviceVault().activePairIDs().isEmpty == false) ?? false
       guard hasPairs else {
         Self.withdrawPublishedIdentity()

@@ -44,9 +44,10 @@ This allows App Reviewers to exercise the complete card lifecycle: status
 display, PIN changes and resets, retry floor refusal, and qualified document
 signing of sample PDFs with fictional credentials without physical hardware.
 
-The macOS notes also document the network behavior and state that the SCS
-loopback signing server (127.0.0.1) is disabled by default and requires
-explicit holder opt-in in Settings before initializing local certificate trust.
+The macOS notes describe the local-card MVP: SCS and RAPP are excluded,
+while local authentication, activation, PIN management, and document signing
+remain available. Outbound timestamp and revocation requests support archival
+document signatures.
 
 ## Where the notes live
 

@@ -28,42 +28,24 @@ let macosCatalog: [String: [SlideData]] = [
         SlideData(
             filename: "01-authentication.png",
             title: "Tunnistaudu henkilökortilla verkkopalveluihin",
-            subtitle: "Voit käyttää myös puhelinta langattomana kortinlukijana.",
+            subtitle: "Liitä kortinlukija Maciin.",
             assetName: "window-card-fi.png"
-        ),
-        SlideData(
-            filename: "02-documents.png",
-            title: "Allekirjoita asiakirjoja",
-            subtitle: "Luo ja tarkasta hyväksyttyjä sähköisiä allekirjoituksia.",
-            assetName: "window-documents-fi.png"
         )
     ],
     "en-US": [
         SlideData(
             filename: "01-authentication.png",
             title: "Log in to web services with your identity card",
-            subtitle: "You can also use your phone as a wireless card reader.",
+            subtitle: "Connect a card reader to your Mac.",
             assetName: "window-card-en.png"
-        ),
-        SlideData(
-            filename: "02-documents.png",
-            title: "Sign documents",
-            subtitle: "Create and verify qualified electronic signatures.",
-            assetName: "window-documents-en.png"
         )
     ],
     "sv": [
         SlideData(
             filename: "01-authentication.png",
             title: "Identifiera dig till e-tjänster med identitetskort",
-            subtitle: "Du kan även använda telefonen som trådlös kortläsare.",
+            subtitle: "Anslut en kortläsare till din Mac.",
             assetName: "window-card-sv.png"
-        ),
-        SlideData(
-            filename: "02-documents.png",
-            title: "Underteckna dokument",
-            subtitle: "Skapa och granska kvalificerade elektroniska underskrifter.",
-            assetName: "window-documents-sv.png"
         )
     ]
 ]

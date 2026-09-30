@@ -36,9 +36,13 @@ extension DocumentSigner {
   /// The two paths never silently retry one another after an
   /// authenticated or credential-bearing operation has begun.
   @MainActor internal static var usesRappSigning: Bool {
-    !SupportedCardTransports.offersNearField
-      && !CardPresence.shared.isReaderCardReady
-      && (try? RappDeviceVault().selectedPairID()) != nil
+    #if REFINEID_REMOTE_CARD
+      !SupportedCardTransports.offersNearField
+        && !CardPresence.shared.isReaderCardReady
+        && (try? RappDeviceVault().selectedPairID()) != nil
+    #else
+      false
+    #endif
   }
 
   /// Builds the same locally verified card material as the reader path while

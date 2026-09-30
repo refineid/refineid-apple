@@ -82,6 +82,7 @@
     }
 
     internal static func publish(_ certificateDER: Data, cardSerial: String?) {
+      guard Self.isRemoteCardEnabled else { return }
       guard !CardPresence.shared.isReaderCardPresent else {
         #if DEBUG
           print("[persistent-token] suppressed publish: reader card has priority")

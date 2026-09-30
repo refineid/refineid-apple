@@ -5,7 +5,7 @@ import XCTest
 #if os(macOS)
   @MainActor
   internal final class ScsSettingsUITests: XCTestCase {
-    internal func testLocalWebSigningStartsDisabledInSettings() throws {
+    internal func testLocalWebSigningAvailabilityInSettings() throws {
       try check(language: "en", topic: "Signing Service", label: "Signature Creation Service")
     }
 
@@ -23,19 +23,32 @@ import XCTest
 
     private func check(language: String, topic: String, label: String) throws {
       let app = XCUIApplication()
-      app.launchArguments = ["-fi.refineid.scs.enabled", "NO", "-AppleLanguages", "(\(language))"]
+      app.launchArguments = ["--ui-test", "-AppleLanguages", "(\(language))"]
+      #if FEATURE_SCS
+        app.launchArguments += ["-fi.refineid.scs.enabled", "NO"]
+      #else
+        app.launchArguments += ["-fi.refineid.scs.enabled", "YES"]
+      #endif
       app.launch()
       defer { app.terminate() }
       app.typeKey(",", modifierFlags: .command)
-      let tab = app.buttons[topic]
-      XCTAssertTrue(tab.waitForExistence(timeout: 5))
-      tab.click()
-      XCTAssertTrue(app.staticTexts[label].firstMatch.waitForExistence(timeout: 5))
-      let toggle = app.switches["scsEnabled"]
-      XCTAssertTrue(toggle.waitForExistence(timeout: 5))
-      let value = try XCTUnwrap(toggle.value)
-      XCTAssertEqual(String(describing: value), "0")
-      XCTAssertTrue(toggle.isEnabled)
+      #if FEATURE_SCS
+        let tab = app.buttons[topic]
+        XCTAssertTrue(tab.waitForExistence(timeout: 5))
+        tab.click()
+        XCTAssertTrue(app.staticTexts[label].firstMatch.waitForExistence(timeout: 5))
+        let toggle = app.switches["scsEnabled"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        let value = try XCTUnwrap(toggle.value)
+        XCTAssertEqual(String(describing: value), "0")
+        XCTAssertTrue(toggle.isEnabled)
+      #else
+        XCTAssertTrue(app.windows.element(boundBy: 0).waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons[topic].exists)
+        XCTAssertFalse(app.switches["scsEnabled"].exists)
+        XCTAssertFalse(app.staticTexts[label].exists)
+        XCTAssertFalse(app.textFields["pairingCode"].exists)
+      #endif
     }
   }
 #endif

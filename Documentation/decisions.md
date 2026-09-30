@@ -1176,3 +1176,14 @@ phone acting as a contactless card reader revealed two timing interactions:
    prompts on first launch.
 
 
+
+## 2026-09-30 - macOS local-card MVP
+
+The release owner chose a smaller macOS App Store release, first tested as a
+TestFlight release candidate. Local card authentication, contact/contactless
+reading, activation, PIN management, and document signing remain included.
+SCS and RAPP are feature-gated out, including startup, UI, network declarations,
+server entitlement, and the remote token extension. iOS scope is unchanged.
+The macOS store listing uses one local-card screenshot per localization.
+This supersedes the earlier full-version macOS scope; deferred features retain
+their qualification requirements before they can ship later.

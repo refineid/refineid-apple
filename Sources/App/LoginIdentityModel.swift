@@ -195,7 +195,10 @@
       // are both listed without a card being present, so neither may
       // answer for one.
       let owned = listed.filter { identifier in
-        PersistentTokenIdentity.owns(tokenIdentifier: identifier)
+        #if !REFINEID_REMOTE_CARD
+          if PersistentTokenIdentity.owns(tokenIdentifier: identifier) { return false }
+        #endif
+        return PersistentTokenIdentity.owns(tokenIdentifier: identifier)
           || (CardTokenNamespace.owns(tokenIdentifier: identifier)
             && !identifier.hasPrefix(Self.credentialEntryPrefix)
             && !CardTokenNamespace.isDisplacedRemoteCardToken(tokenIdentifier: identifier))

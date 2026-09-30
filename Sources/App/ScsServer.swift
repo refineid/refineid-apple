@@ -18,6 +18,14 @@
   internal final class ScsServer: @unchecked Sendable {
     private static let readChunkLength = 65_536
 
+    internal static var isFeatureEnabled: Bool {
+      #if FEATURE_SCS
+        true
+      #else
+        false
+      #endif
+    }
+
     private let queue = DispatchQueue(label: "fi.refineid.scs.server")
     private let backend = ScsCardBackend()
     private let transactions = ScsTransactionManager()
@@ -72,6 +80,7 @@
     /// to the app.
     @MainActor
     internal func start() {
+      guard Self.isFeatureEnabled else { return }
       guard lifecycleLock.withLock({ listener == nil }) else { return }
       guard let parameters = makeParameters() else { return }
       let bound: NWListener

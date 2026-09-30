@@ -8,6 +8,7 @@
 #   Scripts/test.sh commit    # fast pre-commit tier (whitespace check + lint)
 #   Scripts/test.sh pr        # PR / pre-push tier (lint, dual-platform build, RefineIDTests)
 #   Scripts/test.sh full      # release tier (runs all test suites in isolated invocations)
+#   Scripts/test.sh macos-mvp # localized local-card UI and excluded-service checks
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -50,6 +51,16 @@ case "${mode}" in
     printf '\nPR gate passed: Code is properly formatted, builds on both platforms, and unit tests pass.\n'
     ;;
 
+  macos-mvp)
+    step "Checking the macOS MVP user interface"
+    result_path="build/macos-mvp-ui-$(date -u +%Y%m%dT%H%M%SZ).xcresult"
+    xcodebuild test -scheme RefineID -destination 'platform=macOS' \
+      -only-testing:RefineIDUITests/MacMvpUITests \
+      -only-testing:RefineIDUITests/ScsSettingsUITests \
+      -resultBundlePath "${result_path}" -quiet \
+      || fail "macOS MVP UI checks failed."
+    ;;
+
   full|release)
     step "1. Running PR gate checks"
     "$0" pr
@@ -63,7 +74,7 @@ case "${mode}" in
     ;;
 
   *)
-    printf 'Usage: %s [commit|pr|full]\n' "$0" >&2
+    printf 'Usage: %s [commit|pr|full|macos-mvp]\n' "$0" >&2
     exit 2
     ;;
 esac

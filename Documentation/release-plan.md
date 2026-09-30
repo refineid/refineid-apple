@@ -1,6 +1,6 @@
 # macOS App Store release plan
 
-Last reviewed: 2026-09-27
+Last reviewed: 2026-09-30
 
 This document defines the product, security, validation, and distribution gates
 for the Swift macOS RefineID release. [TASKS.md](../TASKS.md) is the
@@ -22,13 +22,12 @@ in its TestFlight and App Store builds. Its scope is controlled by
 
 Ship a small, trustworthy macOS App Store product named **RefineID**.
 
-The application contains the CryptoTokenKit smart-card extension that macOS
-loads for a supported card, with direct contact reader signing, contactless
-reading, card activation, and the opt-in SCS loopback signing server included in the
-first full version (owner decision 2026-09-10). A separate persistent-token
-extension for a RAPP-paired iPhone authorizer ships in every configuration
-(`hasRapp: true`); physical qualification runs against this exact shipping
-topology instead of Debug builds.
+The first macOS release is a local-card MVP (owner decision 2026-09-30).
+It includes the CryptoTokenKit smart-card extension, contact and contactless
+reading, authentication, card activation, PIN management, and local document
+signing. SCS and RAPP are excluded from every macOS build configuration.
+iOS retains its existing features. The first candidate is for TestFlight;
+App Review submission remains a separate release action.
 
 User story is:
 
@@ -45,14 +44,9 @@ User story is:
 
 - A sandboxed, native Swift macOS application.
 - A native Swift CryptoTokenKit smart-card token extension embedded in the app.
-- A persistent-token extension that delegates explicitly authorized card
-  operations to a cryptographically paired iPhone through RAPP without
-  transferring CAN, PIN 1, or PIN 2 to the Mac.
 - Contactless card reading on a reader's contactless antenna.
 - Card activation for factory-fresh cards.
-- The SCS loopback signing server (127.0.0.1) that web pages sign through, disabled by default with an explicit opt-in toggle in Settings.
 - Virtual ID Card demonstration mode accessible from the no-card empty state, enabling App Reviewers to exercise all card management and signing flows without physical hardware.
-- The visible PDF stamp carrying the holder's name, SATU and card ink.
 - Supported-card, reader, extension, and application version status.
 - Display of PIN1, PIN2, and PUK attempts remaining.
 - Publication of the card's PIN1 authentication identity to macOS for browser/TLS use.
@@ -70,6 +64,9 @@ User story is:
 
 ### Excluded
 
+- SCS loopback signing service, certificate trust setup, and settings.
+- RAPP phone pairing, remote identities, discovery, and persistent-token extension.
+
 - The `refineid` command line tool or any command line installer.
 - Rust libraries, Rust runtime code, helper executables, daemons, or privileged
   helpers in the App Store artifact.
@@ -77,41 +74,12 @@ User story is:
 - Safari extensions, browser shells, Internet relays, macOS NFC, telemetry,
   analytics, accounts, and cloud services.
 
-The SCS server binds only the loopback interface and is strictly opt-in via
-Settings; the default-off Signature Creation Service toggle records explicit
-holder consent before the server starts or invokes any system trust prompts.
+### Deferred remote services
 
-Card management and PIN2 signing entered scope on 2026-08-04 (see
-`Documentation/decisions.md`); iPadOS and iOS follow the macOS
-implementation.
-
-### SCS release status
-
-Complete for this release; accepted by the release owner on 2026-09-27.
-
-- **Settings:** Signature Creation Service is off by default. A saved opt-in
-  restores the listener; turning it off closes the listener and accepted
-  connections. Certificate trust is requested only on the enabled path, and
-  existing holder-granted trust is retained when the service is disabled.
-- **Localization:** Settings topics use short localized names. Finnish and
-  Swedish switch labels include the English service name in parentheses.
-  Entry prompts and action buttons are localized in English, Finnish, and
-  Swedish, with no explanatory paragraph. `CredentialLabels` owns the shared
-  credential names, including Finnish `Perus (PIN 1)` and Swedish
-  `Signaturkoden (PIN 2)`.
-- **Verification:** Automated tests cover default-off behavior, saved opt-in,
-  live loopback connection shutdown and listener restart, localized Settings,
-  and dialog presentation/cancellation without entering credentials. Lint,
-  iOS compilation, the macOS unit suite, package tests, and CI passed. The
-  production changes were installed on Mac, connected iOS hardware, and the
-  iPad simulator; installed Finnish Settings and compiled prompt translations
-  were checked.
-
-Integrated changes: [SCS opt-in, PR 37](https://github.com/refineid/refineid-apple/pull/37),
-[Settings translations, PR 38](https://github.com/refineid/refineid-apple/pull/38),
-and [shared labels and prompts, PR 39](https://github.com/refineid/refineid-apple/pull/39).
-The implementation baseline is `13ebf91`. Operational behavior is documented in
-[the release runbook](release-runbook.md#macos-local-web-signing).
+SCS and RAPP remain implemented for future qualification. Their earlier
+acceptance and cross-platform evidence do not put them in this MVP.
+The independent RAPP security review remains required before enabling RAPP
+in a future macOS release, not for this local-card candidate.
 
 ### Release evidence reconciliation
 
@@ -124,7 +92,7 @@ unchecked historical task is not proof of an unfinished feature.
 candidate checks from established implementation. The remaining work is an
 exact-candidate archive inspection, focused regression verification based on
 changed paths, review of current store assets and accessibility evidence, and
-resolution of the outstanding independent RAPP security-review requirement. No blanket repeat of the complete
+verification that SCS and RAPP remain inaccessible even with saved preferences or pairings. No blanket repeat of the complete
 hardware or interoperability matrix is required by this reconciliation.
 
 Established evidence includes the Mac screenshot pipeline in
@@ -149,13 +117,12 @@ the release owner on September 27. This is established policy, not an open gate.
 
 ## Architecture
 
-The shipping App Store archive embeds both token extensions:
+The shipping macOS archive embeds only the local smart-card token extension:
 
 ```text
 RefineID.app
 |-- Contents/MacOS/RefineID
 |-- Contents/PlugIns/RefineIDTokenExtension.appex
-|-- Contents/PlugIns/RefineIDRappTokenExtension.appex
 `-- Contents/Resources/...
 ```
 

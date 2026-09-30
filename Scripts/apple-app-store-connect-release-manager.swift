@@ -260,10 +260,8 @@ private func releaseArchiveLayout(at archive: URL) -> ReleaseArchiveLayout {
       rappPlist: rappBundle.appendingPathComponent("Contents/Info.plist"),
       discoveryPlist: discoveryBundle.appendingPathComponent("Contents/Info.plist"),
       expectedArchitectures: ["arm64"],
-      // The first full version carries the remote card (owner decision
-      // 2026-09-10), so a macOS candidate carries the RAPP extension,
-      // the local-network declarations, and the server entitlement.
-      hasRapp: true,
+      // macOS ships only the local smart-card driver.
+      hasRapp: false,
       hasDiscovery: false
     )
   }
@@ -1413,7 +1411,9 @@ private func printReleaseManagerUsage() {
           Capture localized App Store screenshots on simulator (e.g. --all, --locale fi).
 
     App Store Connect commands:
-      get, api, app-id, state, builds, distribute, add-tester, remove-tester, invite
+      distribute <ios|macos> <group> [build-id]
+          Distribute a processed TestFlight build; internal groups need no beta review.
+      get, api, app-id, state, builds, add-tester, remove-tester, invite
       ensure-version, attach-build, metadata, app-info, review-contact
       screenshots, age-rating, export-compliance, pricing, submissions, submit
 
@@ -2252,21 +2252,28 @@ func builds(_ platformName: String) {
   }
 }
 
-// Distributes a platform's newest build to a beta group and submits it
-// for beta app review. An external group only shows a build to its
-// testers once that review is approved; internal groups need no review.
-func distribute(_ platformName: String, _ groupName: String) {
+// Distributes the named candidate, or the newest build when no ID is given.
+// External testers need beta review; internal testers need only a valid build.
+// App Store build attachment is a separate command.
+func distribute(_ platformName: String, _ groupName: String, _ candidateID: String? = nil) {
   let platform = apiPlatform(platformName)
   let buildsPath =
     "/v1/builds?filter[app]=\(appID())"
-    + "&filter[preReleaseVersion.platform]=\(platform)&sort=-uploadedDate&limit=1"
-  guard let build = dataArray(api("GET", buildsPath)).first, let buildID = build["id"] as? String
+    + "&filter[preReleaseVersion.platform]=\(platform)&sort=-uploadedDate&limit=100"
+  let candidates = dataArray(api("GET", buildsPath))
+  let selected = candidateID.map { id in candidates.first { $0["id"] as? String == id } }
+    ?? candidates.first
+  guard let build = selected, let buildID = build["id"] as? String
   else { die("no \(platformName) build to distribute") }
+  let attributes = build["attributes"] as? [String: Any] ?? [:]
+  guard attributes["processingState"] as? String == "VALID",
+    attributes["expired"] as? Bool != true
+  else { die("candidate must finish processing and must not be expired") }
   let groups = dataArray(api("GET", "/v1/apps/\(appID())/betaGroups?limit=50"))
   guard
-    let groupID = groups.first(where: {
+    let group = groups.first(where: {
       ($0["attributes"] as? [String: Any])?["name"] as? String == groupName
-    })?["id"] as? String
+    }), let groupID = group["id"] as? String
   else { die("no beta group named '\(groupName)'") }
   api(
     "POST", "/v1/betaGroups/\(groupID)/relationships/builds",
@@ -2274,6 +2281,9 @@ func distribute(_ platformName: String, _ groupName: String) {
       "data": [["type": "builds", "id": buildID]]
     ])
   print("added \(platformName) build to group '\(groupName)'")
+  if (group["attributes"] as? [String: Any])?["isInternalGroup"] as? Bool == true {
+    return
+  }
   let review = api("GET", "/v1/builds/\(buildID)/betaAppReviewSubmission")["data"] as? [String: Any]
   if review == nil {
     api(
@@ -2287,11 +2297,6 @@ func distribute(_ platformName: String, _ groupName: String) {
     print("submitted \(platformName) build for beta review")
   } else {
     print("beta review already exists for the \(platformName) build")
-  }
-  if let buildNumber = (build["attributes"] as? [String: Any])?["version"] as? String,
-    let versionInfo = findVersion(platform)
-  {
-    attachBuild(platformName, versionInfo.version, buildNumber)
   }
 }
 
@@ -2419,6 +2424,7 @@ case ("state", 0): state()
 case ("builds", 1): builds(rest[0])
 case ("distribute", 1): distribute(rest[0], "Beta")
 case ("distribute", 2): distribute(rest[0], rest[1])
+case ("distribute", 3): distribute(rest[0], rest[1], rest[2])
 case ("add-tester", 1): addTester(rest[0], "Beta")
 case ("add-tester", 2): addTester(rest[0], rest[1])
 case ("remove-tester", 1): removeTester(rest[0], "Beta")
