@@ -50,6 +50,9 @@ jobs:
         run: echo 'Documentation-only change; no application build or code tests required.'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ needs.scope.outputs.change != 'documentation' }}
+      - name: Test local quality receipt gate
+        if: ${{ needs.scope.outputs.change != 'documentation' }}
+        run: python3 -B Scripts/TestQualityReceipt.py
       - name: Select Xcode 26
         if: ${{ needs.scope.outputs.change != 'documentation' }}
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
