@@ -2,21 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleLocalizations</key>
-	<array>
-		<string>en</string>
-		<string>fi</string>
-		<string>sv</string>
-	</array>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsArbitraryLoads</key>
-		<true/>
-	</dict>
-	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>RefineID uses Bluetooth to connect your devices securely for identity-card operations.</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -56,18 +41,39 @@
 			</array>
 		</dict>
 	</array>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>fi</string>
+		<string>sv</string>
+	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<!-- Outbound network contract. ATS stays open because an archival
+	     signature needs two things no domain list can name in advance:
+	     the timestamp authority (http://timestamp.sectigo.com/qualified,
+	     the only TSA while FEATURE_TIMESTAMP_CONFIG is out) and the
+	     revocation endpoints published inside the validated certificates
+	     themselves (OCSP/CRL). Every such fetch goes through SigningNetwork,
+	     which admits public IPs only. See Documentation/decisions.md,
+	     2026-09-30. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
 		<dict>
-			<key>UTTypeIdentifier</key>
-			<string>org.etsi.asic-e</string>
-			<key>UTTypeDescription</key>
-			<string>ASiC-E Container</string>
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.data</string>
 				<string>public.archive</string>
 			</array>
+			<key>UTTypeDescription</key>
+			<string>ASiC-E Container</string>
+			<key>UTTypeIdentifier</key>
+			<string>org.etsi.asic-e</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -82,15 +88,15 @@
 			</dict>
 		</dict>
 		<dict>
-			<key>UTTypeIdentifier</key>
-			<string>ee.ria.bdoc</string>
-			<key>UTTypeDescription</key>
-			<string>BDOC Container</string>
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.data</string>
 				<string>public.archive</string>
 			</array>
+			<key>UTTypeDescription</key>
+			<string>BDOC Container</string>
+			<key>UTTypeIdentifier</key>
+			<string>ee.ria.bdoc</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>

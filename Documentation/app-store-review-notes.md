@@ -62,8 +62,11 @@ went stale, so the text is not repeated: read it there.
 - Export compliance rationale: `Documentation/export-compliance.md`.
 - Sandbox and entitlement rationale: comments in
   `Config/RefineID.entitlements`.
-- ATS rationale: comments in both `Config/RefineID-Info.plist` and
-  `Config/RefineID-iOS-Info.plist`. Both binaries make network
+- ATS rationale: comments above `NSAppTransportSecurity` in all four
+  application plists (`Config/RefineID-Info.plist`,
+  `Config/RefineID-Store-Info.plist`,
+  `Config/RefineID-iOS-Info.plist`,
+  `Config/RefineID-iOS-Store-Info.plist`). Every binary makes network
   requests when signing a document: the time-stamp authority and
   revocation endpoints an archival signature needs.
 

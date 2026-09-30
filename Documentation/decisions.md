@@ -5,6 +5,26 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-09-30 App Transport Security stays open under a documented contract
+
+`NSAllowsArbitraryLoads` remains true in the macOS and iOS application
+property lists. An archival (LTA) signature needs the timestamp
+authority (`http://timestamp.sectigo.com/qualified`, the only TSA
+while `FEATURE_TIMESTAMP_CONFIG` is out) and the revocation endpoints
+published inside the validated certificates themselves (OCSP/CRL),
+whose hosts arrive with the world's certificates and cannot be
+enumerated in `NSExceptionDomains`. Without current answers the
+collector refuses the LTA label, so closing ATS would break archival
+signing against real authorities. Enforcement therefore lives in
+`SigningNetwork`: public IPs only (DNS preflight, HTTP pinned to the
+vetted answer), no userinfo, no credentials over cleartext, response
+caps, and a redirect policy. The rationale sits above
+`NSAppTransportSecurity` in each application plist, and
+`NetworkContractTests` pins the traffic-capable API set, the ATS
+shape, and the absence of Bluetooth declarations. Bluetooth radio code
+ships but is unwired and undeclared: no `NSBluetooth*` key may exist
+until remote-card work activates it.
+
 ## 2026-09-27 App Store marketing screenshot design system and top-anchored layout
 
 Marketing screenshots across macOS (2880×1800), iPhone 6.7" (1290×2796), and

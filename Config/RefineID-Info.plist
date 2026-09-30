@@ -10,6 +10,14 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<!-- Outbound network contract. ATS stays open because an archival
+	     signature needs two things no domain list can name in advance:
+	     the timestamp authority (http://timestamp.sectigo.com/qualified,
+	     the only TSA while FEATURE_TIMESTAMP_CONFIG is out) and the
+	     revocation endpoints published inside the validated certificates
+	     themselves (OCSP/CRL). Every such fetch goes through SigningNetwork,
+	     which admits public IPs only. See Documentation/decisions.md,
+	     2026-09-30. -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
@@ -26,8 +34,6 @@
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>RefineID uses the local network to connect your devices securely for identity-card operations.</string>
-	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>RefineID uses Bluetooth to connect your devices securely for identity-card operations.</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
