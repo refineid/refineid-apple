@@ -4,73 +4,92 @@ import CardCore
 import Foundation
 
 extension CardCredentialsView {
-  // MARK: - Type Methods
+  // MARK: - Types
 
-  nonisolated private static func extractPortraitBytes(from operations: CardOperations) -> Data? {
-    try? operations.selectTravelDocumentApplication()
-    guard let inventory = try? operations.readDataGroupInventory(),
-      inventory.carriesDisplayedPortrait
-    else {
-      return nil
-    }
-    return try? operations.readDisplayedPortrait(listedBy: inventory)?.bytes
+  /// The outcome of reading a card photo from reader or contactless card.
+  internal enum CardPhotoReadResult: Sendable {
+    case success(Data)
+    case wrongCardAccessNumber
+    case cardAccessNumberRequired
+    case cardUnavailable
+    case failed
   }
 
   // MARK: - Instance Methods
 
   /// Reads the card photo for the identity submenu from reader or contactless card,
-  /// falling back to demonstration or synthetic samples.
+  /// using stored or entered CAN under PACE, falling back to demonstration samples only in demo mode.
   @MainActor
-  internal func readCardPhoto(for requestedHolder: String?) async -> Data? {
+  internal func readCardPhoto(for requestedHolder: String?) async -> CardPhotoReadResult {
+    await readCardPhoto(for: requestedHolder, accessNumber: nil)
+  }
+
+  @MainActor
+  internal func readCardPhoto(
+    for requestedHolder: String?,
+    accessNumber: String?
+  ) async -> CardPhotoReadResult {
     #if os(iOS)
-      let holder = requestedHolder ?? identityHolder ?? readerHolders.first ?? ""
+      let holder =
+        requestedHolder ?? identityHolder ?? selectedReaderHolder ?? readerHolders.first ?? ""
     #else
       let holder = requestedHolder ?? identityHolder ?? ""
     #endif
-    guard !holder.isEmpty else { return nil }
+    guard !holder.isEmpty else { return .cardUnavailable }
+
     #if os(iOS)
       if isDemonstration {
         let sample = CardPhotoStore.syntheticSamplePhoto(name: holder)
         CardPhotoStore.savePhoto(sample, for: holder)
-        return sample
+        return .success(sample)
       }
     #endif
-    #if REFINEID_LOCAL_CARD && os(iOS)
-      if let answer = await CardMaintenance.onReaderCard(
-        cardAccessNumber: cardAccessNumberEntry.isEmpty ? nil : cardAccessNumberEntry,
-        Self.extractPortraitBytes
-      ) {
-        if case .connected(let bytes) = answer, let bytes {
-          CardPhotoStore.savePhoto(bytes, for: holder)
-          return bytes
-        }
+
+    let canDigits =
+      accessNumber
+      ?? CardCredentialStore.displayedCardAccessNumber()
+      ?? (isCardAccessNumberEntryComplete ? cardAccessNumberEntry : nil)
+
+    guard let canDigits, let can = CardAccessNumber(digits: canDigits) else {
+      return .cardAccessNumberRequired
+    }
+
+    let result = await CardMaintenance.onTravelDocumentCard(cardAccessNumber: can) {
+      (operations: CardOperations) -> Data? in
+      guard let inventory = try? operations.readDataGroupInventory(),
+        inventory.carriesDisplayedPortrait,
+        let portrait = try? operations.readDisplayedPortrait(listedBy: inventory)
+      else {
+        return nil
       }
-      if offersNearField {
-        let can = registrationCardAccessNumber() ?? cardAccessNumberEntry
-        if !can.isEmpty {
-          let answer = await CardMaintenance.onSecureNearFieldCard(
-            cardAccessNumber: can,
-            message: CardPriming.holdMessage,
-            Self.extractPortraitBytes
-          )
-          if case .connected(let bytes) = answer, let bytes {
-            CardPhotoStore.savePhoto(bytes, for: holder)
-            return bytes
-          }
-        }
-      }
-    #endif
-    #if DEBUG
-      let sample = CardPhotoStore.syntheticSamplePhoto(name: holder)
-      CardPhotoStore.savePhoto(sample, for: holder)
-      return sample
-    #else
-      return nil
-    #endif
+      return portrait.bytes
+    }
+
+    switch result {
+    case .success(let bytes):
+      CardCredentialStore.save(cardAccessNumber: canDigits)
+      CardPhotoStore.savePhoto(bytes, for: holder)
+      return .success(bytes)
+
+    case .wrongCardAccessNumber:
+      CardCredentialStore.forgetCardAccessNumber()
+      return .wrongCardAccessNumber
+
+    case .cardUnavailable:
+      return .cardUnavailable
+
+    case .failed:
+      return .failed
+    }
   }
 
   @MainActor
-  internal func readCardPhoto() async -> Data? {
-    await readCardPhoto(for: nil)
+  internal func readCardPhoto() async -> CardPhotoReadResult {
+    await readCardPhoto(for: nil, accessNumber: nil)
+  }
+
+  @MainActor
+  internal func readCardPhoto(accessNumber: String?) async -> CardPhotoReadResult {
+    await readCardPhoto(for: nil, accessNumber: accessNumber)
   }
 }

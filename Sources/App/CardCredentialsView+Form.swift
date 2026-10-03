@@ -78,8 +78,8 @@ extension CardCredentialsView {
               ? {
                 forgetCurrentIdentity()
               } : nil,
-            onReadPhoto: {
-              await readCardPhoto(for: holder)
+            onReadPhoto: { can in
+              await readCardPhoto(for: holder, accessNumber: can)
             }
           )
         }

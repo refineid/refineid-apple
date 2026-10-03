@@ -66,8 +66,8 @@ internal struct CardIdentityViewTests {
       onForget: {
         didForget = true
       },
-      onReadPhoto: {
-        CardPhotoStore.syntheticSamplePhoto(name: longName)
+      onReadPhoto: { _ in
+        .success(CardPhotoStore.syntheticSamplePhoto(name: longName))
       }
     )
     _ = submenu.body
@@ -80,5 +80,29 @@ internal struct CardIdentityViewTests {
   internal func rappPairingViewRendersCardRemoteAccess() {
     let pairingView = RappPairingView()
     _ = pairingView.body
+  }
+
+  @Test
+  @MainActor
+  internal func cardIdentityPhotoViewRenders() {
+    let longName = "MÖTTÖNEN-KUMPULAINEN-AALTONEN VELI-MATTI-ANTERO-KALEVI"
+    let photoView = CardIdentityPhotoView(
+      holder: longName,
+      onReadPhoto: { _ in
+        .cardAccessNumberRequired
+      }
+    )
+    _ = photoView.body
+  }
+
+  @Test
+  @MainActor
+  internal func cardIdentityPhotoPlaceholderViewRenders() {
+    let longName = "MÖTTÖNEN-KUMPULAINEN-AALTONEN VELI-MATTI-ANTERO-KALEVI"
+    let idlePlaceholder = CardIdentityPhotoPlaceholderView(holder: longName, isReadingPhoto: false)
+    _ = idlePlaceholder.body
+    let loadingPlaceholder = CardIdentityPhotoPlaceholderView(
+      holder: longName, isReadingPhoto: true)
+    _ = loadingPlaceholder.body
   }
 }
