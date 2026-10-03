@@ -35,6 +35,9 @@ internal struct CardCredentialsView: View {
     internal static let cacheButtonCornerRadius: CGFloat = 8
     internal static let primaryActionButtonHeight: CGFloat = 50
     internal static let disabledActionOpacity = 0.3
+    internal static let connectedBadgeHorizontalPadding: CGFloat = 8
+    internal static let connectedBadgeVerticalPadding: CGFloat = 3
+    internal static let connectedBadgeOpacity = 0.15
   }
 
   // MARK: Static Properties
@@ -72,7 +75,6 @@ internal struct CardCredentialsView: View {
   @State internal var pin1Entry = ""
   @State internal var isScanning = false
   @State internal var scannerTorchEnabled = false
-  @State internal var showsForgetConfirmation = false
   @State internal var registrationReset = false
   @State internal var isRegistered = false
   @State internal var activationScheme: ActivationScheme?
@@ -93,6 +95,12 @@ internal struct CardCredentialsView: View {
 
     /// Whether the document verification screen is pushed.
     @State internal var showsDocumentVerify = false
+
+    /// Whether the identity submenu is pushed.
+    @State internal var showsIdentitySubmenu = false
+
+    /// The holder selected from reader cards for identity submenu.
+    @State internal var selectedReaderHolder: String?
 
     /// Pairing model that drives inline pairing on both iPad and iPhone.
     @StateObject internal var pairingModel = RappPairingModel()
@@ -192,6 +200,17 @@ internal struct CardCredentialsView: View {
     #endif
     guard isRegistered else { return nil }
     return PrimeStore.primedHolderNames().first
+  }
+
+  /// The identifier (SATU / PEUIN) of the complete identity, if present.
+  internal var identityIdentifier: String? {
+    #if os(iOS)
+      if isDemonstration {
+        return nil
+      }
+    #endif
+    guard isRegistered else { return nil }
+    return PrimeStore.primedIdentifiers().first
   }
 
   /// Whether there is a complete, displayable identity.

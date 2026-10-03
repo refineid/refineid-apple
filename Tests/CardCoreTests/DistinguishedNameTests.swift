@@ -149,7 +149,7 @@ internal struct DistinguishedNameTests {
   }
 
   @Test
-  internal func theHolderLineJoinsTheRecasedNameAndTheIdentifier() {
+  internal func theHolderLineShowsTheNameWithoutTheIdentifier() throws {
     let givenOid: [UInt8] = [0x06, 0x03, 0x55, 0x04, 0x2A]
     let serialOid: [UInt8] = [0x06, 0x03, 0x55, 0x04, 0x05]
     let body =
@@ -165,8 +165,46 @@ internal struct DistinguishedNameTests {
     let name = Data(Self.element(0x30, body))
 
     #expect(
-      DistinguishedName.holderLine(inName: name) == "Maria-Elisabeth Säätilä 000000A"
+      DistinguishedName.holderLine(inName: name) == "SÄÄTILÄ MARIA-ELISABETH"
     )
+
+    let citizen = Self.citizenName(common: "KOISTINEN PETRI 12345678A")
+    #expect(
+      DistinguishedName.holderLine(inName: citizen) == "KOISTINEN PETRI"
+    )
+
+    let compound = Self.citizenName(common: "MÖTTÖNEN MATTI-ÄNKYRÄ 87654321B")
+    #expect(
+      DistinguishedName.holderLine(inName: compound) == "MÖTTÖNEN MATTI-ÄNKYRÄ"
+    )
+
+    #expect(
+      DistinguishedName.identifier(inName: citizen) == nil
+    )
+    let certWithCommon = try MockCardCertificate.makeCertificate(
+      commonName: "KOISTINEN PETRI 12345678A"
+    )
+    #expect(
+      DistinguishedName.identifier(fromCertificate: certWithCommon) == "12345678A"
+    )
+  }
+
+  @Test
+  internal func maximumFiftyFourCharacterNameFromSixtyFourCharacterCommonName() {
+    let maxPersonNameLength = 54
+    let satuLength = 9
+    let maxCommonNameLength = 64
+
+    let person = "MÖTTÖNEN-KUMPULAINEN-AALTONEN VELI-MATTI-ANTERO-KALEVI"
+    #expect(person.count == maxPersonNameLength)
+    let satu = "12345678A"
+    #expect(satu.count == satuLength)
+    let common = "\(person) \(satu)"
+    #expect(common.count == maxCommonNameLength)
+
+    let citizen = Self.citizenName(common: common)
+    #expect(DistinguishedName.commonName(inName: citizen) == common)
+    #expect(DistinguishedName.holderLine(inName: citizen) == person)
   }
 
   @Test

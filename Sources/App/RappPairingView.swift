@@ -12,263 +12,189 @@ import SwiftUI
 #endif
 
 internal struct RappPairingView: View {
-  private enum Layout {
-    static let sheetMinimumWidth: CGFloat = 440
-    static let sheetMinimumHeight: CGFloat = 380
-    static let codeCornerRadius: CGFloat = 12
-    static let codeSpacing: CGFloat = 16
-    static let maxContentWidth: CGFloat = 400
-    static let containerSpacing: CGFloat = 24
-    static let headerSpacing: CGFloat = 8
-    static let topPadding: CGFloat = 32
-    static let inputFontSize: CGFloat = 28
-    static let displayFontSize: CGFloat = 38
-    static let trackingSpacing: CGFloat = 3
-    static let codeHorizontalPadding: CGFloat = 24
-    static let codeVerticalPadding: CGFloat = 18
-    static let strokeOpacity: Double = 0.3
-    static let strokeLineWidth: CGFloat = 1.5
-    static let connectingSpacing: CGFloat = 12
-    static let resetDelaySeconds: UInt64 = 2_000_000_000
+  internal enum Layout {
+    internal static let iconSize: CGFloat = 22
+    internal static let iconWidth: CGFloat = 28
+    internal static let codeFontSize: CGFloat = 34
+    internal static let codeTracking: CGFloat = 2
+    internal static let cardSpacing: CGFloat = 14
+    internal static let statusIconSize: CGFloat = 40
+    internal static let contentSpacing: CGFloat = 12
+    internal static let textLineSpacing: CGFloat = 2
+    internal static let codeTopPadding: CGFloat = 4
+    internal static let buttonVerticalPadding: CGFloat = 4
+    internal static let verticalCardPadding: CGFloat = 8
+    internal static let statusVerticalPadding: CGFloat = 16
+    internal static let badgeHorizontalPadding: CGFloat = 8
+    internal static let badgeVerticalPadding: CGFloat = 4
+    internal static let badgeOpacity = 0.15
   }
 
   @Environment(\.dismiss)
   private var dismiss
-  @StateObject private var model = RappPairingModel()
-  @State private var enteredCode = ""
-  @State private var copied = false
 
-  /// Whether this device can only borrow a card, never serve one.
-  ///
-  /// The stream listener is the phone. iPad (no near field) and Mac
-  /// therefore always offer; an iPhone with near field always accepts.
-  private var borrowsOnly: Bool {
-    #if os(iOS)
-      return !SupportedCardTransports.offersNearField
-    #else
-      return true
+  @StateObject private var model = RappPairingModel()
+  @State private var remoteAccessEnabled = RemoteAccessGate.isEnabled
+  @State private var showingLocalNetworkExplainer = false
+  @State private var showingNotificationsExplainer = false
+  @State private var showingLocalNetworkDenied = false
+
+  #if REFINEID_LOCAL_CARD && os(iOS)
+    @ObservedObject private var phoneRelay = PhonePersistentTokenRelay.shared
+  #endif
+
+  internal var pairingModel: RappPairingModel {
+    model
+  }
+
+  internal var isRemoteAccessEnabled: Bool {
+    remoteAccessEnabled
+  }
+
+  internal var remoteAccessBinding: Binding<Bool> {
+    Binding(
+      get: { remoteAccessEnabled },
+      set: { handleToggleChange($0) }
+    )
+  }
+
+  internal var isActivelyConnected: Bool {
+    #if DEBUG
+      if ProcessInfo.processInfo.arguments.contains("--mock-remote-connected") {
+        return true
+      }
     #endif
+    #if os(iOS) && REFINEID_LOCAL_CARD
+      if SupportedCardTransports.offersNearField {
+        return phoneRelay.isPeerConnectedOrOnline
+      }
+    #endif
+    return false
   }
 
   internal var body: some View {
-    NavigationStack {
-      ZStack {
-        codeBackground.ignoresSafeArea()
-        if borrowsOnly {
-          borrowedCardCode
-        } else {
-          servingCardCodeEntry
-        }
+    Form {
+      switchSection
+      if remoteAccessEnabled {
+        pairingPhaseSection
       }
-      .navigationTitle(String(localized: "Remote Access"))
-      #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-      #endif
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button(String(localized: "Cancel")) {
-            dismiss()
-          }
-        }
-      }
+      pairedDevicesSection
     }
+    .navigationTitle(String(localized: "Remote Access"))
+    #if os(iOS)
+      .navigationBarTitleDisplayMode(.inline)
+    #endif
     .onAppear {
       model.refresh()
-      if borrowsOnly {
+      remoteAccessEnabled = RemoteAccessGate.isEnabled
+      if remoteAccessEnabled, case .idle = model.phase {
         model.createOffer()
-      } else {
-        #if os(iOS)
-          model.startCodeEntry()
-        #endif
       }
     }
     .onReceive(
       NotificationCenter.default.publisher(
-        for: RappPairingModel.pairingsDidChangeNotification)
+        for: RappPairingModel.pairingsDidChangeNotification
+      )
     ) { _ in
       model.refresh()
     }
-    .onReceive(model.$phase) { phase in
-      if case .paired = phase {
-        dismiss()
+    .alert(
+      String(localized: "Remote Card Use"),
+      isPresented: $showingLocalNetworkExplainer
+    ) {
+      Button(String(localized: "OK")) {
+        continueAfterLocalNetworkExplainer()
       }
+    } message: {
+      Text(String(localized: "Network access is required."))
     }
-    .onDisappear {
-      model.cancel()
-    }
-    #if os(macOS)
-      .frame(minWidth: Layout.sheetMinimumWidth, minHeight: Layout.sheetMinimumHeight)
-    #endif
-  }
-
-  /// The surface the view is drawn on.
-  private var codeBackground: Color {
-    #if os(iOS)
-      Color(uiColor: .systemGroupedBackground)
-    #else
-      Color(nsColor: .windowBackgroundColor)
-    #endif
-  }
-
-  /// The code entry UI for the card holder.
-  @ViewBuilder private var servingCardCodeEntry: some View {
-    VStack(spacing: Layout.containerSpacing) {
-      codeEntryHeader
-      codeEntryForm
-      Spacer()
-    }
-    .padding(.top, Layout.topPadding)
-  }
-
-  private var codeEntryHeader: some View {
-    VStack(spacing: Layout.headerSpacing) {
-      Text(String(localized: "Enter Pairing Code"))
-        .font(.title2.bold())
-    }
-    .padding(.horizontal)
-  }
-
-  private var codeEntryForm: some View {
-    VStack(spacing: Layout.codeSpacing) {
-      codeTextField
-      if case .connecting = model.phase {
-        ProgressView()
-          .controlSize(.regular)
+    .alert(
+      String(localized: "Allow Notifications"),
+      isPresented: $showingNotificationsExplainer
+    ) {
+      Button(String(localized: "OK")) {
+        continueAfterNotificationsExplainer()
       }
-      if case .failed(let error) = model.phase {
-        Text(error)
-          .font(.footnote)
-          .foregroundStyle(.red)
-          .multilineTextAlignment(.center)
-      }
-    }
-    .frame(maxWidth: Layout.maxContentWidth)
-    .padding(.horizontal)
-  }
-
-  private var codeTextField: some View {
-    TextField("ABC1", text: $enteredCode)
-      .font(.system(size: Layout.inputFontSize, weight: .semibold, design: .monospaced))
-      .multilineTextAlignment(.center)
-      .textCase(.uppercase)
-      .autocorrectionDisabled(true)
-      #if os(iOS)
-        .textInputAutocapitalization(.characters)
-        .keyboardType(.asciiCapable)
-      #endif
-      .padding()
-      .background(
-        RoundedRectangle(cornerRadius: Layout.codeCornerRadius)
-          #if os(iOS)
-            .fill(Color(uiColor: .secondarySystemGroupedBackground))
-          #else
-            .fill(Color(nsColor: .controlBackgroundColor))
-          #endif
+    } message: {
+      Text(
+        String(
+          localized:
+            "Get notified when a nearby device needs this iPhone; without it, Remote Access works only while open."
+        )
       )
-      .accessibilityIdentifier("pairingCodeEntry")
-      .onValueChange(of: enteredCode) { newValue in
-        let normalized = RappPairingCode.normalize(newValue)
-        if enteredCode != normalized {
-          enteredCode = normalized
-        }
-        if RappPairingCode.isValid(normalized) {
-          model.acceptPairingCode(normalized)
-        } else if model.phase != .codeEntry {
-          model.startCodeEntry()
-        }
-      }
-  }
-
-  /// The whole screen a borrowing device shows: the code, centred, as
-  /// large and clear as possible.
-  @ViewBuilder private var borrowedCardCode: some View {
-    VStack(spacing: Layout.containerSpacing) {
-      borrowedCodeHeader
-      borrowedCodeBody
-      Spacer()
     }
-    .padding(.top, Layout.topPadding)
-  }
-
-  private var borrowedCodeHeader: some View {
-    VStack(spacing: Layout.headerSpacing) {
-      Text(String(localized: "Pairing Code"))
-        .font(.title2.bold())
+    .alert(
+      String(localized: "Local Network Access Is Off"),
+      isPresented: $showingLocalNetworkDenied
+    ) {
+      Button(String(localized: "Open Settings")) {
+        openSystemSettings()
+      }
+      Button(String(localized: "Cancel"), role: .cancel) {
+        remoteAccessEnabled = false
+      }
+    } message: {
+      Text(
+        String(
+          localized: "Remote Access needs it to let other devices find this iPhone."
+        )
+      )
     }
-    .padding(.horizontal)
   }
 
-  @ViewBuilder private var borrowedCodeBody: some View {
-    if case .offer(let code) = model.phase {
-      VStack(spacing: Layout.codeSpacing) {
-        codeCard(code)
-        copyCodeButton(code)
-      }
-      #if DEBUG
-        .onAppear { print("[pairing view] displaying code: \(code)") }
-      #endif
-    } else if case .connecting = model.phase {
-      VStack(spacing: Layout.connectingSpacing) {
-        ProgressView()
-          .controlSize(.large)
-        Text(String(localized: "Connecting..."))
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-      }
+  internal func handleToggleChange(_ enabled: Bool) {
+    if enabled {
+      showingLocalNetworkExplainer = true
     } else {
-      ProgressView()
+      remoteAccessEnabled = false
+      #if os(iOS)
+        RemoteAccessServing.setEnabled(false)
+      #endif
+      model.revokeAll()
+      model.resetAttempt()
     }
   }
 
-  private func codeCard(_ code: String) -> some View {
-    Text(code)
-      .font(.system(size: Layout.displayFontSize, weight: .bold, design: .monospaced))
-      .tracking(Layout.trackingSpacing)
-      .padding(.horizontal, Layout.codeHorizontalPadding)
-      .padding(.vertical, Layout.codeVerticalPadding)
-      .background(
-        RoundedRectangle(cornerRadius: Layout.codeCornerRadius)
-          #if os(iOS)
-            .fill(Color(uiColor: .secondarySystemGroupedBackground))
-          #else
-            .fill(Color(nsColor: .controlBackgroundColor))
-          #endif
-          .overlay(
-            RoundedRectangle(cornerRadius: Layout.codeCornerRadius)
-              .stroke(
-                Color.accentColor.opacity(Layout.strokeOpacity),
-                lineWidth: Layout.strokeLineWidth
-              )
-          )
-      )
-      .accessibilityIdentifier("pairingCode")
-      .accessibilityLabel(code)
-  }
-
-  private func copyCodeButton(_ code: String) -> some View {
-    Button {
-      copyToClipboard(RappPairingCode.normalize(code))
-    } label: {
-      Label(
-        copied ? String(localized: "Code copied") : String(localized: "Copy Code"),
-        systemImage: copied ? "checkmark" : "doc.on.doc"
-      )
-    }
-    .buttonStyle(.bordered)
-    .controlSize(.regular)
-  }
-
-  private func copyToClipboard(_ text: String) {
+  private func continueAfterLocalNetworkExplainer() {
     #if os(iOS)
-      UIPasteboard.general.string = text
-    #elseif os(macOS)
-      NSPasteboard.general.clearContents()
-      NSPasteboard.general.setString(text, forType: .string)
+      RemoteAccessServing.setEnabled(true)
+      remoteAccessEnabled = true
+      Task { @MainActor in
+        let access = await LocalNetworkAccessDetector.currentAccess()
+        switch access {
+        case .allowed:
+          showingNotificationsExplainer = true
+          if case .idle = model.phase {
+            model.createOffer()
+          }
+        case .denied:
+          remoteAccessEnabled = false
+          RemoteAccessServing.setEnabled(false)
+          showingLocalNetworkDenied = true
+        }
+      }
+    #else
+      remoteAccessEnabled = true
+      if case .idle = model.phase {
+        model.createOffer()
+      }
     #endif
-    copied = true
-    Task {
-      try? await Task.sleep(nanoseconds: Layout.resetDelaySeconds)
-      copied = false
+  }
+
+  private func continueAfterNotificationsExplainer() {
+    #if os(iOS)
+      RappAuthorizationInbox.shared.ensureAuthorization()
+    #endif
+    if case .idle = model.phase {
+      model.createOffer()
     }
+  }
+
+  private func openSystemSettings() {
+    #if os(iOS)
+      if let url = URL(string: UIApplication.openSettingsURLString) {
+        UIApplication.shared.open(url)
+      }
+    #endif
   }
 }

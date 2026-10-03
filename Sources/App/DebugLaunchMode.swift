@@ -15,6 +15,9 @@
     /// Read the factory-activation signals over NFC without changing the card.
     case activationProbe = "--activation-probe"
 
+    /// Runs the BLE Peripheral RAPP research spike.
+    case bleSpike = "--ble-spike"
+
     /// Browse for a named service type and report what arrived.
     case browseProbe = "--browse-probe"
 
@@ -140,7 +143,8 @@
     /// window would have existed.
     internal var needsScene: Bool {
       switch self {
-      case .diagnostics, .disableOnDemandPin, .enableOnDemandPin, .forgetCan, .forgetPin1,
+      case .bleSpike, .diagnostics, .disableOnDemandPin, .enableOnDemandPin, .forgetCan,
+        .forgetPin1,
         .localNetworkProbe, .paceCheck, .resetCardState, .selectPair, .setCan, .setPin1,
         .setPin2, .signDocument, .signProbe, .statusOnDemandPin, .tokenPublishProbe, .trace:
         false
@@ -148,9 +152,7 @@
       case .activationProbe, .browseProbe, .ctkSignProbe, .listenProbe, .managementProbe,
         .offerRemoteReader, .openSafari, .pairWithOffer, .prime, .remoteIdentityProbe,
         .remoteSignProbe:
-        // MultipeerConnectivity browses only for an app that has a window.
-        // A probe that runs before one exists finds the peer's name in the
-        // service records and is never handed the peer itself.
+        // CoreNFC, MultipeerConnectivity, and CTK system sheets need a live window / scene.
         true
       }
     }
@@ -161,7 +163,8 @@
     /// from the command line at each launch and never committed anywhere.
     internal var takesValue: Bool {
       switch self {
-      case .activationProbe, .browseProbe, .ctkSignProbe, .diagnostics, .disableOnDemandPin,
+      case .activationProbe, .bleSpike, .browseProbe, .ctkSignProbe, .diagnostics,
+        .disableOnDemandPin,
         .enableOnDemandPin, .forgetCan, .forgetPin1, .listenProbe, .offerRemoteReader,
         .openSafari, .paceCheck, .prime, .remoteIdentityProbe, .remoteSignProbe,
         .resetCardState, .statusOnDemandPin, .tokenPublishProbe, .trace:

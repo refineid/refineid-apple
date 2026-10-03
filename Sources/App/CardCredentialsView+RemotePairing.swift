@@ -31,7 +31,7 @@ import SwiftUI
       .body.monospacedDigit().weight(.semibold)
     }
 
-    private var isActivelyConnected: Bool {
+    internal var isActivelyConnected: Bool {
       #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--mock-remote-connected") {
           return true
@@ -123,8 +123,10 @@ import SwiftUI
           .overlay {
             TextField("", text: pairingCodeBinding)
               .textFieldStyle(.plain)
-              .keyboardType(.numberPad)
-              .textInputAutocapitalization(.never)
+              #if os(iOS)
+                .keyboardType(.asciiCapable)
+                .textInputAutocapitalization(.characters)
+              #endif
               .autocorrectionDisabled()
               .focused($isPairingFieldFocused)
               .foregroundStyle(.clear)
@@ -148,16 +150,26 @@ import SwiftUI
       HStack(spacing: 0) {
         pairingGroupLabel(
           digits: String(pairingCodeDigits.prefix(RappPairingCode.groupSize)),
-          prompt: "123",
+          prompt: "7K",
           showsCaret: isPairingFieldFocused
             && pairingCodeDigits.count < RappPairingCode.groupSize
         )
         Text(verbatim: " ")
         pairingGroupLabel(
-          digits: String(pairingCodeDigits.dropFirst(RappPairingCode.groupSize)),
-          prompt: "456",
+          digits: String(
+            pairingCodeDigits.dropFirst(RappPairingCode.groupSize).prefix(RappPairingCode.groupSize)
+          ),
+          prompt: "X4",
           showsCaret: isPairingFieldFocused
             && pairingCodeDigits.count >= RappPairingCode.groupSize
+            && pairingCodeDigits.count < RappPairingCode.doubleGroupSize
+        )
+        Text(verbatim: " ")
+        pairingGroupLabel(
+          digits: String(pairingCodeDigits.dropFirst(RappPairingCode.doubleGroupSize)),
+          prompt: "M9",
+          showsCaret: isPairingFieldFocused
+            && pairingCodeDigits.count >= RappPairingCode.doubleGroupSize
             && pairingCodeDigits.count < RappPairingCode.codeLength
         )
       }

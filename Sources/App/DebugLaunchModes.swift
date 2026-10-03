@@ -82,6 +82,19 @@
     /// named one is waiting for the scene instead.
     internal static func runBeforeScene() {
       guard let mode = Self.selected(), !mode.needsScene else { return }
+      if mode == .bleSpike {
+        #if canImport(CoreBluetooth)
+          Task { @MainActor in
+            let report = await DebugBleSpike.run()
+            DebugConsole.emit(report.lines)
+            DebugConsole.finish(succeeded: report.succeeded)
+          }
+        #else
+          DebugConsole.emit("ble-spike: no CoreBluetooth")
+          DebugConsole.finish(succeeded: false)
+        #endif
+        return
+      }
       let report = Self.report(for: mode)
       DebugConsole.emit(report.lines)
       DebugConsole.finish(succeeded: report.succeeded)
@@ -96,7 +109,7 @@
     /// Runs one mode that needs no window.
     internal static func report(for mode: DebugLaunchMode) -> DebugModeReport {
       switch mode {
-      case .activationProbe, .browseProbe, .ctkSignProbe, .listenProbe, .managementProbe,
+      case .activationProbe, .bleSpike, .browseProbe, .ctkSignProbe, .listenProbe, .managementProbe,
         .offerRemoteReader, .openSafari, .pairWithOffer, .prime, .remoteSignProbe:
         DebugModeReport(
           lines: [mode.rawValue + ": needs a live scene; it is run from the window instead"],

@@ -19,7 +19,7 @@ import Testing
   internal struct RappPairingCodeRequiredTests {
     @Test(
       "A requester with a malformed code is refused",
-      arguments: ["", "1", "12345", "12345a", "      ", "abcdef"]
+      arguments: ["", "1", "12345", "7KU4M9", "      ", "7K#4M9"]
     )
     internal func requesterRefusesMalformedCode(_ code: String) throws {
       let options = RappPairingCoordinator.RequesterOptions(

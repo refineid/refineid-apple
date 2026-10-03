@@ -6,60 +6,87 @@
   import RappEngine
   import Security
 
-  /// Generates, formats, and validates 4-character alphanumeric pairing codes
-  /// for simple, secure out-of-band peer pairing without QR codes.
+  /// Generates, formats, and validates 6-character Crockford Base32 pairing codes
+  /// for simple, secure out-of-band peer pairing without QR codes per RAPP v26.10.1 §3.1.
   public enum RappPairingCode {
     // MARK: Static Properties
 
-    /// The standard character length of a numeric pairing code.
+    /// The standard character length of a Crockford Base32 pairing code.
     public static let codeLength = 6
 
-    /// The number of digits in one formatted group.
-    public static let groupSize = 3
+    /// The number of characters in one formatted group.
+    public static let groupSize = 2
 
+    /// Crockford Base32 alphabet (32 symbols, excluding I, L, O, U).
+    public static let alphabet: [Character] = Array("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
+
+    private static let alphabetSet = Set(alphabet)
     private static let sha256ByteCount = 32
-    private static let defaultOfferIdByteCount = 16
     private static let defaultPairingSecretByteCount = 32
+    /// The double group size boundary for 4-character formatting.
+    public static let doubleGroupSize = 4
     @usableFromInline internal static let defaultLifetimeMilliseconds: UInt64 = 180_000
     @usableFromInline internal static let emptyCborMap = Data([0b1010_0000])
 
-    /// Decimal digits alphabet [0-9].
-    private static let alphabet: [Character] = Array("0123456789")
-
     // MARK: Static Functions
 
-    /// Generates a fresh cryptographically secure random 6-digit numeric pairing code.
+    /// Generates a fresh cryptographically secure random 6-character Crockford Base32 pairing code.
     public static func generate() -> String {
       var bytes = [UInt8](repeating: 0, count: codeLength)
       _ = SecRandomCopyBytes(kSecRandomDefault, codeLength, &bytes)
       return String(bytes.map { alphabet[Int($0) % alphabet.count] })
     }
 
-    /// Normalizes raw input: extracts only digits and truncates to code length.
+    /// Applies the Crockford Base32 canonicalization pipeline per RAPP v26.10.1 §3.1.
+    ///
+    /// 1. Unicode NFKC normalization
+    /// 2. ASCII lowercase to uppercase
+    /// 3. Strip whitespace and hyphens
+    /// 4. Apply Crockford decode aliases (I, L -> 1; O -> 0; reject U)
+    /// 5. Filter valid Crockford characters up to codeLength
     public static func normalize(_ input: String) -> String {
-      let filtered = input.filter { char in
-        ("0"..."9").contains(char)
+      let nfkc = input.precomposedStringWithCompatibilityMapping
+      let filtered = nfkc.uppercased().filter { !$0.isWhitespace && $0 != "-" }
+      var result = ""
+      result.reserveCapacity(codeLength)
+      for char in filtered {
+        switch char {
+        case "I", "L":
+          result.append("1")
+        case "O":
+          result.append("0")
+        case "U":
+          return ""
+        case _ where alphabetSet.contains(char):
+          result.append(char)
+        default:
+          return ""
+        }
       }
-      return String(filtered.prefix(codeLength))
+      return String(result.prefix(codeLength))
     }
 
-    /// Formats a numeric pairing code with a space after 3 digits (e.g., "123 456").
+    /// Formats a pairing code into two-character clusters: "XX XX XX" (e.g., "7K X4 M9").
     public static func formatted(_ input: String) -> String {
-      let digits = normalize(input)
-      if digits.count >= groupSize {
-        let firstPart = digits.prefix(groupSize)
-        let secondPart = digits.dropFirst(groupSize)
-        return secondPart.isEmpty ? "\(firstPart) " : "\(firstPart) \(secondPart)"
+      let normalized = normalize(input)
+      guard normalized.count > groupSize else {
+        return normalized
       }
-      return digits
+      guard normalized.count > doubleGroupSize else {
+        let firstGroup = normalized.prefix(groupSize)
+        let secondGroup = normalized.dropFirst(groupSize)
+        return "\(firstGroup) \(secondGroup)"
+      }
+      let firstGroup = normalized.prefix(groupSize)
+      let secondGroup = normalized.dropFirst(groupSize).prefix(groupSize)
+      let thirdGroup = normalized.dropFirst(doubleGroupSize)
+      return "\(firstGroup) \(secondGroup) \(thirdGroup)"
     }
 
-    /// Checks if a string is a valid complete 6-digit pairing code.
+    /// Checks if a string is a valid complete 6-character Crockford Base32 pairing code.
     public static func isValid(_ code: String) -> Bool {
-      let filtered = code.filter { char in
-        ("0"..."9").contains(char)
-      }
-      return filtered.count == codeLength
+      let normalized = normalize(code)
+      return normalized.count == codeLength && normalized.allSatisfy { alphabetSet.contains($0) }
     }
 
     /// Derives the placeholder pairing secret for the initial offer URI.

@@ -153,13 +153,19 @@
     }
 
     @ViewBuilder private var readySection: some View {
-      LabeledContent("Person") {
-        IdentityStateView(
-          availability: availability,
-          warnsUnavailableCard: activation.warnsUnavailableCard
-        )
+      let stateView = IdentityStateView(
+        availability: availability,
+        warnsUnavailableCard: activation.warnsUnavailableCard
+      )
+      if availability == .ready {
+        LabeledContent("Person") {
+          stateView
+        }
+        .accessibilityIdentifier("loginIdentityStatus")
+      } else {
+        stateView
+          .accessibilityIdentifier("loginIdentityStatus")
       }
-      .accessibilityIdentifier("loginIdentityStatus")
       if availability != .noCard || !signing.queued.isEmpty || signing.pending != nil {
         StatusDocumentSection(
           signing: signing,
