@@ -52,8 +52,9 @@ internal struct CardIdentityPhotoView: View {
               )))
         if photoData != nil {
           CardIdentityPhotoActionsView(holder: holder, photoData: photoData)
+        } else {
+          readPhotoButton
         }
-        readPhotoButton
       }
       .frame(maxWidth: .infinity)
       .listRowInsets(EdgeInsets())
