@@ -29,11 +29,7 @@ internal struct CardIdentityPhotoView: View {
   @State private var isReadingPhoto = false
   @State private var showingCanPrompt = false
   @State private var canInput = ""
-  @State private var canPromptMessage = String(
-    localized: "identity.canPromptMessage",
-    defaultValue:
-      "Enter the 6-digit Card Access Number (CAN) printed on the front of your card to read the photo."
-  )
+  @State private var canPromptMessage: String?
   @State private var showingErrorAlert = false
   @State private var errorMessage = ""
 
@@ -83,16 +79,19 @@ internal struct CardIdentityPhotoView: View {
         } else {
           errorMessage = String(
             localized: "identity.invalidCanLength",
-            defaultValue: "The Card Access Number must be exactly 6 digits."
+            defaultValue: "CAN must be 6 digits."
           )
           showingErrorAlert = true
         }
       }
       Button(String(localized: "Cancel", defaultValue: "Cancel"), role: .cancel) {
         canInput = ""
+        canPromptMessage = nil
       }
     } message: {
-      Text(canPromptMessage)
+      if let canPromptMessage {
+        Text(canPromptMessage)
+      }
     }
     .alert(
       String(localized: "identity.errorTitle", defaultValue: "Card Photo"),
@@ -231,21 +230,10 @@ internal struct CardIdentityPhotoView: View {
 
   @MainActor
   private func promptForCan(rejected: Bool) {
-    if rejected {
-      canPromptMessage = String(
-        localized: "identity.wrongCanPromptMessage",
-        defaultValue: """
-          The Card Access Number was rejected by the card. \
-          Please check the 6-digit CAN on the front of the card and try again.
-          """
-      )
-    } else {
-      canPromptMessage = String(
-        localized: "identity.canPromptMessage",
-        defaultValue:
-          "Enter the 6-digit Card Access Number (CAN) printed on the front of your card to read the photo."
-      )
-    }
+    canPromptMessage =
+      rejected
+      ? String(localized: "identity.wrongCan", defaultValue: "Wrong CAN")
+      : nil
     canInput = ""
     showingCanPrompt = true
   }
