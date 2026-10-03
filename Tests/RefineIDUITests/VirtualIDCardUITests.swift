@@ -56,6 +56,25 @@
         "dismissing PIN management lost the registered identity origin")
     }
 
+    internal func testRegisteredNFCCardOpensIdentitySubmenuAndDisplaysPhotoOptions() {
+      let app = UITestApp.launchVirtualCard()
+      applyScenario("registered-nfc", in: app)
+
+      let identityButton = app.buttons[UITestIdentifiers.identitySubmenuButton]
+      XCTAssertTrue(identityButton.waitForExistence(timeout: UITestApp.appearTimeout))
+      identityButton.tap()
+
+      let readPhotoButton = app.buttons[UITestIdentifiers.readPhotoFromCardButton]
+      XCTAssertTrue(readPhotoButton.waitForExistence(timeout: UITestApp.appearTimeout))
+      readPhotoButton.tap()
+
+      let photoView = app.images[UITestIdentifiers.cardPhotoView]
+      XCTAssertTrue(photoView.waitForExistence(timeout: UITestApp.appearTimeout))
+
+      let forgetButton = app.buttons[UITestIdentifiers.forgetCardIdentityButton]
+      XCTAssertTrue(forgetButton.waitForExistence(timeout: UITestApp.appearTimeout))
+    }
+
     internal func testScenarioFactoryFreshReaderRoutesThroughGUI() {
       assertScenario("factory-fresh-reader", destination: .activation)
     }

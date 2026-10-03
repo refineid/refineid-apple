@@ -58,6 +58,7 @@
     /// arguments, so no earlier run can leak an on state into this one.
     internal func testRemoteAccessDefaultsOff() {
       let app = UITestApp.launchVirtualCard(scenario: "registered-nfc")
+      openRemoteAccessIfNeeded(in: app)
       let toggle = element("remoteAccessToggle", in: app)
       XCTAssertTrue(
         toggle.waitForExistence(timeout: Self.appearTimeout),
@@ -79,9 +80,9 @@
       let toggle = element("remoteAccessToggle", in: app)
       XCTAssertTrue(isOn(toggle), "the toggle did not stay on after the explanations")
       XCTAssertTrue(
-        element("pairingCodeEntry", in: app)
+        element("pairingCode", in: app)
           .waitForExistence(timeout: Self.appearTimeout),
-        "the pairing-code boxes did not appear for the unpaired holder")
+        "the pairing code did not appear for the unpaired holder")
     }
 
     /// Turning the toggle off wipes every remote trace at once.
@@ -98,8 +99,8 @@
       let toggle = element("remoteAccessToggle", in: app)
       XCTAssertTrue(isOff(toggle), "the toggle did not turn back off")
       XCTAssertFalse(
-        element("pairingCodeEntry", in: app).exists,
-        "the pairing-code boxes survived turning remote access off")
+        element("pairingCode", in: app).exists,
+        "the pairing code survived turning remote access off")
     }
 
     /// Denying local-network access keeps Remote Access turned off.
@@ -142,9 +143,9 @@
       let toggle = element("remoteAccessToggle", in: app)
       XCTAssertTrue(isOn(toggle), "the toggle did not stay on after allowing access")
       XCTAssertTrue(
-        element("pairingCodeEntry", in: app)
+        element("pairingCode", in: app)
           .waitForExistence(timeout: Self.appearTimeout),
-        "the pairing-code boxes did not appear after allowing access")
+        "the pairing code did not appear after allowing access")
     }
 
     /// Skips permission tests where no system prompt can appear.
@@ -164,8 +165,21 @@
       }
     }
 
+    /// Opens the Remote Access screen if currently on the main screen.
+    private func openRemoteAccessIfNeeded(in app: XCUIApplication) {
+      let toggle = element("remoteAccessToggle", in: app)
+      if toggle.exists {
+        return
+      }
+      let row = element("RappPairingRow", in: app)
+      if row.waitForExistence(timeout: Self.appearTimeout) {
+        row.tap()
+      }
+    }
+
     /// Taps the switch control itself, not the spanning row.
     private func flipToggle(in app: XCUIApplication) {
+      openRemoteAccessIfNeeded(in: app)
       let toggle = element("remoteAccessToggle", in: app)
       XCTAssertTrue(
         toggle.waitForExistence(timeout: Self.appearTimeout),

@@ -8,11 +8,12 @@
   /// The same Person row NFC uses once an identity exists. A reader
   /// already named the holder, so CAN and PIN 1 do not appear here.
   internal struct CardReaderIdentitySection: View {
-    /// Spacing between the person label and the holder name.
-    private static let identityDetailsSpacing: CGFloat = 4
+    private static let minHolderScale: CGFloat = 0.85
+    private static let holderLineLimit: Int = 2
+    private static let rowSpacing: CGFloat = 4
 
     internal let holders: [String]
-    internal let onSelect: (String) -> Void
+    internal let onSelect: ((String) -> Void)?
 
     internal var body: some View {
       Section {
@@ -24,13 +25,27 @@
             holderRow(holder)
           }
         }
+      } header: {
+        Text(String(localized: "Identity"))
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .listRowInsets(EdgeInsets())
       }
+    }
+
+    internal init(holders: [String]) {
+      self.holders = holders
+      self.onSelect = nil
+    }
+
+    internal init(holders: [String], onSelect: @escaping (String) -> Void) {
+      self.holders = holders
+      self.onSelect = onSelect
     }
 
     @ViewBuilder
     private func holderRow(_ holder: String) -> some View {
       Button {
-        onSelect(holder)
+        onSelect?(holder)
       } label: {
         HStack {
           Image(systemName: "person")
@@ -39,13 +54,14 @@
             .frame(width: PersonRowLabel.iconWidth)
             .foregroundStyle(Color.accentColor)
             .accessibilityHidden(true)
-          Text(String(localized: "Identity"))
-          Spacer()
           Text(holder)
             .font(.body)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
+            .foregroundStyle(.primary)
+            .lineLimit(Self.holderLineLimit)
+            .minimumScaleFactor(Self.minHolderScale)
+            .multilineTextAlignment(.leading)
             .accessibilityIdentifier("readerCardHolder")
+          Spacer(minLength: Self.rowSpacing)
           Image(systemName: "chevron.forward")
             .font(.footnote.weight(.semibold))
             .foregroundStyle(.tertiary)
@@ -53,6 +69,7 @@
         }
       }
       .tint(.primary)
+      .accessibilityIdentifier("identitySubmenuButton")
     }
   }
 #endif

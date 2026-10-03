@@ -35,6 +35,16 @@ internal enum UITestIdentifiers {
   /// The destructive action, present only while card state exists.
   internal static let forgetCardIdentityButton = "forgetCardIdentityButton"
 
+  /// The button opening the identity submenu.
+  internal static let identitySubmenuButton = "identitySubmenuButton"
+
+  /// The button in the identity submenu to read the photo.
+  internal static let readPhotoFromCardButton = "readPhotoFromCardButton"
+
+  /// The photo container or placeholder in the identity submenu.
+  internal static let cardPhotoView = "cardPhotoView"
+  internal static let cardPhotoPlaceholder = "cardPhotoPlaceholder"
+
   /// The line saying the identity is set, present once registered.
   internal static let identityStatus = "identityStatus"
 

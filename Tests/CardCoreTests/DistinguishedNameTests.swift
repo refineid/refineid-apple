@@ -190,6 +190,24 @@ internal struct DistinguishedNameTests {
   }
 
   @Test
+  internal func maximumFiftyFourCharacterNameFromSixtyFourCharacterCommonName() {
+    let maxPersonNameLength = 54
+    let satuLength = 9
+    let maxCommonNameLength = 64
+
+    let person = "MÖTTÖNEN-KUMPULAINEN-AALTONEN VELI-MATTI-ANTERO-KALEVI"
+    #expect(person.count == maxPersonNameLength)
+    let satu = "12345678A"
+    #expect(satu.count == satuLength)
+    let common = "\(person) \(satu)"
+    #expect(common.count == maxCommonNameLength)
+
+    let citizen = Self.citizenName(common: common)
+    #expect(DistinguishedName.commonName(inName: citizen) == common)
+    #expect(DistinguishedName.holderLine(inName: citizen) == person)
+  }
+
+  @Test
   internal func somethingThatIsNotANameAnswersNothing() {
     #expect(DistinguishedName.commonName(inName: Data()) == nil)
     #expect(DistinguishedName.commonName(inName: Data([0x02, 0x01, 0x05])) == nil)

@@ -35,6 +35,9 @@ internal struct CardCredentialsView: View {
     internal static let cacheButtonCornerRadius: CGFloat = 8
     internal static let primaryActionButtonHeight: CGFloat = 50
     internal static let disabledActionOpacity = 0.3
+    internal static let connectedBadgeHorizontalPadding: CGFloat = 8
+    internal static let connectedBadgeVerticalPadding: CGFloat = 3
+    internal static let connectedBadgeOpacity = 0.15
   }
 
   // MARK: Static Properties
@@ -72,7 +75,6 @@ internal struct CardCredentialsView: View {
   @State internal var pin1Entry = ""
   @State internal var isScanning = false
   @State internal var scannerTorchEnabled = false
-  @State internal var showsForgetConfirmation = false
   @State internal var registrationReset = false
   @State internal var isRegistered = false
   @State internal var activationScheme: ActivationScheme?
@@ -80,8 +82,6 @@ internal struct CardCredentialsView: View {
   @State internal var flowState = CardSetupStateMachine.initialState
   @FocusState internal var isCardAccessNumberFieldFocused: Bool
   @FocusState internal var isPin1FieldFocused: Bool
-  @State internal var showsIdentitySubmenu = false
-  @State internal var selectedReaderHolder: String?
 
   #if REFINEID_LOCAL_CARD && os(iOS)
     /// The priming model lives here, above everything a hold hides.
@@ -95,6 +95,12 @@ internal struct CardCredentialsView: View {
 
     /// Whether the document verification screen is pushed.
     @State internal var showsDocumentVerify = false
+
+    /// Whether the identity submenu is pushed.
+    @State internal var showsIdentitySubmenu = false
+
+    /// The holder selected from reader cards for identity submenu.
+    @State internal var selectedReaderHolder: String?
 
     /// Pairing model that drives inline pairing on both iPad and iPhone.
     @StateObject internal var pairingModel = RappPairingModel()

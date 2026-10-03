@@ -89,9 +89,8 @@ extension CardCredentialsView {
           pin1Row
         }
         if identityHolder != nil || hasReaderIdentity {
+          remoteAccessRow
           cardManagementButton
-          remoteAccessToggleRow
-          remotePairingCodeRow
         }
         #if REFINEID_LOCAL_CARD
           if let failure = primingModel.failure {
@@ -135,6 +134,38 @@ extension CardCredentialsView {
         #endif
         syncRemoteAccessToggle()
       }
+    }
+
+    private var remoteAccessRow: some View {
+      NavigationLink {
+        RappPairingView()
+      } label: {
+        HStack {
+          Image(systemName: "antenna.radiowaves.left.and.right")
+            .font(.system(size: PersonRowLabel.iconPointSize))
+            .symbolRenderingMode(.monochrome)
+            .frame(width: PersonRowLabel.iconWidth)
+            .foregroundStyle(
+              isActivelyConnected
+                ? Color.green : (remoteAccessEnabled ? Color.accentColor : Color.secondary)
+            )
+            .accessibilityHidden(true)
+          Text(String(localized: "Remote Access"))
+            .foregroundStyle(.primary)
+          Spacer()
+          if isActivelyConnected {
+            Text(String(localized: "Connected"))
+              .font(.caption.weight(.semibold))
+              .foregroundStyle(.green)
+              .padding(.horizontal, Layout.connectedBadgeHorizontalPadding)
+              .padding(.vertical, Layout.connectedBadgeVerticalPadding)
+              .background(Color.green.opacity(Layout.connectedBadgeOpacity))
+              .clipShape(Capsule())
+          }
+        }
+      }
+      .tint(.primary)
+      .accessibilityIdentifier("RappPairingRow")
     }
 
     @ViewBuilder internal var readIdentityCardSection: some View {

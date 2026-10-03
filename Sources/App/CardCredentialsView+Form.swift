@@ -15,9 +15,12 @@ extension CardCredentialsView {
     } else if !offersNearField {
       remoteReaderSection
     } else if let identityHolder {
-      CardIdentitySection(holder: identityHolder) {
-        selectedReaderHolder = nil
-        showsIdentitySubmenu = true
+      CardIdentitySection(
+        holder: identityHolder
+      ) {
+        #if os(iOS)
+          showsIdentitySubmenu = true
+        #endif
       }
     } else {
       createIdentitySection
@@ -51,10 +54,6 @@ extension CardCredentialsView {
     #if os(iOS)
       .listSections(spacing: Self.sectionSpacing)
       .scrollDismissesKeyboard(.interactively)
-      .onTapGesture {
-        isCardAccessNumberFieldFocused = false
-        isPin1FieldFocused = false
-      }
       .navigationDestination(
         isPresented: Binding(
           get: { flowDestination.wrappedValue != nil },
@@ -71,15 +70,19 @@ extension CardCredentialsView {
         VerifyDocumentView()
       }
       .navigationDestination(isPresented: $showsIdentitySubmenu) {
-        CardIdentitySubmenuView(
-          holder: selectedReaderHolder ?? identityHolder ?? readerHolders.first ?? "",
-          identifier: selectedReaderHolder != nil ? nil : identityIdentifier,
-          onForget: (identityHolder != nil && selectedReaderHolder == nil)
-            ? {
-              showsIdentitySubmenu = false
-              showsForgetConfirmation = true
-            } : nil
-        )
+        if let holder = identityHolder ?? selectedReaderHolder {
+          CardIdentitySubmenuView(
+            holder: holder,
+            identifier: (holder == identityHolder) ? identityIdentifier : nil,
+            onForget: (holder == identityHolder)
+              ? {
+                forgetCurrentIdentity()
+              } : nil,
+            onReadPhoto: {
+              await readCardPhoto(for: holder)
+            }
+          )
+        }
       }
     #endif
   }
@@ -183,27 +186,29 @@ extension CardCredentialsView {
           scannerSheet
         }
       #endif
-      .alert(
-        "Forget identity?",
-        isPresented: $showsForgetConfirmation
-      ) {
-        Button("Forget", role: .destructive) {
-          #if os(iOS)
-            if isDemonstration {
-              demoMode.forgetIdentity()
-              clearEntries()
-              return
-            }
-          #endif
-          Task {
-            await model.forgetEverything()
-            registrationReset.toggle()
-            isRegistered = false
-            synchronizeIdentityState()
-            clearEntries()
-          }
+  }
+
+  internal func forgetCurrentIdentity() {
+    #if os(iOS)
+      if isDemonstration {
+        if let holder = identityHolder {
+          CardPhotoStore.deletePhoto(for: holder)
         }
+        demoMode.forgetIdentity()
+        clearEntries()
+        return
       }
+    #endif
+    Task {
+      if let holder = identityHolder {
+        CardPhotoStore.deletePhoto(for: holder)
+      }
+      await model.forgetEverything()
+      registrationReset.toggle()
+      isRegistered = false
+      synchronizeIdentityState()
+      clearEntries()
+    }
   }
 
   internal func navigationRow(

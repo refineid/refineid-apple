@@ -31,7 +31,7 @@ import SwiftUI
       .body.monospacedDigit().weight(.semibold)
     }
 
-    private var isActivelyConnected: Bool {
+    internal var isActivelyConnected: Bool {
       #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--mock-remote-connected") {
           return true
