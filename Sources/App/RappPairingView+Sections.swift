@@ -34,19 +34,25 @@ extension RappPairingView {
   }
 
   @ViewBuilder internal var pairingPhaseSection: some View {
-    Section {
-      switch pairingModel.phase {
-      case .offer(let code):
+    switch pairingModel.phase {
+    case .offer(let code):
+      Section {
         offeringCodeCard(code: code)
-      case .connecting:
-        connectingCard
-      case .paired(let peer):
-        pairedCard(peer: peer)
-      case .failed(let reason):
-        failedCard(reason: reason)
-      case .idle, .codeEntry:
-        idlePairCard
       }
+    case .connecting:
+      Section {
+        connectingCard
+      }
+    case .paired(let peer):
+      Section {
+        pairedCard(peer: peer)
+      }
+    case .failed(let reason):
+      Section {
+        failedCard(reason: reason)
+      }
+    case .idle, .codeEntry:
+      EmptyView()
     }
   }
 
@@ -60,17 +66,6 @@ extension RappPairingView {
     }
     .frame(maxWidth: .infinity, alignment: .center)
     .padding(.vertical, Layout.statusVerticalPadding)
-  }
-
-  private var idlePairCard: some View {
-    Button {
-      pairingModel.createOffer()
-    } label: {
-      Text(String(localized: "Pair new computer"))
-        .frame(maxWidth: .infinity)
-    }
-    .buttonStyle(.borderedProminent)
-    .accessibilityIdentifier("pairNewComputerButton")
   }
 
   internal var pairedDevicesSection: some View {

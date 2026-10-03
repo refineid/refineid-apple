@@ -6783,29 +6783,6 @@
         }
       }
     },
-    "Pair new computer": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pair new computer"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Yhdistä uusi tietokone"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Koppla ny dator"
-          }
-        }
-      }
-    },
     "Pairing failed": {
       "extractionState": "manual",
       "localizations": {
