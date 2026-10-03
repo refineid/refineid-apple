@@ -43,10 +43,10 @@ When remote proxy operation is enabled, RefineID implements a strict fallback hi
                                      │ fallback (non-Apple or P2P unavailable)
                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ Tier 2: Bluetooth Low Energy Proximity (BLE L2CAP CoC)                  │
+│ Tier 2: Bluetooth Low Energy Proximity (BLE GATT)                       │
 │         - Cross-platform proximity-gated link (iOS, macOS, Linux, Win)  │
-│         - RSSI threshold gating (e.g. >= -70 dBm) to enforce physical    │
-│           presence and defeat relay/wormhole attacks                    │
+│         - CoreBluetooth CBPeripheralManager / CBCentralManager (GATT)   │
+│         - Advisory RSSI discovery gate (>= -55 dBm)                     │
 │         - Profile: fi.refineid.rapp.ble.v1                              │
 └────────────────────────────────────┬────────────────────────────────────┘
                                      │ fallback (BLE disabled or out-of-range)
@@ -55,7 +55,7 @@ When remote proxy operation is enabled, RefineID implements a strict fallback hi
 │ Tier 3: Local IP Stream Discovery (mDNS / DNS-SD + Outbound TCP)        │
 │         - IETF RFC 6762 (mDNS) & RFC 6763 (DNS-SD)                      │
 │         - Service type: _refineid-stream._tcp.local.                     │
-│         - Phone acts as mDNS responder & TCP listener                   │
+│         - Phone acts as mDNS responder & TCP listener (ephemeral port)  │
 │         - Workstation acts strictly as mDNS browser & outbound client   │
 │         - Profile: fi.refineid.stream.v1                                │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -68,14 +68,24 @@ When remote proxy operation is enabled, RefineID implements a strict fallback hi
 - **Cryptographic Security**: Channel payload is still end-to-end encrypted with RAPP Noise protocol (`Noise_XXpsk3` for pairing, `Noise_KK` for sessions). The Apple transport is treated as an untrusted link.
 
 ### 2.2 Tier 2: Bluetooth Low Energy Proximity (`fi.refineid.rapp.ble.v1`)
-- **Underlay**: BLE L2CAP Connection-Oriented Channels (CoC) using `CBL2CAPChannel` on iOS/macOS, paired with GATT bootstrap.
-- **RSSI Proximity Gating**: Requester will only initiate connection if the phone's advertised RSSI meets physical proximity criteria ($\ge -70\text{ dBm}$), ensuring the phone is physically beside the workstation.
+- **Wire Profile**: Canonical GATT-based `fi.refineid.rapp.ble.v1` (RAPP v26.10.1 §2–§5).
+  - Primary Service UUID: `7E39FD01-A6B5-4D78-9E11-37E28E9545F1`
+  - Channel Characteristic: `7E39FD02-A6B5-4D78-9E11-37E28E9545F1` (Client write, Server indicate)
+  - Bootstrap Characteristic: `7E39FD03-A6B5-4D78-9E11-37E28E9545F1` (Client read)
+  - Framing: Mandates ATT MTU Exchange ($\ge 512$ bytes) and RAPP BLE SAR framing (6-byte header: Total Frame Length, Chunk Sequence, Flags, Reserved).
+- **Advisory Proximity Gating**: Requester monitors RSSI and enforces an advisory discovery gate ($\ge -55\text{ dBm}$ filtered median over at least 3 packets, configurable to $-85\text{ dBm}$ in isolated developer testing).
+  - *Threat Model Note*: Per RAPP v26.10.1 §4.4, RSSI is strictly an advisory filter and defense-in-depth heuristic; it does NOT prove physical proximity or defeat transparent RF relays or wormholes. Protection against unauthorized execution is provided at Layer 7 by explicit per-operation user consent on the phone display and PIN verification.
+- **L2CAP CoC Clarification**: Apple platforms support `CBL2CAPChannel`, but client platforms such as Windows user-space do not expose public BLE L2CAP CoC APIs. Therefore, GATT-based `fi.refineid.rapp.ble.v1` is the canonical cross-platform Tier 2 profile. Any future credit-based CoC profile would be a separate, distinct adaptation (`fi.refineid.rapp.ble-coc.v1`).
 - **No OS Pairing/Bonding**: Relies entirely on RAPP application-layer Noise cryptography without OS pairing popups or Bluetooth accessory dialogs.
 
 ### 2.3 Tier 3: Local IP Stream Discovery (`fi.refineid.stream.v1`)
 - **Discovery**: Standard IETF mDNS (RFC 6762) / DNS-SD (RFC 6763).
 - **Service Name**: `_refineid-stream._tcp.local.`
-- **Privacy (RFC 8882)**: Instance names and TXT records omit hardware identifiers, MAC addresses, or persistent device names. The instance name is derived deterministically from the pairing rendezvous token.
+- **Privacy (RFC 8882)**:
+  - The service instance name MUST be a fresh, ephemeral random string generated on each registration: `refineid-[random_8_hex]._refineid-stream._tcp.local.`, preventing long-term device tracking across networks.
+  - The SRV record target MUST use an anonymized, ephemeral host label: `refineid-[random_8_hex].local.`, avoiding leakage of iOS device or user names.
+  - The persistent 16-byte `rendezvous_token` (RAPP v26.10.1 §4.3) is **NEVER** published in mDNS records or instance names; it is transmitted strictly over the established point-to-point TCP stream during `Phase::Routing`.
+  - TXT records publish `mode=pairing` (with the 16-byte ephemeral `offer_id`) during pairing, and `mode=session` (with optional 15-minute rotating HMAC discovery hints) during operational reconnection.
 - **Connection**:
   1. Phone starts ephemeral TCP server on local IP.
   2. Phone advertises service record via `NWListener` / Bonjour.
