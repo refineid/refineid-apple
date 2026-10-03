@@ -97,6 +97,19 @@ internal enum CardPhotoStore {
     try? data.write(to: file, options: .atomic)
   }
 
+  internal static func photoFileURL(for holder: String) -> URL? {
+    guard let dir = storageDirectory else { return nil }
+    let file = dir.appendingPathComponent(sanitizedKey(holder) + fileExtension)
+    if FileManager.default.fileExists(atPath: file.path) {
+      return file
+    }
+    if let data = getPhoto(for: holder) {
+      try? data.write(to: file, options: .atomic)
+      return file
+    }
+    return nil
+  }
+
   internal static func deletePhoto(for holder: String) {
     cache.removeValue(forKey: holder)
     let parts = holder.split(separator: " ")

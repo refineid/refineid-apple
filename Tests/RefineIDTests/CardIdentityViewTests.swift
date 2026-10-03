@@ -105,4 +105,15 @@ internal struct CardIdentityViewTests {
       holder: longName, isReadingPhoto: true)
     _ = loadingPlaceholder.body
   }
+
+  @Test
+  @MainActor
+  internal func cardIdentityPhotoActionsViewRenders() {
+    let longName = "MÖTTÖNEN-KUMPULAINEN-AALTONEN VELI-MATTI-ANTERO-KALEVI"
+    let sample = CardPhotoStore.syntheticSamplePhoto(name: longName)
+    CardPhotoStore.savePhoto(sample, for: longName)
+    #expect(CardPhotoStore.photoFileURL(for: longName) != nil)
+    let actionsView = CardIdentityPhotoActionsView(holder: longName, photoData: sample)
+    _ = actionsView.body
+  }
 }

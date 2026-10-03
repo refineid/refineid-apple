@@ -50,6 +50,9 @@ internal struct CardIdentityPhotoView: View {
                 localized: "identity.photoHint",
                 defaultValue: "Double-tap to read photo from card"
               )))
+        if photoData != nil {
+          CardIdentityPhotoActionsView(holder: holder, photoData: photoData)
+        }
         readPhotoButton
       }
       .frame(maxWidth: .infinity)
