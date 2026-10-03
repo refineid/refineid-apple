@@ -19,6 +19,9 @@ public enum DistinguishedName {
     " ", "-", "'", "\u{2019}",
   ]
 
+  private static let minimumIdentifierLength = 6
+  private static let maximumIdentifierLength = 12
+
   /// The holder as a person reads it: given name, then surname, each
   /// capitalised, or nil when the name states neither.
   ///
@@ -93,17 +96,37 @@ public enum DistinguishedName {
     Self.attribute(SignOids.serialNumber, inName: name)
   }
 
-  /// The person line a window shows: the certificate's exact common name,
-  /// or when none is present, the stated personal names and identifier.
+  /// The person line a window shows: the certificate's common name stripped
+  /// of any trailing identifier, or raw surname followed by given names as stated.
   public static func holderLine(inName name: Data) -> String? {
     if let common = Self.commonName(inName: name) {
-      return common
+      return Self.cleanedCommonName(common)
     }
-    guard let person = Self.personalName(inName: name) else { return nil }
-    if let identifier = Self.identifier(inName: name) {
-      return person + " " + identifier
+    let family = Self.attribute(SignOids.surname, inName: name)
+    let given = Self.attribute(SignOids.givenName, inName: name)
+    let stated = [family, given].compactMap(\.self)
+    guard !stated.isEmpty else { return nil }
+    return stated.joined(separator: " ")
+  }
+
+  private static func isIdentifierToken(_ token: Substring) -> Bool {
+    guard token.count >= Self.minimumIdentifierLength,
+      token.count <= Self.maximumIdentifierLength,
+      token.contains(where: \.isNumber)
+    else {
+      return false
     }
-    return person
+    return true
+  }
+
+  /// Removes a trailing SATU / PEUIN or specimen identifier from a common name.
+  private static func cleanedCommonName(_ common: String) -> String {
+    let parts = common.split(separator: " ")
+    guard parts.count > 1, let last = parts.last else { return common }
+    if Self.isIdentifierToken(last) {
+      return parts.dropLast().joined(separator: " ")
+    }
+    return common
   }
 
   /// The person line from a certificate's subject, or nil when it
@@ -111,6 +134,21 @@ public enum DistinguishedName {
   public static func holderLine(fromCertificate der: Data) -> String? {
     guard let facts = CertificateFacts(der: der) else { return nil }
     return Self.holderLine(inName: facts.subjectName)
+  }
+
+  /// The holder's identifier (SATU / PEUIN) from a certificate's subject, or trailing identifier in common name.
+  public static func identifier(fromCertificate der: Data) -> String? {
+    guard let facts = CertificateFacts(der: der) else { return nil }
+    if let serial = Self.identifier(inName: facts.subjectName) {
+      return serial
+    }
+    if let common = Self.commonName(inName: facts.subjectName) {
+      let parts = common.split(separator: " ")
+      if parts.count > 1, let last = parts.last, Self.isIdentifierToken(last) {
+        return String(last)
+      }
+    }
+    return nil
   }
 
   /// The common name in a DER-encoded Name, or nil when it carries

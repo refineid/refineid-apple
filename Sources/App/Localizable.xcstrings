@@ -2494,6 +2494,29 @@
         }
       }
     },
+    "identity.identifier": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Identifier"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tunniste"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Identifierare"
+          }
+        }
+      }
+    },
     "Identity card": {
       "extractionState": "manual",
       "localizations": {

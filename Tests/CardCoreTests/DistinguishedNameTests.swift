@@ -149,7 +149,7 @@ internal struct DistinguishedNameTests {
   }
 
   @Test
-  internal func theHolderLineJoinsTheRecasedNameAndTheIdentifier() {
+  internal func theHolderLineShowsTheNameWithoutTheIdentifier() throws {
     let givenOid: [UInt8] = [0x06, 0x03, 0x55, 0x04, 0x2A]
     let serialOid: [UInt8] = [0x06, 0x03, 0x55, 0x04, 0x05]
     let body =
@@ -165,7 +165,27 @@ internal struct DistinguishedNameTests {
     let name = Data(Self.element(0x30, body))
 
     #expect(
-      DistinguishedName.holderLine(inName: name) == "Maria-Elisabeth Säätilä 000000A"
+      DistinguishedName.holderLine(inName: name) == "SÄÄTILÄ MARIA-ELISABETH"
+    )
+
+    let citizen = Self.citizenName(common: "KOISTINEN PETRI 12345678A")
+    #expect(
+      DistinguishedName.holderLine(inName: citizen) == "KOISTINEN PETRI"
+    )
+
+    let compound = Self.citizenName(common: "MÖTTÖNEN MATTI-ÄNKYRÄ 87654321B")
+    #expect(
+      DistinguishedName.holderLine(inName: compound) == "MÖTTÖNEN MATTI-ÄNKYRÄ"
+    )
+
+    #expect(
+      DistinguishedName.identifier(inName: citizen) == nil
+    )
+    let certWithCommon = try MockCardCertificate.makeCertificate(
+      commonName: "KOISTINEN PETRI 12345678A"
+    )
+    #expect(
+      DistinguishedName.identifier(fromCertificate: certWithCommon) == "12345678A"
     )
   }
 

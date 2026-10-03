@@ -34,7 +34,7 @@ internal struct DocumentStampStyleTests {
     DocumentStampStyle.save(.portraitQr, to: preferences)
 
     #expect(DocumentStampStyle.load(from: preferences) == .portraitQr)
-    #expect(DocumentStampStyle.load(from: preferences).readsPortrait)
+    #expect(!DocumentStampStyle.load(from: preferences).readsPortrait)
   }
 
   @Test

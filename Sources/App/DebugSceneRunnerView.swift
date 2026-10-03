@@ -104,7 +104,8 @@
       case .prime:
         DebugConsole.finish(succeeded: await Self.prime())
 
-      case .diagnostics, .disableOnDemandPin, .enableOnDemandPin, .forgetCan, .forgetPin1,
+      case .bleSpike, .diagnostics, .disableOnDemandPin, .enableOnDemandPin, .forgetCan,
+        .forgetPin1,
         .localNetworkProbe, .paceCheck, .resetCardState, .selectPair, .setCan,
         .setPin1, .setPin2, .signDocument, .signProbe, .statusOnDemandPin,
         .tokenPublishProbe, .trace:

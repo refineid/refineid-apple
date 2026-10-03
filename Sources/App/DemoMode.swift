@@ -68,7 +68,7 @@
     }
 
     internal var holderName: String {
-      let raw = state.card.holderName + " " + state.card.electronicClientIdentifier
+      let raw = state.card.holderName
       return Bundle.main.localizedString(forKey: raw, value: nil, table: nil)
     }
 

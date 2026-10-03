@@ -40,7 +40,7 @@ import Testing
       #expect(primedCerts.first == certDER)
 
       let primedHolders = PrimeStore.primedHolderNames()
-      #expect(primedHolders.contains(holderName))
+      #expect(primedHolders.contains("DOE JANE"))
     }
 
     @Test("Distributes primed test certificate across paired RAPP session")

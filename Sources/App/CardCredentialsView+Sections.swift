@@ -148,7 +148,10 @@ extension CardCredentialsView {
     }
 
     internal var readerIdentitySection: some View {
-      CardReaderIdentitySection(holders: readerHolders)
+      CardReaderIdentitySection(holders: readerHolders) { holder in
+        selectedReaderHolder = holder
+        showsIdentitySubmenu = true
+      }
     }
   #endif
 

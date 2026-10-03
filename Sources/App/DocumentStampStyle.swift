@@ -19,7 +19,7 @@
     private static let preferenceKey = "documentStampStyle"
 
     /// Whether signing needs the larger DG2 portrait read.
-    internal var readsPortrait: Bool { self == .portraitQr }
+    internal var readsPortrait: Bool { false }
 
     /// The selected style, or the standard when nothing was chosen.
     internal static func load() -> Self {

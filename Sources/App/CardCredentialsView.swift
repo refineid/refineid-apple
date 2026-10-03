@@ -80,6 +80,8 @@ internal struct CardCredentialsView: View {
   @State internal var flowState = CardSetupStateMachine.initialState
   @FocusState internal var isCardAccessNumberFieldFocused: Bool
   @FocusState internal var isPin1FieldFocused: Bool
+  @State internal var showsIdentitySubmenu = false
+  @State internal var selectedReaderHolder: String?
 
   #if REFINEID_LOCAL_CARD && os(iOS)
     /// The priming model lives here, above everything a hold hides.
@@ -192,6 +194,17 @@ internal struct CardCredentialsView: View {
     #endif
     guard isRegistered else { return nil }
     return PrimeStore.primedHolderNames().first
+  }
+
+  /// The identifier (SATU / PEUIN) of the complete identity, if present.
+  internal var identityIdentifier: String? {
+    #if os(iOS)
+      if isDemonstration {
+        return nil
+      }
+    #endif
+    guard isRegistered else { return nil }
+    return PrimeStore.primedIdentifiers().first
   }
 
   /// Whether there is a complete, displayable identity.

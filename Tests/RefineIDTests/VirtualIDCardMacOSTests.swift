@@ -35,9 +35,9 @@
       #expect(demo.isActive == true)
       #expect(demo.isReaderCardPresent == true)
       #expect(
-        demo.holderName == "DOE JANE 12345678N"
-          || demo.holderName == "ESIMERKKI ERJA 12345678N"
-          || demo.holderName == "EXEMPEL EVA 12345678N"
+        demo.holderName == "DOE JANE"
+          || demo.holderName == "ESIMERKKI ERJA"
+          || demo.holderName == "EXEMPEL EVA"
       )
       #expect(demo.hasIdentity == false)
 

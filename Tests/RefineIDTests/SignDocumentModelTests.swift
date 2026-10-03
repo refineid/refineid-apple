@@ -175,7 +175,8 @@ internal struct SignDocumentModelTests {
 
     let stamp = try #require(model.visibleStamp(on: Data()))
     #expect(stamp.signerCertificate == Self.stampCertificate)
-    #expect(stamp.mark.operators.contains("-45.0000 -6.0000 m"))
+    #expect(stamp.mark.operators.contains("0.7765 0.1569 0.1569 RG"))
+    #expect(!stamp.mark.operators.contains("-45.0000 -6.0000 m"))
     #expect(model.stampFailure == nil)
   }
 

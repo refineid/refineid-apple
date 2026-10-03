@@ -16,7 +16,8 @@ extension CardCredentialsView {
       remoteReaderSection
     } else if let identityHolder {
       CardIdentitySection(holder: identityHolder) {
-        showsForgetConfirmation = true
+        selectedReaderHolder = nil
+        showsIdentitySubmenu = true
       }
     } else {
       createIdentitySection
@@ -68,6 +69,17 @@ extension CardCredentialsView {
       }
       .navigationDestination(isPresented: $showsDocumentVerify) {
         VerifyDocumentView()
+      }
+      .navigationDestination(isPresented: $showsIdentitySubmenu) {
+        CardIdentitySubmenuView(
+          holder: selectedReaderHolder ?? identityHolder ?? readerHolders.first ?? "",
+          identifier: selectedReaderHolder != nil ? nil : identityIdentifier,
+          onForget: (identityHolder != nil && selectedReaderHolder == nil)
+            ? {
+              showsIdentitySubmenu = false
+              showsForgetConfirmation = true
+            } : nil
+        )
       }
     #endif
   }

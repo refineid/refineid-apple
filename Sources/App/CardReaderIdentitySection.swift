@@ -12,6 +12,7 @@
     private static let identityDetailsSpacing: CGFloat = 4
 
     internal let holders: [String]
+    internal let onSelect: (String) -> Void
 
     internal var body: some View {
       Section {
@@ -20,21 +21,38 @@
             .frame(maxWidth: .infinity, alignment: .center)
         } else {
           ForEach(holders, id: \.self) { holder in
-            VStack(alignment: .leading, spacing: Self.identityDetailsSpacing) {
-              PersonRowLabel(configured: true)
-              Text(holder)
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
-                .accessibilityIdentifier("readerCardHolder")
-            }
+            holderRow(holder)
           }
         }
-      } header: {
-        Text("Identity")
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .listRowInsets(EdgeInsets())
       }
+    }
+
+    @ViewBuilder
+    private func holderRow(_ holder: String) -> some View {
+      Button {
+        onSelect(holder)
+      } label: {
+        HStack {
+          Image(systemName: "person")
+            .font(.system(size: PersonRowLabel.iconPointSize))
+            .symbolRenderingMode(.monochrome)
+            .frame(width: PersonRowLabel.iconWidth)
+            .foregroundStyle(Color.accentColor)
+            .accessibilityHidden(true)
+          Text(String(localized: "Identity"))
+          Spacer()
+          Text(holder)
+            .font(.body)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .accessibilityIdentifier("readerCardHolder")
+          Image(systemName: "chevron.forward")
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.tertiary)
+            .accessibilityHidden(true)
+        }
+      }
+      .tint(.primary)
     }
   }
 #endif

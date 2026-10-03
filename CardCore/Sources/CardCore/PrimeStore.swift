@@ -339,6 +339,13 @@ public enum PrimeStore {
     }
   }
 
+  /// The holder identifiers (SATU / PEUIN) each primed card names.
+  public static func primedIdentifiers() -> [String] {
+    presenceOrderedItems().compactMap { item in
+      DistinguishedName.identifier(fromCertificate: item.identity.certDER)
+    }
+  }
+
   /// The authentication certificates this device has already primed.
   ///
   /// The certificate is public and was read once, during setup, so a peer

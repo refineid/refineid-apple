@@ -54,6 +54,15 @@ This document defines the tiered testing, formatting, and release quality gates 
     - Premature card tear / departure handling.
   - Review notes, export compliance declarations, and App Store metadata verification.
 
+## 5. Headless & Background UI Testing
+
+- **Fast-Loop Headless Testing (Default)**: In `RefineID.xctestplan`, `RefineIDUITests` is disabled by default. Running tests via `xcodebuild test -scheme RefineID` or pressing ⌘U in Xcode executes 100% in-memory unit and integration tests (over 610 tests across CardCore and RefineID) without opening windows, stealing focus, or interrupting workstation tasks.
+- **Isolated Headless UI Tests with Tart**: When full end-to-end `RefineIDUITests` must be verified locally without screen-stealing, run them inside a headless macOS virtual machine using Tart:
+  ```bash
+  Scripts/test-ui-tart.sh [VM_NAME]
+  ```
+  The VM runs headless (`--no-gui`), isolating Apple's WindowServer and Accessibility event synthesis so host displays remain undisturbed.
+
 ## Optional GitHub diagnostic run
 
 The Swift workflow runs only when explicitly dispatched. The mandatory local
