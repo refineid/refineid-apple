@@ -23,6 +23,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 
 
 RECEIPT_SCHEMA = 1
@@ -43,6 +44,10 @@ GIT_HEADER_SEPARATOR_SIZE = 1
 GIT_BLOB_SEPARATOR_SIZE = 1
 EXPECTED_ARGUMENT_COUNTS = (2, 4)
 VERIFY_HEAD_ARGUMENT_COUNT = 4
+DEFAULT_GIT_TIMEOUT_SECONDS = 30.0
+DEFAULT_TOOLCHAIN_TIMEOUT_SECONDS = 30.0
+DEFAULT_LINT_TIMEOUT_SECONDS = 300.0
+DEFAULT_LOCK_TIMEOUT_SECONDS = 10.0
 TOOLCHAIN_ENVIRONMENT = (
     "DEVELOPER_DIR",
     "BASH_ENV",
@@ -73,10 +78,33 @@ class GateError(Exception):
     pass
 
 
-def git(root: Path, *arguments: str) -> str:
-    return subprocess.check_output(
-        ["git", *arguments], cwd=root, text=True, stderr=subprocess.PIPE
-    ).strip()
+def git(
+    root: Path, *arguments: str, timeout: float = DEFAULT_GIT_TIMEOUT_SECONDS
+) -> str:
+    try:
+        return subprocess.check_output(
+            ["git", *arguments],
+            cwd=root,
+            text=True,
+            stderr=subprocess.PIPE,
+            timeout=timeout,
+        ).strip()
+    except subprocess.TimeoutExpired:
+        raise GateError(f"git {' '.join(arguments)} timed out after {timeout}s")
+
+
+def acquire_lock(
+    descriptor: int, timeout: float = DEFAULT_LOCK_TIMEOUT_SECONDS
+) -> bool:
+    start = time.monotonic()
+    while True:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return True
+        except (BlockingIOError, OSError):
+            if time.monotonic() - start >= timeout:
+                return False
+            time.sleep(0.05)
 
 
 def lint_environment() -> dict[str, str]:
@@ -109,7 +137,9 @@ def executable_identity(name: str) -> dict[str, str] | None:
     return {"path": str(path), "sha256": digest.hexdigest()}
 
 
-def command_output(arguments: list[str]) -> str | None:
+def command_output(
+    arguments: list[str], timeout: float = DEFAULT_TOOLCHAIN_TIMEOUT_SECONDS
+) -> str | None:
     try:
         result = subprocess.run(
             arguments,
@@ -117,8 +147,9 @@ def command_output(arguments: list[str]) -> str | None:
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
+            timeout=timeout,
         )
-    except (OSError, subprocess.CalledProcessError):
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return None
     return result.stdout.strip()
 
@@ -262,9 +293,14 @@ def install_receipt(path: Path, expected: dict[str, object]) -> None:
 
 
 def extract_snapshot(root: Path, tree: str, destination: Path) -> None:
-    entries = subprocess.check_output(
-        ["git", "ls-tree", "--full-tree", "-r", "-z", tree], cwd=root
-    )
+    try:
+        entries = subprocess.check_output(
+            ["git", "ls-tree", "--full-tree", "-r", "-z", tree],
+            cwd=root,
+            timeout=DEFAULT_GIT_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        raise GateError("git ls-tree timed out")
     blobs = []
     for entry in entries.split(b"\0"):
         if not entry:
@@ -286,9 +322,15 @@ def extract_snapshot(root: Path, tree: str, destination: Path) -> None:
     object_ids = b"".join(
         object_id.encode("ascii") + b"\n" for _, _, object_id in blobs
     )
-    contents = subprocess.check_output(
-        ["git", "cat-file", "--batch"], cwd=root, input=object_ids
-    )
+    try:
+        contents = subprocess.check_output(
+            ["git", "cat-file", "--batch"],
+            cwd=root,
+            input=object_ids,
+            timeout=DEFAULT_GIT_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        raise GateError("git cat-file timed out")
     offset = 0
     for relative, mode, object_id in blobs:
         header_end = contents.find(b"\n", offset)
@@ -383,8 +425,11 @@ def run_lint(
                 os.close(lock_descriptor)
                 lock_descriptor = None
                 receipt = None
+            elif not acquire_lock(lock_descriptor):
+                os.close(lock_descriptor)
+                lock_descriptor = None
+                receipt = None
             else:
-                fcntl.flock(lock_descriptor, fcntl.LOCK_EX)
                 if receipt_is_valid(receipt, expected):
                     if not tree_still_matches(root, tree, tree_guard) or not fingerprint_matches():
                         fcntl.flock(lock_descriptor, fcntl.LOCK_UN)
@@ -411,12 +456,20 @@ def run_lint(
         with tempfile.TemporaryDirectory(prefix="refineid-quality-") as temporary:
             snapshot = Path(temporary)
             extract_snapshot(root, tree, snapshot)
-            result = subprocess.run(
-                ["Scripts/lint.sh"],
-                cwd=snapshot,
-                env=lint_environment(),
-                check=False,
-            )
+            try:
+                result = subprocess.run(
+                    ["Scripts/lint.sh"],
+                    cwd=snapshot,
+                    env=lint_environment(),
+                    check=False,
+                    timeout=DEFAULT_LINT_TIMEOUT_SECONDS,
+                )
+            except subprocess.TimeoutExpired:
+                print(
+                    f"Quality receipt lint timed out after {DEFAULT_LINT_TIMEOUT_SECONDS}s.",
+                    file=sys.stderr,
+                )
+                return 1
         if result.returncode != 0:
             return result.returncode
         if not tree_still_matches(root, tree, tree_guard) or not fingerprint_matches():
@@ -441,10 +494,14 @@ def run_lint(
 
 
 def require_clean_head(root: Path) -> None:
-    indexed = subprocess.check_output(
-        ["git", "ls-files", "--cached", "--stage", "-v", "-z"],
-        cwd=root,
-    )
+    try:
+        indexed = subprocess.check_output(
+            ["git", "ls-files", "--cached", "--stage", "-v", "-z"],
+            cwd=root,
+            timeout=DEFAULT_GIT_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        raise GateError("git ls-files timed out")
     for entry in indexed.split(b"\0"):
         if not entry:
             continue
@@ -463,6 +520,8 @@ def verify_head(root: Path, commit: str, tree: str) -> None:
 
 
 def verify_push(root: Path) -> None:
+    if sys.stdin.isatty():
+        raise GateError("verify-push expects hook input on stdin, not a tty")
     head = git(root, "rev-parse", "HEAD")
     zero = "0" * len(head)
     for line in sys.stdin:
