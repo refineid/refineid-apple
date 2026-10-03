@@ -8,36 +8,61 @@ import Testing
 #if canImport(RappEngine)
   import RappEngine
 
-  @Suite("RAPP 6-digit pairing code and ceremony")
+  @Suite("RAPP 6-character Crockford Base32 pairing code and ceremony")
   internal struct RappPairingCodeTests {
-    @Test("Generates 6-digit numeric codes")
+    @Test("Generates 6-character Crockford Base32 codes")
     internal func testCodeGeneration() {
-      for _ in 0..<20 {
+      for _ in 0..<50 {
         let code = RappPairingCode.generate()
-        #expect(code.count == 6)
+        #expect(code.count == RappPairingCode.codeLength)
         #expect(RappPairingCode.isValid(code))
         #expect(RappPairingCode.normalize(code) == code)
+        // Excluded visually ambiguous symbols per RAPP v26.10.1 §3.1
+        #expect(!code.contains("I"))
+        #expect(!code.contains("L"))
+        #expect(!code.contains("O"))
+        #expect(!code.contains("U"))
       }
     }
 
-    @Test("Normalizes and formats numeric codes")
+    @Test("Normalizes and formats Crockford Base32 codes into 2-character clusters")
     internal func testNormalizationAndFormatting() {
-      let raw = "123-456"
+      let raw = "7k-x4-m9"
       let normalized = RappPairingCode.normalize(raw)
-      #expect(normalized == "123456")
+      #expect(normalized == "7KX4M9")
       #expect(RappPairingCode.isValid(normalized))
-      #expect(RappPairingCode.formatted("123456") == "123 456")
-      #expect(RappPairingCode.formatted("123") == "123 ")
-      #expect(RappPairingCode.formatted("1234") == "123 4")
+      #expect(RappPairingCode.formatted(normalized) == "7K X4 M9")
+      #expect(RappPairingCode.formatted("7K") == "7K")
+      #expect(RappPairingCode.formatted("7KX") == "7K X")
+      #expect(RappPairingCode.formatted("7KX4") == "7K X4")
 
-      #expect(!RappPairingCode.isValid("123"))
-      #expect(!RappPairingCode.isValid("12345678"))
+      #expect(!RappPairingCode.isValid("7KX4"))
+      #expect(!RappPairingCode.isValid("7KX4M9AB"))
+    }
+
+    @Test("Applies Crockford decode aliases (I, L -> 1; O -> 0)")
+    internal func testCrockfordDecodeAliases() {
+      #expect(RappPairingCode.normalize("iLo8k2") == "1108K2")
+      #expect(RappPairingCode.normalize("ILO8K2") == "1108K2")
+      #expect(RappPairingCode.isValid("1108K2"))
+    }
+
+    @Test("Rejects invalid characters and U")
+    internal func testRejectsInvalidCharacters() {
+      // U is explicitly rejected per RAPP v26.10.1 §3.1
+      #expect(RappPairingCode.normalize("7KU4M9").isEmpty)
+      #expect(!RappPairingCode.isValid("7KU4M9"))
+
+      // Non-Crockford symbols
+      #expect(RappPairingCode.normalize("7K#4M9").isEmpty)
+      #expect(!RappPairingCode.isValid("7K#4M9"))
+      #expect(!RappPairingCode.isValid(""))
     }
 
     @Test("Deterministically derives identical pairing secrets and offer URIs")
     internal func testDeterministicDerivation() throws {
-      let code1 = "123456"
-      let code2 = "123456"
+      let code1 = "7KX4M9"
+      let code2 = "7KX4M9"
 
       let secret1 = RappPairingCode.pairingSecret(for: code1)
       let secret2 = RappPairingCode.pairingSecret(for: code2)
@@ -60,9 +85,9 @@ import Testing
     }
 
     @Test(
-      "Completes end-to-end pairing ceremony between Requester and Proxy using 6-digit code")
+      "Completes end-to-end pairing ceremony between Requester and Proxy using Crockford code")
     internal func testPairingCeremonyWithSixDigitCode() async throws {
-      let code = "123456"
+      let code = "7KX4M9"
       let candidateID = "apple-peer-v1.nearby"
       let profiles = [
         "fi.refineid.card-status.v1",
