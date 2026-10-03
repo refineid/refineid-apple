@@ -448,6 +448,27 @@ class QualityReceiptTests(unittest.TestCase):
             with self.assertRaises(quality_receipt.GateError):
                 quality_receipt.verify_push(self.repo)
 
+    def test_verify_push_rejects_interactive_tty_without_input(self):
+        with mock.patch.object(sys.stdin, "isatty", return_value=True):
+            with self.assertRaises(quality_receipt.GateError) as ctx:
+                quality_receipt.verify_push(self.repo)
+            self.assertIn("stdin", str(ctx.exception))
+
+    def test_git_timeout_raises_gate_error(self):
+        with self.assertRaises(quality_receipt.GateError) as ctx:
+            quality_receipt.git(self.repo, "status", timeout=0.00001)
+        self.assertIn("timed out", str(ctx.exception))
+
+    def test_command_output_timeout_returns_none(self):
+        result = quality_receipt.command_output(["sleep", "1"], timeout=0.00001)
+        self.assertIsNone(result)
+
+    def test_lock_timeout_falls_back_gracefully_without_hanging(self):
+        tree = quality_receipt.tree_for(self.repo, "index")
+        with mock.patch.object(quality_receipt, "acquire_lock", return_value=False):
+            self.assertEqual(self.run_lint(tree), 0)
+            self.assertEqual(self.calls(), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
