@@ -178,11 +178,14 @@ internal struct DiagnosticsView: View {
         refresh()
       }
       Button("Forget All Primed Cards", role: .destructive) {
-        _ = CardStateReset.perform()
-        CardCredentialStore.forgetAll()
-        clearMessage = "Cleared all primed card credentials."
-        clearSucceeded = true
-        refresh()
+        Task {
+          let outcome = await CardIdentityRemoval.perform()
+          clearMessage =
+            outcome.succeeded
+            ? "Cleared all primed card credentials." : outcome.summary
+          clearSucceeded = outcome.succeeded
+          refresh()
+        }
       }
     } header: {
       Text("Test Credentials")

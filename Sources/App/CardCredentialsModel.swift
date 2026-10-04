@@ -47,24 +47,6 @@ internal final class CardCredentialsModel: ObservableObject {
   /// activated card, obtained a complete credential retry report.
   @Published internal private(set) var hasVerifiedCardStatus = false
 
-  // MARK: Static Functions
-
-  /// Deletes every pair, drops the selection, and forgets all names.
-  ///
-  /// Same-account auto-pairing may recreate complementary peers on the next
-  /// reconcile.
-  private static func removeAllRappConfiguration() async {
-    let vault = RappDeviceVault()
-    let catalog = RappPairCatalog(vault: vault)
-    if let pairs = try? await catalog.activePairs() {
-      for pair in pairs {
-        try? await catalog.revoke(pairID: pair.pairID)
-      }
-    }
-    try? vault.clearSelectedPair()
-    RappPairNames.forgetAll()
-  }
-
   // MARK: Functions
 
   /// Establishes PACE with an entered CAN and classifies the live card.
@@ -209,14 +191,7 @@ internal final class CardCredentialsModel: ObservableObject {
   internal func forgetEverything() async {
     failure = nil
     invalidateCardStatus()
-    let outcome = CardStateReset.perform()
-    CardCredentialStore.forgetAll()
-    await Self.removeAllRappConfiguration()
-    // The journals reference pairings that no longer exist; sweeping them
-    // takes seconds, so the wipe leaves the main thread.
-    Task.detached(priority: .userInitiated) {
-      _ = try? RappDeviceVault().deleteServiceNamespace()
-    }
+    let outcome = await CardIdentityRemoval.perform()
     refresh()
     if !outcome.succeeded {
       failure = outcome.summary
