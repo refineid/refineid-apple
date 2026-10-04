@@ -59,6 +59,11 @@ extension Token {
       [held = heldSession, pin1 = acceptedPin1, id = tokenID] observed, change in
       let state = change.newValue ?? observed.state
       TokenLog.trace("slotState: token=\(id) state=\(state)")
+      if let channel = held.current as? SmartCardChannel {
+        TokenLog.trace(
+          "slotProgress: token=\(id) state=\(state.rawValue) channel=\(channel.channelID) "
+            + channel.exchangeProgressSnapshot)
+      }
       guard state == .missing || state == .empty else { return }
       held.release(reason: state == .missing ? .slotMissing : .cardRemoved)
       pin1.clearAll()
