@@ -117,9 +117,6 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
   /// and intensive cryptographic calculations over PC/SC readers with WTX frames.
   private static let readerResponseSeconds: Int = 60
 
-  /// Shift from a status word to its high byte.
-  private static let statusWordByteShift: Int = 8
-
   /// A reader hands back exactly the bytes the card produced, so a
   /// chunked read may ask for the plain chunk.
   internal var readChunkLength: ReadChunkLength {
@@ -189,18 +186,42 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
     return response
   }
 
-  /// Sends the payload directly over the card transport.
+  /// Keeps protected RSA response continuation inside one CTK operation.
   private func startTransmit(
     _ payload: Data,
     reply: Box<Data?>,
     transportError: Box<Error?>,
     semaphore: DispatchSemaphore
   ) {
-    smartCard.transmit(payload) { response, error in
-      reply.value = response
-      transportError.value = error
-      semaphore.signal()
+    if CommandApdu.structuredProtectedSignature(payload) != nil {
+      TokenLog.trace("apdu: mode=ctkContinuation channel=\(channelID)")
     }
+    SmartCardTransmit.start(
+      payload,
+      transmit: { request, completion in
+        smartCard.transmit(request) { response, error in
+          completion(response, error)
+        }
+      },
+      send: { command, completion in
+        let previousClass = smartCard.cla
+        smartCard.cla = command.cla
+        smartCard.send(
+          ins: command.ins,
+          p1: command.parameter1,
+          p2: command.parameter2,
+          data: command.data,
+          le: command.expectedLength
+        ) { response, statusWord, error in
+          smartCard.cla = previousClass
+          completion(response, statusWord, error)
+        }
+      },
+      reply: { response, error in
+        reply.value = response
+        transportError.value = error
+        semaphore.signal()
+      })
   }
 
   /// Opens an exclusive session and LEAVES IT OPEN, for the caller to end.

@@ -41,3 +41,17 @@ signature output, prompt failure on loss, and absence of old-channel commands
 after invalidation. Do not call radio behavior or Safari recovery verified from
 synthetic tests alone. A slow exchange does not by itself prove a card penalty
 delay or an OS-imposed field deadline.
+
+Protected maximum-response RSA signatures use CryptoTokenKit's structured send
+operation. Its protocol handling collects continuation before completing the
+operation. The development trace records `mode=ctkContinuation` before that send;
+the final APDU line reports the assembled response and total elapsed time. PACE
+and exact-length ECDSA commands use raw transmission. Assume only two seconds of
+usable NFC field; a longer observed hold is not a promised budget.
+
+The focused suite also exercises the actual transmission dispatcher with a
+modulus-wide response, transport failure, and byte-exact PACE/ECDSA routing,
+alongside secure-messaging and command-framing tests. Physical RSA acceptance
+must collect the complete signature without an extension-level GET RESPONSE
+between the protected signature send and its completion. This does not prove
+that CryptoTokenKit can complete every card calculation within the field budget.
