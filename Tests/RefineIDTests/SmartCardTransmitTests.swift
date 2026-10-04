@@ -2,6 +2,7 @@
 
 import CardCore
 import Foundation
+import Synchronization
 import Testing
 
 @Suite("CryptoTokenKit signature continuation")
@@ -19,7 +20,7 @@ internal struct SmartCardTransmitTests {
   @Test("A modulus-wide signature completes through one structured operation")
   internal func rsaContinuationIsOwnedByCtk() throws {
     let body = Data(repeating: 0xA5, count: Self.rsaSignatureBytes)
-    var returned: Data?
+    let returned = Mutex<Data?>(nil)
     var sends = 0
     SmartCardTransmit.start(
       Self.protectedRsa,
@@ -33,10 +34,10 @@ internal struct SmartCardTransmitTests {
       },
       reply: { response, error in
         #expect(error == nil)
-        returned = response
+        returned.withLock { $0 = response }
       })
     #expect(sends == 1)
-    let response = try #require(returned)
+    let response = try #require(returned.withLock { $0 })
     #expect(response.dropLast(2) == body)
     #expect(response.suffix(2) == Data([0x90, 0x00]))
   }
@@ -52,7 +53,7 @@ internal struct SmartCardTransmitTests {
     ])
   internal func otherCommandsStayRaw(payload: Data) {
     let expected = Data([0x90, 0x00])
-    var returned: Data?
+    let returned = Mutex<Data?>(nil)
     SmartCardTransmit.start(
       payload,
       transmit: { command, completion in
@@ -62,14 +63,14 @@ internal struct SmartCardTransmitTests {
       send: { _, _ in Issue.record("This command must not use CTK continuation") },
       reply: { response, error in
         #expect(error == nil)
-        returned = response
+        returned.withLock { $0 = response }
       })
-    #expect(returned == expected)
+    #expect(returned.withLock { $0 } == expected)
   }
 
   @Test("Structured transport loss stays a failure without a fabricated response")
   internal func failedContinuationDoesNotBecomeSuccess() {
-    var completed = false
+    let completed = Mutex(false)
     SmartCardTransmit.start(
       Self.protectedRsa,
       transmit: { _, _ in Issue.record("Unexpected raw transmission") },
@@ -77,10 +78,10 @@ internal struct SmartCardTransmitTests {
         completion(nil, StatusWord.success.encoded, TransportFailure.disconnected)
       },
       reply: { response, error in
-        completed = true
+        completed.withLock { $0 = true }
         #expect(response == nil)
         #expect(error is TransportFailure)
       })
-    #expect(completed)
+    #expect(completed.withLock { $0 })
   }
 }

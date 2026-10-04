@@ -11,9 +11,10 @@ internal enum SmartCardTransmit {
 
   internal static func start(
     _ payload: Data,
-    transmit: (Data, @escaping (Data?, Error?) -> Void) -> Void,
-    send: (CommandApdu.StructuredCase4, @escaping (Data?, UInt16, Error?) -> Void) -> Void,
-    reply: @escaping (Data?, Error?) -> Void
+    transmit: (Data, @escaping @Sendable (Data?, Error?) -> Void) -> Void,
+    send: (CommandApdu.StructuredCase4, @escaping @Sendable (Data?, UInt16, Error?) -> Void) ->
+      Void,
+    reply: @escaping @Sendable (Data?, Error?) -> Void
   ) {
     guard let command = CommandApdu.structuredProtectedSignature(payload) else {
       transmit(payload, reply)
