@@ -55,3 +55,11 @@ alongside secure-messaging and command-framing tests. Physical RSA acceptance
 must collect the complete signature without an extension-level GET RESPONSE
 between the protected signature send and its completion. This does not prove
 that CryptoTokenKit can complete every card calculation within the field budget.
+
+`publish` records the experiment setting, stored-credential presence, and actual
+password constraint for each minted identity. With a stored credential,
+contactless publication has no native password constraint in either mode.
+`sign: authorization elapsedMs` measures credential resolution before PACE or
+signature work. Compare those events alongside credential-source events when
+experiment settings appear to change site behavior; the setting alone does not
+identify whether a native prompt occurred or whether Safari reused an identity.
