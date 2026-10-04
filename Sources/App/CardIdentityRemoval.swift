@@ -6,6 +6,11 @@ import Foundation
 /// The shared cleanup used by identity removal and diagnostic card removal.
 @MainActor
 internal enum CardIdentityRemoval {
+  internal struct ConfigurationRemoval: Sendable {
+    internal let succeeded: Bool
+    internal let failures: [String]
+  }
+
   internal static func perform() async -> CardStateReset.Outcome {
     await perform(
       reset: CardStateReset.perform,
@@ -18,19 +23,19 @@ internal enum CardIdentityRemoval {
     reset: () -> CardStateReset.Outcome,
     forgetCredentials: () -> Void,
     clearPhotos: () -> Void,
-    removeRemoteConfiguration: () async -> Bool
+    removeRemoteConfiguration: () async -> ConfigurationRemoval
   ) async -> CardStateReset.Outcome {
     let identity = reset()
     forgetCredentials()
     clearPhotos()
     let remoteRemoved = await removeRemoteConfiguration()
     return CardStateReset.Outcome(
-      lines: identity.lines,
-      succeeded: identity.succeeded && remoteRemoved)
+      lines: identity.lines + remoteRemoved.failures,
+      succeeded: identity.succeeded && remoteRemoved.succeeded)
   }
 
   /// Completes pairing and namespace removal before reporting completion.
-  private static func removeAllRemoteConfiguration() async -> Bool {
+  private static func removeAllRemoteConfiguration() async -> ConfigurationRemoval {
     let vault = RappDeviceVault()
     let catalog = RappPairCatalog(vault: vault)
     if let pairs = try? await catalog.activePairs() {
@@ -43,9 +48,15 @@ internal enum CardIdentityRemoval {
     return await Task.detached(priority: .userInitiated) {
       do {
         _ = try RappDeviceVault().deleteServiceNamespace()
-        return true
+        return ConfigurationRemoval(succeeded: true, failures: [])
+      } catch RappDeviceVault.Failure.unavailable(let status) {
+        return ConfigurationRemoval(
+          succeeded: false,
+          failures: ["Cleanup failure: keychain namespace (OSStatus=\(status))"])
       } catch {
-        return false
+        return ConfigurationRemoval(
+          succeeded: false,
+          failures: ["Cleanup failure: keychain namespace (unexpected storage error)"])
       }
     }.value
   }

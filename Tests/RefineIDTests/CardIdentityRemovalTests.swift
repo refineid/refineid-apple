@@ -21,7 +21,7 @@ internal struct CardIdentityRemovalTests {
         stages.append("remote-start")
         await Task.yield()
         stages.append("remote-finished")
-        return true
+        return CardIdentityRemoval.ConfigurationRemoval(succeeded: true, failures: [])
       })
     #expect(stages == ["identity", "credentials", "photos", "remote-start", "remote-finished"])
     #expect(outcome.succeeded == resetSucceeded)
@@ -34,8 +34,12 @@ internal struct CardIdentityRemovalTests {
       reset: { CardStateReset.Outcome(lines: [], succeeded: true) },
       forgetCredentials: { completedStages += 1 },
       clearPhotos: { completedStages += 1 },
-      removeRemoteConfiguration: { false })
+      removeRemoteConfiguration: {
+        CardIdentityRemoval.ConfigurationRemoval(
+          succeeded: false, failures: ["Cleanup failure: keychain namespace (OSStatus=-50)"])
+      })
     #expect(completedStages == 2)
     #expect(!outcome.succeeded)
+    #expect(outcome.summary.contains("keychain namespace (OSStatus=-50)"))
   }
 }

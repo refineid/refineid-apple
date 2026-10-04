@@ -20,9 +20,13 @@ internal enum CardStateReset {
     internal let succeeded: Bool
 
     internal var summary: String {
-      succeeded
-        ? String(localized: "RefineID's Safari card identities were reset.")
-        : String(localized: "Some RefineID Safari identity state could not be removed.")
+      if succeeded {
+        return String(localized: "RefineID's Safari card identities were reset.")
+      }
+      let failures = lines.filter { $0.hasPrefix("Cleanup failure:") }
+      return
+        ([String(localized: "Some RefineID Safari identity state could not be removed.")]
+        + failures).joined(separator: "\n")
     }
   }
 
@@ -80,6 +84,9 @@ internal enum CardStateReset {
       traceCleared
         ? "RefineID extension trace: cleared"
         : "RefineID extension trace: clear failed (\(traceStatus))")
+    if !traceCleared {
+      lines.append("Cleanup failure: extension trace (OSStatus=\(traceStatus))")
+    }
     lines.append("Stored CAN and PIN 1: preserved")
     lines.append("=== end ===")
     return Outcome(
@@ -122,10 +129,12 @@ internal enum CardStateReset {
       let lines = ours.map { tokenID in
         do {
           try manager.unregisterSmartCard(tokenID: tokenID)
-          return "Unregistered \(tokenID)"
+          return "RefineID Safari registration: removed"
         } catch {
           succeeded = false
-          return "Could not unregister \(tokenID): \(error)"
+          let failure = error as NSError
+          return
+            "Cleanup failure: Safari registration (domain=\(failure.domain) code=\(failure.code))"
         }
       }
       return (lines, succeeded)
