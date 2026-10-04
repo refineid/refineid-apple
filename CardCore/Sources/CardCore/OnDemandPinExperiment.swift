@@ -83,6 +83,16 @@ public enum OnDemandPinExperiment: Sendable {
     !isRegistrationField && (!experimentEnabled || pinAvailable)
   }
 
+  /// Native authorization is required for readers and for contactless keys
+  /// with on-demand entry enabled and no stored credential.
+  public static func requiresPasswordConstraint(
+    isContactless: Bool,
+    experimentEnabled: Bool,
+    hasStoredCredential: Bool
+  ) -> Bool {
+    !isContactless || (experimentEnabled && !hasStoredCredential)
+  }
+
   /// Sets whether the on-demand PIN1 experiment is active.
   @discardableResult
   public static func setEnabled(_ enabled: Bool) -> Bool {

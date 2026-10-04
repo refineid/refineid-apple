@@ -31,8 +31,16 @@ extension Token {
     issuerDER: Data?
   ) throws -> [TKTokenKeychainItem] {
     let hasStoredPin = CardCredentialStore.contents().hasPin1
-    let requiresPin =
-      interface != .fieldWithDeadline || (OnDemandPinExperiment.isEnabled && !hasStoredPin)
+    let experimentEnabled = OnDemandPinExperiment.isEnabled
+    let requiresPin = OnDemandPinExperiment.requiresPasswordConstraint(
+      isContactless: interface == .fieldWithDeadline,
+      experimentEnabled: experimentEnabled,
+      hasStoredCredential: hasStoredPin
+    )
+    TokenLog.trace(
+      "publish: experiment=\(experimentEnabled) storedCredential=\(hasStoredPin) "
+        + "passwordConstraint=\(requiresPin) interface=\(interface)"
+    )
     let items = CardTokenPublicationItems.makeItems(
       leaf: leaf,
       profile: profile,

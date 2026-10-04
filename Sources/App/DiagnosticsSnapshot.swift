@@ -229,7 +229,8 @@ internal struct DiagnosticsSnapshot: Sendable {
       "policy: direct use, no software expiry",
     ]
     if OnDemandPinExperiment.isEnabled {
-      lines.append("on-demand PIN experiment: active (native PIN sheet constraint enabled)")
+      lines.append(
+        "on-demand PIN experiment: active (native prompt only without stored credential)")
     }
     return Section(
       title: "Contactless signing credential",

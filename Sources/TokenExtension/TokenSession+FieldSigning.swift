@@ -34,7 +34,13 @@ extension TokenSession {
     // The first on-demand token publishes its identity without opening PACE.
     // Resolve the missing PIN first so CryptoTokenKit can show its secure sheet.
     // The next sign call then requests a fresh field with the entered PIN ready.
+    let authorizationStarted = ContinuousClock.now
     let pin1 = try resolveAuthorizedPin(token: token)
+    TokenLog.trace(
+      "sign: authorization elapsedMs="
+        + TraceTiming.milliseconds(authorizationStarted.duration(to: ContinuousClock.now))
+        + " session=\(sessionID)"
+    )
 
     // When approval of the certificate is requested, the prior contactless field
     // from the discovery/selection phase is expected to be gone before approval appears.
