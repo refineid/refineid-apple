@@ -48,7 +48,7 @@ extension TokenSession {
         "sign: contactless card absent (slotState=\(slotState.rawValue)) "
           + "- tokenNotFound session=\(sessionID)"
       )
-      token.heldSession.release()
+      token.heldSession.release(reason: .signingFailed)
       throw TKError(.tokenNotFound)
     }
 
@@ -120,7 +120,7 @@ extension TokenSession {
     _ error: any Error,
     token: Token
   ) -> any Error {
-    token.heldSession.release()
+    token.heldSession.release(reason: .signingFailed)
     switch error {
     case SmartCardChannel.TransportError.responseTimedOut:
       PendingSigningState.shared.recordPendingSign()

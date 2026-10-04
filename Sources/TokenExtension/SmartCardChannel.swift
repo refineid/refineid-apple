@@ -127,6 +127,7 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
   }
 
   private let smartCard: TKSmartCard
+  internal let channelID = UUID().uuidString
 
   /// The response budget the constructing transport chose.
   private let responseBudget: DispatchTimeInterval
@@ -168,6 +169,7 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
       let elapsed = started.duration(to: ContinuousClock.now)
       TokenLog.trace(
         CardExchangeTrace.line(request: payload, response: nil, elapsed: elapsed)
+          + " channel=\(channelID)"
       )
       TokenLog.trace("apdu: response timed out")
       throw TransportError.responseTimedOut
@@ -175,6 +177,7 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
     let elapsed = started.duration(to: ContinuousClock.now)
     TokenLog.trace(
       CardExchangeTrace.line(request: payload, response: reply.value, elapsed: elapsed)
+        + " channel=\(channelID)"
     )
     guard let response = reply.value else {
       if let callbackError = transportError.value {
@@ -239,7 +242,7 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
       }
       let elapsed = TraceTiming.milliseconds(started.duration(to: ContinuousClock.now))
       if began.value {
-        TokenLog.trace("session: begin ok ms=\(elapsed)")
+        TokenLog.trace("session: begin ok ms=\(elapsed) channel=\(channelID)")
         return
       }
       // The failure is the diagnosis here: TKError -7 on the built-in
@@ -261,7 +264,7 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
 
   /// Ends a session opened with ``beginSession()``.
   internal func endSession() {
-    TokenLog.trace("session: end")
+    TokenLog.trace("session: end channel=\(channelID)")
     smartCard.endSession()
   }
 

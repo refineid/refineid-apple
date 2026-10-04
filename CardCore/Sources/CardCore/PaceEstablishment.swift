@@ -57,11 +57,17 @@ public struct PaceEstablishment {
   /// The transport this run drives.
   private let channel: any CardChannel
 
+  private let diagnostic: (@Sendable (String) -> Void)?
+
   /// Where the two ephemeral private scalars come from.
   private let scalarSource: PaceEphemeralScalarSource
 
   /// A run over `channel` using the platform CSPRNG for its scalars.
-  public init(channel: any CardChannel) {
+  @preconcurrency
+  public init(
+    channel: any CardChannel, diagnostic: (@Sendable (String) -> Void)? = nil
+  ) {
+    self.diagnostic = diagnostic
     self.channel = channel
     self.scalarSource = .secureRandom
   }
@@ -72,6 +78,7 @@ public struct PaceEstablishment {
   public init(channel: any CardChannel, scalarSource: PaceEphemeralScalarSource) {
     self.channel = channel
     self.scalarSource = scalarSource
+    self.diagnostic = nil
   }
 
   /// The mapped generator `G' = s*G + H` of the generic mapping.
@@ -117,12 +124,14 @@ public struct PaceEstablishment {
   /// The CAN is used for exactly one thing, in one place: deriving the key
   /// that deciphers the nonce. It is not retained past that point.
   public func establish(with accessNumber: CardAccessNumber) throws -> PaceSessionKeys {
+    let started = ContinuousClock.now
     guard let environment = PaceCommand.securityEnvironment() else {
       throw Failure.malformedResponse
     }
     _ = try transmit(environment)
 
     let nonce = try recoverNonce(with: accessNumber)
+    reportPhase("nonce", since: started)
 
     let mappingScalar = scalarSource.nextScalar()
     let cardMappingPoint = try exchangeMappingData(mappingScalar: mappingScalar)
@@ -132,6 +141,7 @@ public struct PaceEstablishment {
       mappingScalar: mappingScalar
     )
 
+    reportPhase("mapping", since: started)
     let agreementScalar = scalarSource.nextScalar()
     let terminalPublicKey = BrainpoolP384r1.multiply(mappedGenerator, by: agreementScalar)
     let cardPublicKey = try exchangeEphemeralKeys(terminalPublicKey: terminalPublicKey)
@@ -139,12 +149,19 @@ public struct PaceEstablishment {
       sharedSecret: BrainpoolP384r1.multiply(cardPublicKey, by: agreementScalar)
     )
 
+    reportPhase("agreement", since: started)
     try confirm(
       keys: keys,
       terminalPublicKey: terminalPublicKey,
       cardPublicKey: cardPublicKey
     )
+    reportPhase("confirmation", since: started)
     return keys
+  }
+
+  private func reportPhase(_ phase: String, since started: ContinuousClock.Instant) {
+    let elapsed = TraceTiming.milliseconds(started.duration(to: ContinuousClock.now))
+    diagnostic?("PACE phase=\(phase) elapsedMs=\(elapsed)")
   }
 
   /// Round one: fetch the encrypted nonce and decipher it with the key the

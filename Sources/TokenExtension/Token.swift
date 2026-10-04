@@ -95,7 +95,7 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
   /// The card session taken at the mint and kept open for the signature.
   ///
   /// Empty on the contact path, which opens a session per operation.
-  internal let heldSession = HeldCardSession()
+  internal let heldSession = HeldCardSession(diagnostic: { TokenLog.trace($0) })
 
   /// PIN1 this card accepted, kept only while this token is live.
   internal let acceptedPin1 = AcceptedPin1Memory()
@@ -228,7 +228,7 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
     acceptedPin1.clearAll()
     VolatileAcceptedPin1.shared.clear(for: cardInstanceID)
     TransientCandidatePin1.shared.clear(for: cardInstanceID)
-    heldSession.release()
+    heldSession.release(reason: .revoked)
   }
 
   /// Gives back the held session when the token itself goes away.
@@ -241,7 +241,7 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
   deinit {
     TokenLog.info("Token.deinit: id=\(tokenID)")
     acceptedPin1.clearAll()
-    heldSession.release()
+    heldSession.release(reason: .tokenDestroyed)
     // Last chance to get the trace out of a process ctkd is dropping: a
     // token going away is often the only sign of what ended a login, and
     // anything still only recorded would go with it.

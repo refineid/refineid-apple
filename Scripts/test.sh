@@ -7,6 +7,7 @@
 #   Scripts/test.sh           # default: runs PR tier (lint, package tests, iOS build, targeted unit tests)
 #   Scripts/test.sh commit    # fast pre-commit tier (whitespace check + lint)
 #   Scripts/test.sh pr        # PR / pre-push tier (lint, package tests, iOS build, RefineIDTests)
+#   Scripts/test.sh nfc-signing # retained-field lifecycle and PACE regression tests
 #   Scripts/test.sh full      # release regression tier (PR checks plus core and isolated RAPP tests)
 #   Scripts/test.sh macos-mvp # localized local-card UI and excluded-service checks
 
@@ -77,6 +78,14 @@ case "${mode}" in
     printf '\nPR gate passed: Lint, package tests, iOS compilation, and app unit tests pass.\n'
     ;;
 
+  nfc-signing)
+    step "Testing retained NFC field lifecycle and PACE"
+    xcodebuild test -scheme RefineID -destination 'platform=macOS' \
+      -only-testing:CardCoreTests/HeldCardSessionTests \
+      -only-testing:CardCoreTests/PaceEstablishmentTests -quiet \
+      || fail "NFC signing regression tests failed."
+    ;;
+
   macos-mvp)
     step "Checking the macOS MVP user interface"
     result_path="build/macos-mvp-ui-$(date -u +%Y%m%dT%H%M%SZ).xcresult"
@@ -103,7 +112,7 @@ case "${mode}" in
     ;;
 
   *)
-    printf 'Usage: %s [commit|pr|full|macos-mvp]\n' "$0" >&2
+    printf 'Usage: %s [commit|pr|full|nfc-signing|macos-mvp]\n' "$0" >&2
     exit 2
     ;;
 esac
