@@ -30,8 +30,8 @@ public enum CardExchangeTrace {
   /// keeping, because "the card said nothing" and "the card refused" are
   /// different faults with the same visible symptom.
   public static func line(request: Data, response: Data?, elapsed: Duration) -> String {
-    let answer = response.flatMap(ResponseApdu.init(raw:))
-    let status = answer.map { String(format: Self.wordFormat, $0.statusWord.encoded) }
+    let answer = Self.responseMetadata(response)
+    let status = answer.map { String(format: Self.wordFormat, $0.status) }
     let tail =
       " sw=" + (status ?? Self.unknown)
       + " ms=" + TraceTiming.milliseconds(elapsed)
@@ -45,8 +45,20 @@ public enum CardExchangeTrace {
     guard !Self.isCredentialBearing(instruction) else {
       return named + " credential tx=" + Self.redacted + tail
     }
-    let received = answer.map { String($0.payload.count) } ?? Self.unknown
+    let received = answer.map { String($0.payloadCount) } ?? Self.unknown
     return named + " tx=\(request.count) rx=" + received + tail
+  }
+
+  /// Reads only transport length and trailing status, including assembled
+  /// responses whose protected body exceeds a short APDU payload.
+  private static func responseMetadata(_ response: Data?) -> (payloadCount: Int, status: UInt16)? {
+    guard let response, response.count >= ResponseApdu.statusWordLength else { return nil }
+    let trailer = response.suffix(ResponseApdu.statusWordLength)
+    guard let first = trailer.first, let last = trailer.last else { return nil }
+    return (
+      response.count - ResponseApdu.statusWordLength,
+      StatusWord(sw1: first, sw2: last).encoded
+    )
   }
 
   /// The instruction byte, or nil when the payload is too short to have

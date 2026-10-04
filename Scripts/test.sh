@@ -84,6 +84,7 @@ case "${mode}" in
       -only-testing:CardCoreTests/HeldCardSessionTests \
       -only-testing:CardCoreTests/PaceEstablishmentTests \
       -only-testing:CardCoreTests/CommandApduTests \
+      -only-testing:CardCoreTests/CardExchangeTraceTests \
       -only-testing:CardCoreTests/OnDemandPinExperimentTests \
       -only-testing:CardCoreTests/OnDemandPinPublicationTests \
       -only-testing:CardCoreTests/SecureMessagingChannelTests \

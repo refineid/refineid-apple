@@ -69,6 +69,18 @@ internal struct CardExchangeTraceTests {
     #expect(line.contains("ms=12.0"))
   }
 
+  @Test("Assembled RSA responses report status and size without exposing payload")
+  internal func assembledResponseMetadata() {
+    let signatureBytes = 384
+    var response = Data(repeating: 0xA5, count: signatureBytes)
+    response.append(contentsOf: [0x90, 0x00])
+    let line = CardExchangeTrace.line(
+      request: Self.selectRequest, response: response, elapsed: .milliseconds(12))
+    #expect(line.contains("rx=384"))
+    #expect(line.contains("sw=9000"))
+    #expect(!line.contains("A5A5"))
+  }
+
   @Test
   internal func verifyExchangeOmitsCredentialBytesAndLength() {
     let line = CardExchangeTrace.line(
