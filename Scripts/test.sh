@@ -82,7 +82,10 @@ case "${mode}" in
     step "Testing retained NFC field lifecycle and PACE"
     xcodebuild test -scheme RefineID -destination 'platform=macOS' \
       -only-testing:CardCoreTests/HeldCardSessionTests \
-      -only-testing:CardCoreTests/PaceEstablishmentTests -quiet \
+      -only-testing:CardCoreTests/PaceEstablishmentTests \
+      -only-testing:CardCoreTests/CommandApduTests \
+      -only-testing:CardCoreTests/SecureMessagingChannelTests \
+      -only-testing:RefineIDTests/SmartCardTransmitTests -quiet \
       || fail "NFC signing regression tests failed."
     ;;
 

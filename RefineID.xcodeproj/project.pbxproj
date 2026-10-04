@@ -22,6 +22,7 @@
 		D8D396B5E12DA372E43BD5D3 /* RefineIDRappTokenExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5ADED64532B13872419C7B30 /* RefineIDRappTokenExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DC4E6B27DAEFC74447BC438F /* CardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7298DA08AF9815CC40D89601 /* CardCore */; };
 		FE9FF60F2BD451120817294F /* CryptoTokenKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2D0000000000000000000003 /* CryptoTokenKit.framework */; };
+		BC0000000000000000000001 /* SmartCardTransmit.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000002 /* SmartCardTransmit.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -98,6 +99,7 @@
 		3D00000000000000000000AB /* RefineID-iOS-Store-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "RefineID-iOS-Store-Info.plist"; sourceTree = "<group>"; };
 		5ADED64532B13872419C7B30 /* RefineIDRappTokenExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RefineIDRappTokenExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		BD0000000000000000000001 /* RefineIDTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RefineIDTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BC0000000000000000000002 /* SmartCardTransmit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/TokenExtension/SmartCardTransmit.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -568,6 +570,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BC0000000000000000000001 /* SmartCardTransmit.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
