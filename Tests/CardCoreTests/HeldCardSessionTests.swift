@@ -12,23 +12,32 @@ internal struct HeldCardSessionTests {
   // MARK: Nested Types
 
   /// A fake held channel wrapping `SyntheticPaceCard` with synchronization hooks.
-  private final class TestHeldCardChannel: HeldCardChannel, @unchecked Sendable {
+  internal final class TestHeldCardChannel: HeldCardChannel, @unchecked Sendable {
     private let card: SyntheticPaceCard
     private let lock = NSLock()
     private var ssc: UInt64 = 2
 
-    fileprivate var isSessionEnded = false
-    fileprivate var onFirstTransmit: (@Sendable () -> Void)?
+    private var endCount = 0
+    internal var onEnd: (@Sendable () -> Void)?
 
-    fileprivate var readChunkLength: ReadChunkLength {
+    internal var sessionEndCount: Int {
+      lock.lock()
+      defer { lock.unlock() }
+      return endCount
+    }
+
+    internal var isSessionEnded: Bool { sessionEndCount > 0 }
+    internal var onFirstTransmit: (@Sendable () -> Void)?
+
+    internal var readChunkLength: ReadChunkLength {
       card.readChunkLength
     }
 
-    fileprivate init(card: SyntheticPaceCard) {
+    internal init(card: SyntheticPaceCard) {
       self.card = card
     }
 
-    fileprivate func transmit(_ payload: Data) throws -> Data {
+    internal func transmit(_ payload: Data) throws -> Data {
       let hook: (@Sendable () -> Void)?
       lock.lock()
       hook = onFirstTransmit
@@ -65,16 +74,18 @@ internal struct HeldCardSessionTests {
       return try card.transmit(payload)
     }
 
-    fileprivate func endSession() {
+    internal func endSession() {
       lock.lock()
-      isSessionEnded = true
+      endCount += 1
+      let hook = onEnd
       lock.unlock()
+      hook?()
     }
   }
 
   // MARK: Static Properties
 
-  private static let validCanString = "123456"
+  internal static let validCanString = "123456"
   private static let nonceHex = "00112233445566778899AABBCCDDEEFF"
   private static let firstBlockHex = "0102030405060708090A0B0C0D0E0F10"
   private static let secondBlockHex = "1A2B3C4D5E6F708192A3B4C5D6E7F809"
@@ -90,7 +101,7 @@ internal struct HeldCardSessionTests {
     return value
   }
 
-  private static func makeSyntheticCard() throws -> SyntheticPaceCard {
+  internal static func makeSyntheticCard() throws -> SyntheticPaceCard {
     SyntheticPaceCard(
       accessNumberDigits: validCanString,
       nonce: WireHex.data(nonceHex),
@@ -227,4 +238,5 @@ internal struct HeldCardSessionTests {
     #expect(!testChannel.isSessionEnded, "Active lease did not protect session from timeout")
     _ = lease
   }
+
 }

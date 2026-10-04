@@ -1,5 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
+import CardCore
 import Foundation
 
 /// Remembers when a signing operation was requested across an NFC field renewal.
@@ -32,6 +33,8 @@ internal final class PendingSigningState: @unchecked Sendable {
     if ContinuousClock.now - timestamp < Self.validDuration {
       return true
     }
+    let elapsed = TraceTiming.milliseconds(timestamp.duration(to: ContinuousClock.now))
+    TokenLog.trace("field recovery: pending intent expired ageMs=\(elapsed)")
     pendingSignTimestamp = nil
     return false
   }
@@ -49,6 +52,7 @@ internal final class PendingSigningState: @unchecked Sendable {
     lock.lock()
     defer { lock.unlock() }
     pendingSignTimestamp = ContinuousClock.now
+    TokenLog.trace("field recovery: pending intent recorded")
   }
 
   /// Clears any pending sign state upon signature completion or cancellation.
@@ -56,5 +60,6 @@ internal final class PendingSigningState: @unchecked Sendable {
     lock.lock()
     defer { lock.unlock() }
     pendingSignTimestamp = nil
+    TokenLog.trace("field recovery: pending intent cleared")
   }
 }

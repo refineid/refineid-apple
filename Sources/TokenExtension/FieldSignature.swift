@@ -6,18 +6,9 @@ import Foundation
 /// One signature made through the contactless interface, in the order the
 /// field allows.
 ///
-/// A contactless card seals its PKCS#15 application until PACE has run,
-/// so everything here travels inside the secure-messaging channel PACE
-/// yields. What shapes the rest is time: on the system-driven path `ctkd`
-/// owns the slot and ends it about two seconds after the token is minted,
-/// so this reads nothing the prime already knows, spends no APDU on
-/// diagnostics, and writes no log line at all - a single probe APDU at
-/// the head of this path was measured costing the whole handshake.
-///
-/// Provenance: the contactless branch of the donor
-/// `platform/apple/RefineIDTokenExtension/TokenSession.swift`, whose
-/// transport was a Rust FFI relay; here it is CardCore's own PACE,
-/// secure messaging and card operations.
+/// Contactless operations use the secure channel established for this powered
+/// field. Primed identity material avoids certificate and serial reads during
+/// signing. Field loss invalidates the channel and requires a fresh PACE run.
 internal struct FieldSignature {
   /// The token this signature belongs to, and the source of everything
   /// the prime already read: the leaf public key and the card serial.
@@ -40,10 +31,8 @@ internal struct FieldSignature {
   /// proof that the stored CAN cannot open the presented card, so it revokes
   /// this automatic identity rather than leaving a mintable broken token.
   internal func perform(pin1: consuming Pin1, request: SignRequest) throws -> Data {
-    // The mint starts PACE immediately on a worker and retains that exact
-    // secure channel. This keeps the expensive work ahead of Safari's
-    // later sign callback and keeps its mutable counter for a second
-    // signature from the same token.
+    // Claim the channel for this powered field, preparing it if the hold was
+    // passive. A lease serializes the secure-messaging counter across signatures.
     do {
       let lease = try token.heldSession.preparedChannel(accessNumber: accessNumber)
       defer { _ = lease.channel }

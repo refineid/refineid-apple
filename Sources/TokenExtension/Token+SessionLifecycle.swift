@@ -38,26 +38,29 @@ extension Token {
       return
     }
     heldSession.retain(channel)
-    if let accessNumber = sealedAccessNumber {
+    TokenLog.trace(
+      "field: token=\(tokenID) hold=\(heldSession.diagnosticIdentifier) channel=\(channel.channelID) "
+        + "pendingSign=\(isPendingSign)")
+    if isPendingSign, let accessNumber = sealedAccessNumber {
       heldSession.startPACE(with: accessNumber)
     }
     if !isPendingSign {
+      TokenLog.trace("field: discovery hold; PACE deferred until sign token=\(tokenID)")
       heldSession.scheduleActivityTimeout()
     }
   }
 
   /// Releases the held session and the cached PIN1 when the card is gone.
   ///
-  /// For contactless slots, any non-validCard state indicates that the NFC field
-  /// has ended or the card has been moved away from the antenna. Releasing immediately
-  /// ensures subsequent operations do not hang against a dead field.
+  /// A missing or empty slot invalidates the hold. Transitional slot states leave an
+  /// active operation intact until the slot confirms disappearance.
   internal func observeSlotState(of smartCard: TKSmartCard) {
     slotStateObservation = smartCard.slot.observe(\.state, options: [.new]) {
       [held = heldSession, pin1 = acceptedPin1, id = tokenID] observed, change in
       let state = change.newValue ?? observed.state
       TokenLog.trace("slotState: token=\(id) state=\(state)")
-      guard state != .validCard else { return }
-      held.release()
+      guard state == .missing || state == .empty else { return }
+      held.release(reason: state == .missing ? .slotMissing : .cardRemoved)
       pin1.clearAll()
     }
   }

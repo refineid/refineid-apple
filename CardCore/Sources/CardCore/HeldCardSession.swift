@@ -9,19 +9,15 @@ import Foundation
 /// A card session opened while the token was minted and deliberately kept
 /// open, so the signature that follows still has a live field to work in.
 ///
-/// Only the system-driven contactless path needs this, and it was bought
-/// with a measured failure: `ctkd` owns the built-in contactless slot and
-/// ends it about two seconds after the mint, so a `beginSession` issued
-/// when the signature finally arrives fails with `TKError -7` - there is
-/// no field left to open. Holding the session taken at the mint keeps one
-/// live field under the mint, the PACE run and the signature.
+/// A powered field owns its PACE state. Slot loss immediately invalidates that
+/// state; transport cleanup waits separately for outstanding channel use.
+/// A replacement hold establishes its own secure channel before signing.
 ///
 /// The release is driven by a slot-state observation, which is a
 /// `@Sendable` closure, and `Token` is not `Sendable` - so the closure
 /// cannot capture the token and captures this box instead.
-/// `@unchecked Sendable` is sound because every access goes through the
-/// lock: the observation fires on CryptoTokenKit's queue while a
-/// signature runs on the session's.
+/// Mutable state is protected by the condition and transport operations by
+/// the operation lock. The observation and signer can run on different queues.
 ///
 /// Provenance: `Token.HeldSession` in the donor
 /// `platform/apple/RefineIDTokenExtension/Token.swift`, whose held value
@@ -100,6 +96,12 @@ public final class HeldCardSession: @unchecked Sendable {
   /// Whether the slot observation has ended this hold.
   internal var ended = false
 
+  internal var generation: UInt64 = 0
+  private let diagnostic: (@Sendable (String) -> Void)?
+  /// Ephemeral identifier joining lifecycle events to the owning token and transport.
+  public let diagnosticIdentifier = UUID().uuidString
+  private let diagnosticStart = ContinuousClock.now
+
   /// Whether the activity timeout expired while PACE was running, deferring release.
   internal var activityTimeoutDeferred = false
 
@@ -126,8 +128,11 @@ public final class HeldCardSession: @unchecked Sendable {
   // MARK: Lifecycle
 
   /// Creates an unconfigured held session with no retained card channel.
-  public init() {
-    // Unconfigured session.
+  ///
+  /// Diagnostics run synchronously and must not call back into the session.
+  @preconcurrency
+  public init(diagnostic: (@Sendable (String) -> Void)? = nil) {
+    self.diagnostic = diagnostic
   }
 
   // MARK: Functions
@@ -158,9 +163,11 @@ public final class HeldCardSession: @unchecked Sendable {
     activityTimeoutWorkItem = nil
     activityTimeoutDeferred = false
     self.channel = channel
+    generation += 1
     preparation = .idle
     ended = false
     condition.broadcast()
+    recordLifecycle("retained generation=\(generation)")
     condition.unlock()
     #if canImport(OSLog)
       Self.logger.trace("held session: taken")
@@ -195,40 +202,58 @@ public final class HeldCardSession: @unchecked Sendable {
     condition.unlock()
   }
 
-  /// Ends and forgets the held session; safe to call repeatedly.
-  ///
-  /// Call this only when the slot reports the card genuinely `.missing`.
-  /// Releasing on any other state was measured tearing down a signature
-  /// part way through a read - a card momentarily out of the field is
-  /// still the same card.
-  public func release() {
+  /// Invalidates the hold immediately and serializes transport cleanup with card operations.
+  public func release(reason: ReleaseReason = .explicit) {
+    invalidate(reason: reason)
+  }
+
+  private func invalidate(reason: ReleaseReason, unclaimedGeneration: UInt64? = nil) {
     condition.lock()
+    if let unclaimedGeneration {
+      guard generation == unclaimedGeneration, !ended else {
+        condition.unlock()
+        return
+      }
+      switch preparation {
+      case .idle, .ready, .failed:
+        break
+      case .running, .leased:
+        condition.unlock()
+        return
+      }
+    }
     activityTimeoutWorkItem?.cancel()
     activityTimeoutWorkItem = nil
     activityTimeoutDeferred = false
     let outgoing = channel
     channel = nil
     ended = true
-    if case .running = preparation {
-      // The worker records the transport failure and wakes waiters.
-    } else {
-      preparation = .failed(CardOperationError.sessionUnavailable)
-      condition.broadcast()
+    preparation = .failed(CardOperationError.sessionUnavailable)
+    condition.broadcast()
+    if outgoing != nil {
+      recordLifecycle("invalidated reason=\(reason.rawValue) generation=\(generation)")
     }
     condition.unlock()
 
-    if let outgoing {
-      #if canImport(OSLog)
-        Self.logger.trace("held session: released held=true")
-      #endif
-      operationLock.lock()
+    guard let outgoing else { return }
+    if operationLock.try() {
       outgoing.endSession()
       operationLock.unlock()
+      recordLifecycle("transport ended")
     } else {
-      #if canImport(OSLog)
-        Self.logger.trace("held session: released held=false")
-      #endif
+      recordLifecycle("transport cleanup deferred")
+      DispatchQueue.global(qos: .userInitiated).async { [self] in
+        operationLock.lock()
+        outgoing.endSession()
+        operationLock.unlock()
+        recordLifecycle("transport ended after outstanding operation")
+      }
     }
+  }
+
+  internal func recordLifecycle(_ event: String) {
+    let elapsed = TraceTiming.milliseconds(diagnosticStart.duration(to: ContinuousClock.now))
+    diagnostic?("held: id=\(diagnosticIdentifier) ageMs=\(elapsed) \(event)")
   }
 
   #if DEBUG
@@ -236,14 +261,15 @@ public final class HeldCardSession: @unchecked Sendable {
     public func fireActivityTimeoutForTesting(
       seconds: TimeInterval = defaultActivityTimeoutSeconds
     ) {
-      handleActivityTimeout(seconds: seconds)
+      handleActivityTimeout(seconds: seconds, generation: nil)
     }
   #endif
 
   internal func scheduleActivityTimeoutLocked(seconds: TimeInterval) {
     activityTimeoutWorkItem?.cancel()
+    let scheduledGeneration = generation
     let workItem = DispatchWorkItem { [weak self] in
-      self?.handleActivityTimeout(seconds: seconds)
+      self?.handleActivityTimeout(seconds: seconds, generation: scheduledGeneration)
     }
     activityTimeoutWorkItem = workItem
     DispatchQueue.global(qos: .userInitiated).asyncAfter(
@@ -254,12 +280,16 @@ public final class HeldCardSession: @unchecked Sendable {
 
   /// Evaluates an activity timeout, releasing an unused or unclaimed channel
   /// while deferring release if PACE is actively running.
-  internal func handleActivityTimeout(seconds: TimeInterval) {
+  internal func handleActivityTimeout(
+    seconds: TimeInterval, generation expectedGeneration: UInt64?
+  ) {
     condition.lock()
-    guard channel != nil, !ended else {
+    guard channel != nil, !ended, expectedGeneration == nil || expectedGeneration == generation
+    else {
       condition.unlock()
       return
     }
+    let timedGeneration = generation
 
     switch preparation {
     case .idle:
@@ -271,7 +301,7 @@ public final class HeldCardSession: @unchecked Sendable {
           "held session: unused discovery timeout (\(milliseconds)ms) - releasing contactless field"
         )
       #endif
-      release()
+      invalidate(reason: .activityTimeout, unclaimedGeneration: timedGeneration)
 
     case .running:
       // Timer fired during PACE: do NOT close the card session mid-PACE.
@@ -290,7 +320,7 @@ public final class HeldCardSession: @unchecked Sendable {
           "held session: unclaimed prepared field timeout (\(milliseconds)ms) - releasing contactless field"
         )
       #endif
-      release()
+      invalidate(reason: .activityTimeout, unclaimedGeneration: timedGeneration)
 
     case .leased:
       condition.unlock()
@@ -300,14 +330,14 @@ public final class HeldCardSession: @unchecked Sendable {
 
     case .failed:
       condition.unlock()
-      release()
+      invalidate(reason: .activityTimeout, unclaimedGeneration: timedGeneration)
     }
   }
 
   /// Restores preparation to ready when a lease ends.
-  internal func finishLease() {
+  internal func finishLease(generation leasedGeneration: UInt64) {
     condition.lock()
-    if case .leased(let secure) = preparation {
+    if generation == leasedGeneration, !ended, case .leased(let secure) = preparation {
       preparation = .ready(secure)
       condition.broadcast()
     }
