@@ -125,6 +125,15 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
 
   private let smartCard: TKSmartCard
   internal let channelID = UUID().uuidString
+  private let progressLock = NSLock()
+  private let progressHolder = Box<CardExchangeProgress?>(nil)
+
+  internal var exchangeProgressSnapshot: String {
+    progressLock.lock()
+    let progress = progressHolder.value
+    progressLock.unlock()
+    return progress?.snapshot() ?? "operation=none"
+  }
 
   /// The response budget the constructing transport chose.
   private let responseBudget: DispatchTimeInterval
@@ -157,16 +166,24 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
     let transportError = Box<Error?>(nil)
     let semaphore = DispatchSemaphore(value: 0)
     let started = ContinuousClock.now
+    let exchangeProgress = CardExchangeProgress()
+    exchangeProgress.begin(request: payload)
+    progressLock.lock()
+    progressHolder.value = exchangeProgress
+    progressLock.unlock()
     startTransmit(
       payload,
       reply: reply,
       transportError: transportError,
-      semaphore: semaphore)
+      semaphore: semaphore,
+      exchangeProgress: exchangeProgress)
+    exchangeProgress.submitted()
     guard semaphore.wait(timeout: .now() + responseBudget) == .success else {
+      exchangeProgress.timedOut()
       let elapsed = started.duration(to: ContinuousClock.now)
       TokenLog.trace(
         CardExchangeTrace.line(request: payload, response: nil, elapsed: elapsed)
-          + " channel=\(channelID)"
+          + " channel=\(channelID) " + exchangeProgress.snapshot()
       )
       TokenLog.trace("apdu: response timed out")
       throw TransportError.responseTimedOut
@@ -174,7 +191,7 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
     let elapsed = started.duration(to: ContinuousClock.now)
     TokenLog.trace(
       CardExchangeTrace.line(request: payload, response: reply.value, elapsed: elapsed)
-        + " channel=\(channelID)"
+        + " channel=\(channelID) " + exchangeProgress.snapshot()
     )
     guard let response = reply.value else {
       if let callbackError = transportError.value {
@@ -191,7 +208,8 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
     _ payload: Data,
     reply: Box<Data?>,
     transportError: Box<Error?>,
-    semaphore: DispatchSemaphore
+    semaphore: DispatchSemaphore,
+    exchangeProgress: CardExchangeProgress
   ) {
     if CommandApdu.structuredProtectedSignature(payload) != nil {
       TokenLog.trace("apdu: mode=ctkContinuation channel=\(channelID)")
@@ -218,6 +236,17 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
         }
       },
       reply: { response, error in
+        let late = exchangeProgress.completed()
+        if late {
+          TokenLog.trace("apdu: late callback channel=\(channelID) " + exchangeProgress.snapshot())
+        }
+        if let error {
+          let failure = error as NSError
+          TokenLog.trace(
+            "apdu: callback failure channel=\(channelID) "
+              + "domain=\(failure.domain) code=\(failure.code) slotState=\(smartCard.slot.state.rawValue)"
+          )
+        }
         reply.value = response
         transportError.value = error
         semaphore.signal()
