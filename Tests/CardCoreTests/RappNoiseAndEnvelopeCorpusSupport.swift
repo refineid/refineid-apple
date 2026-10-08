@@ -31,8 +31,8 @@ internal enum RappNoiseAndEnvelopeCorpusSupport {
     internal static let byteCountUInt32 = 4
     internal static let byteCountUInt64 = 8
     internal static let wireMajor: UInt64 = 26
-    internal static let wireMinor: UInt64 = 9
-    internal static let wirePatch: UInt64 = 28
+    internal static let wireMinor: UInt64 = 10
+    internal static let wirePatch: UInt64 = 1
     internal static let versionLength = 3
     internal static let patchIndex = 2
     internal static let sessionIDLength = 16
@@ -165,7 +165,7 @@ internal enum RappNoiseAndEnvelopeCorpusSupport {
       repositoryRoot
       .appendingPathComponent("Documentation")
       .appendingPathComponent("rapp-conformance")
-      .appendingPathComponent("rapp-v26.9.28.json")
+      .appendingPathComponent("rapp-v26.10.1.json")
     return try JSONDecoder().decode(Corpus.self, from: Data(contentsOf: url))
   }
 

@@ -285,7 +285,8 @@ import SwiftUI
     }
 
     private func applyPairingDigits(_ digits: String) {
-      let normalized = RappPairingCode.normalize(digits)
+      let normalized = String(
+        RappPairingCode.normalize(digits).prefix(RappPairingCode.codeLength))
       pairingCodeDigits = normalized
       if RappPairingCode.isValid(normalized) {
         isPairingFieldFocused = false

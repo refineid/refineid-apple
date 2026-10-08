@@ -15,8 +15,8 @@ internal struct WireCorpusTests {
   internal func corpusIdentity() throws {
     let corpus = try CorpusFile.conformance(filePath: #filePath)
     #expect(corpus.format == "fi.refineid.rapp.conformance-v1")
-    #expect(corpus.protocolDocumentVersion == "26.9.28")
-    #expect(corpus.noiseHandshake.count == 1)
+    #expect(corpus.protocolDocumentVersion == "26.10.1")
+    #expect(corpus.noiseHandshake.count == 2)
   }
 
   @Test("Every golden deterministic encoding round-trips")

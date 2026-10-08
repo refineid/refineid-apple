@@ -40,6 +40,14 @@ import Testing
       #expect(!RappPairingCode.isValid("7KX4M9AB"))
     }
 
+    @Test("Normalizes compatibility forms first and uppercases only ASCII")
+    internal func testCompatibilityAndAsciiCase() {
+      #expect(RappPairingCode.normalize("\u{FF17}k\tx4\u{00A0}m9") == "7KX4M9")
+      #expect(RappPairingCode.normalize("7KX4M\u{00DF}").isEmpty)
+      #expect(RappPairingCode.normalize("7KX4M9AB") == "7KX4M9AB")
+      #expect(!RappPairingCode.isValid("7KX4M9AB"))
+    }
+
     @Test("Applies Crockford decode aliases (I, L -> 1; O -> 0)")
     internal func testCrockfordDecodeAliases() {
       #expect(RappPairingCode.normalize("iLo8k2") == "1108K2")

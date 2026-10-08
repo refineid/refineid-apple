@@ -81,8 +81,8 @@ import Testing
       }
     }
 
-    @Test("An over-long code keys the PAKE on its first six digits")
-    internal func overLongCodeIsTruncatedToTheCodeLength() throws {
+    @Test("An over-long code is refused rather than truncated")
+    internal func overLongCodeIsRefused() throws {
       let requesterOptions = RappPairingCoordinator.RequesterOptions(
         profiles: ["fi.refineid.card-status.v1"],
         candidates: [
@@ -100,8 +100,9 @@ import Testing
         transport: discardingTransport(),
         code: "2468139"
       )
-      let requester = try RappPairingCoordinator.requester(options: requesterOptions)
-      #expect(requester.offerURI != nil)
+      #expect(throws: (any Error).self) {
+        try RappPairingCoordinator.requester(options: requesterOptions)
+      }
     }
 
     @Test("A code carrying spaces is normalized rather than refused")

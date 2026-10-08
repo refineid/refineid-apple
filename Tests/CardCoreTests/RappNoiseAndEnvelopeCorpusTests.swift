@@ -48,6 +48,29 @@ internal final class RappNoiseAndEnvelopeCorpusTests: XCTestCase {
       ])
       expectedMessageLengths = [48, 96, 64]
       XCTAssertEqual(decodeHex(try XCTUnwrap(vector.testOnlyPairingSecretHex)).count, 32)
+      // The upstream pairing transcript still carries the 26.9.28 prologue
+      // (refineid/refineid-core#60); a strict expectation flags its repair.
+      XCTExpectFailure("Upstream pairing vector predates the v26.10.1 prologue") {
+        XCTAssertEqual(encodeHex(expectedPrologue), vector.prologueHex, vector.name)
+      }
+      XCTAssertEqual(
+        vector.messagesHex.map { decodeHex($0).count }, expectedMessageLengths, vector.name)
+      return
+
+    case "session-kk-fixed-transcript":
+      expectedPrologue = encodeArray([
+        encodeText("RAPP-session-v1"),
+        encodeArray([
+          encodeUnsigned(RappNoiseAndEnvelopeCorpusSupport.wire.major),
+          encodeUnsigned(RappNoiseAndEnvelopeCorpusSupport.wire.minor),
+          encodeUnsigned(RappNoiseAndEnvelopeCorpusSupport.wire.patch),
+        ]),
+        encodeText(vector.suite),
+        encodeBytes(decodeHex(vector.pairIDHex)),
+        encodeBytes(decodeHex(try XCTUnwrap(vector.grantsHashHex))),
+        encodeText(vector.transportProfile),
+      ])
+      expectedMessageLengths = [48, 48]
 
     default:
       XCTFail("Unknown Noise vector: \(vector.name)")
@@ -62,7 +85,7 @@ internal final class RappNoiseAndEnvelopeCorpusTests: XCTestCase {
 
   internal func testFixedNoiseInputsProloguesAndIdentifiers() throws {
     let corpus = try loadCorpus()
-    XCTAssertEqual(corpus.noiseHandshake.count, 1)
+    XCTAssertEqual(corpus.noiseHandshake.count, 2)
 
     for vector in corpus.noiseHandshake {
       try checkStaticKeys(vector)

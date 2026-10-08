@@ -16,8 +16,8 @@ internal enum RappNoise {
   }
 
   private static let wireMajor: UInt64 = 26
-  private static let wireMinor: UInt64 = 9
-  private static let wirePatch: UInt64 = 28
+  private static let wireMinor: UInt64 = 10
+  private static let wirePatch: UInt64 = 1
 
   internal static let wireVersion = WireVersion(
     major: wireMajor,
