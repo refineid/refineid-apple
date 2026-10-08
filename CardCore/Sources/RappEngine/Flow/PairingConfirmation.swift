@@ -127,51 +127,18 @@ internal struct PairingConfirmation {
 
   /// Accept the peer's grant confirmation, which must equal the local one.
   internal mutating func receiveConfirmation(_ frame: Data) throws -> [ProfileName] {
-    guard !peerConfirmationReceived else {
-      print("[PairingConfirmation] duplicateMessage: peerGrants already set")
-      Darwin.fflush(stdout)
-      throw PairingError.duplicateMessage
-    }
-    let envelope: Envelope
-    do {
-      envelope = try open(frame)
-    } catch {
-      print("[PairingConfirmation] open(frame) failed: \(error)")
-      Darwin.fflush(stdout)
-      throw error
-    }
-    guard envelope.messageType == .pairingConfirm else {
-      print("[PairingConfirmation] unexpectedMessage: got \(envelope.messageType)")
-      Darwin.fflush(stdout)
-      throw PairingError.unexpectedMessage
-    }
+    guard !peerConfirmationReceived else { throw PairingError.duplicateMessage }
+    let envelope = try open(frame)
+    guard envelope.messageType == .pairingConfirm else { throw PairingError.unexpectedMessage }
     let confirm: PairingConfirm
     do {
       confirm = try PairingConfirm.from(body: envelope.body)
     } catch let error as MessageFieldError {
-      print("[PairingConfirmation] PairingConfirm.from(body:) failed: \(error)")
-      Darwin.fflush(stdout)
       throw PairingError.message(error)
     }
-    do {
-      try validateGrants(confirm.grantedProfiles, offered: offeredProfiles)
-    } catch {
-      print(
-        "[PairingConfirmation] validateGrants failed:"
-          + " confirm=\(confirm.grantedProfiles) offered=\(offeredProfiles)"
-      )
-      Darwin.fflush(stdout)
-      throw error
-    }
+    try validateGrants(confirm.grantedProfiles, offered: offeredProfiles)
     let sortedConfirm = sortedByNameBytes(confirm.grantedProfiles)
-    if localConfirmationSent, localGrants != sortedConfirm {
-      print(
-        "[PairingConfirmation] grantMismatch:"
-          + " localGrants=\(localGrants) confirm=\(confirm.grantedProfiles)"
-      )
-      Darwin.fflush(stdout)
-      throw PairingError.grantMismatch
-    }
+    if localConfirmationSent, localGrants != sortedConfirm { throw PairingError.grantMismatch }
     peerGrants = sortedConfirm
     peerConfirmationReceived = true
     return sortedConfirm

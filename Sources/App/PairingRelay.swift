@@ -16,11 +16,10 @@ import Foundation
 /// which is underneath.
 ///
 /// Over the stream transport the card holder listens and the requester
-/// dials, because that is the direction the network allows: measured on
-/// the machines this serves, the holder's listener accepts a connection
-/// from every peer, while a listener anywhere else refuses the holder.
-/// The requester finds the holder in the name service, under a name both
-/// derive from the offer one showed and the other scanned.
+/// dials (RAPP discovery hierarchy §3.3). The holder publishes a fresh
+/// random name carrying the pairing-mode attributes; the requester browses
+/// for those attributes, because anything derived from the code would let
+/// the network search for it.
 internal final class PairingRelay: @unchecked Sendable {
   private let onEvent: @Sendable (PersistentRelayEvent) -> Void
 
@@ -52,21 +51,14 @@ internal final class PairingRelay: @unchecked Sendable {
     #endif
   }
 
-  /// Opens the channel toward the peer the ceremony's offer names.
-  ///
-  /// Over the stream transport the offer's derived name is the meeting
-  /// point, so the channel cannot open before the offer exists. The
-  /// nearby transport meets by service type alone and ignores the name.
-  internal func start(sharingOfferURI uri: String) {
+  /// Opens the channel: the holder publishes, the requester finds it.
+  internal func start() {
     #if REFINEID_STREAM_TRANSPORT
-      let name = StreamRendezvousName.name(sharingOfferURI: uri)
       switch role {
       case .host:
-        print("[pairing-relay] host browsing for name: \(name)")
-        Darwin.fflush(stdout)
-        let found = StreamRelayBrowser(matching: name) { [weak self] endpoint in
-          print("[pairing-relay] browser found endpoint: \(endpoint)")
-          Darwin.fflush(stdout)
+        let found = StreamRelayBrowser(
+          matchingAttributes: StreamRendezvousName.pairingAttributes
+        ) { [weak self] endpoint in
           self?.dial(endpoint)
         }
         browser = found
@@ -77,31 +69,14 @@ internal final class PairingRelay: @unchecked Sendable {
           self?.receiveStream(event)
         }
         listener = made
-        made.start(displayName: name)
+        made.start(
+          displayName: StreamRendezvousName.ephemeralName(),
+          txtRecord: StreamRendezvousName.pairingAttributes)
       }
     #else
       session.start()
     #endif
   }
-
-  #if REFINEID_STREAM_TRANSPORT
-    /// Dials the stream candidate's endpoints directly.
-    internal func start(dialingEndpoints endpoints: [String]) {
-      guard dialer == nil else { return }
-      print("[pairing-relay] dialing endpoints: \(endpoints)")
-      Darwin.fflush(stdout)
-      let made = StreamRelaySession(
-        endpointLiterals: endpoints,
-        preamble: rappStreamPairingPreamble()
-      ) { [weak self] event in
-        print("[pairing-relay] session event: \(event)")
-        Darwin.fflush(stdout)
-        self?.receiveStream(event)
-      }
-      dialer = made
-      made.start()
-    }
-  #endif
 
   /// Hands one frame to the peer.
   internal func send(_ frame: Data) async throws {
@@ -133,14 +108,10 @@ internal final class PairingRelay: @unchecked Sendable {
     /// Dials the holder once its published listener has been found.
     private func dial(_ endpoint: NWEndpoint) {
       guard dialer == nil else { return }
-      print("[pairing-relay] dialing: \(endpoint)")
-      Darwin.fflush(stdout)
       let made = StreamRelaySession(
         service: endpoint,
         preamble: rappStreamPairingPreamble()
       ) { [weak self] event in
-        print("[pairing-relay] session event: \(event)")
-        Darwin.fflush(stdout)
         self?.receiveStream(event)
       }
       dialer = made
@@ -149,25 +120,28 @@ internal final class PairingRelay: @unchecked Sendable {
 
     /// Reports a stream event the way the ceremony above names it.
     ///
-    /// The dialer's preamble is the arrival itself and carries no message,
-    /// so it becomes the connection event rather than a frame. Arrival is
-    /// reported once, whichever of the transport's signals lands first.
+    /// The requester has arrived once its connection is open and its
+    /// preamble sent. The holder waits for that preamble (RAPP v26.10.1
+    /// §5.2 routing): anything else first is pre-authentication invalid
+    /// input and drops the connection.
     private func receiveStream(_ event: StreamRelayEvent) {
-      print("[pairing-relay] receiveStream: \(event)")
-      Darwin.fflush(stdout)
-      if case .frame(let payload) = event,
-        payload == rappStreamPairingPreamble() || payload == StreamRelayPreamble.hello
-      {
+      switch (role, event) {
+      case (.host, .connected):
         reportArrival()
+
+      case (.cardHolder, .connected):
         return
+
+      case (.cardHolder, .frame(let payload)) where !reportedArrival:
+        if payload == rappStreamPairingPreamble() {
+          reportArrival()
+        } else {
+          listener?.cancel()
+        }
+
+      default:
+        onEvent(PersistentRelayEvent(event))
       }
-      if case .connected = event {
-        reportArrival()
-        return
-      }
-      print("[pairing-relay] onEvent(\(PersistentRelayEvent(event)))")
-      Darwin.fflush(stdout)
-      onEvent(PersistentRelayEvent(event))
     }
 
     private func reportArrival() {

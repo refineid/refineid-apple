@@ -176,90 +176,90 @@ internal struct CpaceTests {
     #expect(isk.suffix(8) == expectedIskSuffix)
   }
 
-  @Test("CPace end-to-end key agreement between initiator and responder")
-  internal func cpaceSuccessfulAgreement() throws {
-    let offerId = Data(repeating: 0x42, count: 32)
-    let code = "123 456"
+  @Test("KC2 replays the reference implementation byte for byte")
+  internal func kc2ReferenceVectors() throws {
+    for vector in try CpaceKc2VectorFile.load(filePath: #filePath).vectors {
+      let offerHash = try Data(hex: vector.offerHashHex)
+      let offerIdentifier = try Data(hex: vector.offerIdHex)
+      let context = try cpaceKc2Context(offerHash: offerHash)
+      #expect(context.hex == vector.contextHex, "\(vector.name)")
+      #expect(
+        cpaceGeneratorString(
+          dsi: RappCpaceConstants.dsi, prs: Data(vector.pairingCode.utf8),
+          channelInfo: context, sid: offerIdentifier
+        ).hex == vector.generatorStringHex, "\(vector.name)")
+      let initiatorRandom = try Data(hex: vector.testOnlyInitiatorRandomHex)
+      let responderRandom = try Data(hex: vector.testOnlyResponderRandomHex)
+      #expect(cpaceReduceWideScalar(initiatorRandom).hex == vector.testOnlyInitiatorScalarHex)
+      #expect(cpaceReduceWideScalar(responderRandom).hex == vector.testOnlyResponderScalarHex)
 
-    let randomA = Data(repeating: 0x11, count: 64)
-    let randomB = Data(repeating: 0x22, count: 64)
+      let initiator = try CpaceKc2Initiator(
+        code: vector.pairingCode, context: context, offerIdentifier: offerIdentifier,
+        randomBytes: initiatorRandom)
+      #expect(initiator.stepOne.hex == vector.yaHex, "\(vector.name)")
+      let responder = try CpaceKc2Responder(
+        code: vector.pairingCode, context: context, offerIdentifier: offerIdentifier,
+        stepOne: initiator.stepOne, randomBytes: responderRandom)
+      #expect(responder.stepTwo.hex == vector.stepTwoHex, "\(vector.name)")
+      let (stepThree, initiatorKey) = try initiator.processStepTwo(responder.stepTwo)
+      #expect(stepThree.hex == vector.stepThreeHex, "\(vector.name)")
+      #expect(initiatorKey.hex == vector.pskHex, "\(vector.name)")
+      #expect(try responder.processStepThree(stepThree).hex == vector.pskHex, "\(vector.name)")
 
-    let alice = try RappCpaceState(
-      isInitiator: true,
-      pairingCode: code,
-      offerId: offerId,
-      randomBytes64: randomA
-    )
-    let bob = try RappCpaceState(
-      isInitiator: false,
-      pairingCode: code,
-      offerId: offerId,
-      randomBytes64: randomB
-    )
-
-    let alicePublic = alice.publicPoint
-    let bobPublic = bob.publicPoint
-
-    #expect(alicePublic != Data(repeating: 0, count: 32))
-    #expect(bobPublic != Data(repeating: 0, count: 32))
-    #expect(alicePublic != bobPublic)
-
-    let secretA = try alice.finish(peerPublic: bobPublic)
-    let secretB = try bob.finish(peerPublic: alicePublic)
-
-    #expect(secretA.count == 32)
-    #expect(secretA == secretB)
+      let transcriptHash = cpaceKc2TranscriptHash(
+        sid: offerIdentifier, context: context, partyAPublic: try Data(hex: vector.yaHex),
+        partyBPublic: try Data(hex: vector.ybHex))
+      #expect(transcriptHash.hex == vector.transcriptHashHex, "\(vector.name)")
+    }
   }
 
-  @Test("CPace mismatched codes produce distinct secrets")
-  internal func cpaceMismatchedCodes() throws {
-    let offerId = Data(repeating: 0x42, count: 32)
-    let randomA = Data(repeating: 0x11, count: 64)
-    let randomE = Data(repeating: 0x33, count: 64)
-
-    let alice = try RappCpaceState(
-      isInitiator: true,
-      pairingCode: "123456",
-      offerId: offerId,
-      randomBytes64: randomA
-    )
-    let eve = try RappCpaceState(
-      isInitiator: false,
-      pairingCode: "123457",
-      offerId: offerId,
-      randomBytes64: randomE
-    )
-
-    let secretA = try alice.finish(peerPublic: eve.publicPoint)
-    let secretE = try eve.finish(peerPublic: alice.publicPoint)
-
-    #expect(secretA != secretE)
+  @Test("KC2 refuses a wrong code at the responder tag")
+  internal func kc2WrongCodeFailsAtResponderTag() throws {
+    let offerIdentifier = Data(repeating: 0x42, count: RappCpaceConstants.offerIdSize)
+    let context = try cpaceKc2Context(
+      offerHash: Data(repeating: 0x66, count: RappCpaceConstants.offerIdSize))
+    let initiator = try CpaceKc2Initiator(
+      code: "7KX4M9", context: context, offerIdentifier: offerIdentifier,
+      randomBytes: Data(repeating: 0x11, count: RappCpaceConstants.wideScalarSize))
+    let responder = try CpaceKc2Responder(
+      code: "7KX4M8", context: context, offerIdentifier: offerIdentifier,
+      stepOne: initiator.stepOne,
+      randomBytes: Data(repeating: 0x22, count: RappCpaceConstants.wideScalarSize))
+    #expect(throws: RappCpaceError.confirmationTagMismatch) {
+      try initiator.processStepTwo(responder.stepTwo)
+    }
   }
 
-  @Test("CPace binary frame round-trip")
-  internal func cpaceFrameRoundTrip() throws {
-    let offerId = Data(repeating: 0x77, count: 32)
-    let code = "987 654"
-
-    let alice = try RappCpaceState(
-      isInitiator: true,
-      pairingCode: code,
-      offerId: offerId,
-      randomBytes64: Data(repeating: 0xaa, count: 64)
-    )
-    let bob = try RappCpaceState(
-      isInitiator: false,
-      pairingCode: code,
-      offerId: offerId,
-      randomBytes64: Data(repeating: 0xbb, count: 64)
-    )
-
-    let aliceFrame = try alice.writeMessage()
-    let bobFrame = try bob.writeMessage()
-
-    let secretB = try bob.readMessage(aliceFrame)
-    let secretA = try alice.readMessage(bobFrame)
-
-    #expect(secretA == secretB)
+  @Test("KC2 refuses a tampered initiator tag and malformed steps")
+  internal func kc2RefusesTamperedSteps() throws {
+    let offerIdentifier = Data(repeating: 0x42, count: RappCpaceConstants.offerIdSize)
+    let context = try cpaceKc2Context(
+      offerHash: Data(repeating: 0x66, count: RappCpaceConstants.offerIdSize))
+    let initiator = try CpaceKc2Initiator(
+      code: "7KX4M9", context: context, offerIdentifier: offerIdentifier,
+      randomBytes: Data(repeating: 0x11, count: RappCpaceConstants.wideScalarSize))
+    let responder = try CpaceKc2Responder(
+      code: "7KX4M9", context: context, offerIdentifier: offerIdentifier,
+      stepOne: initiator.stepOne,
+      randomBytes: Data(repeating: 0x22, count: RappCpaceConstants.wideScalarSize))
+    var stepThree = try initiator.processStepTwo(responder.stepTwo).stepThree
+    stepThree[stepThree.startIndex] ^= 1
+    #expect(throws: RappCpaceError.confirmationTagMismatch) {
+      try responder.processStepThree(stepThree)
+    }
+    #expect(throws: RappCpaceError.malformedFrame) {
+      try responder.processStepThree(stepThree.dropLast())
+    }
+    #expect(throws: RappCpaceError.invalidPoint) {
+      try CpaceKc2Responder(
+        code: "7KX4M9", context: context, offerIdentifier: offerIdentifier,
+        stepOne: RistrettoPoint.identity.compress(),
+        randomBytes: Data(repeating: 0x22, count: RappCpaceConstants.wideScalarSize))
+    }
+    #expect(throws: RappCpaceError.invalidCode) {
+      try CpaceKc2Initiator(
+        code: "7kx4m9", context: context, offerIdentifier: offerIdentifier,
+        randomBytes: Data(repeating: 0x11, count: RappCpaceConstants.wideScalarSize))
+    }
   }
 }

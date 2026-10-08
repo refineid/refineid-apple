@@ -109,12 +109,7 @@ extension CardCredentialsView {
           phoneRelay.updatePeerOnlineState()
         #endif
       }
-      .onReceive(pairingModel.$phase) { phase in
-        if case .paired = phase {
-          withAnimation {
-            pairingCodeDigits = ""
-          }
-        }
+      .onReceive(pairingModel.$phase) { _ in
         syncRemoteAccessToggle()
       }
       .onReceive(

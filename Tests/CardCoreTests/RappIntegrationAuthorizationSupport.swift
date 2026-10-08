@@ -197,22 +197,18 @@ import Testing
       throw RappIntegrationFixtures.TestFailure.operationEndedWithoutResult
     }
 
-    internal static func approveAndAwaitPair(
-      _ coordinator: RappPairingCoordinator,
-      profiles: [String]
+    internal static func awaitPair(
+      _ coordinator: RappPairingCoordinator
     ) async throws -> RappPairingCoordinator.PairSummary {
       for await event in coordinator.events {
         switch event {
-        case .reviewPeer:
-          await coordinator.approve(grantedProfiles: profiles)
-
         case .paired(let summary):
           return summary
 
         case .closed(let reason):
           throw RappIntegrationFixtures.TestFailure.pairingClosed(reason)
 
-        case .offerReady, .offerRestored:
+        case .peerIntroduced, .offerRestored:
           break
         }
       }

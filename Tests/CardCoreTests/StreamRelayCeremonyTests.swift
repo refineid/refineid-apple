@@ -25,7 +25,6 @@ private let fixturePairingCode = "246813"
     private static let candidateID = "stream-1"
     private static let streamProfile = "fi.refineid.stream.v1"
     private static let emptyCborMapByte: UInt8 = 0xA0
-    private static let offerLifetimeMilliseconds: UInt64 = 60_000
     private static let profiles = [
       "fi.refineid.card-status.v1",
       "fi.refineid.authentication.v1",
@@ -54,74 +53,65 @@ private let fixturePairingCode = "246813"
       throw StreamRelayTestFailure.noFrame
     }
 
-    /// Approves the peer and answers with the pairing that resulted.
-    private static func approveAndAwaitPair(
+    /// Answers with the pairing that resulted.
+    private static func awaitPair(
       _ coordinator: RappPairingCoordinator
     ) async throws -> RappPairingCoordinator.PairSummary {
       for await event in coordinator.events {
         switch event {
-        case .reviewPeer:
-          await coordinator.approve(grantedProfiles: profiles)
-
         case .paired(let summary):
           return summary
 
         case .closed(let reason):
           throw SignRelayPairingFailure.closed(String(describing: reason))
 
-        case .offerReady, .offerRestored:
+        case .peerIntroduced, .offerRestored:
           continue
         }
       }
       throw SignRelayPairingFailure.endedWithoutRecord
     }
 
-    /// The requester, which publishes and listens.
-    private static func makeRequester(
-      vault: RappDeviceVault,
-      listener: StreamRelayListener
-    ) throws -> RappPairingCoordinator {
-      try RappPairingCoordinator.requester(
-        options: .init(
-          profiles: profiles,
-          candidates: [
-            RappPairingCoordinator.TransportCandidate(
-              profile: streamProfile,
-              candidateID: candidateID,
-              parametersCBOR: Data([emptyCborMapByte]))
-          ],
-          selectedCandidateID: candidateID,
-          offerLifetimeMilliseconds: offerLifetimeMilliseconds,
-          displayName: "Requester",
-          platform: "iPadOS",
-          vault: vault,
-          transport: RappClosureFrameTransport(
-            sender: { frame in try listener.send(frame) },
-            closer: { listener.cancel() }),
-          code: fixturePairingCode
-        )
-      )
+    private static func options(
+      _ name: String, vault: RappDeviceVault, transport: RappClosureFrameTransport
+    ) -> RappPairingCoordinator.Options {
+      RappPairingCoordinator.Options(
+        code: fixturePairingCode,
+        profiles: profiles,
+        candidate: RappPairingCoordinator.TransportCandidate(
+          profile: streamProfile,
+          candidateID: candidateID,
+          parametersCBOR: Data([emptyCborMapByte])),
+        displayName: name,
+        platform: name == "Requester" ? "iPadOS" : "iOS",
+        vault: vault,
+        transport: transport)
     }
 
-    /// The card holder, which dials what it found.
-    private static func makeProxy(
-      offerURI: String,
+    /// The requester, which dials what it found.
+    private static func makeRequester(
       vault: RappDeviceVault,
       dialer: StreamRelaySession
     ) throws -> RappPairingCoordinator {
-      try RappPairingCoordinator.proxy(
-        options: .init(
-          scannedOfferURI: offerURI,
-          selectedCandidateID: candidateID,
-          displayName: "Proxy",
-          platform: "iOS",
-          vault: vault,
+      try RappPairingCoordinator.requester(
+        options: options(
+          "Requester", vault: vault,
           transport: RappClosureFrameTransport(
             sender: { frame in try await dialer.send(frame) },
-            closer: { dialer.cancel() }),
-          code: fixturePairingCode
-        )
-      )
+            closer: { dialer.cancel() })))
+    }
+
+    /// The card holder, which publishes and listens.
+    private static func makeProxy(
+      vault: RappDeviceVault,
+      listener: StreamRelayListener
+    ) throws -> RappPairingCoordinator {
+      try RappPairingCoordinator.custodian(
+        options: options(
+          "Proxy", vault: vault,
+          transport: RappClosureFrameTransport(
+            sender: { frame in try listener.send(frame) },
+            closer: { listener.cancel() })))
     }
 
     /// Runs both sides of the ceremony and answers with what each kept.
@@ -138,8 +128,8 @@ private let fixturePairingCode = "246813"
       requester: RappPairingCoordinator.PairSummary,
       proxy: RappPairingCoordinator.PairSummary
     ) {
-      async let requesterSummary = approveAndAwaitPair(requester)
-      async let proxySummary = approveAndAwaitPair(proxy)
+      async let requesterSummary = awaitPair(requester)
+      async let proxySummary = awaitPair(proxy)
       try await awaitConnected(inbound)
       try await awaitConnected(outbound)
       await proxy.transportConnected()
@@ -189,14 +179,11 @@ private let fixturePairingCode = "246813"
       dialer.start()
       defer { dialer.cancel() }
 
-      let requester = try Self.makeRequester(vault: vaults.requester, listener: listener)
-      let proxy = try Self.makeProxy(
-        offerURI: try #require(requester.offerURI),
-        vault: vaults.proxy,
-        dialer: dialer)
+      let requester = try Self.makeRequester(vault: vaults.requester, dialer: dialer)
+      let proxy = try Self.makeProxy(vault: vaults.proxy, listener: listener)
 
-      await inbound.install { frame in await requester.receive(frame) }
-      await outbound.install { frame in await proxy.receive(frame) }
+      await inbound.install { frame in await proxy.receive(frame) }
+      await outbound.install { frame in await requester.receive(frame) }
 
       let made = try await Self.pairBothSides(
         requester: requester,

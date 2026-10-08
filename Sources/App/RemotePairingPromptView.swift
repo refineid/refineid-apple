@@ -7,7 +7,6 @@
 
   internal struct RemotePairingPromptView: View {
     private enum Layout {
-      static let retryDelayNanoseconds: UInt64 = 1_000_000_000
       /// The invitation wraps past this width instead of stretching
       /// the content-sized window to fit one long line.
       static let promptMaxWidth: CGFloat = 600
@@ -17,15 +16,12 @@
 
     /// What the pairing prompt shows.
     ///
-    /// A connected reader disables the phone path: opening the app
-    /// on the phone is pointless while a reader sits ready, so the
-    /// pairing code is not shown then - only the instruction to use
-    /// the reader.
+    /// A connected reader disables the phone path: the phone is pointless
+    /// while a reader sits ready, so no code is asked for then - only the
+    /// instruction to use the reader.
     internal enum Content: Equatable {
-      case phoneCode(String)
+      case phoneCode
       case readerOnly
-      case connecting
-      case preparing
     }
 
     @StateObject private var model = RappPairingModel()
@@ -37,45 +33,26 @@
         promptText
           .frame(maxWidth: Layout.promptMaxWidth, alignment: .leading)
       }
-      .onAppear {
-        ensureOffer()
-      }
-      .onReceive(model.$phase) { phase in
-        switch phase {
-        case .failed:
-          Task { @MainActor in
-            try? await Task.sleep(nanoseconds: Layout.retryDelayNanoseconds)
-            ensureOffer()
-          }
-
-        default:
-          break
-        }
-      }
       .onChange(of: cardPresence.isReaderConnected) { _, connected in
-        if connected {
-          // A reader arriving ends the attempt this prompt owns;
-          // a finished pairing is left alone.
-          if !model.isFinished {
-            model.cancel()
-          }
-        } else {
-          ensureOffer()
+        // A reader arriving ends the attempt this prompt owns; a finished
+        // pairing is left alone.
+        if connected, !model.isFinished {
+          model.cancel()
         }
       }
     }
 
     @ViewBuilder private var promptText: some View {
-      switch Self.content(
-        phase: model.phase,
-        readerConnected: cardPresence.isReaderConnected
-      ) {
-      case .phoneCode(let formattedCode):
-        bullets([
-          String(
-            localized: "Open RefineID on phone (code \(formattedCode))."
-          )
-        ])
+      switch Self.content(readerConnected: cardPresence.isReaderConnected) {
+      case .phoneCode:
+        LabeledContent(String(localized: "Code from phone")) {
+          PairingCodeEntryField(model: model)
+        }
+        .accessibilityIdentifier("pairingPrompt")
+        if case .failed(let message) = model.phase {
+          Text(message)
+            .foregroundStyle(.secondary)
+        }
 
       case .readerOnly:
         bullets([
@@ -83,56 +60,12 @@
             localized: "Insert your identity card into the reader"
           )
         ])
-
-      case .connecting:
-        Text(String(localized: "Connecting..."))
-          .foregroundStyle(.secondary)
-          .accessibilityIdentifier("pairingPrompt")
-
-      case .preparing:
-        Text(String(localized: "Preparing pairing code..."))
-          .foregroundStyle(.secondary)
-          .accessibilityIdentifier("pairingPrompt")
       }
     }
 
-    /// Resolves the prompt for a pairing phase and reader state.
-    nonisolated internal static func content(
-      phase: RappPairingModel.Phase,
-      readerConnected: Bool
-    ) -> Content {
-      if readerConnected {
-        return .readerOnly
-      }
-      switch phase {
-      case .offer(let code):
-        return .phoneCode(RappPairingCode.formatted(code))
-
-      case .connecting:
-        return .connecting
-
-      case .idle, .codeEntry, .paired, .failed:
-        return .preparing
-      }
-    }
-
-    /// Whether the prompt may hold a pairing offer.
-    ///
-    /// No offer while a reader is connected: the offer would
-    /// advertise a phone path the prompt itself refuses to show.
-    /// A finished pairing is never replaced by a fresh offer.
-    nonisolated internal static func wantsOffer(
-      phase: RappPairingModel.Phase,
-      readerConnected: Bool
-    ) -> Bool {
-      guard !readerConnected else { return false }
-      switch phase {
-      case .idle, .codeEntry, .failed:
-        return true
-
-      case .offer, .connecting, .paired:
-        return false
-      }
+    /// Resolves the prompt for the reader state.
+    nonisolated internal static func content(readerConnected: Bool) -> Content {
+      readerConnected ? .readerOnly : .phoneCode
     }
 
     private func bullets(_ items: [String]) -> some View {
@@ -152,15 +85,6 @@
         Text(text)
       }
       .accessibilityElement(children: .combine)
-    }
-
-    private func ensureOffer() {
-      if Self.wantsOffer(
-        phase: model.phase,
-        readerConnected: cardPresence.isReaderConnected
-      ) {
-        model.createOffer()
-      }
     }
   }
 

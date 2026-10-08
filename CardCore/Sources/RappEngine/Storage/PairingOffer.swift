@@ -3,19 +3,20 @@
 import CryptoKit
 import Foundation
 
-/// Scheme prefix carried by the scanned URI.
-internal let offerUriPrefix = "rapp:"
-
-/// Scheme name repeated inside the encoded offer.
+/// Scheme name carried inside the encoded offer.
 internal let offerSchemeName = "rapp"
 
-/// Validated high-entropy pairing offer.
+/// Validated pairing offer (RAPP v26.10.1 §4.2).
 ///
-/// The bearer secret is carried only to reach the QR payload and the pairing
-/// handshake; it is deliberately absent from the hashed form.
+/// The offer carries no secret: the pre-shared key comes from CPace, so the
+/// offer is public and its hash binds the context, the prologue and the
+/// parameter echo.
 internal struct PairingOffer: Sendable {
+  private static let fields = [
+    "scheme", "version", "offer_id", "suites", "profiles", "transports", "offer_ttl_ms",
+  ]
+
   internal let offerIdentifier: Data
-  internal let pairingSecret: Data
   internal let suites: [String]
   internal let profiles: [String]
   internal let transports: [TransportCandidate]
@@ -23,14 +24,12 @@ internal struct PairingOffer: Sendable {
 
   internal init(
     offerIdentifier: Data,
-    pairingSecret: Data,
     suites: [String],
     profiles: [String],
     transports: [TransportCandidate],
     offerLifetimeMilliseconds: UInt64
   ) throws {
     self.offerIdentifier = offerIdentifier
-    self.pairingSecret = pairingSecret
     self.suites = suites
     self.profiles = profiles
     self.transports = transports
@@ -38,53 +37,55 @@ internal struct PairingOffer: Sendable {
     try validate()
   }
 
-  /// A scanned QR URI, decoded and validated.
-  internal static func from(uri: String) throws -> Self {
-    guard uri.hasPrefix(offerUriPrefix) else { throw PairingOfferError.wrongScheme }
-    let payload = String(uri.dropFirst(offerUriPrefix.count))
-    let decoded = try base64UrlDecode(payload)
-    guard decoded.count <= OfferLimit.encodedOfferSize else { throw PairingOfferError.oversized }
+  /// The offer both peers rebuild from the pairing code they share.
+  internal static func fromCode(
+    _ code: String,
+    profiles: [String],
+    transports: [TransportCandidate],
+    offerLifetimeMilliseconds: UInt64
+  ) throws -> Self {
+    let identifier: Data
+    do {
+      identifier = try cpaceDeriveManualOfferId(code: try cpacePasswordString(code))
+    } catch {
+      throw PairingOfferError.wrongLength("offer_id")
+    }
+    return try Self(
+      offerIdentifier: identifier,
+      suites: [RappCpaceConstants.kc2Suite],
+      profiles: profiles,
+      transports: transports,
+      offerLifetimeMilliseconds: offerLifetimeMilliseconds)
+  }
+
+  /// Decodes `encode_deterministic_cbor(pairing-offer)`.
+  internal static func decode(_ encoded: Data) throws -> Self {
+    guard encoded.count <= OfferLimit.encodedOfferSize else { throw PairingOfferError.oversized }
     let value: WireValue
     do {
-      value = try decodeDeterministicCbor(decoded)
+      value = try decodeDeterministicCbor(encoded)
     } catch let error as WireError {
       throw PairingOfferError.wire(error)
     }
     guard case .map(var map) = value else { throw PairingOfferError.wrongType }
-    let expected = [
-      "scheme", "version", "offer_id", "pairing_secret", "suites", "profiles", "transports",
-      "offer_ttl_ms",
-    ]
-    guard map.keys.allSatisfy(expected.contains) else { throw PairingOfferError.unknownField }
+    guard map.keys.allSatisfy(fields.contains) else { throw PairingOfferError.unknownField }
     guard try offerTakeText(&map, "scheme") == offerSchemeName else {
       throw PairingOfferError.wrongScheme
     }
-    guard
-      try offerTakeArray(&map, "version") == [
-        .unsigned(RappNoise.wireVersion.major), .unsigned(RappNoise.wireVersion.minor),
-        .unsigned(RappNoise.wireVersion.patch),
-      ]
+    guard case .array(let version) = try offerTakeValue(&map, "version"),
+      WireValue.array(version) == wireVersionValue
     else { throw PairingOfferError.unsupportedVersion }
     let decodedOfferIdentifier = try offerTakeBytes(&map, "offer_id")
-    guard decodedOfferIdentifier.count == OfferLimit.offerIdentifierSize else {
-      throw PairingOfferError.wrongLength("offer_id")
-    }
-    let secret = try offerTakeBytes(&map, "pairing_secret")
-    guard secret.count == OfferLimit.pairingSecretSize else {
-      throw PairingOfferError.wrongLength("pairing_secret")
-    }
     let decodedSuites = try offerTakeTextArray(&map, "suites")
     let decodedProfiles = try offerTakeTextArray(&map, "profiles")
     let decodedTransports = try offerTakeArray(&map, "transports").map(candidateFrom)
     let lifetime = try offerTakeUnsigned(&map, "offer_ttl_ms")
     return try Self(
       offerIdentifier: decodedOfferIdentifier,
-      pairingSecret: secret,
       suites: decodedSuites,
       profiles: decodedProfiles,
       transports: decodedTransports,
-      offerLifetimeMilliseconds: lifetime
-    )
+      offerLifetimeMilliseconds: lifetime)
   }
 
   private static func candidateValue(_ candidate: TransportCandidate) -> WireValue {
@@ -101,19 +102,21 @@ internal struct PairingOffer: Sendable {
     guard map.keys.allSatisfy(expected.contains) else { throw PairingOfferError.unknownField }
     let profile = try offerTakeText(&map, "profile")
     let candidateIdentifier = try offerTakeText(&map, "candidate_id")
-    guard let parameters = map.removeValue(forKey: "parameters") else {
-      throw PairingOfferError.missingField("parameters")
+    guard case .map(let parameters) = try offerTakeValue(&map, "parameters") else {
+      throw PairingOfferError.wrongType
     }
-    guard case .map(let entries) = parameters else { throw PairingOfferError.wrongType }
     return TransportCandidate(
-      profile: profile, candidateIdentifier: candidateIdentifier, parameters: entries)
+      profile: profile, candidateIdentifier: candidateIdentifier, parameters: parameters)
   }
 
   private func validate() throws {
+    guard offerIdentifier.count == OfferLimit.offerIdentifierSize else {
+      throw PairingOfferError.wrongLength("offer_id")
+    }
     guard !suites.isEmpty, !profiles.isEmpty, !transports.isEmpty else {
       throw PairingOfferError.emptyRequiredArray
     }
-    guard suites.contains(mandatoryPairingSuite) else {
+    guard suites.contains(RappCpaceConstants.kc2Suite) else {
       throw PairingOfferError.mandatorySuiteMissing
     }
     guard transports.count <= OfferLimit.transportCandidates else {
@@ -131,49 +134,24 @@ internal struct PairingOffer: Sendable {
     }
   }
 
-  /// The offer as a deterministic map, with the bearer secret optional.
-  private func asMap(includingSecret: Bool) -> [String: WireValue] {
-    var map: [String: WireValue] = [
+  /// `encode_deterministic_cbor(pairing-offer)`.
+  internal func encoded() throws -> Data {
+    let map: [String: WireValue] = [
       "scheme": .text(offerSchemeName),
-      "version": .array([
-        .unsigned(RappNoise.wireVersion.major), .unsigned(RappNoise.wireVersion.minor),
-        .unsigned(RappNoise.wireVersion.patch),
-      ]),
+      "version": wireVersionValue,
       "offer_id": .bytes(offerIdentifier),
       "suites": .array(suites.map(WireValue.text)),
       "profiles": .array(profiles.map(WireValue.text)),
       "transports": .array(transports.map(Self.candidateValue)),
       "offer_ttl_ms": .unsigned(offerLifetimeMilliseconds),
     ]
-    if includingSecret {
-      map["pairing_secret"] = .bytes(pairingSecret)
-    }
-    return map
+    let bytes = try WireValue.map(map).encoded()
+    guard bytes.count <= OfferLimit.encodedOfferSize else { throw PairingOfferError.oversized }
+    return bytes
   }
 
-  /// Returns a copy of this offer with a freshly derived pairing secret (e.g. from CPace).
-  internal func withPairingSecret(_ newSecret: Data) throws -> Self {
-    try Self(
-      offerIdentifier: offerIdentifier,
-      pairingSecret: newSecret,
-      suites: suites,
-      profiles: profiles,
-      transports: transports,
-      offerLifetimeMilliseconds: offerLifetimeMilliseconds
-    )
-  }
-
-  /// Hash of the deterministic offer with the bearer secret removed.
+  /// `SHA-256(encode_deterministic_cbor(pairing-offer))`.
   internal func offerHash() throws -> Data {
-    let encoded = try WireValue.map(asMap(includingSecret: false)).encoded()
-    return Data(SHA256.hash(data: encoded))
-  }
-
-  /// The complete secret-bearing QR payload.
-  internal func uri() throws -> String {
-    try validate()
-    let encoded = try WireValue.map(asMap(includingSecret: true)).encoded()
-    guard encoded.count <= OfferLimit.encodedOfferSize else { throw PairingOfferError.oversized }
-    return offerUriPrefix + base64UrlEncode(encoded)
+    Data(SHA256.hash(data: try encoded()))
   }
 }

@@ -3,10 +3,7 @@
 import CryptoKit
 import Foundation
 
-/// A candidate attempt that failed before any pairing was stored, carrying the
-/// still-live offer so another candidate may reuse it.
-///
-/// The offer is deliberately not printable: it holds the one-use secret.
+/// A pairing attempt that failed before any pairing was stored.
 internal struct PairingAttemptFailure: Error {
   internal let error: PairingError
   internal let offer: PairingOffer

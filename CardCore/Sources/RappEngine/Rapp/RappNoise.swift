@@ -44,7 +44,10 @@ internal enum RappNoise {
     ])
   }
 
-  /// Binds the pairing handshake to the offer it answers.
+  /// Binds the pairing handshake to the offer it answers (RAPP v26.10.1 §4.3.1).
+  ///
+  /// The prologue names the KC2 suite literal; the Noise protocol name
+  /// itself stays ``pairingSuite``.
   internal static func pairingPrologue(
     offerHash: Data,
     transportProfile: String
@@ -52,7 +55,7 @@ internal enum RappNoise {
     let value = WireValue.array([
       .text(pairingPrologueDomain),
       versionValue,
-      .text(pairingSuite),
+      .text(RappCpaceConstants.kc2Suite),
       .bytes(offerHash),
       .text(transportProfile),
     ])

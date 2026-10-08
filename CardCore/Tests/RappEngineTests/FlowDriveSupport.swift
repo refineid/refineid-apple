@@ -51,8 +51,7 @@ internal func makeOffer(
 ) throws -> PairingOffer {
   try PairingOffer(
     offerIdentifier: randomBytes(OfferLimit.offerIdentifierSize),
-    pairingSecret: randomBytes(OfferLimit.pairingSecretSize),
-    suites: [mandatoryPairingSuite],
+    suites: [RappCpaceConstants.kc2Suite],
     profiles: profiles.map(\.rawValue),
     transports: candidates.map { candidate in
       TransportCandidate(profile: streamProfile, candidateIdentifier: candidate)
@@ -60,45 +59,34 @@ internal func makeOffer(
     offerLifetimeMilliseconds: lifetimeMilliseconds)
 }
 
+/// The filler byte of the CPace key the Noise-only drives share.
+private let presharedKeyFiller: UInt8 = 0x5A
+
+/// The CPace key the Noise-only drives share.
+internal let flowPresharedKey = filler(presharedKeyFiller, NoiseSizes.keyLength)
+
 /// Runs the whole ceremony between two fresh endpoints.
 internal func runPairing(
   offer: PairingOffer, grants: [ProfileName]
 ) throws -> PairedPeers {
-  try runPairing(
-    offer: offer, grants: grants, candidateIdentifier: "stream-1", nowMilliseconds: 0)
+  try runPairing(offer: offer, grants: grants, candidateIdentifier: "stream-1")
 }
 
-internal func runPairing(
-  offer: PairingOffer, grants: [ProfileName], candidateIdentifier: String
-) throws -> PairedPeers {
-  try runPairing(
-    offer: offer, grants: grants, candidateIdentifier: candidateIdentifier,
-    nowMilliseconds: 0)
-}
-
-internal func runPairing(
-  offer: PairingOffer, grants: [ProfileName], nowMilliseconds: UInt64
-) throws -> PairedPeers {
-  try runPairing(
-    offer: offer, grants: grants, candidateIdentifier: "stream-1",
-    nowMilliseconds: nowMilliseconds)
-}
-
+/// Runs the Noise_XXpsk3 handshake and the pairing channel over a shared key.
 internal func runPairing(
   offer: PairingOffer,
   grants: [ProfileName],
-  candidateIdentifier: String,
-  nowMilliseconds: UInt64
+  candidateIdentifier: String
 ) throws -> PairedPeers {
-  let deadline = try PairingOfferDeadline(offer: offer, startedAtMilliseconds: 0)
+  let presharedKey = flowPresharedKey
   var requester = try PairingHandshake.begin(
     .init(
       role: .requester, offer: offer, candidateIdentifier: candidateIdentifier,
-      localKeys: PairKeyMaterial(), deadline: deadline, nowMilliseconds: nowMilliseconds))
+      localKeys: PairKeyMaterial(), presharedKey: presharedKey))
   var proxy = try PairingHandshake.begin(
     .init(
       role: .proxy, offer: offer, candidateIdentifier: candidateIdentifier,
-      localKeys: PairKeyMaterial(), deadline: deadline, nowMilliseconds: nowMilliseconds))
+      localKeys: PairKeyMaterial(), presharedKey: presharedKey))
 
   try proxy.readMessage(try requester.writeMessage())
   try requester.readMessage(try proxy.writeMessage())

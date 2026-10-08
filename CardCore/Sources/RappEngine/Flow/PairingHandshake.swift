@@ -13,8 +13,8 @@ internal struct PairingHandshake {
     internal let offer: PairingOffer
     internal let candidateIdentifier: String
     internal let localKeys: PairKeyMaterial
-    internal let deadline: PairingOfferDeadline
-    internal let nowMilliseconds: UInt64
+    /// The 32-byte pre-shared key CPace established for this attempt.
+    internal let presharedKey: Data
   }
 
   private let role: EndpointRole
@@ -37,9 +37,6 @@ internal struct PairingHandshake {
   internal static func begin(_ attempt: Attempt) throws -> Self {
     func fail(_ error: PairingError) -> PairingAttemptFailure {
       PairingAttemptFailure(error: error, offer: attempt.offer)
-    }
-    guard attempt.deadline.isLive(nowMilliseconds: attempt.nowMilliseconds) else {
-      throw fail(.offerExpired)
     }
     let matches = attempt.offer.transports.filter { candidate in
       candidate.candidateIdentifier == attempt.candidateIdentifier
@@ -66,7 +63,7 @@ internal struct PairingHandshake {
         isInitiator: attempt.role == .requester,
         localStaticPrivate: attempt.localKeys.privateKey,
         remoteStaticPublic: nil,
-        presharedKey: attempt.offer.pairingSecret,
+        presharedKey: attempt.presharedKey,
         fixedEphemeralPrivate: Curve25519.KeyAgreement.PrivateKey().rawRepresentation)
       return Self(
         role: attempt.role, offer: attempt.offer, offerHash: decodedOfferHash,

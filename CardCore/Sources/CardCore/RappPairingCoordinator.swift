@@ -4,9 +4,14 @@
   import Foundation
   import RappEngine
 
-  /// Drives one explicit, one-use RAPP pairing attempt. No pair secret is exposed
-  /// to Swift; the generated Rust bridge owns the QR bearer secret, Noise state,
-  /// private keys, transcript checks, and final pair record.
+  /// Drives one RAPP v26.10.1 pairing ceremony over one transport.
+  ///
+  /// The custodian shows a pairing code and waits; the requester types it
+  /// and connects. CPace KC2 proves both hold the code, Noise_XXpsk3 binds
+  /// fresh pair keys, and the custodian grants the requested profiles
+  /// without a separate approval: entering the code is the authorization.
+  /// The engine owns every secret; this actor moves frames and reports
+  /// progress.
   public actor RappPairingCoordinator {
     // MARK: Nested Types
 
@@ -100,36 +105,35 @@
 
     /// Reason the pairing attempt ended without a completed pair.
     public enum CloseReason: Sendable, Equatable {
-      case denied
       case localRequest
       case transportFailure
       case protocolFailure
       case persistenceFailure
       case offerExpired
+      /// Three wrong codes destroyed the custodian's offer.
+      case attemptsExhausted
     }
 
     /// One externally visible pairing event.
     public enum Event: Sendable, Equatable {
-      /// Secret-bearing text intended only for a QR renderer. It must never be
-      /// logged, persisted, copied to analytics, or synchronized.
-      case offerReady(uri: String)
-      /// The same unconsumed requester offer is ready after an
-      /// unauthenticated candidate failed. A fresh transport is required.
-      case offerRestored(uri: String)
-      case reviewPeer(Peer)
+      /// A custodian attempt failed and the same offer awaits a new
+      /// connection; the transport must be replaced before it can answer.
+      case offerRestored
+      /// The peer's authenticated introduction, for naming the pairing.
+      case peerIntroduced(Peer)
       case paired(PairSummary)
       case closed(CloseReason)
     }
 
     internal enum State: Equatable {
       case offer
-      case awaitingRequesterCpace
-      case awaitingResponderCpace
-      case awaitingRequesterHandshake
-      case awaitingResponderHandshake
-      case awaitingFinalRequesterHandshake
+      case requesterAwaitingStepTwo
+      case requesterAwaitingHandshakeTwo
+      case custodianAwaitingStepOne
+      case custodianAwaitingStepThree
+      case custodianAwaitingHandshakeOne
+      case custodianAwaitingHandshakeThree
       case awaitingPeerHello
-      case awaitingLocalDecision
       case awaitingPeerConfirmation
       case completed
       case closed
@@ -139,52 +143,48 @@
 
     /// Delivers pairing events in order until the attempt ends.
     nonisolated public let events: AsyncStream<Event>
-    /// Secret-bearing QR text; present only for the requester role.
-    nonisolated public let offerURI: String?
 
     internal let role: Role
     internal let bridge: RappPairingBridge
     internal let vault: RappDeviceVault
     internal var transport: any RappFrameTransport
     internal let candidateID: String
+    internal let profiles: [String]
     internal let displayName: String
     internal let platform: String
     internal let clock: RappPlatformClock
+    internal let entropy: RappPlatformEntropy
     internal let offerDeadlineMilliseconds: UInt64
-    internal let pairingCode: String
     internal let continuation: AsyncStream<Event>.Continuation
     internal var state = State.offer
-    internal var peer: Peer?
-    internal var peerGrantedProfiles: [String] = []
-    internal var localConfirmationSent = false
-    internal var offerExpiryTask: Task<Void, Never>?
+    internal var deadlineTask: Task<Void, Never>?
 
     // MARK: Lifecycle
 
     internal init(
       role: Role,
       bridge: RappPairingBridge,
-      offerURI: String?,
-      selectedCandidateID: String,
+      candidateID: String,
+      profiles: [String],
       displayName: String,
       platform: String,
       vault: RappDeviceVault,
       transport: any RappFrameTransport,
       clock: RappPlatformClock,
-      offerDeadlineMilliseconds: UInt64,
-      pairingCode: String
+      entropy: RappPlatformEntropy,
+      offerDeadlineMilliseconds: UInt64
     ) {
       self.role = role
       self.bridge = bridge
-      self.offerURI = offerURI
-      self.candidateID = selectedCandidateID
+      self.candidateID = candidateID
+      self.profiles = profiles
       self.displayName = displayName
       self.platform = platform
       self.vault = vault
       self.transport = transport
       self.clock = clock
+      self.entropy = entropy
       self.offerDeadlineMilliseconds = offerDeadlineMilliseconds
-      self.pairingCode = pairingCode
 
       var capturedContinuation: AsyncStream<Event>.Continuation?
       self.events = AsyncStream { capturedContinuation = $0 }
@@ -195,7 +195,7 @@
     }
 
     deinit {
-      offerExpiryTask?.cancel()
+      deadlineTask?.cancel()
       continuation.finish()
     }
   }

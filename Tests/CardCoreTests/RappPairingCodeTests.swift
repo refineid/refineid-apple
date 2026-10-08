@@ -67,31 +67,6 @@ import Testing
       #expect(!RappPairingCode.isValid(""))
     }
 
-    @Test("Deterministically derives identical pairing secrets and offer URIs")
-    internal func testDeterministicDerivation() throws {
-      let code1 = "7KX4M9"
-      let code2 = "7KX4M9"
-
-      let secret1 = RappPairingCode.pairingSecret(for: code1)
-      let secret2 = RappPairingCode.pairingSecret(for: code2)
-      #expect(secret1 == secret2)
-      #expect(secret1.count == 32)
-
-      let offerId1 = RappPairingCode.offerIdentifier(for: code1)
-      let offerId2 = RappPairingCode.offerIdentifier(for: code2)
-      #expect(offerId1 == offerId2)
-      #expect(offerId1.count == 32)
-
-      let candidate = RappTransportCandidate(
-        profile: rappStreamProfileName(),
-        candidateId: "stream-1",
-        parametersCbor: Data([0b1010_0000])
-      )
-      let (_, uri1) = try RappPairingCode.pairingOffer(for: code1, candidate: candidate)
-      let (_, uri2) = try RappPairingCode.pairingOffer(for: code2, candidate: candidate)
-      #expect(uri1 == uri2)
-    }
-
     @Test(
       "Completes end-to-end pairing ceremony between Requester and Proxy using Crockford code")
     internal func testPairingCeremonyWithSixDigitCode() async throws {
@@ -108,8 +83,8 @@ import Testing
         profiles: profiles
       )
 
-      async let requesterPairTask = approveAndAwaitPair(requester, profiles: profiles)
-      async let proxyPairTask = approveAndAwaitPair(proxy, profiles: profiles)
+      async let requesterPairTask = awaitPair(requester)
+      async let proxyPairTask = awaitPair(proxy)
 
       await proxy.transportConnected()
       await requester.transportConnected()
@@ -144,53 +119,43 @@ import Testing
       let requesterOutbound = SignRelayFrameEndpoint()
       let proxyOutbound = SignRelayFrameEndpoint()
 
+      func options(
+        _ name: String, vault: RappDeviceVault, outbound: SignRelayFrameEndpoint
+      ) -> RappPairingCoordinator.Options {
+        RappPairingCoordinator.Options(
+          code: code,
+          profiles: profiles,
+          candidate: candidate,
+          displayName: name,
+          platform: "iOS",
+          vault: vault,
+          transport: RappClosureFrameTransport(
+            sender: { frame in await outbound.send(frame) },
+            closer: { await outbound.close() }
+          )
+        )
+      }
       let requester = try RappPairingCoordinator.requester(
-        profiles: profiles,
-        candidates: [candidate],
-        selectedCandidateID: candidateID,
-        offerLifetimeMilliseconds: 60_000,
-        displayName: "iPad Requester",
-        platform: "iOS",
-        vault: requesterVault,
-        transport: RappClosureFrameTransport(
-          sender: { frame in await requesterOutbound.send(frame) },
-          closer: { await requesterOutbound.close() }
-        ),
-        code: code
-      )
-      let proxy = try RappPairingCoordinator.proxy(
-        scannedOfferURI: try #require(requester.offerURI),
-        selectedCandidateID: candidateID,
-        displayName: "iPhone Proxy",
-        platform: "iOS",
-        vault: proxyVault,
-        transport: RappClosureFrameTransport(
-          sender: { frame in await proxyOutbound.send(frame) },
-          closer: { await proxyOutbound.close() }
-        ),
-        code: code
-      )
+        options: options("iPad Requester", vault: requesterVault, outbound: requesterOutbound))
+      let proxy = try RappPairingCoordinator.custodian(
+        options: options("iPhone Proxy", vault: proxyVault, outbound: proxyOutbound))
       await requesterOutbound.install { frame in await proxy.receive(frame) }
       await proxyOutbound.install { frame in await requester.receive(frame) }
       return (requester, proxy)
     }
 
-    private func approveAndAwaitPair(
-      _ coordinator: RappPairingCoordinator,
-      profiles: [String]
+    private func awaitPair(
+      _ coordinator: RappPairingCoordinator
     ) async throws -> RappPairingCoordinator.PairSummary {
       for await event in coordinator.events {
         switch event {
-        case .reviewPeer:
-          await coordinator.approve(grantedProfiles: profiles)
-
         case .paired(let summary):
           return summary
 
         case .closed(let reason):
           throw SignRelayPairingFailure.closed("\(reason)")
 
-        case .offerReady, .offerRestored:
+        case .peerIntroduced, .offerRestored:
           continue
         }
       }

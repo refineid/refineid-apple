@@ -23,15 +23,12 @@ internal final class RappPairingModel: ObservableObject {
   }
 
   private enum Policy {
-    /// RAPP 0.1 OFFER_TTL_MAX.
-    static let offerLifetimeMilliseconds: UInt64 = 180_000
-
     /// Names the one stream candidate an offer of this transport carries.
     static let streamCandidateID = "stream-1"
   }
 
-  /// The in-protocol name the reviewing peer sees for this requester.
-  private static var requesterDisplayName: String {
+  /// The in-protocol name this device introduces itself with.
+  internal static var localDisplayName: String {
     #if os(macOS)
       Host.current().localizedName ?? String(localized: "Mac")
     #else
@@ -39,8 +36,8 @@ internal final class RappPairingModel: ObservableObject {
     #endif
   }
 
-  /// The in-protocol platform name for this requester.
-  private static var requesterPlatform: String {
+  /// The in-protocol platform name this device introduces itself with.
+  internal static var localPlatform: String {
     #if os(macOS)
       "macOS"
     #else
@@ -50,9 +47,9 @@ internal final class RappPairingModel: ObservableObject {
 
   /// The one transport candidate an offer carries, by build.
   ///
-  /// The stream candidate names no endpoints: the holder publishes a
-  /// listener under a name derived from this offer, and the requester
-  /// finds it there.
+  /// Both peers derive the offer from the code, so both name this same
+  /// candidate. The stream candidate names no endpoints: the requester
+  /// finds the holder by its published pairing attributes.
   internal static var offeredCandidate: RappPairingCoordinator.TransportCandidate {
     #if REFINEID_STREAM_TRANSPORT
       .init(
@@ -131,6 +128,8 @@ internal final class RappPairingModel: ObservableObject {
     self.catalog = RappPairCatalog(vault: vault)
   }
 
+  /// Shows a fresh code and waits for a requester to type it: the
+  /// custodian's half of the ceremony.
   internal func createOffer() {
     createOffer(customCode: nil)
   }
@@ -143,60 +142,51 @@ internal final class RappPairingModel: ObservableObject {
     #if REFINEID_LOCAL_CARD && os(iOS)
       PhonePersistentTokenRelay.shared.suspendForPairing()
     #endif
+    let wait = RappPairingBackoff.shared.secondsUntilNextOffer()
+    guard wait == 0 else {
+      phase = .failed(String(localized: "Pairing locked. Try again in \(wait) s."))
+      scheduleOfferAfterLockout(seconds: wait)
+      return
+    }
     let code = customCode.map(RappPairingCode.normalize) ?? RappPairingCode.generate()
-    pairingCode = code
-    phase = .offer(code)
-    #if DEBUG
-      print("[pairing] generated code: \(code)")
-    #endif
-    let hostRelay = makeRelay(role: .host)
-    let transport = makeTransport(relay: hostRelay)
-    publish(
-      code: code,
-      candidates: [Self.offeredCandidate],
-      selectedCandidateID: Self.offeredCandidate.candidateID,
-      relay: hostRelay,
-      transport: transport
-    )
-  }
-
-  /// Makes the offer the 8-character code and candidates describe and shows its code.
-  internal func publish(
-    code: String,
-    candidates: [RappPairingCoordinator.TransportCandidate],
-    selectedCandidateID: String,
-    relay: PairingRelay,
-    transport: any RappFrameTransport
-  ) {
+    let custodianRelay = makeRelay(role: .cardHolder)
     do {
-      let newCoordinator = try RappPairingCoordinator.requester(
-        options: .init(
-          profiles: RappApplePeerProfile.supportedCredentialProfiles,
-          candidates: candidates,
-          selectedCandidateID: selectedCandidateID,
-          offerLifetimeMilliseconds: Policy.offerLifetimeMilliseconds,
-          displayName: Self.requesterDisplayName,
-          platform: Self.requesterPlatform,
-          vault: vault,
-          transport: transport,
-          code: code
-        )
-      )
-      install(coordinator: newCoordinator, relay: relay)
-      Task { [weak self] in
-        await newCoordinator.publishOffer()
-        guard let self, coordinator === newCoordinator, !isFinished,
-          let uri = newCoordinator.offerURI
-        else { return }
-        #if DEBUG
-          print("[pairing] setting phase to .offer with code: \(code)")
-          print("[pairing] URI is: \(uri)")
-        #endif
-        phase = .offer(code)
-        relay.start(sharingOfferURI: uri)
-      }
+      let newCoordinator = try RappPairingCoordinator.custodian(
+        options: options(code: code, transport: makeTransport(relay: custodianRelay)))
+      pairingCode = code
+      install(coordinator: newCoordinator, relay: custodianRelay)
+      phase = .offer(code)
+      Task { await newCoordinator.start() }
+      custodianRelay.start()
     } catch {
       fail(String(localized: "Pairing could not be started"))
+    }
+  }
+
+  /// The ceremony options both roles share; the offer hash binds them.
+  internal func options(
+    code: String, transport: any RappFrameTransport
+  ) -> RappPairingCoordinator.Options {
+    RappPairingCoordinator.Options(
+      code: code,
+      profiles: RappApplePeerProfile.supportedCredentialProfiles,
+      candidate: Self.offeredCandidate,
+      displayName: Self.localDisplayName,
+      platform: Self.localPlatform,
+      vault: vault,
+      transport: transport)
+  }
+
+  private func scheduleOfferAfterLockout(seconds: UInt64) {
+    pairingTimeoutTask?.cancel()
+    pairingTimeoutTask = Task { [weak self] in
+      do {
+        try await Task.sleep(for: .seconds(seconds))
+      } catch {
+        return
+      }
+      guard let self, case .failed = phase else { return }
+      createOffer()
     }
   }
 

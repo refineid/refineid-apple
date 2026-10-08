@@ -21,7 +21,6 @@ internal enum PairingOfferError: Error, Equatable {
   case invalidLifetime
   case deadlineOverflow
   case oversized
-  case invalidBase64Url
   case wire(WireError)
 }
 

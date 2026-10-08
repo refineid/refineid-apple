@@ -14,19 +14,14 @@ import SwiftUI
     }
 
     @ViewBuilder private var remoteActionContent: some View {
-      if case .offer(let code) = pairingModel.phase {
-        Text(RappPairingCode.formatted(code))
-          .font(.body.monospacedDigit().weight(.semibold))
-          .foregroundStyle(.primary)
-          .multilineTextAlignment(.trailing)
-          .accessibilityIdentifier("pairingCode")
-      } else if case .connecting = pairingModel.phase {
-        ProgressView()
-          .controlSize(.small)
-      } else {
+      switch pairingModel.phase {
+      case .codeEntry, .connecting, .failed:
+        PairingCodeEntryField(model: pairingModel)
+
+      case .idle, .offer, .paired:
         Button(String(localized: "Connect")) {
           withAnimation {
-            pairingModel.createOffer()
+            pairingModel.startCodeEntry()
           }
         }
         .buttonStyle(.bordered)
@@ -80,6 +75,10 @@ import SwiftUI
     internal var remoteReaderSection: some View {
       Section {
         remoteIdentityRow
+        if case .failed(let message) = pairingModel.phase {
+          Text(message)
+            .foregroundStyle(.secondary)
+        }
         if remoteModel.phase == .failed {
           Text(remoteModel.failureText ?? String(localized: "The remote card could not be read."))
             .foregroundStyle(.secondary)
@@ -90,7 +89,7 @@ import SwiftUI
       .onValueChange(of: remoteModel.needsFreshPairing) { needsFresh in
         if needsFresh {
           remoteModel.acknowledgeFreshPairing()
-          pairingModel.createOffer()
+          pairingModel.startCodeEntry()
         }
       }
       .onReceive(pairingModel.$phase) { phase in

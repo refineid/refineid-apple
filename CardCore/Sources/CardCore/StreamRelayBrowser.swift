@@ -14,6 +14,7 @@ import Foundation
   public final class StreamRelayBrowser: @unchecked Sendable {
     private let onFound: @Sendable (NWEndpoint) -> Void
     private let name: String?
+    private let attributes: [String: String]
     private let queue = DispatchQueue(label: "fi.refineid.stream-browser")
     private var browser: NWBrowser?
     private var reported = false
@@ -28,6 +29,19 @@ import Foundation
       onFound: @escaping @Sendable (NWEndpoint) -> Void
     ) {
       self.name = name
+      self.attributes = [:]
+      self.onFound = onFound
+    }
+
+    /// Reports the first published service whose discovery attributes
+    /// carry every given key and value.
+    @preconcurrency
+    public init(
+      matchingAttributes attributes: [String: String],
+      onFound: @escaping @Sendable (NWEndpoint) -> Void
+    ) {
+      self.name = nil
+      self.attributes = attributes
       self.onFound = onFound
     }
 
@@ -35,37 +49,31 @@ import Foundation
     public func start() {
       let parameters = NWParameters.tcp
       parameters.includePeerToPeer = true
-      let made = NWBrowser(
-        for: .bonjour(type: StreamRelayListener.serviceType, domain: nil),
-        using: parameters
-      )
+      let descriptor: NWBrowser.Descriptor =
+        attributes.isEmpty
+        ? .bonjour(type: StreamRelayListener.serviceType, domain: nil)
+        : .bonjourWithTXTRecord(type: StreamRelayListener.serviceType, domain: nil)
+      let made = NWBrowser(for: descriptor, using: parameters)
       made.browseResultsChangedHandler = { [weak self] results, _ in
-        guard let self else { return }
-        let eps = results.map { "\($0.endpoint)" }
-        print("[browser] \(results.count) results matching:\(String(describing: name)) eps:\(eps)")
-        Darwin.fflush(stdout)
-        let wanted: NWBrowser.Result?
-        if let name {
-          wanted = results.first { result in
-            guard case .service(let serviceName, _, _, _) = result.endpoint else { return false }
-            return serviceName == name
-          }
-        } else {
-          wanted = results.first
-        }
-        guard let first = wanted else { return }
+        guard let self, let wanted = results.first(where: matches) else { return }
         queue.async { [weak self] in
           guard let self, !reported else { return }
           reported = true
-          onFound(first.endpoint)
+          onFound(wanted.endpoint)
         }
-      }
-      made.stateUpdateHandler = { state in
-        print("[browser] state: \(state)")
-        Darwin.fflush(stdout)
       }
       browser = made
       made.start(queue: queue)
+    }
+
+    private func matches(_ result: NWBrowser.Result) -> Bool {
+      if let name {
+        guard case .service(let serviceName, _, _, _) = result.endpoint else { return false }
+        return serviceName == name
+      }
+      guard !attributes.isEmpty else { return true }
+      guard case .bonjour(let record) = result.metadata else { return false }
+      return attributes.allSatisfy { key, value in record[key] == value }
     }
 
     /// Stops browsing.
