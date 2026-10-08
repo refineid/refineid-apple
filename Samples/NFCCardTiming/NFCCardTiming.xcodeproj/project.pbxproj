@@ -1,0 +1,318 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		00777ADD9EE2D1C884DAE04A /* CardTimingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5133C823C25E31F0D02C665 /* CardTimingView.swift */; };
+		9D61E06F201AE1E49085710E /* PaceTimingCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = C49E2D36B8935B6BBA0B542A /* PaceTimingCommand.swift */; };
+		DAFF5A847C375F0ED4476834 /* NFCCardTimingApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7A5F95AC1E39BCA49C9367F /* NFCCardTimingApp.swift */; };
+		E535E590B8F524B77C0F7282 /* CardTimingProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF52D32A46C83124190F444F /* CardTimingProbe.swift */; };
+		F84789453D3F3D73BFF317B8 /* PaceTimingValues.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018774389AF1FB6D1EDF179B /* PaceTimingValues.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		018774389AF1FB6D1EDF179B /* PaceTimingValues.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaceTimingValues.swift; sourceTree = "<group>"; };
+		482FA86D5C2EF808026BFAE0 /* NFCCardTiming.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = NFCCardTiming.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B5133C823C25E31F0D02C665 /* CardTimingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardTimingView.swift; sourceTree = "<group>"; };
+		C49E2D36B8935B6BBA0B542A /* PaceTimingCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaceTimingCommand.swift; sourceTree = "<group>"; };
+		CF52D32A46C83124190F444F /* CardTimingProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardTimingProbe.swift; sourceTree = "<group>"; };
+		D7A5F95AC1E39BCA49C9367F /* NFCCardTimingApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NFCCardTimingApp.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		2447A6A1FEE8130514643E3D /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				CF52D32A46C83124190F444F /* CardTimingProbe.swift */,
+				B5133C823C25E31F0D02C665 /* CardTimingView.swift */,
+				D7A5F95AC1E39BCA49C9367F /* NFCCardTimingApp.swift */,
+				C49E2D36B8935B6BBA0B542A /* PaceTimingCommand.swift */,
+				2B03D1E8EAA88CA4786D694A /* Values */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		2B03D1E8EAA88CA4786D694A /* Values */ = {
+			isa = PBXGroup;
+			children = (
+				018774389AF1FB6D1EDF179B /* PaceTimingValues.swift */,
+			);
+			path = Values;
+			sourceTree = "<group>";
+		};
+		7A48E7FC08B9C4A8E0352425 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				482FA86D5C2EF808026BFAE0 /* NFCCardTiming.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		E4A59609FF3B0BFF909F96E0 = {
+			isa = PBXGroup;
+			children = (
+				2447A6A1FEE8130514643E3D /* Sources */,
+				7A48E7FC08B9C4A8E0352425 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		3E97CB7DA0D0A8333BC7C8FD /* NFCCardTiming */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D89C82E26047252201ACD0A0 /* Build configuration list for PBXNativeTarget "NFCCardTiming" */;
+			buildPhases = (
+				E91C76504907D8655E60C3BF /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NFCCardTiming;
+			packageProductDependencies = (
+			);
+			productName = NFCCardTiming;
+			productReference = 482FA86D5C2EF808026BFAE0 /* NFCCardTiming.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		CD28C94E8C68DFE8E0CBE64E /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					3E97CB7DA0D0A8333BC7C8FD = {
+						DevelopmentTeam = 4ZJC3SFJR2;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = EDC3D0F5AB773916EB3753DC /* Build configuration list for PBXProject "NFCCardTiming" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = E4A59609FF3B0BFF909F96E0;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 7A48E7FC08B9C4A8E0352425 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				3E97CB7DA0D0A8333BC7C8FD /* NFCCardTiming */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		E91C76504907D8655E60C3BF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E535E590B8F524B77C0F7282 /* CardTimingProbe.swift in Sources */,
+				00777ADD9EE2D1C884DAE04A /* CardTimingView.swift in Sources */,
+				DAFF5A847C375F0ED4476834 /* NFCCardTimingApp.swift in Sources */,
+				9D61E06F201AE1E49085710E /* PaceTimingCommand.swift in Sources */,
+				F84789453D3F3D73BFF317B8 /* PaceTimingValues.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		41B7C9A0073730AAC3077757 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 4ZJC3SFJR2;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		685E0F54CEC773F997D02816 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = NFCCardTiming.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.NFCCardTiming;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		6A8FDE63C005799A8A055E9F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = NFCCardTiming.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.NFCCardTiming;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		CFE37CBB5EB85A4BF291361A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 4ZJC3SFJR2;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		D89C82E26047252201ACD0A0 /* Build configuration list for PBXNativeTarget "NFCCardTiming" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				685E0F54CEC773F997D02816 /* Debug */,
+				6A8FDE63C005799A8A055E9F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		EDC3D0F5AB773916EB3753DC /* Build configuration list for PBXProject "NFCCardTiming" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CFE37CBB5EB85A4BF291361A /* Debug */,
+				41B7C9A0073730AAC3077757 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = CD28C94E8C68DFE8E0CBE64E /* Project object */;
+}

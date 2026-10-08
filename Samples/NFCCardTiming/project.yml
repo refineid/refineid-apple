@@ -1,0 +1,41 @@
+name: NFCCardTiming
+options:
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: 4ZJC3SFJR2
+targets:
+  NFCCardTiming:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: Card Timing
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UILaunchScreen: {}
+        com.apple.developer.nfc.readersession.iso7816.select-identifiers:
+          - A000000063504B43532D3135
+          - A0000000181002030000000000000000
+          - A000000018434D00
+          - A000000151000000
+          - A0000002471001
+          - A000000308000010000100
+    entitlements:
+      path: NFCCardTiming.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: fi.refineid.NFCCardTiming
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Info.plist

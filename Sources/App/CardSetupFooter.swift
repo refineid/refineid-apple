@@ -88,18 +88,31 @@ internal struct CardSetupFooter: View {
   /// The route into diagnostics, in development builds only, named
   /// with the exact build it belongs to.
   @ViewBuilder private var development: some View {
-    #if DEBUG
-      if !ProcessInfo.processInfo.arguments.contains("--hide-diagnostics") {
-        NavigationLink {
-          DiagnosticsView()
-        } label: {
-          Label(Self.diagnosticsTitle, systemImage: "stethoscope")
+    VStack(spacing: 0) {
+      #if DEBUG
+        if !ProcessInfo.processInfo.arguments.contains("--hide-diagnostics") {
+          NavigationLink {
+            DiagnosticsView()
+          } label: {
+            Label(Self.diagnosticsTitle, systemImage: "stethoscope")
+          }
+          .accessibilityIdentifier("diagnosticsButton")
+          .padding(.vertical, Self.padding)
+          .frame(maxWidth: .infinity)
+          .background(.bar)
         }
-        .accessibilityIdentifier("diagnosticsButton")
+      #endif
+      #if os(iOS) && (DEBUG || TESTFLIGHT)
+        NavigationLink {
+          CardTimingView()
+        } label: {
+          Label(String(localized: "Card Timing"), systemImage: "stopwatch")
+        }
+        .accessibilityIdentifier("cardTimingButton")
         .padding(.vertical, Self.padding)
         .frame(maxWidth: .infinity)
         .background(.bar)
-      }
-    #endif
+      #endif
+    }
   }
 }

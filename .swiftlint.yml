@@ -136,6 +136,7 @@ custom_rules:
     excluded:
       # Named protocol values; DER tags; tests; fixtures.
       - ".*/CardCore/Sources/CardCore/Values/.*"
+      - ".*/Samples/NFCCardTiming/Sources/Values/.*"
       - ".*/EcdsaSignature\\.swift"
       - ".*/Tests/.*"
       - ".*/TestVectors/.*"
