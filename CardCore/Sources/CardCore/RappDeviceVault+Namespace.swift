@@ -5,6 +5,16 @@ import ObjCExceptionGuard
 import Security
 
 extension RappDeviceVault {
+  /// The keychains this platform holds items in: macOS keeps a file
+  /// keychain beside the data protection keychain, iOS has only the latter.
+  private static var dataProtectionKeychains: [Bool] {
+    #if os(iOS)
+      [true]
+    #else
+      [false, true]
+    #endif
+  }
+
   #if os(macOS)
     @discardableResult
     internal static func deleteKeychainItemRef(query: [String: Any]) -> OSStatus {
@@ -41,7 +51,7 @@ extension RappDeviceVault {
   private func deleteKeychainNamespace(prefix: String) throws -> Int {
     var deleted = 0
     var firstError: (any Error)?
-    for dataProtection in [false, true] {
+    for dataProtection in Self.dataProtectionKeychains {
       let coordinates: [(service: String, account: String)]
       do {
         coordinates = try namespaceCoordinates(
@@ -103,9 +113,10 @@ extension RappDeviceVault {
   private func deleteNamespacedItem(
     service: String, account: String, dataProtection: Bool
   ) throws {
+    // Skipping items that need authentication UI is a copy-matching
+    // option only; a delete carrying it is a parameter error.
     var query = itemQuery(service: service, account: account)
     query[kSecUseDataProtectionKeychain as String] = dataProtection
-    query[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUISkip
     query.removeValue(forKey: kSecAttrAccessGroup as String)
     var status = SecItemDelete(query as CFDictionary)
     #if os(macOS)
