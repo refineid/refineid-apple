@@ -110,5 +110,7 @@
 			</dict>
 		</dict>
 	</array>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>RefineID uses Bluetooth to connect your devices securely for identity-card operations.</string>
 </dict>
 </plist>

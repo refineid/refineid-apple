@@ -34,6 +34,8 @@
 		<string>_refineid-stream._tcp</string>
 		<string>_refineid-stream._udp</string>
 	</array>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>RefineID uses Bluetooth to connect your devices securely for identity-card operations.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>RefineID reads the access number printed on your card so you do not have to type it.</string>
 	<key>NSLocalNetworkUsageDescription</key>
