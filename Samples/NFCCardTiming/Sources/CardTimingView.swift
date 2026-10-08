@@ -56,6 +56,8 @@
         }
         Text(run.outcome)
           .font(.footnote)
+        Text(run.conditions)
+          .font(.footnote)
       } header: {
         Text(run.started, format: .dateTime.hour().minute().second())
       }

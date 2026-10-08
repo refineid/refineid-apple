@@ -25,6 +25,7 @@
     internal struct Run: Sendable {
       internal let identifier = UUID()
       internal let started: Date
+      internal let conditions: String
       internal let cardArrivalMilliseconds: Double
       internal let exchanges: [Exchange]
       internal let fieldMilliseconds: Double
@@ -53,6 +54,39 @@
       return "\(model) iOS \(UIDevice.current.systemVersion)"
     }()
 
+    /// The phone's thermal and power state the moment a run starts,
+    /// because the NFC controller lowers field power under thermal
+    /// pressure and the card computes slower on less power.
+    private static var conditions: String {
+      let thermal: String
+      switch ProcessInfo.processInfo.thermalState {
+      case .nominal:
+        thermal = "thermal nominal"
+      case .fair:
+        thermal = "thermal fair"
+      case .serious:
+        thermal = "thermal serious"
+      case .critical:
+        thermal = "thermal critical"
+      @unknown default:
+        thermal = "thermal unknown"
+      }
+      let power = ProcessInfo.processInfo.isLowPowerModeEnabled ? "low power mode" : "full power"
+      UIDevice.current.isBatteryMonitoringEnabled = true
+      let battery: String
+      switch UIDevice.current.batteryState {
+      case .charging, .full:
+        battery = "charging"
+      case .unplugged:
+        battery = "on battery"
+      case .unknown:
+        battery = "battery unknown"
+      @unknown default:
+        battery = "battery unknown"
+      }
+      return "\(thermal), \(power), \(battery)"
+    }
+
     // MARK: Properties
 
     @Published internal private(set) var runs: [Run] = []
@@ -66,7 +100,7 @@
       for run in runs {
         lines.append("")
         lines.append(
-          "run \(run.started.formatted(date: .omitted, time: .standard)): "
+          "run \(run.started.formatted(date: .omitted, time: .standard)) [\(run.conditions)]: "
             + "card after \(Self.text(run.cardArrivalMilliseconds)) ms, "
             + "field \(Self.text(run.fieldMilliseconds)) ms, \(run.outcome)")
         for exchange in run.exchanges {
@@ -81,12 +115,14 @@
 
     private static func measure() async -> Run {
       let started = Date()
+      let state = conditions
       let opened = ContinuousClock.now
       func finished(
         arrival: Double, exchanges: [Exchange], outcome: String
       ) -> Run {
         Run(
           started: started,
+          conditions: state,
           cardArrivalMilliseconds: arrival,
           exchanges: exchanges,
           fieldMilliseconds: milliseconds(since: opened),
