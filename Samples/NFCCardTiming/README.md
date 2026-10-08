@@ -10,7 +10,8 @@ session and sends four commands: MSE:Set AT, then the first three
 GENERAL AUTHENTICATE rounds of PACE-ECDH-GM over brainpoolP384r1. The
 card performs its two elliptic-curve computations in the mapping and
 key-agreement rounds for any valid terminal point, so the probe sends
-the curve's base point and stops before the authentication token.
+fixed multiples of the curve's base point and stops before the
+authentication token.
 Nothing is authenticated, no password is used, and no retry counter is
 touched.
 

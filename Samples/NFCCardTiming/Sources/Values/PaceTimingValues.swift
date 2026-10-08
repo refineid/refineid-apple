@@ -76,11 +76,17 @@ internal enum PaceTimingValues {
 
   internal static let uncompressedPointTag: UInt8 = 0x04
 
-  /// The brainpoolP384r1 base point, RFC 5639 section 3.6, used as the
-  /// fixed terminal point: a valid point the card computes against
-  /// without the probe holding any secret.
-  internal static let generatorX =
-    "1D1C64F068CF45FFA2A63A81B7C13F6B8847A3E77EF14FE3DB7FCAFE0CBD10E8E826E03436D646AAEF87B2E247D4AF1E"
-  internal static let generatorY =
-    "8ABE1D7520F9C2A45CB1EB8E95CFD55262B70B29FEEC5864E19C054FF99129280E4646217791811142820341263C5315"
+  /// Fixed terminal points: the second and third multiples of the
+  /// brainpoolP384r1 base point of RFC 5639 section 3.6, computed from it
+  /// and checked on the curve. Valid points the card computes against
+  /// without the probe holding any secret. The base point itself is not
+  /// accepted by the card as a terminal key, so the multiples are used.
+  internal static let mappingPointX =
+    "2282BC382A2F4DFCB95C3495D7B4FD590AD520B3EB6BE4D6EC2F80C4E0F70DF87C4BA74A09B553EBB427B58DF9D59FCA"
+  internal static let mappingPointY =
+    "0EDDA83773AC68735768D14A24F37A57CE9BEDBC170921CE4D89DD051728FC3EB4B4EA69AB64FC288F1B29502B6E1D30"
+  internal static let agreementPointX =
+    "7B63205BF00DDAE73B17452B6A27EBF53DF581348C6949F83EE1B6FCC7463BBE3C11EF6596A3B8897D7CC85B3035F11F"
+  internal static let agreementPointY =
+    "761D3A4A5F8093775521A326BC02BAAF7B2EB481EAD16A5C7B2BD39462363E0373C0EDAEA3B8F59381D7129D48772EB3"
 }

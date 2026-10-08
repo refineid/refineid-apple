@@ -17,11 +17,11 @@ internal struct PaceTimingCommand: Sendable {
     Self.generalAuthenticate(name: "GA nonce", template: Data(), chained: true),
     Self.generalAuthenticate(
       name: "GA mapping",
-      template: Self.tlv(PaceTimingValues.mappingDataTerminalTag, Self.terminalPoint),
+      template: Self.tlv(PaceTimingValues.mappingDataTerminalTag, Self.mappingPoint),
       chained: true),
     Self.generalAuthenticate(
       name: "GA key agreement",
-      template: Self.tlv(PaceTimingValues.ephemeralPublicKeyTerminalTag, Self.terminalPoint),
+      template: Self.tlv(PaceTimingValues.ephemeralPublicKeyTerminalTag, Self.agreementPoint),
       chained: true),
   ]
 
@@ -45,13 +45,17 @@ internal struct PaceTimingCommand: Sendable {
     return Self(name: "MSE:Set AT", apdu: command)
   }()
 
-  /// The base point in uncompressed SEC 1 form.
   private static let hexRadix = 16
 
-  private static let terminalPoint: Data =
+  /// The fixed points in uncompressed SEC 1 form.
+  private static let mappingPoint: Data =
     Data([PaceTimingValues.uncompressedPointTag])
-    + Self.bytes(PaceTimingValues.generatorX)
-    + Self.bytes(PaceTimingValues.generatorY)
+    + Self.bytes(PaceTimingValues.mappingPointX)
+    + Self.bytes(PaceTimingValues.mappingPointY)
+  private static let agreementPoint: Data =
+    Data([PaceTimingValues.uncompressedPointTag])
+    + Self.bytes(PaceTimingValues.agreementPointX)
+    + Self.bytes(PaceTimingValues.agreementPointY)
 
   internal let name: String
   internal let apdu: Data
