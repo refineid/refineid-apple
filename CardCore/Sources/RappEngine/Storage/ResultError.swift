@@ -6,16 +6,22 @@
 
 import Foundation
 
-/// Stable failure name accompanying a non-successful result.
-internal enum ResultError: String, Equatable {
-  case userDenied = "user_denied"
-  case requestExpired = "request_expired"
-  case cancelled = "cancelled"
-  case requestInvalidOrUnsupported = "request_invalid_or_unsupported"
-  case retryPolicyRefused = "retry_policy_refused"
-  case credentialRejected = "credential_rejected"
-  case cardRemovedBeforeTransmit = "card_removed_before_transmit"
-  case cardCompletionAmbiguous = "card_completion_ambiguous"
+/// The `error` an `operation.result` names (RAPP v26.10.1 §8, §10).
+internal enum ResultError: String, Equatable, CaseIterable {
+  case userCancelled = "user_cancelled"
+  case operationExpired = "operation_expired"
+  case unauthorized = "unauthorized"
+  case unsupportedParameter = "unsupported_parameter"
+  case invalidCredential = "invalid_credential"
+  case cardBlocked = "card_blocked"
+  case cardError = "card_error"
+  case operationFailed = "operation_failed"
+  case duplicateOperation = "duplicate_operation"
+  case userDeclined = "user_declined"
+  case storageExhausted = "storage_exhausted"
+  case operationAlreadyRetired = "operation_already_retired"
+  /// A zero `expires_after_ms` (section 8.2.1).
+  case invalidLifetime = "invalid_lifetime"
 }
 
 // swiftlint:enable sorted_enum_cases

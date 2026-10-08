@@ -15,6 +15,15 @@ internal struct RequesterOperation {
       operationIdentifier: request.operationIdentifier, requestHash: requestHash)
   }
 
+  /// The terminal state an unanswered request reaches when its session ends.
+  ///
+  /// The custodian may have acted on a consequential request after consent,
+  /// so its fate is ambiguous until reconciled (section 8.3); a safe read
+  /// touched no credential and simply ends.
+  private var unansweredTerminal: OperationState {
+    request.operation.isConsequential ? .ambiguous : .cancelled
+  }
+
   internal init(request: OperationRequest) throws {
     let hash = try request.requestHash()
     self.request = request
@@ -29,29 +38,6 @@ internal struct RequesterOperation {
       reconciliation: nil)
   }
 
-  /// Which statuses a state may legally receive.
-  ///
-  /// A completed result is legal only from the state the action actually
-  /// reaches: committed for a consequential action, requested for a safe read
-  /// that never prepares or commits.
-  private static func statusIsLegal(
-    _ status: ResultStatus, in state: OperationState, for operation: CardOperation
-  ) -> Bool {
-    switch status {
-    case .completed:
-      operation.isConsequential ? state == .committed : state == .requested
-
-    case .denied:
-      state == .requested || state == .prepared
-
-    case .cancelled, .rejected, .credentialRejected:
-      state == .requested || state == .prepared || state == .committed
-
-    case .ambiguous:
-      state == .committed
-    }
-  }
-
   /// Writes the intent before the request frame may be released.
   internal mutating func begin(
     to store: inout some RequesterJournalStore
@@ -59,21 +45,6 @@ internal struct RequesterOperation {
     try require(.idle)
     try persist(&store, state: .requested)
     return .operationRequest(request)
-  }
-
-  /// Accepts the proxy's readiness for a consequential action.
-  ///
-  /// A safe read has no prepare step, so a prepared echo for one is a
-  /// violation rather than a surprise.
-  internal mutating func receivePrepared(
-    _ echo: OperationReference, to store: inout some RequesterJournalStore
-  ) throws {
-    try require(.requested)
-    try requireReference(echo)
-    guard request.operation.isConsequential else {
-      throw EngineError.authenticatedProtocolViolation(.unexpectedPreparedForSafeRead)
-    }
-    try persist(&store, state: .prepared)
   }
 
   /// Accepts an advisory progress notice from the proxy.
@@ -86,56 +57,25 @@ internal struct RequesterOperation {
     }
   }
 
-  /// Writes the requester's point of no return before releasing the commit.
-  internal mutating func commit(
-    to store: inout some RequesterJournalStore
-  ) throws -> TypedMessage {
-    try require(.prepared)
-    try persist(&store, state: .committed)
-    return .operationCommit(reference)
-  }
-
-  /// Cancels locally, classified by the commit boundary.
-  internal mutating func cancel(
-    reason: String?, to store: inout some RequesterJournalStore
-  ) throws -> RequesterCancelAction {
-    let message = TypedMessage.operationCancel(
-      CancelMessage(reference: reference, reason: reason))
-    switch record.state {
-    case .requested, .awaitingConsent, .prepared:
-      try forget(&store, state: .cancelled)
-      return .terminal(message)
-
-    case .committed, .executing, .resultPending:
-      return .advisory(message)
-
-    default:
-      throw EngineError.invalidLocalTransition
+  /// Abandons the request locally; no message travels (section 8.3).
+  internal mutating func cancel(to store: inout some RequesterJournalStore) throws
+    -> OperationState
+  {
+    guard record.state == .requested else { throw EngineError.invalidLocalTransition }
+    let terminal = unansweredTerminal
+    if terminal == .ambiguous {
+      try persist(&store, state: terminal)
+    } else {
+      try forget(&store, state: terminal)
     }
-  }
-
-  /// Applies a proxy cancellation under the same commit boundary.
-  internal mutating func receiveCancel(
-    _ cancellation: CancelMessage, to store: inout some RequesterJournalStore
-  ) throws -> OperationState {
-    try requireReference(cancellation.reference)
-    switch record.state {
-    case .requested, .awaitingConsent, .prepared:
-      try forget(&store, state: .cancelled)
-      return .cancelled
-
-    case .committed, .executing, .resultPending:
-      return record.state
-
-    default:
-      throw EngineError.authenticatedProtocolViolation(.illegalOperationTransition)
-    }
+    return terminal
   }
 
   /// Validates and retains a result.
   ///
   /// A completed result is held until the acknowledgement is delivered; every
-  /// other status is terminal at once and is never acknowledged.
+  /// other status, and a retired completed one, is terminal at once and is
+  /// never acknowledged.
   internal mutating func receiveResult(
     _ result: OperationResultMessage, to store: inout some RequesterJournalStore
   ) throws -> RequesterResultAction {
@@ -144,19 +84,21 @@ internal struct RequesterOperation {
     } catch {
       throw EngineError.authenticatedProtocolViolation(.invalidOperationMessage)
     }
-    guard Self.statusIsLegal(result.status, in: record.state, for: request.operation) else {
+    guard record.state == .requested else {
       throw EngineError.authenticatedProtocolViolation(.illegalOperationTransition)
     }
-    guard result.status != .completed else {
-      record.retainedResult = result.result
+    if result.status == .completed, !result.retired {
+      do {
+        record.retainedResult = try result.typedResult(for: request.operation)
+      } catch {
+        throw EngineError.authenticatedProtocolViolation(.invalidOperationMessage)
+      }
       try persist(&store, state: .resultPending)
       return .sendAcknowledgement(.operationResultAck(reference))
     }
-    guard let terminal = result.status.failureState, let failure = result.error else {
-      throw EngineError.localInvariantFailure
-    }
+    let terminal = result.status.failureState ?? .completed
     try forget(&store, state: terminal)
-    return .terminal(state: terminal, error: failure)
+    return .terminal(state: terminal, status: result.status, error: result.error)
   }
 
   /// Records that the acknowledgement was delivered and releases the result.
@@ -185,11 +127,8 @@ internal struct RequesterOperation {
   ) throws -> OperationState {
     let terminal: OperationState
     switch record.state {
-    case .requested, .awaitingConsent, .prepared:
-      terminal = .cancelled
-
-    case .committed, .executing:
-      terminal = .ambiguous
+    case .requested:
+      terminal = unansweredTerminal
 
     case .resultPending:
       terminal = .deliveryUncertain

@@ -153,9 +153,14 @@ internal struct Envelope: Equatable {
       }
 
     case .error:
-      guard let error = discriminant("error"), FieldSpec.protocolErrors.contains(error) else {
-        throw WireError.invalidValue(field: "error")
-      }
+      // Any name is admitted: an unrecognized one is handled as a general
+      // operation_failed (section 10.4), so only the lengths are bounded.
+      guard let name = discriminant("error_name"),
+        FieldSpec.errorNameLengths.contains(name.utf8.count)
+      else { throw WireError.invalidValue(field: "error_name") }
+      guard let message = discriminant("message"),
+        FieldSpec.errorMessageLengths.contains(message.utf8.count)
+      else { throw WireError.invalidValue(field: "message") }
 
     default:
       break

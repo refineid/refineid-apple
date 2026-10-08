@@ -25,5 +25,4 @@ internal enum EngineFixture {
   internal static let expiredNowMilliseconds: UInt64 = 500_000
   internal static let displayName = "Test Holder"
   internal static let personIdentifier = "010101-0101"
-  internal static let cancelReason = "user cancelled"
 }

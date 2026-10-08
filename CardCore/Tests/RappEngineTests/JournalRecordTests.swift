@@ -14,6 +14,9 @@ internal struct JournalRecordTests {
   private static let inspectionPin1Attempts: UInt8 = 5
   private static let inspectionPukAttempts: UInt8 = 3
 
+  /// Bytes in the stand-in certificate the identity fixture carries.
+  private static let certificateLength = 4
+
   private func requesterRecord() -> RequesterJournalRecord {
     RequesterJournalRecord(
       pairIdentifier: filler(0x11, PairRecordSize.pairIdentifier),
@@ -21,7 +24,11 @@ internal struct JournalRecordTests {
       operationIdentifier: filler(0x33, JournalSize.operationIdentifier),
       requestHash: filler(0x44, JournalSize.requestHash),
       state: .committed,
-      retainedResult: .identity(displayName: "Test Holder", personIdentifier: "010101-0101"),
+      retainedResult: .identity(
+        CardIdentity(
+          holderName: "Test Holder", cardIdentifier: "99999999A", issuanceDate: "2026-01-01",
+          expirationDate: "2031-01-01", certificates: [filler(0x55, Self.certificateLength)],
+          tokenDisplayName: nil)),
       reconciliation: StatusReport(
         operationIdentifier: filler(0x33, JournalSize.operationIdentifier),
         known: true,
@@ -45,8 +52,7 @@ internal struct JournalRecordTests {
       operationIdentifier: filler(0x33, JournalSize.operationIdentifier),
       requestHash: filler(0x44, JournalSize.requestHash),
       status: .completed,
-      error: nil,
-      result: .certificate(Data([0xde, 0xad, 0xbe, 0xef])))
+      response: ResultResponse(fields: wireResponse(.certificate(Data([0xde, 0xad, 0xbe, 0xef])))))
   }
 
   private func golden(_ text: String) throws -> Data {
@@ -94,15 +100,37 @@ internal struct JournalRecordTests {
     #expect(try OperationResultMessage.decode(try result.encoded()) == result)
   }
 
-  @Test("A denied result round-trips carrying no output")
-  internal func deniedResultRoundTrips() throws {
-    let denied = OperationResultMessage(
+  @Test("A declined result round-trips carrying no output")
+  internal func declinedResultRoundTrips() throws {
+    let declined = OperationResultMessage(
       operationIdentifier: filler(0x33, JournalSize.operationIdentifier),
       requestHash: filler(0x44, JournalSize.requestHash),
-      status: .denied,
-      error: .userDenied,
-      result: nil)
-    #expect(try OperationResultMessage.decode(try denied.encoded()) == denied)
+      status: .rejected,
+      error: .userCancelled)
+    #expect(try OperationResultMessage.decode(try declined.encoded()) == declined)
+  }
+
+  @Test("A retired result keeps its disposition and carries no response")
+  internal func retiredResultRoundTrips() throws {
+    let retired = OperationResultMessage.retired(
+      reference: OperationReference(
+        operationIdentifier: filler(0x33, JournalSize.operationIdentifier),
+        requestHash: filler(0x44, JournalSize.requestHash)),
+      disposition: .completed, preservedError: nil)
+    #expect(retired.error == .operationAlreadyRetired)
+    #expect(try OperationResultMessage.decode(try retired.encoded()) == retired)
+  }
+
+  @Test("A status contradicting its error is rejected")
+  internal func contradictingStatusIsRejected() throws {
+    let contradicting = OperationResultMessage(
+      operationIdentifier: filler(0x33, JournalSize.operationIdentifier),
+      requestHash: filler(0x44, JournalSize.requestHash),
+      status: .cancelled,
+      error: .userCancelled)
+    #expect(throws: (any Error).self) {
+      _ = try OperationResultMessage.decode(try contradicting.encoded())
+    }
   }
 
   @Test("A retained inspection with absent counters round-trips")
@@ -141,7 +169,7 @@ internal struct JournalRecordTests {
     let inconsistent = OperationResultMessage(
       operationIdentifier: filler(0x33, JournalSize.operationIdentifier),
       requestHash: filler(0x44, JournalSize.requestHash),
-      status: .completed, error: nil, result: nil)
+      status: .completed)
     #expect(throws: (any Error).self) {
       _ = try OperationResultMessage.decode(try inconsistent.encoded())
     }

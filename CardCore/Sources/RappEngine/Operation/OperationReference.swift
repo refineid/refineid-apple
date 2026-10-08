@@ -2,8 +2,8 @@
 
 import Foundation
 
-/// The identifier and hash echo carried by prepare, commit, cancel,
-/// acknowledgement, and status messages.
+/// The identifier and hash echo carried by results, acknowledgements,
+/// progress, and status messages.
 internal struct OperationReference: Equatable {
   internal let operationIdentifier: Data
 

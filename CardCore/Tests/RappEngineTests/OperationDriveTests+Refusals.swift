@@ -162,7 +162,9 @@ private func wrongShapeRefused(_ transaction: AuthorizationTransaction) throws {
     try wrongShape.validate(
       for: transaction.reference, operation: transaction.request.operation)
     wrongAccepted = true
-  } catch CardOperationError.profileActionMismatch {
+  } catch is CardOperationError {
+    // A response carries no variant tag, so one shaped for another
+    // operation simply does not read as an answer to this one.
     wrongAccepted = false
   }
   check("a result that answers another operation is refused", !wrongAccepted)
@@ -172,9 +174,7 @@ private func emptyCompletedRefused(_ transaction: AuthorizationTransaction) thro
   let emptyCompleted = OperationResultMessage(
     operationIdentifier: transaction.reference.operationIdentifier,
     requestHash: transaction.reference.requestHash,
-    status: .completed,
-    error: nil,
-    result: nil)
+    status: .completed)
   var emptyAccepted = false
   do {
     try emptyCompleted.validate(
@@ -192,19 +192,19 @@ private func emptyCompletedRefused(_ transaction: AuthorizationTransaction) thro
   } catch {
     decodedEmpty = false
   }
-  check("a completed result with an empty body does not decode", !decodedEmpty)
+  check("a completed result with no response does not decode", !decodedEmpty)
 }
 /// Every registered failure round-trips under its own status.
 private func failureRegistryRoundTrips(_ transaction: AuthorizationTransaction) throws {
   var registryHolds = true
-  for error in [
-    ResultError.userDenied, .requestExpired, .cancelled, .requestInvalidOrUnsupported,
-    .retryPolicyRefused, .credentialRejected, .cardRemovedBeforeTransmit,
+  for failure in [
+    ProxyFailure.userDenied, .requestExpired, .cancelled, .requestInvalidOrUnsupported,
+    .unauthorized, .retryPolicyRefused, .credentialRejected, .cardRemovedBeforeTransmit,
     .cardCompletionAmbiguous,
   ] {
     let message = OperationResultMessage.failure(
-      reference: transaction.reference, error: error)
-    if message.status != error.status { registryHolds = false }
+      reference: transaction.reference, failure: failure)
+    if message.error?.permits(message.status) != true { registryHolds = false }
     if (try? OperationResultMessage.decode(try message.encoded())) != message {
       registryHolds = false
     }
@@ -216,9 +216,8 @@ private func contradictoryStatusRefused(_ transaction: AuthorizationTransaction)
   let contradictory = OperationResultMessage(
     operationIdentifier: transaction.reference.operationIdentifier,
     requestHash: transaction.reference.requestHash,
-    status: .denied,
-    error: .cardCompletionAmbiguous,
-    result: nil)
+    status: .rejected,
+    error: .cardError)
   var contradictionAccepted = false
   do {
     try contradictory.validate(

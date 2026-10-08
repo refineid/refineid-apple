@@ -4,8 +4,10 @@ import Foundation
 
 /// One operation from validated request to durable terminal state.
 ///
-/// The stage is authoritative before the durable commit; afterwards the
-/// journal is, because only the journal survives a restart.
+/// The stage is authoritative before approval; afterwards the journal is,
+/// because only the journal survives a restart. Approval of a consequential
+/// action writes the in-flight entry before the card command exists
+/// (RAPP v26.10.1 §8.1).
 internal struct AuthorizationTransaction {
   internal let request: OperationRequest
 
@@ -30,12 +32,6 @@ internal struct AuthorizationTransaction {
 
     case .awaitingConsent, .executingSafeRead:
       .awaitingConsent
-
-    case .prepared:
-      .prepared
-
-    case .committed:
-      .committed
 
     case .executing:
       .executing
@@ -72,8 +68,12 @@ internal struct AuthorizationTransaction {
   }
 
   /// Accepts the holder's consent for this exact request.
+  ///
+  /// A consequential action writes the durable in-flight entry before the
+  /// card command is handed out; if that write fails no command exists.
   internal mutating func approve(
     _ approval: UserApproval,
+    to store: inout some JournalStore,
     nowMilliseconds: UInt64,
     maximumLifetimeMilliseconds: UInt64
   ) throws -> ApprovalOutcome {
@@ -81,46 +81,19 @@ internal struct AuthorizationTransaction {
     try validate(
       approval, nowMilliseconds: nowMilliseconds,
       maximumLifetimeMilliseconds: maximumLifetimeMilliseconds)
-    if request.operation.isConsequential {
-      stage = .prepared
-      return .prepared(reference)
+    guard request.operation.isConsequential else {
+      stage = .executingSafeRead
+      return .executeSafeRead(AuthorizedSafeRead(operation: request.operation))
     }
-    stage = .executingSafeRead
-    return .executeSafeRead(AuthorizedSafeRead(operation: request.operation))
-  }
-
-  /// Writes the point of no return, once the commit echoes this request and
-  /// the request has not expired.
-  internal mutating func commit(
-    to store: inout some JournalStore,
-    requesterCommit: OperationReference,
-    nowMilliseconds: UInt64,
-    maximumLifetimeMilliseconds: UInt64
-  ) throws {
-    guard stage == .prepared else { throw AuthorizationError.wrongStage(stage: stage) }
-    guard requesterCommit == reference else { throw AuthorizationError.commitMismatch }
-    let deadline = try deadlineMilliseconds(maximumLifetimeMilliseconds)
-    guard nowMilliseconds <= deadline else { throw AuthorizationError.expired }
     try mapJournal { try journal.commit(to: &store, requestHash: requestHash) }
-    stage = .committed
-  }
-
-  /// Records the single transmission and yields the one executable command.
-  internal mutating func beginCardCommand(
-    to store: inout some JournalStore
-  ) throws -> PendingCardCommand<AuthorizedCardCommand> {
-    guard stage == .committed else { throw AuthorizationError.wrongStage(stage: stage) }
     let command = AuthorizedCardCommand(operation: request.operation)
-    // The one-shot command cannot travel through the generic journal mapper,
-    // so this call maps its own failure.
-    let pending: PendingCardCommand<AuthorizedCardCommand>
     do {
-      pending = try journal.beginCardCommand(to: &store, command: command)
+      _ = try journal.beginCardCommand(to: &store, command: command)
     } catch let error as JournalError {
       throw AuthorizationError.journal(error)
     }
     stage = .executing
-    return pending
+    return .executeCardCommand
   }
 
   /// Retains a completed result before it may be released to the transport.
@@ -147,7 +120,8 @@ internal struct AuthorizationTransaction {
     stage = .resultPending
   }
 
-  /// Records a stable non-successful result from any legal stage.
+  /// Records a stable non-successful result from any legal stage, keeping
+  /// the result so an identical retransmission is answered without the card.
   internal mutating func finishFailure(
     to store: inout some JournalStore, result: OperationResultMessage
   ) throws {
@@ -161,48 +135,14 @@ internal struct AuthorizationTransaction {
       throw AuthorizationError.invalidResult
     }
     switch stage {
-    case .requested, .awaitingConsent, .prepared, .executingSafeRead:
-      try mapJournal { try journal.finishSafeReadFailure(to: &store, state: terminal) }
-
-    case .committed where terminal == .cancelled:
-      try mapJournal { try journal.cancelCommittedBeforeTransmission(to: &store) }
-
-    case .executing:
-      try mapJournal { try journal.finish(to: &store, state: terminal) }
+    case .requested, .awaitingConsent, .executingSafeRead, .executing:
+      try mapJournal { try journal.finishFailure(to: &store, state: terminal, result: result) }
 
     default:
       throw AuthorizationError.wrongStage(stage: stage)
     }
+    retainedResult = result
     stage = .terminal
-  }
-
-  /// Applies a cancellation, classified by the durable commit boundary.
-  ///
-  /// After a transmission may have started the cancellation is advisory: the
-  /// card may already have acted, and a silent retry would be a second use.
-  internal mutating func receiveCancel(
-    to store: inout some JournalStore,
-    cancellation: OperationReference,
-    transmissionProvenNotStarted: Bool
-  ) throws -> ProxyCancelOutcome {
-    guard cancellation == reference else { throw AuthorizationError.commitMismatch }
-    switch stage {
-    case .requested, .awaitingConsent, .prepared, .executingSafeRead:
-      try mapJournal { try journal.finishSafeReadFailure(to: &store, state: .cancelled) }
-      stage = .terminal
-      return .cancelled
-
-    case .committed where transmissionProvenNotStarted:
-      try mapJournal { try journal.cancelCommittedBeforeTransmission(to: &store) }
-      stage = .terminal
-      return .cancelled
-
-    case .committed, .executing, .resultPending:
-      return .advisory
-
-    case .terminal:
-      throw AuthorizationError.wrongStage(stage: stage)
-    }
   }
 
   /// Records the acknowledgement that releases the retained result.
@@ -210,7 +150,7 @@ internal struct AuthorizationTransaction {
     to store: inout some JournalStore, acknowledgement: OperationReference
   ) throws {
     guard stage == .resultPending else { throw AuthorizationError.wrongStage(stage: stage) }
-    guard acknowledgement == reference else { throw AuthorizationError.commitMismatch }
+    guard acknowledgement == reference else { throw AuthorizationError.referenceMismatch }
     try mapJournal { try journal.acknowledgeResult(to: &store) }
     retainedResult = nil
     stage = .terminal

@@ -12,6 +12,31 @@ import Testing
 // answers a real predecessor rather than a fixture.
 @Suite("RAPP proxy and requester engines")
 internal struct EngineDriveTests {
+  private static func receive(
+    _ proxy: inout ProxyOperationEngine,
+    _ message: TypedMessage,
+    _ store: inout MemoryJournalStore,
+    now: UInt64 = EngineFixture.nowMilliseconds
+  ) throws -> ProxyDispatch {
+    try proxy.receive(
+      message, store: &store, nowMilliseconds: now,
+      maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
+  }
+
+  private static func approve(
+    _ proxy: inout ProxyOperationEngine,
+    _ request: OperationRequest,
+    _ store: inout MemoryJournalStore,
+    at now: UInt64 = EngineFixture.nowMilliseconds
+  ) throws -> ProxyDispatch {
+    try proxy.prerequisitesComplete(operationIdentifier: request.operationIdentifier)
+    let approval = try UserApproval(for: request, approvedAtMilliseconds: now)
+    return try proxy.approve(
+      operationIdentifier: request.operationIdentifier, approval: approval, store: &store,
+      nowMilliseconds: now,
+      maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
+  }
+
   @Test("One operation completes end to end, transmitting exactly once")
   internal func happyPathCompletes() throws {
     let happy = try driveHappyPath()
@@ -22,95 +47,141 @@ internal struct EngineDriveTests {
       "several journal writes occurred but exactly one was a transmission")
   }
 
-  @Test("A second request while one is live is refused as busy")
-  internal func secondRequestIsBusy() throws {
+  @Test("A second request while one is live is refused without changing state")
+  internal func secondRequestIsRefused() throws {
     var store = MemoryJournalStore()
     var proxy = ProxyOperationEngine(
       grantedProfiles: [.authentication, .cardStatus], recovered: [])
     let first = try engineRequest(operation: signingOperation())
-    _ = try proxy.receive(
-      .operationRequest(first), store: &store, nowMilliseconds: EngineFixture.nowMilliseconds,
-      maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
+    _ = try Self.receive(&proxy, .operationRequest(first), &store)
     let statesBefore = proxy.liveOperationStates
     let second = try engineRequest(
       operation: .inspectCard, operationIdentifier: EngineFixture.secondOperationIdentifier)
-    let refusal = try proxy.receive(
-      .operationRequest(second), store: &store, nowMilliseconds: EngineFixture.nowMilliseconds,
-      maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
-    EngineReport.check(refusal == .send(.error(.busy)), "a second request is refused as busy")
+    let refusal = try Self.receive(&proxy, .operationRequest(second), &store)
+    EngineReport.check(
+      refusal
+        == .send(
+          .error(.operationFailed(operationIdentifier: EngineFixture.secondOperationIdentifier))),
+      "a second request is refused with operation_failed")
     EngineReport.check(
       proxy.liveOperationStates == statesBefore, "the refusal changed no operation state")
-    EngineReport.check(
-      ProtocolErrorMessage.busy.name == "busy", "the refusal uses the registered error name")
   }
 
-  @Test("An ungranted profile is an authenticated violation")
-  internal func ungrantedProfileIsRefused() throws {
+  @Test("An ungranted profile is answered as unauthorized, touching no card")
+  internal func ungrantedProfileIsUnauthorized() throws {
     var store = MemoryJournalStore()
     var proxy = ProxyOperationEngine(grantedProfiles: [.cardStatus], recovered: [])
     let request = try engineRequest(operation: signingOperation())
-    var refused = false
-    do {
-      _ = try proxy.receive(
-        .operationRequest(request), store: &store, nowMilliseconds: EngineFixture.nowMilliseconds,
-        maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
-    } catch EngineError.authenticatedProtocolViolation(.profileNotGranted) {
-      refused = true
+    let answer = try Self.receive(&proxy, .operationRequest(request), &store)
+    guard case .sendFailure(.operationResult(let result), let closes) = answer else {
+      EngineReport.check(false, "an ungranted profile is answered with a result")
+      return
     }
-    EngineReport.check(refused, "an ungranted profile is an authenticated violation")
     EngineReport.check(
-      proxy.liveOperationStates.isEmpty, "no operation was created for the refused request")
-    EngineReport.check(
-      store.proxyWrites.isEmpty, "nothing was journaled, so no card contact was possible")
+      result.status == .rejected && result.error == .unauthorized,
+      "the result is rejected as unauthorized (section 8.2.3)")
+    EngineReport.check(!closes, "the session stays open")
+    EngineReport.check(store.transmissionsRecorded == 0, "no card command was possible")
   }
 
-  @Test("A repeated commit is discarded and a replayed request is a violation")
-  internal func duplicateCommitAndReplayedRequest() throws {
+  @Test("An unsupported parameter is a semantic rejection, not a violation")
+  internal func unsupportedParameterIsRejected() throws {
+    var store = MemoryJournalStore()
+    var proxy = ProxyOperationEngine(grantedProfiles: [.authentication], recovered: [])
+    let request = try engineRequest(operation: signingOperation())
+    let refusal = OperationRequestRefusal(
+      reference: try OperationReference(of: request), error: .unsupportedParameter)
+    let answer = try Self.receive(&proxy, .operationRequestRefused(refusal), &store)
+    guard case .send(.operationResult(let result)) = answer else {
+      EngineReport.check(false, "an unsupported request is answered with a result")
+      return
+    }
+    EngineReport.check(
+      result.status == .rejected && result.error == .unsupportedParameter,
+      "the result names unsupported_parameter")
+  }
+
+  @Test("Identical retransmissions join or replay; altered ones are duplicates")
+  internal func retransmissionsAreIdempotent() throws {
     var store = MemoryJournalStore()
     var proxy = ProxyOperationEngine(grantedProfiles: [.authentication], recovered: [])
     let request = try engineRequest(operation: signingOperation())
     let identifier = request.operationIdentifier
-    _ = try proxy.receive(
-      .operationRequest(request), store: &store, nowMilliseconds: EngineFixture.nowMilliseconds,
-      maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
-    try proxy.prerequisitesComplete(operationIdentifier: identifier)
-    let approval = try UserApproval(
-      for: request, approvedAtMilliseconds: EngineFixture.nowMilliseconds)
-    _ = try proxy.approve(
-      operationIdentifier: identifier, approval: approval,
-      nowMilliseconds: EngineFixture.nowMilliseconds,
-      maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
-    let reference = try OperationReference(of: request)
-    let firstCommit = try proxy.receive(
-      .operationCommit(reference), store: &store, nowMilliseconds: EngineFixture.nowMilliseconds,
-      maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
-    EngineReport.check(
-      firstCommit == .beginCardCommand(operationIdentifier: identifier),
-      "the commit authorizes and records the one card command")
-    EngineReport.check(
-      store.transmissionsRecorded == 1, "storage records exactly one transmission")
+    _ = try Self.receive(&proxy, .operationRequest(request), &store)
 
-    let repeated = try proxy.receive(
-      .operationCommit(reference), store: &store, nowMilliseconds: EngineFixture.nowMilliseconds,
-      maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
+    let joined = try Self.receive(&proxy, .operationRequest(request), &store)
     EngineReport.check(
-      repeated == .ignoredDuplicateCommit(operationIdentifier: identifier),
-      "a repeated commit is discarded, not re-executed")
-    EngineReport.check(
-      store.transmissionsRecorded == 1, "storage still records exactly one transmission")
+      joined == .ignoredDuplicate(operationIdentifier: identifier),
+      "an identical retransmission awaiting consent joins it")
 
-    var reused = false
-    do {
-      _ = try proxy.receive(
-        .operationRequest(request), store: &store,
-        nowMilliseconds: EngineFixture.nowMilliseconds,
-        maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
-    } catch EngineError.authenticatedProtocolViolation(.activeOperationIdentifierReused) {
-      reused = true
+    let altered = try engineRequest(
+      operation: .browserAuthenticate(
+        origin: "https://other.test", keyProfile: .rsa3072, algorithm: .rsaPkcs1Sha256,
+        digest: EngineFixture.digest))
+    let collision = try Self.receive(&proxy, .operationRequest(altered), &store)
+    EngineReport.check(
+      collision == .send(.error(.duplicateOperation(operationIdentifier: identifier))),
+      "the same identifier with changed content is a duplicate_operation")
+
+    _ = try Self.approve(&proxy, request, &store)
+    let result = OperationResultMessage.completed(
+      reference: try OperationReference(of: request), result: .signature(EngineFixture.signature))
+    _ = try proxy.finishCompleted(operationIdentifier: identifier, result: result, store: &store)
+    let replayed = try Self.receive(&proxy, .operationRequest(request), &store)
+    EngineReport.check(
+      replayed == .send(.operationResult(result)),
+      "a retransmission after completion replays the cached result")
+
+    _ = try Self.receive(
+      &proxy, .operationResultAck(try OperationReference(of: request)), &store)
+    let retired = try Self.receive(&proxy, .operationRequest(request), &store)
+    guard case .send(.operationResult(let tombstone)) = retired else {
+      EngineReport.check(false, "a retransmission after retirement is answered")
+      return
     }
-    EngineReport.check(reused, "replaying the request for a live operation is a violation")
     EngineReport.check(
-      store.transmissionsRecorded == 1, "the replay transmitted nothing further")
+      tombstone.retired && tombstone.status == .completed
+        && tombstone.error == .operationAlreadyRetired && tombstone.response == nil,
+      "a retired operation answers from its tombstone without the card")
+    EngineReport.check(
+      store.transmissionsRecorded == 1, "no retransmission reached the card again")
+  }
+
+  @Test("A status query re-delivers a retained result, and answers from tombstones")
+  internal func statusReconciles() throws {
+    var store = MemoryJournalStore()
+    var proxy = ProxyOperationEngine(grantedProfiles: [.authentication], recovered: [])
+    let request = try engineRequest(operation: signingOperation())
+    let identifier = request.operationIdentifier
+    _ = try Self.receive(&proxy, .operationRequest(request), &store)
+    _ = try Self.approve(&proxy, request, &store)
+    let result = OperationResultMessage.completed(
+      reference: try OperationReference(of: request), result: .signature(EngineFixture.signature))
+    _ = try proxy.finishCompleted(operationIdentifier: identifier, result: result, store: &store)
+
+    let pending = try Self.receive(
+      &proxy, .operationStatusRequest(operationIdentifier: identifier), &store)
+    guard case .sendAll(let messages) = pending, messages.count == 2,
+      case .operationStatus(let report) = messages[0]
+    else {
+      EngineReport.check(false, "a pending result is reported and re-delivered")
+      return
+    }
+    EngineReport.check(
+      report.known && !report.retired && report.state?.wireStateName == "completed",
+      "the report names a completed, unretired operation")
+    EngineReport.check(messages[1] == .operationResult(result), "the result follows the report")
+
+    let unknown = try Self.receive(
+      &proxy, .operationStatusRequest(operationIdentifier: EngineFixture.secondOperationIdentifier),
+      &store)
+    EngineReport.check(
+      unknown
+        == .send(
+          .operationStatus(
+            StatusReport(
+              operationIdentifier: EngineFixture.secondOperationIdentifier, known: false))),
+      "an unknown operation is reported unknown")
   }
 
   @Test("A mismatched result is a violation; an unknown one is a stale race")
@@ -120,11 +191,9 @@ internal struct EngineDriveTests {
     let request = try engineRequest(operation: signingOperation())
     _ = try requester.begin(request, store: &store)
     let reference = try OperationReference(of: request)
-    // An identity body cannot answer a signing request.
+    // A certificate answer cannot answer a signing request.
     let wrong = OperationResultMessage.completed(
-      reference: reference,
-      result: .identity(
-        displayName: EngineFixture.displayName, personIdentifier: EngineFixture.personIdentifier))
+      reference: reference, result: .certificate(EngineFixture.signature))
     var refused = false
     do {
       _ = try requester.receive(.operationResult(wrong), store: &store)
@@ -156,62 +225,33 @@ internal struct EngineDriveTests {
     var proxy = ProxyOperationEngine(grantedProfiles: [.authentication], recovered: [])
     let request = try engineRequest(operation: signingOperation())
     let identifier = request.operationIdentifier
-    _ = try proxy.receive(
-      .operationRequest(request), store: &store, nowMilliseconds: EngineFixture.nowMilliseconds,
-      maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
+    _ = try Self.receive(&proxy, .operationRequest(request), &store)
     let before = proxy.liveOperationStates[identifier]
-    let liveness = try proxy.receive(
-      .other(.livenessPing), store: &store, nowMilliseconds: EngineFixture.nowMilliseconds,
-      maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
+    let liveness = try Self.receive(&proxy, .other(.livenessPing), &store)
     EngineReport.check(
       liveness == .notOperation(.other(.livenessPing)),
       "liveness is not an operation message")
     EngineReport.check(
       proxy.liveOperationStates[identifier] == before,
       "liveness left the in-flight operation untouched")
-
-    var model = RappState(role: .proxy)
-    model.pairing = .pairedConnected
-    model.session = .healthy
-    model.operation = .prepared
-    _ = model.livenessMissed()
-    EngineReport.check(
-      !model.operationAdmissionPermitted, "a missed probe blocks new operation admission")
-    EngineReport.check(
-      model.operation == .prepared, "a missed probe does not disturb the live operation")
-    _ = model.livenessRestored()
-    EngineReport.check(model.session == .healthy, "an exact echo restores the session")
   }
 
-  @Test("A late commit expires instead of authorizing")
-  internal func lateCommitExpires() throws {
+  @Test("A late approval expires instead of authorizing")
+  internal func lateApprovalExpires() throws {
     var store = MemoryJournalStore()
     var proxy = ProxyOperationEngine(grantedProfiles: [.authentication], recovered: [])
     let request = try engineRequest(operation: signingOperation())
-    let identifier = request.operationIdentifier
-    _ = try proxy.receive(
-      .operationRequest(request), store: &store, nowMilliseconds: EngineFixture.nowMilliseconds,
-      maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
-    try proxy.prerequisitesComplete(operationIdentifier: identifier)
-    let approval = try UserApproval(
-      for: request, approvedAtMilliseconds: EngineFixture.nowMilliseconds)
-    _ = try proxy.approve(
-      operationIdentifier: identifier, approval: approval,
-      nowMilliseconds: EngineFixture.nowMilliseconds,
-      maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
-    let reference = try OperationReference(of: request)
-    let expired = try proxy.receive(
-      .operationCommit(reference), store: &store,
-      nowMilliseconds: EngineFixture.expiredNowMilliseconds,
-      maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
-    guard case .send(.operationResult(let expiredResult)) = expired else {
-      EngineReport.check(false, "a late commit answers with an expired result")
+    _ = try Self.receive(&proxy, .operationRequest(request), &store)
+    let expired = try Self.approve(
+      &proxy, request, &store, at: EngineFixture.expiredNowMilliseconds)
+    guard case .sendFailure(.operationResult(let expiredResult), _) = expired else {
+      EngineReport.check(false, "a late approval answers with an expired result")
       return
     }
     EngineReport.check(
-      expiredResult.error == .requestExpired, "a late commit is expired, not a violation")
-    EngineReport.check(
-      store.transmissionsRecorded == 0, "an expired commit transmitted nothing")
+      expiredResult.status == .cancelled && expiredResult.error == .operationExpired,
+      "a late approval is cancelled as operation_expired")
+    EngineReport.check(store.transmissionsRecorded == 0, "an expired approval transmitted nothing")
   }
 
   @Test("A failed durable write authorizes no card command")
@@ -219,31 +259,16 @@ internal struct EngineDriveTests {
     var store = MemoryJournalStore()
     var proxy = ProxyOperationEngine(grantedProfiles: [.authentication], recovered: [])
     let request = try engineRequest(operation: signingOperation())
-    let identifier = request.operationIdentifier
-    _ = try proxy.receive(
-      .operationRequest(request), store: &store, nowMilliseconds: EngineFixture.nowMilliseconds,
-      maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
-    try proxy.prerequisitesComplete(operationIdentifier: identifier)
-    let approval = try UserApproval(
-      for: request, approvedAtMilliseconds: EngineFixture.nowMilliseconds)
-    _ = try proxy.approve(
-      operationIdentifier: identifier, approval: approval,
-      nowMilliseconds: EngineFixture.nowMilliseconds,
-      maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
-    let reference = try OperationReference(of: request)
+    _ = try Self.receive(&proxy, .operationRequest(request), &store)
     store.failNextWrite = true
     var authorized = true
     do {
-      _ = try proxy.receive(
-        .operationCommit(reference), store: &store,
-        nowMilliseconds: EngineFixture.nowMilliseconds,
-        maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
+      _ = try Self.approve(&proxy, request, &store)
     } catch {
       authorized = false
     }
     EngineReport.check(!authorized, "a failed durable write authorizes no card command")
     EngineReport.check(
-      store.transmissionsRecorded == 0,
-      "no transmission is recorded when the write failed")
+      store.transmissionsRecorded == 0, "no transmission is recorded when the write failed")
   }
 }

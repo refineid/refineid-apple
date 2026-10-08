@@ -6,13 +6,12 @@
 
 import Foundation
 
-/// Stable result state of an operation.
+/// `operation-status-val` (RAPP v26.10.1 §7.1).
 internal enum ResultStatus: String, Equatable {
   case completed = "completed"
-  case denied = "denied"
-  case cancelled = "cancelled"
   case rejected = "rejected"
   case credentialRejected = "credential_rejected"
+  case cancelled = "cancelled"
   case ambiguous = "ambiguous"
 }
 

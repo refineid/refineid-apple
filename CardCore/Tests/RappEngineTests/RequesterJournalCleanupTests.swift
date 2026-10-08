@@ -37,7 +37,7 @@ internal struct RequesterJournalCleanupTests {
       maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
     try proxy.prerequisitesComplete(operationIdentifier: identifier)
     let denial = try proxy.finishFailure(
-      operationIdentifier: identifier, error: .userDenied, store: &store)
+      operationIdentifier: identifier, failure: .userDenied, store: &store)
     guard case .sendFailure(let deniedMessage, _) = denial else {
       Issue.record("a denial produces a failure result")
       return
@@ -46,20 +46,20 @@ internal struct RequesterJournalCleanupTests {
     #expect(
       dispatch
         == .terminal(
-          operationIdentifier: identifier, state: .denied, reason: .userDenied))
+          operationIdentifier: identifier, state: .rejected, status: .rejected,
+          error: .userCancelled))
     #expect(store.requesterRemovals == [identifier])
   }
 
-  /// Closing the session cancels uncommitted operations, and a cancelled
-  /// operation has nothing left to reconcile, so its journal is removed.
+  /// Closing the session cancels unanswered safe reads, which touched no
+  /// credential and have nothing left to reconcile, so their journals go.
   @Test
   internal func sessionCloseRemovesCancelledJournals() throws {
     var store = MemoryJournalStore()
     var requester = RequesterOperationEngine(recovered: [])
-    let first = try engineRequest(operation: signingOperation())
+    let first = try engineRequest(operation: .inspectCard)
     let second = try engineRequest(
-      operation: signingOperation(),
-      operationIdentifier: EngineFixture.secondOperationIdentifier)
+      operation: .readIdentity, operationIdentifier: EngineFixture.secondOperationIdentifier)
     _ = try requester.begin(first, store: &store)
     _ = try requester.begin(second, store: &store)
 
@@ -69,32 +69,15 @@ internal struct RequesterJournalCleanupTests {
     #expect(store.requesterRemovals == [first.operationIdentifier, second.operationIdentifier])
   }
 
-  /// A committed operation the session close leaves ambiguous must stay
-  /// stored: its outcome is still unknown and reconciliation needs it.
+  /// An unanswered consequential request may have been approved and executed
+  /// by the custodian, so the close leaves it ambiguous and stored for
+  /// reconciliation (section 8.3).
   @Test
   internal func sessionCloseKeepsAmbiguousJournals() throws {
     var store = MemoryJournalStore()
-    var proxy = ProxyOperationEngine(grantedProfiles: [.authentication], recovered: [])
     var requester = RequesterOperationEngine(recovered: [])
     let request = try engineRequest(operation: signingOperation())
-    let identifier = request.operationIdentifier
-    let requestMessage = try requester.begin(request, store: &store)
-    _ = try proxy.receive(
-      requestMessage, store: &store, nowMilliseconds: EngineFixture.nowMilliseconds,
-      maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
-    try proxy.prerequisitesComplete(operationIdentifier: identifier)
-    let approval = try UserApproval(
-      for: request, approvedAtMilliseconds: EngineFixture.nowMilliseconds)
-    let prepared = try proxy.approve(
-      operationIdentifier: identifier, approval: approval,
-      nowMilliseconds: EngineFixture.nowMilliseconds,
-      maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
-    guard case .send(let preparedMessage) = prepared else {
-      Issue.record("approval prepares a consequential action")
-      return
-    }
-    _ = try requester.receive(preparedMessage, store: &store)
-    _ = try requester.commit(operationIdentifier: identifier, store: &store)
+    _ = try requester.begin(request, store: &store)
 
     let classified = requester.sessionClosed(store: &store)
 
@@ -123,7 +106,7 @@ internal struct RequesterJournalCleanupTests {
         maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
       try proxy.prerequisitesComplete(operationIdentifier: identifier)
       let denial = try proxy.finishFailure(
-        operationIdentifier: identifier, error: .userDenied, store: &store)
+        operationIdentifier: identifier, failure: .userDenied, store: &store)
       guard case .sendFailure(let deniedMessage, _) = denial else {
         Issue.record("a denial produces a failure result")
         return
@@ -145,11 +128,10 @@ internal struct RequesterJournalCleanupTests {
   internal func lateStatusDoesNotResurrectRemovedJournals() throws {
     var store = MemoryJournalStore()
     var requester = RequesterOperationEngine(recovered: [])
-    let request = try engineRequest(operation: signingOperation())
+    let request = try engineRequest(operation: .inspectCard)
     let identifier = request.operationIdentifier
     _ = try requester.begin(request, store: &store)
-    _ = try requester.cancel(
-      operationIdentifier: identifier, reason: nil, store: &store)
+    _ = try requester.cancel(operationIdentifier: identifier, store: &store)
     let writesAfterCancel = store.requesterWrites.count
     #expect(store.requesterRemovals == [identifier])
 

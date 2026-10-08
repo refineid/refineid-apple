@@ -76,8 +76,7 @@
         await executeCardCommand(
           operationID: operationID, operation: operation, coordinator: coordinator)
 
-      case .advisoryCancellation(let operationID),
-        .operationFinished(let operationID),
+      case .operationFinished(let operationID),
         .peerUnknownOperation(let operationID),
         .terminal(let operationID, _, _):
         await cancel(operationID)

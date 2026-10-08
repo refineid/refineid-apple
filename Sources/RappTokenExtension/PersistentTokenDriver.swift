@@ -240,7 +240,7 @@ internal final class PersistentTokenDriver: TKTokenDriver,
           case .userDenied, .cancelled, .cardRemovedBeforeTransmit, .requestExpired:
             return TKError(.canceledByUser)
 
-          case .credentialRejected, .retryPolicyRefused:
+          case .credentialRejected, .retryPolicyRefused, .invalidCredential:
             return TKError(.authenticationFailed)
 
           case .requestInvalidOrUnsupported, .cardCompletionAmbiguous, .none:

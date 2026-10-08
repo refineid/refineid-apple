@@ -25,12 +25,13 @@ extension RappOperationBridge {
 
   /// Applies the holder's approval of this exact request.
   public func approve(operationId: Data, approvedAtMs: UInt64) throws -> RappBridgeAction {
-    try withProxy { engine, _ in
+    try withProxy { engine, store in
       guard let request = engine.request(operationId) else { throw RappBindingError.WrongPhase }
       let approval = try UserApproval(for: request, approvedAtMilliseconds: approvedAtMs)
       return try engine.approve(
         operationIdentifier: operationId,
         approval: approval,
+        store: &store,
         nowMilliseconds: approvedAtMs,
         maximumLifetimeMilliseconds: maximumLifetimeMilliseconds)
     }
@@ -38,7 +39,7 @@ extension RappOperationBridge {
 
   /// Refuses the request because the holder denied it.
   public func deny(operationId: Data) throws -> RappBridgeAction {
-    try finishFailure(operationId: operationId, error: .userDenied)
+    try finishFailure(operationId: operationId, failure: .userDenied)
   }
 
   /// Reports authenticated advisory progress on an active operation.
@@ -57,58 +58,74 @@ extension RappOperationBridge {
 
   /// Refuses a request this endpoint cannot present or serve.
   public func requestInvalidOrUnsupported(operationId: Data) throws -> RappBridgeAction {
-    try finishFailure(operationId: operationId, error: .requestInvalidOrUnsupported)
+    try finishFailure(operationId: operationId, failure: .requestInvalidOrUnsupported)
   }
 
   /// Refuses an automatic retry the policy forbids.
   public func retryRefused(operationId: Data) throws -> RappBridgeAction {
-    try finishFailure(operationId: operationId, error: .retryPolicyRefused)
+    try finishFailure(operationId: operationId, failure: .retryPolicyRefused)
   }
 
   /// Reports that the card rejected the credential.
   public func credentialRejected(
     operationId: Data, rejectedAtMs _: UInt64
   ) throws -> RappBridgeAction {
-    try finishFailure(operationId: operationId, error: .credentialRejected)
+    try finishFailure(operationId: operationId, failure: .credentialRejected)
   }
 
   /// Cancels after the card left before transmission provably began.
   public func cardRemovedBeforeTransmit(operationId: Data) throws -> RappBridgeAction {
-    try finishFailure(operationId: operationId, error: .cardRemovedBeforeTransmit)
+    try finishFailure(operationId: operationId, failure: .cardRemovedBeforeTransmit)
   }
 
   /// Marks the operation ambiguous; the card command is never repeated.
   public func cardCompletionAmbiguous(operationId: Data) throws -> RappBridgeAction {
-    try finishFailure(operationId: operationId, error: .cardCompletionAmbiguous)
+    try finishFailure(operationId: operationId, failure: .cardCompletionAmbiguous)
   }
 
   /// Answers an inspection.
+  ///
+  /// The answer to reset is the card's own, or its historical bytes; it is
+  /// empty when the platform exposes neither.
   public func completeInspection(
     operationId: Data,
+    answerToReset: Data,
     pin1Factory: Bool,
     pin2Factory: Bool,
     pin1Attempts: UInt8?,
     pin2Attempts: UInt8?,
     pukAttempts: UInt8?
   ) throws -> RappBridgeAction {
-    try complete(
-      operationId: operationId,
-      result: .inspection(
-        CardInspection(
-          pin1Factory: pin1Factory,
-          pin2Factory: pin2Factory,
-          pin1Attempts: pin1Attempts,
-          pin2Attempts: pin2Attempts,
-          pukAttempts: pukAttempts)))
+    var inspection = CardInspection(
+      pin1Factory: pin1Factory,
+      pin2Factory: pin2Factory,
+      pin1Attempts: pin1Attempts,
+      pin2Attempts: pin2Attempts,
+      pukAttempts: pukAttempts)
+    inspection.answerToReset = answerToReset
+    return try complete(operationId: operationId, result: .inspection(inspection))
   }
 
-  /// Answers an identity read.
+  /// Answers an identity read (RAPP v26.10.1 §9.1).
+  ///
+  /// Both dates are `YYYY-MM-DD`; at least one DER certificate travels.
   public func completeIdentity(
-    operationId: Data, displayName: String, personId: String
+    operationId: Data,
+    holderName: String,
+    cardId: String,
+    issuanceDate: String,
+    expirationDate: String,
+    certificates: [Data]
   ) throws -> RappBridgeAction {
-    try complete(
-      operationId: operationId,
-      result: .identity(displayName: displayName, personIdentifier: personId))
+    let identity = CardIdentity(
+      holderName: holderName, cardIdentifier: cardId, issuanceDate: issuanceDate,
+      expirationDate: expirationDate, certificates: certificates, tokenDisplayName: nil)
+    do {
+      try identity.validate()
+    } catch {
+      throw RappBindingError.InvalidInput
+    }
+    return try complete(operationId: operationId, result: .identity(identity))
   }
 
   /// Answers a certificate read.

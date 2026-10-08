@@ -14,6 +14,8 @@ public enum RappTerminalReason: Sendable {
   case credentialRejected
   case cardRemovedBeforeTransmit
   case cardCompletionAmbiguous
+  /// The card refused the credential and attempts remain; the pairing stays.
+  case invalidCredential
 }
 
 // swiftlint:enable sorted_enum_cases

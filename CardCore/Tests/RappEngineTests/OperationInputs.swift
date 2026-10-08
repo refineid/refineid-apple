@@ -18,11 +18,13 @@ internal struct OperationInputs: Decodable {
     case digestSha384 = "digest_sha384"
     case signatureBytes = "signature_bytes"
     case certificateDer = "certificate_der"
+    case answerToReset = "atr"
     case origin = "origin"
     case documentName = "document_name"
-    case displayName = "display_name"
-    case personIdentifier = "person_id"
-    case cancelReason = "cancel_reason"
+    case holderName = "holder_name"
+    case cardIdentifier = "card_id"
+    case issuanceDate = "issuance_date"
+    case expirationDate = "expiration_date"
     case localStartMilliseconds = "local_start_ms"
     case expiresAfterMilliseconds = "expires_after_ms"
     case inspection = "inspection"
@@ -40,11 +42,13 @@ internal struct OperationInputs: Decodable {
   internal let digestSha384: String
   internal let signatureBytes: String
   internal let certificateDer: String
+  internal let answerToReset: String
   internal let origin: String
   internal let documentName: String
-  internal let displayName: String
-  internal let personIdentifier: String
-  internal let cancelReason: String
+  internal let holderName: String
+  internal let cardIdentifier: String
+  internal let issuanceDate: String
+  internal let expirationDate: String
   internal let localStartMilliseconds: UInt64
   internal let expiresAfterMilliseconds: UInt64
   internal let inspection: OperationInspectionInput

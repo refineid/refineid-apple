@@ -198,7 +198,7 @@ private let fixturePairingCode = "246813"
           throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
 
         case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
-          .executeCardCommand, .advisoryCancellation, .operationFinished,
+          .executeCardCommand, .operationFinished,
           .peerBusy, .peerUnknownOperation, .progress:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
         }
@@ -222,7 +222,7 @@ private let fixturePairingCode = "246813"
           throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
 
         case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
-          .executeCardCommand, .completed, .advisoryCancellation,
+          .executeCardCommand, .completed,
           .operationFinished, .peerBusy, .peerUnknownOperation, .progress:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
         }

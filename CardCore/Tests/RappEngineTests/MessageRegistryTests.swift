@@ -16,6 +16,7 @@ internal struct MessageRegistryTests {
   private static let shortIdentifierSize = 15
   private static let sequence: UInt64 = 7
   private static let expiryMilliseconds: UInt64 = 120_000
+  private static let errorCode: UInt64 = 1_001
 
   private static let session = Data(repeating: 0xA1, count: WireLimits.sessionIdentifier)
   private static let operation = Data(repeating: 0xB2, count: identifierSize)
@@ -57,12 +58,12 @@ internal struct MessageRegistryTests {
     case .operationRequest:
       [
         "operation_id": .bytes(operation), "profile": .text("fi.refineid.authentication.v1"),
-        "action": .text("authenticate"), "request_hash": .bytes(digest),
+        "action": .text("browser_authenticate"),
         "expires_after_ms": .unsigned(expiryMilliseconds), "context": .map([:]),
         "payload": .map([:]),
       ]
 
-    case .operationPrepared, .operationCommit, .operationResultAck:
+    case .operationResultAck:
       ["operation_id": .bytes(operation), "request_hash": .bytes(digest)]
 
     case .operationProgress:
@@ -71,16 +72,10 @@ internal struct MessageRegistryTests {
         "event": .text("waiting_for_card"),
       ]
 
-    case .operationCancel:
-      [
-        "operation_id": .bytes(operation), "request_hash": .bytes(digest),
-        "reason": .text("holder cancelled"),
-      ]
-
     case .operationResult:
       [
         "operation_id": .bytes(operation), "request_hash": .bytes(digest),
-        "status": .text("completed"), "body": .map([:]),
+        "status": .text("completed"), "response": .map([:]),
       ]
 
     case .operationStatusRequest:
@@ -93,7 +88,10 @@ internal struct MessageRegistryTests {
       ]
 
     default:
-      ["error": .text("busy")]
+      [
+        "error_code": .unsigned(errorCode), "error_name": .text("unknown_operation"),
+        "message": .text("The operation is unknown."),
+      ]
     }
   }
   @Test("Every registered message type survives a round trip")
@@ -109,10 +107,17 @@ internal struct MessageRegistryTests {
 
   @Test("A body the registry does not admit is refused")
   internal func registryRefusals() {
-    var missingHash = Self.body(for: .operationRequest)
-    missingHash["request_hash"] = nil
-    expectRefusal(
-      missingHash, .operationRequest, "MissingField { field: \"request_hash\" }")
+    var missingAction = Self.body(for: .operationRequest)
+    missingAction["action"] = nil
+    expectRefusal(missingAction, .operationRequest, "MissingField { field: \"action\" }")
+
+    var hashOnRequest = Self.body(for: .operationRequest)
+    hashOnRequest["request_hash"] = .bytes(Self.digest)
+    expectRefusal(hashOnRequest, .operationRequest, "UnknownField")
+
+    var emptyErrorName = Self.body(for: .error)
+    emptyErrorName["error_name"] = .text("")
+    expectRefusal(emptyErrorName, .error, "InvalidValue { field: \"error_name\" }")
 
     var shortIdentifier = Self.body(for: .operationRequest)
     shortIdentifier["operation_id"] = .bytes(Data(repeating: 0, count: Self.shortIdentifierSize))

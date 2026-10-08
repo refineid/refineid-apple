@@ -176,9 +176,8 @@ internal struct EndpointRuntime {
       // Belongs to an earlier phase, so it is attributable and illegal here.
       return violated()
 
-    case .sessionClose, .operationRequest, .operationPrepared, .operationProgress,
-      .operationCommit, .operationCancel, .operationResult, .operationResultAck,
-      .operationStatusRequest, .operationStatus, .error:
+    case .sessionClose, .operationRequest, .operationProgress, .operationResult,
+      .operationResultAck, .operationStatusRequest, .operationStatus, .error:
       return .message(envelope)
     }
   }

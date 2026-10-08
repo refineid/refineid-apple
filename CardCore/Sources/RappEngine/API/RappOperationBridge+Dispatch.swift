@@ -137,6 +137,12 @@ extension RappOperationBridge {
     case .send(let message):
       return try sendAction(message: message)
 
+    case .sendAll(let messages):
+      guard let first = messages.first else { return RappBridgeAction(kind: .noAction) }
+      var action = try sendAction(message: first)
+      action.additionalFrames = try messages.dropFirst().map(sealedMessage)
+      return action
+
     case .sendFailure(let message, let closeSession):
       return try sendFailureAction(message: message, closeSession: closeSession)
 
@@ -165,19 +171,10 @@ extension RappOperationBridge {
     case .beginCardCommand(let operationIdentifier):
       return try operationAction(.executeCardCommand, operationIdentifier: operationIdentifier)
 
-    case .advisoryCancellation(let operationIdentifier):
-      return RappBridgeAction(kind: .advisoryCancellation, operationId: operationIdentifier)
-
-    case .cancelled(let operationIdentifier):
-      return RappBridgeAction(
-        kind: .cancelled, operationId: operationIdentifier,
-        terminalState: OperationState.cancelled.rawValue,
-        terminalReason: .cancelled)
-
     case .resultAcknowledged(let operationIdentifier):
       return RappBridgeAction(kind: .resultAcknowledged, operationId: operationIdentifier)
 
-    case .ignoredDuplicateCommit(let operationIdentifier):
+    case .ignoredDuplicate(let operationIdentifier):
       return RappBridgeAction(kind: .ignoredDuplicate, operationId: operationIdentifier)
 
     default:
@@ -194,28 +191,10 @@ extension RappOperationBridge {
       frame: try sealedMessage(response))
   }
 
-  /// Commits one prepared operation and releases its first frame.
-  private func preparedAction(
-    operationIdentifier: Data
-  ) throws -> RappBridgeAction {
-    guard case .requester(var engine) = side else { throw RappBindingError.WrongPhase }
-    defer { side = .requester(engine) }
-    var store = VaultRequesterJournalStore(vault: vault, pairIdentifier: pairIdentifier)
-    let message = try mapping {
-      try engine.commit(operationIdentifier: operationIdentifier, store: &store)
-    }
-    return RappBridgeAction(
-      kind: .sendFrame, operationId: operationIdentifier,
-      frame: try sealedMessage(message))
-  }
-
   /// The caller's next step for one requester dispatch.
   internal func action(for dispatch: RequesterDispatch) throws -> RappBridgeAction {
     if let action = try sessionAction(for: dispatch) { return action }
     switch dispatch {
-    case .prepared(let operationIdentifier):
-      return try preparedAction(operationIdentifier: operationIdentifier)
-
     case .progress(let operationIdentifier, let event):
       return RappBridgeAction(
         kind: .progress,
@@ -227,23 +206,13 @@ extension RappOperationBridge {
         kind: .resultAcknowledgment, operationId: operationIdentifier,
         frame: try sealedMessage(message))
 
-    case .terminal(let operationIdentifier, let state, let reason):
+    case .terminal(let operationIdentifier, let state, let status, let error):
       // A credential-rejected result revokes the pairing on both peers
-      // (specification failure taxonomy); this is the requester learning.
+      // (section 10.2); this is the requester learning.
       return RappBridgeAction(
         kind: .terminal, operationId: operationIdentifier, terminalState: state.rawValue,
-        terminalReason: RappTerminalReason(reason),
-        revokesPairing: reason == .credentialRejected)
-
-    case .cancellationReceived(let operationIdentifier, let state):
-      // Past the commit the peer's cancel is advisory: the operation is
-      // still live and its card-determined result is still to come.
-      guard state.isTerminal else {
-        return RappBridgeAction(kind: .advisoryCancellation, operationId: operationIdentifier)
-      }
-      return RappBridgeAction(
-        kind: .cancelled, operationId: operationIdentifier, terminalState: state.rawValue,
-        terminalReason: .cancelled)
+        terminalReason: RappTerminalReason(status: status, error: error),
+        revokesPairing: status == .credentialRejected)
 
     default:
       throw RappBindingError.WrongPhase

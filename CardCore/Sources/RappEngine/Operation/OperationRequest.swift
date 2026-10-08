@@ -2,11 +2,15 @@
 
 import Foundation
 
-/// One typed request, bound to a pairing and a session.
+/// One typed request, bound to a pairing and carried by a session.
 ///
-/// The request hash covers every field a holder is shown and every field the
-/// card acts on, so an approval cannot be moved to a different request.
+/// The request hash covers the pairing and every field a holder is shown and
+/// every field the card acts on, so an approval cannot be moved to a
+/// different request or pairing. The session is provenance only.
 internal struct OperationRequest: Equatable {
+  /// The lifetime a request that names none receives (section 8.2.1).
+  internal static let defaultLifetimeMilliseconds: UInt64 = 300_000
+
   internal let operationIdentifier: Data
 
   internal let pairIdentifier: Data
@@ -44,8 +48,10 @@ internal struct OperationRequest: Equatable {
     try validate()
   }
 
-  /// Parses a received request and recomputes its hash rather than trusting
-  /// the one on the wire.
+  /// Parses a received request; both peers derive its hash.
+  ///
+  /// - Throws: ``OperationRequestRefusal`` when the request is well formed
+  ///   but names a profile, action or parameter this endpoint cannot serve.
   internal static func from(
     wireBody: [String: WireValue],
     pairIdentifier: Data,
@@ -54,33 +60,48 @@ internal struct OperationRequest: Equatable {
   ) throws -> Self {
     var body = wireBody
     let decodedOperationIdentifier = try takeOperationBytes(&body, "operation_id")
-    guard let decodedProfile = ProfileName(rawValue: try takeOperationText(&body, "profile"))
-    else {
-      throw CardOperationError.unknownProfile
-    }
+    let profileName = try takeOperationText(&body, "profile")
     let action = try takeOperationText(&body, "action")
-    let claimedHash = try takeOperationBytes(&body, "request_hash")
-    let decodedExpiresAfterMilliseconds = try takeOperationUnsigned(&body, "expires_after_ms")
     let context = try takeOperationMap(&body, "context")
     let payload = try takeOperationMap(&body, "payload")
+    var lifetime = defaultLifetimeMilliseconds
+    if body["expires_after_ms"] != nil {
+      lifetime = try takeOperationUnsigned(&body, "expires_after_ms")
+    }
     guard body.isEmpty else { throw CardOperationError.unexpectedField }
-    guard claimedHash.count == OperationSize.requestHash else {
-      throw CardOperationError.invalidIdentifier
+    let rawHash: Data
+    do {
+      rawHash = try RappHashes.requestHash(
+        of: RappRequestBinding(
+          pairIdentifier: pairIdentifier, operationIdentifier: decodedOperationIdentifier,
+          profile: profileName, action: action, context: context, payload: payload))
+    } catch {
+      throw CardOperationError.hashFailure
     }
-    let decodedOperation = try CardOperation.from(
-      action: action, context: context, payload: payload)
-    let request = try Self(
-      operationIdentifier: decodedOperationIdentifier,
-      pairIdentifier: pairIdentifier,
-      sessionIdentifier: sessionIdentifier,
-      profile: decodedProfile,
-      localStartMilliseconds: localStartMilliseconds,
-      expiresAfterMilliseconds: decodedExpiresAfterMilliseconds,
-      operation: decodedOperation)
-    guard try request.requestHash() == claimedHash else {
-      throw CardOperationError.requestHashMismatch
+    let reference = OperationReference(
+      operationIdentifier: decodedOperationIdentifier, requestHash: rawHash)
+    guard lifetime > 0 else {
+      throw OperationRequestRefusal(reference: reference, error: .invalidLifetime)
     }
-    return request
+    do {
+      guard let decodedProfile = ProfileName(rawValue: profileName) else {
+        throw CardOperationError.unknownProfile
+      }
+      let request = try Self(
+        operationIdentifier: decodedOperationIdentifier,
+        pairIdentifier: pairIdentifier,
+        sessionIdentifier: sessionIdentifier,
+        profile: decodedProfile,
+        localStartMilliseconds: localStartMilliseconds,
+        expiresAfterMilliseconds: lifetime,
+        operation: try CardOperation.from(action: action, context: context, payload: payload))
+      guard try request.requestHash() == rawHash else {
+        throw CardOperationError.requestHashMismatch
+      }
+      return request
+    } catch {
+      throw OperationRequestRefusal(reference: reference, error: .unsupportedParameter)
+    }
   }
 
   /// Rejects a request whose identifiers, lifetime, or profile do not agree.
@@ -117,7 +138,7 @@ internal struct OperationRequest: Equatable {
   internal func requestHash() throws -> Data {
     try validate()
     let binding = RappRequestBinding(
-      sessionIdentifier: sessionIdentifier,
+      pairIdentifier: pairIdentifier,
       operationIdentifier: operationIdentifier,
       profile: profile.rawValue,
       action: operation.action,
@@ -131,12 +152,11 @@ internal struct OperationRequest: Equatable {
   }
 
   /// The exact `operation.request` body.
-  internal func wireBody() throws -> [String: WireValue] {
+  internal func wireBody() -> [String: WireValue] {
     [
       "operation_id": .bytes(operationIdentifier),
       "profile": .text(profile.rawValue),
       "action": .text(operation.action),
-      "request_hash": .bytes(try requestHash()),
       "expires_after_ms": .unsigned(expiresAfterMilliseconds),
       "context": .map(operation.context),
       "payload": .map(operation.payload),

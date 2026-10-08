@@ -7,16 +7,12 @@ import Foundation
 /// Every outcome is data. The engine decides what must happen and the adapter
 /// performs it, so nothing here touches a card, a transport, or a screen.
 internal enum ProxyDispatch: Equatable {
-  /// A cancellation arrived after the commit, so it is advisory only.
-  case advisoryCancellation(operationIdentifier: Data)
-  /// Take the one authorized card command.
+  /// Take the one authorized card command; its in-flight entry is durable.
   case beginCardCommand(operationIdentifier: Data)
-  /// The operation was cancelled with nothing transmitted.
-  case cancelled(operationIdentifier: Data)
   /// Run the authorized read; it touches no credential retry budget.
   case executeSafeRead(operationIdentifier: Data, read: AuthorizedSafeRead)
-  /// A commit repeating the committed reference; discarded.
-  case ignoredDuplicateCommit(operationIdentifier: Data)
+  /// An identical retransmission joined the operation already under way.
+  case ignoredDuplicate(operationIdentifier: Data)
   /// A stale reference; answer it and change nothing.
   case ignoredStale(operationIdentifier: Data, response: TypedMessage)
   /// Run the profile's bounded prerequisite reads before asking consent.
@@ -27,6 +23,9 @@ internal enum ProxyDispatch: Equatable {
   case resultAcknowledged(operationIdentifier: Data)
   /// Send this message on the authenticated session.
   case send(TypedMessage)
+  /// Send these messages in order, such as a status report and the result
+  /// it re-delivers.
+  case sendAll([TypedMessage])
   /// Send this failure, then close the session if the failure demands it.
   case sendFailure(message: TypedMessage, closeSession: Bool)
 }

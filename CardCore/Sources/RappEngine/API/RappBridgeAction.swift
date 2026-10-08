@@ -14,6 +14,9 @@ public struct RappBridgeAction: Equatable, Sendable {
   public var operation: RappOperationDescriptor?
   /// The sealed frame to release, when the step releases one.
   public var frame: Data?
+  /// Further sealed frames to release after `frame`, in order, such as the
+  /// result a status report re-delivers.
+  public var additionalFrames: [Data]
   /// The journaled state an ended operation reached.
   public var terminalState: String?
   /// Why an operation ended without an answer.
@@ -38,6 +41,7 @@ public struct RappBridgeAction: Equatable, Sendable {
     operationId: Data? = nil,
     operation: RappOperationDescriptor? = nil,
     frame: Data? = nil,
+    additionalFrames: [Data] = [],
     terminalState: String? = nil,
     terminalReason: RappTerminalReason? = nil,
     closeSessionAfterSend: Bool = false,
@@ -49,6 +53,7 @@ public struct RappBridgeAction: Equatable, Sendable {
     self.operationId = operationId
     self.operation = operation
     self.frame = frame
+    self.additionalFrames = additionalFrames
     self.terminalState = terminalState
     self.terminalReason = terminalReason
     self.closeSessionAfterSend = closeSessionAfterSend

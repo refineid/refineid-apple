@@ -5,10 +5,12 @@ import Foundation
 extension ProtocolErrorMessage {
   /// The exact `error` wire body, omitting an absent operation identifier.
   internal var wireBody: [String: WireValue] {
-    var body: [String: WireValue] = ["error": .text(name)]
-    if case .unknownOperation(let operationIdentifier) = self,
-      let operationIdentifier
-    {
+    var body: [String: WireValue] = [
+      "error_code": .unsigned(code),
+      "error_name": .text(name),
+      "message": .text(message),
+    ]
+    if let operationIdentifier {
       body["operation_id"] = .bytes(operationIdentifier)
     }
     return body

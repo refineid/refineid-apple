@@ -141,7 +141,7 @@
         handleClosed(reason)
 
       case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
-        .executeCardCommand, .advisoryCancellation, .operationFinished,
+        .executeCardCommand, .operationFinished,
         .peerBusy, .peerUnknownOperation:
         Self.logger.notice(
           "[RappRequester] coordinator unexpected proxy event on requester: \(eventDesc, privacy: .public)"

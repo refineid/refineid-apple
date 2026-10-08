@@ -135,11 +135,13 @@ internal struct WireCorpusTests {
     }
   }
 
-  @Test("One typed request binds to exactly one session")
+  /// The vector still labels the preimage's second slot `session_id`;
+  /// v26.10.1 section 8.2.1 binds `pair_id` there (refineid/refineid-core#60).
+  @Test("One typed request binds to exactly one pairing")
   internal func requestHash() throws {
     for vector in try CorpusFile.conformance(filePath: #filePath).requestHash {
       let binding = RappRequestBinding(
-        sessionIdentifier: try Data(hex: vector.sessionIDHex),
+        pairIdentifier: try Data(hex: vector.sessionIDHex),
         operationIdentifier: try Data(hex: vector.operationIDHex),
         profile: vector.profile,
         action: vector.action,

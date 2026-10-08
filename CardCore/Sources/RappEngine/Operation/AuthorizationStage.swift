@@ -10,9 +10,7 @@ import Foundation
 internal enum AuthorizationStage: Equatable {
   case requested
   case awaitingConsent
-  case prepared
   case executingSafeRead
-  case committed
   case executing
   case resultPending
   case terminal

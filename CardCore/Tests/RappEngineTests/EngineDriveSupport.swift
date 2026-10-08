@@ -53,27 +53,13 @@ private func driveToCardCommand(
   try proxy.prerequisitesComplete(operationIdentifier: identifier)
   let approval = try UserApproval(
     for: request, approvedAtMilliseconds: EngineFixture.nowMilliseconds)
-  let prepared = try proxy.approve(
-    operationIdentifier: identifier, approval: approval,
+  let beginCommand = try proxy.approve(
+    operationIdentifier: identifier, approval: approval, store: &store,
     nowMilliseconds: EngineFixture.nowMilliseconds,
-    maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
-  guard case .send(let preparedMessage) = prepared else {
-    EngineReport.check(false, "approval prepares a consequential action")
-    return false
-  }
-
-  let preparedDispatch = try requester.receive(preparedMessage, store: &store)
-  EngineReport.check(
-    preparedDispatch == .prepared(operationIdentifier: identifier),
-    "the requester accepts the prepared echo")
-
-  let commitMessage = try requester.commit(operationIdentifier: identifier, store: &store)
-  let beginCommand = try proxy.receive(
-    commitMessage, store: &store, nowMilliseconds: EngineFixture.nowMilliseconds,
     maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
   EngineReport.check(
     beginCommand == .beginCardCommand(operationIdentifier: identifier),
-    "a valid commit authorizes the one card command")
+    "approval writes the in-flight entry and authorizes the one card command")
   EngineReport.check(
     store.transmissionsRecorded == 1, "exactly one transmission reached storage")
   return true

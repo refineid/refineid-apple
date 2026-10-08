@@ -14,7 +14,7 @@ internal func enginePeerError(_ error: AuthorizationError) -> EngineError {
   case .expired:
     .peerRequestExpired
 
-  case .commitMismatch:
+  case .referenceMismatch:
     .authenticatedProtocolViolation(.referenceMismatch)
 
   case .wrongStage:
@@ -31,7 +31,7 @@ internal func engineLocalError(_ error: AuthorizationError) -> EngineError {
   case .journal(let journal):
     engineJournalError(journal)
 
-  case .expired, .approvalMismatch, .commitMismatch, .wrongStage, .invalidResult:
+  case .expired, .approvalMismatch, .referenceMismatch, .wrongStage, .invalidResult:
     .invalidLocalTransition
   }
 }

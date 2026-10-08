@@ -96,7 +96,7 @@ import Testing
         case .closed(let reason):
           throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
 
-        case .executeSafeRead, .completed, .advisoryCancellation,
+        case .executeSafeRead, .completed,
           .peerBusy, .peerUnknownOperation, .progress:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
         }
@@ -136,7 +136,7 @@ import Testing
         case .closed(let reason):
           throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
 
-        case .executeSafeRead, .completed, .advisoryCancellation,
+        case .executeSafeRead, .completed,
           .operationFinished, .peerBusy, .peerUnknownOperation, .progress:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
         }
@@ -189,7 +189,7 @@ import Testing
         case .closed(let reason):
           throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
 
-        case .executeSafeRead, .completed, .advisoryCancellation,
+        case .executeSafeRead, .completed,
           .operationFinished, .peerBusy, .peerUnknownOperation, .progress:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
         }

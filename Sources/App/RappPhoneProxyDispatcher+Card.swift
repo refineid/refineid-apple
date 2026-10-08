@@ -265,7 +265,8 @@
               pin2Factory: activation.pin2,
               pin1Attempts: attempts(snapshot.report?.pin1),
               pin2Attempts: attempts(snapshot.report?.pin2),
-              pukAttempts: attempts(snapshot.report?.puk)
+              pukAttempts: attempts(snapshot.report?.puk),
+              answerToReset: snapshot.answerToReset
             )
           )
         } catch {
@@ -300,12 +301,17 @@
         return
       }
       lastReadAuthCertDER = der
+      guard
+        let identity = RappOperationDriver.Identity(
+          authenticationCertificate: der,
+          holderName: name,
+          cardID: DistinguishedName.identifier(inName: facts.subjectName) ?? "")
+      else {
+        await invalid(operationID, coordinator: coordinator)
+        return
+      }
       do {
-        try await coordinator.completeIdentity(
-          operationID: operationID,
-          displayName: name,
-          personID: DistinguishedName.identifier(inName: facts.subjectName) ?? ""
-        )
+        try await coordinator.completeIdentity(operationID: operationID, identity: identity)
       } catch {
         await coordinator.close()
       }

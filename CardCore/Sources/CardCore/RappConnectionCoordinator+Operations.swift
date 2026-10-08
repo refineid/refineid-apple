@@ -144,19 +144,14 @@
         ))
     }
 
-    /// Completes an identity read with the holder's name and person ID.
+    /// Completes an identity read (RAPP v26.10.1 §9.1).
     public func completeIdentity(
       operationID: Data,
-      displayName: String,
-      personID: String
+      identity: RappOperationDriver.Identity
     ) async throws {
       let driver = try operationDriver()
       await handleOperation(
-        try await driver.completeIdentity(
-          operationID: operationID,
-          displayName: displayName,
-          personID: personID
-        ))
+        try await driver.completeIdentity(operationID: operationID, identity: identity))
     }
 
     /// Completes a certificate read with the DER-encoded certificate and optional card serial.
