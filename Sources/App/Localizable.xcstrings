@@ -6851,6 +6851,118 @@
           }
         }
       }
+    },
+    "Code from phone": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Puhelimen koodi"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kod från telefonen"
+          }
+        }
+      }
+    },
+    "Could not find a device offering this pairing code.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laitetta, joka tarjoaa tätä koodia, ei löytynyt."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hittade ingen enhet som erbjuder den här koden."
+          }
+        }
+      }
+    },
+    "Pairing locked after three incorrect codes.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laiteparin muodostus lukittiin kolmen väärän koodin jälkeen."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parkopplingen låstes efter tre felaktiga koder."
+          }
+        }
+      }
+    },
+    "Pairing locked. Try again in %llu s.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laiteparin muodostus on lukittu. Yritä uudelleen %llu s kuluttua."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parkopplingen är låst. Försök igen om %llu s."
+          }
+        }
+      }
+    },
+    "The pairing code is invalid": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Koodi ei kelpaa"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Koden är ogiltig"
+          }
+        }
+      }
+    },
+    "The pairing code was not accepted": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Koodia ei hyväksytty"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Koden godtogs inte"
+          }
+        }
+      }
+    },
+    "The remote card could not be read.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Etäkorttia ei voitu lukea."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fjärrkortet kunde inte läsas."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -96,9 +96,6 @@ internal struct CardCredentialsView: View {
     /// Pairing model that drives inline pairing on both iPad and iPhone.
     @StateObject internal var pairingModel = RappPairingModel()
 
-    /// The 6-digit numeric pairing code typed on iPhone.
-    @State internal var pairingCodeDigits = ""
-
     /// The Remote Access toggle, synced with the persisted holder choice.
     @State internal var remoteAccessEnabled = false
 
@@ -114,10 +111,6 @@ internal struct CardCredentialsView: View {
     /// Whether the access-denied redirect is on screen.
     @State internal var showingLocalNetworkDenied = false
 
-    /// Whether the code boxes take the keyboard when they appear.
-    @State internal var shouldFocusPairingEntry = false
-
-    @FocusState internal var isPairingFieldFocused: Bool
   #endif
   // swiftlint:enable private_swiftui_state
 

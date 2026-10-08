@@ -5,9 +5,9 @@ import Foundation
 /// A refused authorization step.
 internal enum AuthorizationError: Error, Equatable {
   case approvalMismatch
-  case commitMismatch
   case expired
   case invalidResult
   case journal(JournalError)
+  case referenceMismatch
   case wrongStage(stage: AuthorizationStage)
 }

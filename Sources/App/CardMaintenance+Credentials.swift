@@ -9,6 +9,8 @@ extension CardMaintenance {
     internal let report: CredentialProbeReport?
     internal let activationNeeds: ActivationNeeds?
     internal let activationScheme: ActivationScheme?
+    /// The card's answer to reset where the transport exposes it.
+    internal var answerToReset = Data()
   }
 
   internal struct MutationReport: Equatable, Sendable {

@@ -3,7 +3,14 @@
 import Foundation
 
 /// Counter-safe view of the card's authentication state.
+///
+/// The `inspect_card` answer (RAPP v26.10.1 §9.1) carries the card's answer
+/// to reset; the factory flags and counters travel beside it as this
+/// implementation's own response fields.
 internal struct CardInspection: Equatable {
+  /// The answer to reset, or its historical bytes where the platform hides
+  /// the rest; empty when the platform exposes neither.
+  internal var answerToReset = Data()
   internal var pin1Factory: Bool
   internal var pin2Factory: Bool
   internal var pin1Attempts: UInt8?

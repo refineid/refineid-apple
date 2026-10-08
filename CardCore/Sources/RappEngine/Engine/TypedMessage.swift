@@ -8,11 +8,11 @@ import Foundation
 /// layer stays the only place that parses bytes.
 internal enum TypedMessage: Equatable {
   case error(ProtocolErrorMessage)
-  case operationCancel(CancelMessage)
-  case operationCommit(OperationReference)
-  case operationPrepared(OperationReference)
   case operationProgress(OperationProgressMessage)
   case operationRequest(OperationRequest)
+  /// A well-formed request naming something this endpoint cannot serve;
+  /// inbound only, answered with a rejected result.
+  case operationRequestRefused(OperationRequestRefusal)
   case operationResult(OperationResultMessage)
   case operationResultAck(OperationReference)
   case operationStatus(StatusReport)
@@ -29,16 +29,14 @@ internal enum TypedMessage: Equatable {
     case .operationRequest(let request):
       request.operationIdentifier
 
-    case .operationPrepared(let reference),
-      .operationCommit(let reference),
-      .operationResultAck(let reference):
+    case .operationRequestRefused(let refusal):
+      refusal.reference.operationIdentifier
+
+    case .operationResultAck(let reference):
       reference.operationIdentifier
 
     case .operationProgress(let progress):
       progress.reference.operationIdentifier
-
-    case .operationCancel(let cancellation):
-      cancellation.reference.operationIdentifier
 
     case .operationResult(let result):
       result.operationIdentifier

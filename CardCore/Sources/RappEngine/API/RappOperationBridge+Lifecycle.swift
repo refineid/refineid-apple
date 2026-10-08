@@ -59,7 +59,7 @@ extension RappOperationBridge {
   /// specification's failure taxonomy.
   internal static func failureRevokesPairing(_ message: TypedMessage) -> Bool {
     guard case .operationResult(let result) = message else { return false }
-    return result.error == .credentialRejected
+    return result.status == .credentialRejected
   }
 
   /// Names an engine failure in the public vocabulary.
@@ -277,9 +277,11 @@ extension RappOperationBridge {
   }
 
   /// Records a stable failure and releases it.
-  internal func finishFailure(operationId: Data, error: ResultError) throws -> RappBridgeAction {
+  internal func finishFailure(
+    operationId: Data, failure: ProxyFailure
+  ) throws -> RappBridgeAction {
     try withProxy { engine, store in
-      try engine.finishFailure(operationIdentifier: operationId, error: error, store: &store)
+      try engine.finishFailure(operationIdentifier: operationId, failure: failure, store: &store)
     }
   }
 

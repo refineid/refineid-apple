@@ -6,7 +6,9 @@ import Foundation
 internal enum CloseReasonName {
   internal static let pairingRevoked = "pairing_revoked"
   internal static let protocolViolation = "protocol_violation"
-  internal static let cardUnavailable = "card_unavailable"
+  /// A custodian that can no longer serve the card ends sessions by
+  /// policy; v26.10.1 registers no narrower reason.
+  internal static let cardUnavailable = "policy"
 
   /// Whether this close reason carries the Section 14.6 pairing notice.
   internal static func revokesPairing(_ reason: String) -> Bool {

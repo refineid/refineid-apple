@@ -161,7 +161,11 @@
       return await withCheckedContinuation { continuation in
         DispatchQueue.global(qos: .userInitiated).async {
           let answer = try? held.withCardSession { channel -> ConnectionSnapshotResult in
-            snapshotFromChannel(channel, cardAccessNumber: cardAccessNumber, atrScheme: atrScheme)
+            let result = snapshotFromChannel(
+              channel, cardAccessNumber: cardAccessNumber, atrScheme: atrScheme)
+            guard case .connected(var snapshot) = result else { return result }
+            snapshot.answerToReset = held.answerToReset
+            return .connected(snapshot)
           }
           continuation.resume(returning: answer ?? .failed)
         }

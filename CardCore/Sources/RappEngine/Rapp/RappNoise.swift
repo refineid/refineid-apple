@@ -16,8 +16,8 @@ internal enum RappNoise {
   }
 
   private static let wireMajor: UInt64 = 26
-  private static let wireMinor: UInt64 = 9
-  private static let wirePatch: UInt64 = 28
+  private static let wireMinor: UInt64 = 10
+  private static let wirePatch: UInt64 = 1
 
   internal static let wireVersion = WireVersion(
     major: wireMajor,
@@ -26,7 +26,7 @@ internal enum RappNoise {
   )
 
   internal static let pairingSuite = "Noise_XXpsk3_25519_ChaChaPoly_SHA512"
-  internal static let sessionSuite = "Noise_KKhfs_25519+MLKEM768_ChaChaPoly_SHA512"
+  internal static let sessionSuite = "Noise_KK_25519_ChaChaPoly_SHA512"
 
   private static let pairingPrologueDomain = "RAPP-pairing-v1"
   private static let sessionPrologueDomain = "RAPP-session-v1"
@@ -44,7 +44,10 @@ internal enum RappNoise {
     ])
   }
 
-  /// Binds the pairing handshake to the offer it answers.
+  /// Binds the pairing handshake to the offer it answers (RAPP v26.10.1 §4.3.1).
+  ///
+  /// The prologue names the KC2 suite literal; the Noise protocol name
+  /// itself stays ``pairingSuite``.
   internal static func pairingPrologue(
     offerHash: Data,
     transportProfile: String
@@ -52,7 +55,7 @@ internal enum RappNoise {
     let value = WireValue.array([
       .text(pairingPrologueDomain),
       versionValue,
-      .text(pairingSuite),
+      .text(RappCpaceConstants.kc2Suite),
       .bytes(offerHash),
       .text(transportProfile),
     ])

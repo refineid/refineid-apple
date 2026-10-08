@@ -14,75 +14,41 @@ internal enum SessionMessageCodec {
     sessionIdentifier: Data,
     nowMilliseconds: UInt64
   ) throws -> TypedMessage {
-    if let message = try referenceMessage(from: envelope) {
-      return message
-    }
     switch envelope.messageType {
     case .operationRequest:
-      return .operationRequest(
-        try OperationRequest.from(
-          wireBody: envelope.body,
-          pairIdentifier: pairIdentifier,
-          sessionIdentifier: sessionIdentifier,
-          localStartMilliseconds: nowMilliseconds))
+      do {
+        return .operationRequest(
+          try OperationRequest.from(
+            wireBody: envelope.body,
+            pairIdentifier: pairIdentifier,
+            sessionIdentifier: sessionIdentifier,
+            localStartMilliseconds: nowMilliseconds))
+      } catch let refusal as OperationRequestRefusal {
+        return .operationRequestRefused(refusal)
+      }
 
     case .operationProgress:
       return .operationProgress(try OperationProgressMessage.from(wireBody: envelope.body))
-
-    case .operationCancel:
-      return .operationCancel(try CancelMessage.from(wireBody: envelope.body))
 
     case .operationResult:
       return .operationResult(
         try OperationResultMessage.decode(try WireValue.map(envelope.body).encoded()))
 
+    case .operationResultAck:
+      return .operationResultAck(try OperationReference.from(wireBody: envelope.body))
+
     case .operationStatus:
-      return .operationStatus(try statusReportFrom(.map(envelope.body)))
+      return .operationStatus(try StatusReport.from(wireBody: envelope.body))
 
     case .operationStatusRequest:
       var body = envelope.body
       return .operationStatusRequest(operationIdentifier: try takeBytes(&body, "operation_id"))
 
     case .error:
-      return .error(try protocolError(from: envelope.body))
+      return .error(ProtocolErrorMessage.from(wireBody: envelope.body))
 
     default:
       return .other(envelope.messageType)
-    }
-  }
-
-  private static func referenceMessage(from envelope: Envelope) throws -> TypedMessage? {
-    switch envelope.messageType {
-    case .operationPrepared:
-      .operationPrepared(try OperationReference.from(wireBody: envelope.body))
-
-    case .operationCommit:
-      .operationCommit(try OperationReference.from(wireBody: envelope.body))
-
-    case .operationResultAck:
-      .operationResultAck(try OperationReference.from(wireBody: envelope.body))
-
-    default:
-      nil
-    }
-  }
-
-  /// The registered protocol error an authenticated body names.
-  private static func protocolError(from body: [String: WireValue]) throws -> ProtocolErrorMessage {
-    var remaining = body
-    let name = try takeText(&remaining, "error")
-    switch name {
-    case EngineErrorName.busy:
-      return .busy
-
-    case EngineErrorName.unknownOperation:
-      guard case .bytes(let operationIdentifier)? = remaining["operation_id"] else {
-        return .unknownOperation(operationIdentifier: nil)
-      }
-      return .unknownOperation(operationIdentifier: operationIdentifier)
-
-    default:
-      throw EngineError.invalidLocalValue
     }
   }
 
@@ -91,7 +57,7 @@ internal enum SessionMessageCodec {
     for message: TypedMessage,
     session: inout EstablishedSession
   ) throws -> Data {
-    guard let messageType = message.messageType, let body = try message.wireBody() else {
+    guard let messageType = message.messageType, let body = message.wireBody() else {
       throw EngineError.invalidLocalValue
     }
     return try session.seal(messageType, body: body)

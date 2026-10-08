@@ -12,9 +12,6 @@ extension ResultStatus {
     case .completed:
       nil
 
-    case .denied:
-      .denied
-
     case .cancelled:
       .cancelled
 

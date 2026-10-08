@@ -7,7 +7,6 @@ import Foundation
 /// Distinct filler bytes, so a field encoded in place of another shows up as
 /// a different byte rather than a coincidental match.
 private let fillerOfferIdentifier: UInt8 = 0x01
-private let fillerPairingSecret: UInt8 = 0x02
 private let fillerPairIdentifier: UInt8 = 0x11
 private let fillerRendezvousToken: UInt8 = 0x22
 private let fillerLocalStaticPrivate: UInt8 = 0x33
@@ -28,8 +27,7 @@ internal func filler(_ byte: UInt8, _ count: Int) -> Data {
 internal func makeOffer() throws -> PairingOffer {
   try PairingOffer(
     offerIdentifier: filler(fillerOfferIdentifier, OfferLimit.offerIdentifierSize),
-    pairingSecret: filler(fillerPairingSecret, OfferLimit.pairingSecretSize),
-    suites: [mandatoryPairingSuite],
+    suites: [RappCpaceConstants.kc2Suite],
     profiles: ["fi.refineid.card-status.v1", "fi.refineid.authentication.v1"],
     transports: [
       TransportCandidate(

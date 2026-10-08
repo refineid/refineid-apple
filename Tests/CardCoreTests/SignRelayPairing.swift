@@ -21,7 +21,6 @@ private let fixturePairingCode = "246813"
     private static let emptyParameters = Data([emptyCborMapByte])
 
     /// Long enough that no test races the offer's expiry.
-    private static let offerLifetimeMilliseconds: UInt64 = 60_000
 
     internal let requesterVault: RappDeviceVault
     internal let proxyVault: RappDeviceVault
@@ -30,52 +29,24 @@ private let fixturePairingCode = "246813"
     internal let requesterPrefix: String
     internal let proxyPrefix: String
 
-    /// The half that owns the offer and shows the code.
-    private static func makeRequester(
+    /// The options both halves share: the offer is derived from them.
+    private static func options(
+      role name: String,
       profiles: [String],
-      transportProfile: String,
-      candidateID: String,
+      candidate: RappPairingCoordinator.TransportCandidate,
       vault: RappDeviceVault,
       outbound: SignRelayFrameEndpoint
-    ) throws -> RappPairingCoordinator {
-      try RappPairingCoordinator.requester(
+    ) -> RappPairingCoordinator.Options {
+      RappPairingCoordinator.Options(
+        code: fixturePairingCode,
         profiles: profiles,
-        candidates: [
-          .init(
-            profile: transportProfile,
-            candidateID: candidateID,
-            parametersCBOR: emptyParameters)
-        ],
-        selectedCandidateID: candidateID,
-        offerLifetimeMilliseconds: offerLifetimeMilliseconds,
-        displayName: "Requester",
-        platform: "macOS",
+        candidate: candidate,
+        displayName: name,
+        platform: name == "Requester" ? "macOS" : "iOS",
         vault: vault,
         transport: RappClosureFrameTransport(
           sender: { frame in await outbound.send(frame) },
-          closer: { await outbound.close() }),
-        code: fixturePairingCode
-      )
-    }
-
-    /// The half that answers an offer it was handed.
-    private static func makeProxy(
-      offerURI: String,
-      candidateID: String,
-      vault: RappDeviceVault,
-      outbound: SignRelayFrameEndpoint
-    ) throws -> RappPairingCoordinator {
-      try RappPairingCoordinator.proxy(
-        scannedOfferURI: offerURI,
-        selectedCandidateID: candidateID,
-        displayName: "Proxy",
-        platform: "iOS",
-        vault: vault,
-        transport: RappClosureFrameTransport(
-          sender: { frame in await outbound.send(frame) },
-          closer: { await outbound.close() }),
-        code: fixturePairingCode
-      )
+          closer: { await outbound.close() }))
     }
 
     /// Runs the ceremony between two fresh vaults.
@@ -94,22 +65,21 @@ private let fixturePairingCode = "246813"
 
       let requesterOutbound = SignRelayFrameEndpoint()
       let proxyOutbound = SignRelayFrameEndpoint()
-      let requester = try makeRequester(
-        profiles: profiles,
-        transportProfile: transportProfile,
-        candidateID: candidateID,
-        vault: madeRequesterVault,
-        outbound: requesterOutbound)
-      let proxy = try makeProxy(
-        offerURI: try #require(requester.offerURI),
-        candidateID: candidateID,
-        vault: madeProxyVault,
-        outbound: proxyOutbound)
+      let candidate = RappPairingCoordinator.TransportCandidate(
+        profile: transportProfile, candidateID: candidateID, parametersCBOR: emptyParameters)
+      let requester = try RappPairingCoordinator.requester(
+        options: options(
+          role: "Requester", profiles: profiles, candidate: candidate,
+          vault: madeRequesterVault, outbound: requesterOutbound))
+      let proxy = try RappPairingCoordinator.custodian(
+        options: options(
+          role: "Proxy", profiles: profiles, candidate: candidate,
+          vault: madeProxyVault, outbound: proxyOutbound))
       await requesterOutbound.install { frame in await proxy.receive(frame) }
       await proxyOutbound.install { frame in await requester.receive(frame) }
 
-      async let requesterSummary = approveAndAwaitPair(requester, profiles: profiles)
-      async let proxySummary = approveAndAwaitPair(proxy, profiles: profiles)
+      async let requesterSummary = awaitPair(requester)
+      async let proxySummary = awaitPair(proxy)
       await proxy.transportConnected()
       await requester.transportConnected()
 
@@ -123,22 +93,18 @@ private let fixturePairingCode = "246813"
       )
     }
 
-    private static func approveAndAwaitPair(
-      _ coordinator: RappPairingCoordinator,
-      profiles: [String]
+    private static func awaitPair(
+      _ coordinator: RappPairingCoordinator
     ) async throws -> RappPairingCoordinator.PairSummary {
       for await event in coordinator.events {
         switch event {
-        case .reviewPeer:
-          await coordinator.approve(grantedProfiles: profiles)
-
         case .paired(let summary):
           return summary
 
         case .closed(let reason):
           throw SignRelayPairingFailure.closed(String(describing: reason))
 
-        case .offerReady, .offerRestored:
+        case .peerIntroduced, .offerRestored:
           continue
         }
       }

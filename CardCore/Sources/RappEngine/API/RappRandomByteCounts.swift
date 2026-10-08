@@ -6,8 +6,8 @@
 public struct RappRandomByteCounts: Equatable, Sendable {
   /// Bytes in an offer identifier.
   public var offerId: UInt64
-  /// Bytes in a pairing secret.
-  public var pairingSecret: UInt64
+  /// Bytes reduced modulo the group order to sample one CPace scalar.
+  public var cpaceScalarRandom: UInt64
   /// Bytes in a session-ready nonce.
   public var sessionReadyNonce: UInt64
   /// Bytes in an operation identifier.
@@ -18,13 +18,13 @@ public struct RappRandomByteCounts: Equatable, Sendable {
   /// States the size of every value the caller generates.
   public init(
     offerId: UInt64,
-    pairingSecret: UInt64,
+    cpaceScalarRandom: UInt64,
     sessionReadyNonce: UInt64,
     operationId: UInt64,
     livenessChallenge: UInt64
   ) {
     self.offerId = offerId
-    self.pairingSecret = pairingSecret
+    self.cpaceScalarRandom = cpaceScalarRandom
     self.sessionReadyNonce = sessionReadyNonce
     self.operationId = operationId
     self.livenessChallenge = livenessChallenge

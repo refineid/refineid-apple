@@ -22,7 +22,7 @@
 
         case .userDenied, .requestExpired, .cancelled,
           .requestInvalidOrUnsupported, .retryPolicyRefused,
-          .cardRemovedBeforeTransmit, nil:
+          .cardRemovedBeforeTransmit, .invalidCredential, nil:
           return false
         }
 
@@ -45,7 +45,7 @@
 
       case .established, .inspectPrerequisites, .awaitUserApproval,
         .executeSafeRead, .executeCardCommand, .completed,
-        .advisoryCancellation, .operationFinished, .peerBusy,
+        .operationFinished, .peerBusy,
         .peerUnknownOperation, .progress:
         return false
       }

@@ -57,14 +57,6 @@
       "count": 1
     },
     {
-      "file": "CardCore/Sources/CardCore/RappPairingCoordinator+Factory.swift",
-      "command": "disable:this",
-      "rules": [
-        "function_parameter_count"
-      ],
-      "count": 2
-    },
-    {
       "file": "CardCore/Sources/CardCore/RappPairingCoordinator.swift",
       "command": "disable:previous",
       "rules": [
@@ -195,7 +187,7 @@
       "count": 1
     },
     {
-      "file": "CardCore/Sources/RappEngine/API/RappPairingBridge+Ceremony.swift",
+      "file": "CardCore/Sources/RappEngine/API/RappPairingBridge.swift",
       "command": "disable:this",
       "rules": [
         "function_parameter_count"
@@ -357,7 +349,7 @@
       "count": 1
     },
     {
-      "file": "CardCore/Sources/RappEngine/Rapp/RappCpaceState.swift",
+      "file": "CardCore/Sources/RappEngine/Rapp/RappCpacePrimitives.swift",
       "command": "disable",
       "rules": [
         "no_magic_numbers"
@@ -365,7 +357,7 @@
       "count": 1
     },
     {
-      "file": "CardCore/Sources/RappEngine/Rapp/RappCpaceState.swift",
+      "file": "CardCore/Sources/RappEngine/Rapp/RappCpacePrimitives.swift",
       "command": "enable",
       "rules": [
         "no_magic_numbers"

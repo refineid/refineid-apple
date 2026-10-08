@@ -22,7 +22,7 @@ internal enum RappHashes {
   internal static func requestPreimage(of request: RappRequestBinding) throws -> Data {
     let value = WireValue.array([
       .text(requestDomain),
-      .bytes(request.sessionIdentifier),
+      .bytes(request.pairIdentifier),
       .bytes(request.operationIdentifier),
       .text(request.profile),
       .text(request.action),

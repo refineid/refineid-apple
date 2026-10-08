@@ -25,34 +25,29 @@ internal struct EngineSendBodyTests {
     let statusIdentifier = Data(repeating: 0x44, count: 16)
     let errorIdentifier = Data(repeating: 0x66, count: 16)
     let statusHash = Data(repeating: 0x55, count: 32)
-    // Cancel echoes the ordinary operation reference, not the status one.
-    let cancelReference = OperationReference(
+    let ackReference = OperationReference(
       operationIdentifier: Data(repeating: 0x22, count: 16),
       requestHash: Data(repeating: 0x33, count: 32))
 
     let cases: [(String, TypedMessage)] = [
-      (
-        "cancel-with-reason",
-        .operationCancel(
-          CancelMessage(reference: cancelReference, reason: EngineFixture.cancelReason))
-      ),
-      (
-        "cancel-without-reason",
-        .operationCancel(CancelMessage(reference: cancelReference, reason: nil))
-      ),
+      ("result-ack", .operationResultAck(ackReference)),
       ("status-request", .operationStatusRequest(operationIdentifier: statusIdentifier)),
       (
-        "status-known-completed",
+        "status-completed-retired",
         .operationStatus(
           StatusReport(
             operationIdentifier: statusIdentifier, known: true, state: .completed,
-            requestHash: statusHash))
+            requestHash: statusHash, retired: true))
       ),
       (
         "status-unknown",
         .operationStatus(StatusReport(operationIdentifier: statusIdentifier, known: false))
       ),
-      ("error-busy", .error(.busy)),
+      ("error-operation-failed", .error(.operationFailed(operationIdentifier: errorIdentifier))),
+      (
+        "error-duplicate-operation",
+        .error(.duplicateOperation(operationIdentifier: errorIdentifier))
+      ),
       (
         "error-unknown-operation-with-id",
         .error(.unknownOperation(operationIdentifier: errorIdentifier))
@@ -68,6 +63,6 @@ internal struct EngineSendBodyTests {
     // two-key map, never the journal's four-key form with explicit nulls.
     let unknownBody = StatusReport(operationIdentifier: statusIdentifier, known: false).wireBody
     EngineReport.check(
-      unknownBody.count == 2, "an unknown status omits state and request_hash")
+      unknownBody.count == 2, "an unknown status omits state, request_hash and retired")
   }
 }

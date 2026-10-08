@@ -11,14 +11,12 @@ extension FlowDriveTests {
 
     let twoCandidateOffer = try makeOffer(
       profiles: ceremony.everyProfile, candidates: ["stream-1", "nearby-1"])
-    let twoCandidateDeadline = try PairingOfferDeadline(
-      offer: twoCandidateOffer, startedAtMilliseconds: 0)
 
     do {
       _ = try PairingHandshake.begin(
         .init(
           role: .requester, offer: twoCandidateOffer, candidateIdentifier: "absent",
-          localKeys: PairKeyMaterial(), deadline: twoCandidateDeadline, nowMilliseconds: 0))
+          localKeys: PairKeyMaterial(), presharedKey: flowPresharedKey))
       check(false, "an unknown candidate is refused")
     } catch let failure as PairingAttemptFailure {
       check(failure.error == .candidateNotUnique, "an unknown candidate is refused")
@@ -30,7 +28,7 @@ extension FlowDriveTests {
     let firstAttempt = try PairingHandshake.begin(
       .init(
         role: .requester, offer: twoCandidateOffer, candidateIdentifier: "stream-1",
-        localKeys: PairKeyMaterial(), deadline: twoCandidateDeadline, nowMilliseconds: 0))
+        localKeys: PairKeyMaterial(), presharedKey: flowPresharedKey))
     let recoveredOffer = firstAttempt.abort()
     let fallbackPeers = try runPairing(
       offer: recoveredOffer, grants: ceremony.everyProfile, candidateIdentifier: "nearby-1")
@@ -46,17 +44,14 @@ extension FlowDriveTests {
         .init(
           role: .requester, offer: try makeOffer(profiles: ceremony.everyProfile),
           candidateIdentifier: "stream-1", localKeys: PairKeyMaterial(),
-          deadline: try PairingOfferDeadline(
-            offer: try makeOffer(profiles: ceremony.everyProfile), startedAtMilliseconds: 0),
-          nowMilliseconds: 0))
+          presharedKey: flowPresharedKey))
       var frame = try requester.writeMessage()
       frame[frame.startIndex] ^= tamperByteMask
       var proxy = try PairingHandshake.begin(
         .init(
           role: .proxy, offer: ceremony.ceremonyOffer, candidateIdentifier: "stream-1",
           localKeys: PairKeyMaterial(),
-          deadline: try PairingOfferDeadline(
-            offer: ceremony.ceremonyOffer, startedAtMilliseconds: 0), nowMilliseconds: 0))
+          presharedKey: flowPresharedKey))
       try proxy.readMessage(frame)
       check(false, "a tampered handshake frame is rejected")
     } catch PairingError.noise {
@@ -188,14 +183,12 @@ extension FlowDriveTests {
         .init(
           role: .requester, offer: offerA, candidateIdentifier: "stream-1",
           localKeys: PairKeyMaterial(),
-          deadline: try PairingOfferDeadline(offer: offerA, startedAtMilliseconds: 0),
-          nowMilliseconds: 0))
+          presharedKey: flowPresharedKey))
       var proxy = try PairingHandshake.begin(
         .init(
           role: .proxy, offer: offerB, candidateIdentifier: "stream-1",
           localKeys: PairKeyMaterial(),
-          deadline: try PairingOfferDeadline(offer: offerB, startedAtMilliseconds: 0),
-          nowMilliseconds: 0))
+          presharedKey: flowPresharedKey))
       try proxy.readMessage(try requester.writeMessage())
       try requester.readMessage(try proxy.writeMessage())
       try proxy.readMessage(try requester.writeMessage())

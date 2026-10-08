@@ -28,7 +28,7 @@ internal struct OperationJournal {
   /// Terminal states that need no acknowledgement, unlike a completed result.
   private static func isUnacknowledgedTerminal(_ state: OperationState) -> Bool {
     switch state {
-    case .denied, .cancelled, .rejected, .credentialRejected, .ambiguous:
+    case .cancelled, .rejected, .credentialRejected, .ambiguous:
       true
 
     default:
@@ -65,35 +65,23 @@ internal struct OperationJournal {
     return PendingCardCommand(command: command)
   }
 
-  /// Writes an unsuccessful terminal state after the one card exchange.
-  internal mutating func finish(
-    to store: inout some JournalStore, state: OperationState
+  /// Writes an unsuccessful terminal state with the result that reports it.
+  ///
+  /// Legal before any transmission and after the one card exchange; the
+  /// retained result answers an identical retransmission later.
+  internal mutating func finishFailure(
+    to store: inout some JournalStore, state: OperationState, result: OperationResultMessage
   ) throws {
-    guard record.state == .executing, Self.isUnacknowledgedTerminal(state) else {
-      throw JournalError.invalidState(state: record.state)
-    }
-    try persist(&store, state: state, transmissions: record.transmissionCount)
-  }
-
-  /// Writes an unsuccessful safe-read state, which has no transmission.
-  internal mutating func finishSafeReadFailure(
-    to store: inout some JournalStore, state: OperationState
-  ) throws {
-    guard record.state == .prepared, Self.isUnacknowledgedTerminal(state) else {
-      throw JournalError.invalidState(state: record.state)
-    }
-    try persist(&store, state: state, transmissions: TransmissionCount.untransmitted)
-  }
-
-  /// Records a cancellation proven to precede any transmission.
-  internal mutating func cancelCommittedBeforeTransmission(
-    to store: inout some JournalStore
-  ) throws {
-    guard record.state == .committed, record.transmissionCount == TransmissionCount.untransmitted
+    guard record.state == .prepared || record.state == .executing,
+      Self.isUnacknowledgedTerminal(state)
     else {
       throw JournalError.invalidState(state: record.state)
     }
-    try persist(&store, state: .cancelled, transmissions: TransmissionCount.untransmitted)
+    var next = record
+    next.state = state
+    next.automaticRetryPermitted = false
+    try store.persistResult(next, result: result)
+    record = next
   }
 
   /// Retains a successful consequential result before it may be sent.
@@ -103,16 +91,20 @@ internal struct OperationJournal {
     try persistCompleted(&store, result: result, from: .executing)
   }
 
-  /// Retains a successful safe-read result, which skips prepare and commit.
+  /// Retains a successful safe-read result, which writes no in-flight entry.
   internal mutating func finishSafeReadCompleted(
     to store: inout some JournalStore, result: OperationResultMessage
   ) throws {
     try persistCompleted(&store, result: result, from: .prepared)
   }
 
-  /// Records acknowledgement and releases the retained result.
+  /// Records acknowledgement and releases the retained result, leaving the
+  /// durable tombstone (section 8.2.5).
+  ///
+  /// A result whose delivery became uncertain is still acknowledgeable once
+  /// it is delivered again.
   internal mutating func acknowledgeResult(to store: inout some JournalStore) throws {
-    guard record.state == .resultPending else {
+    guard record.state == .resultPending || record.state == .deliveryUncertain else {
       throw JournalError.invalidState(state: record.state)
     }
     var next = record

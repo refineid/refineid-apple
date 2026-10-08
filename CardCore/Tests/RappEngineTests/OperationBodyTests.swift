@@ -1,8 +1,9 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 //
-// Replays the operation-protocol bodies emitted by the reference engine.
-// Every body is produced through the engine's own encoders rather than
-// assembled here, so the test proves what a peer would actually receive.
+// Replays the operation-protocol bodies an independent encoder produced from
+// the RAPP v26.10.1 schemas. Every body is produced through the engine's own
+// encoders rather than assembled here, so the test proves what a peer would
+// actually receive.
 
 import Foundation
 import Testing
@@ -11,6 +12,20 @@ import Testing
 
 @Suite("RAPP operation bodies against the vendored bytes")
 internal struct OperationBodyTests {
+  /// One status report and the vector it must reproduce.
+  private struct StatusCase {
+    let name: String
+    let state: OperationState
+    let retired: Bool
+  }
+
+  /// One completed answer, the operation it answers, and its vector.
+  private struct AnswerCase {
+    let name: String
+    let result: CardOperationResult
+    let operation: CardOperation
+  }
+
   /// One typed request and the vector it must reproduce.
   private struct RequestCase {
     let name: String
@@ -56,11 +71,11 @@ internal struct OperationBodyTests {
   internal func vectorIdentity() throws {
     let corpus = try CorpusFile.operation(filePath: #filePath)
     #expect(corpus.format == "fi.refineid.rapp.operation-vectors-v1")
-    #expect(corpus.protocolDocumentVersion == "26.9.7.70")
+    #expect(corpus.protocolDocumentVersion == "26.10.1")
     #expect(corpus.vectors.count == 30)
   }
 
-  @Test("Every typed request matches the reference engine byte for byte")
+  @Test("Every typed request matches byte for byte and hashes over the pairing")
   internal func requestBodies() throws {
     let corpus = try CorpusFile.operation(filePath: #filePath)
     let inputs = corpus.fixedInputs
@@ -85,42 +100,28 @@ internal struct OperationBodyTests {
           digest: try Data(hex: inputs.digestSha384))),
     ]
     for testCase in cases {
-      let message = TypedMessage.operationRequest(
-        try Self.request(inputs, testCase.profile, testCase.operation))
+      let request = try Self.request(inputs, testCase.profile, testCase.operation)
+      let message = TypedMessage.operationRequest(request)
       #expect(
         try Self.encoded(message) == (try Self.expected(corpus, testCase.name)), "\(testCase.name)")
+      let vector = try #require(corpus.vectors.first { $0.name == testCase.name })
+      #expect(try request.requestHash().hex == vector.requestHashHex, "\(testCase.name)")
+      let parsed = try OperationRequest.from(
+        wireBody: try decodedMap(try Data(hex: vector.bodyHex)),
+        pairIdentifier: try Data(hex: inputs.pairIdentifier),
+        sessionIdentifier: try Data(hex: inputs.sessionIdentifier),
+        localStartMilliseconds: inputs.localStartMilliseconds)
+      #expect(parsed == request, "\(testCase.name) parses back")
     }
-
   }
 
-  @Test("Prepared, commit, and the acknowledgement share one reference body")
+  @Test("The acknowledgement carries the reference")
   internal func referenceBodies() throws {
     let corpus = try CorpusFile.operation(filePath: #filePath)
     let reference = try Self.reference(corpus.fixedInputs)
-    let cases: [(String, TypedMessage)] = [
-      ("prepared", .operationPrepared(reference)),
-      ("commit", .operationCommit(reference)),
-      ("result-ack", .operationResultAck(reference)),
-    ]
-    for (name, message) in cases {
-      #expect(try Self.encoded(message) == (try Self.expected(corpus, name)), "\(name)")
-    }
     #expect(
-      try Self.expected(corpus, "prepared") == (try Self.expected(corpus, "commit")))
-    #expect(
-      try Self.expected(corpus, "commit") == (try Self.expected(corpus, "result-ack")))
-  }
-
-  @Test("A cancellation carries free text the registry could not express")
-  internal func cancelBodies() throws {
-    let corpus = try CorpusFile.operation(filePath: #filePath)
-    let reference = try Self.reference(corpus.fixedInputs)
-    let withReason = TypedMessage.operationCancel(
-      CancelMessage(reference: reference, reason: corpus.fixedInputs.cancelReason))
-    #expect(
-      try Self.encoded(withReason) == (try Self.expected(corpus, "cancel-with-reason")))
-    let bare = TypedMessage.operationCancel(CancelMessage(reference: reference, reason: nil))
-    #expect(try Self.encoded(bare) == (try Self.expected(corpus, "cancel-without-reason")))
+      try Self.encoded(.operationResultAck(reference))
+        == (try Self.expected(corpus, "result-ack")))
   }
 
   @Test("A status request and every status report match byte for byte")
@@ -134,15 +135,19 @@ internal struct OperationBodyTests {
       try Self.encoded(.operationStatusRequest(operationIdentifier: identifier))
         == (try Self.expected(corpus, "status-request")))
 
-    let cases: [(String, OperationState)] = [
-      ("status-known-completed", .completed),
-      ("status-known-ambiguous", .ambiguous),
+    let cases: [StatusCase] = [
+      StatusCase(name: "status-in-flight", state: .executing, retired: false),
+      StatusCase(name: "status-completed-unretired", state: .deliveryUncertain, retired: false),
+      StatusCase(name: "status-completed-retired", state: .completed, retired: true),
+      StatusCase(name: "status-ambiguous", state: .ambiguous, retired: false),
     ]
-    for (name, state) in cases {
+    for testCase in cases {
       let report = StatusReport(
-        operationIdentifier: identifier, known: true, state: state, requestHash: requestHash)
+        operationIdentifier: identifier, known: true, state: testCase.state,
+        requestHash: requestHash, retired: testCase.retired)
       #expect(
-        try Self.encoded(.operationStatus(report)) == (try Self.expected(corpus, name)), "\(name)")
+        try Self.encoded(.operationStatus(report)) == (try Self.expected(corpus, testCase.name)),
+        "\(testCase.name)")
     }
 
     let unknown = StatusReport(
@@ -166,43 +171,62 @@ internal struct OperationBodyTests {
     let corpus = try CorpusFile.operation(filePath: #filePath)
     let identifier = try Data(hex: corpus.fixedInputs.operationIdentifierError)
     let cases: [(String, ProtocolErrorMessage)] = [
-      ("error-busy", .busy),
       ("error-unknown-operation-with-id", .unknownOperation(operationIdentifier: identifier)),
       ("error-unknown-operation-bare", .unknownOperation(operationIdentifier: nil)),
+      ("error-duplicate-operation", .duplicateOperation(operationIdentifier: identifier)),
+      ("error-operation-failed", .operationFailed(operationIdentifier: identifier)),
     ]
     for (name, error) in cases {
       #expect(try Self.encoded(.error(error)) == (try Self.expected(corpus, name)), "\(name)")
+      let decoded = ProtocolErrorMessage.from(
+        wireBody: try decodedMap(try Data(hex: try Self.expected(corpus, name))))
+      #expect(decoded == error, "\(name) decodes by name")
     }
   }
 
-  @Test("Every completed result matches byte for byte and decodes back")
+  @Test("Every completed result matches byte for byte and reads back as its answer")
   internal func completedResultBodies() throws {
     let corpus = try CorpusFile.operation(filePath: #filePath)
     let inputs = corpus.fixedInputs
     let reference = try Self.reference(inputs)
     let inspection = inputs.inspection
-    let cases: [(String, CardOperationResult)] = [
-      (
-        "result-completed-inspection",
-        .inspection(
-          CardInspection(
-            pin1Factory: inspection.pin1Factory, pin2Factory: inspection.pin2Factory,
-            pin1Attempts: inspection.pin1Attempts, pin2Attempts: inspection.pin2Attempts,
-            pukAttempts: inspection.pukAttempts))
-      ),
-      (
-        "result-completed-identity",
-        .identity(displayName: inputs.displayName, personIdentifier: inputs.personIdentifier)
-      ),
-      ("result-completed-certificate", .certificate(try Data(hex: inputs.certificateDer))),
-      ("result-completed-signature", .signature(try Data(hex: inputs.signatureBytes))),
+    var inspected = CardInspection(
+      pin1Factory: inspection.pin1Factory, pin2Factory: inspection.pin2Factory,
+      pin1Attempts: inspection.pin1Attempts, pin2Attempts: inspection.pin2Attempts,
+      pukAttempts: inspection.pukAttempts)
+    inspected.answerToReset = try Data(hex: inputs.answerToReset)
+    let identity = CardIdentity(
+      holderName: inputs.holderName, cardIdentifier: inputs.cardIdentifier,
+      issuanceDate: inputs.issuanceDate, expirationDate: inputs.expirationDate,
+      certificates: [try Data(hex: inputs.certificateDer)], tokenDisplayName: nil)
+    let cases: [AnswerCase] = [
+      AnswerCase(
+        name: "result-completed-inspection", result: .inspection(inspected),
+        operation: .inspectCard),
+      AnswerCase(
+        name: "result-completed-identity", result: .identity(identity),
+        operation: .readIdentity),
+      AnswerCase(
+        name: "result-completed-certificate",
+        result: .certificate(try Data(hex: inputs.certificateDer)),
+        operation: .readCertificate(kind: .authentication)),
+      AnswerCase(
+        name: "result-completed-signature",
+        result: .signature(try Data(hex: inputs.signatureBytes)),
+        operation: .browserAuthenticate(
+          origin: inputs.origin, keyProfile: .rsa3072, algorithm: .rsaPkcs1Sha256,
+          digest: try Data(hex: inputs.digestSha256))),
     ]
-    for (name, result) in cases {
+    for testCase in cases {
+      let name = testCase.name
+      let result = testCase.result
+      let operation = testCase.operation
       let message = OperationResultMessage.completed(reference: reference, result: result)
       #expect(try message.encoded().hex == (try Self.expected(corpus, name)), "\(name)")
       let decoded = try OperationResultMessage.decode(
         try Data(hex: try Self.expected(corpus, name)))
-      #expect(decoded == message, "\(name) decodes from the reference bytes")
+      #expect(decoded == message, "\(name) decodes from the vendored bytes")
+      #expect(try decoded.typedResult(for: operation) == result, "\(name) answers its operation")
     }
   }
 
@@ -210,23 +234,28 @@ internal struct OperationBodyTests {
   internal func failureResultBodies() throws {
     let corpus = try CorpusFile.operation(filePath: #filePath)
     let reference = try Self.reference(corpus.fixedInputs)
-    let cases: [(String, ResultError)] = [
-      ("result-denied-user-denied", .userDenied),
-      ("result-cancelled-request-expired", .requestExpired),
-      ("result-cancelled-cancelled", .cancelled),
-      ("result-cancelled-card-removed", .cardRemovedBeforeTransmit),
-      ("result-rejected-invalid", .requestInvalidOrUnsupported),
-      ("result-rejected-retry-policy", .retryPolicyRefused),
-      ("result-credential-rejected", .credentialRejected),
-      ("result-ambiguous-completion", .cardCompletionAmbiguous),
+    let cases: [(String, ProxyFailure)] = [
+      ("result-rejected-user-cancelled", .userDenied),
+      ("result-cancelled-operation-expired", .requestExpired),
+      ("result-cancelled-operation-expired", .cancelled),
+      ("result-cancelled-card-error", .cardRemovedBeforeTransmit),
+      ("result-rejected-unsupported-parameter", .requestInvalidOrUnsupported),
+      ("result-rejected-unauthorized", .unauthorized),
+      ("result-rejected-operation-failed", .retryPolicyRefused),
+      ("result-credential-rejected-card-blocked", .credentialRejected),
+      ("result-ambiguous-card-error", .cardCompletionAmbiguous),
     ]
-    for (name, error) in cases {
-      let message = OperationResultMessage.failure(reference: reference, error: error)
+    for (name, failure) in cases {
+      let message = OperationResultMessage.failure(reference: reference, failure: failure)
       #expect(try message.encoded().hex == (try Self.expected(corpus, name)), "\(name)")
       let decoded = try OperationResultMessage.decode(
         try Data(hex: try Self.expected(corpus, name)))
-      #expect(decoded == message, "\(name) decodes from the reference bytes")
+      #expect(decoded == message, "\(name) decodes from the vendored bytes")
     }
+    let retired = OperationResultMessage.retired(
+      reference: reference, disposition: .completed, preservedError: nil)
+    #expect(
+      try retired.encoded().hex == (try Self.expected(corpus, "result-retired-completed")))
   }
 
   @Test("A changed digest changes the request bytes")

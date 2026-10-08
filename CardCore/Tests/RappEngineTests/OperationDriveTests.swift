@@ -8,8 +8,7 @@ import Testing
 @testable import RappEngine
 
 // Known-answer harness for the operation layer. It drives the authorization
-// transaction, its journal, and the state tables, and prints one line per
-// check.
+// transaction, its journal, and the state tables, one check at a time.
 
 internal func check(_ name: String, _ condition: Bool) {
   #expect(condition, "\(name)")
@@ -107,7 +106,8 @@ internal func identityRequest() throws -> OperationRequest {
     operation: .readIdentity)
 }
 
-/// Drives a consequential operation to the point where the card would act.
+/// Drives a consequential operation through approval, which writes the
+/// durable in-flight entry; the card may act from here.
 internal func executeToCard(
   _ transaction: inout AuthorizationTransaction, _ store: inout OperationJournalStore
 ) throws {
@@ -115,11 +115,7 @@ internal func executeToCard(
   let approval = try UserApproval(
     for: transaction.request, approvedAtMilliseconds: OperationFixture.approvalMilliseconds)
   _ = try transaction.approve(
-    approval, nowMilliseconds: OperationFixture.approvalMilliseconds,
-    maximumLifetimeMilliseconds: OperationFixture.maximumLifetimeMilliseconds)
-  try transaction.commit(
-    to: &store, requesterCommit: transaction.reference,
-    nowMilliseconds: OperationFixture.approvalMilliseconds,
+    approval, to: &store, nowMilliseconds: OperationFixture.approvalMilliseconds,
     maximumLifetimeMilliseconds: OperationFixture.maximumLifetimeMilliseconds)
 }
 
@@ -140,7 +136,7 @@ internal func fixedRequest(
     operation: operation)
 }
 
-/// 0. The registry agrees with the reference engine byte for byte
+/// 0. The registry agrees with the independent encoding byte for byte
 private func step0() throws {
   let browser = try fixedRequest(
     profile: .authentication,
@@ -152,7 +148,7 @@ private func step0() throws {
     hexText(try browser.requestHash()) == ReferenceOperation.browserHash)
   check(
     "the browser request body is byte-exact",
-    hexText(try WireValue.map(try browser.wireBody()).encoded())
+    hexText(try WireValue.map(browser.wireBody()).encoded())
       == ReferenceOperation.browserBody)
 
   let sign = try fixedRequest(
@@ -208,8 +204,8 @@ private func hashBindsEveryField() throws {
       digest: Data(repeating: OperationFill.digest, count: DigestLength.sha384)
     ).requestHash() != baseHash)
   check(
-    "changing the session changes the hash",
-    try browserRequest(sessionIdentifier: OperationFixture.otherSession).requestHash() != baseHash
+    "a retransmission on another session hashes the same",
+    try browserRequest(sessionIdentifier: OperationFixture.otherSession).requestHash() == baseHash
   )
   check(
     "changing the operation identifier changes the hash",
@@ -227,9 +223,10 @@ private func approvalDoesNotTravel() throws {
     request: try browserRequest(digest: OperationFixture.otherDigest))
   try other.prerequisitesComplete()
   var moved = false
+  var store = OperationJournalStore()
   do {
     _ = try other.approve(
-      approval, nowMilliseconds: OperationFixture.approvalMilliseconds,
+      approval, to: &store, nowMilliseconds: OperationFixture.approvalMilliseconds,
       maximumLifetimeMilliseconds: OperationFixture.maximumLifetimeMilliseconds)
     moved = true
   } catch AuthorizationError.approvalMismatch {
@@ -238,34 +235,39 @@ private func approvalDoesNotTravel() throws {
   check("an approval does not authorize a different request", !moved)
 }
 
-/// The wire body carries the hash, and a receiver recomputes it.
+/// The wire body carries no hash; the receiver derives the same one.
 private func wireBodyRoundTrip() throws {
   let base = try browserRequest()
   let parsed = try OperationRequest.from(
-    wireBody: try base.wireBody(),
+    wireBody: base.wireBody(),
     pairIdentifier: OperationFixture.pairIdentifier,
     sessionIdentifier: OperationFixture.sessionIdentifier,
     localStartMilliseconds: OperationFixture.startMilliseconds)
   check("a request round-trips through its wire body", parsed == base)
 }
 
-/// A request whose hash does not cover it is refused.
+/// A request carrying a hash field is refused by the schema, and a request
+/// naming an unregistered parameter is a semantic refusal, not a violation.
 private func tamperedHashRefused() throws {
   let base = try browserRequest()
-  var tampered = try base.wireBody()
-  tampered["request_hash"] = .bytes(
-    Data(repeating: OperationFill.tamperedHash, count: OperationSize.requestHash))
-  var acceptedTamper = false
+  var unsupported = base.wireBody()
+  unsupported["payload"] = .map([
+    "key_profile": .text("ecdsa_p256"), "algorithm": .text("ecdsa_sha1"),
+    "digest": .bytes(OperationFixture.digest),
+  ])
+  var refused: OperationRequestRefusal?
   do {
     _ = try OperationRequest.from(
-      wireBody: tampered, pairIdentifier: OperationFixture.pairIdentifier,
+      wireBody: unsupported, pairIdentifier: OperationFixture.pairIdentifier,
       sessionIdentifier: OperationFixture.sessionIdentifier,
       localStartMilliseconds: OperationFixture.startMilliseconds)
-    acceptedTamper = true
-  } catch CardOperationError.requestHashMismatch {
-    acceptedTamper = false
+  } catch let refusal as OperationRequestRefusal {
+    refused = refusal
   }
-  check("a request whose hash does not cover it is refused", !acceptedTamper)
+  check("an unregistered algorithm is a semantic refusal", refused?.error == .unsupportedParameter)
+  check(
+    "the refusal names the request it answers",
+    refused?.reference.operationIdentifier == base.operationIdentifier)
 }
 
 /// 5. Credential rejection through the state tables
@@ -292,10 +294,8 @@ private func step5() throws {
     var store = OperationJournalStore()
     var transaction = try AuthorizationTransaction(request: try browserRequest())
     try executeToCard(&transaction, &store)
-    let pending = try transaction.beginCardCommand(to: &store)
-    _ = pending.execute { $0 }
     let rejected = OperationResultMessage.failure(
-      reference: transaction.reference, error: .credentialRejected)
+      reference: transaction.reference, failure: .credentialRejected)
     try transaction.finishFailure(to: &store, result: rejected)
     check(
       "a credential rejection is a terminal operation state",

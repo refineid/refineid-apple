@@ -5,6 +5,7 @@ import Foundation
 /// What approving a request leads to, decided by whether the action is
 /// consequential.
 internal enum ApprovalOutcome: Equatable {
+  /// The in-flight journal entry is durable; take the one card command.
+  case executeCardCommand
   case executeSafeRead(AuthorizedSafeRead)
-  case prepared(OperationReference)
 }

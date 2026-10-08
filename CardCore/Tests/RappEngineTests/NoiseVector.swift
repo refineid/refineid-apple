@@ -5,6 +5,8 @@ import Foundation
 /// One fixed handshake transcript and its keys.
 internal struct NoiseVector: Decodable {
   private enum CodingKeys: String, CodingKey {
+    case initiatorToResponderKeyHex = "c1_initiator_to_responder_hex"
+    case responderToInitiatorKeyHex = "c2_responder_to_initiator_hex"
     case grantsHashHex = "grants_hash_hex"
     case handshakeHashHex = "handshake_hash_hex"
     case initiatorStaticPublicHex = "initiator_static_public_hex"
@@ -38,6 +40,8 @@ internal struct NoiseVector: Decodable {
   internal let rendezvousTokenHex: String?
   internal let offerHashHex: String?
   internal let grantsHashHex: String?
+  internal let initiatorToResponderKeyHex: String?
+  internal let responderToInitiatorKeyHex: String?
   internal let testOnlyPairingSecretHex: String?
   internal let testOnlyInitiatorStaticPrivateHex: String
   internal let testOnlyResponderStaticPrivateHex: String

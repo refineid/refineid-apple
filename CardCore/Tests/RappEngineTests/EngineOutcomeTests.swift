@@ -22,7 +22,7 @@ internal struct EngineOutcomeTests {
     try proxy.prerequisitesComplete(operationIdentifier: identifier)
 
     let denial = try proxy.finishFailure(
-      operationIdentifier: identifier, error: .userDenied, store: &store)
+      operationIdentifier: identifier, failure: .userDenied, store: &store)
     guard case .sendFailure(let deniedMessage, let closesOnDenial) = denial else {
       EngineReport.check(false, "a denial produces a failure result")
       return
@@ -30,7 +30,10 @@ internal struct EngineOutcomeTests {
     EngineReport.check(!closesOnDenial, "a denial does not close the session")
     let denied = try requester.receive(deniedMessage, store: &store)
     EngineReport.check(
-      denied == .terminal(operationIdentifier: identifier, state: .denied, reason: .userDenied),
+      denied
+        == .terminal(
+          operationIdentifier: identifier, state: .rejected, status: .rejected,
+          error: .userCancelled),
       "the requester journals the denial as terminal, naming why it ended")
   }
 

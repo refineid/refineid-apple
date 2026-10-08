@@ -204,6 +204,7 @@
       try commands(
         bridge.completeInspection(
           operationId: operationID,
+          answerToReset: inspection.answerToReset,
           pin1Factory: inspection.pin1Factory,
           pin2Factory: inspection.pin2Factory,
           pin1Attempts: inspection.pin1Attempts,
@@ -212,17 +213,16 @@
         ))
     }
 
-    /// Completes an identity read with the cardholder name and identifier.
-    public func completeIdentity(
-      operationID: Data,
-      displayName: String,
-      personID: String
-    ) throws -> [Command] {
+    /// Completes an identity read (RAPP v26.10.1 §9.1).
+    public func completeIdentity(operationID: Data, identity: Identity) throws -> [Command] {
       try commands(
         bridge.completeIdentity(
           operationId: operationID,
-          displayName: displayName,
-          personId: personID
+          holderName: identity.holderName,
+          cardId: identity.cardID,
+          issuanceDate: identity.issuanceDate,
+          expirationDate: identity.expirationDate,
+          certificates: identity.certificates
         ))
     }
 

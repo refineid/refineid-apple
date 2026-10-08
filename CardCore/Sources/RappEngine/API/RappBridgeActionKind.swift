@@ -29,13 +29,11 @@ public enum RappBridgeActionKind: Equatable, Sendable {
   case terminal
   /// The operation was cancelled with nothing transmitted.
   case cancelled
-  /// A cancellation arrived after the commit, so it is advisory only.
-  case advisoryCancellation
   /// The peer acknowledged the retained result.
   case resultAcknowledged
   /// Advisory progress update reported by peer.
   case progress
-  /// The peer already serves an operation on this pairing.
+  /// The peer could not admit the operation, such as while another runs.
   case peerBusy
   /// The peer answered a stale reference; an ordinary race.
   case peerUnknownOperation

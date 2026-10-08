@@ -15,40 +15,37 @@ extension RappPairingModel {
     from coordinator: RappPairingCoordinator
   ) {
     guard self.coordinator === coordinator else { return }
-    print("[ceremony] event received: \(event)")
-    Darwin.fflush(stdout)
     switch event {
-    case .offerReady(let uri):
-      #if DEBUG
-        print("[pairing] offerReady event received with URI: \(uri)")
-        print("[pairing] pairingCode is: \(String(describing: pairingCode))")
-      #endif
-      phase = pairingCode.map { .offer($0) } ?? .offer(uri)
+    case .offerRestored:
+      restoreCustodianOffer(coordinator: coordinator)
 
-    case .offerRestored(let uri):
-      restoreRequesterOffer(uri, coordinator: coordinator)
-
-    case .reviewPeer(let peer):
+    case .peerIntroduced(let peer):
       reviewedPeerName = peer.displayName
-      Task { [weak coordinator] in
-        await coordinator?.approve(
-          grantedProfiles: RappApplePeerProfile.supportedCredentialProfiles
-        )
-      }
 
     case .paired(let pair):
       handlePaired(pair)
 
     case .closed(let reason):
       guard !isFinished else { return }
-      #if DEBUG
-        print("[pairing] closed \(String(describing: reason))")
-      #endif
-      #if os(macOS)
-        createOffer()
-      #else
-        fail(String(localized: "Pairing ended before it was completed"))
-      #endif
+      handleClosed(reason)
+    }
+  }
+
+  private func handleClosed(_ reason: RappPairingCoordinator.CloseReason) {
+    switch (reason, phase) {
+    case (.offerExpired, .offer):
+      // An unused code lapses after a minute; the custodian shows a new one.
+      createOffer()
+
+    case (.attemptsExhausted, _):
+      RappPairingBackoff.shared.recordLockout()
+      fail(String(localized: "Pairing locked after three incorrect codes."))
+
+    case (_, .offer):
+      fail(String(localized: "Pairing ended before it was completed"))
+
+    default:
+      fail(String(localized: "The pairing code was not accepted"))
     }
   }
 
@@ -59,6 +56,7 @@ extension RappPairingModel {
         RappPairNames.remember(reviewedPeerName, pairID: pair.pairID)
       }
       supersedeOlderPairings(with: pair.pairID)
+      RappPairingBackoff.shared.recordSuccess()
       selectedPairID = pair.pairID
       phase = .paired(pair)
       refresh()
@@ -66,20 +64,16 @@ extension RappPairingModel {
       resumeRegularRelay()
       #if os(macOS)
         PersistentTokenRegistry.shared.startAfterPairing()
-        createOffer()
       #endif
     } catch {
       fail(String(localized: "The paired device could not be selected"))
     }
   }
 
-  internal func restoreRequesterOffer(
-    _ uri: String,
-    coordinator: RappPairingCoordinator
-  ) {
-    phase = pairingCode.map { .offer($0) } ?? .offer(uri)
+  /// Keeps showing the same code after a failed attempt, listening afresh.
+  private func restoreCustodianOffer(coordinator: RappPairingCoordinator) {
     relay?.cancel()
-    let replacement = makeRelay(role: .host)
+    let replacement = makeRelay(role: .cardHolder)
     let replacementTransport = makeTransport(relay: replacement)
     relay = replacement
     Task { @MainActor [weak self] in
@@ -91,7 +85,7 @@ extension RappPairingModel {
         self?.fail(String(localized: "Pairing could not be started"))
         return
       }
-      replacement.start(sharingOfferURI: uri)
+      replacement.start()
     }
   }
 

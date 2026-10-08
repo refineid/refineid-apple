@@ -8,7 +8,7 @@ import Foundation
 public func rappRandomByteCounts() -> RappRandomByteCounts {
   RappRandomByteCounts(
     offerId: UInt64(OfferLimit.offerIdentifierSize),
-    pairingSecret: UInt64(OfferLimit.pairingSecretSize),
+    cpaceScalarRandom: UInt64(RappCpaceConstants.wideScalarSize),
     sessionReadyNonce: UInt64(FlowLimit.readyNonce),
     operationId: UInt64(OperationSize.operationIdentifier),
     livenessChallenge: UInt64(PingChallenge.byteCount))

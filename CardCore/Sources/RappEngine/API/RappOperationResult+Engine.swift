@@ -1,5 +1,7 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
+import Foundation
+
 /// Translations between the public vocabulary and the engine's own.
 ///
 /// The public names are the ones callers already wrote against, so they are
@@ -13,8 +15,10 @@ extension RappOperationResult {
         pin1Attempts: report.pin1Attempts, pin2Attempts: report.pin2Attempts,
         pukAttempts: report.pukAttempts)
 
-    case .identity(let displayName, let personIdentifier):
-      self.init(kind: .identity, displayName: displayName, personId: personIdentifier)
+    case .identity(let identity):
+      self.init(
+        kind: .identity, displayName: identity.holderName, personId: identity.cardIdentifier,
+        bytes: identity.certificates.first ?? Data())
 
     case .certificate(let der, let cardSerial):
       self.init(kind: .certificate, personId: cardSerial, bytes: der)

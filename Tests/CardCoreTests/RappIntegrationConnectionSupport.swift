@@ -6,7 +6,7 @@ import Testing
 
 @testable import CardCore
 
-/// The six-digit code the two fixtures here key their CPace PAKE on.
+/// The code the custodian shows and the requester types.
 private let fixturePairingCode = "246813"
 
 #if canImport(RappEngine)
@@ -41,7 +41,6 @@ private let fixturePairingCode = "246813"
         transport: requesterTransport
       )
       let proxy = try makePairingProxy(
-        scannedOfferURI: try #require(requester.offerURI),
         vault: proxyVault,
         transport: proxyTransport
       )
@@ -72,14 +71,10 @@ private let fixturePairingCode = "246813"
       proxy: RappPairingCoordinator.PairSummary
     ) {
       let requesterOutcome = Task {
-        try await RappIntegrationAuthorizationSupport.approveAndAwaitPair(
-          requester, profiles: RappIntegrationFixtures.profiles
-        )
+        try await RappIntegrationAuthorizationSupport.awaitPair(requester)
       }
       let proxyOutcome = Task {
-        try await RappIntegrationAuthorizationSupport.approveAndAwaitPair(
-          proxy, profiles: RappIntegrationFixtures.profiles
-        )
+        try await RappIntegrationAuthorizationSupport.awaitPair(proxy)
       }
       defer {
         requesterOutcome.cancel()
@@ -91,44 +86,43 @@ private let fixturePairingCode = "246813"
       return try await (requesterOutcome.value, proxyOutcome.value)
     }
 
+    private static func pairingOptions(
+      displayName: String,
+      platform: String,
+      vault: RappDeviceVault,
+      transport: RappClosureFrameTransport
+    ) -> RappPairingCoordinator.Options {
+      RappPairingCoordinator.Options(
+        code: fixturePairingCode,
+        profiles: RappIntegrationFixtures.profiles,
+        candidate: .init(
+          profile: RappIntegrationFixtures.transportProfile,
+          candidateID: RappIntegrationFixtures.candidateID,
+          parametersCBOR: RappIntegrationFixtures.FixtureTiming.emptyParametersCBOR
+        ),
+        displayName: displayName,
+        platform: platform,
+        vault: vault,
+        transport: transport
+      )
+    }
+
     private static func makePairingRequester(
       vault: RappDeviceVault,
       transport: RappClosureFrameTransport
     ) throws -> RappPairingCoordinator {
       try RappPairingCoordinator.requester(
-        profiles: RappIntegrationFixtures.profiles,
-        candidates: [
-          .init(
-            profile: RappIntegrationFixtures.transportProfile,
-            candidateID: RappIntegrationFixtures.candidateID,
-            parametersCBOR: RappIntegrationFixtures.FixtureTiming.emptyParametersCBOR
-          )
-        ],
-        selectedCandidateID: RappIntegrationFixtures.candidateID,
-        offerLifetimeMilliseconds: RappIntegrationFixtures.FixtureTiming
-          .pairingOfferLifetimeMilliseconds,
-        displayName: "Requester Mac",
-        platform: "macOS",
-        vault: vault,
-        transport: transport,
-        code: fixturePairingCode
-      )
+        options: pairingOptions(
+          displayName: "Requester Mac", platform: "macOS", vault: vault, transport: transport))
     }
 
     private static func makePairingProxy(
-      scannedOfferURI: String,
       vault: RappDeviceVault,
       transport: RappClosureFrameTransport
     ) throws -> RappPairingCoordinator {
-      try RappPairingCoordinator.proxy(
-        scannedOfferURI: scannedOfferURI,
-        selectedCandidateID: RappIntegrationFixtures.candidateID,
-        displayName: "Authorizer iPhone",
-        platform: "iOS",
-        vault: vault,
-        transport: transport,
-        code: fixturePairingCode
-      )
+      try RappPairingCoordinator.custodian(
+        options: pairingOptions(
+          displayName: "Authorizer iPhone", platform: "iOS", vault: vault, transport: transport))
     }
 
     internal static func makeConnection(
@@ -204,7 +198,7 @@ private let fixturePairingCode = "246813"
           throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
 
         case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
-          .executeCardCommand, .advisoryCancellation, .operationFinished,
+          .executeCardCommand, .operationFinished,
           .peerBusy, .peerUnknownOperation, .progress:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
         }
@@ -228,7 +222,7 @@ private let fixturePairingCode = "246813"
           throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
 
         case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
-          .executeCardCommand, .completed, .advisoryCancellation,
+          .executeCardCommand, .completed,
           .operationFinished, .peerBusy, .peerUnknownOperation, .progress:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
         }

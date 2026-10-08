@@ -12,7 +12,7 @@
     internal var isOperationStep: Bool {
       switch self {
       case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
-        .executeCardCommand, .terminal, .cancelled, .advisoryCancellation, .progress:
+        .executeCardCommand, .terminal, .cancelled, .progress:
         true
 
       case .sendFrame, .resultAcknowledgment, .completed, .resultAcknowledged,
@@ -111,7 +111,9 @@
         revokePairDurably()
       }
       if let frame = action.frame {
-        return try scheduled([.send(frame: frame, release: release(for: action))], for: action)
+        let followUps = action.additionalFrames.map { Command.send(frame: $0, release: .noRelease) }
+        return try scheduled(
+          [.send(frame: frame, release: release(for: action))] + followUps, for: action)
       }
       if action.kind.isOperationStep {
         return try stepCommands(action)
@@ -182,9 +184,6 @@
             )
           ], for: action)
 
-      case .advisoryCancellation:
-        return scheduled([.advisoryCancellation(operationID: operationID)], for: action)
-
       case .progress:
         guard let operationID, let event = action.progressEvent else {
           throw LocalError.missingOperationIdentifier
@@ -229,7 +228,7 @@
         return scheduled([], for: action)
 
       case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
-        .executeCardCommand, .terminal, .cancelled, .advisoryCancellation, .progress:
+        .executeCardCommand, .terminal, .cancelled, .progress:
         throw LocalError.wrongPhase
       }
     }

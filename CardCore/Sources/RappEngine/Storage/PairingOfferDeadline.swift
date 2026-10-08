@@ -11,6 +11,9 @@ internal struct PairingOfferDeadline: Equatable {
   private let startedAtMilliseconds: UInt64
   private let expiresAtMilliseconds: UInt64
 
+  /// The monotonic instant the offer stops being live.
+  internal var expiresAt: UInt64 { expiresAtMilliseconds }
+
   internal init(offer: PairingOffer, startedAtMilliseconds: UInt64) throws {
     let (expiry, overflow) = startedAtMilliseconds.addingReportingOverflow(
       offer.offerLifetimeMilliseconds)

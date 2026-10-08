@@ -3,52 +3,62 @@
 import Foundation
 
 extension ProxyOperationEngine {
-  private static func closesSession(_ error: ResultError) -> Bool {
-    switch error {
-    case .retryPolicyRefused, .credentialRejected, .cardCompletionAmbiguous:
-      true
-
-    case .userDenied, .requestExpired, .cancelled, .requestInvalidOrUnsupported,
-      .cardRemovedBeforeTransmit:
-      false
-    }
-  }
-
   private static func stale(_ operationIdentifier: Data) -> ProxyDispatch {
     .ignoredStale(
       operationIdentifier: operationIdentifier,
       response: .error(.unknownOperation(operationIdentifier: operationIdentifier)))
   }
 
+  /// The result a journaled operation from an earlier session answers with.
+  private static func answer(for entry: RecoveredProxyRecord) -> OperationResultMessage {
+    let reference = OperationReference(
+      operationIdentifier: entry.record.operationIdentifier,
+      requestHash: entry.record.requestHash)
+    if let retained = entry.retainedResult {
+      return retained
+    }
+    switch entry.record.state {
+    case .completed:
+      return .retired(reference: reference, disposition: .completed, preservedError: nil)
+
+    case .cancelled, .denied:
+      return .failure(reference: reference, failure: .cancelled)
+
+    case .credentialRejected:
+      return .failure(reference: reference, failure: .credentialRejected)
+
+    case .ambiguous, .committed, .executing, .resultPending, .deliveryUncertain:
+      return .failure(reference: reference, failure: .cardCompletionAmbiguous)
+
+    case .idle, .requested, .awaitingConsent, .prepared, .rejected:
+      return .failure(reference: reference, failure: .retryPolicyRefused)
+    }
+  }
+
   /// Classifies one authenticated peer message.
   internal mutating func receive(
     _ message: TypedMessage,
     store: inout some JournalStore,
-    nowMilliseconds: UInt64,
-    maximumLifetimeMilliseconds: UInt64
+    nowMilliseconds _: UInt64,
+    maximumLifetimeMilliseconds _: UInt64
   ) throws -> ProxyDispatch {
     switch message {
     case .operationRequest(let request):
-      return try receiveRequest(request)
+      return try receiveRequest(request, store: &store)
 
-    case .operationCommit(let reference):
-      return try receiveCommit(
-        reference, store: &store, nowMilliseconds: nowMilliseconds,
-        maximumLifetimeMilliseconds: maximumLifetimeMilliseconds)
-
-    case .operationCancel(let cancellation):
-      return try receiveCancel(cancellation, store: &store)
+    case .operationRequestRefused(let refusal):
+      return receiveRefusal(refusal)
 
     case .operationResultAck(let reference):
       return try receiveAcknowledgement(reference, store: &store)
 
     case .operationStatusRequest(let operationIdentifier):
-      return .send(.operationStatus(statusReport(for: operationIdentifier)))
+      return statusAnswer(for: operationIdentifier)
 
     case .error, .other:
       return .notOperation(message)
 
-    case .operationPrepared, .operationResult, .operationStatus, .operationProgress:
+    case .operationResult, .operationStatus, .operationProgress:
       return try refuseRequesterOnlyMessage(message)
     }
   }
@@ -65,28 +75,36 @@ extension ProxyOperationEngine {
   }
 
   /// Applies the holder's approval of this exact request.
+  ///
+  /// An approval that arrives after the request's local deadline cancels the
+  /// operation instead (section 8.2.1); no card command is ever produced.
   internal mutating func approve(
     operationIdentifier: Data,
     approval: UserApproval,
+    store: inout some JournalStore,
     nowMilliseconds: UInt64,
     maximumLifetimeMilliseconds: UInt64
   ) throws -> ProxyDispatch {
-    try withOperation(operationIdentifier) { operation in
-      let outcome: ApprovalOutcome
-      do {
-        outcome = try operation.approve(
-          approval, nowMilliseconds: nowMilliseconds,
-          maximumLifetimeMilliseconds: maximumLifetimeMilliseconds)
-      } catch let error as AuthorizationError {
-        throw engineLocalError(error)
-      }
-      switch outcome {
-      case .prepared(let reference):
-        return .send(.operationPrepared(reference))
+    guard let index = index(of: operationIdentifier) else {
+      throw EngineError.unknownLocalOperation
+    }
+    let outcome: ApprovalOutcome
+    do {
+      outcome = try operations[index].approve(
+        approval, to: &store, nowMilliseconds: nowMilliseconds,
+        maximumLifetimeMilliseconds: maximumLifetimeMilliseconds)
+    } catch AuthorizationError.expired {
+      return try finishFailure(
+        operationIdentifier: operationIdentifier, failure: .requestExpired, store: &store)
+    } catch let error as AuthorizationError {
+      throw engineLocalError(error)
+    }
+    switch outcome {
+    case .executeCardCommand:
+      return .beginCardCommand(operationIdentifier: operationIdentifier)
 
-      case .executeSafeRead(let read):
-        return .executeSafeRead(operationIdentifier: operationIdentifier, read: read)
-      }
+    case .executeSafeRead(let read):
+      return .executeSafeRead(operationIdentifier: operationIdentifier, read: read)
     }
   }
 
@@ -106,22 +124,22 @@ extension ProxyOperationEngine {
 
   /// Records a stable failure and releases it.
   ///
-  /// Three failures also close the session: a refused retry, a rejected
-  /// credential, and an ambiguous card completion. Each means the endpoint can
-  /// no longer make safe progress on this session.
+  /// Three failures also close the session: a refused retry, a blocked
+  /// credential, and an ambiguous card completion. Each means the endpoint
+  /// can no longer make safe progress on this session.
   internal mutating func finishFailure(
-    operationIdentifier: Data, error failure: ResultError, store: inout some JournalStore
+    operationIdentifier: Data, failure: ProxyFailure, store: inout some JournalStore
   ) throws -> ProxyDispatch {
     try withOperation(operationIdentifier) { operation in
       let result = OperationResultMessage.failure(
-        reference: operation.reference, error: failure)
+        reference: operation.reference, failure: failure)
       do {
         try operation.finishFailure(to: &store, result: result)
       } catch let error as AuthorizationError {
         throw engineLocalError(error)
       }
       return .sendFailure(
-        message: .operationResult(result), closeSession: Self.closesSession(failure))
+        message: .operationResult(result), closeSession: failure.closesSession)
     }
   }
 
@@ -145,10 +163,11 @@ extension ProxyOperationEngine {
 
   /// Classifies every live operation when the session closes.
   ///
-  /// Best effort per operation: one record's failed terminal write must
-  /// not leave the rest unclassified, and a record that could not be
-  /// written stays at its last persisted state, which recovery resolves
-  /// the next time this pairing begins operations.
+  /// An operation still awaiting consent is cancelled with nothing sent to
+  /// the card; one executing on the card runs to its own conclusion; a
+  /// completed result not yet acknowledged stays retained for re-delivery
+  /// (section 8.3). Best effort per operation: a record that could not be
+  /// written stays at its last persisted state, which recovery resolves.
   internal mutating func sessionClosed(
     store: inout some JournalStore
   ) -> [ProxySessionCloseAction] {
@@ -156,11 +175,10 @@ extension ProxyOperationEngine {
     for index in operations.indices {
       let operationIdentifier = operations[index].reference.operationIdentifier
       switch operations[index].stage {
-      case .requested, .awaitingConsent, .prepared, .executingSafeRead, .committed:
-        guard
-          (try? operations[index].receiveCancel(
-            to: &store, cancellation: operations[index].reference,
-            transmissionProvenNotStarted: true)) != nil
+      case .requested, .awaitingConsent, .executingSafeRead:
+        let result = OperationResultMessage.failure(
+          reference: operations[index].reference, failure: .cancelled)
+        guard (try? operations[index].finishFailure(to: &store, result: result)) != nil
         else { continue }
         actions.append(.cancelled(operationIdentifier: operationIdentifier))
 
@@ -180,128 +198,98 @@ extension ProxyOperationEngine {
     return actions
   }
 
-  private mutating func receiveRequest(_ request: OperationRequest) throws -> ProxyDispatch {
-    guard grantedProfiles.contains(request.profile) else {
-      throw EngineError.authenticatedProtocolViolation(.profileNotGranted)
+  /// Admits a new request, or resolves a reused identifier from the live
+  /// table, the journal and the tombstones (section 8.2.2).
+  private mutating func receiveRequest(
+    _ request: OperationRequest, store: inout some JournalStore
+  ) throws -> ProxyDispatch {
+    let requestHash: Data
+    do {
+      requestHash = try request.requestHash()
+    } catch {
+      throw EngineError.invalidLocalValue
     }
     if let index = index(of: request.operationIdentifier) {
-      guard operations[index].operationState.isTerminal else {
-        throw EngineError.authenticatedProtocolViolation(.activeOperationIdentifierReused)
+      guard operations[index].requestHash == requestHash else {
+        return .send(.error(.duplicateOperation(operationIdentifier: request.operationIdentifier)))
       }
-      return Self.stale(request.operationIdentifier)
+      if let retained = operations[index].retainedResult {
+        return .send(.operationResult(retained))
+      }
+      if operations[index].operationState == .completed {
+        return .send(
+          .operationResult(
+            .retired(
+              reference: operations[index].reference, disposition: .completed,
+              preservedError: nil)))
+      }
+      return .ignoredDuplicate(operationIdentifier: request.operationIdentifier)
     }
-    if recovered.contains(where: { candidate in
+    if let entry = recovered.first(where: { candidate in
       candidate.record.operationIdentifier == request.operationIdentifier
     }) {
-      return Self.stale(request.operationIdentifier)
+      guard entry.record.requestHash == requestHash else {
+        return .send(.error(.duplicateOperation(operationIdentifier: request.operationIdentifier)))
+      }
+      return .send(.operationResult(Self.answer(for: entry)))
     }
     guard !operations.contains(where: { !$0.operationState.isTerminal }) else {
-      return .send(.error(.busy))
+      return .send(.error(.operationFailed(operationIdentifier: request.operationIdentifier)))
     }
     let transaction: AuthorizationTransaction
     do {
       transaction = try AuthorizationTransaction(request: request)
     } catch {
-      throw EngineError.authenticatedProtocolViolation(.invalidOperationRequest)
+      throw EngineError.invalidLocalValue
     }
     operations.append(transaction)
+    guard grantedProfiles.contains(request.profile) else {
+      return try finishFailure(
+        operationIdentifier: request.operationIdentifier, failure: .unauthorized, store: &store)
+    }
     return .inspectPrerequisites(operationIdentifier: request.operationIdentifier)
   }
 
-  private mutating func receiveCommit(
-    _ reference: OperationReference,
-    store: inout some JournalStore,
-    nowMilliseconds: UInt64,
-    maximumLifetimeMilliseconds: UInt64
-  ) throws -> ProxyDispatch {
-    let operationIdentifier = reference.operationIdentifier
-    guard let index = index(of: operationIdentifier),
-      !operations[index].operationState.isTerminal
-    else { return Self.stale(operationIdentifier) }
-
-    switch operations[index].stage {
-    case .committed, .executing, .resultPending:
-      guard operations[index].reference == reference else {
-        throw EngineError.authenticatedProtocolViolation(.referenceMismatch)
-      }
-      return .ignoredDuplicateCommit(operationIdentifier: operationIdentifier)
-
-    default:
-      break
-    }
-
-    do {
-      try operations[index].commit(
-        to: &store, requesterCommit: reference, nowMilliseconds: nowMilliseconds,
-        maximumLifetimeMilliseconds: maximumLifetimeMilliseconds)
-    } catch AuthorizationError.expired {
-      return try expireCommitted(index: index, store: &store)
-    } catch let error as AuthorizationError {
-      throw enginePeerError(error)
-    }
-
-    // Telling the holder to execute is also entering execution, the way an
-    // approved safe read enters it when its dispatch is made. Emitting the
-    // dispatch without the transition left the transaction committed, and a
-    // committed transaction refuses the answer the card gives back.
-    do {
-      _ = try operations[index].beginCardCommand(to: &store)
-    } catch let error as AuthorizationError {
-      throw engineLocalError(error)
-    }
-    return .beginCardCommand(operationIdentifier: operationIdentifier)
-  }
-
-  /// A commit that arrives after its deadline yields a cancelled result rather
-  /// than a violation: a late peer is not a hostile one.
-  private mutating func expireCommitted(
-    index: Int, store: inout some JournalStore
-  ) throws -> ProxyDispatch {
-    let result = OperationResultMessage.failure(
-      reference: operations[index].reference, error: .requestExpired)
-    do {
-      try operations[index].finishFailure(to: &store, result: result)
-    } catch let error as AuthorizationError {
-      throw engineLocalError(error)
-    }
+  /// A request this endpoint cannot serve is answered, not punished.
+  private func receiveRefusal(_ refusal: OperationRequestRefusal) -> ProxyDispatch {
+    let result = OperationResultMessage(
+      operationIdentifier: refusal.reference.operationIdentifier,
+      requestHash: refusal.reference.requestHash,
+      status: .rejected,
+      error: refusal.error)
     return .send(.operationResult(result))
   }
 
-  private mutating func receiveCancel(
-    _ cancellation: CancelMessage, store: inout some JournalStore
-  ) throws -> ProxyDispatch {
-    let operationIdentifier = cancellation.reference.operationIdentifier
-    guard let index = index(of: operationIdentifier),
-      !operations[index].operationState.isTerminal
-    else { return Self.stale(operationIdentifier) }
-    let outcome: ProxyCancelOutcome
-    do {
-      outcome = try operations[index].receiveCancel(
-        to: &store, cancellation: cancellation.reference, transmissionProvenNotStarted: true)
-    } catch let error as AuthorizationError {
-      throw enginePeerError(error)
-    }
-    return switch outcome {
-    case .cancelled:
-      .cancelled(operationIdentifier: operationIdentifier)
-
-    case .advisory:
-      .advisoryCancellation(operationIdentifier: operationIdentifier)
-    }
-  }
-
+  /// Retires an acknowledged result, live or re-delivered; any other
+  /// acknowledgement is ignored without touching a tombstone (section 8.2.5).
   private mutating func receiveAcknowledgement(
     _ reference: OperationReference, store: inout some JournalStore
   ) throws -> ProxyDispatch {
     let operationIdentifier = reference.operationIdentifier
-    guard let index = index(of: operationIdentifier),
-      !operations[index].operationState.isTerminal
-    else { return Self.stale(operationIdentifier) }
-    do {
-      try operations[index].acknowledgeResult(to: &store, acknowledgement: reference)
-    } catch let error as AuthorizationError {
-      throw enginePeerError(error)
+    if let index = index(of: operationIdentifier) {
+      guard operations[index].stage == .resultPending, operations[index].reference == reference
+      else { return .notOperation(.operationResultAck(reference)) }
+      do {
+        try operations[index].acknowledgeResult(to: &store, acknowledgement: reference)
+      } catch let error as AuthorizationError {
+        throw engineLocalError(error)
+      }
+      return .resultAcknowledged(operationIdentifier: operationIdentifier)
     }
+    guard
+      let index = recovered.firstIndex(where: { candidate in
+        candidate.record.operationIdentifier == operationIdentifier
+      }),
+      recovered[index].record.requestHash == reference.requestHash,
+      recovered[index].record.state == .deliveryUncertain
+    else { return .notOperation(.operationResultAck(reference)) }
+    var journal = OperationJournal(recovered: recovered[index].record)
+    do {
+      try journal.acknowledgeResult(to: &store)
+    } catch {
+      throw EngineError.persistence
+    }
+    recovered[index] = RecoveredProxyRecord(record: journal.record, retainedResult: nil)
     return .resultAcknowledged(operationIdentifier: operationIdentifier)
   }
 
@@ -317,24 +305,36 @@ extension ProxyOperationEngine {
     throw EngineError.authenticatedProtocolViolation(.illegalMessageForActiveOperation)
   }
 
-  private func statusReport(for operationIdentifier: Data) -> StatusReport {
+  /// The status report, followed by the result it re-delivers when one is
+  /// retained (section 8.3).
+  private func statusAnswer(for operationIdentifier: Data) -> ProxyDispatch {
     if let index = index(of: operationIdentifier) {
-      return StatusReport(
+      let operation = operations[index]
+      let report = StatusReport(
         operationIdentifier: operationIdentifier,
         known: true,
-        state: operations[index].operationState,
-        requestHash: operations[index].reference.requestHash)
+        state: operation.operationState,
+        requestHash: operation.reference.requestHash,
+        retired: operation.operationState == .completed)
+      guard let retained = operation.retainedResult else {
+        return .send(.operationStatus(report))
+      }
+      return .sendAll([.operationStatus(report), .operationResult(retained)])
     }
     if let entry = recovered.first(where: { candidate in
       candidate.record.operationIdentifier == operationIdentifier
     }) {
-      return StatusReport(
+      let report = StatusReport(
         operationIdentifier: operationIdentifier,
         known: true,
         state: entry.record.state,
-        requestHash: entry.record.requestHash)
+        requestHash: entry.record.requestHash,
+        retired: entry.record.state == .completed)
+      guard entry.record.state != .completed else { return .send(.operationStatus(report)) }
+      return .sendAll([.operationStatus(report), .operationResult(Self.answer(for: entry))])
     }
-    return StatusReport(operationIdentifier: operationIdentifier, known: false)
+    return .send(
+      .operationStatus(StatusReport(operationIdentifier: operationIdentifier, known: false)))
   }
 
   private mutating func withOperation<Answer>(

@@ -251,35 +251,6 @@
       }
     }
 
-    /// Card factory and retry state produced by an inspection.
-    public struct Inspection: Sendable, Equatable {
-      /// Whether PIN 1 still carries its factory value.
-      public let pin1Factory: Bool
-      /// Whether PIN 2 still carries its factory value.
-      public let pin2Factory: Bool
-      /// Remaining PIN 1 attempts when reported.
-      public let pin1Attempts: UInt8?
-      /// Remaining PIN 2 attempts when reported.
-      public let pin2Attempts: UInt8?
-      /// Remaining PUK attempts when reported.
-      public let pukAttempts: UInt8?
-
-      /// Creates an inspection result describing card state.
-      public init(
-        pin1Factory: Bool,
-        pin2Factory: Bool,
-        pin1Attempts: UInt8? = nil,
-        pin2Attempts: UInt8? = nil,
-        pukAttempts: UInt8? = nil
-      ) {
-        self.pin1Factory = pin1Factory
-        self.pin2Factory = pin2Factory
-        self.pin1Attempts = pin1Attempts
-        self.pin2Attempts = pin2Attempts
-        self.pukAttempts = pukAttempts
-      }
-    }
-
     /// Successful operation result with only the fields its kind populates.
     public struct Result: Sendable, Equatable {
       /// Result kind that selects which optional fields are populated.
@@ -330,6 +301,7 @@
       case credentialRejected
       case cardRemovedBeforeTransmit
       case cardCompletionAmbiguous
+      case invalidCredential
 
       internal init(_ value: RappTerminalReason) {
         switch value {
@@ -356,6 +328,9 @@
 
         case .cardCompletionAmbiguous:
           self = .cardCompletionAmbiguous
+
+        case .invalidCredential:
+          self = .invalidCredential
         }
       }
     }
@@ -386,7 +361,6 @@
       case executeCardCommand(operationID: Data, operation: Operation)
       case completed(operationID: Data, result: Result)
       case terminal(operationID: Data?, state: String?, reason: TerminalReason?)
-      case advisoryCancellation(operationID: Data?)
       case operationFinished(operationID: Data?)
       case peerBusy(operationID: Data?)
       case peerUnknownOperation(operationID: Data?)

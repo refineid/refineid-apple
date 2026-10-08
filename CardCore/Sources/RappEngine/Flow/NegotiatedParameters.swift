@@ -16,7 +16,7 @@ internal struct NegotiatedParameters: Equatable {
   internal static func from(map: [String: WireValue]) throws -> Self {
     var fields = map
     try requireVersion(&fields)
-    try requireSuite(&fields, RappNoise.pairingSuite)
+    try requireSuite(&fields, RappCpaceConstants.kc2Suite)
     let decodedOfferHash = try takeMessageBytes(&fields, "offer_hash")
     let decodedTransportProfile = try takeMessageText(&fields, "transport_profile")
     let decodedCandidateIdentifier = try takeMessageText(&fields, "candidate_id")
@@ -33,7 +33,7 @@ internal struct NegotiatedParameters: Equatable {
     try validateLabel(candidateIdentifier, "candidate_id")
     return [
       "version": wireVersionValue,
-      "suite": .text(RappNoise.pairingSuite),
+      "suite": .text(RappCpaceConstants.kc2Suite),
       "offer_hash": .bytes(offerHash),
       "transport_profile": .text(transportProfile),
       "candidate_id": .text(candidateIdentifier),

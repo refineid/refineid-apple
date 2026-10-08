@@ -22,8 +22,6 @@ internal struct NoiseHandshakeState {
   private var localEphemeralPublic: Data?
   private var remoteStatic: Data?
   private var remoteEphemeral: Data?
-  private var localMlKemPrivateKey: MLKEM768.PrivateKey?
-  private var remoteMlKemPublicKey: MLKEM768.PublicKey?
 
   private var messageIndex = 0
 
@@ -45,36 +43,12 @@ internal struct NoiseHandshakeState {
     presharedKey: Data?,
     fixedEphemeralPrivate: Data?
   ) throws {
-    try self.init(
-      pattern: pattern,
-      suiteName: suiteName,
-      prologue: prologue,
-      isInitiator: isInitiator,
-      localStaticPrivate: localStaticPrivate,
-      remoteStaticPublic: remoteStaticPublic,
-      presharedKey: presharedKey,
-      fixedEphemeralPrivate: fixedEphemeralPrivate,
-      fixedMlKemPrivateKey: nil)
-  }
-
-  internal init(
-    pattern: NoisePattern,
-    suiteName: String,
-    prologue: Data,
-    isInitiator: Bool,
-    localStaticPrivate: Data,
-    remoteStaticPublic: Data?,
-    presharedKey: Data?,
-    fixedEphemeralPrivate: Data?,
-    fixedMlKemPrivateKey: MLKEM768.PrivateKey?
-  ) throws {
     self.pattern = pattern
     self.isInitiator = isInitiator
     self.presharedKey = presharedKey
     self.localStaticPrivate = localStaticPrivate
     self.localStaticPublic = try Self.publicKey(from: localStaticPrivate)
     self.remoteStatic = remoteStaticPublic
-    self.localMlKemPrivateKey = fixedMlKemPrivateKey
     if let fixedEphemeralPrivate {
       self.localEphemeralPrivate = fixedEphemeralPrivate
       self.localEphemeralPublic = try Self.publicKey(from: fixedEphemeralPrivate)
@@ -158,25 +132,6 @@ internal struct NoiseHandshakeState {
     if pattern.usesPresharedKey { symmetric.mixKey(localEphemeralPublic) }
   }
 
-  private mutating func writeEphemeralKemToken(into buffer: inout Data) throws {
-    let kemPriv: MLKEM768.PrivateKey
-    if let local = localMlKemPrivateKey {
-      kemPriv = local
-    } else {
-      kemPriv = try MLKEM768.PrivateKey()
-      localMlKemPrivateKey = kemPriv
-    }
-    buffer += try symmetric.encryptAndHash(kemPriv.publicKey.rawRepresentation)
-  }
-
-  private mutating func writeKemCiphertextToken(into buffer: inout Data) throws {
-    guard let remoteMlKemPublicKey else { throw NoiseError.missingKeyMaterial }
-    let encapsulation = try remoteMlKemPublicKey.encapsulate()
-    buffer += try symmetric.encryptAndHash(encapsulation.encapsulated)
-    let secretData = encapsulation.sharedSecret.withUnsafeBytes { Data($0) }
-    symmetric.mixKey(secretData)
-  }
-
   private mutating func writeToken(_ token: NoiseToken, into buffer: inout Data) throws {
     switch token {
     case .ephemeral:
@@ -186,10 +141,6 @@ internal struct NoiseHandshakeState {
     case .presharedKey:
       guard let presharedKey else { throw NoiseError.missingKeyMaterial }
       symmetric.mixKeyAndHash(presharedKey)
-    case .ephemeralKem:
-      try writeEphemeralKemToken(into: &buffer)
-    case .kemCiphertext:
-      try writeKemCiphertextToken(into: &buffer)
     default:
       try mixDiffieHellman(token)
     }
@@ -231,27 +182,6 @@ internal struct NoiseHandshakeState {
     remoteStatic = try symmetric.decryptAndHash(try takeBytes(length, from: &rest))
   }
 
-  private mutating func readEphemeralKemToken(from rest: inout Data) throws {
-    let length =
-      symmetric.cipher.hasKey
-      ? NoiseSizes.mlkem768PublicKeyLength + NoiseSizes.tagLength
-      : NoiseSizes.mlkem768PublicKeyLength
-    let pubBytes = try symmetric.decryptAndHash(try takeBytes(length, from: &rest))
-    remoteMlKemPublicKey = try MLKEM768.PublicKey(rawRepresentation: pubBytes)
-  }
-
-  private mutating func readKemCiphertextToken(from rest: inout Data) throws {
-    guard let localMlKemPrivateKey else { throw NoiseError.missingKeyMaterial }
-    let length =
-      symmetric.cipher.hasKey
-      ? NoiseSizes.mlkem768CiphertextLength + NoiseSizes.tagLength
-      : NoiseSizes.mlkem768CiphertextLength
-    let ctBytes = try symmetric.decryptAndHash(try takeBytes(length, from: &rest))
-    let sharedSecret = try localMlKemPrivateKey.decapsulate(ctBytes)
-    let secretData = sharedSecret.withUnsafeBytes { Data($0) }
-    symmetric.mixKey(secretData)
-  }
-
   private mutating func readToken(_ token: NoiseToken, from rest: inout Data) throws {
     switch token {
     case .ephemeral:
@@ -261,10 +191,6 @@ internal struct NoiseHandshakeState {
     case .presharedKey:
       guard let presharedKey else { throw NoiseError.missingKeyMaterial }
       symmetric.mixKeyAndHash(presharedKey)
-    case .ephemeralKem:
-      try readEphemeralKemToken(from: &rest)
-    case .kemCiphertext:
-      try readKemCiphertextToken(from: &rest)
     default:
       try mixDiffieHellman(token)
     }

@@ -57,15 +57,8 @@
     /// Enough of an identifier to name one pairing.
     private static let identifierPrefixLength = 4
 
-    /// The name of the variable carrying an offer to pair with.
+    /// The name of the variable carrying the pairing code to type.
     internal static let offerVariable = "REFINEID_PAIR_OFFER"
-
-    /// The name of the variable carrying the code that offer is keyed on.
-    ///
-    /// Both peers run the same CPace PAKE, and an offer does not carry the
-    /// secret that PAKE agrees on, so a holder given a full offer still
-    /// needs the code the requester chose.
-    internal static let offerCodeVariable = "REFINEID_PAIR_CODE"
 
     /// The selected mode when it needs a window, otherwise nil.
     ///
@@ -343,22 +336,17 @@
         succeeded: true)
     }
 
-    /// The offer to pair with, or an empty string.
+    /// The pairing code to type, or an empty string.
     ///
     /// It arrives in the environment rather than after the flag, because
     /// the device tool repeats its own `--arguments` option into the
     /// argument list and the value after a flag is that option, not the
     /// value meant for it.
     ///
-    /// It is a bearer secret for as long as it lives, so it is read here
-    /// and never printed, stored or defaulted.
+    /// It proves pairing authority for as long as its offer lives, so it
+    /// is read here and never printed, stored or defaulted.
     internal static func offerURI() -> String {
       ProcessInfo.processInfo.environment[offerVariable] ?? ""
-    }
-
-    /// The code the pairing offer in ``offerVariable`` is keyed on.
-    internal static func offerCode() -> String {
-      ProcessInfo.processInfo.environment[offerCodeVariable] ?? ""
     }
 
     /// The digits following a value-taking flag, or nil.

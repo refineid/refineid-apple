@@ -31,12 +31,14 @@ internal struct SessionCloseBehaviorTests {
   internal func onlyACredentialRejectionRevokesThePairing() throws {
     let reference = try OperationReference(of: Self.request())
     let rejected = TypedMessage.operationResult(
-      .failure(reference: reference, error: .credentialRejected))
+      .failure(reference: reference, failure: .credentialRejected))
     let denied = TypedMessage.operationResult(
-      .failure(reference: reference, error: .userDenied))
+      .failure(reference: reference, failure: .userDenied))
     #expect(RappOperationBridge.failureRevokesPairing(rejected))
     #expect(!RappOperationBridge.failureRevokesPairing(denied))
-    #expect(!RappOperationBridge.failureRevokesPairing(.error(.busy)))
+    #expect(
+      !RappOperationBridge.failureRevokesPairing(
+        .error(.operationFailed(operationIdentifier: nil))))
   }
 
   /// A rejected credential closes the session with its result (INV-16).
@@ -53,7 +55,7 @@ internal struct SessionCloseBehaviorTests {
 
     let dispatch = try proxy.finishFailure(
       operationIdentifier: request.operationIdentifier,
-      error: .credentialRejected,
+      failure: .credentialRejected,
       store: &store)
 
     guard case .sendFailure(let message, let closesSession) = dispatch else {
@@ -115,6 +117,6 @@ internal struct SessionCloseBehaviorTests {
     #expect(
       classified.map(\.operationIdentifier)
         == [EngineFixture.secondOperationIdentifier])
-    #expect(classified.map(\.state) == [.cancelled])
+    #expect(classified.map(\.state) == [.ambiguous])
   }
 }

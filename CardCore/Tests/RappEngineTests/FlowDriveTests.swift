@@ -166,7 +166,6 @@ internal struct FlowDriveTests {
 
   /// Offer lifetimes admit and refuse.
   private func offerExpiry(everyProfile: [ProfileName]) throws {
-
     let shortLifetime: UInt64 = 60_000
     let expiringOffer = try makeOffer(profiles: everyProfile, lifetimeMilliseconds: shortLifetime)
     let expiringDeadline = try PairingOfferDeadline(offer: expiringOffer, startedAtMilliseconds: 0)
@@ -177,22 +176,27 @@ internal struct FlowDriveTests {
       !expiringDeadline.isLive(nowMilliseconds: shortLifetime),
       "the offer is dead once the lifetime elapses")
 
+    let bridge = try RappPairingBridge.codeOffer(
+      role: .requester, pairingCode: "7KX4M9", profiles: everyProfile.map(\.rawValue),
+      transports: [
+        RappTransportCandidate(
+          profile: streamProfile, candidateId: "stream-1", parametersCbor: Data())
+      ],
+      offerTtlMs: shortLifetime, startedAtMonotonicMs: 0)
     do {
-      _ = try PairingHandshake.begin(
-        .init(
-          role: .requester, offer: expiringOffer, candidateIdentifier: "stream-1",
-          localKeys: PairKeyMaterial(), deadline: expiringDeadline,
-          nowMilliseconds: shortLifetime))
+      try bridge.beginCpace(
+        candidateId: "stream-1", randomBytes64: randomBytes(RappCpaceConstants.wideScalarSize),
+        nowMonotonicMs: shortLifetime)
       check(false, "a ceremony started after the deadline is refused")
-    } catch let failure as PairingAttemptFailure {
-      check(failure.error == .offerExpired, "a ceremony started after the deadline is refused")
+    } catch RappBindingError.OfferExpired {
+      check(true, "a ceremony started after the deadline is refused")
     } catch {
       check(false, "a ceremony started after the deadline is refused")
     }
-
-    _ = try runPairing(
-      offer: expiringOffer, grants: everyProfile, nowMilliseconds: shortLifetime - 1)
-    check(true, "a ceremony started just inside the deadline completes")
+    try bridge.beginCpace(
+      candidateId: "stream-1", randomBytes64: randomBytes(RappCpaceConstants.wideScalarSize),
+      nowMonotonicMs: shortLifetime - 1)
+    check(true, "a ceremony started just inside the deadline begins")
   }
 
   /// Liveness probes, echoes and mismatches.

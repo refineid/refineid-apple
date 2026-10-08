@@ -52,7 +52,17 @@ import Foundation
 
     /// Publishes the service and waits for one dialer.
     public func start(displayName: String) {
-      queue.async { self.publish(displayName: displayName) }
+      queue.async { self.publish(displayName: displayName, txtRecord: nil) }
+    }
+
+    /// Publishes the service with discovery attributes and waits for one
+    /// dialer.
+    public func start(displayName: String, txtRecord: [String: String]) {
+      var record = NWTXTRecord()
+      for (key, value) in txtRecord {
+        record[key] = value
+      }
+      queue.async { self.publish(displayName: displayName, txtRecord: record) }
     }
 
     /// Sends one frame to the dialer, or throws when none is connected.
@@ -88,7 +98,7 @@ import Foundation
       }
     }
 
-    private func publish(displayName: String) {
+    private func publish(displayName: String, txtRecord: NWTXTRecord?) {
       // Plain TCP: a listener that also offers a peer-to-peer link accepts
       // on that link and not on the network the dialer is using.
       let parameters = NWParameters.tcp
@@ -99,10 +109,12 @@ import Foundation
         finish(.unreachable)
         return
       }
-      made.service = NWListener.Service(
-        name: displayName,
-        type: Self.serviceType
-      )
+      if let txtRecord {
+        made.service = NWListener.Service(
+          name: displayName, type: Self.serviceType, domain: nil, txtRecord: txtRecord)
+      } else {
+        made.service = NWListener.Service(name: displayName, type: Self.serviceType)
+      }
       made.newConnectionHandler = { [weak self] connection in
         self?.accept(connection)
       }

@@ -86,7 +86,7 @@ internal struct TransportChannelTests {
     let responderStaticKey = Curve25519.KeyAgreement.PrivateKey()
 
     var initiator = try NoiseHandshakeState(
-      pattern: .knownKnownHfs,
+      pattern: .knownKnown,
       suiteName: RappNoise.sessionSuite,
       prologue: prologue,
       isInitiator: true,
@@ -96,7 +96,7 @@ internal struct TransportChannelTests {
       fixedEphemeralPrivate: Curve25519.KeyAgreement.PrivateKey().rawRepresentation
     )
     var responder = try NoiseHandshakeState(
-      pattern: .knownKnownHfs,
+      pattern: .knownKnown,
       suiteName: RappNoise.sessionSuite,
       prologue: prologue,
       isInitiator: false,
@@ -150,7 +150,7 @@ internal struct TransportChannelTests {
     }
   }
 
-  @Test("Session hybrid post-quantum transport channel seals and opens frames bidirectionally")
+  @Test("Session Noise_KK transport channel seals and opens frames bidirectionally")
   internal func sessionTransportChannelRoundTrip() throws {
     var channels = try Self.establishSessionChannels()
     #expect(channels.handshakeHash.count == NoiseSizes.hashLength)

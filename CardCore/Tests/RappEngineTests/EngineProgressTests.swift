@@ -74,7 +74,8 @@ internal struct EngineProgressTests {
       .operationRequest(request), store: &store, nowMilliseconds: EngineFixture.nowMilliseconds,
       maximumLifetimeMilliseconds: EngineFixture.maximumLifetimeMilliseconds)
 
-    _ = try proxy.finishFailure(operationIdentifier: identifier, error: .userDenied, store: &store)
+    _ = try proxy.finishFailure(
+      operationIdentifier: identifier, failure: .userDenied, store: &store)
 
     var failedAsExpected = false
     do {
@@ -133,7 +134,7 @@ internal struct EngineProgressTests {
     let request = try engineRequest(operation: signingOperation())
     let identifier = request.operationIdentifier
     _ = try requester.begin(request, store: &store)
-    _ = try requester.cancel(operationIdentifier: identifier, reason: nil, store: &store)
+    _ = try requester.cancel(operationIdentifier: identifier, store: &store)
 
     let reference = OperationReference(
       operationIdentifier: identifier,

@@ -24,16 +24,20 @@ internal struct FieldSpec {
   private static let requestHash = Shape.bytes(Size.digest)
   private static let challenge = Shape.bytes(Size.digest)
 
+  /// `close-reason-val` (RAPP v26.10.1 section 7.1).
   internal static let closeReasons: Set<String> = [
-    "user_disconnect", "policy", "credential_rejected", "protocol_violation",
-    "pairing_revoked", "card_unavailable", "shutdown",
+    "normal", "complete", "user_disconnect", "policy", "credential_rejected",
+    "protocol_violation", "pairing_revoked", "shutdown",
   ]
 
+  /// `operation-status-val` (RAPP v26.10.1 section 7.1).
   internal static let operationStatuses: Set<String> = [
-    "completed", "denied", "cancelled", "rejected", "credential_rejected", "ambiguous",
+    "completed", "rejected", "credential_rejected", "cancelled", "ambiguous",
   ]
 
-  internal static let protocolErrors: Set<String> = ["busy", "unknown_operation"]
+  /// Bounds on the error body's text fields (RAPP v26.10.1 section 10.4).
+  internal static let errorNameLengths = 1...64
+  internal static let errorMessageLengths = 1...512
 
   internal let name: String
   internal let shape: Shape
@@ -97,11 +101,11 @@ internal struct FieldSpec {
     case .operationRequest:
       [
         Self("operation_id", operationIdentifier), Self("profile", .text), Self("action", .text),
-        Self("request_hash", requestHash), Self("expires_after_ms", .unsigned),
         Self("context", .map), Self("payload", .map),
+        Self("expires_after_ms", .unsigned, optional: true),
       ]
 
-    case .operationPrepared, .operationCommit, .operationResultAck:
+    case .operationResultAck:
       [Self("operation_id", operationIdentifier), Self("request_hash", requestHash)]
 
     case .operationProgress:
@@ -110,16 +114,13 @@ internal struct FieldSpec {
         Self("event", .text),
       ]
 
-    case .operationCancel:
-      [
-        Self("operation_id", operationIdentifier), Self("request_hash", requestHash),
-        Self("reason", .text, optional: true),
-      ]
-
     case .operationResult:
       [
         Self("operation_id", operationIdentifier), Self("request_hash", requestHash),
-        Self("status", .text), Self("error", .text, optional: true), Self("body", .map),
+        Self("status", .text), Self("response", .map, optional: true),
+        Self("error", .text, optional: true),
+        Self("remaining_retries", .unsigned, optional: true),
+        Self("retired", .boolean, optional: true),
       ]
 
     case .operationStatusRequest:
@@ -130,10 +131,14 @@ internal struct FieldSpec {
         Self("operation_id", operationIdentifier), Self("known", .boolean),
         Self("state", .text, optional: true),
         Self("request_hash", requestHash, optional: true),
+        Self("retired", .boolean, optional: true),
       ]
 
     default:
-      [Self("error", .text), Self("operation_id", operationIdentifier, optional: true)]
+      [
+        Self("error_code", .unsigned), Self("error_name", .text), Self("message", .text),
+        Self("operation_id", operationIdentifier, optional: true),
+      ]
     }
   }
 

@@ -13,26 +13,26 @@ internal struct PairingOfferTests {
   /// Lifetime the deadline fixture is built with.
   private static let deadlineLifetime: UInt64 = 60_000
 
-  private var goldenUri: String { expectedOfferUri.filter { !$0.isWhitespace } }
+  /// RAPP v26.10.1 §4.2 states the KC2 BLE offer's encoded size.
+  private static let specifiedBleOfferSize = 400
 
-  @Test("The offer hash matches the reference implementation")
+  private var goldenEncoding: String { expectedOfferEncodingHex.filter { !$0.isWhitespace } }
+
+  @Test("The offer hash matches an independent encoding")
   internal func offerHashMatchesReference() throws {
-    let hash = try makeOffer().offerHash().hex
-    #expect(hash == expectedOfferHashHex)
+    #expect(try makeOffer().offerHash().hex == expectedOfferHashHex)
   }
 
-  @Test("The offer URI matches the reference implementation")
-  internal func offerUriMatchesReference() throws {
-    let uri = try makeOffer().uri()
-    #expect(uri == goldenUri)
+  @Test("The offer encodes to the independent deterministic bytes")
+  internal func offerEncodingMatchesReference() throws {
+    #expect(try makeOffer().encoded().hex == goldenEncoding)
   }
 
-  @Test("A URI round trip preserves every field")
-  internal func uriRoundTripPreservesEveryField() throws {
+  @Test("A decoded offer preserves every field")
+  internal func decodePreservesEveryField() throws {
     let offer = try makeOffer()
-    let decoded = try PairingOffer.from(uri: try offer.uri())
+    let decoded = try PairingOffer.decode(try offer.encoded())
     #expect(decoded.offerIdentifier == offer.offerIdentifier)
-    #expect(decoded.pairingSecret == offer.pairingSecret)
     #expect(decoded.suites == offer.suites)
     #expect(decoded.profiles == offer.profiles)
     #expect(decoded.transports == offer.transports)
@@ -40,45 +40,50 @@ internal struct PairingOfferTests {
     #expect(try decoded.offerHash() == offer.offerHash())
   }
 
-  @Test("A single-candidate offer round-trips")
-  internal func singleCandidateOfferRoundTrips() throws {
-    let single = try PairingOffer(
-      offerIdentifier: filler(0x0a, OfferLimit.offerIdentifierSize),
-      pairingSecret: filler(0x0b, OfferLimit.pairingSecretSize),
-      suites: [mandatoryPairingSuite, "Noise_XX_25519_ChaChaPoly_SHA256"],
-      profiles: ["fi.refineid.document-signing.v1"],
-      transports: [TransportCandidate(profile: "local-quic-v1", candidateIdentifier: "candidate")],
+  @Test("The specification's BLE offer encodes to exactly 400 bytes")
+  internal func bleExampleOfferSize() throws {
+    let offer = try PairingOffer(
+      offerIdentifier: filler(0x00, OfferLimit.offerIdentifierSize),
+      suites: [RappCpaceConstants.kc2Suite],
+      profiles: [
+        "fi.refineid.card-status.v1", "fi.refineid.authentication.v1",
+        "fi.refineid.document-signing.v1",
+      ],
+      transports: [
+        TransportCandidate(
+          profile: "fi.refineid.rapp.ble.v1", candidateIdentifier: "ble-direct-1",
+          parameters: ["service_uuid": .text("7E39FD01-A6B5-4D78-9E11-37E28E9545F1")])
+      ],
       offerLifetimeMilliseconds: OfferLimit.offerLifetimeMaximumMilliseconds)
-    #expect(try PairingOffer.from(uri: single.uri()).transports == single.transports)
+    #expect(try offer.encoded().count == Self.specifiedBleOfferSize)
   }
 
-  @Test("A wrong scheme prefix is rejected")
-  internal func wrongSchemeIsRejected() throws {
-    let uri = goldenUri
-    #expect(throws: (any Error).self) {
-      _ = try PairingOffer.from(uri: "http:" + String(uri.dropFirst(5)))
+  @Test("A code-derived offer matches the reference identifier")
+  internal func codeOfferIdentifier() throws {
+    let offer = try PairingOffer.fromCode(
+      "7KX4M9", profiles: ["fi.refineid.card-status.v1"],
+      transports: [TransportCandidate(profile: "fi.refineid.stream.v1", candidateIdentifier: "s")],
+      offerLifetimeMilliseconds: OfferLimit.offerLifetimeMaximumMilliseconds)
+    #expect(offer.offerIdentifier.hex == expectedCodeOfferIdentifierHex)
+    #expect(offer.suites == [RappCpaceConstants.kc2Suite])
+  }
+
+  @Test("Another version, an unknown field and truncation are rejected")
+  internal func malformedEncodingsAreRejected() throws {
+    let encoded = try makeOffer().encoded()
+    #expect(throws: (any Error).self) { _ = try PairingOffer.decode(encoded.dropLast(1)) }
+    guard case .map(var map) = try decodeDeterministicCbor(encoded) else {
+      Issue.record("offer is not a map")
+      return
     }
-  }
-
-  @Test("An invalid base64url character is rejected")
-  internal func invalidBase64UrlCharacterIsRejected() {
-    #expect(throws: (any Error).self) { _ = try PairingOffer.from(uri: "rapp:!!!!") }
-  }
-
-  @Test("base64url padding is rejected")
-  internal func base64UrlPaddingIsRejected() {
-    #expect(throws: (any Error).self) { _ = try PairingOffer.from(uri: "rapp:qGZzY2hlbWU=") }
-  }
-
-  @Test("Truncated payload bytes are rejected")
-  internal func truncatedPayloadIsRejected() throws {
-    let uri = goldenUri
-    #expect(throws: (any Error).self) { _ = try PairingOffer.from(uri: String(uri.dropLast(8))) }
-  }
-
-  @Test("An empty payload is rejected")
-  internal func emptyPayloadIsRejected() {
-    #expect(throws: (any Error).self) { _ = try PairingOffer.from(uri: "rapp:") }
+    map["version"] = .array([.unsigned(26), .unsigned(9), .unsigned(28)])
+    #expect(throws: PairingOfferError.unsupportedVersion) {
+      _ = try PairingOffer.decode(try WireValue.map(map).encoded())
+    }
+    map["pairing_secret"] = .bytes(filler(0x02, OfferLimit.offerIdentifierSize))
+    #expect(throws: PairingOfferError.unknownField) {
+      _ = try PairingOffer.decode(try WireValue.map(map).encoded())
+    }
   }
 
   @Test("An offer without the mandatory suite is rejected")
@@ -86,7 +91,6 @@ internal struct PairingOfferTests {
     #expect(throws: (any Error).self) {
       _ = try PairingOffer(
         offerIdentifier: filler(0x01, OfferLimit.offerIdentifierSize),
-        pairingSecret: filler(0x02, OfferLimit.pairingSecretSize),
         suites: ["Noise_XX_25519_ChaChaPoly_SHA256"],
         profiles: ["fi.refineid.card-status.v1"],
         transports: [TransportCandidate(profile: "p", candidateIdentifier: "c")],
@@ -99,8 +103,7 @@ internal struct PairingOfferTests {
     #expect(throws: (any Error).self) {
       _ = try PairingOffer(
         offerIdentifier: filler(0x01, OfferLimit.offerIdentifierSize),
-        pairingSecret: filler(0x02, OfferLimit.pairingSecretSize),
-        suites: [mandatoryPairingSuite],
+        suites: [RappCpaceConstants.kc2Suite],
         profiles: ["fi.refineid.card-status.v1"],
         transports: [TransportCandidate(profile: "p", candidateIdentifier: "c")],
         offerLifetimeMilliseconds: OfferLimit.offerLifetimeMaximumMilliseconds + 1)

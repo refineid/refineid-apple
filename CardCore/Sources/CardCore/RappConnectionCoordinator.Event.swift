@@ -41,7 +41,6 @@
         state: String?,
         reason: RappOperationDriver.TerminalReason?
       )
-      case advisoryCancellation(operationID: Data?)
       case operationFinished(operationID: Data?)
       case peerBusy(operationID: Data?)
       case peerUnknownOperation(operationID: Data?)
@@ -72,7 +71,7 @@
         case .executeCardCommand(let operationID, let operation):
           .executeCardCommand(operationID: operationID, operation: operation)
 
-        case .completed, .terminal, .advisoryCancellation,
+        case .completed, .terminal,
           .operationFinished, .peerBusy, .peerUnknownOperation, .progress,
           .send, .scheduleLiveness, .closed:
           nil
@@ -86,9 +85,6 @@
 
         case .terminal(let operationID, let state, let reason):
           .terminal(operationID: operationID, state: state, reason: reason)
-
-        case .advisoryCancellation(let operationID):
-          .advisoryCancellation(operationID: operationID)
 
         case .operationFinished(let operationID):
           .operationFinished(operationID: operationID)

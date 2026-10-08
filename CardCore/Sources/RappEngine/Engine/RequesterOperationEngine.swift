@@ -33,10 +33,13 @@ internal struct RequesterOperationEngine {
   /// A peer error carries no operation state, so it classifies directly.
   private static func errorDispatch(_ error: ProtocolErrorMessage) -> RequesterDispatch {
     switch error {
-    case .busy:
+    case .operationFailed:
       .peerBusy
 
     case .unknownOperation(let operationIdentifier):
+      .peerUnknownOperation(operationIdentifier: operationIdentifier)
+
+    case .duplicateOperation(let operationIdentifier):
       .peerUnknownOperation(operationIdentifier: operationIdentifier)
     }
   }
@@ -59,20 +62,11 @@ internal struct RequesterOperationEngine {
     return message
   }
 
-  /// Writes the commit before releasing the commit message.
-  internal mutating func commit(
-    operationIdentifier: Data, store: inout some RequesterJournalStore
-  ) throws -> TypedMessage {
-    try withOperation(operationIdentifier) { try $0.commit(to: &store) }
-  }
-
-  /// Cancels locally and returns the exact message to release.
+  /// Abandons one request locally; no message travels.
   internal mutating func cancel(
-    operationIdentifier: Data,
-    reason: String?,
-    store: inout some RequesterJournalStore
-  ) throws -> RequesterCancelAction {
-    try withOperation(operationIdentifier) { try $0.cancel(reason: reason, to: &store) }
+    operationIdentifier: Data, store: inout some RequesterJournalStore
+  ) throws -> OperationState {
+    try withOperation(operationIdentifier) { try $0.cancel(to: &store) }
   }
 
   /// Classifies one authenticated inbound message.
@@ -112,10 +106,6 @@ internal struct RequesterOperationEngine {
     store: inout some RequesterJournalStore
   ) throws -> RequesterDispatch {
     switch message {
-    case .operationPrepared(let reference):
-      try operations[index].receivePrepared(reference, to: &store)
-      return .prepared(operationIdentifier: operationIdentifier)
-
     case .operationProgress(let progress):
       do {
         try operations[index].receiveProgress(progress)
@@ -133,13 +123,10 @@ internal struct RequesterOperationEngine {
       case .sendAcknowledgement(let message):
         .sendResultAcknowledgement(operationIdentifier: operationIdentifier, message: message)
 
-      case .terminal(let state, let failure):
-        .terminal(operationIdentifier: operationIdentifier, state: state, reason: failure)
+      case .terminal(let state, let status, let error):
+        .terminal(
+          operationIdentifier: operationIdentifier, state: state, status: status, error: error)
       }
-
-    case .operationCancel(let cancellation):
-      let state = try operations[index].receiveCancel(cancellation, to: &store)
-      return .cancellationReceived(operationIdentifier: operationIdentifier, state: state)
 
     default:
       throw EngineError.authenticatedProtocolViolation(.illegalMessageForActiveOperation)
