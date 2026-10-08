@@ -88,14 +88,20 @@ corporate LANs, or co-working spaces):
 └────────────────────────────────────────────────────────┘
 ```
 
-### 3.1 Static, Opaque Rendezvous Identity
-- The phone advertises only an opaque, pseudorandom service name derived from the
-  pre-shared pairing secret:
-  $$\text{Service Name} = \text{"rf-"} + \text{HMAC-SHA256}(\text{rendezvousToken}, \text{"stream-rendezvous"})[0\dots 16]$$
-- No plaintext metadata (no device names, user names, cardholder identifiers, SATU,
-  or presence attributes) is included in the mDNS TXT records.
-- The advertisement remains constant while the application is active and paired,
-  preventing external timing correlation based on advertisement toggling.
+### 3.1 Random Session Identity
+- The phone advertises one session listener under a fresh random name,
+  `refineid-` and eight hex characters, drawn whenever advertising starts.
+  Nothing derived from a rendezvous token is published (RAPP discovery
+  hierarchy §4.1 to §4.3).
+- The TXT record carries `v=1`, `mode=session`, and rotating hints for up to
+  four pairings. A hint is the first eight bytes of an HMAC keyed per pairing
+  over a 15-minute window, so it links an advertisement to a pairing only
+  within that window and only for a peer that holds the token.
+- No device names, user names, cardholder identifiers, SATU, or presence
+  attributes are published.
+- A requester dials the holder whose hints name its pairing and opens with
+  the pairing's session preamble; a preamble naming no active pairing closes
+  the connection with stored state untouched.
 
 ### 3.2 In-Band Encrypted Control Session
 - While a reader-backed card is active and its identity is borrowed by macOS, a

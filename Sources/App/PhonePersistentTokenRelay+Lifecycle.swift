@@ -71,6 +71,7 @@
           listener.cancel()
         }
         streamListeners.removeAll()
+        stopHintRotation()
         for dialer in streamDialers.values {
           dialer.cancel()
         }
@@ -105,6 +106,7 @@
           listener.cancel()
         }
         streamListeners.removeAll()
+        stopHintRotation()
         for dialer in streamDialers.values {
           dialer.cancel()
         }
@@ -154,6 +156,7 @@
           listener.cancel()
         }
         streamListeners.removeAll()
+        stopHintRotation()
         streamContexts.removeAll()
         activeStreamListener = nil
       #endif

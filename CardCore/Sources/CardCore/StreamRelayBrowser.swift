@@ -15,6 +15,7 @@ import Foundation
     private let onFound: @Sendable (NWEndpoint) -> Void
     private let name: String?
     private let attributes: [String: String]
+    private let recordMatches: (@Sendable ([String: String]) -> Bool)?
     private let queue = DispatchQueue(label: "fi.refineid.stream-browser")
     private var browser: NWBrowser?
     private var reported = false
@@ -30,6 +31,7 @@ import Foundation
     ) {
       self.name = name
       self.attributes = [:]
+      self.recordMatches = nil
       self.onFound = onFound
     }
 
@@ -42,6 +44,20 @@ import Foundation
     ) {
       self.name = nil
       self.attributes = attributes
+      self.recordMatches = nil
+      self.onFound = onFound
+    }
+
+    /// Reports the first published service whose discovery attributes
+    /// satisfy `recordMatches`.
+    @preconcurrency
+    public init(
+      matchingRecord recordMatches: @escaping @Sendable ([String: String]) -> Bool,
+      onFound: @escaping @Sendable (NWEndpoint) -> Void
+    ) {
+      self.name = nil
+      self.attributes = [:]
+      self.recordMatches = recordMatches
       self.onFound = onFound
     }
 
@@ -50,7 +66,7 @@ import Foundation
       let parameters = NWParameters.tcp
       parameters.includePeerToPeer = true
       let descriptor: NWBrowser.Descriptor =
-        attributes.isEmpty
+        attributes.isEmpty && recordMatches == nil
         ? .bonjour(type: StreamRelayListener.serviceType, domain: nil)
         : .bonjourWithTXTRecord(type: StreamRelayListener.serviceType, domain: nil)
       let made = NWBrowser(for: descriptor, using: parameters)
@@ -71,8 +87,11 @@ import Foundation
         guard case .service(let serviceName, _, _, _) = result.endpoint else { return false }
         return serviceName == name
       }
-      guard !attributes.isEmpty else { return true }
+      guard !attributes.isEmpty || recordMatches != nil else { return true }
       guard case .bonjour(let record) = result.metadata else { return false }
+      if let recordMatches {
+        return recordMatches(record.dictionary)
+      }
       return attributes.allSatisfy { key, value in record[key] == value }
     }
 
