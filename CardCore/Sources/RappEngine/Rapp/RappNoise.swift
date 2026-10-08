@@ -26,7 +26,7 @@ internal enum RappNoise {
   )
 
   internal static let pairingSuite = "Noise_XXpsk3_25519_ChaChaPoly_SHA512"
-  internal static let sessionSuite = "Noise_KKhfs_25519+MLKEM768_ChaChaPoly_SHA512"
+  internal static let sessionSuite = "Noise_KK_25519_ChaChaPoly_SHA512"
 
   private static let pairingPrologueDomain = "RAPP-pairing-v1"
   private static let sessionPrologueDomain = "RAPP-session-v1"
