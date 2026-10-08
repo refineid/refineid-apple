@@ -3,7 +3,7 @@
 set -e
 
 IPAD_UDID="${IPAD_UDID:-$(xcrun simctl list devices 2>/dev/null | grep -i "iPad" | grep "Booted" | grep -o -E "[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}" | head -n 1 || true)}"
-IPHONE_UDID="${IPHONE_UDID:-$(xcrun devicectl list devices 2>/dev/null | grep -E "iPhone|iPad" | grep -v "Simulator" | awk '{print $3}' | head -n 1 || true)}"
+IPHONE_UDID="${IPHONE_UDID:-$(xcrun devicectl list devices 2>/dev/null | grep -E "iPhone|iPad" | grep -w "physical" | awk '{ for (i = 2; i <= NF; i++) if ($i == "(UDID)") { print $(i - 1); exit } }' || true)}"
 OFFER_LOG="/tmp/ipad_pairing_offer.log"
 
 if [ -z "$IPAD_UDID" ]; then
