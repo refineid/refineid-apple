@@ -12,7 +12,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 format_paths=(
-  Sources Tests
+  Sources Tests Samples
   CardCore/Sources/CardCore CardCore/Sources/RappEngine
   CardCore/Tests CardCore/Package.swift
   PKCS11Bridge/Sources PKCS11Bridge/Tests PKCS11Bridge/Package.swift

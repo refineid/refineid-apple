@@ -1,0 +1,27 @@
+name: NFCCardTiming
+options:
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: 4ZJC3SFJR2
+targets:
+  NFCCardTiming:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+    info:
+      path: Info.plist
+    entitlements:
+      path: NFCCardTiming.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: fi.refineid.NFCCardTiming
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Info.plist
