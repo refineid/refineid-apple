@@ -36,6 +36,17 @@ internal struct OnDemandPinExperimentTests {
   }
 
   @Test
+  internal func experimentIsOffUntilEnabled() {
+    OnDemandPinExperiment.reset()
+    defer { OnDemandPinExperiment.reset() }
+    #expect(!OnDemandPinExperiment.isEnabled)
+    OnDemandPinExperiment.setEnabled(true)
+    #expect(OnDemandPinExperiment.isEnabled)
+    OnDemandPinExperiment.setEnabled(false)
+    #expect(!OnDemandPinExperiment.isEnabled)
+  }
+
+  @Test
   internal func testOverrideControlsExperimentState() {
     OnDemandPinExperiment.setTestOverride(.forcedActive)
     #expect(OnDemandPinExperiment.isEnabled)

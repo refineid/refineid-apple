@@ -53,7 +53,7 @@ public enum OnDemandPinExperiment: Sendable {
     }
     if TestCredentialEnvironment.isTestMode {
       let value = TestCredentialEnvironment.readCredential(account: account)
-      return value != "0"
+      return value == "1"
     }
     var query = query()
     query[kSecReturnData as String] = true
@@ -63,9 +63,9 @@ public enum OnDemandPinExperiment: Sendable {
     guard status == errSecSuccess, let data = item as? Data,
       let value = String(data: data, encoding: .utf8)
     else {
-      return true
+      return false
     }
-    return value != "0"
+    return value == "1"
   }
 
   // MARK: Static Functions
