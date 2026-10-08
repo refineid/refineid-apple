@@ -228,6 +228,7 @@
 				3D0000000000000000000002 /* TokenExtension */,
 				3D0000000000000000000004 /* DiscoveryExtension */,
 				721332542F5154E8E8C01D4B /* RappTokenExtension */,
+				BC0000000000000000000002 /* SmartCardTransmit.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
