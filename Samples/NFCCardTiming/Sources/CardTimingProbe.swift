@@ -35,6 +35,8 @@
     // MARK: Static Properties
 
     internal static let holdMessage = "Hold the card on the top back of the phone."
+    private static let foundMessage = "Card found. Keep it still."
+    private static let doneMessage = "Done. You can lift the card."
 
     /// How long a run waits for a card after the sheet appears.
     private static let arrivalBudgetSeconds = 20
@@ -145,23 +147,28 @@
         return finished(arrival: 0, exchanges: [], outcome: "card never arrived")
       }
       let arrival = milliseconds(since: opened)
+      try? session.update(message: foundMessage)
       do {
         try await beginSession(card)
       } catch {
         return finished(arrival: arrival, exchanges: [], outcome: "session refused: \(error)")
       }
-      let (exchanges, outcome) = await exchange(with: card, in: slot)
+      let (exchanges, outcome) = await exchange(with: card, in: slot, telling: session)
       card.endSession()
+      try? session.update(message: doneMessage)
       return finished(arrival: arrival, exchanges: exchanges, outcome: outcome)
     }
 
     /// Sends the sequence and times each answer, stopping at the first
     /// command the field does not carry.
     private static func exchange(
-      with card: TKSmartCard, in slot: TKSmartCardSlot
+      with card: TKSmartCard, in slot: TKSmartCardSlot, telling session: TKSmartCardSlotNFCSession
     ) async -> ([Exchange], String) {
       var exchanges: [Exchange] = []
-      for command in PaceTimingCommand.sequence {
+      for (index, command) in PaceTimingCommand.sequence.enumerated() {
+        try? session.update(
+          message:
+            "\(foundMessage) \(command.name), \(index + 1) of \(PaceTimingCommand.sequence.count)")
         let sent = ContinuousClock.now
         do {
           let response = try await transmit(card, command.apdu)
