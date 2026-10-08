@@ -5,9 +5,10 @@ import Testing
 
 /// The outbound network contract, pinned.
 ///
-/// New traffic-capable code, a new Bluetooth declaration, or a
+/// New traffic-capable code, a changed Bluetooth declaration, or a
 /// changed ATS shape fails here on purpose: update the contract in
-/// `Documentation/decisions.md` (2026-09-30) first, then this list.
+/// `Documentation/decisions.md` (2026-09-30, 2026-10-09) first, then
+/// this list.
 @Suite
 internal struct NetworkContractTests {
   private static var root: URL {
@@ -108,7 +109,8 @@ internal struct NetworkContractTests {
     )
   }
 
-  /// ATS stays open and Bluetooth stays undeclared in every app plist.
+  /// ATS stays open and Bluetooth carries exactly its one purpose
+  /// string in every app plist.
   @Test
   internal func applicationPlistsMatchTheContract() throws {
     for path in [
@@ -125,7 +127,10 @@ internal struct NetworkContractTests {
       let ats = try #require(plist["NSAppTransportSecurity"] as? [String: Any])
       #expect(ats["NSAllowsArbitraryLoads"] as? Bool == true)
       #expect(ats["NSExceptionDomains"] == nil)
-      #expect(!plist.keys.contains { $0.hasPrefix("NSBluetooth") })
+      let bluetoothKeys = plist.keys.filter { $0.hasPrefix("NSBluetooth") }
+      #expect(bluetoothKeys == ["NSBluetoothAlwaysUsageDescription"])
+      let purpose = try #require(plist["NSBluetoothAlwaysUsageDescription"] as? String)
+      #expect(!purpose.isEmpty)
     }
   }
 }

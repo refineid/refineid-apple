@@ -3,7 +3,12 @@
 - **Document Version**: `26.8.26.135`
 - **Protocol Wire Version**: `26.8`
 - **Target Profile Identifier**: `fi.refineid.ble.v1`
-- **Status**: Vetted Architecture & Implementation Plan
+- **Status**: Superseded on 2026-10-09 by the RAPP v26.10.1 BLE Direct
+  Proximity Transport Profile (`fi.refineid.rapp.ble.v1`, GATT with SAR
+  framing) in `Documentation/protocol/rapp-v26.10.1.md` and the tier
+  description in `Documentation/rapp-transport-and-discovery-hierarchy.md`.
+  Kept for the feasibility reasoning; the L2CAP profile below is not the
+  one to implement.
 - **Date**: 2026-08-26
 - **Applies To**: `RefineID-Apple` (iOS/macOS), `RefineID-Unix` (Linux), `RefineID-Android`
 

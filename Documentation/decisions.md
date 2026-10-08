@@ -5,6 +5,18 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-10-09 Bluetooth is declared, and stays unwired
+
+RAPP v26.10.1 adopted the Bluetooth Low Energy transport profile, and
+its relay code in CardCore links into every application binary. App
+Store Connect requires a purpose string for an API a binary references
+whether or not it runs (ITMS-90683 on delivery 26.10.8 (205)), so every
+application plist now carries `NSBluetoothAlwaysUsageDescription`, worded
+like the local-network string. Nothing in a shipped build opens a
+Bluetooth session yet; `NetworkContractTests` keeps pinning the relay
+files as unwired and now pins the one declaration instead of its
+absence.
+
 ## 2026-09-30 App Transport Security stays open under a documented contract
 
 `NSAllowsArbitraryLoads` remains true in the macOS and iOS application

@@ -65,5 +65,7 @@
 		<string>A0000002471001</string>
 		<string>A000000308000010000100</string>
 	</array>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>RefineID uses Bluetooth to connect your devices securely for identity-card operations.</string>
 </dict>
 </plist>
