@@ -107,7 +107,16 @@
       await handleOperation(try await driver.retryRefused(operationID: operationID))
     }
 
-    /// Reports that the card rejected the presented credential.
+    /// Reports an incorrect credential with attempts remaining; the pairing
+    /// stays (RAPP v26.10.1 section 10.2).
+    public func invalidCredential(operationID: Data, remainingRetries: UInt8) async throws {
+      let driver = try operationDriver()
+      await handleOperation(
+        try await driver.invalidCredential(
+          operationID: operationID, remainingRetries: remainingRetries))
+    }
+
+    /// Reports that the card blocked the presented credential.
     public func credentialRejected(operationID: Data) async throws {
       let driver = try operationDriver()
       await handleOperation(try await driver.credentialRejected(operationID: operationID))

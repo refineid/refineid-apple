@@ -177,7 +177,17 @@
       try commands(bridge.retryRefused(operationId: operationID))
     }
 
-    /// Reports that the card rejected the presented credential.
+    /// Reports an incorrect credential with attempts remaining; the pairing
+    /// stays (RAPP v26.10.1 section 10.2).
+    public func invalidCredential(
+      operationID: Data, remainingRetries: UInt8
+    ) throws -> [Command] {
+      try commands(
+        bridge.invalidCredential(operationId: operationID, remainingRetries: remainingRetries))
+    }
+
+    /// Reports that the card blocked the presented credential; the pairing
+    /// is revoked.
     public func credentialRejected(operationID: Data) throws -> [Command] {
       try commands(
         bridge.credentialRejected(

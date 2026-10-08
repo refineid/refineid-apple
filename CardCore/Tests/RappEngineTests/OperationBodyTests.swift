@@ -72,7 +72,7 @@ internal struct OperationBodyTests {
     let corpus = try CorpusFile.operation(filePath: #filePath)
     #expect(corpus.format == "fi.refineid.rapp.operation-vectors-v1")
     #expect(corpus.protocolDocumentVersion == "26.10.1")
-    #expect(corpus.vectors.count == 30)
+    #expect(corpus.vectors.count == 31)
   }
 
   @Test("Every typed request matches byte for byte and hashes over the pairing")
@@ -243,6 +243,7 @@ internal struct OperationBodyTests {
       ("result-rejected-unauthorized", .unauthorized),
       ("result-rejected-operation-failed", .retryPolicyRefused),
       ("result-credential-rejected-card-blocked", .credentialRejected),
+      ("result-rejected-invalid-credential", .invalidCredential(remainingRetries: 2)),
       ("result-ambiguous-card-error", .cardCompletionAmbiguous),
     ]
     for (name, failure) in cases {
