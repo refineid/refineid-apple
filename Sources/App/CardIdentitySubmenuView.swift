@@ -49,24 +49,6 @@ internal struct CardIdentitySubmenuView: View {
     }
   }
 
-  // MARK: - Initializers
-
-  internal init(
-    holder: String,
-    identifier: String?,
-    onForget: (() -> Void)?,
-    onReadPhoto: ((String?) async -> CardCredentialsView.CardPhotoReadResult)?
-  ) {
-    self.holder = holder
-    self.identifier = identifier
-    self.onForget = onForget
-    self.onReadPhoto = onReadPhoto
-  }
-
-  internal init(holder: String) {
-    self.init(holder: holder, identifier: nil, onForget: nil, onReadPhoto: nil)
-  }
-
   // MARK: - Methods
 
   private func removeSection(action: @escaping () -> Void) -> some View {

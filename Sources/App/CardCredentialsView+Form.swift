@@ -4,25 +4,22 @@ import CardCore
 import SwiftUI
 
 extension CardCredentialsView {
-  /// The screen's identity area: exactly one of the hold blank, the
-  /// live reader identity, the reader-only notice, the set identity,
-  /// or the setup form.
+  /// The screen's identity area, by mode.
   @ViewBuilder internal var identityArea: some View {
-    if isHolding {
+    switch mode {
+    case .holding:
       EmptyView()
-    } else if hasReaderIdentity {
+
+    case .readerIdentity:
       readerIdentitySection
-    } else if !offersNearField {
+
+    case .remoteOnly:
       remoteReaderSection
-    } else if let identityHolder {
-      CardIdentitySection(
-        holder: identityHolder
-      ) {
-        #if os(iOS)
-          showsIdentitySubmenu = true
-        #endif
-      }
-    } else {
+
+    case .identity(let holder):
+      CardIdentitySection(holder: holder)
+
+    case .setup:
       createIdentitySection
     }
   }
@@ -31,21 +28,20 @@ extension CardCredentialsView {
   internal var navigationChrome: some View {
     Form {
       #if os(iOS)
-        if !isHolding {
+        if mode != .holding {
           signingSection
-          if offersNearField || hasReaderIdentity {
+          if mode != .remoteOnly {
             cardSection
             readIdentityCardSection
           }
         }
-      #endif
-      #if !os(iOS)
-        if !isHolding {
+      #else
+        if mode != .holding {
           managementSection
         }
       #endif
       identityArea
-      if let failure = model.failure, !isHolding {
+      if let failure = model.failure, mode != .holding {
         Section {
           CredentialOutcomeText(message: failure, tone: .failure)
         }
@@ -54,35 +50,11 @@ extension CardCredentialsView {
     #if os(iOS)
       .listSections(spacing: Self.sectionSpacing)
       .scrollDismissesKeyboard(.interactively)
-      .navigationDestination(
-        isPresented: Binding(
-          get: { flowDestination.wrappedValue != nil },
-          set: { presented in
-            if !presented { flowDestination.wrappedValue = nil }
-          }
-        )
-      ) {
-        if let destination = flowDestination.wrappedValue {
-          destinationView(destination)
-        }
+      .navigationDestination(item: flowDestination) { destination in
+        destinationView(destination)
       }
-      .navigationDestination(isPresented: $showsDocumentVerify) {
-        VerifyDocumentView()
-      }
-      .navigationDestination(isPresented: $showsIdentitySubmenu) {
-        if let holder = identityHolder ?? selectedReaderHolder {
-          CardIdentitySubmenuView(
-            holder: holder,
-            identifier: (holder == identityHolder) ? identityIdentifier : nil,
-            onForget: (holder == identityHolder)
-              ? {
-                forgetCurrentIdentity()
-              } : nil,
-            onReadPhoto: { can in
-              await readCardPhoto(for: holder, accessNumber: can)
-            }
-          )
-        }
+      .navigationDestination(for: Route.self) { route in
+        routeView(route)
       }
     #endif
   }
@@ -211,40 +183,38 @@ extension CardCredentialsView {
     }
   }
 
-  internal func navigationRow(
-    _ title: String,
-    @ViewBuilder icon: () -> some View
-  ) -> some View {
-    HStack {
-      icon()
-        .font(.system(size: PersonRowLabel.iconPointSize))
-        .symbolRenderingMode(.monochrome)
-        .frame(width: PersonRowLabel.iconWidth)
-        .accessibilityHidden(true)
-      Text(title)
-      Spacer()
-      Image(systemName: "chevron.forward")
-        .font(.footnote.weight(.semibold))
-        .foregroundStyle(.tertiary)
-        .accessibilityHidden(true)
-    }
-  }
-
-  internal func compactSectionHeader(
-    _ title: LocalizedStringKey
-  ) -> some View {
-    Text(title)
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .listRowInsets(EdgeInsets())
-  }
-
-  internal func compactSectionHeader(verbatim title: String) -> some View {
-    Text(title)
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .listRowInsets(EdgeInsets())
-  }
-
   #if os(iOS)
+    @ViewBuilder
+    internal func routeView(_ route: Route) -> some View {
+      switch route {
+      case .verifyDocuments:
+        VerifyDocumentView()
+
+      case .remoteAccess:
+        RappPairingView()
+
+      case .identity(.phone(let holder)):
+        CardIdentitySubmenuView(
+          holder: holder,
+          identifier: identityIdentifier,
+          onForget: forgetCurrentIdentity,
+          onReadPhoto: { can in
+            await readCardPhoto(for: holder, accessNumber: can)
+          }
+        )
+
+      case .identity(.reader(let holder)):
+        CardIdentitySubmenuView(
+          holder: holder,
+          identifier: nil,
+          onForget: nil,
+          onReadPhoto: { can in
+            await readCardPhoto(for: holder, accessNumber: can)
+          }
+        )
+      }
+    }
+
     @ViewBuilder
     internal func destinationView(
       _ destination: CardSetupStateMachine.Destination
@@ -270,31 +240,12 @@ extension CardCredentialsView {
         #if DEBUG
           let _: Void = DebugConsole.emit("navigation-destination: PIN management")
         #endif
-        if hasReaderIdentity {
-          CardManagementView(
-            readerCardIsPresent: true,
-            activationRequired: false,
-            cardAccessNumber: nil,
-            activationScheme: nil,
-            activationNeeds: nil,
-            onActivationSucceeded: {
-              // optional hook; default is a no-op
-            }
-          )
-          .id(CardSetupStateMachine.Destination.pinManagement)
-        } else {
-          CardManagementView(
-            readerCardIsPresent: false,
-            activationRequired: false,
-            cardAccessNumber: managementCardAccessNumber,
-            activationScheme: nil,
-            activationNeeds: nil,
-            onActivationSucceeded: {
-              // optional hook; default is a no-op
-            }
-          )
-          .id(CardSetupStateMachine.Destination.pinManagement)
-        }
+        CardManagementView(
+          readerCardIsPresent: hasReaderIdentity,
+          activationRequired: false,
+          cardAccessNumber: hasReaderIdentity ? nil : managementCardAccessNumber
+        )
+        .id(CardSetupStateMachine.Destination.pinManagement)
 
       case .signDocuments:
         DocumentSigningView(

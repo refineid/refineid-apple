@@ -93,15 +93,6 @@ internal struct CardCredentialsView: View {
     /// The holder names read from the live reader tokens.
     @State internal var readerHolders: [String] = []
 
-    /// Whether the document verification screen is pushed.
-    @State internal var showsDocumentVerify = false
-
-    /// Whether the identity submenu is pushed.
-    @State internal var showsIdentitySubmenu = false
-
-    /// The holder selected from reader cards for identity submenu.
-    @State internal var selectedReaderHolder: String?
-
     /// Pairing model that drives inline pairing on both iPad and iPhone.
     @StateObject internal var pairingModel = RappPairingModel()
 
@@ -350,12 +341,7 @@ internal struct CardCredentialsView: View {
         CardManagementView(
           readerCardIsPresent: true,
           activationRequired: true,
-          cardAccessNumber: nil,
-          activationScheme: nil,
-          activationNeeds: nil,
-          onActivationSucceeded: {
-            // optional hook; default is a no-op
-          }
+          cardAccessNumber: nil
         )
       } else {
         credentialsForm

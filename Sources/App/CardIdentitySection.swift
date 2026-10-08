@@ -3,70 +3,29 @@
 import CardCore
 import SwiftUI
 
-/// The identity navigation row on the main screen that opens the identity submenu.
+/// The identity row on the main screen: the holder this phone
+/// registered, and on iOS the way into the identity submenu.
 internal struct CardIdentitySection: View {
-  private static let minHolderScale: CGFloat = 0.85
-  private static let holderLineLimit: Int = 2
-  private static let rowSpacing: CGFloat = 4
-
   /// The complete holder name read from the primed identity certificate.
   internal let holder: String
 
-  /// Action executed when the identity row is tapped.
-  internal let onSelect: (() -> Void)?
-
-  private var rowContent: some View {
-    HStack {
-      Image(systemName: "person")
-        .font(.system(size: PersonRowLabel.iconPointSize))
-        .symbolRenderingMode(.monochrome)
-        .frame(width: PersonRowLabel.iconWidth)
-        .foregroundStyle(Color.accentColor)
-        .accessibilityHidden(true)
-      Text(holder)
-        .font(.body)
-        .foregroundStyle(.primary)
-        .lineLimit(Self.holderLineLimit)
-        .minimumScaleFactor(Self.minHolderScale)
-        .multilineTextAlignment(.leading)
-        .accessibilityIdentifier("identityStatus")
-      Spacer(minLength: Self.rowSpacing)
-      #if os(iOS)
-        Image(systemName: "chevron.forward")
-          .font(.footnote.weight(.semibold))
-          .foregroundStyle(.tertiary)
-          .accessibilityHidden(true)
-      #endif
-    }
+  private var row: some View {
+    MenuRow(holder, systemImage: "person", tint: .accentColor)
+      .titleIdentifier("identityStatus")
   }
 
   internal var body: some View {
     Section {
       #if os(iOS)
-        Button {
-          onSelect?()
-        } label: {
-          rowContent
+        NavigationLink(value: CardCredentialsView.Route.identity(.phone(holder: holder))) {
+          row
         }
-        .tint(.primary)
         .accessibilityIdentifier("identitySubmenuButton")
       #else
-        rowContent
+        row
       #endif
     } header: {
-      Text(String(localized: "Identity"))
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .listRowInsets(EdgeInsets())
+      CompactSectionHeader(title: String(localized: "Identity"))
     }
-  }
-
-  internal init(holder: String) {
-    self.holder = holder
-    self.onSelect = nil
-  }
-
-  internal init(holder: String, onSelect: @escaping () -> Void) {
-    self.holder = holder
-    self.onSelect = onSelect
   }
 }

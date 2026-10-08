@@ -31,7 +31,7 @@ extension CardCredentialsView {
   ) async -> CardPhotoReadResult {
     #if os(iOS)
       let holder =
-        requestedHolder ?? identityHolder ?? selectedReaderHolder ?? readerHolders.first ?? ""
+        requestedHolder ?? identityHolder ?? readerHolders.first ?? ""
     #else
       let holder = requestedHolder ?? identityHolder ?? ""
     #endif

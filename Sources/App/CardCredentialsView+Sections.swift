@@ -5,76 +5,58 @@ import SwiftUI
 
 extension CardCredentialsView {
   #if os(iOS)
-    private var verifyRouteButton: some View {
-      Button {
-        showsDocumentVerify = true
-      } label: {
-        navigationRow(
-          String(
-            localized: "verify.title",
-            defaultValue: "Verify",
-            table: "DocumentSigning")
-        ) {
-          Image(systemName: Self.verificationSymbolName)
-            .foregroundStyle(Color.accentColor)
-            .accessibilityHidden(true)
-        }
+    private var verifyRow: some View {
+      NavigationLink(value: Route.verifyDocuments) {
+        MenuRow(
+          String(localized: "verify.title", defaultValue: "Verify", table: "DocumentSigning"),
+          systemImage: Self.verificationSymbolName,
+          tint: .accentColor
+        )
       }
-      .tint(.primary)
       .accessibilityIdentifier("verifyDocuments")
     }
 
-    private var signRouteButton: some View {
+    private var signRow: some View {
       Button {
         synchronizeIdentityState()
         transition(.openDocumentSigning)
       } label: {
-        navigationRow(
-          String(
-            localized: "signing.title",
-            defaultValue: "Sign",
-            table: "DocumentSigning")
+        MenuRow(
+          String(localized: "signing.title", defaultValue: "Sign", table: "DocumentSigning"),
+          systemImage: "signature",
+          tint: .accentColor
         ) {
-          Image(systemName: "signature")
-            .foregroundStyle(
-              signingAvailable
-                ? AnyShapeStyle(Color.accentColor)
-                : AnyShapeStyle(.secondary)
-            )
-            .accessibilityHidden(true)
+          DisclosureChevron()
         }
       }
       .tint(.primary)
       .accessibilityIdentifier("signDocuments")
-      .disabled(!signingAvailable)
     }
 
     internal var signingSection: some View {
       Section {
-        verifyRouteButton
+        verifyRow
         if signingAvailable {
-          signRouteButton
+          signRow
         }
       } header: {
-        compactSectionHeader(
-          verbatim: String(
-            localized: "signing.document",
-            defaultValue: "Document",
-            table: "DocumentSigning"))
+        CompactSectionHeader(
+          title: String(
+            localized: "signing.document", defaultValue: "Document", table: "DocumentSigning"))
       }
     }
 
-    private var cardManagementButton: some View {
+    private var cardManagementRow: some View {
       Button {
         openCardManagement()
       } label: {
-        navigationRow(
-          String(localized: "Personal Identification Numbers (PINs)")
-        ) {
+        MenuRow(String(localized: "Personal Identification Numbers (PINs)")) {
           CredentialRetryHealthKey(
             level: retryHealth.level,
             systemName: "key.2.on.ring",
             routeAvailable: managementAvailable)
+        } trailing: {
+          DisclosureChevron()
         }
       }
       .tint(.primary)
@@ -84,13 +66,17 @@ extension CardCredentialsView {
 
     internal var cardSection: some View {
       Section {
-        if offersNearField, !hasReaderIdentity, identityHolder == nil {
+        switch mode {
+        case .setup:
           cardAccessNumberRow
           pin1Row
-        }
-        if identityHolder != nil || hasReaderIdentity {
+
+        case .identity, .readerIdentity:
           remoteAccessRow
-          cardManagementButton
+          cardManagementRow
+
+        case .holding, .remoteOnly:
+          EmptyView()
         }
         #if REFINEID_LOCAL_CARD
           if let failure = primingModel.failure {
@@ -99,7 +85,7 @@ extension CardCredentialsView {
           }
         #endif
       } header: {
-        compactSectionHeader("Card")
+        CompactSectionHeader(title: String(localized: "Card"))
       }
       .onAppear {
         syncRemoteAccessToggle()
@@ -137,39 +123,42 @@ extension CardCredentialsView {
     }
 
     private var remoteAccessRow: some View {
-      NavigationLink {
-        RappPairingView()
-      } label: {
-        HStack {
-          Image(systemName: "antenna.radiowaves.left.and.right")
-            .font(.system(size: PersonRowLabel.iconPointSize))
-            .symbolRenderingMode(.monochrome)
-            .frame(width: PersonRowLabel.iconWidth)
-            .foregroundStyle(
-              isActivelyConnected
-                ? Color.green : (remoteAccessEnabled ? Color.accentColor : Color.secondary)
-            )
-            .accessibilityHidden(true)
-          Text(String(localized: "Remote Access"))
-            .foregroundStyle(.primary)
-          Spacer()
+      NavigationLink(value: Route.remoteAccess) {
+        MenuRow(
+          String(localized: "Remote Access"),
+          systemImage: "antenna.radiowaves.left.and.right",
+          tint: remoteAccessTint
+        ) {
           if isActivelyConnected {
-            Text(String(localized: "Connected"))
-              .font(.caption.weight(.semibold))
-              .foregroundStyle(.green)
-              .padding(.horizontal, Layout.connectedBadgeHorizontalPadding)
-              .padding(.vertical, Layout.connectedBadgeVerticalPadding)
-              .background(Color.green.opacity(Layout.connectedBadgeOpacity))
-              .clipShape(Capsule())
+            connectedBadge
           }
         }
       }
-      .tint(.primary)
       .accessibilityIdentifier("RappPairingRow")
     }
 
+    private var remoteAccessTint: Color {
+      if isActivelyConnected {
+        .green
+      } else if remoteAccessEnabled {
+        .accentColor
+      } else {
+        .secondary
+      }
+    }
+
+    private var connectedBadge: some View {
+      Text(String(localized: "Connected"))
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(.green)
+        .padding(.horizontal, Layout.connectedBadgeHorizontalPadding)
+        .padding(.vertical, Layout.connectedBadgeVerticalPadding)
+        .background(Color.green.opacity(Layout.connectedBadgeOpacity))
+        .clipShape(Capsule())
+    }
+
     @ViewBuilder internal var readIdentityCardSection: some View {
-      if offersNearField, !hasReaderIdentity, identityHolder == nil {
+      if mode == .setup {
         Section {
           readIdentityCardButton
             .listRowInsets(EdgeInsets())
@@ -179,10 +168,7 @@ extension CardCredentialsView {
     }
 
     internal var readerIdentitySection: some View {
-      CardReaderIdentitySection(holders: readerHolders) { holder in
-        selectedReaderHolder = holder
-        showsIdentitySubmenu = true
-      }
+      CardReaderIdentitySection(holders: readerHolders)
     }
   #endif
 
@@ -199,12 +185,12 @@ extension CardCredentialsView {
       Section {
         cardAccessNumberRow
       } header: {
-        compactSectionHeader("Connect")
+        CompactSectionHeader(title: String(localized: "Connect"))
       }
       Section {
         pin1Row
       } header: {
-        compactSectionHeader("Cache")
+        CompactSectionHeader(title: String(localized: "Cache"))
       }
     #endif
   }

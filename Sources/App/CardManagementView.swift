@@ -57,7 +57,7 @@ internal struct CardManagementView: View {
   private let startsWithReaderCard: Bool
   private let usesProvidedCardAccessNumber: Bool
   private let activationRequired: Bool
-  private let onActivationSucceeded: () -> Void
+  private let onActivationSucceeded: (() -> Void)?
 
   // MARK: Computed Properties
 
@@ -245,7 +245,7 @@ internal struct CardManagementView: View {
     cardAccessNumber: String?,
     activationScheme: ActivationScheme?,
     activationNeeds: CardActivationNeeds?,
-    onActivationSucceeded: @escaping () -> Void
+    onActivationSucceeded: (() -> Void)?
   ) {
     startsWithReaderCard = readerCardIsPresent
     self.activationRequired = activationRequired
@@ -271,10 +271,26 @@ internal struct CardManagementView: View {
     )
   }
 
+  /// Management with no activation outcome to report.
+  internal init(
+    readerCardIsPresent: Bool,
+    activationRequired: Bool,
+    cardAccessNumber: String?
+  ) {
+    self.init(
+      readerCardIsPresent: readerCardIsPresent,
+      activationRequired: activationRequired,
+      cardAccessNumber: cardAccessNumber,
+      activationScheme: nil,
+      activationNeeds: nil,
+      onActivationSucceeded: nil
+    )
+  }
+
   // MARK: Functions
 
   private func activationCompleted() {
-    onActivationSucceeded()
+    onActivationSucceeded?()
     dismiss()
   }
 
