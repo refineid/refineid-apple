@@ -14,14 +14,19 @@ The vendored documents are the authority, and the Swift engine in
 `CardCore/Sources/RappEngine` implements them. There is no compiled protocol
 artifact in this repository.
 
-- Specification: `Documentation/protocol/rapp-v26.9.28.md`
-- Formal state model: `Documentation/protocol/rapp-state-machine-v26.9.13.yaml`
-- Conformance corpus: `Documentation/rapp-conformance/rapp-v26.9.28.json`
-  (`SHA-256 3b6c09e19b208e34396f36d8e3ad1ea860ef305f3208af9eba2845052180e328`)
-- Vectors generated from the reference engine, covering what the corpus does
-  not reach: `rapp-transport-v26.9.7.70.json` (post-handshake framing),
-  `rapp-flow-v26.9.7.70.json` (ceremony bodies), and
-  `rapp-operation-v26.9.7.70.json` (operation bodies)
+- Specification: `Documentation/protocol/rapp-v26.10.1.md`
+- Formal state model: `Documentation/protocol/rapp-state-machine-v26.9.13.yaml`.
+  v26.10.1 publishes no newer model; the operation tables transcribe this
+  earlier one and no longer describe how operations run (see
+  `Documentation/decisions.md`, 2026-10-08).
+- Conformance corpus: `Documentation/rapp-conformance/rapp-v26.10.1.json`
+  (`SHA-256 488851a0857a4c0682e5fcbdb0f4c1e943e495ed39d544508bc88a1feacfca3f`)
+- Vectors covering what the corpus does not reach:
+  `rapp-cpace-kc2-v26.10.1.json` (CPace KC2, from the reference crate),
+  `rapp-operation-v26.10.1.json` (operation bodies, encoded independently
+  from the specification's schemas), `rapp-flow-v26.9.7.70.json` (ceremony
+  bodies, re-encoded for v26.10.1), and `rapp-transport-v26.9.7.70.json`
+  (post-handshake framing)
 
 The engine is held to those documents by its tests rather than by anyone
 remembering to follow them. The state tables are transcribed from the model

@@ -1207,3 +1207,40 @@ server entitlement, and the remote token extension. iOS scope is unchanged.
 The macOS store listing uses one local-card screenshot per localization.
 This supersedes the earlier full-version macOS scope; deferred features retain
 their qualification requirements before they can ship later.
+
+## 2026-10-08 - RAPP v26.10.1 interpretation choices
+
+The Swift engine follows RAPP v26.10.1. Where the specification is silent,
+or where its text and the shared reference crate disagree, these are the
+choices made:
+
+1. **The phone shows the code.** The custodian generates and shows the
+   six-character code; the Mac or iPad types it. CPace and Noise_XXpsk3 are
+   both initiated by the requester.
+2. **Code-derived offers over the stream and Apple-peer transports.**
+   Section 4.2 defines the offer bootstrap for BLE only. Over the other
+   transports both peers derive the offer from the code, as the reference
+   crate's code offers do. Nothing derived from the code is published:
+   the custodian advertises a fresh random name with pairing-mode attributes.
+3. **KC2 context literals.** The CPace context binds the section 6.1.1
+   literals (`fi.refineid.rapp.ble.v1`, `ble-direct-1`) on every transport,
+   matching the reference crate; the pairing prologue binds the actual
+   transport profile.
+4. **Session suite.** Sessions use `Noise_KK_25519_ChaChaPoly_SHA512` per
+   section 6.3. The reference crate still runs the hybrid ML-KEM suite
+   (refineid/refineid-core#64), so sessions with peers built on it fail
+   until that lands.
+5. **Retry floor.** The local policy that refuses fewer than three
+   remaining attempts stays. It is stricter than section 10.3, which
+   mandates refusal only at zero or an unreadable counter.
+6. **Algorithm registry.** The custodian still accepts the earlier
+   registry's SHA-384 and SHA-512 algorithms beside the two section 9.2
+   names, because P-384 cards need SHA-384 for TLS 1.3.
+7. **Identity answer.** `read_identity` reports the authentication
+   certificate's holder name, its subject identifier as `card_id`, and its
+   validity dates as issuance and expiration; the phone reads no separate
+   card file for them.
+8. **Vocabulary gaps.** A second request while one is in flight is refused
+   with `operation_failed`; a card that leaves before the command closes the
+   session with reason `policy`; a retry-floor refusal travels as
+   `operation_failed`.
