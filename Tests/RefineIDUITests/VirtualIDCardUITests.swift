@@ -68,7 +68,7 @@
       XCTAssertTrue(readPhotoButton.waitForExistence(timeout: UITestApp.appearTimeout))
       readPhotoButton.tap()
 
-      let photoView = app.images[UITestIdentifiers.cardPhotoView]
+      let photoView = app.buttons[UITestIdentifiers.cardPhotoView]
       XCTAssertTrue(photoView.waitForExistence(timeout: UITestApp.appearTimeout))
 
       let forgetButton = app.buttons[UITestIdentifiers.forgetCardIdentityButton]
