@@ -56,6 +56,10 @@
       /// The holder closed the system sheet before presenting a card.
       case dismissed
 
+      /// `nfcd` has paused reader mode to let the radio cool, and will not
+      /// open a slot until the pause lifts on its own.
+      case readerCoolingDown
+
       /// The system would not give this app an NFC slot at all.
       case slotRefused
     }
@@ -110,6 +114,11 @@
     /// There is no error code for it, only the message, so this matches
     /// the message and treats everything else as a real refusal.
     private static let busyErrorFragment: String = "busy"
+
+    /// The refusal `nfcd` answers while its reader cool-off runs, observed
+    /// as `Error Domain=nfcd Code=47 "Reader mode temporarily disabled"`.
+    private static let coolingDownErrorDomain: String = "nfcd"
+    private static let coolingDownErrorCode: Int = 47
 
     /// How many times the slot is polled for a card before giving up.
     private static let arrivalPollLimit: Int = 200
@@ -269,6 +278,7 @@
           return opened
 
         case .failure(let error):
+          if isCoolingDown(error) { throw Failure.readerCoolingDown }
           guard isBusy(error) else { throw Failure.slotRefused }
         }
       }
@@ -289,6 +299,13 @@
           continuation.resume(returning: .success(opened))
         }
       }
+    }
+
+    /// Whether this refusal is the reader cool-off, which no retry outlasts.
+    private static func isCoolingDown(_ error: any Error) -> Bool {
+      let failure = error as NSError
+      return failure.domain == Self.coolingDownErrorDomain
+        && failure.code == Self.coolingDownErrorCode
     }
 
     /// Whether this refusal is the radio still being held elsewhere.

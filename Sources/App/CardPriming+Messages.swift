@@ -111,6 +111,9 @@
       case .cardNeverArrived:
         String(localized: "No card was found. Hold the card against the top of the phone.")
 
+      case .readerCoolingDown:
+        String(localized: "The phone's card reader is cooling down. Try again in a minute.")
+
       case .slotRefused:
         String(localized: "This iPhone would not open a card reading session.")
 
