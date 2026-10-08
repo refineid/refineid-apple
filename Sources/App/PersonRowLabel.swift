@@ -11,6 +11,13 @@ internal struct PersonRowLabel: View {
   /// Point size every Card-row symbol uses, including Remote.
   internal static let iconPointSize: CGFloat = 28
 
+  /// A row title wraps once, then shrinks this far before truncating.
+  internal static let titleLineLimit = 2
+  internal static let minimumTitleScale: CGFloat = 0.85
+
+  /// Between a row title and whatever trails it.
+  internal static let trailingGap: CGFloat = 4
+
   /// Whether an identity is configured behind the row.
   internal let configured: Bool
 

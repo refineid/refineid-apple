@@ -83,12 +83,7 @@
         CardManagementView(
           readerCardIsPresent: false,
           activationRequired: false,
-          cardAccessNumber: nil,
-          activationScheme: nil,
-          activationNeeds: nil,
-          onActivationSucceeded: {
-            // optional hook; default is a no-op
-          }
+          cardAccessNumber: nil
         )
         .tabItem {
           Label(String(localized: "PIN Codes"), systemImage: "key")

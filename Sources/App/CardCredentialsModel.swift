@@ -193,9 +193,11 @@ internal final class CardCredentialsModel: ObservableObject {
     invalidateCardStatus()
     let outcome = await CardIdentityRemoval.perform()
     refresh()
-    if !outcome.succeeded {
-      failure = outcome.summary
-    }
+    // What could not be removed is a diagnostics matter: the holder has
+    // no action to take on it.
+    #if DEBUG
+      DebugConsole.emit(outcome.summary)
+    #endif
   }
 
   /// Forgets everything after the card refused the stored CAN.

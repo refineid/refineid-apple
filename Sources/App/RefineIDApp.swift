@@ -324,6 +324,11 @@ internal struct RefineIDApp: App {
         }
       #endif
       DemoMode.shared.activateFromLaunchArguments()
+      // A virtual-card launch starts without a stored photo, so every
+      // scenario begins from the same screen.
+      if args.contains(DemoMode.launchArgument) {
+        CardPhotoStore.clear()
+      }
       #if os(iOS)
         if args.contains("--open-document-signing") {
           var state = DemoMode.shared.state

@@ -85,7 +85,7 @@ import SwiftUI
             .foregroundStyle(.secondary)
         }
       } header: {
-        compactSectionHeader("Identity")
+        CompactSectionHeader(title: String(localized: "Identity"))
       }
       .onValueChange(of: remoteModel.needsFreshPairing) { needsFresh in
         if needsFresh {
