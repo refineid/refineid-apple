@@ -319,7 +319,7 @@ private func step7() throws {
       operationIdentifier: OperationFixture.operationIdentifier,
       requestHash: try browserRequest().requestHash())
     try journal.commit(to: &store, requestHash: try browserRequest().requestHash())
-    let first = try journal.beginCardCommand(to: &store, command: "one-shot")
+    let first = try journal.beginCardCommand(to: &store, command: "one-shot", batchTotal: nil)
     _ = first.execute { $0 }
 
     // Rewind the durable record to committed, which is what a broken
@@ -333,7 +333,7 @@ private func step7() throws {
         state: .committed,
         transmissionCount: TransmissionCount.untransmitted,
         automaticRetryPermitted: true))
-    let second = try rewound.beginCardCommand(to: &store, command: "one-shot")
+    let second = try rewound.beginCardCommand(to: &store, command: "one-shot", batchTotal: nil)
     _ = second.execute { $0 }
     check(
       "a rewound record would transmit twice, so the check is real",

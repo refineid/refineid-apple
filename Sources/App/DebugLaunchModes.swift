@@ -102,7 +102,8 @@
     /// Runs one mode that needs no window.
     internal static func report(for mode: DebugLaunchMode) -> DebugModeReport {
       switch mode {
-      case .activationProbe, .bleSpike, .browseProbe, .ctkSignProbe, .listenProbe, .managementProbe,
+      case .activationProbe, .bleOfferRemoteReader, .blePairWithOffer, .bleSpike, .browseProbe,
+        .ctkSignProbe, .listenProbe, .managementProbe,
         .offerRemoteReader, .openSafari, .pairWithOffer, .prime, .remoteSignProbe:
         DebugModeReport(
           lines: [mode.rawValue + ": needs a live scene; it is run from the window instead"],

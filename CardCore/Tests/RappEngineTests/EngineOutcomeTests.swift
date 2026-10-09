@@ -32,8 +32,8 @@ internal struct EngineOutcomeTests {
     EngineReport.check(
       denied
         == .terminal(
-          operationIdentifier: identifier, state: .rejected, status: .rejected,
-          error: .userCancelled),
+          operationIdentifier: identifier, status: .rejected, error: .userCancelled,
+          batchSignatures: []),
       "the requester journals the denial as terminal, naming why it ended")
   }
 

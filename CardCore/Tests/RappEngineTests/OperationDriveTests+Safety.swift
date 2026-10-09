@@ -59,11 +59,11 @@ private func secondTransmissionRefused() throws {
     requestHash: try browserRequest().requestHash())
   var direct = OperationJournalStore()
   try journal.commit(to: &direct, requestHash: try browserRequest().requestHash())
-  let first = try journal.beginCardCommand(to: &direct, command: "one-shot")
+  let first = try journal.beginCardCommand(to: &direct, command: "one-shot", batchTotal: nil)
   _ = first.execute { $0 }
   var journalSecond = false
   do {
-    _ = try journal.beginCardCommand(to: &direct, command: "one-shot")
+    _ = try journal.beginCardCommand(to: &direct, command: "one-shot", batchTotal: nil)
     journalSecond = true
   } catch JournalError.invalidState {
     journalSecond = false

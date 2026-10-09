@@ -97,7 +97,7 @@ import Testing
           throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
 
         case .executeSafeRead, .completed,
-          .peerBusy, .peerUnknownOperation, .progress:
+          .peerBusy, .peerUnknownOperation, .progress, .batchSignatures:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
         }
       }
@@ -137,7 +137,7 @@ import Testing
           throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
 
         case .executeSafeRead, .completed,
-          .operationFinished, .peerBusy, .peerUnknownOperation, .progress:
+          .operationFinished, .peerBusy, .peerUnknownOperation, .progress, .batchSignatures:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
         }
       }
@@ -190,7 +190,7 @@ import Testing
           throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
 
         case .executeSafeRead, .completed,
-          .operationFinished, .peerBusy, .peerUnknownOperation, .progress:
+          .operationFinished, .peerBusy, .peerUnknownOperation, .progress, .batchSignatures:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
         }
       }

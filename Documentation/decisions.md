@@ -17,6 +17,23 @@ Bluetooth session yet; `NetworkContractTests` keeps pinning the relay
 files as unwired and now pins the one declaration instead of its
 absence.
 
+## 2026-10-09 The RAPP v26.10.1 BLE profile is driven by development builds only
+
+`fi.refineid.rapp.ble.v1` (RAPP v26.10.1 §4.2, §5) is implemented: the
+§5.3 segmentation and reassembly layer in `RappEngine` with its own
+vector corpus, the bootstrap offer with a random `offer_id`, and the
+GATT link in CardCore (`RappBleGattPeripheral` for the iPhone custodian,
+`RappBleGattCentral` for the Mac or iPad requester). As the entry above
+records, every application plist declares Bluetooth; nothing in a
+shipped build opens a Bluetooth session. The GATT link is driven only by
+the DEBUG launch modes `--ble-offer-remote-reader` and
+`--ble-pair-with-offer`, and only the Debug and Profile configurations
+sign macOS with `Config/RefineID-Debug.entitlements`, which adds the
+`com.apple.security.device.bluetooth` sandbox entitlement.
+`NetworkContractTests` pins both boundaries. Sessions over BLE, the
+pairing screen, and wiring the profile into the product wait for a
+product decision.
+
 ## 2026-09-30 App Transport Security stays open under a documented contract
 
 `NSAllowsArbitraryLoads` remains true in the macOS and iOS application

@@ -12,6 +12,8 @@ internal enum CardOperationResult: Equatable {
   case identity(CardIdentity)
   case certificate(Data, cardSerial: String? = nil)
   case signature(Data)
+  /// The ordered signatures of a completed `batch_sign_documents`.
+  case signatures([Data])
 }
 
 // swiftlint:enable sorted_enum_cases

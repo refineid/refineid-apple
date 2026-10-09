@@ -142,7 +142,7 @@
 
       case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
         .executeCardCommand, .operationFinished,
-        .peerBusy, .peerUnknownOperation:
+        .peerBusy, .peerUnknownOperation, .batchSignatures:
         Self.logger.notice(
           "[RappRequester] coordinator unexpected proxy event on requester: \(eventDesc, privacy: .public)"
         )

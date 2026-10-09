@@ -114,6 +114,40 @@
         ))
     }
 
+    /// Starts a requester batch signature over 1 to 64 named documents
+    /// (RAPP v26.10.1 §9.3); names and digests pair up by position.
+    public func beginBatchSignDocuments(
+      documentNames: [String],
+      keyProfile: KeyProfile,
+      algorithm: SignatureAlgorithm,
+      digests: [Data],
+      expiresAfterMilliseconds: UInt64
+    ) throws -> [Command] {
+      try commands(
+        bridge.beginBatchSignDocuments(
+          operationId: entropy.operationID(),
+          documentNames: documentNames,
+          keyProfile: keyProfile.binding,
+          algorithm: algorithm.binding,
+          digests: digests,
+          localStartMs: clock.monotonicMilliseconds(),
+          expiresAfterMs: expiresAfterMilliseconds
+        ))
+    }
+
+    /// The recorder a custodian's card session journals each batch
+    /// signature through, before it signs the next document.
+    nonisolated public func batchSignatureRecorder(
+      operationID: Data
+    ) -> RappBatchSignatureRecorder {
+      RappBatchSignatureRecorder(bridge: bridge, operationID: operationID)
+    }
+
+    /// Completes a batch once every document's signature is journaled.
+    public func completeBatch(operationID: Data) throws -> [Command] {
+      try commands(bridge.completeBatch(operationId: operationID))
+    }
+
     /// Starts a requester document-signing operation for the named document.
     public func beginSignDocument(
       documentName: String,

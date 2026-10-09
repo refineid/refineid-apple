@@ -72,6 +72,16 @@
       case .browseProbe, .listenProbe, .offerRemoteReader, .pairWithOffer:
         await runPairingMode(mode)
 
+      case .bleOfferRemoteReader:
+        let report = await DebugBlePairing.offer()
+        DebugConsole.emit(report.lines)
+        DebugConsole.finish(succeeded: report.succeeded)
+
+      case .blePairWithOffer:
+        let report = await DebugBlePairing.pair(code: DebugLaunchModes.offerURI())
+        DebugConsole.emit(report.lines)
+        DebugConsole.finish(succeeded: report.succeeded)
+
       case .activationProbe:
         #if REFINEID_LOCAL_CARD && os(iOS)
           let report = await CardMaintenance.debugActivationSignals()

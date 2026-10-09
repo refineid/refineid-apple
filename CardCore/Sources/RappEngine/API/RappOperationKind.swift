@@ -14,6 +14,7 @@ public enum RappOperationKind: Sendable {
   case readIntermediateCertificate
   case browserAuthenticate
   case signDocument
+  case batchSignDocuments
 }
 
 // swiftlint:enable sorted_enum_cases

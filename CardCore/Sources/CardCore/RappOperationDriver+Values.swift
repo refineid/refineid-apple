@@ -175,6 +175,7 @@
       case readIntermediateCertificate
       case browserAuthenticate
       case signDocument
+      case batchSignDocuments
 
       internal init(_ value: RappOperationKind) {
         switch value {
@@ -201,6 +202,9 @@
 
         case .signDocument:
           self = .signDocument
+
+        case .batchSignDocuments:
+          self = .batchSignDocuments
         }
       }
     }
@@ -217,6 +221,10 @@
       public let algorithm: SignatureAlgorithm?
       /// Digest to be signed; empty for non-signing operations.
       public let digest: Data
+      /// A batch's document names in signing order; empty otherwise.
+      public let documentNames: [String]
+      /// A batch's digests, paired with `documentNames`; empty otherwise.
+      public let digests: [Data]
 
       internal init(_ value: RappOperationDescriptor) {
         kind = OperationKind(value.kind)
@@ -224,6 +232,8 @@
         keyProfile = value.keyProfile.map(KeyProfile.init)
         algorithm = value.algorithm.map(SignatureAlgorithm.init)
         digest = value.digest
+        documentNames = value.documentNames
+        digests = value.digests
       }
     }
 
@@ -233,6 +243,7 @@
       case identity
       case certificate
       case signature
+      case signatures
 
       internal init(_ value: RappResultKind) {
         switch value {
@@ -247,6 +258,9 @@
 
         case .signature:
           self = .signature
+
+        case .signatures:
+          self = .signatures
         }
       }
     }
@@ -275,6 +289,8 @@
       public let personID: String?
       /// Certificate DER or signature bytes; empty for other result kinds.
       public let bytes: Data
+      /// A batch's ordered signatures; empty for other result kinds.
+      public let signatures: [Data]
 
       internal init(_ value: RappOperationResult) {
         kind = ResultKind(value.kind)
@@ -288,6 +304,7 @@
         displayName = value.displayName
         personID = value.personId
         bytes = value.bytes
+        signatures = value.signatures
       }
     }
 
@@ -361,6 +378,9 @@
       case executeCardCommand(operationID: Data, operation: Operation)
       case completed(operationID: Data, result: Result)
       case terminal(operationID: Data?, state: String?, reason: TerminalReason?)
+      /// The signatures an interrupted batch made before it became
+      /// ambiguous, in document order; precedes that batch's `terminal`.
+      case batchSignatures(operationID: Data, signatures: [Data])
       case operationFinished(operationID: Data?)
       case peerBusy(operationID: Data?)
       case peerUnknownOperation(operationID: Data?)

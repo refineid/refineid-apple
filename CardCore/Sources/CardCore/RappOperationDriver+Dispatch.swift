@@ -175,14 +175,17 @@
         )
 
       case .terminal, .cancelled:
-        return scheduled(
-          [
-            .terminal(
-              operationID: operationID,
-              state: action.terminalState,
-              reason: action.terminalReason.map(TerminalReason.init)
-            )
-          ], for: action)
+        var commands: [Command] = []
+        if let operationID, !action.batchSignatures.isEmpty {
+          commands.append(
+            .batchSignatures(operationID: operationID, signatures: action.batchSignatures))
+        }
+        commands.append(
+          .terminal(
+            operationID: operationID,
+            state: action.terminalState,
+            reason: action.terminalReason.map(TerminalReason.init)))
+        return scheduled(commands, for: action)
 
       case .progress:
         guard let operationID, let event = action.progressEvent else {

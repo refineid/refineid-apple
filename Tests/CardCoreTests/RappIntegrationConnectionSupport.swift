@@ -199,7 +199,7 @@ private let fixturePairingCode = "246813"
 
         case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
           .executeCardCommand, .operationFinished,
-          .peerBusy, .peerUnknownOperation, .progress:
+          .peerBusy, .peerUnknownOperation, .progress, .batchSignatures:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
         }
       }
@@ -223,7 +223,7 @@ private let fixturePairingCode = "246813"
 
         case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
           .executeCardCommand, .completed,
-          .operationFinished, .peerBusy, .peerUnknownOperation, .progress:
+          .operationFinished, .peerBusy, .peerUnknownOperation, .progress, .batchSignatures:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
         }
       }

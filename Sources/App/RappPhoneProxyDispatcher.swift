@@ -57,7 +57,7 @@
       from coordinator: RappConnectionCoordinator
     ) async {
       switch event {
-      case .established, .peerBusy, .progress:
+      case .established, .peerBusy, .progress, .batchSignatures:
         return
 
       case .inspectPrerequisites(let operationID, let operation):

@@ -17,7 +17,8 @@ internal struct OperationJournal {
       requestHash: requestHash,
       state: .prepared,
       transmissionCount: TransmissionCount.untransmitted,
-      automaticRetryPermitted: false)
+      automaticRetryPermitted: false,
+      batch: nil)
   }
 
   /// Adopts a record recovered from storage.
@@ -52,8 +53,11 @@ internal struct OperationJournal {
   ///
   /// The record reaches storage first. If that write fails nothing is handed
   /// out, so a command can never be transmitted without a durable trace.
+  ///
+  /// A batch starts its per-document progress in the same write (RAPP
+  /// v26.10.1 §8.1): total known, nothing signed yet.
   internal mutating func beginCardCommand<Command>(
-    to store: inout some JournalStore, command: Command
+    to store: inout some JournalStore, command: Command, batchTotal: Int?
   ) throws -> PendingCardCommand<Command> {
     guard record.state == .committed else {
       throw JournalError.invalidState(state: record.state)
@@ -61,8 +65,33 @@ internal struct OperationJournal {
     guard record.transmissionCount == TransmissionCount.untransmitted else {
       throw JournalError.alreadyTransmitted
     }
-    try persist(&store, state: .executing, transmissions: TransmissionCount.single)
+    var next = record
+    next.state = .executing
+    next.transmissionCount = TransmissionCount.single
+    next.automaticRetryPermitted = false
+    next.batch = batchTotal.map { total in
+      ProxyJournalRecord.BatchProgress(total: total, completedSignatures: [])
+    }
+    try store.persist(next)
+    record = next
     return PendingCardCommand(command: command)
+  }
+
+  /// Records one batch signature before the next document is signed, so a
+  /// signature already made is never made again (RAPP v26.10.1 §9.3).
+  internal mutating func recordBatchSignature(
+    to store: inout some JournalStore, signature: Data
+  ) throws {
+    guard record.state == .executing, var batch = record.batch,
+      batch.completedSignatures.count < batch.total, !signature.isEmpty
+    else {
+      throw JournalError.invalidState(state: record.state)
+    }
+    batch.completedSignatures.append(signature)
+    var next = record
+    next.batch = batch
+    try store.persist(next)
+    record = next
   }
 
   /// Writes an unsuccessful terminal state with the result that reports it.

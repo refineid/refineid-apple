@@ -55,6 +55,36 @@
         ))
     }
 
+    /// Starts a batch signature over the digests of named documents.
+    public func beginBatchSignDocuments(
+      documentNames: [String],
+      keyProfile: RappOperationDriver.KeyProfile,
+      algorithm: RappOperationDriver.SignatureAlgorithm,
+      digests: [Data],
+      expiresAfterMilliseconds: UInt64
+    ) async throws {
+      let driver = try operationDriver()
+      await handleOperation(
+        try await driver.beginBatchSignDocuments(
+          documentNames: documentNames,
+          keyProfile: keyProfile,
+          algorithm: algorithm,
+          digests: digests,
+          expiresAfterMilliseconds: expiresAfterMilliseconds
+        ))
+    }
+
+    /// The recorder a card session journals each batch signature through.
+    public func batchSignatureRecorder(operationID: Data) throws -> RappBatchSignatureRecorder {
+      try operationDriver().batchSignatureRecorder(operationID: operationID)
+    }
+
+    /// Completes a batch once every document's signature is journaled.
+    public func completeBatch(operationID: Data) async throws {
+      let driver = try operationDriver()
+      await handleOperation(try await driver.completeBatch(operationID: operationID))
+    }
+
     /// Starts a sign-document operation over the digest of a named document.
     public func beginSignDocument(
       documentName: String,

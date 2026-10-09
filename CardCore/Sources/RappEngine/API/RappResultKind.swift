@@ -6,4 +6,6 @@ public enum RappResultKind: Sendable {
   case identity
   case inspection
   case signature
+  /// The ordered signatures of a batch.
+  case signatures
 }

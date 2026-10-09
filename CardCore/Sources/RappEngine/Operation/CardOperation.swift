@@ -23,16 +23,28 @@ internal enum CardOperation: Equatable {
   case signDocument(
     documentName: String, keyProfile: CardKeyProfile, algorithm: SignatureAlgorithm, digest: Data)
 
+  /// Signs 1 to 64 documents under one PIN 2 entry (RAPP v26.10.1 §9.3);
+  /// names and digests pair up by position.
+  case batchSignDocuments(
+    documentNames: [String], keyProfile: CardKeyProfile, algorithm: SignatureAlgorithm,
+    digests: [Data])
+
   /// Whether this action crosses the prepare and commit boundary, so that it
   /// may consume a credential attempt or invoke a private key.
   internal var isConsequential: Bool {
     switch self {
-    case .browserAuthenticate, .signDocument:
+    case .browserAuthenticate, .signDocument, .batchSignDocuments:
       true
 
     case .inspectCard, .readIdentity, .readCertificate:
       false
     }
+  }
+
+  /// How many documents a batch signs; nil for any other operation.
+  internal var batchTotal: Int? {
+    guard case .batchSignDocuments(_, _, _, let digests) = self else { return nil }
+    return digests.count
   }
 
   /// The credential profile that owns this action's schema.
@@ -54,7 +66,7 @@ internal enum CardOperation: Equatable {
     case .browserAuthenticate:
       .authentication
 
-    case .signDocument:
+    case .signDocument, .batchSignDocuments:
       .documentSigning
     }
   }
@@ -76,6 +88,9 @@ internal enum CardOperation: Equatable {
 
     case .signDocument:
       "sign_document"
+
+    case .batchSignDocuments:
+      "batch_sign_documents"
     }
   }
 
@@ -90,6 +105,9 @@ internal enum CardOperation: Equatable {
 
     case .signDocument(let documentName, _, _, _):
       ["document_name": .text(documentName)]
+
+    case .batchSignDocuments(let documentNames, _, _, _):
+      ["document_names": .array(documentNames.map(WireValue.text))]
     }
   }
 
@@ -108,6 +126,13 @@ internal enum CardOperation: Equatable {
         "key_profile": .text(keyProfile.rawValue),
         "algorithm": .text(algorithm.rawValue),
         "digest": .bytes(digest),
+      ]
+
+    case .batchSignDocuments(_, let keyProfile, let algorithm, let digests):
+      return [
+        "key_profile": .text(keyProfile.rawValue),
+        "algorithm": .text(algorithm.rawValue),
+        "digests": .array(digests.map(WireValue.bytes)),
       ]
     }
   }
@@ -163,6 +188,13 @@ internal enum CardOperation: Equatable {
         algorithm: try takeAlgorithm(&payload),
         digest: try takeOperationBytes(&payload, "digest"))
 
+    case "batch_sign_documents":
+      operation = .batchSignDocuments(
+        documentNames: try takeOperationTextArray(&context, "document_names"),
+        keyProfile: try takeKeyProfile(&payload),
+        algorithm: try takeAlgorithm(&payload),
+        digests: try takeOperationBytesArray(&payload, "digests"))
+
     default:
       throw CardOperationError.unknownAction
     }
@@ -182,6 +214,17 @@ internal enum CardOperation: Equatable {
 
     case .signDocument(let documentName, let keyProfile, let algorithm, let digest):
       try Self.validateNamedDigest(documentName, keyProfile, algorithm, digest)
+
+    case .batchSignDocuments(let documentNames, let keyProfile, let algorithm, let digests):
+      guard OperationLimit.batchDocuments.contains(digests.count),
+        documentNames.count == digests.count
+      else { throw CardOperationError.invalidField(field: "digests") }
+      for (name, digest) in zip(documentNames, digests) {
+        guard OperationLimit.batchDocumentNameBytes.contains(name.utf8.count) else {
+          throw CardOperationError.invalidDisplayContext
+        }
+        try Self.validateNamedDigest(name, keyProfile, algorithm, digest)
+      }
     }
   }
 }

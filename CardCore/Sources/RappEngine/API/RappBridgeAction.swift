@@ -34,6 +34,9 @@ public struct RappBridgeAction: Equatable, Sendable {
   public var nextPollAtMs: UInt64?
   /// Advisory progress event reported by peer.
   public var progressEvent: ProgressEvent?
+  /// The signatures an interrupted batch made before it became ambiguous,
+  /// in document order; empty otherwise (RAPP v26.10.1 §9.3).
+  public var batchSignatures: [Data]
 
   /// Describes one step, carrying only what that step needs.
   public init(
@@ -47,7 +50,8 @@ public struct RappBridgeAction: Equatable, Sendable {
     closeSessionAfterSend: Bool = false,
     revokesPairing: Bool = false,
     nextPollAtMs: UInt64? = nil,
-    progressEvent: ProgressEvent? = nil
+    progressEvent: ProgressEvent? = nil,
+    batchSignatures: [Data] = []
   ) {
     self.kind = kind
     self.operationId = operationId
@@ -60,5 +64,6 @@ public struct RappBridgeAction: Equatable, Sendable {
     self.revokesPairing = revokesPairing
     self.nextPollAtMs = nextPollAtMs
     self.progressEvent = progressEvent
+    self.batchSignatures = batchSignatures
   }
 }

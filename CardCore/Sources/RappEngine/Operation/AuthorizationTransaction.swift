@@ -24,6 +24,11 @@ internal struct AuthorizationTransaction {
       operationIdentifier: request.operationIdentifier, requestHash: requestHash)
   }
 
+  /// The signatures a batch has made so far, in document order.
+  internal var batchSignatures: [Data] {
+    journal.record.batch?.completedSignatures ?? []
+  }
+
   /// The state the protocol shows for this operation.
   internal var operationState: OperationState {
     switch stage {
@@ -88,12 +93,21 @@ internal struct AuthorizationTransaction {
     try mapJournal { try journal.commit(to: &store, requestHash: requestHash) }
     let command = AuthorizedCardCommand(operation: request.operation)
     do {
-      _ = try journal.beginCardCommand(to: &store, command: command)
+      _ = try journal.beginCardCommand(
+        to: &store, command: command, batchTotal: request.operation.batchTotal)
     } catch let error as JournalError {
       throw AuthorizationError.journal(error)
     }
     stage = .executing
     return .executeCardCommand
+  }
+
+  /// Records one batch signature as the card makes it.
+  internal mutating func recordBatchSignature(
+    to store: inout some JournalStore, signature: Data
+  ) throws {
+    guard stage == .executing else { throw AuthorizationError.wrongStage(stage: stage) }
+    try mapJournal { try journal.recordBatchSignature(to: &store, signature: signature) }
   }
 
   /// Retains a completed result before it may be released to the transport.
@@ -105,6 +119,13 @@ internal struct AuthorizationTransaction {
       try result.validate(for: reference, operation: request.operation)
     } catch {
       throw AuthorizationError.invalidResult
+    }
+    if let batch = journal.record.batch {
+      // A batch completes only with exactly the signatures it journaled.
+      guard batch.completedSignatures.count == batch.total,
+        (try? result.typedResult(for: request.operation))
+          == .signatures(batch.completedSignatures)
+      else { throw AuthorizationError.invalidResult }
     }
     switch stage {
     case .executing:

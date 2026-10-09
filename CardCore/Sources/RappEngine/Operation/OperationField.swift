@@ -53,3 +53,29 @@ internal func takeOperationMap(_ map: inout [String: WireValue], _ field: String
   }
   return value
 }
+
+internal func takeOperationTextArray(_ map: inout [String: WireValue], _ field: String) throws
+  -> [String]
+{
+  guard case .some(.array(let values)) = map.removeValue(forKey: field) else {
+    throw CardOperationError.invalidField(field: field)
+  }
+  return try values.map { value in
+    guard case .text(let text) = value else { throw CardOperationError.invalidField(field: field) }
+    return text
+  }
+}
+
+internal func takeOperationBytesArray(_ map: inout [String: WireValue], _ field: String) throws
+  -> [Data]
+{
+  guard case .some(.array(let values)) = map.removeValue(forKey: field) else {
+    throw CardOperationError.invalidField(field: field)
+  }
+  return try values.map { value in
+    guard case .bytes(let bytes) = value else {
+      throw CardOperationError.invalidField(field: field)
+    }
+    return bytes
+  }
+}
