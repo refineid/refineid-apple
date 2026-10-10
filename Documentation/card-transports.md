@@ -171,7 +171,7 @@ held on the phone without requiring a smart card slot or USB reader on the Mac.
    and order, with the trailing personal identifier removed, for example
    `MEIKÄLÄINEN MATTI`. Nothing recases or reorders it on the wire; a
    display that wants another casing applies it locally.
-4. **Encrypted in-band card departure.** When a card is disconnected during an
+8. **Encrypted in-band card departure.** When a card is disconnected during an
    active proxy session, the proxy immediately transmits an encrypted in-band
    `session.close(card_unavailable)` message. This unblocks the Mac browser
    prompt instantly without exposing card presence transitions to passive network
