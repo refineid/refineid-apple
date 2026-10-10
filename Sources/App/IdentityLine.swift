@@ -39,7 +39,7 @@
         if !facts.cardPresent, facts.phoneWaitsForCard {
           return .phoneConnectedRetry
         }
-        return facts.warnsUnavailableCard ? .cardNotReady : .reading
+        return facts.warnsUnavailableCard && facts.cardPresent ? .cardNotReady : .reading
 
       case .noCard:
         if facts.readInFlight {

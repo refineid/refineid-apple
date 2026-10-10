@@ -70,8 +70,11 @@
     }
 
     @ViewBuilder internal var readingSection: some View {
-      IdentityStateView(availability: .cardWithoutIdentity, warnsUnavailableCard: false)
-        .accessibilityIdentifier("loginIdentityStatus")
+      IdentityStateView(
+        availability: .cardWithoutIdentity,
+        warnsUnavailableCard: ActivationWatch.shared.warnsUnavailableCard
+      )
+      .accessibilityIdentifier("loginIdentityStatus")
     }
 
     @ViewBuilder internal var pairingPromptSection: some View {
