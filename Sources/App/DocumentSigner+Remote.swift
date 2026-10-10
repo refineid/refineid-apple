@@ -54,15 +54,12 @@ extension DocumentSigner {
   /// explicitly paired phone.
   internal static func remoteCardMaterial(
     prepared: PdfSignaturePlaceholder,
+    documentName: String,
     byteRangeDigest: Data,
     expectedCertificate: Data?
   ) async throws -> CardMaterial {
     let product = try await Self.remoteQualifiedSignature(
-      documentName: String(
-        localized: "Document",
-        defaultValue: "Document",
-        table: "DocumentSigning"
-      ),
+      documentName: documentName,
       expectedCertificate: expectedCertificate
     ) { certificate in
       QualifiedDocumentCms.signedAttributes(

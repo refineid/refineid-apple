@@ -97,52 +97,38 @@ internal enum DocumentSigner {
   /// Signs `document`, answering the finished bytes.
   internal static func sign(
     _ document: Data,
+    named name: String,
     reason: String?,
     location: String?,
     access: SigningAccess
   ) async throws -> Product {
     try await Self.sign(
       document,
-      reason: reason,
-      location: location,
+      named: name,
+      claim: PdfIncrementalSigner.SignatureClaim(
+        signedAt: Date(), reason: reason, location: location
+      ),
       stamp: nil,
       access: access
     )
   }
 
-  /// The same, appending a page carrying the visible mark.
+  /// The same operation with one instant shared by the QR and PDF.
   ///
-  /// The page is written in the signature's own revision, so it is
-  /// inside what the signature covers. Adding it afterwards would
+  /// A stamp's page is written in the signature's own revision, so it
+  /// is inside what the signature covers. Adding it afterwards would
   /// leave a document that validators report as changed after
   /// signing.
   internal static func sign(
     _ document: Data,
-    reason: String?,
-    location: String?,
-    stamp: VisibleStamp?,
-    access: SigningAccess
-  ) async throws -> Product {
-    let claim = PdfIncrementalSigner.SignatureClaim(
-      signedAt: Date(), reason: reason, location: location
-    )
-    return try await Self.sign(
-      document,
-      claim: claim,
-      stamp: stamp,
-      access: access
-    )
-  }
-
-  /// The same operation with one instant shared by the QR and PDF.
-  internal static func sign(
-    _ document: Data,
+    named name: String,
     claim: PdfIncrementalSigner.SignatureClaim,
     stamp: VisibleStamp?,
     access: SigningAccess
   ) async throws -> Product {
     let material = try await Self.cardMaterial(
       document: document,
+      named: name,
       claim: claim,
       stamp: stamp,
       access: access
@@ -224,6 +210,7 @@ internal enum DocumentSigner {
   /// one exclusive card session.
   private static func cardMaterial(
     document: Data,
+    named name: String,
     claim: PdfIncrementalSigner.SignatureClaim,
     stamp: VisibleStamp?,
     access: SigningAccess
@@ -241,6 +228,7 @@ internal enum DocumentSigner {
     if await MainActor.run(body: { Self.usesRappSigning }) {
       return try await Self.remoteCardMaterial(
         prepared: prepared,
+        documentName: name,
         byteRangeDigest: digest,
         expectedCertificate: stamp?.signerCertificate
       )
