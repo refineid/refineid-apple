@@ -9,6 +9,19 @@
   import Security
 
   extension PersistentTokenRegistry {
+    /// What became of one attempt to offer a borrowed identity.
+    internal enum PublishOutcome: Equatable {
+      /// The driver holds the certificate; Safari can be offered it.
+      case published
+
+      /// A card in a reader outranks the phone; nothing was offered.
+      case readerHasPriority
+
+      /// Nothing was offered: no pairing to bind it to, a certificate
+      /// the token cannot use, or no driver.
+      case notPublished
+    }
+
     /// The certificate this driver is currently offering, if any.
     internal static func publishedCertificateDER() -> Data? {
       guard let driver = driverConfiguration else { return nil }
@@ -77,21 +90,21 @@
       return try? pair.encodedBytes()
     }
 
-    /// Offers `certificateDER` as the borrowed identity; answers whether
-    /// the driver now holds it.
+    /// Offers `certificateDER` as the borrowed identity and answers what
+    /// became of it.
     ///
     /// The holder line and certificate are set only once the token
     /// configuration exists, so the window never names a person Safari
     /// cannot be offered.
     @discardableResult
-    internal static func publish(_ certificateDER: Data, cardSerial: String?) -> Bool {
-      guard Self.isRemoteCardEnabled else { return false }
+    internal static func publish(_ certificateDER: Data, cardSerial: String?) -> PublishOutcome {
+      guard Self.isRemoteCardEnabled else { return .notPublished }
       guard !CardPresence.shared.isReaderCardPresent else {
         #if DEBUG
           print("[persistent-token] suppressed publish: reader card has priority")
           fflush(stdout)
         #endif
-        return false
+        return .readerHasPriority
       }
       guard
         let driver = driverConfiguration,
@@ -103,7 +116,7 @@
         ),
         let pairBytes = activePairConfigurationData()
       else {
-        return false
+        return .notPublished
       }
 
       let instanceID = tokenInstanceID(for: certificateDER, cardSerial: cardSerial)
@@ -117,7 +130,7 @@
         #if os(macOS)
           LoginIdentityModel.shared.refresh()
         #endif
-        return true
+        return .published
       }
       for existingID in driver.tokenConfigurations.keys {
         driver.removeTokenConfiguration(for: existingID)
@@ -134,7 +147,7 @@
         print("[persistent-token] published \(instanceID)")
         fflush(stdout)
       #endif
-      return publishedCertificateDER() == certificateDER
+      return publishedCertificateDER() == certificateDER ? .published : .notPublished
     }
   }
 #endif

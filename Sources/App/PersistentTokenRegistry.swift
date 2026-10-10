@@ -272,14 +272,19 @@
         #endif
         return
       }
-      guard Self.publish(certificateDER, cardSerial: cardSerial) else {
-        // A reader card outranks the phone; that is no failure of the read.
-        if !CardPresence.shared.isReaderCardPresent {
-          fetchBackoff.recordFailure(at: .now)
-        }
+      switch Self.publish(certificateDER, cardSerial: cardSerial) {
+      case .notPublished:
+        fetchBackoff.recordFailure(at: .now)
         return
+
+      case .readerHasPriority:
+        // The read worked; the reader card takes the identity's place.
+        fetchBackoff.reset()
+        return
+
+      case .published:
+        fetchBackoff.reset()
       }
-      fetchBackoff.reset()
       #if REFINEID_STREAM_TRANSPORT
         if HolderPresencePolicy.armsLossHoldAfterRead(holderSeen: holderIsAdvertising) {
           armAdvertisementLossHold()
