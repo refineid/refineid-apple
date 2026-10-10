@@ -30,6 +30,15 @@
       #endif
     }
 
+    /// Whether a presence browser reports the holder in this build.
+    internal static var browsesForPresence: Bool {
+      #if REFINEID_STREAM_TRANSPORT
+        true
+      #else
+        false
+      #endif
+    }
+
     internal static let fetchStateDidChangeNotification = Notification.Name(
       "fi.refineid.PersistentTokenRegistry.fetchStateDidChange"
     )
@@ -76,12 +85,10 @@
     internal private(set) var isRunning = false
     private var fetchBackoff = CertificateFetchBackoff()
 
-    /// Whether the holder's stream advertisement has been seen this run.
-    internal var hasSeenHolderAdvertisement = false
-
-    /// Whether that advertisement is on the network right now.
+    /// Whether the presence browser reports the holder on the network now.
     ///
-    /// Loss after a find is the signal to withdraw the borrowed identity.
+    /// Only the browser sets it; its loss is the signal to withdraw the
+    /// borrowed identity.
     internal var holderIsAdvertising = false
 
     /// Whether the phone is on the network but no certificate has been
@@ -141,7 +148,6 @@
       shared.holderLine = nil
       shared.certificateDER = nil
       shared.holderIsAdvertising = false
-      shared.hasSeenHolderAdvertisement = false
       #if REFINEID_STREAM_TRANSPORT
         shared.advertisementLossTask?.cancel()
         shared.advertisementLossTask = nil
@@ -176,6 +182,11 @@
         Self.withdrawPublishedIdentity()
       }
       resetFetchFailures()
+      // With a presence browser the holder's arrival starts the read; a
+      // read sent before the phone is seen would only wait out its timeout.
+      if !HolderPresencePolicy.readsAtStart(browsesForPresence: Self.browsesForPresence) {
+        return
+      }
       startFetch(replacing: false)
     }
 
@@ -275,9 +286,12 @@
       fetchBackoff.reset()
       self.certificateDER = certificateDER
       self.holderLine = DistinguishedName.holderLine(fromCertificate: certificateDER)
-      holderIsAdvertising = true
-      hasSeenHolderAdvertisement = true
       Self.publish(certificateDER, cardSerial: cardSerial)
+      #if REFINEID_STREAM_TRANSPORT
+        if HolderPresencePolicy.armsLossHoldAfterRead(holderSeen: holderIsAdvertising) {
+          armAdvertisementLossHold()
+        }
+      #endif
     }
   }
 #endif

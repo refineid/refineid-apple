@@ -132,7 +132,6 @@
       if clearHold {
         advertisementLossTask?.cancel()
         advertisementLossTask = nil
-        hasSeenHolderAdvertisement = false
         holderIsAdvertising = false
       }
     }
@@ -171,7 +170,6 @@
       guard !Self.activeHolderPairings().isEmpty else {
         advertisementLossTask?.cancel()
         advertisementLossTask = nil
-        hasSeenHolderAdvertisement = false
         holderIsAdvertising = false
         Self.withdrawPublishedIdentity()
         return
@@ -179,7 +177,6 @@
       if present {
         advertisementLossTask?.cancel()
         advertisementLossTask = nil
-        hasSeenHolderAdvertisement = true
         holderIsAdvertising = true
         if certificateDER == nil {
           startFetch(replacing: false)
@@ -188,11 +185,21 @@
         }
         return
       }
-      guard hasSeenHolderAdvertisement, holderIsAdvertising else { return }
-      advertisementLossTask?.cancel()
+      guard
+        HolderPresencePolicy.armsLossHoldOnLoss(
+          holderSeen: holderIsAdvertising, identityHeld: certificateDER != nil)
+      else { return }
+      armAdvertisementLossHold()
+    }
+
+    /// Withdraws the borrowed identity unless the browser reports the
+    /// holder within ``advertisementLossHold``.
+    internal func armAdvertisementLossHold() {
+      guard advertisementLossTask == nil else { return }
       advertisementLossTask = Task { @MainActor in
         try? await Task.sleep(for: Self.advertisementLossHold)
         guard !Task.isCancelled else { return }
+        advertisementLossTask = nil
         holderIsAdvertising = false
         Self.withdrawPublishedIdentity()
         #if DEBUG

@@ -59,7 +59,6 @@
       PersistentTokenRegistry.shared.holderLine = "TEST HOLDER"
       PersistentTokenRegistry.shared.certificateDER = Data([0x30, 0x82, 0x01])
       PersistentTokenRegistry.shared.holderIsAdvertising = true
-      PersistentTokenRegistry.shared.hasSeenHolderAdvertisement = true
 
       // Physical reader card inserted
       CardPresence.shared.setReaderCardPresentForTesting(true)
@@ -67,7 +66,6 @@
       #expect(PersistentTokenRegistry.shared.certificateDER == nil)
       #expect(PersistentTokenRegistry.shared.holderLine == nil)
       #expect(!PersistentTokenRegistry.shared.holderIsAdvertising)
-      #expect(!PersistentTokenRegistry.shared.hasSeenHolderAdvertisement)
     }
 
     @Test
