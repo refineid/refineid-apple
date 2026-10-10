@@ -10,24 +10,11 @@
       /// The invitation wraps past this width instead of stretching
       /// the content-sized window to fit one long line.
       static let promptMaxWidth: CGFloat = 600
-      static let bulletSpacing: CGFloat = 6
-      static let bulletItemSpacing: CGFloat = 6
-    }
-
-    /// What the pairing prompt shows.
-    ///
-    /// The phone code is always offered: a reader and a paired phone
-    /// coexist, and the holder chooses. A connected reader adds the
-    /// instruction to use it.
-    internal enum Content: Equatable {
-      case phoneCode
-      case phoneCodeBesideReader
     }
 
     @StateObject private var model = RappPairingModel()
     @State private var codeEntry = ""
-
-    @ObservedObject private var cardPresence = CardPresence.shared
+    @State private var refused = false
 
     internal var body: some View {
       Section {
@@ -35,40 +22,43 @@
           .frame(maxWidth: Layout.promptMaxWidth, alignment: .leading)
       }
       .announcesOutcome(failure)
+      .onValueChange(of: failure) { message in
+        refused = message != nil
+      }
     }
 
     @ViewBuilder private var promptText: some View {
-      if Self.content(readerConnected: cardPresence.isReaderConnected) == .phoneCodeBesideReader {
-        bullets([
-          String(
-            localized: "Insert your identity card into the reader"
-          )
-        ])
-      }
-      TextField(String(localized: "Code from phone"), text: $codeEntry)
-        .font(.body)
-        .autocorrectionDisabled()
+      Text(String(localized: "Open RefineID on your phone and enter the pairing code:"))
+        .textSelection(.enabled)
+        .fixedSize(horizontal: false, vertical: true)
+      HStack {
+        CodeBoxesField(
+          label: String(localized: "Pairing code"),
+          identifier: "pairingCodeField",
+          caption: nil,
+          length: RappPairingCode.codeLength,
+          groupSize: RappPairingCode.groupSize,
+          text: $codeEntry,
+          refused: $refused,
+          filter: Self.limitedCode,
+          onComplete: { code in model.acceptPairingCode(code) },
+          onSubmit: { model.acceptPairingCode(codeEntry) }
+        )
         .disabled(model.phase == .connecting)
-        .accessibilityLabel(Text(String(localized: "Code from phone")))
-        .accessibilityIdentifier("pairingCodeField")
         .onValueChange(of: codeEntry) { typed in
-          let limited = Self.limitedCode(typed)
-          if limited != typed {
-            codeEntry = limited
-          }
-          if case .failed = model.phase, !limited.isEmpty {
+          if case .failed = model.phase, !typed.isEmpty {
             model.startCodeEntry()
           }
         }
-        .onSubmit { model.acceptPairingCode(codeEntry) }
-      if model.phase == .connecting {
-        ProgressView()
-          .controlSize(.small)
-          .accessibilityLabel(Text(String(localized: "Connecting to the phone")))
+        if model.phase == .connecting {
+          ProgressView()
+            .controlSize(.small)
+            .accessibilityLabel(Text(String(localized: "Connecting to the phone")))
+        }
       }
       if let failure {
         Text(failure)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(.red)
       }
     }
 
@@ -91,29 +81,6 @@
         typed.map { RappPairingCode.normalize(String($0)) }
           .joined()
           .prefix(RappPairingCode.codeLength))
-    }
-
-    /// Resolves the prompt for the reader state.
-    nonisolated internal static func content(readerConnected: Bool) -> Content {
-      readerConnected ? .phoneCodeBesideReader : .phoneCode
-    }
-
-    private func bullets(_ items: [String]) -> some View {
-      VStack(alignment: .leading, spacing: Layout.bulletItemSpacing) {
-        ForEach(items, id: \.self) { item in
-          bulletItem(item)
-        }
-      }
-      .textSelection(.enabled)
-    }
-
-    private func bulletItem(_ text: String) -> some View {
-      HStack(alignment: .firstTextBaseline, spacing: Layout.bulletSpacing) {
-        Text("•")
-          .accessibilityHidden(true)
-        Text(text)
-      }
-      .accessibilityElement(children: .combine)
     }
   }
 

@@ -12,16 +12,6 @@ import SwiftUI
 #endif
 
 extension RappPairingCoordinator.PairSummary {
-  internal var remotePlatformLabel: String {
-    switch role {
-    case .requester:
-      String(localized: "Card-holding device")
-
-    case .proxy:
-      String(localized: "Requesting device")
-    }
-  }
-
   internal var remotePlatformSymbol: String {
     switch role {
     case .requester:

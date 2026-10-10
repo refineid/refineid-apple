@@ -7,22 +7,10 @@
 
   @testable import RefineID
 
-  /// The phone code is always asked for, and keeps only what a code holds.
-  ///
-  /// A connected reader adds its instruction beside the field.
+  /// The phone code keeps only what a code holds.
   @MainActor
   @Suite
   internal struct RemotePairingPromptTests {
-    @Test
-    internal func readerConnectedKeepsThePhoneCode() {
-      #expect(RemotePairingPromptView.content(readerConnected: true) == .phoneCodeBesideReader)
-    }
-
-    @Test
-    internal func noReaderAsksForThePhoneCode() {
-      #expect(RemotePairingPromptView.content(readerConnected: false) == .phoneCode)
-    }
-
     @Test
     internal func typedCodeIsCanonicalized() {
       #expect(RemotePairingPromptView.limitedCode("7kx4m9") == "7KX4M9")

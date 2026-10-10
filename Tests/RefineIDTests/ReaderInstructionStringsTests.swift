@@ -3,9 +3,9 @@
 import Foundation
 import Testing
 
-/// The no-card instructions say the same thing in every language:
-/// connect a reader when none is attached, insert the identity card
-/// when one is.
+/// The no-card instructions say the same thing in every language: a
+/// connected reader asks for the card and nothing else; without one the
+/// window asks for the phone.
 @Suite
 internal struct ReaderInstructionStringsTests {
   private static var root: URL {
@@ -51,13 +51,27 @@ internal struct ReaderInstructionStringsTests {
     let strings = try Self.catalog()
     #expect(
       try Self.value(
-        for: "Insert your identity card into the reader", language: "fi", in: strings
-      ) == "Laita henkilökortti lukijaan"
+        for: "Insert the card into the reader", language: "fi", in: strings
+      ) == "Syötä kortti lukijaan"
     )
     #expect(
       try Self.value(
-        for: "Insert your identity card into the reader", language: "sv", in: strings
-      ) == "Sätt in identitetskortet i läsaren"
+        for: "Insert the card into the reader", language: "sv", in: strings
+      ) == "Sätt in kortet i läsaren"
+    )
+  }
+
+  @Test
+  internal func phoneReaderInstructionMatchesInEveryLanguage() throws {
+    let strings = try Self.catalog()
+    let key = "Open RefineID on your phone and enter the pairing code:"
+    #expect(
+      try Self.value(for: key, language: "fi", in: strings)
+        == "Avaa puhelimesta RefineID ja syötä pariliitoskoodi:"
+    )
+    #expect(
+      try Self.value(for: key, language: "sv", in: strings)
+        == "Öppna RefineID på telefonen och ange kopplingskoden:"
     )
   }
 
@@ -82,13 +96,18 @@ internal struct ReaderInstructionStringsTests {
       contentsOf: Self.root.appending(path: "Sources/App/IdentityStateView.swift"),
       encoding: .utf8
     )
-    #expect(identity.contains("Insert your identity card into the reader"))
+    #expect(identity.contains("Insert the card into the reader"))
     #expect(identity.contains("Connect a card reader"))
     let prompt = try String(
       contentsOf: Self.root.appending(path: "Sources/App/RemotePairingPromptView.swift"),
       encoding: .utf8
     )
-    #expect(prompt.contains("Insert your identity card into the reader"))
+    #expect(prompt.contains("Open RefineID on your phone and enter the pairing code:"))
+    let notes = try String(
+      contentsOf: Self.root.appending(path: "Sources/App/StatusView+Notes.swift"),
+      encoding: .utf8
+    )
+    #expect(notes.contains("!cardPresence.isReaderConnected"))
     let settings = try String(
       contentsOf: Self.root.appending(path: "Sources/App/RefineIDSettingsView.swift"),
       encoding: .utf8

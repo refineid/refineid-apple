@@ -20,7 +20,6 @@ internal struct RappPairingView: View {
     internal static let cardSpacing: CGFloat = 14
     internal static let statusIconSize: CGFloat = 40
     internal static let contentSpacing: CGFloat = 12
-    internal static let textLineSpacing: CGFloat = 2
     internal static let codeTopPadding: CGFloat = 4
     internal static let buttonVerticalPadding: CGFloat = 4
     internal static let verticalCardPadding: CGFloat = 8
