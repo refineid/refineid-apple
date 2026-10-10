@@ -87,6 +87,9 @@ public struct RemoteSignCoolDown: Sendable {
       resume()
 
     case .unattended:
+      // Requests already on their way when a pause began end inside it;
+      // they are the same attempt, not further ones.
+      guard !refuses(at: now) else { return }
       let lastEnd = defaults.double(forKey: Self.untilKey)
       let isLapsed = lastEnd > 0 && now.timeIntervalSince1970 - lastEnd > Self.ceiling
       let previous = isLapsed ? 0 : defaults.integer(forKey: Self.consecutiveKey)

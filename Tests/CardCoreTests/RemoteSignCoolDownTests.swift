@@ -51,9 +51,20 @@ internal struct RemoteSignCoolDownTests {
     let coolDown = Fixture.coolDown()
     let now = Date()
     coolDown.record(.unattended, at: now)
+    let next = now.addingTimeInterval(Fixture.initial)
+    coolDown.record(.unattended, at: next)
+    #expect(coolDown.refuses(at: next.addingTimeInterval(Fixture.initial)))
+    #expect(!coolDown.refuses(at: next.addingTimeInterval(Fixture.initial * 2)))
+  }
+
+  /// Endings that arrive inside a pause do not lengthen it.
+  @Test
+  internal func endingsInsideAPauseDoNotGrowIt() {
+    let coolDown = Fixture.coolDown()
+    let now = Date()
     coolDown.record(.unattended, at: now)
-    #expect(coolDown.refuses(at: now.addingTimeInterval(Fixture.initial)))
-    #expect(!coolDown.refuses(at: now.addingTimeInterval(Fixture.initial * 2)))
+    coolDown.record(.unattended, at: now.addingTimeInterval(Fixture.moment))
+    #expect(!coolDown.refuses(at: now.addingTimeInterval(Fixture.initial)))
   }
 
   /// An unattended ending long after the last pause ended starts the
@@ -63,8 +74,8 @@ internal struct RemoteSignCoolDownTests {
     let coolDown = Fixture.coolDown()
     let now = Date()
     coolDown.record(.unattended, at: now)
-    coolDown.record(.unattended, at: now)
-    let later = now.addingTimeInterval(Fixture.initial * 2 + Fixture.ceiling + Fixture.moment)
+    coolDown.record(.unattended, at: now.addingTimeInterval(Fixture.initial))
+    let later = now.addingTimeInterval(Fixture.initial * 3 + Fixture.ceiling + Fixture.moment)
     coolDown.record(.unattended, at: later)
     #expect(!coolDown.refuses(at: later.addingTimeInterval(Fixture.initial)))
   }
