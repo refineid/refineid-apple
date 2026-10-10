@@ -31,6 +31,10 @@
     /// The bookkeeping key of the one session listener; never published.
     internal static let sessionListenerKey = "session"
 
+    /// How long a withdrawal waits for the open session's close notice
+    /// before it announces itself anyway.
+    private static let closeAllowanceMilliseconds = 500
+
     /// The session record for the pairings in `contexts`.
     private static func sessionRecord(_ contexts: [PhoneStreamPairContext]) -> [String: String] {
       let now = Date()
@@ -83,8 +87,18 @@
       sessionListening.withdrawal?.cancel()
       let closing = coordinator
       let contexts = PhoneStreamPairContext.resolveAll(vault: vault)
+      let allowance = Duration.milliseconds(Self.closeAllowanceMilliseconds)
       sessionListening.withdrawal = Task { [weak self] in
-        await closing?.closeServiceWithdrawn()
+        // The close goes first, but a slow peer does not hold back the
+        // announcement every other paired computer is waiting for.
+        await withTaskGroup(of: Void.self) { group in
+          group.addTask { await closing?.closeServiceWithdrawn() }
+          group.addTask {
+            try? await Task.sleep(for: allowance)
+          }
+          await group.next()
+          group.cancelAll()
+        }
         let now = Date()
         let record = StreamRendezvousName.withdrawnRecord(
           candidates: contexts.compactMap { context in
