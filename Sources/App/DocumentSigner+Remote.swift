@@ -14,25 +14,11 @@ extension DocumentSigner {
     static let settleDelaySeconds: TimeInterval = 1.0
   }
 
-  private final class RemoteCertificateCache: @unchecked Sendable {
-    private let lock = NSLock()
-    private var cached: Data?
-
-    fileprivate func get() -> Data? {
-      lock.withLock { cached }
-    }
-
-    fileprivate func set(_ data: Data) {
-      lock.withLock { cached = data }
-    }
-  }
-
   #if DEBUG
     private static let logger = Logger(
       subsystem: "fi.refineid.ReFineID", category: "document-signer"
     )
   #endif
-  private static let remoteSignatureCertificateCache = RemoteCertificateCache()
 
   /// A selected RAPP phone is the signing device only when no local reader
   /// card is ready.
@@ -76,8 +62,9 @@ extension DocumentSigner {
     )
   }
 
-  /// Fetches the qualified signature certificate from the paired phone with retries.
-  private static func fetchRemoteSignatureCertificate(
+  /// Fetches the qualified signature certificate from the paired phone
+  /// with retries, leaving the phone a moment before the next request.
+  internal static func fetchRemoteSignatureCertificate(
     displayName: String
   ) throws -> Data {
     var certificate: Data?
@@ -105,6 +92,7 @@ extension DocumentSigner {
     guard let certificate else {
       throw certificateError ?? Failure.remote(.noSignature)
     }
+    Thread.sleep(forTimeInterval: RemoteSigningPolicy.settleDelaySeconds)
     return certificate
   }
 
@@ -118,28 +106,12 @@ extension DocumentSigner {
     expectedCertificate: Data?,
     content: @escaping @Sendable (Data) -> Data
   ) async throws -> CardMaintenance.QualifiedProduct {
-    try await Task.detached(priority: .userInitiated) {
-      try Self.executeRemoteQualifiedSignature(
-        documentName: documentName,
-        expectedCertificate: expectedCertificate,
-        content: content)
-    }.value
-  }
-
-  private static func resolveRemoteCertificate(
-    displayName: String,
-    expectedCertificate: Data?
-  ) throws -> Data {
+    Self.report(.phone)
     let certificate: Data
     if let expectedCertificate {
       certificate = expectedCertificate
-    } else if let cached = remoteSignatureCertificateCache.get() {
-      certificate = cached
     } else {
-      let fetched = try Self.fetchRemoteSignatureCertificate(displayName: displayName)
-      remoteSignatureCertificateCache.set(fetched)
-      certificate = fetched
-      Thread.sleep(forTimeInterval: RemoteSigningPolicy.settleDelaySeconds)
+      certificate = try await Self.remoteSignatureCertificate()
     }
     guard
       CardMaintenance.qualifiedCertificate(
@@ -148,19 +120,27 @@ extension DocumentSigner {
     else {
       throw Failure.stampSignerChanged
     }
-    return certificate
+    do {
+      return try await Task.detached(priority: .userInitiated) {
+        try Self.executeRemoteQualifiedSignature(
+          documentName: documentName,
+          certificate: certificate,
+          content: content)
+      }.value
+    } catch Failure.remote(.unverifiedSignature) {
+      // The card on the phone is not the one the certificate was read
+      // from; the next signature reads it again.
+      await Self.remoteCertificates.forget()
+      throw Failure.remote(.unverifiedSignature)
+    }
   }
 
   private static func executeRemoteQualifiedSignature(
     documentName: String,
-    expectedCertificate: Data?,
+    certificate: Data,
     content: (Data) -> Data
   ) throws -> CardMaintenance.QualifiedProduct {
     let displayName = ProcessInfo.processInfo.hostName
-    let certificate = try Self.resolveRemoteCertificate(
-      displayName: displayName,
-      expectedCertificate: expectedCertificate
-    )
     guard
       let securityCertificate = SecCertificateCreateWithData(
         nil, certificate as CFData

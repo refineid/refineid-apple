@@ -183,7 +183,6 @@
         advertisementLossTask = nil
         hasSeenHolderAdvertisement = true
         holderIsAdvertising = true
-        resetFetchFailures()
         if certificateDER == nil {
           startFetch(replacing: false)
         } else {

@@ -67,6 +67,17 @@
       isPeerOnline || PersistentTokenRegistry.shared.holderIsAdvertising
     }
 
+    /// Whether the paired phone is here but its card was not read and
+    /// no read is under way, so nothing is being read.
+    private var holderWaitsForCard: Bool {
+      #if REFINEID_REMOTE_CARD
+        !CardPresence.shared.isCardPresent
+          && PersistentTokenRegistry.shared.holderWaitsForCard
+      #else
+        false
+      #endif
+    }
+
     /// The person line the remote-card registry already holds.
     ///
     /// Used when the keychain has not yet listed the borrowed token
@@ -128,7 +139,16 @@
           .textSelection(.enabled)
 
       case .cardWithoutIdentity:
-        if warnsUnavailableCard {
+        if holderWaitsForCard {
+          HStack {
+            Text("Phone connected")
+              .foregroundStyle(.secondary)
+            Spacer()
+            Button(String(localized: "Retry")) {
+              PersistentTokenRegistry.shared.retryFetch()
+            }
+          }
+        } else if warnsUnavailableCard {
           Text("Card detected, not ready - if this lasts, re-insert it")
             .foregroundStyle(.orange)
         } else {

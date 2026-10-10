@@ -74,7 +74,7 @@
     internal var certificateDER: Data?
 
     internal private(set) var isRunning = false
-    private var consecutiveFetchFailures = 0
+    private var fetchBackoff = CertificateFetchBackoff()
 
     /// Whether the holder's stream advertisement has been seen this run.
     internal var hasSeenHolderAdvertisement = false
@@ -83,6 +83,12 @@
     ///
     /// Loss after a find is the signal to withdraw the borrowed identity.
     internal var holderIsAdvertising = false
+
+    /// Whether the phone is on the network but no certificate has been
+    /// read and no read is in flight.
+    internal var holderWaitsForCard: Bool {
+      holderIsAdvertising && certificateDER == nil && !isRunning
+    }
 
     #if REFINEID_STREAM_TRANSPORT
       internal var presence: StreamRelayPresence?
@@ -198,6 +204,7 @@
       }
       guard !CardPresence.shared.isReaderCardPresent else { return }
       guard !isRunning else { return }
+      guard fetchBackoff.permits(at: .now) else { return }
       let hasPairs = (try? RappDeviceVault().activePairIDs().isEmpty == false) ?? false
       guard hasPairs else { return }
       guard replacing || Self.needsIdentity || certificateDER == nil else { return }
@@ -235,7 +242,13 @@
     }
 
     internal func resetFetchFailures() {
-      consecutiveFetchFailures = 0
+      fetchBackoff.reset()
+    }
+
+    /// Reads the phone's certificate again at the user's request.
+    internal func retryFetch() {
+      resetFetchFailures()
+      startFetch(replacing: false)
     }
 
     fileprivate func finish(_ certificateDER: Data?, cardSerial: String? = nil) {
@@ -245,13 +258,13 @@
           name: Self.fetchStateDidChangeNotification, object: nil)
       }
       guard let certificateDER else {
-        consecutiveFetchFailures += 1
+        fetchBackoff.recordFailure(at: .now)
         #if REFINEID_STREAM_TRANSPORT
-          let maxRetryAttempts = 2
-          if consecutiveFetchFailures <= maxRetryAttempts, self.holderIsAdvertising {
-            let retryDelayNs: UInt64 = 2_000_000_000
+          if fetchBackoff.schedulesQuickRetry, self.holderIsAdvertising {
             Task { @MainActor in
-              try? await Task.sleep(nanoseconds: retryDelayNs)
+              try? await Task.sleep(
+                for: CertificateFetchBackoff.delay(afterFailures: self.fetchBackoff.failures)
+              )
               guard self.holderIsAdvertising, self.certificateDER == nil else { return }
               self.startFetch(replacing: false)
             }
@@ -259,7 +272,7 @@
         #endif
         return
       }
-      consecutiveFetchFailures = 0
+      fetchBackoff.reset()
       self.certificateDER = certificateDER
       self.holderLine = DistinguishedName.holderLine(fromCertificate: certificateDER)
       holderIsAdvertising = true

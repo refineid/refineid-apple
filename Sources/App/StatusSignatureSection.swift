@@ -69,6 +69,7 @@
           .disabled(!canSign)
           .accessibilityIdentifier("signDocument")
       }
+      .announcesOutcome(StatusView.progressNote(signing))
     }
   }
 

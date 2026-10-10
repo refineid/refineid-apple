@@ -30,8 +30,8 @@
     /// Whether a signature is in flight.
     internal private(set) var working = false
 
-    /// Whether the signature in flight is authorized on the paired phone.
-    internal private(set) var signsOnPhone = false
+    /// The step the signature in flight is on.
+    internal private(set) var phase: DocumentSigningPhase?
 
     /// Whether a pile is being signed one document after another.
     internal private(set) var signingPile = false
@@ -137,6 +137,7 @@
         queued = [url]
       }
       pending = url
+      DocumentSigner.prepareRemoteSigning()
       failure = nil
       signed = nil
       stampState = nil
@@ -255,7 +256,7 @@
     /// SignDocumentModel+Batch.swift runs the same lifecycle.
     internal func beginSigning() -> Int {
       working = true
-      signsOnPhone = DocumentSigner.usesRappSigning
+      phase = DocumentSigner.usesRappSigning ? .phone : .card
       failure = nil
       signed = nil
       notice = nil
@@ -265,7 +266,7 @@
     /// Ends one signing attempt, whatever became of it.
     internal func endSigning() {
       working = false
-      signsOnPhone = false
+      phase = nil
     }
 
     /// Holds failures back until the whole pile is signed.
@@ -362,6 +363,12 @@
       failure = nil
       stampState = nil
       stampFailure = nil
+    }
+
+    /// Shows the step a signature has reached, while one is in flight.
+    internal func show(_ step: DocumentSigningPhase) {
+      guard working else { return }
+      phase = step
     }
 
     /// Sets the informational notice for the current document.
