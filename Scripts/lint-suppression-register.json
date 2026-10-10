@@ -203,14 +203,6 @@
       "count": 1
     },
     {
-      "file": "CardCore/Sources/RappEngine/API/RappPairingBridge.swift",
-      "command": "disable:this",
-      "rules": [
-        "function_parameter_count"
-      ],
-      "count": 1
-    },
-    {
       "file": "CardCore/Sources/RappEngine/API/RappPeerHello.swift",
       "command": "disable",
       "rules": [
@@ -817,14 +809,6 @@
       "command": "disable:next",
       "rules": [
         "attributes"
-      ],
-      "count": 1
-    },
-    {
-      "file": "Tests/CardCoreTests/RappIntegrationFixtures.swift",
-      "command": "disable:previous",
-      "rules": [
-        "no_magic_numbers"
       ],
       "count": 1
     }

@@ -27,7 +27,7 @@ public enum RappBindingError: Error, Equatable, Hashable, LocalizedError, Sendab
   /// No stored pairing carries the identifier.
   case PairNotFound
   /// Three pairing attempts failed against one offer; the offer is destroyed
-  /// (RAPP v26.10.1 §3.3).
+  /// (RAPP v26.10.9 §3.3).
   case AttemptsExhausted
 
   /// The case name, for a caller that logs or displays the failure.

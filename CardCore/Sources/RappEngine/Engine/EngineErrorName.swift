@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The error-envelope vocabulary this engine sends (RAPP v26.10.1 §10.4).
+/// The error-envelope vocabulary this engine sends (RAPP v26.10.9 §10.4).
 ///
 /// Semantic handling follows the name; the code is the informative number
 /// the specification pairs with it.

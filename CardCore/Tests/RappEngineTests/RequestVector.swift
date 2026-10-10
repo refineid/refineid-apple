@@ -12,12 +12,12 @@ internal struct RequestVector: Decodable {
     case payload = "payload"
     case preimageCBORHex = "preimage_cbor_hex"
     case profile = "profile"
-    case sessionIDHex = "session_id_hex"
+    case pairIDHex = "pair_id_hex"
     case sha256Hex = "sha256_hex"
   }
 
   internal let name: String
-  internal let sessionIDHex: String
+  internal let pairIDHex: String
   internal let operationIDHex: String
   internal let profile: String
   internal let action: String

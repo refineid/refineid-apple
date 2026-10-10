@@ -4,7 +4,7 @@
   import CardCore
   import Foundation
 
-  /// `batch_sign_documents` at the card (RAPP v26.10.1 §9.3).
+  /// `batch_sign_documents` at the card (RAPP v26.10.9 §9.3).
   extension RappCardExecutor {
     /// How far a batch got: the signatures journaled, and the outcome that
     /// ended it.

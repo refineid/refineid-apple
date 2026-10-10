@@ -14,14 +14,6 @@ private let fixturePairingCode = "246813"
   /// A pairing made the way two devices make one, for tests that need a
   /// stored pair record on each side.
   internal struct SignRelayPairing {
-    // MARK: Static Properties
-
-    /// An empty CBOR map, which is what a candidate with no parameters is.
-    private static let emptyCborMapByte: UInt8 = 0xA0
-    private static let emptyParameters = Data([emptyCborMapByte])
-
-    /// Long enough that no test races the offer's expiry.
-
     internal let requesterVault: RappDeviceVault
     internal let proxyVault: RappDeviceVault
     internal let requesterPairID: Data
@@ -33,14 +25,14 @@ private let fixturePairingCode = "246813"
     private static func options(
       role name: String,
       profiles: [String],
-      candidate: RappPairingCoordinator.TransportCandidate,
+      transportProfile: String,
       vault: RappDeviceVault,
       outbound: SignRelayFrameEndpoint
     ) -> RappPairingCoordinator.Options {
       RappPairingCoordinator.Options(
         code: fixturePairingCode,
         profiles: profiles,
-        candidate: candidate,
+        transportProfile: transportProfile,
         displayName: name,
         platform: name == "Requester" ? "macOS" : "iOS",
         vault: vault,
@@ -52,8 +44,7 @@ private let fixturePairingCode = "246813"
     /// Runs the ceremony between two fresh vaults.
     internal static func make(
       profiles: [String],
-      transportProfile: String,
-      candidateID: String
+      transportProfile: String
     ) async throws -> Self {
       let testID = UUID().uuidString
       let madeRequesterPrefix = "fi.refineid.tests.slim.\(testID).requester"
@@ -65,23 +56,22 @@ private let fixturePairingCode = "246813"
 
       let requesterOutbound = SignRelayFrameEndpoint()
       let proxyOutbound = SignRelayFrameEndpoint()
-      let candidate = RappPairingCoordinator.TransportCandidate(
-        profile: transportProfile, candidateID: candidateID, parametersCBOR: emptyParameters)
       let requester = try RappPairingCoordinator.requester(
         options: options(
-          role: "Requester", profiles: profiles, candidate: candidate,
+          role: "Requester", profiles: profiles, transportProfile: transportProfile,
           vault: madeRequesterVault, outbound: requesterOutbound))
       let proxy = try RappPairingCoordinator.custodian(
         options: options(
-          role: "Proxy", profiles: profiles, candidate: candidate,
+          role: "Proxy", profiles: profiles, transportProfile: transportProfile,
           vault: madeProxyVault, outbound: proxyOutbound))
       await requesterOutbound.install { frame in await proxy.receive(frame) }
       await proxyOutbound.install { frame in await requester.receive(frame) }
 
       async let requesterSummary = awaitPair(requester)
       async let proxySummary = awaitPair(proxy)
-      await proxy.transportConnected()
+      // The requester waits for the offer the custodian serves on connecting.
       await requester.transportConnected()
+      await proxy.transportConnected()
 
       return Self(
         requesterVault: madeRequesterVault,

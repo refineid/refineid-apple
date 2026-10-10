@@ -17,7 +17,7 @@ internal enum RappNoise {
 
   private static let wireMajor: UInt64 = 26
   private static let wireMinor: UInt64 = 10
-  private static let wirePatch: UInt64 = 1
+  private static let wirePatch: UInt64 = 9
 
   internal static let wireVersion = WireVersion(
     major: wireMajor,
@@ -44,7 +44,7 @@ internal enum RappNoise {
     ])
   }
 
-  /// Binds the pairing handshake to the offer it answers (RAPP v26.10.1 §4.3.1).
+  /// Binds the pairing handshake to the offer it answers (RAPP v26.10.9 §4.3.1).
   ///
   /// The prologue names the KC2 suite literal; the Noise protocol name
   /// itself stays ``pairingSuite``.

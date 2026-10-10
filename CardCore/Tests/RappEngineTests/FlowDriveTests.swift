@@ -166,8 +166,8 @@ internal struct FlowDriveTests {
 
   /// Offer lifetimes admit and refuse.
   private func offerExpiry(everyProfile: [ProfileName]) throws {
-    let shortLifetime: UInt64 = 60_000
-    let expiringOffer = try makeOffer(profiles: everyProfile, lifetimeMilliseconds: shortLifetime)
+    let shortLifetime = OfferLimit.offerLifetimeMilliseconds
+    let expiringOffer = try makeOffer(profiles: everyProfile)
     let expiringDeadline = try PairingOfferDeadline(offer: expiringOffer, startedAtMilliseconds: 0)
     check(
       expiringDeadline.isLive(nowMilliseconds: shortLifetime - 1),
@@ -176,13 +176,10 @@ internal struct FlowDriveTests {
       !expiringDeadline.isLive(nowMilliseconds: shortLifetime),
       "the offer is dead once the lifetime elapses")
 
-    let bridge = try RappPairingBridge.codeOffer(
-      role: .requester, pairingCode: "7KX4M9", profiles: everyProfile.map(\.rawValue),
-      transports: [
-        RappTransportCandidate(
-          profile: streamProfile, candidateId: "stream-1", parametersCbor: Data())
-      ],
-      offerTtlMs: shortLifetime, startedAtMonotonicMs: 0)
+    let bridge = try RappPairingBridge.custodianOffer(
+      pairingCode: "7KX4M9", offerId: randomBytes(OfferLimit.offerIdentifierSize),
+      profiles: everyProfile.map(\.rawValue), transportProfiles: [streamProfile],
+      startedAtMonotonicMs: 0)
     do {
       try bridge.beginCpace(
         candidateId: "stream-1", randomBytes64: randomBytes(RappCpaceConstants.wideScalarSize),

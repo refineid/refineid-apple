@@ -5,7 +5,7 @@
   import RappEngine
 
   /// Journals a batch's signatures from inside one synchronous card session
-  /// (RAPP v26.10.1 §8.1, §9.3).
+  /// (RAPP v26.10.9 §8.1, §9.3).
   ///
   /// Each signature is durable before the card is asked for the next one,
   /// so an interruption delivers what was made and never makes it again.

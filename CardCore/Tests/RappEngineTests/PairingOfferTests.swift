@@ -5,27 +5,35 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP pairing offer, URI, and deadline")
+@Suite("RAPP v26.10.9 pairing offer and deadline (section 4.2)")
 internal struct PairingOfferTests {
   /// Milliseconds the deadline fixture starts at.
   private static let deadlineStart: UInt64 = 10_000
 
-  /// Lifetime the deadline fixture is built with.
-  private static let deadlineLifetime: UInt64 = 60_000
-
-  /// RAPP v26.10.1 §4.2 states the KC2 BLE offer's encoded size.
-  private static let specifiedBleOfferSize = 400
-
-  private var goldenEncoding: String { expectedOfferEncodingHex.filter { !$0.isWhitespace } }
-
-  @Test("The offer hash matches an independent encoding")
-  internal func offerHashMatchesReference() throws {
-    #expect(try makeOffer().offerHash().hex == expectedOfferHashHex)
+  @Test("Offers encode to the corpus bootstrap bytes on every transport")
+  internal func offersReplayTheCorpus() throws {
+    let vectors = try CorpusFile.conformance(filePath: #filePath).pairingOffer
+    #expect(!vectors.isEmpty)
+    for vector in vectors {
+      let offer = try PairingOffer.create(
+        offerIdentifier: try Data(hex: vector.offerIdHex), profiles: vector.profiles,
+        transportProfiles: vector.transportProfiles)
+      let encoded = try offer.encoded()
+      #expect(encoded.hex == vector.encodedHex, "\(vector.name) bytes")
+      #expect(encoded.count == vector.encodedLength, "\(vector.name) length")
+      #expect(try offer.offerHash().hex == vector.offerHashHex, "\(vector.name) hash")
+      let decoded = try PairingOffer.decode(try Data(hex: vector.encodedHex))
+      #expect(try decoded.encoded() == encoded, "\(vector.name) round trip")
+    }
   }
 
-  @Test("The offer encodes to the independent deterministic bytes")
-  internal func offerEncodingMatchesReference() throws {
-    #expect(try makeOffer().encoded().hex == goldenEncoding)
+  @Test("Transports are listed in byte order whatever order they are named in")
+  internal func transportsAreSorted() throws {
+    let offer = try PairingOffer.create(
+      offerIdentifier: filler(0x01, OfferLimit.offerIdentifierSize),
+      profiles: ["fi.refineid.card-status.v1"],
+      transportProfiles: [streamProfile, RappBleGattProfile.name])
+    #expect(offer.transports.map(\.profile) == [RappBleGattProfile.name, streamProfile])
   }
 
   @Test("A decoded offer preserves every field")
@@ -40,34 +48,6 @@ internal struct PairingOfferTests {
     #expect(try decoded.offerHash() == offer.offerHash())
   }
 
-  @Test("The specification's BLE offer encodes to exactly 400 bytes")
-  internal func bleExampleOfferSize() throws {
-    let offer = try PairingOffer(
-      offerIdentifier: filler(0x00, OfferLimit.offerIdentifierSize),
-      suites: [RappCpaceConstants.kc2Suite],
-      profiles: [
-        "fi.refineid.card-status.v1", "fi.refineid.authentication.v1",
-        "fi.refineid.document-signing.v1",
-      ],
-      transports: [
-        TransportCandidate(
-          profile: "fi.refineid.rapp.ble.v1", candidateIdentifier: "ble-direct-1",
-          parameters: ["service_uuid": .text("7E39FD01-A6B5-4D78-9E11-37E28E9545F1")])
-      ],
-      offerLifetimeMilliseconds: OfferLimit.offerLifetimeMaximumMilliseconds)
-    #expect(try offer.encoded().count == Self.specifiedBleOfferSize)
-  }
-
-  @Test("A code-derived offer matches the reference identifier")
-  internal func codeOfferIdentifier() throws {
-    let offer = try PairingOffer.fromCode(
-      "7KX4M9", profiles: ["fi.refineid.card-status.v1"],
-      transports: [TransportCandidate(profile: "fi.refineid.stream.v1", candidateIdentifier: "s")],
-      offerLifetimeMilliseconds: OfferLimit.offerLifetimeMaximumMilliseconds)
-    #expect(offer.offerIdentifier.hex == expectedCodeOfferIdentifierHex)
-    #expect(offer.suites == [RappCpaceConstants.kc2Suite])
-  }
-
   @Test("Another version, an unknown field and truncation are rejected")
   internal func malformedEncodingsAreRejected() throws {
     let encoded = try makeOffer().encoded()
@@ -76,7 +56,7 @@ internal struct PairingOfferTests {
       Issue.record("offer is not a map")
       return
     }
-    map["version"] = .array([.unsigned(26), .unsigned(9), .unsigned(28)])
+    map["version"] = .array([.unsigned(26), .unsigned(10), .unsigned(1)])
     #expect(throws: PairingOfferError.unsupportedVersion) {
       _ = try PairingOffer.decode(try WireValue.map(map).encoded())
     }
@@ -93,31 +73,60 @@ internal struct PairingOfferTests {
         offerIdentifier: filler(0x01, OfferLimit.offerIdentifierSize),
         suites: ["Noise_XX_25519_ChaChaPoly_SHA256"],
         profiles: ["fi.refineid.card-status.v1"],
-        transports: [TransportCandidate(profile: "p", candidateIdentifier: "c")],
-        offerLifetimeMilliseconds: Self.deadlineLifetime)
+        transports: [try #require(TransportRegistry.entry(for: streamProfile))],
+        offerLifetimeMilliseconds: OfferLimit.offerLifetimeMilliseconds)
     }
   }
 
-  @Test("A lifetime above the ceiling is rejected")
-  internal func lifetimeAboveCeilingIsRejected() {
-    #expect(throws: (any Error).self) {
-      _ = try PairingOffer(
-        offerIdentifier: filler(0x01, OfferLimit.offerIdentifierSize),
-        suites: [RappCpaceConstants.kc2Suite],
-        profiles: ["fi.refineid.card-status.v1"],
-        transports: [TransportCandidate(profile: "p", candidateIdentifier: "c")],
-        offerLifetimeMilliseconds: OfferLimit.offerLifetimeMaximumMilliseconds + 1)
+  @Test("Any lifetime but the fixed 60 seconds is rejected")
+  internal func otherLifetimesAreRejected() throws {
+    let entry = try #require(TransportRegistry.entry(for: streamProfile))
+    for lifetime in [
+      OfferLimit.offerLifetimeMilliseconds - 1, OfferLimit.offerLifetimeMilliseconds + 1,
+    ] {
+      #expect(throws: PairingOfferError.invalidLifetime) {
+        _ = try PairingOffer(
+          offerIdentifier: filler(0x01, OfferLimit.offerIdentifierSize),
+          suites: [RappCpaceConstants.kc2Suite],
+          profiles: ["fi.refineid.card-status.v1"],
+          transports: [entry],
+          offerLifetimeMilliseconds: lifetime)
+      }
+    }
+  }
+
+  @Test("Unregistered, misordered or altered transport entries are rejected")
+  internal func transportEntriesAreRegistered() throws {
+    let stream = try #require(TransportRegistry.entry(for: streamProfile))
+    let ble = RappBleGattProfile.candidate
+    var withEndpoints = stream
+    withEndpoints.parameters = ["endpoints": .array([.text("192.0.2.1:47110")])]
+    for transports in [
+      [TransportCandidate(profile: "p", candidateIdentifier: "c")],
+      [stream, ble],
+      [withEndpoints],
+      [ble, ble],
+    ] {
+      #expect(throws: PairingOfferError.invalidTransport) {
+        _ = try PairingOffer(
+          offerIdentifier: filler(0x01, OfferLimit.offerIdentifierSize),
+          suites: [RappCpaceConstants.kc2Suite],
+          profiles: ["fi.refineid.card-status.v1"],
+          transports: transports,
+          offerLifetimeMilliseconds: OfferLimit.offerLifetimeMilliseconds)
+      }
     }
   }
 
   @Test("A deadline is live only inside its interval")
   internal func deadlineIsLiveOnlyInsideItsInterval() throws {
+    let lifetime = OfferLimit.offerLifetimeMilliseconds
     let deadline = try PairingOfferDeadline(
       offer: try makeOffer(), startedAtMilliseconds: Self.deadlineStart)
     #expect(!deadline.isLive(nowMilliseconds: Self.deadlineStart - 1))
     #expect(deadline.isLive(nowMilliseconds: Self.deadlineStart))
-    #expect(deadline.isLive(nowMilliseconds: Self.deadlineStart + Self.deadlineLifetime - 1))
-    #expect(!deadline.isLive(nowMilliseconds: Self.deadlineStart + Self.deadlineLifetime))
+    #expect(deadline.isLive(nowMilliseconds: Self.deadlineStart + lifetime - 1))
+    #expect(!deadline.isLive(nowMilliseconds: Self.deadlineStart + lifetime))
   }
 
   @Test("A deadline that would overflow is rejected")

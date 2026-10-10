@@ -23,7 +23,7 @@ internal enum CardOperation: Equatable {
   case signDocument(
     documentName: String, keyProfile: CardKeyProfile, algorithm: SignatureAlgorithm, digest: Data)
 
-  /// Signs 1 to 64 documents under one PIN 2 entry (RAPP v26.10.1 §9.3);
+  /// Signs 1 to 64 documents under one PIN 2 entry (RAPP v26.10.9 §9.3);
   /// names and digests pair up by position.
   case batchSignDocuments(
     documentNames: [String], keyProfile: CardKeyProfile, algorithm: SignatureAlgorithm,

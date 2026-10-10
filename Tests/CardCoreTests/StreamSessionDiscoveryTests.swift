@@ -97,4 +97,20 @@ internal final class StreamSessionDiscoveryTests: XCTestCase {
     XCTAssertNil(
       StreamSessionRouting.route(Data("noise".utf8), among: candidates, preamble: \.preamble))
   }
+
+  internal func testHintsReproduceTheConformanceCorpus() throws {
+    let url = URL(fileURLWithPath: #filePath)
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .appendingPathComponent("Documentation/rapp-conformance/rapp-v26.10.9.json")
+    let corpus = try JSONDecoder().decode(DiscoveryHintCorpus.self, from: Data(contentsOf: url))
+    XCTAssertFalse(corpus.discoveryHint.isEmpty)
+    for vector in corpus.discoveryHint {
+      let token = try RappConformanceCorpusSupport.data(fromHex: vector.rendezvousTokenHex)
+      XCTAssertEqual(
+        StreamRendezvousName.discoveryHint(rendezvousToken: token, epoch: vector.epoch),
+        vector.hintHex, vector.name)
+    }
+  }
 }

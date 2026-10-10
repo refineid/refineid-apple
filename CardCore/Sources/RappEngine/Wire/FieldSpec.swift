@@ -24,18 +24,18 @@ internal struct FieldSpec {
   private static let requestHash = Shape.bytes(Size.digest)
   private static let challenge = Shape.bytes(Size.digest)
 
-  /// `close-reason-val` (RAPP v26.10.1 section 7.1).
+  /// `close-reason-val` (RAPP v26.10.9 section 7.1).
   internal static let closeReasons: Set<String> = [
     "normal", "complete", "user_disconnect", "policy", "credential_rejected",
-    "protocol_violation", "pairing_revoked", "shutdown",
+    "protocol_violation", "pairing_revoked", "shutdown", "card_unavailable",
   ]
 
-  /// `operation-status-val` (RAPP v26.10.1 section 7.1).
+  /// `operation-status-val` (RAPP v26.10.9 section 7.1).
   internal static let operationStatuses: Set<String> = [
     "completed", "rejected", "credential_rejected", "cancelled", "ambiguous",
   ]
 
-  /// Bounds on the error body's text fields (RAPP v26.10.1 section 10.4).
+  /// Bounds on the error body's text fields (RAPP v26.10.9 section 10.4).
   internal static let errorNameLengths = 1...64
   internal static let errorMessageLengths = 1...512
 

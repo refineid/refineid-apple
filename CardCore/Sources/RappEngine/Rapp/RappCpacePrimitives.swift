@@ -86,7 +86,7 @@ internal func cpaceTranscriptIR(
 
 /// Computes the CPace generator point g (draft-irtf-cfrg-cpace-21 Section 8.3).
 ///
-/// An identity generator aborts the offer (RAPP v26.10.1 §6.1.1); there is
+/// An identity generator aborts the offer (RAPP v26.10.9 §6.1.1); there is
 /// no fallback point.
 internal func cpaceCalculateGenerator(
   prs: Data, channelInfo: Data, sid: Data
@@ -133,20 +133,6 @@ internal func cpaceCalculateIsk(
     sharedPoint: sharedPoint,
     transcriptIR: transcript
   )
-}
-
-/// Derives the 32-byte offer identifier for manual code-based pairing.
-///
-/// Both peers of a stream or Apple-peer ceremony rebuild the same offer from
-/// the code, matching the shared reference implementation's code offers.
-public func cpaceDeriveManualOfferId(code: String) throws -> Data {
-  let normalized = try cpacePasswordString(code)
-  var hasher = SHA256()
-  hasher.update(data: Data("RAPP-manual-offer-id-v1".utf8))
-  var len = UInt16(normalized.utf8.count).bigEndian
-  hasher.update(data: Data(bytes: &len, count: 2))
-  hasher.update(data: Data(normalized.utf8))
-  return Data(hasher.finalize())
 }
 
 /// Reduces a 64-byte wide random integer modulo Curve25519 order L.

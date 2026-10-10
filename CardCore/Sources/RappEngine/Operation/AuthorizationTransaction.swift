@@ -7,7 +7,7 @@ import Foundation
 /// The stage is authoritative before approval; afterwards the journal is,
 /// because only the journal survives a restart. Approval of a consequential
 /// action writes the in-flight entry before the card command exists
-/// (RAPP v26.10.1 §8.1).
+/// (RAPP v26.10.9 §8.1).
 internal struct AuthorizationTransaction {
   internal let request: OperationRequest
 
@@ -90,11 +90,11 @@ internal struct AuthorizationTransaction {
       stage = .executingSafeRead
       return .executeSafeRead(AuthorizedSafeRead(operation: request.operation))
     }
-    try mapJournal { try journal.commit(to: &store, requestHash: requestHash) }
     let command = AuthorizedCardCommand(operation: request.operation)
     do {
       _ = try journal.beginCardCommand(
-        to: &store, command: command, batchTotal: request.operation.batchTotal)
+        to: &store, requestHash: requestHash, command: command,
+        batchTotal: request.operation.batchTotal)
     } catch let error as JournalError {
       throw AuthorizationError.journal(error)
     }

@@ -87,7 +87,7 @@ internal func journalResultFrom(_ value: WireValue) throws -> CardOperationResul
   return result
 }
 
-/// The `response` map one card answer becomes (RAPP v26.10.1 §9).
+/// The `response` map one card answer becomes (RAPP v26.10.9 §9).
 ///
 /// The response names no variant: the requester reads it against the
 /// operation it asked for. The factory flags and counters of an inspection
@@ -135,7 +135,7 @@ internal func wireResponse(_ result: CardOperationResult) -> [String: WireValue]
 }
 
 /// The `response` an ambiguous batch carries: the signatures made before
-/// the interruption, which are never made again (RAPP v26.10.1 §9.3).
+/// the interruption, which are never made again (RAPP v26.10.9 §9.3).
 internal func partialBatchResponse(_ completed: [Data]) -> [String: WireValue] {
   [
     "completed_signatures": .array(completed.map(WireValue.bytes)),

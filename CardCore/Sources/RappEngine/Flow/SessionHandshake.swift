@@ -19,22 +19,27 @@ internal struct SessionHandshake {
   ///
   /// Requester side only.
   internal static func beginRequester(
-    pair: PairRecord, intent: ExplicitUserIntent
+    pair: PairRecord, transportProfile: String, intent: ExplicitUserIntent
   ) throws -> Self {
     _ = intent
     guard pair.role == .requester else { throw SessionError.roleViolation }
-    return try begin(pair: pair)
+    return try begin(pair: pair, transportProfile: transportProfile)
   }
 
   /// Answer one incoming connection.
   ///
   /// Proxy side only; never initiates.
-  internal static func beginProxy(pair: PairRecord) throws -> Self {
+  internal static func beginProxy(pair: PairRecord, transportProfile: String) throws -> Self {
     guard pair.role == .proxy else { throw SessionError.roleViolation }
-    return try begin(pair: pair)
+    return try begin(pair: pair, transportProfile: transportProfile)
   }
 
-  private static func begin(pair: PairRecord) throws -> Self {
+  /// Binds the session to the connection's transport, not the one the
+  /// pairing ran over (RAPP v26.10.9 §4.3.5).
+  private static func begin(pair: PairRecord, transportProfile: String) throws -> Self {
+    guard let transport = TransportRegistry.entry(for: transportProfile) else {
+      throw SessionError.noise
+    }
     do {
       let decodedNoise = try NoiseHandshakeState(
         pattern: .knownKnown,
@@ -42,7 +47,7 @@ internal struct SessionHandshake {
         prologue: try RappNoise.sessionPrologue(
           pairIdentifier: pair.pairIdentifier,
           grantsHash: pair.grantsHash,
-          transportProfile: pair.transport.profile),
+          transportProfile: transport.profile),
         isInitiator: pair.role == .requester,
         localStaticPrivate: pair.localStaticPrivate,
         remoteStaticPublic: pair.remoteStaticPublic,
@@ -52,8 +57,8 @@ internal struct SessionHandshake {
         role: pair.role,
         pairIdentifier: pair.pairIdentifier,
         expectedParameters: SessionParameters(
-          transportProfile: pair.transport.profile,
-          candidateIdentifier: pair.transport.candidateIdentifier,
+          transportProfile: transport.profile,
+          candidateIdentifier: transport.candidateIdentifier,
           grantsHash: pair.grantsHash),
         noise: decodedNoise)
     } catch {

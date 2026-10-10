@@ -15,8 +15,11 @@ internal struct WireCorpusTests {
   internal func corpusIdentity() throws {
     let corpus = try CorpusFile.conformance(filePath: #filePath)
     #expect(corpus.format == "fi.refineid.rapp.conformance-v1")
-    #expect(corpus.protocolDocumentVersion == "26.10.1")
-    #expect(corpus.noiseHandshake.count == 2)
+    #expect(corpus.protocolDocumentVersion == "26.10.9")
+    #expect(corpus.noiseHandshake.count == 4)
+    #expect(corpus.pairingOffer.count == 3)
+    #expect(corpus.cpaceKc2.count == 2)
+    #expect(corpus.discoveryHint.count == 2)
   }
 
   @Test("Every golden deterministic encoding round-trips")
@@ -135,13 +138,11 @@ internal struct WireCorpusTests {
     }
   }
 
-  /// The vector still labels the preimage's second slot `session_id`;
-  /// v26.10.1 section 8.2.1 binds `pair_id` there (refineid/refineid-core#60).
   @Test("One typed request binds to exactly one pairing")
   internal func requestHash() throws {
     for vector in try CorpusFile.conformance(filePath: #filePath).requestHash {
       let binding = RappRequestBinding(
-        pairIdentifier: try Data(hex: vector.sessionIDHex),
+        pairIdentifier: try Data(hex: vector.pairIDHex),
         operationIdentifier: try Data(hex: vector.operationIDHex),
         profile: vector.profile,
         action: vector.action,

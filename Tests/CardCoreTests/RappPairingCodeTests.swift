@@ -17,7 +17,7 @@ import Testing
         #expect(code.count == RappPairingCode.codeLength)
         #expect(RappPairingCode.isValid(code))
         #expect(RappPairingCode.normalize(code) == code)
-        // Excluded visually ambiguous symbols per RAPP v26.10.1 §3.1
+        // Excluded visually ambiguous symbols per RAPP v26.10.9 §3.1
         #expect(!code.contains("I"))
         #expect(!code.contains("L"))
         #expect(!code.contains("O"))
@@ -57,7 +57,7 @@ import Testing
 
     @Test("Rejects invalid characters and U")
     internal func testRejectsInvalidCharacters() {
-      // U is explicitly rejected per RAPP v26.10.1 §3.1
+      // U is explicitly rejected per RAPP v26.10.9 §3.1
       #expect(RappPairingCode.normalize("7KU4M9").isEmpty)
       #expect(!RappPairingCode.isValid("7KU4M9"))
 
@@ -71,7 +71,6 @@ import Testing
       "Completes end-to-end pairing ceremony between Requester and Proxy using Crockford code")
     internal func testPairingCeremonyWithSixDigitCode() async throws {
       let code = "7KX4M9"
-      let candidateID = "apple-peer-v1.nearby"
       let profiles = [
         "fi.refineid.card-status.v1",
         "fi.refineid.authentication.v1",
@@ -79,15 +78,15 @@ import Testing
       ]
       let (requester, proxy) = try await makeConnectedPair(
         code: code,
-        candidateID: candidateID,
         profiles: profiles
       )
 
       async let requesterPairTask = awaitPair(requester)
       async let proxyPairTask = awaitPair(proxy)
 
-      await proxy.transportConnected()
+      // The requester waits for the offer the custodian serves on connecting.
       await requester.transportConnected()
+      await proxy.transportConnected()
 
       let requesterSummary = try await requesterPairTask
       let proxySummary = try await proxyPairTask
@@ -99,14 +98,8 @@ import Testing
 
     private func makeConnectedPair(
       code: String,
-      candidateID: String,
       profiles: [String]
     ) async throws -> (RappPairingCoordinator, RappPairingCoordinator) {
-      let candidate = RappPairingCoordinator.TransportCandidate(
-        profile: "apple-peer-v1",
-        candidateID: candidateID,
-        parametersCBOR: Data([0xA0])
-      )
       let testID = UUID().uuidString
       let requesterVault = RappDeviceVault(
         accessGroup: nil,
@@ -125,7 +118,7 @@ import Testing
         RappPairingCoordinator.Options(
           code: code,
           profiles: profiles,
-          candidate: candidate,
+          transportProfile: "apple-peer-v1",
           displayName: name,
           platform: "iOS",
           vault: vault,

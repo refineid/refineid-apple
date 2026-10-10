@@ -52,9 +52,9 @@ extension RappConformanceCorpusSupport {
     case name = "name"
     case operationIDHex = "operation_id_hex"
     case payload = "payload"
+    case pairIDHex = "pair_id_hex"
     case preimageCBORHex = "preimage_cbor_hex"
     case profile = "profile"
-    case sessionIDHex = "session_id_hex"
     case sha256Hex = "sha256_hex"
   }
 
@@ -177,7 +177,7 @@ extension RappConformanceCorpusSupport {
     // MARK: Properties
 
     internal let name: String
-    internal let sessionIDHex: String
+    internal let pairIDHex: String
     internal let operationIDHex: String
     internal let profile: String
     internal let action: String
@@ -191,7 +191,7 @@ extension RappConformanceCorpusSupport {
     internal init(from decoder: Decoder) throws {
       let container = try decoder.container(keyedBy: RequestVectorKeys.self)
       name = try container.decode(String.self, forKey: .name)
-      sessionIDHex = try container.decode(String.self, forKey: .sessionIDHex)
+      pairIDHex = try container.decode(String.self, forKey: .pairIDHex)
       operationIDHex = try container.decode(String.self, forKey: .operationIDHex)
       profile = try container.decode(String.self, forKey: .profile)
       action = try container.decode(String.self, forKey: .action)

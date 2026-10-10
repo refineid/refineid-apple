@@ -10,7 +10,7 @@ extension FlowDriveTests {
   internal func candidatePaths(_ ceremony: CeremonyState) throws {
 
     let twoCandidateOffer = try makeOffer(
-      profiles: ceremony.everyProfile, candidates: ["stream-1", "nearby-1"])
+      profiles: ceremony.everyProfile, transportProfiles: [streamProfile, "apple-peer-v1"])
 
     do {
       _ = try PairingHandshake.begin(
@@ -31,9 +31,10 @@ extension FlowDriveTests {
         localKeys: PairKeyMaterial(), presharedKey: flowPresharedKey))
     let recoveredOffer = firstAttempt.abort()
     let fallbackPeers = try runPairing(
-      offer: recoveredOffer, grants: ceremony.everyProfile, candidateIdentifier: "nearby-1")
+      offer: recoveredOffer, grants: ceremony.everyProfile,
+      candidateIdentifier: "apple-peer-v1.nearby")
     check(
-      fallbackPeers.requester.transport.candidateIdentifier == "nearby-1",
+      fallbackPeers.requester.transport.candidateIdentifier == "apple-peer-v1.nearby",
       "an aborted candidate returns the offer and the next candidate pairs")
   }
 
@@ -65,7 +66,7 @@ extension FlowDriveTests {
   internal func sessionRoleViolation(_ peers: PairedPeers) {
     // A session may be entered only from the matching stored role.
     do {
-      _ = try SessionHandshake.beginProxy(pair: peers.requester)
+      _ = try SessionHandshake.beginProxy(pair: peers.requester, transportProfile: streamProfile)
       check(false, "the proxy side refuses a requester's record")
     } catch SessionError.roleViolation {
       check(true, "the proxy side refuses a requester's record")
@@ -80,8 +81,9 @@ extension FlowDriveTests {
     // pairing does not.
     do {
       var requesterHandshake = try SessionHandshake.beginRequester(
-        pair: peers.requester, intent: ExplicitUserIntent())
-      var proxyHandshake = try SessionHandshake.beginProxy(pair: peers.proxy)
+        pair: peers.requester, transportProfile: streamProfile, intent: ExplicitUserIntent())
+      var proxyHandshake = try SessionHandshake.beginProxy(
+        pair: peers.proxy, transportProfile: streamProfile)
       try proxyHandshake.readMessage(try requesterHandshake.writeMessage())
       try requesterHandshake.readMessage(try proxyHandshake.writeMessage())
       var requesterAuthentication = try requesterHandshake.intoAuthentication()
@@ -103,8 +105,9 @@ extension FlowDriveTests {
     // rather than only the session.
     do {
       var requesterHandshake = try SessionHandshake.beginRequester(
-        pair: peers.requester, intent: ExplicitUserIntent())
-      var proxyHandshake = try SessionHandshake.beginProxy(pair: peers.proxy)
+        pair: peers.requester, transportProfile: streamProfile, intent: ExplicitUserIntent())
+      var proxyHandshake = try SessionHandshake.beginProxy(
+        pair: peers.proxy, transportProfile: streamProfile)
       try proxyHandshake.readMessage(try requesterHandshake.writeMessage())
       try requesterHandshake.readMessage(try proxyHandshake.writeMessage())
       var requesterAuthentication = try requesterHandshake.intoAuthentication()
@@ -120,37 +123,21 @@ extension FlowDriveTests {
     }
   }
 
-  /// A mismatched parameter echo ends the pairing.
+  /// A session bound to a different transport than the peer's fails.
   internal func parameterEchoMismatch(_ peers: PairedPeers) {
-    // The candidate identifier is echoed but not bound into the prologue, so
-    // only the ready comparison can catch a disagreement about it.
+    // Each side binds the transport its connection uses (RAPP v26.10.9
+    // §4.3.5), so peers disagreeing about it cannot finish the handshake.
     do {
-      let divergent = try PairRecord(
-        pairIdentifier: peers.proxy.pairIdentifier,
-        rendezvousToken: peers.proxy.rendezvousToken,
-        role: .proxy,
-        localStaticPrivate: peers.proxy.localStaticPrivate,
-        localStaticPublic: peers.proxy.localStaticPublic,
-        remoteStaticPublic: peers.proxy.remoteStaticPublic,
-        grantsHash: peers.proxy.grantsHash,
-        profiles: peers.proxy.profiles,
-        transport: PairTransportBinding(
-          profile: peers.proxy.transport.profile, candidateIdentifier: "other-1"),
-        createdAtMilliseconds: peers.proxy.createdAtMilliseconds)
       var requesterHandshake = try SessionHandshake.beginRequester(
-        pair: peers.requester, intent: ExplicitUserIntent())
-      var proxyHandshake = try SessionHandshake.beginProxy(pair: divergent)
+        pair: peers.requester, transportProfile: streamProfile, intent: ExplicitUserIntent())
+      var proxyHandshake = try SessionHandshake.beginProxy(
+        pair: peers.proxy, transportProfile: "apple-peer-v1")
       try proxyHandshake.readMessage(try requesterHandshake.writeMessage())
-      try requesterHandshake.readMessage(try proxyHandshake.writeMessage())
-      var requesterAuthentication = try requesterHandshake.intoAuthentication()
-      var proxyAuthentication = try proxyHandshake.intoAuthentication()
-      try proxyAuthentication.receiveReady(
-        try requesterAuthentication.sendReady(nonce: randomBytes(FlowLimit.readyNonce)))
-      check(false, "a mismatched parameter echo ends the pairing")
-    } catch SessionError.pairingMustEnd(let cause) {
-      check(cause == .parameterMismatch, "a mismatched parameter echo ends the pairing")
+      check(false, "a session bound to a different transport fails")
+    } catch SessionError.noise {
+      check(true, "a session bound to a different transport fails")
     } catch {
-      check(false, "a mismatched parameter echo ends the pairing")
+      check(false, "a session bound to a different transport fails")
     }
   }
 
@@ -159,8 +146,9 @@ extension FlowDriveTests {
     // A session is not healthy until both echoes verify.
     do {
       var requesterHandshake = try SessionHandshake.beginRequester(
-        pair: peers.requester, intent: ExplicitUserIntent())
-      var proxyHandshake = try SessionHandshake.beginProxy(pair: peers.proxy)
+        pair: peers.requester, transportProfile: streamProfile, intent: ExplicitUserIntent())
+      var proxyHandshake = try SessionHandshake.beginProxy(
+        pair: peers.proxy, transportProfile: streamProfile)
       try proxyHandshake.readMessage(try requesterHandshake.writeMessage())
       try requesterHandshake.readMessage(try proxyHandshake.writeMessage())
       let requesterAuthentication = try requesterHandshake.intoAuthentication()

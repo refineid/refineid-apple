@@ -1,6 +1,6 @@
 # RAPP Apple implementation handoff
 
-Status date: 2026-08-17
+Status date: 2026-10-10
 
 This document is the implementation handoff for Remote Authorization Proxy
 Protocol (RAPP) support in RefineID on Apple platforms. It describes what is
@@ -14,19 +14,21 @@ The vendored documents are the authority, and the Swift engine in
 `CardCore/Sources/RappEngine` implements them. There is no compiled protocol
 artifact in this repository.
 
-- Specification: `Documentation/protocol/rapp-v26.10.1.md`
+- Specification: `Documentation/protocol/rapp-v26.10.9.md`
 - Formal state model: `Documentation/protocol/rapp-state-machine-v26.9.13.yaml`.
-  v26.10.1 publishes no newer model; the operation tables transcribe this
-  earlier one and no longer describe how operations run (see
-  `Documentation/decisions.md`, 2026-10-08).
-- Conformance corpus: `Documentation/rapp-conformance/rapp-v26.10.1.json`
-  (`SHA-256 488851a0857a4c0682e5fcbdb0f4c1e943e495ed39d544508bc88a1feacfca3f`)
+  v26.10.9 publishes no newer model; the operation tables transcribe this
+  earlier one and no longer describe how operations run.
+- Conformance corpus: `Documentation/rapp-conformance/rapp-v26.10.9.json`
+  (`SHA-256 a2582459d15ff94c8ff0551b3f5814a1caa1900cdc35068aededeb422cef93f4`),
+  copied unchanged from the reference repository. Its `cpace_kc2`,
+  `noise_handshake`, `pairing_offer`, and `discovery_hint` sections are
+  replayed byte for byte on both the BLE and stream profiles.
 - Vectors covering what the corpus does not reach:
-  `rapp-cpace-kc2-v26.10.1.json` (CPace KC2, from the reference crate),
-  `rapp-operation-v26.10.1.json` (operation bodies, encoded independently
-  from the specification's schemas), `rapp-flow-v26.9.7.70.json` (ceremony
-  bodies, re-encoded for v26.10.1), and `rapp-transport-v26.9.7.70.json`
-  (post-handshake framing)
+  `rapp-operation-v26.10.9.json` (the reference operation bodies plus the
+  batch signing bodies, encoded independently from the specification's
+  schemas), `rapp-ble-sar-v26.10.9.json` (BLE segmentation and reassembly),
+  `rapp-flow-v26.9.7.70.json` (ceremony bodies, re-encoded for v26.10.9), and
+  `rapp-transport-v26.9.7.70.json` (post-handshake framing)
 
 The engine is held to those documents by its tests rather than by anyone
 remembering to follow them. The state tables are transcribed from the model
@@ -101,38 +103,28 @@ decide which transition and output are legal.
 
 ## Stream transport
 
-`fi.refineid.stream.v1` (protocol document section 16.1) lets a non-Apple
-requester participate without MultipeerConnectivity. The underlay is plain
-TCP. Every frame is a 2-byte big-endian length prefix plus payload; a zero
-length is malformed and the prefix bounds every allocation. The requester
-lists and the proxy dials, for pairing and for sessions. Immediately
-after connecting, before any Noise byte, the proxy sends one plaintext
-preamble frame whose bytes come from `RappEngine`
+`fi.refineid.stream.v1` (RAPP v26.10.9 §2.2.2) lets a non-Apple requester
+participate without MultipeerConnectivity. The underlay is plain TCP. Every
+frame is a 2-byte big-endian length prefix plus payload; a zero length is
+malformed and the prefix bounds every allocation. The phone listens and the
+requester dials (discovery hierarchy). The requester's first frame is the
+plaintext routing preamble whose bytes come from `RappEngine`
 (`rappStreamPairingPreamble` / `rappStreamSessionPreamble`); the transport
 layer never constructs those bytes.
 
-- `CardCore/Sources/CardCore/StreamRelaySession.swift` is the TCP dialer:
-  ordered endpoint attempts, preamble-first send, bounded frames, a
-  generation-guarded event surface, and clean cancel.
-  `StreamRelayFraming.swift`, `StreamRelayEndpoint.swift`,
-  `StreamRelayEvent.swift`, and `StreamRelayTransportError.swift` complete
-  the profile's Swift surface.
-- When the selected pair's transport profile is the stream profile,
-  `PhonePersistentTokenRelay` dials the pair's stored `streamEndpoints`
-  with the session preamble built from the pair's `rendezvousToken`
-  instead of advertising MultipeerConnectivity. The relisten policy acts
-  as the redial policy with the same explicit-user-action fail-stops;
-  automatic redials pause between attempts. MultipeerConnectivity pairs
-  keep today's behavior.
-- Pairing over the stream profile is wired through the scan flow. The
-  bridge's `offerCandidates()` lists the scanned offer's
-  transport candidates with stream endpoints decoded in `RappEngine`;
-  `RappScannedOffer.candidates` wraps it in CardCore. The phone selects the
-  Apple-peer candidate when the offer carries one, else the first stream
-  candidate with endpoints; for stream it dials those endpoints with
-  `rappStreamPairingPreamble()` over `StreamRelaySession` and runs the
-  unchanged pairing coordinator across that connection. An offer with
-  neither usable candidate fails visibly.
+- Pairing: after a pairing preamble the custodian sends
+  `encode_deterministic_cbor(pairing-offer)` as its first frame, with a
+  random `offer_id`, the connection's transport entry, and a 60000 ms
+  lifetime. The requester reads that offer before CPace
+  (`RappPairingCoordinator.requester(options:)`); over BLE the same offer
+  is read from the bootstrap characteristic
+  (`requester(options:bootstrapOffer:)`). The CPace context and the
+  Noise_XXpsk3 prologue bind the connection's transport profile and
+  candidate.
+- The custodian admits at most one connection per 500 ms to the offer
+  (§3.3.8) besides the attempt ledger and its backoff.
+- Sessions bind the transport profile of the connection they run over,
+  not the one the pair was made on.
 
 Stored pair records are format v2: they carry the pair's rendezvous token
 and, for stream pairs, the listener endpoint list. Format v1 records fail

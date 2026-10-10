@@ -138,7 +138,7 @@
     }
 
     /// Reports an incorrect credential with attempts remaining; the pairing
-    /// stays (RAPP v26.10.1 section 10.2).
+    /// stays (RAPP v26.10.9 section 10.2).
     public func invalidCredential(operationID: Data, remainingRetries: UInt8) async throws {
       let driver = try operationDriver()
       await handleOperation(
@@ -183,7 +183,7 @@
         ))
     }
 
-    /// Completes an identity read (RAPP v26.10.1 §9.1).
+    /// Completes an identity read (RAPP v26.10.9 §9.1).
     public func completeIdentity(
       operationID: Data,
       identity: RappOperationDriver.Identity

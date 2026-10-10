@@ -23,40 +23,16 @@ internal func randomBytes(_ count: Int) -> Data {
 internal let streamProfile = "fi.refineid.stream.v1"
 
 internal func makeOffer(profiles: [ProfileName]) throws -> PairingOffer {
-  try makeOffer(
-    profiles: profiles, candidates: ["stream-1"],
-    lifetimeMilliseconds: OfferLimit.offerLifetimeMaximumMilliseconds)
+  try makeOffer(profiles: profiles, transportProfiles: [streamProfile])
 }
 
 internal func makeOffer(
-  profiles: [ProfileName], lifetimeMilliseconds: UInt64
+  profiles: [ProfileName], transportProfiles: [String]
 ) throws -> PairingOffer {
-  try makeOffer(
-    profiles: profiles, candidates: ["stream-1"],
-    lifetimeMilliseconds: lifetimeMilliseconds)
-}
-
-internal func makeOffer(
-  profiles: [ProfileName], candidates: [String]
-) throws -> PairingOffer {
-  try makeOffer(
-    profiles: profiles, candidates: candidates,
-    lifetimeMilliseconds: OfferLimit.offerLifetimeMaximumMilliseconds)
-}
-
-internal func makeOffer(
-  profiles: [ProfileName],
-  candidates: [String],
-  lifetimeMilliseconds: UInt64
-) throws -> PairingOffer {
-  try PairingOffer(
+  try PairingOffer.create(
     offerIdentifier: randomBytes(OfferLimit.offerIdentifierSize),
-    suites: [RappCpaceConstants.kc2Suite],
     profiles: profiles.map(\.rawValue),
-    transports: candidates.map { candidate in
-      TransportCandidate(profile: streamProfile, candidateIdentifier: candidate)
-    },
-    offerLifetimeMilliseconds: lifetimeMilliseconds)
+    transportProfiles: transportProfiles)
 }
 
 /// The filler byte of the CPace key the Noise-only drives share.
@@ -121,8 +97,8 @@ internal func runSession(
   _ peers: PairedPeers
 ) throws -> (requester: EstablishedSession, proxy: EstablishedSession) {
   var requester = try SessionHandshake.beginRequester(
-    pair: peers.requester, intent: ExplicitUserIntent())
-  var proxy = try SessionHandshake.beginProxy(pair: peers.proxy)
+    pair: peers.requester, transportProfile: streamProfile, intent: ExplicitUserIntent())
+  var proxy = try SessionHandshake.beginProxy(pair: peers.proxy, transportProfile: streamProfile)
 
   try proxy.readMessage(try requester.writeMessage())
   try requester.readMessage(try proxy.writeMessage())

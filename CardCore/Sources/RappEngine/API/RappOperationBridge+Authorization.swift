@@ -119,7 +119,7 @@ extension RappOperationBridge {
     return try complete(operationId: operationId, result: .inspection(inspection))
   }
 
-  /// Answers an identity read (RAPP v26.10.1 §9.1).
+  /// Answers an identity read (RAPP v26.10.9 §9.1).
   ///
   /// Both dates are `YYYY-MM-DD`; at least one DER certificate travels.
   public func completeIdentity(

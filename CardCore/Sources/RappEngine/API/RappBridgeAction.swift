@@ -35,7 +35,7 @@ public struct RappBridgeAction: Equatable, Sendable {
   /// Advisory progress event reported by peer.
   public var progressEvent: ProgressEvent?
   /// The signatures an interrupted batch made before it became ambiguous,
-  /// in document order; empty otherwise (RAPP v26.10.1 §9.3).
+  /// in document order; empty otherwise (RAPP v26.10.9 §9.3).
   public var batchSignatures: [Data]
 
   /// Describes one step, carrying only what that step needs.

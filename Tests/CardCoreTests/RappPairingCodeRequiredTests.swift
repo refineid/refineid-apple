@@ -19,11 +19,7 @@ import Testing
       RappPairingCoordinator.Options(
         code: code,
         profiles: ["fi.refineid.card-status.v1"],
-        candidate: .init(
-          profile: "apple-peer-v1",
-          candidateID: "candidate-1",
-          parametersCBOR: Data([0xA0])
-        ),
+        transportProfile: "apple-peer-v1",
         displayName: "Peer",
         platform: "macOS",
         vault: makeVault(suffix: suffix),

@@ -7,7 +7,7 @@ import Testing
 internal struct RappSessionConformanceCorpusTests {
   // MARK: Static Properties
 
-  private static let supportedWireVersion: [UInt16] = [26, 10, 1]
+  private static let supportedWireVersion: [UInt16] = [26, 10, 9]
 
   // MARK: Static Functions
 
@@ -20,7 +20,7 @@ internal struct RappSessionConformanceCorpusTests {
       repository
       .appendingPathComponent("Documentation")
       .appendingPathComponent("rapp-conformance")
-      .appendingPathComponent("rapp-v26.10.1.json")
+      .appendingPathComponent("rapp-v26.10.9.json")
     let decoder = JSONDecoder()
     decoder.keyDecodingStrategy = .convertFromSnakeCase
     return try decoder.decode(

@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.10.1 invalid credential (section 10.2)")
+@Suite("RAPP v26.10.9 invalid credential (section 10.2)")
 internal struct InvalidCredentialTests {
   private static let reference = OperationReference(
     operationIdentifier: Data(repeating: 0x22, count: 16),

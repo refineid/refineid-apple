@@ -81,8 +81,9 @@ private let fixturePairingCode = "246813"
         proxyOutcome.cancel()
       }
 
-      await proxy.transportConnected()
+      // The requester waits for the offer the custodian serves on connecting.
       await requester.transportConnected()
+      await proxy.transportConnected()
       return try await (requesterOutcome.value, proxyOutcome.value)
     }
 
@@ -95,11 +96,7 @@ private let fixturePairingCode = "246813"
       RappPairingCoordinator.Options(
         code: fixturePairingCode,
         profiles: RappIntegrationFixtures.profiles,
-        candidate: .init(
-          profile: RappIntegrationFixtures.transportProfile,
-          candidateID: RappIntegrationFixtures.candidateID,
-          parametersCBOR: RappIntegrationFixtures.FixtureTiming.emptyParametersCBOR
-        ),
+        transportProfile: RappIntegrationFixtures.transportProfile,
         displayName: displayName,
         platform: platform,
         vault: vault,

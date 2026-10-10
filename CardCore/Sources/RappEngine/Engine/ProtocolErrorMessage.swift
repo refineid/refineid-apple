@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// Protocol-level errors (RAPP v26.10.1 §10.4).
+/// Protocol-level errors (RAPP v26.10.9 §10.4).
 ///
 /// The engine sends three: `unknown_operation` answers a stale reference,
 /// `duplicate_operation` refuses an operation identifier reused with

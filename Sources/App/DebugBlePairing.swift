@@ -7,7 +7,7 @@
   import RappEngine
 
   /// Drives both halves of a pairing over `fi.refineid.rapp.ble.v1`
-  /// (RAPP v26.10.1 §4.2, §5) from the command line.
+  /// (RAPP v26.10.9 §4.2, §5) from the command line.
   ///
   /// The custodian prints the code it shows and serves its offer on the
   /// bootstrap characteristic; the requester takes the code from the
@@ -47,9 +47,9 @@
       let coordinator: RappPairingCoordinator
       let offer: Data
       do {
-        coordinator = try RappPairingCoordinator.bleCustodian(
+        coordinator = try RappPairingCoordinator.custodian(
           options: options(code: code, transport: transport))
-        offer = try coordinator.bootstrapOffer()
+        offer = try await coordinator.bootstrapOffer()
       } catch {
         return DebugModeReport(
           lines: [custodianPrefix + ": the offer could not be made"], succeeded: false)
@@ -100,7 +100,7 @@
         switch event {
         case .bootstrapOffer(let offer):
           guard
-            let coordinator = try? RappPairingCoordinator.bleRequester(
+            let coordinator = try? RappPairingCoordinator.requester(
               options: options(code: code, transport: transport), bootstrapOffer: offer)
           else {
             return DebugModeReport(
@@ -130,7 +130,7 @@
       RappPairingCoordinator.Options(
         code: code,
         profiles: RappApplePeerProfile.supportedCredentialProfiles,
-        candidate: RappPairingCoordinator.bleCandidate,
+        transportProfile: RappBleGattProfile.name,
         displayName: RappPairingModel.localDisplayName,
         platform: RappPairingModel.localPlatform,
         vault: RappDeviceVault(),

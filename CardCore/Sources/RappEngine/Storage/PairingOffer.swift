@@ -6,7 +6,7 @@ import Foundation
 /// Scheme name carried inside the encoded offer.
 internal let offerSchemeName = "rapp"
 
-/// Validated pairing offer (RAPP v26.10.1 §4.2).
+/// Validated pairing offer (RAPP v26.10.9 §4.2).
 ///
 /// The offer carries no secret: the pre-shared key comes from CPace, so the
 /// offer is public and its hash binds the context, the prologue and the
@@ -37,25 +37,28 @@ internal struct PairingOffer: Sendable {
     try validate()
   }
 
-  /// The offer both peers rebuild from the pairing code they share.
-  internal static func fromCode(
-    _ code: String,
-    profiles: [String],
-    transports: [TransportCandidate],
-    offerLifetimeMilliseconds: UInt64
+  /// A fresh offer naming `transportProfiles`, each with its registered
+  /// entry (RAPP v26.10.9 §4.2).
+  ///
+  /// The identifier is randomness the caller draws; it is never derived
+  /// from the pairing code.
+  internal static func create(
+    offerIdentifier: Data, profiles: [String], transportProfiles: [String]
   ) throws -> Self {
-    let identifier: Data
-    do {
-      identifier = try cpaceDeriveManualOfferId(code: try cpacePasswordString(code))
-    } catch {
-      throw PairingOfferError.wrongLength("offer_id")
+    let entries = try transportProfiles.map { profile in
+      guard let entry = TransportRegistry.entry(for: profile) else {
+        throw PairingOfferError.invalidTransport
+      }
+      return entry
     }
     return try Self(
-      offerIdentifier: identifier,
+      offerIdentifier: offerIdentifier,
       suites: [RappCpaceConstants.kc2Suite],
       profiles: profiles,
-      transports: transports,
-      offerLifetimeMilliseconds: offerLifetimeMilliseconds)
+      transports: entries.sorted { first, second in
+        Data(first.profile.utf8).lexicographicallyPrecedes(Data(second.profile.utf8))
+      },
+      offerLifetimeMilliseconds: OfferLimit.offerLifetimeMilliseconds)
   }
 
   /// Decodes `encode_deterministic_cbor(pairing-offer)`.
@@ -122,16 +125,20 @@ internal struct PairingOffer: Sendable {
     guard transports.count <= OfferLimit.transportCandidates else {
       throw PairingOfferError.tooManyTransports
     }
-    guard offerLifetimeMilliseconds > 0,
-      offerLifetimeMilliseconds <= OfferLimit.offerLifetimeMaximumMilliseconds
-    else {
+    guard offerLifetimeMilliseconds == OfferLimit.offerLifetimeMilliseconds else {
       throw PairingOfferError.invalidLifetime
     }
-    guard
-      !transports.contains(where: { $0.profile.isEmpty || $0.candidateIdentifier.isEmpty })
+    let names = transports.map { Data($0.profile.utf8) }
+    guard zip(names, names.dropFirst()).allSatisfy({ $0.lexicographicallyPrecedes($1) }),
+      transports.allSatisfy({ TransportRegistry.entry(for: $0.profile) == $0 })
     else {
       throw PairingOfferError.invalidTransport
     }
+  }
+
+  /// The entry naming `profile`, if the offer is served over it.
+  internal func entry(for profile: String) -> TransportCandidate? {
+    transports.first { $0.profile == profile }
   }
 
   /// `encode_deterministic_cbor(pairing-offer)`.

@@ -3,7 +3,7 @@
 import Foundation
 
 extension RappTerminalReason {
-  /// The reason a received failure result names (RAPP v26.10.1 §10).
+  /// The reason a received failure result names (RAPP v26.10.9 §10).
   internal init(status: ResultStatus, error: ResultError?) {
     switch (status, error) {
     case (.ambiguous, _):

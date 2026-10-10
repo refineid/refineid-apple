@@ -22,7 +22,7 @@ rm -f "$OFFER_LOG"
 # 1. Terminate running instances
 xcrun simctl terminate "$IPAD_UDID" fi.refineid.ReFineID 2>/dev/null || true
 
-# 2. The iPhone holds the card, so it shows the code (RAPP v26.10.1 section 3).
+# 2. The iPhone holds the card, so it shows the code (RAPP v26.10.9 section 3).
 echo "==> Showing a pairing code on the iPhone..."
 xcrun devicectl device process launch \
   --device "$IPHONE_UDID" \

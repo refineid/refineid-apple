@@ -5,8 +5,8 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.10.1 BLE offer and bootstrap (section 4.2)")
-internal struct BleOfferTests {
+@Suite("RAPP v26.10.9 offer bootstrap on BLE and stream (section 4.2)")
+internal struct BootstrapOfferTests {
   private static let code = "7KX4M9"
   private static let profiles = [
     "fi.refineid.card-status.v1", "fi.refineid.authentication.v1",
@@ -15,10 +15,12 @@ internal struct BleOfferTests {
   /// The encoded length section 4.2 states for the KC2 offer.
   private static let specifiedOfferLength = 400
 
-  private static func custodian() throws -> RappPairingBridge {
-    try RappPairingBridge.bleOffer(
+  private static func custodian(
+    transportProfiles: [String] = [RappBleGattProfile.name]
+  ) throws -> RappPairingBridge {
+    try RappPairingBridge.custodianOffer(
       pairingCode: code, offerId: randomBytes(OfferLimit.offerIdentifierSize),
-      profiles: profiles, startedAtMonotonicMs: 0)
+      profiles: profiles, transportProfiles: transportProfiles, startedAtMonotonicMs: 0)
   }
 
   @Test("The bootstrap offer is the 400-byte KC2 offer with a random identifier")
@@ -33,14 +35,17 @@ internal struct BleOfferTests {
     #expect(try Self.custodian().encodedOffer() != encoded, "a fresh identifier per offer")
   }
 
-  @Test("A requester that read the bootstrap offer completes the ceremony")
-  internal func ceremonyOverBootstrap() throws {
-    let custodian = try Self.custodian()
+  @Test(
+    "A requester that read the bootstrap offer completes the ceremony on either transport",
+    arguments: [RappBleGattProfile.name, "fi.refineid.stream.v1"])
+  internal func ceremonyOverBootstrap(transportProfile: String) throws {
+    let custodian = try Self.custodian(
+      transportProfiles: [RappBleGattProfile.name, "fi.refineid.stream.v1"])
     let requester = try RappPairingBridge.bootstrapOffer(
-      encodedOffer: try custodian.encodedOffer(), pairingCode: Self.code,
-      startedAtMonotonicMs: 0)
+      encodedOffer: try custodian.encodedOffer(), transportProfile: transportProfile,
+      pairingCode: Self.code, startedAtMonotonicMs: 0)
     let now: UInt64 = 1_000
-    let candidate = RappBleGattProfile.candidateId
+    let candidate = try #require(rappCandidateIdentifier(transportProfile: transportProfile))
     let random = { randomBytes(RappCpaceConstants.wideScalarSize) }
     try requester.beginCpace(candidateId: candidate, randomBytes64: random(), nowMonotonicMs: now)
     try custodian.beginCpace(candidateId: candidate, randomBytes64: random(), nowMonotonicMs: now)
@@ -79,8 +84,8 @@ internal struct BleOfferTests {
   internal func wrongCodeFails() throws {
     let custodian = try Self.custodian()
     let requester = try RappPairingBridge.bootstrapOffer(
-      encodedOffer: try custodian.encodedOffer(), pairingCode: "7KX4M8",
-      startedAtMonotonicMs: 0)
+      encodedOffer: try custodian.encodedOffer(), transportProfile: RappBleGattProfile.name,
+      pairingCode: "7KX4M8", startedAtMonotonicMs: 0)
     let candidate = RappBleGattProfile.candidateId
     let random = { randomBytes(RappCpaceConstants.wideScalarSize) }
     try requester.beginCpace(candidateId: candidate, randomBytes64: random(), nowMonotonicMs: 1)
@@ -93,27 +98,28 @@ internal struct BleOfferTests {
     }
   }
 
-  @Test("An offer without the BLE candidate or with a malformed body is refused")
+  @Test("An offer without the connection's transport or with a malformed body is refused")
   internal func foreignOfferRefused() throws {
-    let streamOffer = try RappPairingBridge.codeOffer(
-      role: .proxy, pairingCode: Self.code, profiles: Self.profiles,
-      transports: [
-        RappTransportCandidate(
-          profile: rappStreamProfileName(), candidateId: "stream-1", parametersCbor: Data())
-      ],
-      offerTtlMs: RappBleGattProfile.offerLifetimeMilliseconds, startedAtMonotonicMs: 0)
+    let streamOffer = try Self.custodian(transportProfiles: [rappStreamProfileName()])
     #expect(throws: RappBindingError.InvalidInput) {
       try RappPairingBridge.bootstrapOffer(
-        encodedOffer: try streamOffer.encodedOffer(), pairingCode: Self.code,
-        startedAtMonotonicMs: 0)
+        encodedOffer: try streamOffer.encodedOffer(), transportProfile: RappBleGattProfile.name,
+        pairingCode: Self.code, startedAtMonotonicMs: 0)
     }
     #expect(throws: RappBindingError.InvalidInput) {
       try RappPairingBridge.bootstrapOffer(
-        encodedOffer: Data([0xA0]), pairingCode: Self.code, startedAtMonotonicMs: 0)
+        encodedOffer: Data([0xA0]), transportProfile: RappBleGattProfile.name,
+        pairingCode: Self.code, startedAtMonotonicMs: 0)
     }
     #expect(throws: RappBindingError.InvalidInput) {
-      try RappPairingBridge.bleOffer(
+      try RappPairingBridge.custodianOffer(
         pairingCode: Self.code, offerId: Data(count: 16), profiles: Self.profiles,
+        transportProfiles: [RappBleGattProfile.name], startedAtMonotonicMs: 0)
+    }
+    #expect(throws: RappBindingError.InvalidInput) {
+      try RappPairingBridge.custodianOffer(
+        pairingCode: Self.code, offerId: randomBytes(OfferLimit.offerIdentifierSize),
+        profiles: Self.profiles, transportProfiles: ["fi.example.unregistered.v1"],
         startedAtMonotonicMs: 0)
     }
   }

@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// A fragment or message the RAPP v26.10.1 §5.3 SAR layer refuses.
+/// A fragment or message the RAPP v26.10.9 §5.3 SAR layer refuses.
 ///
 /// Every receive failure is unrecoverable: the reassembly buffer is zeroized
 /// and the connection must be dropped.

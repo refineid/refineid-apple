@@ -23,9 +23,7 @@ extension RappPairingBridge {
       guard deadline.isLive(nowMilliseconds: nowMonotonicMs) else {
         throw RappBindingError.OfferExpired
       }
-      guard offer.transports.filter({ $0.candidateIdentifier == candidateId }).count == 1 else {
-        throw RappBindingError.InvalidInput
-      }
+      context = try boundContext(candidateId: candidateId)
       candidateIdentifier = candidateId
       switch role {
       case .requester:
@@ -50,6 +48,20 @@ extension RappPairingBridge {
         phase = .custodianAwaitingStepOne(randomBytes: randomBytes64)
       }
     }
+  }
+
+  /// The KC2 context for the one offer entry naming `candidateId`, bound to
+  /// its transport profile and candidate (RAPP v26.10.9 §6.1.1).
+  private func boundContext(candidateId: String) throws -> Data {
+    let entries = offer.transports.filter { $0.candidateIdentifier == candidateId }
+    guard entries.count == 1, let entry = entries.first,
+      let bound = try? cpaceKc2Context(
+        offerHash: offerHash, transportProfile: entry.profile,
+        candidateIdentifier: entry.candidateIdentifier)
+    else {
+      throw RappBindingError.InvalidInput
+    }
+    return bound
   }
 
   /// The next CPace message this role sends.

@@ -15,7 +15,6 @@ private let fillerRemoteStaticPublic: UInt8 = 0x55
 private let fillerGrantsHash: UInt8 = 0x66
 
 /// Fixed times, so an encoding is reproducible run to run.
-private let fixtureOfferLifetimeMilliseconds: UInt64 = 60_000
 private let fixtureRecordCreatedAtMilliseconds: UInt64 = 1_700_000_000_000
 
 internal func filler(_ byte: UInt8, _ count: Int) -> Data {
@@ -25,21 +24,10 @@ internal func filler(_ byte: UInt8, _ count: Int) -> Data {
 // MARK: - Unit 1: pairing offer
 
 internal func makeOffer() throws -> PairingOffer {
-  try PairingOffer(
+  try PairingOffer.create(
     offerIdentifier: filler(fillerOfferIdentifier, OfferLimit.offerIdentifierSize),
-    suites: [RappCpaceConstants.kc2Suite],
     profiles: ["fi.refineid.card-status.v1", "fi.refineid.authentication.v1"],
-    transports: [
-      TransportCandidate(
-        profile: "fi.refineid.stream.v1",
-        candidateIdentifier: "stream-1",
-        parameters: ["endpoints": .array([.text("192.0.2.1:47110")])]
-      ),
-      TransportCandidate(
-        profile: "apple-peer-v1", candidateIdentifier: "apple-peer-v1.nearby"),
-    ],
-    offerLifetimeMilliseconds: fixtureOfferLifetimeMilliseconds
-  )
+    transportProfiles: ["fi.refineid.stream.v1", "apple-peer-v1"])
 }
 
 internal func makePairRecord() throws -> PairRecord {

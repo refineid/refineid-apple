@@ -24,7 +24,7 @@ extension OperationResultMessage {
   /// A non-successful result that also carries a batch's progress.
   ///
   /// An ambiguous batch that already made signatures carries them, so they
-  /// are delivered and never made again (RAPP v26.10.1 §9.3).
+  /// are delivered and never made again (RAPP v26.10.9 §9.3).
   internal static func failure(
     reference: OperationReference, failure: ProxyFailure, batchSignatures: [Data]
   ) -> OperationResultMessage {

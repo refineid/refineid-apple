@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The custodian's attempt accounting for one offer (RAPP v26.10.1 §3.3).
+/// The custodian's attempt accounting for one offer (RAPP v26.10.9 §3.3).
 ///
 /// An attempt is admitted before Y_B and T_B leave the custodian, so a peer
 /// that tests T_B and disconnects still spends it. A successful T_A consumes

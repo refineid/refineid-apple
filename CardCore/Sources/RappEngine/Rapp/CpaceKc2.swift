@@ -3,12 +3,12 @@
 import CryptoKit
 import Foundation
 
-// The CPaceRistretto255 KC2 profile of RAPP v26.10.1 §6.1: the requester is
+// The CPaceRistretto255 KC2 profile of RAPP v26.10.9 §6.1: the requester is
 // initiator A and sends Y_A; the custodian is responder B and answers with
 // Y_B and its tag T_B; the requester closes with T_A. Both derive the
 // pre-shared key the Noise_XXpsk3 pairing handshake consumes.
 
-/// The six-character code alphabet of RAPP v26.10.1 §3.1.
+/// The six-character code alphabet of RAPP v26.10.9 §3.1.
 private let codeAlphabet = Set("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
 private let codeLength = 6
 
@@ -23,14 +23,17 @@ internal func cpacePasswordString(_ code: String) throws -> String {
   return code
 }
 
-/// The pairing context C (RAPP v26.10.1 §6.1.1) for one offer hash.
-internal func cpaceKc2Context(offerHash: Data) throws -> Data {
+/// The pairing context C (RAPP v26.10.9 §6.1.1) for one offer hash, bound
+/// to the connection's transport profile and its offer entry's candidate.
+internal func cpaceKc2Context(
+  offerHash: Data, transportProfile: String, candidateIdentifier: String
+) throws -> Data {
   let context = WireValue.array([
     .text(RappCpaceConstants.contextDomain),
     wireVersionValue,
     .text(RappCpaceConstants.kc2Suite),
-    .text(RappCpaceConstants.contextTransportProfile),
-    .text(RappCpaceConstants.contextCandidateIdentifier),
+    .text(transportProfile),
+    .text(candidateIdentifier),
     .bytes(offerHash),
     .text(RappCpaceConstants.initiatorRole),
     .text(RappCpaceConstants.responderRole),

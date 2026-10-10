@@ -86,9 +86,6 @@ import Testing
       internal static let operationExpiryMilliseconds: UInt64 = 60_000
       internal static let pairingOfferLifetimeMilliseconds: UInt64 = 60_000
       internal static let connectionMaximumLifetimeMilliseconds: UInt64 = 60_000
-      /// Empty CBOR map: the pairing parameters the fixture never fills in.
-      internal static let emptyParametersCBOR = Data([0xA0])
-      // swiftlint:disable:previous no_magic_numbers
       internal static let probingBaseIntervalMilliseconds: UInt64 = 60_000
       internal static let probingResponseTimeoutMilliseconds: UInt64 = 10_000
       internal static let probingMaximumIntervalMilliseconds: UInt64 = 60_000

@@ -13,14 +13,6 @@ import SwiftUI
 
 internal enum RappApplePeerProfile {
   internal static let name = "apple-peer-v1"
-  internal static let candidateID = "apple-peer-v1.nearby"
-
-  /// Deterministic CBOR for an empty map.
-  ///
-  /// Apple peer discovery currently needs no public parameter beyond
-  /// its bound profile and candidate ID.
-  private static let emptyMapInitialByte: UInt8 = 0b1010_0000
-  internal static let candidateParameters = Data([emptyMapInitialByte])
 
   /// Only profiles implemented end to end by the current phone executor.
   internal static let supportedCredentialProfiles = [
