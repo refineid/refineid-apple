@@ -28,6 +28,7 @@ internal final class PairingRelay: @unchecked Sendable {
     private var listener: StreamRelayListener?
     private var browser: StreamRelayBrowser?
     private var dialer: StreamRelaySession?
+    private var admission = StreamPairingAdmission(preamble: rappStreamPairingPreamble())
     private var reportedArrival = false
   #else
     private let session: PersistentRelaySession
@@ -128,25 +129,31 @@ internal final class PairingRelay: @unchecked Sendable {
     ///
     /// The requester has arrived once its connection is open and its
     /// preamble sent. The holder waits for that preamble (RAPP v26.10.9
-    /// §5.2 routing): anything else first is pre-authentication invalid
-    /// input and drops the connection.
+    /// §2.2.1 routing): anything else first is pre-authentication invalid
+    /// input that closes that connection, and the offer keeps listening.
     private func receiveStream(_ event: StreamRelayEvent) {
-      switch (role, event) {
-      case (.host, .connected):
-        reportArrival()
-
-      case (.cardHolder, .connected):
-        return
-
-      case (.cardHolder, .frame(let payload)) where !reportedArrival:
-        if payload == rappStreamPairingPreamble() {
+      switch role {
+      case .host:
+        if case .connected = event {
           reportArrival()
         } else {
-          listener?.cancel()
+          onEvent(PersistentRelayEvent(event))
         }
 
-      default:
-        onEvent(PersistentRelayEvent(event))
+      case .cardHolder:
+        switch admission.admit(event) {
+        case .ignore:
+          return
+
+        case .arrive:
+          reportArrival()
+
+        case .reject:
+          listener?.disconnect()
+
+        case .forward:
+          onEvent(PersistentRelayEvent(event))
+        }
       }
     }
 
