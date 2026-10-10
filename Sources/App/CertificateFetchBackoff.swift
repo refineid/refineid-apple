@@ -6,10 +6,12 @@ import Foundation
 /// the phone again.
 ///
 /// Every read reaches the phone as a card request and can hold it for
-/// its whole card wait. The first two failures are retried at once,
-/// for a phone that was only briefly out of reach; after that the
-/// gap doubles from half a minute to five minutes. An explicit retry,
-/// a launch, or a new pairing starts over.
+/// its whole card wait. The first two failures are retried on their
+/// own after a short gap, for a phone that was only briefly out of
+/// reach. After that no read is scheduled: the phone's next
+/// advertisement starts one, but only once a gap that doubles from
+/// half a minute to five minutes has passed. An explicit retry, a
+/// launch, or a new pairing starts over.
 internal struct CertificateFetchBackoff: Equatable, Sendable {
   // MARK: Static Properties
 
