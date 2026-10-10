@@ -25,21 +25,6 @@
       // use was ever chosen.
     }
 
-    /// Asks for the notification authorization the prompts need.
-    ///
-    /// Called after the notifications explanation is confirmed. The
-    /// approval alert shows in the app regardless; the notification
-    /// carries it when backgrounded, so declining only costs the
-    /// backgrounded case.
-    internal func ensureAuthorization() {
-      guard SupportedCardTransports.offersNearField else { return }
-      UNUserNotificationCenter.current().requestAuthorization(
-        options: [.alert, .sound, .badge]
-      ) { _, _ in
-        // Notification authorization requested for an opted-in holder.
-      }
-    }
-
     internal func ask(
       _ offered: RappAuthorizationRequest
     ) async -> RappAuthorizationDecision {

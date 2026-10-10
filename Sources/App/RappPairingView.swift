@@ -34,8 +34,6 @@ internal struct RappPairingView: View {
 
   @StateObject private var model = RappPairingModel()
   @State private var remoteAccessEnabled = RemoteAccessGate.isEnabled
-  @State private var showingLocalNetworkExplainer = false
-  @State private var showingNotificationsExplainer = false
   @State private var showingLocalNetworkDenied = false
 
   #if REFINEID_LOCAL_CARD && os(iOS)
@@ -98,31 +96,6 @@ internal struct RappPairingView: View {
       model.refresh()
     }
     .alert(
-      String(localized: "Remote Card Use"),
-      isPresented: $showingLocalNetworkExplainer
-    ) {
-      Button(String(localized: "OK")) {
-        continueAfterLocalNetworkExplainer()
-      }
-    } message: {
-      Text(String(localized: "Network access is required."))
-    }
-    .alert(
-      String(localized: "Allow Notifications"),
-      isPresented: $showingNotificationsExplainer
-    ) {
-      Button(String(localized: "OK")) {
-        continueAfterNotificationsExplainer()
-      }
-    } message: {
-      Text(
-        String(
-          localized:
-            "Get notified when a nearby device needs this iPhone; without it, Remote Access works only while open."
-        )
-      )
-    }
-    .alert(
       String(localized: "Local Network Access Is Off"),
       isPresented: $showingLocalNetworkDenied
     ) {
@@ -143,7 +116,7 @@ internal struct RappPairingView: View {
 
   internal func handleToggleChange(_ enabled: Bool) {
     if enabled {
-      showingLocalNetworkExplainer = true
+      turnRemoteAccessOn()
     } else {
       remoteAccessEnabled = false
       #if os(iOS)
@@ -154,18 +127,19 @@ internal struct RappPairingView: View {
     }
   }
 
-  private func continueAfterLocalNetworkExplainer() {
+  /// Starts serving, then lets the system ask for what it has no answer for.
+  private func turnRemoteAccessOn() {
     #if os(iOS)
       RemoteAccessServing.setEnabled(true)
       remoteAccessEnabled = true
       Task { @MainActor in
-        let access = await LocalNetworkAccessDetector.currentAccess()
-        switch access {
+        switch await RemoteAccessPermissions.localNetworkAccess() {
         case .allowed:
-          showingNotificationsExplainer = true
           if case .idle = model.phase {
             model.createOffer()
           }
+          await RemoteAccessPermissions.requestNotificationsIfUndecided()
+
         case .denied:
           remoteAccessEnabled = false
           RemoteAccessServing.setEnabled(false)
@@ -178,15 +152,6 @@ internal struct RappPairingView: View {
         model.createOffer()
       }
     #endif
-  }
-
-  private func continueAfterNotificationsExplainer() {
-    #if os(iOS)
-      RappAuthorizationInbox.shared.ensureAuthorization()
-    #endif
-    if case .idle = model.phase {
-      model.createOffer()
-    }
   }
 
   private func openSystemSettings() {
