@@ -36,6 +36,9 @@ public struct RemoteSignCoolDown: Sendable {
   /// The longest pause.
   public static let ceiling: TimeInterval = 300
 
+  /// The system-wide notification posted when a pause begins or ends.
+  public static let changeNotificationName = "fi.refineid.remoteSignCoolDownChanged"
+
   /// The cool-down the app and its token extensions share.
   public static let shared = Self(defaultsSuite: "group.fi.refineid.RefineID")
 
@@ -65,6 +68,20 @@ public struct RemoteSignCoolDown: Sendable {
       pause *= growth
     }
     return min(pause, ceiling)
+  }
+
+  /// Tells every process sharing the record that a pause began or ended.
+  ///
+  /// The token extension and the app are separate processes; a change one
+  /// writes to shared defaults reaches the other only through this.
+  private static func announceChange() {
+    CFNotificationCenterPostNotification(
+      CFNotificationCenterGetDarwinNotifyCenter(),
+      CFNotificationName(changeNotificationName as CFString),
+      nil,
+      nil,
+      true
+    )
   }
 
   /// When the current pause ends, or `nil` when requests reach the phone.
@@ -97,6 +114,7 @@ public struct RemoteSignCoolDown: Sendable {
       defaults.set(consecutive, forKey: Self.consecutiveKey)
       let end = now.addingTimeInterval(Self.pause(after: consecutive))
       defaults.set(end.timeIntervalSinceReferenceDate, forKey: Self.untilKey)
+      Self.announceChange()
 
     case .other:
       break
@@ -107,5 +125,6 @@ public struct RemoteSignCoolDown: Sendable {
   public func resume() {
     defaults.removeObject(forKey: Self.consecutiveKey)
     defaults.removeObject(forKey: Self.untilKey)
+    Self.announceChange()
   }
 }
