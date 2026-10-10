@@ -32,7 +32,7 @@ internal struct BleSarVectorFile: Decodable {
     internal let atFragment: Int?
   }
 
-  private static let fileName = "rapp-ble-sar-v26.10.9.json"
+  private static let fileName = "rapp-ble-sar-v26.10.10.json"
   /// Test sources sit four directories below the repository root.
   private static let depthBelowRepositoryRoot = 4
 

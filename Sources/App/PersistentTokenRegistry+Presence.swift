@@ -10,7 +10,7 @@
     private struct HolderPairing: Sendable {
       let key: String
       let pairID: Data
-      let rendezvousToken: Data
+      let record: RappPairRecord
     }
 
     /// Seconds a vanished advertisement may stay missing before the
@@ -35,26 +35,31 @@
         return HolderPairing(
           key: pairID.map { String(format: "%02x", $0) }.joined(),
           pairID: pairID,
-          rendezvousToken: pair.metadata().rendezvousToken)
+          record: pair)
       }
     }
 
-    /// The pairing a published session record belongs to.
+    /// What a published record says about one of `pairings`.
     ///
-    /// A record with hints names one of `pairings` through a hint; a
-    /// minimal record names the only pairing, or an unknown one (the
-    /// empty key) when there are several. Anything else is not a holder.
-    nonisolated private static func holderKey(
-      for record: [String: String], among pairings: [HolderPairing]
-    ) -> String? {
-      guard StreamRendezvousName.isSessionRecord(record) else { return nil }
-      guard record[StreamRendezvousName.hintsKey] != nil else {
-        return pairings.count == 1 ? pairings[0].key : ""
-      }
+    /// A session record names the pairing whose discovery hint it carries;
+    /// a withdrawn record names the pairing whose withdrawal hint it
+    /// carries for `instance`. Anything else is not a holder.
+    nonisolated private static func classification(
+      of record: [String: String], instance: String, among pairings: [HolderPairing]
+    ) -> StreamRelayPresence.Classification? {
       let now = Date()
-      return pairings.first { pairing in
-        StreamRendezvousName.sessionRecord(record, mayHold: pairing.rendezvousToken, at: now)
-      }?.key
+      if let holder = pairings.first(where: { pairing in
+        StreamRendezvousName.sessionRecord(record, holds: pairing.record, at: now)
+      }) {
+        return .holder(holder.key)
+      }
+      if let withdrawn = pairings.first(where: { pairing in
+        StreamRendezvousName.withdrawnRecord(
+          record, instance: instance, withdraws: pairing.record, at: now)
+      }) {
+        return .withdrawn(withdrawn.key)
+      }
+      return nil
     }
 
     /// The classifier the browser calls on its own queue.
@@ -64,8 +69,17 @@
     /// isolation check.
     nonisolated private static func recordClassifier(
       among pairings: [HolderPairing]
-    ) -> @Sendable ([String: String]) -> String? {
-      { record in holderKey(for: record, among: pairings) }
+    ) -> @Sendable ([String: String], String) -> StreamRelayPresence.Classification? {
+      { record, instance in classification(of: record, instance: instance, among: pairings) }
+    }
+
+    /// The withdrawal handler the browser calls on its own queue.
+    nonisolated private static func withdrawalHandler() -> @Sendable (String) -> Void {
+      { _ in
+        Task { @MainActor in
+          Self.shared.holderWithdrew()
+        }
+      }
     }
 
     /// The change handler the browser calls on its own queue; it hops to
@@ -113,7 +127,8 @@
       let watcher = StreamRelayPresence(
         following: keys,
         classifyingRecord: Self.recordClassifier(among: pairings),
-        onChange: Self.presenceHandler(pairIDs: pairIDs))
+        onChange: Self.presenceHandler(pairIDs: pairIDs),
+        onWithdrawn: Self.withdrawalHandler())
       presence = watcher
       watcher.start()
     }
@@ -159,6 +174,16 @@
       }
       stopWatchingPresence(clearHold: !holderIsAdvertising)
       startWatchingPresence()
+    }
+
+    /// The holder announced that it stopped serving: the borrowed identity
+    /// leaves at once, without the hold an unannounced loss gets, and no
+    /// request goes out until the holder advertises a session again.
+    internal func holderWithdrew() {
+      advertisementLossTask?.cancel()
+      advertisementLossTask = nil
+      holderIsAdvertising = false
+      Self.withdrawPublishedIdentity()
     }
 
     internal func holderPresenceChanged(_ present: Bool) {

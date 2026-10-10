@@ -43,7 +43,6 @@ internal struct FlowDriveTests {
   private func checkMirroredRecord(_ peers: PairedPeers) throws {
     let mirrored = try PairRecord(
       pairIdentifier: peers.proxy.pairIdentifier,
-      rendezvousToken: peers.proxy.rendezvousToken,
       role: .requester,
       localStaticPrivate: peers.requester.localStaticPrivate,
       localStaticPublic: peers.requester.localStaticPublic,
@@ -70,9 +69,6 @@ internal struct FlowDriveTests {
     check(
       peers.requester.pairIdentifier == peers.proxy.pairIdentifier,
       "the record carries that identifier")
-    check(
-      peers.requester.rendezvousToken == peers.proxy.rendezvousToken,
-      "both derive one rendezvous token")
     check(peers.requester.grantsHash == peers.proxy.grantsHash, "both derive one grants hash")
     check(peers.requester.profiles == peers.proxy.profiles, "both agree on the granted profiles")
     check(

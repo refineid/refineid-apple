@@ -3,19 +3,18 @@
 import Foundation
 
 /// Storage-format version of a persisted pairing.
-internal let pairRecordFormatVersion: UInt64 = 2
+internal let pairRecordFormatVersion: UInt64 = 3
 
 /// One durable pairing, as stored on this device only.
 internal struct PairRecord: Equatable {
   /// Every key a stored record may carry, and must carry in full.
   private static let expectedKeys = [
-    "format_version", "pair_id", "rendezvous_token", "role", "local_static_private",
+    "format_version", "pair_id", "role", "local_static_private",
     "local_static_public", "remote_static_public", "grants_hash", "profiles", "transport_profile",
     "candidate_id", "transport_parameters", "created_at_ms",
   ]
 
   internal let pairIdentifier: Data
-  internal let rendezvousToken: Data
   internal let role: EndpointRole
   internal let localStaticPrivate: Data
   internal let localStaticPublic: Data
@@ -27,7 +26,6 @@ internal struct PairRecord: Equatable {
 
   internal init(
     pairIdentifier: Data,
-    rendezvousToken: Data,
     role: EndpointRole,
     localStaticPrivate: Data,
     localStaticPublic: Data,
@@ -38,7 +36,6 @@ internal struct PairRecord: Equatable {
     createdAtMilliseconds: UInt64
   ) throws {
     guard pairIdentifier.count == PairRecordSize.pairIdentifier,
-      rendezvousToken.count == PairRecordSize.rendezvousToken,
       grantsHash.count == PairRecordSize.grantsHash,
       localStaticPrivate.count == PairRecordSize.staticKey,
       localStaticPublic.count == PairRecordSize.staticKey,
@@ -53,7 +50,6 @@ internal struct PairRecord: Equatable {
       throw PairRecordError.invalidInput
     }
     self.pairIdentifier = pairIdentifier
-    self.rendezvousToken = rendezvousToken
     self.role = role
     self.localStaticPrivate = localStaticPrivate
     self.localStaticPublic = localStaticPublic
@@ -73,7 +69,6 @@ internal struct PairRecord: Equatable {
       throw PairRecordError.invalidInput
     }
     let decodedPairIdentifier = try takeBytes(&map, "pair_id")
-    let decodedRendezvousToken = try takeBytes(&map, "rendezvous_token")
     guard let decodedRole = EndpointRole(rawValue: try takeText(&map, "role")) else {
       throw PairRecordError.invalidInput
     }
@@ -94,7 +89,6 @@ internal struct PairRecord: Equatable {
     guard map.isEmpty else { throw PairRecordError.invalidInput }
     return try Self(
       pairIdentifier: decodedPairIdentifier,
-      rendezvousToken: decodedRendezvousToken,
       role: decodedRole,
       localStaticPrivate: decodedLocalStaticPrivate,
       localStaticPublic: decodedLocalStaticPublic,
@@ -110,7 +104,6 @@ internal struct PairRecord: Equatable {
     let value = WireValue.map([
       "format_version": .unsigned(pairRecordFormatVersion),
       "pair_id": .bytes(pairIdentifier),
-      "rendezvous_token": .bytes(rendezvousToken),
       "role": .text(role.rawValue),
       "local_static_private": .bytes(localStaticPrivate),
       "local_static_public": .bytes(localStaticPublic),

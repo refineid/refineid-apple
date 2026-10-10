@@ -225,6 +225,26 @@
       }
     }
 
+    /// Ends the session with `service_withdrawn` because the holder
+    /// stopped serving (RAPP v26.10.10 §4.5).
+    public func closeServiceWithdrawn() async {
+      switch phase {
+      case .handshaking:
+        _ = await handshake.close()
+        await finish(.localRequest)
+
+      case .operating:
+        guard let operation else {
+          await finish(.localRequest)
+          return
+        }
+        await handleOperation(await operation.close(reason: .serviceWithdrawn))
+
+      case .closed:
+        return
+      }
+    }
+
     /// Ends the session and the pairing because the card can no longer
     /// be served.
     public func revokeBecauseCardUnavailable() async {

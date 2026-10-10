@@ -1,6 +1,7 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 import Foundation
+import Security
 
 /// How many random bytes each generated value needs.
 ///
@@ -14,35 +15,16 @@ public func rappRandomByteCounts() -> RappRandomByteCounts {
     livenessChallenge: UInt64(PingChallenge.byteCount))
 }
 
-/// The preamble a dialing proxy sends to open a pairing ceremony.
+/// The stream transport's pairing preamble.
 public func rappStreamPairingPreamble() -> Data {
-  // The pairing preamble carries no token, so its encoding cannot fail.
-  (try? StreamRendezvous.pairing.encoded()) ?? Data()
+  // The pairing preamble of a registered profile carries no routing, so
+  // its encoding cannot fail.
+  (try? RoutingPreamble.pairing.encoded(profile: StreamProfile.name)) ?? Data()
 }
 
 /// The name of the stream transport profile.
 public func rappStreamProfileName() -> String {
   StreamProfile.name
-}
-
-/// The preamble a dialing proxy sends to reach a stored pairing.
-///
-/// - Throws: ``RappBindingError/InvalidInput`` when the token is
-///   not the size the specification fixes.
-public func rappStreamSessionPreamble(rendezvousToken: Data) throws -> Data {
-  guard rendezvousToken.count == StreamRendezvous.tokenSize else {
-    throw RappBindingError.InvalidInput
-  }
-  do {
-    return try StreamRendezvous.session(token: rendezvousToken).encoded()
-  } catch {
-    throw RappBindingError.InvalidInput
-  }
-}
-
-/// The preamble a central sends to open a BLE pairing ceremony.
-public func rappBlePairingPreamble() -> Data {
-  (try? BleRendezvous.pairing.encoded()) ?? Data()
 }
 
 /// The public parameters of a BLE candidate advertising a `serviceUUID` and optional `psm`.
@@ -72,22 +54,44 @@ public func rappBleProfileName() -> String {
   BleProfile.name
 }
 
-/// The preamble a central sends to reach a stored pairing over BLE.
-public func rappBleSessionPreamble(rendezvousToken: Data) throws -> Data {
-  guard rendezvousToken.count == BleRendezvous.tokenSize else {
-    throw RappBindingError.InvalidInput
-  }
-  do {
-    return try BleRendezvous.session(token: rendezvousToken).encoded()
-  } catch {
-    throw RappBindingError.InvalidInput
-  }
-}
-
 /// The candidate identifier registered for a transport profile.
 ///
 /// The offer entry of `transportProfile` carries it (RAPP v26.10.9 §2.2);
 /// an unregistered profile has none.
 public func rappCandidateIdentifier(transportProfile: String) -> String? {
   TransportRegistry.entry(for: transportProfile)?.candidateIdentifier
+}
+
+/// The pairing preamble of a transport profile.
+public func rappPairingPreamble(transportProfile: String) throws -> Data {
+  do {
+    return try RoutingPreamble.pairing.encoded(profile: transportProfile)
+  } catch {
+    throw RappBindingError.InvalidInput
+  }
+}
+
+/// The `mode=session` record announcing the 4 most recently used pairings.
+public func rappSessionRecord(candidates: [RappAnnouncementCandidate]) -> [RappTxtEntry] {
+  DiscoveryRecord.assemble(candidates.map(\.engineCandidate)).textEntries.map(RappTxtEntry.init)
+}
+
+/// The `mode=withdrawn` record announcing the 8 most recently used
+/// pairings among random fillers.
+public func rappWithdrawnRecord(candidates: [RappAnnouncementCandidate]) throws -> [RappTxtEntry] {
+  guard
+    let record = WithdrawnRecord.assemble(
+      candidates.map(\.engineCandidate), random: rappRandomBytes)
+  else { throw RappBindingError.LocalStateFailure }
+  return record.textEntries.map(RappTxtEntry.init)
+}
+
+/// `count` bytes from the system random source, or `nil` when it fails.
+internal func rappRandomBytes(_ count: Int) -> Data? {
+  var bytes = Data(count: count)
+  let status = bytes.withUnsafeMutableBytes { buffer in
+    guard let base = buffer.baseAddress else { return errSecParam }
+    return SecRandomCopyBytes(kSecRandomDefault, count, base)
+  }
+  return status == errSecSuccess ? bytes : nil
 }

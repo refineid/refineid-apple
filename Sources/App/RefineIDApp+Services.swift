@@ -33,6 +33,9 @@ extension RefineIDApp {
         if DebugLaunchModes.selected() != nil { return }
       #endif
 
+      if RappDeviceVault().dropUnreadablePairs() > 0 {
+        PersistentTokenRegistry.withdrawPublishedIdentity()
+      }
       #if REFINEID_LOCAL_CARD && os(iOS)
         HolderCardServing.availabilityChanged()
         PhonePersistentTokenRelay.shared.start()

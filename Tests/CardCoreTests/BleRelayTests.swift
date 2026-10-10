@@ -6,10 +6,9 @@ import XCTest
 @testable import CardCore
 @testable import RappEngine
 
-/// Tests the BLE transport framing, rendezvous encoding/decoding, profile parameters,
+/// Tests the BLE transport framing, routing preamble, profile parameters,
 /// and endpoint definitions.
 internal final class BleRelayTests: XCTestCase {
-  private static let testToken = Data(repeating: 0x42, count: 16)
 
   internal func testBleFramingBounds() throws {
     let payload = Data("ble-payload-test".utf8)
@@ -33,20 +32,10 @@ internal final class BleRelayTests: XCTestCase {
     XCTAssertNil(BleRelayFraming.payloadByteCount(lengthPrefix: Data()))
   }
 
-  internal func testBleRendezvousPairingEncoding() throws {
-    let preamble = rappBlePairingPreamble()
-    XCTAssertFalse(preamble.isEmpty)
-
-    let decoded = try BleRendezvous.decode(preamble)
-    XCTAssertEqual(decoded, .pairing)
-  }
-
-  internal func testBleRendezvousSessionEncoding() throws {
-    let preamble = try rappBleSessionPreamble(rendezvousToken: Self.testToken)
-    XCTAssertFalse(preamble.isEmpty)
-
-    let decoded = try BleRendezvous.decode(preamble)
-    XCTAssertEqual(decoded, .session(token: Self.testToken))
+  internal func testBlePairingPreambleNamesThePairingPurpose() throws {
+    let preamble = try rappPairingPreamble(transportProfile: RappBleGattProfile.name)
+    XCTAssertEqual(RappBleRoutingPurpose(preamble: preamble), .pairing)
+    XCTAssertNil(RappBleRoutingPurpose(preamble: Data("noise".utf8)))
   }
 
   internal func testBleCandidateParametersEncoding() throws {

@@ -15,11 +15,10 @@ internal struct WireCorpusTests {
   internal func corpusIdentity() throws {
     let corpus = try CorpusFile.conformance(filePath: #filePath)
     #expect(corpus.format == "fi.refineid.rapp.conformance-v1")
-    #expect(corpus.protocolDocumentVersion == "26.10.9")
+    #expect(corpus.protocolDocumentVersion == "26.10.10")
     #expect(corpus.noiseHandshake.count == 4)
     #expect(corpus.pairingOffer.count == 3)
     #expect(corpus.cpaceKc2.count == 2)
-    #expect(corpus.discoveryHint.count == 2)
   }
 
   @Test("Every golden deterministic encoding round-trips")
@@ -160,24 +159,6 @@ internal struct WireCorpusTests {
       let hash = try Data(hex: vector.handshakeHashHex)
       #expect(RappNoise.pairIdentifier(handshakeHash: hash).hex == vector.pairIDHex)
       #expect(RappNoise.sessionIdentifier(handshakeHash: hash).hex == vector.sessionIDHex)
-      #expect(RappNoise.rendezvousToken(handshakeHash: hash).hex == vector.rendezvousTokenHex)
-    }
-  }
-
-  @Test("The plaintext preamble admits exactly the registered purposes")
-  internal func streamRendezvous() throws {
-    for vector in try CorpusFile.conformance(filePath: #filePath).streamRendezvous {
-      let encoded = try Data(hex: vector.encodedHex)
-      guard vector.accepted else {
-        #expect(CorpusFailure.name { _ = try StreamRendezvous.decode(encoded) } == vector.error)
-        continue
-      }
-      let rendezvous = try StreamRendezvous.decode(encoded)
-      let expected: StreamRendezvous =
-        vector.purpose == "session"
-        ? .session(token: try Data(hex: vector.rendezvousTokenHex ?? "")) : .pairing
-      #expect(rendezvous == expected, "\(vector.name)")
-      #expect(try rendezvous.encoded().hex == vector.encodedHex, "\(vector.name)")
     }
   }
 

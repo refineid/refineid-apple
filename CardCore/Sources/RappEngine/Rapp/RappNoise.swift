@@ -17,7 +17,7 @@ internal enum RappNoise {
 
   private static let wireMajor: UInt64 = 26
   private static let wireMinor: UInt64 = 10
-  private static let wirePatch: UInt64 = 9
+  private static let wirePatch: UInt64 = 10
 
   internal static let wireVersion = WireVersion(
     major: wireMajor,
@@ -33,7 +33,6 @@ internal enum RappNoise {
 
   private static let sessionIdentifierDomain = "RAPP-session-id-v1"
   private static let pairIdentifierDomain = "RAPP-pair-id-v1"
-  private static let rendezvousDomain = "RAPP-rendezvous-v1"
 
   /// Identifiers are the leading half of a domain-separated transcript hash.
   private static let identifierLength = 16
@@ -91,9 +90,5 @@ internal enum RappNoise {
 
   internal static func pairIdentifier(handshakeHash: Data) -> Data {
     identifier(domain: pairIdentifierDomain, handshakeHash: handshakeHash)
-  }
-
-  internal static func rendezvousToken(handshakeHash: Data) -> Data {
-    identifier(domain: rendezvousDomain, handshakeHash: handshakeHash)
   }
 }

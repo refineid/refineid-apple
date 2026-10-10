@@ -61,7 +61,6 @@ public final class RappPairRecord: @unchecked Sendable {
       profiles: record.profiles.map(\.rawValue),
       transportProfile: record.transport.profile,
       candidateId: record.transport.candidateIdentifier,
-      rendezvousToken: record.rendezvousToken,
       createdAtMs: record.createdAtMilliseconds)
   }
 

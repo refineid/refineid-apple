@@ -71,7 +71,7 @@ internal struct OperationBodyTests {
   internal func vectorIdentity() throws {
     let corpus = try CorpusFile.operation(filePath: #filePath)
     #expect(corpus.format == "fi.refineid.rapp.operation-vectors-v1")
-    #expect(corpus.protocolDocumentVersion == "26.10.9")
+    #expect(corpus.protocolDocumentVersion == "26.10.10")
     #expect(corpus.vectors.count == 34)
   }
 

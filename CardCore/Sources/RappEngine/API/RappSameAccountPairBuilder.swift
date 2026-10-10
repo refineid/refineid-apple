@@ -5,13 +5,12 @@ import Foundation
 
 /// Builds deterministic `RappPairRecord` representations for devices sharing the same Apple ID.
 ///
-/// Both devices deterministically derive the exact same `pairIdentifier`, `rendezvousToken`,
+/// Both devices deterministically derive the exact same `pairIdentifier`
 /// and `grantsHash` from their mutual static public keys and shared domain separation prefixes.
 public enum RappSameAccountPairBuilder {
   // MARK: Static Constants
 
   private static let pairDomain = Data("RefineID:SameAccountPair:v1".utf8)
-  private static let rendezvousDomain = Data("RefineID:SameAccountRendezvous:v1".utf8)
   private static let defaultProfiles = [
     ProfileName.cardStatus,
     ProfileName.authentication,
@@ -26,13 +25,6 @@ public enum RappSameAccountPairBuilder {
     let (minKey, maxKey) = sortKeys(publicKeyA, publicKeyB)
     let digest = SHA256.hash(data: pairDomain + minKey + maxKey)
     return Data(digest.prefix(PairRecordSize.pairIdentifier))
-  }
-
-  /// Derives the 16-byte rendezvous token from two public keys.
-  public static func deriveRendezvousToken(publicKeyA: Data, publicKeyB: Data) -> Data {
-    let (minKey, maxKey) = sortKeys(publicKeyA, publicKeyB)
-    let digest = SHA256.hash(data: rendezvousDomain + minKey + maxKey)
-    return Data(digest.prefix(PairRecordSize.rendezvousToken))
   }
 
   /// Builds a complete `RappPairRecord` for a same-account peer using the current timestamp.
@@ -63,10 +55,6 @@ public enum RappSameAccountPairBuilder {
       publicKeyA: localStaticPublic,
       publicKeyB: remotePublicKey
     )
-    let rendezvousToken = deriveRendezvousToken(
-      publicKeyA: localStaticPublic,
-      publicKeyB: remotePublicKey
-    )
     let grantsHash: Data
     do {
       grantsHash = try RappHashes.grantsHash(profiles: defaultProfiles.map(\.rawValue))
@@ -84,7 +72,6 @@ public enum RappSameAccountPairBuilder {
     do {
       rawRecord = try PairRecord(
         pairIdentifier: pairID,
-        rendezvousToken: rendezvousToken,
         role: role,
         localStaticPrivate: localStaticPrivate,
         localStaticPublic: localStaticPublic,

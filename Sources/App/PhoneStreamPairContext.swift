@@ -5,51 +5,34 @@
   import Foundation
   import RappEngine
 
-  /// One active pair's rendezvous facts on the phone.
-  ///
-  /// The holder is the side whose listener the network lets everyone
-  /// reach, so it publishes and the requester dials. It publishes under a
-  /// random name in session mode, never under anything derived from the
-  /// rendezvous token; the requester's opening frame is the session
-  /// preamble built from that token -- the arrival that says which pairing
-  /// the dial is for.
+  /// One active pairing the session listener serves.
   internal struct PhoneStreamPairContext {
-    /// This pair's local bookkeeping key; never published.
+    /// The pairing identifier in hex, for bookkeeping only.
     internal let key: String
 
-    /// The token the session preamble and the rotating hints derive from.
-    internal let rendezvousToken: Data
-
-    /// The opening frame a requester of this pair dials with.
-    internal let sessionPreamble: Data
-
-    /// The underlying pair record.
     internal let pairRecord: RappPairRecord
 
-    /// Resolves the listening facts for all active pairs.
     internal static func resolveAll(vault: RappDeviceVault) -> [Self] {
       guard let activeIDs = try? vault.activePairIDs(), !activeIDs.isEmpty else { return [] }
-      var results: [Self] = []
-      for pairID in activeIDs {
+      return activeIDs.compactMap { pairID in
         guard let pair = try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault) else {
-          continue
+          return nil
         }
-        let metadata = pair.metadata()
-        guard
-          let preamble = try? rappStreamSessionPreamble(
-            rendezvousToken: metadata.rendezvousToken
-          )
-        else { continue }
-        results.append(
-          Self(
-            key: pairID.map { String(format: "%02x", $0) }.joined(),
-            rendezvousToken: metadata.rendezvousToken,
-            sessionPreamble: preamble,
-            pairRecord: pair
-          )
-        )
+        return Self(key: pairID.map { String(format: "%02x", $0) }.joined(), pairRecord: pair)
       }
-      return results
+    }
+
+    /// This pairing's hint for `make`, ranked by when it was last used.
+    internal func candidate(
+      at date: Date, hint make: (RappPairRecord, UInt64) throws -> Data
+    ) -> RappAnnouncementCandidate? {
+      guard let hint = try? make(pairRecord, StreamRendezvousName.unixTime(date)) else {
+        return nil
+      }
+      let metadata = pairRecord.metadata()
+      return RappAnnouncementCandidate(
+        hint: hint,
+        lastUsedMs: PairLastUse.milliseconds(pairID: metadata.pairId) ?? metadata.createdAtMs)
     }
   }
 #endif

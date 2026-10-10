@@ -15,7 +15,6 @@ internal struct NoiseVector: Decodable {
     case offerHashHex = "offer_hash_hex"
     case pairIDHex = "pair_id_hex"
     case prologueHex = "prologue_hex"
-    case rendezvousTokenHex = "rendezvous_token_hex"
     case responderStaticPublicHex = "responder_static_public_hex"
     case sessionIDHex = "session_id_hex"
     case suite = "suite"
@@ -37,7 +36,6 @@ internal struct NoiseVector: Decodable {
   internal let responderStaticPublicHex: String
   internal let pairIDHex: String
   internal let sessionIDHex: String
-  internal let rendezvousTokenHex: String?
   internal let offerHashHex: String?
   internal let grantsHashHex: String?
   internal let initiatorToResponderKeyHex: String?

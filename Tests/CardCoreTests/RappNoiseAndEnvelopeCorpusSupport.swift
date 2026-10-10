@@ -171,7 +171,7 @@ internal enum RappNoiseAndEnvelopeCorpusSupport {
       repositoryRoot
       .appendingPathComponent("Documentation")
       .appendingPathComponent("rapp-conformance")
-      .appendingPathComponent("rapp-v26.10.9.json")
+      .appendingPathComponent("rapp-v26.10.10.json")
     return try JSONDecoder().decode(Corpus.self, from: Data(contentsOf: url))
   }
 

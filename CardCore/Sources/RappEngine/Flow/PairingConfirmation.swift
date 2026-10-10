@@ -12,8 +12,6 @@ internal struct PairingConfirmation {
 
   internal let pairIdentifier: Data
 
-  private let rendezvousToken: Data
-
   private let offerHash: Data
 
   private let candidate: TransportCandidate
@@ -47,7 +45,6 @@ internal struct PairingConfirmation {
   internal init(
     role: EndpointRole,
     pairIdentifier: Data,
-    rendezvousToken: Data,
     offerHash: Data,
     candidate: TransportCandidate,
     offeredProfiles: [ProfileName],
@@ -57,7 +54,6 @@ internal struct PairingConfirmation {
   ) {
     self.role = role
     self.pairIdentifier = pairIdentifier
-    self.rendezvousToken = rendezvousToken
     self.offerHash = offerHash
     self.candidate = candidate
     self.offeredProfiles = offeredProfiles
@@ -161,7 +157,6 @@ internal struct PairingConfirmation {
     do {
       return try PairRecord(
         pairIdentifier: pairIdentifier,
-        rendezvousToken: rendezvousToken,
         role: role,
         localStaticPrivate: localKeys.privateKey,
         localStaticPublic: localKeys.publicKey,

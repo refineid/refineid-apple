@@ -39,11 +39,11 @@ internal struct BleSarTests {
     try #require(name.flatMap { errorNames[$0] })
   }
 
-  @Test("The corpus is the v26.10.9 SAR corpus with the header and timer the engine uses")
+  @Test("The corpus is the v26.10.10 SAR corpus with the header and timer the engine uses")
   internal func corpusIdentity() throws {
     let corpus = try Self.corpus()
     #expect(corpus.format == "fi.refineid.rapp.ble-sar-vectors-v1")
-    #expect(corpus.protocolDocumentVersion == "26.10.9")
+    #expect(corpus.protocolDocumentVersion == "26.10.10")
     #expect(corpus.headerSize == RappBleSar.headerSize)
     #expect(corpus.reassemblyTimeoutMs == RappBleSar.reassemblyTimeoutMilliseconds)
   }

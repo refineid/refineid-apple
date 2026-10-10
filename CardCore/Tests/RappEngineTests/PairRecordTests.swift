@@ -88,7 +88,6 @@ internal struct PairRecordTests {
     #expect(throws: (any Error).self) {
       _ = try PairRecord(
         pairIdentifier: filler(0x11, PairRecordSize.pairIdentifier),
-        rendezvousToken: filler(0x22, PairRecordSize.rendezvousToken),
         role: .proxy,
         localStaticPrivate: filler(0x00, PairRecordSize.staticKey),
         localStaticPublic: filler(0x44, PairRecordSize.staticKey),
@@ -105,7 +104,6 @@ internal struct PairRecordTests {
     #expect(throws: (any Error).self) {
       _ = try PairRecord(
         pairIdentifier: filler(0x11, PairRecordSize.pairIdentifier),
-        rendezvousToken: filler(0x22, PairRecordSize.rendezvousToken),
         role: .proxy,
         localStaticPrivate: filler(0x33, PairRecordSize.staticKey),
         localStaticPublic: filler(0x44, PairRecordSize.staticKey),

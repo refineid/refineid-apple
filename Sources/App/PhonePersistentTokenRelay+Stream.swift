@@ -12,27 +12,43 @@
     /// Whether the connected dialer has yet to present its session
     /// preamble; its first frame must name an active pairing.
     internal var awaitingPreamble = false
+    /// Routes first frames and refuses replayed routing for this listener.
+    internal var router = RappSessionRouter()
+    /// The announced withdrawal running before the listener goes away.
+    internal var withdrawal: Task<Void, Never>?
   }
 
   /// The stream transport's half of the phone relay.
   ///
   /// The holder is the side whose listener every peer can reach, so it
   /// publishes one session-mode listener under a fresh random name and
-  /// waits; a requester dials with its pair's session preamble, which says
-  /// which pairing arrived. The holder never dials.
+  /// waits; a requester dials with a session preamble whose fresh routing
+  /// only this holder can resolve to a pairing. The holder never dials.
   @MainActor
   extension PhonePersistentTokenRelay {
     /// The bookkeeping key of the one session listener; never published.
     internal static let sessionListenerKey = "session"
 
+    /// The session record for the pairings in `contexts`.
+    private static func sessionRecord(_ contexts: [PhoneStreamPairContext]) -> [String: String] {
+      let now = Date()
+      return StreamRendezvousName.sessionRecord(
+        candidates: contexts.compactMap { context in
+          context.candidate(at: now) { pair, time in
+            try pair.discoveryHint(unixTimeSeconds: time)
+          }
+        })
+    }
+
     /// Listens once, under a fresh random name, for every active pair.
     internal func startListening(_ contexts: [PhoneStreamPairContext]) {
       guard !contexts.isEmpty else { return }
-      let tokens = contexts.map(\.rendezvousToken)
+      sessionListening.withdrawal?.cancel()
+      sessionListening.withdrawal = nil
       if let listener = streamListeners[Self.sessionListenerKey] {
-        listener.updateTXTRecord(
-          StreamRendezvousName.sessionRecord(rendezvousTokens: tokens, at: Date()))
+        listener.updateTXTRecord(Self.sessionRecord(contexts))
       } else {
+        sessionListening.router = RappSessionRouter()
         let listener = StreamRelayListener { [weak self] event in
           Task { @MainActor in
             self?.receiveStream(event)
@@ -45,9 +61,44 @@
         #endif
         listener.start(
           displayName: StreamRendezvousName.ephemeralName(),
-          txtRecord: StreamRendezvousName.sessionRecord(rendezvousTokens: tokens, at: Date()))
+          txtRecord: Self.sessionRecord(contexts))
       }
-      startHintRotation(tokens)
+      startHintRotation()
+    }
+
+    /// Announces that this holder stopped serving, then stops listening
+    /// (RAPP v26.10.10 §4.5): open sessions close with
+    /// `service_withdrawn`, no connection is accepted, and the listener
+    /// publishes the withdrawn record for a few seconds before it goes.
+    internal func withdrawService(then tearDown: @escaping @MainActor () -> Void) {
+      guard let listener = streamListeners[Self.sessionListenerKey],
+        let instance = listener.registeredName
+      else {
+        tearDown()
+        return
+      }
+      stopHintRotation()
+      sessionListening.withdrawal?.cancel()
+      let closing = coordinator
+      let contexts = PhoneStreamPairContext.resolveAll(vault: vault)
+      sessionListening.withdrawal = Task { [weak self] in
+        await closing?.closeServiceWithdrawn()
+        let now = Date()
+        let record = StreamRendezvousName.withdrawnRecord(
+          candidates: contexts.compactMap { context in
+            context.candidate(at: now) { pair, time in
+              try pair.withdrawalHint(instance: instance, unixTimeSeconds: time)
+            }
+          })
+        if !record.isEmpty {
+          listener.updateTXTRecord(record)
+          try? await Task.sleep(
+            for: .seconds(Int(StreamRendezvousName.withdrawalAnnouncementSeconds)))
+        }
+        guard !Task.isCancelled else { return }
+        self?.sessionListening.withdrawal = nil
+        tearDown()
+      }
     }
 
     /// The bookkeeping keys the given pairs need: the session listener
@@ -72,18 +123,18 @@
     }
 
     /// Republishes the hints at every window boundary while listening.
-    private func startHintRotation(_ tokens: [Data]) {
+    private func startHintRotation() {
       stopHintRotation()
       sessionListening.hintRotation = Task { [weak self] in
         while !Task.isCancelled {
           let window = TimeInterval(StreamRendezvousName.hintEpochSeconds)
           let elapsed = Date().timeIntervalSince1970.truncatingRemainder(dividingBy: window)
           try? await Task.sleep(for: .seconds(window - elapsed))
-          guard !Task.isCancelled,
-            let listener = self?.streamListeners[Self.sessionListenerKey]
+          guard !Task.isCancelled, let self,
+            let listener = streamListeners[Self.sessionListenerKey]
           else { return }
           listener.updateTXTRecord(
-            StreamRendezvousName.sessionRecord(rendezvousTokens: tokens, at: Date()))
+            Self.sessionRecord(PhoneStreamPairContext.resolveAll(vault: vault)))
         }
       }
     }
@@ -101,7 +152,7 @@
     }
 
     private func handleStreamConnected(on listener: StreamRelayListener) {
-      if coordinator != nil {
+      if coordinator != nil || sessionListening.withdrawal != nil {
         #if DEBUG
           print("[stream-holder] already connected to a peer, disconnecting incoming")
           fflush(stdout)
@@ -132,14 +183,16 @@
       #endif
       if sessionListening.awaitingPreamble {
         sessionListening.awaitingPreamble = false
-        guard
-          let matched = StreamSessionRouting.route(
-            frame, among: PhoneStreamPairContext.resolveAll(vault: vault),
-            preamble: \.sessionPreamble)
-        else {
+        let contexts = PhoneStreamPairContext.resolveAll(vault: vault)
+        let route = sessionListening.router.route(
+          transportProfile: rappStreamProfileName(), preamble: frame,
+          records: contexts.map(\.pairRecord))
+        guard case .session(let index) = route, contexts.indices.contains(index) else {
           listener.disconnect()
           return
         }
+        let matched = contexts[index]
+        PairLastUse.markUsed(pairID: matched.pairRecord.metadata().pairId, at: Date())
         establishStream(
           connectionID: currentConnectionID, pair: matched.pairRecord, listener: listener)
       } else if let coordinator {

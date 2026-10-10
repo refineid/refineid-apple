@@ -27,6 +27,7 @@ import Foundation
     private var pending = Data()
     private var isFinished = false
     private var lastState = "not started"
+    private var publishedName: String?
 
     /// What the listener last reported, for a caller diagnosing a dialer
     /// that cannot reach it.
@@ -37,6 +38,12 @@ import Foundation
     /// The port this bound, once it is listening.
     public var port: UInt16? {
       queue.sync { listener?.port?.rawValue }
+    }
+
+    /// The instance name the service is registered under, once Bonjour has
+    /// registered it; a conflict may have renamed it from the one asked for.
+    public var registeredName: String? {
+      queue.sync { publishedName }
     }
 
     /// Whether the listener is actively listening for incoming connections.
@@ -130,6 +137,12 @@ import Foundation
           name: displayName, type: Self.serviceType, domain: nil, txtRecord: txtRecord)
       } else {
         made.service = NWListener.Service(name: displayName, type: Self.serviceType)
+      }
+      made.serviceRegistrationUpdateHandler = { [weak self] change in
+        guard let self, case .add(let endpoint) = change,
+          case .service(let name, _, _, _) = endpoint
+        else { return }
+        queue.async { self.publishedName = name }
       }
       made.newConnectionHandler = { [weak self] connection in
         self?.accept(connection)

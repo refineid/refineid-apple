@@ -27,7 +27,7 @@ internal struct FieldSpec {
   /// `close-reason-val` (RAPP v26.10.9 section 7.1).
   internal static let closeReasons: Set<String> = [
     "normal", "complete", "user_disconnect", "policy", "credential_rejected",
-    "protocol_violation", "pairing_revoked", "shutdown", "card_unavailable",
+    "protocol_violation", "pairing_revoked", "shutdown", "card_unavailable", "service_withdrawn",
   ]
 
   /// `operation-status-val` (RAPP v26.10.9 section 7.1).

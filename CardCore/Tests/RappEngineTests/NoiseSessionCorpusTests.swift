@@ -114,8 +114,6 @@ internal struct NoiseSessionCorpusTests {
       let hash = initiator.handshakeHash
       #expect(RappNoise.pairIdentifier(handshakeHash: hash).hex == vector.pairIDHex)
       #expect(RappNoise.sessionIdentifier(handshakeHash: hash).hex == vector.sessionIDHex)
-      #expect(
-        RappNoise.rendezvousToken(handshakeHash: hash).hex == vector.rendezvousTokenHex)
     }
   }
 }

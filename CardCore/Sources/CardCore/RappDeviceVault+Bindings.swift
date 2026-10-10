@@ -163,3 +163,37 @@
     }
   }
 #endif
+
+#if canImport(RappEngine)
+  import RappEngine
+
+  extension RappDeviceVault {
+    /// Removes stored pairings this version can no longer read, so the
+    /// holder pairs again instead of keeping a pairing nothing can use.
+    ///
+    /// Only a record the engine rejects as malformed goes; a keychain that
+    /// cannot be read leaves everything in place.
+    @discardableResult
+    public func dropUnreadablePairs() -> Int {
+      guard let pairIDs = try? activePairIDs() else { return 0 }
+      var dropped = 0
+      for pairID in pairIDs {
+        do {
+          _ = try RappPairRecord.loadFromVault(pairId: pairID, vault: self)
+        } catch RappBindingError.InvalidInput {
+          if (try? revokePair(pairID: pairID, revokedAtMilliseconds: 0)) != nil {
+            dropped += 1
+          }
+        } catch {
+          continue
+        }
+      }
+      if dropped > 0, let selected = try? selectedPairID(),
+        (try? RappPairRecord.loadFromVault(pairId: selected, vault: self)) == nil
+      {
+        try? clearSelectedPair()
+      }
+      return dropped
+    }
+  }
+#endif

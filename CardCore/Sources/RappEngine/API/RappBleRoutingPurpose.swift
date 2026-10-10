@@ -2,41 +2,37 @@
 
 import Foundation
 
-/// Why a central opened a `fi.refineid.rapp.ble.v1` connection: the one
-/// plaintext routing preamble of `Phase::Routing` (RAPP v26.10.9 §5.2).
+/// Why a BLE link was opened, as its plaintext routing preamble says
+/// (RAPP v26.10.10 §5.2).
 public enum RappBleRoutingPurpose: Equatable, Sendable {
-  /// Open a pairing ceremony against the custodian's live offer.
+  /// Run the pairing ceremony.
   case pairing
-  /// Reach the stored pairing this rendezvous token names.
-  case session(rendezvousToken: Data)
+  /// Reach a stored pairing; the preamble carries the fresh routing that
+  /// a ``RappSessionRouter`` resolves.
+  case session(preamble: Data)
 
-  /// Reads a preamble, or nil for anything §5.2 calls invalid: unknown
-  /// purpose, malformed CBOR, a token of the wrong size, or an oversized
-  /// frame.
+  /// The purpose a received preamble names, or `nil` for anything else.
   public init?(preamble: Data) {
-    switch try? BleRendezvous.decode(preamble) {
+    switch try? RoutingPreamble.decode(preamble, profile: RappBleGattProfile.name) {
     case .pairing:
       self = .pairing
 
-    case .session(let token):
-      self = .session(rendezvousToken: token)
+    case .session:
+      self = .session(preamble: preamble)
 
     case nil:
       return nil
     }
   }
 
-  /// The preamble frame announcing this purpose.
-  ///
-  /// - Throws: ``RappBindingError/InvalidInput`` for a session token that
-  ///   is not 16 bytes.
+  /// The preamble to send for this purpose.
   public func preamble() throws -> Data {
     switch self {
     case .pairing:
-      return rappBlePairingPreamble()
+      return try rappPairingPreamble(transportProfile: RappBleGattProfile.name)
 
-    case .session(let token):
-      return try rappBleSessionPreamble(rendezvousToken: token)
+    case .session(let preamble):
+      return preamble
     }
   }
 }

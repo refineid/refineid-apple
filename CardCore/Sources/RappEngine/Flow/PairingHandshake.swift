@@ -122,7 +122,6 @@ internal struct PairingHandshake {
     return PairingConfirmation(
       role: role,
       pairIdentifier: RappNoise.pairIdentifier(handshakeHash: transcript),
-      rendezvousToken: RappNoise.rendezvousToken(handshakeHash: transcript),
       offerHash: offerHash,
       candidate: candidate,
       offeredProfiles: offeredProfiles,

@@ -19,7 +19,6 @@ extension RappNoiseAndEnvelopeCorpusSupport {
     case offerHashHex = "offer_hash_hex"
     case pairIDHex = "pair_id_hex"
     case prologueHex = "prologue_hex"
-    case rendezvousTokenHex = "rendezvous_token_hex"
     case responderStaticPublicHex = "responder_static_public_hex"
     case sessionIDHex = "session_id_hex"
     case suite = "suite"
@@ -67,7 +66,6 @@ extension RappNoiseAndEnvelopeCorpusSupport {
     internal let prologueHex: String
     internal let pairIDHex: String
     internal let sessionIDHex: String
-    internal let rendezvousTokenHex: String?
     internal let offerHashHex: String?
     internal let grantsHashHex: String?
     internal let testOnlyInitiatorEphemeralPrivateHex: String
@@ -92,8 +90,6 @@ extension RappNoiseAndEnvelopeCorpusSupport {
       prologueHex = try container.decode(String.self, forKey: .prologueHex)
       pairIDHex = try container.decode(String.self, forKey: .pairIDHex)
       sessionIDHex = try container.decode(String.self, forKey: .sessionIDHex)
-      rendezvousTokenHex = try container.decodeIfPresent(
-        String.self, forKey: .rendezvousTokenHex)
       offerHashHex = try container.decodeIfPresent(String.self, forKey: .offerHashHex)
       grantsHashHex = try container.decodeIfPresent(String.self, forKey: .grantsHashHex)
       testOnlyInitiatorEphemeralPrivateHex = try container.decode(
