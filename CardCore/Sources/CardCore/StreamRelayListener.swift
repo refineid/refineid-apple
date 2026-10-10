@@ -50,6 +50,14 @@ import Foundation
       self.onEvent = onEvent
     }
 
+    private static func record(_ attributes: [String: String]) -> NWTXTRecord {
+      var record = NWTXTRecord()
+      for (key, value) in attributes {
+        record[key] = value
+      }
+      return record
+    }
+
     /// Publishes the service and waits for one dialer.
     public func start(displayName: String) {
       queue.async { self.publish(displayName: displayName, txtRecord: nil) }
@@ -58,11 +66,19 @@ import Foundation
     /// Publishes the service with discovery attributes and waits for one
     /// dialer.
     public func start(displayName: String, txtRecord: [String: String]) {
-      var record = NWTXTRecord()
-      for (key, value) in txtRecord {
-        record[key] = value
-      }
+      let record = Self.record(txtRecord)
       queue.async { self.publish(displayName: displayName, txtRecord: record) }
+    }
+
+    /// Replaces the published discovery attributes under the same name,
+    /// such as when rotating hints move to a new window.
+    public func updateTXTRecord(_ txtRecord: [String: String]) {
+      let record = Self.record(txtRecord)
+      queue.async {
+        guard let listener = self.listener, let service = listener.service else { return }
+        listener.service = NWListener.Service(
+          name: service.name, type: Self.serviceType, domain: nil, txtRecord: record)
+      }
     }
 
     /// Sends one frame to the dialer, or throws when none is connected.

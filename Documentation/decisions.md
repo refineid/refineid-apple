@@ -1256,3 +1256,19 @@ choices made:
    with `operation_failed`; a card that leaves before the command closes the
    session with reason `policy`; a retry-floor refusal travels as
    `operation_failed`.
+
+## 2026-10-09 - Session discovery publishes nothing token-derived
+
+Stored pairings no longer meet under a name derived from the rendezvous
+token. The phone runs one session listener under a fresh random
+`refineid-<8 hex>` name with `v=1`, `mode=session`, and routes each dial by
+its session preamble, closing one that names no active pairing.
+
+The discovery hierarchy §4.3 offers optional rotating hints but does not fix
+the bytes of the window number. This implementation keys each hint with
+HKDF-Expand (SHA-256) over the rendezvous token with info
+`RAPP-discovery-hint-v1`, and takes the first eight bytes of HMAC-SHA-256 over
+the window number encoded as an unsigned 64-bit big-endian integer. The Mac
+browses by these hints for its pairing and for presence; a minimal record
+without hints stands for the only pairing, or for an unknown one when several
+are stored.

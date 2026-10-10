@@ -50,6 +50,7 @@
       internal var streamContexts: [String: PhoneStreamPairContext] = [:]
       internal var activeStreamListener: StreamRelayListener?
       internal var activeStreamDialer: StreamRelaySession?
+      internal var sessionListening = SessionListening()
     #endif
     internal var coordinator: RappConnectionCoordinator?
     #if REFINEID_SLIM_RELAY
@@ -105,17 +106,7 @@
         else { return }
         let contexts = PhoneStreamPairContext.resolveAll(vault: vault)
         guard !contexts.isEmpty else { return }
-        let desiredKeys = Set(contexts.map(\.serviceName))
-        for (key, listener) in streamListeners where !desiredKeys.contains(key) {
-          listener.cancel()
-          streamListeners.removeValue(forKey: key)
-          streamContexts.removeValue(forKey: key)
-        }
-        for (key, dialer) in streamDialers where !desiredKeys.contains(key) {
-          dialer.cancel()
-          streamDialers.removeValue(forKey: key)
-          streamContexts.removeValue(forKey: key)
-        }
+        pruneStreamTransports(keeping: streamKeys(for: contexts))
         startListening(contexts)
       #else
         guard relay == nil, coordinator == nil,

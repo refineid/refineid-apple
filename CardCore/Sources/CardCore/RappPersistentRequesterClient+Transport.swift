@@ -10,10 +10,11 @@
   extension RappPersistentRequesterClient {
     /// Starts whichever transport this build carries.
     ///
-    /// Over the stream transport the holder listens and this side finds it
-    /// by the pairing's derived name and dials; the dial's opening frame is
-    /// the pairing's session preamble, so the holder knows which pairing
-    /// arrived. A vault holding no usable pairing settles the request at
+    /// Over the stream transport the holder listens under a random name in
+    /// session mode and this side dials the one whose rotating hints name
+    /// its pairing; the dial's opening frame is the pairing's session
+    /// preamble, so the holder knows which pairing arrived. Nothing derived
+    /// from the rendezvous token is browsed for by name. A vault holding no usable pairing settles the request at
     /// once instead of browsing for a peer that cannot exist.
     internal func startTransport() {
       #if REFINEID_STREAM_TRANSPORT
@@ -23,9 +24,14 @@
             finish(error: .noActivePair)
             return
           }
-          let found = StreamRelayBrowser(matching: facts.name) { [weak self] endpoint in
-            self?.dialHolder(endpoint, preamble: facts.preamble)
-          }
+          let token = facts.rendezvousToken
+          let found = StreamRelayBrowser(
+            matchingRecord: { record in
+              StreamRendezvousName.sessionRecord(record, mayHold: token, at: Date())
+            },
+            onFound: { [weak self] endpoint in
+              self?.dialHolder(endpoint, preamble: facts.preamble)
+            })
           browser = found
           found.start()
         }
@@ -57,9 +63,9 @@
     }
 
     #if REFINEID_STREAM_TRANSPORT
-      /// The published name to browse for and the frame to open with,
-      /// both derived from the pairing this request will run over.
-      private func rendezvousFacts() async -> (name: String, preamble: Data)? {
+      /// The token the holder's hints are checked against and the frame to
+      /// open with, both from the pairing this request will run over.
+      private func rendezvousFacts() async -> (rendezvousToken: Data, preamble: Data)? {
         guard let pair = try? await resolvedPair() else { return nil }
         let metadata = pair.metadata()
         guard
@@ -67,10 +73,10 @@
             rendezvousToken: metadata.rendezvousToken
           )
         else { return nil }
-        return (StreamRendezvousName.name(sharing: metadata.rendezvousToken), preamble)
+        return (metadata.rendezvousToken, preamble)
       }
 
-      /// Dials the holder found under the pairing's name.
+      /// Dials the holder found in session mode.
       private func dialHolder(_ endpoint: NWEndpoint, preamble: Data) {
         let made = StreamRelaySession(
           service: endpoint,

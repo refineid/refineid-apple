@@ -6,6 +6,13 @@
   import RappEngine
 
   extension PersistentTokenRegistry {
+    /// One active pairing the holder's rotating hints can name.
+    private struct HolderPairing: Sendable {
+      let key: String
+      let pairID: Data
+      let rendezvousToken: Data
+    }
+
     /// Seconds a vanished advertisement may stay missing before the
     /// borrowed identity is withdrawn.
     ///
@@ -17,22 +24,40 @@
       Duration.seconds(advertisementLossHoldSeconds)
     }
 
-    /// All published names derived from all active pairings in the vault, mapped to pair IDs.
-    private static func activeHolderServiceNames() -> [String: Data] {
+    /// Every active pairing in the vault.
+    private static func activeHolderPairings() -> [HolderPairing] {
       let vault = RappDeviceVault()
       let pairIDs = (try? vault.activePairIDs()) ?? []
-      var mapping: [String: Data] = [:]
-      for pairID in pairIDs {
+      return pairIDs.compactMap { pairID in
         guard let pair = try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault) else {
-          continue
+          return nil
         }
-        let serviceName = StreamRendezvousName.name(sharing: pair.metadata().rendezvousToken)
-        mapping[serviceName] = pairID
+        return HolderPairing(
+          key: pairID.map { String(format: "%02x", $0) }.joined(),
+          pairID: pairID,
+          rendezvousToken: pair.metadata().rendezvousToken)
       }
-      return mapping
     }
 
-    /// Browses for the selected pair's holder advertisement.
+    /// The pairing a published session record belongs to.
+    ///
+    /// A record with hints names one of `pairings` through a hint; a
+    /// minimal record names the only pairing, or an unknown one (the
+    /// empty key) when there are several. Anything else is not a holder.
+    private static func holderKey(
+      for record: [String: String], among pairings: [HolderPairing]
+    ) -> String? {
+      guard StreamRendezvousName.isSessionRecord(record) else { return nil }
+      guard record[StreamRendezvousName.hintsKey] != nil else {
+        return pairings.count == 1 ? pairings[0].key : ""
+      }
+      let now = Date()
+      return pairings.first { pairing in
+        StreamRendezvousName.sessionRecord(record, mayHold: pairing.rendezvousToken, at: now)
+      }?.key
+    }
+
+    /// Browses for a holder in session mode whose hints name a pairing.
     ///
     /// The holder publishes only while it can serve a card. Losing that
     /// service means the reader card is gone: the borrowed identity is
@@ -44,28 +69,32 @@
         Self.withdrawPublishedIdentity()
         return
       }
-      let services = Self.activeHolderServiceNames()
-      guard !services.isEmpty else {
+      let pairings = Self.activeHolderPairings()
+      guard !pairings.isEmpty else {
         stopWatchingPresence()
         Self.withdrawPublishedIdentity()
         return
       }
-      let names = Set(services.keys)
-      if let existing = presence, existing.matchingNames == names {
+      let keys = Set(pairings.map(\.key))
+      if let existing = presence, existing.matchingNames == keys {
         return
       }
       presence?.cancel()
-      let watcher = StreamRelayPresence(matching: names) { present, matchedName in
-        Task { @MainActor in
-          if present, let matchedName, let pairID = services[matchedName] {
-            let vault = RappDeviceVault()
-            if (try? vault.selectedPairID()) != pairID {
-              try? vault.selectPair(pairID: pairID)
+      let pairIDs = Dictionary(uniqueKeysWithValues: pairings.map { ($0.key, $0.pairID) })
+      let watcher = StreamRelayPresence(
+        following: keys,
+        classifyingRecord: { record in Self.holderKey(for: record, among: pairings) },
+        onChange: { present, matchedName in
+          Task { @MainActor in
+            if present, let matchedName, let pairID = pairIDs[matchedName] {
+              let vault = RappDeviceVault()
+              if (try? vault.selectedPairID()) != pairID {
+                try? vault.selectPair(pairID: pairID)
+              }
             }
+            Self.shared.holderPresenceChanged(present)
           }
-          Self.shared.holderPresenceChanged(present)
-        }
-      }
+        })
       presence = watcher
       watcher.start()
     }
@@ -97,14 +126,14 @@
         Self.withdrawPublishedIdentity()
         return
       }
-      let services = Self.activeHolderServiceNames()
-      guard !services.isEmpty else {
+      let pairings = Self.activeHolderPairings()
+      guard !pairings.isEmpty else {
         stopWatchingPresence()
         Self.withdrawPublishedIdentity()
         return
       }
-      let names = Set(services.keys)
-      if let current = presence, current.matchingNames == names {
+      let keys = Set(pairings.map(\.key))
+      if let current = presence, current.matchingNames == keys {
         if certificateDER == nil,
           holderIsAdvertising || RappAutoPairingService.shared.isAnyPairedPeerOnline
         {
@@ -122,7 +151,7 @@
         Self.withdrawPublishedIdentity()
         return
       }
-      guard !Self.activeHolderServiceNames().isEmpty else {
+      guard !Self.activeHolderPairings().isEmpty else {
         advertisementLossTask?.cancel()
         advertisementLossTask = nil
         hasSeenHolderAdvertisement = false
