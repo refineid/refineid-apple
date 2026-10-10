@@ -58,7 +58,7 @@ swift test
 Install (from the repository root):
 
 ```sh
-Scripts/install-pkcs11-macos.sh
+Scripts/apple-app-store-connect-release-manager.swift install-pkcs11
 ```
 
 This builds the release configuration and installs

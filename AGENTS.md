@@ -23,14 +23,18 @@
 - ASCII only in source, UTF-8 only where required.
 - No Magic Codes - define everything.
 - After a feature commit, install that build on every machine that
-  can run it: `Scripts/install-all-devices.sh`. The commit is the
-  cheap backup; Mac, the connected iPhone or iPad, and the iPad
-  simulator must match it. Do not mix the stamp `Version.xcconfig`
-  rewrite into the feature commit.
-- Apple deployment goes only through the `Scripts/` entry points:
-  device installs via `Scripts/install-ios-development.sh`, store and
-  TestFlight work via `Scripts/apple-app-store-connect-release-manager.swift`
-  (Swift). Never sign, archive, or export with raw `xcodebuild`, Xcode
+  can run it: `Scripts/apple-app-store-connect-release-manager.swift
+  install-devices`. The commit is the cheap backup; the Mac, every
+  connected iPhone or iPad, and the iPad simulator must match it. The
+  install stamps the version for its build and restores
+  `Version.xcconfig` afterwards, so no stamp reaches a commit.
+- Apple builds, signing, provisioning and installs go only through
+  `Scripts/apple-app-store-connect-release-manager.swift`; no shell
+  scripts for them. That covers device and Mac installs (`install-*`),
+  version stamps (`stamp`), and store and TestFlight work. Signed builds
+  use the App Store Connect API key, so capabilities named in the
+  entitlements are provisioned without an Apple ID in Xcode. Never sign,
+  archive, or export with raw `xcodebuild`, Xcode
   Organizer, or a handwritten sequence, and never pass `DEVELOPMENT_TEAM`
   on the `xcodebuild` command line: the override breaks automatic signing
   and fails with `No Account for Team` even when the certificates are

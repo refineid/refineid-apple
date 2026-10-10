@@ -15,7 +15,7 @@ import Foundation
 /// keychain, not the card's silicon -- so its firmware version is this
 /// software's version and not a claim about anyone's hardware.
 ///
-/// Scripts/stamp-version.sh rewrites the string below and nothing else.
+/// The release manager's stamp rewrites the string below and nothing else.
 internal enum ModuleVersion {
   /// The stamped project version: YY.M.D.BUCKET.
   internal static let text = "26.10.3.221"

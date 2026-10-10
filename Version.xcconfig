@@ -18,7 +18,7 @@
 //       number collide or go backwards, and it depends on the build
 //       machine's zone. UTC has neither problem.
 //
-// Scripts/stamp-version.sh rewrites the two settings below and nothing
+// The release manager's stamp rewrites the two settings below and nothing
 // else. The Swift release manager's candidate command overrides both on the
 // xcodebuild command line, which wins over this file, so a release never edits it.
 

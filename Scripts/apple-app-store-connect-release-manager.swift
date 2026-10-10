@@ -18,7 +18,18 @@
 // creating one, and metadata updates a locale that is present rather
 // than duplicating it.
 //
+// It is also the only way Apple builds are signed and installed during
+// development: install-devices, install-macos, install-ios,
+// install-nfc-timing, install-pkcs11 and stamp replace every former shell
+// install script.
+//
 // Usage:
+//   apple-app-store-connect-release-manager.swift install-devices [options]
+//   apple-app-store-connect-release-manager.swift install-macos [--check]
+//   apple-app-store-connect-release-manager.swift install-ios [<device>]
+//   apple-app-store-connect-release-manager.swift install-nfc-timing [<device>]
+//   apple-app-store-connect-release-manager.swift install-pkcs11 [--check]
+//   apple-app-store-connect-release-manager.swift stamp [--dry-run | --tag <channel>]
 //   apple-app-store-connect-release-manager.swift get <path>
 //   apple-app-store-connect-release-manager.swift api <METHOD> <path> [json|-]
 //   apple-app-store-connect-release-manager.swift app-id
@@ -1259,22 +1270,7 @@ private func releaseCandidate(_ arguments: [String]) {
     releaseFail("the working tree is dirty; commit the exact release candidate first")
   }
 
-  var calendar = Calendar(identifier: .gregorian)
-  calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-  let components = calendar.dateComponents(
-    [.year, .month, .day, .hour, .minute],
-    from: Date()
-  )
-  guard let year = components.year,
-    let month = components.month,
-    let day = components.day,
-    let hour = components.hour,
-    let minute = components.minute
-  else {
-    releaseFail("could not derive the UTC release version")
-  }
-  let marketingVersion = String(format: "%02d.%d.%d", year % 100, month, day)
-  let buildNumber = hour * 10 + minute / 10
+  let (marketingVersion, buildNumber) = releaseCalendarVersion()
   let commit = releaseRun(
     "/usr/bin/git",
     ["rev-parse", "--short", "HEAD"],
@@ -1342,9 +1338,8 @@ private func releaseCandidate(_ arguments: [String]) {
         "MARKETING_VERSION=\(marketingVersion)",
         "CURRENT_PROJECT_VERSION=\(buildNumber)",
         "CLANG_ENABLE_CODE_COVERAGE=NO",
-        "-allowProvisioningUpdates",
         "-quiet",
-      ],
+      ] + releaseSigningArguments(),
       currentDirectory: releaseRepositoryRoot
     )
 
@@ -1400,10 +1395,918 @@ private func releaseCaptureScreenshots(_ arguments: [String]) {
   releaseRun("/bin/bash", [script.path] + arguments, currentDirectory: releaseRepositoryRoot)
 }
 
+// MARK: - Version stamp
+
+/// The calendar version of a build cut now: YY.M.D and the ten-minute
+/// UTC bucket. UTC, so it is monotonic across machines and never repeats
+/// an hour at the daylight-saving fall-back.
+private func releaseCalendarVersion() -> (marketing: String, build: Int) {
+  var calendar = Calendar(identifier: .gregorian)
+  calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+  let components = calendar.dateComponents(
+    [.year, .month, .day, .hour, .minute],
+    from: Date()
+  )
+  guard let year = components.year,
+    let month = components.month,
+    let day = components.day,
+    let hour = components.hour,
+    let minute = components.minute
+  else {
+    releaseFail("could not derive the UTC release version")
+  }
+  return (String(format: "%02d.%d.%d", year % 100, month, day), hour * 10 + minute / 10)
+}
+
+private let releaseVersionConfig = releaseRepositoryRoot.appendingPathComponent(
+  "Version.xcconfig")
+private let releaseModuleVersion = releaseRepositoryRoot.appendingPathComponent(
+  "PKCS11Bridge/Sources/PKCS11Bridge/ModuleVersion.swift")
+
+private func releaseRead(_ url: URL) -> String {
+  guard let text = try? String(contentsOf: url, encoding: .utf8) else {
+    releaseFail("could not read \(url.path)")
+  }
+  return text
+}
+
+private func releaseWrite(_ text: String, to url: URL) {
+  do {
+    try text.write(to: url, atomically: true, encoding: .utf8)
+  } catch {
+    releaseFail("could not write \(url.path): \(error.localizedDescription)")
+  }
+}
+
+/// Replaces the one line `pattern` matches, failing when it matches none:
+/// a stamp that silently changed nothing would be found at the next release.
+private func releaseReplaceLine(
+  in text: String, pattern: String, with replacement: String, file: URL
+) -> String {
+  guard let regex = try? NSRegularExpression(pattern: pattern, options: [.anchorsMatchLines])
+  else {
+    releaseFail("bad stamp pattern \(pattern)")
+  }
+  let range = NSRange(text.startIndex..., in: text)
+  guard regex.numberOfMatches(in: text, range: range) == 1 else {
+    releaseFail("stamp did not take in \(file.path); check its version line")
+  }
+  return regex.stringByReplacingMatches(
+    in: text, range: range, withTemplate: NSRegularExpression.escapedTemplate(for: replacement))
+}
+
+/// Writes the version into both files that carry it: the build settings
+/// every target inherits, and the PKCS#11 module's compile-time constant,
+/// which it reports through the C API and cannot read from a bundle.
+private func releaseStampFiles(marketing: String, build: Int) {
+  let config = releaseReplaceLine(
+    in: releaseReplaceLine(
+      in: releaseRead(releaseVersionConfig),
+      pattern: "^MARKETING_VERSION = .*$",
+      with: "MARKETING_VERSION = \(marketing)",
+      file: releaseVersionConfig),
+    pattern: "^CURRENT_PROJECT_VERSION = .*$",
+    with: "CURRENT_PROJECT_VERSION = \(build)",
+    file: releaseVersionConfig)
+  let module = releaseReplaceLine(
+    in: releaseRead(releaseModuleVersion),
+    pattern: "^(\\s*internal static let text = )\".*\"$",
+    with: "  internal static let text = \"\(marketing).\(build)\"",
+    file: releaseModuleVersion)
+  releaseWrite(config, to: releaseVersionConfig)
+  releaseWrite(module, to: releaseModuleVersion)
+}
+
+/// The two version files as they were before an install stamped them.
+/// An install stamps so every installed build reports the bucket it was
+/// built in, and puts both files back on any exit: a stamp is never part
+/// of a feature commit.
+nonisolated(unsafe) private var releaseStampOriginals: [(URL, String)] = []
+
+private func releaseRestoreStamp() {
+  for (url, text) in releaseStampOriginals {
+    try? text.write(to: url, atomically: true, encoding: .utf8)
+  }
+  releaseStampOriginals = []
+}
+
+private func releaseStampForInstall() -> (marketing: String, build: Int) {
+  let version = releaseCalendarVersion()
+  if releaseStampOriginals.isEmpty {
+    releaseStampOriginals = [
+      (releaseVersionConfig, releaseRead(releaseVersionConfig)),
+      (releaseModuleVersion, releaseRead(releaseModuleVersion)),
+    ]
+    atexit { releaseRestoreStamp() }
+    for interrupt in [SIGINT, SIGTERM, SIGHUP] {
+      signal(interrupt) { _ in exit(130) }
+    }
+  }
+  releaseStampFiles(marketing: version.marketing, build: version.build)
+  return version
+}
+
+/// `stamp`: writes the version for a release cut by hand, and with
+/// `--tag <channel>` tags the current commit once the stamp is committed.
+/// Tagging is opt-in: a stamp only sets a build number, a tag asserts a
+/// commit is a release for a named channel.
+private func releaseStamp(_ arguments: [String]) {
+  let version = releaseCalendarVersion()
+  switch arguments {
+  case ["--dry-run"]:
+    print("would stamp \(version.marketing) (\(version.build))")
+
+  case []:
+    releaseStampFiles(marketing: version.marketing, build: version.build)
+    print(
+      "stamped \(version.marketing) (\(version.build)). Next: review the diff, commit, "
+        + "then \(toolName).swift stamp --tag <dev|beta|rc>")
+
+  case let tagged where tagged.count == 2 && tagged[0] == "--tag":
+    let channel = tagged[1]
+    guard ["dev", "beta", "rc"].contains(channel) else {
+      releaseFail("--tag needs a channel: dev, beta or rc")
+    }
+    releaseStampFiles(marketing: version.marketing, build: version.build)
+    let diff = releaseRun(
+      "/usr/bin/git", ["diff", "--quiet", "--", "Version.xcconfig"],
+      currentDirectory: releaseRepositoryRoot, allowFailure: true)
+    guard diff.status == 0 else {
+      releaseFail(
+        "stamped \(version.marketing) (\(version.build)), NOT tagged: "
+          + "commit the stamp first, then run this again")
+    }
+    let tag = "ios-v\(version.marketing)-\(channel).\(version.build)"
+    releaseRun(
+      "/usr/bin/git",
+      ["tag", "-a", tag, "-m", "RefineID \(version.marketing) (\(version.build)), \(channel)"],
+      currentDirectory: releaseRepositoryRoot)
+    print("stamped and tagged \(tag). Push it with: git push origin \(tag)")
+
+  default:
+    releaseFail("usage: stamp [--dry-run | --tag <dev|beta|rc>]")
+  }
+}
+
+// MARK: - Signing
+
+/// The xcodebuild arguments every signed build carries.
+///
+/// With the team API key, Xcode registers any capability the entitlements
+/// name on the App ID and regenerates the profile itself, with no Apple ID
+/// signed in to Xcode. Without the key, provisioning falls back to the
+/// account Xcode has.
+private func releaseSigningArguments() -> [String] {
+  var arguments = ["-allowProvisioningUpdates"]
+  if let credentials = releaseUploadCredentialsIfAvailable() {
+    arguments += [
+      "-authenticationKeyPath", credentials.privateKeyPath,
+      "-authenticationKeyID", credentials.keyID,
+      "-authenticationKeyIssuerID", credentials.issuerID,
+    ]
+  }
+  return arguments
+}
+
+// MARK: - Installs on this Mac
+
+private let installMacName = "RefineID.app"
+private let installMacTarget = URL(fileURLWithPath: "/Applications/RefineID.app")
+private let installMacDerivedData = URL(fileURLWithPath: "/tmp/refineid-macos-install")
+private let installLSRegister =
+  "/System/Library/Frameworks/CoreServices.framework/Frameworks/"
+  + "LaunchServices.framework/Support/lsregister"
+private let installTokenExtensions = [
+  "RefineIDTokenExtension", "RefineIDDiscoveryExtension", "RefineIDRappTokenExtension",
+]
+
+private func installNote(_ scope: String, _ message: String) {
+  print("\(scope): \(message)")
+}
+
+/// Refuses anything the system will not launch: a broken seal, or a
+/// certificate revoked since the bundle was signed. A revoked certificate
+/// does not merely warn: launchd refuses to spawn the token extension
+/// (POSIX 163), ctkd reports no token driver for a good card, and Safari
+/// is never offered an identity, which looks exactly like an app bug.
+private func installVerifySignature(_ bundle: URL, scope: String) {
+  let result = releaseRun(
+    "/usr/bin/codesign", ["--verify", "--deep", "--strict", bundle.path],
+    capture: true, allowFailure: true)
+  guard result.status == 0 else {
+    print(result.combinedOutput)
+    if result.combinedOutput.contains("CSSMERR_TP_CERT_REVOKED") {
+      let identities = releaseRun(
+        "/usr/bin/security", ["find-identity", "-v", "-p", "codesigning"],
+        capture: true, allowFailure: true)
+      print(identities.stdout)
+      releaseFail(
+        "the signing certificate is REVOKED: launchd will refuse to spawn the token "
+          + "extension and Safari will never be offered an identity. Issue a new "
+          + "development certificate and run this again.")
+    }
+    releaseFail("signature verification failed for \(bundle.path)")
+  }
+  let details = releaseRun(
+    "/usr/bin/codesign", ["-dvv", bundle.path], capture: true, allowFailure: true)
+  let authority =
+    details.combinedOutput.split(separator: "\n")
+    .first { $0.hasPrefix("Authority=") }
+    .map { String($0.dropFirst("Authority=".count)) } ?? "unknown"
+  installNote(scope, "signature valid: \(authority)")
+}
+
+/// Build products are not documents. Left indexed, every configuration of
+/// every checkout answers a search for the app by name. The marker goes in
+/// before the build, because a tree is indexed as it is written.
+private func installHideFromSpotlight(_ directory: URL) {
+  try? releaseFileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+  releaseFileManager.createFile(
+    atPath: directory.appendingPathComponent(".metadata_never_index").path, contents: nil)
+}
+
+private func installPlugIns(of bundle: URL) -> [URL] {
+  let plugIns = bundle.appendingPathComponent("Contents/PlugIns")
+  let entries =
+    (try? releaseFileManager.contentsOfDirectory(at: plugIns, includingPropertiesForKeys: nil))
+    ?? []
+  return entries.filter { $0.pathExtension == "appex" }.sorted { $0.path < $1.path }
+}
+
+private func installUnregister(_ bundle: URL) {
+  if releaseFileManager.isExecutableFile(atPath: installLSRegister) {
+    releaseRun(installLSRegister, ["-u", bundle.path], capture: true, allowFailure: true)
+  }
+  for plugIn in installPlugIns(of: bundle) {
+    releaseRun("/usr/bin/pluginkit", ["-r", plugIn.path], capture: true, allowFailure: true)
+  }
+}
+
+/// Every macOS copy outside /Applications is a competing CryptoTokenKit
+/// driver registration; the system picks one silently, not necessarily the
+/// one being edited. iOS build products carry no Contents/MacOS and are
+/// only unregistered: Launch Services still lets them claim the identifier,
+/// and a claimant without a macOS icon draws nothing in the Dock.
+private func installRemoveStrayCopies(keeping built: URL) {
+  var candidates = Set<String>()
+  let spotlight = releaseRun(
+    "/usr/bin/mdfind", ["-name", installMacName], capture: true, allowFailure: true)
+  for line in spotlight.stdout.split(separator: "\n") where line.hasSuffix("/\(installMacName)") {
+    candidates.insert(String(line))
+  }
+  let roots = [
+    "/tmp", "/private/tmp",
+    releaseFileManager.homeDirectoryForCurrentUser.path + "/Library/Developer/Xcode/DerivedData",
+    releaseRepositoryRoot.appendingPathComponent("build").path,
+    releaseRepositoryRoot.appendingPathComponent("derivedData").path,
+  ]
+  for root in roots where releaseIsDirectory(URL(fileURLWithPath: root)) {
+    // Deep enough for a build nested in a scratch directory, which is
+    // already nine levels down.
+    let found = releaseRun(
+      "/usr/bin/find", [root, "-maxdepth", "12", "-name", installMacName, "-type", "d"],
+      capture: true, allowFailure: true)
+    for line in found.stdout.split(separator: "\n") { candidates.insert(String(line)) }
+  }
+  let hidden = releaseRun(
+    "/usr/bin/find",
+    ["/Applications", "-maxdepth", "1", "-name", ".*\(installMacName)*", "-type", "d"],
+    capture: true, allowFailure: true)
+  for line in hidden.stdout.split(separator: "\n") { candidates.insert(String(line)) }
+
+  let keep = built.resolvingSymlinksInPath().path
+  var removed = 0
+  for path in candidates.sorted() {
+    let stray = URL(fileURLWithPath: path)
+    guard path != installMacTarget.path, !path.contains(".xcarchive/"),
+      stray.resolvingSymlinksInPath().path != keep
+    else { continue }
+    installUnregister(stray)
+    guard releaseIsDirectory(stray.appendingPathComponent("Contents/MacOS")) else {
+      installNote("install-macos", "unregistered non-macOS copy: \(path)")
+      continue
+    }
+    installNote("install-macos", "removing stray macOS copy: \(path)")
+    try? releaseFileManager.removeItem(at: stray)
+    removed += 1
+  }
+  if removed == 0 { installNote("install-macos", "no stray macOS copies found") }
+}
+
+/// Build trees older than a week in the temporary directory, which are
+/// scratch and not history. Age is the only evidence a tree is nobody's;
+/// the tree this run uses and every git worktree are spared.
+private func installRemoveStaleBuildTrees(sparing current: URL) {
+  let worktrees = Set(
+    releaseRun(
+      "/usr/bin/git", ["worktree", "list", "--porcelain"],
+      currentDirectory: releaseRepositoryRoot, capture: true, allowFailure: true
+    ).stdout.split(separator: "\n")
+      .filter { $0.hasPrefix("worktree ") }
+      .map { String($0.dropFirst("worktree ".count)) })
+  let found = releaseRun(
+    "/usr/bin/find",
+    [
+      "/private/tmp", "-maxdepth", "1", "-mindepth", "1", "-iname", "refineid*",
+      "-mmin", "+\(7 * 24 * 60)",
+    ],
+    capture: true, allowFailure: true)
+  var removed = 0
+  for path in found.stdout.split(separator: "\n").map(String.init).sorted() {
+    guard path != current.path, path != "/private" + current.path, !worktrees.contains(path)
+    else { continue }
+    installNote("install-macos", "removing stale build tree: \(path)")
+    try? releaseFileManager.removeItem(atPath: path)
+    removed += 1
+  }
+  if removed == 0 { installNote("install-macos", "no stale build trees found") }
+}
+
+/// A binary's hash with its signature removed: signing embeds a fresh
+/// signature on every build, so what has to match is the code.
+private func installUnsignedHash(_ binary: URL) -> String {
+  let scratch = releaseFileManager.temporaryDirectory
+    .appendingPathComponent("refineid-appex-\(UUID().uuidString)")
+  defer { try? releaseFileManager.removeItem(at: scratch) }
+  guard (try? releaseFileManager.copyItem(at: binary, to: scratch)) != nil else { return "" }
+  releaseRun(
+    "/usr/bin/codesign", ["--remove-signature", scratch.path], capture: true, allowFailure: true)
+  guard let data = try? Data(contentsOf: scratch) else { return "" }
+  return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+}
+
+/// Whether the built token extensions would run the same code as the
+/// installed ones. Every executable is compared, not the bundle (each
+/// install stamps a fresh build number) and not only the named executable
+/// (a Debug build keeps its code in a .debug.dylib beside a loader stub).
+private func installExtensionsUnchanged(built: URL) -> Bool {
+  for name in ["RefineIDTokenExtension", "RefineIDRappTokenExtension"] {
+    let relative = "Contents/PlugIns/\(name).appex/Contents/MacOS"
+    let builtDirectory = built.appendingPathComponent(relative)
+    guard releaseIsDirectory(builtDirectory) else { continue }
+    let liveDirectory = installMacTarget.appendingPathComponent(relative)
+    guard releaseIsDirectory(liveDirectory) else { return false }
+    let binaries =
+      (try? releaseFileManager.contentsOfDirectory(
+        at: builtDirectory, includingPropertiesForKeys: nil)) ?? []
+    for binary in binaries {
+      let live = liveDirectory.appendingPathComponent(binary.lastPathComponent)
+      guard releaseFileManager.fileExists(atPath: live.path),
+        installUnsignedHash(binary) == installUnsignedHash(live)
+      else { return false }
+    }
+  }
+  return true
+}
+
+/// Ends every macOS RefineID process so the bundle can be replaced. Only
+/// the macOS layout has Contents/MacOS, so a simulator install is spared.
+private func installKillMacApp() {
+  let pattern = "/RefineID.app/Contents/MacOS/RefineID"
+  guard releaseRun("/usr/bin/pgrep", ["-f", pattern], capture: true, allowFailure: true).status
+    == 0
+  else { return }
+  installNote("install-macos", "killing the running macOS app")
+  releaseRun("/usr/bin/pkill", ["-KILL", "-f", pattern], capture: true, allowFailure: true)
+  for _ in 0..<10 {
+    if releaseRun("/usr/bin/pgrep", ["-f", pattern], capture: true, allowFailure: true).status
+      != 0
+    {
+      return
+    }
+    usleep(100_000)
+  }
+}
+
+/// A process left running on a replaced bundle answers nothing; ctkd then
+/// waits ten seconds per request and the app hangs at launch.
+private func installStopExtensions() {
+  for name in installTokenExtensions {
+    releaseRun(
+      "/usr/bin/pkill", ["-f", "/\(name).appex/Contents/MacOS/\(name)"], capture: true,
+      allowFailure: true)
+  }
+}
+
+private func installCardIsInserted() -> Bool {
+  releaseRun(
+    "/usr/sbin/system_profiler", ["SPSmartCardsDataType"], capture: true, allowFailure: true
+  ).stdout.contains("ATR:")
+}
+
+/// A card insertion is CryptoTokenKit's supported discovery boundary.
+/// Replacing a live extension leaves ctkd holding the old token and
+/// executable, so a changed extension waits for the card to leave; the
+/// reader stays connected.
+private func installWaitForCardRelease() {
+  guard installCardIsInserted() else { return }
+  guard isatty(STDIN_FILENO) != 0 else {
+    releaseFail(
+      "a card is inserted. Remove only the card, leave the USB reader connected, "
+        + "and run this again.")
+  }
+  installNote("install-macos", "remove the card; leave the USB reader connected")
+  while installCardIsInserted() { sleep(1) }
+  installNote("install-macos", "card removed; waiting for CryptoTokenKit to withdraw its token")
+  for _ in 0..<5 {
+    let identities = releaseRun(
+      "/usr/sbin/sc_auth", ["identities"], capture: true, allowFailure: true)
+    if !identities.stdout.contains("fi.refineid") { return }
+    sleep(1)
+  }
+  releaseFail(
+    "CryptoTokenKit still publishes the removed card. Log out before replacing the extension.")
+}
+
+private func installReportRegistrations() {
+  installNote("install-macos", "registered CryptoTokenKit drivers for this app:")
+  let plugins = releaseRun(
+    "/usr/bin/pluginkit", ["-m", "-p", "com.apple.ctk-tokens", "-vvv"], capture: true,
+    allowFailure: true)
+  let lines = plugins.stdout.split(separator: "\n").filter { $0.contains("fi.refineid") }
+  print(lines.isEmpty ? "  (none registered)" : lines.map { "  \($0)" }.joined(separator: "\n"))
+}
+
+/// `install-macos`: builds, verifies and installs RefineID into
+/// /Applications, the only place a copy may live, then launches it.
+/// The signature is checked before anything is replaced, so a bad
+/// certificate leaves the working copy in place.
+private func installMacOS(_ arguments: [String], stamp: Bool = true) {
+  var configuration = "Debug"
+  var checkOnly = false
+  var remaining = arguments[...]
+  while let argument = remaining.popFirst() {
+    switch argument {
+    case "--check":
+      checkOnly = true
+    case "--configuration":
+      guard let value = remaining.popFirst() else {
+        releaseFail("--configuration needs a value")
+      }
+      configuration = value
+    default:
+      releaseFail("usage: install-macos [--check] [--configuration NAME]")
+    }
+  }
+  if checkOnly {
+    guard releaseIsDirectory(installMacTarget) else {
+      releaseFail("nothing installed at \(installMacTarget.path)")
+    }
+    installVerifySignature(installMacTarget, scope: "install-macos")
+    installReportRegistrations()
+    return
+  }
+  if stamp { _ = releaseStampForInstall() }
+
+  for directory in [
+    installMacDerivedData,
+    releaseFileManager.homeDirectoryForCurrentUser.appendingPathComponent(
+      "Library/Developer/Xcode/DerivedData"),
+    releaseRepositoryRoot.appendingPathComponent("build"),
+    releaseRepositoryRoot.appendingPathComponent("derivedData"),
+  ] {
+    installHideFromSpotlight(directory)
+  }
+
+  installNote("install-macos", "building \(configuration) for macOS")
+  releaseRun(
+    "/usr/bin/xcodebuild",
+    [
+      "-project", "RefineID.xcodeproj",
+      "-scheme", "RefineID",
+      "-configuration", configuration,
+      "-destination", "platform=macOS,arch=arm64",
+      "-derivedDataPath", installMacDerivedData.path,
+      "CLANG_COVERAGE_MAPPING=NO",
+      "ENABLE_CODE_COVERAGE=NO",
+      "-quiet",
+      "build",
+    ] + releaseSigningArguments(),
+    currentDirectory: releaseRepositoryRoot)
+  let built = installMacDerivedData.appendingPathComponent(
+    "Build/Products/\(configuration)/\(installMacName)")
+  guard releaseIsDirectory(built) else { releaseFail("build produced no \(installMacName)") }
+  installVerifySignature(built, scope: "install-macos")
+
+  installRemoveStrayCopies(keeping: built)
+  installRemoveStaleBuildTrees(sparing: installMacDerivedData)
+  installKillMacApp()
+  if installExtensionsUnchanged(built: built) {
+    installNote("install-macos", "extension unchanged; installing without asking for the card")
+  } else {
+    installWaitForCardRelease()
+  }
+  installStopExtensions()
+
+  installNote("install-macos", "installing to \(installMacTarget.path)")
+  installUnregister(installMacTarget)
+  try? releaseFileManager.removeItem(at: installMacTarget)
+  do {
+    try releaseFileManager.copyItem(at: built, to: installMacTarget)
+  } catch {
+    releaseFail("could not copy into \(installMacTarget.path): \(error.localizedDescription)")
+  }
+  installVerifySignature(installMacTarget, scope: "install-macos")
+
+  // Registered directly: launching the app only so the system notices the
+  // extensions put a window on screen and took it away on every install.
+  var registered = false
+  for plugIn in installPlugIns(of: installMacTarget) {
+    if releaseRun("/usr/bin/pluginkit", ["-a", plugIn.path], capture: true, allowFailure: true)
+      .status == 0
+    {
+      installNote("install-macos", "extension registered: \(plugIn.lastPathComponent)")
+      registered = true
+    }
+  }
+  if !registered {
+    installNote("install-macos", "pluginkit refused; launching the app once so the system sees it")
+    releaseRun("/usr/bin/open", ["-g", "-a", installMacTarget.path])
+    sleep(3)
+    installKillMacApp()
+  }
+  installNote("install-macos", "launching \(installMacTarget.path)")
+  releaseRun("/usr/bin/open", [installMacTarget.path])
+  installNote(
+    "install-macos", "done. Insert the card; CryptoTokenKit will mint it with the new driver.")
+}
+
+// MARK: - Installs on iPhone and iPad
+
+private struct InstallDevice {
+  let identifier: String
+  let udid: String
+  let name: String
+}
+
+/// The connected physical iPhones and iPads, read from devicectl's JSON
+/// rather than its table, which is laid out for people.
+private func installPhysicalDevices() -> [InstallDevice] {
+  let output = releaseFileManager.temporaryDirectory
+    .appendingPathComponent("refineid-devices-\(UUID().uuidString).json")
+  defer { try? releaseFileManager.removeItem(at: output) }
+  releaseRun(
+    "/usr/bin/xcrun", ["devicectl", "list", "devices", "--json-output", output.path, "-q"],
+    capture: true, allowFailure: true)
+  guard let data = try? Data(contentsOf: output),
+    let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+    let result = root["result"] as? [String: Any],
+    let devices = result["devices"] as? [[String: Any]]
+  else { return [] }
+  return devices.compactMap { device in
+    let hardware = device["hardwareProperties"] as? [String: Any] ?? [:]
+    let connection = device["connectionProperties"] as? [String: Any] ?? [:]
+    let properties = device["deviceProperties"] as? [String: Any] ?? [:]
+    guard hardware["platform"] as? String == "iOS",
+      hardware["reality"] as? String == "physical",
+      connection["pairingState"] as? String == "paired",
+      connection["tunnelState"] as? String != "unavailable",
+      let identifier = device["identifier"] as? String,
+      let udid = hardware["udid"] as? String
+    else { return nil }
+    return InstallDevice(
+      identifier: identifier, udid: udid, name: properties["name"] as? String ?? identifier)
+  }
+}
+
+private func installResolveDevice(_ requested: String?, scope: String) -> InstallDevice {
+  let devices = installPhysicalDevices()
+  if let requested {
+    guard
+      let match = devices.first(where: {
+        [$0.identifier, $0.udid, $0.name].contains(requested)
+      })
+    else {
+      releaseFail("\(scope): no connected iPhone or iPad named or identified \(requested)")
+    }
+    return match
+  }
+  guard let first = devices.first else {
+    releaseFail("\(scope): no connected iPhone or iPad; pass a device name or identifier")
+  }
+  installNote(scope, "using \(first.name)")
+  return first
+}
+
+/// Launches an installed app. A locked device cannot launch anything, and
+/// that leaves a good install, so it is reported, not failed.
+private func installLaunch(
+  _ bundleID: String, on device: InstallDevice, scope: String, arguments: [String] = []
+) {
+  let launch = releaseRun(
+    "/usr/bin/xcrun",
+    [
+      "devicectl", "device", "process", "launch", "--device", device.identifier,
+      "--terminate-existing", bundleID,
+    ] + arguments,
+    capture: true, allowFailure: true)
+  if launch.status == 0 {
+    installNote(scope, "launched on \(device.name)")
+  } else if launch.combinedOutput.contains("Locked") {
+    installNote(scope, "installed on \(device.name); not launched because it is locked")
+  } else {
+    releaseFail("\(scope): launch failed on \(device.name)\n\(launch.combinedOutput)")
+  }
+}
+
+/// Builds the optimized diagnostic configuration for one device, installs
+/// and launches it. The version goes on the command line, which wins over
+/// Version.xcconfig, so the device build edits no file.
+private func installIOS(
+  on device: InstallDevice, version: (marketing: String, build: Int), primeMockCard: Bool
+) {
+  let scope = "install-ios \(device.name)"
+  let configuration = "Profile"
+  let derivedData = URL(fileURLWithPath: "/tmp/refineid-ios-\(device.udid)")
+  installNote(scope, "building RefineID \(version.marketing) (\(version.build)), \(configuration)")
+  releaseRun(
+    "/usr/bin/xcodebuild",
+    [
+      "-project", "RefineID.xcodeproj",
+      "-scheme", "RefineID",
+      "-configuration", configuration,
+      "-destination", "platform=iOS,id=\(device.udid)",
+      "-derivedDataPath", derivedData.path,
+      "MARKETING_VERSION=\(version.marketing)",
+      "CURRENT_PROJECT_VERSION=\(version.build)",
+      "CLANG_COVERAGE_MAPPING=NO",
+      "ENABLE_CODE_COVERAGE=NO",
+      "-quiet",
+      "build",
+    ] + releaseSigningArguments(),
+    currentDirectory: releaseRepositoryRoot)
+  let app = derivedData.appendingPathComponent("Build/Products/\(configuration)-iphoneos/RefineID.app")
+  releaseRun("/usr/bin/codesign", ["--verify", "--deep", "--strict", app.path])
+  releaseRun(
+    "/usr/bin/xcrun",
+    ["devicectl", "device", "install", "app", "--device", device.identifier, app.path],
+    capture: true)
+  installNote(scope, "installed RefineID \(version.marketing) (\(version.build))")
+  installLaunch(
+    "fi.refineid.ReFineID", on: device, scope: scope,
+    arguments: primeMockCard ? ["--prime-mock-card"] : [])
+}
+
+/// The iPad simulator a requester runs in: the 13-inch iPad Pro when
+/// present, any iPad otherwise.
+private func installIPadSimulator() -> String? {
+  let listing = releaseRun(
+    "/usr/bin/xcrun", ["simctl", "list", "devices", "available", "--json"], capture: true,
+    allowFailure: true)
+  guard let root = try? JSONSerialization.jsonObject(with: Data(listing.stdout.utf8))
+    as? [String: Any],
+    let runtimes = root["devices"] as? [String: [[String: Any]]]
+  else { return nil }
+  let iPads = runtimes.filter { $0.key.contains("iOS") }.values.flatMap { $0 }
+    .filter { ($0["name"] as? String ?? "").contains("iPad") }
+  let preferred =
+    iPads.first { ($0["name"] as? String ?? "").contains("iPad Pro 13-inch") } ?? iPads.first
+  return preferred?["udid"] as? String
+}
+
+private func installSimulator(_ simulator: String) {
+  let scope = "install-simulator"
+  let derivedData = URL(fileURLWithPath: "/tmp/refineid-ipad-sim")
+  installNote(scope, "building Debug for iPad simulator \(simulator)")
+  releaseRun(
+    "/usr/bin/xcrun", ["simctl", "boot", simulator], capture: true, allowFailure: true)
+  releaseRun(
+    "/usr/bin/xcodebuild",
+    [
+      "-project", "RefineID.xcodeproj",
+      "-scheme", "RefineID",
+      "-configuration", "Debug",
+      "-destination", "platform=iOS Simulator,id=\(simulator)",
+      "-derivedDataPath", derivedData.path,
+      "CLANG_COVERAGE_MAPPING=NO",
+      "ENABLE_CODE_COVERAGE=NO",
+      "-quiet",
+      "build",
+    ],
+    currentDirectory: releaseRepositoryRoot)
+  releaseRun(
+    "/usr/bin/xcrun",
+    [
+      "simctl", "install", simulator,
+      derivedData.appendingPathComponent("Build/Products/Debug-iphonesimulator/RefineID.app")
+        .path,
+    ])
+  releaseRun(
+    "/usr/bin/xcrun",
+    ["simctl", "launch", "--terminate-running-process", simulator, "fi.refineid.ReFineID"],
+    capture: true)
+  releaseRun(
+    "/usr/bin/open", ["-a", "Simulator", "--args", "-CurrentDeviceUDID", simulator],
+    allowFailure: true)
+  installNote(scope, "iPad simulator updated and running")
+}
+
+/// `install-ios`: one connected iPhone or iPad, the first one found when
+/// none is named.
+private func installIOSCommand(_ arguments: [String]) {
+  var requested: String?
+  var primeMockCard = false
+  for argument in arguments {
+    switch argument {
+    case "--prime-mock-card": primeMockCard = true
+    case let name where !name.hasPrefix("-") && requested == nil: requested = name
+    default: releaseFail("usage: install-ios [<device name or identifier>] [--prime-mock-card]")
+    }
+  }
+  installIOS(
+    on: installResolveDevice(requested, scope: "install-ios"),
+    version: releaseCalendarVersion(), primeMockCard: primeMockCard)
+}
+
+/// `install-devices`: this Mac, every connected iPhone and iPad, and the
+/// iPad simulator, all on one version, built side by side. Run after a
+/// feature commit so every machine that can run the app matches the tree.
+private func installDevices(_ arguments: [String]) {
+  var mac = true
+  var devices = true
+  var simulator = true
+  var primeMockCard = false
+  for argument in arguments {
+    switch argument {
+    case "--macos-only": (devices, simulator) = (false, false)
+    case "--devices-only": (mac, simulator) = (false, false)
+    case "--simulator-only": (mac, devices) = (false, false)
+    case "--no-simulator": simulator = false
+    case "--prime-mock-card": primeMockCard = true
+    default:
+      releaseFail(
+        "usage: install-devices [--macos-only | --devices-only | --simulator-only | "
+          + "--no-simulator] [--prime-mock-card]")
+    }
+  }
+  let version = releaseStampForInstall()
+  print("Installing RefineID \(version.marketing) (\(version.build))")
+
+  var jobs: [() -> Void] = []
+  if mac { jobs.append { installMacOS([], stamp: false) } }
+  if devices {
+    let found = installPhysicalDevices()
+    if found.isEmpty { print("install-devices: no connected iPhone or iPad") }
+    for device in found {
+      jobs.append { installIOS(on: device, version: version, primeMockCard: primeMockCard) }
+    }
+  }
+  if simulator {
+    if let iPad = installIPadSimulator() {
+      jobs.append { installSimulator(iPad) }
+    } else {
+      print("install-devices: no iPad simulator available")
+    }
+  }
+  DispatchQueue.concurrentPerform(iterations: jobs.count) { jobs[$0]() }
+  print("Installed RefineID \(version.marketing) (\(version.build)) on every selected target.")
+}
+
+/// `install-nfc-timing`: the NFC card timing sample in Samples/NFCCardTiming.
+/// Its project is generated from project.yml, so the YAML stays the source.
+private func installNFCTiming(_ arguments: [String]) {
+  guard arguments.count <= 1 else {
+    releaseFail("usage: install-nfc-timing [<device name or identifier>]")
+  }
+  let scope = "install-nfc-timing"
+  let device = installResolveDevice(arguments.first, scope: scope)
+  let sample = releaseRepositoryRoot.appendingPathComponent("Samples/NFCCardTiming")
+  let derivedData = URL(fileURLWithPath: "/tmp/refineid-nfc-card-timing")
+  releaseRun("/usr/bin/env", ["xcodegen", "generate", "--quiet"], currentDirectory: sample)
+  installNote(scope, "building NFCCardTiming (Release) for \(device.name)")
+  releaseRun(
+    "/usr/bin/xcodebuild",
+    [
+      "-project", sample.appendingPathComponent("NFCCardTiming.xcodeproj").path,
+      "-scheme", "NFCCardTiming",
+      "-configuration", "Release",
+      "-destination", "platform=iOS,id=\(device.udid)",
+      "-derivedDataPath", derivedData.path,
+      "-quiet",
+      "build",
+    ] + releaseSigningArguments(),
+    currentDirectory: releaseRepositoryRoot)
+  let app = derivedData.appendingPathComponent("Build/Products/Release-iphoneos/NFCCardTiming.app")
+  releaseRun("/usr/bin/codesign", ["--verify", "--deep", "--strict", app.path])
+  releaseRun(
+    "/usr/bin/xcrun",
+    ["devicectl", "device", "install", "app", "--device", device.identifier, app.path],
+    capture: true)
+  installLaunch("fi.refineid.NFCCardTiming", on: device, scope: scope)
+}
+
+// MARK: - PKCS#11 module on this Mac
+
+/// `install-pkcs11`: builds the PKCS#11 bridge and installs it to
+/// /usr/local/lib, inside ssh-agent's default provider allowlist; /usr/lib
+/// is sealed by SIP. The same binary is installed under two names, since
+/// the module behaves as authentication-only or full by the name it is
+/// loaded under. Each copy gets its installed path as install name and an
+/// ad-hoc signature, because install_name_tool invalidates the build's.
+private func installPKCS11(_ arguments: [String]) {
+  let scope = "install-pkcs11"
+  let installDirectory = URL(fileURLWithPath: "/usr/local/lib")
+  let names = ["librefineid_pkcs11.dylib", "librefineid_pkcs11_sign.dylib"]
+  let superseded = ["librefineid_pkcs11_signing.dylib"]
+  let package = releaseRepositoryRoot.appendingPathComponent("PKCS11Bridge")
+  let built = package.appendingPathComponent(".build/release/libPKCS11Bridge.dylib")
+  let primary = installDirectory.appendingPathComponent(names[0])
+  let writable = releaseFileManager.isWritableFile(atPath: installDirectory.path)
+
+  func privileged(_ executable: String, _ arguments: [String]) {
+    if writable {
+      releaseRun(executable, arguments)
+    } else {
+      releaseRun("/usr/bin/sudo", [executable] + arguments)
+    }
+  }
+
+  // A missing card is not a failure; the module is still installed.
+  func smokeTest() {
+    installNote(scope, "smoke test: ssh-keygen -D \(primary.path)")
+    let keys = releaseRun(
+      "/usr/bin/ssh-keygen", ["-D", primary.path], capture: true, allowFailure: true)
+    if keys.status == 0, !keys.stdout.isEmpty {
+      print(keys.stdout)
+      installNote(scope, "card keys listed")
+    } else {
+      installNote(scope, "no card keys listed; insert the card and run: ssh-keygen -D \(primary.path)")
+    }
+  }
+
+  switch arguments {
+  case ["--check"]:
+    for name in names {
+      let target = installDirectory.appendingPathComponent(name)
+      guard releaseFileManager.fileExists(atPath: target.path) else {
+        releaseFail("nothing installed at \(target.path)")
+      }
+      releaseRun("/usr/bin/codesign", ["--verify", target.path])
+      installNote(scope, "installed: \(target.path)")
+    }
+    smokeTest()
+    return
+  case []:
+    break
+  default:
+    releaseFail("usage: install-pkcs11 [--check]")
+  }
+
+  installNote(scope, "building release")
+  releaseRun("/usr/bin/swift", ["build", "-c", "release"], currentDirectory: package)
+  guard releaseFileManager.fileExists(atPath: built.path) else {
+    releaseFail("build produced no \(built.path)")
+  }
+  for name in names {
+    let target = installDirectory.appendingPathComponent(name)
+    let staged = package.appendingPathComponent(".build/release/\(name)")
+    try? releaseFileManager.removeItem(at: staged)
+    do {
+      try releaseFileManager.copyItem(at: built, to: staged)
+    } catch {
+      releaseFail("could not stage \(name): \(error.localizedDescription)")
+    }
+    releaseRun("/usr/bin/install_name_tool", ["-id", target.path, staged.path])
+    releaseRun("/usr/bin/codesign", ["--force", "--sign", "-", staged.path], capture: true)
+    releaseRun("/usr/bin/codesign", ["--verify", staged.path])
+    if !writable { releaseRun("/usr/bin/sudo", ["/usr/bin/install", "-d", "-m", "0755", installDirectory.path]) }
+    privileged("/usr/bin/install", ["-m", "0755", staged.path, target.path])
+    installNote(scope, "installed: \(target.path)")
+  }
+  for name in superseded {
+    let target = installDirectory.appendingPathComponent(name)
+    guard releaseFileManager.fileExists(atPath: target.path) else { continue }
+    installNote(scope, "removing superseded \(target.path)")
+    privileged("/bin/rm", ["-f", target.path])
+  }
+  smokeTest()
+  installNote(scope, "done. ssh usage: ssh -o PKCS11Provider=\(primary.path) user@host")
+  installNote(
+    scope,
+    "signing consumers (SunPKCS11/DSS) load: \(installDirectory.appendingPathComponent(names[1]).path)")
+}
+
 private func printReleaseManagerUsage() {
   print(
     """
     Usage: Scripts/apple-app-store-connect-release-manager.swift <command> [arguments]
+
+    Local install commands (builds signed with the App Store Connect API key, so
+    entitlement capabilities are provisioned without an Apple ID in Xcode):
+      install-devices [--macos-only|--devices-only|--simulator-only|--no-simulator] [--prime-mock-card]
+          Install one version on this Mac, every connected iPhone and iPad, and the
+          iPad simulator. Run after a feature commit.
+      install-macos [--check] [--configuration NAME]
+          Build, verify and install into /Applications, removing every stray copy.
+      install-ios [<device>] [--prime-mock-card]
+          Build the optimized diagnostic build for one connected iPhone or iPad.
+      install-nfc-timing [<device>]
+          Install the NFC card timing sample on one connected device.
+      install-pkcs11 [--check]
+          Build and install the PKCS#11 module into /usr/local/lib.
+      stamp [--dry-run | --tag <dev|beta|rc>]
+          Write the calendar version into Version.xcconfig and the PKCS#11 module.
+          Installs stamp for the build and restore both files afterwards.
 
     Local release commands:
       candidate [ios|macos|all] [--upload]
@@ -2410,6 +3313,18 @@ guard let command = arguments.first else { die("a command is required; see the h
 let rest = Array(arguments.dropFirst())
 
 switch (command, rest.count) {
+case ("install-devices", _):
+  installDevices(rest)
+case ("install-macos", _):
+  installMacOS(rest)
+case ("install-ios", _):
+  installIOSCommand(rest)
+case ("install-nfc-timing", _):
+  installNFCTiming(rest)
+case ("install-pkcs11", _):
+  installPKCS11(rest)
+case ("stamp", _):
+  releaseStamp(rest)
 case ("candidate", _):
   releaseCandidate(rest)
 case ("inspect-archive", 1):
