@@ -5,7 +5,6 @@ import Foundation
 /// Sizes the specification fixes for the values a pair record holds.
 internal enum PairRecordSize {
   internal static let pairIdentifier = 16
-  internal static let rendezvousToken = 16
   internal static let grantsHash = 32
   internal static let staticKey = 32
 }

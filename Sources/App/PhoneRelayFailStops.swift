@@ -41,7 +41,7 @@
         case .handshake(.protocolFailure), .operation(.protocolFailure),
           .handshake(.localRequest), .handshake(.transportClosed),
           .operation(.localRequest), .operation(.transportClosed),
-          .operation(.terminalFrameReleased), .transportFailure,
+          .operation(.terminalFrameReleased), .operation(.serviceWithdrawn), .transportFailure,
           .localRequest:
           return false
         }

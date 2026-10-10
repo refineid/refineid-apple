@@ -8,7 +8,6 @@ internal struct IdentifierVector: Decodable {
     case handshakeHashHex = "handshake_hash_hex"
     case name = "name"
     case pairIDHex = "pair_id_hex"
-    case rendezvousTokenHex = "rendezvous_token_hex"
     case sessionIDHex = "session_id_hex"
   }
 
@@ -16,5 +15,4 @@ internal struct IdentifierVector: Decodable {
   internal let handshakeHashHex: String
   internal let pairIDHex: String
   internal let sessionIDHex: String
-  internal let rendezvousTokenHex: String
 }

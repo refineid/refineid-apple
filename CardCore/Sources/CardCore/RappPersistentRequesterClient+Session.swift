@@ -201,6 +201,9 @@
 
     private func handleClosed(_ reason: RappConnectionCoordinator.CloseReason) {
       postDistributedNotification(RappCardPromptNotificationNames.cardDismissDarwinNotification)
+      if reason == .operation(.serviceWithdrawn) {
+        postDistributedNotification(RappServiceNotificationNames.serviceWithdrawnDarwinNotification)
+      }
       #if DEBUG
         Self.logger.notice(
           "[RappRequester] coordinator closed: \(String(describing: reason), privacy: .public)"

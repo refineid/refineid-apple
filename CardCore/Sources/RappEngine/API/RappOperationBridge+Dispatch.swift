@@ -86,14 +86,17 @@ extension RappOperationBridge {
       // channel; receiving that notice marks this side's pairing revoked
       // too (specification section 14.6). Every other reason closes only
       // the session.
-      if case .text(let reason)? = envelope.body["reason"],
-        CloseReasonName.revokesPairing(reason)
-      {
+      let reason: String? =
+        if case .text(let name)? = envelope.body["reason"] { name } else { nil }
+      if let reason, CloseReasonName.revokesPairing(reason) {
         var action = closingAction(.pairRevoked)
         action.revokesPairing = true
+        action.closeReason = RappCloseReason(rawValue: reason)
         return action
       }
-      return closingAction(.sessionClosed)
+      var action = closingAction(.sessionClosed)
+      action.closeReason = reason.flatMap(RappCloseReason.init(rawValue:))
+      return action
 
     default:
       return nil
@@ -293,13 +296,23 @@ extension RappOperationBridge {
   /// The pairing stays. Households keep the same peers while cards come
   /// and go; only the published identity leaves with the card.
   public func cardUnavailableClose() -> RappBridgeAction {
+    closeWithReason(.cardUnavailable)
+  }
+
+  /// Ends the session with an authenticated `session.close` carrying
+  /// `reason`; the pairing stays.
+  ///
+  /// A custodian whose holder switched remote access off closes every open
+  /// session with ``RappCloseReason/serviceWithdrawn`` before it stops
+  /// accepting connections (RAPP v26.10.10 §4.5).
+  public func closeWithReason(_ reason: RappCloseReason) -> RappBridgeAction {
     locked {
       guard !closed else { return RappBridgeAction(kind: .noAction) }
       classifyLiveOperations()
       let notice = try? session.seal(
         .sessionClose,
         body: [
-          "reason": .text(CloseReasonName.cardUnavailable),
+          "reason": .text(reason.rawValue),
           "last_received_sequence": .unsigned(session.lastReceivedSequence),
         ])
       closed = true
@@ -307,7 +320,8 @@ extension RappOperationBridge {
       return RappBridgeAction(
         kind: .sessionClosed,
         frame: notice,
-        closeSessionAfterSend: notice != nil)
+        closeSessionAfterSend: notice != nil,
+        closeReason: reason)
     }
   }
 

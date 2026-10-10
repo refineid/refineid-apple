@@ -37,6 +37,9 @@ public struct RappBridgeAction: Equatable, Sendable {
   /// The signatures an interrupted batch made before it became ambiguous,
   /// in document order; empty otherwise (RAPP v26.10.9 §9.3).
   public var batchSignatures: [Data]
+  /// The reason of a session close, whether the peer sent it or this
+  /// endpoint did.
+  public var closeReason: RappCloseReason?
 
   /// Describes one step, carrying only what that step needs.
   public init(
@@ -51,7 +54,8 @@ public struct RappBridgeAction: Equatable, Sendable {
     revokesPairing: Bool = false,
     nextPollAtMs: UInt64? = nil,
     progressEvent: ProgressEvent? = nil,
-    batchSignatures: [Data] = []
+    batchSignatures: [Data] = [],
+    closeReason: RappCloseReason? = nil
   ) {
     self.kind = kind
     self.operationId = operationId
@@ -65,5 +69,6 @@ public struct RappBridgeAction: Equatable, Sendable {
     self.nextPollAtMs = nextPollAtMs
     self.progressEvent = progressEvent
     self.batchSignatures = batchSignatures
+    self.closeReason = closeReason
   }
 }

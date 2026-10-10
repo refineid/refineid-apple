@@ -9,7 +9,7 @@
 
   @Suite("RappSameAccountPairBuilderTests")
   internal struct RappSameAccountPairBuilderTests {
-    @Test("Derives symmetric pair identifier and rendezvous token regardless of key ordering")
+    @Test("Derives one pair identifier regardless of key ordering")
     internal func testSymmetricDerivation() {
       let keyA = Data(repeating: 0x11, count: 32)
       let keyB = Data(repeating: 0x22, count: 32)
@@ -24,17 +24,6 @@
       )
       #expect(pairIdentifierAB == pairIdentifierBA)
       #expect(pairIdentifierAB.count == 16)
-
-      let rendezvousTokenAB = RappSameAccountPairBuilder.deriveRendezvousToken(
-        publicKeyA: keyA,
-        publicKeyB: keyB
-      )
-      let rendezvousTokenBA = RappSameAccountPairBuilder.deriveRendezvousToken(
-        publicKeyA: keyB,
-        publicKeyB: keyA
-      )
-      #expect(rendezvousTokenAB == rendezvousTokenBA)
-      #expect(rendezvousTokenAB.count == 16)
     }
 
     @Test("Builds valid PairRecords for requester and proxy that match each other")
@@ -67,7 +56,6 @@
       let phoneMeta = phoneRecord.metadata()
 
       #expect(macMeta.pairId == phoneMeta.pairId)
-      #expect(macMeta.rendezvousToken == phoneMeta.rendezvousToken)
       #expect(macMeta.role == .requester)
       #expect(phoneMeta.role == .proxy)
       #expect(macMeta.transportProfile == "stream")

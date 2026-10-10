@@ -14,8 +14,6 @@ public struct RappPairMetadata: Equatable, Sendable {
   public var transportProfile: String
   /// The transport candidate the pairing is bound to.
   public var candidateId: String
-  /// The token naming this pairing to a dialing proxy.
-  public var rendezvousToken: Data
   /// When the pairing was created.
   public var createdAtMs: UInt64
 
@@ -26,7 +24,6 @@ public struct RappPairMetadata: Equatable, Sendable {
     profiles: [String],
     transportProfile: String,
     candidateId: String,
-    rendezvousToken: Data,
     createdAtMs: UInt64
   ) {
     self.pairId = pairId
@@ -34,7 +31,6 @@ public struct RappPairMetadata: Equatable, Sendable {
     self.profiles = profiles
     self.transportProfile = transportProfile
     self.candidateId = candidateId
-    self.rendezvousToken = rendezvousToken
     self.createdAtMs = createdAtMs
   }
 }

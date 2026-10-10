@@ -12,8 +12,6 @@ internal enum CorpusFailure {
       return nil
     } catch let error as WireError {
       return error.description
-    } catch let error as StreamRendezvous.Failure {
-      return error.description
     } catch {
       return "\(error)"
     }

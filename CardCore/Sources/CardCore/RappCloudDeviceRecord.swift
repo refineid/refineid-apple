@@ -19,8 +19,6 @@ public struct RappCloudDeviceRecord: Codable, Sendable, Equatable {
   public let role: RappDeviceRole
   /// 32-byte Curve25519 static public key of this device.
   public let staticPublicKey: Data
-  /// 32-byte shared rendezvous seed for mDNS local discovery.
-  public let rendezvousToken: Data
   /// Timestamp of the last update for freshness arbitration.
   public let updatedAt: Date
   /// Application version string.
@@ -35,7 +33,6 @@ public struct RappCloudDeviceRecord: Codable, Sendable, Equatable {
     modelName: String,
     role: RappDeviceRole,
     staticPublicKey: Data,
-    rendezvousToken: Data,
     updatedAt: Date = Date(),
     appBuildVersion: String = "1.0"
   ) {
@@ -44,7 +41,6 @@ public struct RappCloudDeviceRecord: Codable, Sendable, Equatable {
     self.modelName = modelName
     self.role = role
     self.staticPublicKey = staticPublicKey
-    self.rendezvousToken = rendezvousToken
     self.updatedAt = updatedAt
     self.appBuildVersion = appBuildVersion
   }

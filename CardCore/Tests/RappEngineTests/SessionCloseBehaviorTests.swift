@@ -69,8 +69,8 @@ internal struct SessionCloseBehaviorTests {
   /// The proxy's card leaving closes the session and leaves the pairing.
   @Test
   internal func cardUnavailableClosesTheSessionOnly() {
-    #expect(FieldSpec.closeReasons.contains(CloseReasonName.cardUnavailable))
-    #expect(!CloseReasonName.revokesPairing(CloseReasonName.cardUnavailable))
+    #expect(FieldSpec.closeReasons.contains(RappCloseReason.cardUnavailable.rawValue))
+    #expect(!CloseReasonName.revokesPairing(RappCloseReason.cardUnavailable.rawValue))
     #expect(CloseReasonName.revokesPairing(CloseReasonName.pairingRevoked))
   }
 

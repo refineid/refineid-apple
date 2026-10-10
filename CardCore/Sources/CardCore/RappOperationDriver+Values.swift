@@ -359,6 +359,10 @@
       case protocolFailure
       case pairRevoked
       case terminalFrameReleased
+      /// The custodian stopped serving (`service_withdrawn`); the requester
+      /// drops the card at once and does not redial until the custodian
+      /// advertises again.
+      case serviceWithdrawn
     }
 
     /// A token that the transport must return after it has released a frame.

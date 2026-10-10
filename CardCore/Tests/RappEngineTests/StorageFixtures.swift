@@ -8,7 +8,6 @@ import Foundation
 /// a different byte rather than a coincidental match.
 private let fillerOfferIdentifier: UInt8 = 0x01
 private let fillerPairIdentifier: UInt8 = 0x11
-private let fillerRendezvousToken: UInt8 = 0x22
 private let fillerLocalStaticPrivate: UInt8 = 0x33
 private let fillerLocalStaticPublic: UInt8 = 0x44
 private let fillerRemoteStaticPublic: UInt8 = 0x55
@@ -33,7 +32,6 @@ internal func makeOffer() throws -> PairingOffer {
 internal func makePairRecord() throws -> PairRecord {
   try PairRecord(
     pairIdentifier: filler(fillerPairIdentifier, PairRecordSize.pairIdentifier),
-    rendezvousToken: filler(fillerRendezvousToken, PairRecordSize.rendezvousToken),
     role: .requester,
     localStaticPrivate: filler(fillerLocalStaticPrivate, PairRecordSize.staticKey),
     localStaticPublic: filler(fillerLocalStaticPublic, PairRecordSize.staticKey),

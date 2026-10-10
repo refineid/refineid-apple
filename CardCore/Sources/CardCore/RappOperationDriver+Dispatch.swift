@@ -88,6 +88,17 @@
       return [.closed(revokedWhileClosing ? .pairRevoked : .localRequest)]
     }
 
+    /// Ends the session with an authenticated close carrying `reason`;
+    /// the pairing stays.
+    public func close(reason: RappCloseReason) -> [Command] {
+      guard !closed else { return [] }
+      do {
+        return try commands(bridge.closeWithReason(reason))
+      } catch {
+        return close()
+      }
+    }
+
     /// Ends the session and the pairing because the card can no longer
     /// be served.
     public func revokeBecauseCardUnavailable() -> [Command] {
@@ -215,7 +226,9 @@
 
       case .sessionClosed:
         closed = true
-        return [.closed(.protocolFailure)]
+        return [
+          .closed(action.closeReason == .serviceWithdrawn ? .serviceWithdrawn : .protocolFailure)
+        ]
 
       case .pairRevoked:
         closed = true

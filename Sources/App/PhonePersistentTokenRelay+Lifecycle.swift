@@ -42,6 +42,18 @@
       tearDownTransport()
     }
 
+    /// Stops serving because the holder switched remote access off.
+    ///
+    /// Paired computers learn it at once instead of waiting out a lost
+    /// advertisement. The pairing remains.
+    internal func withdrawAndStopServing() {
+      #if REFINEID_STREAM_TRANSPORT
+        withdrawService { [weak self] in self?.tearDownTransport() }
+      #else
+        tearDownTransport()
+      #endif
+    }
+
     internal func stopListening() {
       relistenPolicy = .explicitUserActionRequired
       tearDownTransport()
@@ -56,6 +68,8 @@
         }
         streamListeners.removeAll()
         stopHintRotation()
+        sessionListening.withdrawal?.cancel()
+        sessionListening.withdrawal = nil
         activeStreamListener = nil
       #else
         relay?.cancel()
@@ -85,6 +99,8 @@
         }
         streamListeners.removeAll()
         stopHintRotation()
+        sessionListening.withdrawal?.cancel()
+        sessionListening.withdrawal = nil
         activeStreamListener = nil
       #endif
       connectionID = nil
@@ -129,6 +145,8 @@
         }
         streamListeners.removeAll()
         stopHintRotation()
+        sessionListening.withdrawal?.cancel()
+        sessionListening.withdrawal = nil
         activeStreamListener = nil
       #endif
       connectionID = nil

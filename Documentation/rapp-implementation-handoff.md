@@ -14,19 +14,19 @@ The vendored documents are the authority, and the Swift engine in
 `CardCore/Sources/RappEngine` implements them. There is no compiled protocol
 artifact in this repository.
 
-- Specification: `Documentation/protocol/rapp-v26.10.9.md`
+- Specification: `Documentation/protocol/rapp-v26.10.10.md`
 - Formal state model: `Documentation/protocol/rapp-state-machine-v26.9.13.yaml`.
   v26.10.9 publishes no newer model; the operation tables transcribe this
   earlier one and no longer describe how operations run.
-- Conformance corpus: `Documentation/rapp-conformance/rapp-v26.10.9.json`
+- Conformance corpus: `Documentation/rapp-conformance/rapp-v26.10.10.json`
   (`SHA-256 a2582459d15ff94c8ff0551b3f5814a1caa1900cdc35068aededeb422cef93f4`),
   copied unchanged from the reference repository. Its `cpace_kc2`,
   `noise_handshake`, `pairing_offer`, and `discovery_hint` sections are
   replayed byte for byte on both the BLE and stream profiles.
 - Vectors covering what the corpus does not reach:
-  `rapp-operation-v26.10.9.json` (the reference operation bodies plus the
+  `rapp-operation-v26.10.10.json` (the reference operation bodies plus the
   batch signing bodies, encoded independently from the specification's
-  schemas), `rapp-ble-sar-v26.10.9.json` (BLE segmentation and reassembly),
+  schemas), `rapp-ble-sar-v26.10.10.json` (BLE segmentation and reassembly),
   `rapp-flow-v26.9.7.70.json` (ceremony bodies, re-encoded for v26.10.9), and
   `rapp-transport-v26.9.7.70.json` (post-handshake framing)
 

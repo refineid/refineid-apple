@@ -26,6 +26,7 @@
 
     private var distributedNeededObserver: (any NSObjectProtocol)?
     private var distributedDismissObserver: (any NSObjectProtocol)?
+    private var distributedWithdrawnObserver: (any NSObjectProtocol)?
     private var pendingPresentWorkItem: DispatchWorkItem?
 
     override private init() {
@@ -60,6 +61,19 @@
           self?.dismissPromptNotification()
         }
       }
+
+      #if REFINEID_STREAM_TRANSPORT
+        distributedWithdrawnObserver = DistributedNotificationCenter.default().addObserver(
+          forName: Notification.Name(
+            RappServiceNotificationNames.serviceWithdrawnDarwinNotification),
+          object: nil,
+          queue: .main
+        ) { _ in
+          MainActor.assumeIsolated {
+            PersistentTokenRegistry.shared.holderWithdrew()
+          }
+        }
+      #endif
     }
 
     private func schedulePromptNotification() {

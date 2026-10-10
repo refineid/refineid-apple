@@ -7,7 +7,6 @@ internal struct Corpus: Decodable {
   private enum CodingKeys: String, CodingKey {
     case cpaceKc2 = "cpace_kc2"
     case deterministicCBOR = "deterministic_cbor"
-    case discoveryHint = "discovery_hint"
     case format = "format"
     case grantEnforcement = "grant_enforcement"
     case grantsHash = "grants_hash"
@@ -19,7 +18,6 @@ internal struct Corpus: Decodable {
     case rejectedEnvelope = "rejected_envelope"
     case requestHash = "request_hash"
     case sequenceGuard = "sequence_guard"
-    case streamRendezvous = "stream_rendezvous"
     case wireVersion = "wire_version"
   }
 
@@ -34,9 +32,7 @@ internal struct Corpus: Decodable {
   internal let grantsHash: [GrantsVector]
   internal let requestHash: [RequestVector]
   internal let identifierDerivation: [IdentifierVector]
-  internal let streamRendezvous: [StreamRendezvousVector]
   internal let noiseHandshake: [NoiseVector]
   internal let pairingOffer: [PairingOfferVector]
   internal let cpaceKc2: [CpaceKc2Vector]
-  internal let discoveryHint: [DiscoveryHintVector]
 }

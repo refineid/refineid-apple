@@ -99,11 +99,6 @@ internal final class RappNoiseAndEnvelopeCorpusTests: XCTestCase {
           vector.pairIDHex,
           vector.name
         )
-        XCTAssertEqual(
-          deriveIdentifier(domain: "RAPP-rendezvous-v1", handshakeHash: handshakeHash),
-          vector.rendezvousTokenHex,
-          vector.name
-        )
       }
 
       XCTAssertEqual(decodeHex(vector.testOnlyInitiatorEphemeralPrivateHex).count, 32)

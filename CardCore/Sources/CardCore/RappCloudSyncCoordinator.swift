@@ -59,10 +59,6 @@
         modelName: localIdentity.modelName,
         role: localRole,
         staticPublicKey: localIdentity.publicKeyData,
-        rendezvousToken: RappSameAccountPairBuilder.deriveRendezvousToken(
-          publicKeyA: localIdentity.publicKeyData,
-          publicKeyB: localIdentity.publicKeyData
-        ),
         updatedAt: Date(),
         appBuildVersion: appVersion
       )
