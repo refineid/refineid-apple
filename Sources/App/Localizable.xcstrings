@@ -1203,22 +1203,6 @@
         }
       }
     },
-    "Card-holding device": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Korttia käyttävä laite"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enhet som använder kortet"
-          }
-        }
-      }
-    },
     "Cards": {
       "localizations": {
         "fi": {
@@ -4467,22 +4451,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Begärd åtkomst"
-          }
-        }
-      }
-    },
-    "Requesting device": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pyytävä laite"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Begärande enhet"
           }
         }
       }

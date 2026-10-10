@@ -176,14 +176,9 @@ extension RappPairingView {
       && (PersistentTokenRegistry.activePairID == pair.pairID || pairingModel.pairs.count == 1)
 
     return HStack {
-      VStack(alignment: .leading, spacing: Layout.textLineSpacing) {
-        Text(name)
-          .font(.body.weight(.medium))
-          .foregroundStyle(.primary)
-        Text(pair.remotePlatformLabel)
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      }
+      Text(name)
+        .font(.body.weight(.medium))
+        .foregroundStyle(.primary)
       Spacer()
       if isConnected {
         peerConnectedBadge
