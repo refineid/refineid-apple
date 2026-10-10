@@ -36,7 +36,11 @@ internal enum AsicSigner {
     case unusableName
   }
 
-  private static let logger = Logger(subsystem: "fi.refineid.ReFineID", category: "asic-signer")
+  #if DEBUG
+    private static let logger = Logger(
+      subsystem: "fi.refineid.ReFineID", category: "asic-signer"
+    )
+  #endif
 
   /// Fallback media type for a file no type database knows.
   private static let unknownMediaType = "application/octet-stream"
@@ -112,9 +116,11 @@ internal enum AsicSigner {
   ) async throws -> Data {
     let signedAt = Date()
     let documentName = objects.count == 1 ? objects[0].name : "ASiC-E container"
-    logger.notice(
-      "[AsicSigner] signRemotely: signing \(objects.count, privacy: .public) objects"
-    )
+    #if DEBUG
+      logger.notice(
+        "[AsicSigner] signRemotely: signing \(objects.count, privacy: .public) objects"
+      )
+    #endif
     let product = try await DocumentSigner.remoteQualifiedSignature(
       documentName: documentName,
       expectedCertificate: nil
@@ -123,9 +129,11 @@ internal enum AsicSigner {
         objects: objects, certificate: certificate, signedAt: signedAt
       )
     }
-    logger.notice(
-      "[AsicSigner] signRemotely: received remote signature product, assembling container"
-    )
+    #if DEBUG
+      logger.notice(
+        "[AsicSigner] signRemotely: received remote signature product, assembling container"
+      )
+    #endif
     return try await Self.assembled(
       from: product, objects: objects, signedAt: signedAt
     )
@@ -203,9 +211,11 @@ internal enum AsicSigner {
       let parsed = SecCertificateCreateWithData(nil, certificate as CFData),
       let profile = CardKeyProfile.resolve(fromCertificate: parsed)
     else {
-      logger.notice(
-        "[AsicSigner] plannedSignedInfo: failed to parse certificate or resolve profile"
-      )
+      #if DEBUG
+        logger.notice(
+          "[AsicSigner] plannedSignedInfo: failed to parse certificate or resolve profile"
+        )
+      #endif
       return Data()
     }
     guard
@@ -216,16 +226,20 @@ internal enum AsicSigner {
         signedAt: signedAt
       )
     else {
-      let count = objects.count
-      logger.notice(
-        "[AsicSigner] plannedSignedInfo: XadesSignature.plan returned nil for \(count, privacy: .public) items"
-      )
+      #if DEBUG
+        let count = objects.count
+        logger.notice(
+          "[AsicSigner] plannedSignedInfo: XadesSignature.plan returned nil for \(count, privacy: .public) items"
+        )
+      #endif
       return Data()
     }
-    let infoCount = plan.signedInfo.count
-    logger.notice(
-      "[AsicSigner] plannedSignedInfo: generated signedInfo (\(infoCount, privacy: .public) bytes)"
-    )
+    #if DEBUG
+      let infoCount = plan.signedInfo.count
+      logger.notice(
+        "[AsicSigner] plannedSignedInfo: generated signedInfo (\(infoCount, privacy: .public) bytes)"
+      )
+    #endif
     return plan.signedInfo
   }
 

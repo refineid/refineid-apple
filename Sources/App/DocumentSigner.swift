@@ -29,11 +29,26 @@ internal enum DocumentSigner {
     /// A network step an archival signature cannot omit failed.
     case network(Error)
 
+    /// The paired phone's answer could not be used.
+    case remote(RemoteFailure)
+
     /// A different card was present after the visible stamp was read.
     case stampSignerChanged
 
     /// Complete, authenticated LT evidence could not be collected.
     case validation(Error)
+  }
+
+  /// Why a paired phone's answer could not become a signature.
+  internal enum RemoteFailure: Equatable, Sendable {
+    /// The answer was not a signature.
+    case noSignature
+
+    /// The certificate names no key this app signs with.
+    case unusableCertificate
+
+    /// The returned signature does not verify against the certificate.
+    case unverifiedSignature
   }
 
   /// A visible mark bound to the certificate identity it states.

@@ -30,8 +30,21 @@
     /// Whether a signature is in flight.
     internal private(set) var working = false
 
+    /// Whether the signature in flight is authorized on the paired phone.
+    internal private(set) var signsOnPhone = false
+
+    /// Whether a pile is being signed one document after another.
+    internal private(set) var signingPile = false
+
     /// What went wrong, as one user-facing sentence.
     internal private(set) var failure: String?
+
+    /// The failure the holder has yet to acknowledge.
+    ///
+    /// Held back while a pile is signed, so one alert reports the pile.
+    internal var unacknowledgedFailure: String? {
+      signingPile ? nil : failure
+    }
 
     /// Where the signed file landed.
     internal private(set) var signed: URL?
@@ -242,6 +255,7 @@
     /// SignDocumentModel+Batch.swift runs the same lifecycle.
     internal func beginSigning() -> Int {
       working = true
+      signsOnPhone = DocumentSigner.usesRappSigning
       failure = nil
       signed = nil
       notice = nil
@@ -251,6 +265,25 @@
     /// Ends one signing attempt, whatever became of it.
     internal func endSigning() {
       working = false
+      signsOnPhone = false
+    }
+
+    /// Holds failures back until the whole pile is signed.
+    internal func beginPile() {
+      signingPile = true
+    }
+
+    /// Ends a pile, leaving its one combined failure, if any, to acknowledge.
+    internal func endPile(failing message: String?) {
+      signingPile = false
+      if let message {
+        fail(message: message)
+      }
+    }
+
+    /// Dismisses the failure once the holder has read it.
+    internal func acknowledgeFailure() {
+      failure = nil
     }
 
     /// Signs the pending document into `destination`.
@@ -279,7 +312,7 @@
         return
       }
       let appearance = beginSigning()
-      defer { working = false }
+      defer { endSigning() }
       if DemoMode.shared.isActive {
         await signWithVirtualCard(
           pin2: pin2,
