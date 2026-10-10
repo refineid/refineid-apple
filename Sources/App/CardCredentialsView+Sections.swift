@@ -102,13 +102,6 @@ extension CardCredentialsView {
         pairingModel.refresh()
         syncRemoteAccessToggle()
       }
-      .onReceive(
-        NotificationCenter.default.publisher(
-          for: RappAutoPairingService.pairingsDidChangeNotification)
-      ) { _ in
-        pairingModel.refresh()
-        syncRemoteAccessToggle()
-      }
     }
 
     private var remoteAccessRow: some View {

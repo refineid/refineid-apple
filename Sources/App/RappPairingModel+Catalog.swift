@@ -9,10 +9,9 @@ import SwiftUI
 private let millisecondsPerSecond: TimeInterval = 1_000
 
 extension RappPairingModel {
-  /// Posted after every stored pairing on this device has been revoked.
-  internal static let pairingsDidChangeNotification = Notification.Name(
-    "fi.refineid.pairingsDidChange"
-  )
+  /// Posted when the set of active pairings changes.
+  internal static let pairingsDidChangeNotification =
+    RappAutoPairingService.pairingsDidChangeNotification
 
   /// Deletes every stored pairing and forgets their display names.
   ///
