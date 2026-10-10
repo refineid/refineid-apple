@@ -49,6 +49,10 @@
     /// when the availability itself did not move.
     private let model = LoginIdentityModel.shared
 
+    /// The reader and its card, observed so the line follows a reader
+    /// being attached or removed.
+    @ObservedObject private var cardPresence = CardPresence.shared
+
     /// Who the card says they are, read when a card is ready.
     ///
     /// Held here rather than in the model because it is worth nothing
@@ -113,8 +117,8 @@
         availability: availability,
         warnsUnavailableCard: warnsUnavailableCard,
         readInFlight: isFetching,
-        readerConnected: CardPresence.shared.isReaderConnected,
-        cardPresent: CardPresence.shared.isCardPresent,
+        readerConnected: cardPresence.isReaderConnected,
+        cardPresent: cardPresence.isCardPresent,
         phonePresent: PersistentTokenRegistry.shared.holderIsAdvertising,
         phoneWaitsForCard: phoneWaitsForCard,
         paired: PersistentTokenRegistry.shared.hasPairing
