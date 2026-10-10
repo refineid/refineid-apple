@@ -14,7 +14,6 @@ internal struct SigningNetworkValidationRaceTests {
     static let headStart: Duration = .milliseconds(50)
     static let stalled: Duration = .seconds(30)
     static let memoryLifetime: Duration = .seconds(10)
-    static let host = "authority.invalid"
 
     static func resolutionFailure() -> Error {
       NSError(domain: NSURLErrorDomain, code: NSURLErrorTimedOut)
@@ -62,6 +61,20 @@ internal struct SigningNetworkValidationRaceTests {
     #expect(answer.outcome == .plain)
   }
 
+  /// A validated lookup that fails to resolve hands over at once,
+  /// without waiting out the head start.
+  @Test
+  internal func resolutionFailureSkipsTheHeadStart() async throws {
+    let started = ContinuousClock.now
+    let answer = try await SigningNetwork.firstAnswer(
+      headStart: Fixture.stalled,
+      validated: { throw Fixture.resolutionFailure() },
+      plain: { Fixture.plainBody }
+    )
+    #expect(answer.outcome == .plain)
+    #expect(ContinuousClock.now - started < Fixture.stalled)
+  }
+
   /// The service's own refusal over a validated lookup is the answer.
   @Test
   internal func serviceRefusalEndsTheRace() async {
@@ -87,19 +100,15 @@ internal struct SigningNetworkValidationRaceTests {
     }
   }
 
-  /// A host that failed validation is asked unvalidated until the
+  /// A resolver that failed validation is asked unvalidated until the
   /// memory lapses.
   @Test
   internal func memoryLapses() {
     let memory = SigningNetwork.ValidationMemory(lifetime: Fixture.memoryLifetime)
     let now = ContinuousClock.now
-    #expect(!memory.skipsValidation(for: Fixture.host, at: now))
-    memory.recordFailure(for: Fixture.host, at: now)
-    #expect(memory.skipsValidation(for: Fixture.host, at: now))
-    #expect(
-      !memory.skipsValidation(
-        for: Fixture.host, at: now.advanced(by: Fixture.memoryLifetime)
-      )
-    )
+    #expect(!memory.skipsValidation(at: now))
+    memory.recordFailure(at: now)
+    #expect(memory.skipsValidation(at: now))
+    #expect(!memory.skipsValidation(at: now.advanced(by: Fixture.memoryLifetime)))
   }
 }

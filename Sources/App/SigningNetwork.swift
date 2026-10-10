@@ -234,17 +234,16 @@ internal enum SigningNetwork {
   /// Runs one exchange, validated if the resolver can manage it.
   ///
   /// The validated exchange starts first and the unvalidated one
-  /// joins it after a short head start, so a resolver that cannot
-  /// validate costs that head start rather than the validated
-  /// timeout. A host whose validation failed is asked unvalidated
-  /// for a while.
+  /// joins it after a short head start, or at once when validation
+  /// fails, so a resolver that cannot validate costs at most that
+  /// head start rather than the validated timeout. Once it has, every
+  /// exchange is asked unvalidated for a while.
   private static func perform(
     _ request: URLRequest,
     limit: Int,
     endpoint: Endpoint,
     carriesCredentials: Bool
   ) async throws -> Data {
-    let host = request.url?.host?.lowercased() ?? ""
     let attempt: @Sendable (Bool) async throws -> Data = { validating in
       try await Self.perform(
         request,
@@ -254,7 +253,7 @@ internal enum SigningNetwork {
         validating: validating
       )
     }
-    if Self.validationMemory.skipsValidation(for: host, at: .now) {
+    if Self.validationMemory.skipsValidation(at: .now) {
       return try await attempt(false)
     }
     let answer = try await Self.firstAnswer(
@@ -263,7 +262,7 @@ internal enum SigningNetwork {
       plain: { try await attempt(false) }
     )
     if answer.outcome == .plain {
-      Self.validationMemory.recordFailure(for: host, at: .now)
+      Self.validationMemory.recordFailure(at: .now)
     }
     return answer.data
   }
