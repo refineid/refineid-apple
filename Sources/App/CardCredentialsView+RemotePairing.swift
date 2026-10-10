@@ -47,31 +47,6 @@ import SwiftUI
       }
       .accessibilityIdentifier("remoteAccessToggle")
       .alert(
-        String(localized: "Remote Card Use"),
-        isPresented: $showingLocalNetworkExplainer
-      ) {
-        Button(String(localized: "OK")) {
-          continueAfterLocalNetworkExplainer()
-        }
-      } message: {
-        Text(String(localized: "Network access is required."))
-      }
-      .alert(
-        String(localized: "Allow Notifications"),
-        isPresented: $showingNotificationsExplainer
-      ) {
-        Button(String(localized: "OK")) {
-          continueAfterNotificationsExplainer()
-        }
-      } message: {
-        Text(
-          String(
-            localized:
-              "Get notified when a nearby device needs this iPhone; without it, Remote Access works only while open."
-          )
-        )
-      }
-      .alert(
         String(localized: "Local Network Access Is Off"),
         isPresented: $showingLocalNetworkDenied
       ) {
@@ -94,8 +69,8 @@ import SwiftUI
 
     /// The toggle's binding: the holder's flip reaches the gate first.
     ///
-    /// Flipping on opens the education flow instead of enabling
-    /// directly; flipping off wipes every remote trace at once.
+    /// Flipping on starts serving and lets the system ask for what it
+    /// has no answer for; flipping off wipes every remote trace at once.
     private var remoteAccessBinding: Binding<Bool> {
       Binding(
         get: { remoteAccessEnabled },
@@ -105,8 +80,9 @@ import SwiftUI
 
     private func setRemoteAccessEnabled(_ enabled: Bool) {
       if enabled {
-        remoteAccessFlowID = UUID()
-        showingLocalNetworkExplainer = true
+        let flow = UUID()
+        remoteAccessFlowID = flow
+        turnRemoteAccessOn(flow: flow)
       } else {
         remoteAccessFlowID = nil
         pairingModel.revokeAll()
@@ -114,27 +90,21 @@ import SwiftUI
       }
     }
 
-    /// Starts serving after the local-network explanation is confirmed.
-    private func continueAfterLocalNetworkExplainer() {
-      let flow = remoteAccessFlowID
+    private func turnRemoteAccessOn(flow: UUID) {
       Task { @MainActor in
-        guard flow != nil, flow == remoteAccessFlowID else { return }
+        guard flow == remoteAccessFlowID else { return }
         RemoteAccessServing.setEnabled(true)
         syncRemoteAccessToggle()
-        let access = await LocalNetworkAccessDetector.currentAccess()
+        let access = await RemoteAccessPermissions.localNetworkAccess()
         guard flow == remoteAccessFlowID else { return }
         switch access {
         case .allowed:
-          showingNotificationsExplainer = true
+          await RemoteAccessPermissions.requestNotificationsIfUndecided()
+
         case .denied:
           handleLocalNetworkDenial()
         }
       }
-    }
-
-    /// Asks for notifications after their explanation is confirmed.
-    private func continueAfterNotificationsExplainer() {
-      RappAuthorizationInbox.shared.ensureAuthorization()
     }
 
     /// Turns remote access back off when the network says no.
@@ -149,9 +119,7 @@ import SwiftUI
     }
 
     private func openSystemSettings() {
-      if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
-        UIApplication.shared.open(settingsURL)
-      }
+      RemoteAccessPermissions.openSettings()
     }
 
     internal func syncRemoteAccessToggle() {

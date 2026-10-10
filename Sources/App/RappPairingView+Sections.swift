@@ -30,6 +30,11 @@ extension RappPairingView {
           .labelsHidden()
           .accessibilityIdentifier("remoteAccessToggle")
       }
+      #if os(iOS)
+        if isRemoteAccessEnabled {
+          NotificationsOffRow()
+        }
+      #endif
     }
   }
 

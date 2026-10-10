@@ -102,12 +102,6 @@ internal struct CardCredentialsView: View {
     /// The enable flow in flight, abandoned when the toggle flips back.
     @State internal var remoteAccessFlowID: UUID?
 
-    /// Whether the local-network explanation is on screen.
-    @State internal var showingLocalNetworkExplainer = false
-
-    /// Whether the notifications explanation is on screen.
-    @State internal var showingNotificationsExplainer = false
-
     /// Whether the access-denied redirect is on screen.
     @State internal var showingLocalNetworkDenied = false
 

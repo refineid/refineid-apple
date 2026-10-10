@@ -16,6 +16,8 @@
   internal final class RappAuthorizationInbox: ObservableObject {
     internal static let shared = RappAuthorizationInbox()
 
+    private static let notificationPrefix = "rapp-auth-"
+
     @Published internal private(set) var request: RappAuthorizationRequest?
     private var continuation: CheckedContinuation<RappAuthorizationDecision, Never>?
 
@@ -23,21 +25,6 @@
       // The authorization prompt waits for the holder's opt-in: asking
       // here would put it on the very first launch, before any remote
       // use was ever chosen.
-    }
-
-    /// Asks for the notification authorization the prompts need.
-    ///
-    /// Called after the notifications explanation is confirmed. The
-    /// approval alert shows in the app regardless; the notification
-    /// carries it when backgrounded, so declining only costs the
-    /// backgrounded case.
-    internal func ensureAuthorization() {
-      guard SupportedCardTransports.offersNearField else { return }
-      UNUserNotificationCenter.current().requestAuthorization(
-        options: [.alert, .sound, .badge]
-      ) { _, _ in
-        // Notification authorization requested for an opted-in holder.
-      }
     }
 
     internal func ask(
@@ -126,16 +113,35 @@
         )
       }
       content.sound = .default
+      // The paired computer is waiting now; a Focus may still silence
+      // it, since the holder can turn Time Sensitive off per Focus.
+      content.interruptionLevel = .timeSensitive
       let notificationRequest = UNNotificationRequest(
-        identifier: "rapp-auth-\(request.requestID)",
+        identifier: Self.notificationPrefix + request.requestID,
         content: content,
         trigger: nil
       )
       center.add(notificationRequest)
     }
 
+    /// Clears card requests left from an earlier run.
+    ///
+    /// A request lives only as long as the session that asked, so any
+    /// delivered one without a request on screen is stale.
+    internal func removeStaleNotifications() {
+      guard request == nil else { return }
+      Task {
+        let center = UNUserNotificationCenter.current()
+        let stale = await center.deliveredNotifications()
+          .map(\.request.identifier)
+          .filter { $0.hasPrefix(Self.notificationPrefix) }
+        guard !stale.isEmpty else { return }
+        center.removeDeliveredNotifications(withIdentifiers: stale)
+      }
+    }
+
     private func removeNotification(for requestID: String) {
-      let identifier = "rapp-auth-\(requestID)"
+      let identifier = Self.notificationPrefix + requestID
       let center = UNUserNotificationCenter.current()
       center.removePendingNotificationRequests(withIdentifiers: [identifier])
       center.removeDeliveredNotifications(withIdentifiers: [identifier])

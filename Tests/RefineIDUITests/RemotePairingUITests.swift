@@ -6,9 +6,9 @@
 
   /// The holder's Remote Access opt-in flow.
   ///
-  /// The toggle starts off; turning it on walks through the two
-  /// explanations before any system prompt may appear, and turning it
-  /// off wipes every remote trace. The permission tests run on device
+  /// The toggle starts off; turning it on shows no alert of the app's
+  /// own, only the system prompts for undecided permissions, and
+  /// turning it off wipes every remote trace. The permission tests run on device
   /// only: the simulator never shows the system prompt.
   @MainActor
   internal final class RemotePairingUITests: XCTestCase {
@@ -17,7 +17,11 @@
     /// Long enough for a first launch on the oldest supported hardware.
     private static let appearTimeout: TimeInterval = 15
 
+    /// How long an undecided notification prompt may take to appear.
+    private static let promptTimeout: TimeInterval = 3
+
     private static let allowTitles = ["Allow", "Salli", "Tillåt"]
+    private static let allowNotificationTitles = ["Allow", "Salli", "Tillåt"]
     private static let denyTitles = ["Don't Allow", "Älä salli", "Tillåt inte"]
     private static let settingsBackTapLimit = 6
     private static let switchSettleTimeout: TimeInterval = 3
@@ -66,19 +70,15 @@
       XCTAssertTrue(isOff(toggle), "remote access was on without the holder opting in")
     }
 
-    /// Turning the toggle on walks the education flow to the code boxes.
-    ///
-    /// The local-network explanation comes first with a lone OK, then
-    /// the notifications explanation; only then may the switch stay on
-    /// and the pairing-code boxes appear for the requester's code.
+    /// Turning the toggle on reaches the pairing code with no alert of
+    /// the app's own; only the system asks, and only when undecided.
     internal func testToggleOnCompletesEducationFlow() {
       ensureSystemLocalNetworkAccess()
       let app = UITestApp.launchVirtualCard(scenario: "registered-nfc")
       flipToggle(in: app)
-      confirmAlert(titled: "Remote Card Use", in: app)
-      confirmAlert(titled: "Allow Notifications", in: app)
+      allowNotificationsIfAsked()
       let toggle = element("remoteAccessToggle", in: app)
-      XCTAssertTrue(isOn(toggle), "the toggle did not stay on after the explanations")
+      XCTAssertTrue(isOn(toggle), "the toggle did not stay on")
       XCTAssertTrue(
         element("pairingCode", in: app)
           .waitForExistence(timeout: Self.appearTimeout),
@@ -93,8 +93,7 @@
       ensureSystemLocalNetworkAccess()
       let app = UITestApp.launchVirtualCard(scenario: "registered-nfc")
       flipToggle(in: app)
-      confirmAlert(titled: "Remote Card Use", in: app)
-      confirmAlert(titled: "Allow Notifications", in: app)
+      allowNotificationsIfAsked()
       flipToggle(in: app)
       let toggle = element("remoteAccessToggle", in: app)
       XCTAssertTrue(isOff(toggle), "the toggle did not turn back off")
@@ -113,7 +112,6 @@
       setSystemLocalNetworkAccess(enabled: false)
       let app = UITestApp.launchVirtualCard(scenario: "registered-nfc")
       flipToggle(in: app)
-      confirmAlert(titled: "Remote Card Use", in: app)
       _ = answerSystemPrompt(titles: Self.denyTitles, in: app, within: 4)
       let denied = app.alerts["Local Network Access Is Off"]
       XCTAssertTrue(
@@ -128,16 +126,15 @@
     /// Allowing local-network access completes the flow to the code boxes.
     ///
     /// Device only. The Settings switch decides the permission first;
-    /// after it the notifications explanation follows then the code
-    /// boxes appear, leaving the phone as the test found it.
+    /// after it the code boxes appear, leaving the phone as the test
+    /// found it.
     internal func testLocalNetworkAllowShowsCodeEntry() throws {
       try requireDevice()
       setSystemLocalNetworkAccess(enabled: true)
       let app = UITestApp.launchVirtualCard(scenario: "registered-nfc")
       flipToggle(in: app)
-      confirmAlert(titled: "Remote Card Use", in: app)
       _ = answerSystemPrompt(titles: Self.allowTitles, in: app, within: 4)
-      confirmAlert(titled: "Allow Notifications", in: app)
+      allowNotificationsIfAsked()
       // The notifications decision is the holder's own; declining only
       // costs the backgrounded case, so the prompt is left standing.
       let toggle = element("remoteAccessToggle", in: app)
@@ -187,13 +184,18 @@
       toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
     }
 
-    /// Confirms one of the app's own single-button explanations.
-    private func confirmAlert(titled title: String, in app: XCUIApplication) {
-      let alert = app.alerts[title]
-      XCTAssertTrue(
-        alert.waitForExistence(timeout: Self.appearTimeout),
-        "the \(title) explanation never appeared")
-      alert.buttons["OK"].tap()
+    /// Allows the system notification prompt when it appears.
+    ///
+    /// It shows only while the permission is undecided, so absence is
+    /// the routine case after the first run.
+    private func allowNotificationsIfAsked() {
+      let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+      let prompt = springboard.alerts.firstMatch
+      guard prompt.waitForExistence(timeout: Self.promptTimeout) else { return }
+      for title in Self.allowNotificationTitles where prompt.buttons[title].exists {
+        prompt.buttons[title].tap()
+        return
+      }
     }
 
     /// Answers the system local-network prompt with the first title found.

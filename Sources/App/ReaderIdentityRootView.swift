@@ -41,6 +41,7 @@
           #if os(iOS) && REFINEID_LOCAL_CARD
             HolderCardServing.availabilityChanged()
           #endif
+          authorizationInbox.removeStaleNotifications()
         }
       }
       .alert(
