@@ -58,16 +58,11 @@
 
     @State private var isFetching = PersistentTokenRegistry.shared.isRunning
 
-    private var isPairedDeviceOnline: Bool {
-      PersistentTokenRegistry.shared.holderIsAdvertising
-    }
-
     /// Whether the paired phone is here but its card was not read and
-    /// no read is under way, so nothing is being read.
-    private var holderWaitsForCard: Bool {
+    /// no read is under way.
+    private var phoneWaitsForCard: Bool {
       #if REFINEID_REMOTE_CARD
-        !CardPresence.shared.isCardPresent
-          && PersistentTokenRegistry.shared.holderWaitsForCard
+        PersistentTokenRegistry.shared.holderWaitsForCard
       #else
         false
       #endif
@@ -112,9 +107,22 @@
         }
     }
 
+    /// What the row knows now.
+    private var facts: RequesterFacts {
+      RequesterFacts(
+        availability: availability,
+        warnsUnavailableCard: warnsUnavailableCard,
+        readInFlight: isFetching,
+        readerConnected: CardPresence.shared.isReaderConnected,
+        cardPresent: CardPresence.shared.isCardPresent,
+        phonePresent: PersistentTokenRegistry.shared.holderIsAdvertising,
+        phoneWaitsForCard: phoneWaitsForCard
+      )
+    }
+
     @ViewBuilder private var content: some View {
-      switch availability {
-      case .ready:
+      switch IdentityLine.derive(facts) {
+      case .holder:
         // Who is about to sign: someone with two cards can see which
         // one is in the reader before spending a PIN on it. Until the
         // name is read the row shows nothing - a claim without the
@@ -129,38 +137,35 @@
           }
         }
 
-      case .cardWithoutIdentity:
-        if holderWaitsForCard {
-          HStack {
-            Text("Phone connected")
-              .foregroundStyle(.secondary)
-            Spacer()
-            Button(String(localized: "Retry")) {
-              PersistentTokenRegistry.shared.retryFetch()
-            }
-          }
-        } else if warnsUnavailableCard {
-          Text("Card detected, not ready - if this lasts, re-insert it")
-            .foregroundStyle(.orange)
-        } else {
-          Text("Reading the card…")
-            .foregroundStyle(.secondary)
-        }
-
-      case .noCard:
-        if isFetching {
-          Text("Reading the card…")
-            .foregroundStyle(.secondary)
-        } else if CardPresence.shared.isReaderConnected {
-          Text("Insert the card into the reader")
-            .foregroundStyle(.secondary)
-        } else if isPairedDeviceOnline {
+      case .phoneConnectedRetry:
+        HStack {
           Text("Phone connected")
             .foregroundStyle(.secondary)
-        } else {
-          Text("Connect a card reader")
-            .foregroundStyle(.secondary)
+          Spacer()
+          Button(String(localized: "Retry")) {
+            PersistentTokenRegistry.shared.retryFetch()
+          }
         }
+
+      case .cardNotReady:
+        Text("Card detected, not ready - if this lasts, re-insert it")
+          .foregroundStyle(.orange)
+
+      case .reading:
+        Text("Reading the card…")
+          .foregroundStyle(.secondary)
+
+      case .insertCard:
+        Text("Insert the card into the reader")
+          .foregroundStyle(.secondary)
+
+      case .phoneConnected:
+        Text("Phone connected")
+          .foregroundStyle(.secondary)
+
+      case .connectReader:
+        Text("Connect a card reader")
+          .foregroundStyle(.secondary)
       }
     }
 
