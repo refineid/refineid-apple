@@ -130,11 +130,7 @@
         let isCurrentPair =
           (derivedPairID != nil && activePairID != nil)
           ? (derivedPairID == activePairID) : isPreferred
-        let isOnline =
-          RappAutoPairingService.shared.isDeviceOnline(
-            deviceID: device.deviceID,
-            deviceName: device.deviceName
-          ) || (isCurrentPair && PersistentTokenRegistry.shared.holderIsAdvertising)
+        let isOnline = isCurrentPair && PersistentTokenRegistry.shared.holderIsAdvertising
         let isConnected = isPairConnected(isCurrent: isCurrentPair, isOnline: isOnline)
 
         list.append(
@@ -182,11 +178,7 @@
           || (model.selectedPairID == pair.pairID)
 
         let isCurrentPair = activePairID.map { pair.pairID == $0 } ?? isPreferred
-        let isOnline =
-          RappAutoPairingService.shared.isDeviceOnline(
-            deviceID: nil,
-            deviceName: pairName
-          ) || (isCurrentPair && PersistentTokenRegistry.shared.holderIsAdvertising)
+        let isOnline = isCurrentPair && PersistentTokenRegistry.shared.holderIsAdvertising
         let isConnected = isPairConnected(isCurrent: isCurrentPair, isOnline: isOnline)
 
         list.append(

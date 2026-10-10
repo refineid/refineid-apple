@@ -23,9 +23,6 @@
     /// The opening frame a requester of this pair dials with.
     internal let sessionPreamble: Data
 
-    /// The stream endpoints to dial, if this pair was established over explicit stream endpoints.
-    internal let streamEndpoints: [String]
-
     /// The underlying pair record.
     internal let pairRecord: RappPairRecord
 
@@ -48,7 +45,6 @@
             key: pairID.map { String(format: "%02x", $0) }.joined(),
             rendezvousToken: metadata.rendezvousToken,
             sessionPreamble: preamble,
-            streamEndpoints: metadata.streamEndpoints ?? [],
             pairRecord: pair
           )
         )

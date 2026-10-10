@@ -62,11 +62,6 @@ public final class RappPairRecord: @unchecked Sendable {
       transportProfile: record.transport.profile,
       candidateId: record.transport.candidateIdentifier,
       rendezvousToken: record.rendezvousToken,
-      streamEndpoints: StreamProfile.endpoints(
-        of: TransportCandidate(
-          profile: record.transport.profile,
-          candidateIdentifier: record.transport.candidateIdentifier,
-          parameters: record.transport.parameters)),
       createdAtMs: record.createdAtMilliseconds)
   }
 

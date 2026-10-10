@@ -20,14 +20,9 @@
 
     private var coordinator: RappCloudSyncCoordinator?
     private var externalChangeObserver: (any NSObjectProtocol)?
-    #if canImport(Network)
-      private var localDiscovery: RappLocalDiscovery?
-    #endif
     private let lock = NSLock()
     private var isStarted = false
     private var cachedRemoteDevices: [RappCloudDeviceRecord] = []
-    private var liveOnlineDeviceIDs = Set<UUID>()
-    private var liveOnlineDeviceNames = Set<String>()
 
     /// List of discovered remote devices from the same Apple Account.
     public var remoteDevices: [RappCloudDeviceRecord] {
@@ -46,95 +41,10 @@
       coordinator?.localIdentity
     }
 
-    /// Whether any remote holder device is known from iCloud synchronization or established pairings.
-    public var hasKnownRemoteHolders: Bool {
-      let remotes = remoteDevices.filter { record in
-        record.role == .holder
-      }
-      if !remotes.isEmpty { return true }
-      let pairs = (try? RappDeviceVault().activePairIDs()) ?? []
-      return !pairs.isEmpty
-    }
-
-    /// Checks whether any paired peer device (or known remote requester/holder) is online.
-    public var isAnyPairedPeerOnline: Bool {
-      lock.lock()
-      defer { lock.unlock() }
-      for device in cachedRemoteDevices {
-        if liveOnlineDeviceIDs.contains(device.deviceID) {
-          return true
-        }
-        let lower = device.deviceName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-        let stripped = lower.replacingOccurrences(of: ".local", with: "")
-        if !lower.isEmpty,
-          liveOnlineDeviceNames.contains(lower) || liveOnlineDeviceNames.contains(stripped)
-        {
-          return true
-        }
-      }
-      if let activeIDs = try? RappDeviceVault().activePairIDs(), !activeIDs.isEmpty {
-        for pairID in activeIDs {
-          if let name = RappPairNames.name(forPairID: pairID) {
-            let lower = name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-            let stripped = lower.replacingOccurrences(of: ".local", with: "")
-            if !lower.isEmpty,
-              liveOnlineDeviceNames.contains(lower) || liveOnlineDeviceNames.contains(stripped)
-            {
-              return true
-            }
-          }
-        }
-        if !liveOnlineDeviceIDs.isEmpty || !liveOnlineDeviceNames.isEmpty {
-          return true
-        }
-      }
-      return false
-    }
-
     // MARK: Initialization
 
     private init() {
       // Singleton instance initialization
-    }
-
-    // MARK: Public API
-
-    /// Checks whether a remote device is currently discovered and reachable on the local network.
-    public func isDeviceOnline(deviceID: UUID?, deviceName: String?) -> Bool {
-      lock.lock()
-      defer { lock.unlock() }
-      if let deviceID, liveOnlineDeviceIDs.contains(deviceID) {
-        return true
-      }
-      guard let deviceName else { return false }
-      let lower = deviceName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-      guard !lower.isEmpty else { return false }
-      if liveOnlineDeviceNames.contains(lower) {
-        return true
-      }
-      let stripped = lower.replacingOccurrences(of: ".local", with: "")
-      if liveOnlineDeviceNames.contains(stripped) {
-        return true
-      }
-      return false
-    }
-
-    /// Updates the set of live online devices discovered over Bonjour.
-    public func updateOnlineDevices(ids: Set<UUID>, names: Set<String>) {
-      lock.lock()
-      guard liveOnlineDeviceIDs != ids || liveOnlineDeviceNames != names else {
-        lock.unlock()
-        return
-      }
-      liveOnlineDeviceIDs = ids
-      liveOnlineDeviceNames = names
-      lock.unlock()
-      Task { @MainActor in
-        NotificationCenter.default.post(
-          name: Self.pairingsDidChangeNotification,
-          object: nil
-        )
-      }
     }
 
     // MARK: Public API
@@ -170,18 +80,7 @@
         self?.reconcile()
       }
 
-      // 2. Start local network discovery (Bonjour / LAN)
-      #if canImport(Network)
-        #if os(iOS)
-          if RemoteAccessGate.isEnabled {
-            startLocalDiscovery(identity: identity, role: role)
-          }
-        #else
-          startLocalDiscovery(identity: identity, role: role)
-        #endif
-      #endif
-
-      // 3. Observe iCloud external changes
+      // 2. Observe iCloud external changes
       externalChangeObserver = NotificationCenter.default.addObserver(
         forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
         object: NSUbiquitousKeyValueStore.default,
@@ -191,29 +90,6 @@
           self?.reconcile()
         }
       }
-    }
-
-    /// Starts or stops local-network discovery for the holder's choice.
-    ///
-    /// iCloud sync and reconciliation run regardless; only the Bonjour
-    /// advertisement and browse that summon the system prompt are gated.
-    /// A stopped discovery cannot be restarted, so enabling builds a new one.
-    public func setLocalDiscoveryEnabled(_ enabled: Bool) {
-      #if canImport(Network)
-        lock.lock()
-        defer { lock.unlock() }
-        if enabled {
-          guard localDiscovery == nil else { return }
-          guard
-            let identity = coordinator?.localIdentity ?? (try? RappDeviceIdentity())
-          else { return }
-          startLocalDiscovery(identity: identity, role: discoveryRole())
-        } else {
-          let discovery = localDiscovery
-          localDiscovery = nil
-          discovery?.cancel()
-        }
-      #endif
     }
 
     /// Triggers an immediate reconciliation of the cloud directory against the local device vault.
@@ -267,43 +143,7 @@
       lock.unlock()
     }
 
-    #if canImport(Network)
-      /// Builds and starts one local discovery for the given identity.
-      private func startLocalDiscovery(
-        identity: RappDeviceIdentity,
-        role: RappDeviceRole
-      ) {
-        let discovery = RappLocalDiscovery(
-          localIdentity: identity,
-          localRole: role,
-          onLiveDevicesChanged: { [weak self] ids, names in
-            self?.updateOnlineDevices(ids: ids, names: names)
-          }
-        )
-        discovery.start()
-        self.localDiscovery = discovery
-      }
-    #endif
-
-    /// The role discovery announces, from the coordinator when it exists.
-    private func discoveryRole() -> RappDeviceRole {
-      if let role = coordinator?.localRole {
-        return role
-      }
-      #if os(iOS)
-        guard SupportedCardTransports.offersNearField else {
-          return .requester
-        }
-        return .holder
-      #else
-        return .requester
-      #endif
-    }
-
     deinit {
-      #if canImport(Network)
-        localDiscovery?.cancel()
-      #endif
       if let observer = externalChangeObserver {
         NotificationCenter.default.removeObserver(observer)
       }

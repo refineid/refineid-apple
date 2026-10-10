@@ -1281,12 +1281,15 @@ This supersedes the RAPP part of the 2026-09-30 macOS local-card MVP entry;
 SCS stays out of macOS.
 
 The Mac is always the RAPP v26.10.9 requester. It browses for the phone
-(DNS-SD `_refineid-stream._tcp` in pairing or session mode, and
-`_refineid-disc._tcp` for the online indicator), dials it, and never
-accepts a connection: the app and the remote-card extension carry
+(DNS-SD `_refineid-stream._tcp` in pairing or session mode, which also
+tells it whether the phone is online), dials it, and never accepts a
+connection: the app and the remote-card extension carry
 `com.apple.security.network.client` and no build carries
-`com.apple.security.network.server`. Discovery does not advertise on a
-Mac, and the card holder's pairing listener compiles for iOS only.
+`com.apple.security.network.server`. The card holder's pairing listener
+compiles for iOS only. Nothing either device advertises on the local
+network names the device, its owner or a key; random instance names and
+the protocol's own TXT fields are all that is published
+(`NetworkContractTests.advertisementsCarryNoDeviceIdentity`).
 `NetworkContractTests.macOSNeverListens` pins every listener site and its
 gate. The extension shares the app's keychain group so the requester
 client reads the stored pairing.

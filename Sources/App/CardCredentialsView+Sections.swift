@@ -91,9 +91,6 @@ extension CardCredentialsView {
         syncRemoteAccessToggle()
         pairingModel.refresh()
         RappAutoPairingService.shared.reconcile()
-        #if os(iOS) && REFINEID_LOCAL_CARD
-          phoneRelay.updatePeerOnlineState()
-        #endif
       }
       .onReceive(pairingModel.$phase) { _ in
         syncRemoteAccessToggle()
@@ -110,9 +107,6 @@ extension CardCredentialsView {
           for: RappAutoPairingService.pairingsDidChangeNotification)
       ) { _ in
         pairingModel.refresh()
-        #if os(iOS) && REFINEID_LOCAL_CARD
-          phoneRelay.updatePeerOnlineState()
-        #endif
         syncRemoteAccessToggle()
       }
     }

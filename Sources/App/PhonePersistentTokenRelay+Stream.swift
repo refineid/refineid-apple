@@ -19,35 +19,16 @@
   /// The holder is the side whose listener every peer can reach, so it
   /// publishes one session-mode listener under a fresh random name and
   /// waits; a requester dials with its pair's session preamble, which says
-  /// which pairing arrived. Pairs with explicit endpoints are dialed
-  /// instead.
+  /// which pairing arrived. The holder never dials.
   @MainActor
   extension PhonePersistentTokenRelay {
     /// The bookkeeping key of the one session listener; never published.
     internal static let sessionListenerKey = "session"
 
-    /// Listens once for every listen-mode pair and dials pairs with
-    /// explicit endpoints.
+    /// Listens once, under a fresh random name, for every active pair.
     internal func startListening(_ contexts: [PhoneStreamPairContext]) {
-      for context in contexts where !context.streamEndpoints.isEmpty {
-        streamContexts[context.key] = context
-        if streamDialers[context.key] != nil || coordinator != nil {
-          continue
-        }
-        let dialer = StreamRelaySession(
-          endpointLiterals: context.streamEndpoints,
-          preamble: context.sessionPreamble
-        ) { [weak self] event in
-          Task { @MainActor in
-            self?.receiveDialerEvent(event, from: context.key)
-          }
-        }
-        streamDialers[context.key] = dialer
-        dialer.start()
-      }
-      let listening = contexts.filter(\.streamEndpoints.isEmpty)
-      guard !listening.isEmpty else { return }
-      let tokens = listening.map(\.rendezvousToken)
+      guard !contexts.isEmpty else { return }
+      let tokens = contexts.map(\.rendezvousToken)
       if let listener = streamListeners[Self.sessionListenerKey] {
         listener.updateTXTRecord(
           StreamRendezvousName.sessionRecord(rendezvousTokens: tokens, at: Date()))
@@ -69,28 +50,18 @@
       startHintRotation(tokens)
     }
 
-    /// The bookkeeping keys the given pairs need: one per dialed pair and
-    /// the session listener for every listening pair.
+    /// The bookkeeping keys the given pairs need: the session listener
+    /// whenever any pair is active.
     internal func streamKeys(for contexts: [PhoneStreamPairContext]) -> Set<String> {
-      var keys = Set(contexts.filter { !$0.streamEndpoints.isEmpty }.map(\.key))
-      if contexts.contains(where: \.streamEndpoints.isEmpty) {
-        keys.insert(Self.sessionListenerKey)
-      }
-      return keys
+      contexts.isEmpty ? [] : [Self.sessionListenerKey]
     }
 
-    /// Stops listeners and dialers no longer in `keys`.
+    /// Stops listeners no longer in `keys`.
     internal func pruneStreamTransports(keeping keys: Set<String>) {
       for (key, listener) in streamListeners where !keys.contains(key) {
         listener.cancel()
         streamListeners.removeValue(forKey: key)
-        streamContexts.removeValue(forKey: key)
         if key == Self.sessionListenerKey { stopHintRotation() }
-      }
-      for (key, dialer) in streamDialers where !keys.contains(key) {
-        dialer.cancel()
-        streamDialers.removeValue(forKey: key)
-        streamContexts.removeValue(forKey: key)
       }
     }
 
@@ -221,98 +192,6 @@
       ) { [weak listener] in
         listener?.disconnect()
       }
-    }
-
-    private func receiveDialerEvent(_ event: StreamRelayEvent, from key: String) {
-      guard let dialer = streamDialers[key],
-        let context = streamContexts[key]
-      else { return }
-      switch event {
-      case .connected:
-        handleDialerConnected(on: dialer, context: context)
-      case .frame(let frame):
-        handleDialerFrame(frame, from: dialer)
-      case .closed:
-        handleDialerClosed(from: dialer, key: key)
-      }
-    }
-
-    private func handleDialerConnected(
-      on dialer: StreamRelaySession,
-      context: PhoneStreamPairContext
-    ) {
-      if coordinator != nil {
-        #if DEBUG
-          print(
-            "[stream-holder] already connected to a peer, "
-              + "cancelling dialer")
-          fflush(stdout)
-        #endif
-        dialer.cancel()
-        streamDialers.removeValue(forKey: context.key)
-        return
-      }
-      activeStreamDialer = dialer
-      let currentConnectionID = UUID()
-      connectionID = currentConnectionID
-      lastPeerContactDate = Date()
-      #if DEBUG
-        print("[stream-holder] dialer connected")
-        fflush(stdout)
-      #endif
-      let transport = RappClosureFrameTransport(
-        sender: { [weak dialer] frame in
-          guard let dialer else {
-            throw StreamRelayTransportError.notConnected
-          }
-          try await dialer.send(frame)
-        },
-        closer: { [weak dialer] in dialer?.cancel() }
-      )
-      establishCoordinator(
-        connectionID: currentConnectionID,
-        pair: context.pairRecord,
-        transport: transport
-      ) { [weak dialer] in
-        dialer?.cancel()
-      }
-    }
-
-    private func handleDialerFrame(
-      _ frame: Data,
-      from dialer: StreamRelaySession
-    ) {
-      guard activeStreamDialer === dialer,
-        connectionID != nil
-      else { return }
-      lastPeerContactDate = Date()
-      #if DEBUG
-        print(
-          "[stream-holder] dialer received frame \(frame.count) bytes, "
-            + "session \(coordinator != nil)")
-        fflush(stdout)
-      #endif
-      if let coordinator {
-        deliverInOrder { await coordinator.receive(frame) }
-      } else if preCoordinatorFrames.count < Self.maximumPreCoordinatorFrames {
-        preCoordinatorFrames.append(frame)
-      } else {
-        dialer.cancel()
-      }
-    }
-
-    private func handleDialerClosed(from dialer: StreamRelaySession, key: String) {
-      #if DEBUG
-        print("[stream-holder] dialer .closed event")
-        fflush(stdout)
-      #endif
-      if activeStreamDialer === dialer {
-        activeStreamDialer = nil
-      }
-      streamDialers.removeValue(forKey: key)
-      handleTransportClosed(
-        redialDelayMilliseconds: Self.streamRedialDelayMilliseconds
-      )
     }
   }
 #endif

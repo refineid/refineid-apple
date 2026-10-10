@@ -16,14 +16,12 @@
     internal static func setEnabled(_ enabled: Bool) {
       RemoteAccessGate.setEnabled(enabled)
       if enabled {
-        RappAutoPairingService.shared.setLocalDiscoveryEnabled(true)
         #if REFINEID_LOCAL_CARD
           if SupportedCardTransports.offersNearField {
             PhonePersistentTokenRelay.shared.resumeAfterUserAction()
           }
         #endif
       } else {
-        RappAutoPairingService.shared.setLocalDiscoveryEnabled(false)
         #if REFINEID_LOCAL_CARD
           if SupportedCardTransports.offersNearField {
             PhonePersistentTokenRelay.shared.stopServing()

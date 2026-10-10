@@ -46,10 +46,7 @@
     internal var relay: PersistentRelaySession?
     #if REFINEID_STREAM_TRANSPORT
       internal var streamListeners: [String: StreamRelayListener] = [:]
-      internal var streamDialers: [String: StreamRelaySession] = [:]
-      internal var streamContexts: [String: PhoneStreamPairContext] = [:]
       internal var activeStreamListener: StreamRelayListener?
-      internal var activeStreamDialer: StreamRelaySession?
       internal var sessionListening = SessionListening()
     #endif
     internal var coordinator: RappConnectionCoordinator?
@@ -63,7 +60,6 @@
     internal var relistenPolicy = RelistenPolicy.automatic
     @Published internal var isActivelyConnected = false
     @Published internal var lastPeerContactDate: Date?
-    @Published internal var isPeerOnline = false
 
     /// Frames enter the coordinator in arrival order through this
     /// bounded chain; reset between connections.
@@ -79,7 +75,6 @@
         queue: .main
       ) { [weak self] _ in
         MainActor.assumeIsolated {
-          self?.updatePeerOnlineState()
           self?.start()
         }
       }
@@ -88,7 +83,6 @@
     // MARK: Functions
 
     internal func start() {
-      updatePeerOnlineState()
       // Remote serving is opt-in: without the holder's choice nothing
       // advertises, so no local-network prompt can surprise them.
       guard RemoteAccessGate.isEnabled else { return }
