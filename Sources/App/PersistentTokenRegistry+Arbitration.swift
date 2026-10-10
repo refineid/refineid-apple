@@ -67,7 +67,7 @@
         return
       }
       guard let der = certificateDER ?? Self.publishedCertificateDER() else { return }
-      Self.publish(certificateDER: der)
+      Self.publish(der, cardSerial: nil)
     }
 
     /// Fills the person line from a certificate this process already holds.

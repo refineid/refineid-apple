@@ -77,18 +77,21 @@
       return try? pair.encodedBytes()
     }
 
-    internal static func publish(_ certificateDER: Data) {
-      publish(certificateDER, cardSerial: nil)
-    }
-
-    internal static func publish(_ certificateDER: Data, cardSerial: String?) {
-      guard Self.isRemoteCardEnabled else { return }
+    /// Offers `certificateDER` as the borrowed identity; answers whether
+    /// the driver now holds it.
+    ///
+    /// The holder line and certificate are set only once the token
+    /// configuration exists, so the window never names a person Safari
+    /// cannot be offered.
+    @discardableResult
+    internal static func publish(_ certificateDER: Data, cardSerial: String?) -> Bool {
+      guard Self.isRemoteCardEnabled else { return false }
       guard !CardPresence.shared.isReaderCardPresent else {
         #if DEBUG
           print("[persistent-token] suppressed publish: reader card has priority")
           fflush(stdout)
         #endif
-        return
+        return false
       }
       guard
         let driver = driverConfiguration,
@@ -100,7 +103,7 @@
         ),
         let pairBytes = activePairConfigurationData()
       else {
-        return
+        return false
       }
 
       let instanceID = tokenInstanceID(for: certificateDER, cardSerial: cardSerial)
@@ -114,7 +117,7 @@
         #if os(macOS)
           LoginIdentityModel.shared.refresh()
         #endif
-        return
+        return true
       }
       for existingID in driver.tokenConfigurations.keys {
         driver.removeTokenConfiguration(for: existingID)
@@ -131,6 +134,7 @@
         print("[persistent-token] published \(instanceID)")
         fflush(stdout)
       #endif
+      return publishedCertificateDER() == certificateDER
     }
   }
 #endif

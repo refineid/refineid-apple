@@ -114,7 +114,7 @@
             print("[RemoteCardModel] publish: publishing certificate for holder=\(name)")
             fflush(stdout)
           #endif
-          PersistentTokenRegistry.publish(certificateDER: der, cardSerial: cardSerial)
+          PersistentTokenRegistry.publish(der, cardSerial: cardSerial)
           finishConnect(holder: name)
         } else {
           #if DEBUG
