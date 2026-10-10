@@ -2,6 +2,8 @@
 
 import Foundation
 
+@testable import CardCore
+
 /// Answers a paired requester's card requests, at most once each.
 ///
 /// The card's retry counter does not go back up, so a request that arrives

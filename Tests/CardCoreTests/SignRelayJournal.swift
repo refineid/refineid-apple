@@ -2,6 +2,8 @@
 
 import Foundation
 
+@testable import CardCore
+
 /// Remembers what the card already answered.
 ///
 /// At-most-once has to outlive the process, because the counter it protects

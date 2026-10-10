@@ -49,10 +49,6 @@
       internal var sessionListening = SessionListening()
     #endif
     internal var coordinator: RappConnectionCoordinator?
-    #if REFINEID_SLIM_RELAY
-      internal var slimSession: SignRelaySession?
-      internal var slimProxy: SignRelayProxy?
-    #endif
     internal var dispatcher: RappPhoneProxyDispatcher?
     internal var connectionID: UUID?
     internal var preCoordinatorFrames: [Data] = []
@@ -142,18 +138,6 @@
         establish(connectionID: connectionID)
 
       case .frame(let frame):
-        #if REFINEID_SLIM_RELAY
-          if slimSession != nil {
-            deliverInOrder { [weak self] in
-              // The delivery may outlive the connection it belongs to;
-              // a frame for a gone connection must not touch the next
-              // one's session.
-              guard let self, await self.connectionID == connectionID else { return }
-              await receiveSlim(frame)
-            }
-            return
-          }
-        #endif
         if let coordinator {
           deliverInOrder { await coordinator.receive(frame) }
         } else if preCoordinatorFrames.count < Self.maximumPreCoordinatorFrames {
@@ -219,36 +203,32 @@
           failTransport()
           return
         }
-        #if REFINEID_SLIM_RELAY
-          try establishSlim(pair: pair, transport: transport)
-        #else
-          let made = try RappConnectionCoordinator(
-            role: .proxy,
-            pair: pair,
-            vault: vault,
-            transport: transport,
-            maximumLifetimeMilliseconds:
-              policy.maximumOperationLifetimeMilliseconds,
-            liveness: policy.liveness
-          )
-          let madeDispatcher = RappPhoneProxyDispatcher(
-            inbox: RappAuthorizationInbox.shared
-          ) { [weak self] in
-            self?.requireExplicitUserAction()
-          }
-          coordinator = made
-          dispatcher = madeDispatcher
-          isActivelyConnected = true
+        let made = try RappConnectionCoordinator(
+          role: .proxy,
+          pair: pair,
+          vault: vault,
+          transport: transport,
+          maximumLifetimeMilliseconds:
+            policy.maximumOperationLifetimeMilliseconds,
+          liveness: policy.liveness
+        )
+        let madeDispatcher = RappPhoneProxyDispatcher(
+          inbox: RappAuthorizationInbox.shared
+        ) { [weak self] in
+          self?.requireExplicitUserAction()
+        }
+        coordinator = made
+        dispatcher = madeDispatcher
+        isActivelyConnected = true
 
-          let earlyFrames = preCoordinatorFrames
-          preCoordinatorFrames.removeAll(keepingCapacity: false)
-          pumpEvents(
-            from: made,
-            dispatcher: madeDispatcher,
-            connectionID: connectionID,
-            earlyFrames: earlyFrames
-          )
-        #endif
+        let earlyFrames = preCoordinatorFrames
+        preCoordinatorFrames.removeAll(keepingCapacity: false)
+        pumpEvents(
+          from: made,
+          dispatcher: madeDispatcher,
+          connectionID: connectionID,
+          earlyFrames: earlyFrames
+        )
       } catch {
         relistenPolicy = .explicitUserActionRequired
         failTransport()

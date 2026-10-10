@@ -18,10 +18,6 @@
       internal var operationStarted = false
       internal var completed = false
       internal var coordinator: RappConnectionCoordinator?
-      #if REFINEID_SLIM_RELAY
-        internal var slimSession: SignRelaySession?
-        internal var slimRequestID: UUID?
-      #endif
       internal var response: RappRequesterResponse?
       internal var error: RappRequesterClientError?
     }
@@ -39,9 +35,6 @@
     /// bounded chain.
     private let frameDelivery = OrderedDelivery(
       capacity: OrderedDelivery.relayFrameCapacity)
-    #if REFINEID_SLIM_RELAY
-      internal let pendingSlimRequest = OSAllocatedUnfairLock<Data?>(initialState: nil)
-    #endif
     internal var operation: RappRequesterOperation?
 
     #if REFINEID_STREAM_TRANSPORT
@@ -160,14 +153,10 @@
         }
 
       case .frame(let frame):
-        #if REFINEID_SLIM_RELAY
-          deliverInOrder { [weak self] in await self?.receiveSlim(frame) }
-        #else
-          deliverInOrder { [weak self] in
-            let coordinator = self?.state.withLock { $0.coordinator }
-            await coordinator?.receive(frame)
-          }
-        #endif
+        deliverInOrder { [weak self] in
+          let coordinator = self?.state.withLock { $0.coordinator }
+          await coordinator?.receive(frame)
+        }
 
       case .closed:
         deliverInOrder { [weak self] in

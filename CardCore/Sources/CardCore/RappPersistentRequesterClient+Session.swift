@@ -17,10 +17,6 @@
           finish(error: .noSelectedPair)
           return
         }
-        #if REFINEID_SLIM_RELAY
-          try await establishSlim(pair: pair)
-          return
-        #endif
         let coordinator = try RappConnectionCoordinator(
           role: .requester,
           pair: pair,
@@ -46,77 +42,6 @@
         finish(error: .protocolFailure)
       }
     }
-
-    #if REFINEID_SLIM_RELAY
-      /// Opens a slim session over the selected pairing and asks once.
-      private func establishSlim(pair: RappPairRecord) async throws {
-        guard let operation else {
-          finish(error: .protocolFailure)
-          return
-        }
-        let requestID = UUID()
-        guard let request = SignRelayOperation.request(for: operation, requestID: requestID) else {
-          finish(error: .unexpectedResult)
-          return
-        }
-        let session = try SignRelaySession(role: .requester, pair: pair, vault: vault)
-        let installed = state.withLock { state -> Bool in
-          guard state.slimSession == nil, !state.completed else { return false }
-          state.slimSession = session
-          state.slimRequestID = requestID
-          return true
-        }
-        guard installed else { return }
-        pendingSlimRequest.withLock { $0 = try? request.encoded() }
-        for frame in try await session.start().send {
-          try relay.send(frame)
-        }
-      }
-
-      /// Drives one frame through the slim session, and answers when the
-      /// peer's message is the one this client asked for.
-      internal func receiveSlim(_ frame: Data) async {
-        guard let session = state.withLock({ $0.slimSession }) else { return }
-        let step: SignRelayStep
-        do {
-          step = try await session.receive(frame)
-        } catch {
-          finish(error: .transport)
-          return
-        }
-        for outgoing in step.send {
-          try? relay.send(outgoing)
-        }
-        if await session.isEstablished {
-          await sendPendingSlimRequest(over: session)
-        }
-        guard
-          let payload = step.payload,
-          let answer = try? PersistentRelayMessage.decoded(payload),
-          let operation
-        else { return }
-        guard let response = SignRelayOperation.response(from: answer, for: operation) else {
-          finish(error: .unexpectedResult)
-          return
-        }
-        finish(response: response)
-      }
-
-      /// Sends the one request this client carries, once the session can.
-      private func sendPendingSlimRequest(over session: SignRelaySession) async {
-        guard
-          let encoded = pendingSlimRequest.withLock({ value -> Data? in
-            defer { value = nil }
-            return value
-          })
-        else { return }
-        guard let sealed = try? await session.seal(encoded) else {
-          finish(error: .transport)
-          return
-        }
-        try? relay.send(sealed)
-      }
-    #endif
 
     private func receive(
       _ event: RappConnectionCoordinator.Event,

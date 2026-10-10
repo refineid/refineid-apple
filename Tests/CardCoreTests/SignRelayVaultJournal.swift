@@ -2,6 +2,8 @@
 
 import Foundation
 
+@testable import CardCore
+
 /// The answers already given, kept where the pairing is kept.
 ///
 /// The journal record is the request's identifier, so a stored row names the

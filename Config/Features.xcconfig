@@ -56,17 +56,6 @@ REFINEID_ACTIVATION_FEATURE = FEATURE_CARD_ACTIVATION
 REFINEID_ACTIVATION_FEATURE[config=TestFlight] = FEATURE_CARD_ACTIVATION
 REFINEID_ACTIVATION_FEATURE[config=Release] = FEATURE_CARD_ACTIVATION
 
-// REFINEID_SLIM_RELAY
-//     Carries a borrowed card over one request and one answer instead
-//     of the session machinery: the pairing's own cipher settles
-//     ordering and replay, and the request identifier settles
-//     at-most-once. Off by default while the established path is what
-//     ships; on, both peers must carry it, because they no longer speak
-//     the same thing on the wire.
-//
-//   xcodebuild ... REFINEID_SLIM_RELAY_FEATURE=REFINEID_SLIM_RELAY
-REFINEID_SLIM_RELAY_FEATURE =
-
 // REFINEID_STREAM_TRANSPORT
 //     Carries the relay over a published service and a dialled port
 //     instead of the nearby peer framework. The requester publishes and
@@ -93,4 +82,4 @@ REFINEID_STREAM_TRANSPORT_FEATURE = REFINEID_STREAM_TRANSPORT
 // default above on that machine only.
 #include? "LocalFeatures.xcconfig"
 
-SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) $(REFINEID_FEATURES) $(REFINEID_IOS_FLOOR_FEATURE) $(REFINEID_LOCAL_CARD_FEATURE) $(REFINEID_REMOTE_CARD_FEATURE) $(REFINEID_ACTIVATION_FEATURE) $(REFINEID_SLIM_RELAY_FEATURE) $(REFINEID_STREAM_TRANSPORT_FEATURE)
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) $(REFINEID_FEATURES) $(REFINEID_IOS_FLOOR_FEATURE) $(REFINEID_LOCAL_CARD_FEATURE) $(REFINEID_REMOTE_CARD_FEATURE) $(REFINEID_ACTIVATION_FEATURE) $(REFINEID_STREAM_TRANSPORT_FEATURE)
