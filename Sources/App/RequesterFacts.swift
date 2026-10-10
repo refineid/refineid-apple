@@ -3,7 +3,7 @@
 #if os(macOS)
 
   /// What the requester knows when it picks the identity line.
-  internal struct RequesterFacts: Equatable {
+  internal struct RequesterFacts: Equatable, Sendable {
     /// What the token and the card's presence say together.
     internal var availability: LoginIdentityModel.Availability
 

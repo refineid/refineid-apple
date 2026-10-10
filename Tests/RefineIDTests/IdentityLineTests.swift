@@ -73,7 +73,7 @@ internal struct IdentityLineTests {
       },
       line: .phoneConnectedRetry),
     Case(
-      name: "phone here, read in flight",
+      name: "phone here, card not read yet",
       facts: with { facts in
         facts.availability = .cardWithoutIdentity
         facts.phonePresent = true
@@ -89,6 +89,22 @@ internal struct IdentityLineTests {
         facts.phoneWaitsForCard = true
       },
       line: .reading),
+    Case(
+      name: "read in flight beats an empty reader",
+      facts: with { facts in
+        facts.readerConnected = true
+        facts.readInFlight = true
+      },
+      line: .reading),
+    Case(
+      name: "a waiting phone beats the card warning",
+      facts: with { facts in
+        facts.availability = .cardWithoutIdentity
+        facts.phonePresent = true
+        facts.phoneWaitsForCard = true
+        facts.warnsUnavailableCard = true
+      },
+      line: .phoneConnectedRetry),
     Case(
       name: "identity ready",
       facts: with { facts in

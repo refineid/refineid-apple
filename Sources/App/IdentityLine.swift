@@ -3,7 +3,7 @@
 #if os(macOS)
 
   /// The one line the identity row shows, chosen from the requester's facts.
-  internal enum IdentityLine: Equatable {
+  internal enum IdentityLine: Equatable, Sendable {
     /// The card has stayed present without an identity long enough to warn.
     case cardNotReady
 
