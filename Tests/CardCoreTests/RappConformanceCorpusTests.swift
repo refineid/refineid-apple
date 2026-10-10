@@ -44,7 +44,7 @@ internal struct RappConformanceCorpusTests {
     let digest = Data(SHA256.hash(data: source))
     #expect(
       RappConformanceCorpusSupport.hex(digest)
-        == "a2582459d15ff94c8ff0551b3f5814a1caa1900cdc35068aededeb422cef93f4")
+        == "099d633997ee84a05cd1490db4b8199e52e50e0d79cc17ec1a59f9b037116b91")
 
     let corpus = try JSONDecoder().decode(
       RappConformanceCorpusSupport.Corpus.self,
