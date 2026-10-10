@@ -13,7 +13,7 @@ internal struct RappShippingConfigurationTests {
   }
 
   private static let classID = "fi.refineid.ReFineID.rapp-token"
-  private static let service = "_refineid-rly._tcp"
+  private static let service = "_refineid-stream._tcp"
 
   // MARK: Static Computed Properties
 
@@ -67,7 +67,7 @@ internal struct RappShippingConfigurationTests {
     #expect(rappAttributes["com.apple.ctk.token-type"] == nil)
   }
 
-  @Test("RAPP extension is a distinct iOS embedded product")
+  @Test("RAPP extension is a distinct embedded product on both platforms")
   internal func separateRappExtensionTarget() throws {
     let project = try String(
       contentsOf: Self.root.appending(path: "RefineID.xcodeproj/project.pbxproj"),
@@ -77,14 +77,14 @@ internal struct RappShippingConfigurationTests {
     #expect(project.contains("RappTokenExtension"))
     #expect(project.contains("Config/RappTokenExtension-iOS.entitlements"))
     #expect(!project.contains("RefineIDRappTokenExtension.appex */; platformFilters"))
+    #expect(!project.contains("RefineIDRappTokenExtension.appex */; platformFilter = ios;"))
   }
 
-  @Test("macOS configurations exclude remote services while iOS retains them")
-  internal func shippingConfigurationsGateRemoteCard() throws {
+  @Test("macOS carries the remote card and excludes only SCS")
+  internal func shippingConfigurationsCarryRemoteCard() throws {
     let project = try String(
       contentsOf: Self.root.appending(path: "RefineID.xcodeproj/project.pbxproj"),
       encoding: .utf8)
-    #expect(project.contains("RefineIDRappTokenExtension.appex */; platformFilter = ios;"))
     #expect(
       project.components(
         separatedBy:
@@ -112,17 +112,19 @@ internal struct RappShippingConfigurationTests {
     let features = try String(
       contentsOf: Self.root.appending(path: "Config/Features.xcconfig"), encoding: .utf8)
     #expect(features.contains("REFINEID_FEATURES[sdk=macosx*] = FEATURE_CONTACTLESS\n"))
-    #expect(features.contains("REFINEID_REMOTE_CARD_FEATURE[sdk=macosx*] =\n"))
+    #expect(!features.contains("REFINEID_REMOTE_CARD_FEATURE[sdk=macosx*]"))
     #expect(features.contains("REFINEID_REMOTE_CARD_FEATURE = REFINEID_REMOTE_CARD"))
     #expect(features.contains("REFINEID_ACTIVATION_FEATURE = FEATURE_CARD_ACTIVATION"))
   }
 
-  @Test("macOS store declarations preserve local features without remote networking")
+  @Test("macOS store declarations browse only the services a requester uses")
   internal func localStoreDeclarations() throws {
     var full = try Self.plist("Config/RefineID-Info.plist")
     full.removeValue(forKey: "NSBonjourServices")
-    full.removeValue(forKey: "NSLocalNetworkUsageDescription")
-    let store = try Self.plist("Config/RefineID-Store-Info.plist")
+    var store = try Self.plist("Config/RefineID-Store-Info.plist")
+    #expect(
+      store.removeValue(forKey: "NSBonjourServices") as? [String]
+        == ["_refineid-disc._tcp", Self.service])
     #expect(
       try JSONSerialization.data(withJSONObject: full, options: .sortedKeys)
         == JSONSerialization.data(withJSONObject: store, options: .sortedKeys))
@@ -138,6 +140,7 @@ internal struct RappShippingConfigurationTests {
   internal func networkDeclarations() throws {
     for path in [
       "Config/RefineID-Info.plist",
+      "Config/RefineID-Store-Info.plist",
       "Config/RefineID-iOS-Info.plist",
       "Config/RappTokenExtension-Info.plist",
     ] {
@@ -152,10 +155,16 @@ internal struct RappShippingConfigurationTests {
     #expect(rappIOS["com.apple.security.smartcard"] == nil)
     #expect(rappIOS["com.apple.security.network.client"] == nil)
 
-    for path in ["Config/RefineID.entitlements", "Config/RappTokenExtension.entitlements"] {
+    // A Mac only dials the paired phone: the shipping app and the RAPP
+    // extension are network clients and never servers.
+    for path in [
+      "Config/RefineID-Store.entitlements",
+      "Config/RefineID-Debug.entitlements",
+      "Config/RappTokenExtension.entitlements",
+    ] {
       let entitlements = try Self.plist(path)
-      #expect(entitlements["com.apple.security.network.client"] as? Bool == true)
-      #expect(entitlements["com.apple.security.network.server"] as? Bool == true)
+      #expect(entitlements["com.apple.security.network.client"] as? Bool == true, "\(path)")
+      #expect(entitlements["com.apple.security.network.server"] == nil, "\(path)")
     }
 
     let reader = try Self.plist("Config/TokenExtension.entitlements")
@@ -165,6 +174,7 @@ internal struct RappShippingConfigurationTests {
 
     let rapp = try Self.plist("Config/RappTokenExtension.entitlements")
     #expect(rapp["com.apple.security.smartcard"] == nil)
+    #expect(rapp["keychain-access-groups"] is [Any])
   }
 
   @Test("Release inspection enforces the separate RAPP archive topology")
@@ -177,8 +187,8 @@ internal struct RappShippingConfigurationTests {
     #expect(source.contains("fi.refineid.ReFineID.rapp-token"))
     #expect(source.contains("RAPP and direct-reader entitlements are separated"))
     #expect(!source.contains("network entitlements match the gated-relay shape"))
-    #expect(source.components(separatedBy: "hasRapp: true").count - 1 == 1)
-    #expect(source.components(separatedBy: "hasRapp: false").count - 1 == 1)
+    #expect(source.components(separatedBy: "hasRapp: true").count - 1 == 2)
+    #expect(source.contains("network.server entitlement; a Mac never listens"))
     #expect(source.contains("NSBonjourServices present without the remote card"))
     #expect(source.contains("network.server entitlement present without the remote card"))
     #expect(source.contains("iPhone-only artifact requiring iOS 26.0 and an NFC antenna"))

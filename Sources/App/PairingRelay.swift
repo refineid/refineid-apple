@@ -65,13 +65,19 @@ internal final class PairingRelay: @unchecked Sendable {
         found.start()
 
       case .cardHolder:
-        let made = StreamRelayListener { [weak self] event in
-          self?.receiveStream(event)
-        }
-        listener = made
-        made.start(
-          displayName: StreamRendezvousName.ephemeralName(),
-          txtRecord: StreamRendezvousName.pairingAttributes)
+        // Only a phone holds the card and listens; a Mac is always the
+        // requester and never accepts a connection (decisions 2026-10-10).
+        #if os(iOS)
+          let made = StreamRelayListener { [weak self] event in
+            self?.receiveStream(event)
+          }
+          listener = made
+          made.start(
+            displayName: StreamRendezvousName.ephemeralName(),
+            txtRecord: StreamRendezvousName.pairingAttributes)
+        #else
+          onEvent(.closed(.startup("a Mac does not hold the card")))
+        #endif
       }
     #else
       session.start()

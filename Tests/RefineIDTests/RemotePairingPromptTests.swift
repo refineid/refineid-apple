@@ -7,14 +7,14 @@
 
   @testable import RefineID
 
-  /// A connected reader disables the phone path: the prompt names the
-  /// reader alone and asks for no pairing code.
+  /// The phone code is always asked for; a connected reader adds its
+  /// instruction beside it.
   @MainActor
   @Suite
   internal struct RemotePairingPromptTests {
     @Test
-    internal func readerConnectedShowsReaderOnly() {
-      #expect(RemotePairingPromptView.content(readerConnected: true) == .readerOnly)
+    internal func readerConnectedKeepsThePhoneCode() {
+      #expect(RemotePairingPromptView.content(readerConnected: true) == .phoneCodeBesideReader)
     }
 
     @Test

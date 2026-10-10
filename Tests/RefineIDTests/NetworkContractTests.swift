@@ -89,6 +89,54 @@ internal struct NetworkContractTests {
     )
   }
 
+  /// A Mac never listens (decisions 2026-10-10).
+  ///
+  /// It is always the RAPP requester and dials the paired phone. Every
+  /// place that can accept a connection is pinned here, and each one
+  /// compiles away on macOS.
+  @Test
+  internal func macOSNeverListens() throws {
+    let actual = try Self.files(
+      containingAny: [
+        "StreamRelayListener {", "NWListener(using", "MCNearbyServiceAdvertiser(",
+      ]
+    )
+    let expected: Set<String> = [
+      "CardCore/Sources/CardCore/MultipeerDiscoveryHelper.swift",
+      "CardCore/Sources/CardCore/PersistentRelaySession.swift",
+      "CardCore/Sources/CardCore/RappLocalDiscovery.swift",
+      "CardCore/Sources/CardCore/StreamRelayListener.swift",
+      "Sources/App/DebugListenProbe.swift",
+      "Sources/App/LocalNetworkAccessDetector.swift",
+      "Sources/App/PairingRelay.swift",
+      "Sources/App/PhonePersistentTokenRelay+Stream.swift",
+      "Sources/App/ScsServer.swift",
+    ]
+    #expect(
+      actual == expected,
+      "A new listener needs a contract entry in Documentation/decisions.md first."
+    )
+    let gates: [String: String] = [
+      // Phone-only sources.
+      "Sources/App/LocalNetworkAccessDetector.swift": "#if os(iOS)",
+      "Sources/App/PhonePersistentTokenRelay+Stream.swift": "#if os(iOS)",
+      // Debug probes.
+      "Sources/App/DebugListenProbe.swift": "#if DEBUG",
+      // The signing service starts only with FEATURE_SCS, which macOS
+      // never sets, and the store sandbox grants no server side.
+      "Sources/App/ScsServer.swift": "#if FEATURE_SCS",
+      // The card holder's half of a pairing.
+      "Sources/App/PairingRelay.swift": "#if os(iOS)\n          let made = StreamRelayListener",
+      // Discovery advertises everywhere but on a Mac.
+      "CardCore/Sources/CardCore/RappLocalDiscovery.swift":
+        "#if !os(macOS)\n          self.startAdvertising()",
+    ]
+    for (file, gate) in gates {
+      let text = try String(contentsOf: Self.root.appending(path: file), encoding: .utf8)
+      #expect(text.contains(gate), "\(file) lost its macOS listener gate")
+    }
+  }
+
   /// Bluetooth radio code ships unwired: these files and no others
   /// may name it.
   @Test

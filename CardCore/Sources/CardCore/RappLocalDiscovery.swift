@@ -63,12 +63,17 @@
     // MARK: Lifecycle
 
     /// Starts advertising the local device and browsing for local peers.
+    ///
+    /// A Mac only browses: it is always the requester and dials out, so it
+    /// neither advertises nor accepts a connection (decisions 2026-10-10).
     public func start() {
       queue.async {
         guard !self.isCancelled else { return }
-        self.startAdvertising()
+        #if !os(macOS)
+          self.startAdvertising()
+        #endif
         self.startBrowsing()
-        #if canImport(MultipeerConnectivity)
+        #if canImport(MultipeerConnectivity) && !os(macOS)
           let helper = MultipeerDiscoveryHelper(
             localIdentity: self.localIdentity,
             localRole: self.localRole,

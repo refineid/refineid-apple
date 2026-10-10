@@ -1270,3 +1270,26 @@ the first eight bytes of HMAC-SHA-256 over the window number as an unsigned
 browses by these hints for its pairing and for presence; a minimal record
 without hints stands for the only pairing, or for an unknown one when several
 are stored.
+
+## 2026-10-10 RAPP returns to macOS, as a requester that only dials
+
+The release owner put the remote card back into the macOS App Store build:
+pairing with a phone that holds the card, document signing through it, and
+Safari and system sign-in through the remote-card CryptoTokenKit extension,
+which ctkd starts on demand, so nothing needs RefineID open after pairing.
+This supersedes the RAPP part of the 2026-09-30 macOS local-card MVP entry;
+SCS stays out of macOS.
+
+The Mac is always the RAPP v26.10.9 requester. It browses for the phone
+(DNS-SD `_refineid-stream._tcp` in pairing or session mode, and
+`_refineid-disc._tcp` for the online indicator), dials it, and never
+accepts a connection: the app and the remote-card extension carry
+`com.apple.security.network.client` and no build carries
+`com.apple.security.network.server`. Discovery does not advertise on a
+Mac, and the card holder's pairing listener compiles for iOS only.
+`NetworkContractTests.macOSNeverListens` pins every listener site and its
+gate. The extension shares the app's keychain group so the requester
+client reads the stored pairing.
+
+The phone code field is offered whether or not a USB reader is connected;
+a connected reader adds its instruction beside it.

@@ -1,6 +1,6 @@
 # macOS App Store release plan
 
-Last reviewed: 2026-09-30
+Last reviewed: 2026-10-10
 
 This document defines the product, security, validation, and distribution gates
 for the Swift macOS RefineID release. [TASKS.md](../TASKS.md) is the
@@ -22,12 +22,17 @@ in its TestFlight and App Store builds. Its scope is controlled by
 
 Ship a small, trustworthy macOS App Store product named **RefineID**.
 
-The first macOS release is a local-card MVP (owner decision 2026-09-30).
-It includes the CryptoTokenKit smart-card extension, contact and contactless
-reading, authentication, card activation, PIN management, and local document
-signing. SCS and RAPP are excluded from every macOS build configuration.
-iOS retains its existing features. The first candidate is for TestFlight;
-App Review submission remains a separate release action.
+The macOS release carries the local card and the remote card (owner
+decisions 2026-09-30 and 2026-10-10). It includes the CryptoTokenKit
+smart-card extension, contact and contactless reading, authentication, card
+activation, PIN management, local document signing, and RAPP v26.10.9
+pairing with a phone that holds the card: the Mac types the code the phone
+shows, and afterwards signs documents and authenticates through the phone,
+including from Safari through the remote-card CryptoTokenKit extension. The
+Mac is always the requester and only dials out. SCS is excluded from every
+macOS build configuration. iOS retains its existing features. The first
+candidate is for TestFlight; App Review submission remains a separate
+release action.
 
 User story is:
 
@@ -37,6 +42,14 @@ User story is:
 4. See PIN1, PIN2, and PUK retry state.
 5. Use the card's authentication certificate in a system CryptoTokenKit client.
 6. Enter PIN1 through the system authentication flow when required.
+
+Remote-card user story:
+
+1. Open Remote Access on the phone that holds the card; it shows a code.
+2. Type the code in RefineID on the Mac once.
+3. Later, with RefineID closed or after a restart, sign in on a website in
+   Safari: the phone asks for consent, the card, and PIN 1, and the login
+   completes.
 
 ## Product
 
@@ -65,7 +78,9 @@ User story is:
 ### Excluded
 
 - SCS loopback signing service, certificate trust setup, and settings.
-- RAPP phone pairing, remote identities, discovery, and persistent-token extension.
+- Any listening socket: the Mac never accepts a connection, so no build
+  carries the network-server entitlement.
+- Bluetooth RAPP pairing (development builds only, decisions 2026-10-09).
 
 - The `refineid` command line tool or any command line installer.
 - Rust libraries, Rust runtime code, helper executables, daemons, or privileged
@@ -74,12 +89,13 @@ User story is:
 - Safari extensions, browser shells, Internet relays, macOS NFC, telemetry,
   analytics, accounts, and cloud services.
 
-### Deferred remote services
+### Remote card
 
-SCS and RAPP remain implemented for future qualification. Their earlier
-acceptance and cross-platform evidence do not put them in this MVP.
-The independent RAPP security review remains required before enabling RAPP
-in a future macOS release, not for this local-card candidate.
+RAPP ships on macOS as the requester (owner decision 2026-10-10): pairing
+in the app, document signing through the phone, and the remote-card
+CryptoTokenKit extension that ctkd starts on demand. The independent RAPP
+security review remains a release gate for this candidate. SCS remains
+implemented for future qualification.
 
 ### Release evidence reconciliation
 
@@ -92,7 +108,7 @@ unchecked historical task is not proof of an unfinished feature.
 candidate checks from established implementation. The remaining work is an
 exact-candidate archive inspection, focused regression verification based on
 changed paths, review of current store assets and accessibility evidence, and
-verification that SCS and RAPP remain inaccessible even with saved preferences or pairings. No blanket repeat of the complete
+verification that SCS remains inaccessible even with saved preferences. No blanket repeat of the complete
 hardware or interoperability matrix is required by this reconciliation.
 
 Established evidence includes the Mac screenshot pipeline in
@@ -117,14 +133,19 @@ the release owner on September 27. This is established policy, not an open gate.
 
 ## Architecture
 
-The shipping macOS archive embeds only the local smart-card token extension:
+The shipping macOS archive embeds the local smart-card token extension and
+the remote-card persistent-token extension:
 
 ```text
 RefineID.app
 |-- Contents/MacOS/RefineID
 |-- Contents/PlugIns/RefineIDTokenExtension.appex
+|-- Contents/PlugIns/RefineIDRappTokenExtension.appex
 `-- Contents/Resources/...
 ```
+
+The app and the remote-card extension are network clients only; the
+direct-reader extension has no network access at all.
 
 The repository keeps a stable Xcode project or workspace in version control.
 It must not depend on a project generator during Xcode Cloud onboarding or

@@ -16,12 +16,12 @@
 
     /// What the pairing prompt shows.
     ///
-    /// A connected reader disables the phone path: the phone is pointless
-    /// while a reader sits ready, so no code is asked for then - only the
-    /// instruction to use the reader.
+    /// The phone code is always offered: a reader and a paired phone
+    /// coexist, and the holder chooses. A connected reader adds the
+    /// instruction to use it.
     internal enum Content: Equatable {
       case phoneCode
-      case readerOnly
+      case phoneCodeBesideReader
     }
 
     @StateObject private var model = RappPairingModel()
@@ -33,39 +33,29 @@
         promptText
           .frame(maxWidth: Layout.promptMaxWidth, alignment: .leading)
       }
-      .onChange(of: cardPresence.isReaderConnected) { _, connected in
-        // A reader arriving ends the attempt this prompt owns; a finished
-        // pairing is left alone.
-        if connected, !model.isFinished {
-          model.cancel()
-        }
-      }
     }
 
     @ViewBuilder private var promptText: some View {
-      switch Self.content(readerConnected: cardPresence.isReaderConnected) {
-      case .phoneCode:
-        LabeledContent(String(localized: "Code from phone")) {
-          PairingCodeEntryField(model: model)
-        }
-        .accessibilityIdentifier("pairingPrompt")
-        if case .failed(let message) = model.phase {
-          Text(message)
-            .foregroundStyle(.secondary)
-        }
-
-      case .readerOnly:
+      if Self.content(readerConnected: cardPresence.isReaderConnected) == .phoneCodeBesideReader {
         bullets([
           String(
             localized: "Insert your identity card into the reader"
           )
         ])
       }
+      LabeledContent(String(localized: "Code from phone")) {
+        PairingCodeEntryField(model: model)
+      }
+      .accessibilityIdentifier("pairingPrompt")
+      if case .failed(let message) = model.phase {
+        Text(message)
+          .foregroundStyle(.secondary)
+      }
     }
 
     /// Resolves the prompt for the reader state.
     nonisolated internal static func content(readerConnected: Bool) -> Content {
-      readerConnected ? .readerOnly : .phoneCode
+      readerConnected ? .phoneCodeBesideReader : .phoneCode
     }
 
     private func bullets(_ items: [String]) -> some View {
@@ -75,7 +65,6 @@
         }
       }
       .textSelection(.enabled)
-      .accessibilityIdentifier("pairingPrompt")
     }
 
     private func bulletItem(_ text: String) -> some View {
