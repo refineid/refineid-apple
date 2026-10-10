@@ -1,4 +1,4 @@
-# RefineID Remote Card Proxy & 6-Digit Pairing Architecture Vision
+# RefineID Remote Card Proxy & Code Pairing Architecture Vision
 
 - **Document Version**: `26.8.27.1`
 - **Protocol Version**: `26.8`
@@ -14,7 +14,7 @@ The **RefineID Remote Card Proxy** enables laptops and desktops (Linux, macOS) t
 ### Core Tenets
 
 1. **No Hardware Card Readers Required on Laptops**: Modern laptops rarely have smartcard slots. Instead of requiring USB CCID dongles, the user taps their physical ID card against their phone's built-in NFC radio.
-2. **No QR Codes — Simple 6-Digit Numeric Pairing**: Pairing a desktop with a mobile device uses a clean 6-digit numeric pairing code (e.g. `482 915`) displayed on the desktop and entered on the mobile screen.
+2. **No QR Codes — Simple 6-Character Pairing Code**: Pairing a desktop with a mobile device uses a 6-character Crockford Base32 pairing code (e.g. `7K X4 M9`) displayed on the phone that holds the card and entered on the desktop.
 3. **Strict Separation of Concerns**:
    * **RefineID Application / CLI**: Manages one-time pairing ceremonies, local vault persistence, and device lifecycle.
    * **PKCS#11 / CryptoTokenKit Module**: In-process driver loaded into browsers (Firefox, Chrome, Safari). Headless, fast, and stateless: reads paired devices from the vault, exposes virtual card slots, and dispatches signature requests on demand.
@@ -65,7 +65,7 @@ The **RefineID Remote Card Proxy** enables laptops and desktops (Linux, macOS) t
 
 ---
 
-## 3. One-Time 6-Digit Pairing Ceremony
+## 3. One-Time Code Pairing Ceremony
 
 ### 3.1 Pairing Flow & Discovery Hierarchy
 
@@ -73,24 +73,24 @@ The **RefineID Remote Card Proxy** enables laptops and desktops (Linux, macOS) t
 
 1. **Initiation**: User runs `refineid pair` (CLI) or clicks **"Pair New Mobile"** in the RefineID Desktop GUI.
 2. **Discovery & Sovereign Custodian Model**:
-   * Desktop displays the 6-digit pairing code and listens for announced mobile custodians (or scans via Apple Direct P2P / BLE / mDNS). Desktops **never** open listening ports.
+   * Desktop listens for announced mobile custodians (or scans via Apple Direct P2P / BLE / mDNS). Desktops **never** open listening ports.
    * Mobile phone user taps **"Allow Remote Reader"** / **"Pair Computer"**.
    * Mobile phone announces its availability following the 3-Tier Hierarchy:
      1. **Tier 1 (Apple-native P2P)**: Apple Wireless Direct Link (AWDL / `MultipeerConnectivity`).
      2. **Tier 2 (Bluetooth Low Energy)**: BLE L2CAP CoC (`fi.refineid.rapp.ble.v1`) with RSSI proximity gating ($\ge -70\text{ dBm}$).
      3. **Tier 3 (Local IP Stream)**: mDNS / DNS-SD (`_refineid-stream._tcp.local.`, RFC 6762/6763).
    * Desktop dials outbound directly to the announced phone.
-   * Desktop displays the cryptographically random 6-digit code:
+   * Mobile displays the cryptographically random 6-character code in three groups:
      ```
      ========================================
        RefineID Device Pairing
-       Pairing Code:  4 8 2   9 1 5
+       Pairing Code:  7K X4 M9
      ========================================
      ```
-3. **Mobile Connection**:
-   * Mobile app prompts: *"Enter the 6-digit pairing code shown on your computer"*.
-4. **Mutual Authentication (`Noise_XXpsk3`)**:
-   * The 6-digit code is expanded into the 32-byte pre-shared key (`psk3`) via HKDF-SHA256.
+3. **Desktop Connection**:
+   * Desktop prompts: *"Enter the pairing code shown on your phone"*. The offer lasts 60 seconds and admits at most 3 attempts.
+4. **Mutual Authentication (CPace, then `Noise_XXpsk3`)**:
+   * CPace (`CPaceRistretto255`) keyed by the code yields the 32-byte pre-shared key (`psk3`).
    * Mobile and Desktop perform a 3-message `Noise_XXpsk3` handshake.
    * Both devices exchange and authenticate their static Curve25519 public keys.
 5. **Initial Certificate Sync & Vault Storage**:

@@ -135,7 +135,7 @@ as no usable pair, so existing holders pair again. That is intended.
 
 The application layer is under `Sources/App/`:
 
-- `RappPairingUI.swift` presents 6-digit code pairing and visible paired status.
+- `RappPairingUI.swift` presents pairing-code entry and visible paired status.
 - `RappAuthorizationInbox.swift` serializes holder-visible authorization
   decisions on the phone.
 - `RappNfcCardExecutor.swift` and attached physical smart card reader execution
@@ -296,7 +296,7 @@ network permission, CryptoTokenKit, or Safari system-sheet behavior.
 
    The project declares macOS `arm64` in every configuration. The engine no
    longer constrains this; the declaration is now the project's own choice.
-3. Pair macOS and iPhone from a clean pairing state using the 6-digit code pairing UI.
+3. Pair macOS and iPhone from a clean pairing state using the pairing-code UI.
 4. With a known activated card and correct CAN/PIN values, record one card
    status read, one Safari browser-authentication operation, and one harmless
    document signature. Verify that macOS never asks for PIN 1 or PIN 2 and that
