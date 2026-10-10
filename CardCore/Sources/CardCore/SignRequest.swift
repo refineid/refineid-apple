@@ -103,6 +103,19 @@ public struct SignRequest {
     }
   }
 
+  /// The signature a paired phone returned, in the form Security.framework
+  /// and CMS expect, once it verifies against `publicKey`.
+  ///
+  /// RAPP v26.10.9 section 9.2 carries the card's raw value (`r || s` for
+  /// ECDSA). A phone built before that rule sends DER, which is accepted
+  /// when it verifies as it stands.
+  public func verifiedRemoteSignature(_ received: Data, from publicKey: SecKey) -> Data? {
+    if let wire = wireSignature(from: received), isSatisfied(by: wire, from: publicKey) {
+      return wire
+    }
+    return isSatisfied(by: received, from: publicKey) ? received : nil
+  }
+
   /// Whether `signature` verifies against the resolved digest and public key.
   public func isSatisfied(by signature: Data, from publicKey: SecKey) -> Bool {
     var error: Unmanaged<CFError>?

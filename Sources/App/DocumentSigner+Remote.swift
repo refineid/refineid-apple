@@ -186,11 +186,11 @@ extension DocumentSigner {
       algorithm: remoteAlgorithm,
       digest: digest
     )
-    guard request.isSatisfied(by: signature, from: publicKey) else {
+    guard let wireSignature = request.verifiedRemoteSignature(signature, from: publicKey) else {
       throw Failure.card(.failed)
     }
     return CardMaintenance.QualifiedProduct(
-      signature: signature,
+      signature: wireSignature,
       content: signedContent,
       certificate: certificate,
       profile: profile

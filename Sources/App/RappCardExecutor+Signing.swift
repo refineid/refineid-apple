@@ -244,13 +244,15 @@
             algorithm: identity.request.algorithm,
             expectedSignatureLength: identity.request.expectedSignatureLength
           )
+        // Verified locally in its DER form; the wire carries the card's
+        // raw value (RAPP v26.10.9 section 9.2).
         guard
-          let signature = identity.request.wireSignature(from: raw),
-          identity.request.isSatisfied(by: signature, from: identity.publicKey)
+          let verifiable = identity.request.wireSignature(from: raw),
+          identity.request.isSatisfied(by: verifiable, from: identity.publicKey)
         else {
           return .completionAmbiguous
         }
-        return .result(signature)
+        return .result(raw)
       } catch {
         return .completionAmbiguous
       }

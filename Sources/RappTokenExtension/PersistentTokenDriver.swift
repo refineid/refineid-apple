@@ -158,14 +158,8 @@ internal final class PersistentTokenDriver: TKTokenDriver,
         algorithm: relayAlgorithm,
         started: started
       )
-      let signature: Data
-      if request.isSatisfied(by: raw, from: persistentToken.publicKey) {
-        signature = raw
-      } else if let converted = request.wireSignature(from: raw),
-        request.isSatisfied(by: converted, from: persistentToken.publicKey)
-      {
-        signature = converted
-      } else {
+      guard let signature = request.verifiedRemoteSignature(raw, from: persistentToken.publicKey)
+      else {
         #if DEBUG
           let elapsed = Self.millisecondsSince(started)
           Self.logger.notice(
