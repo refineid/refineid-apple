@@ -20,7 +20,7 @@
     _: UnsafeRawPointer?,
     _: CFDictionary?
   ) {
-    Task { @MainActor in RemoteCardPause.shared.refresh() }
+    Task { @MainActor in RemoteCardPause.shared.changed() }
   }
 
   @MainActor
@@ -29,6 +29,13 @@
     // MARK: Static Properties
 
     internal static let shared = RemoteCardPause()
+
+    /// Milliseconds before a second read after a change, for a write the
+    /// other process has not yet made visible here.
+    private static let settleMilliseconds: Int64 = 500
+
+    /// Milliseconds added to a pause's end before reading it again.
+    private static let wakeMarginMilliseconds: Int64 = 100
 
     // MARK: Properties
 
@@ -53,6 +60,15 @@
 
     // MARK: Functions
 
+    /// Reads the record now and once more shortly after.
+    internal func changed() {
+      refresh()
+      Task { @MainActor [weak self] in
+        try? await Task.sleep(for: .milliseconds(Self.settleMilliseconds))
+        self?.refresh()
+      }
+    }
+
     /// Lets the next request reach the phone.
     internal func resume() {
       RemoteSignCoolDown.shared.resume()
@@ -68,7 +84,7 @@
       guard let until else { return }
       let delay = max(until.timeIntervalSinceNow, 0)
       expiry = Task { @MainActor [weak self] in
-        try? await Task.sleep(for: .seconds(delay))
+        try? await Task.sleep(for: .seconds(delay) + .milliseconds(Self.wakeMarginMilliseconds))
         guard !Task.isCancelled else { return }
         self?.refresh()
       }
