@@ -3,6 +3,8 @@
 #if canImport(MultipeerConnectivity)
   import Foundation
 
+  @testable import CardCore
+
   /// Says what the slim relay can ask for, and reads what comes back.
   ///
   /// Two operations, which are the two a browser identity needs: the

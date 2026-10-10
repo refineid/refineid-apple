@@ -2,6 +2,8 @@
 
 import Foundation
 
+@testable import CardCore
+
 /// What one frame asks of the caller: frames to send, and a payload if the
 /// frame carried one.
 public struct SignRelayStep: Sendable, Equatable {

@@ -19,11 +19,7 @@
     /// Runs the probe and reports what came back.
     internal static func report() -> DebugModeReport {
       var lines: [String] = []
-      #if REFINEID_SLIM_RELAY
-        lines.append("relay: slim")
-      #else
-        lines.append("relay: session machinery")
-      #endif
+      lines.append("relay: session machinery")
 
       let started = Date()
       do {

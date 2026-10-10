@@ -2,6 +2,8 @@
 
 #if canImport(RappEngine)
   import Foundation
+
+  @testable import CardCore
   import RappEngine
 
   /// Takes a stored pairing to a session that carries payloads.

@@ -135,10 +135,6 @@
       dispatcher = nil
       relay = nil
       frameDelivery.reset()
-      #if REFINEID_SLIM_RELAY
-        slimSession = nil
-        slimProxy = nil
-      #endif
       #if REFINEID_STREAM_TRANSPORT
         for listener in streamListeners.values {
           listener.cancel()
