@@ -15,6 +15,9 @@
       _ event: RappConnectionCoordinator.Event
     ) -> Bool {
       switch event {
+      case .batchSignatures:
+        return false
+
       case .terminal(_, _, let reason):
         switch reason {
         case .credentialRejected, .cardCompletionAmbiguous:

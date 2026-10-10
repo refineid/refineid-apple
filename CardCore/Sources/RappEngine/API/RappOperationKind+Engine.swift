@@ -30,6 +30,9 @@ extension RappOperationKind {
 
     case .signDocument:
       self = .signDocument
+
+    case .batchSignDocuments:
+      self = .batchSignDocuments
     }
   }
 }

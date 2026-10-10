@@ -6,16 +6,16 @@
   import Security
 
   extension RappCardExecutor {
-    private struct SignParameters {
-      let cardAccessNumber: String?
-      let documentPin1: String?
-      let documentPin2: String?
-      let role: CredentialRole
-      let slot: CertificateSlot
-      let keyProfile: RappOperationDriver.KeyProfile
-      let algorithm: RappOperationDriver.SignatureAlgorithm
-      let digest: Data
-      let qualified: Bool
+    internal struct SignParameters {
+      internal let cardAccessNumber: String?
+      internal let documentPin1: String?
+      internal let documentPin2: String?
+      internal let role: CredentialRole
+      internal let slot: CertificateSlot
+      internal let keyProfile: RappOperationDriver.KeyProfile
+      internal let algorithm: RappOperationDriver.SignatureAlgorithm
+      internal let digest: Data
+      internal let qualified: Bool
     }
 
     internal static func browserAuthentication(
@@ -85,7 +85,7 @@
       }
     }
 
-    private static func executeSign(
+    internal static func executeSign(
       _ params: SignParameters,
       with operations: CardOperations,
       context: RappNearFieldSessionHolder.Context?

@@ -7,6 +7,13 @@
 
   /// Authorization handling and approval resolution for remote proxy operations.
   extension RappPhoneProxyDispatcher {
+    /// What the holder is shown: the origin or document name, or a batch's
+    /// whole document list in signing order (RAPP v26.10.1 §9.3).
+    private static func consentContext(for operation: RappOperationDriver.Operation) -> String? {
+      guard operation.kind == .batchSignDocuments else { return operation.displayContext }
+      return operation.documentNames.joined(separator: "\n")
+    }
+
     internal func inspectPrerequisites(
       operationID: Data,
       operation: RappOperationDriver.Operation,
@@ -47,7 +54,7 @@
         requester: await Self.requesterName()
           ?? String(localized: "Paired device"),
         action: action,
-        displayContext: operation.displayContext
+        displayContext: Self.consentContext(for: operation)
       )
       #if DEBUG
         HolderTrace.say("handleApproval: asking holder authorization for \(operation.kind)")
@@ -120,7 +127,7 @@
         try? await coordinator.approve(operationID: operationID)
 
       case .approvedDocumentSignature(let pin2):
-        guard operation.kind == .signDocument else {
+        guard operation.kind == .signDocument || operation.kind == .batchSignDocuments else {
           try? await coordinator.requestInvalidOrUnsupported(operationID: operationID)
           return
         }
@@ -145,6 +152,11 @@
 
       case .browserAuthenticate, .signDocument:
         return hasSigningDescriptor(operation)
+
+      case .batchSignDocuments:
+        return operation.keyProfile != nil && operation.algorithm != nil
+          && !operation.digests.isEmpty
+          && operation.documentNames.count == operation.digests.count
       }
     }
 
@@ -163,7 +175,7 @@
       case .browserAuthenticate:
         .browserAuthentication
 
-      case .signDocument:
+      case .signDocument, .batchSignDocuments:
         .documentSignature
 
       case .inspectCard, .readIdentity, .readAuthenticationCertificate,

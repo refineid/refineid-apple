@@ -109,6 +109,44 @@ internal struct NetworkContractTests {
     )
   }
 
+  /// The `fi.refineid.rapp.ble.v1` GATT link is driven by the DEBUG
+  /// launch modes alone (decisions 2026-10-09).
+  @Test
+  internal func bleGattProfileStaysDebugOnly() throws {
+    let actual = try Self.files(containingAny: ["RappBleGattPeripheral", "RappBleGattCentral"])
+    let expected: Set<String> = [
+      "CardCore/Sources/CardCore/RappBleGattCentral.swift",
+      "CardCore/Sources/CardCore/RappBleGattCentral+Delegate.swift",
+      "CardCore/Sources/CardCore/RappBleGattPeripheral.swift",
+      "CardCore/Sources/CardCore/RappBleGattPeripheral+Delegate.swift",
+      "Sources/App/DebugBlePairing.swift",
+    ]
+    #expect(
+      actual == expected,
+      "Wiring the BLE profile into the product needs a decision entry first."
+    )
+  }
+
+  /// Only the two configurations that compile DEBUG sign macOS with the
+  /// Bluetooth sandbox entitlement.
+  @Test
+  internal func bluetoothEntitlementOnlyInDebugConfigurations() throws {
+    let project = try String(
+      contentsOf: Self.root.appending(path: "RefineID.xcodeproj/project.pbxproj"),
+      encoding: .utf8)
+    let blocks = project.components(separatedBy: "isa = XCBuildConfiguration;").dropFirst()
+    var granting: [String] = []
+    for block in blocks where block.contains("RefineID-Debug.entitlements") {
+      let tail = block.components(separatedBy: "name = ").last ?? ""
+      granting.append(String(tail.prefix { character in character != ";" }))
+    }
+    #expect(granting.sorted() == ["Debug", "Profile"])
+    let store = try String(
+      contentsOf: Self.root.appending(path: "Config/RefineID-Store.entitlements"),
+      encoding: .utf8)
+    #expect(!store.contains("com.apple.security.device.bluetooth"))
+  }
+
   /// ATS stays open and Bluetooth carries exactly its one purpose
   /// string in every app plist.
   @Test

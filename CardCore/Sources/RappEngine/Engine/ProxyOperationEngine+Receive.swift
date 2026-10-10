@@ -28,7 +28,9 @@ extension ProxyOperationEngine {
       return .failure(reference: reference, failure: .credentialRejected)
 
     case .ambiguous, .committed, .executing, .resultPending, .deliveryUncertain:
-      return .failure(reference: reference, failure: .cardCompletionAmbiguous)
+      return .failure(
+        reference: reference, failure: .cardCompletionAmbiguous,
+        batchSignatures: entry.record.batch?.completedSignatures ?? [])
 
     case .idle, .requested, .awaitingConsent, .prepared, .rejected:
       return .failure(reference: reference, failure: .retryPolicyRefused)
@@ -132,7 +134,8 @@ extension ProxyOperationEngine {
   ) throws -> ProxyDispatch {
     try withOperation(operationIdentifier) { operation in
       let result = OperationResultMessage.failure(
-        reference: operation.reference, failure: failure)
+        reference: operation.reference, failure: failure,
+        batchSignatures: operation.batchSignatures)
       do {
         try operation.finishFailure(to: &store, result: result)
       } catch let error as AuthorizationError {
@@ -141,6 +144,33 @@ extension ProxyOperationEngine {
       return .sendFailure(
         message: .operationResult(result), closeSession: failure.closesSession)
     }
+  }
+
+  /// Records one batch signature before the next document is signed.
+  internal mutating func recordBatchSignature(
+    operationIdentifier: Data, signature: Data, store: inout some JournalStore
+  ) throws {
+    try withOperation(operationIdentifier) { operation in
+      do {
+        try operation.recordBatchSignature(to: &store, signature: signature)
+      } catch let error as AuthorizationError {
+        throw engineLocalError(error)
+      }
+    }
+  }
+
+  /// Completes a batch with exactly the signatures it journaled.
+  internal mutating func completeBatch(
+    operationIdentifier: Data, store: inout some JournalStore
+  ) throws -> ProxyDispatch {
+    guard let index = index(of: operationIdentifier) else {
+      throw EngineError.unknownLocalOperation
+    }
+    let result = OperationResultMessage.completed(
+      reference: operations[index].reference,
+      result: .signatures(operations[index].batchSignatures))
+    return try finishCompleted(
+      operationIdentifier: operationIdentifier, result: result, store: &store)
   }
 
   /// Create an authenticated advisory progress message for an active operation.

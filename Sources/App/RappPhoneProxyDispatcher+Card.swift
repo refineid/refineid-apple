@@ -25,7 +25,7 @@
           kind: operation.kind,
           coordinator: coordinator)
 
-      case .browserAuthenticate, .signDocument:
+      case .browserAuthenticate, .signDocument, .batchSignDocuments:
         await invalid(operationID, coordinator: coordinator)
       }
     }
@@ -174,6 +174,12 @@
       }
       let isReader = await MainActor.run { CardPresence.shared.isReaderCardPresent }
       let accessNumber = resolvedCardAccessNumber(isReader: isReader)
+      if operation.kind == .batchSignDocuments {
+        await executeBatch(
+          operationID: operationID, operation: operation, accessNumber: accessNumber,
+          coordinator: coordinator)
+        return
+      }
       #if DEBUG
         HolderTrace.say("card read starting: \(operation.kind), isReader: \(isReader)")
       #endif
@@ -239,7 +245,8 @@
         )
 
       case .inspectCard, .readIdentity, .readAuthenticationCertificate,
-        .readSignatureCertificate, .readRootCertificate, .readIntermediateCertificate:
+        .readSignatureCertificate, .readRootCertificate, .readIntermediateCertificate,
+        .batchSignDocuments:
         return nil
       }
     }

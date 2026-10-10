@@ -25,6 +25,9 @@ extension RappOperationResult {
 
     case .signature(let signature):
       self.init(kind: .signature, bytes: signature)
+
+    case .signatures(let signatures):
+      self.init(kind: .signatures, signatures: signatures)
     }
   }
 }

@@ -97,8 +97,15 @@ internal struct RequesterOperation {
       return .sendAcknowledgement(.operationResultAck(reference))
     }
     let terminal = result.status.failureState ?? .completed
+    let partial: [Data]
+    do {
+      partial = try result.partialSignatures(for: request.operation)
+    } catch {
+      throw EngineError.authenticatedProtocolViolation(.invalidOperationMessage)
+    }
     try forget(&store, state: terminal)
-    return .terminal(state: terminal, status: result.status, error: result.error)
+    return .terminal(
+      state: terminal, status: result.status, error: result.error, batchSignatures: partial)
   }
 
   /// Records that the acknowledgement was delivered and releases the result.

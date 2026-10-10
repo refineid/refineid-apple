@@ -28,6 +28,8 @@ public struct RappOperationResult: Equatable, Sendable {
   public var personId: String?
   /// The certificate or signature bytes, on a read or a signature.
   public var bytes: Data
+  /// The ordered signatures of a batch, one per document.
+  public var signatures: [Data]
 
   /// Creates a result carrying only the fields its kind defines.
   public init(
@@ -39,7 +41,8 @@ public struct RappOperationResult: Equatable, Sendable {
     pukAttempts: UInt8? = nil,
     displayName: String? = nil,
     personId: String? = nil,
-    bytes: Data = Data()
+    bytes: Data = Data(),
+    signatures: [Data] = []
   ) {
     self.kind = kind
     self.pin1Factory = pin1Factory
@@ -50,6 +53,7 @@ public struct RappOperationResult: Equatable, Sendable {
     self.displayName = displayName
     self.personId = personId
     self.bytes = bytes
+    self.signatures = signatures
   }
 }
 

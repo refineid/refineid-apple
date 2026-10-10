@@ -206,13 +206,14 @@ extension RappOperationBridge {
         kind: .resultAcknowledgment, operationId: operationIdentifier,
         frame: try sealedMessage(message))
 
-    case .terminal(let operationIdentifier, let state, let status, let error):
+    case .terminal(let operationIdentifier, let status, let error, let partial):
       // A credential-rejected result revokes the pairing on both peers
       // (section 10.2); this is the requester learning.
+      let state = status.failureState ?? .completed
       return RappBridgeAction(
         kind: .terminal, operationId: operationIdentifier, terminalState: state.rawValue,
         terminalReason: RappTerminalReason(status: status, error: error),
-        revokesPairing: status == .credentialRejected)
+        revokesPairing: status == .credentialRejected, batchSignatures: partial)
 
     default:
       throw RappBindingError.WrongPhase

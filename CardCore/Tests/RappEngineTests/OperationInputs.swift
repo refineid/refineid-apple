@@ -28,6 +28,9 @@ internal struct OperationInputs: Decodable {
     case localStartMilliseconds = "local_start_ms"
     case expiresAfterMilliseconds = "expires_after_ms"
     case inspection = "inspection"
+    case batchDocumentNames = "batch_document_names"
+    case batchDigestsSha256 = "batch_digests_sha256"
+    case batchSignatures = "batch_signatures"
   }
 
   internal let operationIdentifierRequest: String
@@ -52,4 +55,7 @@ internal struct OperationInputs: Decodable {
   internal let localStartMilliseconds: UInt64
   internal let expiresAfterMilliseconds: UInt64
   internal let inspection: OperationInspectionInput
+  internal let batchDocumentNames: [String]
+  internal let batchDigestsSha256: [String]
+  internal let batchSignatures: [String]
 }

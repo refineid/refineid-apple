@@ -45,6 +45,8 @@
       case peerBusy(operationID: Data?)
       case peerUnknownOperation(operationID: Data?)
       case progress(operationID: Data, event: ProgressEvent)
+      /// The signatures an interrupted batch made, before its `terminal`.
+      case batchSignatures(operationID: Data, signatures: [Data])
       case closed(CloseReason)
 
       internal init?(_ command: RappOperationDriver.Command) {
@@ -73,7 +75,7 @@
 
         case .completed, .terminal,
           .operationFinished, .peerBusy, .peerUnknownOperation, .progress,
-          .send, .scheduleLiveness, .closed:
+          .batchSignatures, .send, .scheduleLiveness, .closed:
           nil
         }
       }
@@ -97,6 +99,9 @@
 
         case .progress(let operationID, let event):
           .progress(operationID: operationID, event: event)
+
+        case .batchSignatures(let operationID, let signatures):
+          .batchSignatures(operationID: operationID, signatures: signatures)
 
         case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
           .executeCardCommand, .send, .scheduleLiveness, .closed:

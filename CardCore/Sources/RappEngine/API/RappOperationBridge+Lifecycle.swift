@@ -137,6 +137,24 @@ extension RappOperationBridge {
       operationId: operationId, localStartMs: localStartMs, expiresAfterMs: expiresAfterMs)
   }
 
+  /// Begins signing 1 to 64 documents under one PIN 2 entry (RAPP v26.10.1
+  /// §9.3); names and digests pair up by position.
+  public func beginBatchSignDocuments(  // swiftlint:disable:this function_parameter_count
+    operationId: Data,
+    documentNames: [String],
+    keyProfile: RappCardKeyProfile,
+    algorithm: RappSignatureAlgorithm,
+    digests: [Data],
+    localStartMs: UInt64,
+    expiresAfterMs: UInt64
+  ) throws -> RappBridgeAction {
+    try beginOperation(
+      .batchSignDocuments(
+        documentNames: documentNames, keyProfile: keyProfile.engineProfile,
+        algorithm: algorithm.engineAlgorithm, digests: digests),
+      operationId: operationId, localStartMs: localStartMs, expiresAfterMs: expiresAfterMs)
+  }
+
   /// Consumes one sealed frame from the peer.
   ///
   /// The unexpected-input policy (specification section 14.5) decides the

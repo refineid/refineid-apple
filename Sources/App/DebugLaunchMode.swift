@@ -15,6 +15,12 @@
     /// Read the factory-activation signals over NFC without changing the card.
     case activationProbe = "--activation-probe"
 
+    /// Show a pairing code and serve a BLE offer, then wait for the peer.
+    case bleOfferRemoteReader = "--ble-offer-remote-reader"
+
+    /// Pair over BLE with a code given in the environment.
+    case blePairWithOffer = "--ble-pair-with-offer"
+
     /// Runs the BLE Peripheral RAPP research spike.
     case bleSpike = "--ble-spike"
 
@@ -149,7 +155,8 @@
         .setPin2, .signDocument, .signProbe, .statusOnDemandPin, .tokenPublishProbe, .trace:
         false
 
-      case .activationProbe, .browseProbe, .ctkSignProbe, .listenProbe, .managementProbe,
+      case .activationProbe, .bleOfferRemoteReader, .blePairWithOffer, .browseProbe,
+        .ctkSignProbe, .listenProbe, .managementProbe,
         .offerRemoteReader, .openSafari, .pairWithOffer, .prime, .remoteIdentityProbe,
         .remoteSignProbe:
         // CoreNFC, MultipeerConnectivity, and CTK system sheets need a live window / scene.
@@ -163,7 +170,8 @@
     /// from the command line at each launch and never committed anywhere.
     internal var takesValue: Bool {
       switch self {
-      case .activationProbe, .bleSpike, .browseProbe, .ctkSignProbe, .diagnostics,
+      case .activationProbe, .bleOfferRemoteReader, .blePairWithOffer, .bleSpike, .browseProbe,
+        .ctkSignProbe, .diagnostics,
         .disableOnDemandPin,
         .enableOnDemandPin, .forgetCan, .forgetPin1, .listenProbe, .offerRemoteReader,
         .openSafari, .paceCheck, .prime, .remoteIdentityProbe, .remoteSignProbe,

@@ -13,6 +13,9 @@ extension CardOperationResult {
       (.signature, .signDocument):
       true
 
+    case (.signatures(let signatures), .batchSignDocuments(_, _, _, let digests)):
+      signatures.count == digests.count
+
     default:
       false
     }

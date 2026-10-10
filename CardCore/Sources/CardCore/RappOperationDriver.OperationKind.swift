@@ -12,7 +12,7 @@ extension RappOperationDriver.OperationKind {
       .readRootCertificate, .readIntermediateCertificate:
       return true
 
-    case .browserAuthenticate, .signDocument:
+    case .browserAuthenticate, .signDocument, .batchSignDocuments:
       return false
     }
   }

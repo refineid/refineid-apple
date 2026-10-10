@@ -123,9 +123,10 @@ internal struct RequesterOperationEngine {
       case .sendAcknowledgement(let message):
         .sendResultAcknowledgement(operationIdentifier: operationIdentifier, message: message)
 
-      case .terminal(let state, let status, let error):
+      case .terminal(_, let status, let error, let partial):
         .terminal(
-          operationIdentifier: operationIdentifier, state: state, status: status, error: error)
+          operationIdentifier: operationIdentifier, status: status, error: error,
+          batchSignatures: partial)
       }
 
     default:

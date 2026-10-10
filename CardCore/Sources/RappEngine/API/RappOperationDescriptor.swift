@@ -17,6 +17,10 @@ public struct RappOperationDescriptor: Equatable, Sendable {
   public var algorithm: RappSignatureAlgorithm?
   /// The already-hashed value to be signed.
   public var digest: Data
+  /// A batch's document names, in signing order; empty otherwise.
+  public var documentNames: [String]
+  /// A batch's digests, paired with `documentNames`; empty otherwise.
+  public var digests: [Data]
 
   /// Describes one operation for the holder.
   public init(
@@ -24,12 +28,16 @@ public struct RappOperationDescriptor: Equatable, Sendable {
     displayContext: String?,
     keyProfile: RappCardKeyProfile?,
     algorithm: RappSignatureAlgorithm?,
-    digest: Data
+    digest: Data,
+    documentNames: [String] = [],
+    digests: [Data] = []
   ) {
     self.kind = kind
     self.displayContext = displayContext
     self.keyProfile = keyProfile
     self.algorithm = algorithm
     self.digest = digest
+    self.documentNames = documentNames
+    self.digests = digests
   }
 }

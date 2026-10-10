@@ -38,9 +38,12 @@ internal struct OperationResultMessage: Equatable {
     return body
   }
 
+  /// Whether the status, error, and response agree.
+  ///
   /// A live completed result carries a response and no error; a retired one
   /// carries `operation_already_retired` and no response; every other status
-  /// carries an error its registry pairs with that status.
+  /// carries an error its registry pairs with that status. An ambiguous
+  /// result may also carry a batch's partial progress (RAPP v26.10.1 §9.3).
   internal var isConsistent: Bool {
     switch (status, error, response) {
     case (.completed, .none, .some):
@@ -48,6 +51,9 @@ internal struct OperationResultMessage: Equatable {
 
     case (.completed, .some(let error), .none):
       return retired && error == .operationAlreadyRetired
+
+    case (.ambiguous, .some(let error), .some):
+      return !retired && error.permits(status)
 
     case (_, .some(let error), .none):
       return status != .completed && error.permits(status)

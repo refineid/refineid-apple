@@ -42,6 +42,12 @@ internal func journalResultValue(_ result: CardOperationResult) -> WireValue {
 
   case .signature(let bytes):
     return .map(["kind": .text("signature"), "bytes": .bytes(bytes)])
+
+  case .signatures(let signatures):
+    return .map([
+      "kind": .text("signatures"),
+      "signatures": .array(signatures.map(WireValue.bytes)),
+    ])
   }
 }
 
@@ -70,6 +76,9 @@ internal func journalResultFrom(_ value: WireValue) throws -> CardOperationResul
 
   case "signature":
     result = .signature(try takeBytes(&map, "bytes"))
+
+  case "signatures":
+    result = .signatures(try takeByteArray(&map, "signatures"))
 
   default:
     throw PairRecordError.invalidInput
@@ -119,7 +128,31 @@ internal func wireResponse(_ result: CardOperationResult) -> [String: WireValue]
 
   case .signature(let bytes):
     return ["signature": .bytes(bytes)]
+
+  case .signatures(let signatures):
+    return ["signatures": .array(signatures.map(WireValue.bytes))]
   }
+}
+
+/// The `response` an ambiguous batch carries: the signatures made before
+/// the interruption, which are never made again (RAPP v26.10.1 §9.3).
+internal func partialBatchResponse(_ completed: [Data]) -> [String: WireValue] {
+  [
+    "completed_signatures": .array(completed.map(WireValue.bytes)),
+    "completed_count": .unsigned(UInt64(completed.count)),
+  ]
+}
+
+/// Reads an ambiguous batch's partial `response`.
+internal func partialBatchSignatures(
+  fromResponse response: [String: WireValue], total: Int
+) throws -> [Data] {
+  var map = response
+  let completed = try takeByteArray(&map, "completed_signatures")
+  guard try takeUnsigned(&map, "completed_count") == UInt64(completed.count),
+    completed.count < total, map.isEmpty
+  else { throw PairRecordError.invalidInput }
+  return completed
 }
 
 /// Reads a `response` map as the answer to `operation`.
@@ -161,6 +194,9 @@ internal func cardResult(
 
   case .browserAuthenticate, .signDocument:
     return .signature(try takeBytes(&map, "signature"))
+
+  case .batchSignDocuments:
+    return .signatures(try takeByteArray(&map, "signatures"))
   }
 }
 
@@ -192,6 +228,15 @@ private func takeOptionalAttempt(
 ) throws -> UInt8? {
   guard map[field] != nil else { return nil }
   return try takeAttempt(&map, field)
+}
+
+private func takeByteArray(_ map: inout [String: WireValue], _ field: String) throws -> [Data] {
+  try takeArray(&map, field).map { value in
+    guard case .bytes(let bytes) = value, !bytes.isEmpty else {
+      throw PairRecordError.invalidInput
+    }
+    return bytes
+  }
 }
 
 private func takeArray(_ map: inout [String: WireValue], _ field: String) throws -> [WireValue] {

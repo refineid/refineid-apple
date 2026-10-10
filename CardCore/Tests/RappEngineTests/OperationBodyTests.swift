@@ -72,7 +72,7 @@ internal struct OperationBodyTests {
     let corpus = try CorpusFile.operation(filePath: #filePath)
     #expect(corpus.format == "fi.refineid.rapp.operation-vectors-v1")
     #expect(corpus.protocolDocumentVersion == "26.10.1")
-    #expect(corpus.vectors.count == 31)
+    #expect(corpus.vectors.count == 34)
   }
 
   @Test("Every typed request matches byte for byte and hashes over the pairing")

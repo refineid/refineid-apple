@@ -46,8 +46,8 @@ internal struct RequesterJournalCleanupTests {
     #expect(
       dispatch
         == .terminal(
-          operationIdentifier: identifier, state: .rejected, status: .rejected,
-          error: .userCancelled))
+          operationIdentifier: identifier, status: .rejected, error: .userCancelled,
+          batchSignatures: []))
     #expect(store.requesterRemovals == [identifier])
   }
 

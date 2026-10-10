@@ -90,11 +90,25 @@ internal struct RappShippingConfigurationTests {
         separatedBy:
           "\"INFOPLIST_FILE[sdk=macosx*]\" = \"Config/RefineID-Store-Info.plist\";"
       ).count - 1 == 4)
+    // Release and TestFlight sign macOS with the store entitlements; Debug
+    // and Profile add only Bluetooth to them (decisions 2026-10-09).
     #expect(
       project.components(
         separatedBy:
           "\"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]\" = \"Config/RefineID-Store.entitlements\";"
-      ).count - 1 == 4)
+      ).count - 1 == 2)
+    #expect(
+      project.components(
+        separatedBy:
+          "\"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]\" = \"Config/RefineID-Debug.entitlements\";"
+      ).count - 1 == 2)
+    let store = try Self.plist("Config/RefineID-Store.entitlements")
+    var development = try Self.plist("Config/RefineID-Debug.entitlements")
+    #expect(development.removeValue(forKey: "com.apple.security.device.bluetooth") as? Bool == true)
+    #expect(Set(development.keys) == Set(store.keys))
+    for (key, value) in store {
+      #expect(String(describing: value) == String(describing: development[key] ?? ""), "\(key)")
+    }
     let features = try String(
       contentsOf: Self.root.appending(path: "Config/Features.xcconfig"), encoding: .utf8)
     #expect(features.contains("REFINEID_FEATURES[sdk=macosx*] = FEATURE_CONTACTLESS\n"))

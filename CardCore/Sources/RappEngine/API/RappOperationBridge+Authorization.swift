@@ -155,6 +155,29 @@ extension RappOperationBridge {
     try complete(operationId: operationId, result: .signature(signature))
   }
 
+  /// Journals one batch signature before the next document is signed.
+  ///
+  /// A signature recorded here is delivered even if the batch is
+  /// interrupted, and is never made again.
+  public func recordBatchSignature(operationId: Data, signature: Data) throws {
+    try locked {
+      guard case .proxy(var engine) = side else { throw RappBindingError.WrongPhase }
+      defer { side = .proxy(engine) }
+      var store = VaultProxyJournalStore(vault: vault, pairIdentifier: pairIdentifier)
+      try mapping {
+        try engine.recordBatchSignature(
+          operationIdentifier: operationId, signature: signature, store: &store)
+      }
+    }
+  }
+
+  /// Answers a batch once every document's signature is journaled.
+  public func completeBatch(operationId: Data) throws -> RappBridgeAction {
+    try withProxy { engine, store in
+      try engine.completeBatch(operationIdentifier: operationId, store: &store)
+    }
+  }
+
   /// Releases a completed result once its acknowledgement reached transport.
   public func acknowledgmentReleased(operationId: Data) throws -> RappOperationResult {
     try locked {

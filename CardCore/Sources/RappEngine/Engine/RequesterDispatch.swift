@@ -21,6 +21,8 @@ internal enum RequesterDispatch: Equatable {
   /// An authenticated status report was stored as an annotation.
   case statusAnnotated(operationIdentifier: Data)
   /// The operation reached its journaled terminal state, and why.
+  ///
+  /// The journaled state follows from the status (``ResultStatus/failureState``).
   case terminal(
-    operationIdentifier: Data, state: OperationState, status: ResultStatus, error: ResultError?)
+    operationIdentifier: Data, status: ResultStatus, error: ResultError?, batchSignatures: [Data])
 }
