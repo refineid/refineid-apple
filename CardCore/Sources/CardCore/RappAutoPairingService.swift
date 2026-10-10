@@ -11,9 +11,14 @@
     /// The shared service instance.
     public static let shared = RappAutoPairingService()
 
-    /// Posted when same-account auto-pairing reconciles or active pairings change.
+    /// Posted when the set of active pairings changes.
     public static let pairingsDidChangeNotification = Notification.Name(
       "fi.refineid.pairingsDidChange"
+    )
+
+    /// Posted after each reconcile of the account's device directory.
+    public static let devicesDidChangeNotification = Notification.Name(
+      "fi.refineid.devicesDidChange"
     )
 
     // MARK: Properties
@@ -97,6 +102,7 @@
       guard let coordinator else { return }
       let vault = RappDeviceVault()
       Task {
+        let pairsBefore = RappPairingSnapshot(vault: vault)
         // Remote access is opt-in: while the holder has it off, nothing
         // may re-enter the vault, or turning it off would not hold.
         #if os(iOS)
@@ -108,11 +114,11 @@
         #endif
         let remotes = await coordinator.remoteDevices()
         self.updateCachedRemoteDevices(remotes)
+        let pairsChanged = pairsBefore.differs(from: RappPairingSnapshot(vault: vault))
         await MainActor.run {
-          NotificationCenter.default.post(
-            name: Self.pairingsDidChangeNotification,
-            object: nil
-          )
+          let center = NotificationCenter.default
+          if pairsChanged { center.post(name: Self.pairingsDidChangeNotification, object: nil) }
+          center.post(name: Self.devicesDidChangeNotification, object: nil)
         }
       }
     }

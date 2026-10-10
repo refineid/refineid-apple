@@ -48,7 +48,7 @@ extension RefineIDApp {
       RappAutoPairingService.shared.start()
 
       pairingsChangeObserver = NotificationCenter.default.addObserver(
-        forName: Notification.Name("fi.refineid.pairingsDidChange"),
+        forName: RappAutoPairingService.pairingsDidChangeNotification,
         object: nil,
         queue: .main
       ) { _ in

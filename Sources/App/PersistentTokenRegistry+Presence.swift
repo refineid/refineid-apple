@@ -215,16 +215,7 @@
           self?.restartWatchingPresence()
         }
       }
-      let observer2 = notificationCenter.addObserver(
-        forName: RappAutoPairingService.pairingsDidChangeNotification,
-        object: nil,
-        queue: .main
-      ) { [weak self] _ in
-        Task { @MainActor [weak self] in
-          self?.restartWatchingPresence()
-        }
-      }
-      pairingsObservers = [observer1, observer2]
+      pairingsObservers = [observer1]
     }
   }
 #endif

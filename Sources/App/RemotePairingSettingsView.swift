@@ -42,7 +42,7 @@
       }
       .onReceive(
         NotificationCenter.default.publisher(
-          for: RappAutoPairingService.pairingsDidChangeNotification
+          for: RappAutoPairingService.devicesDidChangeNotification
         )
       ) { _ in
         reload()
