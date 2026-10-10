@@ -25,22 +25,6 @@
       "count": 1
     },
     {
-      "file": "CardCore/Sources/CardCore/MultipeerDiscoveryHelper.swift",
-      "command": "disable",
-      "rules": [
-        "discouraged_optional_collection"
-      ],
-      "count": 1
-    },
-    {
-      "file": "CardCore/Sources/CardCore/MultipeerDiscoveryHelper.swift",
-      "command": "enable",
-      "rules": [
-        "discouraged_optional_collection"
-      ],
-      "count": 1
-    },
-    {
       "file": "CardCore/Sources/CardCore/PersistentRelaySession.swift",
       "command": "disable",
       "rules": [
@@ -115,22 +99,6 @@
       "count": 1
     },
     {
-      "file": "CardCore/Sources/RappEngine/API/RappOfferCandidate.swift",
-      "command": "disable",
-      "rules": [
-        "discouraged_optional_collection"
-      ],
-      "count": 1
-    },
-    {
-      "file": "CardCore/Sources/RappEngine/API/RappOfferCandidate.swift",
-      "command": "enable",
-      "rules": [
-        "discouraged_optional_collection"
-      ],
-      "count": 1
-    },
-    {
       "file": "CardCore/Sources/RappEngine/API/RappOperationBridge+Authorization.swift",
       "command": "disable",
       "rules": [
@@ -187,22 +155,6 @@
       "count": 1
     },
     {
-      "file": "CardCore/Sources/RappEngine/API/RappPairMetadata.swift",
-      "command": "disable",
-      "rules": [
-        "discouraged_optional_collection"
-      ],
-      "count": 1
-    },
-    {
-      "file": "CardCore/Sources/RappEngine/API/RappPairMetadata.swift",
-      "command": "enable",
-      "rules": [
-        "discouraged_optional_collection"
-      ],
-      "count": 1
-    },
-    {
       "file": "CardCore/Sources/RappEngine/API/RappPeerHello.swift",
       "command": "disable",
       "rules": [
@@ -249,22 +201,6 @@
       "rules": [
         "identifier_name",
         "sorted_enum_cases"
-      ],
-      "count": 1
-    },
-    {
-      "file": "CardCore/Sources/RappEngine/API/StreamProfile.swift",
-      "command": "disable",
-      "rules": [
-        "discouraged_optional_collection"
-      ],
-      "count": 1
-    },
-    {
-      "file": "CardCore/Sources/RappEngine/API/StreamProfile.swift",
-      "command": "enable",
-      "rules": [
-        "discouraged_optional_collection"
       ],
       "count": 1
     },

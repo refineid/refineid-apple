@@ -56,15 +56,10 @@
     /// it.
     @State private var holder: String?
 
-    #if REFINEID_REMOTE_CARD
-      @State private var isPeerOnline = RappAutoPairingService.shared.isAnyPairedPeerOnline
-    #else
-      @State private var isPeerOnline = false
-    #endif
     @State private var isFetching = PersistentTokenRegistry.shared.isRunning
 
     private var isPairedDeviceOnline: Bool {
-      isPeerOnline || PersistentTokenRegistry.shared.holderIsAdvertising
+      PersistentTokenRegistry.shared.holderIsAdvertising
     }
 
     /// Whether the paired phone is here but its card was not read and
@@ -107,15 +102,6 @@
       content
         .task(id: trackKey) {
           await track()
-        }
-        .onReceive(
-          NotificationCenter.default.publisher(
-            for: RappAutoPairingService.pairingsDidChangeNotification
-          )
-        ) { _ in
-          #if REFINEID_REMOTE_CARD
-            isPeerOnline = RappAutoPairingService.shared.isAnyPairedPeerOnline
-          #endif
         }
         .onReceive(
           NotificationCenter.default.publisher(

@@ -166,7 +166,6 @@ public final class RappPairingBridge: @unchecked Sendable {
         return RappOfferCandidate(
           profile: candidate.profile,
           candidateId: candidate.candidateIdentifier,
-          streamEndpoints: StreamProfile.endpoints(of: candidate),
           bleServiceUUID: bleParams?.serviceUUID,
           blePsm: bleParams?.psm
         )

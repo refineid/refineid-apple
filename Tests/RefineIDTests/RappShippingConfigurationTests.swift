@@ -124,7 +124,7 @@ internal struct RappShippingConfigurationTests {
     var store = try Self.plist("Config/RefineID-Store-Info.plist")
     #expect(
       store.removeValue(forKey: "NSBonjourServices") as? [String]
-        == ["_refineid-disc._tcp", Self.service])
+        == [Self.service])
     #expect(
       try JSONSerialization.data(withJSONObject: full, options: .sortedKeys)
         == JSONSerialization.data(withJSONObject: store, options: .sortedKeys))

@@ -153,9 +153,7 @@
       }
       let keys = Set(pairings.map(\.key))
       if let current = presence, current.matchingNames == keys {
-        if certificateDER == nil,
-          holderIsAdvertising || RappAutoPairingService.shared.isAnyPairedPeerOnline
-        {
+        if certificateDER == nil, holderIsAdvertising {
           startFetch(replacing: false)
         }
         return

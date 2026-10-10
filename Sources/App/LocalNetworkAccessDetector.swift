@@ -71,7 +71,6 @@
 
     /// The probe advertises under its own name on the discovery type.
     private static let probeServiceName = "RefineID-Probe"
-    private static let ownServiceNamePrefix = "RefineID-"
     private static let probeTXTKey = "probe"
     private static let probeTXTValue = "1"
     private static let wifiInterfaceName = "en0"
@@ -163,7 +162,7 @@
               settled.finish(with: verdict, continuation: continuation)
             }
             let browser = NWBrowser(
-              for: .bonjour(type: RappLocalDiscovery.serviceType, domain: nil),
+              for: .bonjour(type: StreamRelayListener.serviceType, domain: nil),
               using: .tcp
             )
             browser.stateUpdateHandler = { state in
@@ -191,7 +190,6 @@
     /// Logs what the browse probe sees without naming foreign peers.
     private static func logResultComposition(_ results: Set<NWBrowser.Result>) {
       var probeCount = 0
-      var ownCount = 0
       var otherCount = 0
       for result in results {
         guard case .service(let name, _, _, _) = result.endpoint else {
@@ -200,26 +198,24 @@
         }
         if name.hasPrefix(probeServiceName) {
           probeCount += 1
-        } else if name.hasPrefix(ownServiceNamePrefix) {
-          ownCount += 1
         } else {
           otherCount += 1
         }
       }
-      let composition = "probe \(probeCount) own \(ownCount) other \(otherCount)"
+      let composition = "probe \(probeCount) other \(otherCount)"
       logger.info(
         "local-network browse sees \(results.count, privacy: .public) \(composition, privacy: .public)"
       )
     }
 
-    /// Builds the probe advertiser on the discovery type.
+    /// Builds the probe advertiser on the stream service type.
     private static func makeProbeListener() -> NWListener? {
       guard let listener = try? NWListener(using: .tcp) else { return nil }
       var txtRecord = NWTXTRecord()
       txtRecord[probeTXTKey] = probeTXTValue
       listener.service = NWListener.Service(
         name: probeServiceName,
-        type: RappLocalDiscovery.serviceType,
+        type: StreamRelayListener.serviceType,
         domain: nil,
         txtRecord: txtRecord
       )

@@ -2,10 +2,6 @@
 
 import Foundation
 
-// Absent and empty are different bytes on the wire, so the optionality is
-// the protocol's own and not a convenience.
-// swiftlint:disable discouraged_optional_collection
-
 /// What a stored pairing says about itself, without its keys.
 public struct RappPairMetadata: Equatable, Sendable {
   /// The identifier the pairing is stored under.
@@ -20,8 +16,6 @@ public struct RappPairMetadata: Equatable, Sendable {
   public var candidateId: String
   /// The token naming this pairing to a dialing proxy.
   public var rendezvousToken: Data
-  /// The listener endpoints, when the transport carries them.
-  public var streamEndpoints: [String]?
   /// When the pairing was created.
   public var createdAtMs: UInt64
 
@@ -33,7 +27,6 @@ public struct RappPairMetadata: Equatable, Sendable {
     transportProfile: String,
     candidateId: String,
     rendezvousToken: Data,
-    streamEndpoints: [String]?,
     createdAtMs: UInt64
   ) {
     self.pairId = pairId
@@ -42,9 +35,6 @@ public struct RappPairMetadata: Equatable, Sendable {
     self.transportProfile = transportProfile
     self.candidateId = candidateId
     self.rendezvousToken = rendezvousToken
-    self.streamEndpoints = streamEndpoints
     self.createdAtMs = createdAtMs
   }
 }
-
-// swiftlint:enable discouraged_optional_collection

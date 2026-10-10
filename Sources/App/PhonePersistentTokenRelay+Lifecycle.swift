@@ -16,7 +16,6 @@
         return false
       }
       if hasRecentPeerContact { return true }
-      if isPeerOnline || RappAutoPairingService.shared.isAnyPairedPeerOnline { return true }
       return false
     }
 
@@ -27,7 +26,7 @@
 
     internal var isServing: Bool {
       #if REFINEID_STREAM_TRANSPORT
-        return !streamListeners.isEmpty || !streamDialers.isEmpty
+        return !streamListeners.isEmpty
       #else
         return relay != nil
       #endif
@@ -72,13 +71,7 @@
         }
         streamListeners.removeAll()
         stopHintRotation()
-        for dialer in streamDialers.values {
-          dialer.cancel()
-        }
-        streamDialers.removeAll()
-        streamContexts.removeAll()
         activeStreamListener = nil
-        activeStreamDialer = nil
       #else
         relay?.cancel()
         relay = nil
@@ -107,13 +100,7 @@
         }
         streamListeners.removeAll()
         stopHintRotation()
-        for dialer in streamDialers.values {
-          dialer.cancel()
-        }
-        streamDialers.removeAll()
-        streamContexts.removeAll()
         activeStreamListener = nil
-        activeStreamDialer = nil
       #endif
       connectionID = nil
       isActivelyConnected = false
@@ -157,7 +144,6 @@
         }
         streamListeners.removeAll()
         stopHintRotation()
-        streamContexts.removeAll()
         activeStreamListener = nil
       #endif
       connectionID = nil
@@ -175,13 +161,6 @@
           await Task.yield()
         }
         self.start()
-      }
-    }
-
-    internal func updatePeerOnlineState() {
-      let online = RappAutoPairingService.shared.isAnyPairedPeerOnline
-      if isPeerOnline != online {
-        isPeerOnline = online
       }
     }
 

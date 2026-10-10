@@ -20,31 +20,6 @@ public func rappStreamPairingPreamble() -> Data {
   (try? StreamRendezvous.pairing.encoded()) ?? Data()
 }
 
-/// The public parameters of a stream candidate advertising `endpoints`.
-///
-/// The engine owns the shape, so a requester states where it listens and
-/// never assembles the map itself.
-///
-/// - Throws: ``RappBindingError/InvalidInput`` when there are no endpoints,
-///   more than the profile allows, or one is longer than it allows.
-public func rappStreamCandidateParameters(endpoints: [String]) throws -> Data {
-  guard !endpoints.isEmpty, endpoints.count <= StreamProfile.maximumEndpoints else {
-    throw RappBindingError.InvalidInput
-  }
-  for endpoint in endpoints
-  where endpoint.isEmpty || endpoint.utf8.count > StreamProfile.maximumEndpointBytes {
-    throw RappBindingError.InvalidInput
-  }
-  do {
-    let parameters = WireValue.map([
-      StreamProfile.endpointsKey: .array(endpoints.map(WireValue.text))
-    ])
-    return try parameters.encoded()
-  } catch {
-    throw RappBindingError.InvalidInput
-  }
-}
-
 /// The name of the stream transport profile.
 public func rappStreamProfileName() -> String {
   StreamProfile.name

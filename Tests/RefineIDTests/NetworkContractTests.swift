@@ -67,7 +67,6 @@ internal struct NetworkContractTests {
       containingAny: ["URLSession", "NWConnection", "NWListener", "NWBrowser"]
     )
     let expected: Set<String> = [
-      "CardCore/Sources/CardCore/RappLocalDiscovery.swift",
       "CardCore/Sources/CardCore/StreamRelayBrowser.swift",
       "CardCore/Sources/CardCore/StreamRelayListener.swift",
       "CardCore/Sources/CardCore/StreamRelayPresence.swift",
@@ -102,9 +101,7 @@ internal struct NetworkContractTests {
       ]
     )
     let expected: Set<String> = [
-      "CardCore/Sources/CardCore/MultipeerDiscoveryHelper.swift",
       "CardCore/Sources/CardCore/PersistentRelaySession.swift",
-      "CardCore/Sources/CardCore/RappLocalDiscovery.swift",
       "CardCore/Sources/CardCore/StreamRelayListener.swift",
       "Sources/App/DebugListenProbe.swift",
       "Sources/App/LocalNetworkAccessDetector.swift",
@@ -127,13 +124,33 @@ internal struct NetworkContractTests {
       "Sources/App/ScsServer.swift": "#if FEATURE_SCS",
       // The card holder's half of a pairing.
       "Sources/App/PairingRelay.swift": "#if os(iOS)\n          let made = StreamRelayListener",
-      // Discovery advertises everywhere but on a Mac.
-      "CardCore/Sources/CardCore/RappLocalDiscovery.swift":
-        "#if !os(macOS)\n          self.startAdvertising()",
     ]
     for (file, gate) in gates {
       let text = try String(contentsOf: Self.root.appending(path: file), encoding: .utf8)
       #expect(text.contains(gate), "\(file) lost its macOS listener gate")
+    }
+  }
+
+  /// What is advertised on the local network names no device or person.
+  ///
+  /// Service instance names are random and TXT records carry only the
+  /// protocol's own fields, so nothing published identifies a device,
+  /// its owner, or a key across networks.
+  @Test
+  internal func advertisementsCarryNoDeviceIdentity() throws {
+    let advertisers = try Self.files(containingAny: ["NWTXTRecord", "txtRecord["])
+    #expect(
+      advertisers == [
+        "CardCore/Sources/CardCore/StreamRelayListener.swift",
+        "Sources/App/LocalNetworkAccessDetector.swift",
+      ],
+      "A new advertisement needs a contract entry in Documentation/decisions.md first."
+    )
+    for file in advertisers {
+      let text = try String(contentsOf: Self.root.appending(path: file), encoding: .utf8)
+      for identity in ["deviceName", "deviceID", "publicKeyData", "modelName", "UIDevice"] {
+        #expect(!text.contains(identity), "\(file) advertises \(identity)")
+      }
     }
   }
 
