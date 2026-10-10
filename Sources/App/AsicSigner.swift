@@ -83,6 +83,7 @@ internal enum AsicSigner {
       throw DocumentSigner.Failure.card(.invalidEntry)
     }
     let signedAt = Date()
+    DocumentSigner.report(.card)
     let answer = await CardMaintenance.qualifiedSignature(
       pin2: pin2,
       expectedCertificate: nil,
@@ -165,6 +166,7 @@ internal enum AsicSigner {
       throw Failure.signedOctetsChanged
     }
     let token: TimestampTokenVerifier.VerifiedToken
+    DocumentSigner.report(.timestamp)
     do {
       token = try await TimestampClient.token(
         over: XadesSignature.timestampDigest(xmlSignature)
@@ -173,6 +175,7 @@ internal enum AsicSigner {
       throw DocumentSigner.Failure.network(error)
     }
     let evidence: PdfValidationStore.Material
+    DocumentSigner.report(.validation)
     do {
       evidence = try await ValidationMaterialCollector.collect(
         signerCertificate: product.certificate,

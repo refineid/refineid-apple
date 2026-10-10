@@ -133,6 +133,7 @@ internal enum DocumentSigner {
       stamp: stamp,
       access: access
     )
+    Self.report(.timestamp)
     let verifiedTokens = try await Self.timestamped(material.signature)
     let timestamped = try TimestampedSignature.verified(
       TimestampedSignatureInput(
@@ -145,6 +146,7 @@ internal enum DocumentSigner {
       timestampTokens: verifiedTokens
     )
     let evidence: PdfValidationStore.Material
+    Self.report(.validation)
     do {
       evidence = try await ValidationMaterialCollector.collect(
         signerCertificate: material.certificate,
@@ -165,10 +167,12 @@ internal enum DocumentSigner {
     let withEvidence = try PdfValidationStore.appended(
       to: timestamped.bytes, material: evidence
     )
-    return Product(
-      bytes: try await Self.archiveTimestamped(withEvidence),
-      completion: .archival
-    )
+    Self.report(.timestamp)
+    let archived = try await Self.archiveTimestamped(withEvidence)
+    #if DEBUG
+      Self.phaseTrace("archived")
+    #endif
+    return Product(bytes: archived, completion: .archival)
   }
 
   /// A detached raw signature over the stamp's compact claim.
@@ -236,6 +240,7 @@ internal enum DocumentSigner {
     guard let pin2 = access.pin2 else {
       throw Failure.card(.invalidEntry)
     }
+    Self.report(.card)
     let answer = await CardMaintenance.qualifiedSignature(
       pin2: pin2,
       expectedCertificate: stamp?.signerCertificate,

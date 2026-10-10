@@ -17,6 +17,38 @@
         }
       }
     },
+    "Fetching validity information…": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Haetaan voimassaolotietoja…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hämtar giltighetsinformation…"
+          }
+        }
+      }
+    },
+    "Timestamping…": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aikaleimataan…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tidsstämplar…"
+          }
+        }
+      }
+    },
     "Digest (%@): %@": {
       "extractionState": "manual",
       "localizations": {

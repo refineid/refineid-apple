@@ -61,11 +61,15 @@ extension SigningNetwork {
       request: URLRequest
     ) async throws -> Data {
       let task = session.dataTask(with: request)
-      return try await withCheckedThrowingContinuation { continuation in
-        lock.lock()
-        self.continuation = continuation
-        lock.unlock()
-        task.resume()
+      return try await withTaskCancellationHandler {
+        try await withCheckedThrowingContinuation { continuation in
+          lock.lock()
+          self.continuation = continuation
+          lock.unlock()
+          task.resume()
+        }
+      } onCancel: {
+        task.cancel()
       }
     }
 
