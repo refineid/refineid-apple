@@ -126,14 +126,6 @@
       guard record.deviceID != localIdentity.deviceID,
         record.deviceName.caseInsensitiveCompare(localIdentity.deviceName) != .orderedSame
       else { return }
-      #if targetEnvironment(simulator)
-      #else
-        if cloudStorage is UbiquitousKeyValueStoreCloudStorage {
-          guard !(record.deviceName == "iPhone 16" && record.modelName == "iPhone16,1"),
-            record.deviceID != UUID(uuidString: "AC89E41C-60CB-4777-84A2-8FFDBBFA7AAF")
-          else { return }
-        }
-      #endif
       inMemoryDirectory[record.deviceID] = record
       var directory = loadDirectory()
       directory[record.deviceID] = record
@@ -242,19 +234,6 @@
           }
         }
       }
-      #if targetEnvironment(simulator)
-      #else
-        if cloudStorage is UbiquitousKeyValueStoreCloudStorage {
-          let initialCount = result.count
-          result = result.filter { _, record in
-            !(record.deviceName == "iPhone 16" && record.modelName == "iPhone16,1")
-              && record.deviceID != UUID(uuidString: "AC89E41C-60CB-4777-84A2-8FFDBBFA7AAF")
-          }
-          if result.count != initialCount {
-            saveDirectory(result)
-          }
-        }
-      #endif
       return result
     }
 
