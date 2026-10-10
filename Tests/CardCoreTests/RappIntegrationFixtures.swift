@@ -191,6 +191,8 @@ import Testing
       private var receiver: FrameReceiver?
       private var frames: [Data] = []
       private var closeCount = 0
+      /// The latest delivery; each frame waits for the one before it.
+      private var tail: Task<Void, Never>?
 
       // MARK: Functions
 
@@ -209,9 +211,13 @@ import Testing
       internal func send(_ frame: Data) async throws {
         frames.append(frame)
         guard let receiver else { throw TestFailure.receiverMissing }
-        Task { await receiver(frame) }
-        // Lets the delivery above begin before the sender continues, which
-        // is the ordering a real transport gives without being asked.
+        let previous = tail
+        tail = Task {
+          await previous?.value
+          await receiver(frame)
+        }
+        // Lets the delivery above begin before the sender continues; frames
+        // still arrive in the order they were sent, as on a real transport.
         await Task.yield()
       }
 
