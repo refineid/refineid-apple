@@ -3901,6 +3901,22 @@
         }
       }
     },
+    "Phone not reachable": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Puhelin ei ole tavoitettavissa"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Telefonen kan inte nås"
+          }
+        }
+      }
+    },
     "Phone not connected": {
       "localizations": {
         "en": {

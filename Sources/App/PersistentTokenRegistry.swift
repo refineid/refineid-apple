@@ -91,6 +91,9 @@
     /// borrowed identity.
     internal var holderIsAdvertising = false
 
+    /// Whether a phone is paired with this computer.
+    internal private(set) var hasPairing = false
+
     /// Whether the phone is on the network but no certificate has been
     /// read and no read is in flight.
     internal var holderWaitsForCard: Bool {
@@ -148,9 +151,17 @@
 
     // MARK: Functions
 
+    /// Reads whether any phone is paired, for the identity row.
+    internal func refreshPairing() {
+      hasPairing =
+        Self.isRemoteCardEnabled
+        && ((try? RappDeviceVault().activePairIDs().isEmpty == false) ?? false)
+    }
+
     /// Fetches and publishes once at launch on the requesting device when
     /// an identity is needed.
     internal func start() {
+      refreshPairing()
       guard Self.isRemoteCardEnabled else {
         Self.withdrawPublishedIdentity()
         return
