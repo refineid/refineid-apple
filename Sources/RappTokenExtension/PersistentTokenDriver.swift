@@ -82,6 +82,15 @@ internal final class PersistentTokenDriver: TKTokenDriver,
     /// Milliseconds in one second, for the ages this token reports.
     private static let millisecondsPerSecond = 1_000.0
 
+    /// Requests refused after an unattended one, shared with the app.
+    private static let coolDown = RemoteSignCoolDown.shared
+
+    /// How long a refused request is held before it fails.
+    ///
+    /// A TLS client asks again as soon as an answer fails; the hold sets
+    /// how often it can.
+    private static let refusalHold: TimeInterval = 2
+
     private let persistentToken: PersistentToken
 
     fileprivate init(token: PersistentToken) {
@@ -106,6 +115,19 @@ internal final class PersistentTokenDriver: TKTokenDriver,
         ExtensionTrace.record(line)
         ExtensionTrace.flush()
       #endif
+    }
+
+    /// Whether a failed request ended without a card or the holder's approval.
+    private static func ending(of error: Error) -> RemoteSignCoolDown.Ending {
+      guard let clientError = error as? RappRequesterClientError else { return .other }
+      switch clientError {
+      case .terminal(.userDenied), .terminal(.cancelled),
+        .terminal(.cardRemovedBeforeTransmit), .terminal(.requestExpired), .timedOut:
+        return .unattended
+
+      default:
+        return .other
+      }
     }
 
     fileprivate func tokenSession(
@@ -152,6 +174,11 @@ internal final class PersistentTokenDriver: TKTokenDriver,
         throw TKError(.notImplemented)
       }
       let started = Date()
+      if Self.coolDown.refuses(at: Date()) {
+        Self.say("rapp sign refused while cooling down")
+        Thread.sleep(forTimeInterval: Self.refusalHold)
+        throw TKError(.canceledByUser)
+      }
       Self.say("rapp sign asked")
       let raw = try performRelaySign(
         request: request,
@@ -201,8 +228,10 @@ internal final class PersistentTokenDriver: TKTokenDriver,
         #if DEBUG
           Self.say("performRelaySign: received signature (\(receivedSignature.count) bytes)")
         #endif
+        Self.coolDown.record(.signed, at: Date())
         return receivedSignature
       } catch {
+        Self.coolDown.record(Self.ending(of: error), at: Date())
         let tkError = mapErrorToTKError(error)
         #if DEBUG
           let errDesc = String(describing: error)
