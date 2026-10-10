@@ -56,7 +56,7 @@
     internal var dispatcher: RappPhoneProxyDispatcher?
     internal var connectionID: UUID?
     internal var preCoordinatorFrames: [Data] = []
-    internal var relistenPolicy = RelistenPolicy.automatic
+    @Published internal var relistenPolicy = RelistenPolicy.automatic
     @Published internal var isActivelyConnected = false {
       didSet { connectionIndicator.update(active: isActivelyConnected) }
     }

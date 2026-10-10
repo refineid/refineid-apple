@@ -48,6 +48,22 @@ internal struct RappPairingView: View {
     remoteAccessEnabled
   }
 
+  /// What the screen says about serving the card.
+  internal var servingState: HolderServingState {
+    #if REFINEID_LOCAL_CARD && os(iOS)
+      HolderServingState.derive(
+        enabled: remoteAccessEnabled,
+        paired: !model.pairs.isEmpty,
+        halted: phoneRelay.relistenPolicy == .explicitUserActionRequired,
+        connected: isActivelyConnected
+      )
+    #else
+      HolderServingState.derive(
+        enabled: remoteAccessEnabled, paired: !model.pairs.isEmpty, halted: false,
+        connected: isActivelyConnected)
+    #endif
+  }
+
   internal var remoteAccessBinding: Binding<Bool> {
     Binding(
       get: { remoteAccessEnabled },

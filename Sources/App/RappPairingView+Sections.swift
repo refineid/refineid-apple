@@ -35,6 +35,24 @@ extension RappPairingView {
           NotificationsOffRow()
         }
       #endif
+      if servingState == .halted {
+        haltedRow
+      }
+    }
+  }
+
+  /// Serving stopped and waits for the holder.
+  private var haltedRow: some View {
+    HStack {
+      Text(String(localized: "Remote card paused"))
+        .foregroundStyle(.secondary)
+      Spacer()
+      Button(String(localized: "Resume")) {
+        #if REFINEID_LOCAL_CARD && os(iOS)
+          PhonePersistentTokenRelay.shared.resumeAfterUserAction()
+        #endif
+      }
+      .accessibilityIdentifier("remoteAccessResumeButton")
     }
   }
 
