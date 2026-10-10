@@ -130,9 +130,10 @@
     /// delivered one without a request on screen is stale.
     internal func removeStaleNotifications() {
       guard request == nil else { return }
-      let center = UNUserNotificationCenter.current()
-      center.getDeliveredNotifications { delivered in
-        let stale = delivered.map(\.request.identifier)
+      Task {
+        let center = UNUserNotificationCenter.current()
+        let stale = await center.deliveredNotifications()
+          .map(\.request.identifier)
           .filter { $0.hasPrefix(Self.notificationPrefix) }
         guard !stale.isEmpty else { return }
         center.removeDeliveredNotifications(withIdentifiers: stale)
