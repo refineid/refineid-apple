@@ -5,7 +5,7 @@ import Testing
 
 @testable import CardCore
 
-/// The six-digit code the two fixtures here key their CPace PAKE on.
+/// The six-character code the two fixtures here key their CPace PAKE on.
 private let fixturePairingCode = "246813"
 
 #if canImport(RappEngine)
@@ -168,7 +168,7 @@ private let fixturePairingCode = "246813"
       let outbound = StreamRelayFrameRelay()
       let dialer = StreamRelaySession(
         endpointLiterals: ["127.0.0.1:\(port)"],
-        preamble: StreamRelayPreamble.hello
+        preamble: rappStreamPairingPreamble()
       ) { event in
         Task { await outbound.deliver(event) }
       }

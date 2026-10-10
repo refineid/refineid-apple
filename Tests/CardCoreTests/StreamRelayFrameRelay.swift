@@ -1,14 +1,15 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 import Foundation
+import RappEngine
 
 @testable import CardCore
 
 /// Hands the frames one side of a stream channel reports to whoever wants
-/// them, dropping the dialer's announcing byte.
+/// them, dropping the dialer's pairing preamble.
 ///
-/// That byte is the arrival and never a message, so a ceremony above must
-/// not be given it as one.
+/// The preamble is the arrival and never a ceremony message, so a ceremony
+/// above must not be given it as one.
 internal actor StreamRelayFrameRelay {
   private var receiver: (@Sendable (Data) async -> Void)?
   private var waiting: [Data] = []
@@ -36,10 +37,10 @@ internal actor StreamRelayFrameRelay {
   /// Takes one event and passes on the frames worth passing on.
   internal func deliver(_ event: StreamRelayEvent) async {
     if case .connected = event { isConnected = true }
-    if case .frame(let payload) = event, payload == StreamRelayPreamble.hello {
+    if case .frame(let payload) = event, payload == rappStreamPairingPreamble() {
       isConnected = true
     }
-    guard case .frame(let payload) = event, payload != StreamRelayPreamble.hello else {
+    guard case .frame(let payload) = event, payload != rappStreamPairingPreamble() else {
       events.append(String(describing: event))
       return
     }
