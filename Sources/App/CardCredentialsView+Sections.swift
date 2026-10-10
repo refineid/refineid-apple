@@ -220,6 +220,9 @@ extension CardCredentialsView {
         text: $cardAccessNumberEntry
       )
       .font(.body)
+      // A macOS form field otherwise gives VoiceOver its title only as
+      // placeholder text.
+      .accessibilityLabel(Text("Card Access Number (CAN)"))
       .accessibilityIdentifier("cardAccessNumberField")
       .onValueChange(of: cardAccessNumberEntry) { typed in
         cardAccessNumberEntry = LimitedDigits.cardAccessNumber(typed)
