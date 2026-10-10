@@ -63,7 +63,7 @@ internal struct RappPairingView: View {
     #endif
     #if os(iOS) && REFINEID_LOCAL_CARD
       if SupportedCardTransports.offersNearField {
-        return phoneRelay.isPeerConnectedOrOnline
+        return phoneRelay.isPeerConnected
       }
     #endif
     return false

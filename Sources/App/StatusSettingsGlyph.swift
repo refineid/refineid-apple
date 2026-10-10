@@ -35,10 +35,7 @@
 
     private var isRemoteHolderConnected: Bool {
       #if REFINEID_REMOTE_CARD
-        if PersistentTokenRegistry.shared.holderIsAdvertising {
-          return true
-        }
-        return RappAutoPairingService.shared.remoteDevices.contains { $0.role == .holder }
+        return PersistentTokenRegistry.shared.holderIsAdvertising
       #else
         return false
       #endif
