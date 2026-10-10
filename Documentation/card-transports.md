@@ -153,6 +153,18 @@ held on the phone without requiring a smart card slot or USB reader on the Mac.
    until the holder turns Remote Access on or enters a pairing code shown
    on the requesting computer. Pairings stay stored while serving is off,
    so turning it back on reconnects without a new code.
+5. **Permissions asked only when undecided.** Turning Remote Access on
+   shows no alert of the app's own. The system prompts are the only
+   questions, and only while a permission is undecided. Local network
+   access is probed until it has been seen once; only a real denial turns
+   the switch back off with a Settings redirect. Declined notifications
+   show as a row with Settings on the Remote Access screen.
+6. **Card requests are Time Sensitive.** A paired computer that needs the
+   card needs it now, so the request notification uses the Time Sensitive
+   interruption level and can break through a Focus and notification
+   summaries. The holder can still turn Time Sensitive off for any Focus.
+   The notification is removed when the request ends, and requests left
+   from an earlier run are cleared when the app becomes active.
 4. **Encrypted in-band card departure.** When a card is disconnected during an
    active proxy session, the proxy immediately transmits an encrypted in-band
    `session.close(card_unavailable)` message. This unblocks the Mac browser

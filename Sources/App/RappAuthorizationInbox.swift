@@ -16,6 +16,8 @@
   internal final class RappAuthorizationInbox: ObservableObject {
     internal static let shared = RappAuthorizationInbox()
 
+    private static let notificationPrefix = "rapp-auth-"
+
     @Published internal private(set) var request: RappAuthorizationRequest?
     private var continuation: CheckedContinuation<RappAuthorizationDecision, Never>?
 
@@ -111,16 +113,34 @@
         )
       }
       content.sound = .default
+      // The paired computer is waiting now; a Focus may still silence
+      // it, since the holder can turn Time Sensitive off per Focus.
+      content.interruptionLevel = .timeSensitive
       let notificationRequest = UNNotificationRequest(
-        identifier: "rapp-auth-\(request.requestID)",
+        identifier: Self.notificationPrefix + request.requestID,
         content: content,
         trigger: nil
       )
       center.add(notificationRequest)
     }
 
+    /// Clears card requests left from an earlier run.
+    ///
+    /// A request lives only as long as the session that asked, so any
+    /// delivered one without a request on screen is stale.
+    internal func removeStaleNotifications() {
+      guard request == nil else { return }
+      let center = UNUserNotificationCenter.current()
+      center.getDeliveredNotifications { delivered in
+        let stale = delivered.map(\.request.identifier)
+          .filter { $0.hasPrefix(Self.notificationPrefix) }
+        guard !stale.isEmpty else { return }
+        center.removeDeliveredNotifications(withIdentifiers: stale)
+      }
+    }
+
     private func removeNotification(for requestID: String) {
-      let identifier = "rapp-auth-\(requestID)"
+      let identifier = Self.notificationPrefix + requestID
       let center = UNUserNotificationCenter.current()
       center.removePendingNotificationRequests(withIdentifiers: [identifier])
       center.removeDeliveredNotifications(withIdentifiers: [identifier])
