@@ -5,7 +5,7 @@ import Foundation
 /// Everything one typed request binds itself to when it is hashed.
 ///
 /// The commitment is session-independent: it names the pairing, so a
-/// retransmission across sessions hashes the same (RAPP v26.10.1 §8.2.1).
+/// retransmission across sessions hashes the same (RAPP v26.10.9 §8.2.1).
 internal struct RappRequestBinding {
   internal let pairIdentifier: Data
   internal let operationIdentifier: Data

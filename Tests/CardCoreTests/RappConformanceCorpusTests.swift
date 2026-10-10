@@ -32,7 +32,7 @@ internal struct RappConformanceCorpusTests {
     return try Data(
       contentsOf:
         repositoryRoot
-        .appendingPathComponent("Documentation/rapp-conformance/rapp-v26.10.1.json")
+        .appendingPathComponent("Documentation/rapp-conformance/rapp-v26.10.9.json")
     )
   }
 
@@ -44,13 +44,13 @@ internal struct RappConformanceCorpusTests {
     let digest = Data(SHA256.hash(data: source))
     #expect(
       RappConformanceCorpusSupport.hex(digest)
-        == "488851a0857a4c0682e5fcbdb0f4c1e943e495ed39d544508bc88a1feacfca3f")
+        == "a2582459d15ff94c8ff0551b3f5814a1caa1900cdc35068aededeb422cef93f4")
 
     let corpus = try JSONDecoder().decode(
       RappConformanceCorpusSupport.Corpus.self,
       from: source)
     #expect(corpus.format == "fi.refineid.rapp.conformance-v1")
-    #expect(corpus.protocolDocumentVersion == "26.10.1")
+    #expect(corpus.protocolDocumentVersion == "26.10.9")
     #expect(corpus.deterministicCBOR.count == 15)
     #expect(corpus.identifierDerivation.count == 2)
     #expect(corpus.grantsHash.count == 3)
@@ -135,7 +135,7 @@ internal struct RappConformanceCorpusTests {
     for vector in try Self.corpus().requestHash {
       let preimageValue = try RappConformanceCorpusSupport.CorpusValue.array([
         .text("RAPP-request-v1"),
-        .bytes(RappConformanceCorpusSupport.data(fromHex: vector.sessionIDHex)),
+        .bytes(RappConformanceCorpusSupport.data(fromHex: vector.pairIDHex)),
         .bytes(RappConformanceCorpusSupport.data(fromHex: vector.operationIDHex)),
         .text(vector.profile),
         .text(vector.action),

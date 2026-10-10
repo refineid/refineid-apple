@@ -3,7 +3,7 @@
 import Foundation
 
 /// Why a central opened a `fi.refineid.rapp.ble.v1` connection: the one
-/// plaintext routing preamble of `Phase::Routing` (RAPP v26.10.1 §5.2).
+/// plaintext routing preamble of `Phase::Routing` (RAPP v26.10.9 §5.2).
 public enum RappBleRoutingPurpose: Equatable, Sendable {
   /// Open a pairing ceremony against the custodian's live offer.
   case pairing

@@ -318,11 +318,12 @@ private func step7() throws {
       sessionIdentifier: OperationFixture.sessionIdentifier,
       operationIdentifier: OperationFixture.operationIdentifier,
       requestHash: try browserRequest().requestHash())
-    try journal.commit(to: &store, requestHash: try browserRequest().requestHash())
-    let first = try journal.beginCardCommand(to: &store, command: "one-shot", batchTotal: nil)
+    let first = try journal.beginCardCommand(
+      to: &store, requestHash: try browserRequest().requestHash(), command: "one-shot",
+      batchTotal: nil)
     _ = first.execute { $0 }
 
-    // Rewind the durable record to committed, which is what a broken
+    // Rewind the durable record to prepared, which is what a broken
     // implementation that forgot the transmission count would leave behind.
     var rewound = OperationJournal(
       recovered: ProxyJournalRecord(
@@ -330,10 +331,12 @@ private func step7() throws {
         sessionIdentifier: OperationFixture.sessionIdentifier,
         operationIdentifier: OperationFixture.operationIdentifier,
         requestHash: try browserRequest().requestHash(),
-        state: .committed,
+        state: .prepared,
         transmissionCount: TransmissionCount.untransmitted,
         automaticRetryPermitted: true))
-    let second = try rewound.beginCardCommand(to: &store, command: "one-shot", batchTotal: nil)
+    let second = try rewound.beginCardCommand(
+      to: &store, requestHash: try browserRequest().requestHash(), command: "one-shot",
+      batchTotal: nil)
     _ = second.execute { $0 }
     check(
       "a rewound record would transmit twice, so the check is real",

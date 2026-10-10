@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.10.1 batch_sign_documents (section 9.3)")
+@Suite("RAPP v26.10.9 batch_sign_documents (section 9.3)")
 internal struct BatchSigningTests {
   private static let names = ["Contract.pdf", "Annex.pdf", "Terms.pdf"]
   private static let digests = (1...3).map { index in

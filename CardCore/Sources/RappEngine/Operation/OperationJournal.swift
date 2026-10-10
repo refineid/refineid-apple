@@ -37,31 +37,22 @@ internal struct OperationJournal {
     }
   }
 
-  /// Writes the point of no return before any card command is accepted.
-  internal mutating func commit(
-    to store: inout some JournalStore, requestHash: Data
-  ) throws {
+  /// Writes the in-flight entry, counting the single transmission, and
+  /// yields the only value a card adapter may execute (RAPP v26.10.9 §8.1).
+  ///
+  /// The record reaches storage in one write first. If that write fails
+  /// nothing is handed out, so a command can never be transmitted without
+  /// a durable trace.
+  ///
+  /// A batch starts its per-document progress in the same write (RAPP
+  /// v26.10.9 §8.1): total known, nothing signed yet.
+  internal mutating func beginCardCommand<Command>(
+    to store: inout some JournalStore, requestHash: Data, command: Command, batchTotal: Int?
+  ) throws -> PendingCardCommand<Command> {
     guard record.state == .prepared else {
       throw JournalError.invalidState(state: record.state)
     }
     guard record.requestHash == requestHash else { throw JournalError.requestHashMismatch }
-    try persist(&store, state: .committed, transmissions: TransmissionCount.untransmitted)
-  }
-
-  /// Records the single transmission and yields the only value a card adapter
-  /// may execute.
-  ///
-  /// The record reaches storage first. If that write fails nothing is handed
-  /// out, so a command can never be transmitted without a durable trace.
-  ///
-  /// A batch starts its per-document progress in the same write (RAPP
-  /// v26.10.1 §8.1): total known, nothing signed yet.
-  internal mutating func beginCardCommand<Command>(
-    to store: inout some JournalStore, command: Command, batchTotal: Int?
-  ) throws -> PendingCardCommand<Command> {
-    guard record.state == .committed else {
-      throw JournalError.invalidState(state: record.state)
-    }
     guard record.transmissionCount == TransmissionCount.untransmitted else {
       throw JournalError.alreadyTransmitted
     }
@@ -78,7 +69,7 @@ internal struct OperationJournal {
   }
 
   /// Records one batch signature before the next document is signed, so a
-  /// signature already made is never made again (RAPP v26.10.1 §9.3).
+  /// signature already made is never made again (RAPP v26.10.9 §9.3).
   internal mutating func recordBatchSignature(
     to store: inout some JournalStore, signature: Data
   ) throws {

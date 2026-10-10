@@ -8,7 +8,9 @@
   /// The authenticated exchange the requester runs once its transport has
   /// reached the holder.
   extension RappPersistentRequesterClient {
-    private static let logger = Logger(subsystem: "fi.refineid.ReFineID", category: "rapp-client")
+    #if DEBUG
+      private static let logger = Logger(subsystem: "fi.refineid.ReFineID", category: "rapp-client")
+    #endif
     internal func establish() async {
       do {
         guard let pair = try await resolvedPair() else {
@@ -120,10 +122,14 @@
       _ event: RappConnectionCoordinator.Event,
       from coordinator: RappConnectionCoordinator
     ) async {
-      let eventDesc = String(describing: event)
-      Self.logger.notice(
-        "[RappRequester] coordinator event: \(eventDesc, privacy: .public)"
-      )
+      #if DEBUG
+        let eventDesc = String(describing: event)
+      #endif
+      #if DEBUG
+        Self.logger.notice(
+          "[RappRequester] coordinator event: \(eventDesc, privacy: .public)"
+        )
+      #endif
       switch event {
       case .established:
         await beginOperation(on: coordinator)
@@ -143,9 +149,11 @@
       case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
         .executeCardCommand, .operationFinished,
         .peerBusy, .peerUnknownOperation, .batchSignatures:
-        Self.logger.notice(
-          "[RappRequester] coordinator unexpected proxy event on requester: \(eventDesc, privacy: .public)"
-        )
+        #if DEBUG
+          Self.logger.notice(
+            "[RappRequester] coordinator unexpected proxy event on requester: \(eventDesc, privacy: .public)"
+          )
+        #endif
         await coordinator.close()
         finish(error: .protocolFailure)
       }
@@ -170,7 +178,9 @@
       if let response {
         finish(response: response)
       } else {
-        Self.logger.notice("[RappRequester] completed with unexpected result")
+        #if DEBUG
+          Self.logger.notice("[RappRequester] completed with unexpected result")
+        #endif
         finish(error: .unexpectedResult)
       }
     }
@@ -180,18 +190,22 @@
       on coordinator: RappConnectionCoordinator
     ) async {
       postDistributedNotification(RappCardPromptNotificationNames.cardDismissDarwinNotification)
-      Self.logger.notice(
-        "[RappRequester] coordinator terminal reason: \(String(describing: reason), privacy: .public)"
-      )
+      #if DEBUG
+        Self.logger.notice(
+          "[RappRequester] coordinator terminal reason: \(String(describing: reason), privacy: .public)"
+        )
+      #endif
       await coordinator.close()
       finish(error: .terminal(reason))
     }
 
     private func handleClosed(_ reason: RappConnectionCoordinator.CloseReason) {
       postDistributedNotification(RappCardPromptNotificationNames.cardDismissDarwinNotification)
-      Self.logger.notice(
-        "[RappRequester] coordinator closed: \(String(describing: reason), privacy: .public)"
-      )
+      #if DEBUG
+        Self.logger.notice(
+          "[RappRequester] coordinator closed: \(String(describing: reason), privacy: .public)"
+        )
+      #endif
       finish(error: .transport)
     }
 
@@ -218,15 +232,19 @@
       do {
         try await dispatchOperation(operation, on: coordinator, lifetime: lifetime)
       } catch let localError as RappOperationDriver.LocalError where localError == .wrongPhase {
-        Self.logger.notice(
-          "[RappRequester] beginOperation failed with wrongPhase: \(String(describing: localError), privacy: .public)"
-        )
+        #if DEBUG
+          Self.logger.notice(
+            "[RappRequester] beginOperation failed with wrongPhase: \(String(describing: localError), privacy: .public)"
+          )
+        #endif
         await coordinator.close()
         finish(error: .transport)
       } catch {
-        Self.logger.notice(
-          "[RappRequester] beginOperation failed: \(String(describing: error), privacy: .public)"
-        )
+        #if DEBUG
+          Self.logger.notice(
+            "[RappRequester] beginOperation failed: \(String(describing: error), privacy: .public)"
+          )
+        #endif
         await coordinator.close()
         finish(error: .protocolFailure)
       }

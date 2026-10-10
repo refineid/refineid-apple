@@ -4,7 +4,7 @@ import Foundation
 
 @testable import RappEngine
 
-/// Golden values encoded independently from the RAPP v26.10.1 request schema.
+/// Golden values encoded independently from the RAPP v26.10.9 request schema.
 ///
 /// They cover the five registered operations, pinning the action names, the
 /// split between consent context and profile payload, and the request body.

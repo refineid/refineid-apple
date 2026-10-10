@@ -3,7 +3,7 @@
 import Foundation
 
 /// Domain separators, sizes and profile literals for the CPaceRistretto255
-/// KC2 profile (draft-irtf-cfrg-cpace-21, RAPP v26.10.1 §6.1).
+/// KC2 profile (draft-irtf-cfrg-cpace-21, RAPP v26.10.9 §6.1).
 internal enum RappCpaceConstants {
   internal static let pointSize = 32
   internal static let offerIdSize = 32
@@ -27,8 +27,6 @@ internal enum RappCpaceConstants {
     "CPACE-RISTR255-SHA512-RAPP-KC2 + Noise_XXpsk3_25519_ChaChaPoly_SHA512"
 
   internal static let contextDomain = "RAPP-PAIRING-CONTEXT-v2"
-  internal static let contextTransportProfile = "fi.refineid.rapp.ble.v1"
-  internal static let contextCandidateIdentifier = "ble-direct-1"
   internal static let initiatorRole = "requester"
   internal static let responderRole = "custodian"
 

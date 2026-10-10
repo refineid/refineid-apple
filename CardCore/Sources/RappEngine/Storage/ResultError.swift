@@ -6,7 +6,7 @@
 
 import Foundation
 
-/// The `error` an `operation.result` names (RAPP v26.10.1 §8, §10).
+/// The `error` an `operation.result` names (RAPP v26.10.9 §8, §10).
 internal enum ResultError: String, Equatable, CaseIterable {
   case userCancelled = "user_cancelled"
   case operationExpired = "operation_expired"

@@ -137,7 +137,7 @@ extension RappOperationBridge {
       operationId: operationId, localStartMs: localStartMs, expiresAfterMs: expiresAfterMs)
   }
 
-  /// Begins signing 1 to 64 documents under one PIN 2 entry (RAPP v26.10.1
+  /// Begins signing 1 to 64 documents under one PIN 2 entry (RAPP v26.10.9
   /// §9.3); names and digests pair up by position.
   public func beginBatchSignDocuments(  // swiftlint:disable:this function_parameter_count
     operationId: Data,

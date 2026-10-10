@@ -115,7 +115,7 @@
     }
 
     /// Starts a requester batch signature over 1 to 64 named documents
-    /// (RAPP v26.10.1 §9.3); names and digests pair up by position.
+    /// (RAPP v26.10.9 §9.3); names and digests pair up by position.
     public func beginBatchSignDocuments(
       documentNames: [String],
       keyProfile: KeyProfile,
@@ -212,7 +212,7 @@
     }
 
     /// Reports an incorrect credential with attempts remaining; the pairing
-    /// stays (RAPP v26.10.1 section 10.2).
+    /// stays (RAPP v26.10.9 section 10.2).
     public func invalidCredential(
       operationID: Data, remainingRetries: UInt8
     ) throws -> [Command] {
@@ -257,7 +257,7 @@
         ))
     }
 
-    /// Completes an identity read (RAPP v26.10.1 §9.1).
+    /// Completes an identity read (RAPP v26.10.9 §9.1).
     public func completeIdentity(operationID: Data, identity: Identity) throws -> [Command] {
       try commands(
         bridge.completeIdentity(

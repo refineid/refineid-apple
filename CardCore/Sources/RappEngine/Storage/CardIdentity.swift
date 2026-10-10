@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The `read_identity` answer (RAPP v26.10.1 §9.1).
+/// The `read_identity` answer (RAPP v26.10.9 §9.1).
 internal struct CardIdentity: Equatable {
   /// Byte bounds the response schema fixes.
   internal enum Bounds {

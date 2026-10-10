@@ -4,7 +4,7 @@
   import Foundation
 
   extension RappOperationDriver {
-    /// The `read_identity` answer (RAPP v26.10.1 §9.1).
+    /// The `read_identity` answer (RAPP v26.10.9 §9.1).
     public struct Identity: Sendable, Equatable {
       /// The cardholder's name.
       public let holderName: String

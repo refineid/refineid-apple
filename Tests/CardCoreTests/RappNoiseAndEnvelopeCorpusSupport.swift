@@ -32,7 +32,7 @@ internal enum RappNoiseAndEnvelopeCorpusSupport {
     internal static let byteCountUInt64 = 8
     internal static let wireMajor: UInt64 = 26
     internal static let wireMinor: UInt64 = 10
-    internal static let wirePatch: UInt64 = 1
+    internal static let wirePatch: UInt64 = 9
     internal static let versionLength = 3
     internal static let patchIndex = 2
     internal static let sessionIDLength = 16
@@ -70,6 +70,12 @@ internal enum RappNoiseAndEnvelopeCorpusSupport {
     case truncated
     case unsupported
   }
+
+  internal static let pairingSuite = "Noise_XXpsk3_25519_ChaChaPoly_SHA512"
+  internal static let sessionSuite = "Noise_KK_25519_ChaChaPoly_SHA512"
+  /// The offer's suite string, which the pairing prologue binds (§4.3).
+  internal static let pairingOfferSuite =
+    "CPACE-RISTR255-SHA512-RAPP-KC2 + Noise_XXpsk3_25519_ChaChaPoly_SHA512"
 
   internal static let wire = WireVersion(
     major: Constants.wireMajor,
@@ -165,7 +171,7 @@ internal enum RappNoiseAndEnvelopeCorpusSupport {
       repositoryRoot
       .appendingPathComponent("Documentation")
       .appendingPathComponent("rapp-conformance")
-      .appendingPathComponent("rapp-v26.10.1.json")
+      .appendingPathComponent("rapp-v26.10.9.json")
     return try JSONDecoder().decode(Corpus.self, from: Data(contentsOf: url))
   }
 

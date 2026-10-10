@@ -108,3 +108,11 @@ public func rappBleSessionPreamble(rendezvousToken: Data) throws -> Data {
     throw RappBindingError.InvalidInput
   }
 }
+
+/// The candidate identifier registered for a transport profile.
+///
+/// The offer entry of `transportProfile` carries it (RAPP v26.10.9 §2.2);
+/// an unregistered profile has none.
+public func rappCandidateIdentifier(transportProfile: String) -> String? {
+  TransportRegistry.entry(for: transportProfile)?.candidateIdentifier
+}

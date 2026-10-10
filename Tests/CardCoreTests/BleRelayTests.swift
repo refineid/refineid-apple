@@ -55,14 +55,6 @@ internal final class BleRelayTests: XCTestCase {
       psm: 128
     )
     XCTAssertFalse(params.isEmpty)
-
-    let candidate = RappTransportCandidate(
-      profile: rappBleProfileName(),
-      candidateId: "ble-0",
-      parametersCbor: params
-    )
-    XCTAssertEqual(candidate.profile, BleProfile.name)
-    XCTAssertEqual(candidate.candidateId, "ble-0")
   }
 
   internal func testBleEndpointDefaults() {

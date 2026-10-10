@@ -22,9 +22,7 @@ private let fixturePairingCode = "246813"
 
     private static let attempts = 150
     private static let pause = Duration.milliseconds(100)
-    private static let candidateID = "stream-1"
     private static let streamProfile = "fi.refineid.stream.v1"
-    private static let emptyCborMapByte: UInt8 = 0xA0
     private static let profiles = [
       "fi.refineid.card-status.v1",
       "fi.refineid.authentication.v1",
@@ -78,10 +76,7 @@ private let fixturePairingCode = "246813"
       RappPairingCoordinator.Options(
         code: fixturePairingCode,
         profiles: profiles,
-        candidate: RappPairingCoordinator.TransportCandidate(
-          profile: streamProfile,
-          candidateID: candidateID,
-          parametersCBOR: Data([emptyCborMapByte])),
+        transportProfile: streamProfile,
         displayName: name,
         platform: name == "Requester" ? "iPadOS" : "iOS",
         vault: vault,
@@ -132,8 +127,9 @@ private let fixturePairingCode = "246813"
       async let proxySummary = awaitPair(proxy)
       try await awaitConnected(inbound)
       try await awaitConnected(outbound)
-      await proxy.transportConnected()
+      // The requester waits for the offer the custodian serves on connecting.
       await requester.transportConnected()
+      await proxy.transportConnected()
       do {
         return try await (requester: requesterSummary, proxy: proxySummary)
       } catch {

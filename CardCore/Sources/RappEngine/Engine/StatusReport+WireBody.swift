@@ -3,7 +3,7 @@
 import Foundation
 
 extension OperationState {
-  /// `operation-state-val` (RAPP v26.10.1 §7.1) for this journal state.
+  /// `operation-state-val` (RAPP v26.10.9 §7.1) for this journal state.
   ///
   /// Every stage before a terminal outcome reads as `in_flight`; a completed
   /// result reads as completed whether or not it was acknowledged, and the

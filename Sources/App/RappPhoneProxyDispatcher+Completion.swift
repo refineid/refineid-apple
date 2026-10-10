@@ -75,7 +75,7 @@
       case .rejected(let rejection):
         await applyRejectedCredential(rejection)
         // A mistyped PIN with attempts left keeps the session and the
-        // pairing (RAPP v26.10.1 section 10.2); a blocked or uncounted
+        // pairing (RAPP v26.10.9 section 10.2); a blocked or uncounted
         // rejection revokes them.
         if let remaining = Self.attemptsLeft(after: rejection) {
           try? await coordinator.invalidCredential(

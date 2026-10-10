@@ -4,48 +4,17 @@
   import Foundation
   import RappEngine
 
-  /// Drives one RAPP v26.10.1 pairing ceremony over one transport.
+  /// Drives one RAPP v26.10.9 pairing ceremony over one transport.
   ///
-  /// The custodian shows a pairing code and waits; the requester types it
-  /// and connects. CPace KC2 proves both hold the code, Noise_XXpsk3 binds
+  /// The custodian creates a random offer, shows a pairing code and waits;
+  /// the requester types the code, connects and reads the offer through the
+  /// transport's bootstrap. CPace KC2 proves both hold the code, Noise_XXpsk3 binds
   /// fresh pair keys, and the custodian grants the requested profiles
   /// without a separate approval: entering the code is the authorization.
   /// The engine owns every secret; this actor moves frames and reports
   /// progress.
   public actor RappPairingCoordinator {
     // MARK: Nested Types
-
-    /// One transport option offered for the pairing attempt.
-    public struct TransportCandidate: Sendable, Equatable {
-      // MARK: Properties
-
-      /// Registered transport profile name.
-      public let profile: String
-      /// Opaque identifier echoed back after peer authentication.
-      public let candidateID: String
-      /// Deterministic-CBOR map of profile-specific public parameters.
-      public let parametersCBOR: Data
-
-      // MARK: Computed Properties
-
-      /// Underlying transport candidate bridge representation.
-      public var binding: RappTransportCandidate {
-        RappTransportCandidate(
-          profile: profile,
-          candidateId: candidateID,
-          parametersCbor: parametersCBOR
-        )
-      }
-
-      // MARK: Lifecycle
-
-      /// Creates a candidate from already-encoded public parameters.
-      public init(profile: String, candidateID: String, parametersCBOR: Data) {
-        self.profile = profile
-        self.candidateID = candidateID
-        self.parametersCBOR = parametersCBOR
-      }
-    }
 
     /// Authenticated peer facts shown for the explicit pairing decision.
     public struct Peer: Sendable, Equatable {
@@ -127,6 +96,7 @@
 
     internal enum State: Equatable {
       case offer
+      case requesterAwaitingOffer
       case requesterAwaitingStepTwo
       case requesterAwaitingHandshakeTwo
       case custodianAwaitingStepOne
@@ -145,16 +115,23 @@
     nonisolated public let events: AsyncStream<Event>
 
     internal let role: Role
-    internal let bridge: RappPairingBridge
+    /// The ceremony's engine; a stream requester has none until the
+    /// custodian's offer frame arrives.
+    internal var bridge: RappPairingBridge?
     internal let vault: RappDeviceVault
     internal var transport: any RappFrameTransport
+    /// The transport profile this ceremony runs over (RAPP v26.10.9 §2.2).
+    internal let transportProfile: String
     internal let candidateID: String
+    /// The canonical code a requester types, kept until its offer arrives.
+    internal let pairingCode: String
     internal let profiles: [String]
     internal let displayName: String
     internal let platform: String
     internal let clock: RappPlatformClock
     internal let entropy: RappPlatformEntropy
     internal let offerDeadlineMilliseconds: UInt64
+    internal let preAuthentication = RappPreAuthenticationLimiter()
     internal let continuation: AsyncStream<Event>.Continuation
     internal var state = State.offer
     internal var deadlineTask: Task<Void, Never>?
@@ -163,8 +140,10 @@
 
     internal init(
       role: Role,
-      bridge: RappPairingBridge,
+      bridge: RappPairingBridge?,
+      transportProfile: String,
       candidateID: String,
+      pairingCode: String,
       profiles: [String],
       displayName: String,
       platform: String,
@@ -176,6 +155,8 @@
     ) {
       self.role = role
       self.bridge = bridge
+      self.transportProfile = transportProfile
+      self.pairingCode = pairingCode
       self.candidateID = candidateID
       self.profiles = profiles
       self.displayName = displayName

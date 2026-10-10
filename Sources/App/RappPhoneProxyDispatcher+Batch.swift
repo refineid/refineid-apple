@@ -4,7 +4,7 @@
   import CardCore
   import Foundation
 
-  /// `batch_sign_documents` on the custodian (RAPP v26.10.1 §9.3).
+  /// `batch_sign_documents` on the custodian (RAPP v26.10.9 §9.3).
   extension RappPhoneProxyDispatcher {
     /// Signs every document of an approved batch in one card session with
     /// the one PIN 2 the holder entered, journaling each signature before

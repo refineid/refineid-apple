@@ -56,11 +56,12 @@
     private var state = State.idle
 
     /// Binds a new driver to one pair and opens the role's side of the
-    /// session bridge.
+    /// session bridge, bound to the connection's transport profile.
     public init(
       role: Role,
       pair: RappPairRecord,
       vault: RappDeviceVault,
+      transportProfile: String = rappStreamProfileName(),
       entropy: RappPlatformEntropy = RappPlatformEntropy(),
       clock: RappPlatformClock = RappPlatformClock()
     ) throws {
@@ -72,10 +73,12 @@
 
       switch role {
       case .requester:
-        self.session = try RappSessionBridge.beginRequester(pair: pair, vault: vault)
+        self.session = try RappSessionBridge.beginRequester(
+          pair: pair, vault: vault, transportProfile: transportProfile)
 
       case .proxy:
-        self.session = try RappSessionBridge.beginProxy(pair: pair, vault: vault)
+        self.session = try RappSessionBridge.beginProxy(
+          pair: pair, vault: vault, transportProfile: transportProfile)
       }
     }
 

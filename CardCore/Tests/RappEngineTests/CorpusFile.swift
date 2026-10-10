@@ -4,10 +4,10 @@ import Foundation
 
 /// The vendored documents the engine is replayed against.
 internal enum CorpusFile {
-  private static let conformanceName = "rapp-v26.10.1.json"
+  private static let conformanceName = "rapp-v26.10.9.json"
   private static let transportName = "rapp-transport-v26.9.7.70.json"
   private static let flowName = "rapp-flow-v26.9.7.70.json"
-  private static let operationName = "rapp-operation-v26.10.1.json"
+  private static let operationName = "rapp-operation-v26.10.9.json"
 
   /// Test sources sit four directories below the repository root.
   private static let depthBelowRepositoryRoot = 4

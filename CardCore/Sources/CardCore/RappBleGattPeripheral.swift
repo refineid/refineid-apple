@@ -7,7 +7,7 @@ import Foundation
   import RappEngine
 
   /// The custodian end of `fi.refineid.rapp.ble.v1`: the GATT peripheral
-  /// (RAPP v26.10.1 §5.1, §5.2).
+  /// (RAPP v26.10.9 §5.1, §5.2).
   ///
   /// It advertises only the RAPP service UUID and a generic name, serves
   /// the offer on the bootstrap characteristic, receives the requester's

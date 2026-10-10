@@ -2,11 +2,13 @@
 
 import Foundation
 
-/// The pairing ceremony of RAPP v26.10.1, from a code-derived offer to a
-/// stored pairing.
+/// The pairing ceremony of RAPP v26.10.9, from a random offer to a stored
+/// pairing.
 ///
-/// The custodian shows the code and answers; the requester types the code
-/// and initiates both CPace and Noise_XXpsk3. One bridge runs one ceremony.
+/// The custodian creates the offer, shows the code and answers; the
+/// requester reads the offer through the transport's bootstrap, types the
+/// code and initiates both CPace and Noise_XXpsk3. One bridge runs one
+/// ceremony.
 /// A completed, cancelled or exhausted bridge is spent and refuses further
 /// calls.
 public final class RappPairingBridge: @unchecked Sendable {
@@ -29,7 +31,8 @@ public final class RappPairingBridge: @unchecked Sendable {
   internal let offer: PairingOffer
   internal let pairingCode: String
   internal let offerHash: Data
-  internal let context: Data
+  /// The CPace context of the connected candidate (§6.1.1).
+  internal var context = Data()
   internal let deadline: PairingOfferDeadline
   internal let localKeys: PairKeyMaterial
   internal var ledger = CpaceAttemptLedger()
@@ -49,56 +52,70 @@ public final class RappPairingBridge: @unchecked Sendable {
       self.deadline = try PairingOfferDeadline(
         offer: offer, startedAtMilliseconds: startedAtMonotonicMs)
       self.offerHash = try offer.offerHash()
-      self.context = try cpaceKc2Context(offerHash: offerHash)
     } catch {
       throw RappBindingError.InvalidInput
     }
     self.localKeys = PairKeyMaterial()
   }
 
-  /// Builds the offer both peers derive from one pairing code.
+  /// Builds the custodian's offer, served over `transportProfiles`
+  /// (RAPP v26.10.9 §4.2).
   ///
-  /// The custodian calls this with the code it shows, the requester with the
-  /// code the user typed. Both must pass the same profiles, transports and
-  /// lifetime, because the offer hash binds them.
+  /// The offer identifier is fresh randomness the caller draws, never
+  /// derived from the code; the requester learns it through the
+  /// transport's bootstrap, which carries ``encodedOffer()``.
   ///
   /// - Throws: ``RappBindingError/InvalidInput`` for a code that is not six
-  ///   canonical characters or an offer that breaks the specification's
+  ///   canonical characters, an identifier of the wrong size, an
+  ///   unregistered transport profile, or profiles that break the offer
   ///   limits.
-  public static func codeOffer(  // swiftlint:disable:this function_parameter_count
-    role: RappEndpointRole,
+  public static func custodianOffer(
     pairingCode: String,
+    offerId: Data,
     profiles: [String],
-    transports: [RappTransportCandidate],
-    offerTtlMs: UInt64,
+    transportProfiles: [String],
     startedAtMonotonicMs: UInt64
   ) throws -> RappPairingBridge {
-    let candidates = try transports.map { candidate in
-      TransportCandidate(
-        profile: candidate.profile,
-        candidateIdentifier: candidate.candidateId,
-        parameters: try decodedParameters(candidate.parametersCbor))
-    }
-    let derived: PairingOffer
+    let created: PairingOffer
     do {
-      derived = try PairingOffer.fromCode(
-        pairingCode, profiles: profiles, transports: candidates,
-        offerLifetimeMilliseconds: offerTtlMs)
+      _ = try cpacePasswordString(pairingCode)
+      created = try PairingOffer.create(
+        offerIdentifier: offerId, profiles: profiles, transportProfiles: transportProfiles)
     } catch {
       throw RappBindingError.InvalidInput
     }
     return try RappPairingBridge(
-      role: role.engineRole, offer: derived, pairingCode: pairingCode,
+      role: .proxy, offer: created, pairingCode: pairingCode,
       startedAtMonotonicMs: startedAtMonotonicMs)
   }
 
-  /// Decodes a candidate's public parameters.
-  private static func decodedParameters(_ bytes: Data) throws -> [String: WireValue] {
-    guard !bytes.isEmpty else { return [:] }
-    guard case .map(let parameters)? = try? decodeDeterministicCbor(bytes) else {
+  /// Builds the requester's side from the offer the custodian served over
+  /// the connection's transport (RAPP v26.10.9 §4.2 step 3).
+  ///
+  /// The offer must name the KC2 suite and carry an entry for
+  /// `transportProfile`; anything else ends the flow before CPace, without
+  /// fallback.
+  ///
+  /// - Throws: ``RappBindingError/InvalidInput`` for an offer that does not
+  ///   decode, names no acceptable suite, or has no entry for the
+  ///   transport.
+  public static func bootstrapOffer(
+    encodedOffer: Data,
+    transportProfile: String,
+    pairingCode: String,
+    startedAtMonotonicMs: UInt64
+  ) throws -> RappPairingBridge {
+    let decoded: PairingOffer
+    do {
+      _ = try cpacePasswordString(pairingCode)
+      decoded = try PairingOffer.decode(encodedOffer)
+    } catch {
       throw RappBindingError.InvalidInput
     }
-    return parameters
+    guard decoded.entry(for: transportProfile) != nil else { throw RappBindingError.InvalidInput }
+    return try RappPairingBridge(
+      role: .requester, offer: decoded, pairingCode: pairingCode,
+      startedAtMonotonicMs: startedAtMonotonicMs)
   }
 
   /// Names a ceremony failure in the public vocabulary.
@@ -119,6 +136,16 @@ public final class RappPairingBridge: @unchecked Sendable {
     lock.lock()
     defer { lock.unlock() }
     return try body()
+  }
+
+  /// `encode_deterministic_cbor(pairing-offer)`: the bootstrap a custodian
+  /// serves, on the BLE characteristic or as its first stream frame.
+  public func encodedOffer() throws -> Data {
+    do {
+      return try locked { try offer.encoded() }
+    } catch {
+      throw RappBindingError.InvalidInput
+    }
   }
 
   /// How long the offer lives, in milliseconds.

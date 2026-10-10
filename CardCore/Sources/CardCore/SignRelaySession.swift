@@ -37,16 +37,25 @@
     ///   - role: which side of the pairing this is.
     ///   - pair: the stored pairing to establish over.
     ///   - vault: where the pairing's records live.
+    ///   - transportProfile: the connection's transport profile, which the
+    ///     session binds.
     /// - Throws: whatever the engine reports for an unusable pairing.
-    public init(role: Role, pair: RappPairRecord, vault: RappOperationVault) throws {
+    public init(
+      role: Role,
+      pair: RappPairRecord,
+      vault: RappOperationVault,
+      transportProfile: String = rappStreamProfileName()
+    ) throws {
       self.role = role
       self.bridge =
         switch role {
         case .requester:
-          try RappSessionBridge.beginRequester(pair: pair, vault: vault)
+          try RappSessionBridge.beginRequester(
+            pair: pair, vault: vault, transportProfile: transportProfile)
 
         case .proxy:
-          try RappSessionBridge.beginProxy(pair: pair, vault: vault)
+          try RappSessionBridge.beginProxy(
+            pair: pair, vault: vault, transportProfile: transportProfile)
         }
     }
 

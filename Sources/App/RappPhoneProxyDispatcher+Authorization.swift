@@ -8,7 +8,7 @@
   /// Authorization handling and approval resolution for remote proxy operations.
   extension RappPhoneProxyDispatcher {
     /// What the holder is shown: the origin or document name, or a batch's
-    /// whole document list in signing order (RAPP v26.10.1 §9.3).
+    /// whole document list in signing order (RAPP v26.10.9 §9.3).
     private static func consentContext(for operation: RappOperationDriver.Operation) -> String? {
       guard operation.kind == .batchSignDocuments else { return operation.displayContext }
       return operation.documentNames.joined(separator: "\n")

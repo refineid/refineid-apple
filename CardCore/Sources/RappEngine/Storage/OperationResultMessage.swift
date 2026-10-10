@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// One `operation.result` (RAPP v26.10.1 §7.1), as carried on the wire and
+/// One `operation.result` (RAPP v26.10.9 §7.1), as carried on the wire and
 /// retained until the requester acknowledges it.
 ///
 /// The response stays the map the wire carries: only the requester, which
@@ -43,7 +43,7 @@ internal struct OperationResultMessage: Equatable {
   /// A live completed result carries a response and no error; a retired one
   /// carries `operation_already_retired` and no response; every other status
   /// carries an error its registry pairs with that status. An ambiguous
-  /// result may also carry a batch's partial progress (RAPP v26.10.1 §9.3).
+  /// result may also carry a batch's partial progress (RAPP v26.10.9 §9.3).
   internal var isConsistent: Bool {
     switch (status, error, response) {
     case (.completed, .none, .some):

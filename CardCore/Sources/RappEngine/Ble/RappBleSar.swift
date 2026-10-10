@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The RAPP BLE segmentation and reassembly framing (RAPP v26.10.1 §5.3).
+/// The RAPP BLE segmentation and reassembly framing (RAPP v26.10.9 §5.3).
 ///
 /// Every message on the Channel Characteristic travels as one or more
 /// fragments, each a 6-byte header (total length, chunk sequence, flags,

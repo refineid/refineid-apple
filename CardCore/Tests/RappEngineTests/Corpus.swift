@@ -5,12 +5,15 @@ import Foundation
 /// The vendored conformance corpus.
 internal struct Corpus: Decodable {
   private enum CodingKeys: String, CodingKey {
+    case cpaceKc2 = "cpace_kc2"
     case deterministicCBOR = "deterministic_cbor"
+    case discoveryHint = "discovery_hint"
     case format = "format"
     case grantEnforcement = "grant_enforcement"
     case grantsHash = "grants_hash"
     case identifierDerivation = "identifier_derivation"
     case noiseHandshake = "noise_handshake"
+    case pairingOffer = "pairing_offer"
     case protocolDocumentVersion = "protocol_document_version"
     case rejectedCBOR = "rejected_cbor"
     case rejectedEnvelope = "rejected_envelope"
@@ -33,4 +36,7 @@ internal struct Corpus: Decodable {
   internal let identifierDerivation: [IdentifierVector]
   internal let streamRendezvous: [StreamRendezvousVector]
   internal let noiseHandshake: [NoiseVector]
+  internal let pairingOffer: [PairingOfferVector]
+  internal let cpaceKc2: [CpaceKc2Vector]
+  internal let discoveryHint: [DiscoveryHintVector]
 }

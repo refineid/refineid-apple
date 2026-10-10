@@ -22,11 +22,6 @@ internal final class RappPairingModel: ObservableObject {
     case failed(String)
   }
 
-  private enum Policy {
-    /// Names the one stream candidate an offer of this transport carries.
-    static let streamCandidateID = "stream-1"
-  }
-
   /// The in-protocol name this device introduces itself with.
   internal static var localDisplayName: String {
     #if os(macOS)
@@ -45,24 +40,16 @@ internal final class RappPairingModel: ObservableObject {
     #endif
   }
 
-  /// The one transport candidate an offer carries, by build.
+  /// The transport profile a ceremony runs over in this build.
   ///
-  /// Both peers derive the offer from the code, so both name this same
-  /// candidate. The stream candidate names no endpoints: the requester
-  /// finds the holder by its published pairing attributes.
-  internal static var offeredCandidate: RappPairingCoordinator.TransportCandidate {
+  /// The custodian's offer names it (RAPP v26.10.9 §2.2); the requester
+  /// finds the holder by its published pairing attributes and reads the
+  /// offer it serves.
+  internal static var ceremonyTransportProfile: String {
     #if REFINEID_STREAM_TRANSPORT
-      .init(
-        profile: rappStreamProfileName(),
-        candidateID: Policy.streamCandidateID,
-        parametersCBOR: RappApplePeerProfile.candidateParameters
-      )
+      rappStreamProfileName()
     #else
-      .init(
-        profile: RappApplePeerProfile.name,
-        candidateID: RappApplePeerProfile.candidateID,
-        parametersCBOR: RappApplePeerProfile.candidateParameters
-      )
+      RappApplePeerProfile.name
     #endif
   }
 
@@ -170,7 +157,7 @@ internal final class RappPairingModel: ObservableObject {
     RappPairingCoordinator.Options(
       code: code,
       profiles: RappApplePeerProfile.supportedCredentialProfiles,
-      candidate: Self.offeredCandidate,
+      transportProfile: Self.ceremonyTransportProfile,
       displayName: Self.localDisplayName,
       platform: Self.localPlatform,
       vault: vault,

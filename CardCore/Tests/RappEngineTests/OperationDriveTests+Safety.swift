@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-/// 3. At-most-once card safety (RAPP v26.10.1 §8.1)
+/// 3. At-most-once card safety (RAPP v26.10.9 §8.1)
 internal func step3() throws {
   // MARK: - 3. At-most-once card safety
   try approvalDurableBeforeTransmission()
@@ -23,8 +23,8 @@ private func approvalDurableBeforeTransmission() throws {
 
   let states = store.writes.map(\.state)
   check(
-    "the untransmitted entry is durable before the transmission is",
-    states == [.committed, .executing])
+    "the in-flight entry is one durable write before the command exists",
+    states == [.executing])
   check(
     "the transmission is recorded before the command is taken",
     store.writes.last?.transmissionCount == TransmissionCount.single)
@@ -58,12 +58,15 @@ private func secondTransmissionRefused() throws {
     operationIdentifier: OperationFixture.operationIdentifier,
     requestHash: try browserRequest().requestHash())
   var direct = OperationJournalStore()
-  try journal.commit(to: &direct, requestHash: try browserRequest().requestHash())
-  let first = try journal.beginCardCommand(to: &direct, command: "one-shot", batchTotal: nil)
+  let first = try journal.beginCardCommand(
+    to: &direct, requestHash: try browserRequest().requestHash(), command: "one-shot",
+    batchTotal: nil)
   _ = first.execute { $0 }
   var journalSecond = false
   do {
-    _ = try journal.beginCardCommand(to: &direct, command: "one-shot", batchTotal: nil)
+    _ = try journal.beginCardCommand(
+      to: &direct, requestHash: try browserRequest().requestHash(), command: "one-shot",
+      batchTotal: nil)
     journalSecond = true
   } catch JournalError.invalidState {
     journalSecond = false
@@ -171,13 +174,15 @@ private func interruptedRecoveryAmbiguous() throws {
   // An in-flight entry written before the transmission is equally
   // ambiguous: the entry alone does not prove the card was left untouched.
   var committedOnly = OperationJournal(
-    pairIdentifier: OperationFixture.pairIdentifier,
-    sessionIdentifier: OperationFixture.sessionIdentifier,
-    operationIdentifier: OperationFixture.operationIdentifier,
-    requestHash: try browserRequest().requestHash())
+    recovered: ProxyJournalRecord(
+      pairIdentifier: OperationFixture.pairIdentifier,
+      sessionIdentifier: OperationFixture.sessionIdentifier,
+      operationIdentifier: OperationFixture.operationIdentifier,
+      requestHash: try browserRequest().requestHash(),
+      state: .committed,
+      transmissionCount: TransmissionCount.untransmitted,
+      automaticRetryPermitted: false))
   var committedStore = OperationJournalStore()
-  try committedOnly.commit(
-    to: &committedStore, requestHash: try browserRequest().requestHash())
   try committedOnly.recoverAfterCrash(to: &committedStore)
   check(
     "an untransmitted in-flight entry recovers as ambiguous",

@@ -25,21 +25,23 @@ public final class RappSessionBridge: @unchecked Sendable {
     self.phase = .handshaking(handshake)
   }
 
-  /// Opens a session as the requester, after an explicit local user action.
+  /// Opens a session as the requester, after an explicit local user action,
+  /// bound to the connection's `transportProfile`.
   ///
   /// - Throws: ``RappBindingError/InvalidInput`` when the stored pairing is
   ///   not this endpoint's, and ``RappBindingError/ProtocolFailure`` when the
   ///   handshake cannot start.
   public static func beginRequester(
     pair: RappPairRecord,
-    vault: RappOperationVault
+    vault: RappOperationVault,
+    transportProfile: String
   ) throws -> RappSessionBridge {
     _ = vault
     do {
       return RappSessionBridge(
         pairRecord: pair.record,
         handshake: try SessionHandshake.beginRequester(
-          pair: pair.record, intent: ExplicitUserIntent()))
+          pair: pair.record, transportProfile: transportProfile, intent: ExplicitUserIntent()))
     } catch let error as SessionError {
       throw bindingError(error)
     } catch {
@@ -47,19 +49,22 @@ public final class RappSessionBridge: @unchecked Sendable {
     }
   }
 
-  /// Answers one incoming connection as the proxy.
+  /// Answers one incoming connection as the proxy, bound to the
+  /// connection's `transportProfile`.
   ///
   /// - Throws: ``RappBindingError/InvalidInput`` when the stored pairing is
   ///   not this endpoint's.
   public static func beginProxy(
     pair: RappPairRecord,
-    vault: RappOperationVault
+    vault: RappOperationVault,
+    transportProfile: String
   ) throws -> RappSessionBridge {
     _ = vault
     do {
       return RappSessionBridge(
         pairRecord: pair.record,
-        handshake: try SessionHandshake.beginProxy(pair: pair.record))
+        handshake: try SessionHandshake.beginProxy(
+          pair: pair.record, transportProfile: transportProfile))
     } catch let error as SessionError {
       throw bindingError(error)
     } catch {

@@ -54,7 +54,6 @@ import Testing
       )
 
       let code = RappPairingCode.generate()
-      let candidateID = "apple-peer-v1.nearby"
       let profiles = [
         "fi.refineid.card-status.v1",
         "fi.refineid.authentication.v1",
@@ -62,15 +61,15 @@ import Testing
       ]
       let (requester, proxy) = try await makeConnectedPair(
         code: code,
-        candidateID: candidateID,
         profiles: profiles
       )
 
       async let requesterPairTask = awaitPair(requester)
       async let proxyPairTask = awaitPair(proxy)
 
-      await proxy.transportConnected()
+      // The requester waits for the offer the custodian serves on connecting.
       await requester.transportConnected()
+      await proxy.transportConnected()
 
       let requesterSummary = try await requesterPairTask
       let proxySummary = try await proxyPairTask
@@ -84,14 +83,8 @@ import Testing
 
     private func makeConnectedPair(
       code: String,
-      candidateID: String,
       profiles: [String]
     ) async throws -> (RappPairingCoordinator, RappPairingCoordinator) {
-      let candidate = RappPairingCoordinator.TransportCandidate(
-        profile: "apple-peer-v1",
-        candidateID: candidateID,
-        parametersCBOR: Data([0xA0])
-      )
       let testID = UUID().uuidString
       let requesterVault = RappDeviceVault(
         accessGroup: nil,
@@ -110,7 +103,7 @@ import Testing
         RappPairingCoordinator.Options(
           code: code,
           profiles: profiles,
-          candidate: candidate,
+          transportProfile: "apple-peer-v1",
           displayName: name,
           platform: "iOS",
           vault: vault,

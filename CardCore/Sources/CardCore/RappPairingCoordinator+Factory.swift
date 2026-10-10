@@ -9,8 +9,8 @@
 
     /// What one side of a ceremony starts from.
     ///
-    /// Both sides must name the same profiles and candidate: the offer hash
-    /// binds them, and both peers derive the offer from the code alone.
+    /// The custodian's offer names the profiles and the transport; the
+    /// requester learns both from the offer it reads.
     public struct Options: Sendable {
       // MARK: Properties
 
@@ -20,8 +20,8 @@
       public let code: String
       /// Credential profiles the offer names and the requester asks for.
       public let profiles: [String]
-      /// The one transport candidate the offer advertises.
-      public let candidate: TransportCandidate
+      /// The registered transport profile the ceremony runs over.
+      public let transportProfile: String
       /// User-visible name this endpoint introduces itself with.
       public let displayName: String
       /// Platform label this endpoint introduces itself with.
@@ -41,7 +41,7 @@
       public init(
         code: String,
         profiles: [String],
-        candidate: TransportCandidate,
+        transportProfile: String,
         displayName: String,
         platform: String,
         vault: RappDeviceVault,
@@ -51,7 +51,7 @@
       ) {
         self.code = code
         self.profiles = profiles
-        self.candidate = candidate
+        self.transportProfile = transportProfile
         self.displayName = displayName
         self.platform = platform
         self.vault = vault
@@ -63,37 +63,73 @@
 
     // MARK: Static Factories
 
-    /// The requester side: the user typed the code the custodian shows.
+    /// The requester side over a frame transport: the user typed the code
+    /// the custodian shows, and the offer arrives as the custodian's first
+    /// frame after the pairing preamble (RAPP v26.10.9 §4.2).
     ///
     /// - Throws: ``RappBindingError/InvalidInput`` for a code that is not
-    ///   exactly six characters of the code alphabet.
+    ///   exactly six characters of the code alphabet or an unregistered
+    ///   transport profile.
     public static func requester(options: Options) throws -> RappPairingCoordinator {
-      try make(role: .requester, options: options)
-    }
-
-    /// The custodian side: this device shows the code and holds the card.
-    ///
-    /// - Throws: ``RappBindingError/InvalidInput`` for a malformed code.
-    public static func custodian(options: Options) throws -> RappPairingCoordinator {
-      try make(role: .proxy, options: options)
-    }
-
-    private static func make(role: Role, options: Options) throws -> RappPairingCoordinator {
-      let code = RappPairingCode.normalize(options.code)
-      guard RappPairingCode.isValid(code) else { throw RappBindingError.InvalidInput }
+      let code = try canonicalCode(options.code)
       let startedAt = options.clock.monotonicMilliseconds()
-      let bridge = try RappPairingBridge.codeOffer(
-        role: role == .requester ? .requester : .proxy,
+      return try coordinator(
+        role: .requester, bridge: nil, code: code, options: options, startedAt: startedAt)
+    }
+
+    /// The custodian side: this device creates a random offer, shows the
+    /// code and holds the card.
+    ///
+    /// - Throws: ``RappBindingError/InvalidInput`` for a malformed code or
+    ///   an unregistered transport profile.
+    public static func custodian(options: Options) throws -> RappPairingCoordinator {
+      let code = try canonicalCode(options.code)
+      let startedAt = options.clock.monotonicMilliseconds()
+      let bridge = try RappPairingBridge.custodianOffer(
         pairingCode: code,
+        offerId: try options.entropy.offerID(),
         profiles: options.profiles,
-        transports: [options.candidate.binding],
-        offerTtlMs: RappPairingCode.offerLifetimeMilliseconds,
-        startedAtMonotonicMs: startedAt
-      )
+        transportProfiles: [options.transportProfile],
+        startedAtMonotonicMs: startedAt)
+      return try coordinator(
+        role: .proxy, bridge: bridge, code: code, options: options, startedAt: startedAt)
+    }
+
+    /// The requester side over BLE, from the offer read off the custodian's
+    /// bootstrap characteristic.
+    ///
+    /// - Throws: ``RappBindingError/InvalidInput`` for a malformed code or
+    ///   an offer that names no acceptable suite or no entry for the
+    ///   transport.
+    public static func requester(
+      options: Options, bootstrapOffer: Data
+    ) throws -> RappPairingCoordinator {
+      let code = try canonicalCode(options.code)
+      let startedAt = options.clock.monotonicMilliseconds()
+      let bridge = try RappPairingBridge.bootstrapOffer(
+        encodedOffer: bootstrapOffer, transportProfile: options.transportProfile,
+        pairingCode: code, startedAtMonotonicMs: startedAt)
+      return try coordinator(
+        role: .requester, bridge: bridge, code: code, options: options, startedAt: startedAt)
+    }
+
+    internal static func canonicalCode(_ raw: String) throws -> String {
+      let code = RappPairingCode.normalize(raw)
+      guard RappPairingCode.isValid(code) else { throw RappBindingError.InvalidInput }
+      return code
+    }
+
+    private static func coordinator(
+      role: Role, bridge: RappPairingBridge?, code: String, options: Options, startedAt: UInt64
+    ) throws -> RappPairingCoordinator {
+      guard let candidateID = rappCandidateIdentifier(transportProfile: options.transportProfile)
+      else { throw RappBindingError.InvalidInput }
       return RappPairingCoordinator(
         role: role,
         bridge: bridge,
-        candidateID: options.candidate.candidateID,
+        transportProfile: options.transportProfile,
+        candidateID: candidateID,
+        pairingCode: code,
         profiles: options.profiles,
         displayName: options.displayName,
         platform: options.platform,
@@ -102,8 +138,7 @@
         clock: options.clock,
         entropy: options.entropy,
         offerDeadlineMilliseconds: deadline(
-          startedAt: startedAt, lifetime: RappPairingCode.offerLifetimeMilliseconds)
-      )
+          startedAt: startedAt, lifetime: RappPairingCode.offerLifetimeMilliseconds))
     }
 
     internal static func deadline(startedAt: UInt64, lifetime: UInt64) -> UInt64 {

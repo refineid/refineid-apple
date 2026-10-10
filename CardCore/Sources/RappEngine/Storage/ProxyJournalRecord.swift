@@ -52,7 +52,7 @@ internal struct ProxyJournalRecord: Equatable {
   internal var state: OperationState
   internal var transmissionCount: UInt8
   internal var automaticRetryPermitted: Bool
-  /// A batch's per-document progress (RAPP v26.10.1 §8.1, §9.3); nil for
+  /// A batch's per-document progress (RAPP v26.10.9 §8.1, §9.3); nil for
   /// every other operation.
   internal var batch: BatchProgress?
 

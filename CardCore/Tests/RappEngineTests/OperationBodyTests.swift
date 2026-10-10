@@ -1,7 +1,7 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 //
 // Replays the operation-protocol bodies an independent encoder produced from
-// the RAPP v26.10.1 schemas. Every body is produced through the engine's own
+// the RAPP v26.10.9 schemas. Every body is produced through the engine's own
 // encoders rather than assembled here, so the test proves what a peer would
 // actually receive.
 
@@ -71,7 +71,7 @@ internal struct OperationBodyTests {
   internal func vectorIdentity() throws {
     let corpus = try CorpusFile.operation(filePath: #filePath)
     #expect(corpus.format == "fi.refineid.rapp.operation-vectors-v1")
-    #expect(corpus.protocolDocumentVersion == "26.10.1")
+    #expect(corpus.protocolDocumentVersion == "26.10.9")
     #expect(corpus.vectors.count == 34)
   }
 

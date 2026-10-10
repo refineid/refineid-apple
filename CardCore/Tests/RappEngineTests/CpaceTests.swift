@@ -176,40 +176,33 @@ internal struct CpaceTests {
     #expect(isk.suffix(8) == expectedIskSuffix)
   }
 
-  @Test("KC2 replays the reference implementation byte for byte")
-  internal func kc2ReferenceVectors() throws {
-    for vector in try CpaceKc2VectorFile.load(filePath: #filePath).vectors {
+  @Test("KC2 replays the v26.10.9 corpus byte for byte on every transport")
+  internal func kc2CorpusVectors() throws {
+    let vectors = try CorpusFile.conformance(filePath: #filePath).cpaceKc2
+    #expect(Set(vectors.map(\.transportProfile)) == [RappBleGattProfile.name, streamProfile])
+    for vector in vectors {
       let offerHash = try Data(hex: vector.offerHashHex)
       let offerIdentifier = try Data(hex: vector.offerIdHex)
-      let context = try cpaceKc2Context(offerHash: offerHash)
-      #expect(context.hex == vector.contextHex, "\(vector.name)")
-      #expect(
-        cpaceGeneratorString(
-          dsi: RappCpaceConstants.dsi, prs: Data(vector.pairingCode.utf8),
-          channelInfo: context, sid: offerIdentifier
-        ).hex == vector.generatorStringHex, "\(vector.name)")
-      let initiatorRandom = try Data(hex: vector.testOnlyInitiatorRandomHex)
-      let responderRandom = try Data(hex: vector.testOnlyResponderRandomHex)
-      #expect(cpaceReduceWideScalar(initiatorRandom).hex == vector.testOnlyInitiatorScalarHex)
-      #expect(cpaceReduceWideScalar(responderRandom).hex == vector.testOnlyResponderScalarHex)
+      let context = try cpaceKc2Context(
+        offerHash: offerHash, transportProfile: vector.transportProfile,
+        candidateIdentifier: vector.candidateIdentifier)
+      #expect(context.hex == vector.contextHex, "\(vector.name) context")
+      #expect(context.count == vector.contextLength, "\(vector.name) context length")
+      let generator = try cpaceKc2Generator(
+        code: vector.pairingCode, context: context, sid: offerIdentifier)
+      #expect(generator.compress().hex == vector.generatorHex, "\(vector.name) generator")
 
       let initiator = try CpaceKc2Initiator(
         code: vector.pairingCode, context: context, offerIdentifier: offerIdentifier,
-        randomBytes: initiatorRandom)
-      #expect(initiator.stepOne.hex == vector.yaHex, "\(vector.name)")
+        randomBytes: try Data(hex: vector.testOnlyInitiatorRandomHex))
+      #expect(initiator.stepOne.hex == vector.stepOneHex, "\(vector.name) step 1")
       let responder = try CpaceKc2Responder(
         code: vector.pairingCode, context: context, offerIdentifier: offerIdentifier,
-        stepOne: initiator.stepOne, randomBytes: responderRandom)
-      #expect(responder.stepTwo.hex == vector.stepTwoHex, "\(vector.name)")
+        stepOne: initiator.stepOne, randomBytes: try Data(hex: vector.testOnlyResponderRandomHex))
+      #expect(responder.stepTwo.hex == vector.stepTwoHex, "\(vector.name) step 2")
       let (stepThree, initiatorKey) = try initiator.processStepTwo(responder.stepTwo)
-      #expect(stepThree.hex == vector.stepThreeHex, "\(vector.name)")
-      #expect(initiatorKey.hex == vector.pskHex, "\(vector.name)")
-      #expect(try responder.processStepThree(stepThree).hex == vector.pskHex, "\(vector.name)")
-
-      let transcriptHash = cpaceKc2TranscriptHash(
-        sid: offerIdentifier, context: context, partyAPublic: try Data(hex: vector.yaHex),
-        partyBPublic: try Data(hex: vector.ybHex))
-      #expect(transcriptHash.hex == vector.transcriptHashHex, "\(vector.name)")
+      #expect(stepThree.hex == vector.stepThreeHex, "\(vector.name) step 3")
+      #expect(try responder.processStepThree(stepThree) == initiatorKey, "\(vector.name) PSK")
     }
   }
 
@@ -217,7 +210,8 @@ internal struct CpaceTests {
   internal func kc2WrongCodeFailsAtResponderTag() throws {
     let offerIdentifier = Data(repeating: 0x42, count: RappCpaceConstants.offerIdSize)
     let context = try cpaceKc2Context(
-      offerHash: Data(repeating: 0x66, count: RappCpaceConstants.offerIdSize))
+      offerHash: Data(repeating: 0x66, count: RappCpaceConstants.offerIdSize),
+      transportProfile: streamProfile, candidateIdentifier: "stream-1")
     let initiator = try CpaceKc2Initiator(
       code: "7KX4M9", context: context, offerIdentifier: offerIdentifier,
       randomBytes: Data(repeating: 0x11, count: RappCpaceConstants.wideScalarSize))
@@ -234,7 +228,8 @@ internal struct CpaceTests {
   internal func kc2RefusesTamperedSteps() throws {
     let offerIdentifier = Data(repeating: 0x42, count: RappCpaceConstants.offerIdSize)
     let context = try cpaceKc2Context(
-      offerHash: Data(repeating: 0x66, count: RappCpaceConstants.offerIdSize))
+      offerHash: Data(repeating: 0x66, count: RappCpaceConstants.offerIdSize),
+      transportProfile: streamProfile, candidateIdentifier: "stream-1")
     let initiator = try CpaceKc2Initiator(
       code: "7KX4M9", context: context, offerIdentifier: offerIdentifier,
       randomBytes: Data(repeating: 0x11, count: RappCpaceConstants.wideScalarSize))

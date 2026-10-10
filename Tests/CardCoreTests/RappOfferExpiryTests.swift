@@ -6,29 +6,26 @@ import XCTest
 
 internal final class RappOfferExpiryTests: XCTestCase {
   private static let cpaceRandomByteCount = 64
+  private static let offerIdentifierByteCount = 32
+  private static let startedAt: UInt64 = 1_000
+  private static let offerLifetime: UInt64 = 60_000
 
   internal func testOfferExpiresAtItsMonotonicDeadline() throws {
-    XCTAssertNoThrow(try begin(at: 1_099))
-    assertOfferExpired { try begin(at: 1_100) }
+    XCTAssertNoThrow(try begin(at: Self.startedAt + Self.offerLifetime - 1))
+    assertOfferExpired { try begin(at: Self.startedAt + Self.offerLifetime) }
   }
 
   private func begin(at now: UInt64) throws {
-    let bridge = try RappPairingBridge.codeOffer(
-      role: .proxy,
+    let transportProfile = rappStreamProfileName()
+    let bridge = try RappPairingBridge.custodianOffer(
       pairingCode: "246813",
+      offerId: Data(repeating: 0x10, count: Self.offerIdentifierByteCount),
       profiles: ["fi.refineid.card-status.v1"],
-      transports: [
-        RappTransportCandidate(
-          profile: "local-quic-v1",
-          candidateId: "candidate",
-          parametersCbor: Data([0xa0])
-        )
-      ],
-      offerTtlMs: 100,
-      startedAtMonotonicMs: 1_000
+      transportProfiles: [transportProfile],
+      startedAtMonotonicMs: Self.startedAt
     )
     try bridge.beginCpace(
-      candidateId: "candidate",
+      candidateId: try XCTUnwrap(rappCandidateIdentifier(transportProfile: transportProfile)),
       randomBytes64: Data(repeating: 0x11, count: Self.cpaceRandomByteCount),
       nowMonotonicMs: now)
   }

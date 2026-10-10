@@ -21,7 +21,6 @@ import Testing
       "fi.refineid.document-signing.v1",
     ]
     private static let transportProfile = "apple-peer-v1"
-    private static let candidateID = "apple-peer-v1.nearby"
     private static let signature = Data([0x30, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02])
 
     // MARK: Functions
@@ -31,8 +30,7 @@ import Testing
     internal func aRequestCrossesAnEstablishedSession() async throws {
       let paired = try await SignRelayPairing.make(
         profiles: Self.profiles,
-        transportProfile: Self.transportProfile,
-        candidateID: Self.candidateID
+        transportProfile: Self.transportProfile
       )
       defer { paired.deleteKeychainServices() }
 
