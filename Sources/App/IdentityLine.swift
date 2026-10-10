@@ -23,6 +23,9 @@
     /// read, and no read is under way.
     case phoneConnectedRetry
 
+    /// "Phone not reachable": a phone is paired but not on the network.
+    case phoneUnreachable
+
     /// "Reading the card…": a card in the reader is settling, or a read of
     /// the phone's card is in flight.
     case reading
@@ -48,7 +51,10 @@
         if facts.readerConnected {
           return .insertCard
         }
-        return facts.phonePresent ? .phoneConnected : .connectReader
+        if facts.phonePresent {
+          return .phoneConnected
+        }
+        return facts.paired ? .phoneUnreachable : .connectReader
       }
     }
   }

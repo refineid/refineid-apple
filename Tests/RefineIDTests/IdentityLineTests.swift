@@ -22,7 +22,8 @@ internal struct IdentityLineTests {
     readerConnected: false,
     cardPresent: false,
     phonePresent: false,
-    phoneWaitsForCard: false
+    phoneWaitsForCard: false,
+    paired: false
   )
 
   internal static let cases: [Case] = [
@@ -37,6 +38,32 @@ internal struct IdentityLineTests {
         facts.phonePresent = true
       },
       line: .insertCard),
+    Case(
+      name: "paired phone off the network",
+      facts: with { $0.paired = true }, line: .phoneUnreachable),
+    Case(
+      name: "empty reader beats an unreachable phone",
+      facts: with { facts in
+        facts.readerConnected = true
+        facts.paired = true
+      },
+      line: .insertCard),
+    Case(
+      name: "paired phone here with its card unread offers Retry",
+      facts: with { facts in
+        facts.availability = .cardWithoutIdentity
+        facts.paired = true
+        facts.phonePresent = true
+        facts.phoneWaitsForCard = true
+      },
+      line: .phoneConnectedRetry),
+    Case(
+      name: "paired phone present",
+      facts: with { facts in
+        facts.paired = true
+        facts.phonePresent = true
+      },
+      line: .phoneConnected),
     Case(
       name: "phone present, nothing to do",
       facts: with { $0.phonePresent = true }, line: .phoneConnected),

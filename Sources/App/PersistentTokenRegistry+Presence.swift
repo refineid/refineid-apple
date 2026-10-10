@@ -244,6 +244,7 @@
         queue: .main
       ) { [weak self] _ in
         Task { @MainActor [weak self] in
+          self?.refreshPairing()
           self?.restartWatchingPresence()
         }
       }

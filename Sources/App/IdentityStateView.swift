@@ -116,7 +116,8 @@
         readerConnected: CardPresence.shared.isReaderConnected,
         cardPresent: CardPresence.shared.isCardPresent,
         phonePresent: PersistentTokenRegistry.shared.holderIsAdvertising,
-        phoneWaitsForCard: phoneWaitsForCard
+        phoneWaitsForCard: phoneWaitsForCard,
+        paired: PersistentTokenRegistry.shared.hasPairing
       )
     }
 
@@ -161,6 +162,10 @@
 
       case .phoneConnected:
         Text("Phone connected")
+          .foregroundStyle(.secondary)
+
+      case .phoneUnreachable:
+        Text("Phone not reachable")
           .foregroundStyle(.secondary)
 
       case .connectReader:

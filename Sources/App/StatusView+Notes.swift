@@ -46,6 +46,7 @@
         !DemoMode.shared.isActive
           && !cardPresence.isReaderConnected
           && !holderIsAdvertising
+          && !remoteRegistry.hasPairing
           && availability == .noCard
           && signingModel.pending == nil
           && signingModel.queued.isEmpty
