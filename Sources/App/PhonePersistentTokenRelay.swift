@@ -57,7 +57,19 @@
     internal var connectionID: UUID?
     internal var preCoordinatorFrames: [Data] = []
     internal var relistenPolicy = RelistenPolicy.automatic
-    @Published internal var isActivelyConnected = false
+    @Published internal var isActivelyConnected = false {
+      didSet { connectionIndicator.update(active: isActivelyConnected) }
+    }
+
+    /// Whether a paired requester is shown as connected.
+    @Published internal private(set) var isPeerConnected = false
+
+    private lazy var connectionIndicator = ConnectionIndicator(
+      hold: ConnectionIndicator.defaultHold
+    ) {
+      [weak self] shown in
+      self?.isPeerConnected = shown
+    }
 
     /// Frames enter the coordinator in arrival order through this
     /// bounded chain; reset between connections.

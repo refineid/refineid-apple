@@ -9,11 +9,6 @@
   extension PhonePersistentTokenRelay {
     // MARK: Computed Properties
 
-    /// Whether a paired requester holds a session with this phone now.
-    internal var isPeerConnected: Bool {
-      isActivelyConnected && hasUsablePair()
-    }
-
     internal var isServing: Bool {
       #if REFINEID_STREAM_TRANSPORT
         return !streamListeners.isEmpty
