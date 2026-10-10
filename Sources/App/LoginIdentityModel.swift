@@ -72,12 +72,6 @@
     /// No card I/O of any kind.
     private let watcher = TKTokenWatcher()
 
-    /// The recovery attempt in flight, if any.
-    @ObservationIgnored private var recovery: Task<Void, Never>?
-
-    /// Whether recovery was already tried for this card appearance.
-    @ObservationIgnored private var attempted = false
-
     /// Token ids already given a removal handler, so each is asked once.
     private var observed: Set<String> = []
 
@@ -148,40 +142,6 @@
       }
     }
 
-    /// The software shape of pulling the card: begin one session on
-    /// each present card and end it at once.
-    nonisolated private static func touchPresentCard() async {
-      guard let manager = TKSmartCardSlotManager.default else { return }
-      for name in manager.slotNames {
-        guard
-          let slot = manager.slotNamed(name),
-          slot.state == .validCard,
-          let card = slot.makeSmartCard()
-        else { continue }
-        // Ending a session that never began trips an assertion inside
-        // TKSmartCard, which raises an exception nothing catches and
-        // takes the process with it. The card can leave between the
-        // state read above and this call, so the session is ended only
-        // when the card says it opened one.
-        let offers = SmartCardProtocolNegotiation.offers(
-          answerToReset: slot.atr?.bytes)
-        for (offset, protocols) in offers.enumerated() {
-          card.allowedProtocols = protocols
-          do {
-            guard try await card.beginSession() else { break }
-            card.endSession()
-            break
-          } catch {
-            let hasNarrowerOffer = offset + 1 < offers.count
-            guard
-              hasNarrowerOffer,
-              SmartCardProtocolNegotiation.retries(after: error)
-            else { break }
-          }
-        }
-      }
-    }
-
     /// Re-reads what is published and keeps watching what is there.
     ///
     /// The model's own watcher is the source: it is connected and
@@ -218,39 +178,6 @@
       for identifier in owned {
         guard observed.insert(identifier).inserted else { continue }
         watcher.addRemovalHandler(Self.removalHandler(for: self), forTokenID: identifier)
-      }
-    }
-
-    /// Performs one software "reinsertion" for this card appearance.
-    ///
-    /// The no-card-I/O rule above has exactly one exception, taken
-    /// only in the state it exists to prevent: a card in the reader
-    /// with no identity published from it. Pulling the card is what
-    /// recovers that state, because the card-status change makes
-    /// `ctkd` ask the driver again - and opening one brief session
-    /// and closing it produces the same status change in software.
-    /// It runs only while nothing is published, so there is no token
-    /// whose signature could be made to wait, and once per
-    /// appearance, so a card the driver genuinely cannot serve is
-    /// not prodded forever.
-    internal func attemptRecovery() async {
-      guard !attempted, recovery == nil, !isReady else { return }
-      attempted = true
-      let task = Task { await Self.touchPresentCard() }
-      recovery = task
-      await task.value
-      guard !task.isCancelled, !Task.isCancelled else { return }
-      recovery = nil
-      refresh()
-    }
-
-    /// Stops any scheduled recovery; a card that left resets the
-    /// once-per-appearance budget.
-    internal func cancelRecovery(cardLeft: Bool) {
-      recovery?.cancel()
-      recovery = nil
-      if cardLeft {
-        attempted = false
       }
     }
   }

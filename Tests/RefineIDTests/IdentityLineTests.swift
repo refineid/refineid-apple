@@ -106,6 +106,15 @@ internal struct IdentityLineTests {
       },
       line: .phoneConnectedRetry),
     Case(
+      name: "the card warning needs a card",
+      facts: with { facts in
+        facts.availability = .cardWithoutIdentity
+        facts.phonePresent = true
+        facts.readInFlight = true
+        facts.warnsUnavailableCard = true
+      },
+      line: .reading),
+    Case(
       name: "identity ready",
       facts: with { facts in
         facts.availability = .ready

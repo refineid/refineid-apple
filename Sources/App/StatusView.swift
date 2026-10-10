@@ -37,7 +37,7 @@
 
     /// Notices a card waiting to be taken into use, and carries the
     /// model its activation form works through.
-    @State private var activation = ActivationWatch()
+    private let activation = ActivationWatch.shared
     @State private var pin2Cache = Pin2Cache()
     @State private var offeringNumber = false
     @State private var hasStoredNumber = false
@@ -233,15 +233,12 @@
       #endif
     }
 
-    /// Ready stands recovery down and a removed card resets its budget.
-    ///
-    /// The activation watch owns the unready path so inspection and
-    /// recovery remain serialized.
+    /// Clears what a card took with it, and keeps the stored-number flag
+    /// current.
     private func react(to availability: LoginIdentityModel.Availability) {
       refreshStoredNumber()
       switch availability {
       case .ready:
-        model.cancelRecovery(cardLeft: false)
         offeringNumber = false
         retryHealth.refreshFromReader()
 
@@ -254,7 +251,6 @@
         // card operation itself has ended.
         guard !activation.defersRemoval, !signing.working else { return }
         retryHealth.clear()
-        model.cancelRecovery(cardLeft: true)
         signing.cardRemoved()
         pin2 = ""
         accessNumber = ""

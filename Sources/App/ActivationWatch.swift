@@ -23,7 +23,31 @@
       case awaitsActivation
     }
 
-    private var state = State.idle
+    /// The one watch the status window uses.
+    internal static let shared = ActivationWatch()
+
+    /// Seconds a card may stay present without an identity before the
+    /// row warns.
+    private static let settleSeconds = 10
+
+    /// How long a card may settle before the row warns.
+    internal static let settleLimit: Duration = .seconds(settleSeconds)
+
+    private var state = State.idle {
+      didSet {
+        guard state != oldValue else { return }
+        settle.cardWithoutIdentity(state == .reading)
+      }
+    }
+
+    /// Whether the card in the reader has outlasted ``settleLimit``
+    /// without an identity.
+    private var settled = false
+
+    @ObservationIgnored private lazy var settle = SettleDeadline(limit: Self.settleLimit) {
+      [weak self] expired in
+      self?.settled = expired
+    }
 
     @ObservationIgnored private var latestAvailability = LoginIdentityModel.Availability.noCard
 
@@ -58,10 +82,9 @@
       state == .reading || state == .awaitsActivation
     }
 
-    /// Kept for the identity view's API.
-    ///
-    /// Transport outcomes are never definitive semantic errors.
-    internal var warnsUnavailableCard: Bool { false }
+    /// Whether a card has stayed present without an identity past the
+    /// settle deadline.
+    internal var warnsUnavailableCard: Bool { settled }
 
     internal init() {
       let watcher = TKTokenWatcher()
