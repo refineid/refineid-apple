@@ -1075,7 +1075,7 @@ platforms.
 `YY.M.D` version, ten-minute-bucket build number, tags carry the exact build
 number. Full scheme: release plan, "Calendar versioning".
 
-Stamped **manually at release** via `Scripts/stamp-version.sh`, deliberately
+Stamped **manually at release** via the release manager's `stamp` command, deliberately
 not a build phase: automatic stamping would churn the version number in
 version control on every dev build. The script is present for release
 automation; dev builds keep the last release's committed version. The

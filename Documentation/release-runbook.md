@@ -14,7 +14,7 @@ There are three different artifacts. Do not confuse them.
 
 | Artifact | Command | Purpose |
 | --- | --- | --- |
-| Local macOS build | `Scripts/install-macos.sh --configuration Release` | Install an optimized development-signed build on this Mac. |
+| Local macOS build | `Scripts/apple-app-store-connect-release-manager.swift install-macos --configuration Release` | Install an optimized development-signed build on this Mac. |
 | App Store candidate | `Scripts/apple-app-store-connect-release-manager.swift candidate macos --upload` | Archive, inspect, export, and upload the production candidate to App Store Connect. |
 | Direct download | No supported command | Developer ID signing, notarization, and stapling are not currently a release path for this product. |
 
@@ -155,8 +155,8 @@ build/testflight/RefineID-macos.xcarchive
 
 Do not manually stamp `Version.xcconfig` before this workflow. The release
 script supplies `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` to the
-archive without dirtying the source tree. `Scripts/stamp-version.sh` serves
-local installation and separate module-version work; it is not a substitute
+archive without dirtying the source tree. The release manager's `stamp`
+command serves separate module-version work; it is not a substitute
 for the App Store candidate command.
 
 If inspection fails, stop. Fix the source or release configuration, review the
@@ -320,7 +320,7 @@ Versions release automatically on App Review approval (owner decision
 1. Confirm the released build matches the recorded source commit, version,
    build, and hardware evidence.
 2. Create the final release tag with owner approval. Do not use
-   `stamp-version.sh --tag`; its current tag command is for the iOS channel
+   `stamp --tag`; its current tag command is for the iOS channel
    naming scheme.
 3. Record the release outcome and UTC time in `Documentation/releases/`.
 4. Monitor review messages, crash reports, TestFlight/App Store feedback, and
@@ -335,11 +335,11 @@ cut a new reviewed version and follow this runbook again.
 For an optimized build installed only on the current development Mac:
 
 ```sh
-Scripts/install-macos.sh --configuration Release
-Scripts/install-macos.sh --check
+Scripts/apple-app-store-connect-release-manager.swift install-macos --configuration Release
+Scripts/apple-app-store-connect-release-manager.swift install-macos --check
 ```
 
-The install script stamps the current UTC version/build, verifies the
+The install command stamps the current UTC version/build for its build, verifies the
 signature, installs only under `/Applications`, and manages competing local
 CryptoTokenKit bundle registrations. Do not replace it with raw `xcodebuild`
 and a manual copy.

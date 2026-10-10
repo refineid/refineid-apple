@@ -8,7 +8,7 @@ PKCS#11 bridge.
 From a source checkout:
 
 ```sh
-Scripts/install-pkcs11-macos.sh
+Scripts/apple-app-store-connect-release-manager.swift install-pkcs11
 ```
 
 ssh uses `/usr/local/lib/librefineid_pkcs11.dylib`, which exposes only
