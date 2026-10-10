@@ -114,17 +114,6 @@
 
     // MARK: Static Functions
 
-    /// Publishes an already-fetched certificate as the persistent
-    /// identity.
-    internal static func publish(certificateDER: Data) {
-      Self.publish(certificateDER, cardSerial: nil)
-    }
-
-    /// Publishes an already-fetched certificate with its card serial.
-    internal static func publish(certificateDER: Data, cardSerial: String?) {
-      Self.publish(certificateDER, cardSerial: cardSerial)
-    }
-
     /// Withdraws every identity this driver has published.
     ///
     /// The published certificate is what Safari offers, so an identity the
@@ -283,10 +272,19 @@
         #endif
         return
       }
-      fetchBackoff.reset()
-      self.certificateDER = certificateDER
-      self.holderLine = DistinguishedName.holderLine(fromCertificate: certificateDER)
-      Self.publish(certificateDER, cardSerial: cardSerial)
+      switch Self.publish(certificateDER, cardSerial: cardSerial) {
+      case .notPublished:
+        fetchBackoff.recordFailure(at: .now)
+        return
+
+      case .readerHasPriority:
+        // The read worked; the reader card takes the identity's place.
+        fetchBackoff.reset()
+        return
+
+      case .published:
+        fetchBackoff.reset()
+      }
       #if REFINEID_STREAM_TRANSPORT
         if HolderPresencePolicy.armsLossHoldAfterRead(holderSeen: holderIsAdvertising) {
           armAdvertisementLossHold()

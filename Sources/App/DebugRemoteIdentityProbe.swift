@@ -62,12 +62,12 @@
       let before = publishedTokenCount()
       if Thread.isMainThread {
         MainActor.assumeIsolated {
-          PersistentTokenRegistry.publish(certificateDER: der, cardSerial: cardSerial)
+          _ = PersistentTokenRegistry.publish(der, cardSerial: cardSerial)
         }
       } else {
         DispatchQueue.main.sync {
           MainActor.assumeIsolated {
-            PersistentTokenRegistry.publish(certificateDER: der, cardSerial: cardSerial)
+            _ = PersistentTokenRegistry.publish(der, cardSerial: cardSerial)
           }
         }
       }

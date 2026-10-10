@@ -114,8 +114,8 @@
             print("[RemoteCardModel] publish: publishing certificate for holder=\(name)")
             fflush(stdout)
           #endif
-          PersistentTokenRegistry.publish(certificateDER: der, cardSerial: cardSerial)
-          finishConnect(holder: name)
+          let outcome = PersistentTokenRegistry.publish(der, cardSerial: cardSerial)
+          finishConnect(holder: outcome == .published ? name : nil)
         } else {
           #if DEBUG
             print("[RemoteCardModel] publish: no authentication certificate response or name")
