@@ -1,6 +1,64 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "%lld characters": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld character"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld characters"
+                }
+              }
+            }
+          }
+        },
+        "fi": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld merkki"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld merkkiä"
+                }
+              }
+            }
+          }
+        },
+        "sv": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld tecken"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld tecken"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Continue on your phone": {
       "localizations": {
         "fi": {
@@ -2596,6 +2654,22 @@
         }
       }
     },
+    "Insert the card into the reader": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Syötä kortti lukijaan"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sätt in kortet i läsaren"
+          }
+        }
+      }
+    },
     "Insert your card": {
       "localizations": {
         "fi": {
@@ -2625,22 +2699,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sätt i ditt identitetskort"
-          }
-        }
-      }
-    },
-    "Insert your identity card into the reader": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Laita henkilökortti lukijaan"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sätt in identitetskortet i läsaren"
           }
         }
       }
@@ -2689,6 +2747,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sätt i kortet i läsaren"
+          }
+        }
+      }
+    },
+    "Open RefineID on your phone and enter the pairing code:": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avaa puhelimesta RefineID ja syötä pariliitoskoodi:"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna RefineID på telefonen och ange kopplingskoden:"
           }
         }
       }
@@ -3593,6 +3667,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Parkopplade enheter"
+          }
+        }
+      }
+    },
+    "Pairing code": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pariliitoskoodi"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopplingskod"
           }
         }
       }
@@ -6852,28 +6942,12 @@
         }
       }
     },
-    "Code from phone": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Koodi puhelimesta"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kod från telefonen"
-          }
-        }
-      }
-    },
     "Could not find a device offering this pairing code.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laitetta, joka tarjoaa tätä koodia, ei löytynyt."
+            "value": "Laitetta, joka tarjoaa tätä pariliitoskoodia, ei löytynyt."
           }
         },
         "sv": {
@@ -6921,7 +6995,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Koodi ei kelpaa"
+            "value": "Pariliitoskoodi ei kelpaa"
           }
         },
         "sv": {
@@ -6937,7 +7011,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Koodia ei hyväksytty"
+            "value": "Pariliitoskoodia ei hyväksytty"
           }
         },
         "sv": {

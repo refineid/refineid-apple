@@ -187,9 +187,9 @@
       let field = app.windows["status"].textFields[UITestIdentifiers.pairingCodeField]
       try XCTSkipUnless(
         field.waitForExistence(timeout: UITestApp.appearTimeout),
-        "a card is in the reader; the window asks for no phone code beside one"
+        "a reader is connected; the window asks for the card, not a phone code"
       )
-      XCTAssertEqual(field.label, "Code from phone", "the phone code field has no label of its own")
+      XCTAssertEqual(field.label, "Pairing code", "the phone code field has no label of its own")
       field.click()
       field.typeText("7k x4!")
       XCTAssertEqual(field.value as? String, "7KX4", "the field kept characters no code holds")

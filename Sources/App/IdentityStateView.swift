@@ -141,7 +141,7 @@
           Text("Reading the card…")
             .foregroundStyle(.secondary)
         } else if CardPresence.shared.isReaderConnected {
-          Text("Insert your identity card into the reader")
+          Text("Insert the card into the reader")
             .foregroundStyle(.secondary)
         } else if isPairedDeviceOnline {
           Text("Phone connected")

@@ -44,7 +44,7 @@
     internal var shouldShowPairingPrompt: Bool {
       #if REFINEID_REMOTE_CARD
         !DemoMode.shared.isActive
-          && !cardPresence.isReaderCardPresent
+          && !cardPresence.isReaderConnected
           && !holderIsAdvertising
           && availability == .noCard
           && signingModel.pending == nil

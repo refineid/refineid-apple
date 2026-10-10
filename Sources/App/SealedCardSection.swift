@@ -19,28 +19,6 @@
   /// field holds, and nothing can be selected or copied back out of
   /// them.
   internal struct SealedCardSection: View {
-    /// The sideways nudge a refusal draws.
-    private struct Shake: GeometryEffect {
-      /// How far the row swings, in points.
-      private static let amplitude: CGFloat = 8
-
-      /// Sine phase per refusal, in half-turns: six half-turns is
-      /// three full swings.
-      private static let halfTurns: CGFloat = 6
-
-      /// Counts refusals; animating to the next integer plays one
-      /// shake.
-      var animatableData: CGFloat
-
-      func effectValue(size _: CGSize) -> ProjectionTransform {
-        ProjectionTransform(
-          CGAffineTransform(
-            translationX: Self.amplitude
-              * sin(animatableData * Self.halfTurns * .pi),
-            y: 0))
-      }
-    }
-
     /// The step a submitted number's service is on.
     ///
     /// One direction only: the card leaves, the card returns, the
@@ -59,16 +37,6 @@
       case entry
       case trying
     }
-
-    private static let boxCount = CardAccessNumber.digitCount
-    private static let boxSpacing: CGFloat = 6
-    private static let boxWidth: CGFloat = 32
-    private static let boxHeight: CGFloat = 40
-    private static let boxCorner: CGFloat = 6
-    private static let boxBorder: CGFloat = 1
-
-    /// The heavier border on the box the next digit lands in.
-    private static let activeBoxBorder: CGFloat = 2
 
     /// How long a submitted number is watched for its verdict.
     ///
@@ -89,19 +57,9 @@
     @Binding internal var offering: Bool
 
     @State private var number = ""
-    /// Whether the holder has asked the system for less movement.
-    ///
-    /// The shake is the one thing in this app that moves. A holder who
-    /// turns motion down has said they do not want it, and the refusal
-    /// still reads without it: the row turns red and says so.
-    @Environment(\.accessibilityReduceMotion)
-    private var reduceMotion
-
     @State private var refused = false
     @State private var refusedOnce = false
     @State private var step: Step?
-    @State private var shakes: CGFloat = 0
-    @FocusState private var focused: Bool
 
     /// Whether a stored number exists to try before asking for one.
     ///
@@ -122,7 +80,6 @@
 
         case .entry:
           entry
-            .modifier(Shake(animatableData: shakes))
 
         case .trying:
           trying
@@ -162,33 +119,20 @@
       }
     }
 
-    /// The label, the boxes, and the invisible field beneath them.
-    ///
-    /// The field is the only thing that reads the keyboard or a
-    /// paste; the boxes draw its contents. Focus lands on it when
-    /// the section appears and returns on any click.
-    @ViewBuilder private var entry: some View {
-      ZStack {
-        TextField("", text: $number)
-          .textFieldStyle(.plain)
-          .opacity(0)
-          .focused($focused)
-          .onChange(of: number) { previous, typed in
-            react(from: previous, to: typed)
-          }
-          .accessibilityIdentifier("sealedCardAccessNumber")
-        HStack(spacing: Self.boxSpacing) {
-          Text(verbatim: "CAN")
-            .foregroundStyle(.secondary)
-          Spacer()
-          ForEach(0..<Self.boxCount, id: \.self) { index in
-            box(at: index)
-          }
-        }
-      }
-      .contentShape(.rect)
-      .onTapGesture { focused = true }
-      .onAppear { focused = true }
+    /// The label and one box per printed digit; the sixth digit
+    /// submits.
+    private var entry: some View {
+      CodeBoxesField(
+        label: String(localized: "Card Access Number (CAN)"),
+        identifier: "sealedCardAccessNumber",
+        caption: "CAN",
+        length: CardAccessNumber.digitCount,
+        groupSize: nil,
+        text: $number,
+        refused: $refused,
+        filter: LimitedDigits.cardAccessNumber,
+        onComplete: submit
+      )
     }
 
     /// Takes the offered number back: at launch, and at quit.
@@ -221,50 +165,6 @@
       return .trying
     }
 
-    /// One digit's box: its frame, and the digit once typed.
-    ///
-    /// The box the next digit lands in carries the accent color -
-    /// focus is shown in the accent, never in a verdict color, so
-    /// where to type and how it went stay two different signals.
-    @ViewBuilder
-    private func box(at index: Int) -> some View {
-      ZStack {
-        RoundedRectangle(cornerRadius: Self.boxCorner)
-          .strokeBorder(
-            borderStyle(at: index),
-            lineWidth: borderWidth(at: index)
-          )
-          .frame(width: Self.boxWidth, height: Self.boxHeight)
-        if let digit = digit(at: index) {
-          Text(digit)
-            .font(.title3.monospacedDigit())
-            .foregroundStyle(
-              refused ? AnyShapeStyle(.red) : AnyShapeStyle(.primary))
-        }
-      }
-    }
-
-    /// The border for `index`: red when refused, the accent where
-    /// the next digit lands, and quiet otherwise.
-    private func borderStyle(at index: Int) -> AnyShapeStyle {
-      if refused {
-        AnyShapeStyle(.red)
-      } else if focused, index == number.count {
-        AnyShapeStyle(.tint)
-      } else {
-        AnyShapeStyle(.quaternary)
-      }
-    }
-
-    /// The border weight for `index`, heavier where the accent is.
-    private func borderWidth(at index: Int) -> CGFloat {
-      if focused, !refused, index == number.count {
-        Self.activeBoxBorder
-      } else {
-        Self.boxBorder
-      }
-    }
-
     /// Moves the flow forward on the reader's answer, never back.
     private func advance(cardPresent: Bool) {
       guard offering else { return }
@@ -272,27 +172,6 @@
         step = .layCard
       } else if step == .layCard, cardPresent {
         step = .verdict
-      }
-    }
-
-    /// The typed digit for `index`, once there is one.
-    private func digit(at index: Int) -> String? {
-      guard index < number.count else { return nil }
-      return String(Array(number)[index])
-    }
-
-    /// Keeps the entry digits, clears a refusal on any edit, and
-    /// submits when the sixth digit lands.
-    private func react(from previous: String, to typed: String) {
-      let digits = LimitedDigits.cardAccessNumber(typed)
-      if digits != typed {
-        number = digits
-      }
-      if refused, digits != previous {
-        refused = false
-      }
-      if digits.count == Self.boxCount, previous.count < Self.boxCount {
-        submit(digits)
       }
     }
 
@@ -322,9 +201,6 @@
               step = nil
               refused = true
               refusedOnce = true
-              if !reduceMotion {
-                withAnimation { shakes += 1 }
-              }
             }
             return
           }
