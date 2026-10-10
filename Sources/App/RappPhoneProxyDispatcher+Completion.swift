@@ -7,6 +7,15 @@
   /// Completion, failure, and cancellation handling for one authenticated
   /// phone-side RAPP connection.
   extension RappPhoneProxyDispatcher {
+    /// The attempts a rejected credential still has, when the card reported
+    /// a count above zero.
+    internal static func attemptsLeft(after rejection: RappCardExecutor.Rejection) -> UInt8? {
+      guard case .credential(_, let remaining?) = rejection, !remaining.isBlocked else {
+        return nil
+      }
+      return remaining.attemptsRemaining
+    }
+
     internal func finishRead(
       _ outcome: RappNfcCardExecutor.Outcome,
       operationID: Data,
@@ -65,8 +74,16 @@
 
       case .rejected(let rejection):
         await applyRejectedCredential(rejection)
-        await requireExplicitReconnect()
-        try? await coordinator.credentialRejected(operationID: operationID)
+        // A mistyped PIN with attempts left keeps the session and the
+        // pairing (RAPP v26.10.1 section 10.2); a blocked or uncounted
+        // rejection revokes them.
+        if let remaining = Self.attemptsLeft(after: rejection) {
+          try? await coordinator.invalidCredential(
+            operationID: operationID, remainingRetries: remaining)
+        } else {
+          await requireExplicitReconnect()
+          try? await coordinator.credentialRejected(operationID: operationID)
+        }
 
       case .refusedBeforeCredentialTransmit(let refusal):
         switch refusal {

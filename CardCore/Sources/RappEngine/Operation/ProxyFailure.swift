@@ -15,6 +15,8 @@ internal enum ProxyFailure: Equatable {
   case cardRemovedBeforeTransmit
   /// The card reports the credential blocked.
   case credentialRejected
+  /// The card refused the credential and attempts remain (section 10.2).
+  case invalidCredential(remainingRetries: UInt8)
   /// The local deadline passed before approval.
   case requestExpired
   /// The request names a parameter this endpoint cannot serve.
@@ -28,7 +30,8 @@ internal enum ProxyFailure: Equatable {
 
   internal var status: ResultStatus {
     switch self {
-    case .userDenied, .requestInvalidOrUnsupported, .unauthorized, .retryPolicyRefused:
+    case .userDenied, .requestInvalidOrUnsupported, .unauthorized, .retryPolicyRefused,
+      .invalidCredential:
       .rejected
 
     case .requestExpired, .cancelled, .cardRemovedBeforeTransmit:
@@ -62,6 +65,9 @@ internal enum ProxyFailure: Equatable {
     case .credentialRejected:
       .cardBlocked
 
+    case .invalidCredential:
+      .invalidCredential
+
     case .cardRemovedBeforeTransmit, .cardCompletionAmbiguous:
       .cardError
     }
@@ -74,8 +80,14 @@ internal enum ProxyFailure: Equatable {
       true
 
     case .userDenied, .requestExpired, .cancelled, .requestInvalidOrUnsupported, .unauthorized,
-      .cardRemovedBeforeTransmit:
+      .cardRemovedBeforeTransmit, .invalidCredential:
       false
     }
+  }
+
+  /// The attempts an invalid-credential result reports remaining.
+  internal var remainingRetries: UInt8? {
+    guard case .invalidCredential(let remainingRetries) = self else { return nil }
+    return remainingRetries
   }
 }

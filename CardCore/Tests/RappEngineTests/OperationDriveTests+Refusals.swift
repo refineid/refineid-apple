@@ -194,13 +194,16 @@ private func emptyCompletedRefused(_ transaction: AuthorizationTransaction) thro
   }
   check("a completed result with no response does not decode", !decodedEmpty)
 }
+/// Attempts a mistyped credential leaves in the registry round trip.
+private let typoRemainingRetries: UInt8 = 2
+
 /// Every registered failure round-trips under its own status.
 private func failureRegistryRoundTrips(_ transaction: AuthorizationTransaction) throws {
   var registryHolds = true
   for failure in [
     ProxyFailure.userDenied, .requestExpired, .cancelled, .requestInvalidOrUnsupported,
     .unauthorized, .retryPolicyRefused, .credentialRejected, .cardRemovedBeforeTransmit,
-    .cardCompletionAmbiguous,
+    .cardCompletionAmbiguous, .invalidCredential(remainingRetries: typoRemainingRetries),
   ] {
     let message = OperationResultMessage.failure(
       reference: transaction.reference, failure: failure)

@@ -66,7 +66,20 @@ extension RappOperationBridge {
     try finishFailure(operationId: operationId, failure: .retryPolicyRefused)
   }
 
-  /// Reports that the card rejected the credential.
+  /// Reports an incorrect credential with attempts remaining (section 10.2).
+  ///
+  /// The result carries the remaining count; the session and the pairing
+  /// stay.
+  public func invalidCredential(
+    operationId: Data, remainingRetries: UInt8
+  ) throws -> RappBridgeAction {
+    guard remainingRetries > 0 else { throw RappBindingError.InvalidInput }
+    return try finishFailure(
+      operationId: operationId, failure: .invalidCredential(remainingRetries: remainingRetries))
+  }
+
+  /// Reports that the card blocked the credential (section 10.2); the
+  /// pairing is revoked.
   public func credentialRejected(
     operationId: Data, rejectedAtMs _: UInt64
   ) throws -> RappBridgeAction {

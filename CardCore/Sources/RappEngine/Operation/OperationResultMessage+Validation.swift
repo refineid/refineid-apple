@@ -22,7 +22,8 @@ extension OperationResultMessage {
       operationIdentifier: reference.operationIdentifier,
       requestHash: reference.requestHash,
       status: failure.status,
-      error: failure.error)
+      error: failure.error,
+      remainingRetries: failure.remainingRetries)
   }
 
   /// The result a retired operation answers with (section 8.2.5).
