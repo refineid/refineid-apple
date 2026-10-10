@@ -2,7 +2,7 @@
 
 import Foundation
 
-#if canImport(OSLog)
+#if DEBUG && canImport(OSLog)
   import OSLog
 #endif
 
@@ -21,7 +21,7 @@ extension HeldCardSession {
     recordLifecycle("PACE started generation=\(preparingGeneration)")
     condition.unlock()
 
-    #if canImport(OSLog)
+    #if DEBUG && canImport(OSLog)
       Self.logger.trace("pace: early preparation started")
     #endif
     DispatchQueue.global(qos: .userInitiated).async { [self] in
@@ -71,7 +71,7 @@ extension HeldCardSession {
         throw CardOperationError.sessionUnavailable
       }
       recordLifecycle("lease claimed generation=\(preparingGeneration)")
-      #if canImport(OSLog)
+      #if DEBUG && canImport(OSLog)
         Self.logger.trace("pace: prepared channel reused")
       #endif
       return PreparedChannelLease(channel: secure, operationLock: operationLock) { [weak self] in

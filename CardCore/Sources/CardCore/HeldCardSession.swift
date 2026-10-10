@@ -2,7 +2,7 @@
 
 import Foundation
 
-#if canImport(OSLog)
+#if DEBUG && canImport(OSLog)
   import OSLog
 #endif
 
@@ -63,7 +63,7 @@ public final class HeldCardSession: @unchecked Sendable {
 
   // MARK: Static Properties
 
-  #if canImport(OSLog)
+  #if DEBUG && canImport(OSLog)
     internal static let logger = Logger(
       subsystem: "fi.refineid.ReFineID",
       category: "held-session"
@@ -169,7 +169,7 @@ public final class HeldCardSession: @unchecked Sendable {
     condition.broadcast()
     recordLifecycle("retained generation=\(generation)")
     condition.unlock()
-    #if canImport(OSLog)
+    #if DEBUG && canImport(OSLog)
       Self.logger.trace("held session: taken")
     #endif
   }
@@ -295,7 +295,7 @@ public final class HeldCardSession: @unchecked Sendable {
     case .idle:
       // An unused discovery field: no PACE was started, no operation claimed it.
       condition.unlock()
-      #if canImport(OSLog)
+      #if DEBUG && canImport(OSLog)
         let milliseconds = Int(seconds * Self.millisecondsPerSecond)
         Self.logger.notice(
           "held session: unused discovery timeout (\(milliseconds)ms) - releasing contactless field"
@@ -307,14 +307,14 @@ public final class HeldCardSession: @unchecked Sendable {
       // Timer fired during PACE: do NOT close the card session mid-PACE.
       activityTimeoutDeferred = true
       condition.unlock()
-      #if canImport(OSLog)
+      #if DEBUG && canImport(OSLog)
         Self.logger.trace("held session: activity timeout during PACE - deferring release")
       #endif
 
     case .ready:
       // An unclaimed, prepared field: release promptly to allow prompts to appear.
       condition.unlock()
-      #if canImport(OSLog)
+      #if DEBUG && canImport(OSLog)
         let milliseconds = Int(seconds * Self.millisecondsPerSecond)
         Self.logger.notice(
           "held session: unclaimed prepared field timeout (\(milliseconds)ms) - releasing contactless field"
@@ -324,7 +324,7 @@ public final class HeldCardSession: @unchecked Sendable {
 
     case .leased:
       condition.unlock()
-      #if canImport(OSLog)
+      #if DEBUG && canImport(OSLog)
         Self.logger.trace("held session: activity timeout during active lease - ignoring")
       #endif
 
