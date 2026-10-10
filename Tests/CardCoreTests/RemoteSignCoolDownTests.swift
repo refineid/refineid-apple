@@ -56,6 +56,19 @@ internal struct RemoteSignCoolDownTests {
     #expect(!coolDown.refuses(at: now.addingTimeInterval(Fixture.initial * 2)))
   }
 
+  /// An unattended ending long after the last pause ended starts the
+  /// count over.
+  @Test
+  internal func quietPeriodStartsOver() {
+    let coolDown = Fixture.coolDown()
+    let now = Date()
+    coolDown.record(.unattended, at: now)
+    coolDown.record(.unattended, at: now)
+    let later = now.addingTimeInterval(Fixture.initial * 2 + Fixture.ceiling + Fixture.moment)
+    coolDown.record(.unattended, at: later)
+    #expect(!coolDown.refuses(at: later.addingTimeInterval(Fixture.initial)))
+  }
+
   /// A signature clears the pause and the count.
   @Test
   internal func signatureResets() {

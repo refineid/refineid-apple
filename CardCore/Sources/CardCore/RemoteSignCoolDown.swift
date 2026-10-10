@@ -11,7 +11,9 @@ import Foundation
 /// browser's connection never settles. After a request that ended without
 /// a card or without the holder's approval, further requests are refused
 /// for a while; the pause doubles with each consecutive such ending up to
-/// a ceiling, and any signature or an explicit resume clears it.
+/// a ceiling, and any signature or an explicit resume clears it. An
+/// unattended ending long after the last pause ended starts the count
+/// over.
 ///
 /// The state lives in shared defaults, so the token extension that pauses
 /// and the app that shows and clears the pause read the same record.
@@ -58,7 +60,8 @@ public struct RemoteSignCoolDown: Sendable {
   /// The pause after `consecutive` unattended endings.
   public static func pause(after consecutive: Int) -> TimeInterval {
     var pause = initialPause
-    for _ in 1..<max(consecutive, 1) where pause < ceiling {
+    for _ in 1..<max(consecutive, 1) {
+      guard pause < ceiling else { break }
       pause *= growth
     }
     return min(pause, ceiling)
@@ -84,7 +87,10 @@ public struct RemoteSignCoolDown: Sendable {
       resume()
 
     case .unattended:
-      let consecutive = defaults.integer(forKey: Self.consecutiveKey) + 1
+      let lastEnd = defaults.double(forKey: Self.untilKey)
+      let isLapsed = lastEnd > 0 && now.timeIntervalSince1970 - lastEnd > Self.ceiling
+      let previous = isLapsed ? 0 : defaults.integer(forKey: Self.consecutiveKey)
+      let consecutive = previous + 1
       defaults.set(consecutive, forKey: Self.consecutiveKey)
       let end = now.addingTimeInterval(Self.pause(after: consecutive))
       defaults.set(end.timeIntervalSince1970, forKey: Self.untilKey)
