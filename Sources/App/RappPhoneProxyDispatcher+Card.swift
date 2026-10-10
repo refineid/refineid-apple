@@ -301,8 +301,7 @@
       )
       guard case .result(let der) = outcome,
         let facts = CertificateFacts(der: der),
-        let name = DistinguishedName.personalName(inName: facts.subjectName)
-          ?? DistinguishedName.commonName(inName: facts.subjectName)
+        let name = DistinguishedName.holderLine(inName: facts.subjectName)
       else {
         await finishRead(outcome, operationID: operationID, coordinator: coordinator)
         return
