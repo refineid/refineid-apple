@@ -11,9 +11,11 @@
       case rendering
     }
 
-    private static let logger = Logger(
-      subsystem: "fi.refineid.ReFineID", category: "sign-document-model"
-    )
+    #if DEBUG
+      private static let logger = Logger(
+        subsystem: "fi.refineid.ReFineID", category: "sign-document-model"
+      )
+    #endif
 
     /// One localized failure vocabulary, shared with iOS.
     internal static func message(for error: Error) -> String {
@@ -34,9 +36,11 @@
 
     /// Publishes a signing failure only while its card is still present.
     internal func report(_ error: Error, from appearance: Int) {
-      Self.logger.error(
-        "[SignDocumentModel] signing failed: \(String(describing: error), privacy: .public)"
-      )
+      #if DEBUG
+        Self.logger.error(
+          "[SignDocumentModel] signing failed: \(String(describing: error), privacy: .public)"
+        )
+      #endif
       guard appearance == cardAppearance else { return }
       fail(message: Self.message(for: error))
     }

@@ -6,6 +6,20 @@
 
   /// Signing everything that was dropped, in one pass.
   extension SignDocumentModel {
+    /// One sentence for every document of a pile that was not signed.
+    ///
+    /// A cause shared by every failed document is said once.
+    nonisolated internal static func pileFailure(
+      _ failures: [(name: String, message: String)]
+    ) -> String? {
+      guard let first = failures.first else { return nil }
+      if failures.allSatisfy({ $0.message == first.message }) {
+        let names = failures.map(\.name).joined(separator: "\n")
+        return names + "\n\n" + first.message
+      }
+      return failures.map { "\($0.name): \($0.message)" }.joined(separator: "\n")
+    }
+
     /// One ASiC-E signature over every file in `sources`, no visible
     /// stamp - the container carries the files unchanged, so there is
     /// no signed revision to draw a mark into.
@@ -90,6 +104,8 @@
       guard !working else { return }
       let documents = queued
       var outcomes: [String] = []
+      var failures: [(name: String, message: String)] = []
+      beginPile()
       for source in documents {
         focus(on: source)
         let destination = directory.appendingPathComponent(
@@ -100,6 +116,7 @@
         )
         if let failure {
           outcomes.append("\(source.lastPathComponent): \(failure)")
+          failures.append((source.lastPathComponent, failure))
         } else {
           outcomes.append(
             String(localized: "\(source.lastPathComponent) signed")
@@ -107,6 +124,7 @@
         }
       }
       record(batch: outcomes)
+      endPile(failing: Self.pileFailure(failures))
       if let first = documents.first {
         focus(on: first)
       }

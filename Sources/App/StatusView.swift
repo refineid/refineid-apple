@@ -123,7 +123,7 @@
         react(to: .noCard)
       }
       .onDisappear { activation.stop() }
-      .announcesOutcome(signing.failure)
+      .acknowledgesFailure(of: signing)
       .announcesOutcome(signing.notice)
       .announcesOutcome(activation.management.failure)
       .announcesOutcome(activation.management.notice)

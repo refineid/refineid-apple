@@ -27,7 +27,11 @@ extension DocumentSigner {
     }
   }
 
-  private static let logger = Logger(subsystem: "fi.refineid.ReFineID", category: "document-signer")
+  #if DEBUG
+    private static let logger = Logger(
+      subsystem: "fi.refineid.ReFineID", category: "document-signer"
+    )
+  #endif
   private static let remoteSignatureCertificateCache = RemoteCertificateCache()
 
   /// A selected RAPP phone is the signing device only when no local reader
@@ -50,15 +54,12 @@ extension DocumentSigner {
   /// explicitly paired phone.
   internal static func remoteCardMaterial(
     prepared: PdfSignaturePlaceholder,
+    documentName: String,
     byteRangeDigest: Data,
     expectedCertificate: Data?
   ) async throws -> CardMaterial {
     let product = try await Self.remoteQualifiedSignature(
-      documentName: String(
-        localized: "Document",
-        defaultValue: "Document",
-        table: "DocumentSigning"
-      ),
+      documentName: documentName,
       expectedCertificate: expectedCertificate
     ) { certificate in
       QualifiedDocumentCms.signedAttributes(
@@ -102,7 +103,7 @@ extension DocumentSigner {
       }
     }
     guard let certificate else {
-      throw certificateError ?? Failure.card(.failed)
+      throw certificateError ?? Failure.remote(.noSignature)
     }
     return certificate
   }
@@ -167,7 +168,7 @@ extension DocumentSigner {
       let publicKey = SecCertificateCopyKey(securityCertificate),
       let profile = CardKeyProfile.resolve(fromPublicKey: publicKey)
     else {
-      throw Failure.card(.failed)
+      throw Failure.remote(.unusableCertificate)
     }
 
     let signedContent = content(certificate)
@@ -176,7 +177,7 @@ extension DocumentSigner {
       let request = profile.qualifiedDocumentRequest(digest: digest),
       let remoteAlgorithm = RappOperationDriver.SignatureAlgorithm(request.algorithm)
     else {
-      throw Failure.card(.failed)
+      throw Failure.remote(.unusableCertificate)
     }
 
     let signature = try Self.executeRemoteDocumentSigning(
@@ -187,7 +188,7 @@ extension DocumentSigner {
       digest: digest
     )
     guard let wireSignature = request.verifiedRemoteSignature(signature, from: publicKey) else {
-      throw Failure.card(.failed)
+      throw Failure.remote(.unverifiedSignature)
     }
     return CardMaintenance.QualifiedProduct(
       signature: wireSignature,
@@ -209,10 +210,7 @@ extension DocumentSigner {
     var signingError: Error?
     for attempt in 1...RemoteSigningPolicy.maximumSigningAttempts {
       do {
-        let maxAttempts = RemoteSigningPolicy.maximumSigningAttempts
-        logger.notice(
-          "[DocumentSigner] remote signing attempt \(attempt, privacy: .public)/\(maxAttempts, privacy: .public)"
-        )
+        trace("remote signing attempt \(attempt)/\(RemoteSigningPolicy.maximumSigningAttempts)")
         let signingClient = RappPersistentRequesterClient(displayName: displayName)
         let signatureResponse = try signingClient.perform(
           .documentSigning(
@@ -223,18 +221,13 @@ extension DocumentSigner {
           )
         )
         if case .signature(let signature) = signatureResponse {
-          logger.notice(
-            "[DocumentSigner] remote signing succeeded: \(signature.count, privacy: .public) bytes"
-          )
+          trace("remote signing succeeded: \(signature.count) bytes")
           return signature
         }
-        throw Failure.card(.failed)
+        throw Failure.remote(.noSignature)
       } catch let error as RappRequesterClientError {
         signingError = error
-        let errorDesc = String(describing: error)
-        logger.notice(
-          "[DocumentSigner] attempt \(attempt, privacy: .public) failed: \(errorDesc, privacy: .public)"
-        )
+        trace("attempt \(attempt) failed: \(error)")
         guard Self.isRecoverableRemoteError(error),
           attempt < RemoteSigningPolicy.maximumSigningAttempts
         else {
@@ -242,15 +235,19 @@ extension DocumentSigner {
         }
         Thread.sleep(forTimeInterval: RemoteSigningPolicy.retryDelaySeconds)
       } catch {
-        let errorDesc = String(describing: error)
-        logger.notice(
-          "[DocumentSigner] attempt \(attempt, privacy: .public) non-client error: \(errorDesc, privacy: .public)"
-        )
+        trace("attempt \(attempt) non-client error: \(error)")
         throw error
       }
     }
-    guard let signingError else { throw Failure.card(.failed) }
+    guard let signingError else { throw Failure.remote(.noSignature) }
     throw signingError
+  }
+
+  /// Debug builds trace the remote exchange; release builds say nothing.
+  private static func trace(_ message: String) {
+    #if DEBUG
+      logger.notice("[DocumentSigner] \(message, privacy: .public)")
+    #endif
   }
 
   private static func isRecoverableRemoteError(_ error: RappRequesterClientError) -> Bool {

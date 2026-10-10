@@ -5,6 +5,11 @@ import Foundation
 
 /// One localized failure vocabulary shared by macOS and iOS signing.
 internal enum DocumentSigningMessage {
+  /// The title over any signing failure.
+  internal static var title: String {
+    text("error.title", "Signing failed")
+  }
+
   internal static func message(for error: Error) -> String {
     if let signerFailure = error as? DocumentSigner.Failure {
       return documentSignerMessage(signerFailure)
@@ -25,6 +30,9 @@ internal enum DocumentSigningMessage {
 
     case .document(let detail):
       documentMessage(detail)
+
+    case .remote(let detail):
+      remoteAnswerMessage(detail)
 
     case .network:
       text(
@@ -58,17 +66,37 @@ internal enum DocumentSigningMessage {
 
   private static func remoteClientMessage(_ error: RappRequesterClientError) -> String {
     switch error {
+    case .noActivePair, .noSelectedPair:
+      text("error.remoteNotPaired", "No phone is paired.")
+
     case .peerNotFound, .timedOut:
-      text("error.remoteTimeout", "The remote device did not respond.")
+      text("error.remoteTimeout", "The paired phone did not respond.")
 
     case .transport:
-      text("error.remoteDisconnected", "The connection to the remote device was lost.")
+      text("error.remoteDisconnected", "The connection to the paired phone was lost.")
 
     case .terminal(let reason):
       terminalReasonMessage(reason)
 
-    default:
-      text("error.remoteCard", "The remote card could not complete the signature.")
+    case .protocolFailure, .unexpectedResult:
+      remoteAnswerMessage(.noSignature)
+    }
+  }
+
+  private static func remoteAnswerMessage(_ failure: DocumentSigner.RemoteFailure) -> String {
+    switch failure {
+    case .noSignature:
+      text("error.remoteNoSignature", "The phone did not return a signature. Nothing was written.")
+
+    case .unverifiedSignature:
+      text(
+        "error.remoteUnverified",
+        "The signature from the phone did not match the card's certificate. Nothing was written.")
+
+    case .unusableCertificate:
+      text(
+        "error.remoteCertificate",
+        "The certificate on the phone's card cannot be used for signing.")
     }
   }
 
@@ -81,16 +109,32 @@ internal enum DocumentSigningMessage {
         "error.remoteDenied",
         "The signature request was declined on the paired phone.")
 
-    case .credentialRejected:
+    case .invalidCredential:
       CredentialOutcomeMessage.incorrect(credentialName: "PIN 2")
 
-    case .cancelled, .requestExpired:
+    case .credentialRejected:
+      pin2BlockedMessage()
+
+    case .retryPolicyRefused:
+      CredentialOutcomeMessage.lowAttemptRefusal()
+
+    case .requestExpired:
+      text("error.remoteExpired", "The request was not approved on the phone in time.")
+
+    case .cancelled:
       text("error.remoteCancelled", "The signature request was cancelled.")
 
-    default:
-      text(
-        "error.remoteCard",
-        "The remote card could not complete the signature.")
+    case .requestInvalidOrUnsupported:
+      text("error.remoteUnsupported", "The phone cannot make this kind of signature.")
+
+    case .cardRemovedBeforeTransmit:
+      text("error.remoteCardRemoved", "The card was removed before signing.")
+
+    case .cardCompletionAmbiguous:
+      text("error.remoteAmbiguous", "The card's answer was lost. Nothing was written.")
+
+    case nil:
+      remoteAnswerMessage(.noSignature)
     }
   }
 
@@ -101,7 +145,7 @@ internal enum DocumentSigningMessage {
         credentialName: "PIN 2", remaining: remaining)
 
     case .pinBlocked, .floorRefused(.refuseBlocked):
-      text("error.pin2Blocked", "PIN 2 is blocked. Reset it in PIN settings.")
+      pin2BlockedMessage()
 
     case .floorRefused(.refuseLowAttempts):
       CredentialOutcomeMessage.lowAttemptRefusal()
@@ -115,8 +159,12 @@ internal enum DocumentSigningMessage {
       text("error.noCard", "No readable identity card was found.")
 
     default:
-      text("error.cardRefused", "The identity card refused the signature.")
+      text("error.cardFailed", "The card did not complete the signature.")
     }
+  }
+
+  private static func pin2BlockedMessage() -> String {
+    text("error.pin2Blocked", "PIN 2 is blocked. Reset it in PIN settings.")
   }
 
   private static func documentMessage(_ failure: PdfSigningError) -> String {

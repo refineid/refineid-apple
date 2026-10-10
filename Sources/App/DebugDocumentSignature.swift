@@ -85,6 +85,7 @@
         do {
           let product = try await DocumentSigner.sign(
             document,
+            named: source.lastPathComponent,
             reason: nil,
             location: nil,
             access: DocumentSigner.SigningAccess(

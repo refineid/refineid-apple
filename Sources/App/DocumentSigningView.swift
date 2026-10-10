@@ -159,6 +159,7 @@
         if format == .pades, let input = inputs.first {
           let product = try await DocumentSigner.sign(
             input.data,
+            named: input.name,
             reason: nil,
             location: nil,
             access: DocumentSigner.SigningAccess(

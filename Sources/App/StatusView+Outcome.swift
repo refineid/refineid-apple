@@ -6,20 +6,40 @@
 
   /// What the window says when signing went wrong.
   ///
-  /// Success says nothing: the pile empties and the file is where it
-  /// was asked for, and a readout naming one output cannot speak for
-  /// a batch that wrote several.
+  /// A failure is an alert the holder dismisses, so it never outlives
+  /// the attempt it describes. Success says nothing: the pile empties
+  /// and the file is where it was asked for, and a readout naming one
+  /// output cannot speak for a batch that wrote several.
   extension StatusView {
     @ViewBuilder internal var outcomeSection: some View {
-      if signingModel.failure != nil || signingModel.notice != nil {
+      if let note = signingModel.notice {
         Section {
-          if let failure = signingModel.failure {
-            CredentialOutcomeText(message: failure, tone: .failure)
-          }
-          if let note = signingModel.notice {
-            CredentialOutcomeText(message: note, tone: .notice)
-          }
+          CredentialOutcomeText(message: note, tone: .notice)
         }
+      }
+    }
+  }
+
+  extension View {
+    /// Presents the signing failure as a window-modal alert until it is
+    /// acknowledged.
+    internal func acknowledgesFailure(of signing: SignDocumentModel) -> some View {
+      let failure = signing.unacknowledgedFailure
+      return alert(
+        DocumentSigningMessage.title,
+        isPresented: Binding(
+          get: { signing.unacknowledgedFailure != nil },
+          set: { presented in
+            if !presented { signing.acknowledgeFailure() }
+          }
+        ),
+        presenting: failure
+      ) { _ in
+        Button(String(localized: "OK")) {
+          signing.acknowledgeFailure()
+        }
+      } message: { message in
+        Text(verbatim: message)
       }
     }
   }

@@ -144,7 +144,7 @@
           Text("Insert your identity card into the reader")
             .foregroundStyle(.secondary)
         } else if isPairedDeviceOnline {
-          Text("Hold card to phone")
+          Text("Phone connected")
             .foregroundStyle(.secondary)
         } else {
           Text("Connect a card reader")
