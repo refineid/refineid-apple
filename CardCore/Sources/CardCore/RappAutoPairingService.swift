@@ -102,7 +102,7 @@
       guard let coordinator else { return }
       let vault = RappDeviceVault()
       Task {
-        let pairsBefore = (try? vault.activePairIDs()).map(Set.init)
+        let pairsBefore = RappPairingSnapshot(vault: vault)
         // Remote access is opt-in: while the holder has it off, nothing
         // may re-enter the vault, or turning it off would not hold.
         #if os(iOS)
@@ -114,9 +114,7 @@
         #endif
         let remotes = await coordinator.remoteDevices()
         self.updateCachedRemoteDevices(remotes)
-        // A read that fails either side counts as a change.
-        let pairsAfter = (try? vault.activePairIDs()).map(Set.init)
-        let pairsChanged = pairsBefore == nil || pairsAfter == nil || pairsAfter != pairsBefore
+        let pairsChanged = pairsBefore.differs(from: RappPairingSnapshot(vault: vault))
         await MainActor.run {
           let center = NotificationCenter.default
           if pairsChanged { center.post(name: Self.pairingsDidChangeNotification, object: nil) }
