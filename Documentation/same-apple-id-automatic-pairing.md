@@ -113,14 +113,14 @@ public struct RappCloudDeviceRecord: Codable, Sendable, Identifiable {
 
 ## 5. Unrelated & Cross-OS Device Pairing (Android, Windows, Linux, Cross-Account)
 
-For devices that **do not share an Apple ID** (e.g. pairing an Android phone with a Mac/iPad, or sharing across different user accounts), zero-step iCloud distribution is unavailable. RefineID uses clean 6-digit numeric pairing:
+For devices that **do not share an Apple ID** (e.g. pairing an Android phone with a Mac/iPad, or sharing across different user accounts), zero-step iCloud distribution is unavailable. RefineID pairs them with a short code:
 
-### 5.1 6-Digit Numeric Pairing Code
+### 5.1 Pairing Code
 1. **Offer Generation**:
-   - The card holder displays a 6-digit numeric pairing code (e.g. `482 915`) with a 180s TTL.
-2. **Key Exchange (Noise XXpsk3)**:
-   - The requesting device (Android, Linux, Windows, Mac, iPad) enters the 6-digit code.
-   - Devices execute the Noise XXpsk3 handshake over the local network with SHA-256 transcript mixing and permanently vault the static keys in `RappDeviceVault`.
+   - The card holder displays a 6-character Crockford Base32 pairing code (e.g. `7K X4 M9`). The offer lasts 60 seconds and admits at most 3 attempts (RAPP v26.10.9 §3).
+2. **Key Exchange (CPace, then Noise XXpsk3)**:
+   - The requesting device (Android, Linux, Windows, Mac, iPad) enters the code.
+   - Devices run CPace keyed by the code, then the Noise XXpsk3 handshake keyed by the CPace result, and permanently vault the static keys in `RappDeviceVault`.
    - **All subsequent reconnections occur silently and automatically without entering the code again.**
 
 ---
@@ -129,7 +129,7 @@ For devices that **do not share an Apple ID** (e.g. pairing an Android phone wit
 
 The repository task list records storage/cloud synchronization, same-account
 handshakes, hardware-first arbitration, background pairing, and multi-device
-integration coverage as implemented. Cross-platform 6-digit pairing and card
+integration coverage as implemented. Cross-platform code pairing and card
 proxying were qualified in the 2026-09-11 decision. Completed implementation
 phases are no longer maintained as pending or checked tasks here.
 
