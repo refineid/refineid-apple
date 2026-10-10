@@ -35,6 +35,12 @@ internal struct HolderServingStateTests {
     Case(
       name: "a live session outranks a stop", enabled: true, paired: true, halted: true,
       connected: true, state: .connected),
+    Case(
+      name: "off with nothing else", enabled: false, paired: false, halted: false,
+      connected: false, state: .off),
+    Case(
+      name: "nothing paired outranks a stop", enabled: true, paired: false, halted: true,
+      connected: false, state: .unpaired),
   ]
 
   /// Each combination says its state.
