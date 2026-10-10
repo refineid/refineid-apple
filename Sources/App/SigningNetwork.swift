@@ -43,14 +43,12 @@ internal enum SigningNetwork {
   /// Seconds any one exchange may take.
   private static let timeout: TimeInterval = 30
 
-  /// Seconds the DNSSEC-validated attempt may take before the
-  /// unvalidated one is tried.
+  /// Seconds the DNSSEC-validated attempt may take.
   ///
-  /// Short on purpose. A validated lookup that is going to work
-  /// answers as fast as an unvalidated one - measured at a few
-  /// tenths of a second against the EU list of lists - so waiting
-  /// the full timeout only makes an intermittent resolver look like
-  /// a slow signature.
+  /// A validated lookup that is going to work answers as fast as an
+  /// unvalidated one - a few tenths of a second against the EU list
+  /// of lists - so the unvalidated attempt runs beside it after
+  /// ``validatedHeadStart`` rather than after this.
   private static let validatedAttemptTimeout: TimeInterval = 8
 
   /// HTTP statuses that carry a usable body.
@@ -235,32 +233,38 @@ internal enum SigningNetwork {
 
   /// Runs one exchange, validated if the resolver can manage it.
   ///
-  /// The validated attempt comes first; only a resolution failure
-  /// earns the second, and only once.
+  /// The validated exchange starts first and the unvalidated one
+  /// joins it after a short head start, or at once when validation
+  /// fails, so a resolver that cannot validate costs at most that
+  /// head start rather than the validated timeout. Once it has, every
+  /// exchange is asked unvalidated for a while.
   private static func perform(
     _ request: URLRequest,
     limit: Int,
     endpoint: Endpoint,
     carriesCredentials: Bool
   ) async throws -> Data {
-    do {
-      return try await Self.perform(
+    let attempt: @Sendable (Bool) async throws -> Data = { validating in
+      try await Self.perform(
         request,
         limit: limit,
         endpoint: endpoint,
         carriesCredentials: carriesCredentials,
-        validating: true
-      )
-    } catch {
-      guard Self.isResolutionFailure(error) else { throw error }
-      return try await Self.perform(
-        request,
-        limit: limit,
-        endpoint: endpoint,
-        carriesCredentials: carriesCredentials,
-        validating: false
+        validating: validating
       )
     }
+    if Self.validationMemory.skipsValidation(at: .now) {
+      return try await attempt(false)
+    }
+    let answer = try await Self.firstAnswer(
+      headStart: Self.validatedHeadStart,
+      validated: { try await attempt(true) },
+      plain: { try await attempt(false) }
+    )
+    if answer.outcome == .plain {
+      Self.validationMemory.recordFailure(at: .now)
+    }
+    return answer.data
   }
 
   /// One exchange, with the status and size checks.

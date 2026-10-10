@@ -15,7 +15,7 @@ import Foundation
 /// document that resembles it.
 public enum PdfIncrementalSigner {
   /// What a signature revision claims in its dictionary.
-  public struct SignatureClaim {
+  public struct SignatureClaim: Sendable {
     /// The claimed signing time, written to `/M`.
     public let signedAt: Date
 

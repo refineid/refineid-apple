@@ -47,17 +47,19 @@
         reason: reason,
         location: nil
       )
-      let result = try await DocumentSigner.sign(
-        document,
-        named: source.lastPathComponent,
-        claim: pdfClaim,
-        stamp: visibleStamp,
-        access: DocumentSigner.SigningAccess(
-          pin2: pin2,
-          transport: .reader,
-          cardAccessNumber: nil
+      let result = try await reportingPhases {
+        try await DocumentSigner.sign(
+          document,
+          named: source.lastPathComponent,
+          claim: pdfClaim,
+          stamp: visibleStamp,
+          access: DocumentSigner.SigningAccess(
+            pin2: pin2,
+            transport: .reader,
+            cardAccessNumber: nil
+          )
         )
-      )
+      }
       try result.bytes.write(to: destination, options: .atomic)
       #if DEBUG
         if result.completion == .revokedSignerTest {
