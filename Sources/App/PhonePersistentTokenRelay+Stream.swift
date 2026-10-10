@@ -16,6 +16,8 @@
     internal var router = RappSessionRouter()
     /// The announced withdrawal running before the listener goes away.
     internal var withdrawal: Task<Void, Never>?
+    /// The instance name the listener asked Bonjour for.
+    internal var requestedName: String?
   }
 
   /// The stream transport's half of the phone relay.
@@ -59,9 +61,9 @@
           print("[stream-holder] listening in session mode")
           fflush(stdout)
         #endif
-        listener.start(
-          displayName: StreamRendezvousName.ephemeralName(),
-          txtRecord: Self.sessionRecord(contexts))
+        let name = StreamRendezvousName.ephemeralName()
+        sessionListening.requestedName = name
+        listener.start(displayName: name, txtRecord: Self.sessionRecord(contexts))
       }
       startHintRotation()
     }
@@ -72,7 +74,7 @@
     /// publishes the withdrawn record for a few seconds before it goes.
     internal func withdrawService(then tearDown: @escaping @MainActor () -> Void) {
       guard let listener = streamListeners[Self.sessionListenerKey],
-        let instance = listener.registeredName
+        let instance = listener.registeredName ?? sessionListening.requestedName
       else {
         tearDown()
         return
