@@ -49,6 +49,7 @@
       )
       let result = try await DocumentSigner.sign(
         document,
+        named: source.lastPathComponent,
         claim: pdfClaim,
         stamp: visibleStamp,
         access: DocumentSigner.SigningAccess(

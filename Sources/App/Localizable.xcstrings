@@ -1,6 +1,22 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Continue on your phone": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jatka puhelimessa"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortsätt på telefonen"
+          }
+        }
+      }
+    },
     "Digest (%@): %@": {
       "extractionState": "manual",
       "localizations": {
@@ -2288,22 +2304,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Håll kortet nära den övre delen av iPhone."
-          }
-        }
-      }
-    },
-    "Hold card to phone": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pidä korttia puhelimessa"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Håll kortet mot telefonen"
           }
         }
       }
