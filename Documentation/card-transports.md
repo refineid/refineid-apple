@@ -165,7 +165,13 @@ held on the phone without requiring a smart card slot or USB reader on the Mac.
    summaries. The holder can still turn Time Sensitive off for any Focus.
    The notification is removed when the request ends, and requests left
    from an earlier run are cleared when the app becomes active.
-4. **Encrypted in-band card departure.** When a card is disconnected during an
+7. **The holder name travels as the card states it.** Whenever the
+   iPhone sends the card holder's name to a computer, it sends the
+   certificate's name exactly as the card carries it, in the card's case
+   and order, with the trailing personal identifier removed, for example
+   `MEIKÄLÄINEN MATTI`. Nothing recases or reorders it on the wire; a
+   display that wants another casing applies it locally.
+8. **Encrypted in-band card departure.** When a card is disconnected during an
    active proxy session, the proxy immediately transmits an encrypted in-band
    `session.close(card_unavailable)` message. This unblocks the Mac browser
    prompt instantly without exposing card presence transitions to passive network

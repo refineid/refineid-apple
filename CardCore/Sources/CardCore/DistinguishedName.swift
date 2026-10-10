@@ -96,8 +96,9 @@ public enum DistinguishedName {
     Self.attribute(SignOids.serialNumber, inName: name)
   }
 
-  /// The person line a window shows: the certificate's common name stripped
-  /// of any trailing identifier, or raw surname followed by given names as stated.
+  /// The person line a window shows and the holder name sent to a paired
+  /// computer: the certificate's common name stripped of any trailing
+  /// identifier, or raw surname followed by given names as stated.
   public static func holderLine(inName name: Data) -> String? {
     if let common = Self.commonName(inName: name) {
       return Self.cleanedCommonName(common)

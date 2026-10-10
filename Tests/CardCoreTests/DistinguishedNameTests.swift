@@ -168,9 +168,9 @@ internal struct DistinguishedNameTests {
       DistinguishedName.holderLine(inName: name) == "SÄÄTILÄ MARIA-ELISABETH"
     )
 
-    let citizen = Self.citizenName(common: "KOISTINEN PETRI 12345678A")
+    let citizen = Self.citizenName(common: "MEIKÄLÄINEN MATTI 12345678A")
     #expect(
-      DistinguishedName.holderLine(inName: citizen) == "KOISTINEN PETRI"
+      DistinguishedName.holderLine(inName: citizen) == "MEIKÄLÄINEN MATTI"
     )
 
     let compound = Self.citizenName(common: "MÖTTÖNEN MATTI-ÄNKYRÄ 87654321B")
@@ -182,7 +182,7 @@ internal struct DistinguishedNameTests {
       DistinguishedName.identifier(inName: citizen) == nil
     )
     let certWithCommon = try MockCardCertificate.makeCertificate(
-      commonName: "KOISTINEN PETRI 12345678A"
+      commonName: "MEIKÄLÄINEN MATTI 12345678A"
     )
     #expect(
       DistinguishedName.identifier(fromCertificate: certWithCommon) == "12345678A"
