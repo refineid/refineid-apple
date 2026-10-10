@@ -25,7 +25,7 @@ import SwiftUI
       #endif
       #if os(iOS) && REFINEID_LOCAL_CARD
         if SupportedCardTransports.offersNearField {
-          return phoneRelay.isPeerConnectedOrOnline
+          return phoneRelay.isPeerConnected
         }
       #endif
       if remoteModel.holder != nil {

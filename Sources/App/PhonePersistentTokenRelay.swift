@@ -32,7 +32,6 @@
     internal static let shared = PhonePersistentTokenRelay()
 
     internal static let maximumPreCoordinatorFrames = 4
-    internal static let recentContactWindowSeconds: TimeInterval = 180
     /// How long the stream transport pauses before re-listening after a
     /// connection closes.
     internal static let streamRedialDelayMilliseconds = 100
@@ -59,7 +58,6 @@
     internal var preCoordinatorFrames: [Data] = []
     internal var relistenPolicy = RelistenPolicy.automatic
     @Published internal var isActivelyConnected = false
-    @Published internal var lastPeerContactDate: Date?
 
     /// Frames enter the coordinator in arrival order through this
     /// bounded chain; reset between connections.
@@ -129,11 +127,9 @@
       guard self.connectionID == connectionID else { return }
       switch event {
       case .connected:
-        lastPeerContactDate = Date()
         establish(connectionID: connectionID)
 
       case .frame(let frame):
-        lastPeerContactDate = Date()
         #if REFINEID_SLIM_RELAY
           if slimSession != nil {
             deliverInOrder { [weak self] in
@@ -230,7 +226,6 @@
           }
           coordinator = made
           dispatcher = madeDispatcher
-          lastPeerContactDate = Date()
           isActivelyConnected = true
 
           let earlyFrames = preCoordinatorFrames

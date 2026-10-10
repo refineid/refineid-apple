@@ -112,7 +112,6 @@
       activeStreamListener = listener
       sessionListening.awaitingPreamble = true
       connectionID = UUID()
-      lastPeerContactDate = Date()
       #if DEBUG
         print("[stream-holder] a dialer arrived")
         fflush(stdout)
@@ -126,7 +125,6 @@
       guard activeStreamListener === listener,
         let currentConnectionID = connectionID
       else { return }
-      lastPeerContactDate = Date()
       #if DEBUG
         print(
           "[stream-holder] frame \(frame.count) bytes, session \(coordinator != nil)")

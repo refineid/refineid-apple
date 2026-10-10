@@ -9,19 +9,9 @@
   extension PhonePersistentTokenRelay {
     // MARK: Computed Properties
 
-    /// Whether a paired requester is online, connected, or was recently in contact.
-    internal var isPeerConnectedOrOnline: Bool {
-      if isActivelyConnected { return true }
-      guard hasUsablePair() else {
-        return false
-      }
-      if hasRecentPeerContact { return true }
-      return false
-    }
-
-    internal var hasRecentPeerContact: Bool {
-      guard let lastContact = lastPeerContactDate else { return false }
-      return Date().timeIntervalSince(lastContact) < Self.recentContactWindowSeconds
+    /// Whether a paired requester holds a session with this phone now.
+    internal var isPeerConnected: Bool {
+      isActivelyConnected && hasUsablePair()
     }
 
     internal var isServing: Bool {
