@@ -44,7 +44,7 @@
     /// A record with hints names one of `pairings` through a hint; a
     /// minimal record names the only pairing, or an unknown one (the
     /// empty key) when there are several. Anything else is not a holder.
-    private static func holderKey(
+    nonisolated private static func holderKey(
       for record: [String: String], among pairings: [HolderPairing]
     ) -> String? {
       guard StreamRendezvousName.isSessionRecord(record) else { return nil }
@@ -55,6 +55,35 @@
       return pairings.first { pairing in
         StreamRendezvousName.sessionRecord(record, mayHold: pairing.rendezvousToken, at: now)
       }?.key
+    }
+
+    /// The classifier the browser calls on its own queue.
+    ///
+    /// Built outside the main actor so the closure carries no main-actor
+    /// isolation; the browser queue would otherwise trap the runtime
+    /// isolation check.
+    nonisolated private static func recordClassifier(
+      among pairings: [HolderPairing]
+    ) -> @Sendable ([String: String]) -> String? {
+      { record in holderKey(for: record, among: pairings) }
+    }
+
+    /// The change handler the browser calls on its own queue; it hops to
+    /// the main actor for everything it touches.
+    nonisolated private static func presenceHandler(
+      pairIDs: [String: Data]
+    ) -> @Sendable (Bool, String?) -> Void {
+      { present, matchedName in
+        Task { @MainActor in
+          if present, let matchedName, let pairID = pairIDs[matchedName] {
+            let vault = RappDeviceVault()
+            if (try? vault.selectedPairID()) != pairID {
+              try? vault.selectPair(pairID: pairID)
+            }
+          }
+          Self.shared.holderPresenceChanged(present)
+        }
+      }
     }
 
     /// Browses for a holder in session mode whose hints name a pairing.
@@ -83,18 +112,8 @@
       let pairIDs = Dictionary(uniqueKeysWithValues: pairings.map { ($0.key, $0.pairID) })
       let watcher = StreamRelayPresence(
         following: keys,
-        classifyingRecord: { record in Self.holderKey(for: record, among: pairings) },
-        onChange: { present, matchedName in
-          Task { @MainActor in
-            if present, let matchedName, let pairID = pairIDs[matchedName] {
-              let vault = RappDeviceVault()
-              if (try? vault.selectedPairID()) != pairID {
-                try? vault.selectPair(pairID: pairID)
-              }
-            }
-            Self.shared.holderPresenceChanged(present)
-          }
-        })
+        classifyingRecord: Self.recordClassifier(among: pairings),
+        onChange: Self.presenceHandler(pairIDs: pairIDs))
       presence = watcher
       watcher.start()
     }
