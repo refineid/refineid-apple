@@ -49,6 +49,15 @@ internal struct IdentityLineTests {
       },
       line: .insertCard),
     Case(
+      name: "paired phone here with its card unread offers Retry",
+      facts: with { facts in
+        facts.availability = .cardWithoutIdentity
+        facts.paired = true
+        facts.phonePresent = true
+        facts.phoneWaitsForCard = true
+      },
+      line: .phoneConnectedRetry),
+    Case(
       name: "paired phone present",
       facts: with { facts in
         facts.paired = true
