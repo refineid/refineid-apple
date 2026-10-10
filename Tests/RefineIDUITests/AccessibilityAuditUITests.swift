@@ -173,6 +173,36 @@
       try audit(app, window: "status")
     }
 
+    /// The code from the phone is entered in a labelled field that
+    /// works from the keyboard alone.
+    ///
+    /// The field carries its own label rather than placeholder text,
+    /// keeps only what a code can hold, and answers Return: an
+    /// incomplete code is refused in words beside the field, which the
+    /// window also speaks. The audit then runs with the refusal shown.
+    /// An incomplete code never reaches the network, so no phone is
+    /// needed.
+    internal func testThePhoneCodeFieldPassesTheAudit() throws {
+      let app = UITestApp.launch()
+      let field = app.windows["status"].textFields[UITestIdentifiers.pairingCodeField]
+      try XCTSkipUnless(
+        field.waitForExistence(timeout: UITestApp.appearTimeout),
+        "a card is in the reader; the window asks for no phone code beside one"
+      )
+      XCTAssertEqual(field.label, "Code from phone", "the phone code field has no label of its own")
+      field.click()
+      field.typeText("7k x4!")
+      XCTAssertEqual(field.value as? String, "7KX4", "the field kept characters no code holds")
+      field.typeText("\r")
+      let refusal = app.windows["status"].staticTexts["The pairing code is invalid"]
+      XCTAssertTrue(
+        refusal.waitForExistence(timeout: UITestApp.appearTimeout),
+        "Return did not refuse an incomplete code"
+      )
+      attachScreenshot(app.screenshot(), named: "06-phone-code-refused")
+      try audit(app, window: "status")
+    }
+
     /// Audits the activation takeover, which no audit reaches without a
     /// factory-fresh card in the reader: a card activates once in its
     /// life, so a debug launch argument forces the screen instead.

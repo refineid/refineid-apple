@@ -30,9 +30,10 @@
 //       (Documentation/decisions.md, 2026-09-26); the hardcoded qualified
 //       Sectigo server (http://timestamp.sectigo.com/qualified) is used directly.
 //
-// macOS ships local card authentication, management and document signing.
-// Its MVP excludes SCS and RAPP in every build configuration.
-// iOS keeps its remote-card support.
+// macOS ships local card authentication, management and document signing,
+// and the remote card over RAPP as a requester that only dials out
+// (Documentation/decisions.md, 2026-10-10). SCS stays out of macOS in
+// every build configuration. iOS keeps its remote-card support.
 
 REFINEID_FEATURES = FEATURE_CONTACTLESS FEATURE_SCS
 REFINEID_FEATURES[sdk=macosx*] = FEATURE_CONTACTLESS
@@ -48,7 +49,6 @@ REFINEID_LOCAL_CARD_FEATURE = REFINEID_LOCAL_CARD
 REFINEID_REMOTE_CARD_FEATURE = REFINEID_REMOTE_CARD
 REFINEID_REMOTE_CARD_FEATURE[config=TestFlight] = REFINEID_REMOTE_CARD
 REFINEID_REMOTE_CARD_FEATURE[config=Release] = REFINEID_REMOTE_CARD
-REFINEID_REMOTE_CARD_FEATURE[sdk=macosx*] =
 
 // FEATURE_CARD_ACTIVATION
 //     Taking a factory-fresh card into use: the activation form.

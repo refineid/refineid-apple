@@ -112,5 +112,12 @@
 	</array>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>RefineID uses Bluetooth to connect your devices securely for identity-card operations.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_refineid-disc._tcp</string>
+		<string>_refineid-stream._tcp</string>
+	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>RefineID uses the local network to connect your devices securely for identity-card operations.</string>
 </dict>
 </plist>

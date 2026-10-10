@@ -16,15 +16,16 @@
 
     /// What the pairing prompt shows.
     ///
-    /// A connected reader disables the phone path: the phone is pointless
-    /// while a reader sits ready, so no code is asked for then - only the
-    /// instruction to use the reader.
+    /// The phone code is always offered: a reader and a paired phone
+    /// coexist, and the holder chooses. A connected reader adds the
+    /// instruction to use it.
     internal enum Content: Equatable {
       case phoneCode
-      case readerOnly
+      case phoneCodeBesideReader
     }
 
     @StateObject private var model = RappPairingModel()
+    @State private var codeEntry = ""
 
     @ObservedObject private var cardPresence = CardPresence.shared
 
@@ -33,39 +34,68 @@
         promptText
           .frame(maxWidth: Layout.promptMaxWidth, alignment: .leading)
       }
-      .onChange(of: cardPresence.isReaderConnected) { _, connected in
-        // A reader arriving ends the attempt this prompt owns; a finished
-        // pairing is left alone.
-        if connected, !model.isFinished {
-          model.cancel()
-        }
-      }
+      .announcesOutcome(failure)
     }
 
     @ViewBuilder private var promptText: some View {
-      switch Self.content(readerConnected: cardPresence.isReaderConnected) {
-      case .phoneCode:
-        LabeledContent(String(localized: "Code from phone")) {
-          PairingCodeEntryField(model: model)
-        }
-        .accessibilityIdentifier("pairingPrompt")
-        if case .failed(let message) = model.phase {
-          Text(message)
-            .foregroundStyle(.secondary)
-        }
-
-      case .readerOnly:
+      if Self.content(readerConnected: cardPresence.isReaderConnected) == .phoneCodeBesideReader {
         bullets([
           String(
             localized: "Insert your identity card into the reader"
           )
         ])
       }
+      TextField(String(localized: "Code from phone"), text: $codeEntry)
+        .font(.body)
+        .autocorrectionDisabled()
+        .disabled(model.phase == .connecting)
+        .accessibilityLabel(Text(String(localized: "Code from phone")))
+        .accessibilityIdentifier("pairingCodeField")
+        .onValueChange(of: codeEntry) { typed in
+          let limited = Self.limitedCode(typed)
+          if limited != typed {
+            codeEntry = limited
+          }
+          if case .failed = model.phase, !limited.isEmpty {
+            model.startCodeEntry()
+          }
+        }
+        .onSubmit { model.acceptPairingCode(codeEntry) }
+      if model.phase == .connecting {
+        ProgressView()
+          .controlSize(.small)
+          .accessibilityLabel(Text(String(localized: "Connecting to the phone")))
+      }
+      if let failure {
+        Text(failure)
+          .foregroundStyle(.secondary)
+      }
+    }
+
+    private var failure: String? {
+      if case .failed(let message) = model.phase {
+        return message
+      }
+      return nil
+    }
+
+    /// Keeps what was typed to the characters a pairing code can hold.
+    ///
+    /// Typed input is canonicalized the way the code is compared, so a
+    /// lowercase or look-alike letter becomes the one the phone shows,
+    /// and anything outside the alphabet is dropped. Each character is
+    /// canonicalized alone, because one stray character empties the
+    /// canonical form of the whole string.
+    nonisolated internal static func limitedCode(_ typed: String) -> String {
+      String(
+        typed.map { RappPairingCode.normalize(String($0)) }
+          .joined()
+          .prefix(RappPairingCode.codeLength))
     }
 
     /// Resolves the prompt for the reader state.
     nonisolated internal static func content(readerConnected: Bool) -> Content {
-      readerConnected ? .readerOnly : .phoneCode
+      readerConnected ? .phoneCodeBesideReader : .phoneCode
     }
 
     private func bullets(_ items: [String]) -> some View {
@@ -75,7 +105,6 @@
         }
       }
       .textSelection(.enabled)
-      .accessibilityIdentifier("pairingPrompt")
     }
 
     private func bulletItem(_ text: String) -> some View {

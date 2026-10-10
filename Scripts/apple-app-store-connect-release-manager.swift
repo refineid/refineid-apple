@@ -260,8 +260,10 @@ private func releaseArchiveLayout(at archive: URL) -> ReleaseArchiveLayout {
       rappPlist: rappBundle.appendingPathComponent("Contents/Info.plist"),
       discoveryPlist: discoveryBundle.appendingPathComponent("Contents/Info.plist"),
       expectedArchitectures: ["arm64"],
-      // macOS ships only the local smart-card driver.
-      hasRapp: false,
+      // macOS carries the remote card as a requester that only dials out
+      // (decisions 2026-10-10): the RAPP extension and the local-network
+      // declarations ship, and nothing listens.
+      hasRapp: true,
       hasDiscovery: false
     )
   }
@@ -526,18 +528,17 @@ private func inspectReleaseArchive(_ archive: URL) {
       "com.apple.developer.team-identifier",
       "com.apple.security.get-task-allow",
     ]
-    // The client side stays in a gated candidate for timestamps and
-    // revocation fetches; the server side exists only for the remote
-    // card's relay listener, so it ships exactly when the RAPP
-    // extension does.
-    let appEntitlements: Set<String> = Set([
+    // The client side carries timestamps, revocation fetches and, with
+    // the remote card, the dial to the paired phone. A Mac never
+    // listens, so no macOS bundle carries the server side.
+    let appEntitlements: Set<String> = [
       "com.apple.security.app-sandbox",
       "com.apple.security.application-groups",
       "com.apple.security.files.user-selected.read-write",
       "com.apple.security.network.client",
       "com.apple.security.smartcard",
       "keychain-access-groups",
-    ]).union(layout.hasRapp ? ["com.apple.security.network.server"] : [])
+    ]
     var rules: [(bundle: URL, allowed: Set<String>, required: Set<String>)] = [
       (
         layout.app,
@@ -567,13 +568,12 @@ private func inspectReleaseArchive(_ archive: URL) {
             "com.apple.security.app-sandbox",
             "com.apple.security.application-groups",
             "com.apple.security.network.client",
-            "com.apple.security.network.server",
+            "keychain-access-groups",
           ]),
           [
             "com.apple.security.app-sandbox",
             "com.apple.security.application-groups",
             "com.apple.security.network.client",
-            "com.apple.security.network.server",
           ]
         )
       )
@@ -623,23 +623,26 @@ private func inspectReleaseArchive(_ archive: URL) {
     }
     if layout.hasRapp {
       let rappEntitlements = releaseEntitlements(of: layout.rappBundle)
-      for entitlement in [
-        "com.apple.security.network.client",
-        "com.apple.security.network.server",
-      ] {
-        guard appEntitlements[entitlement] as? Bool == true else {
-          releaseFail("\(layout.app.path): missing RAPP entitlement \(entitlement)")
-        }
-        guard rappEntitlements[entitlement] as? Bool == true else {
-          releaseFail(
-            "\(layout.rappBundle.path): missing RAPP entitlement \(entitlement)"
-          )
+      guard appEntitlements["com.apple.security.network.client"] as? Bool == true else {
+        releaseFail("\(layout.app.path): missing RAPP entitlement com.apple.security.network.client")
+      }
+      guard rappEntitlements["com.apple.security.network.client"] as? Bool == true else {
+        releaseFail(
+          "\(layout.rappBundle.path): missing RAPP entitlement com.apple.security.network.client"
+        )
+      }
+      // The Mac is always the requester: it dials the paired phone and
+      // accepts nothing, so a server entitlement is a defect.
+      for bundle in [layout.app, layout.rappBundle] {
+        guard releaseEntitlements(of: bundle)["com.apple.security.network.server"] == nil else {
+          releaseFail("\(bundle.path): network.server entitlement; a Mac never listens")
         }
       }
       guard rappEntitlements["com.apple.security.smartcard"] == nil else {
         releaseFail("\(layout.rappBundle.path): RAPP requester carries direct-card access")
       }
       releaseNote("RAPP and direct-reader entitlements are separated")
+      releaseNote("no server entitlement; the Mac only dials the paired phone")
     } else {
       // A candidate without the remote card keeps outbound network
       // access for timestamps and revocation checks, and nothing
@@ -706,9 +709,9 @@ private func inspectReleaseArchive(_ archive: URL) {
       releaseFail("NSLocalNetworkUsageDescription missing from the containing app")
     }
     guard let bonjourServices = appPlist["NSBonjourServices"] as? [String],
-      bonjourServices.contains("_refineid-rly._tcp")
+      bonjourServices.contains("_refineid-stream._tcp")
     else {
-      releaseFail("NSBonjourServices does not declare _refineid-rly._tcp")
+      releaseFail("NSBonjourServices does not declare _refineid-stream._tcp")
     }
     releaseNote("RAPP local-network privacy and Bonjour declarations are present")
   } else {

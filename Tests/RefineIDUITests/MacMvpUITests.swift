@@ -31,7 +31,7 @@
       XCTAssertTrue(window.waitForExistence(timeout: UITestApp.appearTimeout))
       let identity = app.descendants(matching: .any)["loginIdentityStatus"].firstMatch
       XCTAssertTrue(identity.waitForExistence(timeout: UITestApp.appearTimeout))
-      XCTAssertFalse(app.textFields["pairingCode"].exists)
+      XCTAssertFalse(app.textFields[UITestIdentifiers.pairingCodeField].exists)
       let attachment = XCTAttachment(screenshot: window.screenshot())
       attachment.name = "window-card-\(language)"
       attachment.lifetime = .keepAlways

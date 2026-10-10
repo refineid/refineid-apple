@@ -44,10 +44,13 @@ This allows App Reviewers to exercise the complete card lifecycle: status
 display, PIN changes and resets, retry floor refusal, and qualified document
 signing of sample PDFs with fictional credentials without physical hardware.
 
-The macOS notes describe the local-card MVP: SCS and RAPP are excluded,
-while local authentication, activation, PIN management, and document signing
-remain available. Outbound timestamp and revocation requests support archival
-document signatures.
+The macOS notes describe local authentication, activation, PIN management,
+and document signing, and the remote card: pairing with a phone that holds
+the card by typing the code the phone shows, then signing and Safari
+sign-in through the phone. The Mac only dials out to the paired phone on
+the local network, which is what the local-network prompt and the Bonjour
+declaration are for; it never listens. SCS is excluded. Outbound timestamp
+and revocation requests support archival document signatures.
 
 ## Where the notes live
 

@@ -1,16 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- macOS persistent-token entitlements: the requester dials the paired
+     phone and never accepts a connection, so the sandbox grants outbound
+     network access only. The keychain group is the app's own, so the
+     requester client reads the pair records the app persisted
+     (CardCore/RappDeviceVault); without it the vault answers empty and no
+     delegated signature is possible. No smart-card access: the card is
+     the phone's. -->
 <plist version="1.0">
 <dict>
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
 	<key>com.apple.security.network.client</key>
 	<true/>
-	<key>com.apple.security.network.server</key>
-	<true/>
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>group.fi.refineid.RefineID</string>
+	</array>
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)fi.refineid.ReFineID</string>
 	</array>
 </dict>
 </plist>
