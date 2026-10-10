@@ -112,11 +112,11 @@ extension RappPairingView {
       Text(RappPairingCode.formatted(code))
         .font(.system(size: Layout.codeFontSize, weight: .bold, design: .monospaced))
         .tracking(Layout.codeTracking)
-        .foregroundStyle(Color.accentColor)
+        .foregroundStyle(.primary)
         .padding(.top, Layout.codeTopPadding)
         .textSelection(.enabled)
         .accessibilityIdentifier("pairingCode")
-        .accessibilityLabel(code)
+        .accessibilityLabel(code.map(String.init).joined(separator: " "))
 
       Button {
         pairingModel.createOffer()
