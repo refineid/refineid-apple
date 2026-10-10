@@ -6963,6 +6963,22 @@
           }
         }
       }
+    },
+    "Connecting to the phone": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yhdistetään puhelimeen"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ansluter till telefonen"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

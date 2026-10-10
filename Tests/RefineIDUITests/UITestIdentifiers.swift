@@ -128,6 +128,9 @@ internal enum UITestIdentifiers {
   /// The code a requesting device shows for a phone to scan.
   internal static let pairingCode = "pairingCode"
 
+  /// Where a Mac takes the code its phone shows.
+  internal static let pairingCodeField = "pairingCodeField"
+
   /// The step that starts a pairing.
   ///
   /// Offered only where a device can also serve a card; a borrowing device
