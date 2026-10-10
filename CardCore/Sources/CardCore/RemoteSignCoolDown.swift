@@ -43,7 +43,7 @@ public struct RemoteSignCoolDown: Sendable {
   private static let growth: TimeInterval = 2
 
   private static let consecutiveKey = "rapp.sign.coolDown.consecutive"
-  private static let untilKey = "rapp.sign.coolDown.until"
+  private static let untilKey = "rapp.sign.coolDown.endsAt"
 
   private let defaultsSuite: String?
 
@@ -71,7 +71,7 @@ public struct RemoteSignCoolDown: Sendable {
   public func pausedUntil(at now: Date) -> Date? {
     let until = defaults.double(forKey: Self.untilKey)
     guard until > 0 else { return nil }
-    let end = Date(timeIntervalSince1970: until)
+    let end = Date(timeIntervalSinceReferenceDate: until)
     return now < end ? end : nil
   }
 
@@ -91,12 +91,12 @@ public struct RemoteSignCoolDown: Sendable {
       // they are the same attempt, not further ones.
       guard !refuses(at: now) else { return }
       let lastEnd = defaults.double(forKey: Self.untilKey)
-      let isLapsed = lastEnd > 0 && now.timeIntervalSince1970 - lastEnd > Self.ceiling
+      let isLapsed = lastEnd > 0 && now.timeIntervalSinceReferenceDate - lastEnd > Self.ceiling
       let previous = isLapsed ? 0 : defaults.integer(forKey: Self.consecutiveKey)
       let consecutive = previous + 1
       defaults.set(consecutive, forKey: Self.consecutiveKey)
       let end = now.addingTimeInterval(Self.pause(after: consecutive))
-      defaults.set(end.timeIntervalSince1970, forKey: Self.untilKey)
+      defaults.set(end.timeIntervalSinceReferenceDate, forKey: Self.untilKey)
 
     case .other:
       break
