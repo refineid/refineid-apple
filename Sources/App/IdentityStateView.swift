@@ -164,16 +164,15 @@
       phoneName ?? String(localized: "Phone")
     }
 
-    /// Follows one availability and reads the names when ready.
+    /// Follows one availability and reads the name when ready.
     ///
-    /// The names are read off the main actor and never block the row.
+    /// The holder's name is read off the main actor and never blocks
+    /// the row; the phone's name is held locally.
     private func track() async {
       #if DEBUG
         Self.log.info("track: \(String(describing: self.availability))")
       #endif
-      phoneName = await Task.detached(priority: .utility) {
-        PersistentTokenRegistry.activePairID.flatMap(RappPairNames.name(forPairID:))
-      }.value
+      phoneName = PersistentTokenRegistry.activePairID.flatMap(RappPairNames.name(forPairID:))
       switch availability {
       case .ready:
         if DemoMode.shared.isActive {
