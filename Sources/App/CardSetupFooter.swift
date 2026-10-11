@@ -20,8 +20,11 @@ internal struct CardSetupFooter: View {
     /// Read from the bundle at run time: the stamp scripts renumber
     /// every install, and a hardcoded copy would trail them.
     private static let diagnosticsTitle: String = {
-      let version = BundledVersions.read(from: .main).applicationWithSource ?? ""
-      return String(localized: "Diagnostics") + " - " + version
+      let title = String(localized: "Diagnostics")
+      guard let version = BundledVersions.read(from: .main).applicationWithSource else {
+        return title
+      }
+      return title + " - " + version
     }()
   #endif
 
