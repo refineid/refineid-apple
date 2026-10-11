@@ -35,7 +35,6 @@
       if batch.signed == operation.digests.count {
         try? await coordinator.completeBatch(operationID: operationID)
       } else if batch.signed > 0 {
-        await requireExplicitReconnect()
         try? await coordinator.cardCompletionAmbiguous(operationID: operationID)
       } else {
         await finishFailure(batch.outcome, operationID: operationID, coordinator: coordinator)

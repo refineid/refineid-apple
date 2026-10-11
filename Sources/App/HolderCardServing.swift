@@ -37,7 +37,7 @@
         didMeasure = true
         wasAbleToServe = canServe
         if canServe {
-          PhonePersistentTokenRelay.shared.resumeAfterUserAction()
+          PhonePersistentTokenRelay.shared.start()
         } else {
           dropReaderTokens()
         }
@@ -45,13 +45,13 @@
       }
       guard wasAbleToServe != canServe else {
         if canServe, !PhonePersistentTokenRelay.shared.isServing {
-          PhonePersistentTokenRelay.shared.resumeServing()
+          PhonePersistentTokenRelay.shared.start()
         }
         return
       }
       wasAbleToServe = canServe
       if canServe {
-        PhonePersistentTokenRelay.shared.resumeAfterUserAction()
+        PhonePersistentTokenRelay.shared.start()
         return
       }
       dropReaderTokens()

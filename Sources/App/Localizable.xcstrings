@@ -2095,28 +2095,6 @@
         }
       }
     },
-    "Disconnect": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Disconnect"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Katkaise"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Koppla från"
-          }
-        }
-      }
-    },
     "Done": {
       "extractionState": "manual",
       "localizations": {
@@ -3606,7 +3584,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Paritettu"
+            "value": "Liitetty"
           }
         },
         "sv": {
@@ -6748,29 +6726,6 @@
         }
       }
     },
-    "Regenerate code": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Regenerate code"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Luo uusi koodi"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Skapa ny kod"
-          }
-        }
-      }
-    },
     "Paired computers": {
       "extractionState": "manual",
       "localizations": {
@@ -6783,36 +6738,13 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Paritetut tietokoneet"
+            "value": "Liitetyt tietokoneet"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
             "value": "Kopplade datorer"
-          }
-        }
-      }
-    },
-    "No paired computers": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No paired computers"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ei paritettuja tietokoneita"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inga kopplade datorer"
           }
         }
       }
@@ -6859,29 +6791,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Försök igen"
-          }
-        }
-      }
-    },
-    "Connected to %@": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Connected to %@"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Yhdistetty kohteeseen %@"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ansluten till %@"
           }
         }
       }

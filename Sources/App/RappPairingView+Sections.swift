@@ -35,24 +35,6 @@ extension RappPairingView {
           NotificationsOffRow()
         }
       #endif
-      if servingState == .halted {
-        haltedRow
-      }
-    }
-  }
-
-  /// Serving stopped and waits for the holder.
-  private var haltedRow: some View {
-    HStack {
-      Text(String(localized: "Remote card paused"))
-        .foregroundStyle(.secondary)
-      Spacer()
-      Button(String(localized: "Resume")) {
-        #if REFINEID_LOCAL_CARD && os(iOS)
-          PhonePersistentTokenRelay.shared.resumeAfterUserAction()
-        #endif
-      }
-      .accessibilityIdentifier("remoteAccessResumeButton")
     }
   }
 
@@ -66,15 +48,11 @@ extension RappPairingView {
       Section {
         connectingCard
       }
-    case .paired(let peer):
-      Section {
-        pairedCard(peer: peer)
-      }
     case .failed(let reason):
       Section {
         failedCard(reason: reason)
       }
-    case .idle, .codeEntry:
+    case .idle, .codeEntry, .paired:
       EmptyView()
     }
   }
@@ -91,41 +69,14 @@ extension RappPairingView {
     .padding(.vertical, Layout.statusVerticalPadding)
   }
 
-  internal var pairedDevicesSection: some View {
-    Section(header: Text(String(localized: "Paired computers"))) {
-      if pairingModel.pairs.isEmpty {
-        Text(String(localized: "No paired computers"))
-          .foregroundStyle(.secondary)
-      } else {
+  @ViewBuilder internal var pairedDevicesSection: some View {
+    if !pairingModel.pairs.isEmpty {
+      Section(header: Text(String(localized: "Paired computers"))) {
         ForEach(pairingModel.pairs, id: \.pairID) { pair in
           pairedPeerRow(pair)
         }
       }
     }
-  }
-
-  private var peerConnectedBadge: some View {
-    Text(String(localized: "Connected"))
-      .font(.caption.weight(.semibold))
-      .foregroundStyle(.green)
-      .padding(.horizontal, Layout.badgeHorizontalPadding)
-      .padding(.vertical, Layout.badgeVerticalPadding)
-      .background(Color.green.opacity(Layout.badgeOpacity))
-      .clipShape(Capsule())
-  }
-
-  private var peerDisconnectButton: some View {
-    Button {
-      #if REFINEID_LOCAL_CARD && os(iOS)
-        PhonePersistentTokenRelay.shared.stopListening()
-        PhonePersistentTokenRelay.shared.resumeAfterUserAction()
-      #endif
-    } label: {
-      Image(systemName: "xmark")
-        .foregroundStyle(.secondary)
-    }
-    .buttonStyle(.borderless)
-    .accessibilityLabel(String(localized: "Disconnect"))
   }
 
   // MARK: - Methods
@@ -140,35 +91,9 @@ extension RappPairingView {
         .textSelection(.enabled)
         .accessibilityIdentifier("pairingCode")
         .accessibilityLabel(code.map(String.init).joined(separator: " "))
-
-      Button {
-        pairingModel.createOffer()
-      } label: {
-        Text(String(localized: "Regenerate code"))
-          .font(.body.weight(.medium))
-          .frame(maxWidth: .infinity)
-          .padding(.vertical, Layout.buttonVerticalPadding)
-      }
-      .buttonStyle(.bordered)
-      .accessibilityIdentifier("regenerateCodeButton")
     }
     .frame(maxWidth: .infinity, alignment: .center)
     .padding(.vertical, Layout.verticalCardPadding)
-  }
-
-  private func pairedCard(peer: RappPairingCoordinator.PairSummary) -> some View {
-    let name = RappPairNames.name(forPairID: peer.pairID) ?? String(localized: "Computer")
-    return VStack(spacing: Layout.contentSpacing) {
-      Image(systemName: "checkmark.circle.fill")
-        .font(.system(size: Layout.statusIconSize))
-        .foregroundStyle(.green)
-        .accessibilityHidden(true)
-      Text(String(localized: "Connected to \(name)"))
-        .font(.headline)
-        .multilineTextAlignment(.center)
-    }
-    .frame(maxWidth: .infinity, alignment: .center)
-    .padding(.vertical, Layout.statusVerticalPadding)
   }
 
   private func failedCard(reason: String) -> some View {
@@ -194,19 +119,12 @@ extension RappPairingView {
 
   private func pairedPeerRow(_ pair: RappPairingCoordinator.PairSummary) -> some View {
     let name = RappPairNames.name(forPairID: pair.pairID) ?? String(localized: "Computer")
-    let isConnected =
-      isActivelyConnected
-      && (PersistentTokenRegistry.activePairID == pair.pairID || pairingModel.pairs.count == 1)
 
     return HStack {
       Text(name)
         .font(.body.weight(.medium))
         .foregroundStyle(.primary)
       Spacer()
-      if isConnected {
-        peerConnectedBadge
-        peerDisconnectButton
-      }
       peerDeleteButton(for: pair.pairID)
     }
   }
