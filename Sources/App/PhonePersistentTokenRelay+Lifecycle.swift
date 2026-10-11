@@ -19,22 +19,6 @@
 
     // MARK: Functions
 
-    /// Explicit UI action may call this after the user has corrected local
-    /// credentials or deliberately chosen to reconnect.
-    ///
-    /// It never restores a revoked pair; the vault remains authoritative.
-    internal func resumeAfterUserAction() {
-      relistenPolicy = .automatic
-      start()
-    }
-
-    /// Listens again while the policy still allows it, after a card that
-    /// can be served has returned.
-    internal func resumeServing() {
-      guard relistenPolicy == .automatic else { return }
-      start()
-    }
-
     /// Stops advertising without asking the holder to pair again.
     ///
     /// The pairing remains. A card that comes back listens again.
@@ -52,11 +36,6 @@
       #else
         tearDownTransport()
       #endif
-    }
-
-    internal func stopListening() {
-      relistenPolicy = .explicitUserActionRequired
-      tearDownTransport()
     }
 
     /// Drops the listener and any open session, leaving the reconnect
@@ -87,8 +66,9 @@
       isActivelyConnected = false
     }
 
+    /// Hands the advertisement to a pairing ceremony until it ends.
     internal func suspendForPairing() {
-      relistenPolicy = .explicitUserActionRequired
+      isPairing = true
       let closing = coordinator
       coordinator = nil
       relay?.cancel()
@@ -108,6 +88,12 @@
       Task { await closing?.close() }
     }
 
+    /// Serves the paired computers again once the ceremony has ended.
+    internal func resumeAfterPairing() {
+      isPairing = false
+      start()
+    }
+
     /// Cleans up the active coordinator and connection state while keeping the
     /// stream listener active on the same bound port.
     internal func handleConnectionClosed() {
@@ -120,15 +106,14 @@
       frameDelivery.reset()
       isActivelyConnected = false
       Task { await closingCoordinator?.transportClosed() }
-      if relistenPolicy != .automatic || !hasUsablePair() {
-        relistenPolicy = .explicitUserActionRequired
+      if isPairing || !hasUsablePair() {
         tearDownTransport()
       }
     }
 
-    /// Tears down the closed connection and reconnects while automatic,
-    /// yielding immediately for the nearby relay and pausing between
-    /// stream dial attempts.
+    /// Tears down the closed connection and listens again, yielding
+    /// immediately for the nearby relay and pausing between stream dial
+    /// attempts.
     internal func handleTransportClosed(redialDelayMilliseconds: Int) {
       let closingCoordinator = coordinator
       coordinator = nil
@@ -149,10 +134,6 @@
       preCoordinatorFrames.removeAll(keepingCapacity: false)
       isActivelyConnected = false
       Task { await closingCoordinator?.transportClosed() }
-      if !hasUsablePair() {
-        relistenPolicy = .explicitUserActionRequired
-      }
-      guard relistenPolicy == .automatic else { return }
       Task { @MainActor in
         if redialDelayMilliseconds > 0 {
           try? await Task.sleep(for: .milliseconds(redialDelayMilliseconds))

@@ -94,7 +94,7 @@ extension RappPairingModel {
     #endif
     // Revoking every pair disables serving too; see revokeEveryStoredPair.
     #if REFINEID_LOCAL_CARD && os(iOS)
-      PhonePersistentTokenRelay.shared.stopListening()
+      PhonePersistentTokenRelay.shared.stopServing()
     #endif
     Self.revokeEveryStoredPair()
     pairs = []

@@ -281,7 +281,7 @@ internal final class RappPairingModel: ObservableObject {
 
   internal func resumeRegularRelay() {
     #if REFINEID_LOCAL_CARD && os(iOS)
-      PhonePersistentTokenRelay.shared.resumeAfterUserAction()
+      PhonePersistentTokenRelay.shared.resumeAfterPairing()
     #endif
   }
 }

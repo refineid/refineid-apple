@@ -282,7 +282,6 @@
 
       case .wrongCardAccessNumber:
         CardCredentialStore.forgetAll()
-        await requireExplicitReconnect()
         try? await coordinator.credentialRejected(operationID: operationID)
 
       case .failed:

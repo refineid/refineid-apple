@@ -18,7 +18,7 @@
       if enabled {
         #if REFINEID_LOCAL_CARD
           if SupportedCardTransports.offersNearField {
-            PhonePersistentTokenRelay.shared.resumeAfterUserAction()
+            PhonePersistentTokenRelay.shared.start()
           }
         #endif
       } else {

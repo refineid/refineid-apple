@@ -10,7 +10,6 @@
     // MARK: Properties
 
     internal let inbox: RappAuthorizationInbox
-    internal let requireExplicitReconnect: @MainActor @Sendable () -> Void
     internal var pin1ByOperation: [Data: String] = [:]
     internal var pin2ByOperation: [Data: String] = [:]
     internal var pin2Window = Pin2Window()
@@ -18,12 +17,8 @@
 
     // MARK: Lifecycle
 
-    internal init(
-      inbox: RappAuthorizationInbox,
-      requireExplicitReconnect: @escaping @MainActor @Sendable () -> Void
-    ) {
+    internal init(inbox: RappAuthorizationInbox) {
       self.inbox = inbox
-      self.requireExplicitReconnect = requireExplicitReconnect
     }
 
     // MARK: Static Functions

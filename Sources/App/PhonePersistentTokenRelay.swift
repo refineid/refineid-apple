@@ -20,13 +20,6 @@
 
   @MainActor
   internal final class PhonePersistentTokenRelay: ObservableObject {
-    // MARK: Nested Types
-
-    internal enum RelistenPolicy {
-      case automatic
-      case explicitUserActionRequired
-    }
-
     // MARK: Static Properties
 
     internal static let shared = PhonePersistentTokenRelay()
@@ -52,7 +45,8 @@
     internal var dispatcher: RappPhoneProxyDispatcher?
     internal var connectionID: UUID?
     internal var preCoordinatorFrames: [Data] = []
-    @Published internal var relistenPolicy = RelistenPolicy.automatic
+    /// A pairing ceremony owns the advertisement while it runs.
+    internal var isPairing = false
     @Published internal var isActivelyConnected = false {
       didSet { connectionIndicator.update(active: isActivelyConnected) }
     }
@@ -101,7 +95,7 @@
       else { return }
       #if REFINEID_STREAM_TRANSPORT
         guard coordinator == nil,
-          relistenPolicy == .automatic,
+          !isPairing,
           hasUsablePair()
         else { return }
         let contexts = PhoneStreamPairContext.resolveAll(vault: vault)
@@ -110,7 +104,7 @@
         startListening(contexts)
       #else
         guard relay == nil, coordinator == nil,
-          relistenPolicy == .automatic,
+          !isPairing,
           hasUsableSelectedPair()
         else { return }
         let nearbyConnectionID = UUID()
@@ -199,7 +193,6 @@
         } else if let resolved = try PhoneProxyPairSelection.resolveSelectedPair(vault: vault) {
           pair = resolved
         } else {
-          relistenPolicy = .explicitUserActionRequired
           failTransport()
           return
         }
@@ -214,9 +207,7 @@
         )
         let madeDispatcher = RappPhoneProxyDispatcher(
           inbox: RappAuthorizationInbox.shared
-        ) { [weak self] in
-          self?.requireExplicitUserAction()
-        }
+        )
         coordinator = made
         dispatcher = madeDispatcher
         isActivelyConnected = true
@@ -230,7 +221,6 @@
           earlyFrames: earlyFrames
         )
       } catch {
-        relistenPolicy = .explicitUserActionRequired
         failTransport()
       }
     }
@@ -265,13 +255,6 @@
       #if DEBUG
         HolderTrace.say("session event \(eventCaseName(event))")
       #endif
-      if PhoneRelayFailStops.requireExplicitUserAction(event) {
-        relistenPolicy = .explicitUserActionRequired
-      }
-    }
-
-    private func requireExplicitUserAction() {
-      relistenPolicy = .explicitUserActionRequired
     }
 
     /// Runs `work` after every delivery enqueued before it, cancelling a

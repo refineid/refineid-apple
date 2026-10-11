@@ -59,9 +59,7 @@ extension RefineIDApp {
           #if os(macOS)
             PersistentTokenRegistry.shared.startAfterPairing()
           #elseif os(iOS) && REFINEID_LOCAL_CARD
-            if let ids = try? RappDeviceVault().activePairIDs(), !ids.isEmpty {
-              PhonePersistentTokenRelay.shared.resumeAfterUserAction()
-            }
+            PhonePersistentTokenRelay.shared.start()
             if !SupportedCardTransports.offersNearField {
               PersistentTokenRegistry.shared.startAfterPairing()
             }

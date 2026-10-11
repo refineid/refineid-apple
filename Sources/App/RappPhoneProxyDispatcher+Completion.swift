@@ -81,7 +81,6 @@
           try? await coordinator.invalidCredential(
             operationID: operationID, remainingRetries: remaining)
         } else {
-          await requireExplicitReconnect()
           try? await coordinator.credentialRejected(operationID: operationID)
         }
 
@@ -100,7 +99,6 @@
         }
 
       case .completionAmbiguous:
-        await requireExplicitReconnect()
         try? await coordinator.cardCompletionAmbiguous(operationID: operationID)
       }
     }

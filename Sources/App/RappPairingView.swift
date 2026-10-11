@@ -21,12 +21,8 @@ internal struct RappPairingView: View {
     internal static let statusIconSize: CGFloat = 40
     internal static let contentSpacing: CGFloat = 12
     internal static let codeTopPadding: CGFloat = 4
-    internal static let buttonVerticalPadding: CGFloat = 4
     internal static let verticalCardPadding: CGFloat = 8
     internal static let statusVerticalPadding: CGFloat = 16
-    internal static let badgeHorizontalPadding: CGFloat = 8
-    internal static let badgeVerticalPadding: CGFloat = 4
-    internal static let badgeOpacity = 0.15
   }
 
   @Environment(\.dismiss)
@@ -46,22 +42,6 @@ internal struct RappPairingView: View {
 
   internal var isRemoteAccessEnabled: Bool {
     remoteAccessEnabled
-  }
-
-  /// What the screen says about serving the card.
-  internal var servingState: HolderServingState {
-    #if REFINEID_LOCAL_CARD && os(iOS)
-      HolderServingState.derive(
-        enabled: remoteAccessEnabled,
-        paired: !model.pairs.isEmpty,
-        halted: phoneRelay.relistenPolicy == .explicitUserActionRequired,
-        connected: isActivelyConnected
-      )
-    #else
-      HolderServingState.derive(
-        enabled: remoteAccessEnabled, paired: !model.pairs.isEmpty, halted: false,
-        connected: isActivelyConnected)
-    #endif
   }
 
   internal var remoteAccessBinding: Binding<Bool> {
