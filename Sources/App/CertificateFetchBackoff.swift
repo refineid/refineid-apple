@@ -6,12 +6,11 @@ import Foundation
 /// the phone again.
 ///
 /// Every read reaches the phone as a card request and can hold it for
-/// its whole card wait. The first two failures are retried on their
-/// own after a short gap, for a phone that was only briefly out of
-/// reach. After that no read is scheduled: the phone's next
-/// advertisement starts one, but only once a gap that doubles from
-/// half a minute to five minutes has passed. An explicit retry, a
-/// launch, or a new pairing starts over.
+/// its whole card wait. While the phone stays on the network each
+/// failure is followed by another read: the first two after a short
+/// gap, for a phone that was only briefly out of reach, then after a
+/// gap that doubles from half a minute to five minutes. A launch or a
+/// new pairing starts over.
 internal struct CertificateFetchBackoff: Equatable, Sendable {
   // MARK: Static Properties
 
@@ -33,11 +32,6 @@ internal struct CertificateFetchBackoff: Equatable, Sendable {
   internal private(set) var failures = 0
 
   private var notBefore: ContinuousClock.Instant?
-
-  /// Whether the failure count still earns a scheduled quick retry.
-  internal var schedulesQuickRetry: Bool {
-    failures > 0 && failures <= Self.quickRetries
-  }
 
   // MARK: Static Functions
 

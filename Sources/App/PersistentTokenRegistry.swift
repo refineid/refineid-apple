@@ -94,12 +94,6 @@
     /// Whether a phone is paired with this computer.
     internal private(set) var hasPairing = false
 
-    /// Whether the phone is on the network but no certificate has been
-    /// read and no read is in flight.
-    internal var holderWaitsForCard: Bool {
-      holderIsAdvertising && certificateDER == nil && !isRunning
-    }
-
     #if REFINEID_STREAM_TRANSPORT
       internal var presence: StreamRelayPresence?
 
@@ -256,12 +250,6 @@
       fetchBackoff.reset()
     }
 
-    /// Reads the phone's certificate again at the user's request.
-    internal func retryFetch() {
-      resetFetchFailures()
-      startFetch(replacing: false)
-    }
-
     fileprivate func finish(_ certificateDER: Data?, cardSerial: String? = nil) {
       defer {
         isRunning = false
@@ -271,7 +259,7 @@
       guard let certificateDER else {
         fetchBackoff.recordFailure(at: .now)
         #if REFINEID_STREAM_TRANSPORT
-          if fetchBackoff.schedulesQuickRetry, self.holderIsAdvertising {
+          if self.holderIsAdvertising {
             Task { @MainActor in
               try? await Task.sleep(
                 for: CertificateFetchBackoff.delay(afterFailures: self.fetchBackoff.failures)

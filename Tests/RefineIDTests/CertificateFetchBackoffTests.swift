@@ -40,17 +40,14 @@ internal struct CertificateFetchBackoffTests {
     #expect(backoff.permits(at: now.advanced(by: Fixture.quick)))
   }
 
-  /// Only the first failures schedule a retry of their own.
+  /// The third failure waits out the slow gap.
   @Test
-  internal func onlyEarlyFailuresScheduleRetries() {
+  internal func laterFailuresWaitLonger() {
     var backoff = CertificateFetchBackoff()
     let now = ContinuousClock.now
     backoff.recordFailure(at: now)
-    #expect(backoff.schedulesQuickRetry)
     backoff.recordFailure(at: now)
-    #expect(backoff.schedulesQuickRetry)
     backoff.recordFailure(at: now)
-    #expect(!backoff.schedulesQuickRetry)
     #expect(!backoff.permits(at: now.advanced(by: Fixture.quick)))
   }
 

@@ -22,10 +22,6 @@
     /// The presence browser reports the paired phone.
     internal var phonePresent: Bool
 
-    /// The phone is present, its certificate was not read, and no read
-    /// is in flight.
-    internal var phoneWaitsForCard: Bool
-
     /// A phone is paired with this computer.
     internal var paired: Bool
   }
