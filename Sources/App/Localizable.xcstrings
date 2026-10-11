@@ -3584,7 +3584,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Paritettu"
+            "value": "Liitetty"
           }
         },
         "sv": {
@@ -6738,7 +6738,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Paritetut tietokoneet"
+            "value": "Liitetyt tietokoneet"
           }
         },
         "sv": {
