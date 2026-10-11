@@ -309,7 +309,6 @@
         await finishRead(outcome, operationID: operationID, coordinator: coordinator)
         return
       }
-      lastReadAuthCertDER = der
       await completeIdentity(der, operationID: operationID, coordinator: coordinator)
     }
 
@@ -328,6 +327,7 @@
         await invalid(operationID, coordinator: coordinator)
         return
       }
+      lastReadAuthCertDER = der
       do {
         try await coordinator.completeIdentity(operationID: operationID, identity: identity)
       } catch {
