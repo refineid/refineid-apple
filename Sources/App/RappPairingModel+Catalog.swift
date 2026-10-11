@@ -59,17 +59,22 @@ extension RappPairingModel {
   }
 
   internal func select(pairID: Data) {
-    let vault = RappDeviceVault()
     _ = try? vault.selectPair(pairID: pairID)
     selectedPairID = pairID
     refresh()
     NotificationCenter.default.post(name: Self.pairingsDidChangeNotification, object: nil)
   }
 
+  /// Forgets one paired computer through the vault the list is read from.
+  ///
+  /// The row goes with the record. The name goes only once the record is
+  /// gone; a row that stays keeps its name.
   internal func revoke(pairID: Data) {
-    let vault = RappDeviceVault()
     let now = UInt64(Date().timeIntervalSince1970 * millisecondsPerSecond)
-    _ = try? vault.revokePair(pairID: pairID, revokedAtMilliseconds: now)
+    guard (try? vault.revokePair(pairID: pairID, revokedAtMilliseconds: now)) != nil else {
+      refresh()
+      return
+    }
     RappPairNames.forget(pairID: pairID)
     if selectedPairID == pairID {
       try? vault.clearSelectedPair()
