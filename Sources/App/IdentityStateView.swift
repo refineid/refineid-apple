@@ -147,11 +147,11 @@
           .foregroundStyle(.secondary)
 
       case .phoneConnected:
-        Text(String(localized: "\(phoneLabel) connected"))
+        Text("\(phoneLabel) connected")
           .foregroundStyle(.secondary)
 
       case .phoneUnreachable:
-        Text(String(localized: "\(phoneLabel) not reachable"))
+        Text("\(phoneLabel) not reachable")
           .foregroundStyle(.secondary)
 
       case .connectReader:
