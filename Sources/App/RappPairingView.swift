@@ -84,6 +84,9 @@ internal struct RappPairingView: View {
         model.createOffer()
       }
     }
+    .onDisappear {
+      model.cancel()
+    }
     .onReceive(
       NotificationCenter.default.publisher(
         for: RappPairingModel.pairingsDidChangeNotification
