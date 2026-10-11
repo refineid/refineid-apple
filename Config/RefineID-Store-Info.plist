@@ -118,5 +118,7 @@
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>RefineID uses the local network to connect your devices securely for identity-card operations.</string>
+	<key>RefineIDBuildSource</key>
+	<string>$(REFINEID_BUILD_SOURCE)</string>
 </dict>
 </plist>
