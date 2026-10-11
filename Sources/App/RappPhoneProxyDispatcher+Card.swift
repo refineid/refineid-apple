@@ -289,24 +289,37 @@
       }
     }
 
+    /// The identity is read off the authentication certificate, which the
+    /// phone already holds once the card has been read; only a phone that
+    /// has never seen the card asks for it.
     private func readIdentity(
       operationID: Data,
       coordinator: RappConnectionCoordinator
     ) async {
+      if let der = lastReadAuthCertDER ?? PrimeStore.storedIdentities().first?.certDER {
+        await completeIdentity(der, operationID: operationID, coordinator: coordinator)
+        return
+      }
       let accessNumber = resolvedCardAccessNumber(isReader: false)
       let outcome = await RappCardExecutor.readCertificate(
         cardAccessNumber: accessNumber,
         signatureCertificate: false
       )
-      guard case .result(let der) = outcome,
-        let facts = CertificateFacts(der: der),
-        let name = DistinguishedName.holderLine(inName: facts.subjectName)
-      else {
+      guard case .result(let der) = outcome else {
         await finishRead(outcome, operationID: operationID, coordinator: coordinator)
         return
       }
       lastReadAuthCertDER = der
-      guard
+      await completeIdentity(der, operationID: operationID, coordinator: coordinator)
+    }
+
+    private func completeIdentity(
+      _ der: Data,
+      operationID: Data,
+      coordinator: RappConnectionCoordinator
+    ) async {
+      guard let facts = CertificateFacts(der: der),
+        let name = DistinguishedName.holderLine(inName: facts.subjectName),
         let identity = RappOperationDriver.Identity(
           authenticationCertificate: der,
           holderName: name,
