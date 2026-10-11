@@ -20,6 +20,17 @@ internal struct BundledVersions {
   /// Application version as "26.7.22 (124)", or nil when unreadable.
   internal let application: String?
 
+  /// Where a development install was built from, as branch@commit, or
+  /// nil for a clean main checkout and every store build.
+  internal let source: String?
+
+  /// The version followed by the source when there is one.
+  internal var applicationWithSource: String? {
+    guard let application else { return nil }
+    guard let source else { return application }
+    return application + " " + source
+  }
+
   /// Version of the embedded CryptoTokenKit extension that mints tokens.
   ///
   /// Nil when that bundle cannot be located or read; the UI must then say
@@ -31,8 +42,14 @@ internal struct BundledVersions {
   internal static func read(from bundle: Bundle) -> Self {
     Self(
       application: displayVersion(of: bundle),
+      source: buildSource(of: bundle),
       driver: driverVersion(in: bundle)
     )
+  }
+
+  private static func buildSource(of bundle: Bundle) -> String? {
+    let value = bundle.object(forInfoDictionaryKey: "RefineIDBuildSource") as? String
+    return value.flatMap { $0.isEmpty ? nil : $0 }
   }
 
   private static func displayVersion(of bundle: Bundle) -> String? {

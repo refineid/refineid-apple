@@ -121,6 +121,7 @@
 	</array>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>RefineID uses Bluetooth to connect your devices securely for identity-card operations.</string>
+	<key>RefineIDBuildSource</key>
+	<string>$(REFINEID_BUILD_SOURCE)</string>
 </dict>
 </plist>
-

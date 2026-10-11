@@ -59,7 +59,7 @@
       let versions = BundledVersions.read(from: .main)
       return [
         "== Versions ==",
-        "app: " + (versions.application ?? "unreadable"),
+        "app: " + (versions.applicationWithSource ?? "unreadable"),
         "driver: " + (versions.driver ?? "not embedded"),
         "",
       ]

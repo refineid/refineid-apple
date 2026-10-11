@@ -61,3 +61,10 @@ DEVELOPMENT_TEAM = 4ZJC3SFJR2
 
 MARKETING_VERSION = 26.10.3
 CURRENT_PROJECT_VERSION = 221
+
+// Where a development install was built from, as branch@commit, set on
+// the xcodebuild command line by the release manager's installs and
+// shown after the version in development builds. Empty for a clean
+// main checkout and for every store build, so the version numbers above
+// are never touched by it.
+REFINEID_BUILD_SOURCE =
