@@ -63,7 +63,7 @@
     @State private var isFetching = PersistentTokenRegistry.shared.isRunning
 
     /// The paired phone by the name it introduced itself with.
-    @State private var phoneName: String?
+    @State private var phoneLabel = PersistentTokenRegistry.pairedPhoneLabel
 
     /// The person line the remote-card registry already holds.
     ///
@@ -160,10 +160,6 @@
       }
     }
 
-    private var phoneLabel: String {
-      phoneName ?? String(localized: "Phone")
-    }
-
     /// Follows one availability and reads the name when ready.
     ///
     /// The holder's name is read off the main actor and never blocks
@@ -172,7 +168,7 @@
       #if DEBUG
         Self.log.info("track: \(String(describing: self.availability))")
       #endif
-      phoneName = PersistentTokenRegistry.activePairID.flatMap(RappPairNames.name(forPairID:))
+      phoneLabel = PersistentTokenRegistry.pairedPhoneLabel
       switch availability {
       case .ready:
         if DemoMode.shared.isActive {

@@ -3857,50 +3857,6 @@
         }
       }
     },
-    "Phone connected": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Phone connected"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Puhelin yhdistetty"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Telefon ansluten"
-          }
-        }
-      }
-    },
-    "Phone not connected": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Phone not connected"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Puhelin ei yhdistetty"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Telefonen är inte ansluten"
-          }
-        }
-      }
-    },
     "Person": {
       "localizations": {
         "fi": {

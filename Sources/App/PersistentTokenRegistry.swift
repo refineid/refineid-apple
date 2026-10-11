@@ -74,6 +74,11 @@
       return (try? vault.selectedPairID()) ?? pairIDs.first
     }
 
+    /// The paired phone by the name it introduced itself with, or "Phone".
+    internal static var pairedPhoneLabel: String {
+      activePairID.flatMap(RappPairNames.name(forPairID:)) ?? String(localized: "Phone")
+    }
+
     // MARK: Properties
 
     /// Who the borrowed certificate names, for the identity row.
