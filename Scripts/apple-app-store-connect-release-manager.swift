@@ -1877,6 +1877,7 @@ private func installMacOS(_ arguments: [String], stamp: Bool = true) {
       "-configuration", configuration,
       "-destination", "platform=macOS,arch=arm64",
       "-derivedDataPath", installMacDerivedData.path,
+      "REFINEID_BUILD_SOURCE=\(installSourceTag())",
       "CLANG_COVERAGE_MAPPING=NO",
       "ENABLE_CODE_COVERAGE=NO",
       "-quiet",
@@ -2009,6 +2010,26 @@ private func installLaunch(
   }
 }
 
+/// Where this install is built from, for the development title: the
+/// branch and commit when the checkout is not a clean main, empty when
+/// it is. A store build never carries it.
+private func installSourceTag() -> String {
+  let branch = releaseRun(
+    "/usr/bin/git", ["rev-parse", "--abbrev-ref", "HEAD"],
+    currentDirectory: releaseRepositoryRoot, capture: true
+  ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+  let commit = releaseRun(
+    "/usr/bin/git", ["rev-parse", "--short", "HEAD"],
+    currentDirectory: releaseRepositoryRoot, capture: true
+  ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+  let dirty = !releaseRun(
+    "/usr/bin/git", ["status", "--porcelain", "--untracked-files=no"],
+    currentDirectory: releaseRepositoryRoot, capture: true
+  ).stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+  if branch == "main", !dirty { return "" }
+  return "\(branch)@\(commit)" + (dirty ? "+" : "")
+}
+
 /// Builds the optimized diagnostic configuration for one device, installs
 /// and launches it. The version goes on the command line, which wins over
 /// Version.xcconfig, so the device build edits no file.
@@ -2029,6 +2050,7 @@ private func installIOS(
       "-derivedDataPath", derivedData.path,
       "MARKETING_VERSION=\(version.marketing)",
       "CURRENT_PROJECT_VERSION=\(version.build)",
+      "REFINEID_BUILD_SOURCE=\(installSourceTag())",
       "CLANG_COVERAGE_MAPPING=NO",
       "ENABLE_CODE_COVERAGE=NO",
       "-quiet",
@@ -2078,6 +2100,7 @@ private func installSimulator(_ simulator: String) {
       "-configuration", "Debug",
       "-destination", "platform=iOS Simulator,id=\(simulator)",
       "-derivedDataPath", derivedData.path,
+      "REFINEID_BUILD_SOURCE=\(installSourceTag())",
       "CLANG_COVERAGE_MAPPING=NO",
       "ENABLE_CODE_COVERAGE=NO",
       "-quiet",

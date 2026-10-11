@@ -121,6 +121,8 @@ internal struct RappShippingConfigurationTests {
   internal func localStoreDeclarations() throws {
     var full = try Self.plist("Config/RefineID-Info.plist")
     full.removeValue(forKey: "NSBonjourServices")
+    // Only a development install names the checkout it was built from.
+    full.removeValue(forKey: "RefineIDBuildSource")
     var store = try Self.plist("Config/RefineID-Store-Info.plist")
     #expect(
       store.removeValue(forKey: "NSBonjourServices") as? [String]

@@ -40,7 +40,7 @@ internal struct RefineIDApp: App {
     internal static var statusWindowTitle: String {
       #if DEBUG
         if !ProcessInfo.processInfo.arguments.contains("--hide-diagnostics"),
-          let version = BundledVersions.read(from: .main).application
+          let version = BundledVersions.read(from: .main).applicationWithSource
         {
           return "RefineID - \(version)"
         }
