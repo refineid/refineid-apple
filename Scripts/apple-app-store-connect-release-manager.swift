@@ -2012,7 +2012,8 @@ private func installLaunch(
 
 /// Where this install is built from, for the development title: the
 /// branch and commit when the checkout is not a clean main, empty when
-/// it is. A store build never carries it.
+/// it is. The install's own version stamp is not a change. A store
+/// build never carries it.
 private func installSourceTag() -> String {
   let branch = releaseRun(
     "/usr/bin/git", ["rev-parse", "--abbrev-ref", "HEAD"],
@@ -2023,7 +2024,11 @@ private func installSourceTag() -> String {
     currentDirectory: releaseRepositoryRoot, capture: true
   ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
   let dirty = !releaseRun(
-    "/usr/bin/git", ["status", "--porcelain", "--untracked-files=no"],
+    "/usr/bin/git",
+    [
+      "status", "--porcelain", "--untracked-files=no", "--",
+      ".", ":!Version.xcconfig", ":!PKCS11Bridge/Sources/PKCS11Bridge/ModuleVersion.swift",
+    ],
     currentDirectory: releaseRepositoryRoot, capture: true
   ).stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
   if branch == "main", !dirty { return "" }
