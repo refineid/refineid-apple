@@ -22,7 +22,6 @@ internal struct IdentityLineTests {
     readerConnected: false,
     cardPresent: false,
     phonePresent: false,
-    phoneWaitsForCard: false,
     paired: false
   )
 
@@ -49,14 +48,13 @@ internal struct IdentityLineTests {
       },
       line: .insertCard),
     Case(
-      name: "paired phone here with its card unread offers Retry",
+      name: "paired phone here with its card unread",
       facts: with { facts in
         facts.availability = .cardWithoutIdentity
         facts.paired = true
         facts.phonePresent = true
-        facts.phoneWaitsForCard = true
       },
-      line: .phoneConnectedRetry),
+      line: .phoneConnected),
     Case(
       name: "paired phone present",
       facts: with { facts in
@@ -96,9 +94,8 @@ internal struct IdentityLineTests {
       facts: with { facts in
         facts.availability = .cardWithoutIdentity
         facts.phonePresent = true
-        facts.phoneWaitsForCard = true
       },
-      line: .phoneConnectedRetry),
+      line: .phoneConnected),
     Case(
       name: "phone here, card not read yet",
       facts: with { facts in
@@ -113,7 +110,6 @@ internal struct IdentityLineTests {
         facts.availability = .cardWithoutIdentity
         facts.cardPresent = true
         facts.phonePresent = true
-        facts.phoneWaitsForCard = true
       },
       line: .reading),
     Case(
@@ -128,10 +124,9 @@ internal struct IdentityLineTests {
       facts: with { facts in
         facts.availability = .cardWithoutIdentity
         facts.phonePresent = true
-        facts.phoneWaitsForCard = true
         facts.warnsUnavailableCard = true
       },
-      line: .phoneConnectedRetry),
+      line: .phoneConnected),
     Case(
       name: "the card warning needs a card",
       facts: with { facts in

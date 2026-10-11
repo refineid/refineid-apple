@@ -62,15 +62,8 @@
 
     @State private var isFetching = PersistentTokenRegistry.shared.isRunning
 
-    /// Whether the paired phone is here but its card was not read and
-    /// no read is under way.
-    private var phoneWaitsForCard: Bool {
-      #if REFINEID_REMOTE_CARD
-        PersistentTokenRegistry.shared.holderWaitsForCard
-      #else
-        false
-      #endif
-    }
+    /// The paired phone by the name it introduced itself with.
+    @State private var phoneName: String?
 
     /// The person line the remote-card registry already holds.
     ///
@@ -120,7 +113,6 @@
         readerConnected: cardPresence.isReaderConnected,
         cardPresent: cardPresence.isCardPresent,
         phonePresent: PersistentTokenRegistry.shared.holderIsAdvertising,
-        phoneWaitsForCard: phoneWaitsForCard,
         paired: PersistentTokenRegistry.shared.hasPairing
       )
     }
@@ -142,16 +134,6 @@
           }
         }
 
-      case .phoneConnectedRetry:
-        HStack {
-          Text("Phone connected")
-            .foregroundStyle(.secondary)
-          Spacer()
-          Button(String(localized: "Retry")) {
-            PersistentTokenRegistry.shared.retryFetch()
-          }
-        }
-
       case .cardNotReady:
         Text("Card detected, not ready - if this lasts, re-insert it")
           .foregroundStyle(.orange)
@@ -165,11 +147,11 @@
           .foregroundStyle(.secondary)
 
       case .phoneConnected:
-        Text("Phone connected")
+        Text(String(localized: "\(phoneLabel) connected"))
           .foregroundStyle(.secondary)
 
       case .phoneUnreachable:
-        Text("Phone not reachable")
+        Text(String(localized: "\(phoneLabel) not reachable"))
           .foregroundStyle(.secondary)
 
       case .connectReader:
@@ -178,13 +160,20 @@
       }
     }
 
-    /// Follows one availability and reads the name when ready.
+    private var phoneLabel: String {
+      phoneName ?? String(localized: "Phone")
+    }
+
+    /// Follows one availability and reads the names when ready.
     ///
-    /// The name is read off the main actor and never blocks the row.
+    /// The names are read off the main actor and never block the row.
     private func track() async {
       #if DEBUG
         Self.log.info("track: \(String(describing: self.availability))")
       #endif
+      phoneName = await Task.detached(priority: .utility) {
+        PersistentTokenRegistry.activePairID.flatMap(RappPairNames.name(forPairID:))
+      }.value
       switch availability {
       case .ready:
         if DemoMode.shared.isActive {

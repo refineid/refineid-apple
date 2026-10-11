@@ -16,14 +16,10 @@
     /// "Insert the card into the reader".
     case insertCard
 
-    /// "Phone connected".
+    /// The paired phone is on the network.
     case phoneConnected
 
-    /// "Phone connected", with Retry: the phone is here, its card was not
-    /// read, and no read is under way.
-    case phoneConnectedRetry
-
-    /// "Phone not reachable": a phone is paired but not on the network.
+    /// A phone is paired but not on the network.
     case phoneUnreachable
 
     /// "Reading the card…": a card in the reader is settling, or a read of
@@ -39,10 +35,13 @@
         return .holder
 
       case .cardWithoutIdentity:
-        if !facts.cardPresent, facts.phoneWaitsForCard {
-          return .phoneConnectedRetry
+        if facts.cardPresent {
+          return facts.warnsUnavailableCard ? .cardNotReady : .reading
         }
-        return facts.warnsUnavailableCard && facts.cardPresent ? .cardNotReady : .reading
+        if facts.phonePresent, !facts.readInFlight {
+          return .phoneConnected
+        }
+        return .reading
 
       case .noCard:
         if facts.readInFlight {
