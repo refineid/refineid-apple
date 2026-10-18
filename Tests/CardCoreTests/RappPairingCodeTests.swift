@@ -48,17 +48,18 @@ import Testing
       #expect(!RappPairingCode.isValid("7KX4M9AB"))
     }
 
-    @Test("Rejects the excluded letters I, L and O instead of mapping them")
+    @Test("Rejects each excluded letter instead of mapping it")
     internal func testRejectsExcludedLetters() {
-      #expect(RappPairingCode.normalize("iLo8k2").isEmpty)
-      #expect(RappPairingCode.normalize("ILO8K2").isEmpty)
-      #expect(!RappPairingCode.isValid("7KX4MO"))
+      for excluded in ["7KX4MI", "7KX4Mi", "7KX4ML", "7KX4Ml", "7KX4MO", "7KX4Mo"] {
+        #expect(RappPairingCode.normalize(excluded).isEmpty, "\(excluded)")
+        #expect(!RappPairingCode.isValid(excluded), "\(excluded)")
+      }
       #expect(RappPairingCode.isValid("7KX4M0"))
+      #expect(RappPairingCode.isValid("7KX4M1"))
     }
 
-    @Test("Rejects invalid characters and U")
+    @Test("Rejects characters outside the alphabet")
     internal func testRejectsInvalidCharacters() {
-      // U is explicitly rejected per RAPP v26.10.18 §3.1
       #expect(RappPairingCode.normalize("7KU4M9").isEmpty)
       #expect(!RappPairingCode.isValid("7KU4M9"))
 
