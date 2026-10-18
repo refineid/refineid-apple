@@ -6,7 +6,7 @@
   import Security
 
   /// Generates, formats, and validates 6-character Crockford Base32 pairing codes
-  /// for simple, secure out-of-band peer pairing without QR codes per RAPP v26.10.9 §3.1.
+  /// for simple, secure out-of-band peer pairing without QR codes per RAPP v26.10.18 §3.1.
   public enum RappPairingCode {
     // MARK: Static Properties
 
@@ -44,13 +44,13 @@
       return String(bytes.map { alphabet[Int($0) % alphabet.count] })
     }
 
-    /// Applies the Crockford Base32 canonicalization pipeline per RAPP v26.10.9 §3.1.
+    /// Applies the Crockford Base32 canonicalization pipeline per RAPP v26.10.18 §3.1.
     ///
-    /// NFKC first, then ASCII-only uppercasing, removal of ASCII whitespace
-    /// and hyphens, and the Crockford decode aliases (I and L to 1, O to 0).
-    /// Returns the canonical string, which may be shorter or longer than a
-    /// code, or an empty string when any character is outside the alphabet
-    /// or is the rejected U. ``isValid(_:)`` decides the exact length.
+    /// NFKC first, then ASCII-only uppercasing and removal of ASCII
+    /// whitespace and hyphens. Returns the canonical string, which may be
+    /// shorter or longer than a code, or an empty string when any character
+    /// is outside the alphabet, the excluded letters I, L, O and U among
+    /// them. ``isValid(_:)`` decides the exact length.
     public static func normalize(_ input: String) -> String {
       var result = ""
       for scalar in input.precomposedStringWithCompatibilityMapping.unicodeScalars {
@@ -58,19 +58,10 @@
         let upper =
           asciiLowercase.contains(scalar.value)
           ? Character(scalar).uppercased() : String(scalar)
-        switch upper {
-        case "I", "L":
-          result.append("1")
-
-        case "O":
-          result.append("0")
-
-        case _ where upper.count == 1 && alphabetSet.contains(Character(upper)):
-          result.append(upper)
-
-        default:
+        guard upper.count == 1, alphabetSet.contains(Character(upper)) else {
           return ""
         }
+        result.append(upper)
       }
       return result
     }

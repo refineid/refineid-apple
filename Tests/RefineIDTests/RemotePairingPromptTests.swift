@@ -15,7 +15,8 @@
     internal func typedCodeIsCanonicalized() {
       #expect(RemotePairingPromptView.limitedCode("7kx4m9") == "7KX4M9")
       #expect(RemotePairingPromptView.limitedCode("7K X4-M9") == "7KX4M9")
-      #expect(RemotePairingPromptView.limitedCode("ol") == "01")
+      #expect(RemotePairingPromptView.limitedCode("ol").isEmpty)
+      #expect(RemotePairingPromptView.limitedCode("7KoX4") == "7KX4")
     }
 
     @Test

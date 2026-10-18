@@ -72,10 +72,10 @@
     /// Keeps what was typed to the characters a pairing code can hold.
     ///
     /// Typed input is canonicalized the way the code is compared, so a
-    /// lowercase or look-alike letter becomes the one the phone shows,
-    /// and anything outside the alphabet is dropped. Each character is
-    /// canonicalized alone, because one stray character empties the
-    /// canonical form of the whole string.
+    /// lowercase letter becomes the capital the phone shows, and anything
+    /// outside the alphabet, the excluded letters among it, is dropped.
+    /// Each character is canonicalized alone, because one stray character
+    /// empties the canonical form of the whole string.
     nonisolated internal static func limitedCode(_ typed: String) -> String {
       String(
         typed.map { RappPairingCode.normalize(String($0)) }
