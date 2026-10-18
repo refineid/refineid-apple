@@ -20,7 +20,7 @@ import Foundation
 /// The release manager's stamp rewrites the string below and nothing else.
 internal enum ModuleVersion {
   /// The stamped project version: YY.M.D.HHMM.
-  internal static let text = "26.10.3.221"
+  internal static let text = "26.10.3.2210"
 
   /// Where each component of YY.M.D.HHMM sits in the stamp.
   private static let yearIndex = 0

@@ -39,7 +39,7 @@ internal struct ModuleVersionTests {
   @Test
   internal func malformedStampReportsZero() {
     #expect(ModuleVersion.firmware(of: "26.10.3").minor == 0)
-    #expect(ModuleVersion.firmware(of: "26.10.3.2460").minor == 0)
+    #expect(ModuleVersion.firmware(of: "26.10.3.2400").minor == 0)
     #expect(ModuleVersion.firmware(of: "26.10.3.1299").minor == 0)
     #expect(ModuleVersion.library(of: "next").major == 0)
     #expect(ModuleVersion.firmware(of: "26.10.300.1200").major == 0)
@@ -47,8 +47,13 @@ internal struct ModuleVersionTests {
 
   @Test
   internal func stampedTextIsWellFormed() {
-    let parts = ModuleVersion.text.split(separator: ".")
+    let parts = ModuleVersion.text.split(separator: ".").compactMap { UInt($0) }
     #expect(parts.count == 4)
-    #expect(parts.allSatisfy { UInt($0) != nil })
+    let time = parts[3]
+    #expect(time / 100 < 24)
+    #expect(time % 100 < 60)
+    let step = (time / 100 * 60 + time % 100) / 6
+    #expect(UInt(ModuleVersion.firmware.minor) == step)
+    #expect(ModuleVersion.firmware.major == 3)
   }
 }

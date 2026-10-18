@@ -220,7 +220,7 @@ Guidelines and is built from owned source artwork.
   numbers increase strictly within a day. Build numbers restart
   each day, which is valid because App Store Connect requires build-number
   uniqueness only within one version string and the version changes daily.
-- TestFlight and App Store Connect display the pair as `26.7.23 (130)`.
+- TestFlight and App Store Connect display the pair as `26.7.23 (1300)`.
 
 The release manager owns candidate archiving, inspection, export, and upload. The repository contains no certificate
 private keys, provisioning profiles, API keys, or Apple account credentials.
