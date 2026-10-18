@@ -19,10 +19,13 @@ xcode="$(xcodebuild -version | head -1)"
   echo "/// Apple machine identifiers and the names on the box, as Xcode knows them."
   echo "internal enum DeviceModels {"
   echo "  internal static let names: [String: String] = ["
+  # A product type may carry a trait suffix after a hyphen (iPad16,3-A),
+  # which uname never reports; the identifier is the part before it.
   sqlite3 -separator '|' "$platform" \
-    "select ProductType, ProductDescription from Devices
+    "select case when instr(ProductType, '-') > 0 then substr(ProductType, 1, instr(ProductType, '-') - 1) else ProductType end as Identifier, ProductDescription
+     from Devices
      where ProductDescription is not null and (ProductType like 'iPhone%' or ProductType like 'iPad%')
-     group by ProductType order by ProductType" \
+     group by Identifier order by Identifier" \
     | awk -F'|' '{ printf "    \"%s\": \"%s\",\n", $1, $2 }'
   echo "  ]"
   echo "}"
