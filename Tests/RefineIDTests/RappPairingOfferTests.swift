@@ -5,7 +5,7 @@ import XCTest
 @testable import RefineID
 
 /// An offer marks the model as offering for as long as the ceremony it
-/// started runs; ending the attempt, however it ends, clears the mark.
+/// started runs; a failed or cancelled attempt clears the mark.
 internal final class RappPairingOfferTests: XCTestCase {
   @MainActor
   internal func testAnOfferShowsItsCodeAndMarksTheModelOffering() {

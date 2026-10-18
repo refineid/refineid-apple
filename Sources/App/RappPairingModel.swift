@@ -290,10 +290,15 @@ internal final class RappPairingModel: ObservableObject {
     Task { await activeCoordinator?.close() }
   }
 
-  /// Serves the paired computers, the one just paired among them.
+  /// Serves the paired computers, the one just paired among them: a
+  /// relay not yet listening starts, and one already listening announces
+  /// the new pairing in its session record at once.
   internal func serveNewPairing() {
     #if REFINEID_LOCAL_CARD && os(iOS)
       PhonePersistentTokenRelay.shared.start()
+      #if REFINEID_STREAM_TRANSPORT
+        PhonePersistentTokenRelay.shared.refreshSessionRecord()
+      #endif
     #endif
   }
 }
