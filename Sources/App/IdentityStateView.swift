@@ -123,13 +123,8 @@
         // name behind it is not worth showing. The empty text is
         // still a rendered view: a structurally absent one would
         // never run the task that reads the name.
-        VStack(alignment: .leading) {
-          Text(holder ?? borrowedHolderLine ?? "")
-            .textSelection(.enabled)
-          if borrowedHolderLine != nil {
-            RemoteCardPauseRow()
-          }
-        }
+        Text(holder ?? borrowedHolderLine ?? "")
+          .textSelection(.enabled)
 
       case .cardNotReady:
         Text("Card detected, not ready - if this lasts, re-insert it")

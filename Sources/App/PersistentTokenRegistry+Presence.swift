@@ -203,6 +203,7 @@
         advertisementLossTask?.cancel()
         advertisementLossTask = nil
         holderIsAdvertising = true
+        RemoteSignCoolDown.shared.resume()
         if certificateDER == nil {
           startFetch(replacing: false)
         } else {
