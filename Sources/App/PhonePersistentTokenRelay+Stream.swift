@@ -73,15 +73,32 @@
       guard !contexts.isEmpty else { return }
       sessionListening.withdrawal?.cancel()
       sessionListening.withdrawal = nil
+      let records = contexts.map(\.pairRecord)
+      replacementRouting.withLock { $0.records = records }
       if let listener = streamListeners[Self.sessionListenerKey],
         let instance = sessionInstanceName
       {
         listener.updateTXTRecord(sessionRecord(contexts, instance: instance))
       } else {
         sessionListening.router = RappSessionRouter()
+        replacementRouting.withLock { $0.router = RappSessionRouter() }
         let idle = sessionIsIdle
+        let routing = replacementRouting
+        let profile = rappStreamProfileName()
         let listener = StreamRelayListener(
-          yieldsIdleConnection: { idle.withLock { $0 } },
+          admitsReplacement: { preamble in
+            // Only a session preamble naming a served pairing displaces
+            // an idle session (RAPP v26.10.18 §2.2.1, §8.4); a stranger
+            // or a pairing attempt displaces nothing.
+            guard idle.withLock({ $0 }) else { return false }
+            let (served, router) = routing.withLock { $0 }
+            if case .session = router.route(
+              transportProfile: profile, preamble: preamble, records: served)
+            {
+              return true
+            }
+            return false
+          },
           onEvent: { [weak self] event in
             Task { @MainActor in
               self?.receiveStream(event)

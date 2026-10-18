@@ -20,12 +20,23 @@ import Foundation
     /// The Bonjour type this publishes and a dialer browses for.
     public static let serviceType = "_refineid-stream._tcp"
 
-    private let onEvent: @Sendable (StreamRelayEvent) -> Void
-    private let yieldsIdleConnection: @Sendable () -> Bool
-    private let queue = DispatchQueue(label: "fi.refineid.stream-listener")
+    /// Seconds a challenger may take to present its first frame.
+    private static let challengeTimeoutSeconds = 5
+
+    internal static var challengeTimeout: DispatchTimeInterval {
+      .seconds(challengeTimeoutSeconds)
+    }
+
+    internal let onEvent: @Sendable (StreamRelayEvent) -> Void
+    internal let admitsReplacement: (@Sendable (Data) -> Bool)?
+    /// A dialer that arrived while a connection was open, holding until
+    /// its first frame says whether it may take the connection's place.
+    internal var challenger: NWConnection?
+    internal var challengePending = Data()
+    internal let queue = DispatchQueue(label: "fi.refineid.stream-listener")
     private var listener: NWListener?
-    private var connection: NWConnection?
-    private var pending = Data()
+    internal var connection: NWConnection?
+    internal var pending = Data()
     private var isFinished = false
     private var lastState = "not started"
     private var publishedName: String?
@@ -55,16 +66,19 @@ import Foundation
     /// Listens under `displayName`, reporting to one owner.
     ///
     /// A dialer arriving while a connection is open is refused, unless
-    /// `yieldsIdleConnection` says the open one carries nothing: then the
-    /// open connection is closed and the dialer takes its place, so a
-    /// requester's standing session (RAPP v26.10.18 §8.4) never keeps
-    /// another process of the same requester from its operation.
+    /// `admitsReplacement` says its first frame may take the open
+    /// connection's place: the owner answers yes only for a preamble that
+    /// routes to a pairing it serves while the open session carries no
+    /// operation, so a requester's standing session (RAPP v26.10.18 §8.4)
+    /// never keeps another process of the same requester from its
+    /// operation, and a stranger displaces nothing. The admitted dialer is
+    /// then reported as connected, its first frame first.
     @preconcurrency
     public init(
-      yieldsIdleConnection: @escaping @Sendable () -> Bool = { false },
+      admitsReplacement: (@Sendable (Data) -> Bool)? = nil,
       onEvent: @escaping @Sendable (StreamRelayEvent) -> Void
     ) {
-      self.yieldsIdleConnection = yieldsIdleConnection
+      self.admitsReplacement = admitsReplacement
       self.onEvent = onEvent
     }
 
@@ -172,36 +186,49 @@ import Foundation
     private func accept(_ candidate: NWConnection) {
       queue.async { [weak self] in
         guard let self else { return }
-        if connection != nil, !isFinished, yieldsIdleConnection() {
-          handleConnectionClosure(.disconnected)
-        }
-        guard connection == nil, !isFinished else {
+        guard !isFinished else {
           candidate.cancel()
           return
         }
-        connection = candidate
-        pending = Data()
-        candidate.stateUpdateHandler = { [weak self] state in
-          guard let self else { return }
-          switch state {
-          case .ready:
-            onEvent(.connected)
-
-          case .failed, .cancelled:
-            queue.async { [weak self] in
-              self?.handleConnectionClosure(.disconnected)
-            }
-
-          default:
-            break
+        if connection != nil {
+          guard admitsReplacement != nil, challenger == nil else {
+            candidate.cancel()
+            return
           }
+          challenge(candidate)
+          return
         }
+        adopt(candidate, carrying: Data())
         candidate.start(queue: queue)
         receiveNext(candidate)
       }
     }
 
-    private func receiveNext(_ connection: NWConnection) {
+    /// Makes `candidate` the connection, with `carried` bytes already read
+    /// from it, and reports it connected once it is ready.
+    internal func adopt(_ candidate: NWConnection, carrying carried: Data) {
+      connection = candidate
+      pending = carried
+      candidate.stateUpdateHandler = { [weak self] state in
+        guard let self else { return }
+        switch state {
+        case .ready:
+          onEvent(.connected)
+
+        case .failed, .cancelled:
+          queue.async { [weak self] in
+            // A connection already replaced closes nothing.
+            guard let self, connection === candidate else { return }
+            handleConnectionClosure(.disconnected)
+          }
+
+        default:
+          break
+        }
+      }
+    }
+
+    internal func receiveNext(_ connection: NWConnection) {
       connection.receive(
         minimumIncompleteLength: 1,
         maximumLength: StreamRelayFraming.maximumPayloadByteCount
@@ -229,7 +256,7 @@ import Foundation
       }
     }
 
-    private func drainFrames() {
+    internal func drainFrames() {
       while true {
         guard pending.count >= StreamRelayFraming.lengthPrefixByteCount else { return }
         let prefix = pending.prefix(StreamRelayFraming.lengthPrefixByteCount)
@@ -245,7 +272,7 @@ import Foundation
       }
     }
 
-    private func handleConnectionClosure(_ error: StreamRelayTransportError) {
+    internal func handleConnectionClosure(_ error: StreamRelayTransportError) {
       #if DEBUG
         print("[StreamRelayListener] connection closed: \(error)")
         fflush(stdout)
@@ -267,6 +294,8 @@ import Foundation
       let open = connection
       connection = nil
       open?.cancel()
+      challenger?.cancel()
+      challenger = nil
       let activeListener = listener
       listener = nil
       activeListener?.cancel()

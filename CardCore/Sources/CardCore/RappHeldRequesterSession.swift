@@ -41,7 +41,6 @@
 
     private struct State: Sendable {
       var coordinator: RappConnectionCoordinator?
-      var dialer: StreamRelaySession?
       var connected = false
       var finished = false
       var read: CheckedContinuation<ReadAnswer, any Error>?
@@ -55,18 +54,8 @@
     private let report: @Sendable (Report) -> Void
     private let state = OSAllocatedUnfairLock(initialState: State())
     private let frameDelivery = OrderedDelivery(capacity: OrderedDelivery.relayFrameCapacity)
-    private let browser = OSAllocatedUnfairLock<StreamRelayBrowser?>(initialState: nil)
-    private lazy var transport = RappClosureFrameTransport(
-      sender: { [weak self] frame in
-        guard let self, let dialer = state.withLock({ $0.dialer }) else {
-          throw RappRequesterClientError.transport
-        }
-        try await dialer.send(frame)
-      },
-      closer: { [weak self] in
-        self?.cancelTransport()
-      }
-    )
+    private let link = Link()
+    private let transport: RappClosureFrameTransport
 
     /// The pairing the session runs over.
     public var pairID: Data { pair.metadata().pairId }
@@ -85,6 +74,25 @@
       self.vault = vault
       self.policy = policy
       self.report = report
+      let owned = link
+      self.transport = RappClosureFrameTransport(
+        sender: { frame in try await owned.send(frame) },
+        closer: { owned.cancel() })
+    }
+
+    // MARK: Static Functions
+
+    /// Resumes the waiting read, if one is waiting; the lock, not the
+    /// session, is what the resumption needs.
+    private static func settle(
+      _ state: OSAllocatedUnfairLock<State>, _ outcome: Result<ReadAnswer, any Error>
+    ) {
+      let waiting = state.withLock { state -> CheckedContinuation<ReadAnswer, any Error>? in
+        let read = state.read
+        state.read = nil
+        return read
+      }
+      waiting?.resume(with: outcome)
     }
 
     // MARK: Functions
@@ -101,7 +109,7 @@
         onFound: { [weak self] endpoint in
           self?.dial(endpoint)
         })
-      browser.withLock { $0 = found }
+      link.browse(with: found)
       found.start()
       let discoveryTimeout = policy.discoveryTimeout
       Task { [weak self] in
@@ -115,36 +123,34 @@
     ///
     /// One read at a time; the session must be established.
     public func readAuthenticationCertificate() async throws -> ReadAnswer {
-      let coordinator = try state.withLock { state -> RappConnectionCoordinator in
-        guard let coordinator = state.coordinator, !state.finished else {
-          throw ReadError.notEstablished
-        }
-        guard state.read == nil else { throw ReadError.readInFlight }
-        return coordinator
-      }
       let lifetime = policy.maximumOperationLifetimeMilliseconds
+      let shared = state
       return try await withCheckedThrowingContinuation { continuation in
-        let armed = state.withLock { state -> Bool in
-          guard state.read == nil, !state.finished else { return false }
-          state.read = continuation
-          return true
+        let armed: Result<RappConnectionCoordinator, ReadError> = shared.withLock { held in
+          guard !held.finished else { return .failure(.closed) }
+          guard let coordinator = held.coordinator else { return .failure(.notEstablished) }
+          guard held.read == nil else { return .failure(.readInFlight) }
+          held.read = continuation
+          return .success(coordinator)
         }
-        guard armed else {
-          continuation.resume(throwing: ReadError.closed)
-          return
-        }
-        Task { [weak self] in
-          do {
-            try await coordinator.beginReadCertificate(
-              signatureCertificate: false, expiresAfterMilliseconds: lifetime)
-          } catch {
-            self?.settleRead(.failure(ReadError.unexpectedResult))
+        switch armed {
+        case .failure(let refusal):
+          continuation.resume(throwing: refusal)
+
+        case .success(let coordinator):
+          Task {
+            do {
+              try await coordinator.beginReadCertificate(
+                signatureCertificate: false, expiresAfterMilliseconds: lifetime)
+            } catch {
+              Self.settle(shared, .failure(ReadError.unexpectedResult))
+            }
           }
         }
       }
     }
 
-    /// Ends the session with a plain close.
+    /// Ends the session with a plain close, after the frames in flight.
     public func close() {
       let coordinator = state.withLock { $0.coordinator }
       Task { [weak self] in
@@ -154,7 +160,8 @@
     }
 
     /// Ends the session with `pairing_revoked`, before the pairing it
-    /// runs over is forgotten (RAPP v26.10.18 §4.6 item 1).
+    /// runs over is forgotten (RAPP v26.10.18 §4.6 item 1); the close
+    /// frame is sent before the connection goes.
     public func closePairingRevoked() async {
       let coordinator = state.withLock { $0.coordinator }
       await coordinator?.closePairingRevoked()
@@ -171,12 +178,7 @@
       let made = StreamRelaySession(service: endpoint, preamble: preamble) { [weak self] event in
         self?.receive(PersistentRelayEvent(event))
       }
-      let installed = state.withLock { state -> Bool in
-        guard state.dialer == nil, !state.finished else { return false }
-        state.dialer = made
-        return true
-      }
-      guard installed else { return }
+      guard !state.withLock({ $0.finished }), link.dial(with: made) else { return }
       made.start()
     }
 
@@ -195,10 +197,15 @@
         }
 
       case .closed:
+        // The coordinator names the end: a close the custodian announced
+        // keeps its reason, a bare transport loss is a failure.
         deliverInOrder { [weak self] in
-          let coordinator = self?.state.withLock { $0.coordinator }
-          await coordinator?.transportClosed()
-          self?.finish(.transportFailure)
+          guard let self else { return }
+          if let coordinator = state.withLock({ $0.coordinator }) {
+            await coordinator.transportClosed()
+          } else {
+            finish(.transportFailure)
+          }
         }
       }
     }
@@ -250,17 +257,17 @@
 
       case .completed(_, let result):
         RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
-        settleRead(certificate(in: result))
+        Self.settle(state, certificate(in: result))
 
       case .terminal(_, _, let reason):
         RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
-        settleRead(.failure(ReadError.terminal(reason)))
+        Self.settle(state, .failure(ReadError.terminal(reason)))
 
       case .peerBusy:
-        settleRead(.failure(ReadError.peerBusy))
+        Self.settle(state, .failure(ReadError.peerBusy))
 
       case .operationFinished, .peerUnknownOperation, .batchSignatures:
-        settleRead(.failure(ReadError.unexpectedResult))
+        Self.settle(state, .failure(ReadError.unexpectedResult))
 
       case .closed(let reason):
         RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
@@ -281,15 +288,6 @@
       return .success((result.bytes, result.personID))
     }
 
-    private func settleRead(_ outcome: Result<ReadAnswer, any Error>) {
-      let waiting = state.withLock { state -> CheckedContinuation<ReadAnswer, any Error>? in
-        let read = state.read
-        state.read = nil
-        return read
-      }
-      waiting?.resume(with: outcome)
-    }
-
     /// Reports the end once and releases the transport.
     private func finish(_ reason: RappConnectionCoordinator.CloseReason) {
       let first = state.withLock { state -> Bool in
@@ -298,14 +296,13 @@
         return true
       }
       guard first else { return }
-      settleRead(.failure(ReadError.closed))
-      cancelTransport()
+      Self.settle(state, .failure(ReadError.closed))
+      link.cancel()
       report(.closed(reason))
     }
 
-    private func cancelTransport() {
-      browser.withLock { $0?.cancel() }
-      state.withLock { $0.dialer }?.cancel()
+    deinit {
+      Self.settle(state, .failure(ReadError.closed))
     }
   }
 #endif

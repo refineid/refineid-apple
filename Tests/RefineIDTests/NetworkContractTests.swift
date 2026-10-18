@@ -69,6 +69,7 @@ internal struct NetworkContractTests {
     let expected: Set<String> = [
       "CardCore/Sources/CardCore/StreamRelayBrowser.swift",
       "CardCore/Sources/CardCore/StreamRelayListener.swift",
+      "CardCore/Sources/CardCore/StreamRelayListener+Challenge.swift",
       "CardCore/Sources/CardCore/StreamRelayPresence.swift",
       "CardCore/Sources/CardCore/StreamRelaySession.swift",
       "Sources/App/AuthoritySchemeResolver.swift",
@@ -104,6 +105,7 @@ internal struct NetworkContractTests {
     let expected: Set<String> = [
       "CardCore/Sources/CardCore/PersistentRelaySession.swift",
       "CardCore/Sources/CardCore/StreamRelayListener.swift",
+      "CardCore/Sources/CardCore/StreamRelayListener+Challenge.swift",
       "Sources/App/DebugListenProbe.swift",
       "Sources/App/LocalNetworkAccessDetector.swift",
       "Sources/App/PairingRelay.swift",

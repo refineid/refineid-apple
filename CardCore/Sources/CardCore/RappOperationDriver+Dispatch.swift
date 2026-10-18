@@ -45,7 +45,7 @@
 
         case .terminalAcknowledgment(let operationID):
           try bridge.terminalAcknowledgmentReleased(operationId: operationID)
-          return []
+          return heldTerminalSteps.removeValue(forKey: operationID) ?? []
 
         case .closeSession:
           closed = true
@@ -138,8 +138,13 @@
       }
       if let frame = action.frame, action.kind == .terminal {
         // The terminal step and its acknowledgement are one outcome: the
-        // app learns the result, and the custodian learns it arrived.
-        return try stepCommands(action) + [.send(frame: frame, release: release(for: action))]
+        // custodian learns the result arrived, then the app learns the
+        // result, so nothing the app does on it can cut the frame off.
+        guard let operationID = action.operationId else {
+          throw LocalError.missingOperationIdentifier
+        }
+        heldTerminalSteps[operationID] = try stepCommands(action)
+        return [.send(frame: frame, release: try release(for: action))]
       }
       if let frame = action.frame {
         let followUps = action.additionalFrames.map { Command.send(frame: $0, release: .noRelease) }

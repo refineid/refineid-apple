@@ -304,6 +304,8 @@
     /// offer and waits for the next connection.
     private func abandonCandidate(_ reason: CloseReason) async {
       guard state != .completed, state != .closed else { return }
+      // A record stored for this attempt is not the next attempt's.
+      revokeUnconfirmedRecord()
       if bridge?.candidateFailed(nowMonotonicMs: clock.monotonicMilliseconds()) == true {
         state = .offer
         await transport.close()

@@ -206,6 +206,8 @@ private let fixturePairingCode = "246813"
       throw RappIntegrationFixtures.TestFailure.operationEndedWithoutResult
     }
 
+    /// Runs `operation` to its terminal event and closes at once on it,
+    /// as the app does; the acknowledgement must already have left.
     internal static func awaitTerminal(
       _ coordinator: RappConnectionCoordinator,
       operation: RappIntegrationFixtures.RequestedOperation
@@ -219,6 +221,7 @@ private let fixturePairingCode = "246813"
           try await operation.begin(on: coordinator)
 
         case .terminal(_, _, let reason):
+          await coordinator.close()
           return reason
 
         case .closed(let reason):

@@ -33,8 +33,12 @@ apps realise each one as follows.
   or when the phone leaves the network. Bonjour presence alone no longer
   publishes anything, and the token extension's request back-off is
   gone with the retry storms it guarded against. The phone yields an
-  idle session to the token extension's own dial, and the Mac keeps the
-  identity for the extension's operation lifetime while it dials again.
+  idle session only to a dialer whose first frame is a session preamble
+  routing to a pairing it serves, so the token extension's own dial gets
+  through while a stranger displaces nothing; the Mac keeps the identity
+  for the extension's operation lifetime while it dials again. The
+  requester's terminal event is delivered only after its acknowledgement
+  frame has left, so closing on it cannot cut the acknowledgement off.
   A primed near-field card counts as present: the phone can answer for
   it when asked, and an iPhone without a reader would otherwise never
   offer its card. An operation that ends without the card answering

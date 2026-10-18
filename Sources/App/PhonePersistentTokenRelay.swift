@@ -14,7 +14,7 @@
   /// operation, and fail-stop decisions belong to RAPP.
   #if DEBUG
     /// The event's case name alone, which is what a timeline needs.
-    private func eventCaseName(_ event: RappConnectionCoordinator.Event) -> String {
+    internal func eventCaseName(_ event: RappConnectionCoordinator.Event) -> String {
       String(describing: event).prefix { $0 != "(" }.description
     }
   #endif
@@ -54,6 +54,11 @@
     /// Whether the open session carries no operation, read on the
     /// listener's queue when another dialer arrives.
     nonisolated internal let sessionIsIdle = OSAllocatedUnfairLock(initialState: false)
+    /// The pairings a dialer may displace an idle session for, read on
+    /// the listener's queue with its own replay memory.
+    nonisolated internal let replacementRouting = OSAllocatedUnfairLock<
+      (records: [RappPairRecord], router: RappSessionRouter)
+    >(initialState: ([], RappSessionRouter()))
     /// The operations the open session is running.
     internal var operationsInFlight: Set<Data> = []
     /// The word on the card the requester is given (RAPP v26.10.18 §8.4).
@@ -263,62 +268,6 @@
           await coordinator.receive(frame)
         }
       }
-    }
-
-    private func observe(
-      _ event: RappConnectionCoordinator.Event,
-      connectionID: UUID
-    ) {
-      guard self.connectionID == connectionID else { return }
-      #if DEBUG
-        HolderTrace.say("session event \(eventCaseName(event))")
-      #endif
-      switch event {
-      case .established:
-        // The custodian's first word on a session is whether a card can
-        // answer (RAPP v26.10.18 §8.4); the requester offers nothing
-        // before it.
-        operationsInFlight.removeAll()
-        sessionIsIdle.withLock { $0 = true }
-        reportCardStatus()
-
-      case .inspectPrerequisites(let operationID, _),
-        .awaitUserApproval(let operationID, _),
-        .executeSafeRead(let operationID, _),
-        .executeCardCommand(let operationID, _):
-        operationsInFlight.insert(operationID)
-        sessionIsIdle.withLock { $0 = false }
-
-      case .completed(let operationID, _):
-        operationEnded(operationID)
-        apply(cardReport.cardAnswered())
-
-      case .terminal(let operationID?, _, let reason):
-        operationEnded(operationID)
-        if reason == .cardRemovedBeforeTransmit || reason == .cardCompletionAmbiguous {
-          // The card did not answer: the custodian's own evidence that it
-          // cannot serve right now, until the holder couples it again.
-          apply(cardReport.operationEndedUnattended())
-        }
-
-      case .operationFinished(let operationID?),
-        .peerUnknownOperation(let operationID?):
-        operationEnded(operationID)
-
-      case .closed:
-        operationsInFlight.removeAll()
-        sessionIsIdle.withLock { $0 = false }
-
-      case .terminal, .operationFinished, .peerUnknownOperation, .peerBusy, .progress,
-        .batchSignatures, .cardStatus:
-        break
-      }
-    }
-
-    private func operationEnded(_ operationID: Data) {
-      operationsInFlight.remove(operationID)
-      let idle = operationsInFlight.isEmpty
-      sessionIsIdle.withLock { $0 = idle }
     }
 
     /// Runs `work` after every delivery enqueued before it, cancelling a
