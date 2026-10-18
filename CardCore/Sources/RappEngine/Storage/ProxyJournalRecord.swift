@@ -2,7 +2,7 @@
 
 import Foundation
 
-internal let proxyJournalFormatVersion: UInt64 = 1
+internal let proxyJournalFormatVersion: UInt64 = 4
 
 /// Proxy's durable record of one operation, carrying the transmission count
 /// that makes a card command at most once.
@@ -52,9 +52,44 @@ internal struct ProxyJournalRecord: Equatable {
   internal var state: OperationState
   internal var transmissionCount: UInt8
   internal var automaticRetryPermitted: Bool
-  /// A batch's per-document progress (RAPP v26.10.9 §8.1, §9.3); nil for
+  /// A batch's per-document progress (RAPP v26.10.18 §8.1, §9.3); nil for
   /// every other operation.
   internal var batch: BatchProgress?
+  /// The requester acknowledged a result that was not a live completed one;
+  /// a completed result's acknowledgement is the `completed` state.
+  internal var acknowledged: Bool
+  /// The registered error a terminal failure named, preserved for the
+  /// retired answer (RAPP v26.10.18 §8.2 item 5).
+  internal var terminalError: ResultError?
+
+  /// Whether the result was acknowledged and only the tombstone remains.
+  internal var isRetired: Bool {
+    state == .completed || acknowledged
+  }
+
+  /// The status a retired answer reports for this record's disposition.
+  internal var terminalStatus: ResultStatus? {
+    switch state {
+    case .completed:
+      .completed
+
+    case .cancelled, .denied:
+      .cancelled
+
+    case .rejected:
+      .rejected
+
+    case .credentialRejected:
+      .credentialRejected
+
+    case .ambiguous:
+      .ambiguous
+
+    case .idle, .requested, .awaitingConsent, .prepared, .committed, .executing,
+      .resultPending, .deliveryUncertain:
+      nil
+    }
+  }
 
   internal static func decode(_ bytes: Data) throws -> Self {
     var map = try decodedMap(bytes)
@@ -78,6 +113,19 @@ internal struct ProxyJournalRecord: Equatable {
     else { throw PairRecordError.invalidInput }
     let decodedAutomaticRetryPermitted = try takeBoolean(&map, "automatic_retry_permitted")
     let decodedBatch = try map.removeValue(forKey: "batch").map(BatchProgress.from)
+    let decodedAcknowledged = try takeBoolean(&map, "acknowledged")
+    let decodedTerminalError: ResultError?
+    switch map.removeValue(forKey: "terminal_error") {
+    case .none:
+      decodedTerminalError = nil
+
+    case .some(.text(let name)):
+      guard let error = ResultError(rawValue: name) else { throw PairRecordError.invalidInput }
+      decodedTerminalError = error
+
+    case .some:
+      throw PairRecordError.invalidInput
+    }
     guard map.isEmpty else { throw PairRecordError.invalidInput }
     return Self(
       pairIdentifier: decodedPairIdentifier,
@@ -87,7 +135,9 @@ internal struct ProxyJournalRecord: Equatable {
       state: decodedState,
       transmissionCount: decodedTransmissionCount,
       automaticRetryPermitted: decodedAutomaticRetryPermitted,
-      batch: decodedBatch
+      batch: decodedBatch,
+      acknowledged: decodedAcknowledged,
+      terminalError: decodedTerminalError
     )
   }
 
@@ -101,9 +151,13 @@ internal struct ProxyJournalRecord: Equatable {
       "state": .text(state.rawValue),
       "transmission_count": .unsigned(UInt64(transmissionCount)),
       "automatic_retry_permitted": .boolean(automaticRetryPermitted),
+      "acknowledged": .boolean(acknowledged),
     ]
     if let batch {
       map["batch"] = batch.value
+    }
+    if let terminalError {
+      map["terminal_error"] = .text(terminalError.rawValue)
     }
     do {
       return try WireValue.map(map).encoded()

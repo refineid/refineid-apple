@@ -47,6 +47,10 @@ internal enum SessionMessageCodec {
     case .error:
       return .error(ProtocolErrorMessage.from(wireBody: envelope.body))
 
+    case .cardStatus:
+      var body = envelope.body
+      return .cardStatus(cardPresent: try takeBoolean(&body, "card_present"))
+
     default:
       return .other(envelope.messageType)
     }

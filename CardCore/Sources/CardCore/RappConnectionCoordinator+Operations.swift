@@ -104,6 +104,20 @@
         ))
     }
 
+    /// Tells the requester whether a card this custodian can serve is
+    /// present (RAPP v26.10.18 §8.4).
+    public func reportCardStatus(present: Bool) async throws {
+      let driver = try operationDriver()
+      await handleOperation(await driver.reportCardStatus(present: present))
+    }
+
+    /// Reports progress on an active operation, such as the consent view
+    /// being on screen (RAPP v26.10.18 §8.2 item 3).
+    public func reportProgress(operationID: Data, event: ProgressEvent) async throws {
+      let driver = try operationDriver()
+      await handleOperation(try await driver.reportProgress(operationID: operationID, event: event))
+    }
+
     /// Reports that proxy-side prerequisites for the operation are met.
     public func prerequisitesComplete(operationID: Data) async throws {
       let driver = try operationDriver()

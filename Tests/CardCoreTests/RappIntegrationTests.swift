@@ -200,6 +200,11 @@ import Testing
 
       #expect(reason == termination.reason)
       #expect(progress == termination.progress)
+      // The terminal event came after its acknowledgement left: the
+      // journal it released is gone although the requester closed at once.
+      #expect(
+        try fixture.requesterVault.loadRequester(pairID: fixture.requesterSummary.pairID).isEmpty
+          == termination.requesterJournalForgotten)
       #expect(
         try fixture.requesterVault.pairIsRevoked(
           pairID: fixture.requesterSummary.pairID) == false)

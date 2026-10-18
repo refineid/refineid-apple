@@ -9,6 +9,12 @@ extension ProxyOperationEngine {
       response: .error(.unknownOperation(operationIdentifier: operationIdentifier)))
   }
 
+  /// The `card.status` message the custodian sends after `session.ready`
+  /// and on every change (RAPP v26.10.18 §8.4).
+  internal static func reportCardStatus(cardPresent: Bool) -> TypedMessage {
+    .cardStatus(cardPresent: cardPresent)
+  }
+
   /// The result a journaled operation from an earlier session answers with.
   private static func answer(for entry: RecoveredProxyRecord) -> OperationResultMessage {
     let reference = OperationReference(
@@ -16,6 +22,9 @@ extension ProxyOperationEngine {
       requestHash: entry.record.requestHash)
     if let retained = entry.retainedResult {
       return retained
+    }
+    if let retired = OperationJournal(recovered: entry.record).retiredAnswer(reference: reference) {
+      return retired
     }
     switch entry.record.state {
     case .completed:
@@ -57,7 +66,7 @@ extension ProxyOperationEngine {
     case .operationStatusRequest(let operationIdentifier):
       return statusAnswer(for: operationIdentifier)
 
-    case .error, .other:
+    case .cardStatus, .error, .other:
       return .notOperation(message)
 
     case .operationResult, .operationStatus, .operationProgress:
@@ -184,7 +193,7 @@ extension ProxyOperationEngine {
     else {
       throw EngineError.unknownLocalOperation
     }
-    guard !operation.operationState.isTerminal, event != .unknown else {
+    guard !operation.operationState.isTerminal, !operation.isRetired, event != .unknown else {
       throw EngineError.invalidLocalTransition
     }
     return .operationProgress(
@@ -246,12 +255,10 @@ extension ProxyOperationEngine {
       if let retained = operations[index].retainedResult {
         return .send(.operationResult(retained))
       }
-      if operations[index].operationState == .completed {
-        return .send(
-          .operationResult(
-            .retired(
-              reference: operations[index].reference, disposition: .completed,
-              preservedError: nil)))
+      if let retired = operations[index].journal.retiredAnswer(
+        reference: operations[index].reference)
+      {
+        return .send(.operationResult(retired))
       }
       return .ignoredDuplicate(operationIdentifier: request.operationIdentifier)
     }
@@ -290,8 +297,9 @@ extension ProxyOperationEngine {
     return .send(.operationResult(result))
   }
 
-  /// Retires an acknowledged result, live or re-delivered; any other
-  /// acknowledgement is ignored without touching a tombstone (section 8.2.5).
+  /// Retires an acknowledged result, live or re-delivered, whatever its
+  /// status; any other acknowledgement is ignored without touching a
+  /// tombstone (RAPP v26.10.18 §8.2 item 5).
   private mutating func receiveAcknowledgement(
     _ reference: OperationReference, store: inout some JournalStore
   ) throws -> ProxyDispatch {
@@ -311,7 +319,8 @@ extension ProxyOperationEngine {
         candidate.record.operationIdentifier == operationIdentifier
       }),
       recovered[index].record.requestHash == reference.requestHash,
-      recovered[index].record.state == .deliveryUncertain
+      recovered[index].retainedResult != nil,
+      !recovered[index].record.isRetired
     else { return .notOperation(.operationResultAck(reference)) }
     var journal = OperationJournal(recovered: recovered[index].record)
     do {
@@ -345,7 +354,7 @@ extension ProxyOperationEngine {
         known: true,
         state: operation.operationState,
         requestHash: operation.reference.requestHash,
-        retired: operation.operationState == .completed)
+        retired: operation.isRetired)
       guard let retained = operation.retainedResult else {
         return .send(.operationStatus(report))
       }

@@ -33,14 +33,14 @@ internal struct OperationBodyTests {
     let operation: CardOperation
   }
 
-  private static func expected(_ corpus: OperationCorpus, _ name: String) throws -> String {
+  internal static func expected(_ corpus: OperationCorpus, _ name: String) throws -> String {
     guard let vector = corpus.vectors.first(where: { $0.name == name }) else {
       throw CorpusError.missingHandshake(name: name)
     }
     return vector.bodyHex
   }
 
-  private static func reference(_ inputs: OperationInputs) throws -> OperationReference {
+  internal static func reference(_ inputs: OperationInputs) throws -> OperationReference {
     OperationReference(
       operationIdentifier: try Data(hex: inputs.operationIdentifierReference),
       requestHash: try Data(hex: inputs.requestHashReference))
@@ -60,7 +60,7 @@ internal struct OperationBodyTests {
       operation: operation)
   }
 
-  private static func encoded(_ message: TypedMessage) throws -> String {
+  internal static func encoded(_ message: TypedMessage) throws -> String {
     guard let body = try message.encodedBody() else {
       throw CorpusError.missingHandshake(name: "encodable body")
     }
@@ -71,8 +71,8 @@ internal struct OperationBodyTests {
   internal func vectorIdentity() throws {
     let corpus = try CorpusFile.operation(filePath: #filePath)
     #expect(corpus.format == "fi.refineid.rapp.operation-vectors-v1")
-    #expect(corpus.protocolDocumentVersion == "26.10.10")
-    #expect(corpus.vectors.count == 34)
+    #expect(corpus.protocolDocumentVersion == "26.10.18")
+    #expect(corpus.vectors.count == 39)
   }
 
   @Test("Every typed request matches byte for byte and hashes over the pairing")

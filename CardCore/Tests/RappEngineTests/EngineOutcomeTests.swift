@@ -29,12 +29,19 @@ internal struct EngineOutcomeTests {
     }
     EngineReport.check(!closesOnDenial, "a denial does not close the session")
     let denied = try requester.receive(deniedMessage, store: &store)
+    let userDenied = TerminalOutcome(status: .rejected, error: .userCancelled, batchSignatures: [])
+    guard case .terminal(identifier, userDenied, let acknowledgement) = denied else {
+      EngineReport.check(
+        false, "the requester journals the denial as terminal, naming why it ended")
+      return
+    }
+    guard case .operationResultAck(let acknowledged) = acknowledgement else {
+      EngineReport.check(false, "the denial is acknowledged with a result ack")
+      return
+    }
     EngineReport.check(
-      denied
-        == .terminal(
-          operationIdentifier: identifier, status: .rejected, error: .userCancelled,
-          batchSignatures: []),
-      "the requester journals the denial as terminal, naming why it ended")
+      acknowledged.operationIdentifier == identifier,
+      "the denial's acknowledgement names the request it answers")
   }
 
   @Test("The tables end a rejected credential and keep INV-18")

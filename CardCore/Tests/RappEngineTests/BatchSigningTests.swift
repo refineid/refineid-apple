@@ -137,11 +137,13 @@ internal struct BatchSigningTests {
     _ = try requester.begin(to: &requesterStore)
     let action = try requester.receiveResult(
       try OperationResultMessage.decode(try result.encoded()), to: &requesterStore)
-    #expect(
-      action
-        == .terminal(
-          state: .ambiguous, status: .ambiguous, error: .cardError,
-          batchSignatures: [Self.signatures[0]]))
+    let interrupted = TerminalOutcome(
+      status: .ambiguous, error: .cardError, batchSignatures: [Self.signatures[0]])
+    guard case .terminal(.ambiguous, interrupted, let ack) = action else {
+      Issue.record("an ambiguous batch ends with its partial signatures")
+      return
+    }
+    #expect(ack == .operationResultAck(requester.reference))
   }
 
   @Test("A partial response on anything but an ambiguous batch is refused")

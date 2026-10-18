@@ -61,12 +61,13 @@
       try vault.clearSelectedPair()
     }
 
-    /// Deletes the pair record.
+    /// Deletes the pair record and keeps what announces the revocation
+    /// (RAPP v26.10.18 §4.6).
     ///
     /// Same-account auto-pairing may recreate it.
     public func revoke(pairID: Data) throws {
       let pair = try load(pairID: pairID)
-      try pair.revoke(vault: vault, revokedAtMs: clock.wallMilliseconds())
+      try RappPairRevocation.revoke(pair, in: vault, clock: clock)
       if try vault.selectedPairID() == pairID {
         try vault.clearSelectedPair()
       }

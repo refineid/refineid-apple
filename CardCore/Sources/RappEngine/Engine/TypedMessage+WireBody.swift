@@ -27,6 +27,9 @@ extension TypedMessage {
     case .error:
       .error
 
+    case .cardStatus:
+      .cardStatus
+
     case .other(let type):
       type
 
@@ -62,6 +65,9 @@ extension TypedMessage {
 
     case .operationResult(let result):
       result.wireBody
+
+    case .cardStatus(let cardPresent):
+      ["card_present": .boolean(cardPresent)]
 
     case .other, .operationRequestRefused:
       nil

@@ -95,7 +95,8 @@ internal struct PairRecordTests {
         grantsHash: filler(0x66, PairRecordSize.grantsHash),
         profiles: [.cardStatus],
         transport: PairTransportBinding(profile: "p", candidateIdentifier: "c"),
-        createdAtMilliseconds: 0)
+        createdAtMilliseconds: 0,
+        storageConfirmed: true)
     }
   }
 
@@ -111,7 +112,8 @@ internal struct PairRecordTests {
         grantsHash: filler(0x66, PairRecordSize.grantsHash),
         profiles: [],
         transport: PairTransportBinding(profile: "p", candidateIdentifier: "c"),
-        createdAtMilliseconds: 0)
+        createdAtMilliseconds: 0,
+        storageConfirmed: true)
     }
   }
 }

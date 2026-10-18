@@ -23,6 +23,9 @@
     /// Whether this driver durably revoked the pairing while closing, so
     /// the close is reported as a revocation rather than a released frame.
     internal var revokedWhileClosing = false
+    /// Terminal steps held back until their acknowledgement frame has
+    /// left (RAPP v26.10.18 §8.2 item 5), by operation.
+    internal var heldTerminalSteps: [Data: [Command]] = [:]
 
     internal init(
       role: RappSessionDriver.Role,
@@ -180,6 +183,11 @@
       } catch {
         return protocolFailure()
       }
+    }
+
+    /// Reports progress on an active operation.
+    public func reportProgress(operationID: Data, event: ProgressEvent) throws -> [Command] {
+      try commands(bridge.reportProgress(operationId: operationID, event: event))
     }
 
     /// Marks bounded card-status and certificate prerequisites complete.

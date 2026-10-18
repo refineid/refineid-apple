@@ -81,6 +81,9 @@
       case offerExpired
       /// Three wrong codes destroyed the custodian's offer.
       case attemptsExhausted
+      /// The peer never confirmed storing the pairing; the record this
+      /// endpoint stored is revoked (RAPP v26.10.18 §4.3 item 4).
+      case storageUnconfirmed
     }
 
     /// One externally visible pairing event.
@@ -105,6 +108,9 @@
       case custodianAwaitingHandshakeThree
       case awaitingPeerHello
       case awaitingPeerConfirmation
+      /// The record is stored and `pairing.stored` sent; the peer's is
+      /// awaited (RAPP v26.10.18 §4.3 item 4).
+      case awaitingPeerStored
       case completed
       case closed
     }
@@ -135,6 +141,9 @@
     internal let continuation: AsyncStream<Event>.Continuation
     internal var state = State.offer
     internal var deadlineTask: Task<Void, Never>?
+    /// The pairing stored before the peer confirmed it; revoked if the
+    /// ceremony ends without that confirmation.
+    internal var storedPairID: Data?
 
     // MARK: Lifecycle
 

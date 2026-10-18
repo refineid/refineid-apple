@@ -360,8 +360,7 @@
       case pairRevoked
       case terminalFrameReleased
       /// The custodian stopped serving (`service_withdrawn`); the requester
-      /// drops the card at once and does not redial until the custodian
-      /// advertises again.
+      /// drops the card at once and redials only when it advertises again.
       case serviceWithdrawn
     }
 
@@ -369,6 +368,8 @@
     public enum FrameRelease: Sendable, Equatable {
       case noRelease
       case resultAcknowledgment(operationID: Data)
+      /// Acknowledges a result that ended the operation without an answer.
+      case terminalAcknowledgment(operationID: Data)
       case closeSession
     }
 
@@ -389,6 +390,8 @@
       case peerBusy(operationID: Data?)
       case peerUnknownOperation(operationID: Data?)
       case progress(operationID: Data, event: ProgressEvent)
+      /// Whether the custodian can serve a card (RAPP v26.10.18 §8.4).
+      case cardStatus(present: Bool)
       case scheduleLiveness(atMonotonicMilliseconds: UInt64)
       case closed(CloseReason)
     }

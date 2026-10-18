@@ -230,7 +230,11 @@ extension RappDeviceVault {
     account: String,
     attributes: [String: Any]
   ) throws {
-    inMemoryStore[service, default: [:]][account] = attributes
+    var stored = itemQuery(service: service, account: account)
+    for (key, value) in attributes {
+      stored[key] = value
+    }
+    inMemoryStore[service, default: [:]][account] = stored
     if TestCredentialEnvironment.isTestMode { return }
     let query = itemQuery(service: service, account: account)
     let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)

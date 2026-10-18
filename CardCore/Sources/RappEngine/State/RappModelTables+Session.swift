@@ -158,7 +158,10 @@ extension RappModelTables {
       event: .credentialRejected,
       role: .proxy,
       destination: .closing,
-      actions: [.destroyPairKeys, .showRevoked, .sendCloseBestEffort, .showDisconnecting]
+      actions: [
+        .retainRevocationKey, .destroyPairKeys, .showRevoked, .sendCloseBestEffort,
+        .showDisconnecting,
+      ]
     ),
     RappRule(
       from: [.healthy, .checking],

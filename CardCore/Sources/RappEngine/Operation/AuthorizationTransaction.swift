@@ -29,7 +29,14 @@ internal struct AuthorizationTransaction {
     journal.record.batch?.completedSignatures ?? []
   }
 
+  /// Whether the result was acknowledged and only the tombstone remains.
+  internal var isRetired: Bool { journal.isRetired }
+
   /// The state the protocol shows for this operation.
+  ///
+  /// A result awaiting its acknowledgement shows the journal's state: a
+  /// success is pending delivery, a failure already names its terminal
+  /// disposition (RAPP v26.10.18 §8.2 item 5).
   internal var operationState: OperationState {
     switch stage {
     case .requested:
@@ -41,10 +48,7 @@ internal struct AuthorizationTransaction {
     case .executing:
       .executing
 
-    case .resultPending:
-      .resultPending
-
-    case .terminal:
+    case .resultPending, .terminal:
       journal.record.state
     }
   }
@@ -142,7 +146,8 @@ internal struct AuthorizationTransaction {
   }
 
   /// Records a stable non-successful result from any legal stage, keeping
-  /// the result so an identical retransmission is answered without the card.
+  /// the result until the requester acknowledges it (RAPP v26.10.18 §8.2
+  /// item 5) so an identical retransmission is answered without the card.
   internal mutating func finishFailure(
     to store: inout some JournalStore, result: OperationResultMessage
   ) throws {
@@ -163,7 +168,7 @@ internal struct AuthorizationTransaction {
       throw AuthorizationError.wrongStage(stage: stage)
     }
     retainedResult = result
-    stage = .terminal
+    stage = .resultPending
   }
 
   /// Records the acknowledgement that releases the retained result.
@@ -179,14 +184,17 @@ internal struct AuthorizationTransaction {
 
   /// Records that the session was lost after the result was sent.
   ///
-  /// The result stays retained so it can be delivered again on request, but
-  /// no automatic replay of the command or the result follows.
+  /// The result stays retained and acknowledgeable so it can be delivered
+  /// again on request, but no automatic replay of the command or the result
+  /// follows. A failure's journal state is already terminal and is left as
+  /// it is.
   internal mutating func deliveryBecameUncertain(
     to store: inout some JournalStore
   ) throws {
     guard stage == .resultPending else { throw AuthorizationError.wrongStage(stage: stage) }
-    try mapJournal { try journal.markDeliveryUncertain(to: &store) }
-    stage = .terminal
+    if journal.record.state == .resultPending {
+      try mapJournal { try journal.markDeliveryUncertain(to: &store) }
+    }
   }
 
   /// Resolves a record that a restart interrupted, without retrying it.

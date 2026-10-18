@@ -8,7 +8,7 @@ import Testing
 @Suite("RAPP state tables against the vendored formal model")
 internal struct StateConformanceTests {
   /// Rule counts the model declares, per component machine.
-  private static let expectedRuleCounts = [("pairing", 19), ("session", 31), ("operation", 39)]
+  private static let expectedRuleCounts = [("pairing", 22), ("session", 31), ("operation", 39)]
 
   /// An action the perturbed control appends so the comparison must notice.
   private static let perturbingAction = "hide_pairing_code"

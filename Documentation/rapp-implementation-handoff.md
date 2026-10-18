@@ -1,6 +1,6 @@
 # RAPP Apple implementation handoff
 
-Status date: 2026-10-10
+Status date: 2026-10-18
 
 This document is the implementation handoff for Remote Authorization Proxy
 Protocol (RAPP) support in RefineID on Apple platforms. It describes what is
@@ -14,21 +14,26 @@ The vendored documents are the authority, and the Swift engine in
 `CardCore/Sources/RappEngine` implements them. There is no compiled protocol
 artifact in this repository.
 
-- Specification: `Documentation/protocol/rapp-v26.10.10.md`
-- Formal state model: `Documentation/protocol/rapp-state-machine-v26.9.13.yaml`.
-  v26.10.9 publishes no newer model; the operation tables transcribe this
-  earlier one and no longer describe how operations run.
-- Conformance corpus: `Documentation/rapp-conformance/rapp-v26.10.10.json`
-  (`SHA-256 a2582459d15ff94c8ff0551b3f5814a1caa1900cdc35068aededeb422cef93f4`),
+- Specification: `Documentation/protocol/rapp-v26.10.18.md`
+- Formal state model: `Documentation/protocol/rapp-state-machine-v26.10.18.yaml`;
+  the pairing, session and operation tables transcribe it and are checked
+  against it in both directions.
+- Conformance corpus: `Documentation/rapp-conformance/rapp-v26.10.18.json`
+  (`SHA-256 e6c2e58b94bc0e41eba47676ee00fed88921d9abf0f1aa8dc9398ff163b1fbbb`),
   copied unchanged from the reference repository. Its `cpace_kc2`,
   `noise_handshake`, `pairing_offer`, and `discovery_hint` sections are
   replayed byte for byte on both the BLE and stream profiles.
-- Vectors covering what the corpus does not reach:
-  `rapp-operation-v26.10.10.json` (the reference operation bodies plus the
-  batch signing bodies, encoded independently from the specification's
-  schemas), `rapp-ble-sar-v26.10.10.json` (BLE segmentation and reassembly),
-  `rapp-flow-v26.9.7.70.json` (ceremony bodies, re-encoded for v26.10.9), and
-  `rapp-transport-v26.9.7.70.json` (post-handshake framing)
+- Vectors covering what the corpus does not reach, all v26.10.18 and copied
+  unchanged from the reference repository: `rapp-operation-v26.10.18.json`
+  (the reference operation bodies, the batch signing bodies, the storage
+  confirmation, card status and consent bodies), `rapp-routing-v26.10.18.json`
+  (session preambles), `rapp-withdrawal-v26.10.18.json` (service withdrawal),
+  `rapp-revocation-v26.10.18.json` (revocation keys, hints, announcements
+  and retention windows), `rapp-ble-sar-v26.10.18.json` (BLE segmentation
+  and reassembly); and, kept from earlier revisions,
+  `rapp-flow-v26.9.7.70.json` (ceremony bodies, re-encoded with the
+  v26.10.18 version triple) and `rapp-transport-v26.9.7.70.json`
+  (post-handshake framing).
 
 The engine is held to those documents by its tests rather than by anyone
 remembering to follow them. The state tables are transcribed from the model
@@ -103,7 +108,7 @@ decide which transition and output are legal.
 
 ## Stream transport
 
-`fi.refineid.stream.v1` (RAPP v26.10.9 §2.2.2) lets a non-Apple requester
+`fi.refineid.stream.v1` (RAPP v26.10.18 §2.2) lets a non-Apple requester
 participate without MultipeerConnectivity. The underlay is plain TCP. Every
 frame is a 2-byte big-endian length prefix plus payload; a zero length is
 malformed and the prefix bounds every allocation. The phone listens and the

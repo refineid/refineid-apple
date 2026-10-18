@@ -19,6 +19,9 @@
     /// The paired phone, by name, is on the network.
     case phoneConnected(String)
 
+    /// The phone, by name, announced it forgot this computer.
+    case phoneForgot(String)
+
     /// The paired phone, by name, is not on the network.
     case phoneUnreachable(String)
 
@@ -51,6 +54,9 @@
           return .insertCard
         }
         guard let phone = facts.pairedPhone else {
+          if let forgot = facts.phoneThatForgot {
+            return .phoneForgot(forgot)
+          }
           return .connectReader
         }
         return facts.phonePresent ? .phoneConnected(phone) : .phoneUnreachable(phone)

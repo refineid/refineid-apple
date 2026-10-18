@@ -50,7 +50,8 @@ internal struct FlowDriveTests {
       grantsHash: peers.proxy.grantsHash,
       profiles: peers.proxy.profiles,
       transport: peers.proxy.transport,
-      createdAtMilliseconds: peers.proxy.createdAtMilliseconds)
+      createdAtMilliseconds: peers.proxy.createdAtMilliseconds,
+      storageConfirmed: true)
     check(
       (try mirrored.encoded()) == (try peers.requester.encoded()),
       "the records match byte for byte outside role and key ownership")

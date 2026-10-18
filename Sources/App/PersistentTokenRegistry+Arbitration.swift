@@ -24,6 +24,7 @@
         Self.withdrawPublishedIdentity()
         _ = DriverConfiguredCredentials.dropDisplacedRemoteCardConfigurations()
         #if REFINEID_STREAM_TRANSPORT
+          closeHolderSession()
           stopWatchingPresence()
         #endif
         #if DEBUG
@@ -43,8 +44,10 @@
 
     /// Writes the borrowed certificate again if this process still holds it.
     ///
-    /// The physical reader has absolute priority. When a reader card is present,
-    /// remote identities are withdrawn.
+    /// The physical reader has absolute priority. When a reader card is
+    /// present, remote identities are withdrawn. Over the stream
+    /// transport nothing is written unless the phone's open session says
+    /// a card is present (RAPP v26.10.18 §8.4).
     internal func ensurePublished() {
       guard Self.isRemoteCardEnabled else {
         Self.withdrawPublishedIdentity()
@@ -60,7 +63,7 @@
         return
       }
       #if REFINEID_STREAM_TRANSPORT
-        guard holderIsAdvertising else { return }
+        guard holderCardPresent else { return }
       #endif
       if !Self.needsIdentity {
         seedHolderLine()

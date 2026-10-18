@@ -172,12 +172,12 @@ internal struct EndpointRuntime {
         return .discarded(.staleReferenceRace)
       }
 
-    case .pairingHello, .pairingConfirm, .pairingAbort, .sessionReady:
+    case .pairingHello, .pairingConfirm, .pairingAbort, .pairingStored, .sessionReady:
       // Belongs to an earlier phase, so it is attributable and illegal here.
       return violated()
 
     case .sessionClose, .operationRequest, .operationProgress, .operationResult,
-      .operationResultAck, .operationStatusRequest, .operationStatus, .error:
+      .operationResultAck, .operationStatusRequest, .operationStatus, .cardStatus, .error:
       return .message(envelope)
     }
   }

@@ -15,7 +15,7 @@ internal struct WireCorpusTests {
   internal func corpusIdentity() throws {
     let corpus = try CorpusFile.conformance(filePath: #filePath)
     #expect(corpus.format == "fi.refineid.rapp.conformance-v1")
-    #expect(corpus.protocolDocumentVersion == "26.10.10")
+    #expect(corpus.protocolDocumentVersion == "26.10.18")
     #expect(corpus.noiseHandshake.count == 4)
     #expect(corpus.pairingOffer.count == 3)
     #expect(corpus.cpaceKc2.count == 2)

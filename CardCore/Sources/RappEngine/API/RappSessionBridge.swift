@@ -92,6 +92,9 @@ public final class RappSessionBridge: @unchecked Sendable {
     case .closed:
       .WrongPhase
 
+    case .storageUnconfirmed:
+      .StorageUnconfirmed
+
     default:
       .ProtocolFailure
     }

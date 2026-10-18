@@ -5,8 +5,8 @@ import Foundation
 import RappEngine
 import SwiftUI
 
-/// Milliseconds in one second, for the stamp a revocation carries.
-private let millisecondsPerSecond: TimeInterval = 1_000
+/// The clock a revocation is stamped by.
+private let clock = RappPlatformClock()
 
 extension RappPairingModel {
   /// Posted when the set of active pairings changes.
@@ -21,9 +21,8 @@ extension RappPairingModel {
   internal static func revokeEveryStoredPair() {
     let vault = RappDeviceVault()
     let pairIDs = (try? vault.activePairIDs()) ?? []
-    let now = UInt64(Date().timeIntervalSince1970 * millisecondsPerSecond)
     for pairID in pairIDs {
-      guard (try? vault.revokePair(pairID: pairID, revokedAtMilliseconds: now)) != nil
+      guard (try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: clock)) != nil
       else { continue }
       RappPairNames.forget(pairID: pairID)
     }
@@ -53,16 +52,25 @@ extension RappPairingModel {
   internal static func revokeNamelessPairs(in vault: RappDeviceVault) -> Int {
     let nameless = ((try? vault.activePairIDs()) ?? [])
       .filter { RappPairNames.name(forPairID: $0) == nil }
-    let now = UInt64(Date().timeIntervalSince1970 * millisecondsPerSecond)
     var revoked = 0
     for pairID in nameless
-    where (try? vault.revokePair(pairID: pairID, revokedAtMilliseconds: now)) != nil {
+    where (try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: clock)) != nil {
       revoked += 1
     }
     if let selected = try? vault.selectedPairID(), nameless.contains(selected) {
       try? vault.clearSelectedPair()
     }
     return revoked
+  }
+
+  /// Ends the session the pairing `pairID` carries, if one is open.
+  private static func closeSessionForRevocation(pairID: Data) async {
+    #if os(iOS) && REFINEID_LOCAL_CARD
+      await PhonePersistentTokenRelay.shared.closeForRevocation(pairID: pairID)
+    #endif
+    #if (os(macOS) || os(iOS)) && REFINEID_STREAM_TRANSPORT
+      await PersistentTokenRegistry.shared.closeSessionForRevocation(pairID: pairID)
+    #endif
   }
 
   internal func refresh() {
@@ -84,13 +92,21 @@ extension RappPairingModel {
     NotificationCenter.default.post(name: Self.pairingsDidChangeNotification, object: nil)
   }
 
-  /// Forgets one paired computer through the vault the list is read from.
+  /// Forgets one paired device through the vault the list is read from.
   ///
-  /// The row goes with the record. The name goes only once the record is
-  /// gone; a row that stays keeps its name.
+  /// A session open over the pairing closes with `pairing_revoked`
+  /// first (RAPP v26.10.18 §4.6 item 1). The row goes with the record.
+  /// The name goes only once the record is gone; a row that stays keeps
+  /// its name.
   internal func revoke(pairID: Data) {
-    let now = UInt64(Date().timeIntervalSince1970 * millisecondsPerSecond)
-    guard (try? vault.revokePair(pairID: pairID, revokedAtMilliseconds: now)) != nil else {
+    Task { @MainActor in
+      await Self.closeSessionForRevocation(pairID: pairID)
+      revokeStored(pairID: pairID)
+    }
+  }
+
+  private func revokeStored(pairID: Data) {
+    guard (try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: clock)) != nil else {
       refresh()
       return
     }

@@ -3,7 +3,7 @@
 import Foundation
 
 /// Storage-format version of a persisted pairing.
-internal let pairRecordFormatVersion: UInt64 = 3
+internal let pairRecordFormatVersion: UInt64 = 5
 
 /// One durable pairing, as stored on this device only.
 internal struct PairRecord: Equatable {
@@ -11,7 +11,7 @@ internal struct PairRecord: Equatable {
   private static let expectedKeys = [
     "format_version", "pair_id", "role", "local_static_private",
     "local_static_public", "remote_static_public", "grants_hash", "profiles", "transport_profile",
-    "candidate_id", "transport_parameters", "created_at_ms",
+    "candidate_id", "transport_parameters", "created_at_ms", "storage_confirmed",
   ]
 
   internal let pairIdentifier: Data
@@ -23,6 +23,12 @@ internal struct PairRecord: Equatable {
   internal let profiles: [ProfileName]
   internal let transport: PairTransportBinding
   internal let createdAtMilliseconds: UInt64
+  /// Whether both endpoints confirmed storing the pairing.
+  ///
+  /// A record stored before the peer's `pairing.stored` is unconfirmed
+  /// (RAPP v26.10.18 §4.3 item 4): it opens no session, routes nothing,
+  /// and is revoked when found at start-up.
+  internal private(set) var storageConfirmed: Bool
 
   internal init(
     pairIdentifier: Data,
@@ -33,7 +39,8 @@ internal struct PairRecord: Equatable {
     grantsHash: Data,
     profiles: [ProfileName],
     transport: PairTransportBinding,
-    createdAtMilliseconds: UInt64
+    createdAtMilliseconds: UInt64,
+    storageConfirmed: Bool
   ) throws {
     guard pairIdentifier.count == PairRecordSize.pairIdentifier,
       grantsHash.count == PairRecordSize.grantsHash,
@@ -58,6 +65,7 @@ internal struct PairRecord: Equatable {
     self.profiles = profiles
     self.transport = transport
     self.createdAtMilliseconds = createdAtMilliseconds
+    self.storageConfirmed = storageConfirmed
   }
 
   internal static func decode(_ bytes: Data) throws -> Self {
@@ -86,6 +94,7 @@ internal struct PairRecord: Equatable {
       parameters: try takeMap(&map, "transport_parameters")
     )
     let decodedCreatedAtMilliseconds = try takeUnsigned(&map, "created_at_ms")
+    let decodedStorageConfirmed = try takeBoolean(&map, "storage_confirmed")
     guard map.isEmpty else { throw PairRecordError.invalidInput }
     return try Self(
       pairIdentifier: decodedPairIdentifier,
@@ -96,7 +105,8 @@ internal struct PairRecord: Equatable {
       grantsHash: decodedGrantsHash,
       profiles: decodedProfiles,
       transport: decodedTransport,
-      createdAtMilliseconds: decodedCreatedAtMilliseconds
+      createdAtMilliseconds: decodedCreatedAtMilliseconds,
+      storageConfirmed: decodedStorageConfirmed
     )
   }
 
@@ -114,11 +124,20 @@ internal struct PairRecord: Equatable {
       "candidate_id": .text(transport.candidateIdentifier),
       "transport_parameters": .map(transport.parameters),
       "created_at_ms": .unsigned(createdAtMilliseconds),
+      "storage_confirmed": .boolean(storageConfirmed),
     ])
     do {
       return try value.encoded()
     } catch {
       throw PairRecordError.invalidInput
     }
+  }
+
+  /// This record in its confirmed form, once the peer's `pairing.stored`
+  /// has arrived.
+  internal func confirmed() -> Self {
+    var record = self
+    record.storageConfirmed = true
+    return record
   }
 }

@@ -3,7 +3,7 @@
 import Foundation
 
 /// Why a BLE link was opened, as its plaintext routing preamble says
-/// (RAPP v26.10.10 §5.2).
+/// (RAPP v26.10.18 §5.2).
 public enum RappBleRoutingPurpose: Equatable, Sendable {
   /// Run the pairing ceremony.
   case pairing

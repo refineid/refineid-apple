@@ -4,8 +4,8 @@ import Foundation
 import RappEngine
 import Security
 
-/// Names and TXT records of the stream service (RAPP v26.10.10 §4.5 and
-/// the transport hierarchy §4.3).
+/// Names and TXT records of the stream service (RAPP v26.10.18 §4.5, §4.6
+/// and the transport hierarchy §4.3).
 ///
 /// The instance name is drawn at random for every listener; the records
 /// carry only values keyed by a pairing's static agreement, so nothing on
@@ -39,9 +39,19 @@ public enum StreamRendezvousName {
   }
 
   /// The custodian's `mode=session` record announcing its most recently
-  /// used pairings.
-  public static func sessionRecord(candidates: [RappAnnouncementCandidate]) -> [String: String] {
-    dictionary(rappSessionRecord(candidates: candidates))
+  /// used pairings and, under `instance` at `date`, the pairings it
+  /// revoked within 30 days (RAPP v26.10.18 §4.6); empty when the random
+  /// source fails.
+  public static func sessionRecord(
+    candidates: [RappAnnouncementCandidate],
+    retentions: [Data],
+    instance: String,
+    at date: Date
+  ) -> [String: String] {
+    (try? rappSessionRecord(
+      candidates: candidates, retentions: retentions, instance: instance,
+      unixTimeSeconds: unixTime(date)))
+      .map(dictionary) ?? [:]
   }
 
   /// The custodian's `mode=withdrawn` record; empty when the random
@@ -55,6 +65,15 @@ public enum StreamRendezvousName {
     _ record: [String: String], holds pair: RappPairRecord, at date: Date
   ) -> Bool {
     pair.matchesDiscoveryRecord(entries(record), unixTimeSeconds: unixTime(date))
+  }
+
+  /// Whether `record`, a session record published under `instance`,
+  /// announces that the custodian revoked `pair` (RAPP v26.10.18 §4.6).
+  public static func sessionRecord(
+    _ record: [String: String], instance: String, revokes pair: RappPairRecord, at date: Date
+  ) -> Bool {
+    pair.matchesRevokedRecord(
+      instance: instance, txt: entries(record), unixTimeSeconds: unixTime(date))
   }
 
   /// Whether `record`, published under `instance`, withdraws `pair`.

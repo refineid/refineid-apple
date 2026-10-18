@@ -56,6 +56,19 @@ extension RappOperationBridge {
     }
   }
 
+  /// Tells the requester whether a card this custodian can serve is present
+  /// (RAPP v26.10.18 §8.4): once right after the session is established,
+  /// and again on every change.
+  public func reportCardStatus(cardPresent: Bool) throws -> RappBridgeAction {
+    try locked {
+      guard case .proxy = side else { throw RappBindingError.WrongPhase }
+      guard !closed else { return RappBridgeAction(kind: .noAction) }
+      return RappBridgeAction(
+        kind: .sendFrame,
+        frame: try sealedMessage(ProxyOperationEngine.reportCardStatus(cardPresent: cardPresent)))
+    }
+  }
+
   /// Refuses a request this endpoint cannot present or serve.
   public func requestInvalidOrUnsupported(operationId: Data) throws -> RappBridgeAction {
     try finishFailure(operationId: operationId, failure: .requestInvalidOrUnsupported)
@@ -175,6 +188,19 @@ extension RappOperationBridge {
   public func completeBatch(operationId: Data) throws -> RappBridgeAction {
     try withProxy { engine, store in
       try engine.completeBatch(operationIdentifier: operationId, store: &store)
+    }
+  }
+
+  /// Records that a terminal result's acknowledgement reached transport.
+  public func terminalAcknowledgmentReleased(operationId: Data) throws {
+    try locked {
+      guard case .requester(var engine) = side else { throw RappBindingError.WrongPhase }
+      defer { side = .requester(engine) }
+      var store = VaultRequesterJournalStore(vault: vault, pairIdentifier: pairIdentifier)
+      try mapping {
+        try engine.terminalAcknowledgementReleased(
+          operationIdentifier: operationId, store: &store)
+      }
     }
   }
 

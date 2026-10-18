@@ -83,7 +83,7 @@
     @ViewBuilder internal var pairingPromptSection: some View {
       #if REFINEID_REMOTE_CARD
         Section {
-          if remoteRegistry.pairedPhone != nil {
+          if remoteRegistry.pairedPhone != nil || remoteRegistry.phoneThatForgot != nil {
             IdentityStateView(
               availability: availability,
               warnsUnavailableCard: ActivationWatch.shared.warnsUnavailableCard

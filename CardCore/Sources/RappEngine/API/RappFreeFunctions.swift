@@ -71,9 +71,59 @@ public func rappPairingPreamble(transportProfile: String) throws -> Data {
   }
 }
 
-/// The `mode=session` record announcing the 4 most recently used pairings.
-public func rappSessionRecord(candidates: [RappAnnouncementCandidate]) -> [RappTxtEntry] {
-  DiscoveryRecord.assemble(candidates.map(\.engineCandidate)).textEntries.map(RappTxtEntry.init)
+/// The `mode=session` record announcing the 4 most recently used pairings
+/// and, when `retentions` hold a revocation still inside its 30 days, the
+/// `revoked` attribute for `instance` at `unixTimeSeconds` (RAPP v26.10.18
+/// §4.6 item 4).
+///
+/// Each retention is the encoded value ``RappPairRecord/revoke(vault:revokedAtMs:)``
+/// returned. One that does not decode, or whose window has run out, is
+/// left out; ``rappRevocationRetentionExpired(retention:unixTimeSeconds:)``
+/// tells the caller which to delete.
+///
+/// - Throws: ``RappBindingError/InvalidInput`` for an instance name that
+///   cannot carry a hint, and ``RappBindingError/LocalStateFailure`` when
+///   the random source fails.
+public func rappSessionRecord(
+  candidates: [RappAnnouncementCandidate],
+  retentions: [Data],
+  instance: String,
+  unixTimeSeconds: UInt64
+) throws -> [RappTxtEntry] {
+  var announcement: RevokedAnnouncement?
+  if !retentions.isEmpty {
+    guard let name = InstanceName(instance) else { throw RappBindingError.InvalidInput }
+    let nowMilliseconds = rappMilliseconds(unixTimeSeconds: unixTimeSeconds)
+    let epoch = DiscoveryRecord.epoch(unixTimeSeconds: unixTimeSeconds)
+    let announced = RevocationRetention.candidates(
+      retentions.compactMap { try? RevocationRetention.decode($0) },
+      instance: name, epoch: epoch, nowMilliseconds: nowMilliseconds)
+    if !announced.isEmpty {
+      guard let assembled = RevokedAnnouncement.assemble(announced, random: rappRandomBytes)
+      else { throw RappBindingError.LocalStateFailure }
+      announcement = assembled
+    }
+  }
+  return DiscoveryRecord.assemble(candidates.map(\.engineCandidate), revoked: announcement)
+    .textEntries.map(RappTxtEntry.init)
+}
+
+/// Whether an encoded revocation retention may be deleted at `unixTimeSeconds`.
+///
+/// It may once its 30-day announcement window has run out (RAPP v26.10.18
+/// §4.6 item 4). A retention that does not decode is expired.
+public func rappRevocationRetentionExpired(
+  retention: Data, unixTimeSeconds: UInt64
+) -> Bool {
+  guard let decoded = try? RevocationRetention.decode(retention) else { return true }
+  return decoded.isExpired(nowMilliseconds: rappMilliseconds(unixTimeSeconds: unixTimeSeconds))
+}
+
+/// `unixTimeSeconds` in milliseconds, saturating.
+private func rappMilliseconds(unixTimeSeconds: UInt64) -> UInt64 {
+  let now = unixTimeSeconds.multipliedReportingOverflow(
+    by: RevocationRetention.millisecondsPerSecond)
+  return now.overflow ? UInt64.max : now.partialValue
 }
 
 /// The `mode=withdrawn` record announcing the 8 most recently used

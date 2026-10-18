@@ -5,6 +5,66 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-10-18 The Apple apps speak RAPP v26.10.18
+
+Every pairing and session on iPhone, iPad and Mac runs RAPP v26.10.18;
+the wire version in the Noise prologue refuses a v26.10.10 peer. The
+revision closes the feedback gaps the STPA review of RAPP found, and the
+apps realise each one as follows.
+
+- A pairing exists only once both devices have said they stored it:
+  `pairing.stored` is exchanged after the confirmation, a record waits
+  unconfirmed (pair record format 5) until the peer's notice arrives,
+  and an unconfirmed record found at launch or left by a cancelled
+  ceremony is revoked. A session over an unconfirmed record is refused.
+- A phone that forgets a computer announces it: the revocation key of
+  each revoked pairing is kept for thirty days in the keychain under
+  the `fi.refineid` namespace and its rotating hint travels in the
+  `revoked` attribute of the phone's session record. The Mac matches
+  the hint, forgets the pairing, withdraws the identity and names the
+  phone in the identity row ("<phone> forgot this computer"). Forgetting
+  a pairing with a session open closes that session with
+  `pairing_revoked` first.
+- The phone reports `card.status` as its first word on every session
+  and on every change. The Mac holds a standing session with the phone
+  while the phone is on the network, and offers the CryptoTokenKit
+  identity only while that session's last `card.status` says present:
+  the identity leaves when the phone says absent, when the session ends
+  or when the phone leaves the network. Bonjour presence alone no longer
+  publishes anything, and the token extension's request back-off is
+  gone with the retry storms it guarded against. The phone yields an
+  idle session only to a dialer whose first frame is a session preamble
+  routing to a pairing it serves, so the token extension's own dial gets
+  through while a stranger displaces nothing; the Mac keeps the identity
+  for the extension's operation lifetime while it dials again. The
+  requester's terminal event is delivered only after its acknowledgement
+  frame has left, so closing on it cannot cut the acknowledgement off.
+  A primed near-field card counts as present: the phone can answer for
+  it when asked, and an iPhone without a reader would otherwise never
+  offer its card. An operation that ends without the card answering
+  (card wait ended with no card, card removed before transmit, field
+  lost) is reported as absent at once, and present again only once the
+  holder couples or primes a card or a card answers, so a retrying
+  browser stops asking until the holder taps the card again.
+- Every terminal result is acknowledged: a denial, a cancellation, a
+  rejected credential and an ambiguous completion each get
+  `operation.result_ack`, the requester's journal goes only once the
+  acknowledgement has left, and the proxy keeps a retired tombstone
+  (journal format 4) that answers a retransmission without the card.
+- The phone reports `consent_shown` while its consent view is on
+  screen, so a requester can tell a holder reading the request from a
+  holder who is absent.
+- Operation deadlines run on `mach_continuous_time`, which advances
+  through sleep; `DispatchTime` and `CACurrentMediaTime` are not used
+  for them.
+
+The vendored specification, state model, corpus and vectors are the
+v26.10.18 set from the reference repository; the ceremony bodies in
+`rapp-flow-v26.9.7.70.json` are re-encoded with the new version triple.
+Stored records of the earlier formats are not migrated: a pair record
+that does not decode is revoked and a journal that does not decode is
+dropped.
+
 ## 2026-10-18 The remote card has no pause row
 
 The token extension still backs off after a browser request ends
@@ -14,14 +74,15 @@ software's own problem to resolve: it ends on its own within a minute
 at most, it clears when the phone arrives on the network after an
 absence or when a signature succeeds, and nothing about it is shown or
 asked in the window. The identity row names the holder and nothing
-else. RAPP v26.10.18 replaces the back-off at its root: a requester
-offers a phone's identity only while a session to that phone reports a
-card, so a browser is not offered a card that cannot answer.
+else. Superseded the same day: with RAPP v26.10.18 the back-off is
+deleted, because a requester offers a phone's identity only while a
+session to that phone reports a card, so a browser is not offered a
+card that cannot answer.
 
 ## 2026-10-18 Paired devices are shown by the name they gave
 
 A pairing is listed and chosen by the `display_name` its peer sent in
-the RAPP pairing hello (v26.10.10 section 7.1). The app keeps no
+the RAPP pairing hello (v26.10.18 section 7.1). The app keeps no
 substitute: a peer that introduces itself with a blank name fails the
 ceremony, a stored pairing without a name is revoked at launch, and no
 view prints "Phone", "Computer" or "Remote device" in a name's place.

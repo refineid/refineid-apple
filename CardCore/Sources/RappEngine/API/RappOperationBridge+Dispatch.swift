@@ -209,14 +209,23 @@ extension RappOperationBridge {
         kind: .resultAcknowledgment, operationId: operationIdentifier,
         frame: try sealedMessage(message))
 
-    case .terminal(let operationIdentifier, let status, let error, let partial):
+    case .terminal(let operationIdentifier, let outcome, let ack):
+      let status = outcome.status
+      let error = outcome.error
+      let partial = outcome.batchSignatures
       // A credential-rejected result revokes the pairing on both peers
-      // (section 10.2); this is the requester learning.
+      // (section 10.2); this is the requester learning. The acknowledgement
+      // travels with the step so the custodian learns the result arrived
+      // (RAPP v26.10.18 §8.2 item 5).
       let state = status.failureState ?? .completed
       return RappBridgeAction(
-        kind: .terminal, operationId: operationIdentifier, terminalState: state.rawValue,
+        kind: .terminal, operationId: operationIdentifier, frame: try sealedMessage(ack),
+        terminalState: state.rawValue,
         terminalReason: RappTerminalReason(status: status, error: error),
         revokesPairing: status == .credentialRejected, batchSignatures: partial)
+
+    case .cardStatus(let cardPresent):
+      return RappBridgeAction(kind: .cardStatus, cardPresent: cardPresent)
 
     default:
       throw RappBindingError.WrongPhase
@@ -304,7 +313,7 @@ extension RappOperationBridge {
   ///
   /// A custodian whose holder switched remote access off closes every open
   /// session with ``RappCloseReason/serviceWithdrawn`` before it stops
-  /// accepting connections (RAPP v26.10.10 §4.5).
+  /// accepting connections (RAPP v26.10.18 §4.5).
   public func closeWithReason(_ reason: RappCloseReason) -> RappBridgeAction {
     locked {
       guard !closed else { return RappBridgeAction(kind: .noAction) }

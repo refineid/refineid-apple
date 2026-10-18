@@ -15,6 +15,8 @@ internal enum PairingState: String, CaseIterable, Sendable {
   case offerActive = "offer_active"
   case handshaking = "handshaking"
   case confirming = "confirming"
+  /// The record is stored; the peer's `pairing.stored` is awaited.
+  case storageConfirming = "storage_confirming"
   case pairedDisconnected = "paired_disconnected"
   case pairedConnected = "paired_connected"
   case revoked = "revoked"
@@ -25,7 +27,7 @@ internal enum PairingState: String, CaseIterable, Sendable {
   /// aborts an attempt that has not stored one.
   internal var holdsStoredPairing: Bool {
     switch self {
-    case .pairedDisconnected, .pairedConnected:
+    case .storageConfirming, .pairedDisconnected, .pairedConnected:
       true
 
     case .unpaired, .offerActive, .handshaking, .confirming, .revoked:

@@ -146,7 +146,8 @@ extension RappPairingBridge {
       case .finished, .cancelled, .exhausted:
         return false
 
-      case .handshaking, .confirming, .requesterAwaitingStepTwo, .requesterSendingStepThree:
+      case .handshaking, .confirming, .storage, .requesterAwaitingStepTwo,
+        .requesterSendingStepThree:
         phase = .cancelled
         return false
 

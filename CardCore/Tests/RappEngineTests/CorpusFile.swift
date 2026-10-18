@@ -4,10 +4,11 @@ import Foundation
 
 /// The vendored documents the engine is replayed against.
 internal enum CorpusFile {
-  private static let conformanceName = "rapp-v26.10.10.json"
+  private static let conformanceName = "rapp-v26.10.18.json"
   private static let transportName = "rapp-transport-v26.9.7.70.json"
   private static let flowName = "rapp-flow-v26.9.7.70.json"
-  private static let operationName = "rapp-operation-v26.10.10.json"
+  private static let operationName = "rapp-operation-v26.10.18.json"
+  private static let revocationName = "rapp-revocation-v26.10.18.json"
 
   /// Test sources sit four directories below the repository root.
   private static let depthBelowRepositoryRoot = 4
@@ -41,13 +42,18 @@ internal enum CorpusFile {
 
   internal static func routing(filePath: String) throws -> RoutingCorpus {
     try JSONDecoder().decode(
-      RoutingCorpus.self, from: try data(named: "rapp-routing-v26.10.10.json", filePath: filePath))
+      RoutingCorpus.self, from: try data(named: "rapp-routing-v26.10.18.json", filePath: filePath))
   }
 
   internal static func withdrawal(filePath: String) throws -> WithdrawalCorpus {
     try JSONDecoder().decode(
       WithdrawalCorpus.self,
-      from: try data(named: "rapp-withdrawal-v26.10.10.json", filePath: filePath))
+      from: try data(named: "rapp-withdrawal-v26.10.18.json", filePath: filePath))
+  }
+
+  internal static func revocation(filePath: String) throws -> RevocationCorpus {
+    try JSONDecoder().decode(
+      RevocationCorpus.self, from: try data(named: revocationName, filePath: filePath))
   }
 
   private static func data(named name: String, filePath: String) throws -> Data {

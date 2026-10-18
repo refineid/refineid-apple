@@ -33,6 +33,9 @@ public enum RappBridgeActionKind: Equatable, Sendable {
   case resultAcknowledged
   /// Advisory progress update reported by peer.
   case progress
+  /// The custodian said whether a card it can serve is present; the
+  /// accompanying `cardPresent` carries its word (RAPP v26.10.18 §8.4).
+  case cardStatus
   /// The peer could not admit the operation, such as while another runs.
   case peerBusy
   /// The peer answered a stale reference; an ordinary race.

@@ -43,6 +43,10 @@
         }
         return
       }
+      // A connected requester hears about the change at once (RAPP
+      // v26.10.18 §8.4), whichever way it went; a card coupled or primed
+      // again answers an earlier failure to serve.
+      PhonePersistentTokenRelay.shared.cardAvailabilityChanged(servable: canServe)
       guard wasAbleToServe != canServe else {
         if canServe, !PhonePersistentTokenRelay.shared.isServing {
           PhonePersistentTokenRelay.shared.start()

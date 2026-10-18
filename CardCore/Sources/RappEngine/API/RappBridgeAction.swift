@@ -40,6 +40,8 @@ public struct RappBridgeAction: Equatable, Sendable {
   /// The reason of a session close, whether the peer sent it or this
   /// endpoint did.
   public var closeReason: RappCloseReason?
+  /// Whether the custodian can serve a card now, on a `cardStatus` step.
+  public var cardPresent: Bool
 
   /// Describes one step, carrying only what that step needs.
   public init(
@@ -55,7 +57,8 @@ public struct RappBridgeAction: Equatable, Sendable {
     nextPollAtMs: UInt64? = nil,
     progressEvent: ProgressEvent? = nil,
     batchSignatures: [Data] = [],
-    closeReason: RappCloseReason? = nil
+    closeReason: RappCloseReason? = nil,
+    cardPresent: Bool = false
   ) {
     self.kind = kind
     self.operationId = operationId
@@ -70,5 +73,6 @@ public struct RappBridgeAction: Equatable, Sendable {
     self.progressEvent = progressEvent
     self.batchSignatures = batchSignatures
     self.closeReason = closeReason
+    self.cardPresent = cardPresent
   }
 }

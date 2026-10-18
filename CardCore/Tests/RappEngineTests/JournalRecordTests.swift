@@ -44,7 +44,8 @@ internal struct JournalRecordTests {
       requestHash: filler(0x44, JournalSize.requestHash),
       state: .executing,
       transmissionCount: Self.recordedTransmissions,
-      automaticRetryPermitted: false)
+      automaticRetryPermitted: false,
+      acknowledged: false)
   }
 
   private func completedResult() -> OperationResultMessage {

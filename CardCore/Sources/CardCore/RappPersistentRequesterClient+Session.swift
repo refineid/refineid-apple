@@ -71,6 +71,11 @@
       case .closed(let reason):
         handleClosed(reason)
 
+      case .cardStatus:
+        // A one-shot request offers nothing to a local consumer; the
+        // registry's held session acts on the custodian's word.
+        break
+
       case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
         .executeCardCommand, .operationFinished,
         .peerBusy, .peerUnknownOperation, .batchSignatures:
@@ -86,18 +91,14 @@
 
     private func handleProgress(operationID: Data, progressEvent: ProgressEvent) {
       guard !operationID.isEmpty else { return }
-      if progressEvent == .waitingForCard {
-        postDistributedNotification(RappCardPromptNotificationNames.cardNeededDarwinNotification)
-      } else if progressEvent == .cardWaitEnded {
-        postDistributedNotification(RappCardPromptNotificationNames.cardDismissDarwinNotification)
-      }
+      RappRequesterNotices.post(progress: progressEvent)
     }
 
     private func handleCompleted(
       _ result: RappOperationDriver.Result,
       on coordinator: RappConnectionCoordinator
     ) async {
-      postDistributedNotification(RappCardPromptNotificationNames.cardDismissDarwinNotification)
+      RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
       let response = self.response(for: result)
       await coordinator.close()
       if let response {
@@ -114,7 +115,7 @@
       _ reason: RappOperationDriver.TerminalReason?,
       on coordinator: RappConnectionCoordinator
     ) async {
-      postDistributedNotification(RappCardPromptNotificationNames.cardDismissDarwinNotification)
+      RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
       #if DEBUG
         Self.logger.notice(
           "[RappRequester] coordinator terminal reason: \(String(describing: reason), privacy: .public)"
@@ -125,9 +126,9 @@
     }
 
     private func handleClosed(_ reason: RappConnectionCoordinator.CloseReason) {
-      postDistributedNotification(RappCardPromptNotificationNames.cardDismissDarwinNotification)
+      RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
       if reason == .operation(.serviceWithdrawn) {
-        postDistributedNotification(RappServiceNotificationNames.serviceWithdrawnDarwinNotification)
+        RappRequesterNotices.post(RappServiceNotificationNames.serviceWithdrawnDarwinNotification)
       }
       #if DEBUG
         Self.logger.notice(
@@ -135,17 +136,6 @@
         )
       #endif
       finish(error: .transport)
-    }
-
-    private func postDistributedNotification(_ name: String) {
-      #if os(macOS)
-        DistributedNotificationCenter.default().postNotificationName(
-          Notification.Name(name),
-          object: nil,
-          userInfo: nil,
-          deliverImmediately: true
-        )
-      #endif
     }
 
     /// Asks for the operation this request was made for, once.

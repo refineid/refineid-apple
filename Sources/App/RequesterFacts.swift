@@ -24,6 +24,9 @@
 
     /// The paired phone, by the name it introduced itself with.
     internal var pairedPhone: String?
+
+    /// The phone that announced it forgot this computer, by name.
+    internal var phoneThatForgot: String?
   }
 
 #endif

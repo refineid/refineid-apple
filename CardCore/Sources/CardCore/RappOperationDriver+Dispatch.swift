@@ -17,7 +17,7 @@
 
       case .sendFrame, .resultAcknowledgment, .completed, .resultAcknowledged,
         .peerBusy, .peerUnknownOperation, .ignoredDuplicate, .noAction,
-        .sessionClosed, .pairRevoked:
+        .sessionClosed, .pairRevoked, .cardStatus:
         false
       }
     }
@@ -42,6 +42,10 @@
         case .resultAcknowledgment(let operationID):
           let result = try bridge.acknowledgmentReleased(operationId: operationID)
           return [.completed(operationID: operationID, result: Result(result))]
+
+        case .terminalAcknowledgment(let operationID):
+          try bridge.terminalAcknowledgmentReleased(operationId: operationID)
+          return heldTerminalSteps.removeValue(forKey: operationID) ?? []
 
         case .closeSession:
           closed = true
@@ -99,6 +103,17 @@
       }
     }
 
+    /// Tells the requester whether a card this custodian can serve is
+    /// present (RAPP v26.10.18 §8.4).
+    public func reportCardStatus(present: Bool) -> [Command] {
+      guard !closed else { return [] }
+      do {
+        return try commands(bridge.reportCardStatus(cardPresent: present))
+      } catch {
+        return []
+      }
+    }
+
     /// Ends the session and the pairing because the card can no longer
     /// be served.
     public func revokeBecauseCardUnavailable() -> [Command] {
@@ -120,6 +135,16 @@
         // not silently forgotten.
         revokedWhileClosing = true
         revokePairDurably()
+      }
+      if let frame = action.frame, action.kind == .terminal {
+        // The terminal step and its acknowledgement are one outcome: the
+        // custodian learns the result arrived, then the app learns the
+        // result, so nothing the app does on it can cut the frame off.
+        guard let operationID = action.operationId else {
+          throw LocalError.missingOperationIdentifier
+        }
+        heldTerminalSteps[operationID] = try stepCommands(action)
+        return [.send(frame: frame, release: try release(for: action))]
       }
       if let frame = action.frame {
         let followUps = action.additionalFrames.map { Command.send(frame: $0, release: .noRelease) }
@@ -153,6 +178,12 @@
           throw LocalError.missingOperationIdentifier
         }
         return .resultAcknowledgment(operationID: operationID)
+      }
+      if action.kind == .terminal {
+        guard let operationID = action.operationId else {
+          throw LocalError.missingOperationIdentifier
+        }
+        return .terminalAcknowledgment(operationID: operationID)
       }
       return action.closeSessionAfterSend ? .closeSession : .noRelease
     }
@@ -206,7 +237,7 @@
 
       case .sendFrame, .resultAcknowledgment, .completed, .resultAcknowledged,
         .peerBusy, .peerUnknownOperation, .ignoredDuplicate, .noAction,
-        .sessionClosed, .pairRevoked:
+        .sessionClosed, .pairRevoked, .cardStatus:
         throw LocalError.wrongPhase
       }
     }
@@ -233,6 +264,10 @@
       case .pairRevoked:
         closed = true
         return [.closed(.pairRevoked)]
+
+      case .cardStatus:
+        let present = action.cardPresent
+        return scheduled([.cardStatus(present: present)], for: action)
 
       case .sendFrame, .resultAcknowledgment:
         throw LocalError.missingFrame

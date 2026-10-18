@@ -47,17 +47,24 @@ import Testing
       internal var progress: ProxyProgress {
         switch self {
         case .userDenied:
-          ProxyProgress(prerequisites: 1, approvals: 1)
+          ProxyProgress(prerequisites: 1, approvals: 1, acknowledgments: 1)
 
         case .retryPolicyRefused:
           ProxyProgress(prerequisites: 1)
 
         case .cardRemovedBeforeTransmit:
-          ProxyProgress(prerequisites: 1, approvals: 1)
+          ProxyProgress(prerequisites: 1, approvals: 1, acknowledgments: 1)
 
         case .cardCompletionAmbiguous:
           ProxyProgress(prerequisites: 1, approvals: 1, executions: 1)
         }
+      }
+
+      /// Whether the requester's journal is gone once its terminal event
+      /// has been delivered: an ambiguous completion keeps it for
+      /// reconciliation (RAPP v26.10.18 §8.3).
+      internal var requesterJournalForgotten: Bool {
+        self != .cardCompletionAmbiguous
       }
 
       internal var proxyTransportCloseCount: Int {

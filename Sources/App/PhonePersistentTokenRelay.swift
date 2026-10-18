@@ -4,6 +4,7 @@
   import CardCore
   import Foundation
   import Network
+  import os
   import RappEngine
   /// Owns the phone side of one mutually authenticated RAPP connection.
   ///
@@ -13,7 +14,7 @@
   /// operation, and fail-stop decisions belong to RAPP.
   #if DEBUG
     /// The event's case name alone, which is what a timeline needs.
-    private func eventCaseName(_ event: RappConnectionCoordinator.Event) -> String {
+    internal func eventCaseName(_ event: RappConnectionCoordinator.Event) -> String {
       String(describing: event).prefix { $0 != "(" }.description
     }
   #endif
@@ -30,6 +31,13 @@
     internal static let streamRedialDelayMilliseconds = 100
     internal static let nearbyRedialDelayMilliseconds = 150
 
+    /// Whether this phone can answer for a card now: a card in a
+    /// connected reader, or a primed near-field card the holder can
+    /// present when asked.
+    internal static var canServeCard: Bool {
+      CardPresence.shared.isReaderCardPresent || PrimeStore.storedCount() > 0
+    }
+
     // MARK: Properties
 
     internal let vault = RappDeviceVault()
@@ -43,6 +51,20 @@
     #endif
     internal var coordinator: RappConnectionCoordinator?
     internal var dispatcher: RappPhoneProxyDispatcher?
+    /// Whether the open session carries no operation, read on the
+    /// listener's queue when another dialer arrives.
+    nonisolated internal let sessionIsIdle = OSAllocatedUnfairLock(initialState: false)
+    /// The pairings a dialer may displace an idle session for, read on
+    /// the listener's queue with its own replay memory.
+    nonisolated internal let replacementRouting = OSAllocatedUnfairLock<
+      (records: [RappPairRecord], router: RappSessionRouter)
+    >(initialState: ([], RappSessionRouter()))
+    /// The operations the open session is running.
+    internal var operationsInFlight: Set<Data> = []
+    /// The word on the card the requester is given (RAPP v26.10.18 §8.4).
+    internal var cardReport = CustodianCardReport(servable: canServeCard)
+    /// The pairing the open session runs over.
+    internal var activePairID: Data?
     internal var connectionID: UUID?
     internal var preCoordinatorFrames: [Data] = []
     /// A pairing ceremony owns the advertisement while it runs.
@@ -210,6 +232,7 @@
         )
         coordinator = made
         dispatcher = madeDispatcher
+        activePairID = pair.metadata().pairId
         isActivelyConnected = true
 
         let earlyFrames = preCoordinatorFrames
@@ -245,16 +268,6 @@
           await coordinator.receive(frame)
         }
       }
-    }
-
-    private func observe(
-      _ event: RappConnectionCoordinator.Event,
-      connectionID: UUID
-    ) {
-      guard self.connectionID == connectionID else { return }
-      #if DEBUG
-        HolderTrace.say("session event \(eventCaseName(event))")
-      #endif
     }
 
     /// Runs `work` after every delivery enqueued before it, cancelling a

@@ -225,29 +225,29 @@
       }
     }
 
+    /// Ends the session with `pairing_revoked` because this endpoint's
+    /// user is forgetting the pairing (RAPP v26.10.18 §4.6 item 1).
+    public func closePairingRevoked() async {
+      await endOperating { await $0.close(reason: .pairingRevoked) }
+    }
+
     /// Ends the session with `service_withdrawn` because the holder
-    /// stopped serving (RAPP v26.10.10 §4.5).
+    /// stopped serving (RAPP v26.10.18 §4.5).
     public func closeServiceWithdrawn() async {
-      switch phase {
-      case .handshaking:
-        _ = await handshake.close()
-        await finish(.localRequest)
-
-      case .operating:
-        guard let operation else {
-          await finish(.localRequest)
-          return
-        }
-        await handleOperation(await operation.close(reason: .serviceWithdrawn))
-
-      case .closed:
-        return
-      }
+      await endOperating { await $0.close(reason: .serviceWithdrawn) }
     }
 
     /// Ends the session and the pairing because the card can no longer
     /// be served.
     public func revokeBecauseCardUnavailable() async {
+      await endOperating { await $0.revokeBecauseCardUnavailable() }
+    }
+
+    /// Runs `ending` on the operation driver, or closes a session that
+    /// never reached one.
+    private func endOperating(
+      _ ending: (RappOperationDriver) async -> [RappOperationDriver.Command]
+    ) async {
       switch phase {
       case .handshaking:
         _ = await handshake.close()
@@ -258,7 +258,7 @@
           await finish(.localRequest)
           return
         }
-        await handleOperation(await operation.revokeBecauseCardUnavailable())
+        await handleOperation(await ending(operation))
 
       case .closed:
         return

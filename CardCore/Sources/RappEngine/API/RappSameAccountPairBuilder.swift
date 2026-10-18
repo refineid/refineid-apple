@@ -79,7 +79,8 @@ public enum RappSameAccountPairBuilder {
         grantsHash: grantsHash,
         profiles: defaultProfiles,
         transport: transport,
-        createdAtMilliseconds: createdAtMilliseconds
+        createdAtMilliseconds: createdAtMilliseconds,
+        storageConfirmed: true
       )
     } catch {
       throw RappBindingError.InvalidInput

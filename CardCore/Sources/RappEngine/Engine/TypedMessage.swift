@@ -7,6 +7,9 @@ import Foundation
 /// The engines dispatch on this rather than on raw envelopes, so the wire
 /// layer stays the only place that parses bytes.
 internal enum TypedMessage: Equatable {
+  /// The custodian's word on whether a card it can serve is present
+  /// (RAPP v26.10.18 §8.4).
+  case cardStatus(cardPresent: Bool)
   case error(ProtocolErrorMessage)
   case operationProgress(OperationProgressMessage)
   case operationRequest(OperationRequest)
@@ -47,7 +50,7 @@ internal enum TypedMessage: Equatable {
     case .operationStatus(let report):
       report.operationIdentifier
 
-    case .error, .other:
+    case .cardStatus, .error, .other:
       nil
     }
   }
