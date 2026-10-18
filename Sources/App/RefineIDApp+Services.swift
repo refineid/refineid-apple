@@ -33,8 +33,9 @@ extension RefineIDApp {
         if DebugLaunchModes.selected() != nil { return }
       #endif
 
-      let unreadable = RappDeviceVault().dropUnreadablePairs()
-      let nameless = RappPairingModel.revokeNamelessPairs()
+      let vault = RappDeviceVault()
+      let unreadable = vault.dropUnreadablePairs()
+      let nameless = RappPairingModel.revokeNamelessPairs(in: vault)
       if unreadable > 0 || nameless > 0 {
         PersistentTokenRegistry.withdrawPublishedIdentity()
       }

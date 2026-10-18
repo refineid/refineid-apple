@@ -188,6 +188,7 @@
     /// Fetches the borrowed certificate after a pairing, replacing any
     /// identity a previous pair left behind.
     internal func startAfterPairing() {
+      refreshPairing()
       guard Self.isRemoteCardEnabled else {
         Self.withdrawPublishedIdentity()
         return

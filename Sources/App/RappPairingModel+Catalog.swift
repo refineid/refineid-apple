@@ -50,8 +50,7 @@ extension RappPairingModel {
   ///
   /// A pairing is listed and chosen by the name its peer introduced
   /// itself with, so a record without one has nothing to be shown by.
-  internal static func revokeNamelessPairs() -> Int {
-    let vault = RappDeviceVault()
+  internal static func revokeNamelessPairs(in vault: RappDeviceVault) -> Int {
     let nameless = ((try? vault.activePairIDs()) ?? [])
       .filter { RappPairNames.name(forPairID: $0) == nil }
     let now = UInt64(Date().timeIntervalSince1970 * millisecondsPerSecond)

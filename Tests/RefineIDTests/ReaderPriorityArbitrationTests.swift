@@ -229,7 +229,7 @@
       RappPairNames.remember("Phone", pairID: testPair2)
       try vault.selectPair(pairID: testPair1)
 
-      #expect(RappPairingModel.revokeNamelessPairs() >= 1)
+      #expect(RappPairingModel.revokeNamelessPairs(in: vault) == 1)
 
       let activeIDs = try vault.activePairIDs()
       #expect(!activeIDs.contains(testPair1))
