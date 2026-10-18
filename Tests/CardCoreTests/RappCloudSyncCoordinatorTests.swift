@@ -15,7 +15,7 @@
 
       let identityA = try makeIdentity(
         service: "fi.refineid.test.idA.\(runID)",
-        name: "Petri's iPhone",
+        name: "Alpha iPhone",
         model: "iPhone16,1",
         seed: 0x01
       )
@@ -32,7 +32,7 @@
 
       let identityB = try makeIdentity(
         service: "fi.refineid.test.idB.\(runID)",
-        name: "Petri's MacBook Pro",
+        name: "Alpha MacBook Pro",
         model: "Mac15,3",
         seed: 0x02
       )
@@ -46,12 +46,12 @@
 
       let remotesForA = await coordinatorA.remoteDevices()
       #expect(remotesForA.count == 1)
-      #expect(remotesForA.first?.deviceName == "Petri's MacBook Pro")
+      #expect(remotesForA.first?.deviceName == "Alpha MacBook Pro")
       #expect(remotesForA.first?.role == .requester)
 
       let remotesForB = await coordinatorB.remoteDevices()
       #expect(remotesForB.count == 1)
-      #expect(remotesForB.first?.deviceName == "Petri's iPhone")
+      #expect(remotesForB.first?.deviceName == "Alpha iPhone")
       #expect(remotesForB.first?.role == .holder)
     }
 

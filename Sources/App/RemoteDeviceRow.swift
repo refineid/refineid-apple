@@ -82,7 +82,7 @@
           Circle()
             .fill(Color.green)
             .frame(width: Layout.statusIndicatorSize, height: Layout.statusIndicatorSize)
-          Text(isConnected ? "Connected" : "Online")
+          Text(isConnected ? String(localized: "Connected") : String(localized: "Online"))
             .font(.caption.weight(.semibold))
             .foregroundStyle(.green)
         }

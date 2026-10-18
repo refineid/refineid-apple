@@ -60,6 +60,9 @@ extension RappPairingModel {
     guard let reviewedPeerName else {
       let now = UInt64(Date().timeIntervalSince1970 * millisecondsPerSecond)
       try? vault.revokePair(pairID: pair.pairID, revokedAtMilliseconds: now)
+      if (try? vault.selectedPairID()) == pair.pairID {
+        try? vault.clearSelectedPair()
+      }
       fail(String(localized: "The device did not give its name"))
       return
     }

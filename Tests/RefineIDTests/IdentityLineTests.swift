@@ -15,7 +15,7 @@ internal struct IdentityLineTests {
     internal var testDescription: String { name }
   }
 
-  private static let phone = "Petri's iPhone"
+  private static let phone = "Alpha iPhone"
 
   private static let idle = RequesterFacts(
     availability: .noCard,
