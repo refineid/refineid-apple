@@ -278,18 +278,9 @@
         ))
     }
 
-    /// Completes a certificate read with DER bytes read from the card and optional card serial.
-    public func completeCertificate(
-      operationID: Data,
-      der: Data,
-      cardSerial: String? = nil
-    ) throws -> [Command] {
-      try commands(
-        bridge.completeCertificate(
-          operationId: operationID,
-          der: der,
-          cardSerial: cardSerial
-        ))
+    /// Completes a certificate read with DER bytes read from the card.
+    public func completeCertificate(operationID: Data, der: Data) throws -> [Command] {
+      try commands(bridge.completeCertificate(operationId: operationID, der: der))
     }
 
     /// Completes a signing operation with the card-produced signature.

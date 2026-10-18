@@ -32,19 +32,6 @@
       return RappPairNames.name(forPairID: selected.pairID)
     }
 
-    /// Printed serial of the currently primed identity, if available.
-    internal static func storedTokenSerial() -> String? {
-      guard let tokenSerial = PrimeStore.storedIdentities().first?.tokenSerial else {
-        return nil
-      }
-      if let serial = TokenSerial(value: tokenSerial),
-        let printed = PrintedCardSerial(tokenSerial: serial)
-      {
-        return printed.value.lowercased()
-      }
-      return tokenSerial.lowercased()
-    }
-
     // MARK: Functions
 
     internal func receive(

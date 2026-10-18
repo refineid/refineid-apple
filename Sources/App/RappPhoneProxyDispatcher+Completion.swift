@@ -22,12 +22,7 @@
       coordinator: RappConnectionCoordinator
     ) async {
       if case .result(let bytes) = outcome {
-        let isReader = await MainActor.run { CardPresence.shared.isReaderCardPresent }
-        try? await coordinator.completeCertificate(
-          operationID: operationID,
-          der: bytes,
-          cardSerial: isReader ? nil : Self.storedTokenSerial()
-        )
+        try? await coordinator.completeCertificate(operationID: operationID, der: bytes)
       } else {
         await finishFailure(outcome, operationID: operationID, coordinator: coordinator)
       }

@@ -5,7 +5,7 @@
 
   /// The authenticated payload a completed requester operation yields.
   public enum RappRequesterResponse: Sendable, Equatable {
-    case authenticationCertificate(Data, cardSerial: String? = nil)
+    case authenticationCertificate(Data)
     case signature(Data)
     case signatureCertificate(Data)
   }

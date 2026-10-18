@@ -43,7 +43,7 @@
       #expect(CardPresence.shared.isReaderCardPresent)
 
       // An attempt to publish while a reader card is present is suppressed.
-      let outcome = PersistentTokenRegistry.publish(signer.certificate, cardSerial: nil)
+      let outcome = PersistentTokenRegistry.publish(signer.certificate)
       #expect(outcome == .readerHasPriority)
       #expect(PersistentTokenRegistry.shared.certificateDER == nil)
       #expect(PersistentTokenRegistry.shared.holderLine == nil)

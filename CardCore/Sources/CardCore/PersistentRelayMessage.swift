@@ -6,7 +6,7 @@ import Foundation
 public enum PersistentRelayMessage: Codable, Equatable, Sendable {
   case failure(requestID: UUID, reason: PersistentRelayFailure)
   case identityRequest(requestID: UUID)
-  case identityResponse(requestID: UUID, certificateDER: Data, cardSerial: String? = nil)
+  case identityResponse(requestID: UUID, certificateDER: Data)
   case signatureRequest(
     requestID: UUID,
     profile: PersistentRelayCardProfile,
@@ -18,7 +18,7 @@ public enum PersistentRelayMessage: Codable, Equatable, Sendable {
   /// The correlation UUID shared by a request and its answer.
   public var requestID: UUID {
     switch self {
-    case .identityRequest(let requestID), .identityResponse(let requestID, _, _),
+    case .identityRequest(let requestID), .identityResponse(let requestID, _),
       .signatureRequest(let requestID, _, _, _), .signatureResponse(let requestID, _),
       .failure(let requestID, _):
       requestID

@@ -65,13 +65,7 @@
       return (certificateItem, keyItem)
     }
 
-    internal static func tokenInstanceID(
-      for certificateDER: Data,
-      cardSerial: String?
-    ) -> String {
-      if let cardSerial, !cardSerial.isEmpty {
-        return PersistentTokenIdentity.instancePrefix + cardSerial.lowercased()
-      }
+    internal static func tokenInstanceID(for certificateDER: Data) -> String {
       let hash =
         SHA256.hash(data: certificateDER)
         .map { String(format: "%02x", $0) }
@@ -97,7 +91,7 @@
     /// configuration exists, so the window never names a person Safari
     /// cannot be offered.
     @discardableResult
-    internal static func publish(_ certificateDER: Data, cardSerial: String?) -> PublishOutcome {
+    internal static func publish(_ certificateDER: Data) -> PublishOutcome {
       guard Self.isRemoteCardEnabled else { return .notPublished }
       guard !CardPresence.shared.isReaderCardPresent else {
         #if DEBUG
@@ -119,7 +113,7 @@
         return .notPublished
       }
 
-      let instanceID = tokenInstanceID(for: certificateDER, cardSerial: cardSerial)
+      let instanceID = tokenInstanceID(for: certificateDER)
       if let existing = driver.tokenConfigurations[instanceID],
         existing.configurationData == pairBytes
       {

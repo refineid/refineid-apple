@@ -213,9 +213,7 @@
     ) -> RappRequesterResponse? {
       switch (operation, result.kind) {
       case (.readAuthenticationCertificate, .certificate):
-        result.bytes.isEmpty
-          ? nil
-          : .authenticationCertificate(result.bytes, cardSerial: result.personID)
+        result.bytes.isEmpty ? nil : .authenticationCertificate(result.bytes)
 
       case (.readSignatureCertificate, .certificate):
         result.bytes.isEmpty ? nil : .signatureCertificate(result.bytes)

@@ -15,9 +15,6 @@
   public final class RappHeldRequesterSession: @unchecked Sendable {
     // MARK: Nested Types
 
-    /// The certificate a read produced, with the card's serial when known.
-    public typealias ReadAnswer = (certificate: Data, cardSerial: String?)
-
     /// What the session tells its owner.
     public enum Report: Sendable, Equatable {
       /// The Noise session is up; the custodian's first `card.status`
@@ -43,7 +40,7 @@
       var coordinator: RappConnectionCoordinator?
       var connected = false
       var finished = false
-      var read: CheckedContinuation<ReadAnswer, any Error>?
+      var read: CheckedContinuation<Data, any Error>?
     }
 
     // MARK: Properties
@@ -85,9 +82,9 @@
     /// Resumes the waiting read, if one is waiting; the lock, not the
     /// session, is what the resumption needs.
     private static func settle(
-      _ state: OSAllocatedUnfairLock<State>, _ outcome: Result<ReadAnswer, any Error>
+      _ state: OSAllocatedUnfairLock<State>, _ outcome: Result<Data, any Error>
     ) {
-      let waiting = state.withLock { state -> CheckedContinuation<ReadAnswer, any Error>? in
+      let waiting = state.withLock { state -> CheckedContinuation<Data, any Error>? in
         let read = state.read
         state.read = nil
         return read
@@ -122,7 +119,7 @@
     /// Reads the custodian's authentication certificate over the session.
     ///
     /// One read at a time; the session must be established.
-    public func readAuthenticationCertificate() async throws -> ReadAnswer {
+    public func readAuthenticationCertificate() async throws -> Data {
       let lifetime = policy.maximumOperationLifetimeMilliseconds
       let shared = state
       return try await withCheckedThrowingContinuation { continuation in
@@ -281,11 +278,11 @@
 
     private func certificate(
       in result: RappOperationDriver.Result
-    ) -> Result<ReadAnswer, any Error> {
+    ) -> Result<Data, any Error> {
       guard result.kind == .certificate, !result.bytes.isEmpty else {
         return .failure(ReadError.unexpectedResult)
       }
-      return .success((result.bytes, result.personID))
+      return .success(result.bytes)
     }
 
     /// Reports the end once and releases the transport.
