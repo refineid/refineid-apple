@@ -19,7 +19,7 @@ internal enum CryptokiEntryPoints {
   /// The bridge's own version, distinct from the Cryptoki spec version.
   ///
   /// The year and month this build was cut in; see ``ModuleVersion``
-  /// for where the day and bucket are reported.
+  /// for where the day and time of day are reported.
   private static var libraryVersion: CK_VERSION { ModuleVersion.library }
 
   /// Whether C_Initialize has completed without a matching C_Finalize.

@@ -110,8 +110,8 @@ internal enum SlotTokenEntryPoints {
     }
     // This token is published by this module rather than by anyone's
     // silicon, so its firmware version is this build: the day and the
-    // ten-minute bucket, which is the half of the stamp the library
-    // version has no room for.
+    // six-minute step of the time of day, which is the half of the stamp
+    // the library version has no room for.
     value.firmwareVersion = ModuleVersion.firmware
     let serial = String(token.tokenID.suffix(serialNumberWidth))
     withUnsafeMutableBytes(of: &value.serialNumber) { buffer in

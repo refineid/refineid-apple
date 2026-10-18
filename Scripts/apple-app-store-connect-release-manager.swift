@@ -1397,9 +1397,10 @@ private func releaseCaptureScreenshots(_ arguments: [String]) {
 
 // MARK: - Version stamp
 
-/// The calendar version of a build cut now: YY.M.D and the ten-minute
-/// UTC bucket. UTC, so it is monotonic across machines and never repeats
-/// an hour at the daylight-saving fall-back.
+/// The calendar version of a build cut now: YY.M.D and the UTC time of
+/// day as HHMM, hour times one hundred plus the minute. UTC, so it is
+/// monotonic across machines and never repeats an hour at the
+/// daylight-saving fall-back.
 private func releaseCalendarVersion() -> (marketing: String, build: Int) {
   var calendar = Calendar(identifier: .gregorian)
   calendar.timeZone = TimeZone(secondsFromGMT: 0)!
@@ -1415,7 +1416,7 @@ private func releaseCalendarVersion() -> (marketing: String, build: Int) {
   else {
     releaseFail("could not derive the UTC release version")
   }
-  return (String(format: "%02d.%d.%d", year % 100, month, day), hour * 10 + minute / 10)
+  return (String(format: "%02d.%d.%d", year % 100, month, day), hour * 100 + minute)
 }
 
 private let releaseVersionConfig = releaseRepositoryRoot.appendingPathComponent(
@@ -1478,7 +1479,7 @@ private func releaseStampFiles(marketing: String, build: Int) {
 }
 
 /// The two version files as they were before an install stamped them.
-/// An install stamps so every installed build reports the bucket it was
+/// An install stamps so every installed build reports the minute it was
 /// built in, and puts both files back on any exit: a stamp is never part
 /// of a feature commit.
 nonisolated(unsafe) private var releaseStampOriginals: [(URL, String)] = []

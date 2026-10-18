@@ -1178,7 +1178,7 @@ platforms.
 
 ## 2026-07-22 Calendar versioning
 
-`YY.M.D` version, ten-minute-bucket build number, tags carry the exact build
+`YY.M.D` version, HHMM UTC build number, tags carry the exact build
 number. Full scheme: release plan, "Calendar versioning".
 
 Stamped **manually at release** via the release manager's `stamp` command, deliberately

@@ -121,10 +121,10 @@ Scripts/apple-app-store-connect-release-manager.swift builds macos
 Scripts/apple-app-store-connect-release-manager.swift submissions
 ```
 
-The release version is `YY.M.D` in UTC. The build number is the ten-minute UTC
-bucket `hour * 10 + minute / 10`. Capture the version and build printed by the
+The release version is `YY.M.D` in UTC. The build number is the UTC time of
+day `hour * 100 + minute`. Capture the version and build printed by the
 release script and use that exact pair for every later command. Do not
-recompute it after the clock enters another bucket.
+recompute it after the clock enters another minute.
 
 App Store Connect will not accept the same build number twice for one version.
 If the intended pair already exists, do not upload another artifact with that
