@@ -6,17 +6,17 @@
   import Foundation
   import UIKit
 
-  /// Holds the attached reader's card session and its selected secure
-  /// channel across remote operations, and opens it before the first
-  /// request arrives, so a browser request pays for the PIN and the
-  /// signature only.
+  /// Holds the attached reader's card session and its selected channel
+  /// across remote operations, and opens it before the first request
+  /// arrives, so a browser request pays for the PIN and the signature
+  /// only.
   ///
-  /// The hold follows ``CardSessionHold``. The app's own card work on the
-  /// reader asks the holder to ``yield()`` first, so a status read never
-  /// waits behind a held session.
+  /// The hold follows ``CardSessionHold`` without a session life limit: a
+  /// reader keeps its card powered. Preparation, operations and the app's
+  /// own claim on the reader join one chain, so none cuts another.
   internal actor RappReaderSessionHolder {
     /// The exclusive card session and the operations over its channel;
-    /// one operation uses them at a time, which the actor serialises.
+    /// the chain hands them to one operation at a time.
     private final class HeldChannel: @unchecked Sendable {
       let session: SmartCardChannel.OpenSession
       let operations: CardOperations
@@ -38,9 +38,12 @@
     internal static let shared = RappReaderSessionHolder()
 
     private var heldChannel: HeldChannel?
-    private var hold = CardSessionHold()
+    private var hold = CardSessionHold(sessionLimitSeconds: nil)
     private var expirationTask: Task<Void, Never>?
-    private var credentials = CredentialSessionState()
+    private let credentials = CredentialSessionBox()
+
+    /// The end of the chain; a caller joins behind it.
+    private var chain: Task<Void, Never>?
 
     /// The background observation, held for the actor's lifetime.
     private var backgroundObserver: (any NSObjectProtocol)?
@@ -55,24 +58,31 @@
       }
     }
 
-    /// Whether the card answered the operation: a result or a credential
-    /// the card itself refused.
+    /// Whether the card answered the operation.
+    ///
+    /// A session failure and an ambiguous completion are the card not
+    /// answering; a local refusal or a credential the card refused leave
+    /// the channel sound.
     private static func cardAnswered(_ outcome: RappCardExecutor.Outcome) -> Bool {
       switch outcome {
       case .result, .rejected:
         true
 
-      case .completionAmbiguous, .refusedBeforeCredentialTransmit:
+      case .refusedBeforeCredentialTransmit(let refusal):
+        refusal != .cardUnavailable
+
+      case .completionAmbiguous:
         false
       }
     }
 
-    /// The continuous clock the hold's idle limit is measured on.
+    /// The continuous clock the hold's limits are measured on.
     private static func nowMs() -> Int64 {
       Int64(clamping: RappPlatformClock().monotonicMilliseconds())
     }
 
-    /// Opens the first occupied reader's card and selects the application.
+    /// Opens the first occupied reader's card and selects the application,
+    /// with the same card access number the operation path offers.
     private static func open(cardAccessNumber: String?) async -> Opening {
       guard let manager = TKSmartCardSlotManager.default else { return .noCard }
       let occupied = await CardSlotSearch.allOccupied(in: manager).filter { occupiedSlot in
@@ -120,18 +130,66 @@
     }
 
     /// Opens the reader card and selects the application ahead of a
-    /// request; nothing happens when a session is already held or no
-    /// reader card is attached.
+    /// request, behind any operation under way; nothing happens when a
+    /// session is held or no reader card is attached.
     internal func prepare() async {
+      await serialized {
+        await self.runPrepare()
+      }
+    }
+
+    /// Runs one remote operation on the reader card behind any operation
+    /// under way, or nil when no reader card is attached.
+    internal func execute(
+      cardAccessNumber: String?,
+      _ operation:
+        @escaping @Sendable (
+          CardOperations,
+          RappNearFieldSessionHolder.Context?
+        ) -> RappCardExecutor.Outcome
+    ) async -> CardMaintenance.CardSessionResult<RappCardExecutor.Outcome>? {
+      await serialized {
+        await self.run(cardAccessNumber: cardAccessNumber, operation)
+      }
+    }
+
+    /// Ends the hold once the operation under way has finished, so the
+    /// app's own card work can take the reader.
+    internal func yield() async {
+      await serialized {
+        await self.close()
+      }
+    }
+
+    internal func close() {
+      end(hold.closedByOwner())
+    }
+
+    internal func cardLeft() {
+      end(hold.cardLeft())
+    }
+
+    /// Runs `body` after every chained call before it has finished.
+    private func serialized<Value: Sendable>(
+      _ body: @escaping @Sendable () async -> Value
+    ) async -> Value {
+      let previous = chain
+      let task = Task { () -> Value in
+        await previous?.value
+        return await body()
+      }
+      chain = Task { _ = await task.value }
+      return await task.value
+    }
+
+    private func runPrepare() async {
       guard heldChannel == nil else { return }
       guard case .opened(let held) = await Self.open(cardAccessNumber: nil) else { return }
       adopt(held)
       armIdleLimit()
     }
 
-    /// Runs one remote operation on the reader card, or nil when no
-    /// reader card is attached.
-    internal func execute(
+    private func run(
       cardAccessNumber: String?,
       _ operation:
         @escaping @Sendable (
@@ -142,9 +200,10 @@
       expirationTask?.cancel()
       expirationTask = nil
       let held: HeldChannel
-      if let current = heldChannel {
+      if let current = heldChannel, hold.reusesChannel {
         held = current
       } else {
+        end(hold.closedByOwner())
         switch await Self.open(cardAccessNumber: cardAccessNumber) {
         case .opened(let opened):
           adopt(opened)
@@ -160,7 +219,7 @@
           return .failed
         }
       }
-      hold.operationStarted()
+      _ = hold.startsOperation(nowMs: Self.nowMs())
       let context = makeContext()
       let outcome: RappCardExecutor.Outcome = await withCheckedContinuation { continuation in
         DispatchQueue.global(qos: .userInitiated).async {
@@ -171,28 +230,15 @@
       return .connected(outcome)
     }
 
-    /// Ends the hold so the app's own card work can take the reader.
-    internal func yield() {
-      close()
-    }
-
-    internal func close() {
-      end(hold.closedByOwner())
-    }
-
-    internal func cardLeft() {
-      end(hold.cardLeft())
-    }
-
     private func appBackgrounded() {
       end(hold.appBackgrounded())
     }
 
     private func adopt(_ held: HeldChannel) {
       heldChannel = held
-      hold.sessionOpened()
+      hold.sessionOpened(nowMs: Self.nowMs())
       hold.channelPrepared()
-      credentials.sessionEnded()
+      credentials.mutate { $0.sessionEnded() }
     }
 
     /// Releases the session whatever the hold said, recording an ending.
@@ -204,7 +250,7 @@
       heldChannel = nil
       expirationTask?.cancel()
       expirationTask = nil
-      credentials.sessionEnded()
+      credentials.mutate { $0.sessionEnded() }
     }
 
     private func settle(outcome: RappCardExecutor.Outcome) {
@@ -235,33 +281,16 @@
     }
 
     private func makeContext() -> RappNearFieldSessionHolder.Context {
-      let snapshot = credentials
+      let snapshot = credentials.read()
+      let box = credentials
       return RappNearFieldSessionHolder.Context(
         isPin1Authenticated: snapshot.isPin1Authenticated,
         isRoleProbed: { role in snapshot.probedRoles.contains(role) },
         isNegativePin: { digits in snapshot.isNegativePin(digits) },
-        markPin1Authenticated: { [weak self] in
-          Task { await self?.markPin1Authenticated() }
-        },
-        markRoleProbed: { [weak self] role in
-          Task { await self?.markProbed(role) }
-        },
-        recordNegativePin: { [weak self] digits in
-          Task { await self?.recordNegativePin(digits) }
-        }
+        markPin1Authenticated: { box.mutate { $0.markPin1Authenticated() } },
+        markRoleProbed: { role in box.mutate { $0.markProbed(role) } },
+        recordNegativePin: { digits in box.mutate { $0.recordNegativePin(digits) } }
       )
-    }
-
-    private func markPin1Authenticated() {
-      credentials.markPin1Authenticated()
-    }
-
-    private func markProbed(_ role: CredentialRole) {
-      credentials.markProbed(role)
-    }
-
-    private func recordNegativePin(_ digits: String) {
-      credentials.recordNegativePin(digits)
     }
   }
 #endif
