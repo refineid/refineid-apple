@@ -67,8 +67,6 @@
     internal var activePairID: Data?
     internal var connectionID: UUID?
     internal var preCoordinatorFrames: [Data] = []
-    /// A pairing ceremony owns the advertisement while it runs.
-    internal var isPairing = false
     @Published internal var isActivelyConnected = false {
       didSet { connectionIndicator.update(active: isActivelyConnected) }
     }
@@ -117,7 +115,6 @@
       else { return }
       #if REFINEID_STREAM_TRANSPORT
         guard coordinator == nil,
-          !isPairing,
           hasUsablePair()
         else { return }
         let contexts = PhoneStreamPairContext.resolveAll(vault: vault)
@@ -126,7 +123,6 @@
         startListening(contexts)
       #else
         guard relay == nil, coordinator == nil,
-          !isPairing,
           hasUsableSelectedPair()
         else { return }
         let nearbyConnectionID = UUID()
