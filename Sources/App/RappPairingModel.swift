@@ -31,13 +31,10 @@ internal final class RappPairingModel: ObservableObject {
     #endif
   }
 
-  /// The in-protocol platform name this device introduces itself with.
+  /// The platform description this device introduces itself with: the
+  /// device's model, which tells a person which device this is.
   internal static var localPlatform: String {
-    #if os(macOS)
-      "macOS"
-    #else
-      "iOS"
-    #endif
+    DeviceModel.description
   }
 
   /// The transport profile a ceremony runs over in this build.
