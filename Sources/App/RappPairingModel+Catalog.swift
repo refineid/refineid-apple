@@ -46,6 +46,26 @@ extension RappPairingModel {
     NotificationCenter.default.post(name: pairingsDidChangeNotification, object: nil)
   }
 
+  /// Revokes every stored pairing whose peer left no name.
+  ///
+  /// A pairing is listed and chosen by the name its peer introduced
+  /// itself with, so a record without one has nothing to be shown by.
+  internal static func revokeNamelessPairs() -> Int {
+    let vault = RappDeviceVault()
+    let nameless = ((try? vault.activePairIDs()) ?? [])
+      .filter { RappPairNames.name(forPairID: $0) == nil }
+    let now = UInt64(Date().timeIntervalSince1970 * millisecondsPerSecond)
+    var revoked = 0
+    for pairID in nameless
+    where (try? vault.revokePair(pairID: pairID, revokedAtMilliseconds: now)) != nil {
+      revoked += 1
+    }
+    if let selected = try? vault.selectedPairID(), nameless.contains(selected) {
+      try? vault.clearSelectedPair()
+    }
+    return revoked
+  }
+
   internal func refresh() {
     Task {
       do {

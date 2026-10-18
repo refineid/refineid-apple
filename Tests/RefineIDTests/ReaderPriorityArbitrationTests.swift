@@ -213,7 +213,7 @@
     }
 
     @Test
-    internal func supersedeOlderPairingsRevokesUnnamedOrphans() throws {
+    internal func revokeNamelessPairsKeepsOnlyNamedPairings() throws {
       let vault = RappDeviceVault()
       let testPair1 = Data(repeating: 0x11, count: 16)
       let testPair2 = Data(repeating: 0x22, count: 16)
@@ -226,13 +226,15 @@
         RappPairNames.forget(pairID: testPair2)
       }
 
-      // Both pairings are unnamed (both blank)
-      let model = RappPairingModel(vault: vault)
-      model.supersedeOlderPairings(with: testPair2)
+      RappPairNames.remember("Phone", pairID: testPair2)
+      try vault.selectPair(pairID: testPair1)
+
+      #expect(RappPairingModel.revokeNamelessPairs() >= 1)
 
       let activeIDs = try vault.activePairIDs()
       #expect(!activeIDs.contains(testPair1))
       #expect(activeIDs.contains(testPair2))
+      #expect(try vault.selectedPairID() != testPair1)
     }
 
     @Test

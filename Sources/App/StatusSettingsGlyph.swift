@@ -43,7 +43,9 @@
 
     private var accessibilityValue: String {
       #if REFINEID_REMOTE_CARD
-        let phone = PersistentTokenRegistry.pairedPhoneLabel
+        guard let phone = PersistentTokenRegistry.shared.pairedPhone else {
+          return pinLevel?.accessibilityValue ?? ""
+        }
         let link =
           isRemoteHolderConnected
           ? String(localized: "\(phone) connected")

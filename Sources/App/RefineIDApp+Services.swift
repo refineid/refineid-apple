@@ -33,7 +33,9 @@ extension RefineIDApp {
         if DebugLaunchModes.selected() != nil { return }
       #endif
 
-      if RappDeviceVault().dropUnreadablePairs() > 0 {
+      let unreadable = RappDeviceVault().dropUnreadablePairs()
+      let nameless = RappPairingModel.revokeNamelessPairs()
+      if unreadable > 0 || nameless > 0 {
         PersistentTokenRegistry.withdrawPublishedIdentity()
       }
       #if REFINEID_LOCAL_CARD && os(iOS)

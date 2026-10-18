@@ -1677,7 +1677,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kytke kortinlukija"
+            "value": "Liitä kortinlukija"
           }
         },
         "sv": {
@@ -1693,7 +1693,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kytke kortinlukija ja laita henkilökortti siihen."
+            "value": "Liitä kortinlukija ja laita henkilökortti siihen."
           }
         },
         "sv": {
@@ -2725,22 +2725,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sätt i kortet i läsaren"
-          }
-        }
-      }
-    },
-    "Open RefineID on your phone and enter the pairing code:": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avaa puhelimesta RefineID ja syötä pariliitoskoodi:"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Öppna RefineID på telefonen och ange kopplingskoden:"
           }
         }
       }
@@ -4355,22 +4339,6 @@
         }
       }
     },
-    "Remove paired device": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Poista laitepari"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ta bort parkopplad enhet"
-          }
-        }
-      }
-    },
     "Remove the card and put it back, so the system reads it again.": {
       "extractionState": "manual",
       "localizations": {
@@ -4400,16 +4368,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ta bort den här tidsstämplingstjänsten"
-          }
-        }
-      }
-    },
-    "Remove this pairing": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Poista laitepari"
           }
         }
       }
@@ -6925,25 +6883,98 @@
         }
       }
     },
-    "Phone": {
-      "extractionState": "manual",
+    "Connect a card reader or open RefineID on your phone": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Phone"
-          }
-        },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Puhelin"
+            "value": "Liitä kortinlukija tai avaa puhelimesta RefineID"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Telefon"
+            "value": "Anslut en kortläsare eller öppna RefineID på telefonen"
+          }
+        }
+      }
+    },
+    "The device did not give its name": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laite ei kertonut nimeään"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enheten uppgav inte sitt namn"
+          }
+        }
+      }
+    },
+    "Paired phones": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liitetyt puhelimet"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopplade telefoner"
+          }
+        }
+      }
+    },
+    "No paired phones": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ei liitettyjä puhelimia"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inga kopplade telefoner"
+          }
+        }
+      }
+    },
+    "Forget All": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unohda kaikki"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Glöm alla"
+          }
+        }
+      }
+    },
+    "Online": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Linjoilla"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Online"
           }
         }
       }

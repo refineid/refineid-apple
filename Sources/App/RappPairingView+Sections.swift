@@ -70,10 +70,13 @@ extension RappPairingView {
   }
 
   @ViewBuilder internal var pairedDevicesSection: some View {
-    if !pairingModel.pairs.isEmpty {
+    let named = pairingModel.pairs.compactMap { pair in
+      RappPairNames.name(forPairID: pair.pairID).map { (pairID: pair.pairID, name: $0) }
+    }
+    if !named.isEmpty {
       Section(header: Text(String(localized: "Paired computers"))) {
-        ForEach(pairingModel.pairs, id: \.pairID) { pair in
-          pairedPeerRow(pair)
+        ForEach(named, id: \.pairID) { peer in
+          pairedPeerRow(pairID: peer.pairID, name: peer.name)
         }
       }
     }
@@ -117,15 +120,13 @@ extension RappPairingView {
     .padding(.vertical, Layout.statusVerticalPadding)
   }
 
-  private func pairedPeerRow(_ pair: RappPairingCoordinator.PairSummary) -> some View {
-    let name = RappPairNames.name(forPairID: pair.pairID) ?? String(localized: "Computer")
-
-    return HStack {
+  private func pairedPeerRow(pairID: Data, name: String) -> some View {
+    HStack {
       Text(name)
         .font(.body.weight(.medium))
         .foregroundStyle(.primary)
       Spacer()
-      peerDeleteButton(for: pair.pairID)
+      peerDeleteButton(for: pairID)
     }
   }
 

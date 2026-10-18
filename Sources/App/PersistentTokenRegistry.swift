@@ -74,11 +74,6 @@
       return (try? vault.selectedPairID()) ?? pairIDs.first
     }
 
-    /// The paired phone by the name it introduced itself with, or "Phone".
-    internal static var pairedPhoneLabel: String {
-      activePairID.flatMap(RappPairNames.name(forPairID:)) ?? String(localized: "Phone")
-    }
-
     // MARK: Properties
 
     /// Who the borrowed certificate names, for the identity row.
@@ -96,8 +91,9 @@
     /// borrowed identity.
     internal var holderIsAdvertising = false
 
-    /// Whether a phone is paired with this computer.
-    internal private(set) var hasPairing = false
+    /// The paired phone, by the name it introduced itself with; nil
+    /// while no phone is paired.
+    internal private(set) var pairedPhone: String?
 
     #if REFINEID_STREAM_TRANSPORT
       internal var presence: StreamRelayPresence?
@@ -150,11 +146,11 @@
 
     // MARK: Functions
 
-    /// Reads whether any phone is paired, for the identity row.
+    /// Reads which phone is paired, for the identity row.
     internal func refreshPairing() {
-      hasPairing =
+      pairedPhone =
         Self.isRemoteCardEnabled
-        && ((try? RappDeviceVault().activePairIDs().isEmpty == false) ?? false)
+        ? Self.activePairID.flatMap(RappPairNames.name(forPairID:)) : nil
     }
 
     /// Fetches and publishes once at launch on the requesting device when

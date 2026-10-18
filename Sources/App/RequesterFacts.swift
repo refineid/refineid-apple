@@ -22,8 +22,8 @@
     /// The presence browser reports the paired phone.
     internal var phonePresent: Bool
 
-    /// A phone is paired with this computer.
-    internal var paired: Bool
+    /// The paired phone, by the name it introduced itself with.
+    internal var pairedPhone: String?
   }
 
 #endif

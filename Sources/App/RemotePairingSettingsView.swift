@@ -11,7 +11,6 @@
     private enum Layout {
       static let rowSpacing: CGFloat = 6
       static let refreshIntervalSeconds: TimeInterval = 3
-      static let idPrefixBytes = 4
     }
 
     private struct DisplayedDevice {
@@ -84,11 +83,11 @@
       )
 
       let validExtraPairs = model.pairs.filter { pair in
-        guard pair.role == .requester, !derivedRemotePairIDs.contains(pair.pairID) else {
+        guard pair.role == .requester, !derivedRemotePairIDs.contains(pair.pairID),
+          let pairName = RappPairNames.name(forPairID: pair.pairID)
+        else {
           return false
         }
-        let pairName = RappPairNames.name(forPairID: pair.pairID) ?? ""
-        guard !pairName.isEmpty else { return true }
         return !validRemoteDevices.contains { remote in
           remote.deviceName.caseInsensitiveCompare(pairName) == .orderedSame
             || remote.modelName.caseInsensitiveCompare(pairName) == .orderedSame
@@ -98,12 +97,10 @@
       var seenExtraNames = Set<String>()
       var seenPairIDs = Set<Data>()
       let deduplicatedExtraPairs = validExtraPairs.filter { pair in
-        guard seenPairIDs.insert(pair.pairID).inserted else { return false }
-        let name = (RappPairNames.name(forPairID: pair.pairID) ?? "")
-          .trimmingCharacters(in: .whitespacesAndNewlines)
-          .lowercased()
-        guard !name.isEmpty else { return true }
-        return seenExtraNames.insert(name).inserted
+        guard seenPairIDs.insert(pair.pairID).inserted,
+          let name = RappPairNames.name(forPairID: pair.pairID)
+        else { return false }
+        return seenExtraNames.insert(name.lowercased()).inserted
       }
 
       let totalCount = validRemoteDevices.count + deduplicatedExtraPairs.count
@@ -161,18 +158,8 @@
       }
 
       for pair in deduplicatedExtraPairs {
+        guard let pairName = RappPairNames.name(forPairID: pair.pairID) else { continue }
         let idStr = pair.pairID.base64EncodedString()
-        let rawName = RappPairNames.name(forPairID: pair.pairID)?
-          .trimmingCharacters(in: .whitespacesAndNewlines)
-        let pairName: String
-        if let rawName, !rawName.isEmpty {
-          pairName = rawName
-        } else {
-          let hexShort = pair.pairID.prefix(Layout.idPrefixBytes)
-            .map { String(format: "%02x", $0) }
-            .joined()
-          pairName = String(localized: "Remote Device (\(hexShort)...)")
-        }
         let isPreferred =
           idStr == effectivePreferredID
           || (model.selectedPairID == pair.pairID)
@@ -219,7 +206,7 @@
       let devices = displayedDevices
       return Section {
         if devices.isEmpty {
-          Text("Ei liitettyjä laitteita")
+          Text("No paired phones")
             .foregroundStyle(.secondary)
         } else {
           ForEach(devices, id: \.identifier) { device in
@@ -233,11 +220,11 @@
           }
         }
       } header: {
-        Text("Etälaitteet")
+        Text("Paired phones")
       } footer: {
         HStack {
           Spacer()
-          Button("Poista kaikki", role: .destructive) {
+          Button("Forget All", role: .destructive) {
             clearAll()
           }
           .buttonStyle(.borderless)

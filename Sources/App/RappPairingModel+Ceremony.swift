@@ -20,7 +20,12 @@ extension RappPairingModel {
       restoreCustodianOffer(coordinator: coordinator)
 
     case .peerIntroduced(let peer):
-      reviewedPeerName = peer.displayName
+      let name = peer.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+      guard !name.isEmpty else {
+        fail(String(localized: "The device did not give its name"))
+        return
+      }
+      reviewedPeerName = name
 
     case .paired(let pair):
       handlePaired(pair)
@@ -49,12 +54,18 @@ extension RappPairingModel {
     }
   }
 
+  /// Keeps the pair under the name its peer gave; a pair whose peer gave
+  /// none is revoked before it can be listed or chosen.
   private func handlePaired(_ pair: RappPairingCoordinator.PairSummary) {
+    guard let reviewedPeerName else {
+      let now = UInt64(Date().timeIntervalSince1970 * millisecondsPerSecond)
+      try? vault.revokePair(pairID: pair.pairID, revokedAtMilliseconds: now)
+      fail(String(localized: "The device did not give its name"))
+      return
+    }
     do {
       try vault.selectPair(pairID: pair.pairID)
-      if let reviewedPeerName {
-        RappPairNames.remember(reviewedPeerName, pairID: pair.pairID)
-      }
+      RappPairNames.remember(reviewedPeerName, pairID: pair.pairID)
       supersedeOlderPairings(with: pair.pairID)
       RappPairingBackoff.shared.recordSuccess()
       selectedPairID = pair.pairID
@@ -100,22 +111,10 @@ extension RappPairingModel {
   /// pairs with more than one other, and those records are not this one's
   /// to revoke.
   internal func supersedeOlderPairings(with keptPairID: Data) {
-    let keptName = RappPairNames.name(forPairID: keptPairID)?
-      .trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let keptName = RappPairNames.name(forPairID: keptPairID) else { return }
     let superseded = ((try? vault.activePairIDs()) ?? [])
       .filter { pairID in
-        guard pairID != keptPairID else { return false }
-        let olderName = RappPairNames.name(forPairID: pairID)?
-          .trimmingCharacters(in: .whitespacesAndNewlines)
-        if let keptName, !keptName.isEmpty, let olderName, !olderName.isEmpty {
-          return olderName == keptName
-        }
-        let keptBlank = keptName == nil || keptName?.isEmpty == true
-        let olderBlank = olderName == nil || olderName?.isEmpty == true
-        if keptBlank, olderBlank {
-          return true
-        }
-        return false
+        pairID != keptPairID && RappPairNames.name(forPairID: pairID) == keptName
       }
     let now = UInt64(Date().timeIntervalSince1970 * millisecondsPerSecond)
     for pairID in superseded {

@@ -38,7 +38,7 @@ internal struct ReaderInstructionStringsTests {
     let strings = try Self.catalog()
     #expect(
       try Self.value(for: "Connect a card reader", language: "fi", in: strings)
-        == "Kytke kortinlukija"
+        == "Liitä kortinlukija"
     )
     #expect(
       try Self.value(for: "Connect a card reader", language: "sv", in: strings)
@@ -64,14 +64,14 @@ internal struct ReaderInstructionStringsTests {
   @Test
   internal func phoneReaderInstructionMatchesInEveryLanguage() throws {
     let strings = try Self.catalog()
-    let key = "Open RefineID on your phone and enter the pairing code:"
+    let key = "Connect a card reader or open RefineID on your phone"
     #expect(
       try Self.value(for: key, language: "fi", in: strings)
-        == "Avaa puhelimesta RefineID ja syötä pariliitoskoodi:"
+        == "Liitä kortinlukija tai avaa puhelimesta RefineID"
     )
     #expect(
       try Self.value(for: key, language: "sv", in: strings)
-        == "Öppna RefineID på telefonen och ange kopplingskoden:"
+        == "Anslut en kortläsare eller öppna RefineID på telefonen"
     )
   }
 
@@ -81,7 +81,7 @@ internal struct ReaderInstructionStringsTests {
     #expect(
       try Self.value(
         for: "Connect a card reader and insert your card.", language: "fi", in: strings
-      ) == "Kytke kortinlukija ja laita henkilökortti siihen."
+      ) == "Liitä kortinlukija ja laita henkilökortti siihen."
     )
     #expect(
       try Self.value(
@@ -102,7 +102,7 @@ internal struct ReaderInstructionStringsTests {
       contentsOf: Self.root.appending(path: "Sources/App/RemotePairingPromptView.swift"),
       encoding: .utf8
     )
-    #expect(prompt.contains("Open RefineID on your phone and enter the pairing code:"))
+    #expect(prompt.contains("Connect a card reader or open RefineID on your phone"))
     let notes = try String(
       contentsOf: Self.root.appending(path: "Sources/App/StatusView+Notes.swift"),
       encoding: .utf8

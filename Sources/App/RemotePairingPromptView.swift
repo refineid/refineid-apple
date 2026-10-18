@@ -17,7 +17,7 @@
     @State private var refused = false
 
     internal var body: some View {
-      Section {
+      Group {
         promptText
           .frame(maxWidth: Layout.promptMaxWidth, alignment: .leading)
       }
@@ -28,7 +28,7 @@
     }
 
     @ViewBuilder private var promptText: some View {
-      Text(String(localized: "Open RefineID on your phone and enter the pairing code:"))
+      Text(String(localized: "Connect a card reader or open RefineID on your phone"))
         .textSelection(.enabled)
         .fixedSize(horizontal: false, vertical: true)
       HStack {
