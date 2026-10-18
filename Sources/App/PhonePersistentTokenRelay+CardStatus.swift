@@ -19,6 +19,18 @@
     /// served again was coupled or primed by the holder.
     internal func cardAvailabilityChanged(servable: Bool) {
       apply(cardReport.availabilityChanged(servable: servable))
+      if CardPresence.shared.isReaderCardPresent {
+        prepareReaderCard()
+      } else {
+        Task { await RappReaderSessionHolder.shared.cardLeft() }
+      }
+    }
+
+    /// Opens the reader card's session and selects the application ahead
+    /// of the first request, while a requester is connected.
+    private func prepareReaderCard() {
+      guard coordinator != nil, CardPresence.shared.isReaderCardPresent else { return }
+      Task { await RappReaderSessionHolder.shared.prepare() }
     }
 
     /// Sends `word` when a transition produced one.
@@ -43,6 +55,7 @@
         operationsInFlight.removeAll()
         sessionIsIdle.withLock { $0 = true }
         reportCardStatus()
+        prepareReaderCard()
 
       case .inspectPrerequisites(let operationID, _),
         .awaitUserApproval(let operationID, _),
@@ -70,6 +83,10 @@
       case .closed:
         operationsInFlight.removeAll()
         sessionIsIdle.withLock { $0 = false }
+        Task {
+          await RappReaderSessionHolder.shared.close()
+          await RappNearFieldSessionHolder.shared.closeSession()
+        }
 
       case .terminal, .operationFinished, .peerUnknownOperation, .peerBusy, .progress,
         .batchSignatures, .cardStatus:

@@ -198,6 +198,7 @@
       }
       let outcome = verifyPin1(pin, with: operations)
       if outcome == nil {
+        OperationPhaseTrace.mark("credential-verified")
         context?.markPin1Authenticated()
       } else if case .rejected = outcome {
         context?.recordNegativePin(rawDigits)
@@ -252,6 +253,7 @@
         else {
           return .completionAmbiguous
         }
+        OperationPhaseTrace.mark("signature-done")
         return .result(raw)
       } catch {
         return .completionAmbiguous

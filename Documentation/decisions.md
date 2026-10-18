@@ -79,6 +79,22 @@ deleted, because a requester offers a phone's identity only while a
 session to that phone reports a card, so a browser is not offered a
 card that cannot answer.
 
+## 2026-10-18 The phone holds the card session across requests
+
+A remote operation on the phone no longer opens the field and runs
+PACE for itself alone. The near-field and reader holders keep the
+exclusive card session and the secure channel after an operation the
+card answered, for at most `CardSessionHold.idleLimitSeconds` (25 s)
+of idling, and the next request reuses them with the PIN 1 state the
+card still holds. The hold ends at once when the card leaves, the app
+goes to the background, an operation ends without the card answering,
+or the app's own card work asks for the reader. With a requester
+connected, the reader holder opens the card and selects the
+application before any request. The former burst grace of 3.5 s,
+which kept the field on after a result without keeping the channel,
+is gone. Debug and Profile builds stamp each operation's phases into
+the diagnostics trace in milliseconds since the request arrived.
+
 ## 2026-10-18 Paired devices are shown by the name they gave
 
 A pairing is listed and chosen by the `display_name` its peer sent in

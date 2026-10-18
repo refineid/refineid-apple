@@ -47,6 +47,7 @@
             operationID: operationID,
             signature: signature
           )
+          OperationPhaseTrace.mark("result-sent")
           #if DEBUG
             HolderTrace.say("answer accepted")
           #endif
