@@ -8,10 +8,8 @@
     /// and every mark is written before the mark returns.
     internal static func live(on box: CredentialSessionBox) -> Self {
       Self(
-        isPin1Authenticated: box.read().isPin1Authenticated,
         isRoleProbed: { role in box.read().probedRoles.contains(role) },
         isNegativePin: { digits in box.read().isNegativePin(digits) },
-        markPin1Authenticated: { box.mutate { $0.markPin1Authenticated() } },
         markRoleProbed: { role in box.mutate { $0.markProbed(role) } },
         recordNegativePin: { digits in box.mutate { $0.recordNegativePin(digits) } }
       )

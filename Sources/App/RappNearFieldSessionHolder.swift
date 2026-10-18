@@ -16,10 +16,8 @@
   /// join one chain, so two never touch the channel at once.
   internal actor RappNearFieldSessionHolder {
     internal struct Context: Sendable {
-      internal let isPin1Authenticated: Bool
       internal let isRoleProbed: @Sendable (CredentialRole) -> Bool
       internal let isNegativePin: @Sendable (String) -> Bool
-      internal let markPin1Authenticated: @Sendable () -> Void
       internal let markRoleProbed: @Sendable (CredentialRole) -> Void
       internal let recordNegativePin: @Sendable (String) -> Void
     }

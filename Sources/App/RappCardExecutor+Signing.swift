@@ -173,14 +173,16 @@
       }
     }
 
+    /// Verifies PIN 1 for this operation.
+    ///
+    /// The card keeps no verified state from one signature to the next on
+    /// a held channel: a PSO sent without a fresh VERIFY is refused with
+    /// security status not satisfied.
     private static func verifyRolePin1(
       documentPin1: String?,
       operations: CardOperations,
       context: RappNearFieldSessionHolder.Context?
     ) -> Outcome? {
-      if let context, context.isPin1Authenticated {
-        return nil
-      }
       let pin: Pin1?
       let rawDigits: String?
       if let documentPin1 {
@@ -199,7 +201,6 @@
       let outcome = verifyPin1(pin, with: operations)
       if outcome == nil {
         OperationPhaseTrace.mark("credential-verified")
-        context?.markPin1Authenticated()
       } else if case .rejected = outcome {
         context?.recordNegativePin(rawDigits)
       }
