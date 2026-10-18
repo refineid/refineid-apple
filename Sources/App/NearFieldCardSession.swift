@@ -157,11 +157,9 @@
       slot.state == .missing
     }
 
-    /// Whether the slot is gone for good.
-    ///
-    /// The one state that means a held session is safe to release: any
-    /// other non-`validCard` state can be a card that is still there and
-    /// still answering.
+    /// Whether the slot is gone for good: the one state that means a held
+    /// session is safe to release; any other non-`validCard` state can be
+    /// a card that is still there and still answering.
     internal var isMissing: Bool {
       slot.state == .missing
     }
@@ -374,7 +372,7 @@
       session.end()
     }
 
-    /// Runs `body` inside the card's exclusive session with the default near-field wait budget.
+    /// Runs `body` inside the card's exclusive session, near-field budget.
     internal func withCardSession<Value>(
       _ body: (SmartCardChannel) throws -> Value
     ) throws -> Value {
@@ -387,6 +385,11 @@
       _ body: (SmartCardChannel) throws -> Value
     ) throws -> Value {
       try SmartCardChannel(card, waits: waits).withSession(body)
+    }
+
+    /// The card's exclusive session, open until its owner ends it.
+    internal func openCardSession() throws -> SmartCardChannel.OpenSession {
+      try SmartCardChannel(card, waits: .nearField).openSession()
     }
 
     deinit {

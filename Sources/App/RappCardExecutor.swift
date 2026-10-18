@@ -93,9 +93,9 @@
           RappNearFieldSessionHolder.Context?
         ) -> Outcome
     ) async -> Outcome {
-      if let readerResult = await CardMaintenance.onReaderCard(
+      if let readerResult = await RappReaderSessionHolder.shared.execute(
         cardAccessNumber: cardAccessNumber,
-        { operations in operation(operations, nil) }
+        operation
       ) {
         switch readerResult {
         case .connected(let outcome):

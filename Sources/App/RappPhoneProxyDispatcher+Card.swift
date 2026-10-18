@@ -172,6 +172,7 @@
         await invalid(operationID, coordinator: coordinator)
         return
       }
+      OperationPhaseTrace.begin()
       let isReader = await MainActor.run { CardPresence.shared.isReaderCardPresent }
       let accessNumber = resolvedCardAccessNumber(isReader: isReader)
       if operation.kind == .batchSignDocuments {

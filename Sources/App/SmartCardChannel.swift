@@ -73,6 +73,36 @@ internal struct SmartCardChannel: CardChannel {
     }
   }
 
+  /// An exclusive session kept open past one body: the channel to use in
+  /// it, ended exactly once by ``end()``.
+  ///
+  /// `@unchecked Sendable` is the audit: the card is stored once and the
+  /// ending flag is read and written under the lock, so a session ended
+  /// from two threads ends once.
+  internal final class OpenSession: @unchecked Sendable {
+    internal let channel: SmartCardChannel
+    private let lock = NSLock()
+    private var ended = false
+
+    fileprivate init(channel: SmartCardChannel) {
+      self.channel = channel
+    }
+
+    /// Ends the session; later calls do nothing.
+    internal func end() {
+      lock.lock()
+      let alreadyEnded = ended
+      ended = true
+      lock.unlock()
+      guard !alreadyEnded else { return }
+      channel.smartCard.endSession()
+    }
+
+    deinit {
+      end()
+    }
+  }
+
   /// How long one APDU may wait, set by the transport that owns the field.
   internal enum ResponseWait: Sendable, Equatable {
     case nearField
@@ -176,6 +206,13 @@ internal struct SmartCardChannel: CardChannel {
 
   /// Opens an exclusive session, runs `body`, and ends it - synchronously.
   internal func withSession<T>(_ body: (Self) throws -> T) throws -> T {
+    let session = try openSession()
+    defer { session.end() }
+    return try body(session.channel)
+  }
+
+  /// Opens an exclusive session and hands it back open - synchronously.
+  internal func openSession() throws -> OpenSession {
     let offers = SmartCardProtocolNegotiation.offers(
       answerToReset: smartCard.slot.atr?.bytes)
     for (offset, protocols) in offers.enumerated() {
@@ -195,8 +232,7 @@ internal struct SmartCardChannel: CardChannel {
         throw CardOperationError.sessionUnavailable
       }
       if began.value {
-        defer { smartCard.endSession() }
-        return try body(self)
+        return OpenSession(channel: self)
       }
       let hasNarrowerOffer = offset + 1 < offers.count
       guard

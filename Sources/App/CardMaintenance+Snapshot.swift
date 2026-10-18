@@ -13,6 +13,7 @@
       _ operation: @escaping @Sendable (CardOperations) -> Payload
     ) async -> CardSessionResult<Payload>? {
       guard let manager = TKSmartCardSlotManager.default else { return nil }
+      await RappReaderSessionHolder.shared.yield()
       let occupied = await CardSlotSearch.allOccupied(in: manager).filter { occupiedSlot in
         CardTransport.transport(forSlotNamed: occupiedSlot.name) == .reader
       }
@@ -176,6 +177,7 @@
       cardAccessNumber: String?
     ) async -> ConnectionSnapshotResult? {
       guard let manager = TKSmartCardSlotManager.default else { return nil }
+      await RappReaderSessionHolder.shared.yield()
       let occupied = await CardSlotSearch.allOccupied(in: manager).filter { candidate in
         CardTransport.transport(forSlotNamed: candidate.name) == .reader
       }
