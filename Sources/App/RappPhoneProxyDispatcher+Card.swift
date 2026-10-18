@@ -110,14 +110,10 @@
       coordinator: RappConnectionCoordinator
     ) async {
       let isReader = await MainActor.run { CardPresence.shared.isReaderCardPresent }
-      let cardSerial = Self.storedTokenSerial()
 
       if !isReader, let cachedDER = cachedCertificate(for: kind) {
         await completeCertificate(
-          operationID: operationID,
-          der: cachedDER,
-          cardSerial: cardSerial,
-          coordinator: coordinator)
+          operationID: operationID, der: cachedDER, coordinator: coordinator)
         return
       }
 
@@ -141,14 +137,10 @@
     private func completeCertificate(
       operationID: Data,
       der: Data,
-      cardSerial: String?,
       coordinator: RappConnectionCoordinator
     ) async {
       do {
-        try await coordinator.completeCertificate(
-          operationID: operationID,
-          der: der,
-          cardSerial: cardSerial)
+        try await coordinator.completeCertificate(operationID: operationID, der: der)
       } catch {
         await coordinator.close()
       }

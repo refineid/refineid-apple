@@ -242,13 +242,13 @@
         guard hasPairs else { return }
         beginRead()
         Task.detached(priority: .userInitiated) {
-          let fetched: (certificate: Data, cardSerial: String?)?
+          let fetched: Data?
           do {
             let response = try RappPersistentRequesterClient(
               displayName: Self.displayName
             ).perform(.readAuthenticationCertificate)
-            if case .authenticationCertificate(let certificate, let cardSerial) = response {
-              fetched = (certificate, cardSerial)
+            if case .authenticationCertificate(let certificate) = response {
+              fetched = certificate
             } else {
               fetched = nil
             }
@@ -269,7 +269,7 @@
 
     /// Takes what a certificate read produced; a certificate is offered,
     /// a failure is counted for the next attempt.
-    internal func finishRead(_ fetched: (certificate: Data, cardSerial: String?)?) {
+    internal func finishRead(_ fetched: Data?) {
       defer {
         isRunning = false
         NotificationCenter.default.post(
@@ -282,7 +282,7 @@
         #endif
         return
       }
-      switch Self.publish(fetched.certificate, cardSerial: fetched.cardSerial) {
+      switch Self.publish(fetched) {
       case .notPublished:
         fetchBackoff.recordFailure(at: .now)
 

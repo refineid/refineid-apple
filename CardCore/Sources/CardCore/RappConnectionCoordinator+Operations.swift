@@ -207,19 +207,11 @@
         try await driver.completeIdentity(operationID: operationID, identity: identity))
     }
 
-    /// Completes a certificate read with the DER-encoded certificate and optional card serial.
-    public func completeCertificate(
-      operationID: Data,
-      der: Data,
-      cardSerial: String? = nil
-    ) async throws {
+    /// Completes a certificate read with the DER-encoded certificate.
+    public func completeCertificate(operationID: Data, der: Data) async throws {
       let driver = try operationDriver()
       await handleOperation(
-        try await driver.completeCertificate(
-          operationID: operationID,
-          der: der,
-          cardSerial: cardSerial
-        ))
+        try await driver.completeCertificate(operationID: operationID, der: der))
     }
 
     /// Completes a signature operation with the raw signature bytes.

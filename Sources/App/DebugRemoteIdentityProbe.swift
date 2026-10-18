@@ -31,14 +31,14 @@
         let response = try RappPersistentRequesterClient(
           displayName: clientDisplayName
         ).perform(.readAuthenticationCertificate)
-        guard case .authenticationCertificate(let der, let cardSerial) = response else {
+        guard case .authenticationCertificate(let der) = response else {
           lines.append("FAIL: answered something other than a certificate")
           return DebugModeReport(lines: lines, succeeded: false)
         }
         lines.append("certificate: \(der.count) bytes")
         lines.append(Self.holderLine(der))
         lines.append(Self.elapsedLine(since: started))
-        lines.append(contentsOf: Self.publishLines(der, cardSerial: cardSerial))
+        lines.append(contentsOf: Self.publishLines(der))
         return DebugModeReport(
           lines: lines,
           succeeded: !der.isEmpty && Self.publishedTokenCount() > 0)
@@ -54,16 +54,16 @@
     ///
     /// This is the step a browser depends on: an identity it is never
     /// offered is one the holder cannot use, however well the relay worked.
-    private static func publishLines(_ der: Data, cardSerial: String?) -> [String] {
+    private static func publishLines(_ der: Data) -> [String] {
       let before = publishedTokenCount()
       if Thread.isMainThread {
         MainActor.assumeIsolated {
-          _ = PersistentTokenRegistry.publish(der, cardSerial: cardSerial)
+          _ = PersistentTokenRegistry.publish(der)
         }
       } else {
         DispatchQueue.main.sync {
           MainActor.assumeIsolated {
-            _ = PersistentTokenRegistry.publish(der, cardSerial: cardSerial)
+            _ = PersistentTokenRegistry.publish(der)
           }
         }
       }

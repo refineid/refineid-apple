@@ -33,12 +33,8 @@ internal func journalResultValue(_ result: CardOperationResult) -> WireValue {
     }
     return .map(map)
 
-  case .certificate(let bytes, let cardSerial):
-    var map: [String: WireValue] = ["kind": .text("certificate"), "bytes": .bytes(bytes)]
-    if let cardSerial {
-      map["card_serial"] = .text(cardSerial)
-    }
-    return .map(map)
+  case .certificate(let bytes):
+    return .map(["kind": .text("certificate"), "bytes": .bytes(bytes)])
 
   case .signature(let bytes):
     return .map(["kind": .text("signature"), "bytes": .bytes(bytes)])
@@ -64,15 +60,7 @@ internal func journalResultFrom(_ value: WireValue) throws -> CardOperationResul
     result = identity
 
   case "certificate":
-    let bytes = try takeBytes(&map, "bytes")
-    let cardSerial: String?
-    if let val = map.removeValue(forKey: "card_serial") {
-      guard case .text(let str) = val else { throw PairRecordError.invalidInput }
-      cardSerial = str
-    } else {
-      cardSerial = nil
-    }
-    result = .certificate(bytes, cardSerial: cardSerial)
+    result = .certificate(try takeBytes(&map, "bytes"))
 
   case "signature":
     result = .signature(try takeBytes(&map, "bytes"))
@@ -119,12 +107,8 @@ internal func wireResponse(_ result: CardOperationResult) -> [String: WireValue]
     }
     return map
 
-  case .certificate(let bytes, let cardSerial):
-    var map: [String: WireValue] = ["certificate": .bytes(bytes)]
-    if let cardSerial {
-      map["card_serial"] = .text(cardSerial)
-    }
-    return map
+  case .certificate(let bytes):
+    return ["certificate": .bytes(bytes)]
 
   case .signature(let bytes):
     return ["signature": .bytes(bytes)]
@@ -189,8 +173,7 @@ internal func cardResult(
     return .identity(identity)
 
   case .readCertificate:
-    let certificate = try takeBytes(&map, "certificate")
-    return .certificate(certificate, cardSerial: try takeOptionalText(&map, "card_serial"))
+    return .certificate(try takeBytes(&map, "certificate"))
 
   case .browserAuthenticate, .signDocument:
     return .signature(try takeBytes(&map, "signature"))

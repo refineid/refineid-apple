@@ -155,12 +155,8 @@ extension RappOperationBridge {
   }
 
   /// Answers a certificate read.
-  public func completeCertificate(
-    operationId: Data,
-    der: Data,
-    cardSerial: String? = nil
-  ) throws -> RappBridgeAction {
-    try complete(operationId: operationId, result: .certificate(der, cardSerial: cardSerial))
+  public func completeCertificate(operationId: Data, der: Data) throws -> RappBridgeAction {
+    try complete(operationId: operationId, result: .certificate(der))
   }
 
   /// Answers a signature.

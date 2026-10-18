@@ -107,14 +107,14 @@
       }
       await MainActor.run {
         setFailureText(failure)
-        if case .authenticationCertificate(let der, let cardSerial) = response,
+        if case .authenticationCertificate(let der) = response,
           let name = remoteHolderName(inCertificate: der)
         {
           #if DEBUG
             print("[RemoteCardModel] publish: publishing certificate for holder=\(name)")
             fflush(stdout)
           #endif
-          let outcome = PersistentTokenRegistry.publish(der, cardSerial: cardSerial)
+          let outcome = PersistentTokenRegistry.publish(der)
           finishConnect(holder: outcome == .published ? name : nil)
         } else {
           #if DEBUG

@@ -48,8 +48,8 @@
       for operation: RappRequesterOperation
     ) -> RappRequesterResponse? {
       switch (operation, answer) {
-      case (.readAuthenticationCertificate, .identityResponse(_, let der, let cardSerial)):
-        der.isEmpty ? nil : .authenticationCertificate(der, cardSerial: cardSerial)
+      case (.readAuthenticationCertificate, .identityResponse(_, let der)):
+        der.isEmpty ? nil : .authenticationCertificate(der)
 
       case (.browserAuthentication, .signatureResponse(_, let signature)):
         signature.isEmpty ? nil : .signature(signature)

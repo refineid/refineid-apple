@@ -10,7 +10,7 @@ import Foundation
 internal enum CardOperationResult: Equatable {
   case inspection(CardInspection)
   case identity(CardIdentity)
-  case certificate(Data, cardSerial: String? = nil)
+  case certificate(Data)
   case signature(Data)
   /// The ordered signatures of a completed `batch_sign_documents`.
   case signatures([Data])
