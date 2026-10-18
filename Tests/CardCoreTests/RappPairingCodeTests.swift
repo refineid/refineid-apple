@@ -17,7 +17,7 @@ import Testing
         #expect(code.count == RappPairingCode.codeLength)
         #expect(RappPairingCode.isValid(code))
         #expect(RappPairingCode.normalize(code) == code)
-        // Excluded visually ambiguous symbols per RAPP v26.10.9 §3.1
+        // Excluded visually ambiguous symbols per RAPP v26.10.18 §3.1
         #expect(!code.contains("I"))
         #expect(!code.contains("L"))
         #expect(!code.contains("O"))
@@ -48,16 +48,17 @@ import Testing
       #expect(!RappPairingCode.isValid("7KX4M9AB"))
     }
 
-    @Test("Applies Crockford decode aliases (I, L -> 1; O -> 0)")
-    internal func testCrockfordDecodeAliases() {
-      #expect(RappPairingCode.normalize("iLo8k2") == "1108K2")
-      #expect(RappPairingCode.normalize("ILO8K2") == "1108K2")
-      #expect(RappPairingCode.isValid("1108K2"))
+    @Test("Rejects the excluded letters I, L and O instead of mapping them")
+    internal func testRejectsExcludedLetters() {
+      #expect(RappPairingCode.normalize("iLo8k2").isEmpty)
+      #expect(RappPairingCode.normalize("ILO8K2").isEmpty)
+      #expect(!RappPairingCode.isValid("7KX4MO"))
+      #expect(RappPairingCode.isValid("7KX4M0"))
     }
 
     @Test("Rejects invalid characters and U")
     internal func testRejectsInvalidCharacters() {
-      // U is explicitly rejected per RAPP v26.10.9 §3.1
+      // U is explicitly rejected per RAPP v26.10.18 §3.1
       #expect(RappPairingCode.normalize("7KU4M9").isEmpty)
       #expect(!RappPairingCode.isValid("7KU4M9"))
 
