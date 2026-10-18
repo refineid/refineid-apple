@@ -6,8 +6,11 @@
 
   /// Asking `nfcd` for the slot.
   extension NearFieldCardSession {
-    /// How many times a busy radio is retried before giving up.
-    internal static let busyRetryLimit: Int = 8
+    /// How many times the slot is asked for before giving up.
+    ///
+    /// Covers a busy radio and the reader's pause after a session, which
+    /// lasts about ten seconds.
+    internal static let busyRetryLimit: Int = 12
 
     /// Wait between two attempts at the radio.
     internal static let busyRetryInterval: Duration = .seconds(1)
