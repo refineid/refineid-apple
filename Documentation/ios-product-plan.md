@@ -40,7 +40,7 @@ The Rust core remains the reference oracle.
 
 ## 4. Features and conventions
 
-- Calendar versioning `YY.M.D` with ten-minute-bucket build numbers;
+- Calendar versioning `YY.M.D` with HHMM UTC build numbers;
   tagged releases.
 - Safety invariants: the PIN1 retry floor (proceed only at three or more
   attempts), token-bound memory only for a PIN1 the card accepted, at-most-once

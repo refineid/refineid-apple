@@ -211,16 +211,16 @@ Guidelines and is built from owned source artwork.
   UTC, without zero padding, for example `26.7.23`.
   Apple accepts at most three period-separated integers, so the year owns the
   first component and at most one App Store release ships per day.
-- **Build number (`CFBundleVersion`):** the ten-minute bucket of UTC
-  at which the build was cut: hour times ten plus the tens digit of the
-  minute. `130` means 13:00-13:09; `93` means 09:30-09:39. At most one build
-  per bucket. UTC, not local time: local time repeats an hour at the autumn
-  daylight-saving fall-back and depends on the build machine's zone, either of
-  which could make a build number collide or decrease. Buckets increase
-  strictly within a day. Build numbers restart
+- **Build number (`CFBundleVersion`):** the UTC time of day at which the
+  build was cut as HHMM: hour times one hundred plus the minute, without zero
+  padding. `1300` means 13:00; `935` means 09:35; `5` means 00:05. At most
+  one build per minute. UTC, not local time: local time repeats an hour at
+  the autumn daylight-saving fall-back and depends on the build machine's
+  zone, either of which could make a build number collide or decrease. Build
+  numbers increase strictly within a day. Build numbers restart
   each day, which is valid because App Store Connect requires build-number
   uniqueness only within one version string and the version changes daily.
-- TestFlight and App Store Connect display the pair as `26.7.23 (130)`.
+- TestFlight and App Store Connect display the pair as `26.7.23 (1300)`.
 
 The release manager owns candidate archiving, inspection, export, and upload. The repository contains no certificate
 private keys, provisioning profiles, API keys, or Apple account credentials.

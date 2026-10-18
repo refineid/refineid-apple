@@ -10,10 +10,11 @@
 //   MARKETING_VERSION (CFBundleShortVersionString) = YY.M.D
 //       What a person reads. The release date, no zero padding.
 //
-//   CURRENT_PROJECT_VERSION (CFBundleVersion) = H * 10 + M / 10
-//       What App Store Connect orders builds by. The ten-minute bucket
-//       of UTC the build was cut in, so two builds on one day always
-//       increase. UTC, not local time: local time repeats an hour at
+//   CURRENT_PROJECT_VERSION (CFBundleVersion) = H * 100 + M
+//       What App Store Connect orders builds by. The UTC time of day
+//       the build was cut at as HHMM without zero padding (16:50 is
+//       1650, 00:05 is 5), so two builds on one day always increase.
+//       UTC, not local time: local time repeats an hour at
 //       the autumn daylight-saving fall-back, which could make a build
 //       number collide or go backwards, and it depends on the build
 //       machine's zone. UTC has neither problem.
@@ -60,7 +61,7 @@ TARGETED_DEVICE_FAMILY[config=Release] = 1,2
 DEVELOPMENT_TEAM = 4ZJC3SFJR2
 
 MARKETING_VERSION = 26.10.3
-CURRENT_PROJECT_VERSION = 221
+CURRENT_PROJECT_VERSION = 2210
 
 // Where a development install was built from, as branch@commit, set on
 // the xcodebuild command line by the release manager's installs and
