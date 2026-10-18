@@ -6969,6 +6969,22 @@
           }
         }
       }
+    },
+    "Pair another computer": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liitä toinen tietokone"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Koppla en dator till"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
