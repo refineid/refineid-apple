@@ -27,20 +27,13 @@
     /// The exclusive card session and the operations over its secure
     /// channel; the operation chain hands them to one operation at a
     /// time, so the channel's sequence counter is never raced.
-    private final class HeldChannel: @unchecked Sendable {
-      let session: SmartCardChannel.OpenSession
-      let operations: CardOperations
-
-      init(session: SmartCardChannel.OpenSession, operations: CardOperations) {
-        self.session = session
-        self.operations = operations
-      }
-    }
-
     internal static let shared = RappNearFieldSessionHolder()
 
+    /// Wait between two looks at the idle slot.
+    private static let idleWatchInterval: Duration = .seconds(1)
+
     private var activeSession: NearFieldCardSession?
-    private var heldChannel: HeldChannel?
+    private var heldChannel: RappHeldCardChannel?
     private var hold = CardSessionHold(
       sessionLimitSeconds: CardSessionHold.nearFieldSessionLimitSeconds)
     private var expirationTask: Task<Void, Never>?
@@ -67,19 +60,6 @@
     /// A session failure and an ambiguous completion are the card not
     /// answering; a local refusal or a credential the card refused leave
     /// the channel sound.
-    private static func cardAnswered(_ outcome: RappCardExecutor.Outcome?) -> Bool {
-      switch outcome {
-      case .result, .rejected:
-        true
-
-      case .refusedBeforeCredentialTransmit(let refusal):
-        refusal != .cardUnavailable
-
-      case .completionAmbiguous, nil:
-        false
-      }
-    }
-
     /// The continuous clock the hold's limits are measured on.
     private static func nowMs() -> Int64 {
       Int64(clamping: RappPlatformClock().monotonicMilliseconds())
@@ -177,6 +157,9 @@
     private func obtainSession(message: String) async -> NearFieldCardSession? {
       if let existing = activeSession {
         guard existing.holdsValidCard else {
+          #if DEBUG
+            HolderTrace.say("obtainSession: held slot state \(existing.slotState.traceName)")
+          #endif
           end(hold.cardLeft())
           releaseEverything()
           return await obtainSession(message: message)
@@ -214,11 +197,11 @@
     private func preparedChannel(
       _ session: NearFieldCardSession,
       cardAccessNumber: String
-    ) async -> HeldChannel? {
+    ) async -> RappHeldCardChannel? {
       if let heldChannel, hold.reusesChannel { return heldChannel }
       heldChannel?.session.end()
       heldChannel = nil
-      let prepared: HeldChannel? = await withCheckedContinuation { continuation in
+      let prepared: RappHeldCardChannel? = await withCheckedContinuation { continuation in
         DispatchQueue.global(qos: .userInitiated).async {
           guard let open = try? session.openCardSession() else {
             continuation.resume(returning: nil)
@@ -236,7 +219,7 @@
             return
           }
           OperationPhaseTrace.mark("pace-done")
-          continuation.resume(returning: HeldChannel(session: open, operations: operations))
+          continuation.resume(returning: RappHeldCardChannel(session: open, operations: operations))
         }
       }
       guard let prepared else { return nil }
@@ -289,7 +272,7 @@
         return
       }
       let verdict = hold.operationFinished(
-        answered: Self.cardAnswered(outcome),
+        answered: outcome.cardAnswered,
         nowMs: Self.nowMs()
       )
       guard case .keep = verdict, activeSession?.holdsValidCard == true else {
@@ -298,17 +281,39 @@
         return
       }
       expirationTask = Task { [weak self] in
-        try? await Task.sleep(for: .seconds(CardSessionHold.idleLimitSeconds))
-        guard !Task.isCancelled else { return }
-        await self?.idleExpired()
+        await self?.watchIdle()
       }
     }
 
-    private func idleExpired() {
-      let verdict = hold.tick(nowMs: Self.nowMs())
-      guard case .end = verdict else { return }
-      end(verdict)
-      releaseEverything()
+    /// Follows the card while the hold is idle.
+    ///
+    /// A slot that no longer reports a valid card ends the session at
+    /// once: the reader's pause after a session then runs while nothing
+    /// is asked of the card, instead of refusing the next request's
+    /// fresh session. The idle limit ends the session otherwise.
+    private func watchIdle() async {
+      var lastState = activeSession?.slotState.traceName
+      while !Task.isCancelled {
+        try? await Task.sleep(for: Self.idleWatchInterval)
+        guard !Task.isCancelled else { return }
+        #if DEBUG
+          let state = activeSession?.slotState.traceName
+          if state != lastState {
+            HolderTrace.say("watchIdle: slot state \(lastState ?? "nil") -> \(state ?? "nil")")
+            lastState = state
+          }
+        #endif
+        guard activeSession?.holdsValidCard == true else {
+          end(hold.cardLeft())
+          releaseEverything()
+          return
+        }
+        let verdict = hold.tick(nowMs: Self.nowMs())
+        guard case .end = verdict else { continue }
+        end(verdict)
+        releaseEverything()
+        return
+      }
     }
   }
 #endif

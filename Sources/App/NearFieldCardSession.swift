@@ -103,23 +103,6 @@
       case neverArrived
     }
 
-    /// How many times a busy radio is retried before giving up.
-    private static let busyRetryLimit: Int = 8
-
-    /// Wait between two attempts at the radio.
-    private static let busyRetryInterval: Duration = .seconds(1)
-
-    /// The word the system uses when `nfcd` still owns the radio.
-    ///
-    /// There is no error code for it, only the message, so this matches
-    /// the message and treats everything else as a real refusal.
-    private static let busyErrorFragment: String = "busy"
-
-    /// The refusal `nfcd` answers while its reader cool-off runs, observed
-    /// as `Error Domain=nfcd Code=47 "Reader mode temporarily disabled"`.
-    private static let coolingDownErrorDomain: String = "nfcd"
-    private static let coolingDownErrorCode: Int = 47
-
     /// How many times the slot is polled for a card before giving up.
     private static let arrivalPollLimit: Int = 200
 
@@ -150,6 +133,11 @@
     /// Whether the slot still holds a valid card right now.
     internal var holdsValidCard: Bool {
       slot.state == .validCard
+    }
+
+    /// The slot's state right now.
+    internal var slotState: TKSmartCardSlot.State {
+      slot.state
     }
 
     /// Whether the slot is empty right now.
@@ -260,56 +248,6 @@
         session.end()
         throw Failure.cardNeverArrived
       }
-    }
-
-    /// Asks for the slot, retrying only while the answer says busy.
-    private static func openSlot(
-      manager: TKSmartCardSlotManager,
-      message: String
-    ) async throws -> TKSmartCardSlotNFCSession {
-      for attempt in 1...Self.busyRetryLimit {
-        if attempt > 1 {
-          try? await Task.sleep(for: Self.busyRetryInterval)
-        }
-        switch await createSlot(manager: manager, message: message) {
-        case .success(let opened):
-          return opened
-
-        case .failure(let error):
-          if isCoolingDown(error) { throw Failure.readerCoolingDown }
-          guard isBusy(error) else { throw Failure.slotRefused }
-        }
-      }
-      throw Failure.antennaBusy
-    }
-
-    /// One call into `createNFCSlot`, as a value.
-    private static func createSlot(
-      manager: TKSmartCardSlotManager,
-      message: String
-    ) async -> Result<TKSmartCardSlotNFCSession, any Error> {
-      await withCheckedContinuation { continuation in
-        manager.createNFCSlot(message: message) { opened, error in
-          guard let opened else {
-            continuation.resume(returning: .failure(error ?? Failure.slotRefused))
-            return
-          }
-          continuation.resume(returning: .success(opened))
-        }
-      }
-    }
-
-    /// Whether this refusal is the reader cool-off, which no retry outlasts.
-    private static func isCoolingDown(_ error: any Error) -> Bool {
-      let failure = error as NSError
-      return failure.domain == Self.coolingDownErrorDomain
-        && failure.code == Self.coolingDownErrorCode
-    }
-
-    /// Whether this refusal is the radio still being held elsewhere.
-    private static func isBusy(_ error: any Error) -> Bool {
-      (error as NSError).localizedDescription
-        .localizedCaseInsensitiveContains(Self.busyErrorFragment)
     }
 
     /// Waits for the slot to hold a valid card, or gives up.
