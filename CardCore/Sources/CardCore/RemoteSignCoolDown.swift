@@ -33,8 +33,9 @@ public struct RemoteSignCoolDown: Sendable {
   /// The pause after one unattended ending.
   public static let initialPause: TimeInterval = 15
 
-  /// The longest pause.
-  public static let ceiling: TimeInterval = 300
+  /// The longest pause: a holder that returns with its card waits at
+  /// most this long for the next browser request to reach it.
+  public static let ceiling: TimeInterval = 60
 
   /// The system-wide notification posted when a pause begins or ends.
   public static let changeNotificationName = "fi.refineid.remoteSignCoolDownChanged"

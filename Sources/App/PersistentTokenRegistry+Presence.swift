@@ -202,6 +202,12 @@
       if present {
         advertisementLossTask?.cancel()
         advertisementLossTask = nil
+        // A holder that arrives is a new situation for the token: the
+        // back-off after an unattended request ends with it. A holder
+        // reported again while already present changes nothing.
+        if !holderIsAdvertising {
+          RemoteSignCoolDown.shared.resume()
+        }
         holderIsAdvertising = true
         if certificateDER == nil {
           startFetch(replacing: false)

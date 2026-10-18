@@ -5,6 +5,19 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-10-18 The remote card has no pause row
+
+The token extension still backs off after a browser request ends
+without a card or without the holder's approval, so a retrying browser
+cannot keep the phone in back-to-back card waits. The back-off is the
+software's own problem to resolve: it ends on its own within a minute
+at most, it clears when the phone arrives on the network after an
+absence or when a signature succeeds, and nothing about it is shown or
+asked in the window. The identity row names the holder and nothing
+else. RAPP v26.10.18 replaces the back-off at its root: a requester
+offers a phone's identity only while a session to that phone reports a
+card, so a browser is not offered a card that cannot answer.
+
 ## 2026-10-18 Paired devices are shown by the name they gave
 
 A pairing is listed and chosen by the `display_name` its peer sent in
