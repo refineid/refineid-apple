@@ -62,6 +62,10 @@ internal final class RappPairingModel: ObservableObject {
   @Published internal var pretendPaired = false
   @Published internal var selectedPairID: Data?
   @Published internal var pairingCode: String?
+  /// Whether the ceremony under way is this device's own offer: a phone
+  /// shows a code for as long as remote access is on, so an offer that
+  /// ends, however it ends, is followed by the next one.
+  internal private(set) var isOffering = false
 
   internal let vault: RappDeviceVault
   internal let catalog: RappPairCatalog
@@ -123,11 +127,9 @@ internal final class RappPairingModel: ObservableObject {
 
   internal func createOffer(customCode: String?) {
     resetAttempt()
+    isOffering = true
     #if os(iOS)
       RemoteAccessServing.setEnabled(true)
-    #endif
-    #if REFINEID_LOCAL_CARD && os(iOS)
-      PhonePersistentTokenRelay.shared.suspendForPairing()
     #endif
     let wait = RappPairingBackoff.shared.secondsUntilNextOffer()
     guard wait == 0 else {
@@ -178,12 +180,20 @@ internal final class RappPairingModel: ObservableObject {
   }
 
   internal func cancel() {
-    let activeCoordinator = coordinator
-    relay?.cancel()
-    finishAttempt()
-    phase = .idle
-    Task { await activeCoordinator?.close() }
-    resumeRegularRelay()
+    resetAttempt()
+  }
+
+  /// Ends the ceremony the way its role calls for: a phone's own offer
+  /// is followed by the next one, and a lockout shows until it lifts;
+  /// a requester reports `failure`.
+  internal func ceremonyEnded(_ failure: String) {
+    #if os(iOS)
+      if isOffering {
+        createOffer()
+        return
+      }
+    #endif
+    fail(failure)
   }
 
   internal func makeRelay(role: PersistentRelayRole) -> PairingRelay {
@@ -257,10 +267,10 @@ internal final class RappPairingModel: ObservableObject {
     relay?.cancel()
     finishAttempt()
     Task { await activeCoordinator?.close() }
-    resumeRegularRelay()
   }
 
   internal func finishAttempt() {
+    isOffering = false
     reviewedPeerName = nil
     relay = nil
     relayGeneration = nil
@@ -280,9 +290,15 @@ internal final class RappPairingModel: ObservableObject {
     Task { await activeCoordinator?.close() }
   }
 
-  internal func resumeRegularRelay() {
+  /// Serves the paired computers, the one just paired among them: a
+  /// relay not yet listening starts, and one already listening announces
+  /// the new pairing in its session record at once.
+  internal func serveNewPairing() {
     #if REFINEID_LOCAL_CARD && os(iOS)
-      PhonePersistentTokenRelay.shared.resumeAfterPairing()
+      PhonePersistentTokenRelay.shared.start()
+      #if REFINEID_STREAM_TRANSPORT
+        PhonePersistentTokenRelay.shared.refreshSessionRecord()
+      #endif
     #endif
   }
 }

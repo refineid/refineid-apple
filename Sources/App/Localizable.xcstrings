@@ -6670,29 +6670,6 @@
         }
       }
     },
-    "Retry": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Retry"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Yritä uudelleen"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Försök igen"
-          }
-        }
-      }
-    },
     "Could not find a device offering this pairing code.": {
       "localizations": {
         "fi": {
@@ -6966,22 +6943,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ glömde den här datorn"
-          }
-        }
-      }
-    },
-    "Pair another computer": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Liitä toinen tietokone"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Koppla en dator till"
           }
         }
       }

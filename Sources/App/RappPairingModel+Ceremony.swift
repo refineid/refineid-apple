@@ -19,7 +19,7 @@ extension RappPairingModel {
     case .peerIntroduced(let peer):
       let name = peer.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
       guard !name.isEmpty else {
-        fail(String(localized: "The device did not give its name"))
+        ceremonyEnded(String(localized: "The device did not give its name"))
         return
       }
       reviewedPeerName = name
@@ -36,30 +36,34 @@ extension RappPairingModel {
   private func handleClosed(_ reason: RappPairingCoordinator.CloseReason) {
     switch (reason, phase) {
     case (.offerExpired, .offer):
-      // An unused code lapses after a minute; the custodian shows a new one.
+      // An unused code lapses after a minute; the next one follows.
       createOffer()
 
     case (.attemptsExhausted, _):
+      // The next offer shows the lockout and the code once it lifts.
       RappPairingBackoff.shared.recordLockout()
-      fail(String(localized: "Pairing locked after three incorrect codes."))
+      ceremonyEnded(String(localized: "Pairing locked after three incorrect codes."))
 
     case (_, .offer):
-      fail(String(localized: "Pairing ended before it was completed"))
+      ceremonyEnded(String(localized: "Pairing ended before it was completed"))
 
     default:
-      fail(String(localized: "The pairing code was not accepted"))
+      ceremonyEnded(String(localized: "The pairing code was not accepted"))
     }
   }
 
-  /// Keeps the pair under the name its peer gave; a pair whose peer gave
-  /// none is revoked before it can be listed or chosen.
+  /// Keeps the pair under the name its peer gave.
+  ///
+  /// A pair whose peer gave none is revoked before it can be listed or
+  /// chosen. A phone that offered lists the new computer and shows the
+  /// next code.
   private func handlePaired(_ pair: RappPairingCoordinator.PairSummary) {
     guard let reviewedPeerName else {
       try? RappPairRevocation.revoke(pairID: pair.pairID, in: vault, clock: RappPlatformClock())
       if (try? vault.selectedPairID()) == pair.pairID {
         try? vault.clearSelectedPair()
       }
-      fail(String(localized: "The device did not give its name"))
+      ceremonyEnded(String(localized: "The device did not give its name"))
       return
     }
     do {
@@ -68,15 +72,21 @@ extension RappPairingModel {
       supersedeOlderPairings(with: pair.pairID)
       RappPairingBackoff.shared.recordSuccess()
       selectedPairID = pair.pairID
-      phase = .paired(pair)
       refresh()
+      serveNewPairing()
+      #if os(iOS)
+        if isOffering {
+          createOffer()
+          return
+        }
+      #endif
+      phase = .paired(pair)
       finishAttempt()
-      resumeRegularRelay()
       #if os(macOS)
         PersistentTokenRegistry.shared.startAfterPairing()
       #endif
     } catch {
-      fail(String(localized: "The paired device could not be selected"))
+      ceremonyEnded(String(localized: "The paired device could not be selected"))
     }
   }
 

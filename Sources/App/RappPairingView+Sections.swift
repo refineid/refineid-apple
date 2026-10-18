@@ -52,13 +52,7 @@ extension RappPairingView {
       Section {
         failedCard(reason: reason)
       }
-    case .paired:
-      Section {
-        Button(String(localized: "Pair another computer")) {
-          pairingModel.createOffer()
-        }
-      }
-    case .idle, .codeEntry:
+    case .idle, .codeEntry, .paired:
       EmptyView()
     }
   }
@@ -117,10 +111,6 @@ extension RappPairingView {
         .font(.caption)
         .foregroundStyle(.secondary)
         .multilineTextAlignment(.center)
-      Button(String(localized: "Retry")) {
-        pairingModel.createOffer()
-      }
-      .buttonStyle(.borderedProminent)
     }
     .frame(maxWidth: .infinity, alignment: .center)
     .padding(.vertical, Layout.statusVerticalPadding)

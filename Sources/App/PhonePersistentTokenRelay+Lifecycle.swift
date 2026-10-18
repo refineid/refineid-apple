@@ -66,34 +66,6 @@
       isActivelyConnected = false
     }
 
-    /// Hands the advertisement to a pairing ceremony until it ends.
-    internal func suspendForPairing() {
-      isPairing = true
-      let closing = coordinator
-      coordinator = nil
-      relay?.cancel()
-      relay = nil
-      #if REFINEID_STREAM_TRANSPORT
-        for listener in streamListeners.values {
-          listener.cancel()
-        }
-        streamListeners.removeAll()
-        stopHintRotation()
-        sessionListening.withdrawal?.cancel()
-        sessionListening.withdrawal = nil
-        activeStreamListener = nil
-      #endif
-      connectionID = nil
-      isActivelyConnected = false
-      Task { await closing?.close() }
-    }
-
-    /// Serves the paired computers again once the ceremony has ended.
-    internal func resumeAfterPairing() {
-      isPairing = false
-      start()
-    }
-
     /// Cleans up the active coordinator and connection state while keeping the
     /// stream listener active on the same bound port.
     internal func handleConnectionClosed() {
@@ -106,7 +78,7 @@
       frameDelivery.reset()
       isActivelyConnected = false
       Task { await closingCoordinator?.transportClosed() }
-      if isPairing || !hasUsablePair() {
+      if !hasUsablePair() {
         tearDownTransport()
       }
     }
