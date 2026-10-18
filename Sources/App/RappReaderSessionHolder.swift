@@ -42,8 +42,8 @@
     private var expirationTask: Task<Void, Never>?
     private let credentials = CredentialSessionBox()
 
-    /// The end of the chain; a caller joins behind it.
-    private var chain: Task<Void, Never>?
+    /// Preparation, operations, yields and closes run on this chain.
+    private let chain = SerialChain()
 
     /// The background observation, held for the actor's lifetime.
     private var backgroundObserver: (any NSObjectProtocol)?
@@ -133,7 +133,7 @@
     /// request, behind any operation under way; nothing happens when a
     /// session is held or no reader card is attached.
     internal func prepare() async {
-      await serialized {
+      await chain.run {
         await self.runPrepare()
       }
     }
@@ -148,7 +148,7 @@
           RappNearFieldSessionHolder.Context?
         ) -> RappCardExecutor.Outcome
     ) async -> CardMaintenance.CardSessionResult<RappCardExecutor.Outcome>? {
-      await serialized {
+      await chain.run {
         await self.run(cardAccessNumber: cardAccessNumber, operation)
       }
     }
@@ -156,30 +156,20 @@
     /// Ends the hold once the operation under way has finished, so the
     /// app's own card work can take the reader.
     internal func yield() async {
-      await serialized {
-        await self.close()
+      await chain.run {
+        await self.endByOwner()
       }
     }
 
-    internal func close() {
-      end(hold.closedByOwner())
+    /// Ends the hold once the operation under way has finished.
+    internal func close() async {
+      await yield()
     }
 
-    internal func cardLeft() {
-      end(hold.cardLeft())
-    }
-
-    /// Runs `body` after every chained call before it has finished.
-    private func serialized<Value: Sendable>(
-      _ body: @escaping @Sendable () async -> Value
-    ) async -> Value {
-      let previous = chain
-      let task = Task { () -> Value in
-        await previous?.value
-        return await body()
+    internal func cardLeft() async {
+      await chain.run {
+        await self.endForCardLeft()
       }
-      chain = Task { _ = await task.value }
-      return await task.value
     }
 
     private func runPrepare() async {
@@ -199,6 +189,12 @@
     ) async -> CardMaintenance.CardSessionResult<RappCardExecutor.Outcome>? {
       expirationTask?.cancel()
       expirationTask = nil
+      // A session idle past its limit ends here, whether or not the idle
+      // task got to run, so the request opens a fresh one.
+      let idleVerdict = hold.tick(nowMs: Self.nowMs())
+      if case .end = idleVerdict {
+        end(idleVerdict)
+      }
       let held: HeldChannel
       if let current = heldChannel, hold.reusesChannel {
         held = current
@@ -219,8 +215,12 @@
           return .failed
         }
       }
-      _ = hold.startsOperation(nowMs: Self.nowMs())
-      let context = makeContext()
+      let verdict = hold.startsOperation(nowMs: Self.nowMs())
+      if case .end = verdict {
+        end(verdict)
+        return .failed
+      }
+      let context = RappNearFieldSessionHolder.Context.live(on: credentials)
       let outcome: RappCardExecutor.Outcome = await withCheckedContinuation { continuation in
         DispatchQueue.global(qos: .userInitiated).async {
           continuation.resume(returning: operation(held.operations, context))
@@ -230,7 +230,21 @@
       return .connected(outcome)
     }
 
-    private func appBackgrounded() {
+    private func appBackgrounded() async {
+      await chain.run {
+        await self.endForBackground()
+      }
+    }
+
+    private func endByOwner() {
+      end(hold.closedByOwner())
+    }
+
+    private func endForCardLeft() {
+      end(hold.cardLeft())
+    }
+
+    private func endForBackground() {
       end(hold.appBackgrounded())
     }
 
@@ -278,19 +292,6 @@
       let verdict = hold.tick(nowMs: Self.nowMs())
       guard case .end = verdict else { return }
       end(verdict)
-    }
-
-    private func makeContext() -> RappNearFieldSessionHolder.Context {
-      let snapshot = credentials.read()
-      let box = credentials
-      return RappNearFieldSessionHolder.Context(
-        isPin1Authenticated: snapshot.isPin1Authenticated,
-        isRoleProbed: { role in snapshot.probedRoles.contains(role) },
-        isNegativePin: { digits in snapshot.isNegativePin(digits) },
-        markPin1Authenticated: { box.mutate { $0.markPin1Authenticated() } },
-        markRoleProbed: { role in box.mutate { $0.markProbed(role) } },
-        recordNegativePin: { digits in box.mutate { $0.recordNegativePin(digits) } }
-      )
     }
   }
 #endif

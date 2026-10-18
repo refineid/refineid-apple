@@ -80,6 +80,20 @@ internal struct CardSessionHoldTests {
     #expect(idle.tick(nowMs: Self.sessionLimitMs) == .end(.sessionAged))
   }
 
+  @Test("An aged session is closed, and the operation that found it so changes nothing more")
+  internal func agedSessionStaysClosed() {
+    var hold = Self.opened(
+      nowMs: 0, sessionLimitSeconds: CardSessionHold.nearFieldSessionLimitSeconds)
+    #expect(hold.startsOperation(nowMs: Self.sessionLimitMs) == .end(.sessionAged))
+    #expect(hold.state == .closed)
+    #expect(hold.operationFinished(answered: true, nowMs: Self.sessionLimitMs) == .keep)
+    #expect(hold.state == .closed)
+    #expect(!hold.reusesChannel)
+    hold.sessionOpened(nowMs: Self.sessionLimitMs)
+    hold.channelPrepared()
+    #expect(hold.reusesChannel)
+  }
+
   @Test("A reader session has no life limit of its own")
   internal func readerSessionHasNoLifeLimit() {
     var hold = Self.opened(nowMs: 0)
