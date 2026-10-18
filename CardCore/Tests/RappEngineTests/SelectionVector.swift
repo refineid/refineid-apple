@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The vendored routing corpus (RAPP v26.10.10 §2.2.1 and §4.3).
+/// The vendored routing corpus (RAPP v26.10.18 §2.2.1 and §4.3).
 
 internal struct SelectionVector: Decodable {
   private enum CodingKeys: String, CodingKey {

@@ -43,6 +43,7 @@ internal func makePairRecord() throws -> PairRecord {
       candidateIdentifier: "stream-1",
       parameters: ["endpoints": .array([.text("192.0.2.1:47110")])]
     ),
-    createdAtMilliseconds: fixtureRecordCreatedAtMilliseconds
+    createdAtMilliseconds: fixtureRecordCreatedAtMilliseconds,
+    storageConfirmed: true
   )
 }

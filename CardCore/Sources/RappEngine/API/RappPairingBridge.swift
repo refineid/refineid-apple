@@ -21,6 +21,10 @@ public final class RappPairingBridge: @unchecked Sendable {
     case custodianAwaitingStepThree(CpaceKc2Responder)
     case handshaking(PairingHandshake, deadline: UInt64)
     case confirming(PairingConfirmation, deadline: UInt64)
+    /// The record is built and the storage exchange runs over the still
+    /// open channel (RAPP v26.10.18 §4.3 item 4), under the confirmation
+    /// deadline.
+    case storage(PairingStorage, record: PairRecord, deadline: UInt64)
     case finished
     case cancelled
     case exhausted
@@ -126,6 +130,9 @@ public final class RappPairingBridge: @unchecked Sendable {
 
     case .candidateNotUnique, .offer, .invalidGrantSet, .unsupportedProfile:
       .InvalidInput
+
+    case .storageUnconfirmed:
+      .StorageUnconfirmed
 
     default:
       .ProtocolFailure

@@ -31,6 +31,7 @@ internal enum RappAction: String, CaseIterable, Sendable {
   case invalidateOffer = "invalidate_offer"
   case closeCandidate = "close_candidate"
   case storePairRecordAtomically = "store_pair_record_atomically"
+  case sendPairingStored = "send_pairing_stored"
   case closePairingChannel = "close_pairing_channel"
   case sendPairingAbortBestEffort = "send_pairing_abort_best_effort"
   case destroyCandidateKeys = "destroy_candidate_keys"
@@ -45,6 +46,8 @@ internal enum RappAction: String, CaseIterable, Sendable {
 
   // Pairing termination.
   case closeSession = "close_session"
+  case retainRevocationKey = "retain_revocation_key"
+  case revokeUnconfirmedPairRecord = "revoke_unconfirmed_pair_record"
   case destroyPairKeys = "destroy_pair_keys"
   case destroyRelayTokens = "destroy_relay_tokens"
   case clearPairMetadata = "clear_pair_metadata"

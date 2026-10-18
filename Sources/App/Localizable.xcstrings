@@ -6946,6 +6946,29 @@
           }
         }
       }
+    },
+    "%@ forgot this computer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ forgot this computer"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ unohti tämän tietokoneen"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ glömde den här datorn"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -5,9 +5,6 @@ import CryptoTokenKit
 import Foundation
 import Security
 
-/// Milliseconds in one second, for the stamp a revocation carries.
-private let millisecondsPerSecond: TimeInterval = 1_000
-
 /// Removes only the Safari identity state published by this app.
 ///
 /// The holder's CAN and optional PIN1 remain stored. Reset is recovery
@@ -102,10 +99,10 @@ internal enum CardStateReset {
   private static func revokeEveryPairing() -> Int {
     let vault = RappDeviceVault()
     let pairIDs = (try? vault.activePairIDs()) ?? []
-    let now = UInt64(Date().timeIntervalSince1970 * millisecondsPerSecond)
+    let clock = RappPlatformClock()
     var revoked = 0
     for pairID in pairIDs {
-      guard (try? vault.revokePair(pairID: pairID, revokedAtMilliseconds: now)) != nil
+      guard (try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: clock)) != nil
       else { continue }
       RappPairNames.forget(pairID: pairID)
       revoked += 1

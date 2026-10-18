@@ -5,9 +5,6 @@ import Foundation
 import RappEngine
 import SwiftUI
 
-/// Milliseconds in one second, for the stamp a revocation carries.
-private let millisecondsPerSecond: TimeInterval = 1_000
-
 /// What the model does with each event the pairing ceremony reports.
 extension RappPairingModel {
   internal func receive(
@@ -58,8 +55,7 @@ extension RappPairingModel {
   /// none is revoked before it can be listed or chosen.
   private func handlePaired(_ pair: RappPairingCoordinator.PairSummary) {
     guard let reviewedPeerName else {
-      let now = UInt64(Date().timeIntervalSince1970 * millisecondsPerSecond)
-      try? vault.revokePair(pairID: pair.pairID, revokedAtMilliseconds: now)
+      try? RappPairRevocation.revoke(pairID: pair.pairID, in: vault, clock: RappPlatformClock())
       if (try? vault.selectedPairID()) == pair.pairID {
         try? vault.clearSelectedPair()
       }
@@ -119,9 +115,9 @@ extension RappPairingModel {
       .filter { pairID in
         pairID != keptPairID && RappPairNames.name(forPairID: pairID) == keptName
       }
-    let now = UInt64(Date().timeIntervalSince1970 * millisecondsPerSecond)
+    let clock = RappPlatformClock()
     for pairID in superseded {
-      try? vault.revokePair(pairID: pairID, revokedAtMilliseconds: now)
+      try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: clock)
       RappPairNames.forget(pairID: pairID)
     }
   }

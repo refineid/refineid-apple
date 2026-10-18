@@ -97,7 +97,8 @@ internal struct NetworkContractTests {
   internal func macOSNeverListens() throws {
     let actual = try Self.files(
       containingAny: [
-        "StreamRelayListener {", "NWListener(using", "MCNearbyServiceAdvertiser(",
+        "StreamRelayListener {", "StreamRelayListener(", "NWListener(using",
+        "MCNearbyServiceAdvertiser(",
       ]
     )
     let expected: Set<String> = [

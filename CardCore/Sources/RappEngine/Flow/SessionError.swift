@@ -20,5 +20,8 @@ internal enum SessionError: Error, Equatable {
   case parameterMismatch
   case readyIncomplete
   case roleViolation
+  /// The stored pairing was never confirmed by both endpoints; it opens no
+  /// session (RAPP v26.10.18 §4.3 item 4).
+  case storageUnconfirmed
   case unexpectedMessage
 }

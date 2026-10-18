@@ -41,13 +41,22 @@
 
     /// What a published record says about one of `pairings`.
     ///
-    /// A session record names the pairing whose discovery hint it carries;
-    /// a withdrawn record names the pairing whose withdrawal hint it
-    /// carries for `instance`. Anything else is not a holder.
+    /// A session record whose `revoked` attribute carries a pairing's
+    /// revocation hint for `instance` names a pairing the phone forgot
+    /// (RAPP v26.10.18 §4.6); one carrying its discovery hint names the
+    /// pairing as served; a withdrawn record names the pairing whose
+    /// withdrawal hint it carries for `instance`. Anything else is not a
+    /// holder.
     nonisolated private static func classification(
       of record: [String: String], instance: String, among pairings: [HolderPairing]
     ) -> StreamRelayPresence.Classification? {
       let now = Date()
+      if let revoked = pairings.first(where: { pairing in
+        StreamRendezvousName.sessionRecord(
+          record, instance: instance, revokes: pairing.record, at: now)
+      }) {
+        return .revoked(revoked.key)
+      }
       if let holder = pairings.first(where: { pairing in
         StreamRendezvousName.sessionRecord(record, holds: pairing.record, at: now)
       }) {
@@ -82,6 +91,18 @@
       }
     }
 
+    /// The revocation handler the browser calls on its own queue.
+    nonisolated private static func revocationHandler(
+      pairIDs: [String: Data]
+    ) -> @Sendable (String) -> Void {
+      { key in
+        guard let pairID = pairIDs[key] else { return }
+        Task { @MainActor in
+          Self.shared.holderRevoked(pairID: pairID)
+        }
+      }
+    }
+
     /// The change handler the browser calls on its own queue; it hops to
     /// the main actor for everything it touches.
     nonisolated private static func presenceHandler(
@@ -102,10 +123,10 @@
 
     /// Browses for a holder in session mode whose hints name a pairing.
     ///
-    /// The holder publishes only while it can serve a card. Losing that
-    /// service means the reader card is gone: the borrowed identity is
-    /// withdrawn. The pairing stays so the next card can use it. An NFC
-    /// prime keeps the holder advertising.
+    /// The holder's record says it is on the network; whether a card can
+    /// answer is what its session says (RAPP v26.10.18 §8.4). Losing the
+    /// record ends the session and withdraws the borrowed identity. The
+    /// pairing stays so the next card can use it.
     internal func startWatchingPresence() {
       guard Self.isRemoteCardEnabled else { return }
       guard !CardPresence.shared.isReaderCardPresent else {
@@ -128,7 +149,8 @@
         following: keys,
         classifyingRecord: Self.recordClassifier(among: pairings),
         onChange: Self.presenceHandler(pairIDs: pairIDs),
-        onWithdrawn: Self.withdrawalHandler())
+        onWithdrawn: Self.withdrawalHandler(),
+        onRevoked: Self.revocationHandler(pairIDs: pairIDs))
       presence = watcher
       watcher.start()
     }
@@ -148,6 +170,7 @@
         advertisementLossTask?.cancel()
         advertisementLossTask = nil
         holderIsAdvertising = false
+        closeHolderSession()
       }
     }
 
@@ -167,13 +190,38 @@
       }
       let keys = Set(pairings.map(\.key))
       if let current = presence, current.matchingNames == keys {
-        if certificateDER == nil, holderIsAdvertising {
-          startFetch(replacing: false)
-        }
+        openHolderSession()
         return
       }
       stopWatchingPresence(clearHold: !holderIsAdvertising)
       startWatchingPresence()
+    }
+
+    /// The holder announced that it forgot the pairing (RAPP v26.10.18
+    /// §4.6 item 5): this computer forgets it too, the borrowed identity
+    /// leaves at once, and the row names the phone that did it.
+    internal func holderRevoked(pairID: Data) {
+      let vault = RappDeviceVault()
+      let name = RappPairNames.name(forPairID: pairID)
+      if holderSession?.pairID == pairID {
+        closeHolderSession()
+      }
+      try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: RappPlatformClock())
+      RappPairNames.forget(pairID: pairID)
+      if (try? vault.selectedPairID()) == pairID {
+        try? vault.clearSelectedPair()
+      }
+      advertisementLossTask?.cancel()
+      advertisementLossTask = nil
+      holderIsAdvertising = false
+      Self.withdrawPublishedIdentity()
+      refreshPairing()
+      if let name {
+        phoneThatForgot = name
+      }
+      restartWatchingPresence()
+      NotificationCenter.default.post(
+        name: RappPairingModel.pairingsDidChangeNotification, object: nil)
     }
 
     /// The holder announced that it stopped serving: the borrowed identity
@@ -183,6 +231,7 @@
       advertisementLossTask?.cancel()
       advertisementLossTask = nil
       holderIsAdvertising = false
+      closeHolderSession()
       Self.withdrawPublishedIdentity()
     }
 
@@ -196,35 +245,23 @@
         advertisementLossTask?.cancel()
         advertisementLossTask = nil
         holderIsAdvertising = false
+        closeHolderSession()
         Self.withdrawPublishedIdentity()
         return
       }
       if present {
         advertisementLossTask?.cancel()
         advertisementLossTask = nil
-        // A holder that arrives is a new situation for the token: the
-        // back-off after an unattended request ends with it. A holder
-        // reported again while already present changes nothing.
-        if !holderIsAdvertising {
-          RemoteSignCoolDown.shared.resume()
-        }
         holderIsAdvertising = true
-        if certificateDER == nil {
-          startFetch(replacing: false)
-        } else {
-          seedHolderLine()
-        }
+        openHolderSession()
         return
       }
-      guard
-        HolderPresencePolicy.armsLossHoldOnLoss(
-          holderSeen: holderIsAdvertising, identityHeld: certificateDER != nil)
-      else { return }
+      guard holderIsAdvertising || certificateDER != nil else { return }
       armAdvertisementLossHold()
     }
 
-    /// Withdraws the borrowed identity unless the browser reports the
-    /// holder within ``advertisementLossHold``.
+    /// Ends the session and withdraws the borrowed identity unless the
+    /// browser reports the holder within ``advertisementLossHold``.
     internal func armAdvertisementLossHold() {
       guard advertisementLossTask == nil else { return }
       advertisementLossTask = Task { @MainActor in
@@ -232,6 +269,7 @@
         guard !Task.isCancelled else { return }
         advertisementLossTask = nil
         holderIsAdvertising = false
+        closeHolderSession()
         Self.withdrawPublishedIdentity()
         #if DEBUG
           print("[persistent-token] holder left, withdrew identity")

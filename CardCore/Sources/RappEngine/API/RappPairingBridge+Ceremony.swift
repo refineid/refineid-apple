@@ -127,20 +127,83 @@ extension RappPairingBridge {
     }
   }
 
-  /// Produces the pairing this ceremony agreed, and spends the bridge.
+  /// Builds the pairing this ceremony agreed, unconfirmed, for the caller
+  /// to store before it sends `pairing.stored` (RAPP v26.10.18 §4.3 item
+  /// 4).
+  ///
+  /// The storage exchange that follows runs under the same deadline as the
+  /// confirmation: ``sendStored(nowMonotonicMs:)``,
+  /// ``receiveStored(bytes:nowMonotonicMs:)``, then
+  /// ``activatePairing(nowMonotonicMs:)``.
   ///
   /// - Throws: ``RappBindingError/WrongPhase`` before both grant sets
   ///   arrived.
-  public func finishPairing(createdAtMs: UInt64, nowMonotonicMs: UInt64) throws -> RappPairRecord {
+  public func buildPairRecord(
+    createdAtMs: UInt64, nowMonotonicMs: UInt64
+  ) throws -> RappPairRecord {
     try locked {
       guard case .confirming(let confirmation, let limit) = phase else {
         throw RappBindingError.WrongPhase
       }
       try requireBefore(limit, nowMilliseconds: nowMonotonicMs)
       do {
-        let record = try confirmation.intoPairRecord(createdAtMilliseconds: createdAtMs)
-        phase = .finished
+        let (record, storage) = try confirmation.intoStorage(createdAtMilliseconds: createdAtMs)
+        phase = .storage(storage, record: record, deadline: limit)
         return RappPairRecord(record: record)
+      } catch let error as PairingError {
+        phase = .cancelled
+        throw Self.bindingError(error)
+      } catch {
+        phase = .cancelled
+        throw RappBindingError.ProtocolFailure
+      }
+    }
+  }
+
+  /// Confirms to the peer that the record is durably stored; sent once,
+  /// after storage reported the write.
+  ///
+  /// - Throws: ``RappBindingError/WrongPhase`` outside the storage
+  ///   exchange, and ``RappBindingError/StorageUnconfirmed`` past its
+  ///   deadline.
+  public func sendStored(nowMonotonicMs: UInt64) throws -> Data {
+    try withStorage(nowMilliseconds: nowMonotonicMs) { storage in try storage.sendStored() }
+  }
+
+  /// Accepts the peer's storage confirmation.
+  ///
+  /// - Throws: ``RappBindingError/ProtocolFailure`` when it names another
+  ///   pairing, which is an authenticated protocol violation, and
+  ///   ``RappBindingError/StorageUnconfirmed`` past the deadline.
+  public func receiveStored(bytes: Data, nowMonotonicMs: UInt64) throws {
+    try withStorage(nowMilliseconds: nowMonotonicMs) { storage in
+      try storage.receiveStored(bytes)
+    }
+  }
+
+  /// The confirmed pairing, or nil while a storage confirmation is missing.
+  ///
+  /// Once both confirmations have been exchanged the caller stores the
+  /// answer over the unconfirmed record. The first confirmed answer
+  /// spends the bridge and closes the channel.
+  ///
+  /// - Throws: ``RappBindingError/WrongPhase`` outside the storage
+  ///   exchange, and ``RappBindingError/StorageUnconfirmed`` past its
+  ///   deadline: the caller revokes the record it stored.
+  public func activatePairing(nowMonotonicMs: UInt64) throws -> RappPairRecord? {
+    try locked {
+      guard case .storage(let storage, let record, let limit) = phase else {
+        throw RappBindingError.WrongPhase
+      }
+      guard nowMonotonicMs < limit else {
+        phase = .cancelled
+        throw RappBindingError.StorageUnconfirmed
+      }
+      guard storage.isConfirmed else { return nil }
+      do {
+        let confirmed = try storage.intoActive().confirm(record)
+        phase = .finished
+        return RappPairRecord(record: confirmed)
       } catch let error as PairingError {
         phase = .cancelled
         throw Self.bindingError(error)
@@ -163,6 +226,34 @@ extension RappPairingBridge {
     guard nowMilliseconds < limit else {
       phase = .cancelled
       throw RappBindingError.ProtocolFailure
+    }
+  }
+
+  /// Runs a storage-exchange step, writing the mutated storage back.
+  private func withStorage<Value>(
+    nowMilliseconds: UInt64,
+    _ body: (inout PairingStorage) throws -> Value
+  ) throws -> Value {
+    try locked {
+      guard case .storage(var storage, let record, let limit) = phase else {
+        throw RappBindingError.WrongPhase
+      }
+      guard nowMilliseconds < limit else {
+        phase = .cancelled
+        throw RappBindingError.StorageUnconfirmed
+      }
+      defer {
+        if case .storage = phase { phase = .storage(storage, record: record, deadline: limit) }
+      }
+      do {
+        return try body(&storage)
+      } catch let error as PairingError {
+        phase = .cancelled
+        throw Self.bindingError(error)
+      } catch {
+        phase = .cancelled
+        throw RappBindingError.ProtocolFailure
+      }
     }
   }
 

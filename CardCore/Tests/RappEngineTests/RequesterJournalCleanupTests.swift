@@ -43,11 +43,16 @@ internal struct RequesterJournalCleanupTests {
       return
     }
     let dispatch = try requester.receive(deniedMessage, store: &store)
-    #expect(
-      dispatch
-        == .terminal(
-          operationIdentifier: identifier, status: .rejected, error: .userCancelled,
-          batchSignatures: []))
+    let userDenied = TerminalOutcome(status: .rejected, error: .userCancelled, batchSignatures: [])
+    guard case .terminal(identifier, userDenied, let acknowledgement) = dispatch else {
+      Issue.record("a denial ends the operation and asks for its acknowledgement")
+      return
+    }
+    #expect(acknowledgement.messageType == .operationResultAck)
+    // The journal stays until the acknowledgement has left (RAPP
+    // v26.10.18 §8.2 item 5); then it goes.
+    #expect(store.requesterRemovals.isEmpty)
+    try requester.terminalAcknowledgementReleased(operationIdentifier: identifier, store: &store)
     #expect(store.requesterRemovals == [identifier])
   }
 
@@ -87,8 +92,8 @@ internal struct RequesterJournalCleanupTests {
   }
 
   /// Finishing operations in bulk leaves nothing stored: every persisted
-  /// journal is removed at its terminal state, so the live set stays
-  /// empty no matter how many operations ran.
+  /// journal is removed once its acknowledgement has left, so the live
+  /// set stays empty no matter how many operations ran.
   @Test
   internal func repeatedTerminalOperationsLeaveNoStoredJournals() throws {
     var store = MemoryJournalStore()
@@ -112,6 +117,7 @@ internal struct RequesterJournalCleanupTests {
         return
       }
       _ = try requester.receive(deniedMessage, store: &store)
+      try requester.terminalAcknowledgementReleased(operationIdentifier: identifier, store: &store)
       denied.append(identifier)
     }
 

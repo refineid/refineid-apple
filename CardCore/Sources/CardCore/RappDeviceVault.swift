@@ -67,12 +67,16 @@ public final class RappDeviceVault: @unchecked Sendable {
     internal let requester: String
     internal let proxy: String
     internal let selection: String
+    /// What a custodian keeps of a revoked pairing while it announces the
+    /// revocation (RAPP v26.10.18 §4.6 item 2).
+    internal let revocation: String
 
     internal init(prefix: String) {
       pair = "\(prefix).pair"
       requester = "\(prefix).requester"
       proxy = "\(prefix).proxy"
       selection = "\(prefix).selection"
+      revocation = "\(prefix).revocation"
     }
   }
 
@@ -168,6 +172,58 @@ public final class RappDeviceVault: @unchecked Sendable {
     default:
       if Self.isInteractionNotAllowed(status) { return }
       throw Failure.unavailable(status)
+    }
+  }
+
+  /// Writes the confirmed pairing over the record stored under the same
+  /// identifier (RAPP v26.10.18 §4.3 item 4).
+  public func replacePair(pairID: Data, record: Data) throws {
+    try synchronized {
+      try requireIdentifier(pairID, size: IdentifierSize.pair)
+      guard !record.isEmpty else { throw Failure.malformed }
+      let item = try loadOne(service: namespace.pair, account: pairID.hexadecimal)
+      guard !item.isEmpty, try decodePairMarker(item).state == .active else {
+        throw Failure.notFound
+      }
+      try updateExisting(
+        service: namespace.pair,
+        account: pairID.hexadecimal,
+        attributes: [kSecValueData as String: record])
+    }
+  }
+
+  /// Keeps what a revoked pairing leaves behind for its announcement
+  /// (RAPP v26.10.18 §4.6 item 2), under the pairing's identifier.
+  public func storeRevocationRetention(pairID: Data, retention: Data) throws {
+    try synchronized {
+      try requireIdentifier(pairID, size: IdentifierSize.pair)
+      guard !retention.isEmpty else { throw Failure.malformed }
+      try upsert(
+        service: namespace.revocation,
+        account: pairID.hexadecimal,
+        attributes: [kSecValueData as String: retention])
+    }
+  }
+
+  /// Every revocation retention kept, with the identifier it is kept
+  /// under.
+  public func revocationRetentions() throws -> [(pairID: Data, retention: Data)] {
+    try synchronized {
+      try loadAll(service: namespace.revocation).compactMap { item in
+        guard let account = item[kSecAttrAccount as String] as? String,
+          let pairID = Data(strictHexadecimal: account),
+          let retention = item[kSecValueData as String] as? Data, !retention.isEmpty
+        else { throw Failure.malformed }
+        return (pairID, retention)
+      }
+    }
+  }
+
+  /// Destroys one revocation retention; absent is not an error.
+  public func removeRevocationRetention(pairID: Data) throws {
+    try synchronized {
+      try requireIdentifier(pairID, size: IdentifierSize.pair)
+      try deleteItem(service: namespace.revocation, account: pairID.hexadecimal)
     }
   }
 

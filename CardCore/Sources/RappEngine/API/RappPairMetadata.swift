@@ -16,6 +16,9 @@ public struct RappPairMetadata: Equatable, Sendable {
   public var candidateId: String
   /// When the pairing was created.
   public var createdAtMs: UInt64
+  /// Whether both endpoints confirmed storing the pairing (RAPP v26.10.18
+  /// §4.3 item 4); an unconfirmed record is revoked, never used.
+  public var storageConfirmed: Bool
 
   /// Describes a stored pairing.
   public init(
@@ -24,7 +27,8 @@ public struct RappPairMetadata: Equatable, Sendable {
     profiles: [String],
     transportProfile: String,
     candidateId: String,
-    createdAtMs: UInt64
+    createdAtMs: UInt64,
+    storageConfirmed: Bool
   ) {
     self.pairId = pairId
     self.role = role
@@ -32,5 +36,6 @@ public struct RappPairMetadata: Equatable, Sendable {
     self.transportProfile = transportProfile
     self.candidateId = candidateId
     self.createdAtMs = createdAtMs
+    self.storageConfirmed = storageConfirmed
   }
 }

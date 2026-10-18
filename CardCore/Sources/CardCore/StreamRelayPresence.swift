@@ -17,6 +17,9 @@ import Foundation
       case holder(String)
       /// A verified withdrawn record for this holder.
       case withdrawn(String)
+      /// A session record announcing that this holder revoked the pairing
+      /// (RAPP v26.10.18 §4.6).
+      case revoked(String)
     }
 
     /// The primary Bonjour service name this watcher browses for.
@@ -30,6 +33,7 @@ import Foundation
     private let classify: (@Sendable ([String: String], String) -> Classification?)?
     private let onChange: @Sendable (Bool, String?) -> Void
     private let onWithdrawn: @Sendable (String) -> Void
+    private let onRevoked: @Sendable (String) -> Void
     private var currentInstance: String?
     private let queue = DispatchQueue(label: "fi.refineid.stream-presence")
     private var browser: NWBrowser?
@@ -49,6 +53,9 @@ import Foundation
       self.onWithdrawn = { _ in
         // A watcher following names has no records to withdraw.
       }
+      self.onRevoked = { _ in
+        // A watcher following names has no records to revoke.
+      }
     }
 
     /// Reports presence of any service whose discovery attributes
@@ -57,20 +64,23 @@ import Foundation
     /// tell whether a running watcher still matches.
     ///
     /// A verified withdrawn record on the instance the holder was found
-    /// under reports through `onWithdrawn` instead, at once; a holder that
-    /// merely vanishes still reports through `onChange`.
+    /// under reports through `onWithdrawn` instead, at once; a session
+    /// record announcing a revocation reports through `onRevoked`; a
+    /// holder that merely vanishes still reports through `onChange`.
     @preconcurrency
     public init(
       following: Set<String>,
       classifyingRecord classify:
         @escaping @Sendable ([String: String], String) -> Classification?,
       onChange: @escaping @Sendable (Bool, String?) -> Void,
-      onWithdrawn: @escaping @Sendable (String) -> Void
+      onWithdrawn: @escaping @Sendable (String) -> Void,
+      onRevoked: @escaping @Sendable (String) -> Void
     ) {
       self.matchingNames = following
       self.classify = classify
       self.onChange = onChange
       self.onWithdrawn = onWithdrawn
+      self.onRevoked = onRevoked
     }
 
     /// Reports presence of the service published under `name`.
@@ -142,7 +152,27 @@ import Foundation
       return nil
     }
 
+    /// The holder a session record on any instance announces as revoked.
+    private func revocation(in results: Set<NWBrowser.Result>) -> String? {
+      guard let classify else { return nil }
+      for result in results {
+        guard case .service(let serviceName, _, _, _) = result.endpoint,
+          case .bonjour(let record) = result.metadata,
+          case .revoked(let holder)? = classify(record.dictionary, serviceName)
+        else { continue }
+        return holder
+      }
+      return nil
+    }
+
     private func apply(_ results: Set<NWBrowser.Result>) {
+      if let revoked = revocation(in: results) {
+        isPresent = false
+        currentMatchedName = nil
+        currentInstance = nil
+        onRevoked(revoked)
+        return
+      }
       if let withdrawn = withdrawal(in: results) {
         isPresent = false
         currentMatchedName = nil

@@ -182,6 +182,9 @@ private let fixturePairingCode = "246813"
     ) async throws -> RappOperationDriver.Result {
       for await event in coordinator.events {
         switch event {
+        case .cardStatus:
+          break
+
         case .established:
           try await operation.begin(on: coordinator)
 
@@ -209,6 +212,9 @@ private let fixturePairingCode = "246813"
     ) async throws -> RappOperationDriver.TerminalReason? {
       for await event in coordinator.events {
         switch event {
+        case .cardStatus:
+          break
+
         case .established:
           try await operation.begin(on: coordinator)
 

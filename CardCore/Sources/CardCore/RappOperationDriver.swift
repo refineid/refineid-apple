@@ -182,6 +182,11 @@
       }
     }
 
+    /// Reports progress on an active operation.
+    public func reportProgress(operationID: Data, event: ProgressEvent) throws -> [Command] {
+      try commands(bridge.reportProgress(operationId: operationID, event: event))
+    }
+
     /// Marks bounded card-status and certificate prerequisites complete.
     public func prerequisitesComplete(operationID: Data) throws -> [Command] {
       try commands(bridge.prerequisitesComplete(operationId: operationID))

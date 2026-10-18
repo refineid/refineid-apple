@@ -60,7 +60,7 @@ import Testing
       var progress = RappIntegrationFixtures.ProxyProgress()
       for await event in coordinator.events {
         switch event {
-        case .established:
+        case .established, .cardStatus:
           break
 
         case .inspectPrerequisites(let operationID, let operation):
@@ -111,7 +111,7 @@ import Testing
       var progress = RappIntegrationFixtures.ProxyProgress()
       for await event in coordinator.events {
         switch event {
-        case .established:
+        case .established, .cardStatus:
           break
 
         case .inspectPrerequisites(let operationID, let operation):
@@ -152,7 +152,7 @@ import Testing
       var progress = RappIntegrationFixtures.ProxyProgress()
       for await event in coordinator.events {
         switch event {
-        case .established:
+        case .established, .cardStatus:
           break
 
         case .inspectPrerequisites(let operationID, let operation):

@@ -21,6 +21,7 @@ import Foundation
     public static let serviceType = "_refineid-stream._tcp"
 
     private let onEvent: @Sendable (StreamRelayEvent) -> Void
+    private let yieldsIdleConnection: @Sendable () -> Bool
     private let queue = DispatchQueue(label: "fi.refineid.stream-listener")
     private var listener: NWListener?
     private var connection: NWConnection?
@@ -52,8 +53,18 @@ import Foundation
     }
 
     /// Listens under `displayName`, reporting to one owner.
+    ///
+    /// A dialer arriving while a connection is open is refused, unless
+    /// `yieldsIdleConnection` says the open one carries nothing: then the
+    /// open connection is closed and the dialer takes its place, so a
+    /// requester's standing session (RAPP v26.10.18 §8.4) never keeps
+    /// another process of the same requester from its operation.
     @preconcurrency
-    public init(onEvent: @escaping @Sendable (StreamRelayEvent) -> Void) {
+    public init(
+      yieldsIdleConnection: @escaping @Sendable () -> Bool = { false },
+      onEvent: @escaping @Sendable (StreamRelayEvent) -> Void
+    ) {
+      self.yieldsIdleConnection = yieldsIdleConnection
       self.onEvent = onEvent
     }
 
@@ -161,6 +172,9 @@ import Foundation
     private func accept(_ candidate: NWConnection) {
       queue.async { [weak self] in
         guard let self else { return }
+        if connection != nil, !isFinished, yieldsIdleConnection() {
+          handleConnectionClosure(.disconnected)
+        }
         guard connection == nil, !isFinished else {
           candidate.cancel()
           return

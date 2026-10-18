@@ -110,7 +110,8 @@
         readerConnected: cardPresence.isReaderConnected,
         cardPresent: cardPresence.isCardPresent,
         phonePresent: PersistentTokenRegistry.shared.holderIsAdvertising,
-        pairedPhone: PersistentTokenRegistry.shared.pairedPhone
+        pairedPhone: PersistentTokenRegistry.shared.pairedPhone,
+        phoneThatForgot: PersistentTokenRegistry.shared.phoneThatForgot
       )
     }
 
@@ -144,6 +145,10 @@
 
       case .phoneUnreachable(let phone):
         Text("\(phone) not reachable")
+          .foregroundStyle(.secondary)
+
+      case .phoneForgot(let phone):
+        Text("\(phone) forgot this computer")
           .foregroundStyle(.secondary)
 
       case .connectReader:

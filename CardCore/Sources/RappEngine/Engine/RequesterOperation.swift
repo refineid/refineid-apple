@@ -74,8 +74,8 @@ internal struct RequesterOperation {
   /// Validates and retains a result.
   ///
   /// A completed result is held until the acknowledgement is delivered; every
-  /// other status, and a retired completed one, is terminal at once and is
-  /// never acknowledged.
+  /// other status, and a retired completed one, is journaled as terminal
+  /// before its acknowledgement is released (RAPP v26.10.18 §8.2 item 5).
   internal mutating func receiveResult(
     _ result: OperationResultMessage, to store: inout some RequesterJournalStore
   ) throws -> RequesterResultAction {
@@ -103,9 +103,30 @@ internal struct RequesterOperation {
     } catch {
       throw EngineError.authenticatedProtocolViolation(.invalidOperationMessage)
     }
-    try forget(&store, state: terminal)
+    try persist(&store, state: terminal)
+    let outcome = TerminalOutcome(
+      status: result.status, error: result.error, batchSignatures: partial)
     return .terminal(
-      state: terminal, status: result.status, error: result.error, batchSignatures: partial)
+      state: terminal, outcome: outcome, acknowledgement: .operationResultAck(reference))
+  }
+
+  /// Records that a terminal result's acknowledgement was delivered.
+  ///
+  /// The journal entry goes with it; only an ambiguous record stays stored,
+  /// awaiting the reconciliation that removes it (section 8.3).
+  internal mutating func terminalAcknowledgementSent(
+    to store: inout some RequesterJournalStore
+  ) throws {
+    guard record.state.isTerminal, record.state != .resultPending else {
+      throw EngineError.invalidLocalTransition
+    }
+    switch record.state {
+    case .ambiguous, .deliveryUncertain:
+      return
+
+    default:
+      try forget(&store, state: record.state)
+    }
   }
 
   /// Records that the acknowledgement was delivered and releases the result.

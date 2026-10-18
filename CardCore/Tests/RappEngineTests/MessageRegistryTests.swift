@@ -39,6 +39,12 @@ internal struct MessageRegistryTests {
     case .pairingAbort:
       ["reason": .text("declined")]
 
+    case .pairingStored:
+      ["pair_id": .bytes(operation)]
+
+    case .cardStatus:
+      ["card_present": .boolean(true)]
+
     case .sessionReady:
       ["parameters": .map([:]), "nonce": .bytes(digest)]
 

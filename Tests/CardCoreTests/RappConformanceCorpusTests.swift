@@ -32,7 +32,7 @@ internal struct RappConformanceCorpusTests {
     return try Data(
       contentsOf:
         repositoryRoot
-        .appendingPathComponent("Documentation/rapp-conformance/rapp-v26.10.10.json")
+        .appendingPathComponent("Documentation/rapp-conformance/rapp-v26.10.18.json")
     )
   }
 
@@ -44,13 +44,13 @@ internal struct RappConformanceCorpusTests {
     let digest = Data(SHA256.hash(data: source))
     #expect(
       RappConformanceCorpusSupport.hex(digest)
-        == "099d633997ee84a05cd1490db4b8199e52e50e0d79cc17ec1a59f9b037116b91")
+        == "e6c2e58b94bc0e41eba47676ee00fed88921d9abf0f1aa8dc9398ff163b1fbbb")
 
     let corpus = try JSONDecoder().decode(
       RappConformanceCorpusSupport.Corpus.self,
       from: source)
     #expect(corpus.format == "fi.refineid.rapp.conformance-v1")
-    #expect(corpus.protocolDocumentVersion == "26.10.10")
+    #expect(corpus.protocolDocumentVersion == "26.10.18")
     #expect(corpus.deterministicCBOR.count == 15)
     #expect(corpus.identifierDerivation.count == 2)
     #expect(corpus.grantsHash.count == 3)

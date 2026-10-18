@@ -21,9 +21,15 @@ internal enum PairingError: Error, Equatable {
   case offer(PairingOfferError)
   case offerExpired
   case open(RappOpenFailure)
+  /// The peer's `pairing.stored` names another pairing (RAPP v26.10.18
+  /// §4.3 item 4); an authenticated protocol violation.
+  case pairIdentifierMismatch
   case pairRecord(PairRecordError)
   case parameterMismatch
   case roleViolation
+  /// The pairing is not active: one of the two storage confirmations is
+  /// missing.
+  case storageUnconfirmed
   case unexpectedMessage
   case unsupportedProfile
 }

@@ -152,5 +152,12 @@
       guard let active = try? vault.activePairIDs() else { return false }
       return !active.isEmpty
     }
+
+    /// Ends the open session with `pairing_revoked` before the pairing it
+    /// runs over is forgotten (RAPP v26.10.18 §4.6 item 1).
+    internal func closeForRevocation(pairID: Data) async {
+      guard let coordinator, activePairID == pairID else { return }
+      await coordinator.closePairingRevoked()
+    }
   }
 #endif

@@ -4,6 +4,7 @@ import Foundation
 
 /// The registered envelope discriminants.
 internal enum MessageType: String, CaseIterable {
+  case cardStatus = "card.status"
   case error = "error"
   case livenessPing = "liveness.ping"
   case livenessPong = "liveness.pong"
@@ -16,6 +17,7 @@ internal enum MessageType: String, CaseIterable {
   case pairingAbort = "pairing.abort"
   case pairingConfirm = "pairing.confirm"
   case pairingHello = "pairing.hello"
+  case pairingStored = "pairing.stored"
   case sessionClose = "session.close"
   case sessionReady = "session.ready"
 }

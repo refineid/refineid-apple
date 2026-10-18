@@ -4,6 +4,9 @@ import Foundation
 
 /// The caller's next step after an inbound operation message.
 internal enum RequesterDispatch: Equatable {
+  /// The custodian reported whether a card it can serve is present
+  /// (RAPP v26.10.18 §8.4); the operation layer is unaffected.
+  case cardStatus(cardPresent: Bool)
   /// An advisory progress event was ignored without an error response.
   case ignoredProgress(operationIdentifier: Data)
   /// A stale reference; answer it and change nothing.
@@ -20,9 +23,8 @@ internal enum RequesterDispatch: Equatable {
   case sendResultAcknowledgement(operationIdentifier: Data, message: TypedMessage)
   /// An authenticated status report was stored as an annotation.
   case statusAnnotated(operationIdentifier: Data)
-  /// The operation reached its journaled terminal state, and why.
-  ///
-  /// The journaled state follows from the status (``ResultStatus/failureState``).
-  case terminal(
-    operationIdentifier: Data, status: ResultStatus, error: ResultError?, batchSignatures: [Data])
+  /// The operation reached its journaled terminal state, and why; the
+  /// acknowledgement that tells the custodian so travels with it (RAPP
+  /// v26.10.18 §8.2 item 5).
+  case terminal(operationIdentifier: Data, outcome: TerminalOutcome, acknowledgement: TypedMessage)
 }

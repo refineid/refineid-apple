@@ -17,6 +17,8 @@ internal enum PairingEvent: String, CaseIterable, Sendable {
   case handshakeAuthenticated = "handshake_authenticated"
   case handshakeFailed = "handshake_failed"
   case bothUsersConfirmed = "both_users_confirmed"
+  /// The peer's `pairing.stored` arrived with the derived pair identifier.
+  case peerStorageConfirmed = "peer_storage_confirmed"
   case deniedAbortedOrTimedOut = "denied_aborted_or_timed_out"
   /// Produced by the session machine entering healthy.
   case sessionHealthy = "session_healthy"

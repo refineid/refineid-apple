@@ -8,13 +8,38 @@ import XCTest
 
 /// Proves that session discovery publishes nothing stable, that rotating
 /// hints and withdrawals name only their own pairing, and that a dial is
-/// routed only by routing its pairing's keys produce (RAPP v26.10.10
+/// routed only by routing its pairing's keys produce (RAPP v26.10.18
 /// §2.2.1, §4.3 and §4.5).
 internal final class StreamSessionDiscoveryTests: XCTestCase {
   /// The two halves of one pairing, plus the requester half of another.
   private struct Pairing {
     let custodian: RappPairRecord
     let requester: RappPairRecord
+  }
+
+  /// A pair vault that only remembers which pairing it was told to revoke.
+  private final class RecordingVault: RappPairVault, @unchecked Sendable {
+    private(set) var revoked: [Data] = []
+
+    func insertDeviceOnly(pairId _: Data, record _: Data) {
+      // No record is kept.
+    }
+
+    func replaceDeviceOnly(pairId _: Data, record _: Data) {
+      // No record is kept.
+    }
+
+    func loadDeviceOnly(pairId _: Data) -> Data? {
+      nil
+    }
+
+    func revokeDeviceOnly(pairId: Data, revokedAtMs _: UInt64) {
+      revoked.append(pairId)
+    }
+
+    func isRevoked(pairId: Data) -> Bool {
+      revoked.contains(pairId)
+    }
   }
 
   /// A fixed instant inside one hint window.
@@ -57,7 +82,8 @@ internal final class StreamSessionDiscoveryTests: XCTestCase {
   internal func testSessionRecordCarriesOnlyHints() throws {
     let pair = try Self.pairing()
     let record = StreamRendezvousName.sessionRecord(
-      candidates: [try Self.candidate(pair.custodian, at: Self.instant)])
+      candidates: [try Self.candidate(pair.custodian, at: Self.instant)],
+      retentions: [], instance: Self.instance, at: Self.instant)
     XCTAssertEqual(record["v"], "1")
     XCTAssertEqual(record["mode"], "session")
     XCTAssertEqual(record["hints"]?.count, Self.hintHexLength)
@@ -69,7 +95,8 @@ internal final class StreamSessionDiscoveryTests: XCTestCase {
     let other = try Self.pairing()
     let window = TimeInterval(StreamRendezvousName.hintEpochSeconds)
     let record = StreamRendezvousName.sessionRecord(
-      candidates: [try Self.candidate(pair.custodian, at: Self.instant)])
+      candidates: [try Self.candidate(pair.custodian, at: Self.instant)],
+      retentions: [], instance: Self.instance, at: Self.instant)
     XCTAssertTrue(
       StreamRendezvousName.sessionRecord(record, holds: pair.requester, at: Self.instant))
     XCTAssertTrue(
@@ -85,11 +112,38 @@ internal final class StreamSessionDiscoveryTests: XCTestCase {
         StreamRendezvousName.pairingAttributes, holds: pair.requester, at: Self.instant))
   }
 
+  internal func testSessionRecordAnnouncesRevokedPairings() throws {
+    let kept = try Self.pairing()
+    let forgotten = try Self.pairing()
+    let vault = RecordingVault()
+    let revokedAt = UInt64(Self.instant.timeIntervalSince1970) * 1_000
+    let retention = try XCTUnwrap(
+      try forgotten.custodian.revoke(vault: vault, revokedAtMs: revokedAt))
+    let record = StreamRendezvousName.sessionRecord(
+      candidates: [try Self.candidate(kept.custodian, at: Self.instant)],
+      retentions: [retention], instance: Self.instance, at: Self.instant)
+    XCTAssertEqual(Set(record.keys), ["v", "mode", "hints", "revoked"])
+    XCTAssertEqual(record["revoked"]?.split(separator: ",").count, 8)
+    XCTAssertTrue(
+      StreamRendezvousName.sessionRecord(
+        record, instance: Self.instance, revokes: forgotten.requester, at: Self.instant))
+    XCTAssertFalse(
+      StreamRendezvousName.sessionRecord(
+        record, instance: Self.instance, revokes: kept.requester, at: Self.instant))
+    XCTAssertFalse(
+      StreamRendezvousName.sessionRecord(
+        record, instance: "refineid-b3d90e15", revokes: forgotten.requester, at: Self.instant))
+    XCTAssertTrue(
+      StreamRendezvousName.sessionRecord(record, holds: kept.requester, at: Self.instant))
+    XCTAssertEqual(vault.revoked, [forgotten.custodian.metadata().pairId])
+  }
+
   internal func testAtMostFourHintsArePublished() throws {
     let candidates = try (0..<6).map { _ in
       try Self.candidate(Self.pairing().custodian, at: Self.instant)
     }
-    let record = StreamRendezvousName.sessionRecord(candidates: candidates)
+    let record = StreamRendezvousName.sessionRecord(
+      candidates: candidates, retentions: [], instance: Self.instance, at: Self.instant)
     XCTAssertEqual(record["hints"]?.split(separator: ",").count, 4)
   }
 

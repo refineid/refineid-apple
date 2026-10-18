@@ -10,6 +10,10 @@ public protocol RappPairVault: AnyObject, Sendable {
   /// Writes a pairing that must never leave this device.
   func insertDeviceOnly(pairId: Data, record: Data) throws
 
+  /// Writes the confirmed pairing over the unconfirmed record stored under
+  /// the same identifier (RAPP v26.10.18 §4.3 item 4).
+  func replaceDeviceOnly(pairId: Data, record: Data) throws
+
   /// Reads a stored pairing, or nothing when none carries the identifier.
   func loadDeviceOnly(pairId: Data) throws -> Data?
 

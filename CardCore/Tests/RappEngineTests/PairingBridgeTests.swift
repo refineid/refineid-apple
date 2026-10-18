@@ -80,8 +80,20 @@ internal struct PairingBridgeTests {
       bytes: try requester.sendConfirmation(grantedProfiles: granted, nowMonotonicMs: now),
       nowMonotonicMs: now)
 
-    let requesterRecord = try requester.finishPairing(createdAtMs: 0, nowMonotonicMs: now)
-    let custodianRecord = try custodian.finishPairing(createdAtMs: 0, nowMonotonicMs: now)
+    _ = try requester.buildPairRecord(createdAtMs: 0, nowMonotonicMs: now)
+    _ = try custodian.buildPairRecord(createdAtMs: 0, nowMonotonicMs: now)
+    let requesterStored = try requester.sendStored(nowMonotonicMs: now)
+    let custodianStored = try custodian.sendStored(nowMonotonicMs: now)
+    try custodian.receiveStored(bytes: requesterStored, nowMonotonicMs: now)
+    try requester.receiveStored(bytes: custodianStored, nowMonotonicMs: now)
+    guard let requesterRecord = try requester.activatePairing(nowMonotonicMs: now),
+      let custodianRecord = try custodian.activatePairing(nowMonotonicMs: now)
+    else {
+      Issue.record("both storage confirmations make the pairing active")
+      return
+    }
+    #expect(requesterRecord.metadata().storageConfirmed)
+    #expect(custodianRecord.metadata().storageConfirmed)
     #expect(requesterRecord.metadata().pairId == custodianRecord.metadata().pairId)
     #expect(requesterRecord.metadata().profiles == custodianRecord.metadata().profiles)
     #expect(custodian.candidateFailed(nowMonotonicMs: now) == false)

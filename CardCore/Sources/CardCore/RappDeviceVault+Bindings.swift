@@ -13,6 +13,15 @@
       }
     }
 
+    /// Engine binding for ``replacePair(pairID:record:)``.
+    public func replaceDeviceOnly(pairId: Data, record: Data) throws {
+      do {
+        try replacePair(pairID: pairId, record: record)
+      } catch {
+        throw rappVaultError(error)
+      }
+    }
+
     /// Rust-core binding for ``loadPair(pairID:)``.
     public func loadDeviceOnly(pairId: Data) throws -> Data? {
       do {
@@ -168,18 +177,26 @@
   import RappEngine
 
   extension RappDeviceVault {
-    /// Removes stored pairings this version can no longer read, so the
-    /// holder pairs again instead of keeping a pairing nothing can use.
+    /// Removes stored pairings this version can no longer read, and
+    /// revokes those whose storage the peer never confirmed (RAPP v26.10.18
+    /// §4.3 item 4), so the holder pairs again instead of keeping a pairing
+    /// nothing can use.
     ///
-    /// Only a record the engine rejects as malformed goes; a keychain that
-    /// cannot be read leaves everything in place.
+    /// Only a record the engine rejects as malformed, or one left
+    /// unconfirmed, goes; a keychain that cannot be read leaves everything
+    /// in place. An unconfirmed record leaves a revocation retention so the
+    /// peer is told.
     @discardableResult
     public func dropUnreadablePairs() -> Int {
       guard let pairIDs = try? activePairIDs() else { return 0 }
       var dropped = 0
       for pairID in pairIDs {
         do {
-          _ = try RappPairRecord.loadFromVault(pairId: pairID, vault: self)
+          let pair = try RappPairRecord.loadFromVault(pairId: pairID, vault: self)
+          guard !pair.metadata().storageConfirmed else { continue }
+          if (try? RappPairRevocation.revoke(pair, in: self, clock: RappPlatformClock())) != nil {
+            dropped += 1
+          }
         } catch RappBindingError.InvalidInput {
           if (try? revokePair(pairID: pairID, revokedAtMilliseconds: 0)) != nil {
             dropped += 1

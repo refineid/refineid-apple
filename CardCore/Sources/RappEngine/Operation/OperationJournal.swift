@@ -6,6 +6,9 @@ import Foundation
 internal struct OperationJournal {
   internal private(set) var record: ProxyJournalRecord
 
+  /// Whether the result was acknowledged and only the tombstone remains.
+  internal var isRetired: Bool { record.isRetired }
+
   /// A prepared operation with no transmission behind it.
   internal init(
     pairIdentifier: Data, sessionIdentifier: Data, operationIdentifier: Data, requestHash: Data
@@ -18,7 +21,9 @@ internal struct OperationJournal {
       state: .prepared,
       transmissionCount: TransmissionCount.untransmitted,
       automaticRetryPermitted: false,
-      batch: nil)
+      batch: nil,
+      acknowledged: false,
+      terminalError: nil)
   }
 
   /// Adopts a record recovered from storage.
@@ -26,7 +31,8 @@ internal struct OperationJournal {
     self.record = record
   }
 
-  /// Terminal states that need no acknowledgement, unlike a completed result.
+  /// Terminal states a failure result names; each awaits its own
+  /// acknowledgement (RAPP v26.10.18 §8.2 item 5).
   private static func isUnacknowledgedTerminal(_ state: OperationState) -> Bool {
     switch state {
     case .cancelled, .rejected, .credentialRejected, .ambiguous:
@@ -35,6 +41,14 @@ internal struct OperationJournal {
     default:
       false
     }
+  }
+
+  /// The result a retired operation answers with (RAPP v26.10.18 §8.2 item
+  /// 5): its preserved disposition and error, with no pruned payload.
+  internal func retiredAnswer(reference: OperationReference) -> OperationResultMessage? {
+    guard record.isRetired, let disposition = record.terminalStatus else { return nil }
+    return .retired(
+      reference: reference, disposition: disposition, preservedError: record.terminalError)
   }
 
   /// Writes the in-flight entry, counting the single transmission, and
@@ -100,6 +114,7 @@ internal struct OperationJournal {
     var next = record
     next.state = state
     next.automaticRetryPermitted = false
+    next.terminalError = result.error
     try store.persistResult(next, result: result)
     record = next
   }
@@ -119,16 +134,23 @@ internal struct OperationJournal {
   }
 
   /// Records acknowledgement and releases the retained result, leaving the
-  /// durable tombstone (section 8.2.5).
+  /// durable tombstone (RAPP v26.10.18 §8.2 item 5).
   ///
-  /// A result whose delivery became uncertain is still acknowledgeable once
-  /// it is delivered again.
+  /// A completed result becomes the `completed` state; a failure keeps its
+  /// disposition and is marked acknowledged. A result whose delivery became
+  /// uncertain is still acknowledgeable once it is delivered again.
   internal mutating func acknowledgeResult(to store: inout some JournalStore) throws {
-    guard record.state == .resultPending || record.state == .deliveryUncertain else {
+    var next = record
+    switch record.state {
+    case .resultPending, .deliveryUncertain:
+      next.state = .completed
+
+    case let state where Self.isUnacknowledgedTerminal(state) && !record.acknowledged:
+      next.acknowledged = true
+
+    default:
       throw JournalError.invalidState(state: record.state)
     }
-    var next = record
-    next.state = .completed
     next.automaticRetryPermitted = false
     try store.acknowledgeResult(next)
     record = next

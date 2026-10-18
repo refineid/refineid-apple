@@ -35,15 +35,37 @@
     /// before it announces itself anyway.
     private static let closeAllowanceMilliseconds = 500
 
-    /// The session record for the pairings in `contexts`.
-    private static func sessionRecord(_ contexts: [PhoneStreamPairContext]) -> [String: String] {
+    /// The instance name the session listener publishes under.
+    private var sessionInstanceName: String? {
+      streamListeners[Self.sessionListenerKey]?.registeredName ?? sessionListening.requestedName
+    }
+
+    /// The session record for the pairings in `contexts`, published under
+    /// `instance`: their discovery hints, and the revocation hints of the
+    /// pairings this holder revoked within 30 days (RAPP v26.10.18 §4.6).
+    private func sessionRecord(
+      _ contexts: [PhoneStreamPairContext], instance: String
+    ) -> [String: String] {
       let now = Date()
       return StreamRendezvousName.sessionRecord(
         candidates: contexts.compactMap { context in
           context.candidate(at: now) { pair, time in
             try pair.discoveryHint(unixTimeSeconds: time)
           }
-        })
+        },
+        retentions: RappPairRevocation.announcedRetentions(in: vault, at: now),
+        instance: instance,
+        at: now)
+    }
+
+    /// Republishes the session record, after a pairing was revoked or a
+    /// window moved.
+    internal func refreshSessionRecord() {
+      guard let listener = streamListeners[Self.sessionListenerKey],
+        let instance = sessionInstanceName
+      else { return }
+      listener.updateTXTRecord(
+        sessionRecord(PhoneStreamPairContext.resolveAll(vault: vault), instance: instance))
     }
 
     /// Listens once, under a fresh random name, for every active pair.
@@ -51,15 +73,20 @@
       guard !contexts.isEmpty else { return }
       sessionListening.withdrawal?.cancel()
       sessionListening.withdrawal = nil
-      if let listener = streamListeners[Self.sessionListenerKey] {
-        listener.updateTXTRecord(Self.sessionRecord(contexts))
+      if let listener = streamListeners[Self.sessionListenerKey],
+        let instance = sessionInstanceName
+      {
+        listener.updateTXTRecord(sessionRecord(contexts, instance: instance))
       } else {
         sessionListening.router = RappSessionRouter()
-        let listener = StreamRelayListener { [weak self] event in
-          Task { @MainActor in
-            self?.receiveStream(event)
-          }
-        }
+        let idle = sessionIsIdle
+        let listener = StreamRelayListener(
+          yieldsIdleConnection: { idle.withLock { $0 } },
+          onEvent: { [weak self] event in
+            Task { @MainActor in
+              self?.receiveStream(event)
+            }
+          })
         streamListeners[Self.sessionListenerKey] = listener
         #if DEBUG
           print("[stream-holder] listening in session mode")
@@ -67,13 +94,13 @@
         #endif
         let name = StreamRendezvousName.ephemeralName()
         sessionListening.requestedName = name
-        listener.start(displayName: name, txtRecord: Self.sessionRecord(contexts))
+        listener.start(displayName: name, txtRecord: sessionRecord(contexts, instance: name))
       }
       startHintRotation()
     }
 
     /// Announces that this holder stopped serving, then stops listening
-    /// (RAPP v26.10.10 §4.5): open sessions close with
+    /// (RAPP v26.10.18 §4.5): open sessions close with
     /// `service_withdrawn`, no connection is accepted, and the listener
     /// publishes the withdrawn record for a few seconds before it goes.
     internal func withdrawService(then tearDown: @escaping @MainActor () -> Void) {
@@ -146,11 +173,8 @@
           let window = TimeInterval(StreamRendezvousName.hintEpochSeconds)
           let elapsed = Date().timeIntervalSince1970.truncatingRemainder(dividingBy: window)
           try? await Task.sleep(for: .seconds(window - elapsed))
-          guard !Task.isCancelled, let self,
-            let listener = streamListeners[Self.sessionListenerKey]
-          else { return }
-          listener.updateTXTRecord(
-            Self.sessionRecord(PhoneStreamPairContext.resolveAll(vault: vault)))
+          guard !Task.isCancelled, let self else { return }
+          refreshSessionRecord()
         }
       }
     }

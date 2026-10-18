@@ -59,6 +59,10 @@
       #if DEBUG
         HolderTrace.say("handleApproval: asking holder authorization for \(operation.kind)")
       #endif
+      // The requester learns the consent view is on screen (RAPP v26.10.18
+      // §8.2 item 3), so it can tell a prompt awaiting its user from a
+      // custodian that has shown none.
+      try? await coordinator.reportProgress(operationID: operationID, event: .consentShown)
       let decision = await inbox.ask(request)
       #if DEBUG
         HolderTrace.say("handleApproval: holder decided \(decision.summary)")

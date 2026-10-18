@@ -181,7 +181,8 @@ private func interruptedRecoveryAmbiguous() throws {
       requestHash: try browserRequest().requestHash(),
       state: .committed,
       transmissionCount: TransmissionCount.untransmitted,
-      automaticRetryPermitted: false))
+      automaticRetryPermitted: false,
+      acknowledged: false))
   var committedStore = OperationJournalStore()
   try committedOnly.recoverAfterCrash(to: &committedStore)
   check(

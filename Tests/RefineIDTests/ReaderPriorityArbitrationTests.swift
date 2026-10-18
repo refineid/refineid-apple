@@ -23,7 +23,6 @@
         registry.readerCardPresenceChanged(isReaderCardPresent: false)
         registry.start()
         registry.startAfterPairing()
-        registry.startFetch(replacing: true)
         #expect(!PersistentTokenRegistry.isRemoteCardEnabled)
         #expect(!registry.isRunning)
         #expect(registry.certificateDER == nil)

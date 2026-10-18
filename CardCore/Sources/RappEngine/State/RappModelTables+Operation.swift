@@ -244,49 +244,49 @@ extension RappModelTables {
       role: .requester,
       condition: .profileHasNoConsequentialCommand,
       destination: .completed,
-      actions: [.sendResultAck, .journalCompleted]
+      actions: [.retainResultUnderLocalStorage, .sendResultAck, .journalCompleted]
     ),
     RappRule(
       from: [.requested, .prepared],
       event: .resultDeniedReceived,
       role: .requester,
       destination: .denied,
-      actions: [.journalDenied]
+      actions: [.journalDenied, .sendResultAck]
     ),
     RappRule(
       from: [.requested, .prepared, .committed],
       event: .resultCancelledReceived,
       role: .requester,
       destination: .cancelled,
-      actions: [.journalCancelled]
+      actions: [.journalCancelled, .sendResultAck]
     ),
     RappRule(
       from: [.requested, .prepared, .committed],
       event: .resultRejectedReceived,
       role: .requester,
       destination: .rejected,
-      actions: [.journalRejected]
+      actions: [.journalRejected, .sendResultAck]
     ),
     RappRule(
       from: [.requested, .prepared, .committed],
       event: .resultCredentialRejectedReceived,
       role: .requester,
       destination: .credentialRejected,
-      actions: [.journalCredentialRejected, .revokePairAfterCredentialRejection]
+      actions: [.journalCredentialRejected, .sendResultAck, .revokePairAfterCredentialRejection]
     ),
     RappRule(
       from: .committed,
       event: .resultCompletedReceived,
       role: .requester,
       destination: .completed,
-      actions: [.sendResultAck, .journalCompleted]
+      actions: [.retainResultUnderLocalStorage, .sendResultAck, .journalCompleted]
     ),
     RappRule(
       from: .committed,
       event: .resultAmbiguousReceived,
       role: .requester,
       destination: .ambiguous,
-      actions: [.journalAmbiguous, .prohibitRetry]
+      actions: [.journalAmbiguous, .sendResultAck, .prohibitRetry]
     ),
     RappRule(
       from: .committed,

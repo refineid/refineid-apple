@@ -17,10 +17,12 @@ internal struct FieldSpec {
   /// Lengths the registry fixes for identifier and digest fields.
   private enum Size {
     static let operationIdentifier = 16
+    static let pairIdentifier = 16
     static let digest = 32
   }
 
   private static let operationIdentifier = Shape.bytes(Size.operationIdentifier)
+  private static let pairIdentifier = Shape.bytes(Size.pairIdentifier)
   private static let requestHash = Shape.bytes(Size.digest)
   private static let challenge = Shape.bytes(Size.digest)
 
@@ -73,6 +75,12 @@ internal struct FieldSpec {
 
     case .pairingAbort:
       [Self("reason", .text)]
+
+    case .pairingStored:
+      [Self("pair_id", pairIdentifier)]
+
+    case .cardStatus:
+      [Self("card_present", .boolean)]
 
     case .sessionReady:
       [Self("parameters", .map), Self("nonce", challenge)]

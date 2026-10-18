@@ -83,13 +83,26 @@ internal func runPairing(
   let requesterConfirm = try requesterConfirmation.sendConfirmation(grantedProfiles: grants)
   _ = try proxyConfirmation.receiveConfirmation(requesterConfirm)
 
+  let requesterPairIdentifier = requesterConfirmation.pairIdentifier
+  let proxyPairIdentifier = proxyConfirmation.pairIdentifier
+  // Both store their record, then confirm it to each other (RAPP
+  // v26.10.18 §4.3 item 4); only both confirmations make a pairing active.
+  var (requesterRecord, requesterStorage) = try requesterConfirmation.intoStorage(
+    createdAtMilliseconds: FlowFixture.createdAtMilliseconds)
+  var (proxyRecord, proxyStorage) = try proxyConfirmation.intoStorage(
+    createdAtMilliseconds: FlowFixture.createdAtMilliseconds)
+  let requesterStored = try requesterStorage.sendStored()
+  let proxyStored = try proxyStorage.sendStored()
+  try proxyStorage.receiveStored(requesterStored)
+  try requesterStorage.receiveStored(proxyStored)
+  requesterRecord = try requesterStorage.intoActive().confirm(requesterRecord)
+  proxyRecord = try proxyStorage.intoActive().confirm(proxyRecord)
+
   return PairedPeers(
-    requester: try requesterConfirmation.intoPairRecord(
-      createdAtMilliseconds: FlowFixture.createdAtMilliseconds),
-    proxy: try proxyConfirmation.intoPairRecord(
-      createdAtMilliseconds: FlowFixture.createdAtMilliseconds),
-    requesterPairIdentifier: requesterConfirmation.pairIdentifier,
-    proxyPairIdentifier: proxyConfirmation.pairIdentifier)
+    requester: requesterRecord,
+    proxy: proxyRecord,
+    requesterPairIdentifier: requesterPairIdentifier,
+    proxyPairIdentifier: proxyPairIdentifier)
 }
 
 /// Establishes a session over a completed pairing.

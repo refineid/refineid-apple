@@ -79,6 +79,9 @@ internal struct RequesterOperationEngine {
     if case .error(let error) = message {
       return Self.errorDispatch(error)
     }
+    if case .cardStatus(let cardPresent) = message {
+      return .cardStatus(cardPresent: cardPresent)
+    }
     guard let operationIdentifier = message.referencedOperationIdentifier else {
       return .notOperation(message)
     }
@@ -123,10 +126,10 @@ internal struct RequesterOperationEngine {
       case .sendAcknowledgement(let message):
         .sendResultAcknowledgement(operationIdentifier: operationIdentifier, message: message)
 
-      case .terminal(_, let status, let error, let partial):
+      case .terminal(_, let outcome, let acknowledgement):
         .terminal(
-          operationIdentifier: operationIdentifier, status: status, error: error,
-          batchSignatures: partial)
+          operationIdentifier: operationIdentifier, outcome: outcome,
+          acknowledgement: acknowledgement)
       }
 
     default:
@@ -139,6 +142,13 @@ internal struct RequesterOperationEngine {
     operationIdentifier: Data, store: inout some RequesterJournalStore
   ) throws -> CardOperationResult {
     try withOperation(operationIdentifier) { try $0.acknowledgementSent(to: &store) }
+  }
+
+  /// Records that a terminal result's acknowledgement went out.
+  internal mutating func terminalAcknowledgementReleased(
+    operationIdentifier: Data, store: inout some RequesterJournalStore
+  ) throws {
+    try withOperation(operationIdentifier) { try $0.terminalAcknowledgementSent(to: &store) }
   }
 
   /// Classifies every live operation when the session closes.

@@ -23,6 +23,22 @@ internal struct BootstrapOfferTests {
       profiles: profiles, transportProfiles: transportProfiles, startedAtMonotonicMs: 0)
   }
 
+  /// Both endpoints store their record and confirm it to each other,
+  /// which makes the pairing active on both.
+  private static func exchangeStorage(
+    requester: RappPairingBridge, custodian: RappPairingBridge, now: UInt64
+  ) throws -> (RappPairRecord, RappPairRecord) {
+    _ = try requester.buildPairRecord(createdAtMs: 0, nowMonotonicMs: now)
+    _ = try custodian.buildPairRecord(createdAtMs: 0, nowMonotonicMs: now)
+    let requesterStored = try requester.sendStored(nowMonotonicMs: now)
+    let custodianStored = try custodian.sendStored(nowMonotonicMs: now)
+    try custodian.receiveStored(bytes: requesterStored, nowMonotonicMs: now)
+    try requester.receiveStored(bytes: custodianStored, nowMonotonicMs: now)
+    let requesterRecord = try #require(try requester.activatePairing(nowMonotonicMs: now))
+    let custodianRecord = try #require(try custodian.activatePairing(nowMonotonicMs: now))
+    return (requesterRecord, custodianRecord)
+  }
+
   @Test("The bootstrap offer is the 400-byte KC2 offer with a random identifier")
   internal func offerShape() throws {
     let encoded = try Self.custodian().encodedOffer()
@@ -75,8 +91,10 @@ internal struct BootstrapOfferTests {
     _ = try custodian.receiveConfirmation(
       bytes: try requester.sendConfirmation(grantedProfiles: granted, nowMonotonicMs: now),
       nowMonotonicMs: now)
-    let requesterRecord = try requester.finishPairing(createdAtMs: 0, nowMonotonicMs: now)
-    let custodianRecord = try custodian.finishPairing(createdAtMs: 0, nowMonotonicMs: now)
+    let (requesterRecord, custodianRecord) = try Self.exchangeStorage(
+      requester: requester, custodian: custodian, now: now)
+    #expect(requesterRecord.metadata().storageConfirmed)
+    #expect(custodianRecord.metadata().storageConfirmed)
     #expect(requesterRecord.metadata().pairId == custodianRecord.metadata().pairId)
   }
 

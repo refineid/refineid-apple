@@ -333,7 +333,10 @@ private func step7() throws {
         requestHash: try browserRequest().requestHash(),
         state: .prepared,
         transmissionCount: TransmissionCount.untransmitted,
-        automaticRetryPermitted: true))
+        automaticRetryPermitted: true,
+        batch: nil,
+        acknowledged: false,
+        terminalError: nil))
     let second = try rewound.beginCardCommand(
       to: &store, requestHash: try browserRequest().requestHash(), command: "one-shot",
       batchTotal: nil)

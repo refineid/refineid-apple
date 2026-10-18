@@ -9,12 +9,14 @@
   import RappEngine
   import Security
 
-  /// Fetches the public authentication certificate once and publishes it as a
-  /// per-user persistent CryptoTokenKit identity.
+  /// Publishes the paired phone's authentication certificate as a per-user
+  /// persistent CryptoTokenKit identity while the phone says a card is
+  /// present (RAPP v26.10.18 §8.4).
   ///
-  /// Private-key operations stay delegated to the phone relay. macOS
-  /// fetches at launch; iOS publishes the certificate the explicit
-  /// remote connect already read, so the holder is asked exactly once.
+  /// Private-key operations stay delegated to the phone. The identity is
+  /// offered only while this process holds an open session with the phone
+  /// whose last `card.status` said present; it leaves when the phone says
+  /// absent, when the session ends, or when the phone leaves the network.
   @MainActor
   @Observable
   internal final class PersistentTokenRegistry {
@@ -66,6 +68,15 @@
       CredentialLabels.name(for: .pin1)
     }
 
+    /// What this device calls itself to the phone.
+    internal static var displayName: String {
+      #if os(macOS)
+        String(localized: "RefineID Mac")
+      #else
+        String(localized: "RefineID iPad")
+      #endif
+    }
+
     /// The pair ID of the currently selected or active remote holder.
     internal static var activePairID: Data? {
       let vault = RappDeviceVault()
@@ -82,18 +93,27 @@
     /// The certificate last published, so a reader mint can restore it.
     internal var certificateDER: Data?
 
+    /// Whether a certificate read is in flight.
     internal private(set) var isRunning = false
-    private var fetchBackoff = CertificateFetchBackoff()
+    internal var fetchBackoff = CertificateFetchBackoff()
 
     /// Whether the presence browser reports the holder on the network now.
     ///
-    /// Only the browser sets it; its loss is the signal to withdraw the
-    /// borrowed identity.
+    /// Only the browser sets it; its loss ends the session and withdraws
+    /// the borrowed identity.
     internal var holderIsAdvertising = false
+
+    /// The phone's last `card.status` on the open session; false without
+    /// a session.
+    internal var holderCardPresent = false
 
     /// The paired phone, by the name it introduced itself with; nil
     /// while no phone is paired.
     internal private(set) var pairedPhone: String?
+
+    /// The phone that announced it forgot this computer (RAPP v26.10.18
+    /// §4.6), by name, until a phone is paired again.
+    internal var phoneThatForgot: String?
 
     #if REFINEID_STREAM_TRANSPORT
       internal var presence: StreamRelayPresence?
@@ -102,6 +122,17 @@
       /// for ``advertisementLossHold``.
       internal var advertisementLossTask: Task<Void, Never>?
       internal var pairingsObservers: [any NSObjectProtocol] = []
+
+      /// The standing session with the phone, while one is open.
+      internal var holderSession: RappHeldRequesterSession?
+
+      /// Dials the phone again after a session ended while it stayed on
+      /// the network.
+      internal var redialTask: Task<Void, Never>?
+
+      /// Withdraws the identity unless a session says present again
+      /// within ``sessionLossGrace``.
+      internal var sessionLossTask: Task<Void, Never>?
     #endif
 
     // MARK: Lifecycle
@@ -123,9 +154,9 @@
 
     /// Removes the published identity.
     ///
-    /// The pairing is separate: a reader card leaving withdraws the
-    /// borrowed certificate and leaves the pair so the next card can
-    /// use it.
+    /// The pairing and the session are separate: a card leaving the phone
+    /// withdraws the borrowed certificate and leaves both so the next
+    /// card can use them.
     internal static func withdrawPublishedIdentity() {
       if let driver = driverConfiguration {
         for instanceID in driver.tokenConfigurations.keys {
@@ -134,11 +165,6 @@
       }
       shared.holderLine = nil
       shared.certificateDER = nil
-      shared.holderIsAdvertising = false
-      #if REFINEID_STREAM_TRANSPORT
-        shared.advertisementLossTask?.cancel()
-        shared.advertisementLossTask = nil
-      #endif
       #if os(macOS)
         LoginIdentityModel.shared.refresh()
       #endif
@@ -151,10 +177,13 @@
       pairedPhone =
         Self.isRemoteCardEnabled
         ? Self.activePairID.flatMap(RappPairNames.name(forPairID:)) : nil
+      if pairedPhone != nil {
+        phoneThatForgot = nil
+      }
     }
 
-    /// Fetches and publishes once at launch on the requesting device when
-    /// an identity is needed.
+    /// Starts following the paired phone at launch on the requesting
+    /// device.
     internal func start() {
       refreshPairing()
       guard Self.isRemoteCardEnabled else {
@@ -167,130 +196,99 @@
         return
       }
       let hasPairs = (try? RappDeviceVault().activePairIDs().isEmpty == false) ?? false
+      guard hasPairs else {
+        Self.withdrawPublishedIdentity()
+        return
+      }
+      // An identity left behind by an earlier launch has no session
+      // behind it; the phone's own word brings it back.
+      Self.withdrawPublishedIdentity()
+      fetchBackoff.reset()
       #if REFINEID_STREAM_TRANSPORT
         installPairingObservers()
         startWatchingPresence()
+      #else
+        readCertificateOnce()
       #endif
-      if hasPairs {
-        seedHolderLine()
-      } else {
-        Self.withdrawPublishedIdentity()
-      }
-      resetFetchFailures()
-      // With a presence browser the holder's arrival starts the read; a
-      // read sent before the phone is seen would only wait out its timeout.
-      if !HolderPresencePolicy.readsAtStart(browsesForPresence: Self.browsesForPresence) {
-        return
-      }
-      startFetch(replacing: false)
     }
 
-    /// Fetches the borrowed certificate after a pairing, replacing any
-    /// identity a previous pair left behind.
+    /// Follows the phone after a pairing, replacing any identity a
+    /// previous pair left behind.
     internal func startAfterPairing() {
       refreshPairing()
       guard Self.isRemoteCardEnabled else {
         Self.withdrawPublishedIdentity()
         return
       }
+      Self.withdrawPublishedIdentity()
       if CardPresence.shared.isReaderCardPresent {
-        Self.withdrawPublishedIdentity()
         return
       }
+      fetchBackoff.reset()
       #if REFINEID_STREAM_TRANSPORT
-        startWatchingPresence()
+        closeHolderSession()
+        restartWatchingPresence()
+      #else
+        readCertificateOnce()
       #endif
-      resetFetchFailures()
-      startFetch(replacing: true)
     }
 
-    internal func startFetch(replacing: Bool) {
-      guard Self.isRemoteCardEnabled else {
-        Self.withdrawPublishedIdentity()
-        return
+    #if !REFINEID_STREAM_TRANSPORT
+      /// Reads the certificate once over the nearby relay, which carries
+      /// no standing session.
+      private func readCertificateOnce() {
+        guard !isRunning else { return }
+        let hasPairs = (try? RappDeviceVault().activePairIDs().isEmpty == false) ?? false
+        guard hasPairs else { return }
+        beginRead()
+        Task.detached(priority: .userInitiated) {
+          let fetched: (certificate: Data, cardSerial: String?)?
+          do {
+            let response = try RappPersistentRequesterClient(
+              displayName: Self.displayName
+            ).perform(.readAuthenticationCertificate)
+            if case .authenticationCertificate(let certificate, let cardSerial) = response {
+              fetched = (certificate, cardSerial)
+            } else {
+              fetched = nil
+            }
+          } catch {
+            fetched = nil
+          }
+          await Self.shared.finishRead(fetched)
+        }
       }
-      guard !CardPresence.shared.isReaderCardPresent else { return }
-      guard !isRunning else { return }
-      guard fetchBackoff.permits(at: .now) else { return }
-      let hasPairs = (try? RappDeviceVault().activePairIDs().isEmpty == false) ?? false
-      guard hasPairs else { return }
-      guard replacing || Self.needsIdentity || certificateDER == nil else { return }
+    #endif
+
+    /// Marks a certificate read as in flight.
+    internal func beginRead() {
       isRunning = true
       NotificationCenter.default.post(
         name: Self.fetchStateDidChangeNotification, object: nil)
-      Task.detached(priority: .userInitiated) {
-        let fetched: Data?
-        let fetchedSerial: String?
-        #if os(macOS)
-          let displayName = String(localized: "RefineID Mac")
-        #else
-          let displayName = String(localized: "RefineID iPad")
-        #endif
-        do {
-          let response = try RappPersistentRequesterClient(
-            displayName: displayName
-          ).perform(.readAuthenticationCertificate)
-          guard case .authenticationCertificate(let certificate, let cardSerial) = response else {
-            await Self.shared.finish(nil, cardSerial: nil)
-            return
-          }
-          fetched = certificate
-          fetchedSerial = cardSerial
-        } catch {
-          #if DEBUG
-            print("[persistent-token] perform(.readAuthenticationCertificate) failed: \(error)")
-            fflush(stdout)
-          #endif
-          fetched = nil
-          fetchedSerial = nil
-        }
-        await Self.shared.finish(fetched, cardSerial: fetchedSerial)
-      }
     }
 
-    internal func resetFetchFailures() {
-      fetchBackoff.reset()
-    }
-
-    fileprivate func finish(_ certificateDER: Data?, cardSerial: String? = nil) {
+    /// Takes what a certificate read produced; a certificate is offered,
+    /// a failure is counted for the next attempt.
+    internal func finishRead(_ fetched: (certificate: Data, cardSerial: String?)?) {
       defer {
         isRunning = false
         NotificationCenter.default.post(
           name: Self.fetchStateDidChangeNotification, object: nil)
       }
-      guard let certificateDER else {
+      guard let fetched else {
         fetchBackoff.recordFailure(at: .now)
         #if REFINEID_STREAM_TRANSPORT
-          if self.holderIsAdvertising {
-            Task { @MainActor in
-              try? await Task.sleep(
-                for: CertificateFetchBackoff.delay(afterFailures: self.fetchBackoff.failures)
-              )
-              guard self.holderIsAdvertising, self.certificateDER == nil else { return }
-              self.startFetch(replacing: false)
-            }
-          }
+          retryReadAfterFailure()
         #endif
         return
       }
-      switch Self.publish(certificateDER, cardSerial: cardSerial) {
+      switch Self.publish(fetched.certificate, cardSerial: fetched.cardSerial) {
       case .notPublished:
         fetchBackoff.recordFailure(at: .now)
-        return
 
-      case .readerHasPriority:
-        // The read worked; the reader card takes the identity's place.
-        fetchBackoff.reset()
-        return
-
-      case .published:
+      case .readerHasPriority, .published:
         fetchBackoff.reset()
       }
-      #if REFINEID_STREAM_TRANSPORT
-        if HolderPresencePolicy.armsLossHoldAfterRead(holderSeen: holderIsAdvertising) {
-          armAdvertisementLossHold()
-        }
-      #endif
     }
   }
 #endif

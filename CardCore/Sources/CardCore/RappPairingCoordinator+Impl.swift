@@ -129,6 +129,28 @@
         try await transport.send(handshakeThree)
         try await transport.send(hello)
 
+      case .custodianAwaitingStepOne, .custodianAwaitingStepThree,
+        .custodianAwaitingHandshakeOne, .custodianAwaitingHandshakeThree:
+        try await receiveCustodianFrame(frame, now: now)
+
+      case .awaitingPeerHello:
+        try await receivePeerHello(frame, now: now)
+
+      case .awaitingPeerConfirmation:
+        try await receivePeerConfirmation(frame, now: now)
+
+      case .awaitingPeerStored:
+        try live().receiveStored(bytes: frame, nowMonotonicMs: now)
+        try await activate(now: now)
+
+      case .offer, .completed, .closed:
+        await fail(.protocolFailure)
+      }
+    }
+
+    /// The custodian's side of CPace and the pairing handshake.
+    private func receiveCustodianFrame(_ frame: Data, now: UInt64) async throws {
+      switch state {
       case .custodianAwaitingStepOne:
         try live().readCpaceFrame(bytes: frame, nowMonotonicMs: now)
         let stepTwo = try live().writeCpaceFrame(nowMonotonicMs: now)
@@ -152,13 +174,7 @@
         try enterPairingChannel(now: now)
         state = .awaitingPeerHello
 
-      case .awaitingPeerHello:
-        try await receivePeerHello(frame, now: now)
-
-      case .awaitingPeerConfirmation:
-        try await receivePeerConfirmation(frame, now: now)
-
-      case .offer, .completed, .closed:
+      default:
         await fail(.protocolFailure)
       }
     }
@@ -206,7 +222,8 @@
       }
     }
 
-    /// Completes the grant exchange and stores the pairing.
+    /// Completes the grant exchange, stores the pairing and confirms the
+    /// storage to the peer.
     ///
     /// The requester echoes the custodian's grant; the custodian accepts the
     /// echo. Either way both sets are now equal.
@@ -216,13 +233,17 @@
         let echo = try live().sendConfirmation(grantedProfiles: granted, nowMonotonicMs: now)
         try await transport.send(echo)
       }
-      try await finish(now: now)
+      try await store(now: now)
     }
 
-    // MARK: Finish / Fail
+    // MARK: Store / Activate / Fail
 
-    private func finish(now: UInt64) async throws {
-      let record = try live().finishPairing(
+    /// Stores the unconfirmed record, then tells the peer.
+    ///
+    /// The storage exchange is RAPP v26.10.18 §4.3 item 4; the
+    /// confirmation deadline keeps running.
+    private func store(now: UInt64) async throws {
+      let record = try live().buildPairRecord(
         createdAtMs: clock.wallMilliseconds(), nowMonotonicMs: now)
       do {
         try record.persistDeviceOnly(vault: vault)
@@ -230,11 +251,37 @@
         await fail(.persistenceFailure)
         return
       }
+      storedPairID = record.metadata().pairId
+      let stored = try live().sendStored(nowMonotonicMs: now)
+      state = .awaitingPeerStored
+      try await transport.send(stored)
+      try await activate(now: now)
+    }
+
+    /// Completes the pairing once both storage confirmations have been
+    /// exchanged, storing the confirmed record over the unconfirmed one.
+    private func activate(now: UInt64) async throws {
+      guard let confirmed = try live().activatePairing(nowMonotonicMs: now) else { return }
+      do {
+        try confirmed.replaceDeviceOnly(vault: vault)
+      } catch {
+        await fail(.persistenceFailure)
+        return
+      }
+      storedPairID = nil
       state = .completed
       cancelDeadline()
-      continuation.yield(.paired(PairSummary(record.metadata())))
+      continuation.yield(.paired(PairSummary(confirmed.metadata())))
       continuation.finish()
       await transport.close()
+    }
+
+    /// Revokes the record stored before the peer confirmed it, leaving
+    /// its tombstone and what announces the revocation (§4.3 item 4, §4.6).
+    private func revokeUnconfirmedRecord() {
+      guard let pairID = storedPairID else { return }
+      storedPairID = nil
+      try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: clock)
     }
 
     private func handle(_ error: any Error) async {
@@ -244,6 +291,9 @@
 
       case RappBindingError.AttemptsExhausted:
         await fail(.attemptsExhausted)
+
+      case RappBindingError.StorageUnconfirmed:
+        await fail(.storageUnconfirmed)
 
       default:
         await abandonCandidate(.protocolFailure)
@@ -269,6 +319,7 @@
       state = .closed
       cancelDeadline()
       bridge?.cancelPairing()
+      revokeUnconfirmedRecord()
       await transport.close()
       continuation.yield(.closed(reason))
       continuation.finish()
@@ -307,6 +358,9 @@
 
       case .offer:
         await fail(.offerExpired)
+
+      case .awaitingPeerStored:
+        await fail(.storageUnconfirmed)
 
       default:
         await abandonCandidate(.offerExpired)

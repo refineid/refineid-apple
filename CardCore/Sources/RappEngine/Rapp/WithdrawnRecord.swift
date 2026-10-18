@@ -3,7 +3,7 @@
 import CryptoKit
 import Foundation
 
-/// The `mode=withdrawn` stream TXT record (RAPP v26.10.10 §4.5).
+/// The `mode=withdrawn` stream TXT record (RAPP v26.10.18 §4.5).
 internal struct WithdrawnRecord: Equatable {
   internal static let entryCount = 8
   internal static let counterSeconds: UInt64 = 60

@@ -140,9 +140,15 @@ internal struct PairingConfirmation {
     return sortedConfirm
   }
 
-  /// Build the only persistable record, after both hellos and both equal
-  /// confirmations.
-  internal func intoPairRecord(createdAtMilliseconds: UInt64) throws -> PairRecord {
+  /// Build the record to store, after both hellos and both equal
+  /// confirmations, and the storage exchange that confirms it (RAPP
+  /// v26.10.18 §4.3 item 4).
+  ///
+  /// The record is unconfirmed until ``ActivePairing/confirm(_:)``; the
+  /// channel stays open for the two `pairing.stored` messages.
+  internal consuming func intoStorage(
+    createdAtMilliseconds: UInt64
+  ) throws -> (record: PairRecord, storage: PairingStorage) {
     guard localHelloSent, peerHello != nil else { throw PairingError.helloIncomplete }
     guard localConfirmationSent, peerConfirmationReceived else {
       throw PairingError.confirmationIncomplete
@@ -154,8 +160,9 @@ internal struct PairingConfirmation {
     } catch {
       throw PairingError.noise
     }
+    let record: PairRecord
     do {
-      return try PairRecord(
+      record = try PairRecord(
         pairIdentifier: pairIdentifier,
         role: role,
         localStaticPrivate: localKeys.privateKey,
@@ -167,10 +174,12 @@ internal struct PairingConfirmation {
           profile: candidate.profile,
           candidateIdentifier: candidate.candidateIdentifier,
           parameters: candidate.parameters),
-        createdAtMilliseconds: createdAtMilliseconds)
+        createdAtMilliseconds: createdAtMilliseconds,
+        storageConfirmed: false)
     } catch let error as PairRecordError {
       throw PairingError.pairRecord(error)
     }
+    return (record, PairingStorage(pairIdentifier: pairIdentifier, channel: channel))
   }
 
   private func body(of hello: PairingHello) throws -> [String: WireValue] {

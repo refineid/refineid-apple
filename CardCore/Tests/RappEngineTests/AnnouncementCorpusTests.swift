@@ -7,7 +7,7 @@ import Testing
 @testable import RappEngine
 
 /// Replays the routing and withdrawal corpora byte for byte.
-@Suite("RAPP v26.10.10 routing and withdrawal corpora")
+@Suite("RAPP v26.10.18 routing and withdrawal corpora")
 internal struct AnnouncementCorpusTests {
   private static let accepted = "accepted"
 
@@ -49,7 +49,7 @@ internal struct AnnouncementCorpusTests {
   @Test("Both endpoints derive the vector's keys from the static agreement")
   internal func pairKeys() throws {
     let corpus = try CorpusFile.routing(filePath: #filePath)
-    #expect(corpus.protocolDocumentVersion == "26.10.10")
+    #expect(corpus.protocolDocumentVersion == "26.10.18")
     for vector in corpus.pairKeys {
       let pairID = try Data(hex: vector.pairIDHex)
       for (info, expected) in [
@@ -80,7 +80,7 @@ internal struct AnnouncementCorpusTests {
       #expect(key.hint(epoch: vector.epoch).hex == vector.discoveryHintHex, "\(vector.name)")
     }
     for vector in corpus.discoveryAcceptance {
-      let record = DiscoveryRecord(hints: [try Data(hex: vector.publishedHintHex)])
+      let record = DiscoveryRecord(hints: [try Data(hex: vector.publishedHintHex)], revoked: nil)
       #expect(
         key.matches(record, epoch: vector.requesterEpoch) == (vector.expected == Self.accepted),
         "\(vector.name)")
@@ -141,7 +141,8 @@ internal struct AnnouncementCorpusTests {
           hint: try Data(hex: candidate.hintHex), lastUsedMilliseconds: candidate.lastUsedMs)
       }
       #expect(
-        DiscoveryRecord.assemble(candidates).hints.map(\.hex) == vector.announcedHex,
+        DiscoveryRecord.assemble(candidates, revoked: nil).hints.map(\.hex)
+          == vector.announcedHex,
         "\(vector.name)")
     }
   }
@@ -149,7 +150,7 @@ internal struct AnnouncementCorpusTests {
   @Test("Withdrawal keys, hints and their minute window match")
   internal func withdrawalHints() throws {
     let corpus = try CorpusFile.withdrawal(filePath: #filePath)
-    #expect(corpus.protocolDocumentVersion == "26.10.10")
+    #expect(corpus.protocolDocumentVersion == "26.10.18")
     let keys = try #require(corpus.withdrawalKey.first)
     let key = try Self.withdrawalKey(corpus)
     for vector in corpus.withdrawalHint {
