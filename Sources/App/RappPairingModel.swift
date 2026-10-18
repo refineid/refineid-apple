@@ -261,6 +261,7 @@ internal final class RappPairingModel: ObservableObject {
   }
 
   internal func finishAttempt() {
+    reviewedPeerName = nil
     relay = nil
     relayGeneration = nil
     coordinator = nil

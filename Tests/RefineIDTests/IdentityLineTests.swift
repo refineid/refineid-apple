@@ -15,6 +15,8 @@ internal struct IdentityLineTests {
     internal var testDescription: String { name }
   }
 
+  private static let phone = "Alpha iPhone"
+
   private static let idle = RequesterFacts(
     availability: .noCard,
     warnsUnavailableCard: false,
@@ -22,7 +24,7 @@ internal struct IdentityLineTests {
     readerConnected: false,
     cardPresent: false,
     phonePresent: false,
-    paired: false
+    pairedPhone: nil
   )
 
   internal static let cases: [Case] = [
@@ -39,32 +41,32 @@ internal struct IdentityLineTests {
       line: .insertCard),
     Case(
       name: "paired phone off the network",
-      facts: with { $0.paired = true }, line: .phoneUnreachable),
+      facts: with { $0.pairedPhone = phone }, line: .phoneUnreachable(phone)),
     Case(
       name: "empty reader beats an unreachable phone",
       facts: with { facts in
         facts.readerConnected = true
-        facts.paired = true
+        facts.pairedPhone = phone
       },
       line: .insertCard),
     Case(
       name: "paired phone here with its card unread",
       facts: with { facts in
         facts.availability = .cardWithoutIdentity
-        facts.paired = true
+        facts.pairedPhone = phone
         facts.phonePresent = true
       },
-      line: .phoneConnected),
+      line: .phoneConnected(phone)),
     Case(
       name: "paired phone present",
       facts: with { facts in
-        facts.paired = true
+        facts.pairedPhone = phone
         facts.phonePresent = true
       },
-      line: .phoneConnected),
+      line: .phoneConnected(phone)),
     Case(
-      name: "phone present, nothing to do",
-      facts: with { $0.phonePresent = true }, line: .phoneConnected),
+      name: "a phone on the network without a pairing is nothing to show",
+      facts: with { $0.phonePresent = true }, line: .connectReader),
     Case(
       name: "read in flight",
       facts: with { facts in
@@ -93,9 +95,17 @@ internal struct IdentityLineTests {
       name: "phone here, card not read, nothing in flight",
       facts: with { facts in
         facts.availability = .cardWithoutIdentity
+        facts.pairedPhone = phone
         facts.phonePresent = true
       },
-      line: .phoneConnected),
+      line: .phoneConnected(phone)),
+    Case(
+      name: "an unpaired phone with the card unread is still a read",
+      facts: with { facts in
+        facts.availability = .cardWithoutIdentity
+        facts.phonePresent = true
+      },
+      line: .reading),
     Case(
       name: "phone here, card not read yet",
       facts: with { facts in
@@ -123,10 +133,11 @@ internal struct IdentityLineTests {
       name: "a waiting phone beats the card warning",
       facts: with { facts in
         facts.availability = .cardWithoutIdentity
+        facts.pairedPhone = phone
         facts.phonePresent = true
         facts.warnsUnavailableCard = true
       },
-      line: .phoneConnected),
+      line: .phoneConnected(phone)),
     Case(
       name: "the card warning needs a card",
       facts: with { facts in

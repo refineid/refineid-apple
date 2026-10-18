@@ -5,18 +5,23 @@
   import CardCore
   import SwiftUI
 
+  /// One paired phone: its name, its model when the record carries one,
+  /// and whether it is on the network now.
   internal struct RemoteDeviceRow: View {
     private enum Layout {
       static let rowSpacing: CGFloat = 8
       static let textVerticalSpacing: CGFloat = 2
-      static let titleSpacing: CGFloat = 6
       static let statusBadgeSpacing: CGFloat = 4
       static let statusIndicatorSize: CGFloat = 6
       static let badgeTrailingPadding: CGFloat = 4
     }
 
+    /// The name the phone introduced itself with.
     internal let name: String
+
+    /// The hardware model identifier, when the record carries one.
     internal let modelName: String?
+
     internal let isOnline: Bool
     internal let isConnected: Bool
     internal let onDelete: () -> Void
@@ -25,103 +30,64 @@
       HStack(spacing: Layout.rowSpacing) {
         deviceInfo
         Spacer()
-        statusBadge(isOnline: isOnline, isConnected: isConnected)
+        statusBadge
           .padding(.trailing, Layout.badgeTrailingPadding)
-        actionButtons
+        forgetButton
       }
       .contextMenu {
-        contextMenuButtons
+        Button(String(localized: "Forget"), role: .destructive) {
+          onDelete()
+        }
       }
     }
 
     private var deviceInfo: some View {
       VStack(alignment: .leading, spacing: Layout.textVerticalSpacing) {
-        Text(titleText)
+        Text(name)
           .font(.body.weight(.medium))
+        if let marketingModel {
+          Text(marketingModel)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
       }
     }
 
-    private var titleText: String {
-      let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-      let rawModel = (modelName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-      let resolvedModel = RappDeviceIdentity.friendlyMarketingName(from: rawModel) ?? rawModel
-
-      let isRawHardwareIdentifier =
-        rawModel.range(of: #"^[A-Za-z]+[0-9]+,[0-9]+$"#, options: .regularExpression) != nil
-        && RappDeviceIdentity.friendlyMarketingName(from: rawModel) == nil
-
-      let effectiveModel = isRawHardwareIdentifier ? "" : resolvedModel
-
-      let lowerName = trimmedName.lowercased()
-      let isNetworkHostname =
-        (lowerName.contains(".") && !lowerName.hasSuffix(".local"))
-        || lowerName.contains(":")
-        || lowerName == "localhost"
-
-      let isGenericSubname =
-        lowerName == "iphone"
-        || lowerName == "ipad"
-        || lowerName == "ipod"
-        || lowerName == "apple device"
-        || lowerName == "device"
-
-      if !effectiveModel.isEmpty,
-        !isNetworkHostname,
-        !isGenericSubname,
-        trimmedName.caseInsensitiveCompare(effectiveModel) != .orderedSame
-      {
-        return "\(effectiveModel) — \(trimmedName)"
-      }
-      if !effectiveModel.isEmpty {
-        return effectiveModel
-      }
-      if !trimmedName.isEmpty, !isNetworkHostname {
-        return trimmedName
-      }
-      return String(localized: "Remote device")
+    /// The model by its marketing name, when the record carries one that
+    /// the phone's name does not already say.
+    private var marketingModel: String? {
+      guard let modelName,
+        let marketing = RappDeviceIdentity.friendlyMarketingName(from: modelName),
+        marketing.caseInsensitiveCompare(name) != .orderedSame
+      else { return nil }
+      return marketing
     }
 
-    private var actionButtons: some View {
+    private var forgetButton: some View {
       Button {
         onDelete()
       } label: {
         Image(systemName: "trash")
           .font(.caption)
           .foregroundStyle(.secondary)
-          .accessibilityLabel(Text("Poista laite"))
+          .accessibilityLabel(Text("Forget"))
       }
       .buttonStyle(.borderless)
-      .help("Poista laite")
+      .help(String(localized: "Forget"))
     }
 
-    private var contextMenuButtons: some View {
-      Button("Poista laite", role: .destructive) {
-        onDelete()
-      }
-    }
-
-    @ViewBuilder
-    private func statusBadge(isOnline: Bool, isConnected: Bool) -> some View {
-      if isConnected {
+    @ViewBuilder private var statusBadge: some View {
+      if isConnected || isOnline {
         HStack(spacing: Layout.statusBadgeSpacing) {
           Circle()
             .fill(Color.green)
             .frame(width: Layout.statusIndicatorSize, height: Layout.statusIndicatorSize)
-          Text("Yhdistetty")
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.green)
-        }
-      } else if isOnline {
-        HStack(spacing: Layout.statusBadgeSpacing) {
-          Circle()
-            .fill(Color.green)
-            .frame(width: Layout.statusIndicatorSize, height: Layout.statusIndicatorSize)
-          Text("Linjoilla")
+          Text(isConnected ? String(localized: "Connected") : String(localized: "Online"))
             .font(.caption.weight(.semibold))
             .foregroundStyle(.green)
         }
       } else {
-        Text(String(localized: "Offline"))
+        Text("Offline")
           .font(.caption)
           .foregroundStyle(.secondary)
       }

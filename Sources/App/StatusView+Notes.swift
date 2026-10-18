@@ -40,13 +40,13 @@
       #endif
     }
 
-    /// Whether to prompt the user to connect a card reader or phone.
+    /// Whether the window asks for a card reader or a phone: nothing is
+    /// serving a card, and nothing is waiting to be signed.
     internal var shouldShowPairingPrompt: Bool {
       #if REFINEID_REMOTE_CARD
         !DemoMode.shared.isActive
           && !cardPresence.isReaderConnected
           && !holderIsAdvertising
-          && !remoteRegistry.hasPairing
           && availability == .noCard
           && signingModel.pending == nil
           && signingModel.queued.isEmpty
@@ -78,9 +78,20 @@
       .accessibilityIdentifier("loginIdentityStatus")
     }
 
+    /// The paired phone's line, when there is one, and the way to connect
+    /// a reader or another phone.
     @ViewBuilder internal var pairingPromptSection: some View {
       #if REFINEID_REMOTE_CARD
-        RemotePairingPromptView()
+        Section {
+          if remoteRegistry.pairedPhone != nil {
+            IdentityStateView(
+              availability: availability,
+              warnsUnavailableCard: ActivationWatch.shared.warnsUnavailableCard
+            )
+            .accessibilityIdentifier("loginIdentityStatus")
+          }
+          RemotePairingPromptView()
+        }
       #endif
     }
 

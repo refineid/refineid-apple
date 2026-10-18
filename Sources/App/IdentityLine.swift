@@ -16,11 +16,11 @@
     /// "Insert the card into the reader".
     case insertCard
 
-    /// The paired phone is on the network.
-    case phoneConnected
+    /// The paired phone, by name, is on the network.
+    case phoneConnected(String)
 
-    /// A phone is paired but not on the network.
-    case phoneUnreachable
+    /// The paired phone, by name, is not on the network.
+    case phoneUnreachable(String)
 
     /// "Reading the card…": a card in the reader is settling, or a read of
     /// the phone's card is in flight.
@@ -38,8 +38,8 @@
         if facts.cardPresent {
           return facts.warnsUnavailableCard ? .cardNotReady : .reading
         }
-        if facts.phonePresent, !facts.readInFlight {
-          return .phoneConnected
+        if facts.phonePresent, !facts.readInFlight, let phone = facts.pairedPhone {
+          return .phoneConnected(phone)
         }
         return .reading
 
@@ -50,10 +50,10 @@
         if facts.readerConnected {
           return .insertCard
         }
-        if facts.phonePresent {
-          return .phoneConnected
+        guard let phone = facts.pairedPhone else {
+          return .connectReader
         }
-        return facts.paired ? .phoneUnreachable : .connectReader
+        return facts.phonePresent ? .phoneConnected(phone) : .phoneUnreachable(phone)
       }
     }
   }

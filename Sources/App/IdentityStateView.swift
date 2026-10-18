@@ -62,9 +62,6 @@
 
     @State private var isFetching = PersistentTokenRegistry.shared.isRunning
 
-    /// The paired phone by the name it introduced itself with.
-    @State private var phoneLabel = PersistentTokenRegistry.pairedPhoneLabel
-
     /// The person line the remote-card registry already holds.
     ///
     /// Used when the keychain has not yet listed the borrowed token
@@ -113,7 +110,7 @@
         readerConnected: cardPresence.isReaderConnected,
         cardPresent: cardPresence.isCardPresent,
         phonePresent: PersistentTokenRegistry.shared.holderIsAdvertising,
-        paired: PersistentTokenRegistry.shared.hasPairing
+        pairedPhone: PersistentTokenRegistry.shared.pairedPhone
       )
     }
 
@@ -146,12 +143,12 @@
         Text("Insert the card into the reader")
           .foregroundStyle(.secondary)
 
-      case .phoneConnected:
-        Text("\(phoneLabel) connected")
+      case .phoneConnected(let phone):
+        Text("\(phone) connected")
           .foregroundStyle(.secondary)
 
-      case .phoneUnreachable:
-        Text("\(phoneLabel) not reachable")
+      case .phoneUnreachable(let phone):
+        Text("\(phone) not reachable")
           .foregroundStyle(.secondary)
 
       case .connectReader:
@@ -163,12 +160,11 @@
     /// Follows one availability and reads the name when ready.
     ///
     /// The holder's name is read off the main actor and never blocks
-    /// the row; the phone's name is held locally.
+    /// the row.
     private func track() async {
       #if DEBUG
         Self.log.info("track: \(String(describing: self.availability))")
       #endif
-      phoneLabel = PersistentTokenRegistry.pairedPhoneLabel
       switch availability {
       case .ready:
         if DemoMode.shared.isActive {

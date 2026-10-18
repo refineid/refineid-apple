@@ -58,7 +58,7 @@
       // 1. Initialize iPhone holder with primed identity
       let phonePrefix = "fi.refineid.test.multi.phone.\(UUID().uuidString)"
       let phoneID = try makeIdentity(
-        service: "\(phonePrefix).identity", name: "Petri's iPhone", model: "iPhone16,1", seed: 0x11)
+        service: "\(phonePrefix).identity", name: "Alpha iPhone", model: "iPhone16,1", seed: 0x11)
       let phoneVault = RappDeviceVault(accessGroup: nil, servicePrefix: phonePrefix)
       let phoneCoordinator = RappCloudSyncCoordinator(
         localIdentity: phoneID, localRole: .holder, cloudStorage: storage)
@@ -67,7 +67,7 @@
       // 2. Initialize Mac requester
       let macPrefix = "fi.refineid.test.multi.mac.\(UUID().uuidString)"
       let macID = try makeIdentity(
-        service: "\(macPrefix).identity", name: "Petri's Mac", model: "Mac15,3", seed: 0x22)
+        service: "\(macPrefix).identity", name: "Alpha Mac", model: "Mac15,3", seed: 0x22)
       let macVault = RappDeviceVault(accessGroup: nil, servicePrefix: macPrefix)
       let macCoordinator = RappCloudSyncCoordinator(
         localIdentity: macID, localRole: .requester, cloudStorage: storage)
@@ -76,7 +76,7 @@
       // 3. Initialize iPad requester
       let ipadPrefix = "fi.refineid.test.multi.ipad.\(UUID().uuidString)"
       let ipadID = try makeIdentity(
-        service: "\(ipadPrefix).identity", name: "Petri's iPad", model: "iPad14,3", seed: 0x33)
+        service: "\(ipadPrefix).identity", name: "Alpha iPad", model: "iPad14,3", seed: 0x33)
       let ipadVault = RappDeviceVault(accessGroup: nil, servicePrefix: ipadPrefix)
       let ipadCoordinator = RappCloudSyncCoordinator(
         localIdentity: ipadID, localRole: .requester, cloudStorage: storage)
@@ -94,8 +94,8 @@
       // iPad paired with iPhone
       #expect(ipadPairs.count == 1)
 
-      #expect(RappPairNames.name(forPairID: macPairs[0].metadata().pairId) == "Petri's iPhone")
-      #expect(RappPairNames.name(forPairID: ipadPairs[0].metadata().pairId) == "Petri's iPhone")
+      #expect(RappPairNames.name(forPairID: macPairs[0].metadata().pairId) == "Alpha iPhone")
+      #expect(RappPairNames.name(forPairID: ipadPairs[0].metadata().pairId) == "Alpha iPhone")
 
       // Both Mac and iPad have the pair selected
       #expect(try macVault.selectedPairID() == macPairs[0].metadata().pairId)

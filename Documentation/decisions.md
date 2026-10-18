@@ -5,6 +5,22 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-10-18 Paired devices are shown by the name they gave
+
+A pairing is listed and chosen by the `display_name` its peer sent in
+the RAPP pairing hello (v26.10.10 section 7.1). The app keeps no
+substitute: a peer that introduces itself with a blank name fails the
+ceremony, a stored pairing without a name is revoked at launch, and no
+view prints "Phone", "Computer" or "Remote device" in a name's place.
+The Mac window names the paired phone it cannot reach and keeps the code
+boxes under that line, so another phone is paired from the window rather
+than from Settings. iOS introduces itself with `UIDevice.current.name`,
+which is the model name ("iPhone") until the app holds the
+`com.apple.developer.device-information.user-assigned-device-name`
+entitlement; the owner requests it from Apple, and the key enters
+`Config/RefineID-iOS.entitlements` once it is granted. Android sends the
+name set in its system settings and already appears by it.
+
 ## 2026-10-09 Bluetooth is declared, and stays unwired
 
 RAPP v26.10.1 adopted the Bluetooth Low Energy transport profile, and
