@@ -54,6 +54,8 @@ internal struct ModuleVersionTests {
     #expect(time % 100 < 60)
     let step = (time / 100 * 60 + time % 100) / 6
     #expect(UInt(ModuleVersion.firmware.minor) == step)
-    #expect(ModuleVersion.firmware.major == 3)
+    #expect(UInt(ModuleVersion.firmware.major) == parts[2])
+    #expect(UInt(ModuleVersion.library.major) == parts[0])
+    #expect(UInt(ModuleVersion.library.minor) == parts[1])
   }
 }
