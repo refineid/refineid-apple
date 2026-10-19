@@ -11,16 +11,11 @@ import Foundation
 /// Lives exactly as long as the session: a new session starts empty, so
 /// nothing learned about one card is held against another.
 internal struct CredentialSessionState: Equatable {
-  internal private(set) var isPin1Authenticated = false
   internal private(set) var probedRoles = Set<CredentialRole>()
   private var negativePinFingerprints = Set<Data>()
 
   private static func fingerprint(_ digits: String) -> Data {
     Data(SHA256.hash(data: Data(digits.utf8)))
-  }
-
-  internal mutating func markPin1Authenticated() {
-    isPin1Authenticated = true
   }
 
   internal mutating func markProbed(_ role: CredentialRole) {
@@ -33,7 +28,6 @@ internal struct CredentialSessionState: Equatable {
 
   /// Forgets everything the session learned.
   internal mutating func sessionEnded() {
-    isPin1Authenticated = false
     probedRoles.removeAll()
     negativePinFingerprints.removeAll()
   }

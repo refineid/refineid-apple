@@ -35,6 +35,20 @@
       case refusedBeforeCredentialTransmit(Refusal)
       case rejected(Rejection)
       case result(Data)
+
+      /// Whether the card answered the operation.
+      internal var cardAnswered: Bool {
+        switch self {
+        case .result, .rejected:
+          true
+
+        case .refusedBeforeCredentialTransmit(let refusal):
+          refusal != .cardUnavailable
+
+        case .completionAmbiguous:
+          false
+        }
+      }
     }
 
     internal struct Identity {

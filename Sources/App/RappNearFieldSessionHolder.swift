@@ -16,10 +16,8 @@
   /// join one chain, so two never touch the channel at once.
   internal actor RappNearFieldSessionHolder {
     internal struct Context: Sendable {
-      internal let isPin1Authenticated: Bool
       internal let isRoleProbed: @Sendable (CredentialRole) -> Bool
       internal let isNegativePin: @Sendable (String) -> Bool
-      internal let markPin1Authenticated: @Sendable () -> Void
       internal let markRoleProbed: @Sendable (CredentialRole) -> Void
       internal let recordNegativePin: @Sendable (String) -> Void
     }
@@ -27,23 +25,14 @@
     /// The exclusive card session and the operations over its secure
     /// channel; the operation chain hands them to one operation at a
     /// time, so the channel's sequence counter is never raced.
-    private final class HeldChannel: @unchecked Sendable {
-      let session: SmartCardChannel.OpenSession
-      let operations: CardOperations
-
-      init(session: SmartCardChannel.OpenSession, operations: CardOperations) {
-        self.session = session
-        self.operations = operations
-      }
-    }
-
     internal static let shared = RappNearFieldSessionHolder()
 
-    private var activeSession: NearFieldCardSession?
-    private var heldChannel: HeldChannel?
-    private var hold = CardSessionHold(
+    internal var activeSession: NearFieldCardSession?
+    internal var heldChannel: RappHeldCardChannel?
+    internal var hold = CardSessionHold(
       sessionLimitSeconds: CardSessionHold.nearFieldSessionLimitSeconds)
-    private var expirationTask: Task<Void, Never>?
+    internal var expirationTask: Task<Void, Never>?
+    internal var keepAlive: Task<Bool, Never>?
     private let credentials = CredentialSessionBox()
 
     /// Every use of the channel, and every close, runs on this chain.
@@ -67,21 +56,8 @@
     /// A session failure and an ambiguous completion are the card not
     /// answering; a local refusal or a credential the card refused leave
     /// the channel sound.
-    private static func cardAnswered(_ outcome: RappCardExecutor.Outcome?) -> Bool {
-      switch outcome {
-      case .result, .rejected:
-        true
-
-      case .refusedBeforeCredentialTransmit(let refusal):
-        refusal != .cardUnavailable
-
-      case .completionAmbiguous, nil:
-        false
-      }
-    }
-
     /// The continuous clock the hold's limits are measured on.
-    private static func nowMs() -> Int64 {
+    internal static func nowMs() -> Int64 {
       Int64(clamping: RappPlatformClock().monotonicMilliseconds())
     }
 
@@ -109,6 +85,7 @@
     ) async -> RappCardExecutor.Outcome? {
       expirationTask?.cancel()
       expirationTask = nil
+      await settleKeepAlive()
       // A session too old or too idle for another operation ends here, so
       // the request opens a fresh one instead of meeting an invalidated
       // field mid-command.
@@ -142,19 +119,21 @@
       }
     }
 
-    private func releaseForBackground() {
+    private func releaseForBackground() async {
+      await settleKeepAlive()
       end(hold.appBackgrounded())
       releaseEverything()
     }
 
     /// Ends the hold by its owner's word and releases everything.
-    private func release() {
+    private func release() async {
+      await settleKeepAlive()
       end(hold.closedByOwner())
       releaseEverything()
     }
 
     /// Ends the held card session and the field, whatever the hold said.
-    private func releaseEverything() {
+    internal func releaseEverything() {
       PrimeStore.clearRegistrationField()
       heldChannel?.session.end()
       heldChannel = nil
@@ -169,7 +148,7 @@
     }
 
     /// Records an ending in the trace; the caller releases the resources.
-    private func end(_ verdict: CardSessionHold.Verdict) {
+    internal func end(_ verdict: CardSessionHold.Verdict) {
       guard case .end = verdict else { return }
       OperationPhaseTrace.mark("session-ended")
     }
@@ -177,6 +156,9 @@
     private func obtainSession(message: String) async -> NearFieldCardSession? {
       if let existing = activeSession {
         guard existing.holdsValidCard else {
+          #if DEBUG
+            HolderTrace.say("obtainSession: held slot state \(existing.slotState.traceName)")
+          #endif
           end(hold.cardLeft())
           releaseEverything()
           return await obtainSession(message: message)
@@ -214,11 +196,11 @@
     private func preparedChannel(
       _ session: NearFieldCardSession,
       cardAccessNumber: String
-    ) async -> HeldChannel? {
+    ) async -> RappHeldCardChannel? {
       if let heldChannel, hold.reusesChannel { return heldChannel }
       heldChannel?.session.end()
       heldChannel = nil
-      let prepared: HeldChannel? = await withCheckedContinuation { continuation in
+      let prepared: RappHeldCardChannel? = await withCheckedContinuation { continuation in
         DispatchQueue.global(qos: .userInitiated).async {
           guard let open = try? session.openCardSession() else {
             continuation.resume(returning: nil)
@@ -236,7 +218,7 @@
             return
           }
           OperationPhaseTrace.mark("pace-done")
-          continuation.resume(returning: HeldChannel(session: open, operations: operations))
+          continuation.resume(returning: RappHeldCardChannel(session: open, operations: operations))
         }
       }
       guard let prepared else { return nil }
@@ -276,39 +258,6 @@
         HolderTrace.say("performWithSession: outcome=\(answer)")
       #endif
       return answer
-    }
-
-    /// Keeps or ends the hold after an operation, and arms the idle limit.
-    ///
-    /// No outcome means the channel was never prepared or the operation
-    /// never ran: whatever the hold says, nothing is kept.
-    private func settle(outcome: RappCardExecutor.Outcome?) {
-      guard let outcome else {
-        end(hold.commandFailed())
-        releaseEverything()
-        return
-      }
-      let verdict = hold.operationFinished(
-        answered: Self.cardAnswered(outcome),
-        nowMs: Self.nowMs()
-      )
-      guard case .keep = verdict, activeSession?.holdsValidCard == true else {
-        end(verdict)
-        releaseEverything()
-        return
-      }
-      expirationTask = Task { [weak self] in
-        try? await Task.sleep(for: .seconds(CardSessionHold.idleLimitSeconds))
-        guard !Task.isCancelled else { return }
-        await self?.idleExpired()
-      }
-    }
-
-    private func idleExpired() {
-      let verdict = hold.tick(nowMs: Self.nowMs())
-      guard case .end = verdict else { return }
-      end(verdict)
-      releaseEverything()
     }
   }
 #endif
