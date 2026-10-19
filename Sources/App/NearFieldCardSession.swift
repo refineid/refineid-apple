@@ -271,7 +271,10 @@
       onPromptNeeded: (@Sendable () -> Void)?
     ) async -> (Arrived, Bool) {
       let arrival = Arrival(slot: openedSlot)
-      let observation = openedSlot.observe(\.state, options: [.initial, .new]) { _, _ in
+      let observation = openedSlot.observe(\.state, options: [.initial, .new]) { slot, _ in
+        #if DEBUG
+          HolderTrace.say("waitForCard: slot state \(slot.state.traceName)")
+        #endif
         _ = arrival.take()
       }
       defer { observation.invalidate() }
