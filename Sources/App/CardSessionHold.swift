@@ -37,11 +37,10 @@ internal struct CardSessionHold: Equatable {
 
   /// Seconds a held session survives after its last operation.
   ///
-  /// Long enough for the next request of one login (a renegotiation, a
-  /// second resource, a document after the login), short enough that a
-  /// card left on the phone is released within the system NFC slot's
-  /// own lifetime.
-  internal static let idleLimitSeconds: Int64 = 25
+  /// Long enough for the next request of one login, which follows the
+  /// first within a few seconds; short enough that the sheet the
+  /// session keeps on the screen goes away soon after the last request.
+  internal static let idleLimitSeconds: Int64 = 10
 
   /// Seconds a near-field session may be held from its opening.
   ///
