@@ -11,26 +11,18 @@
       session: NearFieldCardSession
     ) async {
       if case .result = result {
-        if session.wasPrompted {
-          session.update(message: String(localized: "Card read successfully."))
-          await MainActor.run {
-            CardPrimingFeedback.report(succeeded: true)
-          }
-        } else {
-          await MainActor.run {
-            CardPrimingFeedback.stopWorking()
-          }
+        session.update(message: String(localized: "Card read successfully."))
+        await MainActor.run {
+          CardPrimingFeedback.report(succeeded: true)
         }
-      } else if result != nil {
+      } else {
+        // No outcome means the channel was never prepared or the command
+        // never reached the card; the holder sees the same failure.
         session.update(
           message: String(localized: "The card could not be read. Hold it still and try again.")
         )
         await MainActor.run {
           CardPrimingFeedback.report(succeeded: false)
-        }
-      } else {
-        await MainActor.run {
-          CardPrimingFeedback.stopWorking()
         }
       }
     }

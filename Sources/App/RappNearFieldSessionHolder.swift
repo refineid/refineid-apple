@@ -97,11 +97,11 @@
       guard let currentSession = await obtainSession(message: message) else {
         return nil
       }
-      if currentSession.wasPrompted {
-        currentSession.update(message: String(localized: "Card found. Keep holding."))
-        await MainActor.run {
-          CardPrimingFeedback.startWorking()
-        }
+      // The sheet says what is happening whether the card was waited for
+      // or lay there already: the read takes seconds either way.
+      currentSession.update(message: String(localized: "Card found. Keep holding."))
+      await MainActor.run {
+        CardPrimingFeedback.startWorking()
       }
       let result = await performWithSession(
         currentSession,
