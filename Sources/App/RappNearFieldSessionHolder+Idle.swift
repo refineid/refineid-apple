@@ -48,19 +48,24 @@
     /// from taking the slot away, so a request that follows within the
     /// hold reuses the channel.
     private func watchIdle() async {
-      var lastState = activeSession?.slotState.traceName
+      #if DEBUG
+        var lastState = activeSession?.slotState.traceName
+      #endif
       var looks = 0
       while !Task.isCancelled {
         try? await Task.sleep(for: Self.idleWatchInterval)
         guard !Task.isCancelled else { return }
         looks += 1
         if looks.isMultiple(of: Self.keepAliveLooks) {
-          guard await keptAlive() else {
+          let answered = await keptAlive()
+          // A request that arrived meanwhile owns the session now; a
+          // cancelled watch touches nothing.
+          guard !Task.isCancelled else { return }
+          guard answered else {
             end(hold.commandFailed())
             releaseEverything()
             return
           }
-          guard !Task.isCancelled else { return }
         }
         #if DEBUG
           let state = activeSession?.slotState.traceName
@@ -69,7 +74,9 @@
             lastState = state
           }
         #endif
-        guard activeSession?.holdsValidCard == true else {
+        // Only a slot that is gone means the card is: any other state can
+        // be a card that still answers, and the keep-alive tells.
+        guard activeSession?.isMissing != true else {
           end(hold.cardLeft())
           releaseEverything()
           return
@@ -79,6 +86,14 @@
         end(verdict)
         releaseEverything()
         return
+      }
+    }
+
+    /// Waits for a keep-alive command in flight, so that nothing ends the
+    /// session or uses the channel while the card is answering it.
+    internal func settleKeepAlive() async {
+      if let keepAlive {
+        _ = await keepAlive.value
       }
     }
 

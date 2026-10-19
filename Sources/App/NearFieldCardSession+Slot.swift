@@ -35,6 +35,7 @@
       for attempt in 1...Self.busyRetryLimit {
         if attempt > 1 {
           try? await Task.sleep(for: Self.busyRetryInterval)
+          if Task.isCancelled { throw Failure.dismissed }
         }
         switch await createSlot(manager: manager, message: message) {
         case .success(let opened):
@@ -47,8 +48,9 @@
           #if DEBUG
             HolderTrace.say("openSlot: attempt \(attempt) refused: \(error)")
           #endif
-          coolingDown = isCoolingDown(error)
-          guard coolingDown || isBusy(error) else { throw Failure.slotRefused }
+          let pausing = isCoolingDown(error)
+          coolingDown = coolingDown || pausing
+          guard pausing || isBusy(error) else { throw Failure.slotRefused }
         }
       }
       throw coolingDown ? Failure.readerCoolingDown : Failure.antennaBusy
@@ -70,7 +72,7 @@
       }
     }
 
-    /// Whether this refusal is the reader cool-off, which no retry outlasts.
+    /// Whether this refusal is the reader's pause after a session.
     internal static func isCoolingDown(_ error: any Error) -> Bool {
       let failure = error as NSError
       return failure.domain == Self.coolingDownErrorDomain

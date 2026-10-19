@@ -85,9 +85,7 @@
     ) async -> RappCardExecutor.Outcome? {
       expirationTask?.cancel()
       expirationTask = nil
-      if let keepAlive {
-        _ = await keepAlive.value
-      }
+      await settleKeepAlive()
       // A session too old or too idle for another operation ends here, so
       // the request opens a fresh one instead of meeting an invalidated
       // field mid-command.
@@ -121,13 +119,15 @@
       }
     }
 
-    private func releaseForBackground() {
+    private func releaseForBackground() async {
+      await settleKeepAlive()
       end(hold.appBackgrounded())
       releaseEverything()
     }
 
     /// Ends the hold by its owner's word and releases everything.
-    private func release() {
+    private func release() async {
+      await settleKeepAlive()
       end(hold.closedByOwner())
       releaseEverything()
     }
