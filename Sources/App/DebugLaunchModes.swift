@@ -102,7 +102,8 @@
     /// Runs one mode that needs no window.
     internal static func report(for mode: DebugLaunchMode) -> DebugModeReport {
       switch mode {
-      case .activationProbe, .bleOfferRemoteReader, .blePairWithOffer, .bleSpike, .browseProbe,
+      case .activationProbe, .bleOfferRemoteReader, .blePairWithOffer, .bleServeRemoteReader,
+        .bleSpike, .browseProbe,
         .ctkSignProbe, .listenProbe, .managementProbe,
         .offerRemoteReader, .openSafari, .pairWithOffer, .prime, .remoteSignProbe:
         DebugModeReport(

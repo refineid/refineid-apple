@@ -132,13 +132,13 @@ GATT link in CardCore (`RappBleGattPeripheral` for the iPhone custodian,
 `RappBleGattCentral` for the Mac or iPad requester). As the entry above
 records, every application plist declares Bluetooth; nothing in a
 shipped build opens a Bluetooth session. The GATT link is driven only by
-the DEBUG launch modes `--ble-offer-remote-reader` and
-`--ble-pair-with-offer`, and only the Debug and Profile configurations
+the DEBUG launch modes `--ble-offer-remote-reader`,
+`--ble-pair-with-offer`, and `--ble-serve-remote-reader`, which serves
+sessions with the stored pairings through the relay, and only the Debug and Profile configurations
 sign macOS with `Config/RefineID-Debug.entitlements`, which adds the
 `com.apple.security.device.bluetooth` sandbox entitlement.
-`NetworkContractTests` pins both boundaries. Sessions over BLE, the
-pairing screen, and wiring the profile into the product wait for a
-product decision.
+`NetworkContractTests` pins both boundaries. The pairing screen and
+wiring the profile into the product wait for a product decision.
 
 ## 2026-09-30 App Transport Security stays open under a documented contract
 

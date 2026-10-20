@@ -21,6 +21,9 @@
     /// Pair over BLE with a code given in the environment.
     case blePairWithOffer = "--ble-pair-with-offer"
 
+    /// Serve sessions over BLE with the stored pairings until stopped.
+    case bleServeRemoteReader = "--ble-serve-remote-reader"
+
     /// Runs the BLE Peripheral RAPP research spike.
     case bleSpike = "--ble-spike"
 
@@ -155,7 +158,8 @@
         .setPin2, .signDocument, .signProbe, .statusOnDemandPin, .tokenPublishProbe, .trace:
         false
 
-      case .activationProbe, .bleOfferRemoteReader, .blePairWithOffer, .browseProbe,
+      case .activationProbe, .bleOfferRemoteReader, .blePairWithOffer, .bleServeRemoteReader,
+        .browseProbe,
         .ctkSignProbe, .listenProbe, .managementProbe,
         .offerRemoteReader, .openSafari, .pairWithOffer, .prime, .remoteIdentityProbe,
         .remoteSignProbe:
@@ -170,7 +174,8 @@
     /// from the command line at each launch and never committed anywhere.
     internal var takesValue: Bool {
       switch self {
-      case .activationProbe, .bleOfferRemoteReader, .blePairWithOffer, .bleSpike, .browseProbe,
+      case .activationProbe, .bleOfferRemoteReader, .blePairWithOffer, .bleServeRemoteReader,
+        .bleSpike, .browseProbe,
         .ctkSignProbe, .diagnostics,
         .disableOnDemandPin,
         .enableOnDemandPin, .forgetCan, .forgetPin1, .listenProbe, .offerRemoteReader,

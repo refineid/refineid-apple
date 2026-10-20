@@ -36,7 +36,8 @@
     // MARK: Lifecycle
 
     /// Prepares one connection over an established pair; ``start()`` sends
-    /// the first frame.
+    /// the first frame. `transportProfile` names the transport the
+    /// connection runs over, which the Noise prologue binds.
     public init(
       role: RappSessionDriver.Role,
       pair: RappPairRecord,
@@ -44,6 +45,7 @@
       transport: any RappFrameTransport,
       maximumLifetimeMilliseconds: UInt64,
       liveness: RappOperationDriver.Liveness,
+      transportProfile: String = rappStreamProfileName(),
       clock: RappPlatformClock = RappPlatformClock()
     ) throws {
       self.transport = transport
@@ -54,6 +56,7 @@
         role: role,
         pair: pair,
         vault: vault,
+        transportProfile: transportProfile,
         clock: clock
       )
 
