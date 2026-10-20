@@ -296,6 +296,7 @@
       establishCoordinator(
         connectionID: connectionID,
         pair: pair,
+        transportProfile: rappStreamProfileName(),
         transport: transport
       ) { [weak listener] in
         listener?.disconnect()

@@ -4,10 +4,12 @@
 
   import CardCore
   import Foundation
+  import os
   import RappEngine
 
   /// Drives both halves of a pairing over `fi.refineid.rapp.ble.v1`
-  /// (RAPP v26.10.9 §4.2, §5) from the command line.
+  /// (RAPP v26.10.9 §4.2, §5) from the command line, and serves sessions
+  /// over it with the stored pairings.
   ///
   /// The custodian prints the code it shows and serves its offer on the
   /// bootstrap characteristic; the requester takes the code from the
@@ -22,6 +24,15 @@
       case timeout
     }
 
+    #if os(iOS) && REFINEID_LOCAL_CARD
+      /// The routing state a peripheral's admission reads on its own queue.
+      private struct SessionRouting: Sendable {
+        var records: [RappPairRecord] = []
+        let router = RappSessionRouter()
+        var matched: RappPairRecord?
+      }
+    #endif
+
     /// What a script looks for on the line carrying the code.
     internal static let offerPrefix = "ble-offer-remote-reader: offer "
 
@@ -31,6 +42,7 @@
     private static let developmentMinimumRssi = -85
     private static let custodianPrefix = "ble-offer-remote-reader"
     private static let requesterPrefix = "ble-pair-with-offer"
+    private static let servePrefix = "ble-serve-remote-reader"
 
     /// The custodian half: show a code, serve the offer, wait.
     @MainActor
@@ -122,6 +134,93 @@
       }
       return DebugModeReport(lines: [requesterPrefix + ": ended"], succeeded: false)
     }
+
+    #if os(iOS) && REFINEID_LOCAL_CARD
+      /// The custodian serving sessions: admit a session preamble naming a
+      /// stored pairing, run the session through the relay, and advertise
+      /// again after each close, until the process is stopped.
+      @MainActor
+      internal static func serve() async -> DebugModeReport {
+        let relay = PhonePersistentTokenRelay.shared
+        let routing = OSAllocatedUnfairLock(initialState: SessionRouting())
+        while true {
+          let records = PhoneStreamPairContext.resolveAll(vault: relay.vault).map(\.pairRecord)
+          guard !records.isEmpty else {
+            return DebugModeReport(
+              lines: [servePrefix + ": no pairing is stored"], succeeded: false)
+          }
+          routing.withLock { state in
+            state.records = records
+            state.matched = nil
+          }
+          let (events, sink) = AsyncStream.makeStream(of: RappBleGattEvent.self)
+          let link = RappBleGattPeripheral(
+            bootstrapOffer: nil,
+            admits: { purpose in
+              guard case .session(let preamble) = purpose else { return false }
+              return routing.withLock { state in
+                let route = state.router.route(
+                  transportProfile: RappBleGattProfile.name, preamble: preamble,
+                  records: state.records)
+                guard case .session(let index) = route, state.records.indices.contains(index)
+                else { return false }
+                state.matched = state.records[index]
+                return true
+              }
+            },
+            onEvent: { event in sink.yield(event) })
+          DebugConsole.emit(servePrefix + ": advertising")
+          link.start()
+          await serveConnection(
+            link: link, events: events, matched: { routing.withLock { $0.matched } })
+          link.cancel()
+        }
+      }
+
+      /// Runs one admitted connection through the relay until its link closes.
+      @MainActor
+      private static func serveConnection(
+        link: RappBleGattPeripheral,
+        events: AsyncStream<RappBleGattEvent>,
+        matched: () -> RappPairRecord?
+      ) async {
+        let relay = PhonePersistentTokenRelay.shared
+        var connection: UUID?
+        for await event in events {
+          switch event {
+          case .connected:
+            let transport = RappClosureFrameTransport(
+              sender: { frame in try await link.send(frame) }, closer: { link.cancel() })
+            if let pair = matched() {
+              connection = relay.serveRoutedSession(
+                pair: pair, transportProfile: RappBleGattProfile.name, transport: transport
+              ) { link.cancel() }
+            }
+            if connection == nil {
+              DebugConsole.emit(servePrefix + ": refused, another session is open")
+              link.cancel()
+            } else {
+              DebugConsole.emit(servePrefix + ": session routed")
+            }
+
+          case .frame(let frame):
+            if let connection {
+              relay.receiveRoutedFrame(frame, connectionID: connection) { link.cancel() }
+            }
+
+          case .closed(let failure):
+            DebugConsole.emit(servePrefix + ": link closed: \(failure)")
+            if let connection {
+              relay.routedSessionClosed(connectionID: connection)
+            }
+            return
+
+          case .bootstrapOffer:
+            continue
+          }
+        }
+      }
+    #endif
 
     @MainActor
     private static func options(

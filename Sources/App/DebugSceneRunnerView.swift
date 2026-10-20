@@ -72,13 +72,8 @@
       case .browseProbe, .listenProbe, .offerRemoteReader, .pairWithOffer:
         await runPairingMode(mode)
 
-      case .bleOfferRemoteReader:
-        let report = await DebugBlePairing.offer()
-        DebugConsole.emit(report.lines)
-        DebugConsole.finish(succeeded: report.succeeded)
-
-      case .blePairWithOffer:
-        let report = await DebugBlePairing.pair(code: DebugLaunchModes.offerURI())
+      case .bleOfferRemoteReader, .blePairWithOffer, .bleServeRemoteReader:
+        let report = await bleReport(mode)
         DebugConsole.emit(report.lines)
         DebugConsole.finish(succeeded: report.succeeded)
 
@@ -121,6 +116,26 @@
         .tokenPublishProbe, .trace:
         DebugConsole.emit(mode.rawValue + ": runs before the window opens, not here")
         DebugConsole.finish(succeeded: false)
+      }
+    }
+
+    /// Runs one of the BLE modes.
+    private static func bleReport(_ mode: DebugLaunchMode) async -> DebugModeReport {
+      switch mode {
+      case .blePairWithOffer:
+        return await DebugBlePairing.pair(code: DebugLaunchModes.offerURI())
+
+      case .bleServeRemoteReader:
+        #if os(iOS) && REFINEID_LOCAL_CARD
+          return await DebugBlePairing.serve()
+        #else
+          return DebugModeReport(
+            lines: [mode.rawValue + ": serving needs an iPhone with a card reader"],
+            succeeded: false)
+        #endif
+
+      default:
+        return await DebugBlePairing.offer()
       }
     }
 

@@ -193,6 +193,7 @@
       establishCoordinator(
         connectionID: connectionID,
         pair: nil,
+        transportProfile: rappStreamProfileName(),
         transport: transport,
         failTransport: failTransport
       )
@@ -201,6 +202,7 @@
     internal func establishCoordinator(
       connectionID: UUID,
       pair explicitPair: RappPairRecord?,
+      transportProfile: String,
       transport: RappClosureFrameTransport,
       failTransport: () -> Void
     ) {
@@ -221,7 +223,8 @@
           transport: transport,
           maximumLifetimeMilliseconds:
             policy.maximumOperationLifetimeMilliseconds,
-          liveness: policy.liveness
+          liveness: policy.liveness,
+          transportProfile: transportProfile
         )
         let madeDispatcher = RappPhoneProxyDispatcher(
           inbox: RappAuthorizationInbox.shared
@@ -264,6 +267,47 @@
           await coordinator.receive(frame)
         }
       }
+    }
+
+    /// Serves a session the caller's transport routed by its preamble.
+    ///
+    /// Returns the connection's identifier, or nil when another session is
+    /// open or the session cannot start.
+    internal func serveRoutedSession(
+      pair: RappPairRecord,
+      transportProfile: String,
+      transport: RappClosureFrameTransport,
+      failTransport: () -> Void
+    ) -> UUID? {
+      guard coordinator == nil else { return nil }
+      let routedConnectionID = UUID()
+      connectionID = routedConnectionID
+      PairLastUse.markUsed(pairID: pair.metadata().pairId, at: Date())
+      establishCoordinator(
+        connectionID: routedConnectionID, pair: pair, transportProfile: transportProfile,
+        transport: transport, failTransport: failTransport)
+      guard coordinator != nil else {
+        connectionID = nil
+        return nil
+      }
+      return routedConnectionID
+    }
+
+    /// Delivers one frame of a routed session in order, calling `overflow`
+    /// when the peer outruns the bounded chain.
+    internal func receiveRoutedFrame(
+      _ frame: Data, connectionID routedConnectionID: UUID, overflow: () -> Void
+    ) {
+      guard connectionID == routedConnectionID, let coordinator else { return }
+      if !frameDelivery.deliver({ await coordinator.receive(frame) }) {
+        overflow()
+      }
+    }
+
+    /// Ends a routed session whose transport closed.
+    internal func routedSessionClosed(connectionID routedConnectionID: UUID) {
+      guard connectionID == routedConnectionID else { return }
+      handleConnectionClosed()
     }
 
     /// Runs `work` after every delivery enqueued before it, cancelling a
