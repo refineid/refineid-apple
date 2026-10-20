@@ -232,7 +232,9 @@ internal struct NetworkContractTests {
       )
       let ats = try #require(plist["NSAppTransportSecurity"] as? [String: Any])
       #expect(ats["NSAllowsArbitraryLoads"] as? Bool == true)
-      #expect(ats["NSExceptionDomains"] == nil)
+      let exceptions = try #require(ats["NSExceptionDomains"] as? [String: Any])
+      let sectigo = try #require(exceptions["timestamp.sectigo.com"] as? [String: Any])
+      #expect(sectigo["NSExceptionAllowsInsecureHTTPLoads"] as? Bool == true)
       let bluetoothKeys = plist.keys.filter { $0.hasPrefix("NSBluetooth") }
       #expect(bluetoothKeys == ["NSBluetoothAlwaysUsageDescription"])
       let purpose = try #require(plist["NSBluetoothAlwaysUsageDescription"] as? String)
