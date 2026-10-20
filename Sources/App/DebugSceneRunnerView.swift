@@ -37,6 +37,37 @@
     internal let mode: DebugLaunchMode
 
     internal var body: some View {
+      content
+        #if os(macOS)
+          .task {
+            guard mode != .activationProbe, !hasStarted else { return }
+            hasStarted = true
+            await Self.run(mode)
+          }
+        #else
+          .task(id: scenePhase) {
+            guard mode != .activationProbe, scenePhase == .active, !hasStarted else { return }
+            hasStarted = true
+            await Self.run(mode)
+          }
+        #endif
+    }
+
+    /// Serving sessions shows the app itself, whose authorization prompt
+    /// the holder answers; every other mode shows its progress.
+    @ViewBuilder private var content: some View {
+      #if os(iOS) && REFINEID_LOCAL_CARD
+        if mode == .bleServeRemoteReader {
+          ReaderIdentityRootView()
+        } else {
+          progress
+        }
+      #else
+        progress
+      #endif
+    }
+
+    private var progress: some View {
       VStack {
         if mode == .activationProbe, !hasStarted {
           Button("Start read-only activation probe") {
@@ -51,19 +82,6 @@
         Text(verbatim: "RefineID debug: " + mode.rawValue)
       }
       .padding()
-      #if os(macOS)
-        .task {
-          guard mode != .activationProbe, !hasStarted else { return }
-          hasStarted = true
-          await Self.run(mode)
-        }
-      #else
-        .task(id: scenePhase) {
-          guard mode != .activationProbe, scenePhase == .active, !hasStarted else { return }
-          hasStarted = true
-          await Self.run(mode)
-        }
-      #endif
     }
 
     /// Runs the mode and ends the process with its status.
@@ -127,7 +145,9 @@
 
       case .bleServeRemoteReader:
         #if os(iOS) && REFINEID_LOCAL_CARD
-          return await DebugBlePairing.serve()
+          // Serving outlives the view task, which SwiftUI cancels whenever
+          // the scene phase changes, as it does when Control Center opens.
+          return await Task { await DebugBlePairing.serve() }.value
         #else
           return DebugModeReport(
             lines: [mode.rawValue + ": serving needs an iPhone with a card reader"],

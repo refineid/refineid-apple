@@ -304,10 +304,12 @@
       }
     }
 
-    /// Ends a routed session whose transport closed.
+    /// Ends a routed session whose transport closed, withdrawing any
+    /// authorization prompt it left open: nothing can answer it any more.
     internal func routedSessionClosed(connectionID routedConnectionID: UUID) {
       guard connectionID == routedConnectionID else { return }
       handleConnectionClosed()
+      RappAuthorizationInbox.shared.cancelAll()
     }
 
     /// Runs `work` after every delivery enqueued before it, cancelling a
