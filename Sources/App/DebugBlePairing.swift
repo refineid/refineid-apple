@@ -43,6 +43,9 @@
     private static let custodianPrefix = "ble-offer-remote-reader"
     private static let requesterPrefix = "ble-pair-with-offer"
     private static let servePrefix = "ble-serve-remote-reader"
+    /// How long serving waits after a link closes before it advertises
+    /// again, so a radio that is off cannot make it spin.
+    private static let readvertisePause = Duration.seconds(1)
 
     /// The custodian half: show a code, serve the offer, wait.
     @MainActor
@@ -174,6 +177,7 @@
           await serveConnection(
             link: link, events: events, matched: { routing.withLock { $0.matched } })
           link.cancel()
+          try? await Task.sleep(for: readvertisePause)
         }
       }
 

@@ -145,7 +145,9 @@
 
       case .bleServeRemoteReader:
         #if os(iOS) && REFINEID_LOCAL_CARD
-          return await DebugBlePairing.serve()
+          // Serving outlives the view task, which SwiftUI cancels whenever
+          // the scene phase changes, as it does when Control Center opens.
+          return await Task { await DebugBlePairing.serve() }.value
         #else
           return DebugModeReport(
             lines: [mode.rawValue + ": serving needs an iPhone with a card reader"],
