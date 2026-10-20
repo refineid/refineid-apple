@@ -197,7 +197,7 @@
               ) { link.cancel() }
             }
             if connection == nil {
-              DebugConsole.emit(servePrefix + ": refused, another session is open")
+              DebugConsole.emit(servePrefix + ": refused: unmatched, busy, or failed to start")
               link.cancel()
             } else {
               DebugConsole.emit(servePrefix + ": session routed")
