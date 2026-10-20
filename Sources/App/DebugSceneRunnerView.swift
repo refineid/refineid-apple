@@ -56,7 +56,7 @@
     /// Serving sessions shows the app itself, whose authorization prompt
     /// the holder answers; every other mode shows its progress.
     @ViewBuilder private var content: some View {
-      #if os(iOS)
+      #if os(iOS) && REFINEID_LOCAL_CARD
         if mode == .bleServeRemoteReader {
           ReaderIdentityRootView()
         } else {
