@@ -153,12 +153,17 @@ collector refuses the LTA label, so closing ATS would break archival
 signing against real authorities. Enforcement therefore lives in
 `SigningNetwork`: public IPs only (DNS preflight, HTTP pinned to the
 vetted answer), no userinfo, no credentials over cleartext, response
-caps, and a redirect policy. The rationale sits above
-`NSAppTransportSecurity` in each application plist, and
-`NetworkContractTests` pins the traffic-capable API set, the ATS
-shape, and the absence of Bluetooth declarations. Bluetooth radio code
-ships but is unwired and undeclared: no `NSBluetooth*` key may exist
-until remote-card work activates it.
+caps, and a redirect policy.
+
+The timestamp authority host is now also named explicitly in
+`NSExceptionDomains` (`timestamp.sectigo.com`,
+`NSExceptionAllowsInsecureHTTPLoads`) in every application plist, so
+the one fixed HTTP dependency is declared rather than relying solely on
+the global flag. The revocation endpoints remain the unpredictable
+part. `NetworkContractTests` pins the ATS shape (arbitrary loads plus
+the Sectigo exception) and the absence of Bluetooth declarations.
+Bluetooth radio code ships but is unwired and undeclared: no
+`NSBluetooth*` key may exist until remote-card work activates it.
 
 ## 2026-09-27 App Store marketing screenshot design system and top-anchored layout
 

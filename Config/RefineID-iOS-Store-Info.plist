@@ -27,7 +27,7 @@
 	<key>NFCReaderUsageDescription</key>
 	<string>RefineID reads your identity card over NFC for authentication, document signing, and PIN management.</string>
 	<!-- Outbound network contract. ATS stays open because an archival
-	     signature needs two things no domain list can name in advance:
+	     signature needs two things: the timestamp authority (now named below) and revocation endpoints (still unpredictable):
 	     the timestamp authority (http://timestamp.sectigo.com/qualified,
 	     the only TSA while FEATURE_TIMESTAMP_CONFIG is out) and the
 	     revocation endpoints published inside the validated certificates
@@ -38,6 +38,14 @@
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>timestamp.sectigo.com</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>RefineID reads the access number printed on your card so you do not have to type it.</string>
