@@ -26,9 +26,6 @@
     internal static let shared = PhonePersistentTokenRelay()
 
     internal static let maximumPreCoordinatorFrames = 4
-    /// How long the stream transport pauses before re-listening after a
-    /// connection closes.
-    internal static let streamRedialDelayMilliseconds = 100
     internal static let nearbyRedialDelayMilliseconds = 150
 
     /// Whether this phone can answer for a card now: a card in a
@@ -54,6 +51,15 @@
     /// Whether the open session carries no operation, read on the
     /// listener's queue when another dialer arrives.
     nonisolated internal let sessionIsIdle = OSAllocatedUnfairLock(initialState: false)
+    /// When the open session last went idle, or nil while an operation
+    /// is in flight; read on the listener's queue so a different peer may
+    /// displace it only once it has been idle past the hold (R-59).
+    nonisolated internal let sessionIdleSince = OSAllocatedUnfairLock<ContinuousClock.Instant?>(
+      initialState: nil)
+    /// The pairing the open session serves, or nil while none is open;
+    /// a dialer naming this same pairing (the requester's own app and
+    /// token extension) is admitted at once, a different one waits.
+    nonisolated internal let servedPairing = OSAllocatedUnfairLock<Data?>(initialState: nil)
     /// The pairings a dialer may displace an idle session for, read on
     /// the listener's queue with its own replay memory.
     nonisolated internal let replacementRouting = OSAllocatedUnfairLock<
@@ -237,6 +243,7 @@
         coordinator = made
         dispatcher = madeDispatcher
         activePairID = pair.metadata().pairId
+        servedPairing.withLock { $0 = pair.metadata().pairId }
         isActivelyConnected = true
 
         let earlyFrames = preCoordinatorFrames

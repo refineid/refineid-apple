@@ -28,6 +28,16 @@
   /// only this holder can resolve to a pairing. The holder never dials.
   @MainActor
   extension PhonePersistentTokenRelay {
+    /// How long the stream transport pauses before re-listening after a
+    /// connection closes.
+    internal static let streamRedialDelayMilliseconds = 100
+
+    /// How long the open session must have been idle before a dialer on a
+    /// different pairing may displace it (R-59): long enough that f, the
+    /// Mac and Windows stop stealing each other's session between
+    /// operations, short enough that a genuinely free phone hands over.
+    internal static let crossPeerHoldSeconds: Int64 = 5
+
     /// The bookkeeping key of the one session listener; never published.
     internal static let sessionListenerKey = "session"
 
@@ -82,22 +92,34 @@
       } else {
         sessionListening.router = RappSessionRouter()
         replacementRouting.withLock { $0.router = RappSessionRouter() }
-        let idle = sessionIsIdle
         let routing = replacementRouting
+        let currentPairing = servedPairing
+        let idleSince = sessionIdleSince
+        let holdSeconds = Self.crossPeerHoldSeconds
         let profile = rappStreamProfileName()
         let listener = StreamRelayListener(
           admitsReplacement: { preamble in
-            // Only a session preamble naming a served pairing displaces
-            // an idle session (RAPP v26.10.18 §2.2.1, §8.4); a stranger
-            // or a pairing attempt displaces nothing.
-            guard idle.withLock({ $0 }) else { return false }
+            // Only a session preamble naming a served pairing displaces a
+            // session (RAPP §2.2.1, §8.4); a stranger or a pairing attempt
+            // displaces nothing.
             let (served, router) = routing.withLock { $0 }
-            if case .session = router.route(
-              transportProfile: profile, preamble: preamble, records: served)
-            {
+            guard
+              case .session(let index) = router.route(
+                transportProfile: profile, preamble: preamble, records: served),
+              served.indices.contains(index)
+            else { return false }
+            let incoming = served[index].metadata().pairId
+            // The requester's own app and token extension share one
+            // pairing; hand the session between them at once so a
+            // signature never waits on the identity session (R-59).
+            if let current = currentPairing.withLock({ $0 }), current == incoming {
               return true
             }
-            return false
+            // A different requester waits until the holder has been idle
+            // past the hold, so f, the Mac and Windows stop stealing each
+            // other's session between operations.
+            guard let since = idleSince.withLock({ $0 }) else { return false }
+            return ContinuousClock.now - since >= .seconds(holdSeconds)
           },
           onEvent: { [weak self] event in
             Task { @MainActor in

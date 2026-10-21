@@ -21,6 +21,13 @@
     /// session is open.
     private static let redialDelaySeconds = 2
 
+    /// How long the redial loop may run without a usable session.
+    ///
+    /// Past this it stops and leaves a terminal state (R-58). Two minutes
+    /// tolerates a slow network; a fresh advertisement or a user action
+    /// restarts it.
+    private static let abortLoopSeconds = 120
+
     private static var sessionLossGrace: Duration { .seconds(sessionLossGraceSeconds) }
 
     private static var redialDelay: Duration { .seconds(redialDelaySeconds) }
@@ -91,6 +98,9 @@
       case .cardStatus(let present):
         holderCardPresent = present
         if present {
+          // A usable session: the redial loop succeeded, so its deadline
+          // starts over for any later loss.
+          continuousFailureSince = nil
           sessionLossTask?.cancel()
           sessionLossTask = nil
           offerIdentity()
@@ -179,9 +189,23 @@
       }
     }
 
-    /// Dials again after ``redialDelay``.
+    /// Dials again after ``redialDelay``, until the loop has run for
+    /// ``abortLoopSeconds`` without ever reaching a usable session.
     private func scheduleRedial() {
       redialTask?.cancel()
+      let now = ContinuousClock.now
+      let since = continuousFailureSince ?? now
+      continuousFailureSince = since
+      guard now - since < .seconds(Self.abortLoopSeconds) else {
+        // The loop has not produced a usable session within the deadline.
+        // Stop dialing and leave a terminal state instead of looping; a
+        // fresh advertisement (holderIsAdvertising) or a user action
+        // starts a new attempt.
+        continuousFailureSince = nil
+        redialTask = nil
+        Self.withdrawPublishedIdentity()
+        return
+      }
       redialTask = Task { @MainActor in
         try? await Task.sleep(for: Self.redialDelay)
         guard !Task.isCancelled else { return }
