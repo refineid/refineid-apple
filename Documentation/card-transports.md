@@ -216,3 +216,45 @@ Safari renders the signed X.509 subject in that sheet, not the CTK item's
 duplicate rows. This is intentional: altering the signed certificate
 would make it unusable, while cards issued to different people already
 carry distinguishable subjects.
+
+## The reader token lifecycle, and why the screen trusts the slot
+
+CryptoTokenKit asks the token extension to mint a reader card's token
+once per physical insertion -- the slot transitions empty to valid, and
+`ctkd` invokes `createToken`. It does not invoke it again for a card that
+was already in the reader when the extension loads, which is what happens
+when the app is reinstalled or updated over a card left in the slot. The
+slot then reports a valid card the whole time, yet no RefineID token is
+ever published for it, and no session activity from the app re-triggers
+the mint. On the next real insertion the card mints normally again.
+
+Two rules follow from this, and from the card interfaces above.
+
+- **The slot is the source of truth that a card is present; a published
+  token is not.** The reader identity screen shows a card when the slot
+  reports one, token or no token. When a token exists it names the holder
+  from what the token published. When none does -- the reload case above
+  -- the holder name is read straight off the card: a contact reader
+  reaches it with no PACE and no CAN, so the read costs a SELECT and one
+  certificate read. The read waits out the system's own minting window
+  first and takes the token if it arrives, so it never contends with a
+  mint in progress. Treating "no token" as "no card" is the same mistake
+  as treating a card that could not be read as a card that is absent; the
+  screen must distinguish present-but-unreadable-yet from absent.
+
+- **RAPP is a consumer of the reader card, never a competitor for it.**
+  The remote-serving holder may open the card to prepare it for a waiting
+  requester, but only after the card's token has published. Opening the
+  card while `ctkd` is still minting takes the card from under the mint,
+  the mint's first command goes unanswered, and -- because the mint is
+  one-shot -- the card is left with no token until it is physically
+  reinserted. Whether a computer is connected, over BLE or the stream
+  transport, therefore has no bearing on whether the phone sees its own
+  reader card. A reader with a card always takes priority over a RAPP
+  connection; it never wipes one, because serving that reader card to the
+  computer is a valid case in itself.
+
+An exchange that ends with neither a reply nor an error -- the card's
+session no longer reaching it -- is named `exchangeUnanswered`, distinct
+from a malformed reply, and the extension retries it once like any lost
+link rather than failing the whole insertion on a transient drop.
