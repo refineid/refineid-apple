@@ -98,6 +98,11 @@
           self?.start()
         }
       }
+      ReaderTokenPublication.shared.onPublished {
+        Task { @MainActor in
+          Self.shared.prepareReaderCard()
+        }
+      }
     }
 
     // MARK: Functions

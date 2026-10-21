@@ -131,7 +131,8 @@
 
     /// Opens the reader card and selects the application ahead of a
     /// request, behind any operation under way; nothing happens when a
-    /// session is held or no reader card is attached.
+    /// session is held, no reader card is attached, or its token is not
+    /// yet published.
     internal func prepare() async {
       await chain.run {
         await self.runPrepare()
@@ -172,8 +173,10 @@
       }
     }
 
+    /// Opens nothing before the card's token is published; its
+    /// publication prepares the card instead.
     private func runPrepare() async {
-      guard heldChannel == nil else { return }
+      guard heldChannel == nil, ReaderTokenPublication.shared.isPublished else { return }
       guard case .opened(let held) = await Self.open(cardAccessNumber: nil) else { return }
       adopt(held)
       armIdleLimit()
@@ -200,6 +203,7 @@
         held = current
       } else {
         end(hold.closedByOwner())
+        await ReaderTokenPublication.shared.awaitPublication()
         switch await Self.open(cardAccessNumber: cardAccessNumber) {
         case .opened(let opened):
           adopt(opened)

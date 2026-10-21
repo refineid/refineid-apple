@@ -28,7 +28,7 @@
 
     /// Opens the reader card's session and selects the application ahead
     /// of the first request, while a requester is connected.
-    private func prepareReaderCard() {
+    internal func prepareReaderCard() {
       guard coordinator != nil, CardPresence.shared.isReaderCardPresent else { return }
       Task { await RappReaderSessionHolder.shared.prepare() }
     }

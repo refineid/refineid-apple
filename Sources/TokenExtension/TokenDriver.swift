@@ -74,8 +74,8 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
   /// died on the link rather than on the card's answer.
   ///
   /// A refused command is the card speaking and is reported as itself.
-  /// A session that could not be opened, or a link that dropped part
-  /// way, is not: the system asks for a token exactly once per
+  /// A session that could not be opened, an exchange left unanswered, or
+  /// a link that dropped part way, is not: the system asks for a token exactly once per
   /// insertion, so a lost attempt leaves no identity published and the
   /// holder with a card that does nothing until they pull it out and
   /// push it back in. One short retry turns that into a slower mint.
@@ -118,6 +118,7 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
   /// Whether a failure is the link rather than the card's answer.
   private static func isTransport(_ failure: any Error) -> Bool {
     if case CardOperationError.sessionUnavailable = failure { return true }
+    if case CardOperationError.exchangeUnanswered = failure { return true }
     let error = failure as NSError
     guard error.domain == TKErrorDomain else { return false }
     return error.code == TKError.Code.communicationError.rawValue

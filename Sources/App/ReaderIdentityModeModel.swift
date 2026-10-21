@@ -3,6 +3,7 @@
 #if os(iOS)
 
   import CardCore
+  import Combine
   import CryptoTokenKit
   import SwiftUI
 
@@ -13,6 +14,9 @@
   @MainActor
   internal final class ReaderIdentityModeModel: ObservableObject {
     // MARK: Static Computed Properties
+
+    /// The read key a reader card carries while it has no token.
+    private static let slotReadKey = "slot"
 
     /// Whether the platform is presenting a contact reader slot at all.
     ///
@@ -51,6 +55,13 @@
     /// Monotonically increasing revision of the reader tokens.
     @Published internal private(set) var generation = 0
 
+    /// Whether the reader slot holds a card the system reports ready,
+    /// read from the slot itself rather than inferred from a token.
+    @Published internal private(set) var readerCardIsReady = false
+
+    /// The slot observation, alive for the model's lifetime.
+    private var readinessObservation: AnyCancellable?
+
     /// Watches physical token publication and removal.
     private let watcher = TKTokenWatcher()
 
@@ -87,13 +98,16 @@
       if DemoMode.shared.isActive {
         return DemoMode.shared.isReaderCardPresent
       }
-      return !liveReaderTokenIdentifiers.isEmpty
+      return !liveReaderTokenIdentifiers.isEmpty || readerCardIsReady
     }
 
     /// Changes whenever the identities rendered by the shared reader view change.
     internal var holderReadKey: [String] {
       if DemoMode.shared.isActive {
         return isActive ? [DemoMode.shared.holderName] : []
+      }
+      if liveReaderTokenIdentifiers.isEmpty {
+        return readerCardIsReady ? [Self.slotReadKey + ":\(generation)"] : []
       }
       return liveReaderTokenIdentifiers.map { "\($0):\(generation)" }
     }
@@ -103,6 +117,12 @@
     internal init() {
       if !DemoMode.shared.isActive {
         watcher.setInsertionHandler(Self.insertionHandler(for: self))
+        readerCardIsReady = CardPresence.shared.isReaderCardReady
+        readinessObservation = CardPresence.shared.$isReaderCardReady
+          .receive(on: DispatchQueue.main)
+          .sink { [weak self] ready in
+            self?.readerCardReadinessChanged(ready)
+          }
       }
     }
 
@@ -137,19 +157,85 @@
       }
     }
 
-    // MARK: Functions
-
-    /// Returns holder names without exposing the backend to the view.
-    internal func holderNames() async -> [String] {
-      if DemoMode.shared.isActive {
-        return isActive ? [DemoMode.shared.holderName] : []
-      }
-      let identifiers = liveReaderTokenIdentifiers
-      return await Task.detached(priority: .utility) {
+    /// The names the published tokens carry.
+    nonisolated private static func publishedNames(_ identifiers: [String]) async -> [String] {
+      await Task.detached(priority: .utility) {
         identifiers.compactMap { identifier in
           PublishedIdentityName.name(ofTokenIdentifier: identifier)
         }
       }.value
+    }
+
+    #if REFINEID_LOCAL_CARD
+      /// The holder's name read straight off the card in a reader, for a
+      /// card the system has published no token for.
+      ///
+      /// A contact reader reaches the card without PACE, so no card access
+      /// number is needed. Only reader slots are tried: the contactless
+      /// face of a dual-interface reader would need one. The session is
+      /// held for the read alone.
+      nonisolated private static func holderNameFromReader() async -> String? {
+        guard let manager = TKSmartCardSlotManager.default else { return nil }
+        let cards = await CardSlotSearch.allOccupied(in: manager)
+          .filter { CardTransport.transport(forSlotNamed: $0.name) == .reader }
+          .compactMap { $0.slot.makeSmartCard().map(CardMaintenance.UncheckedCard.init) }
+        guard !cards.isEmpty else { return nil }
+        return await withCheckedContinuation { continuation in
+          DispatchQueue.global(qos: .userInitiated).async {
+            for card in cards {
+              if let name = Self.holderName(on: card) {
+                continuation.resume(returning: name)
+                return
+              }
+            }
+            continuation.resume(returning: nil)
+          }
+        }
+      }
+
+      /// One card's holder name, or nil when it could not be read.
+      nonisolated private static func holderName(on card: CardMaintenance.UncheckedCard) -> String?
+      {
+        let read: String?? = try? SmartCardChannel(card.card).withSession { channel in
+          let operations = CardOperations(channel: channel)
+          try operations.selectFineidApplication()
+          return DistinguishedName.holderLine(
+            fromCertificate: try operations.readCertificate(.authentication))
+        }
+        return read.flatMap(\.self)
+      }
+    #endif
+
+    // MARK: Functions
+
+    /// Returns holder names without exposing the backend to the view.
+    ///
+    /// A published token names the holder from what it published. A
+    /// reader card without one is read directly: the slot is the fact
+    /// that a card is there, and a token is only the shortcut to it.
+    internal func holderNames() async -> [String] {
+      if DemoMode.shared.isActive {
+        return isActive ? [DemoMode.shared.holderName] : []
+      }
+      if !liveReaderTokenIdentifiers.isEmpty {
+        return await Self.publishedNames(liveReaderTokenIdentifiers)
+      }
+      guard readerCardIsReady else { return [] }
+      #if REFINEID_LOCAL_CARD
+        // The system may still be minting the card's token; a read now
+        // would take the card from under it. Wait that out, and use the
+        // token if it arrived. The watcher is read directly: `refresh`
+        // moves the read key, which would start this read over.
+        await ReaderTokenPublication.shared.awaitPublication()
+        guard !Task.isCancelled, readerCardIsReady else { return [] }
+        let published = watcher.tokenIDs.filter(CardTokenNamespace.owns(tokenIdentifier:)).sorted()
+        if !published.isEmpty {
+          return await Self.publishedNames(published)
+        }
+        return await Self.holderNameFromReader().map { [$0] } ?? []
+      #else
+        return []
+      #endif
     }
 
     /// Lists live reader tokens when a reader slot is present.
@@ -208,6 +294,19 @@
     private func tokenWasRemoved(_ tokenIdentifier: String) {
       removalHandlers.remove(tokenIdentifier)
       refresh()
+    }
+
+    /// The slot's word on the reader card changed.
+    private func readerCardReadinessChanged(_ ready: Bool) {
+      guard ready != readerCardIsReady else { return }
+      readerCardIsReady = ready
+      generation &+= 1
+      if !ready, liveReaderTokenIdentifiers.isEmpty {
+        retryHealth.clear()
+        #if REFINEID_LOCAL_CARD
+          ReaderPin1Cache.shared.clear()
+        #endif
+      }
     }
   }
 

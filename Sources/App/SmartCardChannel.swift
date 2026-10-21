@@ -199,7 +199,7 @@ internal struct SmartCardChannel: CardChannel {
       if let callbackError = transportError.value {
         throw callbackError
       }
-      throw CardOperationError.malformedResponse
+      throw CardOperationError.exchangeUnanswered
     }
     return response
   }

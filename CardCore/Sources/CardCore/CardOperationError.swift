@@ -22,6 +22,10 @@ public enum CardOperationError: Error, Equatable, Sendable {
   /// outside the modelled outcomes.
   case credentialUpdateFailed(StatusWord)
 
+  /// An exchange ended with neither a reply nor an error: the session no
+  /// longer reaches the card.
+  case exchangeUnanswered
+
   /// A response was shorter than a status word or beyond the
   /// short-form bound.
   case malformedResponse
