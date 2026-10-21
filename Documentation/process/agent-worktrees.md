@@ -12,16 +12,16 @@ colliding and keeps the main checkout pristine for integration.
 
 ## Topology and naming
 
-- The main checkout is never edited directly. It integrates and releases.
-- Each task gets a worktree under ~/src/wt, never loose beside repositories or under /tmp:
-  `~/src/wt/refineid-apple-<topic>` on branch `agent/<topic>`.
+- Reading does not require a worktree; writing does. The main checkout is never edited directly. It integrates and releases.
+- Each task gets a worktree under ../wt, never loose beside repositories or under /tmp:
+  `../wt/refineid-apple-<topic>` on branch `agent/<topic>`.
 - One branch carries one pull request. Never stack unrelated work onto a
   branch that already has an open pull request.
 
 ## Starting a task
 
 1. Update local main: `git checkout main && git pull --ff-only`.
-2. Create the worktree: `git worktree add ~/src/wt/refineid-apple-<topic> -b agent/<topic>`.
+2. Create the worktree: `git worktree add ../wt/refineid-apple-<topic> -b agent/<topic>`.
 3. Activate the quality gate hooks in the worktree: `git config core.hooksPath Scripts/githooks`.
 4. Never copy distribution or release signing credentials: worktrees build debug only;
    store and TestFlight distribution stays in the main checkout via

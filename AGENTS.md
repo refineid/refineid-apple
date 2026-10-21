@@ -57,9 +57,16 @@
 - Commit often when compiles and lint is clean. Push when feature is ready.
   Subject and body only: no AI attribution, co-author, sign-off, or review
   trailers.
-- One task, one worktree (`~/src/wt/refineid-apple-<topic>`) on one
-  `agent/<topic>` branch, one pull request per branch. All agent worktrees
-  MUST live strictly under `~/src/wt/`, never loose beside repositories or under `/tmp/`.
+- Reading does not require a worktree; writing does. The main checkout is
+  never edited directly. Before writing code or modifying files for any task,
+  create a dedicated git worktree strictly under `../wt/`
+  (`../wt/refineid-apple-<topic>`) on an `agent/<topic>` branch. Never
+  work directly on `main` or modify files in the main checkout.
+- All agent worktrees MUST live strictly under `../wt/`, never loose beside
+  repositories or under `/tmp/`.
+- Never put a git worktree under `/tmp`. It is cleared on reboot and takes the
+  branch's only checkout with it.
+- One task, one worktree, one branch (`agent/<topic>`), one pull request per branch.
   Run `Scripts/agent-housekeeping.sh` when starting and keep the house clean.
   Merge the pull request after mandatory local verification and any distinct
   required remote checks pass, then remove the worktree and branch
