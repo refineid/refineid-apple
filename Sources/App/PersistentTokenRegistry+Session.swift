@@ -21,6 +21,15 @@
     /// session is open.
     private static let redialDelaySeconds = 2
 
+    /// How long the redial loop may run without a usable session.
+    ///
+    /// Past this it stops and leaves a terminal state (R-58). It sits
+    /// above the loss grace (``sessionLossGraceSeconds``) and the longest
+    /// interactive operation, so a legitimate long operation during which
+    /// the phone refuses a second session is not mistaken for a dead
+    /// loop. A fresh advertisement or a user action restarts it.
+    private static let abortLoopSeconds = 150
+
     private static var sessionLossGrace: Duration { .seconds(sessionLossGraceSeconds) }
 
     private static var redialDelay: Duration { .seconds(redialDelaySeconds) }
@@ -89,6 +98,10 @@
         break
 
       case .cardStatus(let present):
+        // Any card status means the session established and reached the
+        // custodian's first word (RAPP §8.4): the redial loop succeeded,
+        // so its deadline starts over for any later loss (R-58).
+        continuousFailureSince = nil
         holderCardPresent = present
         if present {
           sessionLossTask?.cancel()
@@ -179,9 +192,23 @@
       }
     }
 
-    /// Dials again after ``redialDelay``.
+    /// Dials again after ``redialDelay``, until the loop has run for
+    /// ``abortLoopSeconds`` without ever reaching a usable session.
     private func scheduleRedial() {
       redialTask?.cancel()
+      let now = ContinuousClock.now
+      let since = continuousFailureSince ?? now
+      continuousFailureSince = since
+      guard now - since < .seconds(Self.abortLoopSeconds) else {
+        // The loop has not produced a usable session within the deadline.
+        // Stop dialing and leave a terminal state instead of looping; a
+        // fresh advertisement (holderIsAdvertising) or a user action
+        // starts a new attempt.
+        continuousFailureSince = nil
+        redialTask = nil
+        Self.withdrawPublishedIdentity()
+        return
+      }
       redialTask = Task { @MainActor in
         try? await Task.sleep(for: Self.redialDelay)
         guard !Task.isCancelled else { return }

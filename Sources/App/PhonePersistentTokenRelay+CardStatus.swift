@@ -53,7 +53,7 @@
         // answer (RAPP v26.10.18 §8.4); the requester offers nothing
         // before it.
         operationsInFlight.removeAll()
-        sessionIsIdle.withLock { $0 = true }
+        sessionServing.withLock { $0.idleSince = .now }
         reportCardStatus()
         prepareReaderCard()
 
@@ -62,7 +62,7 @@
         .executeSafeRead(let operationID, _),
         .executeCardCommand(let operationID, _):
         operationsInFlight.insert(operationID)
-        sessionIsIdle.withLock { $0 = false }
+        sessionServing.withLock { $0.idleSince = nil }
 
       case .completed(let operationID, _):
         operationEnded(operationID)
@@ -71,9 +71,15 @@
       case .terminal(let operationID?, _, let reason):
         operationEnded(operationID)
         if reason == .cardRemovedBeforeTransmit || reason == .cardCompletionAmbiguous {
-          // The card did not answer: the custodian's own evidence that it
-          // cannot serve right now, until the holder couples it again.
-          apply(cardReport.operationEndedUnattended())
+          // An operation ending without the card answering means the card
+          // cannot serve only when the card is truly gone. A reader card
+          // still in its slot is present though one exchange glitched;
+          // reporting it absent is what blanked the requester's identity
+          // mid-signature. The near-field card leaves after each tap and
+          // keeps the original meaning.
+          if !CardPresence.shared.isReaderCardPresent {
+            apply(cardReport.operationEndedUnattended())
+          }
         }
 
       case .operationFinished(let operationID?),
@@ -82,7 +88,8 @@
 
       case .closed:
         operationsInFlight.removeAll()
-        sessionIsIdle.withLock { $0 = false }
+        sessionServing.withLock { $0 = (nil, nil) }
+
         Task {
           await RappReaderSessionHolder.shared.close()
           await RappNearFieldSessionHolder.shared.closeSession()
@@ -97,7 +104,7 @@
     internal func operationEnded(_ operationID: Data) {
       operationsInFlight.remove(operationID)
       let idle = operationsInFlight.isEmpty
-      sessionIsIdle.withLock { $0 = idle }
+      sessionServing.withLock { $0.idleSince = idle ? .now : nil }
     }
   }
 #endif

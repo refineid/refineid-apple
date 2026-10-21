@@ -250,6 +250,13 @@
         return
       }
       if present {
+        // A newly seen advertisement is a fresh reason to dial: give the
+        // redial loop a new deadline (R-58). Only on the transition, so a
+        // phone that keeps advertising while the session cannot establish
+        // does not reset the deadline forever.
+        if !holderIsAdvertising {
+          continuousFailureSince = nil
+        }
         advertisementLossTask?.cancel()
         advertisementLossTask = nil
         holderIsAdvertising = true

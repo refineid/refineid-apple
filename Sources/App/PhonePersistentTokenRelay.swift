@@ -26,9 +26,6 @@
     internal static let shared = PhonePersistentTokenRelay()
 
     internal static let maximumPreCoordinatorFrames = 4
-    /// How long the stream transport pauses before re-listening after a
-    /// connection closes.
-    internal static let streamRedialDelayMilliseconds = 100
     internal static let nearbyRedialDelayMilliseconds = 150
 
     /// Whether this phone can answer for a card now: a card in a
@@ -51,9 +48,17 @@
     #endif
     internal var coordinator: RappConnectionCoordinator?
     internal var dispatcher: RappPhoneProxyDispatcher?
-    /// Whether the open session carries no operation, read on the
-    /// listener's queue when another dialer arrives.
-    nonisolated internal let sessionIsIdle = OSAllocatedUnfairLock(initialState: false)
+    /// The pairing the open session serves and when it last went idle,
+    /// as one value so the listener's queue reads a consistent snapshot.
+    ///
+    /// `idleSince` is nil while an operation is in flight (never
+    /// displace a busy session) and while a handshake is still coming
+    /// up; `pairing` names the requester so its own app and token
+    /// extension hand the session over at once, a different one waits
+    /// out the hold (R-59).
+    nonisolated internal let sessionServing = OSAllocatedUnfairLock<
+      (pairing: Data?, idleSince: ContinuousClock.Instant?)
+    >(initialState: (nil, nil))
     /// The pairings a dialer may displace an idle session for, read on
     /// the listener's queue with its own replay memory.
     nonisolated internal let replacementRouting = OSAllocatedUnfairLock<
@@ -237,6 +242,7 @@
         coordinator = made
         dispatcher = madeDispatcher
         activePairID = pair.metadata().pairId
+        sessionServing.withLock { $0 = (pair.metadata().pairId, nil) }
         isActivelyConnected = true
 
         let earlyFrames = preCoordinatorFrames

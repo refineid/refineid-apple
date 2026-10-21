@@ -97,6 +97,13 @@
     internal private(set) var isRunning = false
     internal var fetchBackoff = CertificateFetchBackoff()
 
+    /// When the current unbroken run of failed (re)dials began.
+    ///
+    /// Nil when the last attempt produced a usable session. Bounds the
+    /// redial loop (R-58): past the deadline it stops rather than dialing
+    /// forever.
+    internal var continuousFailureSince: ContinuousClock.Instant?
+
     /// Whether the presence browser reports the holder on the network now.
     ///
     /// Only the browser sets it; its loss ends the session and withdraws
@@ -204,6 +211,7 @@
       // behind it; the phone's own word brings it back.
       Self.withdrawPublishedIdentity()
       fetchBackoff.reset()
+      continuousFailureSince = nil
       #if REFINEID_STREAM_TRANSPORT
         installPairingObservers()
         startWatchingPresence()
@@ -225,6 +233,7 @@
         return
       }
       fetchBackoff.reset()
+      continuousFailureSince = nil
       #if REFINEID_STREAM_TRANSPORT
         closeHolderSession()
         restartWatchingPresence()

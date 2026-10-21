@@ -64,6 +64,7 @@
       preCoordinatorFrames.removeAll(keepingCapacity: false)
       frameDelivery.reset()
       isActivelyConnected = false
+      sessionServing.withLock { $0 = (nil, nil) }
     }
 
     /// Cleans up the active coordinator and connection state while keeping the
@@ -77,6 +78,7 @@
       preCoordinatorFrames.removeAll(keepingCapacity: false)
       frameDelivery.reset()
       isActivelyConnected = false
+      sessionServing.withLock { $0 = (nil, nil) }
       Task { await closingCoordinator?.transportClosed() }
       if !hasUsablePair() {
         tearDownTransport()
@@ -105,6 +107,7 @@
       connectionID = nil
       preCoordinatorFrames.removeAll(keepingCapacity: false)
       isActivelyConnected = false
+      sessionServing.withLock { $0 = (nil, nil) }
       Task { await closingCoordinator?.transportClosed() }
       Task { @MainActor in
         if redialDelayMilliseconds > 0 {
