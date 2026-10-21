@@ -144,7 +144,10 @@ public final class RappDeviceVault: @unchecked Sendable {
     guard !record.isEmpty else { throw Failure.malformed }
     let marker = try pairMarker(state: .active, revokedAtMilliseconds: nil)
     var item = itemQuery(service: namespace.pair, account: pairID.hexadecimal)
-    item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+    // After first unlock, as the device identity these records pair with:
+    // a launch that follows a boot but not an interactive unlock must read
+    // the pairings, not take their locked unreadability for their absence.
+    item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
     item[kSecAttrGeneric as String] = marker
     item[kSecValueData as String] = record
     inMemoryStore[namespace.pair, default: [:]][pairID.hexadecimal] = item
