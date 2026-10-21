@@ -244,7 +244,7 @@ extension RappDeviceVault {
     }
 
     var item = query
-    item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+    item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
     for (key, value) in attributes {
       item[key] = value
     }
