@@ -23,10 +23,12 @@
 
     /// How long the redial loop may run without a usable session.
     ///
-    /// Past this it stops and leaves a terminal state (R-58). Two minutes
-    /// tolerates a slow network; a fresh advertisement or a user action
-    /// restarts it.
-    private static let abortLoopSeconds = 120
+    /// Past this it stops and leaves a terminal state (R-58). It sits
+    /// above the loss grace (``sessionLossGraceSeconds``) and the longest
+    /// interactive operation, so a legitimate long operation during which
+    /// the phone refuses a second session is not mistaken for a dead
+    /// loop. A fresh advertisement or a user action restarts it.
+    private static let abortLoopSeconds = 150
 
     private static var sessionLossGrace: Duration { .seconds(sessionLossGraceSeconds) }
 
@@ -96,11 +98,12 @@
         break
 
       case .cardStatus(let present):
+        // Any card status means the session established and reached the
+        // custodian's first word (RAPP §8.4): the redial loop succeeded,
+        // so its deadline starts over for any later loss (R-58).
+        continuousFailureSince = nil
         holderCardPresent = present
         if present {
-          // A usable session: the redial loop succeeded, so its deadline
-          // starts over for any later loss.
-          continuousFailureSince = nil
           sessionLossTask?.cancel()
           sessionLossTask = nil
           offerIdentity()

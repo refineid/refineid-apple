@@ -48,18 +48,17 @@
     #endif
     internal var coordinator: RappConnectionCoordinator?
     internal var dispatcher: RappPhoneProxyDispatcher?
-    /// Whether the open session carries no operation, read on the
-    /// listener's queue when another dialer arrives.
-    nonisolated internal let sessionIsIdle = OSAllocatedUnfairLock(initialState: false)
-    /// When the open session last went idle, or nil while an operation
-    /// is in flight; read on the listener's queue so a different peer may
-    /// displace it only once it has been idle past the hold (R-59).
-    nonisolated internal let sessionIdleSince = OSAllocatedUnfairLock<ContinuousClock.Instant?>(
-      initialState: nil)
-    /// The pairing the open session serves, or nil while none is open;
-    /// a dialer naming this same pairing (the requester's own app and
-    /// token extension) is admitted at once, a different one waits.
-    nonisolated internal let servedPairing = OSAllocatedUnfairLock<Data?>(initialState: nil)
+    /// The pairing the open session serves and when it last went idle,
+    /// as one value so the listener's queue reads a consistent snapshot.
+    ///
+    /// `idleSince` is nil while an operation is in flight (never
+    /// displace a busy session) and while a handshake is still coming
+    /// up; `pairing` names the requester so its own app and token
+    /// extension hand the session over at once, a different one waits
+    /// out the hold (R-59).
+    nonisolated internal let sessionServing = OSAllocatedUnfairLock<
+      (pairing: Data?, idleSince: ContinuousClock.Instant?)
+    >(initialState: (nil, nil))
     /// The pairings a dialer may displace an idle session for, read on
     /// the listener's queue with its own replay memory.
     nonisolated internal let replacementRouting = OSAllocatedUnfairLock<
@@ -243,7 +242,7 @@
         coordinator = made
         dispatcher = madeDispatcher
         activePairID = pair.metadata().pairId
-        servedPairing.withLock { $0 = pair.metadata().pairId }
+        sessionServing.withLock { $0 = (pair.metadata().pairId, nil) }
         isActivelyConnected = true
 
         let earlyFrames = preCoordinatorFrames

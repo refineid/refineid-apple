@@ -93,8 +93,7 @@
         sessionListening.router = RappSessionRouter()
         replacementRouting.withLock { $0.router = RappSessionRouter() }
         let routing = replacementRouting
-        let currentPairing = servedPairing
-        let idleSince = sessionIdleSince
+        let serving = sessionServing
         let holdSeconds = Self.crossPeerHoldSeconds
         let profile = rappStreamProfileName()
         let listener = StreamRelayListener(
@@ -109,16 +108,18 @@
               served.indices.contains(index)
             else { return false }
             let incoming = served[index].metadata().pairId
+            let (pairing, idleSince) = serving.withLock { $0 }
+            // An operation in flight, or a handshake still coming up,
+            // protects the session whoever dials: a busy session is never
+            // displaced, so a signature is never cut short.
+            guard let since = idleSince else { return false }
             // The requester's own app and token extension share one
-            // pairing; hand the session between them at once so a
-            // signature never waits on the identity session (R-59).
-            if let current = currentPairing.withLock({ $0 }), current == incoming {
-              return true
-            }
+            // pairing; between them, hand over as soon as the session is
+            // idle, with no cross-peer hold (R-59).
+            if pairing == incoming { return true }
             // A different requester waits until the holder has been idle
             // past the hold, so f, the Mac and Windows stop stealing each
             // other's session between operations.
-            guard let since = idleSince.withLock({ $0 }) else { return false }
             return ContinuousClock.now - since >= .seconds(holdSeconds)
           },
           onEvent: { [weak self] event in

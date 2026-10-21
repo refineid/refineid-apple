@@ -53,8 +53,7 @@
         // answer (RAPP v26.10.18 §8.4); the requester offers nothing
         // before it.
         operationsInFlight.removeAll()
-        sessionIsIdle.withLock { $0 = true }
-        sessionIdleSince.withLock { $0 = .now }
+        sessionServing.withLock { $0.idleSince = .now }
         reportCardStatus()
         prepareReaderCard()
 
@@ -63,8 +62,7 @@
         .executeSafeRead(let operationID, _),
         .executeCardCommand(let operationID, _):
         operationsInFlight.insert(operationID)
-        sessionIsIdle.withLock { $0 = false }
-        sessionIdleSince.withLock { $0 = nil }
+        sessionServing.withLock { $0.idleSince = nil }
 
       case .completed(let operationID, _):
         operationEnded(operationID)
@@ -90,9 +88,8 @@
 
       case .closed:
         operationsInFlight.removeAll()
-        sessionIsIdle.withLock { $0 = false }
-        sessionIdleSince.withLock { $0 = nil }
-        servedPairing.withLock { $0 = nil }
+        sessionServing.withLock { $0 = (nil, nil) }
+
         Task {
           await RappReaderSessionHolder.shared.close()
           await RappNearFieldSessionHolder.shared.closeSession()
@@ -107,8 +104,7 @@
     internal func operationEnded(_ operationID: Data) {
       operationsInFlight.remove(operationID)
       let idle = operationsInFlight.isEmpty
-      sessionIsIdle.withLock { $0 = idle }
-      sessionIdleSince.withLock { $0 = idle ? .now : nil }
+      sessionServing.withLock { $0.idleSince = idle ? .now : nil }
     }
   }
 #endif
