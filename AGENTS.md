@@ -62,7 +62,7 @@
   create a dedicated git worktree strictly under `../wt/`
   (`../wt/refineid-apple-<topic>`) on a `<topic>` branch. Never
   work directly on `main` or modify files in the main checkout.
-- All agent worktrees MUST live strictly under `../wt/`, never loose beside
+- All worktrees MUST live strictly under `../wt/`, never loose beside
   repositories or under `/tmp/`.
 - Never put a git worktree under `/tmp`. It is cleared on reboot and takes the
   branch's only checkout with it.
