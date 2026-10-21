@@ -198,7 +198,7 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
         TokenLog.error("apdu: transmit failed: \(callbackError)")
         throw callbackError
       }
-      throw CardOperationError.malformedResponse
+      throw CardOperationError.exchangeUnanswered
     }
     return response
   }
