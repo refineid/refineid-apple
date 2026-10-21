@@ -86,6 +86,13 @@
       deadline.withLock { $0 = due }
     }
 
+    /// The reader card left: no token is coming, so stop waiting for one
+    /// and release anyone already waiting.
+    internal func readerCardDeparted() {
+      deadline.withLock { $0 = nil }
+      resumeAllWaiters()
+    }
+
     /// Returns once the card token is published or the wait for it has
     /// run out.
     internal func awaitPublication() async {
@@ -100,9 +107,11 @@
           resume(key)
           return
         }
-        Task { [weak self] in
+        // Strong capture: the timeout must resume the continuation even
+        // if nothing else references this (a singleton, so no cycle).
+        Task { [self] in
           try? await Task.sleep(until: due, clock: .continuous)
-          self?.resume(key)
+          resume(key)
         }
       }
     }
@@ -111,7 +120,8 @@
       waiters.withLock { $0.removeValue(forKey: key) }?.resume()
     }
 
-    private func published() {
+    /// Releases everyone waiting on the token, without the arrival note.
+    private func resumeAllWaiters() {
       let pending = waiters.withLock { waiting in
         defer { waiting.removeAll() }
         return Array(waiting.values)
@@ -119,6 +129,10 @@
       for continuation in pending {
         continuation.resume()
       }
+    }
+
+    private func published() {
+      resumeAllWaiters()
       arrival.withLock { $0 }?()
     }
   }

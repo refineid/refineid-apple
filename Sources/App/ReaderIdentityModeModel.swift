@@ -117,6 +117,7 @@
     internal init() {
       if !DemoMode.shared.isActive {
         watcher.setInsertionHandler(Self.insertionHandler(for: self))
+        readerCardIsReady = CardPresence.shared.isReaderCardReady
         readinessObservation = CardPresence.shared.$isReaderCardReady
           .receive(on: DispatchQueue.main)
           .sink { [weak self] ready in
@@ -157,7 +158,7 @@
     }
 
     /// The names the published tokens carry.
-    private static func publishedNames(_ identifiers: [String]) async -> [String] {
+    nonisolated private static func publishedNames(_ identifiers: [String]) async -> [String] {
       await Task.detached(priority: .utility) {
         identifiers.compactMap { identifier in
           PublishedIdentityName.name(ofTokenIdentifier: identifier)
@@ -226,6 +227,7 @@
         // token if it arrived. The watcher is read directly: `refresh`
         // moves the read key, which would start this read over.
         await ReaderTokenPublication.shared.awaitPublication()
+        guard !Task.isCancelled, readerCardIsReady else { return [] }
         let published = watcher.tokenIDs.filter(CardTokenNamespace.owns(tokenIdentifier:)).sorted()
         if !published.isEmpty {
           return await Self.publishedNames(published)

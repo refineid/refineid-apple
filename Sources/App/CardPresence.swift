@@ -143,6 +143,8 @@ internal final class CardPresence: ObservableObject {
       #if os(iOS) && REFINEID_LOCAL_CARD
         if readerPresent {
           ReaderTokenPublication.shared.readerCardArrived()
+        } else {
+          ReaderTokenPublication.shared.readerCardDeparted()
         }
         HolderCardServing.availabilityChanged()
       #endif
