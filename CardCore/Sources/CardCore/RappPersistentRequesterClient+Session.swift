@@ -95,7 +95,7 @@
       on coordinator: RappConnectionCoordinator
     ) async {
       RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
-      let response = self.response(for: result)
+      let response = operation?.response(for: result)
       await coordinator.close()
       if let response {
         finish(response: response)
@@ -159,7 +159,7 @@
       guard shouldStart, let operation else { return }
       let lifetime = policy.maximumOperationLifetimeMilliseconds
       do {
-        try await dispatchOperation(operation, on: coordinator, lifetime: lifetime)
+        try await coordinator.begin(operation, lifetime: lifetime)
       } catch let localError as RappOperationDriver.LocalError where localError == .wrongPhase {
         #if DEBUG
           Self.logger.notice(
@@ -176,63 +176,6 @@
         #endif
         await coordinator.close()
         finish(error: .protocolFailure)
-      }
-    }
-
-    private func dispatchOperation(
-      _ operation: RappRequesterOperation,
-      on coordinator: RappConnectionCoordinator,
-      lifetime: UInt64
-    ) async throws {
-      switch operation {
-      case .readAuthenticationCertificate:
-        try await coordinator.beginReadCertificate(
-          signatureCertificate: false,
-          expiresAfterMilliseconds: lifetime
-        )
-
-      case .readSignatureCertificate:
-        try await coordinator.beginReadCertificate(
-          signatureCertificate: true,
-          expiresAfterMilliseconds: lifetime
-        )
-
-      case .browserAuthentication(let context, let keyProfile, let algorithm, let digest):
-        try await coordinator.beginBrowserAuthentication(
-          origin: context,
-          keyProfile: keyProfile,
-          algorithm: algorithm,
-          digest: digest,
-          expiresAfterMilliseconds: lifetime
-        )
-
-      case .documentSigning(let documentName, let keyProfile, let algorithm, let digest):
-        try await coordinator.beginSignDocument(
-          documentName: documentName,
-          keyProfile: keyProfile,
-          algorithm: algorithm,
-          digest: digest,
-          expiresAfterMilliseconds: lifetime
-        )
-      }
-    }
-
-    /// The answer a result carries, when its kind is the one the operation
-    /// asked for.
-    private func response(for result: RappOperationResult) -> RappRequesterResponse? {
-      switch (operation, result) {
-      case (.readAuthenticationCertificate, .certificate(let der)):
-        der.isEmpty ? nil : .authenticationCertificate(der)
-
-      case (.readSignatureCertificate, .certificate(let der)):
-        der.isEmpty ? nil : .signatureCertificate(der)
-
-      case (.browserAuthentication, .signature(let signature)),
-        (.documentSigning, .signature(let signature)):
-        signature.isEmpty ? nil : .signature(signature)
-
-      default:
-        nil
       }
     }
   }

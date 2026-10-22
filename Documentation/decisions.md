@@ -5,6 +5,60 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-10-22 The phone serves over Bluetooth from the background
+
+The iPhone serves RAPP sessions over `fi.refineid.rapp.ble` (RAPP v26.10.22
+§5) beside the stream, under the same gates: Remote Access on, an NFC
+antenna, a usable pairing. A stored pairing serves either transport (§2.1
+phase 4); no Bluetooth pairing exists in the product.
+
+- The phone's GATT server (`RappBleGattPeripheral`) publishes the RAPP
+  service once and advertises it for as long as it serves. Each central
+  that enables indications opens a link that routes one session preamble.
+  The phone serves one session at a time across both transports: a busy
+  session is never displaced, an idle one is handed over to its own
+  pairing at once and to another after the cross-peer hold
+  (`HolderSessionAdmission`). iOS cannot end a central's connection, so a
+  closed link answers writes with `writeNotPermitted` until the central
+  lets go; no answer asks for link-layer security.
+- The development-shape iOS plist declares `UIBackgroundModes`
+  `bluetooth-peripheral`, and the server carries a restore identifier, so
+  the system wakes the app for each write and relaunches it for them. The
+  store plist carries no remote card and no background mode. Entering the
+  background takes the stream listener down while Bluetooth serves (an idle
+  stream session first, a busy one when it ends), since a suspended app
+  cannot answer a dial; the foreground brings it back. Neither is a
+  withdrawal. Remote Access off closes the open session with
+  `service_withdrawn` on whichever transport carries it and stops
+  advertising.
+- A card command on the NFC card from the background summons the holder:
+  a time-sensitive notification naming the computer, `waiting_for_card`
+  to it, and up to 90 seconds for the app to come forward, after which the
+  operation ends `card_error`. A reader card needs no screen; a PIN prompt
+  posts its own notification and stays the only consent. While the phone
+  is locked, the primed card last read stands for the card the phone holds.
+- The Mac dials the stream while Bonjour shows the phone and Bluetooth
+  otherwise, and also when a stream dial failed while the record stayed in
+  sight. An open session is kept whatever its transport, and a Bluetooth
+  session counts as the phone being in sight. Over Bluetooth the Mac dials
+  the advertiser that routed last first, else the strongest of those that
+  did not refuse within 30 seconds, and drops a link below an ATT MTU of
+  512; no signal-strength gate applies (§4.4). An iPad requester keeps the
+  stream only.
+- Every process of a Mac shares one Bluetooth link to the phone, so only
+  the app holds one. The RAPP token extension hands its operation to the
+  app over a `CFMessagePort` named under the app group
+  (`RappHeldSessionHandoff`); the app carries it on its Bluetooth session,
+  or answers that the extension dials the stream itself, as it also does
+  when no app answers. An app that took the request and did not answer in
+  time is a timeout, never a second operation.
+- The `--ble-serve-remote-reader` launch mode is removed: serving over
+  Bluetooth is the product's. `--ble-offer-remote-reader` and
+  `--ble-pair-with-offer` stay as development pairing over Bluetooth.
+- Release and TestFlight macOS builds still sign without
+  `com.apple.security.device.bluetooth`; there the Mac reaches the phone
+  over the stream only, since Bluetooth reports itself unauthorized.
+
 ## 2026-10-22 The Apple apps speak RAPP v26.10.22
 
 Every pairing and session on iPhone, iPad and Mac runs RAPP v26.10.22; the
@@ -223,7 +277,8 @@ application plist now carries `NSBluetoothAlwaysUsageDescription`, worded
 like the local-network string. Nothing in a shipped build opens a
 Bluetooth session yet; `NetworkContractTests` keeps pinning the relay
 files as unwired and now pins the one declaration instead of its
-absence.
+absence. Superseded on 2026-10-22: the phone serves over Bluetooth,
+recorded above.
 
 ## 2026-10-09 The RAPP BLE profile is driven by development builds only
 
@@ -241,6 +296,8 @@ sign macOS with `Config/RefineID-Debug.entitlements`, which adds the
 `com.apple.security.device.bluetooth` sandbox entitlement.
 `NetworkContractTests` pins both boundaries. The pairing screen and
 wiring the profile into the product wait for a product decision.
+Superseded on 2026-10-22 for sessions, recorded above; pairing over
+Bluetooth stays a development mode.
 
 ## 2026-09-30 App Transport Security stays open under a documented contract
 

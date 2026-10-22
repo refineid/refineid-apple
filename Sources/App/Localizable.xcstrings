@@ -6945,6 +6945,28 @@
           }
         }
       }
+    },
+    "%@ needs your identity card.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ needs your identity card."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ tarvitsee henkilökorttiasi."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ behöver ditt identitetskort."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

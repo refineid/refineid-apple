@@ -4,8 +4,9 @@
 <!-- The Info.plist of the shipping iOS app, used by the TestFlight and
      Release configurations. It differs from RefineID-iOS-Info.plist, the
      development shape, in exactly what the first App Store release gates
-     out (Documentation/decisions.md, 2026-08-21): no Bonjour service or
-     local-network declaration, because the remote card does not ship; an
+     out (Documentation/decisions.md, 2026-08-21): no Bonjour service,
+     local-network declaration or Bluetooth background mode, because the
+     remote card does not ship; an
      NFC usage description that does not promise activation, because
      activation does not ship; and the nfc required capability, so the
      store never installs the app on a device without an antenna - which

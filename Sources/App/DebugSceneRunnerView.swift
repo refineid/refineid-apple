@@ -53,21 +53,8 @@
         #endif
     }
 
-    /// Serving sessions shows the app itself, whose authorization prompt
-    /// the holder answers; every other mode shows its progress.
-    @ViewBuilder private var content: some View {
-      #if os(iOS) && REFINEID_LOCAL_CARD
-        if mode == .bleServeRemoteReader {
-          ReaderIdentityRootView()
-        } else {
-          progress
-        }
-      #else
-        progress
-      #endif
-    }
-
-    private var progress: some View {
+    /// Every mode shows its progress.
+    private var content: some View {
       VStack {
         if mode == .activationProbe, !hasStarted {
           Button("Start read-only activation probe") {
@@ -90,7 +77,7 @@
       case .browseProbe, .listenProbe, .offerRemoteReader, .pairWithOffer:
         await runPairingMode(mode)
 
-      case .bleOfferRemoteReader, .blePairWithOffer, .bleServeRemoteReader:
+      case .bleOfferRemoteReader, .blePairWithOffer:
         let report = await bleReport(mode)
         DebugConsole.emit(report.lines)
         DebugConsole.finish(succeeded: report.succeeded)
@@ -140,17 +127,6 @@
       switch mode {
       case .blePairWithOffer:
         return await DebugBlePairing.pair(code: DebugLaunchModes.offerURI())
-
-      case .bleServeRemoteReader:
-        #if os(iOS) && REFINEID_LOCAL_CARD
-          // Serving outlives the view task, which SwiftUI cancels whenever
-          // the scene phase changes, as it does when Control Center opens.
-          return await Task { await DebugBlePairing.serve() }.value
-        #else
-          return DebugModeReport(
-            lines: [mode.rawValue + ": serving needs an iPhone with a card reader"],
-            succeeded: false)
-        #endif
 
       default:
         return await DebugBlePairing.offer()

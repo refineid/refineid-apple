@@ -11,6 +11,32 @@ import Foundation
       stateChanged(peripheral.state)
     }
 
+    /// The service iOS kept published for a process it relaunched.
+    public func peripheralManager(
+      _: CBPeripheralManager,
+      willRestoreState dict: [String: Any]
+    ) {
+      let services = dict[CBPeripheralManagerRestoredStateServicesKey] as? [CBMutableService]
+      restore(services ?? [])
+    }
+
+    /// The system added the service.
+    public func peripheralManager(
+      _: CBPeripheralManager,
+      didAdd _: CBService,
+      error: (any Error)?
+    ) {
+      added(error: error)
+    }
+
+    /// Advertising started or failed to.
+    public func peripheralManagerDidStartAdvertising(
+      _: CBPeripheralManager,
+      error: (any Error)?
+    ) {
+      advertisingStarted(error: error)
+    }
+
     /// The requester enabled indications on a characteristic.
     public func peripheralManager(
       _: CBPeripheralManager,

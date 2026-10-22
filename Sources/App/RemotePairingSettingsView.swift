@@ -127,7 +127,7 @@
         let isCurrentPair =
           (derivedPairID != nil && activePairID != nil)
           ? (derivedPairID == activePairID) : isPreferred
-        let isOnline = isCurrentPair && PersistentTokenRegistry.shared.holderIsAdvertising
+        let isOnline = isCurrentPair && PersistentTokenRegistry.shared.holderInSight
         let isConnected = isPairConnected(isCurrent: isCurrentPair, isOnline: isOnline)
 
         list.append(
@@ -165,7 +165,7 @@
           || (model.selectedPairID == pair.pairID)
 
         let isCurrentPair = activePairID.map { pair.pairID == $0 } ?? isPreferred
-        let isOnline = isCurrentPair && PersistentTokenRegistry.shared.holderIsAdvertising
+        let isOnline = isCurrentPair && PersistentTokenRegistry.shared.holderInSight
         let isConnected = isPairConnected(isCurrent: isCurrentPair, isOnline: isOnline)
 
         list.append(
@@ -256,7 +256,7 @@
     }
 
     private func isPairConnected(isCurrent: Bool, isOnline: Bool) -> Bool {
-      isCurrent && isOnline && PersistentTokenRegistry.shared.holderIsAdvertising
+      isCurrent && isOnline && PersistentTokenRegistry.shared.holderInSight
         && PersistentTokenRegistry.shared.certificateDER != nil
     }
   }

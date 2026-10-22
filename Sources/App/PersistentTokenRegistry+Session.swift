@@ -6,22 +6,51 @@
   import RappEngine
 
   /// The standing session with the phone whose word the offered identity
-  /// rests on (RAPP v26.10.22 §8.3, §8.4).
+  /// rests on (RAPP v26.10.22 §8.3, §8.4), over the stream while Bonjour
+  /// shows the phone and over Bluetooth otherwise (RAPP transport
+  /// hierarchy §3).
   extension PersistentTokenRegistry {
-    /// Seconds between dials while the phone is on the network and no
-    /// session is open.
+    /// Seconds between dials while no session is open.
     private static let redialDelaySeconds = 2
 
-    /// How long the redial loop may run without a usable session.
+    /// How long the redial loop may run over the stream without a usable
+    /// session.
     ///
     /// Past this it stops and leaves a terminal state (R-58). It sits above
     /// the longest interactive operation, so a legitimate long operation
     /// during which the phone refuses a second session is not mistaken for
-    /// a dead loop. A fresh advertisement or a user action restarts it. The
-    /// offered identity follows ``RemoteIdentityOffer`` alone.
+    /// a dead loop. A fresh advertisement or a user action restarts it.
+    /// Bluetooth dials on, each waiting for the phone's advertisement
+    /// (CC-50). The offered identity follows ``RemoteIdentityOffer`` alone.
     private static let abortLoopSeconds = 150
 
-    private static var redialDelay: Duration { .seconds(redialDelaySeconds) }
+    /// How long one Bluetooth dial scans for the phone before it starts
+    /// over.
+    private static let bluetoothScanSeconds: TimeInterval = 30
+
+    /// How long after a start the first dial waits for Bonjour to show the
+    /// phone, so the stream is preferred when both could reach it.
+    private static let settleSeconds = 3
+
+    internal static var redialDelay: Duration { .seconds(redialDelaySeconds) }
+
+    /// The policy of a dial over Bluetooth: the interactive one, scanning
+    /// for its own window.
+    private static var bluetoothPolicy: RappRequesterPolicy {
+      RappRequesterPolicy(
+        maximumOperationLifetimeMilliseconds:
+          RappRequesterPolicy.interactive.maximumOperationLifetimeMilliseconds,
+        synchronousWaitTimeout: RappRequesterPolicy.interactive.synchronousWaitTimeout,
+        discoveryTimeout: bluetoothScanSeconds)
+    }
+
+    /// What decides the next dial's transport now.
+    internal var transportPolicy: RequesterTransportPolicy {
+      RequesterTransportPolicy(
+        streamInSight: holderIsAdvertising && holderRecordListed,
+        streamFailedInSight: streamFailedInSight,
+        bluetoothUsable: bluetoothUsable)
+    }
 
     /// The pairing a session runs over.
     ///
@@ -50,26 +79,58 @@
       return newest
     }
 
-    /// Dials the phone the browser reports, unless a session is open.
+    /// Dials the phone along the transport the policy picks, unless a
+    /// session is open.
     internal func openHolderSession() {
-      guard Self.dialsPhones, !CardPresence.shared.isReaderCardPresent,
-        holderIsAdvertising, holderSession == nil
+      guard Self.dialsPhones, !CardPresence.shared.isReaderCardPresent, holderSession == nil,
+        let transport = transportPolicy.nextDial
       else { return }
       let vault = RappDeviceVault()
       guard let pair = Self.sessionPair(in: vault, inSight: pairInSight) else {
         Self.withdrawPublishedIdentity()
         return
       }
+      let route: RappHeldRequesterSession.Route
+      let policy: RappRequesterPolicy
+      switch transport {
+      case .stream:
+        route = .stream
+        policy = .interactive
+
+      case .bluetooth:
+        route = .bluetooth(bluetoothPeers.dialing(at: .now))
+        policy = Self.bluetoothPolicy
+      }
       let token = UUID()
-      let session = RappHeldRequesterSession(pair: pair) { report in
+      let session = RappHeldRequesterSession(pair: pair, route: route, policy: policy) { report in
         Task { @MainActor in
           Self.shared.holderSessionReported(report, token: token)
         }
       }
+      settleDialTask?.cancel()
+      settleDialTask = nil
       holderSession = session
       holderSessionToken = token
+      heldTransport = transport
+      heldSessionEstablished = false
       holderReportsNoCard = false
+      #if DEBUG
+        print("[persistent-token] dialing the phone over \(transport)")
+        fflush(stdout)
+      #endif
       session.start()
+    }
+
+    /// Dials once Bonjour has had its chance to show the phone, so a start
+    /// with the phone on the network takes the stream.
+    internal func dialAfterSettling() {
+      settleDialTask?.cancel()
+      settleDialTask = Task { @MainActor in
+        try? await Task.sleep(for: .seconds(Self.settleSeconds))
+        guard !Task.isCancelled else { return }
+        settleDialTask = nil
+        openHolderSession()
+      }
     }
 
     /// Ends the open session, if any, and forgets what it said; an offered
@@ -77,11 +138,12 @@
     internal func closeHolderSession() {
       redialTask?.cancel()
       redialTask = nil
+      settleDialTask?.cancel()
+      settleDialTask = nil
       holderCardStatus = .absent
       holderReportsNoCard = false
       holderSession?.close()
-      holderSession = nil
-      holderSessionToken = nil
+      forgetHeldSession()
       confirmationLost()
     }
 
@@ -95,37 +157,65 @@
       redialTask = nil
       holderCardStatus = .absent
       holderReportsNoCard = false
-      holderSession = nil
-      holderSessionToken = nil
+      forgetHeldSession()
       let told = await session.closePairingRevoked()
       Self.withdrawPublishedIdentity()
       return told
+    }
+
+    /// Clears what the registry knows of the session it let go.
+    internal func forgetHeldSession() {
+      holderSession = nil
+      holderSessionToken = nil
+      heldTransport = nil
+      heldSessionEstablished = false
+      holderOverBluetooth = false
     }
 
     private func holderSessionReported(_ report: RappHeldRequesterSession.Report, token: UUID) {
       guard token == holderSessionToken else { return }
       switch report {
       case .established:
-        break
+        heldSessionEstablished = true
+        holderOverBluetooth = heldTransport == .bluetooth
+        if heldTransport == .stream {
+          streamFailedInSight = false
+        }
 
       case .cardStatus(let status):
-        // Any card status means the session established and reached the
-        // custodian's first word (RAPP §8.4): the redial loop succeeded,
-        // so its deadline starts over for any later loss (R-58).
-        continuousFailureSince = nil
-        holderCardStatus = status
-        if case .absent = status {
-          holderReportsNoCard = true
+        cardStatusReported(status)
+
+      case .bluetoothPeer(let peer, let routed):
+        if routed {
+          bluetoothPeers.routed(peer)
         } else {
-          holderReportsNoCard = false
+          bluetoothPeers.refused(peer, at: .now)
         }
-        let offered = (certificateDER ?? Self.publishedCertificateDER())
-          .flatMap(RappCertificateFingerprint.init(certificate:))
-        respond(to: identityOffer.receive(status, offered: offered, at: .now))
+
+      case .bluetoothTrace(let step):
+        bluetoothStep(step)
 
       case .closed(let reason):
         holderSessionEnded(reason)
       }
+    }
+
+    /// Takes the phone's word on its card.
+    ///
+    /// Any card status means the session established and reached the
+    /// custodian's first word (RAPP §8.4): the redial loop succeeded, so
+    /// its deadline starts over for any later loss (R-58).
+    private func cardStatusReported(_ status: RappCardStatus) {
+      continuousFailureSince = nil
+      holderCardStatus = status
+      if case .absent = status {
+        holderReportsNoCard = true
+      } else {
+        holderReportsNoCard = false
+      }
+      let offered = (certificateDER ?? Self.publishedCertificateDER())
+        .flatMap(RappCertificateFingerprint.init(certificate:))
+      respond(to: identityOffer.receive(status, offered: offered, at: .now))
     }
 
     /// Acts on what the phone's `card.status` did to the offer: the card
@@ -195,13 +285,16 @@
 
     private func holderSessionEnded(_ reason: RappConnectionCoordinator.CloseReason) {
       #if DEBUG
-        if let failure = reason.devErrorName(midOperation: isRunning) {
-          DevErrorLog.report("phone session closed: \(failure)", source: .app)
-        }
+        reportEnd(reason)
       #endif
       let ended = holderSession
-      holderSession = nil
-      holderSessionToken = nil
+      if heldTransport == .stream, !heldSessionEstablished, holderIsAdvertising {
+        // The record is there and the phone did not answer: a suspended
+        // app leaves its record behind, so the next dial tries Bluetooth
+        // (CC-72).
+        streamFailedInSight = true
+      }
+      forgetHeldSession()
       holderCardStatus = .absent
       holderReportsNoCard = false
       if reason.peerRevokedPairing {
@@ -218,9 +311,12 @@
       }
       if reason.serviceWithdrawn {
         // The phone announced it stopped serving: a verified withdrawal
-        // takes the identity at once; its next session record brings it
-        // back (§4.5 item 6).
+        // takes the identity at once; its next session record or Bluetooth
+        // advertisement brings it back (§4.5 item 6).
         Self.withdrawPublishedIdentity()
+        if transportPolicy.nextDial == .bluetooth {
+          scheduleRedial()
+        }
         return
       }
       confirmationLost()
@@ -228,10 +324,23 @@
         Self.withdrawPublishedIdentity()
         return
       }
-      if holderIsAdvertising {
+      if transportPolicy.nextDial != nil {
         scheduleRedial()
       }
     }
+
+    #if DEBUG
+      /// Names a session that ended as a failure on the development error
+      /// strip; a Bluetooth dial that reached no phone within its scan is
+      /// the discovery failure itself.
+      private func reportEnd(_ reason: RappConnectionCoordinator.CloseReason) {
+        if heldTransport == .bluetooth, !heldSessionEstablished, reason == .transportFailure {
+          DevErrorLog.report("phone over Bluetooth: not reached within the scan", source: .app)
+        } else if let failure = reason.devErrorName(midOperation: isRunning) {
+          DevErrorLog.report("phone session closed: \(failure)", source: .app)
+        }
+      }
+    #endif
 
     /// No open session confirms the card any more: the offer lapses after
     /// the grace unless a session reports the card present again (§8.4
@@ -253,14 +362,16 @@
       }
     }
 
-    /// Dials again after ``redialDelay``, until the loop has run for
-    /// ``abortLoopSeconds`` without ever reaching a usable session.
-    private func scheduleRedial() {
+    /// Dials again after ``redialDelay``; over the stream only until the
+    /// loop has run for ``abortLoopSeconds`` without ever reaching a usable
+    /// session.
+    internal func scheduleRedial() {
       redialTask?.cancel()
       let now = ContinuousClock.now
       let since = continuousFailureSince ?? now
       continuousFailureSince = since
-      guard now - since < .seconds(Self.abortLoopSeconds) else {
+      let overBluetooth = transportPolicy.nextDial == .bluetooth
+      guard overBluetooth || now - since < .seconds(Self.abortLoopSeconds) else {
         // The loop has not produced a usable session within the deadline.
         // Stop dialing and leave a terminal state instead of looping; a
         // fresh advertisement (holderIsAdvertising) or a user action

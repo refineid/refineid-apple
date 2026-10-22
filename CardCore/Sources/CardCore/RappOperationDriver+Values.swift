@@ -19,7 +19,7 @@
     }
 
     /// Card signing key profile named by an operation request.
-    public enum KeyProfile: Sendable, Equatable {
+    public enum KeyProfile: Sendable, Equatable, CaseIterable {
       case ecdsaP256
       case ecdsaP384
       case rsa2048
@@ -59,7 +59,7 @@
     }
 
     /// Signature algorithm named by an operation request.
-    public enum SignatureAlgorithm: Sendable, Equatable {
+    public enum SignatureAlgorithm: Sendable, Equatable, CaseIterable {
       case ecdsaSHA224
       case ecdsaSHA256
       case ecdsaSHA384

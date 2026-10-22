@@ -26,15 +26,16 @@
       return LoginIdentityModel.resolved(
         tokenPublished: model.isReady,
         cardPresent: cardPresence.isCardPresent,
-        holderAdvertising: holderIsAdvertising,
+        holderAdvertising: holderInSight,
         hasBorrowedCertificate: hasBorrowedIdentity
       )
     }
 
-    /// Whether the paired phone is on the network and serving a card.
-    private var holderIsAdvertising: Bool {
+    /// Whether the paired phone is in sight, on the network or over
+    /// Bluetooth.
+    private var holderInSight: Bool {
       #if REFINEID_REMOTE_CARD && REFINEID_STREAM_TRANSPORT
-        remoteRegistry.holderIsAdvertising
+        remoteRegistry.holderInSight
       #else
         false
       #endif
@@ -46,7 +47,7 @@
       #if REFINEID_REMOTE_CARD
         !DemoMode.shared.isActive
           && !cardPresence.isReaderConnected
-          && !holderIsAdvertising
+          && !holderInSight
           && availability == .noCard
           && signingModel.pending == nil
           && signingModel.queued.isEmpty
@@ -59,7 +60,7 @@
     /// Whether a paired phone has already answered with a certificate.
     private var hasBorrowedIdentity: Bool {
       #if REFINEID_REMOTE_CARD
-        remoteRegistry.holderIsAdvertising && remoteRegistry.holderLine != nil
+        remoteRegistry.holderInSight && remoteRegistry.holderLine != nil
       #else
         false
       #endif

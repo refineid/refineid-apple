@@ -72,30 +72,18 @@
       }
       let incoming = served[index].metadata().pairId
       let (pairing, idleSince) = serving.withLock { $0 }
-      // An operation in flight, or a handshake still coming up,
-      // protects the session whoever dials: a busy session is never
-      // displaced, so a signature is never cut short.
-      guard let since = idleSince else {
-        #if DEBUG
-          DevErrorLog.report("dial refused: session busy", source: .app)
-        #endif
-        return false
-      }
-      // The requester's own app and token extension share one
-      // pairing; between them, hand over as soon as the session is
-      // idle, with no cross-peer hold (R-59).
-      if pairing == incoming { return true }
-      // A different requester waits until the holder has been idle
-      // past the hold, so f, the Mac and Windows stop stealing each
-      // other's session between operations.
-      let heldLongEnough = ContinuousClock.now - since >= .seconds(holdSeconds)
+      // A busy session is never displaced; the requester's own app and
+      // token extension hand an idle one over at once, and another
+      // requester waits out the hold (R-59).
+      let verdict = HolderSessionAdmission.decide(
+        incoming: incoming, pairing: pairing, idleSince: idleSince, now: .now,
+        hold: .seconds(holdSeconds))
       #if DEBUG
-        if !heldLongEnough {
-          DevErrorLog.report(
-            "dial refused: another pairing's session idle under \(holdSeconds) s", source: .app)
+        if !verdict.admits {
+          DevErrorLog.report("dial refused: \(verdict)", source: .app)
         }
       #endif
-      return heldLongEnough
+      return verdict.admits
     }
 
     /// The session record for the pairings in `contexts`: their discovery
@@ -160,17 +148,16 @@
       startHintRotation()
     }
 
-    /// Announces that this holder stopped serving, then stops listening
-    /// (RAPP v26.10.22 §4.5): open sessions close with
-    /// `service_withdrawn`, no connection is accepted, and the listener
-    /// publishes the withdrawn record for a few seconds before it goes.
+    /// Announces that this holder stopped serving, then stops serving.
+    ///
+    /// RAPP v26.10.22 §4.5: the open session closes with
+    /// `service_withdrawn` on whichever transport carries it, no
+    /// connection is accepted, Bluetooth stops advertising, and the stream
+    /// listener publishes the withdrawn record for a few seconds before it
+    /// goes. Bluetooth carries no withdrawal marker (§4.5 item 5).
     internal func withdrawService(then tearDown: @escaping @MainActor () -> Void) {
-      guard let listener = streamListeners[Self.sessionListenerKey],
-        let instance = listener.registeredName ?? sessionListening.requestedName
-      else {
-        tearDown()
-        return
-      }
+      let listener = streamListeners[Self.sessionListenerKey]
+      let instance = listener?.registeredName ?? sessionListening.requestedName
       stopHintRotation()
       sessionListening.withdrawal?.cancel()
       let closing = coordinator
@@ -187,17 +174,20 @@
           await group.next()
           group.cancelAll()
         }
-        let now = Date()
-        let record = StreamRendezvousName.withdrawnRecord(
-          candidates: contexts.compactMap { context in
-            context.candidate(at: now) { pair, time in
-              try pair.withdrawalHint(instance: instance, unixTimeSeconds: time)
-            }
-          })
-        if !record.isEmpty {
-          listener.updateTXTRecord(record)
-          try? await Task.sleep(
-            for: .seconds(Int(StreamRendezvousName.withdrawalAnnouncementSeconds)))
+        self?.stopBluetoothServing()
+        if let listener, let instance {
+          let now = Date()
+          let record = StreamRendezvousName.withdrawnRecord(
+            candidates: contexts.compactMap { context in
+              context.candidate(at: now) { pair, time in
+                try pair.withdrawalHint(instance: instance, unixTimeSeconds: time)
+              }
+            })
+          if !record.isEmpty {
+            listener.updateTXTRecord(record)
+            try? await Task.sleep(
+              for: .seconds(Int(StreamRendezvousName.withdrawalAnnouncementSeconds)))
+          }
         }
         guard !Task.isCancelled else { return }
         self?.sessionListening.withdrawal = nil
@@ -253,6 +243,13 @@
     }
 
     private func handleStreamConnected(on listener: StreamRelayListener) {
+      // A dialer arriving while a Bluetooth session is open waits for its
+      // preamble: the one-session gate decides on it (CC-67).
+      if case .bluetooth = servedTransport, sessionListening.withdrawal == nil {
+        activeStreamListener = listener
+        sessionListening.awaitingPreamble = true
+        return
+      }
       if coordinator != nil || sessionListening.withdrawal != nil {
         #if DEBUG
           print("[stream-holder] already connected to a peer, disconnecting incoming")
@@ -268,7 +265,6 @@
       }
       activeStreamListener = listener
       sessionListening.awaitingPreamble = true
-      connectionID = UUID()
       #if DEBUG
         print("[stream-holder] a dialer arrived")
         fflush(stdout)
@@ -279,9 +275,7 @@
     /// pairing is closed without touching stored state (discovery
     /// hierarchy §4.3).
     private func handleStreamFrame(_ frame: Data, from listener: StreamRelayListener) {
-      guard activeStreamListener === listener,
-        let currentConnectionID = connectionID
-      else { return }
+      guard activeStreamListener === listener else { return }
       #if DEBUG
         print(
           "[stream-holder] frame \(frame.count) bytes, session \(coordinator != nil)")
@@ -305,9 +299,18 @@
           return
         }
         let matched = contexts[index]
+        guard admitSession(for: matched.pairRecord.metadata().pairId) else {
+          listener.disconnect()
+          return
+        }
         PairLastUse.markUsed(pairID: matched.pairRecord.metadata().pairId, at: Date())
+        let routedConnectionID = UUID()
+        connectionID = routedConnectionID
+        activeStreamListener = listener
         establishStream(
-          connectionID: currentConnectionID, pair: matched.pairRecord, listener: listener)
+          connectionID: routedConnectionID, pair: matched.pairRecord, listener: listener)
+      } else if servedTransport != .stream {
+        return
       } else if let coordinator {
         deliverInOrder { await coordinator.receive(frame) }
       } else if preCoordinatorFrames.count < Self.maximumPreCoordinatorFrames {
@@ -326,6 +329,15 @@
         fflush(stdout)
       #endif
       guard activeStreamListener === listener else { return }
+      guard servedTransport == .stream else {
+        // A dialer that left before its preamble opened no session.
+        activeStreamListener = nil
+        sessionListening.awaitingPreamble = false
+        if !listener.isListening {
+          handleTransportClosed(redialDelayMilliseconds: Self.streamRedialDelayMilliseconds)
+        }
+        return
+      }
       activeStreamListener = nil
       if listener.isListening {
         handleConnectionClosed()
@@ -342,7 +354,9 @@
       listener: StreamRelayListener
     ) {
       guard self.connectionID == connectionID, coordinator == nil else { return }
-
+      servedTransport = .stream
+      // The listener carries one connection at a time, so a session that
+      // ends after another took its place must not cut the newcomer.
       let transport = RappClosureFrameTransport(
         sender: { [weak listener] frame in
           guard let listener else {
@@ -350,7 +364,12 @@
           }
           try listener.send(frame)
         },
-        closer: { [weak listener] in listener?.disconnect() }
+        closer: { [weak self, weak listener] in
+          await MainActor.run {
+            guard self?.connectionID == connectionID else { return }
+            listener?.disconnect()
+          }
+        }
       )
       establishCoordinator(
         connectionID: connectionID,
@@ -359,6 +378,9 @@
         transport: transport
       ) { [weak listener] in
         listener?.disconnect()
+      }
+      if coordinator == nil {
+        servedTransport = nil
       }
     }
   }

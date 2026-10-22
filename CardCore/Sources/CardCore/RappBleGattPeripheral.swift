@@ -6,60 +6,116 @@ import Foundation
   @preconcurrency import CoreBluetooth
   import RappEngine
 
-  /// The custodian end of `fi.refineid.rapp.ble`: the GATT peripheral
+  /// The custodian end of `fi.refineid.rapp.ble`: the GATT server
   /// (RAPP v26.10.22 §5.1, §5.2).
   ///
-  /// It advertises only the RAPP service UUID and a generic name, serves
-  /// the offer on the bootstrap characteristic, receives the requester's
-  /// writes on the channel characteristic, and answers with indications.
-  /// One central at a time; every connection starts in `Phase::Routing`.
+  /// One peripheral manager publishes the RAPP service once and advertises
+  /// only its UUID and a generic name for as long as the server runs. Each
+  /// central that enables indications on the channel characteristic opens
+  /// a link of its own: the link routes one preamble, then carries frames
+  /// written to it and indicated back, and ends when the central disables
+  /// indications or the owner closes it. iOS has no call that ends a
+  /// central's connection, so a closed link answers the central's writes
+  /// with `writeNotPermitted` until it disables indications; no answer is
+  /// ever an authentication or encryption error, which would make the
+  /// central's system start bonding.
+  ///
+  /// With a restore identifier, iOS relaunches the app for Bluetooth events
+  /// after it ended the process, and the server adopts the published service
+  /// instead of adding it again. Centrals still subscribed from the ended
+  /// process get closed links: their routing died with it.
+  ///
+  /// All state is confined to the server's queue; the delegate callbacks
+  /// arrive on it.
   public final class RappBleGattPeripheral: NSObject, @unchecked Sendable {
-    /// Decides whether a routing preamble may proceed.
-    public typealias Admission = @Sendable (RappBleRoutingPurpose) -> Bool
+    /// Decides on the server's queue whether a link's routing preamble may
+    /// proceed.
+    public typealias Admission = @Sendable (RappBleRoutingPurpose, RappBleGattLink) -> Bool
 
-    private let bootstrapOffer: Data?
-    private let admits: Admission
-    private let onEvent: @Sendable (RappBleGattEvent) -> Void
-    private let queue = DispatchQueue(label: "fi.refineid.rapp-ble-peripheral")
+    /// One central's link, from its subscription on.
+    internal struct LinkState {
+      internal let link: RappBleGattLink
+      internal let central: CBCentral
+      /// The fragment payload capacity; zero once the link is closed.
+      internal var capacity: Int
+      internal var routed = false
+      internal var open = true
+      internal var reassembler = RappBleSarReassembler()
+      internal var outbound: [Data] = []
+      internal var sendCompletion: CheckedContinuation<Void, any Error>?
+    }
 
-    private var manager: CBPeripheralManager?
-    private var channel: CBMutableCharacteristic?
-    private var central: CBCentral?
-    private var capacity = 0
-    private var routed = false
-    private var reassembler = RappBleSarReassembler()
-    private var outbound: [Data] = []
-    private var sendCompletion: CheckedContinuation<Void, any Error>?
-    private var finished = false
+    internal let bootstrapOffer: Data?
+    internal let admits: Admission
+    internal let onEvent: @Sendable (RappBleGattServerEvent) -> Void
+    internal let queue = DispatchQueue(label: "fi.refineid.rapp-ble-peripheral")
+    internal var manager: CBPeripheralManager?
+    internal var channel: CBMutableCharacteristic?
+    internal var published = false
+    internal var links: [UUID: LinkState] = [:]
+    internal var finished = false
+    private let restoreIdentifier: String?
 
     /// A custodian serving `bootstrapOffer` (for pairing; nil when only
     /// stored pairings may reconnect) and admitting the preambles `admits`
-    /// accepts.
+    /// accepts. `restoreIdentifier` names the server to iOS state
+    /// restoration; nil for a server that must not outlive its process.
     @preconcurrency
     public init(
+      restoreIdentifier: String?,
       bootstrapOffer: Data?,
       admits: @escaping Admission,
-      onEvent: @escaping @Sendable (RappBleGattEvent) -> Void
+      onEvent: @escaping @Sendable (RappBleGattServerEvent) -> Void
     ) {
+      self.restoreIdentifier = restoreIdentifier
       self.bootstrapOffer = bootstrapOffer
       self.admits = admits
       self.onEvent = onEvent
       super.init()
     }
 
-    /// Starts advertising once Bluetooth is powered on.
-    public func start() {
-      queue.async { [weak self] in
-        guard let self, !finished else { return }
-        manager = CBPeripheralManager(delegate: self, queue: queue)
+    /// The radio state name for a trace.
+    internal static func radioState(_ state: CBManagerState) -> RappBleRadioState {
+      switch state {
+      case .poweredOff:
+        .poweredOff
+
+      case .poweredOn:
+        .poweredOn
+
+      case .resetting:
+        .resetting
+
+      case .unauthorized:
+        .unauthorized
+
+      case .unsupported:
+        .unsupported
+
+      default:
+        .unknown
       }
     }
 
-    /// Indicates one protocol frame, fragment by fragment.
+    /// Publishes and advertises once Bluetooth is powered on.
+    public func start() {
+      queue.async { [weak self] in
+        guard let self, !finished, manager == nil else { return }
+        var options: [String: Any] = [CBPeripheralManagerOptionShowPowerAlertKey: false]
+        #if os(iOS)
+          if let restoreIdentifier {
+            options[CBPeripheralManagerOptionRestoreIdentifierKey] = restoreIdentifier
+          }
+        #endif
+        manager = CBPeripheralManager(delegate: self, queue: queue, options: options)
+      }
+    }
+
+    /// Indicates one protocol frame on `link`, fragment by fragment.
     ///
     /// The attribute protocol allows one outstanding indication, so each
     /// fragment is confirmed before the next leaves (§5.2 backpressure).
-    public func send(_ frame: Data) async throws {
+    public func send(_ frame: Data, on link: RappBleGattLink) async throws {
       try await withCheckedThrowingContinuation {
         (continuation: CheckedContinuation<Void, any Error>) in
         queue.async { [weak self] in
@@ -67,49 +123,56 @@ import Foundation
             continuation.resume(throwing: RappBleGattFailure.disconnected)
             return
           }
-          enqueue(frame, continuation: continuation)
+          enqueue(frame, on: link, continuation: continuation)
         }
       }
     }
 
-    private func enqueue(_ frame: Data, continuation: CheckedContinuation<Void, any Error>) {
-      guard !finished, routed, capacity > 0 else {
-        continuation.resume(throwing: RappBleGattFailure.disconnected)
-        return
-      }
-      guard sendCompletion == nil else {
-        continuation.resume(throwing: RappBleGattFailure.protocolViolation)
-        return
-      }
-      do {
-        outbound = try RappBleSar.segment(frame, capacity: capacity)
-      } catch {
-        continuation.resume(throwing: RappBleGattFailure.protocolViolation)
-        return
-      }
-      sendCompletion = continuation
-      drainOutbound()
+    /// Ends `link`: nothing more is delivered from it or sent on it.
+    public func close(_ link: RappBleGattLink) {
+      queue.async { [weak self] in self?.end(link, .cancelled) }
     }
 
-    /// Stops advertising and ends the link.
+    /// Stops advertising, withdraws the service, and ends every link.
     public func cancel() {
-      queue.async { [weak self] in self?.finish(.cancelled) }
+      queue.async { [weak self] in
+        guard let self, !finished else { return }
+        finished = true
+        for link in links.values.map(\.link) {
+          end(link, .cancelled)
+        }
+        links.removeAll()
+        if let manager {
+          manager.stopAdvertising()
+          manager.removeAllServices()
+          onEvent(.trace(.advertisingStopped))
+        }
+        channel = nil
+        published = false
+      }
     }
 
-    private func drainOutbound() {
-      guard let manager, let channel, let central else { return }
-      while let fragment = outbound.first {
+    /// Hands queued fragments to the system until it is full, and settles
+    /// the send once the last one is queued.
+    internal func drain(_ central: UUID) {
+      guard let manager, let channel, var state = links[central] else { return }
+      while let fragment = state.outbound.first {
         guard
-          manager.updateValue(fragment, for: channel, onSubscribedCentrals: [central])
-        else { return }
-        outbound.removeFirst()
+          manager.updateValue(fragment, for: channel, onSubscribedCentrals: [state.central])
+        else {
+          links[central] = state
+          return
+        }
+        state.outbound.removeFirst()
       }
-      let completion = sendCompletion
-      sendCompletion = nil
+      let completion = state.sendCompletion
+      state.sendCompletion = nil
+      links[central] = state
       completion?.resume()
     }
 
-    private func publish() {
+    /// Adds the service; advertising starts once the system has added it.
+    internal func publish() {
       let made = CBMutableCharacteristic(
         type: CBUUID(string: RappBleGattProfile.channelUUIDString),
         properties: [.write, .indicate],
@@ -124,144 +187,57 @@ import Foundation
         type: CBUUID(string: RappBleGattProfile.serviceUUIDString), primary: true)
       service.characteristics = [made, bootstrap]
       channel = made
+      published = true
       manager?.add(service)
-      manager?.startAdvertising([
-        CBAdvertisementDataServiceUUIDsKey: [service.uuid],
+    }
+
+    internal func advertise() {
+      guard let manager, !finished, !manager.isAdvertising else { return }
+      manager.startAdvertising([
+        CBAdvertisementDataServiceUUIDsKey: [CBUUID(string: RappBleGattProfile.serviceUUIDString)],
         CBAdvertisementDataLocalNameKey: RappBleGattProfile.localName,
       ])
     }
 
-    /// Accepts one complete frame in the phase the link is in.
-    private func deliver(_ message: Data) {
-      guard routed else {
-        guard let purpose = RappBleRoutingPurpose(preamble: message), admits(purpose) else {
-          finish(.protocolViolation)
-          return
-        }
-        routed = true
-        onEvent(.connected)
-        return
-      }
-      onEvent(.frame(message))
-    }
-
-    private func receive(_ fragment: Data) {
-      let now = RappPlatformClock().monotonicMilliseconds()
-      do {
-        if let message = try reassembler.receive(
-          fragment, capacity: capacity, nowMilliseconds: now)
-        {
-          deliver(message)
-        } else {
-          armTimer()
-        }
-      } catch {
-        finish(.protocolViolation)
-      }
-    }
-
-    private func armTimer() {
-      queue.asyncAfter(
-        deadline: .now() + .milliseconds(Int(RappBleSar.reassemblyTimeoutMilliseconds))
-      ) { [weak self] in
-        guard let self, !finished else { return }
-        do {
-          try reassembler.checkTimer(
-            nowMilliseconds: RappPlatformClock().monotonicMilliseconds())
-        } catch {
-          finish(.protocolViolation)
-        }
-      }
-    }
-
-    internal func finish(_ failure: RappBleGattFailure) {
-      guard !finished else { return }
-      finished = true
-      reassembler.reset()
-      outbound.removeAll()
-      let completion = sendCompletion
-      sendCompletion = nil
+    /// Ends `link` once; the central keeps a closed link until it
+    /// disables indications.
+    internal func end(_ link: RappBleGattLink, _ failure: RappBleGattFailure) {
+      guard var state = links[link.central], state.link == link, state.open else { return }
+      state.open = false
+      state.routed = false
+      state.capacity = 0
+      state.reassembler.reset()
+      state.outbound.removeAll()
+      let completion = state.sendCompletion
+      state.sendCompletion = nil
+      links[link.central] = state
       completion?.resume(throwing: failure)
-      if let manager {
-        manager.stopAdvertising()
-        manager.removeAllServices()
-      }
-      central = nil
-      onEvent(.closed(failure))
+      onEvent(.trace(.ended(failure)))
+      onEvent(.closed(link, failure))
     }
 
-    internal func stateChanged(_ state: CBManagerState) {
-      switch state {
-      case .poweredOn:
-        publish()
-
-      case .poweredOff, .unauthorized, .unsupported:
-        finish(.bluetoothUnavailable)
-
-      default:
-        break
+    private func enqueue(
+      _ frame: Data,
+      on link: RappBleGattLink,
+      continuation: CheckedContinuation<Void, any Error>
+    ) {
+      guard var state = links[link.central], state.link == link, state.open, state.routed else {
+        continuation.resume(throwing: RappBleGattFailure.disconnected)
+        return
       }
-    }
-
-    internal func subscribed(_ subscriber: CBCentral, to characteristic: CBCharacteristic) {
-      guard characteristic.uuid == channel?.uuid else { return }
-      guard central == nil else { return }
+      guard state.sendCompletion == nil else {
+        continuation.resume(throwing: RappBleGattFailure.protocolViolation)
+        return
+      }
       do {
-        capacity = try RappBleSar.payloadCapacity(
-          negotiatedAttMtu: subscriber.maximumUpdateValueLength + RappBleGattLimit.attHeaderSize)
+        state.outbound = try RappBleSar.segment(frame, capacity: state.capacity)
       } catch {
-        finish(.attMtuTooSmall)
+        continuation.resume(throwing: RappBleGattFailure.protocolViolation)
         return
       }
-      central = subscriber
-      manager?.stopAdvertising()
-    }
-
-    internal func unsubscribed(_ subscriber: CBCentral) {
-      guard subscriber.identifier == central?.identifier else { return }
-      finish(.disconnected)
-    }
-
-    internal func read(_ request: CBATTRequest) {
-      guard request.characteristic.uuid == CBUUID(string: RappBleGattProfile.bootstrapUUIDString),
-        let bootstrapOffer
-      else {
-        manager?.respond(to: request, withResult: .readNotPermitted)
-        return
-      }
-      guard request.offset <= bootstrapOffer.count else {
-        manager?.respond(to: request, withResult: .invalidOffset)
-        return
-      }
-      request.value = bootstrapOffer.subdata(in: request.offset..<bootstrapOffer.count)
-      manager?.respond(to: request, withResult: .success)
-    }
-
-    internal func write(_ requests: [CBATTRequest]) {
-      guard let first = requests.first else { return }
-      // A preamble before indications are enabled, a second central, or a
-      // write anywhere but the channel is pre-authentication invalid input.
-      guard requests.allSatisfy({ $0.characteristic.uuid == channel?.uuid }),
-        let central, requests.allSatisfy({ $0.central.identifier == central.identifier })
-      else {
-        manager?.respond(to: first, withResult: .writeNotPermitted)
-        if self.central != nil { finish(.protocolViolation) }
-        return
-      }
-      manager?.respond(to: first, withResult: .success)
-      for request in requests {
-        guard request.offset == 0, let value = request.value else {
-          finish(.protocolViolation)
-          return
-        }
-        receive(value)
-        if finished { return }
-      }
-    }
-
-    internal func readyToUpdate() {
-      guard sendCompletion != nil else { return }
-      drainOutbound()
+      state.sendCompletion = continuation
+      links[link.central] = state
+      drain(link.central)
     }
   }
 #endif

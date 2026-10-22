@@ -28,14 +28,6 @@
     internal static let maximumPreCoordinatorFrames = 4
     internal static let nearbyRedialDelayMilliseconds = 150
 
-    /// Whether this phone holds a card (RAPP v26.10.22 §8.4 item 1): a card
-    /// in a connected reader, from insertion until removal, or a near-field
-    /// card the holder added to the phone, until the holder removes it
-    /// there.
-    internal static var canServeCard: Bool {
-      CardPresence.shared.isReaderCardPresent || PrimeStore.storedCount() > 0
-    }
-
     // MARK: Properties
 
     internal let vault = RappDeviceVault()
@@ -46,6 +38,23 @@
       internal var streamListeners: [String: StreamRelayListener] = [:]
       internal var activeStreamListener: StreamRelayListener?
       internal var sessionListening = SessionListening()
+      /// The transport the open session runs over.
+      internal var servedTransport: ServedTransport?
+      /// The GATT server, while the phone serves over Bluetooth.
+      internal var bluetoothServer: RappBleGattPeripheral?
+      /// Takes the server's events on the main actor, in order.
+      internal var bluetoothEvents: Task<Void, Never>?
+      /// The pairings and replay memory the server's queue routes links
+      /// with, and the pairing each admitted link routed to.
+      nonisolated internal let bluetoothRouting = OSAllocatedUnfairLock(
+        initialState: BluetoothRouting())
+      /// Whether the server advertises now.
+      internal var bluetoothAdvertising = false
+      /// Whether the stream listener stays down while the app is in the
+      /// background (CC-68).
+      internal var streamSuspended = false
+      /// Observes the app entering and leaving the background.
+      internal var lifecycleObservers: [any NSObjectProtocol] = []
     #endif
     internal var coordinator: RappConnectionCoordinator?
     internal var dispatcher: RappPhoneProxyDispatcher?
@@ -111,6 +120,9 @@
           Self.shared.prepareReaderCard()
         }
       }
+      #if REFINEID_STREAM_TRANSPORT
+        observeLifecycle()
+      #endif
     }
 
     // MARK: Functions
@@ -123,11 +135,11 @@
       // devices advertise as the card holder.
       guard SupportedCardTransports.offersNearField else { return }
       #if REFINEID_STREAM_TRANSPORT
-        guard coordinator == nil,
-          hasUsablePair()
-        else { return }
+        guard hasUsablePair() else { return }
         let contexts = PhoneStreamPairContext.resolveAll(vault: vault)
         guard !contexts.isEmpty else { return }
+        startBluetoothServing(contexts)
+        guard !streamSuspended else { return }
         pruneStreamTransports(keeping: streamKeys(for: contexts))
         startListening(contexts)
       #else
@@ -280,49 +292,6 @@
       }
     }
 
-    /// Serves a session the caller's transport routed by its preamble.
-    ///
-    /// Returns the connection's identifier, or nil when another session is
-    /// open or the session cannot start.
-    internal func serveRoutedSession(
-      pair: RappPairRecord,
-      transportProfile: String,
-      transport: RappClosureFrameTransport,
-      failTransport: () -> Void
-    ) -> UUID? {
-      guard coordinator == nil else { return nil }
-      let routedConnectionID = UUID()
-      connectionID = routedConnectionID
-      PairLastUse.markUsed(pairID: pair.metadata().pairId, at: Date())
-      establishCoordinator(
-        connectionID: routedConnectionID, pair: pair, transportProfile: transportProfile,
-        transport: transport, failTransport: failTransport)
-      guard coordinator != nil else {
-        connectionID = nil
-        return nil
-      }
-      return routedConnectionID
-    }
-
-    /// Delivers one frame of a routed session in order, calling `overflow`
-    /// when the peer outruns the bounded chain.
-    internal func receiveRoutedFrame(
-      _ frame: Data, connectionID routedConnectionID: UUID, overflow: () -> Void
-    ) {
-      guard connectionID == routedConnectionID, let coordinator else { return }
-      if !frameDelivery.deliver({ await coordinator.receive(frame) }) {
-        overflow()
-      }
-    }
-
-    /// Ends a routed session whose transport closed, withdrawing any
-    /// authorization prompt it left open: nothing can answer it any more.
-    internal func routedSessionClosed(connectionID routedConnectionID: UUID) {
-      guard connectionID == routedConnectionID else { return }
-      handleConnectionClosed()
-      RappAuthorizationInbox.shared.cancelAll()
-    }
-
     /// Runs `work` after every delivery enqueued before it, cancelling a
     /// transport whose peer outruns the bounded chain.
     internal func deliverInOrder(_ work: @escaping @Sendable () async -> Void) {
@@ -334,7 +303,7 @@
       #endif
       relay?.cancel()
       #if REFINEID_STREAM_TRANSPORT
-        activeStreamListener?.disconnect()
+        dropServedTransport()
       #endif
     }
   }

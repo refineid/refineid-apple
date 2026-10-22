@@ -4,48 +4,81 @@
 
   import CardCore
   import Foundation
-  import os
   import RappEngine
 
   /// Drives both halves of a pairing over `fi.refineid.rapp.ble`
-  /// (RAPP v26.10.22 §4.2, §5) from the command line, and serves sessions
-  /// over it with the stored pairings.
+  /// (RAPP v26.10.22 §4.2, §5) from the command line.
   ///
   /// The custodian prints the code it shows and serves its offer on the
   /// bootstrap characteristic; the requester takes the code from the
   /// environment, reads the offer, and runs the ceremony over GATT writes
   /// and indications. It grants exactly what typing the code grants. DEBUG
-  /// only; the product does not offer this transport.
+  /// only; the product pairs over the stream and serves sessions over
+  /// both transports.
   internal enum DebugBlePairing {
+    /// What a link reports to the ceremony, on either side.
+    private enum LinkStep: Sendable {
+      case bootstrapOffer(Data)
+      case closed(RappBleGattFailure)
+      case connected
+      case frame(Data)
+      case trace(RappBleGattTrace)
+
+      /// The requester's link event.
+      init?(_ event: RappBleGattEvent) {
+        switch event {
+        case .bootstrapOffer(let offer):
+          self = .bootstrapOffer(offer)
+
+        case .closed(let failure):
+          self = .closed(failure)
+
+        case .connected:
+          self = .connected
+
+        case .frame(let frame):
+          self = .frame(frame)
+
+        case .trace(let step):
+          self = .trace(step)
+
+        case .peer:
+          return nil
+        }
+      }
+
+      /// The custodian's link event; the ceremony runs on one link.
+      init(_ event: RappBleGattServerEvent) {
+        switch event {
+        case .routed:
+          self = .connected
+
+        case .frame(_, let frame):
+          self = .frame(frame)
+
+        case .closed(_, let failure):
+          self = .closed(failure)
+
+        case .trace(let step):
+          self = .trace(step)
+        }
+      }
+    }
+
     /// One link event or coordinator outcome, in arrival order.
     private enum Step: Sendable {
-      case link(RappBleGattEvent)
+      case link(LinkStep)
       case pairing(RappPairingCoordinator.Event)
       case timeout
     }
-
-    #if os(iOS) && REFINEID_LOCAL_CARD
-      /// The routing state a peripheral's admission reads on its own queue.
-      private struct SessionRouting: Sendable {
-        var records: [RappPairRecord] = []
-        let router = RappSessionRouter()
-        var matched: RappPairRecord?
-      }
-    #endif
 
     /// What a script looks for on the line carrying the code.
     internal static let offerPrefix = "ble-offer-remote-reader: offer "
 
     /// How long either half waits: the offer's lifetime and a margin.
     private static let waitSeconds: UInt64 = 90
-    /// The development proximity threshold §4.4 allows in isolation, in dBm.
-    private static let developmentMinimumRssi = -85
     private static let custodianPrefix = "ble-offer-remote-reader"
     private static let requesterPrefix = "ble-pair-with-offer"
-    private static let servePrefix = "ble-serve-remote-reader"
-    /// How long serving waits after a link closes before it advertises
-    /// again, so a radio that is off cannot make it spin.
-    private static let readvertisePause = Duration.seconds(1)
 
     /// The custodian half: show a code, serve the offer, wait.
     @MainActor
@@ -53,10 +86,13 @@
       let code = RappPairingCode.generate()
       let (steps, sink) = AsyncStream.makeStream(of: Step.self)
       let box = DebugLinkBox<RappBleGattPeripheral>()
+      let routed = DebugLinkBox<RappBleGattLink>()
       let transport = RappClosureFrameTransport(
         sender: { frame in
-          guard let link = box.value else { throw RappBleGattFailure.disconnected }
-          try await link.send(frame)
+          guard let server = box.value, let link = routed.value else {
+            throw RappBleGattFailure.disconnected
+          }
+          try await server.send(frame, on: link)
         },
         closer: { box.value?.cancel() })
       let coordinator: RappPairingCoordinator
@@ -70,8 +106,25 @@
           lines: [custodianPrefix + ": the offer could not be made"], succeeded: false)
       }
       let link = RappBleGattPeripheral(
-        bootstrapOffer: offer, admits: { purpose in purpose == .pairing },
-        onEvent: { event in sink.yield(.link(event)) })
+        restoreIdentifier: nil,
+        bootstrapOffer: offer,
+        admits: { purpose, link in
+          guard purpose == .pairing, routed.value == nil else { return false }
+          routed.value = link
+          return true
+        },
+        onEvent: { event in
+          // The ceremony runs on the one link that routed; another
+          // central's link ending is not its end.
+          switch event {
+          case .frame(let link, _), .closed(let link, _):
+            guard routed.value == link else { return }
+
+          case .routed, .trace:
+            break
+          }
+          sink.yield(.link(LinkStep(event)))
+        })
       box.value = link
       defer { link.cancel() }
       DebugConsole.emit(offerPrefix + code)
@@ -93,8 +146,10 @@
       }
       let (steps, sink) = AsyncStream.makeStream(of: Step.self)
       let link = RappBleGattCentral(
-        purpose: .pairing, minimumRssi: developmentMinimumRssi,
-        onEvent: { event in sink.yield(.link(event)) })
+        purpose: .pairing,
+        onEvent: { event in
+          if let step = LinkStep(event) { sink.yield(.link(step)) }
+        })
       defer { link.cancel() }
       let transport = RappClosureFrameTransport(
         sender: { frame in try await link.send(frame) }, closer: { link.cancel() })
@@ -114,22 +169,16 @@
         }
         switch event {
         case .bootstrapOffer(let offer):
-          guard
-            let coordinator = try? RappPairingCoordinator.requester(
-              options: options(code: code, transport: transport), bootstrapOffer: offer)
-          else {
-            return DebugModeReport(
-              lines: [requesterPrefix + ": the custodian's offer was refused"], succeeded: false)
-          }
-          DebugConsole.emit(requesterPrefix + ": read the bootstrap offer")
-          return await drive(
-            coordinator: coordinator, steps: steps, sink: sink, prefix: requesterPrefix
-          ) { await coordinator.start() }
+          return await pair(
+            offer: offer, code: code, transport: transport, steps: steps, sink: sink)
 
         case .closed(let failure):
           return DebugModeReport(
             lines: [requesterPrefix + ": link closed before the offer: \(failure)"],
             succeeded: false)
+
+        case .trace(let step):
+          DebugConsole.emit(requesterPrefix + ": " + step.line)
 
         case .connected, .frame:
           continue
@@ -138,93 +187,27 @@
       return DebugModeReport(lines: [requesterPrefix + ": ended"], succeeded: false)
     }
 
-    #if os(iOS) && REFINEID_LOCAL_CARD
-      /// The custodian serving sessions: admit a session preamble naming a
-      /// stored pairing, run the session through the relay, and advertise
-      /// again after each close, until the process is stopped.
-      @MainActor
-      internal static func serve() async -> DebugModeReport {
-        let relay = PhonePersistentTokenRelay.shared
-        let routing = OSAllocatedUnfairLock(initialState: SessionRouting())
-        while true {
-          let records = PhoneStreamPairContext.resolveAll(vault: relay.vault).map(\.pairRecord)
-          guard !records.isEmpty else {
-            return DebugModeReport(
-              lines: [servePrefix + ": no pairing is stored"], succeeded: false)
-          }
-          routing.withLock { state in
-            state.records = records
-            state.matched = nil
-          }
-          let (events, sink) = AsyncStream.makeStream(of: RappBleGattEvent.self)
-          let link = RappBleGattPeripheral(
-            bootstrapOffer: nil,
-            admits: { purpose in
-              guard case .session(let preamble) = purpose else { return false }
-              return routing.withLock { state in
-                let route = state.router.route(
-                  transportProfile: RappBleGattProfile.name, preamble: preamble,
-                  records: state.records)
-                guard case .session(let index) = route, state.records.indices.contains(index)
-                else { return false }
-                state.matched = state.records[index]
-                return true
-              }
-            },
-            onEvent: { event in sink.yield(event) })
-          DebugConsole.emit(servePrefix + ": advertising")
-          link.start()
-          await serveConnection(
-            link: link, events: events, matched: { routing.withLock { $0.matched } })
-          link.cancel()
-          try? await Task.sleep(for: readvertisePause)
-        }
+    /// Runs the requester's ceremony from the offer it read.
+    @MainActor
+    private static func pair(
+      offer: Data,
+      code: String,
+      transport: any RappFrameTransport,
+      steps: AsyncStream<Step>,
+      sink: AsyncStream<Step>.Continuation
+    ) async -> DebugModeReport {
+      guard
+        let coordinator = try? RappPairingCoordinator.requester(
+          options: options(code: code, transport: transport), bootstrapOffer: offer)
+      else {
+        return DebugModeReport(
+          lines: [requesterPrefix + ": the custodian's offer was refused"], succeeded: false)
       }
-
-      /// Runs one admitted connection through the relay until its link closes.
-      @MainActor
-      private static func serveConnection(
-        link: RappBleGattPeripheral,
-        events: AsyncStream<RappBleGattEvent>,
-        matched: () -> RappPairRecord?
-      ) async {
-        let relay = PhonePersistentTokenRelay.shared
-        var connection: UUID?
-        for await event in events {
-          switch event {
-          case .connected:
-            let transport = RappClosureFrameTransport(
-              sender: { frame in try await link.send(frame) }, closer: { link.cancel() })
-            if let pair = matched() {
-              connection = relay.serveRoutedSession(
-                pair: pair, transportProfile: RappBleGattProfile.name, transport: transport
-              ) { link.cancel() }
-            }
-            if connection == nil {
-              DebugConsole.emit(servePrefix + ": refused: unmatched, busy, or failed to start")
-              link.cancel()
-            } else {
-              DebugConsole.emit(servePrefix + ": session routed")
-            }
-
-          case .frame(let frame):
-            if let connection {
-              relay.receiveRoutedFrame(frame, connectionID: connection) { link.cancel() }
-            }
-
-          case .closed(let failure):
-            DebugConsole.emit(servePrefix + ": link closed: \(failure)")
-            if let connection {
-              relay.routedSessionClosed(connectionID: connection)
-            }
-            return
-
-          case .bootstrapOffer:
-            continue
-          }
-        }
-      }
-    #endif
+      DebugConsole.emit(requesterPrefix + ": read the bootstrap offer")
+      return await drive(
+        coordinator: coordinator, steps: steps, sink: sink, prefix: requesterPrefix
+      ) { await coordinator.start() }
+    }
 
     @MainActor
     private static func options(
@@ -276,6 +259,9 @@
         case .link(.closed(let failure)):
           DebugConsole.emit(prefix + ": link closed: \(failure)")
           await coordinator.transportClosed()
+
+        case .link(.trace(let step)):
+          DebugConsole.emit(prefix + ": " + step.line)
 
         case .pairing(.paired(let summary)):
           return DebugModeReport(

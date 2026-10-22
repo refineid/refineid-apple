@@ -190,21 +190,13 @@ internal final class PersistentTokenDriver: TKTokenDriver,
             "performRelaySign: starting algorithm=\(algorithm), digest=\(request.digest.count) bytes"
           )
         #endif
-        // The identity stays offered between sessions: with none open the
-        // request dials and waits for the phone within its own wait (RAPP
-        // v26.10.22 §8.4 item 3).
-        let response = try RappPersistentRequesterClient(
-          displayName: "RefineID Token",
-          policy: .offeredIdentity,
-          pair: persistentToken.pairRecord
-        ).perform(
-          .browserAuthentication(
-            displayContext: Self.displayContext,
-            keyProfile: RappOperationDriver.KeyProfile(persistentToken.profile),
-            algorithm: algorithm,
-            digest: request.digest
-          )
+        let operation = RappRequesterOperation.browserAuthentication(
+          displayContext: Self.displayContext,
+          keyProfile: RappOperationDriver.KeyProfile(persistentToken.profile),
+          algorithm: algorithm,
+          digest: request.digest
         )
+        let response = try perform(operation)
         guard case .signature(let receivedSignature) = response else {
           throw RappRequesterClientError.unexpectedResult
         }
@@ -235,6 +227,40 @@ internal final class PersistentTokenDriver: TKTokenDriver,
         #endif
         throw tkError
       }
+    }
+
+    /// Runs `operation` on the phone.
+    ///
+    /// The app may hold the phone over Bluetooth, a link this extension
+    /// cannot open beside it, so the operation goes to the app first; the
+    /// app carries it, or says to dial the stream, which is also the way
+    /// when no app answers. The identity stays offered between sessions:
+    /// with none open the request dials and waits for the phone within its
+    /// own wait (RAPP v26.10.22 §8.4 item 3).
+    private func perform(_ operation: RappRequesterOperation) throws -> RappRequesterResponse {
+      #if os(macOS)
+        let handoff = RappHeldSessionHandoff.Request(
+          pairID: persistentToken.pairRecord?.metadata().pairId, operation: operation)
+        switch RappHeldSessionHandoff.ask(handoff) {
+        case .response(let response):
+          Self.say("rapp sign carried by the app")
+          return response
+
+        case .failed(let error):
+          throw error
+
+        case .dialStream:
+          Self.say("rapp sign: the app says dial the stream")
+
+        case nil:
+          Self.say("rapp sign: no app answered the handoff")
+        }
+      #endif
+      return try RappPersistentRequesterClient(
+        displayName: "RefineID Token",
+        policy: .offeredIdentity,
+        pair: persistentToken.pairRecord
+      ).perform(operation)
     }
 
     private func mapErrorToTKError(_ error: Error) -> TKError {

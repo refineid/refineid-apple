@@ -148,6 +148,7 @@
         onWithdrawn: Self.withdrawalHandler())
       presence = watcher
       watcher.start()
+      dialAfterSettling()
     }
 
     /// Puts wireless presence watching into passive state by cancelling
@@ -248,9 +249,15 @@
       holderIsAdvertising = false
       closeHolderSession()
       Self.withdrawPublishedIdentity()
+      // Bluetooth carries no withdrawal record: its next dial waits for
+      // the phone's advertisement (§4.5 items 5 and 6).
+      if transportPolicy.nextDial == .bluetooth {
+        scheduleRedial()
+      }
     }
 
     internal func holderPresenceChanged(_ present: Bool) {
+      holderRecordListed = present
       if CardPresence.shared.isReaderCardPresent {
         stopWatchingPresence()
         Self.withdrawPublishedIdentity()
@@ -271,6 +278,8 @@
         // does not reset the deadline forever.
         if !holderIsAdvertising {
           continuousFailureSince = nil
+          streamFailedInSight = false
+          bluetoothUsable = Self.dialsOverBluetooth
         }
         advertisementLossTask?.cancel()
         advertisementLossTask = nil
@@ -280,6 +289,9 @@
       }
       guard holderIsAdvertising else { return }
       armAdvertisementLossHold()
+      // With the record gone, a phone that is still near is reached over
+      // Bluetooth; an open session stays whatever its transport.
+      openHolderSession()
     }
 
     /// Marks the holder gone from the network unless the browser reports it
@@ -292,10 +304,13 @@
         guard !Task.isCancelled else { return }
         advertisementLossTask = nil
         holderIsAdvertising = false
+        bluetoothUsable = Self.dialsOverBluetooth
         #if DEBUG
           print("[persistent-token] holder left the network")
           fflush(stdout)
         #endif
+        // Off the network, the phone may still be in Bluetooth range.
+        openHolderSession()
       }
     }
 

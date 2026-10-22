@@ -41,7 +41,7 @@
       let session = RappHeldRequesterSession(pair: try Self.requester()) { report in
         Task { await reports.record(report) }
       }
-      await #expect(throws: RappHeldRequesterSession.ReadError.notEstablished) {
+      await #expect(throws: RappHeldRequesterSession.OperationError.notEstablished) {
         try await session.readAuthenticationCertificate()
       }
       session.close()
@@ -51,7 +51,7 @@
         if !closed { try await Task.sleep(for: Self.closeCheckInterval) }
       }
       #expect(closed)
-      await #expect(throws: RappHeldRequesterSession.ReadError.closed) {
+      await #expect(throws: RappHeldRequesterSession.OperationError.closed) {
         try await session.readAuthenticationCertificate()
       }
       // A second end is not reported.

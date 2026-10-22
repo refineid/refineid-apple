@@ -2,18 +2,37 @@
 
 #if canImport(MultipeerConnectivity) && canImport(RappEngine) && REFINEID_STREAM_TRANSPORT
   import Foundation
-  import Network
   import os
   import RappEngine
 
   /// The requester's standing session with the custodian (RAPP v26.10.22
-  /// §8.3, §8.4): dialled when the custodian is on the network, held open so
-  /// the custodian's `card.status` reaches the requester, and used for the
-  /// certificate read that an offered identity needs.
+  /// §8.3, §8.4): dialled over the stream when the custodian is on the
+  /// network and over Bluetooth otherwise, held open so the custodian's
+  /// `card.status` reaches the requester, and used for the operations the
+  /// requester's own processes need.
   ///
   /// Reports arrive on the transport's queues; the owner hops to its own.
   public final class RappHeldRequesterSession: @unchecked Sendable {
     // MARK: Nested Types
+
+    /// How the session reaches the custodian.
+    public enum Route: Sendable, Equatable {
+      /// Browse for the custodian's session record and dial its listener.
+      case stream
+      /// Scan for the RAPP service and dial one of `peers` over GATT.
+      case bluetooth(RappBleCentralPeers)
+
+      /// The transport profile the session binds (§2.2).
+      internal var transportProfile: String {
+        switch self {
+        case .stream:
+          rappStreamProfileName()
+
+        case .bluetooth:
+          RappBleGattProfile.name
+        }
+      }
+    }
 
     /// What the session tells its owner.
     public enum Report: Sendable, Equatable {
@@ -22,49 +41,66 @@
       case established
       /// The custodian's word on which card it can serve now.
       case cardStatus(RappCardStatus)
+      /// The Bluetooth link went to this advertiser, which routed the
+      /// preamble or refused it.
+      case bluetoothPeer(UUID, routed: Bool)
+      /// One step of the Bluetooth link, for a development trace.
+      case bluetoothTrace(RappBleGattTrace)
       /// The session ended; the owner decides whether to dial again.
       case closed(RappConnectionCoordinator.CloseReason)
     }
 
-    /// Why a certificate read over the session produced no certificate.
-    public enum ReadError: Error, Equatable {
+    /// Why an operation over the session produced no answer.
+    public enum OperationError: Error, Equatable {
       case notEstablished
-      case readInFlight
+      case operationInFlight
       case terminal(RappTerminalReason)
       case closed
       case unexpectedResult
     }
 
-    private struct State: Sendable {
-      var coordinator: RappConnectionCoordinator?
-      var connected = false
-      var finished = false
-      var read: CheckedContinuation<Data, any Error>?
+    internal struct State: Sendable {
+      internal var coordinator: RappConnectionCoordinator?
+      internal var connected = false
+      internal var established = false
+      internal var finished = false
+      internal var bluetoothPeer: UUID?
+      internal var pending: CheckedContinuation<RappOperationResult, any Error>?
+      internal var awaitingEstablishment: [UUID: CheckedContinuation<Bool, Never>] = [:]
     }
 
     // MARK: Properties
 
-    private let pair: RappPairRecord
-    private let policy: RappRequesterPolicy
-    private let report: @Sendable (Report) -> Void
-    private let state = OSAllocatedUnfairLock(initialState: State())
-    private let frameDelivery = OrderedDelivery(capacity: OrderedDelivery.relayFrameCapacity)
-    private let link = Link()
-    private let transport: RappClosureFrameTransport
+    internal let pair: RappPairRecord
+    internal let route: Route
+    internal let policy: RappRequesterPolicy
+    internal let report: @Sendable (Report) -> Void
+    internal let state = OSAllocatedUnfairLock(initialState: State())
+    internal let frameDelivery = OrderedDelivery(capacity: OrderedDelivery.relayFrameCapacity)
+    internal let link = Link()
+    internal let transport: RappClosureFrameTransport
 
     /// The pairing the session runs over.
     public var pairID: Data { pair.metadata().pairId }
 
+    /// Whether the session runs over Bluetooth.
+    public var isBluetooth: Bool {
+      if case .bluetooth = route { return true }
+      return false
+    }
+
     // MARK: Lifecycle
 
-    /// Prepares a session over `pair`; ``start()`` browses and dials.
+    /// Prepares a session over `pair` along `route`; ``start()`` dials.
     @preconcurrency
     public init(
       pair: RappPairRecord,
+      route: Route = .stream,
       policy: RappRequesterPolicy = .interactive,
       report: @escaping @Sendable (Report) -> Void
     ) {
       self.pair = pair
+      self.route = route
       self.policy = policy
       self.report = report
       let owned = link
@@ -75,35 +111,46 @@
 
     // MARK: Static Functions
 
-    /// Resumes the waiting read, if one is waiting; the lock, not the
+    /// Resumes the waiting operation, if one is waiting; the lock, not the
     /// session, is what the resumption needs.
-    private static func settle(
-      _ state: OSAllocatedUnfairLock<State>, _ outcome: Result<Data, any Error>
+    internal static func settle(
+      _ state: OSAllocatedUnfairLock<State>, _ outcome: Result<RappOperationResult, any Error>
     ) {
-      let waiting = state.withLock { state -> CheckedContinuation<Data, any Error>? in
-        let read = state.read
-        state.read = nil
-        return read
+      let waiting = state.withLock {
+        state -> CheckedContinuation<RappOperationResult, any Error>? in
+        let pending = state.pending
+        state.pending = nil
+        return pending
       }
       waiting?.resume(with: outcome)
     }
 
+    /// Answers everyone waiting for the session to come up.
+    internal static func settleEstablishment(
+      _ state: OSAllocatedUnfairLock<State>, _ established: Bool
+    ) {
+      let waiting = state.withLock { state -> [CheckedContinuation<Bool, Never>] in
+        let waiting = Array(state.awaitingEstablishment.values)
+        state.awaitingEstablishment.removeAll()
+        return waiting
+      }
+      for continuation in waiting {
+        continuation.resume(returning: established)
+      }
+    }
+
     // MARK: Functions
 
-    /// Browses for the custodian's session record and dials it; a
-    /// custodian not found within the policy's discovery window ends the
-    /// session as a transport failure.
+    /// Dials along the route; a custodian not reached within the policy's
+    /// discovery window ends the session as a transport failure.
     public func start() {
-      let followed = pair
-      let found = StreamRelayBrowser(
-        matchingRecord: { record in
-          StreamRendezvousName.sessionRecord(record, holds: followed, at: Date())
-        },
-        onFound: { [weak self] endpoint in
-          self?.dial(endpoint)
-        })
-      link.browse(with: found)
-      found.start()
+      switch route {
+      case .stream:
+        startStream()
+
+      case .bluetooth(let peers):
+        startBluetooth(peers)
+      }
       let discoveryTimeout = policy.discoveryTimeout
       Task { [weak self] in
         try? await Task.sleep(for: .seconds(discoveryTimeout))
@@ -112,18 +159,54 @@
       }
     }
 
+    /// Whether the session is up within `limit`; false once it ended.
+    public func established(within limit: Duration) async -> Bool {
+      let ticket = UUID()
+      let shared = state
+      return await withCheckedContinuation { continuation in
+        let settled = shared.withLock { held -> Bool in
+          guard !held.established, !held.finished else { return true }
+          held.awaitingEstablishment[ticket] = continuation
+          return false
+        }
+        guard !settled else {
+          continuation.resume(returning: shared.withLock { $0.established })
+          return
+        }
+        Task {
+          try? await Task.sleep(for: limit)
+          let waiting = shared.withLock { $0.awaitingEstablishment.removeValue(forKey: ticket) }
+          waiting?.resume(returning: false)
+        }
+      }
+    }
+
     /// Reads the custodian's authentication certificate over the session.
-    ///
-    /// One read at a time; the session must be established.
     public func readAuthenticationCertificate() async throws -> Data {
+      guard
+        case .authenticationCertificate(let der) = try await perform(
+          .readAuthenticationCertificate)
+      else { throw OperationError.unexpectedResult }
+      return der
+    }
+
+    /// Runs one operation over the session and answers what it yields.
+    ///
+    /// One operation at a time; the session must be established.
+    public func perform(_ operation: RappRequesterOperation) async throws
+      -> RappRequesterResponse
+    {
       let lifetime = policy.maximumOperationLifetimeMilliseconds
       let shared = state
-      return try await withCheckedThrowingContinuation { continuation in
-        let armed: Result<RappConnectionCoordinator, ReadError> = shared.withLock { held in
+      let result = try await withCheckedThrowingContinuation {
+        (continuation: CheckedContinuation<RappOperationResult, any Error>) in
+        let armed: Result<RappConnectionCoordinator, OperationError> = shared.withLock { held in
           guard !held.finished else { return .failure(.closed) }
-          guard let coordinator = held.coordinator else { return .failure(.notEstablished) }
-          guard held.read == nil else { return .failure(.readInFlight) }
-          held.read = continuation
+          guard held.established, let coordinator = held.coordinator else {
+            return .failure(.notEstablished)
+          }
+          guard held.pending == nil else { return .failure(.operationInFlight) }
+          held.pending = continuation
           return .success(coordinator)
         }
         switch armed {
@@ -133,14 +216,17 @@
         case .success(let coordinator):
           Task {
             do {
-              try await coordinator.beginReadCertificate(
-                signatureCertificate: false, expiresAfterMilliseconds: lifetime)
+              try await coordinator.begin(operation, lifetime: lifetime)
             } catch {
-              Self.settle(shared, .failure(ReadError.unexpectedResult))
+              Self.settle(shared, .failure(OperationError.unexpectedResult))
             }
           }
         }
       }
+      guard let response = operation.response(for: result) else {
+        throw OperationError.unexpectedResult
+      }
+      return response
     }
 
     /// Ends the session with a plain close, after the frames in flight.
@@ -164,138 +250,24 @@
       return told
     }
 
-    private func dial(_ endpoint: NWEndpoint) {
-      guard
-        let preamble = try? pair.sessionPreamble(transportProfile: rappStreamProfileName())
-      else {
-        finish(.transportFailure)
-        return
-      }
-      let made = StreamRelaySession(service: endpoint, preamble: preamble) { [weak self] event in
-        self?.receive(PersistentRelayEvent(event))
-      }
-      guard !state.withLock({ $0.finished }), link.dial(with: made) else { return }
-      made.start()
-    }
-
-    private func receive(_ event: PersistentRelayEvent) {
-      switch event {
-      case .connected:
-        state.withLock { $0.connected = true }
-        deliverInOrder { [weak self] in
-          await self?.establish()
-        }
-
-      case .frame(let frame):
-        deliverInOrder { [weak self] in
-          let coordinator = self?.state.withLock { $0.coordinator }
-          await coordinator?.receive(frame)
-        }
-
-      case .closed:
-        // The coordinator names the end: a close the custodian announced
-        // keeps its reason, a bare transport loss is a failure.
-        deliverInOrder { [weak self] in
-          guard let self else { return }
-          if let coordinator = state.withLock({ $0.coordinator }) {
-            await coordinator.transportClosed()
-          } else {
-            finish(.transportFailure)
-          }
-        }
-      }
-    }
-
-    private func deliverInOrder(_ work: @escaping @Sendable () async -> Void) {
-      if frameDelivery.deliver(work) { return }
-      finish(.transportFailure)
-    }
-
-    private func establish() async {
-      do {
-        let coordinator = try RappConnectionCoordinator(
-          role: .requester,
-          pair: pair,
-          transport: transport,
-          maximumLifetimeMilliseconds: policy.maximumOperationLifetimeMilliseconds
-        )
-        let installed = state.withLock { state -> Bool in
-          guard state.coordinator == nil, !state.finished else { return false }
-          state.coordinator = coordinator
-          return true
-        }
-        guard installed else { return }
-        Task { [weak self] in
-          for await event in coordinator.events {
-            await self?.receive(event, from: coordinator)
-          }
-        }
-        await coordinator.start()
-      } catch {
-        finish(.handshake(.protocolFailure))
-      }
-    }
-
-    private func receive(
-      _ event: RappConnectionCoordinator.Event, from coordinator: RappConnectionCoordinator
-    ) async {
-      switch event {
-      case .established:
-        report(.established)
-
-      case .cardStatus(let status):
-        report(.cardStatus(status))
-
-      case .progress(_, let progressEvent):
-        RappRequesterNotices.post(progress: progressEvent)
-
-      case .completed(_, let result):
-        RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
-        Self.settle(state, certificate(in: result))
-
-      case .terminal(_, let reason):
-        RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
-        Self.settle(state, .failure(ReadError.terminal(reason)))
-
-      case .operationEnded:
-        Self.settle(state, .failure(ReadError.closed))
-
-      case .answered:
-        // Only a custodian answers an operation.
-        break
-
-      case .closed(let reason):
-        RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
-        finish(reason)
-
-      case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead, .executeCardCommand:
-        await coordinator.close()
-        finish(.operation(.protocolFailure))
-      }
-    }
-
-    private func certificate(in result: RappOperationResult) -> Result<Data, any Error> {
-      guard case .certificate(let der) = result, !der.isEmpty else {
-        return .failure(ReadError.unexpectedResult)
-      }
-      return .success(der)
-    }
-
     /// Reports the end once and releases the transport.
-    private func finish(_ reason: RappConnectionCoordinator.CloseReason) {
+    internal func finish(_ reason: RappConnectionCoordinator.CloseReason) {
       let first = state.withLock { state -> Bool in
         guard !state.finished else { return false }
         state.finished = true
+        state.established = false
         return true
       }
       guard first else { return }
-      Self.settle(state, .failure(ReadError.closed))
+      Self.settle(state, .failure(OperationError.closed))
+      Self.settleEstablishment(state, false)
       link.cancel()
       report(.closed(reason))
     }
 
     deinit {
-      Self.settle(state, .failure(ReadError.closed))
+      Self.settle(state, .failure(OperationError.closed))
+      Self.settleEstablishment(state, false)
     }
   }
 #endif
