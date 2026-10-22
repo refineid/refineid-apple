@@ -1671,23 +1671,6 @@
         }
       }
     },
-    "Connect a card reader": {
-      "extractionState": "stale",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Liitä kortinlukija"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Anslut en kortläsare"
-          }
-        }
-      }
-    },
     "Connect a card reader and insert your card.": {
       "localizations": {
         "fi": {
@@ -6746,6 +6729,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fjärrkortet kunde inte läsas."
+          }
+        }
+      }
+    },
+    "Connecting...": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yhdistetään…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ansluter…"
           }
         }
       }

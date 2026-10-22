@@ -28,7 +28,7 @@ internal struct IdentityLineTests {
   )
 
   internal static let cases: [Case] = [
-    Case(name: "nothing here", facts: idle, line: .connectReader),
+    Case(name: "nothing here", facts: idle, line: .pairPhone),
     Case(
       name: "empty reader",
       facts: with { $0.readerConnected = true }, line: .insertCard),
@@ -56,7 +56,7 @@ internal struct IdentityLineTests {
         facts.pairedPhone = phone
         facts.phonePresent = true
       },
-      line: .phoneConnected(phone)),
+      line: .connecting),
     Case(
       name: "paired phone present",
       facts: with { facts in
@@ -66,14 +66,14 @@ internal struct IdentityLineTests {
       line: .phoneConnected(phone)),
     Case(
       name: "a phone on the network without a pairing is nothing to show",
-      facts: with { $0.phonePresent = true }, line: .connectReader),
+      facts: with { $0.phonePresent = true }, line: .pairPhone),
     Case(
       name: "read in flight",
       facts: with { facts in
         facts.phonePresent = true
         facts.readInFlight = true
       },
-      line: .reading),
+      line: .connecting),
     Case(
       name: "reader card settling",
       facts: with { facts in
@@ -98,14 +98,14 @@ internal struct IdentityLineTests {
         facts.pairedPhone = phone
         facts.phonePresent = true
       },
-      line: .phoneConnected(phone)),
+      line: .connecting),
     Case(
-      name: "an unpaired phone with the card unread is still a read",
+      name: "an unpaired phone with the card unread is still connecting",
       facts: with { facts in
         facts.availability = .cardWithoutIdentity
         facts.phonePresent = true
       },
-      line: .reading),
+      line: .connecting),
     Case(
       name: "phone here, card not read yet",
       facts: with { facts in
@@ -113,7 +113,7 @@ internal struct IdentityLineTests {
         facts.phonePresent = true
         facts.readInFlight = true
       },
-      line: .reading),
+      line: .connecting),
     Case(
       name: "reader card beats a waiting phone",
       facts: with { facts in
@@ -128,7 +128,7 @@ internal struct IdentityLineTests {
         facts.readerConnected = true
         facts.readInFlight = true
       },
-      line: .reading),
+      line: .connecting),
     Case(
       name: "a waiting phone beats the card warning",
       facts: with { facts in
@@ -137,7 +137,7 @@ internal struct IdentityLineTests {
         facts.phonePresent = true
         facts.warnsUnavailableCard = true
       },
-      line: .phoneConnected(phone)),
+      line: .connecting),
     Case(
       name: "the card warning needs a card",
       facts: with { facts in
@@ -146,7 +146,7 @@ internal struct IdentityLineTests {
         facts.readInFlight = true
         facts.warnsUnavailableCard = true
       },
-      line: .reading),
+      line: .connecting),
     Case(
       name: "identity ready",
       facts: with { facts in
@@ -174,8 +174,8 @@ internal struct IdentityLineTests {
   internal func onlyAConnectedPhoneWaitsToShow() {
     #expect(IdentityLine.phoneConnected(Self.phone).waitsBeforeShowing)
     let immediate: [IdentityLine] = [
-      .cardNotReady, .connectReader, .empty, .holder, .insertCard, .phoneForgot(Self.phone),
-      .reading,
+      .cardNotReady, .connecting, .empty, .holder, .insertCard, .pairPhone,
+      .phoneForgot(Self.phone), .reading,
     ]
     #expect(immediate.allSatisfy { !$0.waitsBeforeShowing })
   }

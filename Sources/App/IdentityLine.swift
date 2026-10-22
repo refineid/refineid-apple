@@ -7,8 +7,9 @@
     /// The card has stayed present without an identity long enough to warn.
     case cardNotReady
 
-    /// "Connect a card reader".
-    case connectReader
+    /// "Connecting…": the phone's card is on its way to the holder's name,
+    /// read or about to be.
+    case connecting
 
     /// Nothing worth a line: a paired phone that is not on the network
     /// leaves the row empty, and the pairing prompt below it stands.
@@ -20,28 +21,35 @@
     /// "Insert the card into the reader."
     case insertCard
 
+    /// Nothing here can sign, no reader card and no paired phone: the row
+    /// asks for a phone's pairing code, so a document waiting to be signed
+    /// can be signed on the phone once it is paired.
+    case pairPhone
+
     /// The paired phone, by name, is on the network.
     case phoneConnected(String)
 
     /// The phone, by name, announced it forgot this computer.
     case phoneForgot(String)
 
-    /// A card in the reader is settling, or a read of the phone's card is
-    /// in flight; the row shows nothing until the holder's name.
+    /// A card in the reader is settling; it mints in well under a second,
+    /// so the row shows nothing until the holder's name.
     case reading
 
     // MARK: Computed Properties
 
     /// Whether the row shows this line only once it has lasted.
     ///
-    /// A phone connected before its card is read is on the way to the
-    /// holder's name and not worth a flash; a connection that lasts is.
+    /// A phone connected before its card reports is on the way to the
+    /// holder's name, and the row says it is connecting; a connection that
+    /// lasts without a card is named.
     internal var waitsBeforeShowing: Bool {
       switch self {
       case .phoneConnected:
         true
 
-      case .cardNotReady, .connectReader, .empty, .holder, .insertCard, .phoneForgot, .reading:
+      case .cardNotReady, .connecting, .empty, .holder, .insertCard, .pairPhone, .phoneForgot,
+        .reading:
         false
       }
     }
@@ -58,14 +66,11 @@
         if facts.cardPresent {
           return facts.warnsUnavailableCard ? .cardNotReady : .reading
         }
-        if facts.phonePresent, !facts.readInFlight, let phone = facts.pairedPhone {
-          return .phoneConnected(phone)
-        }
-        return .reading
+        return .connecting
 
       case .noCard:
         if facts.readInFlight {
-          return .reading
+          return .connecting
         }
         if facts.readerConnected {
           return .insertCard
@@ -74,7 +79,7 @@
           if let forgot = facts.phoneThatForgot {
             return .phoneForgot(forgot)
           }
-          return .connectReader
+          return .pairPhone
         }
         return facts.phonePresent ? .phoneConnected(phone) : .empty
       }
