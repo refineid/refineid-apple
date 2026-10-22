@@ -172,10 +172,8 @@
     /// Lets a waiting line show once it has lasted, and forgets it as
     /// soon as another line takes over.
     private func settle(_ line: IdentityLine) async {
-      guard line.waitsBeforeShowing else {
-        settledLine = nil
-        return
-      }
+      settledLine = nil
+      guard line.waitsBeforeShowing else { return }
       try? await Task.sleep(for: PersistentTokenRegistry.advertisementLossHold)
       guard !Task.isCancelled else { return }
       settledLine = line
