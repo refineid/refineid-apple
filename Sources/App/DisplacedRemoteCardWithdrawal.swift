@@ -15,8 +15,9 @@ import os.log
 ///
 /// Reading the configuration store is a synchronous call into `ctkd`,
 /// so this never runs from the app initializer, which must not wait on
-/// another process: the first screen's task calls it, and it leaves the
-/// main actor before touching the store.
+/// another process: the first screen's task calls it, or the Mac's
+/// application delegate at a login launch, which shows no screen, and
+/// it leaves the main actor before touching the store.
 internal enum DisplacedRemoteCardWithdrawal {
   #if DEBUG
     /// Withdrawal counts, in development builds only.

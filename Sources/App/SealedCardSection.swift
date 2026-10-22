@@ -49,6 +49,9 @@
     /// The pause between looks, in milliseconds.
     nonisolated private static let refusalPollMilliseconds = 500
 
+    /// Whether this run already took back an earlier run's number.
+    @MainActor private static var withdrewEarlierOffer = false
+
     /// Whether a submitted number is awaiting the card's verdict.
     ///
     /// Owned by the status window: while this stands, the window
@@ -135,13 +138,19 @@
       )
     }
 
-    /// Takes the offered number back: at launch, and at quit.
+    /// Takes back the number an earlier run offered, once per run;
+    /// quitting takes back the current one.
     ///
     /// Not when the card leaves. A contactless card leaves the field
     /// between taps, the offer exists to serve the next tap, and
     /// every contactless session - PIN management included - runs
-    /// PACE again and needs it. The app run is the offer's lifetime.
+    /// PACE again and needs it. Not when the window opens again
+    /// either: the app outlives its window. The app run is the
+    /// offer's lifetime.
+    @MainActor
     internal static func withdrawOfferedNumber() {
+      guard !withdrewEarlierOffer else { return }
+      withdrewEarlierOffer = true
       Task.detached(priority: .utility) {
         CardCredentialStore.withdrawCardAccessNumberFromDriver()
       }

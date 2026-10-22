@@ -44,6 +44,10 @@ internal struct RefineIDApp: App {
       ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
       && !ProcessInfo.processInfo.arguments.contains("--ui-test")
 
+    /// The status window's scene identifier, which AppKit also carries
+    /// as the window's identifier.
+    internal static let statusWindowID = "status"
+
     /// Title drawn in the macOS main window title bar.
     internal static var statusWindowTitle: String {
       #if DEBUG
@@ -67,6 +71,13 @@ internal struct RefineIDApp: App {
     private var demoModeDelegate
   #endif
 
+  #if os(macOS)
+    /// Keeps the app running after its window closes, and windowless at
+    /// a login launch; ``MacAppDelegate`` says why.
+    @NSApplicationDelegateAdaptor(MacAppDelegate.self)
+    private var macAppDelegate
+  #endif
+
   @ObservedObject private var demoMode = DemoMode.shared
   @State private var showsVirtualCardEditor = false
 
@@ -85,7 +96,7 @@ internal struct RefineIDApp: App {
 
   internal var body: some Scene {
     #if os(macOS)
-      Window(Self.statusWindowTitle, id: "status") {
+      Window(Self.statusWindowTitle, id: Self.statusWindowID) {
         rootContent
           .windowFullScreenBehavior(.disabled)
       }
@@ -181,7 +192,8 @@ internal struct RefineIDApp: App {
     // Off the launch path for the reason in the initializer below:
     // withdrawing reads the driver configuration, a synchronous call
     // into `ctkd`, so it starts from the first screen rather than
-    // from a launch that would wait on it.
+    // from a launch that would wait on it. A Mac login launch shows no
+    // screen, and MacAppDelegate starts it instead.
     .task { DisplacedRemoteCardWithdrawal.performOnce() }
   }
 
@@ -311,9 +323,10 @@ internal struct RefineIDApp: App {
       #endif
 
       // The offered access number lives for the app run: the status
-      // screen withdraws a stale one at launch, and this withdraws
-      // the current one at quit. Only with the feature: without it no
-      // number is offered, and there is no group container to reach.
+      // screen, or MacAppDelegate at a login launch, withdraws a stale
+      // one once per run, and this withdraws the current one at quit.
+      // Only with the feature: without it no number is offered, and
+      // there is no group container to reach.
       #if FEATURE_CONTACTLESS
         QuitWithdrawal.observer = NotificationCenter.default.addObserver(
           forName: NSApplication.willTerminateNotification,
