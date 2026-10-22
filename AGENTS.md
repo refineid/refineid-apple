@@ -16,6 +16,12 @@
 - Every keychain service the software creates starts with `fi.refineid`. That prefix is the whole deletable namespace: wiping it forgets every card number, pairing, and credential the app holds, and nothing else.
 - That namespace holds software-generated state only. Anything owned by a human stays outside it, so no cleanup can reach it.
 
+# Rule #5 – Development builds make every error visible
+- Every failure path (refusal, transport close, card or reader error, failed operation) reports to `DevErrorLog` inside `#if DEBUG`, from the app and from both token extensions.
+- A development build shows the errors live (the Errors window on the Mac, the error pill and the Diagnostics screen on iPhone and iPad) and writes each one to the unified log, subsystem `fi.refineid.ReFineID`, category `errors`.
+- A message names the event and its cause only: never a PIN or its length (Rule #2), a card access number, a name, certificate content, a device name or a serial number.
+- TestFlight and Release builds compile none of it and log nothing.
+
 - Please No AI attribution spam in commits.
   No `Co-authored-by` / `Signed-off-by` / `Reviewed-by`
   or any AI-naming trailer; subject + body only. 
