@@ -97,14 +97,6 @@
       #endif
     }
 
-    /// The pair ID of the currently selected or active remote holder.
-    internal static var activePairID: Data? {
-      let vault = RappDeviceVault()
-      let pairIDs = (try? vault.activePairIDs()) ?? []
-      guard !pairIDs.isEmpty else { return nil }
-      return (try? vault.selectedPairID()) ?? pairIDs.first
-    }
-
     // MARK: Properties
 
     /// Who the borrowed certificate names, for the identity row.
@@ -154,8 +146,11 @@
     }
 
     /// The paired phone, by the name it introduced itself with; nil
-    /// while no phone is paired.
+    /// while no usable pairing exists.
     internal private(set) var pairedPhone: String?
+
+    /// The pairing ``pairedPhone`` names.
+    internal private(set) var pairedPhoneID: Data?
 
     /// The phone that told this computer it forgot it (RAPP v26.10.22 §4.6
     /// item 4), by name, until a phone is paired again.
@@ -252,15 +247,29 @@
 
     // MARK: Functions
 
-    /// Reads which phone is paired, for the identity row.
-    internal func refreshPairing() {
-      pairedPhone =
-        Self.dialsPhones
-        ? Self.activePairID.map(RappPairNames.displayName(forPairID:)) : nil
+    /// Reads which phone `vault` pairs, for the identity row.
+    internal func refreshPairing(in vault: RappDeviceVault) {
+      pairedPhoneID = Self.dialsPhones ? Self.pairedPhoneID(in: vault) : nil
+      pairedPhone = pairedPhoneID.map(RappPairNames.displayName(forPairID:))
       if pairedPhone != nil {
         phoneThatForgot = nil
       }
     }
+
+    #if os(macOS)
+      /// Forgets the paired phone, as the control beside its name asks.
+      ///
+      /// The row stops naming the phone at once; the pairing then ends as
+      /// RAPP v26.10.22 §4.6 says, through `model`, and the row follows
+      /// what its vault then holds.
+      internal func forgetPairedPhone(through model: RappPairingModel) async {
+        guard let pairID = pairedPhoneID else { return }
+        pairedPhone = nil
+        pairedPhoneID = nil
+        await model.forgetPhone(pairID: pairID)
+        refreshPairing(in: model.vault)
+      }
+    #endif
 
     /// Starts following the paired phone at launch on the requesting
     /// device.

@@ -6,13 +6,13 @@ import Security
 
 /// Asks the configured authorities for a timestamp.
 ///
-/// The order in Settings is the order asked, and the first authority
+/// The list's order is the order asked, and the first authority
 /// to answer with a token that binds to the digest wins. A sole
 /// authority is retried after temporary failures. With several,
 /// refusal is a reason to try the next, never a reason to accept less.
 ///
 /// The authority itself is trusted as configured: whoever names an
-/// authority in Settings answers for its standing. Every token is
+/// authority answers for its standing. Every token is
 /// still cryptographically verified against the request digest and
 /// nonce, and against the certificate chain the token itself carries.
 internal enum TimestampClient {
@@ -21,7 +21,7 @@ internal enum TimestampClient {
     /// Every configured authority declined or failed.
     case noAuthorityAnswered([String])
 
-    /// Settings has no authority to ask.
+    /// The list has no authority to ask.
     case noAuthorityConfigured
 
     /// Secure random bytes for the request could not be made.

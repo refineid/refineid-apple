@@ -216,65 +216,37 @@
       try audit(app, window: "status")
     }
 
-    /// Audits the PIN settings pane, where every task spends something
+    /// Audits the PIN codes window, where every task spends something
     /// the holder cannot get back by pressing undo.
     ///
-    /// Settings opens by its shortcut rather than through the menu bar:
-    /// the menu belongs to whichever app is frontmost, so a test that
-    /// reaches for it fails for a reason that has nothing to do with
-    /// accessibility.
-    internal func testPinSettingsPanePassesTheAudit() throws {
-      let app = UITestApp.launch()
+    /// The window opens from the key beside the holder's name, so a
+    /// virtual card stands in the reader.
+    internal func testPinCodesWindowPassesTheAudit() throws {
+      let app = UITestApp.launch(arguments: ["--virtual-card", "activated-reader"])
       app.activate()
+      let key = app.windows["status"].buttons[UITestIdentifiers.pinManagementButton]
       XCTAssertTrue(
-        app.windows.firstMatch.waitForExistence(timeout: UITestApp.appearTimeout),
-        "no main window"
+        key.waitForExistence(timeout: UITestApp.appearTimeout),
+        "no key beside the holder's name"
       )
-      app.typeKey(",", modifierFlags: .command)
-      let settingsCandidates = app.windows.matching(NSPredicate(format: "identifier != 'status'"))
-      if !settingsCandidates.firstMatch.waitForExistence(timeout: 3) {
-        let appMenu = app.menuBars.menuBarItems.firstMatch
-        if appMenu.waitForExistence(timeout: 2) {
-          appMenu.click()
-          let settingsItem = app.menuItems.matching(
-            NSPredicate(format: "title CONTAINS[c] 'Settings' OR title CONTAINS[c] 'Preferences'")
-          ).firstMatch
-          if settingsItem.waitForExistence(timeout: 3) {
-            settingsItem.click()
-          }
-        }
-      }
-      let settings =
-        settingsCandidates.firstMatch.exists
-        ? settingsCandidates.firstMatch
-        : app.windows["Settings"]
+      XCTAssertEqual(key.label, "PIN Codes", "the key has no label of its own")
+      key.click()
+      let window = app.windows[UITestIdentifiers.pinCodesWindow]
       XCTAssertTrue(
-        settings.waitForExistence(timeout: UITestApp.appearTimeout), "no settings window")
-
-      let pinTab =
-        settings.toolbars.buttons["PIN Codes"].exists
-        ? settings.toolbars.buttons["PIN Codes"]
-        : settings.toolbars.buttons["PIN"]
-      if pinTab.exists {
-        pinTab.click()
-      }
-
-      // The pane's body follows the card: the task picker for a card in
-      // use or none at all, the activation form for a factory card, or
-      // the placeholder to connect a card reader if none is attached.
-      // Either is a pane worth auditing; neither appearing means the
-      // pane did not open.
-      let picker = app.descendants(matching: .any)[UITestIdentifiers.managementTask]
-      let attempts = app.staticTexts["Attempts left:"]
-      let readerPrompt = app.staticTexts["Connect a card reader and insert your card."]
-      XCTAssertTrue(
-        picker.waitForExistence(timeout: 10)
-          || attempts.waitForExistence(timeout: 5)
-          || readerPrompt.waitForExistence(timeout: 5),
-        "the PIN pane did not open"
+        window.waitForExistence(timeout: UITestApp.appearTimeout),
+        "the PIN codes window did not open"
       )
-      attachScreenshot(app.screenshot(), named: "02-pin-settings-pane")
-      try audit(app, subject: settings, named: "pin-settings")
+
+      // The window's body follows the card: the task picker for a card
+      // in use, or the attempts left when no task is open to it.
+      let picker = window.descendants(matching: .any)[UITestIdentifiers.managementTask]
+      let attempts = window.staticTexts["Attempts left:"]
+      XCTAssertTrue(
+        picker.waitForExistence(timeout: 10) || attempts.waitForExistence(timeout: 5),
+        "the PIN codes window shows nothing of the card"
+      )
+      attachScreenshot(app.screenshot(), named: "02-pin-codes-window")
+      try audit(app, window: UITestIdentifiers.pinCodesWindow)
     }
   }
 

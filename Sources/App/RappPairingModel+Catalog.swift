@@ -85,19 +85,37 @@ extension RappPairingModel {
   ///
   /// A session open over the pairing closes with `pairing_revoked` and,
   /// once that close left, the record and its key go at once. Otherwise the
-  /// record is kept, forgotten, only to tell the peer on its next session. Either way the row goes, and
-  /// the name with it once the record is no longer listed; a row that
-  /// stays keeps its name.
-  internal func revoke(pairID: Data) {
-    Task { @MainActor in
-      let told = await Self.closeSessionForRevocation(pairID: pairID)
-      forgetStored(pairID: pairID, told: told)
-    }
+  /// record is kept, forgotten, only to tell the peer on its next session.
+  /// Either way the row goes, and the name with it once the record is no
+  /// longer listed; a row that stays keeps its name.
+  internal func forget(pairID: Data) async {
+    let told = await Self.closeSessionForRevocation(pairID: pairID)
+    forgetStored(pairID: pairID, told: told)
   }
+
+  #if os(macOS)
+    /// Forgets the paired phone `pairID` names, with the same-account record
+    /// that would pair this computer with it again.
+    internal func forgetPhone(pairID: Data) async {
+      let name = RappPairNames.name(forPairID: pairID)
+      let localKey = RappAutoPairingService.shared.localIdentity?.publicKeyData
+      for device in RappAutoPairingService.shared.remoteDevices where device.role == .holder {
+        let derived = localKey.map { key in
+          RappSameAccountPairBuilder.derivePairIdentifier(
+            publicKeyA: key, publicKeyB: device.staticPublicKey)
+        }
+        let named = name.map { device.deviceName.caseInsensitiveCompare($0) == .orderedSame }
+        if derived == pairID || named == true {
+          RappAutoPairingService.shared.removeRemoteDevice(deviceID: device.deviceID)
+        }
+      }
+      await forget(pairID: pairID)
+    }
+  #endif
 
   private func forgetStored(pairID: Data, told: Bool) {
     #if os(macOS) || os(iOS)
-      let wasOffered = PersistentTokenRegistry.activePairID == pairID
+      let wasOffered = PersistentTokenRegistry.pairedPhoneID(in: vault) == pairID
     #endif
     let ended: Bool =
       if told {
@@ -106,6 +124,9 @@ extension RappPairingModel {
         (try? catalogForget(pairID: pairID)) != nil
       }
     guard ended else {
+      #if DEBUG
+        DevErrorLog.report("pairing not forgotten: the vault refused", source: .app)
+      #endif
       refresh()
       return
     }

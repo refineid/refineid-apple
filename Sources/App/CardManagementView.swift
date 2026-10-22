@@ -182,9 +182,8 @@ internal struct CardManagementView: View {
 
   /// One tab per task, and only the chosen one on screen.
   ///
-  /// Nested TabView items are hoisted into the Settings window's own
-  /// tab bar, so the four tasks stay a segmented control inside this
-  /// pane. The labels are short: the action and the PIN, once.
+  /// The four tasks are a segmented control inside the form. The labels
+  /// are short: the action and the PIN, once.
   @ViewBuilder private var taskSection: some View {
     if awaitsActivation {
       #if FEATURE_CARD_ACTIVATION

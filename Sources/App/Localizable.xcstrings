@@ -199,52 +199,6 @@
         }
       }
     },
-    "Signing Service": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Signing Service"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Allekirjoituspalvelu"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Signeringstjänst"
-          }
-        }
-      }
-    },
-    "Signature Creation Service": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Signature Creation Service"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Allekirjoituspalvelu (Signature Creation Service)"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Signeringstjänst (Signature Creation Service)"
-          }
-        }
-      }
-    },
     "Your phone needs an ID card, please.": {
       "extractionState": "manual",
       "localizations": {
@@ -687,22 +641,6 @@
         }
       }
     },
-    "Add an authority": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lisää aikaleimapalvelu"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lägg till en tidsstämplingstjänst"
-          }
-        }
-      }
-    },
     "Add more…": {
       "localizations": {
         "fi": {
@@ -715,22 +653,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lägg till…"
-          }
-        }
-      }
-    },
-    "Address": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Osoite"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Adress"
           }
         }
       }
@@ -1671,22 +1593,6 @@
         }
       }
     },
-    "Connect a card reader and insert your card.": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Liitä kortinlukija ja laita henkilökortti siihen."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Anslut en kortläsare och sätt in identitetskortet i den."
-          }
-        }
-      }
-    },
     "Connected": {
       "localizations": {
         "en": {
@@ -1930,22 +1836,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "EXEMPEL EVA 12345678N"
-          }
-        }
-      }
-    },
-    "Delete": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Poista"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Radera"
           }
         }
       }
@@ -3073,22 +2963,6 @@
         }
       }
     },
-    "Not a usable address": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Osoite ei ole käyttökelpoinen"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Adressen kan inte användas"
-          }
-        }
-      }
-    },
     "Not available": {
       "extractionState": "manual",
       "localizations": {
@@ -3119,28 +2993,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ingår inte"
-          }
-        }
-      }
-    },
-    "Offline": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Offline"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ei yhteyttä"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Frånkopplad"
           }
         }
       }
@@ -3256,22 +3108,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "PDF"
-          }
-        }
-      }
-    },
-    "PDF Stamp": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PDF-leima"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PDF-stämpel"
           }
         }
       }
@@ -3808,22 +3644,6 @@
         }
       }
     },
-    "Password": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Salasana"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lösenord"
-          }
-        }
-      }
-    },
     "Person": {
       "localizations": {
         "fi": {
@@ -4355,22 +4175,6 @@
         }
       }
     },
-    "Remove this authority": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Poista tämä aikaleimapalvelu"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ta bort den här tidsstämplingstjänsten"
-          }
-        }
-      }
-    },
     "Replace": {
       "extractionState": "manual",
       "localizations": {
@@ -4574,22 +4378,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Återställ signaturkod (PIN 2)"
-          }
-        }
-      }
-    },
-    "Restore Defaults": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Palauta oletukset"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Återställ standardvärden"
           }
         }
       }
@@ -5795,38 +5583,6 @@
         }
       }
     },
-    "Time Stamp": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aikaleima"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tidsstämpel"
-          }
-        }
-      }
-    },
-    "Time-stamp authorities, used in this order": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aikaleimapalvelut, käytetään tässä järjestyksessä"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tidsstämplingstjänster, används i den här ordningen"
-          }
-        }
-      }
-    },
     "Timing the secure channel": {
       "localizations": {
         "en": {
@@ -6066,22 +5822,6 @@
         }
       }
     },
-    "Username": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Käyttäjätunnus"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Användarnamn"
-          }
-        }
-      }
-    },
     "Valid entry": {
       "localizations": {
         "fi": {
@@ -6111,22 +5851,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Verifierad under den här sessionen"
-          }
-        }
-      }
-    },
-    "Visible PDF Stamp": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Näkyvä PDF-leima"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Synlig PDF-stämpel"
           }
         }
       }
@@ -6362,22 +6086,6 @@
         }
       }
     },
-    "not a usable address": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "osoite ei ole käyttökelpoinen"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "adressen kan inte användas"
-          }
-        }
-      }
-    },
     "signature code": {
       "localizations": {
         "en": {
@@ -6485,7 +6193,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tunnusluvut"
+            "value": "PIN-koodit"
           }
         },
         "sv": {
@@ -6797,52 +6505,6 @@
         }
       }
     },
-    "%@ connected": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ connected"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ yhdistetty"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ ansluten"
-          }
-        }
-      }
-    },
-    "%@ not reachable": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ not reachable"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ ei ole tavoitettavissa"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ kan inte nås"
-          }
-        }
-      }
-    },
     "Open RefineID remote access on your phone and enter the pairing code:": {
       "localizations": {
         "fi": {
@@ -6871,70 +6533,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Enheten uppgav inte sitt namn"
-          }
-        }
-      }
-    },
-    "Paired phones": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Liitetyt puhelimet"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kopplade telefoner"
-          }
-        }
-      }
-    },
-    "No paired phones": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ei liitettyjä puhelimia"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inga kopplade telefoner"
-          }
-        }
-      }
-    },
-    "Forget All": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unohda kaikki"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Glöm alla"
-          }
-        }
-      }
-    },
-    "Online": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Linjoilla"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Online"
           }
         }
       }
@@ -6980,6 +6578,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ behöver ditt identitetskort."
+          }
+        }
+      }
+    },
+    "(paired phone: %@)": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(yhdistetty puhelin: %@)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(kopplad telefon: %@)"
+          }
+        }
+      }
+    },
+    "Paired phone: %@": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yhdistetty puhelin: %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopplad telefon: %@"
+          }
+        }
+      }
+    },
+    "Remove phone pairing": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poista puhelimen yhdistäminen"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort kopplingen till telefonen"
           }
         }
       }

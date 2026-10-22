@@ -20,15 +20,15 @@ extension DocumentSigner {
     )
   #endif
 
-  /// A selected RAPP phone is the signing device only when no local reader
-  /// card is ready.
+  /// A selected RAPP phone is the signing device only while no card is in
+  /// a local reader: a local card overrides the phone.
   ///
   /// The two paths never silently retry one another after an
   /// authenticated or credential-bearing operation has begun.
   @MainActor internal static var usesRappSigning: Bool {
     #if REFINEID_REMOTE_CARD
       !SupportedCardTransports.offersNearField
-        && !CardPresence.shared.isReaderCardReady
+        && !CardPresence.shared.isReaderCardPresent
         && (try? RappDeviceVault().selectedPairID()) != nil
     #else
       false
