@@ -4,6 +4,7 @@
   import CardCore
   import Foundation
   import RappEngine
+  import UIKit
 
   /// The custodian's word on its card (RAPP v26.10.22 §8.4).
   @MainActor
@@ -22,21 +23,26 @@
       internal var epoch = UUID()
     }
 
-    /// The authentication certificate of the card this phone serves: the
-    /// reader card's once read, else the primed near-field card's.
-    private var servedCertificate: Data? {
-      if CardPresence.shared.isReaderCardPresent {
-        return readerCard.certificate
-      }
-      return PrimeStore.storedIdentities().first?.certDER
-    }
-
     /// The card the phone holds now, by the fingerprint of its
     /// authentication certificate; nil while it holds none, or one whose
     /// certificate it has not read yet.
+    ///
+    /// The reader card's certificate is held in memory. The primed card's
+    /// lives in a keychain item that opens only while protected data is
+    /// available, so while the phone is locked the primed card last read
+    /// stands in for it (CC-70): a session that opens over Bluetooth from
+    /// a pocket reports the card the holder can still present.
     internal var servedCardFingerprint: RappCertificateFingerprint? {
-      guard Self.canServeCard else { return nil }
-      return servedCertificate.flatMap(RappCertificateFingerprint.init(certificate:))
+      if CardPresence.shared.isReaderCardPresent {
+        return readerCard.certificate.flatMap(RappCertificateFingerprint.init(certificate:))
+      }
+      guard UIApplication.shared.isProtectedDataAvailable else {
+        return primedFingerprintWhileLocked
+      }
+      let primed = (PrimeStore.storedIdentities().first?.certDER)
+        .flatMap(RappCertificateFingerprint.init(certificate:))
+      primedFingerprintWhileLocked = primed
+      return primed
     }
 
     /// Which card the phone holds (§8.4 items 1 and 2).
@@ -172,6 +178,9 @@
       operationsInFlight.remove(operationID)
       let idle = operationsInFlight.isEmpty
       sessionServing.withLock { $0.idleSince = idle ? .now : nil }
+      #if REFINEID_STREAM_TRANSPORT
+        if idle { suspendStreamWhenIdle() }
+      #endif
     }
 
     /// Destroys the pairing the closed session ran over when the session

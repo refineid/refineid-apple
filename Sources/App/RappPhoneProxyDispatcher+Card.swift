@@ -4,6 +4,7 @@
   import CardCore
   import Foundation
   import RappEngine
+  import UIKit
 
   /// What the dispatcher asks of the card, and what it answers without one.
   extension RappPhoneProxyDispatcher {
@@ -87,6 +88,10 @@
         return
       }
 
+      guard await holderReady(operationID: operationID, coordinator: coordinator) else {
+        try? await coordinator.cardError(operationID: operationID)
+        return
+      }
       let accessNumber = resolvedCardAccessNumber(isReader: isReader)
       guard
         let outcome = await executeCardCertificateRead(
@@ -125,6 +130,10 @@
       coordinator: RappConnectionCoordinator
     ) async {
       OperationPhaseTrace.begin()
+      guard await holderReady(operationID: operationID, coordinator: coordinator) else {
+        try? await coordinator.cardError(operationID: operationID)
+        return
+      }
       let isReader = await MainActor.run { CardPresence.shared.isReaderCardPresent }
       let accessNumber = resolvedCardAccessNumber(isReader: isReader)
       if operation.kind == .batchSignDocuments {
@@ -245,6 +254,10 @@
       operationID: RappOperationIdentifier,
       coordinator: RappConnectionCoordinator
     ) async {
+      guard await holderReady(operationID: operationID, coordinator: coordinator) else {
+        try? await coordinator.cardError(operationID: operationID)
+        return
+      }
       let accessNumber = resolvedCardAccessNumber(isReader: false)
       switch await CardMaintenance.connectionSnapshot(
         cardAccessNumber: accessNumber
@@ -284,6 +297,10 @@
         await completeIdentity(der, operationID: operationID, coordinator: coordinator)
         return
       }
+      guard await holderReady(operationID: operationID, coordinator: coordinator) else {
+        try? await coordinator.cardError(operationID: operationID)
+        return
+      }
       let accessNumber = resolvedCardAccessNumber(isReader: false)
       let outcome = await RappCardExecutor.readCertificate(
         cardAccessNumber: accessNumber,
@@ -317,6 +334,41 @@
       } catch {
         await coordinator.close()
       }
+    }
+
+    /// Brings the holder forward before the near-field card is commanded
+    /// from the background (CC-69).
+    ///
+    /// The requester hears `waiting_for_card` while the summons is out and
+    /// `card_wait_ended` when it went unanswered. A reader card, or an app
+    /// in the foreground, needs nothing.
+    private func holderReady(
+      operationID: RappOperationIdentifier,
+      coordinator: RappConnectionCoordinator
+    ) async -> Bool {
+      let (isReader, isActive) = await MainActor.run {
+        (
+          CardPresence.shared.isReaderCardPresent,
+          UIApplication.shared.applicationState == .active
+        )
+      }
+      let source: HolderAttention.CardSource = isReader ? .reader : .nearField
+      guard HolderAttention.needed(for: source, appActive: isActive) == .summon else {
+        return true
+      }
+      #if DEBUG
+        HolderTrace.say("card wanted in the background: summoning the holder")
+      #endif
+      try? await coordinator.reportProgress(operationID: operationID, event: .waitingForCard)
+      let requester = await Self.requesterName() ?? String(localized: "Paired device")
+      guard await HolderSummons.shared.summon(requester: requester) else {
+        #if DEBUG
+          DevErrorLog.report("holder not summoned in time: card error", source: .app)
+        #endif
+        try? await coordinator.reportProgress(operationID: operationID, event: .cardWaitEnded)
+        return false
+      }
+      return true
     }
 
     private func resolvedCardAccessNumber(isReader: Bool) -> String? {

@@ -109,7 +109,7 @@
         readInFlight: isFetching,
         readerConnected: cardPresence.isReaderConnected,
         cardPresent: cardPresence.isCardPresent,
-        phonePresent: PersistentTokenRegistry.shared.holderIsAdvertising,
+        phonePresent: PersistentTokenRegistry.shared.holderInSight,
         pairedPhone: PersistentTokenRegistry.shared.pairedPhone,
         phoneThatForgot: PersistentTokenRegistry.shared.phoneThatForgot,
         phoneReportsNoCard: PersistentTokenRegistry.shared.holderReportsNoCard

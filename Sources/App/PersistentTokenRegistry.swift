@@ -41,6 +41,17 @@
       #endif
     }
 
+    /// Whether this device reaches the phone over Bluetooth when Bonjour
+    /// does not show it: a Mac, whose app holds the one link its token
+    /// extension hands operations to.
+    internal static var dialsOverBluetooth: Bool {
+      #if os(macOS)
+        true
+      #else
+        false
+      #endif
+    }
+
     /// Whether a presence browser reports the holder in this build.
     internal static var browsesForPresence: Bool {
       #if REFINEID_STREAM_TRANSPORT
@@ -119,6 +130,18 @@
     /// session and the offered identity do not depend on it (§4.5 item 6).
     internal var holderIsAdvertising = false
 
+    /// Whether a session over Bluetooth is up with the phone.
+    ///
+    /// Bluetooth advertisements name no pairing (RAPP v26.10.22 §4.1), so
+    /// over Bluetooth only an established session says the phone is there.
+    internal var holderOverBluetooth = false
+
+    /// Whether the paired phone is in sight: on the network, or holding a
+    /// session over Bluetooth.
+    internal var holderInSight: Bool {
+      holderIsAdvertising || holderOverBluetooth
+    }
+
     /// The phone's last `card.status` on the open session; absent without
     /// a session.
     internal var holderCardStatus = RappCardStatus.absent
@@ -163,6 +186,31 @@
 
       /// Withdraws the identity once ``identityOffer`` has lapsed.
       internal var offerLapseTask: Task<Void, Never>?
+
+      /// The transport the open session runs over; nil while none is open.
+      internal var heldTransport: RequesterTransport?
+
+      /// Whether the open session came up.
+      internal var heldSessionEstablished = false
+
+      /// Whether Bonjour lists the phone's record this moment, without the
+      /// hold ``holderIsAdvertising`` applies to a vanished one: a record
+      /// gone for good sends the next dial over Bluetooth at once.
+      internal var holderRecordListed = false
+
+      /// Whether a stream dial failed since the phone last appeared on
+      /// Bonjour (CC-72).
+      internal var streamFailedInSight = false
+
+      /// Whether Bluetooth may be dialed: not found off or refused to this
+      /// app since the pairing or the phone's presence last changed.
+      internal var bluetoothUsable = PersistentTokenRegistry.dialsOverBluetooth
+
+      /// Which advertisers Bluetooth dials prefer and avoid (CC-53).
+      internal var bluetoothPeers = RequesterBluetoothPeers()
+
+      /// Dials once Bonjour has had its chance to show the phone.
+      internal var settleDialTask: Task<Void, Never>?
     #endif
 
     // MARK: Lifecycle
@@ -236,6 +284,7 @@
       fetchBackoff.reset()
       continuousFailureSince = nil
       #if REFINEID_STREAM_TRANSPORT
+        bluetoothUsable = Self.dialsOverBluetooth
         installPairingObservers()
         startWatchingPresence()
       #else
@@ -258,6 +307,8 @@
       fetchBackoff.reset()
       continuousFailureSince = nil
       #if REFINEID_STREAM_TRANSPORT
+        bluetoothUsable = Self.dialsOverBluetooth
+        bluetoothPeers = RequesterBluetoothPeers()
         closeHolderSession()
         restartWatchingPresence()
       #else

@@ -46,6 +46,14 @@
 	<string>RefineID reads the access number printed on your card so you do not have to type it.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>RefineID uses the local network to connect your devices securely for identity-card operations.</string>
+	<!-- The phone serves its paired computers over Bluetooth from the
+	     background: the system wakes the app for each write a connected
+	     computer makes and relaunches it for them after it ended the
+	     process (Documentation/decisions.md, 2026-10-22). -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>bluetooth-peripheral</string>
+	</array>
 	<key>UIApplicationShortcutItems</key>
 	<array>
 		<dict>

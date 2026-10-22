@@ -7,8 +7,8 @@ import Testing
 ///
 /// New traffic-capable code, a changed Bluetooth declaration, or a
 /// changed ATS shape fails here on purpose: update the contract in
-/// `Documentation/decisions.md` (2026-09-30, 2026-10-09) first, then
-/// this list.
+/// `Documentation/decisions.md` (2026-09-30, 2026-10-09, 2026-10-22)
+/// first, then this list.
 @Suite
 internal struct NetworkContractTests {
   private static var root: URL {
@@ -177,22 +177,55 @@ internal struct NetworkContractTests {
     )
   }
 
-  /// The `fi.refineid.rapp.ble` GATT link is driven by the DEBUG
-  /// launch modes alone (decisions 2026-10-09).
+  /// The `fi.refineid.rapp.ble` GATT link serves sessions on the phone and
+  /// dials them from the requester's held session; pairing over it stays a
+  /// development mode (decisions 2026-10-22).
   @Test
-  internal func bleGattProfileStaysDebugOnly() throws {
+  internal func bleGattProfileIsWiredWhereTheDecisionSays() throws {
     let actual = try Self.files(containingAny: ["RappBleGattPeripheral", "RappBleGattCentral"])
     let expected: Set<String> = [
       "CardCore/Sources/CardCore/RappBleGattCentral.swift",
       "CardCore/Sources/CardCore/RappBleGattCentral+Delegate.swift",
+      "CardCore/Sources/CardCore/RappBleGattCentral+Discovery.swift",
       "CardCore/Sources/CardCore/RappBleGattPeripheral.swift",
       "CardCore/Sources/CardCore/RappBleGattPeripheral+Delegate.swift",
+      "CardCore/Sources/CardCore/RappBleGattPeripheral+Links.swift",
+      "CardCore/Sources/CardCore/RappHeldRequesterSession+Link.swift",
+      "CardCore/Sources/CardCore/RappHeldRequesterSession+Transport.swift",
       "Sources/App/DebugBlePairing.swift",
+      "Sources/App/PhonePersistentTokenRelay.swift",
+      "Sources/App/PhonePersistentTokenRelay+Ble.swift",
     ]
     #expect(
       actual == expected,
-      "Wiring the BLE profile into the product needs a decision entry first."
+      "Wiring the BLE profile somewhere new needs a decision entry first."
     )
+    // The GATT server is the phone's alone, and pairing over Bluetooth
+    // is a development mode.
+    let gates: [String: String] = [
+      "Sources/App/PhonePersistentTokenRelay+Ble.swift": "#if os(iOS) && REFINEID_LOCAL_CARD",
+      "Sources/App/PhonePersistentTokenRelay.swift": "#if os(iOS) && REFINEID_LOCAL_CARD",
+      "Sources/App/DebugBlePairing.swift": "#if DEBUG",
+    ]
+    for (file, gate) in gates {
+      let text = try String(contentsOf: Self.root.appending(path: file), encoding: .utf8)
+      #expect(text.contains(gate), "\(file) lost its gate")
+    }
+  }
+
+  /// The one local port a Mac opens, which only members of the app group
+  /// reach: the RAPP token extension handing an operation to the app's
+  /// Bluetooth session (decisions 2026-10-22).
+  @Test
+  internal func localHandoffPortIsTheOnlyOne() throws {
+    let opening = try Self.files(containingAny: ["CFMessagePortCreateLocal"])
+    #expect(opening == ["Sources/App/HeldSessionHandoffPort.swift"])
+    let reaching = try Self.files(containingAny: ["CFMessagePortCreateRemote"])
+    #expect(reaching == ["CardCore/Sources/CardCore/RappHeldSessionHandoff.swift"])
+    let port = try String(
+      contentsOf: Self.root.appending(path: "Sources/App/HeldSessionHandoffPort.swift"),
+      encoding: .utf8)
+    #expect(port.contains("#if os(macOS)"))
   }
 
   /// Only the two configurations that compile DEBUG sign macOS with the
@@ -239,6 +272,14 @@ internal struct NetworkContractTests {
       #expect(bluetoothKeys == ["NSBluetoothAlwaysUsageDescription"])
       let purpose = try #require(plist["NSBluetoothAlwaysUsageDescription"] as? String)
       #expect(!purpose.isEmpty)
+      // Only the iPhone shape that carries the remote card serves from the
+      // background, and only over Bluetooth (decisions 2026-10-22).
+      let modes = plist["UIBackgroundModes"] as? [String]
+      if path == "Config/RefineID-iOS-Info.plist" {
+        #expect(modes == ["bluetooth-peripheral"])
+      } else {
+        #expect(modes == nil, "\(path) declares a background mode")
+      }
     }
   }
 }

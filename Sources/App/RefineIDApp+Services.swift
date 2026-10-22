@@ -48,6 +48,9 @@ extension RefineIDApp {
       #endif
       #if os(macOS)
         RappCardPromptNotificationRelay.shared.start()
+        #if REFINEID_STREAM_TRANSPORT
+          HeldSessionHandoffPort.start()
+        #endif
       #endif
       RappAutoPairingService.shared.start()
 

@@ -7,12 +7,11 @@ internal enum RappBleGattLimit {
   /// Bytes the ATT PDU header takes from the MTU, which the platform's
   /// reported value lengths already exclude.
   internal static let attHeaderSize = 3
-  /// Advertisements the requester samples before judging proximity (§4.4).
-  internal static let rssiSampleCount = 3
-  /// The proximity threshold the requester applies (§4.4), in dBm.
-  internal static let minimumRssi = -55
-  /// Divides an odd sample count down to its median's index.
-  internal static let medianDivisor = 2
-  /// The hysteresis applied around the threshold (§4.4), in dB.
-  internal static let rssiHysteresis = 3
+  /// How long the requester gathers advertisers after the first before it
+  /// dials the strongest, in milliseconds; the advertiser that routed last
+  /// is dialed at once.
+  internal static let choiceWindowMilliseconds = 1_000
+  /// The RSSI Core Bluetooth reports when none was available, in dBm
+  /// (`centralManager(_:didDiscover:advertisementData:rssi:)`).
+  internal static let unavailableRssi = 127
 }

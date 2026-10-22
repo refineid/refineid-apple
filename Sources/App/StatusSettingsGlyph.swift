@@ -35,7 +35,7 @@
 
     private var isRemoteHolderConnected: Bool {
       #if REFINEID_REMOTE_CARD
-        return PersistentTokenRegistry.shared.holderIsAdvertising
+        return PersistentTokenRegistry.shared.holderInSight
       #else
         return false
       #endif

@@ -7,42 +7,48 @@ import Foundation
   import RappEngine
 
   /// The requester end of `fi.refineid.rapp.ble`: the GATT central
-  /// (RAPP v26.10.22 §4.4, §5.2).
+  /// (RAPP v26.10.22 §5.2).
   ///
-  /// It connects to a custodian whose median RSSI clears the proximity
-  /// threshold, checks the MTU, enables indications, reads the offer for a
-  /// pairing, writes the routing preamble, and then carries frames: each
-  /// fragment a write with response, the next only after the response.
+  /// It scans for the RAPP service UUID, which also finds a custodian whose
+  /// app advertises from the background (iOS moves the UUID to an overflow
+  /// area only an explicit scan for it sees), and dials one advertiser:
+  /// the one that routed last at once, else the strongest seen within the
+  /// choice window, never one recently refused. No signal strength gates
+  /// the dial; a relay cannot be told apart by it (§4.4). It reads the MTU
+  /// before its first write and drops a link below 512, enables
+  /// indications, reads the offer for a pairing, writes the routing
+  /// preamble, and then carries frames: each fragment a write with
+  /// response, the next only after the response.
+  ///
+  /// All state is confined to the central's queue; the delegate callbacks
+  /// arrive on it.
   public final class RappBleGattCentral: NSObject, @unchecked Sendable {
-    private let purpose: RappBleRoutingPurpose
-    private let minimumRssi: Int
-    private let onEvent: @Sendable (RappBleGattEvent) -> Void
-    private let queue = DispatchQueue(label: "fi.refineid.rapp-ble-central")
-
-    private var manager: CBCentralManager?
-    private var peripheral: CBPeripheral?
-    private var channel: CBCharacteristic?
-    private var bootstrap: CBCharacteristic?
-    private var rssiSamples: [UUID: [Int]] = [:]
-    private var capacity = 0
-    private var routed = false
+    internal let purpose: RappBleRoutingPurpose
+    internal let peers: RappBleCentralPeers
+    internal let onEvent: @Sendable (RappBleGattEvent) -> Void
+    internal let queue = DispatchQueue(label: "fi.refineid.rapp-ble-central")
+    internal var manager: CBCentralManager?
+    internal var peripheral: CBPeripheral?
+    internal var channel: CBCharacteristic?
+    internal var bootstrap: CBCharacteristic?
+    internal var candidates: [UUID: (peripheral: CBPeripheral, rssi: Int)] = [:]
+    internal var choosing = false
+    internal var capacity = 0
+    internal var routed = false
+    internal var finished = false
     private var reassembler = RappBleSarReassembler()
     private var outbound: [Data] = []
     private var sendCompletion: CheckedContinuation<Void, any Error>?
-    private var finished = false
 
-    /// A requester opening a link for `purpose`.
-    ///
-    /// `minimumRssi` is the §4.4 threshold; only an isolated development
-    /// setup may lower it.
+    /// A requester opening a link for `purpose` to one of `peers`.
     @preconcurrency
     public init(
       purpose: RappBleRoutingPurpose,
-      minimumRssi: Int = -55,
+      peers: RappBleCentralPeers = RappBleCentralPeers(),
       onEvent: @escaping @Sendable (RappBleGattEvent) -> Void
     ) {
       self.purpose = purpose
-      self.minimumRssi = minimumRssi
+      self.peers = peers
       self.onEvent = onEvent
       super.init()
     }
@@ -50,8 +56,10 @@ import Foundation
     /// Starts scanning once Bluetooth is powered on.
     public func start() {
       queue.async { [weak self] in
-        guard let self, !finished else { return }
-        manager = CBCentralManager(delegate: self, queue: queue)
+        guard let self, !finished, manager == nil else { return }
+        manager = CBCentralManager(
+          delegate: self, queue: queue,
+          options: [CBCentralManagerOptionShowPowerAlertKey: false])
       }
     }
 
@@ -70,41 +78,14 @@ import Foundation
       }
     }
 
-    private func enqueue(_ frame: Data, continuation: CheckedContinuation<Void, any Error>) {
-      guard !finished, routed, capacity > 0 else {
-        continuation.resume(throwing: RappBleGattFailure.disconnected)
-        return
-      }
-      guard sendCompletion == nil else {
-        continuation.resume(throwing: RappBleGattFailure.protocolViolation)
-        return
-      }
-      do {
-        outbound = try RappBleSar.segment(frame, capacity: capacity)
-      } catch {
-        continuation.resume(throwing: RappBleGattFailure.protocolViolation)
-        return
-      }
-      sendCompletion = continuation
-      writeNext()
-    }
-
     /// Disconnects and ends the link.
     public func cancel() {
       queue.async { [weak self] in self?.finish(.cancelled) }
     }
 
-    private func writeNext() {
-      guard let peripheral, let channel else { return }
-      guard let fragment = outbound.first else {
-        let completion = sendCompletion
-        sendCompletion = nil
-        completion?.resume()
-        return
-      }
-      peripheral.writeValue(fragment, for: channel, type: .withResponse)
-    }
-
+    /// Ends the link once: indications off first, so the custodian sees
+    /// the link end even while the system keeps the connection for
+    /// another client.
     internal func finish(_ failure: RappBleGattFailure) {
       guard !finished else { return }
       finished = true
@@ -115,27 +96,19 @@ import Foundation
       completion?.resume(throwing: failure)
       if let manager {
         if manager.isScanning { manager.stopScan() }
-        if let peripheral { manager.cancelPeripheralConnection(peripheral) }
+        if let peripheral {
+          if let channel, channel.isNotifying {
+            peripheral.setNotifyValue(false, for: channel)
+          }
+          manager.cancelPeripheralConnection(peripheral)
+        }
       }
+      onEvent(.trace(.ended(failure)))
       onEvent(.closed(failure))
     }
 
-    private func armTimer() {
-      queue.asyncAfter(
-        deadline: .now() + .milliseconds(Int(RappBleSar.reassemblyTimeoutMilliseconds))
-      ) { [weak self] in
-        guard let self, !finished else { return }
-        do {
-          try reassembler.checkTimer(
-            nowMilliseconds: RappPlatformClock().monotonicMilliseconds())
-        } catch {
-          finish(.protocolViolation)
-        }
-      }
-    }
-
     /// Writes the routing preamble as one SINGLE fragment (§5.2).
-    private func sendPreamble() {
+    internal func sendPreamble() {
       do {
         outbound = try RappBleSar.segment(try purpose.preamble(), capacity: capacity)
       } catch {
@@ -143,100 +116,6 @@ import Foundation
         return
       }
       writeNext()
-    }
-
-    internal func stateChanged(_ state: CBManagerState) {
-      switch state {
-      case .poweredOn:
-        manager?.scanForPeripherals(
-          withServices: [CBUUID(string: RappBleGattProfile.serviceUUIDString)],
-          options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
-
-      case .poweredOff, .unauthorized, .unsupported:
-        finish(.bluetoothUnavailable)
-
-      default:
-        break
-      }
-    }
-
-    /// Connects once the median of the latest samples clears the
-    /// threshold by the hysteresis margin (§4.4).
-    internal func discovered(_ found: CBPeripheral, rssi: Int) {
-      guard peripheral == nil, !finished else { return }
-      var samples = rssiSamples[found.identifier, default: []]
-      samples.append(rssi)
-      samples = Array(samples.suffix(RappBleGattLimit.rssiSampleCount))
-      rssiSamples[found.identifier] = samples
-      guard samples.count == RappBleGattLimit.rssiSampleCount else { return }
-      let median = samples.sorted()[samples.count / RappBleGattLimit.medianDivisor]
-      guard median >= minimumRssi + RappBleGattLimit.rssiHysteresis else { return }
-      peripheral = found
-      found.delegate = self
-      manager?.stopScan()
-      manager?.connect(found)
-    }
-
-    internal func connected(_ connected: CBPeripheral) {
-      let atRequestMtu =
-        connected.maximumWriteValueLength(for: .withoutResponse) + RappBleGattLimit.attHeaderSize
-      do {
-        capacity = try RappBleSar.payloadCapacity(
-          negotiatedAttMtu: atRequestMtu,
-          platformValueLimit: connected.maximumWriteValueLength(for: .withResponse))
-      } catch {
-        finish(.attMtuTooSmall)
-        return
-      }
-      connected.discoverServices([CBUUID(string: RappBleGattProfile.serviceUUIDString)])
-    }
-
-    internal func discoveredServices(_ found: CBPeripheral) {
-      guard
-        let service = found.services?.first(where: { service in
-          service.uuid == CBUUID(string: RappBleGattProfile.serviceUUIDString)
-        })
-      else {
-        finish(.unreachable)
-        return
-      }
-      found.discoverCharacteristics(
-        [
-          CBUUID(string: RappBleGattProfile.channelUUIDString),
-          CBUUID(string: RappBleGattProfile.bootstrapUUIDString),
-        ], for: service)
-    }
-
-    internal func discoveredCharacteristics(_ found: CBPeripheral, service: CBService) {
-      channel = service.characteristics?.first { characteristic in
-        characteristic.uuid == CBUUID(string: RappBleGattProfile.channelUUIDString)
-      }
-      bootstrap = service.characteristics?.first { characteristic in
-        characteristic.uuid == CBUUID(string: RappBleGattProfile.bootstrapUUIDString)
-      }
-      guard let channel, channel.properties.contains(.indicate) else {
-        finish(.unreachable)
-        return
-      }
-      found.setNotifyValue(true, for: channel)
-    }
-
-    internal func notificationEnabled(_ found: CBPeripheral, error: (any Error)?) {
-      guard error == nil else {
-        finish(.unreachable)
-        return
-      }
-      switch purpose {
-      case .pairing:
-        guard let bootstrap else {
-          finish(.unreachable)
-          return
-        }
-        found.readValue(for: bootstrap)
-
-      case .session:
-        sendPreamble()
-      }
     }
 
     internal func valueUpdated(_ characteristic: CBCharacteristic, error: (any Error)?) {
@@ -263,13 +142,16 @@ import Foundation
           armTimer()
         }
       } catch {
-        finish(.protocolViolation)
+        finish(.reassemblyFailed)
       }
     }
 
+    /// The custodian answered a write; before routing, a refusal answers
+    /// the preamble.
     internal func wrote(error: (any Error)?) {
+      guard !finished else { return }
       guard error == nil, !outbound.isEmpty else {
-        finish(.disconnected)
+        finish(routed ? .disconnected : .routingRefused)
         return
       }
       outbound.removeFirst()
@@ -279,6 +161,7 @@ import Foundation
           return
         }
         routed = true
+        onEvent(.trace(.preambleAccepted))
         onEvent(.connected)
         return
       }
@@ -287,6 +170,50 @@ import Foundation
 
     internal func disconnected() {
       finish(.disconnected)
+    }
+
+    private func enqueue(_ frame: Data, continuation: CheckedContinuation<Void, any Error>) {
+      guard !finished, routed, capacity > 0 else {
+        continuation.resume(throwing: RappBleGattFailure.disconnected)
+        return
+      }
+      guard sendCompletion == nil else {
+        continuation.resume(throwing: RappBleGattFailure.protocolViolation)
+        return
+      }
+      do {
+        outbound = try RappBleSar.segment(frame, capacity: capacity)
+      } catch {
+        continuation.resume(throwing: RappBleGattFailure.protocolViolation)
+        return
+      }
+      sendCompletion = continuation
+      writeNext()
+    }
+
+    private func writeNext() {
+      guard let peripheral, let channel else { return }
+      guard let fragment = outbound.first else {
+        let completion = sendCompletion
+        sendCompletion = nil
+        completion?.resume()
+        return
+      }
+      peripheral.writeValue(fragment, for: channel, type: .withResponse)
+    }
+
+    private func armTimer() {
+      queue.asyncAfter(
+        deadline: .now() + .milliseconds(Int(RappBleSar.reassemblyTimeoutMilliseconds))
+      ) { [weak self] in
+        guard let self, !finished else { return }
+        do {
+          try reassembler.checkTimer(
+            nowMilliseconds: RappPlatformClock().monotonicMilliseconds())
+        } catch {
+          finish(.reassemblyFailed)
+        }
+      }
     }
   }
 #endif

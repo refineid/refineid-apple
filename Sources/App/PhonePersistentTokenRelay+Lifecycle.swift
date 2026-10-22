@@ -11,7 +11,7 @@
 
     internal var isServing: Bool {
       #if REFINEID_STREAM_TRANSPORT
-        return !streamListeners.isEmpty
+        return !streamListeners.isEmpty || bluetoothServer != nil
       #else
         return relay != nil
       #endif
@@ -36,8 +36,8 @@
       #endif
     }
 
-    /// Drops the listener and any open session, leaving the reconnect
-    /// policy as the caller set it.
+    /// Drops the listener, the Bluetooth server and any open session,
+    /// leaving the reconnect policy as the caller set it.
     private func tearDownTransport() {
       #if REFINEID_STREAM_TRANSPORT
         for listener in streamListeners.values {
@@ -48,6 +48,8 @@
         sessionListening.withdrawal?.cancel()
         sessionListening.withdrawal = nil
         activeStreamListener = nil
+        servedTransport = nil
+        stopBluetoothServing()
       #else
         relay?.cancel()
         relay = nil
@@ -63,36 +65,68 @@
       frameDelivery.reset()
       isActivelyConnected = false
       sessionServing.withLock { $0 = (nil, nil) }
+      HolderSummons.shared.cancelAll()
     }
 
-    /// Cleans up the active coordinator and connection state while keeping the
-    /// stream listener active on the same bound port.
+    /// Cleans up the open session while keeping the stream listener on the
+    /// same port and the Bluetooth server serving; a stream connection that
+    /// still awaits its preamble beside a closed Bluetooth session stays.
     internal func handleConnectionClosed() {
       let closingCoordinator = coordinator
+      #if REFINEID_STREAM_TRANSPORT
+        if servedTransport == .stream {
+          activeStreamListener = nil
+        }
+        servedTransport = nil
+      #endif
       coordinator = nil
       dispatcher = nil
-      activeStreamListener = nil
       connectionID = nil
       preCoordinatorFrames.removeAll(keepingCapacity: false)
       frameDelivery.reset()
       isActivelyConnected = false
       sessionServing.withLock { $0 = (nil, nil) }
+      HolderSummons.shared.cancelAll()
       Task { await closingCoordinator?.transportClosed() }
       if !hasUsablePair() {
         tearDownTransport()
+        return
       }
+      #if REFINEID_STREAM_TRANSPORT
+        suspendStreamWhenIdle()
+      #endif
     }
 
-    /// Tears down the closed connection and listens again, yielding
-    /// immediately for the nearby relay and pausing between stream dial
-    /// attempts.
+    /// Tears down the stream listener after it failed and listens again.
+    ///
+    /// The nearby relay listens again at once, the stream after a pause.
+    /// A session over Bluetooth is not the stream's and stays.
     internal func handleTransportClosed(redialDelayMilliseconds: Int) {
-      let closingCoordinator = coordinator
-      coordinator = nil
-      dispatcher = nil
-      relay = nil
-      frameDelivery.reset()
       #if REFINEID_STREAM_TRANSPORT
+        let keepsSession: Bool
+        if case .bluetooth = servedTransport {
+          keepsSession = true
+        } else {
+          keepsSession = false
+        }
+      #else
+        let keepsSession = false
+      #endif
+      if !keepsSession {
+        let closingCoordinator = coordinator
+        coordinator = nil
+        dispatcher = nil
+        frameDelivery.reset()
+        connectionID = nil
+        preCoordinatorFrames.removeAll(keepingCapacity: false)
+        isActivelyConnected = false
+        sessionServing.withLock { $0 = (nil, nil) }
+        HolderSummons.shared.cancelAll()
+        Task { await closingCoordinator?.transportClosed() }
+      }
+      relay = nil
+      #if REFINEID_STREAM_TRANSPORT
+        if !keepsSession { servedTransport = nil }
         for listener in streamListeners.values {
           listener.cancel()
         }
@@ -102,11 +136,6 @@
         sessionListening.withdrawal = nil
         activeStreamListener = nil
       #endif
-      connectionID = nil
-      preCoordinatorFrames.removeAll(keepingCapacity: false)
-      isActivelyConnected = false
-      sessionServing.withLock { $0 = (nil, nil) }
-      Task { await closingCoordinator?.transportClosed() }
       Task { @MainActor in
         if redialDelayMilliseconds > 0 {
           try? await Task.sleep(for: .milliseconds(redialDelayMilliseconds))

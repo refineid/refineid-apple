@@ -12,8 +12,17 @@ public enum RappBleGattFailure: Error, Sendable, Equatable {
   case cancelled
   /// The peer disconnected or unsubscribed.
   case disconnected
-  /// Pre-authentication invalid input or a SAR violation (§5.2, §5.3).
+  /// Pre-authentication invalid input other than a broken segment: a
+  /// write before indications were enabled, on another characteristic, or
+  /// at an offset (§5.2).
   case protocolViolation
+  /// A fragment broke the segmentation rules or its frame did not finish
+  /// within the reassembly timer (§5.3).
+  case reassemblyFailed
+  /// The custodian refused the routing preamble: the tag routes to no
+  /// pairing it serves, its nonce was routed before, or it serves another
+  /// session (§2.2.1).
+  case routingRefused
   /// No custodian was found, or the connection or discovery failed.
   case unreachable
 }
