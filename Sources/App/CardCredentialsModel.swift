@@ -5,12 +5,10 @@ import SwiftUI
 
 /// What the credential screen knows and what it is allowed to do.
 ///
-/// Nothing here ever holds a secret longer than the moment it is written:
-/// the entry fields are cleared as soon as a value is stored. For PIN1
-/// the model only ever reports *whether* something is stored, never what
-/// it is -- a screen that can show a PIN is a screen that can leak one.
-/// The card access number is the one value read back: it is printed on
-/// the card face and is the holder's to see.
+/// Nothing here ever holds a secret longer than the moment it is written,
+/// and no PIN is ever stored (RAPP v26.10.22 §11 item 2). The card access
+/// number is the one value read back: it is printed on the card face and
+/// is the holder's to see.
 @MainActor
 internal final class CardCredentialsModel: ObservableObject {
   // MARK: Nested Types
@@ -110,7 +108,7 @@ internal final class CardCredentialsModel: ObservableObject {
     CredentialRetryHealth.shared.clear()
   }
 
-  /// Refreshes what is stored, without touching PIN1.
+  /// Refreshes what is stored.
   internal func refresh() {
     let refreshedContents = CardCredentialStore.contents()
     let refreshedCardAccessNumber = CardCredentialStore.displayedCardAccessNumber()
@@ -141,26 +139,6 @@ internal final class CardCredentialsModel: ObservableObject {
     return contents.hasCardAccessNumber
   }
 
-  /// Stores PIN1, with no gate in front.
-  ///
-  /// Ungated like the card access number. A prompt here protected only
-  /// the act of writing a PIN the holder just typed: the extension reads
-  /// the stored value without any gate -- it must, inside a two-second
-  /// signing field -- so possession of the unlocked phone plus the card
-  /// already signs, gate or no gate. The card's own retry counter is the
-  /// control that actually stops a guessed PIN.
-  @discardableResult
-  internal func savePin1(_ digits: String) -> Bool {
-    failure = nil
-    guard CardCredentialStore.save(pin1: digits) == errSecSuccess else {
-      CardCredentialStore.forgetPin1()
-      refresh()
-      return false
-    }
-    refresh()
-    return contents.hasPin1
-  }
-
   /// Forgets the card access number, so it can be entered again.
   ///
   /// Ungated, like storing it.
@@ -168,16 +146,6 @@ internal final class CardCredentialsModel: ObservableObject {
     failure = nil
     invalidateCardStatus()
     CardCredentialStore.forgetCardAccessNumber()
-    refresh()
-  }
-
-  /// Forgets PIN1, so every signature asks again.
-  ///
-  /// Deletion is deliberately ungated: it removes signing authority from
-  /// this device and never reveals the stored value.
-  internal func forgetPin1() {
-    failure = nil
-    CardCredentialStore.forgetPin1()
     refresh()
   }
 

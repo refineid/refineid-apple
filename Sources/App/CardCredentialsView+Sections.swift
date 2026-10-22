@@ -69,7 +69,6 @@ extension CardCredentialsView {
         switch mode {
         case .setup:
           cardAccessNumberRow
-          pin1Row
 
         case .identity, .readerIdentity:
           remoteAccessRow
@@ -169,11 +168,6 @@ extension CardCredentialsView {
       } header: {
         CompactSectionHeader(title: String(localized: "Connect"))
       }
-      Section {
-        pin1Row
-      } header: {
-        CompactSectionHeader(title: String(localized: "Cache"))
-      }
     #endif
   }
 
@@ -239,7 +233,6 @@ extension CardCredentialsView {
     private var readIdentityCardButton: some View {
       Button {
         isCardAccessNumberFieldFocused = false
-        isPin1FieldFocused = false
         connectIdentityCard()
       } label: {
         Label(
@@ -262,49 +255,6 @@ extension CardCredentialsView {
       .accessibilityIdentifier("primeStartButton")
     }
   #endif
-
-  @ViewBuilder internal var pin1Row: some View {
-    #if os(iOS)
-      HStack {
-        PersonRowLabel.cardIcon(systemName: "key", lit: isPin1Cached)
-        CredentialSecretField(
-          name: String(localized: "Basic Code (PIN 1)"),
-          text: $pin1Entry,
-          revealIdentifier: "pin1FieldReveal"
-        ) {
-          SecureField("Basic Code (PIN 1)", text: $pin1Entry)
-            .font(.body)
-            .keyboardType(.numberPad)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .focused($isPin1FieldFocused)
-            .accessibilityIdentifier("pin1Field")
-            .onValueChange(of: pin1Entry) { typed in
-              pin1Entry = LimitedDigits.pin1(typed)
-            }
-        }
-        .alignmentGuide(.listRowSeparatorLeading) { dimensions in
-          dimensions[.leading]
-        }
-      }
-      .buttonStyle(.borderless)
-    #else
-      CredentialSecretField(
-        name: String(localized: "Basic Code (PIN 1)"),
-        text: $pin1Entry,
-        revealIdentifier: "pin1FieldReveal"
-      ) {
-        SecureField("Basic Code (PIN 1)", text: $pin1Entry)
-          .font(.body)
-          .autocorrectionDisabled()
-          .focused($isPin1FieldFocused)
-          .accessibilityIdentifier("pin1Field")
-          .onValueChange(of: pin1Entry) { typed in
-            pin1Entry = LimitedDigits.pin1(typed)
-          }
-      }
-    #endif
-  }
 
   #if REFINEID_LOCAL_CARD && os(iOS)
     internal var scannerSheet: some View {

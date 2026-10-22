@@ -15,17 +15,16 @@ extension VirtualIDCardTests {
     XCTAssertEqual(forgotten.device, VirtualIDCard.DeviceState())
   }
 
-  internal func testSuccessfulAuthenticationPublishesOnlyVirtualDeviceState() async {
+  internal func testSuccessfulRegistrationPublishesOnlyVirtualDeviceState() async {
     let card = VirtualIDCard(scenario: .activatedNearField)
     _ = await card.connect(cardAccessNumber: "123456")
 
-    let result = await card.authenticate(pin1: "1234")
+    let result = await card.register()
 
     guard case .success(let state) = result else {
-      XCTFail("authentication did not succeed")
+      XCTFail("registration did not succeed")
       return
     }
-    XCTAssertTrue(state.device.hasPin1)
     XCTAssertTrue(state.device.cachedIdentity)
     XCTAssertTrue(state.device.tokenRegistered)
   }

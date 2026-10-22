@@ -21,7 +21,7 @@ internal enum PairingError: Error, Equatable {
   case offer(PairingOfferError)
   case offerExpired
   case open(RappOpenFailure)
-  /// The peer's `pairing.stored` names another pairing (RAPP v26.10.21
+  /// The peer's `pairing.stored` names another pairing (RAPP v26.10.22
   /// §4.3 item 4); the pairing aborts and the stored record is revoked.
   case pairIdentifierMismatch
   case pairRecord(PairRecordError)

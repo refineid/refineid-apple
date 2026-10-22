@@ -24,7 +24,6 @@ internal enum CardSetupScreen {
   /// screen, not something automation should do implicitly.
   internal static func enterCredentials(
     cardAccessNumber: String?,
-    pin1: String?,
     in app: XCUIApplication
   ) -> Bool {
     if let cardAccessNumber {
@@ -32,15 +31,6 @@ internal enum CardSetupScreen {
         Self.enter(
           cardAccessNumber,
           field: UITestIdentifiers.cardAccessNumberField,
-          in: app
-        )
-      else { return false }
-    }
-    if let pin1 {
-      guard
-        Self.enter(
-          pin1,
-          field: UITestIdentifiers.pin1Field,
           in: app
         )
       else { return false }

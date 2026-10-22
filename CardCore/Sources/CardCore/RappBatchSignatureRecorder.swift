@@ -5,7 +5,7 @@
   import RappEngine
 
   /// Records a batch's signatures from inside one synchronous card session
-  /// (RAPP v26.10.21 §9.3), so the batch completes with exactly the
+  /// (RAPP v26.10.22 §9.3), so the batch completes with exactly the
   /// signatures the card made, one per document.
   public final class RappBatchSignatureRecorder: Sendable {
     private let bridge: RappOperationBridge

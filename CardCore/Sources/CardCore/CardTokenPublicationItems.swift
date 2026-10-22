@@ -16,8 +16,7 @@
     public static func makeItems(
       leaf: SecCertificate,
       profile: CardKeyProfile,
-      issuerDER: Data?,
-      requiresPinConstraint: Bool
+      issuerDER: Data?
     ) -> [TKTokenKeychainItem] {
       guard
         let certificateItem = TKTokenKeychainCertificate(
@@ -41,11 +40,11 @@
       keyItem.canPerformKeyExchange = false
       keyItem.isSuitableForLogin = true
 
-      if requiresPinConstraint {
-        // swiftlint:disable:next legacy_objc_type
-        let signOperationKey = NSNumber(value: TKTokenOperation.signData.rawValue)
-        keyItem.constraints = [signOperationKey: CardTokenNamespace.pin1SignDataConstraint]
-      }
+      // Every signature needs PIN 1, which is never stored: from memory
+      // when the card accepted it before, else from the system's prompt.
+      // swiftlint:disable:next legacy_objc_type
+      let signOperationKey = NSNumber(value: TKTokenOperation.signData.rawValue)
+      keyItem.constraints = [signOperationKey: CardTokenNamespace.pin1SignDataConstraint]
 
       var items: [TKTokenKeychainItem] = [certificateItem, keyItem]
       if let issuerDER,

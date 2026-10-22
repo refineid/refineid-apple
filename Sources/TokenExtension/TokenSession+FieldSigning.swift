@@ -84,12 +84,6 @@ extension TokenSession {
       )
       return candidate
     }
-    if let stored = CardCredentialStore.pin1() {
-      TokenLog.trace(
-        "sign: session=\(sessionID) token=\(token.tokenID) pin1 source=stored authorized=true"
-      )
-      return stored
-    }
     let entered = collectedPin.flatMap { $0.isEmpty ? nil : $0 }
     collectedPin = nil
     if let entered, let pin = Pin1(digits: entered) {

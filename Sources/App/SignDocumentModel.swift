@@ -68,9 +68,9 @@
 
     /// Whether the last sign action produced at least one signature.
     ///
-    /// The one thing the PIN 2 cache needs to know: a PIN it should
-    /// remember is one a signature accepted. Reset when an action
-    /// begins, set as each document completes.
+    /// Whether the last action signed a document, so the pile it signed
+    /// can be cleared. Reset when an action begins, set as each document
+    /// completes.
     internal private(set) var lastActionSignedSomething = false
 
     /// Adds documents to the pile, ignoring ones already in it.

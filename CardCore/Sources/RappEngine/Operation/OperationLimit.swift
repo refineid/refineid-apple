@@ -6,7 +6,7 @@ import Foundation
 internal enum OperationLimit {
   /// Longest display name or origin an authorizer is asked to render.
   internal static let displayContextBytes = 512
-  /// Byte length of one batch document name (RAPP v26.10.21 §9.3
+  /// Byte length of one batch document name (RAPP v26.10.22 §9.3
   /// `tstr .size (1..256)`).
   internal static let batchDocumentNameBytes = 1...256
 }

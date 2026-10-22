@@ -23,14 +23,15 @@ internal enum CardOperation: Equatable {
   case signDocument(
     documentName: String, keyProfile: CardKeyProfile, algorithm: SignatureAlgorithm, digest: Data)
 
-  /// Signs one or more documents under one PIN 2 entry (RAPP v26.10.21
+  /// Signs one or more documents under one PIN 2 entry (RAPP v26.10.22
   /// §9.3); names and digests pair up by position.
   case batchSignDocuments(
     documentNames: [String], keyProfile: CardKeyProfile, algorithm: SignatureAlgorithm,
     digests: [Data])
 
-  /// Whether this action commands a private key behind a PIN, and so needs
-  /// the holder's consent (RAPP v26.10.21 §8.2 items 3 and 6).
+  /// Whether this action commands a private key behind a PIN, which the
+  /// custodian takes before the card command (RAPP v26.10.22 §8.2 items 3
+  /// and 6).
   internal var isConsequential: Bool {
     switch self {
     case .browserAuthenticate, .signDocument, .batchSignDocuments:
@@ -92,7 +93,7 @@ internal enum CardOperation: Equatable {
     }
   }
 
-  /// Consent context, shown to the holder.
+  /// The context a PIN prompt shows the holder (§11 item 1).
   internal var context: [String: WireValue] {
     switch self {
     case .inspectCard, .readIdentity, .readCertificate:
@@ -109,7 +110,7 @@ internal enum CardOperation: Equatable {
     }
   }
 
-  /// Profile payload, separately bounded from the consent context.
+  /// Profile payload, separately bounded from the prompt's context.
   internal var payload: [String: WireValue] {
     switch self {
     case .inspectCard, .readIdentity:

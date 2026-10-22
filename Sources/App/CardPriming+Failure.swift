@@ -23,13 +23,6 @@
       /// into the UI instead of being collapsed into an opaque safety error.
       case pin1LowAttempts(RetryCount)
 
-      /// PIN1 does not fit its digit rules, so there is nothing to store.
-      ///
-      /// Shape is a property of the value and is checked before the slot
-      /// opens. Whether the card accepts it is a property of the card at
-      /// the instant it signs, and is checked there.
-      case pin1Malformed
-
       /// PIN1 was malformed or its retry counter could not be read.
       case pin1Unavailable
 

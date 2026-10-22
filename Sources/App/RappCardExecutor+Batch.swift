@@ -4,7 +4,7 @@
   import CardCore
   import Foundation
 
-  /// `batch_sign_documents` at the card (RAPP v26.10.21 §9.3).
+  /// `batch_sign_documents` at the card (RAPP v26.10.22 §9.3).
   extension RappCardExecutor {
     /// How far a batch got: the signatures journaled, and the outcome that
     /// ended it.
@@ -45,14 +45,10 @@
           let outcome = executeSign(
             SignParameters(
               cardAccessNumber: cardAccessNumber,
-              documentPin1: nil,
-              documentPin2: pin2,
-              role: .pin2,
-              slot: .qualifiedSignature,
+              pin: .pin2(pin2),
               keyProfile: request.keyProfile,
               algorithm: request.algorithm,
-              digest: digest,
-              qualified: true),
+              digest: digest),
             with: operations, context: context)
           guard case .result(let signature) = outcome else { return outcome }
           guard recorder.record(signature) else { return .completionAmbiguous }

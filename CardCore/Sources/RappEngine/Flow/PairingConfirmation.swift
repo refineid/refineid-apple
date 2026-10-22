@@ -142,7 +142,7 @@ internal struct PairingConfirmation {
 
   /// Build the record to store, after both hellos and both equal
   /// confirmations, and the storage exchange that confirms it (RAPP
-  /// v26.10.21 §4.3 item 4).
+  /// v26.10.22 §4.3 item 4).
   ///
   /// The record is unconfirmed until ``ActivePairing/confirm(_:)``; the
   /// channel stays open for the two `pairing.stored` messages.

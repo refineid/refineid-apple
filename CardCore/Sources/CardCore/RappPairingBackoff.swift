@@ -3,7 +3,7 @@
 import Foundation
 
 /// The custodian's exponential backoff after pairing lockouts
-/// (RAPP v26.10.21 §3.3 item 7).
+/// (RAPP v26.10.22 §3.3 item 7).
 ///
 /// After n consecutive locked-out offers a new offer waits min(2^n, 300)
 /// seconds. The count lives in memory only: it resets on a successful

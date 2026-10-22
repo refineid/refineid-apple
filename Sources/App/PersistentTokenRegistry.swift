@@ -10,14 +10,16 @@
   import Security
 
   /// Publishes the paired phone's authentication certificate as a per-user
-  /// persistent CryptoTokenKit identity while the phone says that card is
-  /// present (RAPP v26.10.21 §8.4).
+  /// persistent CryptoTokenKit identity once the phone confirms that card
+  /// (RAPP v26.10.22 §8.4).
   ///
   /// Private-key operations stay delegated to the phone. The identity is
-  /// offered only while this process holds an open session with the phone
-  /// whose last `card.status` named that certificate's card; it leaves when
-  /// the phone says absent or names another card, when the session ends,
-  /// or when the phone leaves the network.
+  /// offered on a certificate whose fingerprint the phone confirmed on a
+  /// session, and stays offered between sessions: a request with no session
+  /// open dials the phone itself. It leaves at once when a session names
+  /// another card, when the pairing is forgotten or revoked, and when the
+  /// phone announces it stopped serving; otherwise once no session has
+  /// reported the card present for ``RemoteIdentityOffer/grace``.
   @MainActor
   @Observable
   internal final class PersistentTokenRegistry {
@@ -107,8 +109,8 @@
 
     /// Whether the presence browser reports the holder on the network now.
     ///
-    /// Only the browser sets it; its loss ends the session and withdraws
-    /// the borrowed identity.
+    /// Only the browser sets it. It decides whether to dial; an open
+    /// session and the offered identity do not depend on it (§4.5 item 6).
     internal var holderIsAdvertising = false
 
     /// The phone's last `card.status` on the open session; absent without
@@ -119,32 +121,38 @@
     /// while no phone is paired.
     internal private(set) var pairedPhone: String?
 
-    /// The phone that told this computer it forgot it (RAPP v26.10.21 §4.6
+    /// The phone that told this computer it forgot it (RAPP v26.10.22 §4.6
     /// item 4), by name, until a phone is paired again.
     internal var phoneThatForgot: String?
 
     #if REFINEID_STREAM_TRANSPORT
       internal var presence: StreamRelayPresence?
 
-      /// Withdraws the identity after Bonjour has omitted the holder
-      /// for ``advertisementLossHold``.
+      /// Marks the holder gone from the network after Bonjour has
+      /// omitted it for ``advertisementLossHold``.
       internal var advertisementLossTask: Task<Void, Never>?
       internal var pairingsObservers: [any NSObjectProtocol] = []
 
       /// The standing session with the phone, while one is open.
       internal var holderSession: RappHeldRequesterSession?
 
+      /// Names the open session, so a report from one this registry
+      /// already let go is not taken for the current one's.
+      internal var holderSessionToken: UUID?
+
       /// The pairing whose hint the phone on the network carries; a session
-      /// dials it and no other (RAPP v26.10.21 §4.6 item 2).
+      /// dials it and no other (RAPP v26.10.22 §4.6 item 2).
       internal var pairInSight: Data?
 
       /// Dials the phone again after a session ended while it stayed on
       /// the network.
       internal var redialTask: Task<Void, Never>?
 
-      /// Withdraws the identity unless a session says present again
-      /// within ``sessionLossGrace``.
-      internal var sessionLossTask: Task<Void, Never>?
+      /// Whether the phone still confirms the offered card (§8.4 item 3).
+      internal var identityOffer = RemoteIdentityOffer(unconfirmedSince: .now)
+
+      /// Withdraws the identity once ``identityOffer`` has lapsed.
+      internal var offerLapseTask: Task<Void, Never>?
     #endif
 
     // MARK: Lifecycle
@@ -297,7 +305,7 @@
         return
       }
       // Only the card the phone names on this session is offered (RAPP
-      // v26.10.21 §8.4 item 2); a certificate read across a card change
+      // v26.10.22 §8.4 item 2); a certificate read across a card change
       // waits for the phone's next word.
       guard case .present(let named) = holderCardStatus,
         RappCertificateFingerprint(certificate: fetched) == named

@@ -5,6 +5,58 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-10-22 The Apple apps speak RAPP v26.10.22
+
+Every pairing and session on iPhone, iPad and Mac runs RAPP v26.10.22; the
+wire version in the Noise prologue refuses a v26.10.21 peer. The revision
+chooses software that works with real browsers and real NFC over a stricter
+reading, and keeps every device's view of the card eventually consistent.
+
+- `inspect_card` answers with the card's answer to reset alone; a response
+  that still carries `supported_profiles` is refused.
+- The Mac and iPad offer the phone's identity on a certificate the phone
+  confirmed by fingerprint on a session, and keep offering it between
+  sessions. A browser request with no session open makes the token
+  extension dial the phone and wait for it within the request's own wait,
+  rather than failing after 12 seconds. The identity leaves when, for 120
+  seconds (the engine's identity-offer grace), no session has been open or
+  the phone has reported absence and no `card.status` reported the card
+  present. It leaves at once when the pairing is forgotten or revoked, when
+  the phone announces it stopped serving, and when a session names a
+  different card; a report of absence is never a different card. This
+  replaces the 130-second session-loss grace and the instant withdrawal on
+  absence. Losing the phone's advertisement only stops dialing; an open
+  session and the offered identity do not depend on it.
+- The phone reports the card it holds: a reader card from insertion until
+  removal, an NFC card from the moment the holder adds it until the holder
+  removes it there. An operation the card did not answer ends with
+  `card_error` and leaves presence as it was; the next operation asks the
+  holder to present the card again.
+- No PIN is stored on any device. PIN 1 and PIN 2 are gone from the shared
+  keychain, together with the setup form's PIN 1 field, the on-demand PIN
+  experiment and its settings, and the debug flags that wrote them; what an
+  earlier build stored is deleted at launch and never read. The card access
+  number stays.
+- The phone asks PIN 1 once and holds it only in memory, bound to the card
+  it holds, for reader and NFC cards alike. A browser authentication with
+  PIN 1 held runs with no prompt and no `consent_shown`; otherwise the PIN
+  prompt is the holder's consent and `consent_shown` goes out once it is on
+  screen. The held PIN ends when its card leaves or another takes its
+  place, when the card refuses it, when the holder forgets the card's
+  setup, and with the process. It survives a transport failure, and is
+  spent again only while the PIN 1 counter, read again first, shows no
+  refusal.
+- The token extensions keep PIN 1 only in their own memory, the Safari
+  sheet's entry carried across the field renewal, on iPhone and Mac alike.
+  A PIN the card refuses ends that memory and nothing else: the card stays
+  added to the phone.
+- PIN 2 is asked for every signature or batch and kept no longer: on the
+  phone, in the token extension, where one sheet entry serves one
+  signature, and on the Mac, whose one-minute PIN 2 memory is removed.
+
+The vendored specification, state model, corpus and vectors are the
+v26.10.22 set from the reference repository.
+
 ## 2026-10-22 The Apple apps speak RAPP v26.10.21
 
 Every pairing and session on iPhone, iPad and Mac runs RAPP v26.10.21;
@@ -50,6 +102,9 @@ The vendored specification, state model, corpus and vectors are the
 v26.10.21 set from the reference repository. Stored records of the
 earlier format are not migrated: a pair record that does not decode is
 removed at launch, and the devices pair again.
+The Mac's identity offering, the phone's presence after an unanswered
+operation and the consent view were superseded on 2026-10-22 by RAPP
+v26.10.22, recorded above.
 
 ## 2026-10-18 The Apple apps speak RAPP v26.10.18
 
@@ -549,6 +604,9 @@ to sign a stack, short enough that a Mac left unattended does not hold
 a signing PIN. The digits reach the cache as the `String` the field
 delivered, so the zeroization covers the cache's own copy, not every
 copy the PIN ever had.
+
+Superseded on 2026-10-22: PIN 2 is asked for every signature or batch
+and kept no longer (RAPP v26.10.22 §11 item 2).
 
 ## 2026-08-11 The SCS is out of the first App Store release
 
@@ -1060,6 +1118,8 @@ non-synchronizable. The tradeoff is explicit: possession of an unlocked
 phone plus the card can authorize a signature without reopening RefineID.
 The system certificate-consent UI remains outside the extension and cannot
 be preselected by it.
+
+Superseded on 2026-10-22: no PIN is stored (RAPP v26.10.22 §11 item 2).
 
 ## 2026-07-28 Status and diagnostics must not enumerate token identities
 

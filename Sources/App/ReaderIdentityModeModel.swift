@@ -249,9 +249,6 @@
         let hadReaderTokens = !liveReaderTokenIdentifiers.isEmpty
         if hadReaderTokens {
           retryHealth.clear()
-          #if REFINEID_LOCAL_CARD
-            ReaderPin1Cache.shared.clear()
-          #endif
         }
         liveReaderTokenIdentifiers = []
         return
@@ -264,11 +261,6 @@
       liveReaderTokenIdentifiers = refineIDTokenIdentifiers
 
       if cardAppearanceChanged {
-        if liveReaderTokenIdentifiers.isEmpty {
-          #if REFINEID_LOCAL_CARD
-            ReaderPin1Cache.shared.clear()
-          #endif
-        }
         if liveReaderTokenIdentifiers.isEmpty || hasActivationRequiredCard {
           retryHealth.clear()
         } else {
@@ -303,9 +295,6 @@
       generation &+= 1
       if !ready, liveReaderTokenIdentifiers.isEmpty {
         retryHealth.clear()
-        #if REFINEID_LOCAL_CARD
-          ReaderPin1Cache.shared.clear()
-        #endif
       }
     }
   }

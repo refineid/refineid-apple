@@ -3,7 +3,7 @@
 import Foundation
 
 /// The custodian's word on whether it can serve a card now, and which
-/// (RAPP v26.10.21 §8.4): the body of `card.status`.
+/// (RAPP v26.10.22 §8.4): the body of `card.status`.
 public enum RappCardStatus: Equatable, Sendable {
   /// No card can answer now.
   case absent

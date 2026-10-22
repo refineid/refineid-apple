@@ -103,30 +103,21 @@ extension VirtualIDCard {
     return nil
   }
 
-  /// Authenticates with PIN 1 and registers the card's token on the device.
-  public func authenticate(pin1: String) -> AuthenticationResult {
-    guard credentialIsValid(pin1, for: .pin1) else { return .invalidEntry }
+  /// Registers the card's token on the device over the connection whose
+  /// access number the card proved; no PIN is asked for or stored (RAPP
+  /// v26.10.22 §11 item 2).
+  public func register() -> RegistrationResult {
     if let failure = operationFailure() {
       return .transportFailure(failure)
     }
-    if let fault = consumeFault(for: .authenticate, phase: .beforeCommand) {
+    if let fault = consumeFault(for: .register, phase: .beforeCommand) {
       return .transportFailure(fault)
     }
     guard current.card.authenticationCertificate == .valid else {
       return .certificateUnavailable
     }
-    if let refusal = retryRefusal(current.card.pin1.attemptsRemaining) {
-      return authenticationResult(from: refusal)
-    }
-    if pin1 != current.card.pin1.value {
-      current.card.pin1.attemptsRemaining -= 1
-      let remaining = current.card.pin1.attemptsRemaining
-      return remaining == 0 ? .blocked : .rejected(remaining: remaining)
-    }
-    current.card.pin1.attemptsRemaining = RetryCount.pristineAllowance
-    if let fault = consumeFault(for: .authenticate, phase: .afterCardExecution) {
+    if let fault = consumeFault(for: .register, phase: .afterCardExecution) {
       if fault == .tokenNotPublished {
-        current.device.hasPin1 = true
         current.device.cachedIdentity = true
         current.device.tokenRegistered = false
         return .tokenPublicationFailed(current)
@@ -137,7 +128,6 @@ extension VirtualIDCard {
       current.device.connectedCardAccessNumber
       ?? current.device.storedCardAccessNumber
       ?? current.card.cardAccessNumber
-    current.device.hasPin1 = true
     current.device.cachedIdentity = true
     current.device.tokenRegistered = true
     return .success(current)

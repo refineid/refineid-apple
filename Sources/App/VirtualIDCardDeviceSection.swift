@@ -51,13 +51,6 @@
     @ViewBuilder private var deviceStoredToggles: some View {
       Toggle(
         virtualCardLocalized(
-          "device.pin1Stored",
-          defaultValue: "PIN 1 stored"),
-        isOn: $draft.device.hasPin1
-      )
-      .accessibilityIdentifier("virtualCardPIN1Stored")
-      Toggle(
-        virtualCardLocalized(
           "device.identityCached",
           defaultValue: "Identity cached"),
         isOn: $draft.device.cachedIdentity

@@ -5,7 +5,7 @@ import Foundation
 
 /// Why a session could not be established or continued.
 ///
-/// No case revokes the pairing (RAPP v26.10.21 §10.1): a frame that fails
+/// No case revokes the pairing (RAPP v26.10.22 §10.1): a frame that fails
 /// authenticated decryption and one that decrypted and broke the protocol
 /// both close only the session.
 internal enum SessionError: Error, Equatable {

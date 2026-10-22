@@ -155,27 +155,6 @@ extension VirtualIDCard {
     }
   }
 
-  internal func authenticationResult(
-    from outcome: CredentialOutcome
-  ) -> AuthenticationResult {
-    switch outcome {
-    case .blocked:
-      .blocked
-
-    case .refusedLowAttempts(let remaining):
-      .refusedLowAttempts(remaining: remaining)
-
-    case .transportFailure(let effect):
-      .transportFailure(effect)
-
-    case .rejected(let remaining):
-      .rejected(remaining: remaining)
-
-    case .success, .alreadyActivated, .invalidEntry:
-      .invalidEntry
-    }
-  }
-
   internal func credentialIsValid(
     _ digits: String,
     for role: CredentialRole

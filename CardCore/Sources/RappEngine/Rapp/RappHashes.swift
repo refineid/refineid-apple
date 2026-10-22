@@ -6,7 +6,7 @@ import Foundation
 /// Transcript-bound digests the protocol derives from wire values.
 internal enum RappHashes {
   /// The grant set as a digest: sorted and deduplicated first, so the same
-  /// grants hash the same however the peer ordered them (RAPP v26.10.21
+  /// grants hash the same however the peer ordered them (RAPP v26.10.22
   /// §4.3 item 3).
   internal static func grantsHash(profiles: [String]) throws -> Data {
     let names = Array(Set(profiles)).sorted { left, right in

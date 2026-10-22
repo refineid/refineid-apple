@@ -14,24 +14,25 @@ The vendored documents are the authority, and the Swift engine in
 `CardCore/Sources/RappEngine` implements them. There is no compiled protocol
 artifact in this repository.
 
-- Specification: `Documentation/protocol/rapp-v26.10.21.md`, with the
+- Specification: `Documentation/protocol/rapp-v26.10.22.md`, with the
   transport and discovery hierarchy it cites in
   `Documentation/rapp-transport-and-discovery-hierarchy.md`.
-- Formal state model: `Documentation/protocol/rapp-state-machine-v26.10.21.yaml`;
+- Formal state model: `Documentation/protocol/rapp-state-machine-v26.10.22.yaml`;
   the pairing, session and operation tables transcribe it and are checked
-  against it in both directions.
-- Conformance corpus: `Documentation/rapp-conformance/rapp-v26.10.21.json`
-  (`SHA-256 70c88ba7f9aa680248b120dbb4ecac0dfbb2c005be49aad5094e5dc8216348db`),
+  against it in both directions, and the engine's constants against its
+  constants.
+- Conformance corpus: `Documentation/rapp-conformance/rapp-v26.10.22.json`
+  (`SHA-256 37142b7d94375c92a6accc3842e0c44bffa160617166397139b4e355d7e83f6c`),
   copied unchanged from the reference repository. Its `cpace_kc2`,
   `noise_handshake`, `pairing_offer`, and `discovery_hint` sections are
   replayed byte for byte on both the BLE and stream profiles.
-- Vectors covering what the corpus does not reach, all v26.10.21 and copied
-  unchanged from the reference repository: `rapp-operation-v26.10.21.json`
+- Vectors covering what the corpus does not reach, all v26.10.22 and copied
+  unchanged from the reference repository: `rapp-operation-v26.10.22.json`
   (operation bodies, the batch signing bodies, the storage confirmation,
   card status, progress, result and error bodies, and the error names a
-  result may carry), `rapp-routing-v26.10.21.json` (session preambles),
-  `rapp-withdrawal-v26.10.21.json` (service withdrawal) and
-  `rapp-ble-sar-v26.10.21.json` (BLE segmentation and reassembly).
+  result may carry), `rapp-routing-v26.10.22.json` (session preambles),
+  `rapp-withdrawal-v26.10.22.json` (service withdrawal) and
+  `rapp-ble-sar-v26.10.22.json` (BLE segmentation and reassembly).
 
 The engine is held to those documents by its tests rather than by anyone
 remembering to follow them. The state tables are transcribed from the model
@@ -47,11 +48,25 @@ the two cannot drift apart quietly.
 
 Important invariants already represented in the implementation are:
 
-- The phone is the authorizer and retains CAN, PIN 1, and PIN 2.
+- The phone is the authorizer and keeps the CAN; no PIN is stored on any
+  device. PIN 1 is asked once on the phone and held only in its memory,
+  bound to the card the phone holds, until that card leaves or is
+  replaced, the card refuses it, the holder forgets the card's setup, or
+  the process ends. PIN 2 is asked for every signature or batch and kept
+  no longer (RAPP v26.10.22 §11).
 - The requester receives operation results, not card credentials.
-- Every operation that uses a private key requires the holder's decision on
-  the phone; reads (`inspect_card`, `read_identity`, `read_certificate`)
-  skip consent (RAPP v26.10.21 §8.2).
+- An operation that uses a private key takes its PIN on the phone: the PIN
+  prompt is the holder's consent, and a browser authentication whose PIN 1
+  the phone holds runs with no prompt. Reads (`inspect_card`,
+  `read_identity`, `read_certificate`) ask the holder nothing (§8.2).
+- The phone reports the card it holds: a reader card from insertion until
+  removal, an NFC card from the holder adding it until the holder removes
+  it. An operation the card did not answer ends with `card_error` and
+  changes nothing (§8.4 item 1).
+- The Mac or iPad offers the phone's identity on a certificate a session
+  confirmed by fingerprint, also between sessions, and withdraws it after
+  120 seconds without a present report, or at once on a forget, a
+  revocation or a different card (§8.4 item 3).
 - A session carries one live operation; a second is refused `busy`, a reused
   identifier `duplicate_operation`, and the card serves operations in the
   order they arrived (§8.1, §8.2).
@@ -114,7 +129,7 @@ decide which transition and output are legal.
 
 ## Stream transport
 
-`fi.refineid.stream` (RAPP v26.10.21 §2.2.2) lets a non-Apple requester
+`fi.refineid.stream` (RAPP v26.10.22 §2.2.2) lets a non-Apple requester
 participate without MultipeerConnectivity. The underlay is plain TCP. Every
 frame is a 2-byte big-endian length prefix plus payload; a zero length is
 malformed and the prefix bounds every allocation. The phone listens and the

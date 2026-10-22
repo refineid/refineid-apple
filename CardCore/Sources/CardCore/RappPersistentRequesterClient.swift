@@ -103,14 +103,15 @@
       self.operation = operation
       startTransport()
 
-      // A device that is not on this network is not slow, it is absent,
-      // and waiting the full operation lifetime to say so leaves the holder
-      // watching a spinner for two minutes over a question already
-      // answered. Discovery is given its own, much shorter deadline.
-      // The first wait consumes the signal, so an answer that arrives
-      // inside the discovery window must not be waited for a second time:
-      // nothing would ever signal again and a settled request would sit out
-      // the whole operation lifetime.
+      // Discovery has the policy's own deadline. On a screen a device that
+      // is not on this network is not slow, it is absent, and waiting the
+      // full operation lifetime to say so leaves the holder watching a
+      // spinner; a consumer's request against an offered identity instead
+      // waits for the custodian as long as the request may (RAPP v26.10.22
+      // §8.4 item 3). The first wait consumes the signal, so an answer that
+      // arrives inside the discovery window must not be waited for a second
+      // time: nothing would ever signal again and a settled request would
+      // sit out the whole operation lifetime.
       var settled = completed.wait(timeout: .now() + policy.discoveryTimeout) == .success
       if !settled, !state.withLock({ $0.connected }) {
         state.withLock { state in

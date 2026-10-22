@@ -127,10 +127,8 @@
       case .prime:
         DebugConsole.finish(succeeded: await Self.prime())
 
-      case .bleSpike, .diagnostics, .disableOnDemandPin, .enableOnDemandPin, .forgetCan,
-        .forgetPin1,
-        .localNetworkProbe, .paceCheck, .resetCardState, .selectPair, .setCan,
-        .setPin1, .setPin2, .signDocument, .signProbe, .statusOnDemandPin,
+      case .bleSpike, .diagnostics, .forgetCan, .localNetworkProbe, .paceCheck,
+        .resetCardState, .selectPair, .setCan, .signDocument, .signProbe,
         .tokenPublishProbe, .trace:
         DebugConsole.emit(mode.rawValue + ": runs before the window opens, not here")
         DebugConsole.finish(succeeded: false)
@@ -267,12 +265,6 @@
         DebugConsole.emit("card access number stored: \(contents.hasCardAccessNumber)")
         DebugConsole.emit(
           "near field available: \(SupportedCardTransports.offersNearField)")
-        guard let pin1 = ProcessInfo.processInfo.environment["REFINEID_DEBUG_PIN1"],
-          !pin1.isEmpty
-        else {
-          DebugConsole.emit("prime: REFINEID_DEBUG_PIN1 is required")
-          return false
-        }
         guard let storedAccessNumber = CardCredentialStore.displayedCardAccessNumber() else {
           DebugConsole.emit("prime: a stored card access number is required")
           DebugConsole.emit("=== end ===")
@@ -280,7 +272,6 @@
         }
         let outcome = await CardPriming.prime(
           cardAccessNumber: storedAccessNumber,
-          pin1: pin1,
           progress: { line in
             DebugConsole.emit("progress: " + line)
           },

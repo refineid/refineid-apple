@@ -2,7 +2,7 @@
 
 extension RappOperationDriver.OperationKind {
   /// Whether the operation only reads: it commands no private key and no
-  /// PIN, and skips consent (RAPP v26.10.21 §8.2 item 6).
+  /// PIN, and asks the holder nothing (RAPP v26.10.22 §8.2 item 6).
   public var isSafeRead: Bool {
     switch self {
     case .inspectCard, .readIdentity, .readAuthenticationCertificate, .readSignatureCertificate:

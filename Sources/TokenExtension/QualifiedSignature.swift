@@ -84,12 +84,12 @@ internal enum QualifiedSignature {
     do {
       try operations.verifyPin2(pin2.consumeForSingleTransmission())
     } catch CardOperationError.pinRejected {
-      token.revokeIdentityAfterPin2Rejection(
+      token.endInstanceAfterPinRejection(
         serial: serial,
         fingerprint: fingerprint)
       throw TokenError.pinRejected
     } catch CardOperationError.pinBlocked {
-      token.revokeIdentityAfterPin2Rejection(
+      token.endInstanceAfterPinRejection(
         serial: serial,
         fingerprint: fingerprint)
       throw TokenError.pinRejected

@@ -261,10 +261,8 @@
           pin2: latest.card.pin2.isFactoryValue))
     }
 
-    internal func authenticate(
-      pin1: String
-    ) async -> VirtualIDCard.AuthenticationResult {
-      let result = await card.authenticate(pin1: pin1)
+    internal func register() async -> VirtualIDCard.RegistrationResult {
+      let result = await card.register()
       _ = await synchronizeFromCard()
       return result
     }

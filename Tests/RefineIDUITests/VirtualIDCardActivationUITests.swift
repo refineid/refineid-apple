@@ -23,7 +23,7 @@
     internal func testFactoryFreshNFCCardActivatesThroughGUI() {
       let app = UITestApp.launchVirtualCard()
       applyScenario("factory-fresh-nfc", in: app)
-      connect(accessNumber: "123456", pin1: "1234", in: app)
+      connect(accessNumber: "123456", in: app)
 
       fillSecure("managementActivationEntry", with: "1234567", in: app)
       fillSecure("managementActivationPin1", with: "4567", in: app)
@@ -32,8 +32,8 @@
       fillSecure("managementActivationPin2Repeat", with: "654321", in: app)
       commit(action: UITestIdentifiers.managementActivate, in: app)
 
-      let pin1 = app.secureTextFields[UITestIdentifiers.pin1Field]
-      guard pin1.waitForExistence(timeout: UITestApp.appearTimeout) else {
+      let cache = app.buttons[UITestIdentifiers.primeStartButton]
+      guard cache.waitForExistence(timeout: UITestApp.appearTimeout) else {
         let visibleFeedback = app.staticTexts.allElementsBoundByIndex
           .map(\.label)
           .filter { !$0.isEmpty }
@@ -51,10 +51,6 @@
             + "PIN 2 factory=\(String(describing: pin2Factory.value))")
         return
       }
-      XCTAssertEqual(
-        pin1.value as? String,
-        "Basic Code (PIN 1)",
-        "PIN 1 entered before factory-card classification was retained")
     }
 
     internal func testCardAccessNumberAcceptsDirectGUIInput() {
@@ -93,10 +89,10 @@
       XCTAssertEqual(cardHeader.frame.minX, documentHeader.frame.minX, accuracy: 1)
 
       let can = app.textFields[UITestIdentifiers.cardAccessNumberField]
-      let pin1 = app.secureTextFields[UITestIdentifiers.pin1Field]
       XCTAssertTrue(can.exists)
-      XCTAssertTrue(pin1.exists)
-      XCTAssertEqual(can.frame.height, pin1.frame.height, accuracy: 1)
+      XCTAssertFalse(
+        app.secureTextFields[UITestIdentifiers.pin1Field].exists,
+        "setup asks for no PIN")
 
       focusAndType(can, value: "123456", in: app)
       let signingEnabled = XCTNSPredicateExpectation(
@@ -120,10 +116,10 @@
       applyScenario("activated-nfc", in: app)
 
       XCTAssertTrue(
-        app.secureTextFields[UITestIdentifiers.pin1Field]
+        app.textFields[UITestIdentifiers.cardAccessNumberField]
           .waitForExistence(timeout: UITestApp.appearTimeout),
-        "initial setup did not offer PIN 1 with CAN")
-      connect(accessNumber: "123456", pin1: "1234", in: app)
+        "initial setup did not offer the CAN")
+      connect(accessNumber: "123456", in: app)
 
       XCTAssertTrue(
         app.staticTexts["Identity"]
@@ -138,7 +134,7 @@
     internal func testWrongCardAccessNumberReturnsToSetupThroughGUI() {
       let app = UITestApp.launchVirtualCard()
       applyScenario("activated-nfc", in: app)
-      connect(accessNumber: "654321", pin1: "1234", in: app)
+      connect(accessNumber: "654321", in: app)
 
       let field = app.textFields[UITestIdentifiers.cardAccessNumberField]
       XCTAssertTrue(field.waitForExistence(timeout: UITestApp.appearTimeout))
@@ -165,7 +161,7 @@
           "virtualCardFaultOption.nfcDisconnectBeforeConnection",
         scrolling: true)
       applyEditor(in: app)
-      connect(accessNumber: "123456", pin1: "1234", in: app)
+      connect(accessNumber: "123456", in: app)
 
       XCTAssertEqual(
         app.textFields[UITestIdentifiers.cardAccessNumberField].value as? String,
@@ -179,7 +175,7 @@
       let app = UITestApp.launchVirtualCard()
       applyScenario("partial-activation-nfc", in: app)
 
-      connect(accessNumber: "123456", pin1: "1234", in: app)
+      connect(accessNumber: "123456", in: app)
 
       XCTAssertTrue(
         app.secureTextFields["managementActivationPin2"]

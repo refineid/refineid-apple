@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The vendored operation-protocol message bodies (RAPP v26.10.21 §7.1, §9,
+/// The vendored operation-protocol message bodies (RAPP v26.10.22 §7.1, §9,
 /// §10.3).
 internal struct OperationCorpus: Decodable {
   private enum CodingKeys: String, CodingKey {

@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.10.21 BLE segmentation and reassembly (section 5.3)")
+@Suite("RAPP v26.10.22 BLE segmentation and reassembly (section 5.3)")
 internal struct BleSarTests {
   /// The corpus names each violated receive rule.
   private static let errorNames: [String: RappBleSarError] = [
@@ -39,11 +39,11 @@ internal struct BleSarTests {
     try #require(name.flatMap { errorNames[$0] })
   }
 
-  @Test("The corpus is the v26.10.21 SAR corpus with the header and timer the engine uses")
+  @Test("The corpus is the v26.10.22 SAR corpus with the header and timer the engine uses")
   internal func corpusIdentity() throws {
     let corpus = try Self.corpus()
     #expect(corpus.format == "fi.refineid.rapp.ble-sar-vectors")
-    #expect(corpus.protocolDocumentVersion == "26.10.21")
+    #expect(corpus.protocolDocumentVersion == "26.10.22")
     #expect(corpus.headerSize == RappBleSar.headerSize)
     #expect(corpus.reassemblyTimeoutMs == RappBleSar.reassemblyTimeoutMilliseconds)
   }

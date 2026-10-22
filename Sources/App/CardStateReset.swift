@@ -7,9 +7,8 @@ import Security
 
 /// Removes only the Safari identity state published by this app.
 ///
-/// The holder's CAN and optional PIN1 remain stored. Reset is recovery
-/// for a stale CryptoTokenKit registration, not a request to erase card
-/// setup and force secret re-entry.
+/// The holder's CAN remains stored. Reset is recovery for a stale
+/// CryptoTokenKit registration, not a request to erase card setup.
 internal enum CardStateReset {
   /// One completed reset, including enough detail for diagnostics.
   internal struct Outcome {
@@ -35,7 +34,6 @@ internal enum CardStateReset {
   internal static func hasForgettableState() -> Bool {
     let credentials = CardCredentialStore.contents()
     return credentials.hasCardAccessNumber
-      || credentials.hasPin1
       || PrimeStore.storedCount() > 0
       || DriverConfiguredCredentials.identityTokenConfigurationCount() > 0
       || !Self.registeredOurTokenIDs().isEmpty
@@ -56,6 +54,9 @@ internal enum CardStateReset {
 
     VolatileAcceptedPin1.shared.clearAll()
     TransientCandidatePin1.shared.clearAll()
+    #if os(iOS) && REFINEID_LOCAL_CARD
+      Task { @MainActor in HeldPin1.shared.clear() }
+    #endif
 
     TrustRootsCache.shared.forgetAll()
     lines.append("RefineID trusted CAs: cleared")
@@ -84,7 +85,7 @@ internal enum CardStateReset {
     if !traceCleared {
       lines.append("Cleanup failure: extension trace (OSStatus=\(traceStatus))")
     }
-    lines.append("Stored CAN and PIN 1: preserved")
+    lines.append("Stored CAN: preserved")
     lines.append("=== end ===")
     return Outcome(
       lines: lines,

@@ -36,7 +36,8 @@ extension TokenSession {
       TokenLog.error("sign: no matching qualified algorithm - returning badParameter")
       throw TKError(.badParameter)
     }
-    let entered = pin2Window.current()
+    let entered = collectedPin2
+    collectedPin2 = nil
     TokenLog.info(
       "sign: qualified entry pin2Collected=\(entered != nil) "
         + "session=\(UInt(bitPattern: ObjectIdentifier(self).hashValue))"
@@ -58,10 +59,6 @@ extension TokenSession {
       TokenLog.trace("sign: qualified path produced \(signature.count) DER bytes")
       return signature
     } catch let error as TokenError {
-      // A refusal ends the window. The entry the holder made is not
-      // the one the card wants, and repeating it for a minute would
-      // spend the counter without anyone being asked again.
-      pin2Window.forget()
       TokenLog.error("sign: qualified failed \(error)")
       throw error.asTKError
     } catch let error as CardOperationError {
@@ -70,8 +67,7 @@ extension TokenSession {
     } catch {
       // A PACE refusal, a secure-messaging fault or a transport timeout
       // is not a wrong PIN: map it so ctkd ends the operation instead of
-      // re-looping the prompt. The window survives - the entry was never
-      // judged by the card.
+      // re-looping the prompt.
       TokenLog.error("sign: qualified failed unmapped \(error)")
       throw TKError(.communicationError)
     }

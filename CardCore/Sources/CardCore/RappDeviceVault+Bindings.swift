@@ -72,7 +72,7 @@
 
   extension RappDeviceVault {
     /// Removes stored pairings this version can no longer read, and
-    /// revokes those whose storage the peer never confirmed (RAPP v26.10.21
+    /// revokes those whose storage the peer never confirmed (RAPP v26.10.22
     /// §4.3 item 4), so the holder pairs again instead of keeping a pairing
     /// nothing can use.
     ///

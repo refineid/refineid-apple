@@ -86,7 +86,7 @@ internal func cpaceTranscriptIR(
 
 /// Computes the CPace generator point g (draft-irtf-cfrg-cpace-21 Section 8.3).
 ///
-/// An identity generator aborts the offer (RAPP v26.10.21 §6.1.1); there is
+/// An identity generator aborts the offer (RAPP v26.10.22 §6.1.1); there is
 /// no fallback point.
 internal func cpaceCalculateGenerator(
   prs: Data, channelInfo: Data, sid: Data

@@ -261,10 +261,9 @@ internal struct RefineIDApp: App {
       Self.configurePlatformDefaults()
     #endif
 
-    // Builds with the retired fifteen-minute policy wrote a second PIN1
-    // item. Nothing reads it now, so remove it on the first launch after
-    // an upgrade rather than leave sensitive dead data in the keychain.
-    CardCredentialStore.removeLegacySigningWindow()
+    // No PIN rests in storage (RAPP v26.10.22 §11 item 2): whatever an
+    // earlier build stored is removed, never read.
+    CardCredentialStore.removeRetiredSecrets()
 
     Self.startRemoteServices()
 
@@ -316,11 +315,6 @@ internal struct RefineIDApp: App {
       #if os(iOS)
         if args.contains("--prime-mock-card") || args.contains("--prime-fake-card") {
           MockCardCertificate.primeSyntheticIdentity()
-        }
-        if let pin2Index = args.firstIndex(of: "--pin2"),
-          args.indices.contains(pin2Index + 1)
-        {
-          CardCredentialStore.save(pin2: args[pin2Index + 1])
         }
       #endif
       DemoMode.shared.activateFromLaunchArguments()

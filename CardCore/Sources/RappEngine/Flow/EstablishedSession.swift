@@ -53,7 +53,7 @@ internal struct EstablishedSession {
       // The frame decrypted and its contents broke the protocol. The
       // channel stays open - the cipher state is intact - so the operation
       // bridge can still seal the protocol_violation close before it closes
-      // the session (RAPP v26.10.21 §10.1).
+      // the session (RAPP v26.10.22 §10.1).
       channel = working
       throw SessionError.unexpectedMessage
     }

@@ -11,12 +11,18 @@
     // MARK: Properties
 
     internal let inbox: RappAuthorizationInbox
-    internal var pin1ByOperation: [RappOperationIdentifier: String] = [:]
+    /// PIN 1 for each browser authentication, typed or held, until the card
+    /// command spends it.
+    internal var pin1ByOperation: [RappOperationIdentifier: RappCardExecutor.SigningPin] = [:]
+    /// PIN 2 the holder typed for each signature or batch, until the card
+    /// command spends it; never kept beyond it (RAPP v26.10.22 §11 item 2).
     internal var pin2ByOperation: [RappOperationIdentifier: String] = [:]
-    internal var pin2Window = Pin2Window()
     internal var lastReadAuthCertDER: Data?
     /// The prompt each operation shows the holder, by operation.
     internal var requestIDs: [RappOperationIdentifier: String] = [:]
+    /// The operations whose PIN prompt reached the screen, so the requester
+    /// hears `consent_shown` once for each (§8.2 item 3).
+    internal var promptedOperations: Set<RappOperationIdentifier> = []
 
     // MARK: Lifecycle
 
@@ -84,7 +90,7 @@
       pin1ByOperation.removeAll(keepingCapacity: false)
       pin2ByOperation.removeAll(keepingCapacity: false)
       requestIDs.removeAll(keepingCapacity: false)
-      pin2Window.forget()
+      promptedOperations.removeAll(keepingCapacity: false)
       await inbox.cancelAll()
     }
   }

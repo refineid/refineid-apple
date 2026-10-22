@@ -5,7 +5,7 @@
   import Foundation
   import RappEngine
 
-  /// The custodian's word on its card (RAPP v26.10.21 §8.4).
+  /// The custodian's word on its card (RAPP v26.10.22 §8.4).
   @MainActor
   extension PhonePersistentTokenRelay {
     /// What this phone knows of the reader card it serves.
@@ -31,13 +31,21 @@
       return PrimeStore.storedIdentities().first?.certDER
     }
 
-    /// Which card the phone can serve now: present only while a card can
-    /// answer and its authentication certificate is known, so the
-    /// requester can tell which card it is (§8.4 items 1 and 2).
+    /// The card the phone holds now, by the fingerprint of its
+    /// authentication certificate; nil while it holds none, or one whose
+    /// certificate it has not read yet.
+    internal var servedCardFingerprint: RappCertificateFingerprint? {
+      guard Self.canServeCard else { return nil }
+      return servedCertificate.flatMap(RappCertificateFingerprint.init(certificate:))
+    }
+
+    /// Which card the phone holds (§8.4 items 1 and 2).
+    ///
+    /// Present while it holds one whose authentication certificate is known,
+    /// so the requester can tell which card it is. An operation the card did
+    /// not answer changes nothing here.
     internal var cardStatus: RappCardStatus {
-      guard cardReport.present,
-        let fingerprint = servedCertificate.flatMap(RappCertificateFingerprint.init(certificate:))
-      else { return .absent }
+      guard let fingerprint = servedCardFingerprint else { return .absent }
       return .present(fingerprint)
     }
 
@@ -52,14 +60,16 @@
       Task { try? await coordinator.reportCardStatus(status) }
     }
 
-    /// A reader card or a prime arrived or left; a card that can be
-    /// served again was coupled or primed by the holder.
-    internal func cardAvailabilityChanged(servable: Bool) {
+    /// A reader card or a prime arrived or left: the requester hears which
+    /// card the phone holds now, and a PIN 1 held for another card ends
+    /// (§11 item 2).
+    internal func cardAvailabilityChanged() {
       readerCard.epoch = UUID()
       if !CardPresence.shared.isReaderCardPresent {
         readerCard.certificate = nil
       }
-      apply(cardReport.availabilityChanged(servable: servable))
+      HeldPin1.shared.keep(onlyFor: servedCardFingerprint)
+      reportCardStatus()
       if CardPresence.shared.isReaderCardPresent {
         prepareReaderCard()
       } else {
@@ -73,7 +83,7 @@
     /// the card.
     ///
     /// Both run on the reader holder's chain, the card turn the operations
-    /// take (RAPP v26.10.21 §8.2 item 2); one preparation runs at a time,
+    /// take (RAPP v26.10.22 §8.2 item 2); one preparation runs at a time,
     /// and a card that changed meanwhile is prepared once it is done.
     internal func prepareReaderCard() {
       guard coordinator != nil, CardPresence.shared.isReaderCardPresent,
@@ -104,12 +114,6 @@
       reportCardStatus()
     }
 
-    /// Sends the card's word when a transition produced one.
-    internal func apply(_ word: CustodianCardReport.Word?) {
-      guard word != nil else { return }
-      reportCardStatus()
-    }
-
     internal func observe(
       _ event: RappConnectionCoordinator.Event,
       connectionID: UUID
@@ -135,21 +139,8 @@
         operationsInFlight.insert(operationID)
         sessionServing.withLock { $0.idleSince = nil }
 
-      case .completed(let operationID, _):
-        operationEnded(operationID)
-        apply(cardReport.cardAnswered())
-
-      case .terminal(let operationID, let reason):
-        operationEnded(operationID)
-        // An operation the card did not answer means the card cannot
-        // serve only when it is truly gone. A reader card still in its
-        // slot is present though one exchange glitched; the near-field
-        // card leaves after each tap and keeps the original meaning.
-        if reason == .cardError, !CardPresence.shared.isReaderCardPresent {
-          apply(cardReport.operationEndedUnattended())
-        }
-
-      case .operationEnded(.dropped(let operationID)),
+      case .completed(let operationID, _), .terminal(let operationID, _),
+        .operationEnded(.dropped(let operationID)),
         .operationEnded(.cardExchangeContinues(let operationID)):
         operationEnded(operationID)
 
@@ -175,7 +166,7 @@
 
     /// Destroys the pairing the closed session ran over when the session
     /// ended it: the requester revoked it, or this phone delivered the close
-    /// of a pairing its holder forgot (RAPP v26.10.21 §4.6 items 2 to 4).
+    /// of a pairing its holder forgot (RAPP v26.10.22 §4.6 items 2 to 4).
     private func endPairingIfOver(_ reason: RappConnectionCoordinator.CloseReason) {
       guard reason.peerRevokedPairing || reason == .handshake(.revocationNoticeDelivered),
         let pairID = activePairID

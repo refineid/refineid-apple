@@ -3,7 +3,7 @@
 import Foundation
 
 /// What happens to the live operation when its session closes (RAPP
-/// v26.10.21 §8.1 item 3).
+/// v26.10.22 §8.1 item 3).
 internal enum ProxySessionCloseAction: Equatable {
   /// The card command runs to the card's answer, which is discarded.
   case continueCardExchange(operationIdentifier: RappOperationIdentifier)

@@ -7,11 +7,12 @@
 import Foundation
 
 /// A change of a pending operation's state the custodian reports (RAPP
-/// v26.10.21 §7.1, §8.2).
+/// v26.10.22 §7.1, §8.2).
 public enum ProgressEvent: String, Sendable, Equatable, CaseIterable {
   /// Another session's operation holds the card (§8.2 item 2).
   case queued = "queued"
-  /// The custodian's consent view is on screen (§8.2 item 3).
+  /// The custodian's PIN prompt is on screen; entering the PIN is the
+  /// holder's consent (§8.2 item 3). Never sent when no prompt is shown.
   case consentShown = "consent_shown"
   /// The custodian waits for the holder to present the card (§8.2 item 4).
   case waitingForCard = "waiting_for_card"

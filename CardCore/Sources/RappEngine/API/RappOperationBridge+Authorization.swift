@@ -7,9 +7,9 @@ import Foundation
 extension RappOperationBridge {
   /// The operation has the card and its prerequisite reads are done.
   ///
-  /// An action that needs the holder's authorization gives `awaitUserApproval`;
-  /// a read skips consent and gives `executeSafeRead` (RAPP v26.10.21 §8.2
-  /// items 3 and 6). An operation past its deadline is cancelled instead, with
+  /// An action that needs a PIN gives `awaitUserApproval`; a read asks the
+  /// holder nothing and gives `executeSafeRead` (RAPP v26.10.22 §8.2 items 3
+  /// and 6). An operation past its deadline is cancelled instead, with
   /// the result to send. `nowMs` is the continuous clock.
   public func prerequisitesComplete(operationId: RappOperationIdentifier, nowMs: UInt64) throws
     -> RappBridgeAction
@@ -21,7 +21,8 @@ extension RappOperationBridge {
     }
   }
 
-  /// Approves exactly the request the consent view rendered.
+  /// Approves exactly the request the PIN prompt rendered, or the one whose
+  /// PIN 1 the custodian holds (§8.2 item 3).
   public func approve(operationId: RappOperationIdentifier, approvedAtMs: UInt64) throws
     -> RappBridgeAction
   {

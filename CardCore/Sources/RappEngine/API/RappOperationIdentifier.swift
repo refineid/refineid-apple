@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// An `operation_id` (RAPP v26.10.21 §7.1 `bstr .size 16`, §8.1 item 1):
+/// An `operation_id` (RAPP v26.10.22 §7.1 `bstr .size 16`, §8.1 item 1):
 /// fresh random bytes the requester draws for each operation, used once per
 /// session.
 ///

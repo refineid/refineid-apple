@@ -3,17 +3,14 @@
 import Foundation
 
 extension ResultResponse {
-  /// The `response` map one card answer becomes (RAPP v26.10.21 §9).
+  /// The `response` map one card answer becomes (RAPP v26.10.22 §9).
   ///
   /// The response names no variant: the requester reads it against the
   /// operation it asked for.
   internal init(_ result: CardOperationResult) {
     switch result {
     case .inspection(let answerToReset):
-      self.init(fields: [
-        "atr": .bytes(answerToReset),
-        "supported_profiles": .array(ProfileName.allCases.map { .text($0.rawValue) }),
-      ])
+      self.init(fields: ["atr": .bytes(answerToReset)])
 
     case .identity(let identity):
       var map: [String: WireValue] = [
@@ -45,9 +42,8 @@ extension ResultResponse {
     let result: CardOperationResult
     switch operation {
     case .inspectCard:
-      let answerToReset = try takeOperationBytes(&map, "atr")
-      _ = try takeOperationArray(&map, "supported_profiles")
-      result = .inspection(answerToReset: answerToReset)
+      // The answer to reset alone (§9.1); any other field is refused below.
+      result = .inspection(answerToReset: try takeOperationBytes(&map, "atr"))
 
     case .readIdentity:
       let identity = try CardIdentity(

@@ -9,8 +9,8 @@ import Foundation
 /// the qualified key's own constraint. What it deliberately does not
 /// share is any memory with PIN1: the two credentials are never
 /// interchangeable, and no PIN1 flow can satisfy a qualified
-/// signature. The entry it captures is held by ``Pin2Window`` for a
-/// minute, so a batch of documents costs one prompt.
+/// signature. The entry it captures is spent by the next qualified
+/// signature and kept no longer.
 internal final class Pin2AuthOperation: TKTokenPasswordAuthOperation {
   /// The constraint marker the published qualified key carries.
   ///

@@ -15,14 +15,22 @@ public func rappRandomByteCounts() -> RappRandomByteCounts {
     livenessChallenge: UInt64(PingChallenge.byteCount))
 }
 
-/// How long every pairing offer lives, in milliseconds (RAPP v26.10.21 §3.3
+/// How long every pairing offer lives, in milliseconds (RAPP v26.10.22 §3.3
 /// item 7).
 public func rappOfferTtlMs() -> UInt64 {
   OfferLimit.offerLifetimeMilliseconds
 }
 
+/// How long a requester keeps offering a certificate the custodian
+/// confirmed, in milliseconds, while no session is open or the custodian
+/// reports absence and no report of the card present arrives (RAPP v26.10.22
+/// §8.4 item 3).
+public func rappIdentityOfferGraceMs() -> UInt64 {
+  IdentityOfferGrace.milliseconds
+}
+
 /// The credential profiles the registry admits, in the order it registers
-/// them (RAPP v26.10.21 §9).
+/// them (RAPP v26.10.22 §9).
 public func rappCredentialProfiles() -> [String] {
   ProfileName.allCases.map(\.rawValue)
 }
@@ -41,7 +49,7 @@ public func rappStreamProfileName() -> String {
 
 /// The candidate identifier registered for a transport profile.
 ///
-/// The offer entry of `transportProfile` carries it (RAPP v26.10.21 §2.2);
+/// The offer entry of `transportProfile` carries it (RAPP v26.10.22 §2.2);
 /// an unregistered profile has none.
 public func rappCandidateIdentifier(transportProfile: String) -> String? {
   TransportRegistry.entry(for: transportProfile)?.candidateIdentifier

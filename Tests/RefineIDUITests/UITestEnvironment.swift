@@ -27,9 +27,6 @@ internal enum UITestEnvironment {
   /// Variable holding the six digits printed on the card.
   internal static let cardAccessNumberVariable = "REFINEID_TEST_CAN"
 
-  /// Variable holding PIN1.
-  internal static let pin1Variable = "REFINEID_TEST_PIN1"
-
   /// Variable holding PIN 2.
   internal static let pin2Variable = "REFINEID_TEST_PIN2"
 
@@ -66,11 +63,6 @@ internal enum UITestEnvironment {
   /// The card access number, or nil when the run was not given one.
   internal static var cardAccessNumber: String? {
     Self.digits(Self.cardAccessNumberVariable)
-  }
-
-  /// PIN1, or nil when the run was not given one.
-  internal static var pin1: String? {
-    Self.digits(Self.pin1Variable)
   }
 
   /// PIN 2, or nil when the run was not given one.

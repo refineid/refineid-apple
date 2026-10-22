@@ -5,7 +5,7 @@ import Foundation
 import RappEngine
 import XCTest
 
-/// An offer lives five minutes from its creation (RAPP v26.10.21 §3.3 item 7).
+/// An offer lives five minutes from its creation (RAPP v26.10.22 §3.3 item 7).
 internal final class RappOfferExpiryTests: XCTestCase {
   private static let startedAt: UInt64 = 1_000
   private static let offerLifetime = rappOfferTtlMs()

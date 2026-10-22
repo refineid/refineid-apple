@@ -10,6 +10,6 @@ public enum RappServiceNotificationNames {
 
   /// Posted when the custodian closed a session with `pairing_revoked`:
   /// the pairing is gone and the borrowed identity leaves at once (RAPP
-  /// v26.10.21 §4.6 item 4).
+  /// v26.10.22 §4.6 item 4).
   public static let pairingRevokedDarwinNotification = "fi.refineid.service.pairing-revoked"
 }

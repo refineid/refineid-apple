@@ -6,7 +6,7 @@
   import os
   import RappEngine
 
-  /// The requester's standing session with the custodian (RAPP v26.10.21
+  /// The requester's standing session with the custodian (RAPP v26.10.22
   /// §8.3, §8.4): dialled when the custodian is on the network, held open so
   /// the custodian's `card.status` reaches the requester, and used for the
   /// certificate read that an offered identity needs.
@@ -153,7 +153,7 @@
     }
 
     /// Ends the session with `pairing_revoked`, as the pairing it runs over
-    /// is forgotten (RAPP v26.10.21 §4.6 item 1).
+    /// is forgotten (RAPP v26.10.22 §4.6 item 1).
     ///
     /// The close frame is sent before the connection goes; the answer says
     /// whether it left.

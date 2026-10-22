@@ -5,32 +5,21 @@
   import Foundation
   import RappEngine
 
-  /// The standing session with the phone that the offered identity rests
-  /// on (RAPP v26.10.21 §8.3, §8.4).
+  /// The standing session with the phone whose word the offered identity
+  /// rests on (RAPP v26.10.22 §8.3, §8.4).
   extension PersistentTokenRegistry {
-    /// Seconds a session may stay down, while the phone stays on the
-    /// network, before the identity is withdrawn.
-    ///
-    /// The phone yields an idle session to the token extension's own
-    /// dial, and that operation may run its whole lifetime before the
-    /// app can dial again; an identity withdrawn under a signature in
-    /// progress would end the signature.
-    private static let sessionLossGraceSeconds = 130
-
     /// Seconds between dials while the phone is on the network and no
     /// session is open.
     private static let redialDelaySeconds = 2
 
     /// How long the redial loop may run without a usable session.
     ///
-    /// Past this it stops and leaves a terminal state (R-58). It sits
-    /// above the loss grace (``sessionLossGraceSeconds``) and the longest
-    /// interactive operation, so a legitimate long operation during which
-    /// the phone refuses a second session is not mistaken for a dead
-    /// loop. A fresh advertisement or a user action restarts it.
+    /// Past this it stops and leaves a terminal state (R-58). It sits above
+    /// the longest interactive operation, so a legitimate long operation
+    /// during which the phone refuses a second session is not mistaken for
+    /// a dead loop. A fresh advertisement or a user action restarts it. The
+    /// offered identity follows ``RemoteIdentityOffer`` alone.
     private static let abortLoopSeconds = 150
-
-    private static var sessionLossGrace: Duration { .seconds(sessionLossGraceSeconds) }
 
     private static var redialDelay: Duration { .seconds(redialDelaySeconds) }
 
@@ -38,7 +27,7 @@
     ///
     /// It is the one whose hint the phone in sight carries, which for a
     /// pairing this computer forgot delivers its `pairing_revoked` close to
-    /// that phone and no other (RAPP v26.10.21 §4.6 item 2); with none in
+    /// that phone and no other (RAPP v26.10.22 §4.6 item 2); with none in
     /// sight, the chosen usable pairing, else the newest. A forgotten pairing
     /// is dialed only when its phone is in sight, and not once its 30 days
     /// ran out (§4.6 item 3).
@@ -71,44 +60,47 @@
         Self.withdrawPublishedIdentity()
         return
       }
+      let token = UUID()
       let session = RappHeldRequesterSession(pair: pair) { report in
         Task { @MainActor in
-          Self.shared.holderSessionReported(report)
+          Self.shared.holderSessionReported(report, token: token)
         }
       }
       holderSession = session
+      holderSessionToken = token
       session.start()
     }
 
-    /// Ends the open session, if any, and forgets what it said.
+    /// Ends the open session, if any, and forgets what it said; an offered
+    /// identity then follows the grace (§8.4 item 3).
     internal func closeHolderSession() {
       redialTask?.cancel()
       redialTask = nil
-      sessionLossTask?.cancel()
-      sessionLossTask = nil
       holderCardStatus = .absent
       holderSession?.close()
       holderSession = nil
+      holderSessionToken = nil
+      confirmationLost()
     }
 
     /// Ends the open session with `pairing_revoked` when it runs over
-    /// `pairID`, as the pairing is forgotten (RAPP v26.10.21 §4.6 item 1);
+    /// `pairID`, as the pairing is forgotten (RAPP v26.10.22 §4.6 item 1);
     /// false when no session over `pairID` is open or the close did not
     /// leave, so the pairing is kept forgotten for its next session.
     internal func closeSessionForRevocation(pairID: Data) async -> Bool {
       guard let session = holderSession, session.pairID == pairID else { return false }
       redialTask?.cancel()
       redialTask = nil
-      sessionLossTask?.cancel()
-      sessionLossTask = nil
       holderCardStatus = .absent
       holderSession = nil
+      holderSessionToken = nil
       let told = await session.closePairingRevoked()
       Self.withdrawPublishedIdentity()
       return told
     }
 
-    private func holderSessionReported(_ report: RappHeldRequesterSession.Report) {
+    private func holderSessionReported(_ report: RappHeldRequesterSession.Report, token: UUID) {
+      guard token == holderSessionToken else { return }
       switch report {
       case .established:
         break
@@ -119,38 +111,45 @@
         // so its deadline starts over for any later loss (R-58).
         continuousFailureSince = nil
         holderCardStatus = status
-        switch status {
-        case .present:
-          sessionLossTask?.cancel()
-          sessionLossTask = nil
-          offerIdentity()
-
-        case .absent:
-          Self.withdrawPublishedIdentity()
-        }
+        let offered = (certificateDER ?? Self.publishedCertificateDER())
+          .flatMap(RappCertificateFingerprint.init(certificate:))
+        respond(to: identityOffer.receive(status, offered: offered, at: .now))
 
       case .closed(let reason):
         holderSessionEnded(reason)
       }
     }
 
-    /// Offers the identity of the card the phone names: a certificate
-    /// already held is published again only while its fingerprint is the
-    /// one the phone reported on this session, any other is read afresh
-    /// (RAPP v26.10.21 §8.4 item 2).
-    private func offerIdentity() {
-      guard case .present(let fingerprint) = holderCardStatus,
-        !CardPresence.shared.isReaderCardPresent
-      else { return }
-      let held = certificateDER ?? Self.publishedCertificateDER()
-      if let held, RappCertificateFingerprint(certificate: held) == fingerprint {
-        ensurePublished()
-        return
-      }
-      if held != nil {
+    /// Acts on what the phone's `card.status` did to the offer: the card
+    /// offered is published again, another card's identity is withdrawn at
+    /// once and the certificate read afresh, and absence leaves the offer
+    /// to its grace (RAPP v26.10.22 §8.4 items 2 and 3).
+    private func respond(to response: RemoteIdentityOffer.Response) {
+      switch response {
+      case .absent:
+        armOfferLapse()
+
+      case .differentCard:
         Self.withdrawPublishedIdentity()
+        guard confirmationRegained() else { return }
+        readCertificate()
+
+      case .nothingOffered:
+        guard confirmationRegained() else { return }
+        readCertificate()
+
+      case .offeredCard:
+        guard confirmationRegained() else { return }
+        ensurePublished()
       }
-      readCertificate()
+    }
+
+    /// A session confirmed a card: the offer's lapse is called off; false
+    /// while a reader card here takes priority over the phone's.
+    private func confirmationRegained() -> Bool {
+      offerLapseTask?.cancel()
+      offerLapseTask = nil
+      return !CardPresence.shared.isReaderCardPresent
     }
 
     /// Reads the certificate over the open session.
@@ -180,6 +179,7 @@
     private func holderSessionEnded(_ reason: RappConnectionCoordinator.CloseReason) {
       let ended = holderSession
       holderSession = nil
+      holderSessionToken = nil
       holderCardStatus = .absent
       if reason.peerRevokedPairing {
         if let ended {
@@ -193,34 +193,39 @@
         }
         return
       }
-      switch reason {
-      case _ where reason.serviceWithdrawn:
-        // The phone stopped serving; its next session record brings it
-        // back.
+      if reason.serviceWithdrawn {
+        // The phone announced it stopped serving: a verified withdrawal
+        // takes the identity at once; its next session record brings it
+        // back (§4.5 item 6).
         Self.withdrawPublishedIdentity()
-
-      case .localRequest:
-        break
-
-      case .handshake, .transportFailure, .operation:
-        guard holderIsAdvertising, !CardPresence.shared.isReaderCardPresent else {
-          Self.withdrawPublishedIdentity()
-          return
-        }
-        armSessionLossGrace()
+        return
+      }
+      confirmationLost()
+      guard !CardPresence.shared.isReaderCardPresent else {
+        Self.withdrawPublishedIdentity()
+        return
+      }
+      if holderIsAdvertising {
         scheduleRedial()
       }
     }
 
-    /// Withdraws the identity unless a session says present again within
-    /// ``sessionLossGrace``.
-    private func armSessionLossGrace() {
-      guard sessionLossTask == nil, certificateDER != nil else { return }
-      sessionLossTask = Task { @MainActor in
-        try? await Task.sleep(for: Self.sessionLossGrace)
+    /// No open session confirms the card any more: the offer lapses after
+    /// the grace unless a session reports the card present again (§8.4
+    /// item 3).
+    private func confirmationLost() {
+      identityOffer.loseConfirmation(at: .now)
+      armOfferLapse()
+    }
+
+    /// Withdraws the identity once the offer has lapsed.
+    private func armOfferLapse() {
+      guard offerLapseTask == nil, let lapsesAt = identityOffer.lapsesAt else { return }
+      offerLapseTask = Task { @MainActor in
+        try? await Task.sleep(until: lapsesAt, clock: .continuous)
         guard !Task.isCancelled else { return }
-        sessionLossTask = nil
-        guard case .absent = holderCardStatus else { return }
+        offerLapseTask = nil
+        guard identityOffer.hasLapsed(at: .now) else { return }
         Self.withdrawPublishedIdentity()
       }
     }
@@ -236,10 +241,9 @@
         // The loop has not produced a usable session within the deadline.
         // Stop dialing and leave a terminal state instead of looping; a
         // fresh advertisement (holderIsAdvertising) or a user action
-        // starts a new attempt.
+        // starts a new attempt. The offer's grace has run by now.
         continuousFailureSince = nil
         redialTask = nil
-        Self.withdrawPublishedIdentity()
         return
       }
       redialTask = Task { @MainActor in

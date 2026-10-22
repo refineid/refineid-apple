@@ -588,20 +588,21 @@ a delete that skips the authentication interface and the add that follows
 fails as a duplicate. The gate can return once the flow it must not block
 is proven.
 
-There is no fifteen-minute software signing window on iOS now. Safari can
-request the token extension while the containing app is absent, and that
-extension has no reliable UI in which to reopen a window. When the holder
-explicitly chooses to store PIN1, the extension reads that stored value
-for each contactless signature. Device unlock and the system certificate
-consent remain the surrounding controls.
+No PIN is stored on any device (RAPP v26.10.22 section 11 item 2). Safari's
+first contactless request after the card is added asks PIN1 on the system
+sheet; the token extension holds the PIN in zeroizing memory for that card
+across the field renewal and later requests, until the card is removed or
+replaced, the card refuses it, or the process ends. PIN2 is asked for every
+signature. Device unlock and the system certificate consent remain the
+surrounding controls.
 
 Reader authentication probes only PIN1 immediately before VERIFY. PIN2 and PUK
 are not part of identity authentication and are read only when the holder opens
 the explicit status/diagnostics flow. A freshly entered PIN1 that the card
 accepts may remain in zeroizing, card-serial-bound memory for the extension
-process lifetime. A confirmed PIN1 rejection removes the automatic identity's
-stored PIN1, physical-card prime, and CryptoTokenKit registration; unrelated
-transport and TLS failures leave them intact.
+process lifetime. A confirmed PIN1 rejection clears that memory and remembers
+the refused value so it is never sent again; the card the phone holds stays
+added, and transport and TLS failures leave the memory intact.
 
 ## Instruments
 
@@ -628,8 +629,7 @@ all. They are worth keeping.
   never a PIN, CAN, serial or holder name, and `VERIFY` is redacted
   wholesale.
 - **DEBUG-only launch modes**: `--diagnostics`, `--trace`,
-  `--reset-card-state`, `--set-can`, `--forget-can`, `--set-pin1`,
-  `--prime`. Absent from a Release build,
+  `--reset-card-state`, `--set-can`, `--forget-can`, `--prime`. Absent from a Release build,
   verified by grepping the built binary.
 - **macOS logging still works**, unlike iOS: `log show --predicate
   'subsystem == "fi.refineid.ReFineID"'` shows the extension directly.

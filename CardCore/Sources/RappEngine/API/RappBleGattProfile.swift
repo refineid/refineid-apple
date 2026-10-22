@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The `fi.refineid.rapp.ble` direct proximity profile (RAPP v26.10.21
+/// The `fi.refineid.rapp.ble` direct proximity profile (RAPP v26.10.22
 /// §4.2, §5.1, §5.2).
 ///
 /// The custodian is the GATT peripheral and the requester the central. The

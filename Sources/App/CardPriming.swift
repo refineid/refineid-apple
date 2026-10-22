@@ -147,21 +147,19 @@
     /// is stored and registered. Nothing is written to this device until
     /// that hold has succeeded.
     ///
-    /// PIN1 is never sent to the card here. The certificate is public and
-    /// needs only the secure channel, and whether the card accepts a PIN
-    /// is true of the card at the instant it signs rather than of this
-    /// setup -- so it is checked there, where the counter is read in the
-    /// same session that consumes it.
     /// Primes the card the holder is about to present.
+    ///
+    /// No PIN is asked for or sent here. The certificate is public and
+    /// needs only the secure channel; PIN 1 is asked for when the card
+    /// first signs, where the counter is read in the same session that
+    /// spends it, and is held only in memory (RAPP v26.10.22 §11 item 2).
     internal static func prime(
       cardAccessNumber: String,
-      pin1: String?,
       progress: @escaping Progress,
       step: @escaping StepReport
     ) async -> Outcome {
       await prime(
         cardAccessNumber: cardAccessNumber,
-        pin1: pin1,
         isRecovery: false,
         progress: progress,
         step: step)
@@ -170,7 +168,6 @@
     /// Primes the card, optionally using extended recovery mode for throttled cards.
     internal static func prime(
       cardAccessNumber: String,
-      pin1: String?,
       isRecovery: Bool,
       progress: @escaping Progress,
       step: @escaping StepReport
@@ -178,19 +175,6 @@
       guard let accessNumber = CardAccessNumber(digits: cardAccessNumber) else {
         step(.found, .failed)
         return Self.failure(Failure.cardAccessNumberMissing)
-      }
-      if let pin1 {
-        // Shape is the one thing about a PIN that is knowable without a
-        // card, so it is the one thing checked before the slot opens.
-        guard Pin1(digits: pin1) != nil else {
-          step(.found, .failed)
-          return Self.failure(Failure.pin1Malformed)
-        }
-      } else {
-        guard OnDemandPinExperiment.isEnabled else {
-          step(.found, .failed)
-          return Self.failure(Failure.pin1Malformed)
-        }
       }
       // Marked BEFORE the slot opens: `ctkd` asks the extension for a
       // token the moment the card arrives, and a mark written after that

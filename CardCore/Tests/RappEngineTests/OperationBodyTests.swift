@@ -1,7 +1,7 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 //
 // Replays the operation-protocol bodies an independent encoder produced from
-// the RAPP v26.10.21 schemas. Every body is produced through the engine's own
+// the RAPP v26.10.22 schemas. Every body is produced through the engine's own
 // encoders rather than assembled here, so the test proves what a peer would
 // actually receive, and every body is read back through the decoder a peer
 // runs.
@@ -22,7 +22,7 @@ internal struct OperationBodyTests {
   /// The session identifier the read-back envelopes carry.
   private static let sessionIdentifier = Data(count: WireLimits.sessionIdentifier)
 
-  /// The sequence of the first envelope in a direction (RAPP v26.10.21
+  /// The sequence of the first envelope in a direction (RAPP v26.10.22
   /// §7.2 item 3).
   internal static let firstSequence: UInt64 = 0
 
@@ -99,7 +99,7 @@ internal struct OperationBodyTests {
   internal func vectorIdentity() throws {
     let corpus = try Self.corpus()
     #expect(corpus.format == "fi.refineid.rapp.operation-vectors")
-    #expect(corpus.protocolDocumentVersion == "26.10.21")
+    #expect(corpus.protocolDocumentVersion == "26.10.22")
     #expect(!corpus.vectors.isEmpty)
     #expect(!corpus.rejected.isEmpty)
   }

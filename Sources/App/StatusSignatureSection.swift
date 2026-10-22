@@ -10,7 +10,6 @@
     @Binding internal var format: SignatureFormat
     @Binding internal var pin2: String
     @Binding internal var accessNumber: String
-    @Binding internal var pin2Cache: Pin2Cache
     internal let asksLocalPin2: Bool
     internal let canSign: Bool
     internal let onSign: () -> Void
@@ -18,8 +17,7 @@
 
     internal var body: some View {
       if signing.pending != nil {
-        let pinTitle =
-          pin2Cache.isWarm ? String(localized: "PIN 2 (remembered)") : String(localized: "PIN 2")
+        let pinTitle = String(localized: "PIN 2")
         Section {
           SignatureFormatRow(documents: signing.queued, format: $format)
           if asksLocalPin2 {

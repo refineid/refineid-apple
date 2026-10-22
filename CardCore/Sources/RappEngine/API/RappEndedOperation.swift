@@ -3,7 +3,7 @@
 import Foundation
 
 /// The session's operation that ended when the session closed (RAPP
-/// v26.10.21 §8.1 item 3).
+/// v26.10.22 §8.1 item 3).
 public enum RappEndedOperation: Equatable, Sendable {
   /// The custodian's card command runs to the card's answer, which is
   /// discarded.

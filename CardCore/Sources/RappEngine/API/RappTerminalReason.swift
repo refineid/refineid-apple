@@ -5,7 +5,7 @@
 // swiftlint:disable sorted_enum_cases
 
 /// Why an operation ended without completing: the registered error name
-/// (RAPP v26.10.21 §10.3).
+/// (RAPP v26.10.22 §10.3).
 public enum RappTerminalReason: Sendable, Equatable, CaseIterable {
   /// Another operation of the session was live.
   case busy

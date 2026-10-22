@@ -80,9 +80,8 @@ internal struct FieldSignature {
     } catch CardOperationError.pinRejected, CardOperationError.pinBlocked {
       TransientCandidatePin1.shared.clear(for: token.cardInstanceID)
       VolatileAcceptedPin1.shared.clear(for: token.cardInstanceID)
-      CardCredentialStore.forgetPin1()
       if let serial = token.primedSerial, let fingerprint {
-        token.revokeAutomaticIdentityAfterPin1Rejection(
+        token.endInstanceAfterPinRejection(
           serial: serial,
           fingerprint: fingerprint)
       }
@@ -97,7 +96,7 @@ internal struct FieldSignature {
     }
     // VERIFY succeeded on the physical card: promote to accepted memory and clear candidate.
     TransientCandidatePin1.shared.clear(for: token.cardInstanceID)
-    pendingAcceptance?.commit()
+    pendingAcceptance.commit()
     let raw = try operations.computeAuthenticationSignature(
       overDigest: request.digest,
       algorithm: request.algorithm,

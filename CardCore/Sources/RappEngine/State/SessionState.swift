@@ -5,7 +5,7 @@
 // break the correspondence the bidirectional conformance test protects.
 // swiftlint:disable sorted_enum_cases
 
-/// Session component state (RAPP v26.10.21 formal state model).
+/// Session component state (RAPP v26.10.22 formal state model).
 ///
 /// A session instance exists per connection; `closed` is terminal for the
 /// instance. Raw values are the formal model's names.

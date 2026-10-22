@@ -4,7 +4,8 @@
   import CardCore
   import SwiftUI
 
-  /// System-modal holder authorization.
+  /// The PIN prompt for one operation: entering the PIN is the holder's
+  /// consent, and there is no other (RAPP v26.10.22 §8.2 item 3).
   ///
   /// It uses the app's shared secret-field control and native buttons;
   /// no parallel visual language is introduced.

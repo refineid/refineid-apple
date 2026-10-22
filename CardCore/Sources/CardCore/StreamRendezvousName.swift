@@ -4,7 +4,7 @@ import Foundation
 import RappEngine
 import Security
 
-/// Names and TXT records of the stream service (RAPP v26.10.21 §4.5 and the
+/// Names and TXT records of the stream service (RAPP v26.10.22 §4.5 and the
 /// transport hierarchy §4.3).
 ///
 /// The instance name is drawn at random for every listener; the records

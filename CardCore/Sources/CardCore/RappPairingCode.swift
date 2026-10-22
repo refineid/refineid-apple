@@ -6,7 +6,7 @@
   import Security
 
   /// Generates, formats, and validates 6-character Crockford Base32 pairing codes
-  /// for simple, secure out-of-band peer pairing without QR codes per RAPP v26.10.21 §3.1.
+  /// for simple, secure out-of-band peer pairing without QR codes per RAPP v26.10.22 §3.1.
   public enum RappPairingCode {
     // MARK: Static Properties
 
@@ -41,7 +41,7 @@
       return String(bytes.map { alphabet[Int($0) % alphabet.count] })
     }
 
-    /// Applies the Crockford Base32 canonicalization pipeline per RAPP v26.10.21 §3.1.
+    /// Applies the Crockford Base32 canonicalization pipeline per RAPP v26.10.22 §3.1.
     ///
     /// NFKC first, then ASCII-only uppercasing and removal of ASCII
     /// whitespace and hyphens. Returns the canonical string, which may be

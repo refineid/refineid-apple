@@ -7,7 +7,7 @@ import Foundation
 /// The two cases are kept apart because only the first can still be
 /// answered: a frame that decrypted and broke the protocol is answered with
 /// a sealed `protocol_violation` close, while one that fails to decrypt
-/// closes the session silently (RAPP v26.10.21 §10.1).
+/// closes the session silently (RAPP v26.10.22 §10.1).
 internal enum RappOpenFailure: Error, Equatable {
   /// Decrypted, then nonconforming.
   case authenticatedProtocolViolation

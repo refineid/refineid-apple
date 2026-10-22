@@ -69,10 +69,11 @@ internal enum ReaderSignature {
   }
 
   /// The PIN to spend: freshly entered, or reused from the card-bound
-  /// cache, or none -- in which case the system is asked to prompt.
+  /// memory, or none -- in which case the system is asked to prompt.
   ///
   /// Accepted-PIN memory is bound to the full card serial and lives only
-  /// on this token; a miss asks the holder again.
+  /// on this token, never in storage (RAPP v26.10.22 §11 item 2); a miss
+  /// asks the holder again.
   private static func pin(
     entered: String?,
     serial: TokenSerial,
@@ -85,12 +86,8 @@ internal enum ReaderSignature {
       return built
     }
     if let cached = token.acceptedPin1.checkout(serial: serial) {
-      TokenLog.info("sign: reusing cached PIN1 - no prompt")
+      TokenLog.info("sign: reusing accepted PIN1 - no prompt")
       return cached
-    }
-    if let stored = CardCredentialStore.pin1() {
-      TokenLog.info("sign: reusing stored PIN1 - no prompt")
-      return stored
     }
     throw TokenError.authenticationRequired
   }
@@ -179,12 +176,12 @@ internal enum ReaderSignature {
     do {
       try operations.verifyPin1(pin1.consumeForSingleTransmission())
     } catch CardOperationError.pinRejected {
-      token.revokeAutomaticIdentityAfterPin1Rejection(
+      token.endInstanceAfterPinRejection(
         serial: serial,
         fingerprint: fingerprint)
       throw TokenError.pinRejected
     } catch CardOperationError.pinBlocked {
-      token.revokeAutomaticIdentityAfterPin1Rejection(
+      token.endInstanceAfterPinRejection(
         serial: serial,
         fingerprint: fingerprint)
       throw TokenError.pinRejected
@@ -227,7 +224,6 @@ internal enum ReaderSignature {
   ) {
     if let entered = enteredPin, let accepted = Pin1(digits: entered) {
       token.acceptedPin1.store(accepted, serial: serial)
-      CardCredentialStore.save(pin1: entered)
     }
   }
 }
