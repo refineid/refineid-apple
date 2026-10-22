@@ -23,7 +23,7 @@ public final class RappSessionRouter: @unchecked Sendable {
       return .pairing
 
     case .session(let routing):
-      let keys = records.map { RoutingKey(record: $0.record) }
+      let keys = records.map { pair in (try? pair.record).flatMap(RoutingKey.init(record:)) }
       guard let index = RoutingKey.route(keys: keys, profile: transportProfile, routing: routing)
       else { return .refuse }
       let fresh = lock.withLock { replay.admit(routing.nonce) }

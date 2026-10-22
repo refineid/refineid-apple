@@ -139,7 +139,7 @@ import Testing
       await connection.requester.start()
       try await RappIntegrationConnectionSupport.awaitEstablished(connection.requester)
       try await RappIntegrationConnectionSupport.awaitEstablished(connection.proxy)
-      await connection.requester.closePairingRevoked()
+      #expect(await connection.requester.closePairingRevoked(), "the close left")
 
       let requesterEvents = await RappIntegrationConnectionSupport.eventsUntilClosed(
         connection.requester)
@@ -147,6 +147,36 @@ import Testing
         connection.proxy)
       #expect(requesterEvents == [.closed(.operation(.terminalFrameReleased))])
       #expect(proxyEvents == [.closed(.operation(.pairRevoked))])
+      #expect(
+        await !connection.requester.closePairingRevoked(),
+        "a closed connection tells the peer nothing")
+    }
+
+    /// A local close reports the operation that ended with the session, then
+    /// finishes the connection: its event stream ends and it takes no more
+    /// operations.
+    @Test
+    internal func localCloseReportsTheEndedOperationAndFinishes() async throws {
+      let fixture = try await RappIntegrationConnectionSupport.makePairedFixture()
+      defer { RappIntegrationConnectionSupport.deleteKeychainServices(for: fixture) }
+      let connection = try await RappIntegrationConnectionSupport.makeConnection(fixture)
+      let operation = RappIntegrationFixtures.RequestedOperation.browserAuthentication(
+        origin: "https://closed.example.invalid")
+
+      await connection.proxy.start()
+      await connection.requester.start()
+      try await RappIntegrationConnectionSupport.awaitEstablished(connection.requester)
+      try await RappIntegrationConnectionSupport.awaitEstablished(connection.proxy)
+      try await operation.begin(on: connection.requester)
+      let operationID = try await Self.awaitInspection(connection.proxy)
+      await connection.proxy.close()
+
+      let custodianSeen = await RappIntegrationConnectionSupport.eventsUntilClosed(
+        connection.proxy)
+      #expect(custodianSeen == [.operationEnded(.dropped(operationID)), .closed(.localRequest)])
+      await #expect(throws: RappOperationDriver.LocalError.self) {
+        _ = try await connection.proxy.operationDriver()
+      }
     }
 
     /// A custodian that stops serving ends the session; both ends learn that

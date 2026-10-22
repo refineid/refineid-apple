@@ -91,8 +91,8 @@ extension RappOperationBridge {
   /// A frame that fails authenticated decryption ends the session; one that
   /// decrypted and broke the protocol ends it with a sealed
   /// `protocol_violation` close. Neither touches the pairing (§10.1).
-  public func receiveFrame(bytes: Data, nowMs: UInt64) throws -> RappBridgeAction {
-    try locked {
+  public func receiveFrame(bytes: Data, nowMs: UInt64) -> RappBridgeAction {
+    locked {
       guard !closed else { return .noAction }
       let envelope: Envelope
       do {
@@ -103,24 +103,21 @@ extension RappOperationBridge {
         return closingAction()
       }
       liveness.heard(nowMilliseconds: nowMs)
-      return try act(on: envelope, nowMs: nowMs)
+      return act(on: envelope, nowMs: nowMs)
     }
   }
 
   /// The step for one authenticated message on the established session;
   /// called with the lock held.
-  private func act(on envelope: Envelope, nowMs: UInt64) throws -> RappBridgeAction {
+  private func act(on envelope: Envelope, nowMs: UInt64) -> RappBridgeAction {
     switch envelope.messageType {
     case .livenessPing:
-      var body = envelope.body
-      let challenge = try takeBytes(&body, "challenge")
-      return sendOrClose(.livenessPong, body: ["challenge": .bytes(challenge)])
+      guard let challenge = PingChallenge(body: envelope.body) else { return violationClose() }
+      return sendOrClose(.livenessPong, body: ["challenge": .bytes(challenge.bytes)])
 
     case .livenessPong:
-      var body = envelope.body
-      if let challenge = PingChallenge(try takeBytes(&body, "challenge")) {
-        _ = liveness.receivePong(nowMilliseconds: nowMs, challenge: challenge)
-      }
+      guard let challenge = PingChallenge(body: envelope.body) else { return violationClose() }
+      _ = liveness.receivePong(nowMilliseconds: nowMs, challenge: challenge)
       return .noAction
 
     case .sessionClose:

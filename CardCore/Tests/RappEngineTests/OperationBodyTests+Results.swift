@@ -21,7 +21,7 @@ extension OperationBodyTests {
     let inputs = corpus.fixedInputs
     let identifier = try RappOperationIdentifier(hex: inputs.operationIdentifierResult)
     let certificate = try Data(hex: inputs.certificateDer)
-    let identity = CardIdentity(
+    let identity = try CardIdentity(
       holderName: inputs.holderName, cardIdentifier: inputs.cardIdentifier,
       issuanceDate: inputs.issuanceDate, expirationDate: inputs.expirationDate,
       certificates: [certificate], tokenDisplayName: nil)
@@ -62,6 +62,25 @@ extension OperationBodyTests {
         try message.typedResult(for: testCase.operation) == testCase.result,
         "\(name) answers its operation")
     }
+  }
+
+  @Test("An identity without a certificate is refused, sent or received")
+  internal func identityNeedsACertificate() throws {
+    let inputs = try Self.corpus().fixedInputs
+    #expect(throws: (any Error).self) {
+      _ = try CardIdentity(
+        holderName: inputs.holderName, cardIdentifier: inputs.cardIdentifier,
+        issuanceDate: inputs.issuanceDate, expirationDate: inputs.expirationDate,
+        certificates: [], tokenDisplayName: nil)
+    }
+    let received = ResultResponse(fields: [
+      "card_holder_name": .text(inputs.holderName),
+      "card_id": .text(inputs.cardIdentifier),
+      "issuance_date": .text(inputs.issuanceDate),
+      "expiration_date": .text(inputs.expirationDate),
+      "certificates": .array([]),
+    ])
+    #expect(throws: (any Error).self) { _ = try received.typed(for: .readIdentity) }
   }
 
   @Test("Every registered failure matches byte for byte and decodes back")

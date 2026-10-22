@@ -33,7 +33,7 @@ internal struct BridgeSessionTests {
     #expect(
       waiting.custodian.closeSession()
         == .sessionClosed(reason: nil, endedOperation: .dropped(identifier)))
-    #expect(try waiting.custodian.receiveFrame(bytes: Data(), nowMs: Self.start) == .noAction)
+    #expect(waiting.custodian.receiveFrame(bytes: Data(), nowMs: Self.start) == .noAction)
 
     let reading = try establishedSession(pairing, nowMilliseconds: Self.start)
     try Self.liveRead(reading, identifier)
@@ -78,7 +78,7 @@ internal struct BridgeSessionTests {
     let fingerprint = try #require(
       RappCertificateFingerprint(certificate: OperationFixture.certificate))
     let custodianOnly = try establishedSession(pairing, nowMilliseconds: Self.start)
-    let violation = try custodianOnly.custodian.receiveFrame(
+    let violation = custodianOnly.custodian.receiveFrame(
       bytes: try injected(
         .cardStatus, RappCardStatus.present(fingerprint).wireBody, from: custodianOnly.requester),
       nowMs: Self.start)
@@ -91,14 +91,14 @@ internal struct BridgeSessionTests {
 
     let requesterOnly = try establishedSession(pairing, nowMilliseconds: Self.start)
     let request = try inspectionRequest(OperationFixture.operationIdentifier).wireBody()
-    let refused = try requesterOnly.requester.receiveFrame(
+    let refused = requesterOnly.requester.receiveFrame(
       bytes: try injected(.operationRequest, request, from: requesterOnly.custodian),
       nowMs: Self.start)
     #expect(
       refused == .sendClose(try frame(refused), reason: .protocolViolation, endedOperation: nil))
 
     let earlierPhase = try establishedSession(pairing, nowMilliseconds: Self.start)
-    let readyAgain = try earlierPhase.requester.receiveFrame(
+    let readyAgain = earlierPhase.requester.receiveFrame(
       bytes: try injected(
         .sessionReady,
         try SessionReady(
@@ -129,8 +129,43 @@ internal struct BridgeSessionTests {
     var tampered = try frame(try session.custodian.reportCardStatus(.absent))
     tampered[tampered.startIndex] ^= tamperByteMask
     #expect(
-      try session.requester.receiveFrame(bytes: tampered, nowMs: Self.start)
+      session.requester.receiveFrame(bytes: tampered, nowMs: Self.start)
         == .sessionClosed(reason: nil, endedOperation: nil))
+  }
+
+  @Test("A ping or pong without its 32-byte challenge closes the session as a violation")
+  internal func malformedChallengeIsAViolation() throws {
+    let pairing = try PairedBridges.pair(granting: everyProfile)
+    let bodies: [[String: WireValue]] = [
+      [:],
+      ["challenge": .bytes(Data("short challenge".utf8))],
+      ["challenge": .text("challenge")],
+    ]
+    for messageType in [MessageType.livenessPing, .livenessPong] {
+      for body in bodies {
+        let session = try establishedSession(pairing, nowMilliseconds: Self.start)
+        let refused = session.custodian.receiveFrame(
+          bytes: try injected(messageType, body, from: session.requester), nowMs: Self.start)
+        #expect(
+          refused
+            == .sendClose(try frame(refused), reason: .protocolViolation, endedOperation: nil))
+      }
+    }
+  }
+
+  @Test("The custodian sends session.ready once, then the session is established")
+  internal func readyIsSentOnce() throws {
+    let (requester, custodian) = try authenticatingSessions(
+      try PairedBridges.pair(granting: everyProfile))
+    #expect(throws: (any Error).self, "the requester never sends ready") {
+      _ = try requester.sendReady(nonce: randomBytes(FlowLimit.readyNonce))
+    }
+    _ = try custodian.sendReady(nonce: randomBytes(FlowLimit.readyNonce))
+    #expect(throws: (any Error).self, "a second ready is refused") {
+      _ = try custodian.sendReady(nonce: randomBytes(FlowLimit.readyNonce))
+    }
+    try custodian.enterEstablished()
+    #expect(custodian.isEstablished())
   }
 
   @Test("Silence brings a ping after five seconds and the end after thirty")

@@ -153,12 +153,15 @@
     }
 
     /// Ends the session with `pairing_revoked`, as the pairing it runs over
-    /// is forgotten (RAPP v26.10.21 §4.6 item 1); the close frame is sent
-    /// before the connection goes.
-    public func closePairingRevoked() async {
+    /// is forgotten (RAPP v26.10.21 §4.6 item 1).
+    ///
+    /// The close frame is sent before the connection goes; the answer says
+    /// whether it left.
+    public func closePairingRevoked() async -> Bool {
       let coordinator = state.withLock { $0.coordinator }
-      await coordinator?.closePairingRevoked()
+      let told = await coordinator?.closePairingRevoked() ?? false
       finish(.localRequest)
+      return told
     }
 
     private func dial(_ endpoint: NWEndpoint) {

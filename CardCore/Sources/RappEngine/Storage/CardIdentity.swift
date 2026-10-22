@@ -12,17 +12,29 @@ internal struct CardIdentity: Equatable {
     internal static let tokenDisplayName = 1...64
   }
 
-  internal var holderName: String
-  internal var cardIdentifier: String
+  internal let holderName: String
+  internal let cardIdentifier: String
   /// `YYYY-MM-DD`.
-  internal var issuanceDate: String
+  internal let issuanceDate: String
   /// `YYYY-MM-DD`.
-  internal var expirationDate: String
+  internal let expirationDate: String
   /// DER-encoded X.509 certificates, at least one.
-  internal var certificates: [Data]
-  internal var tokenDisplayName: String?
+  internal let certificates: [Data]
+  internal let tokenDisplayName: String?
 
-  internal func validate() throws {
+  /// An identity within the schema's bounds, with at least one non-empty
+  /// certificate (§9.1).
+  ///
+  /// - Throws: ``CardOperationError/invalidField(field:)`` naming `response`
+  ///   otherwise.
+  internal init(
+    holderName: String,
+    cardIdentifier: String,
+    issuanceDate: String,
+    expirationDate: String,
+    certificates: [Data],
+    tokenDisplayName: String?
+  ) throws {
     guard Bounds.holderName.contains(holderName.utf8.count),
       Bounds.cardIdentifier.contains(cardIdentifier.utf8.count),
       Bounds.date.contains(issuanceDate.utf8.count),
@@ -31,5 +43,11 @@ internal struct CardIdentity: Equatable {
       certificates.allSatisfy({ !$0.isEmpty }),
       tokenDisplayName.map({ Bounds.tokenDisplayName.contains($0.utf8.count) }) ?? true
     else { throw CardOperationError.invalidField(field: "response") }
+    self.holderName = holderName
+    self.cardIdentifier = cardIdentifier
+    self.issuanceDate = issuanceDate
+    self.expirationDate = expirationDate
+    self.certificates = certificates
+    self.tokenDisplayName = tokenDisplayName
   }
 }

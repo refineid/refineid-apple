@@ -24,13 +24,18 @@
       Duration.seconds(advertisementLossHoldSeconds)
     }
 
-    /// Every stored pairing in the vault, a forgotten one too: its hint
-    /// brings the session that delivers its close (RAPP v26.10.21 §4.6 item
-    /// 2).
+    /// Every stored pairing in the vault, a forgotten one too.
+    ///
+    /// A forgotten pairing's hint brings the session that delivers its close
+    /// (RAPP v26.10.21 §4.6 item 2). Forgotten pairings come first, so a
+    /// phone that carries the hint of one and of a newer pairing hears the
+    /// close before the newer pairing is used. A forgotten record whose 30
+    /// days ran out is destroyed first (§4.6 item 3).
     private static func activeHolderPairings() -> [HolderPairing] {
       let vault = RappDeviceVault()
+      RappPairRevocation.expireRevocationNotices(in: vault, clock: RappPlatformClock())
       let pairIDs = (try? vault.activePairIDs()) ?? []
-      return pairIDs.compactMap { pairID in
+      let pairings = pairIDs.compactMap { pairID -> HolderPairing? in
         guard let pair = try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault) else {
           return nil
         }
@@ -39,6 +44,8 @@
           pairID: pairID,
           record: pair)
       }
+      let forgotten = pairings.filter { $0.record.metadata().forgottenAtMs != nil }
+      return forgotten + pairings.filter { $0.record.metadata().forgottenAtMs == nil }
     }
 
     /// What a published record says about one of `pairings`.
@@ -92,7 +99,9 @@
     ) -> @Sendable (Bool, String?) -> Void {
       { present, matchedName in
         Task { @MainActor in
-          if present, let matchedName, let pairID = pairIDs[matchedName] {
+          let inSight = present ? matchedName.flatMap { pairIDs[$0] } : nil
+          Self.shared.pairInSight = inSight
+          if let pairID = inSight {
             let vault = RappDeviceVault()
             let forgotten =
               (try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault))?.metadata()
@@ -206,6 +215,15 @@
       restartWatchingPresence()
       NotificationCenter.default.post(
         name: RappPairingModel.pairingsDidChangeNotification, object: nil)
+    }
+
+    /// The token extension's own session heard `pairing_revoked` (RAPP
+    /// v26.10.21 §4.6 item 4): the pairing its identity was published for
+    /// ends here too, and the identity leaves at once, as on this process's
+    /// own session.
+    internal func holderRevokedElsewhere() {
+      guard let pairID = Self.publishedPairID() else { return }
+      holderRevoked(pairID: pairID)
     }
 
     /// This computer's close for a pairing it forgot reached the phone

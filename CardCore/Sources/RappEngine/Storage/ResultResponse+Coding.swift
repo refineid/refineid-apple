@@ -50,7 +50,7 @@ extension ResultResponse {
       result = .inspection(answerToReset: answerToReset)
 
     case .readIdentity:
-      let identity = CardIdentity(
+      let identity = try CardIdentity(
         holderName: try takeOperationText(&map, "card_holder_name"),
         cardIdentifier: try takeOperationText(&map, "card_id"),
         issuanceDate: try takeOperationText(&map, "issuance_date"),
@@ -58,7 +58,6 @@ extension ResultResponse {
         certificates: try takeOperationBytesArray(&map, "certificates"),
         tokenDisplayName: map["token_display_name"] == nil
           ? nil : try takeOperationText(&map, "token_display_name"))
-      try identity.validate()
       result = .identity(identity)
 
     case .readCertificate:

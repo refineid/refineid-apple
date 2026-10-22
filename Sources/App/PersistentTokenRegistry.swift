@@ -134,6 +134,10 @@
       /// The standing session with the phone, while one is open.
       internal var holderSession: RappHeldRequesterSession?
 
+      /// The pairing whose hint the phone on the network carries; a session
+      /// dials it and no other (RAPP v26.10.21 §4.6 item 2).
+      internal var pairInSight: Data?
+
       /// Dials the phone again after a session ended while it stayed on
       /// the network.
       internal var redialTask: Task<Void, Never>?
@@ -292,14 +296,12 @@
         #endif
         return
       }
-      #if REFINEID_STREAM_TRANSPORT
-        // Only the card the phone names on this session is offered (RAPP
-        // v26.10.21 §8.4 item 2); a certificate read across a card change
-        // waits for the phone's next word.
-        guard case .present(let named) = holderCardStatus,
-          RappCertificateFingerprint(certificate: fetched) == named
-        else { return }
-      #endif
+      // Only the card the phone names on this session is offered (RAPP
+      // v26.10.21 §8.4 item 2); a certificate read across a card change
+      // waits for the phone's next word.
+      guard case .present(let named) = holderCardStatus,
+        RappCertificateFingerprint(certificate: fetched) == named
+      else { return }
       switch Self.publish(fetched) {
       case .notPublished:
         fetchBackoff.recordFailure(at: .now)

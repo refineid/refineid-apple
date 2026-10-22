@@ -145,12 +145,7 @@
     /// Consumes one complete opaque frame received from the transport.
     public func receive(_ frame: Data) -> [Command] {
       guard !closed else { return [] }
-      do {
-        return try commands(
-          bridge.receiveFrame(bytes: frame, nowMs: clock.monotonicMilliseconds()))
-      } catch {
-        return protocolFailure()
-      }
+      return commands(bridge.receiveFrame(bytes: frame, nowMs: clock.monotonicMilliseconds()))
     }
 
     /// Reports a change of the live operation's state (§8.2).

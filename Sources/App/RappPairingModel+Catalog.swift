@@ -65,7 +65,8 @@ extension RappPairingModel {
   }
 
   /// Ends the session the pairing `pairID` carries with `pairing_revoked`;
-  /// false when none is open (RAPP v26.10.21 §4.6 item 1).
+  /// false when none is open or the close did not leave (RAPP v26.10.21
+  /// §4.6 items 1 and 2).
   private static func closeSessionForRevocation(pairID: Data) async -> Bool {
     var closed = false
     #if os(iOS) && REFINEID_LOCAL_CARD
@@ -100,9 +101,9 @@ extension RappPairingModel {
   /// Forgets one paired device through the vault the list is read from
   /// (RAPP v26.10.21 §4.6).
   ///
-  /// A session open over the pairing closes with `pairing_revoked` and the
-  /// record goes at once. Without one the record is kept, forgotten, only
-  /// to tell the peer on its next session. Either way the row goes, and
+  /// A session open over the pairing closes with `pairing_revoked` and,
+  /// once that close left, the record and its key go at once. Otherwise the
+  /// record is kept, forgotten, only to tell the peer on its next session. Either way the row goes, and
   /// the name with it once the record is no longer listed; a row that
   /// stays keeps its name.
   internal func revoke(pairID: Data) {

@@ -40,7 +40,7 @@ public final class RappSessionBridge: @unchecked Sendable {
       RappSessionBridge(
         pair: pair,
         handshake: try SessionHandshake.beginRequester(
-          pair: pair.record, transportProfile: transportProfile, intent: ExplicitUserIntent()))
+          pair: try pair.record, transportProfile: transportProfile, intent: ExplicitUserIntent()))
     }
   }
 
@@ -58,7 +58,7 @@ public final class RappSessionBridge: @unchecked Sendable {
       RappSessionBridge(
         pair: pair,
         handshake: try SessionHandshake.beginProxy(
-          pair: pair.record, transportProfile: transportProfile))
+          pair: try pair.record, transportProfile: transportProfile))
     }
   }
 
@@ -139,7 +139,7 @@ public final class RappSessionBridge: @unchecked Sendable {
   /// Whether the pairing was forgotten locally, so the session's first and
   /// only message is the `pairing_revoked` close (§4.6 item 2).
   public func revocationNoticePending() -> Bool {
-    pair.record.forgottenAtMilliseconds != nil
+    pair.metadata().forgottenAtMs != nil
   }
 
   /// The custodian's `session.ready`: the exact session parameters with a
@@ -238,7 +238,7 @@ public final class RappSessionBridge: @unchecked Sendable {
   internal func takeEstablished() throws -> (session: EstablishedSession, pair: PairRecord) {
     try locked {
       guard case .established(let session) = phase else { throw RappBindingError.WrongPhase }
-      return (session, pair.record)
+      return (session, try pair.record)
     }
   }
 

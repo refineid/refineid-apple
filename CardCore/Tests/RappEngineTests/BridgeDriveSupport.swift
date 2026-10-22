@@ -66,7 +66,8 @@ internal func frame(_ action: RappBridgeAction) throws -> Data {
 internal func deliver(
   _ action: RappBridgeAction, to bridge: RappOperationBridge, at nowMilliseconds: UInt64
 ) throws -> RappBridgeAction {
-  try bridge.receiveFrame(bytes: try frame(action), nowMs: nowMilliseconds)
+  let bytes = try frame(action)
+  return bridge.receiveFrame(bytes: bytes, nowMs: nowMilliseconds)
 }
 
 /// Seals a message on a bridge's session the way a nonconforming peer would.

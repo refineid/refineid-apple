@@ -21,4 +21,15 @@ internal struct PingChallenge: Equatable, CustomStringConvertible {
     guard bytes.count == Self.byteCount else { return nil }
     value = bytes
   }
+
+  /// The challenge a received `liveness.ping` carries or a `liveness.pong`
+  /// echoes, the body's only field (RAPP v26.10.21 §7.1, §8.3); nil for any
+  /// other body.
+  internal init?(body: [String: WireValue]) {
+    var fields = body
+    guard let challenge = try? takeBytes(&fields, "challenge"), fields.isEmpty else {
+      return nil
+    }
+    self.init(challenge)
+  }
 }

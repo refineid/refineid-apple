@@ -134,11 +134,11 @@ extension RappOperationBridge {
     expirationDate: String,
     certificates: [Data]
   ) throws -> RappBridgeAction {
-    let identity = CardIdentity(
-      holderName: holderName, cardIdentifier: cardId, issuanceDate: issuanceDate,
-      expirationDate: expirationDate, certificates: certificates, tokenDisplayName: nil)
+    let identity: CardIdentity
     do {
-      try identity.validate()
+      identity = try CardIdentity(
+        holderName: holderName, cardIdentifier: cardId, issuanceDate: issuanceDate,
+        expirationDate: expirationDate, certificates: certificates, tokenDisplayName: nil)
     } catch {
       throw RappBindingError.InvalidInput
     }

@@ -34,14 +34,20 @@
 
     private static var redialDelay: Duration { .seconds(redialDelaySeconds) }
 
-    /// The pairing a session runs over: one this computer forgot first, so
-    /// its `pairing_revoked` close reaches the phone (RAPP v26.10.21 §4.6
-    /// item 2); else the chosen one, else the newest.
-    private static func sessionPair(in vault: RappDeviceVault) -> RappPairRecord? {
+    /// The pairing a session runs over.
+    ///
+    /// It is the one whose hint the phone in sight carries, which for a
+    /// pairing this computer forgot delivers its `pairing_revoked` close to
+    /// that phone and no other (RAPP v26.10.21 §4.6 item 2); with none in
+    /// sight, the chosen usable pairing, else the newest. A forgotten pairing
+    /// is dialed only when its phone is in sight, and not once its 30 days
+    /// ran out (§4.6 item 3).
+    private static func sessionPair(in vault: RappDeviceVault, inSight: Data?) -> RappPairRecord? {
+      RappPairRevocation.expireRevocationNotices(in: vault, clock: RappPlatformClock())
       let pairIDs = (try? vault.activePairIDs()) ?? []
       let pairs = pairIDs.compactMap { try? RappPairRecord.loadFromVault(pairId: $0, vault: vault) }
-      if let forgotten = pairs.first(where: { $0.metadata().forgottenAtMs != nil }) {
-        return forgotten
+      if let inSight, let named = pairs.first(where: { $0.metadata().pairId == inSight }) {
+        return named
       }
       let usable = pairs.filter { $0.metadata().forgottenAtMs == nil }
       if let selected = try? vault.selectedPairID(),
@@ -61,7 +67,7 @@
         holderIsAdvertising, holderSession == nil
       else { return }
       let vault = RappDeviceVault()
-      guard let pair = Self.sessionPair(in: vault) else {
+      guard let pair = Self.sessionPair(in: vault, inSight: pairInSight) else {
         Self.withdrawPublishedIdentity()
         return
       }
@@ -87,7 +93,8 @@
 
     /// Ends the open session with `pairing_revoked` when it runs over
     /// `pairID`, as the pairing is forgotten (RAPP v26.10.21 §4.6 item 1);
-    /// false when no session over `pairID` is open.
+    /// false when no session over `pairID` is open or the close did not
+    /// leave, so the pairing is kept forgotten for its next session.
     internal func closeSessionForRevocation(pairID: Data) async -> Bool {
       guard let session = holderSession, session.pairID == pairID else { return false }
       redialTask?.cancel()
@@ -96,9 +103,9 @@
       sessionLossTask = nil
       holderCardStatus = .absent
       holderSession = nil
-      await session.closePairingRevoked()
+      let told = await session.closePairingRevoked()
       Self.withdrawPublishedIdentity()
-      return true
+      return told
     }
 
     private func holderSessionReported(_ report: RappHeldRequesterSession.Report) {
@@ -135,13 +142,12 @@
       guard case .present(let fingerprint) = holderCardStatus,
         !CardPresence.shared.isReaderCardPresent
       else { return }
-      if let certificateDER,
-        RappCertificateFingerprint(certificate: certificateDER) == fingerprint
-      {
+      let held = certificateDER ?? Self.publishedCertificateDER()
+      if let held, RappCertificateFingerprint(certificate: held) == fingerprint {
         ensurePublished()
         return
       }
-      if certificateDER != nil {
+      if held != nil {
         Self.withdrawPublishedIdentity()
       }
       readCertificate()

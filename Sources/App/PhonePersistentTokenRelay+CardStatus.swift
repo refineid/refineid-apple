@@ -8,11 +8,25 @@
   /// The custodian's word on its card (RAPP v26.10.21 §8.4).
   @MainActor
   extension PhonePersistentTokenRelay {
+    /// What this phone knows of the reader card it serves.
+    internal struct ReaderCard {
+      /// The card's authentication certificate, once read; nil while no
+      /// reader card is present.
+      internal var certificate: Data?
+      /// The preparation and certificate read under way, so a second
+      /// request waits for it instead of queueing another read.
+      internal var preparation: Task<Void, Never>?
+      /// Changes whenever the reader card arrives or leaves, so a
+      /// certificate read from an earlier card is never taken for the
+      /// current one.
+      internal var epoch = UUID()
+    }
+
     /// The authentication certificate of the card this phone serves: the
     /// reader card's once read, else the primed near-field card's.
     private var servedCertificate: Data? {
       if CardPresence.shared.isReaderCardPresent {
-        return readerCertificate
+        return readerCard.certificate
       }
       return PrimeStore.storedIdentities().first?.certDER
     }
@@ -41,8 +55,9 @@
     /// A reader card or a prime arrived or left; a card that can be
     /// served again was coupled or primed by the holder.
     internal func cardAvailabilityChanged(servable: Bool) {
+      readerCard.epoch = UUID()
       if !CardPresence.shared.isReaderCardPresent {
-        readerCertificate = nil
+        readerCard.certificate = nil
       }
       apply(cardReport.availabilityChanged(servable: servable))
       if CardPresence.shared.isReaderCardPresent {
@@ -56,22 +71,36 @@
     /// of the first request while a requester is connected, and reads the
     /// card's authentication certificate once, so `card.status` can name
     /// the card.
+    ///
+    /// Both run on the reader holder's chain, the card turn the operations
+    /// take (RAPP v26.10.21 §8.2 item 2); one preparation runs at a time,
+    /// and a card that changed meanwhile is prepared once it is done.
     internal func prepareReaderCard() {
-      guard coordinator != nil, CardPresence.shared.isReaderCardPresent else { return }
-      let needsCertificate = readerCertificate == nil
-      Task {
+      guard coordinator != nil, CardPresence.shared.isReaderCardPresent,
+        readerCard.preparation == nil
+      else { return }
+      let epoch = readerCard.epoch
+      readerCard.preparation = Task {
         await RappReaderSessionHolder.shared.prepare()
-        guard needsCertificate else { return }
-        let outcome = await RappCardExecutor.readCertificate(
-          cardAccessNumber: nil, signatureCertificate: false)
-        guard case .result(let certificate) = outcome else { return }
-        readerCertificateRead(certificate)
+        if readerCard.certificate == nil {
+          let outcome = await RappCardExecutor.readCertificate(
+            cardAccessNumber: nil, signatureCertificate: false)
+          if case .result(let certificate) = outcome {
+            readerCertificateRead(certificate, epoch: epoch)
+          }
+        }
+        readerCard.preparation = nil
+        if epoch != readerCard.epoch {
+          prepareReaderCard()
+        }
       }
     }
 
-    private func readerCertificateRead(_ certificate: Data) {
-      guard CardPresence.shared.isReaderCardPresent else { return }
-      readerCertificate = certificate
+    /// Takes the certificate read from the reader card present since
+    /// `epoch`; one read from an earlier card is dropped.
+    private func readerCertificateRead(_ certificate: Data, epoch: UUID) {
+      guard epoch == readerCard.epoch, CardPresence.shared.isReaderCardPresent else { return }
+      readerCard.certificate = certificate
       reportCardStatus()
     }
 

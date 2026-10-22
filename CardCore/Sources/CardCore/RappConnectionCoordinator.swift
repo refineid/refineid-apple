@@ -35,6 +35,8 @@
     private var operation: RappOperationDriver?
     private var phase = Phase.handshaking
     private var livenessTask: Task<Void, Never>?
+    /// Why the connection closed, once it has.
+    private var closeReason: CloseReason?
 
     // MARK: Lifecycle
 
@@ -222,8 +224,14 @@
 
     /// Ends the session with `pairing_revoked` because this endpoint's
     /// user is forgetting the pairing (RAPP v26.10.21 §4.6 item 1).
-    public func closePairingRevoked() async {
+    ///
+    /// Answers whether the close left on the transport. Only then may the
+    /// record and its key be destroyed (§4.6 item 3); otherwise the pairing
+    /// is kept forgotten so its next session delivers the close.
+    public func closePairingRevoked() async -> Bool {
+      let wasOperating = phase == .operating
       await endOperating { await $0.close(reason: .pairingRevoked) }
+      return wasOperating && closeReason == .operation(.terminalFrameReleased)
     }
 
     /// Ends the session with `service_withdrawn` because the holder
@@ -282,6 +290,7 @@
     private func finish(_ reason: CloseReason) async {
       guard phase != .closed else { return }
       phase = .closed
+      closeReason = reason
       livenessTask?.cancel()
       livenessTask = nil
       await transport.close()

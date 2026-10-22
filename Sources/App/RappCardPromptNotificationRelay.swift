@@ -27,6 +27,7 @@
     private var distributedNeededObserver: (any NSObjectProtocol)?
     private var distributedDismissObserver: (any NSObjectProtocol)?
     private var distributedWithdrawnObserver: (any NSObjectProtocol)?
+    private var distributedRevokedObserver: (any NSObjectProtocol)?
     private var pendingPresentWorkItem: DispatchWorkItem?
 
     override private init() {
@@ -71,6 +72,15 @@
         ) { _ in
           MainActor.assumeIsolated {
             PersistentTokenRegistry.shared.holderWithdrew()
+          }
+        }
+        distributedRevokedObserver = DistributedNotificationCenter.default().addObserver(
+          forName: Notification.Name(RappServiceNotificationNames.pairingRevokedDarwinNotification),
+          object: nil,
+          queue: .main
+        ) { _ in
+          MainActor.assumeIsolated {
+            PersistentTokenRegistry.shared.holderRevokedElsewhere()
           }
         }
       #endif

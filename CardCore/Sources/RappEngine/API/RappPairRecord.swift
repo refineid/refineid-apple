@@ -5,20 +5,31 @@ import Foundation
 /// A stored pairing.
 ///
 /// The record holds the pairing's keys, so it is never handed out as bytes
-/// except through the vault the caller owns.
+/// except through the vault the caller owns. Once revoked it holds them no
+/// more: nothing in this process can use the key afterwards (RAPP v26.10.21
+/// §4.6 items 3 and 4).
 public final class RappPairRecord: @unchecked Sendable {
   private let lock = NSLock()
-  private var stored: PairRecord
+  /// The pairing with its keys; nil once the vault confirmed the revocation.
+  private var stored: PairRecord?
+  /// What the pairing says about itself, kept after its keys are gone.
+  private var summary: RappPairMetadata
 
   /// The record as it stands now.
+  ///
+  /// - Throws: ``RappBindingError/WrongPhase`` once the pairing was revoked.
   internal var record: PairRecord {
-    lock.lock()
-    defer { lock.unlock() }
-    return stored
+    get throws {
+      try locked {
+        guard let stored else { throw RappBindingError.WrongPhase }
+        return stored
+      }
+    }
   }
 
   internal init(record: PairRecord) {
     self.stored = record
+    self.summary = Self.summary(of: record)
   }
 
   /// Reads the pairing the identifier names.
@@ -52,27 +63,47 @@ public final class RappPairRecord: @unchecked Sendable {
     }
   }
 
-  /// Returns the raw serialized bytes of this pair record.
-  public func encodedBytes() throws -> Data {
+  /// The record's description, without its keys.
+  private static func summary(of record: PairRecord) -> RappPairMetadata {
+    RappPairMetadata(
+      pairId: record.pairIdentifier,
+      role: RappEndpointRole(record.role),
+      profiles: record.profiles.map(\.rawValue),
+      transportProfile: record.transport.profile,
+      candidateId: record.transport.candidateIdentifier,
+      createdAtMs: record.createdAtMilliseconds,
+      storageConfirmed: record.storageConfirmed,
+      forgottenAtMs: record.forgottenAtMilliseconds)
+  }
+
+  /// Revokes `record` in the vault, which destroys its secret before
+  /// returning.
+  private static func destroy(_ record: PairRecord, in vault: RappPairVault, at time: UInt64)
+    throws
+  {
     do {
-      return try record.encoded()
+      try vault.revokeDeviceOnly(pairId: record.pairIdentifier, revokedAtMs: time)
+    } catch {
+      throw RappBindingError.LocalStateFailure
+    }
+  }
+
+  /// Returns the raw serialized bytes of this pair record.
+  ///
+  /// - Throws: ``RappBindingError/WrongPhase`` once the pairing was revoked.
+  public func encodedBytes() throws -> Data {
+    let current = try record
+    do {
+      return try current.encoded()
     } catch {
       throw RappBindingError.InvalidInput
     }
   }
 
-  /// What the pairing says about itself, without its keys.
+  /// What the pairing says about itself, without its keys; a revoked
+  /// pairing still describes itself as it last stood.
   public func metadata() -> RappPairMetadata {
-    let current = record
-    return RappPairMetadata(
-      pairId: current.pairIdentifier,
-      role: RappEndpointRole(current.role),
-      profiles: current.profiles.map(\.rawValue),
-      transportProfile: current.transport.profile,
-      candidateId: current.transport.candidateIdentifier,
-      createdAtMs: current.createdAtMilliseconds,
-      storageConfirmed: current.storageConfirmed,
-      forgottenAtMs: current.forgottenAtMilliseconds)
+    locked { summary }
   }
 
   /// Stores the confirmed pairing over the unconfirmed record written
@@ -83,7 +114,7 @@ public final class RappPairRecord: @unchecked Sendable {
   ///   not confirmed, and ``RappBindingError/LocalStateFailure`` when
   ///   storage refused the write.
   public func replaceDeviceOnly(vault: RappPairVault) throws {
-    let current = record
+    let current = try record
     guard current.storageConfirmed else { throw RappBindingError.StorageUnconfirmed }
     let encoded: Data
     do {
@@ -103,7 +134,7 @@ public final class RappPairRecord: @unchecked Sendable {
   /// - Throws: ``RappBindingError/LocalStateFailure`` when storage
   ///   refused the write.
   public func persistDeviceOnly(vault: RappPairVault) throws {
-    let current = record
+    let current = try record
     let encoded: Data
     do {
       encoded = try current.encoded()
@@ -122,49 +153,54 @@ public final class RappPairRecord: @unchecked Sendable {
   ///
   /// A confirmed record is stored as forgotten and keeps its key only to
   /// deliver the `pairing_revoked` close on the next session; an unconfirmed
-  /// one is destroyed at once and nobody is told. With a session open, close
-  /// it with reason `pairingRevoked` and call ``revoke(vault:revokedAtMs:)``
-  /// instead. `forgottenAtMs` is milliseconds since the Unix epoch.
+  /// one is destroyed at once, here and in the vault, and nobody is told.
+  /// With a session open, close it with reason `pairingRevoked` and call
+  /// ``revoke(vault:revokedAtMs:)`` instead. `forgottenAtMs` is milliseconds
+  /// since the Unix epoch.
   ///
-  /// - Throws: ``RappBindingError/LocalStateFailure`` when storage refused.
+  /// - Throws: ``RappBindingError/WrongPhase`` for a revoked pairing, and
+  ///   ``RappBindingError/LocalStateFailure`` when storage refused.
   public func forget(vault: RappPairVault, forgottenAtMs: UInt64) throws -> RappForgetOutcome {
     try locked {
-      guard stored.storageConfirmed else {
-        do {
-          try vault.revokeDeviceOnly(pairId: stored.pairIdentifier, revokedAtMs: forgottenAtMs)
-        } catch {
-          throw RappBindingError.LocalStateFailure
-        }
+      guard let current = stored else { throw RappBindingError.WrongPhase }
+      guard current.storageConfirmed else {
+        try Self.destroy(current, in: vault, at: forgottenAtMs)
+        stored = nil
         return .destroyed
       }
-      let forgotten = stored.forgotten(at: forgottenAtMs)
+      let forgotten = current.forgotten(at: forgottenAtMs)
       do {
         try vault.replaceDeviceOnly(pairId: forgotten.pairIdentifier, record: forgotten.encoded())
       } catch {
         throw RappBindingError.LocalStateFailure
       }
       stored = forgotten
+      summary = Self.summary(of: forgotten)
       return .noticePending
     }
   }
 
   /// Whether a forgotten record kept its key for 30 days without a session
-  /// to deliver the close (§4.6 item 3); destroy it then with
-  /// ``revoke(vault:revokedAtMs:)``.
+  /// to deliver the close (§4.6 item 3).
+  ///
+  /// Destroy it then with ``revoke(vault:revokedAtMs:)``; a revoked pairing
+  /// has nothing left to expire.
   public func revocationNoticeExpired(nowMs: UInt64) -> Bool {
-    record.revocationNoticeExpired(nowMilliseconds: nowMs)
+    locked { stored?.revocationNoticeExpired(nowMilliseconds: nowMs) ?? false }
   }
 
   /// Ends the pairing and destroys its keys, at `revokedAtMs` milliseconds
-  /// since the Unix epoch (§4.6 items 3 and 4).
+  /// since the Unix epoch (§4.6 items 3 and 4): first in the vault, then
+  /// here, so nothing in this process can use the key afterwards.
   ///
-  /// - Throws: ``RappBindingError/LocalStateFailure`` when storage
-  ///   refused.
+  /// - Throws: ``RappBindingError/WrongPhase`` for a pairing already revoked,
+  ///   and ``RappBindingError/LocalStateFailure`` when storage refused; the
+  ///   record then keeps its keys for another attempt.
   public func revoke(vault: RappPairVault, revokedAtMs: UInt64) throws {
-    do {
-      try vault.revokeDeviceOnly(pairId: record.pairIdentifier, revokedAtMs: revokedAtMs)
-    } catch {
-      throw RappBindingError.LocalStateFailure
+    try locked {
+      guard let current = stored else { throw RappBindingError.WrongPhase }
+      try Self.destroy(current, in: vault, at: revokedAtMs)
+      stored = nil
     }
   }
 

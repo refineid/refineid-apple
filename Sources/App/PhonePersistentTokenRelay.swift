@@ -70,9 +70,8 @@
     internal var cardReport = CustodianCardReport(servable: canServeCard)
     /// What the open session was last told about the card.
     internal var reportedCardStatus: RappCardStatus?
-    /// The reader card's authentication certificate, once read; nil while
-    /// no reader card is present.
-    internal var readerCertificate: Data?
+    /// What this phone knows of the reader card it serves.
+    internal var readerCard = ReaderCard()
     /// The pairing the open session runs over.
     internal var activePairID: Data?
     internal var connectionID: UUID?

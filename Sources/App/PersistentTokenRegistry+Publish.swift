@@ -73,6 +73,19 @@
       return PersistentTokenIdentity.instancePrefix + hash
     }
 
+    /// The pairing the published identity was offered for, as the token
+    /// configuration the extension reads names it.
+    internal static func publishedPairID() -> Data? {
+      guard let driver = driverConfiguration else { return nil }
+      for configuration in driver.tokenConfigurations.values {
+        guard let bytes = configuration.configurationData,
+          let pair = try? RappPairRecord.decode(from: bytes)
+        else { continue }
+        return pair.metadata().pairId
+      }
+      return nil
+    }
+
     internal static func activePairConfigurationData() -> Data? {
       let vault = RappDeviceVault()
       let pairIDs = (try? vault.activePairIDs()) ?? []

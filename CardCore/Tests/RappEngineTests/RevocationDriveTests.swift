@@ -71,7 +71,7 @@ internal struct RevocationDriveTests {
     #expect(throws: RappBindingError.WrongPhase) { try requester.enterEstablished() }
     let notice = try requester.deliverRevocationNotice()
     #expect(
-      try operations.receiveFrame(bytes: notice, nowMs: Self.start)
+      operations.receiveFrame(bytes: notice, nowMs: Self.start)
         == .sessionClosed(reason: .pairingRevoked, endedOperation: nil))
   }
 
@@ -108,6 +108,39 @@ internal struct RevocationDriveTests {
     try unconfirmed.persistDeviceOnly(vault: vault)
     #expect(try unconfirmed.forget(vault: vault, forgottenAtMs: Self.forgottenAt) == .destroyed)
     #expect(vault.wasRevoked(confirmed.pairIdentifier))
+    #expect(throws: RappBindingError.WrongPhase, "the key is gone here too") {
+      _ = try unconfirmed.encodedBytes()
+    }
+  }
+
+  @Test("A revoked record holds no key; a refused revocation keeps it for another attempt")
+  internal func revocationDestroysTheKey() throws {
+    let unstored = try PairedBridges.pair(granting: everyProfile).requester
+    #expect(throws: RappBindingError.LocalStateFailure) {
+      try unstored.revoke(vault: MemoryPairVault(), revokedAtMs: Self.forgottenAt)
+    }
+    _ = try unstored.encodedBytes()
+
+    let vault = MemoryPairVault()
+    let pairing = try Self.storedPairing(vault)
+    let pairID = pairing.requester.metadata().pairId
+    try pairing.requester.revoke(vault: vault, revokedAtMs: Self.forgottenAt)
+    #expect(vault.wasRevoked(pairID))
+    #expect(pairing.requester.metadata().pairId == pairID, "the description stays")
+    #expect(throws: RappBindingError.WrongPhase) { _ = try pairing.requester.encodedBytes() }
+    #expect(throws: RappBindingError.WrongPhase) {
+      _ = try pairing.requester.sessionPreamble(transportProfile: StreamProfile.name)
+    }
+    #expect(throws: RappBindingError.WrongPhase) {
+      _ = try RappSessionBridge.beginRequester(
+        pair: pairing.requester, transportProfile: StreamProfile.name)
+    }
+    #expect(throws: RappBindingError.WrongPhase) {
+      _ = try pairing.requester.forget(vault: vault, forgottenAtMs: Self.forgottenAt)
+    }
+    #expect(throws: RappBindingError.WrongPhase) {
+      try pairing.requester.revoke(vault: vault, revokedAtMs: Self.forgottenAt)
+    }
   }
 
   @Test("A forgotten record keeps its key for thirty days")

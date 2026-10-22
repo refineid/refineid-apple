@@ -39,9 +39,9 @@ internal struct BridgeRefusalTests {
     let live = try injected(
       .operationRequest, try inspectionRequest(first).wireBody(), from: session.requester)
     #expect(
-      try session.custodian.receiveFrame(bytes: live, nowMs: Self.start)
+      session.custodian.receiveFrame(bytes: live, nowMs: Self.start)
         == .custodianStep(first, .inspectPrerequisites, RappOperationDescriptor(.inspectCard)))
-    let busy = try session.custodian.receiveFrame(
+    let busy = session.custodian.receiveFrame(
       bytes: try injected(
         .operationRequest, try inspectionRequest(second).wireBody(), from: session.requester),
       nowMs: Self.start)
@@ -51,7 +51,7 @@ internal struct BridgeRefusalTests {
       operationId: first, answerToReset: Data())
     #expect(try Self.refusal(answer, readBy: session).status == ResultStatus.completed.rawValue)
     for identifier in [first, second] {
-      let duplicate = try session.custodian.receiveFrame(
+      let duplicate = session.custodian.receiveFrame(
         bytes: try injected(
           .operationRequest, try inspectionRequest(identifier).wireBody(),
           from: session.requester),
@@ -68,7 +68,7 @@ internal struct BridgeRefusalTests {
     let session = try establishedSession(
       try PairedBridges.pair(granting: everyProfile), nowMilliseconds: Self.start)
     let foreign = OperationFixture.otherOperation
-    _ = try session.custodian.receiveFrame(
+    _ = session.custodian.receiveFrame(
       bytes: try injected(
         .operationRequest, try inspectionRequest(foreign).wireBody(), from: session.requester),
       nowMs: Self.start)
@@ -85,7 +85,7 @@ internal struct BridgeRefusalTests {
     _ = try session.custodian.prerequisitesComplete(operationId: foreign, nowMs: Self.start)
     _ = try opened(
       try frame(try session.custodian.cardError(operationId: foreign)), by: session.requester)
-    _ = try session.custodian.receiveFrame(
+    _ = session.custodian.receiveFrame(
       bytes: try injected(
         .operationRequest, try inspectionRequest(again).wireBody(), from: session.requester),
       nowMs: Self.start)
@@ -106,7 +106,7 @@ internal struct BridgeRefusalTests {
       try PairedBridges.pair(granting: everyProfile), nowMilliseconds: Self.start)
     var body = try inspectionRequest(OperationFixture.operationIdentifier).wireBody()
     body["action"] = .text("format_card")
-    let refused = try session.custodian.receiveFrame(
+    let refused = session.custodian.receiveFrame(
       bytes: try injected(.operationRequest, body, from: session.requester), nowMs: Self.start)
     let unsupported = try Self.refusal(refused, readBy: session)
     #expect(unsupported.name == ResultError.unsupportedParameter.rawValue)
@@ -117,7 +117,7 @@ internal struct BridgeRefusalTests {
   internal func unauthorizedAndInvalidLifetime() throws {
     let session = try establishedSession(
       try PairedBridges.pair(granting: [.cardStatus]), nowMilliseconds: Self.start)
-    let ungranted = try session.custodian.receiveFrame(
+    let ungranted = session.custodian.receiveFrame(
       bytes: try injected(
         .operationRequest,
         try browserRequest(
@@ -131,7 +131,7 @@ internal struct BridgeRefusalTests {
 
     var body = try inspectionRequest(OperationFixture.otherOperation).wireBody()
     body["expires_after_ms"] = .unsigned(Self.zeroLifetime)
-    let zero = try session.custodian.receiveFrame(
+    let zero = session.custodian.receiveFrame(
       bytes: try injected(.operationRequest, body, from: session.requester), nowMs: Self.start)
     let invalid = try Self.refusal(zero, readBy: session)
     #expect(invalid.name == ResultError.invalidLifetime.rawValue)
