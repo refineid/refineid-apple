@@ -3013,7 +3013,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laiteparia ei ole valittu"
+            "value": "Yhdistettyä laitetta ei ole valittu"
           }
         },
         "sv": {
@@ -3529,7 +3529,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Muodosta laitepari"
+            "value": "Yhdistä puhelin"
           }
         },
         "sv": {
@@ -3573,7 +3573,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laitepari"
+            "value": "Yhdistetty laite"
           }
         },
         "sv": {
@@ -3589,7 +3589,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laitepari valittu"
+            "value": "Yhdistetty laite valittu"
           }
         },
         "sv": {
@@ -3605,7 +3605,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laiteparit"
+            "value": "Yhdistetyt laitteet"
           }
         },
         "sv": {
@@ -3765,7 +3765,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laiteparin muodostusta ei voitu aloittaa"
+            "value": "Yhdistämistä ei voitu aloittaa"
           }
         },
         "sv": {
@@ -3781,7 +3781,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laiteparin muodostus päättyi kesken"
+            "value": "Yhdistäminen päättyi kesken"
           }
         },
         "sv": {
@@ -3797,7 +3797,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laitepari hylättiin"
+            "value": "Yhdistäminen hylättiin"
           }
         },
         "sv": {
@@ -4767,7 +4767,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Suojattu laitepari muodostettu"
+            "value": "Laitteet yhdistetty suojatusti"
           }
         },
         "sv": {
@@ -5559,7 +5559,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laiteparia ei voitu poistaa"
+            "value": "Yhdistettyä laitetta ei voitu poistaa"
           }
         },
         "sv": {
@@ -5575,7 +5575,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laiteparia ei voitu valita"
+            "value": "Yhdistettyä laitetta ei voitu valita"
           }
         },
         "sv": {
@@ -5591,7 +5591,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laitepari ei ole enää käytettävissä"
+            "value": "Yhdistetty laite ei ole enää käytettävissä"
           }
         },
         "sv": {
@@ -6674,7 +6674,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laiteparin muodostus lukittiin kolmen väärän koodin jälkeen."
+            "value": "Yhdistäminen lukittiin kolmen väärän koodin jälkeen."
           }
         },
         "sv": {
@@ -6690,7 +6690,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laiteparin muodostus on lukittu. Yritä uudelleen %llu s kuluttua."
+            "value": "Yhdistäminen on lukittu. Yritä uudelleen %llu s kuluttua."
           }
         },
         "sv": {
