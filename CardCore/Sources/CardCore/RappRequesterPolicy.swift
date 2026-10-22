@@ -11,8 +11,8 @@
   /// Session liveness is the protocol's own (RAPP v26.10.22 §8.3).
   public struct RappRequesterPolicy: Sendable, Equatable {
     private enum Timing {
-      static let interactiveOperationLifetimeMilliseconds: UInt64 = 120_000
-      static let synchronousWaitTimeoutSeconds: TimeInterval = 125
+      static let interactiveOperationLifetimeMilliseconds: UInt64 = 300_000
+      static let synchronousWaitTimeoutSeconds: TimeInterval = 305
     }
 
     /// Longest wait for a paired device to be found at all.
