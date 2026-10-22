@@ -7,19 +7,43 @@ import Testing
 /// When a card command summons the holder before it runs (STPA CC-69).
 @Suite
 internal struct HolderAttentionTests {
-  @Test("A reader card is commanded from the background without the holder")
+  private static let appStates: [HolderAttention.AppState] = [.active, .inactive, .background]
+  private static let fieldStates = [true, false]
+
+  @Test("A reader card is commanded without the holder, whatever the app does")
   internal func readerNeedsNoScreen() {
-    #expect(HolderAttention.needed(for: .reader, appActive: false) == .proceed)
-    #expect(HolderAttention.needed(for: .reader, appActive: true) == .proceed)
+    for app in Self.appStates {
+      for fieldWarm in Self.fieldStates {
+        #expect(HolderAttention.needed(for: .reader, app: app, fieldWarm: fieldWarm) == .proceed)
+      }
+    }
   }
 
-  @Test("The near-field card from the background summons the holder")
+  @Test("The near-field card from the background summons the holder, warm field or not")
   internal func nearFieldFromTheBackgroundSummons() {
-    #expect(HolderAttention.needed(for: .nearField, appActive: false) == .summon)
+    for fieldWarm in Self.fieldStates {
+      #expect(
+        HolderAttention.needed(for: .nearField, app: .background, fieldWarm: fieldWarm)
+          == .summon)
+    }
   }
 
   @Test("The near-field card in the foreground is commanded at once")
   internal func nearFieldInTheForegroundProceeds() {
-    #expect(HolderAttention.needed(for: .nearField, appActive: true) == .proceed)
+    for fieldWarm in Self.fieldStates {
+      #expect(
+        HolderAttention.needed(for: .nearField, app: .active, fieldWarm: fieldWarm)
+          == .proceed)
+    }
+  }
+
+  @Test("A warm near field under its system sheet is commanded without a summons")
+  internal func warmFieldUnderItsSheetProceeds() {
+    #expect(HolderAttention.needed(for: .nearField, app: .inactive, fieldWarm: true) == .proceed)
+  }
+
+  @Test("An inactive app without a warm near field summons the holder")
+  internal func inactiveWithoutWarmFieldSummons() {
+    #expect(HolderAttention.needed(for: .nearField, app: .inactive, fieldWarm: false) == .summon)
   }
 }

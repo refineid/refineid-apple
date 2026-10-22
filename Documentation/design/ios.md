@@ -1,0 +1,41 @@
+# iPhone and iPad
+
+The iPhone and iPad app as it is. The UI principles every screen follows
+are in [ui.md](ui.md).
+
+## The card in the phone's near field
+
+When a paired computer needs the card and the holder's card is a
+near-field card, the phone opens a near field on the CryptoTokenKit slot
+(`TKSmartCardSlotManager.createNFCSlot`), runs PACE and serves the
+operation. The field, its card session and the PACE channel stay open for
+the next operation from any session for as long as the platform keeps the
+slot (`WarmNearField`). A burst of signatures, such as the several TLS
+handshakes of one browser login, costs one tap and one PACE; PIN 1 is
+verified with the held PIN before every signature, since the card keeps
+no PIN state between signatures.
+
+- **Upkeep.** The slot is looked at every second; one SELECT keeps it
+  alive after 2 seconds without an exchange.
+- **End.** The field ends when the slot is gone (the card left, the sheet
+  was closed, or the platform ended it), when a keep-alive or an operation
+  goes unanswered, 50 seconds after it was asked for, when the app goes to
+  the background, when serving stops or the last session closes, and
+  before a PIN prompt, which the sheet would cover.
+- **Summons.** An operation that finds the field warm runs on it while the
+  app sits inactive under its own sheet. An app with no warm field, or in
+  the background, summons the holder.
+- **Errors.** A development build reports every opening and ending of the
+  field with its cause, and every refusal during the reader's pause, to
+  the error display.
+
+The platform sets the limits. Measured on an iPhone 15 Pro Max, an idle
+slot goes 6 to 8 seconds after the last exchange and a kept-alive slot 11
+to 22 seconds after it was given; after any ending the reader refuses a
+new slot for 8 to 11 seconds (`nfcd` code 47). Core NFC's
+`NFCTagReaderSession` gives no longer field: a tag connection is limited
+to about 20 seconds within a 60-second reader session, with a cooldown
+between sessions, and `restartPolling()` reactivates the card and reruns
+PACE. Core NFC is also unavailable to extensions and allows one reader
+session in the system, so it would be a second NFC stack beside the slot
+the token extension signs through.

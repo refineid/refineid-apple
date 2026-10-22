@@ -15,7 +15,8 @@
   /// so every step of a flow built on this type says what it is doing
   /// through it.
   ///
-  /// Opening the slot is retried while the system answers "busy". `nfcd`
+  /// Opening the slot is retried while the system answers "busy" or with
+  /// the reader's pause after a field (``NearFieldSlotRequest``). `nfcd`
   /// releases the radio asynchronously after a previous hold, so a second
   /// attempt shortly after a first is normal rather than exceptional; a
   /// Busy answer costs about 2.5 seconds by itself, which is why the
