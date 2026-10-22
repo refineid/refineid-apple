@@ -105,7 +105,7 @@
     /// cannot be offered.
     @discardableResult
     internal static func publish(_ certificateDER: Data) -> PublishOutcome {
-      guard Self.isRemoteCardEnabled else { return .notPublished }
+      guard Self.dialsPhones else { return .notPublished }
       guard !CardPresence.shared.isReaderCardPresent else {
         #if DEBUG
           print("[persistent-token] suppressed publish: reader card has priority")

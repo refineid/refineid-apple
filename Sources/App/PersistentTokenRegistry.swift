@@ -27,9 +27,15 @@
 
     internal static let shared = PersistentTokenRegistry()
 
-    internal static var isRemoteCardEnabled: Bool {
+    /// Whether this device follows a paired phone: a Mac, or an iPad with
+    /// no card of its own.
+    ///
+    /// A device that serves its own card through near field is the phone
+    /// end of every pairing; following its pairings would dial its own
+    /// listener and refuse itself.
+    internal static var dialsPhones: Bool {
       #if REFINEID_REMOTE_CARD
-        true
+        !SupportedCardTransports.offersNearField
       #else
         false
       #endif
@@ -199,7 +205,7 @@
     /// Reads which phone is paired, for the identity row.
     internal func refreshPairing() {
       pairedPhone =
-        Self.isRemoteCardEnabled
+        Self.dialsPhones
         ? Self.activePairID.map(RappPairNames.displayName(forPairID:)) : nil
       if pairedPhone != nil {
         phoneThatForgot = nil
@@ -210,7 +216,7 @@
     /// device.
     internal func start() {
       refreshPairing()
-      guard Self.isRemoteCardEnabled else {
+      guard Self.dialsPhones else {
         Self.withdrawPublishedIdentity()
         return
       }
@@ -241,7 +247,7 @@
     /// previous pair left behind.
     internal func startAfterPairing() {
       refreshPairing()
-      guard Self.isRemoteCardEnabled else {
+      guard Self.dialsPhones else {
         Self.withdrawPublishedIdentity()
         return
       }
