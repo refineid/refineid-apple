@@ -136,7 +136,7 @@
           .foregroundStyle(.secondary)
 
       case .insertCard:
-        Text("Insert the card into the reader")
+        Text("Insert the card into the reader.")
           .foregroundStyle(.secondary)
 
       case .phoneConnected(let phone):

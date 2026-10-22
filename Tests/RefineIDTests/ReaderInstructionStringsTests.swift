@@ -51,27 +51,27 @@ internal struct ReaderInstructionStringsTests {
     let strings = try Self.catalog()
     #expect(
       try Self.value(
-        for: "Insert the card into the reader", language: "fi", in: strings
-      ) == "Syötä kortti lukijaan"
+        for: "Insert the card into the reader.", language: "fi", in: strings
+      ) == "Syötä kortti lukijaan."
     )
     #expect(
       try Self.value(
-        for: "Insert the card into the reader", language: "sv", in: strings
-      ) == "Sätt in kortet i läsaren"
+        for: "Insert the card into the reader.", language: "sv", in: strings
+      ) == "Sätt in kortet i läsaren."
     )
   }
 
   @Test
   internal func phoneReaderInstructionMatchesInEveryLanguage() throws {
     let strings = try Self.catalog()
-    let key = "Connect a card reader or open RefineID on your phone"
+    let key = "Open RefineID / Remote Access on your phone and enter the pairing code:"
     #expect(
       try Self.value(for: key, language: "fi", in: strings)
-        == "Liitä kortinlukija tai avaa puhelimesta RefineID"
+        == "Avaa puhelimesta RefineID / Etäkäyttö ja syötä yhdistämiskoodi:"
     )
     #expect(
       try Self.value(for: key, language: "sv", in: strings)
-        == "Anslut en kortläsare eller öppna RefineID på telefonen"
+        == "Öppna RefineID / Fjärråtkomst på telefonen och ange kopplingskoden:"
     )
   }
 
@@ -96,13 +96,15 @@ internal struct ReaderInstructionStringsTests {
       contentsOf: Self.root.appending(path: "Sources/App/IdentityStateView.swift"),
       encoding: .utf8
     )
-    #expect(identity.contains("Insert the card into the reader"))
+    #expect(identity.contains("Insert the card into the reader."))
     #expect(identity.contains("Connect a card reader"))
     let prompt = try String(
       contentsOf: Self.root.appending(path: "Sources/App/RemotePairingPromptView.swift"),
       encoding: .utf8
     )
-    #expect(prompt.contains("Connect a card reader or open RefineID on your phone"))
+    #expect(
+      prompt.contains("Open RefineID / Remote Access on your phone and enter the pairing code:")
+    )
     let notes = try String(
       contentsOf: Self.root.appending(path: "Sources/App/StatusView+Notes.swift"),
       encoding: .utf8

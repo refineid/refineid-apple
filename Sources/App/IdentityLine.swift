@@ -13,7 +13,7 @@
     /// The holder's name.
     case holder
 
-    /// "Insert the card into the reader".
+    /// "Insert the card into the reader."
     case insertCard
 
     /// The paired phone, by name, is on the network.
