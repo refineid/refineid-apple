@@ -66,7 +66,7 @@
             .multilineTextAlignment(.trailing)
         }
         if let displayContext = request.displayContext, !displayContext.isEmpty {
-          LabeledContent(request.action == .documentSignature ? "Document" : "Origin") {
+          LabeledContent("Document") {
             Text(displayContext)
               .multilineTextAlignment(.trailing)
           }
