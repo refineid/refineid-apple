@@ -1741,18 +1741,18 @@
         }
       }
     },
-    "Container": {
+    "ASiC-E": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Salkku"
+            "value": "ASiC-E"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Portfölj"
+            "value": "ASiC-E"
           }
         }
       }
@@ -5650,18 +5650,18 @@
         }
       }
     },
-    "The signed container cannot replace one of the originals.": {
+    "The signed ASiC-E file cannot replace one of the originals.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Allekirjoitettu salkku ei voi korvata alkuperäistä tiedostoa."
+            "value": "Allekirjoitettu ASiC-E-tiedosto ei voi korvata alkuperäistä tiedostoa."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Den signerade portföljen kan inte ersätta en av originalfilerna."
+            "value": "Den signerade ASiC-E-filen kan inte ersätta en av originalfilerna."
           }
         }
       }
@@ -6147,18 +6147,18 @@
         }
       }
     },
-    "Where to keep the signed portfolio.": {
+    "Where to keep the signed ASiC-E file.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mihin allekirjoitettu salkku tallennetaan."
+            "value": "Mihin allekirjoitettu ASiC-E-tiedosto tallennetaan."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Var den signerade portföljen ska sparas."
+            "value": "Var den signerade ASiC-E-filen ska sparas."
           }
         }
       }

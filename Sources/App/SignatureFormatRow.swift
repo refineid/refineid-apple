@@ -32,11 +32,12 @@
     }
 
     internal var body: some View {
-      // The shapes: PDF (PAdES) or Container (ASiC-E).
+      // The shapes, by the format each file takes: PDF (PAdES) or
+      // ASiC-E, the `.asice` file.
       Picker("Format", selection: $format) {
         Text("PDF")
           .tag(SignatureFormat.pades)
-        Text("Container").tag(SignatureFormat.asice)
+        Text("ASiC-E").tag(SignatureFormat.asice)
       }
       .disabled(!everyOneAPdf)
       .accessibilityIdentifier("signatureFormat")
