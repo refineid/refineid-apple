@@ -156,15 +156,8 @@
         availability: availability,
         warnsUnavailableCard: activation.warnsUnavailableCard
       )
-      if availability == .ready {
-        LabeledContent("Person") {
-          stateView
-        }
+      stateView
         .accessibilityIdentifier("loginIdentityStatus")
-      } else {
-        stateView
-          .accessibilityIdentifier("loginIdentityStatus")
-      }
       if availability != .noCard || !signing.queued.isEmpty || signing.pending != nil {
         StatusDocumentSection(
           signing: signing,
