@@ -55,17 +55,6 @@ public struct PrimedIdentity: Codable, Equatable, Sendable {
   /// Proof that no known citizen-card activation state blocked this prime.
   public let activationCheck: ActivationCheck
 
-  /// Core NFC historical/application bytes that bind a staged record to
-  /// the immediately following CryptoTokenKit field.
-  ///
-  /// Persistent ATR lookup records leave this nil.
-  public let contactlessIdentification: Data?
-
-  /// Creation time of a short-lived staged registration record.
-  ///
-  /// Persistent ATR lookup records leave this nil.
-  public let stagedAt: Date?
-
   /// The DER signature certificate read from the card, when cached.
   public let signatureCertDER: Data?
 
@@ -83,21 +72,16 @@ public struct PrimedIdentity: Codable, Equatable, Sendable {
     issuer: Data?,
     tokenSerial: String?,
     activationCheck: ActivationCheck,
-    contactlessIdentification: Data? = nil,
-    stagedAt: Date? = nil,
     signatureCertificate: Data? = nil
   ) {
     guard CardAccessNumber(digits: can) != nil else { return nil }
     guard !certificate.isEmpty else { return nil }
     if let tokenSerial, TokenSerial(value: tokenSerial) == nil { return nil }
-    if let contactlessIdentification, contactlessIdentification.isEmpty { return nil }
     self.can = can
     self.certDER = certificate
     self.issuerDER = issuer
     self.tokenSerial = tokenSerial
     self.activationCheck = activationCheck
-    self.contactlessIdentification = contactlessIdentification
-    self.stagedAt = stagedAt
     self.signatureCertDER = signatureCertificate
   }
 }

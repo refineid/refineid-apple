@@ -44,12 +44,6 @@ public enum PrimeStore {
   /// Keychain service the primed identities live under.
   internal static let service: String = "fi.refineid.prime"
 
-  /// Short-lived bridge record earlier builds staged between two fields.
-  ///
-  /// No longer written; still deleted so a leftover from an earlier
-  /// build cannot linger in the shared group.
-  private static let stagedAccount = "staged-contactless-card"
-
   /// Names the app's registration hold for the extension's mint.
   private static let registrationMarkAccount = "registration-field-mark"
 
@@ -181,8 +175,6 @@ public enum PrimeStore {
         issuer: stored.issuerDER,
         tokenSerial: stored.tokenSerial,
         activationCheck: stored.activationCheck,
-        contactlessIdentification: stored.contactlessIdentification,
-        stagedAt: stored.stagedAt,
         signatureCertificate: stored.signatureCertDER)
     }
     var query = self.query(account: account)
@@ -201,8 +193,6 @@ public enum PrimeStore {
       issuer: stored.issuerDER,
       tokenSerial: stored.tokenSerial,
       activationCheck: stored.activationCheck,
-      contactlessIdentification: stored.contactlessIdentification,
-      stagedAt: stored.stagedAt,
       signatureCertificate: stored.signatureCertDER)
   }
 
@@ -229,7 +219,7 @@ public enum PrimeStore {
     }
   }
 
-  /// Removes every exact or staged prime belonging to one physical card.
+  /// Removes every prime belonging to one physical card.
   ///
   /// A physical card can acquire more than one ATR lookup record across
   /// interfaces or card generations. The printed-card instance identifier
@@ -245,15 +235,6 @@ public enum PrimeStore {
       }
       delete(account: item.account)
     }
-  }
-
-  /// Removes every short-lived bridge record.
-  ///
-  /// The staged account is an earlier build's bridge; deleting it here
-  /// keeps a leftover from ever serving a mint again.
-  public static func forgetStaged() {
-    delete(account: Self.stagedAccount)
-    delete(account: Self.registrationMarkAccount)
   }
 
   /// Removes every primed identity this device holds.
@@ -381,12 +362,7 @@ public enum PrimeStore {
   }
 
   /// Every primed card in the order ``presence()`` reports it.
-  ///
-  /// The short-lived staged record is left out: it is an in-flight
-  /// hold, not a card this device keeps.
   private static func presenceOrderedItems() -> [StoredItem] {
-    storedItems()
-      .filter { $0.account != Self.stagedAccount }
-      .sorted { $0.account < $1.account }
+    storedItems().sorted { $0.account < $1.account }
   }
 }
