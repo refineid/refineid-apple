@@ -62,7 +62,6 @@ internal struct CardIdentityViewTests {
     var didForget = false
     let submenu = CardIdentitySubmenuView(
       holder: longName,
-      identifier: "12345678A",
       onForget: {
         didForget = true
       },

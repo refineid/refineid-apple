@@ -185,7 +185,6 @@ extension CardCredentialsView {
       case .identity(.phone(let holder)):
         CardIdentitySubmenuView(
           holder: holder,
-          identifier: identityIdentifier,
           onForget: forgetCurrentIdentity,
           onReadPhoto: { can in
             await readCardPhoto(for: holder, accessNumber: can)
@@ -195,7 +194,6 @@ extension CardCredentialsView {
       case .identity(.reader(let holder)):
         CardIdentitySubmenuView(
           holder: holder,
-          identifier: nil,
           onForget: nil,
           onReadPhoto: { can in
             await readCardPhoto(for: holder, accessNumber: can)
