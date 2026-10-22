@@ -60,7 +60,7 @@ private let fixturePairingCode = "246813"
         case .closed(let reason):
           throw RappIntegrationFixtures.TestFailure.pairingClosed(reason)
 
-        case .peerIntroduced, .offerRestored:
+        case .keyConfirmed, .offerRestored, .peerIntroduced:
           continue
         }
       }
@@ -68,7 +68,7 @@ private let fixturePairingCode = "246813"
     }
 
     private static func options(
-      _ name: String, vault: RappDeviceVault, transport: RappClosureFrameTransport
+      _ name: String, vault: RappDeviceVault
     ) -> RappPairingCoordinator.Options {
       RappPairingCoordinator.Options(
         code: fixturePairingCode,
@@ -76,21 +76,15 @@ private let fixturePairingCode = "246813"
         transportProfile: streamProfile,
         displayName: name,
         platform: name == "Requester" ? "iPadOS" : "iOS",
-        vault: vault,
-        transport: transport)
+        vault: vault)
     }
 
-    /// The requester, which dials what it found.
-    private static func makeRequester(
-      vault: RappDeviceVault,
-      dialer: StreamRelaySession
-    ) throws -> RappPairingCoordinator {
-      try RappPairingCoordinator.requester(
-        options: options(
-          "Requester", vault: vault,
-          transport: RappClosureFrameTransport(
-            sender: { frame in try await dialer.send(frame) },
-            closer: { dialer.cancel() })))
+    /// The requester's search, which dials each listener address it is
+    /// given over the stream transport.
+    private static func makeRequester(vault: RappDeviceVault) throws -> RappPairingSearch<String> {
+      try RappPairingSearch(options: options("Requester", vault: vault)) { endpoint in
+        RappPairingConnection.stream(toAddresses: [endpoint])
+      }
     }
 
     /// The card holder, which publishes and listens.
@@ -99,11 +93,30 @@ private let fixturePairingCode = "246813"
       listener: StreamRelayListener
     ) throws -> RappPairingCoordinator {
       try RappPairingCoordinator.custodian(
-        options: options(
-          "Proxy", vault: vault,
-          transport: RappClosureFrameTransport(
-            sender: { frame in try listener.send(frame) },
-            closer: { listener.cancel() })))
+        options: options("Proxy", vault: vault),
+        transport: RappClosureFrameTransport(
+          sender: { frame in try listener.send(frame) },
+          closer: { listener.cancel() }))
+    }
+
+    /// The pairing the requester's search made.
+    private static func awaitPair(
+      _ search: RappPairingSearch<String>
+    ) async throws -> RappPairingCoordinator.PairSummary {
+      for await event in search.events {
+        switch event {
+        case .paired(let summary):
+          return summary
+
+        case .closed(let reason):
+          Issue.record("the search ended: \(reason)")
+          throw RappIntegrationFixtures.TestFailure.pairingEndedWithoutRecord
+
+        case .declined, .peerIntroduced:
+          continue
+        }
+      }
+      throw RappIntegrationFixtures.TestFailure.pairingEndedWithoutRecord
     }
 
     /// Runs both sides of the ceremony and answers with what each kept.
@@ -111,10 +124,10 @@ private let fixturePairingCode = "246813"
     /// A stall here says nothing on its own, so what each side of the
     /// channel carried is reported with the failure.
     private static func pairBothSides(
-      requester: RappPairingCoordinator,
+      requester: RappPairingSearch<String>,
+      address: String,
       proxy: RappPairingCoordinator,
       inbound: StreamRelayFrameRelay,
-      outbound: StreamRelayFrameRelay,
       listener: StreamRelayListener
     ) async throws -> (
       requester: RappPairingCoordinator.PairSummary,
@@ -122,20 +135,17 @@ private let fixturePairingCode = "246813"
     ) {
       async let requesterSummary = awaitPair(requester)
       async let proxySummary = awaitPair(proxy)
+      await requester.found(address)
       try await awaitConnected(inbound)
-      try await awaitConnected(outbound)
-      // The requester waits for the offer the custodian serves on connecting.
-      await requester.transportConnected()
+      // The custodian serves its offer once the requester's preamble arrived.
       await proxy.transportConnected()
       do {
         return try await (requester: requesterSummary, proxy: proxySummary)
       } catch {
-        let toRequester = await inbound.summary
-        let toProxy = await outbound.summary
+        let toProxy = await inbound.summary
         Issue.record(
           """
-          listener state: \(listener.state); \
-          to requester: [\(toRequester)]; to proxy: [\(toProxy)]
+          listener state: \(listener.state); to proxy: [\(toProxy)]
           """)
         throw error
       }
@@ -162,27 +172,17 @@ private let fixturePairingCode = "246813"
       defer { listener.cancel() }
       let port = try await Self.boundPort(of: listener)
 
-      let outbound = StreamRelayFrameRelay()
-      let dialer = StreamRelaySession(
-        endpointLiterals: ["127.0.0.1:\(port)"],
-        preamble: rappStreamPairingPreamble()
-      ) { event in
-        Task { await outbound.deliver(event) }
-      }
-      dialer.start()
-      defer { dialer.cancel() }
-
-      let requester = try Self.makeRequester(vault: vaults.requester, dialer: dialer)
+      let requester = try Self.makeRequester(vault: vaults.requester)
+      defer { Task { await requester.close() } }
       let proxy = try Self.makeProxy(vault: vaults.proxy, listener: listener)
 
       await inbound.install { frame in await proxy.receive(frame) }
-      await outbound.install { frame in await requester.receive(frame) }
 
       let made = try await Self.pairBothSides(
         requester: requester,
+        address: "127.0.0.1:\(port)",
         proxy: proxy,
         inbound: inbound,
-        outbound: outbound,
         listener: listener)
 
       #expect(

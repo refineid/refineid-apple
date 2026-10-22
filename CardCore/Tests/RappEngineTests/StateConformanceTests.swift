@@ -8,11 +8,12 @@ import Testing
 @Suite("RAPP state tables against the vendored formal model")
 internal struct StateConformanceTests {
   /// Rule counts the model declares, per component machine.
-  private static let expectedRuleCounts = [("pairing", 26), ("session", 27), ("operation", 25)]
+  private static let expectedRuleCounts = [("pairing", 28), ("session", 27), ("operation", 25)]
 
   /// The model constants the engine holds as numbers, by name.
   private static let engineConstants: [String: UInt64] = [
     "pairing_attempts_per_offer": UInt64(CpaceAttemptLedger.maximumAttempts),
+    "pairing_candidates_max": UInt64(PairingCandidateLimit.connections),
     "offer_ttl_ms": OfferLimit.offerLifetimeMilliseconds,
     "liveness_ping_after_silence_ms": LivenessTracker.pingAfterSilenceMilliseconds,
     "session_silence_limit_ms": LivenessTracker.sessionSilenceLimitMilliseconds,

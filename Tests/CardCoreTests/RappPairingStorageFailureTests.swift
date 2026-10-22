@@ -92,8 +92,8 @@ private let fixturePairingCode = "246813"
           transportProfile: Self.transportProfile,
           displayName: "Custodian",
           platform: "iOS",
-          vault: vault,
-          transport: transport))
+          vault: vault),
+        transport: transport)
       let ended = expectation(description: "the attempt ended")
       let events = custodian.events
       let collector = Task {

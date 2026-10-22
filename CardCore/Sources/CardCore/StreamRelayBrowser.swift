@@ -16,9 +16,11 @@ import Foundation
     private let name: String?
     private let attributes: [String: String]
     private let recordMatches: (@Sendable ([String: String]) -> Bool)?
+    /// Whether every matching service is reported, or only the first.
+    private let reportsEach: Bool
     private let queue = DispatchQueue(label: "fi.refineid.stream-browser")
     private var browser: NWBrowser?
-    private var reported = false
+    private var reported: [NWEndpoint] = []
 
     /// Reports a published requester to one owner.
     ///
@@ -32,19 +34,21 @@ import Foundation
       self.name = name
       self.attributes = [:]
       self.recordMatches = nil
+      self.reportsEach = false
       self.onFound = onFound
     }
 
-    /// Reports the first published service whose discovery attributes
-    /// carry every given key and value.
+    /// Reports every published service whose discovery attributes carry
+    /// every given key and value, each once, as it is found.
     @preconcurrency
     public init(
-      matchingAttributes attributes: [String: String],
+      reportingEachWithAttributes attributes: [String: String],
       onFound: @escaping @Sendable (NWEndpoint) -> Void
     ) {
       self.name = nil
       self.attributes = attributes
       self.recordMatches = nil
+      self.reportsEach = true
       self.onFound = onFound
     }
 
@@ -58,6 +62,7 @@ import Foundation
       self.name = nil
       self.attributes = [:]
       self.recordMatches = recordMatches
+      self.reportsEach = false
       self.onFound = onFound
     }
 
@@ -71,15 +76,23 @@ import Foundation
         : .bonjourWithTXTRecord(type: StreamRelayListener.serviceType, domain: nil)
       let made = NWBrowser(for: descriptor, using: parameters)
       made.browseResultsChangedHandler = { [weak self] results, _ in
-        guard let self, let wanted = results.first(where: matches) else { return }
+        guard let self else { return }
+        let wanted = results.filter(matches).map(\.endpoint)
         queue.async { [weak self] in
-          guard let self, !reported else { return }
-          reported = true
-          onFound(wanted.endpoint)
+          self?.report(wanted)
         }
       }
       browser = made
       made.start(queue: queue)
+    }
+
+    /// Reports the services not reported yet: each one, or only the first.
+    private func report(_ endpoints: [NWEndpoint]) {
+      for endpoint in endpoints where !reported.contains(endpoint) {
+        guard reportsEach || reported.isEmpty else { return }
+        reported.append(endpoint)
+        onFound(endpoint)
+      }
     }
 
     private func matches(_ result: NWBrowser.Result) -> Bool {

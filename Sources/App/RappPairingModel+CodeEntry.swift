@@ -8,14 +8,17 @@ import SwiftUI
 /// The requester's half of the ceremony: typing the code the custodian
 /// shows and pairing with it.
 extension RappPairingModel {
-  /// How long the requester looks for a custodian before giving up.
-  private static let pairingTimeoutNanoseconds: UInt64 = 15_000_000_000
+  /// How long the requester looks for custodians in pairing mode.
+  private static let discoveryNanoseconds: UInt64 = 15_000_000_000
 
   internal func startCodeEntry() {
     resetAttempt()
     phase = .codeEntry
   }
 
+  /// Tries the typed code on every custodian found in pairing mode, one at
+  /// a time, until one takes it (RAPP v26.10.22 §4.2, "Trying Each
+  /// Custodian in Pairing Mode").
   internal func acceptPairingCode(_ rawCode: String) {
     resetAttempt()
     let code = RappPairingCode.normalize(rawCode)
@@ -23,29 +26,49 @@ extension RappPairingModel {
       fail(String(localized: "The pairing code is invalid"))
       return
     }
-    let requesterRelay = makeRelay(role: .host)
+    let newSearch: RappPairingSearch<PairingEndpoint>
     do {
-      let newCoordinator = try RappPairingCoordinator.requester(
-        options: options(code: code, transport: makeTransport(relay: requesterRelay)))
-      install(coordinator: newCoordinator, relay: requesterRelay)
-      phase = .connecting
-      Task { await newCoordinator.start() }
-      requesterRelay.start()
-      schedulePairingTimeout()
+      newSearch = try RappPairingSearch(options: options(code: code)) { endpoint in
+        PairingCandidateLink.dial(endpoint)
+      }
     } catch {
       fail(String(localized: "The pairing code is invalid"))
+      return
     }
+    install(search: newSearch)
+    phase = .connecting
+    discover(for: newSearch)
   }
 
-  private func schedulePairingTimeout() {
+  /// Hands every custodian found in pairing mode to `search`, in the order
+  /// found, until the requester stops looking.
+  private func discover(for search: RappPairingSearch<PairingEndpoint>) {
+    let discovery = PairingCandidateLink.discover()
+    stopDiscovery = discovery.stop
+    Task {
+      for await endpoint in discovery.found {
+        await search.found(endpoint)
+      }
+      await search.endDiscovery()
+    }
     pairingTimeoutTask?.cancel()
     pairingTimeoutTask = Task { [weak self] in
       do {
-        try await Task.sleep(nanoseconds: Self.pairingTimeoutNanoseconds)
-        guard let self, !isFinished, phase == .connecting else { return }
-        fail(String(localized: "Could not find a device offering this pairing code."))
+        try await Task.sleep(nanoseconds: Self.discoveryNanoseconds)
       } catch {
-        // A cancelled timeout attempt needs no recovery.
+        return
+      }
+      guard let self, self.search === search else { return }
+      stopDiscovery?()
+      stopDiscovery = nil
+    }
+  }
+
+  private func install(search: RappPairingSearch<PairingEndpoint>) {
+    self.search = search
+    eventTask = Task { [weak self] in
+      for await event in search.events {
+        self?.receive(event, from: search)
       }
     }
   }

@@ -69,6 +69,10 @@ internal final class RappPairingModel: ObservableObject {
   internal var relay: PairingRelay?
   internal var relayGeneration: UUID?
   internal var coordinator: RappPairingCoordinator?
+  /// The requester's tries of the code its user typed.
+  internal var search: RappPairingSearch<PairingEndpoint>?
+  /// Stops looking for custodians in pairing mode.
+  internal var stopDiscovery: (@Sendable () -> Void)?
   internal var eventTask: Task<Void, Never>?
   internal var pairingTimeoutTask: Task<Void, Never>?
   internal var reviewedPeerName: String?
@@ -135,10 +139,10 @@ internal final class RappPairingModel: ObservableObject {
       return
     }
     let code = customCode.map(RappPairingCode.normalize) ?? RappPairingCode.generate()
-    let custodianRelay = makeRelay(role: .cardHolder)
+    let custodianRelay = makeRelay()
     do {
       let newCoordinator = try RappPairingCoordinator.custodian(
-        options: options(code: code, transport: makeTransport(relay: custodianRelay)))
+        options: options(code: code), transport: makeTransport(relay: custodianRelay))
       pairingCode = code
       install(coordinator: newCoordinator, relay: custodianRelay)
       phase = .offer(code)
@@ -150,17 +154,14 @@ internal final class RappPairingModel: ObservableObject {
   }
 
   /// The ceremony options both roles share; the offer hash binds them.
-  internal func options(
-    code: String, transport: any RappFrameTransport
-  ) -> RappPairingCoordinator.Options {
+  internal func options(code: String) -> RappPairingCoordinator.Options {
     RappPairingCoordinator.Options(
       code: code,
       profiles: rappCredentialProfiles(),
       transportProfile: Self.ceremonyTransportProfile,
       displayName: Self.localDisplayName,
       platform: Self.localPlatform,
-      vault: vault,
-      transport: transport)
+      vault: vault)
   }
 
   private func scheduleOfferAfterLockout(seconds: UInt64) {
@@ -193,25 +194,11 @@ internal final class RappPairingModel: ObservableObject {
     fail(failure)
   }
 
-  internal func makeRelay(role: PersistentRelayRole) -> PairingRelay {
+  /// The channel this device's offer is served on.
+  internal func makeRelay() -> PairingRelay {
     let generation = UUID()
     relayGeneration = generation
-    let displayName: String
-    switch role {
-    case .host:
-      #if os(macOS)
-        displayName = String(localized: "RefineID Mac")
-      #else
-        displayName = String(localized: "RefineID iPad")
-      #endif
-
-    case .cardHolder:
-      displayName = String(localized: "RefineID iPhone")
-    }
-    return PairingRelay(
-      role: role,
-      displayName: displayName
-    ) { [weak self] event in
+    return PairingRelay(displayName: String(localized: "RefineID iPhone")) { [weak self] event in
       Task { @MainActor in self?.receive(event, generation: generation) }
     }
   }
@@ -260,10 +247,14 @@ internal final class RappPairingModel: ObservableObject {
 
   internal func fail(_ message: String) {
     let activeCoordinator = coordinator
+    let activeSearch = search
     phase = .failed(message)
     relay?.cancel()
     finishAttempt()
-    Task { await activeCoordinator?.close() }
+    Task {
+      await activeCoordinator?.close()
+      await activeSearch?.close()
+    }
   }
 
   internal func finishAttempt() {
@@ -272,6 +263,9 @@ internal final class RappPairingModel: ObservableObject {
     relay = nil
     relayGeneration = nil
     coordinator = nil
+    search = nil
+    stopDiscovery?()
+    stopDiscovery = nil
     eventTask?.cancel()
     eventTask = nil
     pairingTimeoutTask?.cancel()
@@ -281,10 +275,14 @@ internal final class RappPairingModel: ObservableObject {
 
   internal func resetAttempt() {
     let activeCoordinator = coordinator
+    let activeSearch = search
     relay?.cancel()
     finishAttempt()
     phase = .idle
-    Task { await activeCoordinator?.close() }
+    Task {
+      await activeCoordinator?.close()
+      await activeSearch?.close()
+    }
   }
 
   /// Serves the paired computers, the one just paired among them: a

@@ -12,7 +12,7 @@ extension RappPairingModel {
         guard let relay else {
           throw PersistentRelayTransportError.disconnected
         }
-        try await relay.send(frame)
+        try relay.send(frame)
       },
       closer: { [weak relay] in relay?.cancel() }
     )

@@ -126,7 +126,7 @@ internal struct NetworkContractTests {
       // never sets, and the store sandbox grants no server side.
       "Sources/App/ScsServer.swift": "#if FEATURE_SCS",
       // The card holder's half of a pairing.
-      "Sources/App/PairingRelay.swift": "#if os(iOS)\n          let made = StreamRelayListener",
+      "Sources/App/PairingRelay.swift": "#if os(iOS)\n        let made = StreamRelayListener",
     ]
     for (file, gate) in gates {
       let text = try String(contentsOf: Self.root.appending(path: file), encoding: .utf8)

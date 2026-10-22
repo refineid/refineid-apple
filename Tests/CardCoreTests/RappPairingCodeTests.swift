@@ -82,60 +82,33 @@ import Testing
         RappIntegrationConnectionSupport.deleteKeychainServices(prefix: requesterPrefix)
         RappIntegrationConnectionSupport.deleteKeychainServices(prefix: proxyPrefix)
       }
-      let (requester, proxy) = try await makeConnectedPair(
-        code: "7KX4M9",
-        requesterPrefix: requesterPrefix,
-        proxyPrefix: proxyPrefix
-      )
-
-      async let requesterPairTask = RappIntegrationAuthorizationSupport.awaitPair(requester)
-      async let proxyPairTask = RappIntegrationAuthorizationSupport.awaitPair(proxy)
-
-      // The requester waits for the offer the custodian serves on connecting.
-      await requester.transportConnected()
-      await proxy.transportConnected()
-
-      let requesterSummary = try await requesterPairTask
-      let proxySummary = try await proxyPairTask
-
-      #expect(requesterSummary.role == .requester)
-      #expect(proxySummary.role == .proxy)
-      #expect(requesterSummary.pairID == proxySummary.pairID)
-    }
-
-    private func makeConnectedPair(
-      code: String,
-      requesterPrefix: String,
-      proxyPrefix: String
-    ) async throws -> (RappPairingCoordinator, RappPairingCoordinator) {
-      let requesterVault = RappDeviceVault(accessGroup: nil, servicePrefix: requesterPrefix)
-      let proxyVault = RappDeviceVault(accessGroup: nil, servicePrefix: proxyPrefix)
-      let requesterOutbound = RappIntegrationFixtures.FrameEndpoint()
-      let proxyOutbound = RappIntegrationFixtures.FrameEndpoint()
-
-      func options(
-        _ name: String, vault: RappDeviceVault, outbound: RappIntegrationFixtures.FrameEndpoint
-      ) -> RappPairingCoordinator.Options {
-        RappPairingCoordinator.Options(
+      let code = "7KX4M9"
+      let proxy = try await RappTestPairingPhone.showing(
+        code, name: "iPhone Proxy", servicePrefix: proxyPrefix, dropAfter: nil)
+      let link = proxy.link
+      let search = try RappPairingSearch<String>(
+        options: RappPairingCoordinator.Options(
           code: code,
           profiles: RappIntegrationFixtures.profiles,
           transportProfile: RappIntegrationFixtures.transportProfile,
-          displayName: name,
+          displayName: "iPad Requester",
           platform: "iOS",
-          vault: vault,
-          transport: RappClosureFrameTransport(
-            sender: { frame in try await outbound.send(frame) },
-            closer: { await outbound.close() }
-          )
-        )
+          vault: RappDeviceVault(accessGroup: nil, servicePrefix: requesterPrefix))
+      ) { _ in link.dial() }
+
+      await search.found("phone")
+      var requesterSummary: RappPairingCoordinator.PairSummary?
+      for await event in search.events {
+        if case .paired(let summary) = event { requesterSummary = summary }
       }
-      let requester = try RappPairingCoordinator.requester(
-        options: options("iPad Requester", vault: requesterVault, outbound: requesterOutbound))
-      let proxy = try RappPairingCoordinator.custodian(
-        options: options("iPhone Proxy", vault: proxyVault, outbound: proxyOutbound))
-      await requesterOutbound.install { frame in await proxy.receive(frame) }
-      await proxyOutbound.install { frame in await requester.receive(frame) }
-      return (requester, proxy)
+      var proxySummary: RappPairingCoordinator.PairSummary?
+      for event in await proxy.close() {
+        if case .paired(let summary) = event { proxySummary = summary }
+      }
+
+      #expect(requesterSummary?.role == .requester)
+      #expect(proxySummary?.role == .proxy)
+      #expect(requesterSummary?.pairID == proxySummary?.pairID)
     }
   }
 #endif

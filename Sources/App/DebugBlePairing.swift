@@ -99,7 +99,7 @@
       let offer: Data
       do {
         coordinator = try RappPairingCoordinator.custodian(
-          options: options(code: code, transport: transport))
+          options: options(code: code), transport: transport)
         offer = try await coordinator.bootstrapOffer()
       } catch {
         return DebugModeReport(
@@ -196,9 +196,13 @@
       steps: AsyncStream<Step>,
       sink: AsyncStream<Step>.Continuation
     ) async -> DebugModeReport {
+      let pairingOptions = Self.options(code: code)
       guard
+        let bootstrap = try? RappPairingBridge.bootstrapOffer(
+          encodedOffer: offer, transportProfile: pairingOptions.transportProfile,
+          pairingCode: code, startedAtMonotonicMs: pairingOptions.clock.monotonicMilliseconds()),
         let coordinator = try? RappPairingCoordinator.requester(
-          options: options(code: code, transport: transport), bootstrapOffer: offer)
+          options: pairingOptions, transport: transport, bootstrap: bootstrap)
       else {
         return DebugModeReport(
           lines: [requesterPrefix + ": the custodian's offer was refused"], succeeded: false)
@@ -210,17 +214,14 @@
     }
 
     @MainActor
-    private static func options(
-      code: String, transport: any RappFrameTransport
-    ) -> RappPairingCoordinator.Options {
+    private static func options(code: String) -> RappPairingCoordinator.Options {
       RappPairingCoordinator.Options(
         code: code,
         profiles: rappCredentialProfiles(),
         transportProfile: RappBleGattProfile.name,
         displayName: RappPairingModel.localDisplayName,
         platform: RappPairingModel.localPlatform,
-        vault: RappDeviceVault(),
-        transport: transport)
+        vault: RappDeviceVault())
     }
 
     /// Feeds link events to the coordinator in order until it reports a

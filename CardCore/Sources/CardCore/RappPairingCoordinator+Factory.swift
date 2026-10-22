@@ -7,7 +7,8 @@
   extension RappPairingCoordinator {
     // MARK: Factory Options
 
-    /// What one side of a ceremony starts from.
+    /// What one side of a ceremony starts from, whichever connection
+    /// carries it.
     ///
     /// The custodian's offer names the profiles and the transport; the
     /// requester learns both from the offer it reads.
@@ -28,8 +29,6 @@
       public let platform: String
       /// Persistent storage for the completed pair record.
       public let vault: RappDeviceVault
-      /// Transport carrying the ceremony's frames.
-      public let transport: any RappFrameTransport
       /// Entropy source; defaults to the platform entropy provider.
       public let entropy: RappPlatformEntropy
       /// Clock source; defaults to the platform clock.
@@ -45,7 +44,6 @@
         displayName: String,
         platform: String,
         vault: RappDeviceVault,
-        transport: any RappFrameTransport,
         entropy: RappPlatformEntropy = RappPlatformEntropy(),
         clock: RappPlatformClock = RappPlatformClock()
       ) {
@@ -55,7 +53,6 @@
         self.displayName = displayName
         self.platform = platform
         self.vault = vault
-        self.transport = transport
         self.entropy = entropy
         self.clock = clock
       }
@@ -63,26 +60,14 @@
 
     // MARK: Static Factories
 
-    /// The requester side over a frame transport: the user typed the code
-    /// the custodian shows, and the offer arrives as the custodian's first
-    /// frame after the pairing preamble (RAPP v26.10.22 §4.2).
-    ///
-    /// - Throws: ``RappBindingError/InvalidInput`` for a code that is not
-    ///   exactly six characters of the code alphabet or an unregistered
-    ///   transport profile.
-    public static func requester(options: Options) throws -> RappPairingCoordinator {
-      let code = try canonicalCode(options.code)
-      let startedAt = options.clock.monotonicMilliseconds()
-      return try coordinator(
-        role: .requester, bridge: nil, code: code, options: options, startedAt: startedAt)
-    }
-
-    /// The custodian side: this device creates a random offer, shows the
-    /// code and holds the card.
+    /// The custodian side over `transport`: this device creates a random
+    /// offer, shows the code and holds the card.
     ///
     /// - Throws: ``RappBindingError/InvalidInput`` for a malformed code or
     ///   an unregistered transport profile.
-    public static func custodian(options: Options) throws -> RappPairingCoordinator {
+    public static func custodian(
+      options: Options, transport: any RappFrameTransport
+    ) throws -> RappPairingCoordinator {
       let code = try canonicalCode(options.code)
       let startedAt = options.clock.monotonicMilliseconds()
       let bridge = try RappPairingBridge.custodianOffer(
@@ -92,25 +77,28 @@
         transportProfiles: [options.transportProfile],
         startedAtMonotonicMs: startedAt)
       return try coordinator(
-        role: .proxy, bridge: bridge, code: code, options: options, startedAt: startedAt)
+        role: .proxy, bridge: bridge, options: options, transport: transport,
+        startedAt: startedAt)
     }
 
-    /// The requester side over BLE, from the offer read off the custodian's
-    /// bootstrap characteristic.
+    /// The requester side over `transport`, from the bridge built on the
+    /// offer that connection served through its bootstrap: the custodian's
+    /// first stream frame or the BLE bootstrap characteristic (RAPP
+    /// v26.10.22 §4.2, Bootstrap Read Flow).
+    ///
+    /// `bootstrap` is the requester's ``RappPairingBridge`` over that offer,
+    /// built with the typed code; CPace begins once the transport is
+    /// connected.
     ///
     /// - Throws: ``RappBindingError/InvalidInput`` for a malformed code or
-    ///   an offer that names no acceptable suite or no entry for the
-    ///   transport.
+    ///   an unregistered transport profile.
     public static func requester(
-      options: Options, bootstrapOffer: Data
+      options: Options, transport: any RappFrameTransport, bootstrap: RappPairingBridge
     ) throws -> RappPairingCoordinator {
-      let code = try canonicalCode(options.code)
-      let startedAt = options.clock.monotonicMilliseconds()
-      let bridge = try RappPairingBridge.bootstrapOffer(
-        encodedOffer: bootstrapOffer, transportProfile: options.transportProfile,
-        pairingCode: code, startedAtMonotonicMs: startedAt)
+      _ = try canonicalCode(options.code)
       return try coordinator(
-        role: .requester, bridge: bridge, code: code, options: options, startedAt: startedAt)
+        role: .requester, bridge: bootstrap, options: options, transport: transport,
+        startedAt: options.clock.monotonicMilliseconds())
     }
 
     internal static func canonicalCode(_ raw: String) throws -> String {
@@ -120,7 +108,11 @@
     }
 
     private static func coordinator(
-      role: Role, bridge: RappPairingBridge?, code: String, options: Options, startedAt: UInt64
+      role: Role,
+      bridge: RappPairingBridge,
+      options: Options,
+      transport: any RappFrameTransport,
+      startedAt: UInt64
     ) throws -> RappPairingCoordinator {
       guard let candidateID = rappCandidateIdentifier(transportProfile: options.transportProfile)
       else { throw RappBindingError.InvalidInput }
@@ -129,12 +121,11 @@
         bridge: bridge,
         transportProfile: options.transportProfile,
         candidateID: candidateID,
-        pairingCode: code,
         profiles: options.profiles,
         displayName: options.displayName,
         platform: options.platform,
         vault: options.vault,
-        transport: options.transport,
+        transport: transport,
         clock: options.clock,
         entropy: options.entropy,
         offerDeadlineMilliseconds: deadline(

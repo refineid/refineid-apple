@@ -7,6 +7,30 @@ import SwiftUI
 
 /// What the model does with each event the pairing ceremony reports.
 extension RappPairingModel {
+  /// What the requester tells its user when the search ends without a
+  /// pairing; nothing when it was closed here.
+  ///
+  /// No message names a custodian (STPA CC-84), and the code is called not
+  /// accepted only when every custodian tried refused it (CC-83).
+  nonisolated internal static func failure(
+    for reason: RappPairingSearch<PairingEndpoint>.CloseReason
+  ) -> String? {
+    switch reason {
+    case .ceremonyEnded:
+      String(localized: "Pairing ended before it was completed")
+
+    case .localRequest:
+      nil
+
+    case .noneInPairingMode:
+      String(localized: "No phone in pairing mode was found")
+
+    case .notAccepted:
+      String(localized: "The pairing code was not accepted")
+    }
+  }
+
+  /// What the custodian's ceremony reports.
   internal func receive(
     _ event: RappPairingCoordinator.Event,
     from coordinator: RappPairingCoordinator
@@ -16,13 +40,11 @@ extension RappPairingModel {
     case .offerRestored:
       restoreCustodianOffer(coordinator: coordinator)
 
+    case .keyConfirmed:
+      break
+
     case .peerIntroduced(let peer):
-      let name = peer.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-      guard !name.isEmpty else {
-        ceremonyEnded(String(localized: "The device did not give its name"))
-        return
-      }
-      reviewedPeerName = name
+      introduce(peer)
 
     case .paired(let pair):
       handlePaired(pair)
@@ -33,22 +55,62 @@ extension RappPairingModel {
     }
   }
 
+  /// What the requester's search reports.
+  internal func receive(
+    _ event: RappPairingSearch<PairingEndpoint>.Event,
+    from search: RappPairingSearch<PairingEndpoint>
+  ) {
+    guard self.search === search else { return }
+    switch event {
+    case .declined(let refusal):
+      #if DEBUG
+        DevErrorLog.report(
+          "pairing: a phone in pairing mode did not take the code: "
+            + DevErrorLog.caseName(of: refusal),
+          source: .app)
+      #endif
+
+    case .peerIntroduced(let peer):
+      introduce(peer)
+
+    case .paired(let pair):
+      handlePaired(pair)
+
+    case .closed(let reason):
+      guard !isFinished, let failure = Self.failure(for: reason) else { return }
+      #if DEBUG
+        DevErrorLog.report(
+          "pairing ended: " + DevErrorLog.caseName(of: reason), source: .app)
+      #endif
+      fail(failure)
+    }
+  }
+
+  /// Keeps the name the peer introduced itself with, inside the
+  /// authenticated pairing channel.
+  private func introduce(_ peer: RappPairingCoordinator.Peer) {
+    let name = peer.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !name.isEmpty else {
+      ceremonyEnded(String(localized: "The device did not give its name"))
+      return
+    }
+    reviewedPeerName = name
+  }
+
   private func handleClosed(_ reason: RappPairingCoordinator.CloseReason) {
-    switch (reason, phase) {
-    case (.offerExpired, .offer):
+    switch reason {
+    case .offerExpired:
       // An unused code lapses with its offer after five minutes; the next one follows.
       createOffer()
 
-    case (.attemptsExhausted, _):
+    case .attemptsExhausted:
       // The next offer shows the lockout and the code once it lifts.
       RappPairingBackoff.shared.recordLockout()
       ceremonyEnded(String(localized: "Pairing locked after three incorrect codes."))
 
-    case (_, .offer):
+    case .attemptTimedOut, .localRequest, .persistenceFailure, .protocolFailure,
+      .storageUnconfirmed, .transportFailure:
       ceremonyEnded(String(localized: "Pairing ended before it was completed"))
-
-    default:
-      ceremonyEnded(String(localized: "The pairing code was not accepted"))
     }
   }
 
@@ -93,7 +155,7 @@ extension RappPairingModel {
   /// Keeps showing the same code after a failed attempt, listening afresh.
   private func restoreCustodianOffer(coordinator: RappPairingCoordinator) {
     relay?.cancel()
-    let replacement = makeRelay(role: .cardHolder)
+    let replacement = makeRelay()
     let replacementTransport = makeTransport(relay: replacement)
     relay = replacement
     Task { @MainActor [weak self] in

@@ -45,8 +45,8 @@ private let misreadPairingCode = "246814"
           transportProfile: Self.transportProfile,
           displayName: "Custodian",
           platform: "iOS",
-          vault: RappDeviceVault(accessGroup: nil),
-          transport: transport))
+          vault: RappDeviceVault(accessGroup: nil)),
+        transport: transport)
     }
 
     /// A requester bridge keyed on `code` over the offer the custodian
@@ -85,7 +85,7 @@ private let misreadPairingCode = "246814"
             closed?.fulfill()
             return reason
 
-          case .peerIntroduced, .paired:
+          case .keyConfirmed, .paired, .peerIntroduced:
             continue
           }
         }

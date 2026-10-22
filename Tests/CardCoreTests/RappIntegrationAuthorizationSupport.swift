@@ -200,7 +200,7 @@ import Testing
         case .closed(let reason):
           throw RappIntegrationFixtures.TestFailure.pairingClosed(reason)
 
-        case .peerIntroduced, .offerRestored:
+        case .keyConfirmed, .offerRestored, .peerIntroduced:
           break
         }
       }

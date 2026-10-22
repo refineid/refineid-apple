@@ -35,8 +35,9 @@
     /// pairing preamble has been exchanged.
     ///
     /// A custodian serves its offer as the first frame on a frame
-    /// transport; a requester without an offer waits for that frame. At most
-    /// one connection per 500 ms reaches the offer (RAPP v26.10.22 §3.3 item 8).
+    /// transport; a requester, which already read the offer, sends CPace
+    /// step 1. At most one connection per 500 ms reaches the offer (RAPP
+    /// v26.10.22 §3.3 item 8).
     public func transportConnected() async {
       guard state == .offer else {
         await fail(.protocolFailure)
@@ -45,10 +46,6 @@
       do {
         switch role {
         case .requester:
-          guard bridge != nil else {
-            state = .requesterAwaitingOffer
-            return
-          }
           try await beginRequesterCpace(now: clock.monotonicMilliseconds())
 
         case .proxy:
@@ -57,13 +54,13 @@
             continuation.yield(.offerRestored)
             return
           }
-          try live().beginCpace(
+          try bridge.beginCpace(
             candidateId: candidateID,
             randomBytes64: try entropy.cpaceRandom(),
             nowMonotonicMs: clock.monotonicMilliseconds())
           state = .custodianAwaitingStepOne
           if servesOfferAsFrame {
-            try await transport.send(try live().encodedOffer())
+            try await transport.send(try bridge.encodedOffer())
           }
         }
       } catch {
@@ -104,26 +101,21 @@
     private func receiveFrame(_ frame: Data) async throws {
       let now = clock.monotonicMilliseconds()
       switch state {
-      case .requesterAwaitingOffer:
-        self.bridge = try RappPairingBridge.bootstrapOffer(
-          encodedOffer: frame, transportProfile: transportProfile, pairingCode: pairingCode,
-          startedAtMonotonicMs: now)
-        try await beginRequesterCpace(now: now)
-
       case .requesterAwaitingStepTwo:
-        try live().readCpaceFrame(bytes: frame, nowMonotonicMs: now)
-        let stepThree = try live().writeCpaceFrame(nowMonotonicMs: now)
-        let handshakeOne = try live().writeHandshakeFrame(nowMonotonicMs: now)
+        try bridge.readCpaceFrame(bytes: frame, nowMonotonicMs: now)
+        continuation.yield(.keyConfirmed)
+        let stepThree = try bridge.writeCpaceFrame(nowMonotonicMs: now)
+        let handshakeOne = try bridge.writeHandshakeFrame(nowMonotonicMs: now)
         state = .requesterAwaitingHandshakeTwo
         armDeadline(after: Window.handshakeMilliseconds)
         try await transport.send(stepThree)
         try await transport.send(handshakeOne)
 
       case .requesterAwaitingHandshakeTwo:
-        try live().readHandshakeFrame(bytes: frame, nowMonotonicMs: now)
-        let handshakeThree = try live().writeHandshakeFrame(nowMonotonicMs: now)
+        try bridge.readHandshakeFrame(bytes: frame, nowMonotonicMs: now)
+        let handshakeThree = try bridge.writeHandshakeFrame(nowMonotonicMs: now)
         try enterPairingChannel(now: now)
-        let hello = try live().sendHello(
+        let hello = try bridge.sendHello(
           displayName: displayName, platform: platform, nowMonotonicMs: now)
         state = .awaitingPeerHello
         try await transport.send(handshakeThree)
@@ -140,7 +132,7 @@
         try await receivePeerConfirmation(frame, now: now)
 
       case .awaitingPeerStored:
-        try live().receiveStored(bytes: frame, nowMonotonicMs: now)
+        try bridge.receiveStored(bytes: frame, nowMonotonicMs: now)
         try await activate(now: now)
 
       case .offer, .completed, .closed:
@@ -152,25 +144,25 @@
     private func receiveCustodianFrame(_ frame: Data, now: UInt64) async throws {
       switch state {
       case .custodianAwaitingStepOne:
-        try live().readCpaceFrame(bytes: frame, nowMonotonicMs: now)
-        let stepTwo = try live().writeCpaceFrame(nowMonotonicMs: now)
+        try bridge.readCpaceFrame(bytes: frame, nowMonotonicMs: now)
+        let stepTwo = try bridge.writeCpaceFrame(nowMonotonicMs: now)
         state = .custodianAwaitingStepThree
         armDeadline(after: Window.attemptMilliseconds)
         try await transport.send(stepTwo)
 
       case .custodianAwaitingStepThree:
-        try live().readCpaceFrame(bytes: frame, nowMonotonicMs: now)
+        try bridge.readCpaceFrame(bytes: frame, nowMonotonicMs: now)
         state = .custodianAwaitingHandshakeOne
         armDeadline(after: Window.handshakeMilliseconds)
 
       case .custodianAwaitingHandshakeOne:
-        try live().readHandshakeFrame(bytes: frame, nowMonotonicMs: now)
-        let handshakeTwo = try live().writeHandshakeFrame(nowMonotonicMs: now)
+        try bridge.readHandshakeFrame(bytes: frame, nowMonotonicMs: now)
+        let handshakeTwo = try bridge.writeHandshakeFrame(nowMonotonicMs: now)
         state = .custodianAwaitingHandshakeThree
         try await transport.send(handshakeTwo)
 
       case .custodianAwaitingHandshakeThree:
-        try live().readHandshakeFrame(bytes: frame, nowMonotonicMs: now)
+        try bridge.readHandshakeFrame(bytes: frame, nowMonotonicMs: now)
         try enterPairingChannel(now: now)
         state = .awaitingPeerHello
 
@@ -179,43 +171,39 @@
       }
     }
 
-    /// The requester's first CPace message, once its offer is known.
+    /// The requester's first CPace message; step 2 is due within the
+    /// attempt deadline (RAPP v26.10.22 §3.3 item 3).
     private func beginRequesterCpace(now: UInt64) async throws {
-      try live().beginCpace(
+      try bridge.beginCpace(
         candidateId: candidateID, randomBytes64: try entropy.cpaceRandom(), nowMonotonicMs: now)
-      let stepOne = try live().writeCpaceFrame(nowMonotonicMs: now)
+      let stepOne = try bridge.writeCpaceFrame(nowMonotonicMs: now)
       state = .requesterAwaitingStepTwo
+      armDeadline(after: Window.attemptMilliseconds)
       try await transport.send(stepOne)
     }
 
-    /// The ceremony's engine, which every step after the offer needs.
-    private func live() throws -> RappPairingBridge {
-      guard let bridge else { throw RappBindingError.WrongPhase }
-      return bridge
-    }
-
     private func enterPairingChannel(now: UInt64) throws {
-      guard try live().handshakeComplete(nowMonotonicMs: now) else {
+      guard try bridge.handshakeComplete(nowMonotonicMs: now) else {
         throw RappBindingError.ProtocolFailure
       }
-      try live().enterConfirmation(nowMonotonicMs: now)
+      try bridge.enterConfirmation(nowMonotonicMs: now)
       armDeadline(after: Window.confirmationMilliseconds)
     }
 
     /// The requester introduces itself first; the custodian answers with its
     /// own introduction and the grant.
     private func receivePeerHello(_ frame: Data, now: UInt64) async throws {
-      let peer = Peer(try live().receiveHello(bytes: frame, nowMonotonicMs: now))
+      let peer = Peer(try bridge.receiveHello(bytes: frame, nowMonotonicMs: now))
       continuation.yield(.peerIntroduced(peer))
       switch role {
       case .requester:
         state = .awaitingPeerConfirmation
 
       case .proxy:
-        let hello = try live().sendHello(
+        let hello = try bridge.sendHello(
           displayName: displayName, platform: platform, nowMonotonicMs: now)
         let granted = profiles.filter { (peer.requestedProfiles ?? []).contains($0) }
-        let grant = try live().sendConfirmation(grantedProfiles: granted, nowMonotonicMs: now)
+        let grant = try bridge.sendConfirmation(grantedProfiles: granted, nowMonotonicMs: now)
         state = .awaitingPeerConfirmation
         try await transport.send(hello)
         try await transport.send(grant)
@@ -228,9 +216,9 @@
     /// The requester echoes the custodian's grant; the custodian accepts the
     /// echo. Either way both sets are now equal.
     private func receivePeerConfirmation(_ frame: Data, now: UInt64) async throws {
-      let granted = try live().receiveConfirmation(bytes: frame, nowMonotonicMs: now)
+      let granted = try bridge.receiveConfirmation(bytes: frame, nowMonotonicMs: now)
       if role == .requester {
-        let echo = try live().sendConfirmation(grantedProfiles: granted, nowMonotonicMs: now)
+        let echo = try bridge.sendConfirmation(grantedProfiles: granted, nowMonotonicMs: now)
         try await transport.send(echo)
       }
       try await store(now: now)
@@ -243,7 +231,7 @@
     /// The storage exchange is RAPP v26.10.22 §4.3 item 4; the
     /// confirmation deadline keeps running.
     private func store(now: UInt64) async throws {
-      let record = try live().buildPairRecord(
+      let record = try bridge.buildPairRecord(
         createdAtMs: clock.wallMilliseconds(), nowMonotonicMs: now)
       do {
         try record.persistDeviceOnly(vault: vault)
@@ -252,7 +240,7 @@
         return
       }
       storedPairID = record.metadata().pairId
-      let stored = try live().sendStored(nowMonotonicMs: now)
+      let stored = try bridge.sendStored(nowMonotonicMs: now)
       state = .awaitingPeerStored
       try await transport.send(stored)
       try await activate(now: now)
@@ -261,7 +249,7 @@
     /// Completes the pairing once both storage confirmations have been
     /// exchanged, storing the confirmed record over the unconfirmed one.
     private func activate(now: UInt64) async throws {
-      guard let confirmed = try live().activatePairing(nowMonotonicMs: now) else { return }
+      guard let confirmed = try bridge.activatePairing(nowMonotonicMs: now) else { return }
       do {
         try confirmed.replaceDeviceOnly(vault: vault)
       } catch {
@@ -306,21 +294,21 @@
       guard state != .completed, state != .closed else { return }
       // A record stored for this attempt is not the next attempt's.
       revokeUnconfirmedRecord()
-      if bridge?.candidateFailed(nowMonotonicMs: clock.monotonicMilliseconds()) == true {
+      if bridge.candidateFailed(nowMonotonicMs: clock.monotonicMilliseconds()) {
         state = .offer
         await transport.close()
         armDeadline(at: offerDeadlineMilliseconds)
         continuation.yield(.offerRestored)
         return
       }
-      await fail(bridge?.attemptsExhausted() == true ? .attemptsExhausted : reason)
+      await fail(bridge.attemptsExhausted() ? .attemptsExhausted : reason)
     }
 
     internal func fail(_ reason: CloseReason) async {
       guard state != .closed, state != .completed else { return }
       state = .closed
       cancelDeadline()
-      bridge?.cancelPairing()
+      bridge.cancelPairing()
       revokeUnconfirmedRecord()
       await transport.close()
       continuation.yield(.closed(reason))
@@ -363,6 +351,9 @@
 
       case .awaitingPeerStored:
         await fail(.storageUnconfirmed)
+
+      case .requesterAwaitingStepTwo:
+        await abandonCandidate(.attemptTimedOut)
 
       default:
         await abandonCandidate(.offerExpired)

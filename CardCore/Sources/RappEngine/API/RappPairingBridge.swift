@@ -159,6 +159,14 @@ public final class RappPairingBridge: @unchecked Sendable {
     locked { ledger.isExhausted }
   }
 
+  /// The offer a requester read, while CPace has not begun on it.
+  internal func requesterOfferAwaitingCpace() -> PairingOffer? {
+    locked {
+      guard role == .requester, case .offer = phase else { return nil }
+      return offer
+    }
+  }
+
   /// The transports the offer advertises.
   public func offerCandidates() -> [RappOfferCandidate] {
     locked {
