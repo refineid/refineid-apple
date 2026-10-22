@@ -30,7 +30,7 @@
     @ViewBuilder private var promptText: some View {
       Text(
         String(
-          localized: "Open RefineID / Remote Access on your phone and enter the pairing code:"
+          localized: "Open RefineID remote access on your phone and enter the pairing code:"
         )
       )
       .textSelection(.enabled)

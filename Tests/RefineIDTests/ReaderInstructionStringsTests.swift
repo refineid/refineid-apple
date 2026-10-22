@@ -51,14 +51,14 @@ internal struct ReaderInstructionStringsTests {
   @Test
   internal func phoneReaderInstructionMatchesInEveryLanguage() throws {
     let strings = try Self.catalog()
-    let key = "Open RefineID / Remote Access on your phone and enter the pairing code:"
+    let key = "Open RefineID remote access on your phone and enter the pairing code:"
     #expect(
       try Self.value(for: key, language: "fi", in: strings)
-        == "Avaa puhelimesta RefineID / Etäkäyttö ja syötä yhdistämiskoodi:"
+        == "Avaa puhelimesta RefineID etäkäyttö ja syötä yhdistämiskoodi:"
     )
     #expect(
       try Self.value(for: key, language: "sv", in: strings)
-        == "Öppna RefineID / Fjärråtkomst på telefonen och ange kopplingskoden:"
+        == "Öppna RefineID fjärråtkomst på telefonen och ange kopplingskoden:"
     )
   }
 
@@ -104,7 +104,7 @@ internal struct ReaderInstructionStringsTests {
       encoding: .utf8
     )
     #expect(
-      prompt.contains("Open RefineID / Remote Access on your phone and enter the pairing code:")
+      prompt.contains("Open RefineID remote access on your phone and enter the pairing code:")
     )
     let notes = try String(
       contentsOf: Self.root.appending(path: "Sources/App/StatusView+Notes.swift"),
@@ -117,7 +117,7 @@ internal struct ReaderInstructionStringsTests {
     )
     #expect(settings.contains("Connect a card reader and insert your card."))
     let request = try String(
-      contentsOf: Self.root.appending(path: "Sources/App/PhoneCardRequest.swift"),
+      contentsOf: Self.root.appending(path: "Sources/App/PhoneCardRequestLine.swift"),
       encoding: .utf8
     )
     #expect(request.contains("Insert the card into the phone's card reader."))
