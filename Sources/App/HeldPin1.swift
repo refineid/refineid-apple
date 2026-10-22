@@ -5,8 +5,9 @@
   import Foundation
   import RappEngine
 
-  /// PIN 1 the holder entered on this phone and the card accepted, bound to
-  /// that card (RAPP v26.10.22 §8.4 item 1, §11 item 2).
+  /// PIN 1 the holder entered on this phone, bound to the card it was
+  /// entered for: one the card accepted, or one no card ever received
+  /// because the card did not come (RAPP v26.10.22 §8.4 item 1, §11 item 2).
   ///
   /// Held only in this process's memory, never in storage, so it ends with
   /// the process and with a restart. It also ends when the card leaves the
