@@ -218,7 +218,7 @@
         isActivelyConnected = false
         Task {
           await RappReaderSessionHolder.shared.close()
-          await RappNearFieldSessionHolder.shared.closeSession()
+          await RappNearFieldSessionHolder.shared.closeSession(.lastSessionClosed)
         }
       }
       if !hasUsablePair() {

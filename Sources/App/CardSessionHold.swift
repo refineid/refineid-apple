@@ -6,20 +6,24 @@ import Foundation
 /// next, and when it ends.
 ///
 /// A session is kept while the card can still be served, for at most
-/// ``idleLimitSeconds`` after its last operation and, where the platform
-/// limits a session's life, for at most that life, so the next request
-/// reuses the secure channel and the verified state the card already
-/// holds instead of opening the field and running PACE again. Anything
-/// that makes the channel untrustworthy ends it at once.
+/// ``idleLimitSeconds`` after its last operation where the hold sets an
+/// idle limit and, where the platform limits a session's life, for at most
+/// that life, so the next request reuses the secure channel the card
+/// already holds instead of opening the field and running PACE again.
+/// Anything that makes the channel untrustworthy ends it at once.
 internal struct CardSessionHold: Equatable {
   /// Why a held session ended.
   internal enum Ending: Equatable {
     case appBackgrounded
     case cardLeft
+    case channelUnprepared
     case closedByOwner
-    case commandFailed
     case idleExpired
+    case keepAliveUnanswered
+    case lastSessionClosed
     case operationUnanswered
+    case promptShown
+    case servingStopped
     case sessionAged
   }
 
@@ -35,20 +39,34 @@ internal struct CardSessionHold: Equatable {
     case open(channelPrepared: Bool, busy: Bool)
   }
 
-  /// Seconds a held session survives after its last operation.
+  /// Seconds a reader session survives after its last operation.
   ///
   /// Long enough for the next request of one login, which follows the
-  /// first within a few seconds; short enough that the sheet the
-  /// session keeps on the screen goes away soon after the last request.
-  internal static let idleLimitSeconds: Int64 = 10
+  /// first within a few seconds; short enough that a card left in the
+  /// reader is not held by a session nobody uses.
+  internal static let readerIdleLimitSeconds: Int64 = 10
 
   /// Seconds a near-field session may be held from its opening.
   ///
   /// Core NFC invalidates a reader session 60 seconds after it begins
-  /// (Apple, `NFCReaderSession`, `readerSessionInvalidationErrorSessionTimeout`);
-  /// a held session ends before that, so the next request opens a fresh
-  /// one instead of meeting an invalidated field mid-command.
+  /// (Apple, WWDC 2019 session 715, "the existing 60-second maximum scan
+  /// time still exists for each reader session";
+  /// `readerSessionInvalidationErrorSessionTimeout`); a held session ends
+  /// before that, so the next request opens a fresh one instead of
+  /// meeting an invalidated field mid-command.
   internal static let nearFieldSessionLimitSeconds: Int64 = 50
+
+  /// Seconds a held near-field channel goes without an exchange before
+  /// the holder sends it one harmless command.
+  ///
+  /// The system takes an idle slot away six to eight seconds after the
+  /// last exchange; a command every two seconds keeps it up until the
+  /// platform's own limit on the field's life.
+  internal static let nearFieldKeepAliveSeconds: Int64 = 2
+
+  /// Wait between two looks at an idle near field, which is how soon a
+  /// card taken off the phone ends the hold.
+  internal static let nearFieldLookInterval: Duration = .seconds(1)
 
   /// Milliseconds in one second, for the clocks.
   internal static let millisecondsPerSecond: Int64 = 1_000
@@ -56,6 +74,10 @@ internal struct CardSessionHold: Equatable {
   /// The session's longest life in seconds, or nil where the platform
   /// sets none.
   internal let sessionLimitSeconds: Int64?
+
+  /// Seconds the session survives after its last operation, or nil where
+  /// only the platform ends an idle session.
+  internal let idleLimitSeconds: Int64?
 
   internal private(set) var state: State = .closed
 
@@ -78,10 +100,11 @@ internal struct CardSessionHold: Equatable {
     return false
   }
 
-  /// A hold whose session lives at most `sessionLimitSeconds`, or without
-  /// a life limit when that is nil.
-  internal init(sessionLimitSeconds: Int64?) {
+  /// A hold whose session lives at most `sessionLimitSeconds` and idles
+  /// at most `idleLimitSeconds`; nil sets no such limit.
+  internal init(sessionLimitSeconds: Int64?, idleLimitSeconds: Int64?) {
     self.sessionLimitSeconds = sessionLimitSeconds
+    self.idleLimitSeconds = idleLimitSeconds
   }
 
   /// An exclusive card session was opened at `nowMs`.
@@ -120,26 +143,15 @@ internal struct CardSessionHold: Equatable {
   internal mutating func tick(nowMs: Int64) -> Verdict {
     guard case .open(_, busy: false) = state else { return .keep }
     if aged(nowMs: nowMs) { return close(.sessionAged) }
-    guard let idleSinceMs else { return .keep }
-    let limitMs = Self.idleLimitSeconds * Self.millisecondsPerSecond
+    guard let idleLimitSeconds, let idleSinceMs else { return .keep }
+    let limitMs = idleLimitSeconds * Self.millisecondsPerSecond
     guard nowMs - idleSinceMs >= limitMs else { return .keep }
     return close(.idleExpired)
   }
 
-  internal mutating func cardLeft() -> Verdict {
-    close(.cardLeft)
-  }
-
-  internal mutating func appBackgrounded() -> Verdict {
-    close(.appBackgrounded)
-  }
-
-  internal mutating func commandFailed() -> Verdict {
-    close(.commandFailed)
-  }
-
-  internal mutating func closedByOwner() -> Verdict {
-    close(.closedByOwner)
+  /// Something outside the hold ended the session for `ending`.
+  internal mutating func end(_ ending: Ending) -> Verdict {
+    close(ending)
   }
 
   private func aged(nowMs: Int64) -> Bool {

@@ -340,20 +340,26 @@
     /// from the background (CC-69).
     ///
     /// The requester hears `waiting_for_card` while the summons is out and
-    /// `card_wait_ended` when it went unanswered. A reader card, or an app
-    /// in the foreground, needs nothing.
+    /// `card_wait_ended` when it went unanswered. A reader card, an app in
+    /// the foreground, or a warm near field under its system sheet, needs
+    /// nothing.
     private func holderReady(
       operationID: RappOperationIdentifier,
       coordinator: RappConnectionCoordinator
     ) async -> Bool {
-      let (isReader, isActive) = await MainActor.run {
+      let (isReader, app) = await MainActor.run {
         (
           CardPresence.shared.isReaderCardPresent,
-          UIApplication.shared.applicationState == .active
+          HolderAttention.AppState(UIApplication.shared.applicationState)
         )
       }
+      let fieldWarm = await RappNearFieldSessionHolder.shared.isWarm
       let source: HolderAttention.CardSource = isReader ? .reader : .nearField
-      guard HolderAttention.needed(for: source, appActive: isActive) == .summon else {
+      let needed = HolderAttention.needed(for: source, app: app, fieldWarm: fieldWarm)
+      #if DEBUG
+        HolderTrace.say("holder attention: \(needed), app \(app), field warm \(fieldWarm)")
+      #endif
+      guard needed == .summon else {
         return true
       }
       #if DEBUG

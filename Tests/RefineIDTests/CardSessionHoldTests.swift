@@ -8,7 +8,7 @@ import Testing
 @Suite
 internal struct CardSessionHoldTests {
   private static let idleLimitMs =
-    CardSessionHold.idleLimitSeconds * CardSessionHold.millisecondsPerSecond
+    CardSessionHold.readerIdleLimitSeconds * CardSessionHold.millisecondsPerSecond
   private static let sessionLimitMs =
     CardSessionHold.nearFieldSessionLimitSeconds * CardSessionHold.millisecondsPerSecond
   private static let momentMs: Int64 = 1
@@ -16,7 +16,9 @@ internal struct CardSessionHoldTests {
   private static func opened(
     nowMs: Int64 = 0, sessionLimitSeconds: Int64? = nil
   ) -> CardSessionHold {
-    var hold = CardSessionHold(sessionLimitSeconds: sessionLimitSeconds)
+    var hold = CardSessionHold(
+      sessionLimitSeconds: sessionLimitSeconds,
+      idleLimitSeconds: CardSessionHold.readerIdleLimitSeconds)
     hold.sessionOpened(nowMs: nowMs)
     hold.channelPrepared()
     return hold
@@ -101,21 +103,34 @@ internal struct CardSessionHoldTests {
     #expect(hold.isOpen)
   }
 
-  @Test("Card removal, background and a failed command end the hold at once")
+  @Test("Card removal, background and an unanswered keep-alive end the hold at once")
   internal func removalBackgroundAndFailureEndTheHold() {
     var left = Self.opened()
-    #expect(left.cardLeft() == .end(.cardLeft))
+    #expect(left.end(.cardLeft) == .end(.cardLeft))
     var backgrounded = Self.opened()
-    #expect(backgrounded.appBackgrounded() == .end(.appBackgrounded))
+    #expect(backgrounded.end(.appBackgrounded) == .end(.appBackgrounded))
     var failed = Self.opened()
-    #expect(failed.commandFailed() == .end(.commandFailed))
+    #expect(failed.end(.keepAliveUnanswered) == .end(.keepAliveUnanswered))
     #expect(!left.isOpen && !backgrounded.isOpen && !failed.isOpen)
+  }
+
+  @Test("A near-field hold idles until the platform or its session limit ends it")
+  internal func nearFieldHoldHasNoIdleLimit() {
+    var hold = CardSessionHold(
+      sessionLimitSeconds: CardSessionHold.nearFieldSessionLimitSeconds,
+      idleLimitSeconds: nil)
+    hold.sessionOpened(nowMs: 0)
+    hold.channelPrepared()
+    #expect(hold.tick(nowMs: Self.sessionLimitMs - Self.momentMs) == .keep)
+    #expect(hold.reusesChannel)
+    #expect(hold.tick(nowMs: Self.sessionLimitMs) == .end(.sessionAged))
   }
 
   @Test("A closed hold ignores events")
   internal func closedHoldIgnoresEvents() {
-    var hold = CardSessionHold(sessionLimitSeconds: nil)
-    #expect(hold.cardLeft() == .keep)
+    var hold = CardSessionHold(
+      sessionLimitSeconds: nil, idleLimitSeconds: CardSessionHold.readerIdleLimitSeconds)
+    #expect(hold.end(.cardLeft) == .keep)
     #expect(hold.startsOperation(nowMs: 0) == .keep)
     #expect(hold.operationFinished(answered: true, nowMs: 0) == .keep)
     #expect(hold.tick(nowMs: Self.idleLimitMs) == .keep)
@@ -124,7 +139,8 @@ internal struct CardSessionHoldTests {
 
   @Test("A new session starts without a prepared channel")
   internal func newSessionIsUnprepared() {
-    var hold = CardSessionHold(sessionLimitSeconds: nil)
+    var hold = CardSessionHold(
+      sessionLimitSeconds: nil, idleLimitSeconds: CardSessionHold.readerIdleLimitSeconds)
     hold.sessionOpened(nowMs: 0)
     #expect(hold.isOpen)
     #expect(!hold.reusesChannel)

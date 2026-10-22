@@ -85,6 +85,10 @@
         displayContext: Self.promptContext(for: operation),
         notice: notice
       )
+      // A warm near field's system sheet would cover the prompt: the field
+      // ends first, and the reader's pause after it runs while the holder
+      // types.
+      await RappNearFieldSessionHolder.shared.closeSession(.promptShown)
       if promptedOperations.insert(operationID).inserted {
         try? await coordinator.reportProgress(operationID: operationID, event: .consentShown)
       }

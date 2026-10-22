@@ -54,6 +54,7 @@
         session.close()
       }
       HolderSummons.shared.cancelAll()
+      Task { await RappNearFieldSessionHolder.shared.closeSession(.servingStopped) }
     }
 
     internal func hasUsablePair() -> Bool {

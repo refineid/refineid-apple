@@ -34,11 +34,17 @@
       case credential(CredentialRole, remaining: RetryCount?)
     }
 
-    internal enum Outcome: Sendable, Equatable {
+    internal enum Outcome: Sendable, Equatable, NearFieldOutcome {
       case completionAmbiguous
       case refusedBeforeCredentialTransmit(Refusal)
       case rejected(Rejection)
       case result(Data)
+
+      /// Whether the operation has the card's result.
+      internal var isResult: Bool {
+        if case .result = self { return true }
+        return false
+      }
 
       /// Whether the card answered the operation.
       internal var cardAnswered: Bool {

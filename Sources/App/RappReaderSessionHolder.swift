@@ -12,8 +12,10 @@
   /// only.
   ///
   /// The hold follows ``CardSessionHold`` without a session life limit: a
-  /// reader keeps its card powered. Preparation, operations and the app's
-  /// own claim on the reader join one chain, so none cuts another.
+  /// reader keeps its card powered. An idle session ends after
+  /// ``CardSessionHold/readerIdleLimitSeconds``. Preparation, operations
+  /// and the app's own claim on the reader join one chain, so none cuts
+  /// another.
   internal actor RappReaderSessionHolder {
     /// The exclusive card session and the operations over its channel;
     /// the chain hands them to one operation at a time.
@@ -38,7 +40,8 @@
     internal static let shared = RappReaderSessionHolder()
 
     private var heldChannel: HeldChannel?
-    private var hold = CardSessionHold(sessionLimitSeconds: nil)
+    private var hold = CardSessionHold(
+      sessionLimitSeconds: nil, idleLimitSeconds: CardSessionHold.readerIdleLimitSeconds)
     private var expirationTask: Task<Void, Never>?
     private let credentials = CredentialSessionBox()
 
@@ -202,7 +205,7 @@
       if let current = heldChannel, hold.reusesChannel {
         held = current
       } else {
-        end(hold.closedByOwner())
+        end(hold.end(.closedByOwner))
         await ReaderTokenPublication.shared.awaitPublication()
         switch await Self.open(cardAccessNumber: cardAccessNumber) {
         case .opened(let opened):
@@ -241,15 +244,15 @@
     }
 
     private func endByOwner() {
-      end(hold.closedByOwner())
+      end(hold.end(.closedByOwner))
     }
 
     private func endForCardLeft() {
-      end(hold.cardLeft())
+      end(hold.end(.cardLeft))
     }
 
     private func endForBackground() {
-      end(hold.appBackgrounded())
+      end(hold.end(.appBackgrounded))
     }
 
     private func adopt(_ held: HeldChannel) {
@@ -286,7 +289,7 @@
     private func armIdleLimit() {
       expirationTask?.cancel()
       expirationTask = Task { [weak self] in
-        try? await Task.sleep(for: .seconds(CardSessionHold.idleLimitSeconds))
+        try? await Task.sleep(for: .seconds(CardSessionHold.readerIdleLimitSeconds))
         guard !Task.isCancelled else { return }
         await self?.idleExpired()
       }
