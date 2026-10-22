@@ -124,7 +124,7 @@
     /// session's word and its grace. The pairing stays so the next card can
     /// use it.
     internal func startWatchingPresence() {
-      guard Self.isRemoteCardEnabled else { return }
+      guard Self.dialsPhones else { return }
       guard !CardPresence.shared.isReaderCardPresent else {
         Self.withdrawPublishedIdentity()
         return
@@ -171,7 +171,7 @@
 
     /// Restarts browsing for the currently selected holder.
     internal func restartWatchingPresence() {
-      guard Self.isRemoteCardEnabled else { return }
+      guard Self.dialsPhones else { return }
       guard !CardPresence.shared.isReaderCardPresent else {
         stopWatchingPresence()
         Self.withdrawPublishedIdentity()
@@ -300,7 +300,7 @@
     }
 
     internal func installPairingObservers() {
-      guard Self.isRemoteCardEnabled else { return }
+      guard Self.dialsPhones else { return }
       guard pairingsObservers.isEmpty else { return }
       let notificationCenter = NotificationCenter.default
       let observer1 = notificationCenter.addObserver(

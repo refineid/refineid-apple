@@ -52,7 +52,7 @@
 
     /// Dials the phone the browser reports, unless a session is open.
     internal func openHolderSession() {
-      guard Self.isRemoteCardEnabled, !CardPresence.shared.isReaderCardPresent,
+      guard Self.dialsPhones, !CardPresence.shared.isReaderCardPresent,
         holderIsAdvertising, holderSession == nil
       else { return }
       let vault = RappDeviceVault()

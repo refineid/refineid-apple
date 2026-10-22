@@ -16,7 +16,7 @@
     /// When the reader card leaves:
     /// - Presence watching resumes if pairings exist, allowing remote card discovery when no physical card is present.
     internal func readerCardPresenceChanged(isReaderCardPresent: Bool) {
-      guard Self.isRemoteCardEnabled else {
+      guard Self.dialsPhones else {
         Self.withdrawPublishedIdentity()
         return
       }
@@ -51,7 +51,7 @@
     /// another card is withdrawn, to be read afresh (RAPP v26.10.22 §8.4
     /// items 2 and 3).
     internal func ensurePublished() {
-      guard Self.isRemoteCardEnabled else {
+      guard Self.dialsPhones else {
         Self.withdrawPublishedIdentity()
         return
       }
@@ -83,7 +83,7 @@
 
     /// Fills the person line from a certificate this process already holds.
     internal func seedHolderLine() {
-      guard Self.isRemoteCardEnabled else {
+      guard Self.dialsPhones else {
         Self.withdrawPublishedIdentity()
         return
       }

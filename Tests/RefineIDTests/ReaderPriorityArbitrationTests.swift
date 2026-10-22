@@ -23,7 +23,7 @@
         registry.readerCardPresenceChanged(isReaderCardPresent: false)
         registry.start()
         registry.startAfterPairing()
-        #expect(!PersistentTokenRegistry.isRemoteCardEnabled)
+        #expect(!PersistentTokenRegistry.dialsPhones)
         #expect(!registry.isRunning)
         #expect(registry.certificateDER == nil)
         #expect(!registry.holderIsAdvertising)
