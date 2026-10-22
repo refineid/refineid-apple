@@ -10,11 +10,22 @@
   /// item 3): from memory for a browser authentication whose PIN 1 the phone
   /// holds, else from a prompt, which is the holder's consent.
   extension RappPhoneProxyDispatcher {
-    /// What the PIN prompt shows: the origin or document name, or a batch's
-    /// whole document list in signing order (§9.3, §11 item 1).
+    /// The documents a signing prompt names, in signing order (§9.3).
+    ///
+    /// One signature names its document and a batch its whole list. An
+    /// authentication names only the computer, never the requester's
+    /// context (§11 item 1).
     private static func promptContext(for operation: RappOperationDriver.Operation) -> String? {
-      guard operation.kind == .batchSignDocuments else { return operation.displayContext }
-      return operation.documentNames.joined(separator: "\n")
+      switch operation.kind {
+      case .batchSignDocuments:
+        return operation.documentNames.joined(separator: "\n")
+
+      case .signDocument:
+        return operation.displayContext
+
+      default:
+        return nil
+      }
     }
 
     internal func inspectPrerequisites(
