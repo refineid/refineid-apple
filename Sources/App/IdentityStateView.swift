@@ -6,14 +6,14 @@
   import os.log
   import SwiftUI
 
-  /// Who the card says they are, what to do about it, or the settling
-  /// state between.
+  /// Who the card says they are, or what to do about it.
   ///
   /// A card mints in well under a second, and for that moment it is
   /// present without an identity yet published. That is not a fault and
-  /// must not be shouted as one: the row shows a calm line while it
-  /// settles and only warns once the state has lasted long enough to
-  /// mean something.
+  /// must not be shouted as one: the row shows nothing while it settles
+  /// and only warns once the state has lasted long enough to mean
+  /// something. A phone's state shows only once it has lasted as long as
+  /// the registry holds a lost phone before calling it gone.
   internal struct IdentityStateView: View {
     /// One tracked event.
     ///
@@ -62,6 +62,9 @@
 
     @State private var isFetching = PersistentTokenRegistry.shared.isRunning
 
+    /// The waiting line that has lasted long enough to show.
+    @State private var settledLine: IdentityLine?
+
     /// The person line the remote-card registry already holds.
     ///
     /// Used when the keychain has not yet listed the borrowed token
@@ -92,6 +95,9 @@
         .task(id: trackKey) {
           await track()
         }
+        .task(id: line) {
+          await settle(line)
+        }
         .onReceive(
           NotificationCenter.default.publisher(
             for: PersistentTokenRegistry.fetchStateDidChangeNotification
@@ -115,8 +121,21 @@
       )
     }
 
+    /// The line the facts call for now.
+    private var line: IdentityLine {
+      IdentityLine.derive(facts)
+    }
+
+    /// The line to show: a waiting line only once it has lasted.
+    private var shownLine: IdentityLine? {
+      line.waitsBeforeShowing && settledLine != line ? nil : line
+    }
+
     @ViewBuilder private var content: some View {
-      switch IdentityLine.derive(facts) {
+      switch shownLine {
+      case nil, .reading:
+        Text("")
+
       case .holder:
         // Who is about to sign: someone with two cards can see which
         // one is in the reader before spending a PIN on it. Until the
@@ -130,10 +149,6 @@
       case .cardNotReady:
         Text("Card detected, not ready - if this lasts, re-insert it")
           .foregroundStyle(.orange)
-
-      case .reading:
-        Text("Reading the card…")
-          .foregroundStyle(.secondary)
 
       case .insertCard:
         Text("Insert the card into the reader.")
@@ -155,6 +170,18 @@
         Text("Connect a card reader")
           .foregroundStyle(.secondary)
       }
+    }
+
+    /// Lets a waiting line show once it has lasted, and forgets it as
+    /// soon as another line takes over.
+    private func settle(_ line: IdentityLine) async {
+      guard line.waitsBeforeShowing else {
+        settledLine = nil
+        return
+      }
+      try? await Task.sleep(for: PersistentTokenRegistry.advertisementLossHold)
+      guard !Task.isCancelled else { return }
+      settledLine = line
     }
 
     /// Follows one availability and reads the name when ready.

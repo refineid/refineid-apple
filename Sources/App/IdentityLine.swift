@@ -25,9 +25,26 @@
     /// The paired phone, by name, is not on the network.
     case phoneUnreachable(String)
 
-    /// "Reading the card…": a card in the reader is settling, or a read of
-    /// the phone's card is in flight.
+    /// A card in the reader is settling, or a read of the phone's card is
+    /// in flight; the row shows nothing until the holder's name.
     case reading
+
+    // MARK: Computed Properties
+
+    /// Whether the row shows this line only once it has lasted.
+    ///
+    /// A phone's state on the way to the holder's name, unreachable just
+    /// after pairing or connected before its card is read, is not worth a
+    /// flash; a state that lasts is.
+    internal var waitsBeforeShowing: Bool {
+      switch self {
+      case .phoneConnected, .phoneUnreachable:
+        true
+
+      case .cardNotReady, .connectReader, .holder, .insertCard, .phoneForgot, .reading:
+        false
+      }
+    }
 
     // MARK: Static Functions
 

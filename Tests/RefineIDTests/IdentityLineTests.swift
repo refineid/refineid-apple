@@ -167,4 +167,16 @@ internal struct IdentityLineTests {
   internal func derivesTheLine(_ testCase: Case) {
     #expect(IdentityLine.derive(testCase.facts) == testCase.line)
   }
+
+  /// Only a phone's state waits to show; the name, instructions and
+  /// errors show at once.
+  @Test
+  internal func onlyAPhoneStateWaitsToShow() {
+    #expect(IdentityLine.phoneConnected(Self.phone).waitsBeforeShowing)
+    #expect(IdentityLine.phoneUnreachable(Self.phone).waitsBeforeShowing)
+    let immediate: [IdentityLine] = [
+      .cardNotReady, .connectReader, .holder, .insertCard, .phoneForgot(Self.phone), .reading,
+    ]
+    #expect(immediate.allSatisfy { !$0.waitsBeforeShowing })
+  }
 }
