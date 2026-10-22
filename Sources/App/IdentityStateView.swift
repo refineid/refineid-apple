@@ -12,8 +12,9 @@
   /// present without an identity yet published. That is not a fault and
   /// must not be shouted as one: the row shows nothing while it settles
   /// and only warns once the state has lasted long enough to mean
-  /// something. A phone's state shows only once it has lasted as long as
-  /// the registry holds a lost phone before calling it gone.
+  /// something. A connected phone shows only once the connection has
+  /// lasted as long as the registry holds a lost phone before calling it
+  /// gone.
   internal struct IdentityStateView: View {
     /// One tracked event.
     ///
@@ -133,7 +134,7 @@
 
     @ViewBuilder private var content: some View {
       switch shownLine {
-      case nil, .reading:
+      case nil, .empty, .reading:
         Text("")
 
       case .holder:
@@ -156,10 +157,6 @@
 
       case .phoneConnected(let phone):
         Text("\(phone) connected")
-          .foregroundStyle(.secondary)
-
-      case .phoneUnreachable(let phone):
-        Text("\(phone) not reachable")
           .foregroundStyle(.secondary)
 
       case .phoneForgot(let phone):
