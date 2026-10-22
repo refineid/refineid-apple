@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// `close-reason-val` (RAPP v26.10.21 §7.1).
+/// `close-reason-val` (RAPP v26.10.22 §7.1).
 public enum RappCloseReason: String, CaseIterable, Equatable, Sendable {
   case cardUnavailable = "card_unavailable"
   case complete = "complete"

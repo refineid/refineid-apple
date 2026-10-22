@@ -128,7 +128,7 @@ extension RappPairingBridge {
   }
 
   /// Builds the pairing this ceremony agreed, unconfirmed, for the caller
-  /// to store before it sends `pairing.stored` (RAPP v26.10.21 §4.3 item
+  /// to store before it sends `pairing.stored` (RAPP v26.10.22 §4.3 item
   /// 4).
   ///
   /// The storage exchange that follows runs under the same deadline as the

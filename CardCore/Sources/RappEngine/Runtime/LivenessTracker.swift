@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// One session's liveness (RAPP v26.10.21 §8.3): a ping after 5 seconds of
+/// One session's liveness (RAPP v26.10.22 §8.3): a ping after 5 seconds of
 /// silence, and again every 5 seconds while the silence lasts; the session
 /// is over after 30 seconds without any message from the peer.
 ///

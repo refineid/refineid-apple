@@ -5,7 +5,7 @@ import Foundation
 /// What an inbound message means to the requester.
 internal enum RequesterDispatch: Equatable {
   /// The custodian's card is present, with its fingerprint, or absent
-  /// (RAPP v26.10.21 §8.4).
+  /// (RAPP v26.10.22 §8.4).
   case cardStatus(RappCardStatus)
   /// The live operation completed.
   case completed(operationIdentifier: RappOperationIdentifier, result: CardOperationResult)

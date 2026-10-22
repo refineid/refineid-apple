@@ -5,7 +5,7 @@
   import Foundation
   import RappEngine
 
-  /// `batch_sign_documents` on the custodian (RAPP v26.10.21 §9.3).
+  /// `batch_sign_documents` on the custodian (RAPP v26.10.22 §9.3).
   extension RappPhoneProxyDispatcher {
     /// Signs every document of an approved batch in one card session with
     /// the one PIN 2 the holder entered, and answers with every signature

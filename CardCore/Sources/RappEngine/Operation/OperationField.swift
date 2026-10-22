@@ -88,12 +88,3 @@ internal func takeOperationBytesArray(_ map: inout [String: WireValue], _ field:
     return bytes
   }
 }
-
-internal func takeOperationArray(_ map: inout [String: WireValue], _ field: String) throws
-  -> [WireValue]
-{
-  guard case .some(.array(let values)) = map.removeValue(forKey: field) else {
-    throw CardOperationError.invalidField(field: field)
-  }
-  return values
-}

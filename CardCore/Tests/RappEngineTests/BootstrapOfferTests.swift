@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.10.21 offer bootstrap on BLE and stream (section 4.2)")
+@Suite("RAPP v26.10.22 offer bootstrap on BLE and stream (section 4.2)")
 internal struct BootstrapOfferTests {
   private static let code = "7KX4M9"
   private static let profiles = [

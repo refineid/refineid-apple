@@ -176,7 +176,7 @@ internal struct CpaceTests {
     #expect(isk.suffix(8) == expectedIskSuffix)
   }
 
-  @Test("KC2 replays the v26.10.21 corpus byte for byte on every transport")
+  @Test("KC2 replays the v26.10.22 corpus byte for byte on every transport")
   internal func kc2CorpusVectors() throws {
     let vectors = try CorpusFile.conformance(filePath: #filePath).cpaceKc2
     #expect(Set(vectors.map(\.transportProfile)) == [RappBleGattProfile.name, streamProfile])

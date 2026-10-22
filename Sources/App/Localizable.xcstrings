@@ -3426,22 +3426,6 @@
         }
       }
     },
-    "PIN 2 (remembered)": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PIN 2 (muistissa)"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PIN 2 (ihågkommen)"
-          }
-        }
-      }
-    },
     "PIN 2 is incorrect.": {
       "extractionState": "manual",
       "localizations": {

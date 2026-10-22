@@ -39,7 +39,7 @@ internal final class RappPairingModel: ObservableObject {
 
   /// The transport profile a ceremony runs over in this build.
   ///
-  /// The custodian's offer names it (RAPP v26.10.21 §2.2); the requester
+  /// The custodian's offer names it (RAPP v26.10.22 §2.2); the requester
   /// finds the holder by its published pairing attributes and reads the
   /// offer it serves.
   internal static var ceremonyTransportProfile: String {

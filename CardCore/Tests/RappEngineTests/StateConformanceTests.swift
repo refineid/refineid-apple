@@ -10,6 +10,23 @@ internal struct StateConformanceTests {
   /// Rule counts the model declares, per component machine.
   private static let expectedRuleCounts = [("pairing", 26), ("session", 27), ("operation", 25)]
 
+  /// The model constants the engine holds as numbers, by name.
+  private static let engineConstants: [String: UInt64] = [
+    "pairing_attempts_per_offer": UInt64(CpaceAttemptLedger.maximumAttempts),
+    "offer_ttl_ms": OfferLimit.offerLifetimeMilliseconds,
+    "liveness_ping_after_silence_ms": LivenessTracker.pingAfterSilenceMilliseconds,
+    "session_silence_limit_ms": LivenessTracker.sessionSilenceLimitMilliseconds,
+    "revocation_notice_days": PairRecord.revocationNoticeDays,
+    "identity_offer_grace_ms": IdentityOfferGrace.milliseconds,
+  ]
+
+  /// Model constants the engine holds by its shape rather than as a number
+  /// (one live operation, one card command per operation), and the retry
+  /// floor the custodian's card layer applies.
+  private static let constantsHeldElsewhere: Set<String> = [
+    "live_operations_per_session", "card_commands_per_operation", "minimum_remaining_attempts",
+  ]
+
   /// An action the perturbed control appends so the comparison must notice.
   private static let perturbingAction = "hide_pairing_code"
 
@@ -79,6 +96,16 @@ internal struct StateConformanceTests {
   @Test("The transcription names the revision it was made from")
   internal func documentVersion() throws {
     #expect(try reader().documentVersion == StateModelFile.expectedDocumentVersion)
+  }
+
+  @Test("Every model constant is the engine's, or held by shape or by the card layer")
+  internal func constantsMatch() throws {
+    let model = try reader().constants
+    #expect(
+      Set(model.keys) == Set(Self.engineConstants.keys).union(Self.constantsHeldElsewhere))
+    for (name, value) in Self.engineConstants {
+      #expect(model[name] == value, "\(name)")
+    }
   }
 
   @Test("Every rule in the model is implemented")

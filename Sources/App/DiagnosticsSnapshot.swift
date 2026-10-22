@@ -222,19 +222,12 @@ internal struct DiagnosticsSnapshot: Sendable {
   ///
   /// Presence only. A diagnostic must never read or print the digits.
   private static func credentialPolicy() -> Section {
-    let contents = CardCredentialStore.contents()
-    var lines = [
-      "CAN stored: " + Self.yesNo(contents.hasCardAccessNumber),
-      "PIN 1 stored: " + Self.yesNo(contents.hasPin1),
-      "policy: direct use, no software expiry",
-    ]
-    if OnDemandPinExperiment.isEnabled {
-      lines.append(
-        "on-demand PIN experiment: active (native prompt only without stored credential)")
-    }
-    return Section(
+    Section(
       title: "Contactless signing credential",
-      lines: lines)
+      lines: [
+        "CAN stored: " + Self.yesNo(CardCredentialStore.contents().hasCardAccessNumber),
+        "PIN 1: asked once, held in memory until the card leaves",
+      ])
   }
 
   /// Which transports the platform can offer.

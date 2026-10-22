@@ -6,7 +6,7 @@ import Foundation
 ///
 /// The record holds the pairing's keys, so it is never handed out as bytes
 /// except through the vault the caller owns. Once revoked it holds them no
-/// more: nothing in this process can use the key afterwards (RAPP v26.10.21
+/// more: nothing in this process can use the key afterwards (RAPP v26.10.22
 /// §4.6 items 3 and 4).
 public final class RappPairRecord: @unchecked Sendable {
   private let lock = NSLock()
@@ -107,7 +107,7 @@ public final class RappPairRecord: @unchecked Sendable {
   }
 
   /// Stores the confirmed pairing over the unconfirmed record written
-  /// before the peer's `pairing.stored` arrived (RAPP v26.10.21 §4.3 item
+  /// before the peer's `pairing.stored` arrived (RAPP v26.10.22 §4.3 item
   /// 4).
   ///
   /// - Throws: ``RappBindingError/StorageUnconfirmed`` for a record that is
@@ -149,7 +149,7 @@ public final class RappPairRecord: @unchecked Sendable {
   }
 
   /// The local user forgets the pairing while no session to the peer is
-  /// open (RAPP v26.10.21 §4.6).
+  /// open (RAPP v26.10.22 §4.6).
   ///
   /// A confirmed record is stored as forgotten and keeps its key only to
   /// deliver the `pairing_revoked` close on the next session; an unconfirmed

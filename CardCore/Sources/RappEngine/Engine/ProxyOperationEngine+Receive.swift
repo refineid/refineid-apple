@@ -4,7 +4,7 @@ import Foundation
 
 extension ProxyOperationEngine {
   /// The `card.status` message the custodian sends after `session.ready`
-  /// and on every change (RAPP v26.10.21 §8.4).
+  /// and on every change (RAPP v26.10.22 §8.4).
   internal static func reportCardStatus(_ status: RappCardStatus) -> TypedMessage {
     .cardStatus(status)
   }
@@ -36,9 +36,9 @@ extension ProxyOperationEngine {
 
   /// The operation has the card and its prerequisite reads are done.
   ///
-  /// An action that needs the holder's authorization goes to consent; a read
-  /// skips consent and runs (§8.2 items 3 and 6). An operation whose deadline
-  /// has passed is cancelled instead (§8.1 item 2).
+  /// An action that needs a PIN waits for it; a read asks the holder nothing
+  /// and runs (§8.2 items 3 and 6). An operation whose deadline has passed is
+  /// cancelled instead (§8.1 item 2).
   internal mutating func prerequisitesComplete(
     operationIdentifier: RappOperationIdentifier,
     nowMilliseconds: UInt64,
@@ -105,7 +105,7 @@ extension ProxyOperationEngine {
   }
 
   /// Cancels the live operation when its deadline passed before the card
-  /// was commanded, waiting in the queue or for consent (§8.1 item 2); `nil`
+  /// was commanded, waiting in the queue or for its PIN (§8.1 item 2); `nil`
   /// when nothing is due.
   internal mutating func expireDue(
     nowMilliseconds: UInt64, maximumLifetimeMilliseconds: UInt64

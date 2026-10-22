@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// What forgetting a pairing did (RAPP v26.10.21 §4.6).
+/// What forgetting a pairing did (RAPP v26.10.22 §4.6).
 public enum RappForgetOutcome: Equatable, Sendable {
   /// The pairing was never confirmed; its key is destroyed and nobody is
   /// told.

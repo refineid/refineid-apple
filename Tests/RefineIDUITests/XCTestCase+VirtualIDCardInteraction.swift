@@ -112,17 +112,10 @@
     }
 
     @MainActor
-    internal func connect(
-      accessNumber: String,
-      pin1: String,
-      in app: XCUIApplication
-    ) {
+    internal func connect(accessNumber: String, in app: XCUIApplication) {
       let field = app.textFields[UITestIdentifiers.cardAccessNumberField]
       XCTAssertTrue(field.waitForExistence(timeout: UITestApp.appearTimeout))
       focusAndType(field, value: accessNumber, in: app)
-      let pin1Field = app.secureTextFields[UITestIdentifiers.pin1Field]
-      XCTAssertTrue(pin1Field.waitForExistence(timeout: UITestApp.appearTimeout))
-      focusAndType(pin1Field, value: pin1, in: app)
       let cache = app.buttons[UITestIdentifiers.primeStartButton]
       let enabled = XCTNSPredicateExpectation(
         predicate: NSPredicate(format: "enabled == true"),
@@ -130,7 +123,7 @@
       XCTAssertEqual(
         XCTWaiter.wait(for: [enabled], timeout: UITestApp.appearTimeout),
         .completed,
-        "Cache is disabled for complete CAN and PIN 1 entries")
+        "Cache is disabled for a complete CAN")
       cache.tap()
     }
 

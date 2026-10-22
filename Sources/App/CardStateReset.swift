@@ -35,7 +35,6 @@ internal enum CardStateReset {
   internal static func hasForgettableState() -> Bool {
     let credentials = CardCredentialStore.contents()
     return credentials.hasCardAccessNumber
-      || credentials.hasPin1
       || PrimeStore.storedCount() > 0
       || DriverConfiguredCredentials.identityTokenConfigurationCount() > 0
       || !Self.registeredOurTokenIDs().isEmpty
@@ -56,6 +55,9 @@ internal enum CardStateReset {
 
     VolatileAcceptedPin1.shared.clearAll()
     TransientCandidatePin1.shared.clearAll()
+    #if os(iOS) && REFINEID_LOCAL_CARD
+      Task { @MainActor in HeldPin1.shared.clear() }
+    #endif
 
     TrustRootsCache.shared.forgetAll()
     lines.append("RefineID trusted CAs: cleared")

@@ -254,17 +254,12 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
     isRegistrationField: Bool,
     isPendingSign: Bool
   ) -> Bool {
-    let experimentEnabled = OnDemandPinExperiment.isEnabled
+    // A field is held for signing only once PIN1 is in memory for this
+    // card, or a signature waits for the next field; a registration field
+    // stays the app's.
     let pinAvailable =
-      experimentEnabled
-      && (CardCredentialStore.contents().hasPin1
-        || TransientCandidatePin1.shared.hasPending(for: instanceID)
-        || VolatileAcceptedPin1.shared.hasPin(for: instanceID))
-    return isPendingSign
-      || OnDemandPinExperiment.needsSigningField(
-        isRegistrationField: isRegistrationField,
-        experimentEnabled: experimentEnabled,
-        pinAvailable: pinAvailable
-      )
+      TransientCandidatePin1.shared.hasPending(for: instanceID)
+      || VolatileAcceptedPin1.shared.hasPin(for: instanceID)
+    return isPendingSign || (!isRegistrationField && pinAvailable)
   }
 }

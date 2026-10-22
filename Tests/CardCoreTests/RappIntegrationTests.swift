@@ -13,7 +13,7 @@ import Testing
     // MARK: Static Properties
 
     /// How long the card command holds the custodian: past the silence
-    /// after which a ping goes out (RAPP v26.10.21 §8.3), plus two liveness
+    /// after which a ping goes out (RAPP v26.10.22 §8.3), plus two liveness
     /// polls so the exchange has happened before the answer leaves.
     private static let cardHoldPastPing = Duration.milliseconds(
       LivenessTracker.pingAfterSilenceMilliseconds

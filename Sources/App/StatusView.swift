@@ -38,7 +38,6 @@
     /// Notices a card waiting to be taken into use, and carries the
     /// model its activation form works through.
     private let activation = ActivationWatch.shared
-    @State private var pin2Cache = Pin2Cache()
     @State private var offeringNumber = false
     @State private var hasStoredNumber = false
     @State private var pin2 = ""
@@ -54,13 +53,13 @@
     /// The signing state, readable by the split-out outcome section.
     internal var signingModel: SignDocumentModel { signing }
 
-    /// Ready when a document is waiting and a PIN 2 is available -
-    /// either freshly entered, or remembered from a signature within
-    /// the last minute.
+    /// Ready when a document is waiting and PIN 2 has been entered for
+    /// it: PIN 2 is asked for every signature or batch and kept no longer
+    /// (RAPP v26.10.22 §11 item 2).
     private var canSign: Bool {
       availability == .ready
         && signing.pending != nil
-        && (!asksLocalPin2 || Self.isEntryComplete(pin2) || pin2Cache.isWarm)
+        && (!asksLocalPin2 || Self.isEntryComplete(pin2))
         && !signing.working
         // Not while the card is being read for the stamp: it is one
         // card, and asking it to sign mid-read is asking it to be in
@@ -178,7 +177,6 @@
           format: $format,
           pin2: $pin2,
           accessNumber: $accessNumber,
-          pin2Cache: $pin2Cache,
           asksLocalPin2: asksLocalPin2,
           canSign: canSign,
           onSign: { sign() }
@@ -254,9 +252,6 @@
         signing.cardRemoved()
         pin2 = ""
         accessNumber = ""
-        // A card that left takes the remembered PIN with it: the next
-        // card, even the same one re-inserted, re-earns the memory.
-        pin2Cache.clear()
       // The offered access number deliberately survives this state:
       // a contactless card leaves the field between taps, and the
       // offer exists to serve the next tap. Withdrawing it here once
@@ -309,7 +304,7 @@
       let destination =
         separately ? nil : SignedOutput.chooseFile(for: signing.queued, format: format)
       guard separately ? folder != nil : destination != nil else { return }
-      let entry = Self.isEntryComplete(pin2) ? pin2 : (pin2Cache.current() ?? "")
+      let entry = Self.isEntryComplete(pin2) ? pin2 : ""
       if asksLocalPin2, entry.isEmpty { return }
       pin2 = ""
       let number = accessNumber
@@ -329,23 +324,15 @@
             )
           }
         }
-        // Remember only a PIN a signature accepted, so a remembered
-        // value is always known good and never spends an attempt; any
-        // failure forgets it and asks for the PIN again.
         if signing.lastActionSignedSomething {
-          if asksLocalPin2 { pin2Cache.remember(entry) }
           signing.clearQueue()
-        } else if asksLocalPin2 {
-          pin2Cache.clear()
         }
       }
     }
 
-    // PIN 2 for a paired phone is collected on that phone, not here.
-    // It is not stored in the iPhone app. The phone holds it in memory
-    // for at most one minute so a pile of documents is one prompt.
-    // A local reader still collects PIN 2 in this window.
-    // The Mac does not send PIN 2.
+    // PIN 2 for a paired phone is collected on that phone, not here, for
+    // every signature or batch, and kept no longer. A local reader
+    // collects PIN 2 in this window. The Mac does not send PIN 2.
   }
 
 #endif

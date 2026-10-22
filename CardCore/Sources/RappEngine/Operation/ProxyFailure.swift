@@ -5,7 +5,7 @@ import Foundation
 /// Why the custodian ends an operation without an answer.
 ///
 /// Each reason fixes the status and the registered error the result carries
-/// (RAPP v26.10.21 §10.3), so a result cannot pair a failure with a status
+/// (RAPP v26.10.22 §10.3), so a result cannot pair a failure with a status
 /// that contradicts it.
 internal enum ProxyFailure: Equatable, CaseIterable {
   /// The card returned no answer: no card within the wait, the field lost,

@@ -11,12 +11,6 @@ internal enum TokenRegistrationRevoker {
     /// The card proved that the stored CAN cannot authenticate this field.
     case canRejection
 
-    /// The card rejected the credential authorizing automatic signatures.
-    case pin1Rejection
-
-    /// The card rejected the credential authorizing a qualified signature.
-    case pin2Rejection
-
     /// The holder deliberately connected a reader and inserted a usable card.
     case readerMint
 
@@ -25,12 +19,6 @@ internal enum TokenRegistrationRevoker {
       switch self {
       case .canRejection:
         "CAN rejection"
-
-      case .pin1Rejection:
-        "PIN1 rejection"
-
-      case .pin2Rejection:
-        "PIN2 rejection"
 
       case .readerMint:
         "reader mint"

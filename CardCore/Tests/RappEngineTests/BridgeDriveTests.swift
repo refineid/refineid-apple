@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-/// Operations end to end between the two operation bridges (RAPP v26.10.21
+/// Operations end to end between the two operation bridges (RAPP v26.10.22
 /// §8, §9).
 @Suite("RAPP operations between the bridges")
 internal struct BridgeDriveTests {
@@ -21,7 +21,7 @@ internal struct BridgeDriveTests {
   }
 
   /// A browser authentication the requester began and the custodian holds,
-  /// with the card taken and the consent view up.
+  /// with the card taken and the PIN asked for.
   private static func authenticationAwaitingConsent(
     _ session: LiveSession, _ identifier: RappOperationIdentifier
   ) throws {
@@ -38,7 +38,7 @@ internal struct BridgeDriveTests {
     guard
       case .custodianStep(identifier, .awaitUserApproval, _) = try session.custodian
         .prerequisitesComplete(operationId: identifier, nowMs: start)
-    else { throw DriveFailure(description: "an authentication asks for consent") }
+    else { throw DriveFailure(description: "an authentication takes its PIN") }
   }
 
   @Test("A browser authentication completes end to end with its progress")
@@ -66,8 +66,8 @@ internal struct BridgeDriveTests {
         == nil, "an operation with its result reports no progress")
   }
 
-  @Test("A read takes its turn and skips consent")
-  internal func readSkipsConsent() throws {
+  @Test("A read takes its turn and asks the holder nothing")
+  internal func readAsksNothing() throws {
     let session = try Self.established()
     let identifier = OperationFixture.operationIdentifier
     let request = try session.requester.beginInspectCard(
@@ -79,11 +79,11 @@ internal struct BridgeDriveTests {
     guard
       case .custodianStep(identifier, .executeSafeRead, let read) = try session.custodian
         .prerequisitesComplete(operationId: identifier, nowMs: Self.start)
-    else { throw DriveFailure(description: "a read skips consent") }
+    else { throw DriveFailure(description: "a read asks the holder nothing") }
     #expect(read.kind == .inspectCard)
     #expect(
       (try? session.custodian.approve(operationId: identifier, approvedAtMs: Self.start)) == nil,
-      "a read has no consent to approve")
+      "a read has no PIN to approve")
     let answer = try session.custodian.completeInspection(
       operationId: identifier, answerToReset: Self.answerToReset)
     #expect(
@@ -196,7 +196,7 @@ internal struct BridgeDriveTests {
     guard
       case .custodianStep(identifier, .awaitUserApproval, let consent) = try session.custodian
         .prerequisitesComplete(operationId: identifier, nowMs: Self.start)
-    else { throw DriveFailure(description: "a batch asks for consent") }
+    else { throw DriveFailure(description: "a batch asks for PIN 2 once") }
     #expect(consent.documentNames == documents)
     _ = try session.custodian.approve(
       operationId: identifier, approvedAtMs: OperationFixture.approvalMilliseconds)

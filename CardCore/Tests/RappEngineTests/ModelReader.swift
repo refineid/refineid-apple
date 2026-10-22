@@ -22,6 +22,7 @@ internal struct ModelReader {
     fileprivate var version = ""
     fileprivate var guardNames: Set<String> = []
     fileprivate var actionNames: Set<String> = []
+    fileprivate var constants: [String: UInt64] = [:]
     fileprivate var rules: [String: [ParsedRule]] = ["pairing": [], "session": [], "operation": []]
     fileprivate var states: [String: [String]] = ["pairing": [], "session": [], "operation": []]
     fileprivate var section = ""
@@ -44,6 +45,9 @@ internal struct ModelReader {
       if !inTransitions {
         if section == "guards" { guardNames.insert(String(key)) }
         if section == "actions" { actionNames.insert(String(key)) }
+        if section == "constants", let value = UInt64(ModelReader.value(of: body)) {
+          constants[String(key)] = value
+        }
       }
     }
 
@@ -93,6 +97,8 @@ internal struct ModelReader {
   internal let documentVersion: String
   internal let guardNames: Set<String>
   internal let actionNames: Set<String>
+  /// The model's named numbers, by name.
+  internal let constants: [String: UInt64]
   internal let rules: [String: [ParsedRule]]
   /// The states each machine declares, in model order.
   internal let states: [String: [String]]
@@ -107,6 +113,7 @@ internal struct ModelReader {
     self.documentVersion = parser.version
     self.guardNames = parser.guardNames
     self.actionNames = parser.actionNames
+    self.constants = parser.constants
     self.rules = parser.rules
     self.states = parser.states
   }

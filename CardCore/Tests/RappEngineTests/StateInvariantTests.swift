@@ -4,7 +4,7 @@ import Testing
 
 @testable import RappEngine
 
-/// Invariants of the RAPP v26.10.21 formal model, read off the tables the
+/// Invariants of the RAPP v26.10.22 formal model, read off the tables the
 /// engine carries.
 @Suite("RAPP state invariants")
 internal struct StateInvariantTests {
@@ -55,7 +55,7 @@ internal struct StateInvariantTests {
     #expect(!requester.actions.contains(.sendSessionReady))
   }
 
-  @Test("No private-key command before consent, and none under the retry floor")
+  @Test("No private-key command before the PIN, and none under the retry floor")
   internal func consentAndRetryFloorPrecedeTheCard() throws {
     for rule in RappModelTables.operation where rule.actions.contains(.consumeCardCommand) {
       #expect(rule.from == [.awaitingConsent] && rule.event == .userApproved)

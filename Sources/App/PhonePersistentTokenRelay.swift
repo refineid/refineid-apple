@@ -28,9 +28,10 @@
     internal static let maximumPreCoordinatorFrames = 4
     internal static let nearbyRedialDelayMilliseconds = 150
 
-    /// Whether this phone can answer for a card now: a card in a
-    /// connected reader, or a primed near-field card the holder can
-    /// present when asked.
+    /// Whether this phone holds a card (RAPP v26.10.22 §8.4 item 1): a card
+    /// in a connected reader, from insertion until removal, or a near-field
+    /// card the holder added to the phone, until the holder removes it
+    /// there.
     internal static var canServeCard: Bool {
       CardPresence.shared.isReaderCardPresent || PrimeStore.storedCount() > 0
     }
@@ -66,8 +67,6 @@
     >(initialState: ([], RappSessionRouter()))
     /// The operations the open session is running.
     internal var operationsInFlight: Set<RappOperationIdentifier> = []
-    /// The word on the card the requester is given (RAPP v26.10.21 §8.4).
-    internal var cardReport = CustodianCardReport(servable: canServeCard)
     /// What the open session was last told about the card.
     internal var reportedCardStatus: RappCardStatus?
     /// What this phone knows of the reader card it serves.

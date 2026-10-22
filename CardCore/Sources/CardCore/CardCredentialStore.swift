@@ -4,23 +4,20 @@ import CryptoKit
 import Foundation
 import Security
 
-/// Where this device keeps the card access number, and optionally PIN1.
+/// Where this device keeps the card access number.
 ///
-/// PIN1 is never handed back for display: written once, present-or-absent
-/// afterwards. The card access number is the holder's to see -- it is
-/// printed on the card face -- and ``displayedCardAccessNumber()`` returns
-/// it for the manager window. Neither enters a log.
+/// The card access number is the holder's to see -- it is printed on the
+/// card face -- and ``displayedCardAccessNumber()`` returns it for the
+/// manager window. It never enters a log. No PIN is ever stored: PIN 1 is
+/// held only in the memory of the process that asked for it, and PIN 2 is
+/// asked for every signature (RAPP v26.10.22 §11 item 2).
 ///
-/// Both are `WhenUnlockedThisDeviceOnly` and non-synchronizable, so
-/// neither is written into a backup, restored onto another device, or
-/// sent to iCloud. Neither attribute implies the other; both are set.
-///
-/// Neither item carries a `SecAccessControl`, and storage is ungated.
-/// The token extension reads the stored value while signing a Safari
-/// request and has no interface to answer a prompt, so an item-level
-/// gate cannot serve this flow; the card's own retry counter is the
-/// control that stops a guessed PIN, and deletion reveals nothing. The
-/// reasoning and the trade are in `Documentation/decisions.md`.
+/// The item is `WhenUnlockedThisDeviceOnly` and non-synchronizable, so it
+/// is never written into a backup, restored onto another device, or sent
+/// to iCloud. Neither attribute implies the other; both are set. It
+/// carries no `SecAccessControl`: the token extension reads it while
+/// opening the card for a Safari request and has no interface to answer a
+/// prompt.
 public enum CardCredentialStore {
   // MARK: Nested Types
 
@@ -31,19 +28,11 @@ public enum CardCredentialStore {
     /// Whether a card access number is stored.
     public let hasCardAccessNumber: Bool
 
-    /// Whether PIN1 is stored for unattended signing.
-    public let hasPin1: Bool
-
-    /// Whether PIN2 is stored for unattended testing.
-    public let hasPin2: Bool
-
     // MARK: Lifecycle
 
     /// Records what a store lookup found.
-    public init(hasCardAccessNumber: Bool, hasPin1: Bool, hasPin2: Bool = false) {
+    public init(hasCardAccessNumber: Bool) {
       self.hasCardAccessNumber = hasCardAccessNumber
-      self.hasPin1 = hasPin1
-      self.hasPin2 = hasPin2
     }
   }
 
@@ -62,24 +51,19 @@ public enum CardCredentialStore {
   /// Account for the card access number.
   internal static let cardAccessNumberAccount = "can"
 
-  /// Account for PIN1, present only when the holder opted in.
-  private static let pin1Account = "pin1"
-
-  /// Account for PIN2, present only when configured for test automation.
-  private static let pin2Account = "pin2"
+  /// Accounts earlier builds stored PIN 1 and PIN 2 under, in this
+  /// service; ``removeRetiredSecrets()`` deletes whatever they left.
+  private static let retiredPinAccounts = ["pin1", "pin2"]
 
   /// Keychain coordinates used by the retired timed signing window.
-  private static let legacySigningWindowService = "fi.refineid.pin1window"
-  private static let legacySigningWindowAccount = "current"
+  private static let retiredSigningWindowService = "fi.refineid.pin1window"
+  private static let retiredSigningWindowAccount = "current"
 
   // MARK: Static Functions
 
   /// What is stored, without reading any secret.
   public static func contents() -> Contents {
-    Contents(
-      hasCardAccessNumber: exists(account: cardAccessNumberAccount),
-      hasPin1: exists(account: pin1Account),
-      hasPin2: exists(account: pin2Account))
+    Contents(hasCardAccessNumber: exists(account: cardAccessNumberAccount))
   }
 
   /// Stores the card access number, replacing any previous one.
@@ -198,25 +182,6 @@ public enum CardCredentialStore {
     read(account: cardAccessNumberAccount)
   }
 
-  /// Stores PIN1 for unattended signing, replacing any previous one.
-  ///
-  /// Storing PIN1 trades the rule that one signature costs one PIN entry:
-  /// anything that can reach the token can then sign without the holder
-  /// present. Offer it as a choice, never as a default, and say so where
-  /// the choice is made.
-  @discardableResult
-  public static func save(pin1 digits: String) -> OSStatus {
-    guard Pin1(digits: digits) != nil else { return errSecParam }
-    return write(digits, account: pin1Account)
-  }
-
-  /// Stores PIN2 for unattended testing, replacing any previous one.
-  @discardableResult
-  public static func save(pin2 digits: String) -> OSStatus {
-    guard Pin2(digits: digits) != nil else { return errSecParam }
-    return write(digits, account: pin2Account)
-  }
-
   /// The stored card access number.
   ///
   /// Reads without prompting: the number is printed on the card, and a
@@ -262,38 +227,20 @@ public enum CardCredentialStore {
     return SecItemCopyMatching(query as CFDictionary, &item)
   }
 
-  /// The stored PIN1, or nil when the holder never entered one.
-  public static func pin1() -> Pin1? {
-    read(account: pin1Account).flatMap(Pin1.init(digits:))
-  }
-
-  /// The stored PIN1 digits, or nil when the holder never entered one.
-  public static func pin1Digits() -> String? {
-    read(account: pin1Account)
-  }
-
-  /// The stored PIN2, or nil when none is stored.
-  public static func pin2() -> Pin2? {
-    read(account: pin2Account).flatMap(Pin2.init(digits:))
-  }
-
-  /// The stored PIN2 digits, or nil when none is stored.
-  public static func pin2Digits() -> String? {
-    read(account: pin2Account)
-  }
-
-  /// Removes the duplicate PIN item written by builds with a timed
-  /// signing window.
+  /// Deletes every PIN item an earlier build stored on this device: PIN 1
+  /// and PIN 2 in this service, and the timed signing window's copy.
   ///
-  /// Current builds sign directly from the holder's explicitly stored
-  /// credential, so the derived copy has no reader and must not survive
-  /// an upgrade indefinitely.
-  public static func removeLegacySigningWindow() {
+  /// No PIN may rest in storage (RAPP v26.10.22 §11 item 2), so what an
+  /// earlier build left behind is removed, never read.
+  public static func removeRetiredSecrets() {
     guard !TestCredentialEnvironment.isTestMode else { return }
+    for account in retiredPinAccounts {
+      delete(account: account)
+    }
     let query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
-      kSecAttrService as String: legacySigningWindowService,
-      kSecAttrAccount as String: legacySigningWindowAccount,
+      kSecAttrService as String: retiredSigningWindowService,
+      kSecAttrAccount as String: retiredSigningWindowAccount,
       kSecUseDataProtectionKeychain as String: KeychainPlatform.usesDataProtection,
       kSecAttrSynchronizable as String: false,
     ]
@@ -340,23 +287,4 @@ public enum CardCredentialStore {
     #endif
   }
 
-  /// Removes PIN1, returning to a prompt for every signature.
-  public static func forgetPin1() {
-    delete(account: pin1Account)
-  }
-
-  /// Removes PIN2, returning to a prompt for every signature.
-  public static func forgetPin2() {
-    delete(account: pin2Account)
-  }
-
-  /// Removes everything this device knows about the card's secrets.
-  public static func forgetAll() {
-    delete(account: cardAccessNumberAccount)
-    delete(account: pin1Account)
-    delete(account: pin2Account)
-    #if os(macOS)
-      withdrawCardAccessNumberFromDriver()
-    #endif
-  }
 }

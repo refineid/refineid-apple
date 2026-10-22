@@ -8,18 +8,12 @@
   ///
   /// Gathered into one value because they are one decision: nothing the
   /// holder typed reaches this device until the card has proved the access
-  /// number and the identity is registered, so the writes travel together
-  /// with the clearing that follows them.
+  /// number and the identity is registered. No PIN is ever written (RAPP
+  /// v26.10.22 §11 item 2).
   @MainActor
   internal struct IdentityCommitments {
     /// Commits the access number once PACE has proved it.
     internal let storeCardAccessNumber: (String) -> Bool
-
-    /// Commits PIN1 once the identity it belongs to exists.
-    internal let storeVerifiedPin1: (String) -> Bool
-
-    /// Empties the transient entry, whatever the hold decided.
-    internal let clearPin1Entry: () -> Void
 
     /// Records that this device now has an identity.
     internal let markRegistered: () -> Void

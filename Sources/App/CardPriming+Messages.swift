@@ -80,9 +80,6 @@
       case Failure.wrongCardAccessNumber:
         String(localized: "The Card Access Number (CAN) is incorrect.")
 
-      case Failure.pin1Malformed:
-        String(localized: "PIN 1 does not fit its digit rules.")
-
       case Failure.pin1Unavailable:
         String(localized: "PIN 1 could not be verified safely.")
 

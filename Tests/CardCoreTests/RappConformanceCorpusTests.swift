@@ -9,9 +9,9 @@ internal struct RappConformanceCorpusTests {
   // MARK: Static Properties
 
   /// The pinned corpus file, and the SHA-256 digest of its bytes.
-  private static let corpusPath = "Documentation/rapp-conformance/rapp-v26.10.21.json"
+  private static let corpusPath = "Documentation/rapp-conformance/rapp-v26.10.22.json"
   private static let corpusDigest =
-    "70c88ba7f9aa680248b120dbb4ecac0dfbb2c005be49aad5094e5dc8216348db"
+    "37142b7d94375c92a6accc3842e0c44bffa160617166397139b4e355d7e83f6c"
 
   // MARK: Static Functions
 
@@ -43,7 +43,7 @@ internal struct RappConformanceCorpusTests {
       RappConformanceCorpusSupport.Corpus.self,
       from: source)
     #expect(corpus.format == "fi.refineid.rapp.conformance")
-    #expect(corpus.protocolDocumentVersion == "26.10.21")
+    #expect(corpus.protocolDocumentVersion == "26.10.22")
     #expect(corpus.deterministicCBOR.count == 15)
     #expect(corpus.identifierDerivation.count == 2)
     #expect(corpus.grantsHash.count == 3)

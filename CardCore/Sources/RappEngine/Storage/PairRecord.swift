@@ -16,8 +16,8 @@ internal struct PairRecord: Equatable {
   ]
 
   /// Days a forgotten record keeps its key for the `pairing_revoked` close
-  /// (RAPP v26.10.21 §4.6 item 3).
-  private static let revocationNoticeDays: UInt64 = 30
+  /// (RAPP v26.10.22 §4.6 item 3).
+  internal static let revocationNoticeDays: UInt64 = 30
   private static let millisecondsPerDay: UInt64 = 86_400_000
 
   internal let pairIdentifier: Data
@@ -32,7 +32,7 @@ internal struct PairRecord: Equatable {
   /// Whether both endpoints confirmed storing the pairing.
   ///
   /// A record stored before the peer's `pairing.stored` is unconfirmed
-  /// (RAPP v26.10.21 §4.3 item 4): it opens no session, routes nothing,
+  /// (RAPP v26.10.22 §4.3 item 4): it opens no session, routes nothing,
   /// and is revoked when found at start-up.
   internal private(set) var storageConfirmed: Bool
   /// When the local user forgot the pairing while no session was open, in

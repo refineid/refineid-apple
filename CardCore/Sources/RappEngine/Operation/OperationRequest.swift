@@ -3,7 +3,7 @@
 import Foundation
 
 /// One typed request, which lives inside the session that carried it (RAPP
-/// v26.10.21 §8.1).
+/// v26.10.22 §8.1).
 internal struct OperationRequest: Equatable {
   /// The lifetime a request that names none receives (§8.1 item 2).
   internal static let defaultLifetimeMilliseconds: UInt64 = 300_000

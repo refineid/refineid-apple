@@ -3,10 +3,11 @@
 import Foundation
 
 /// What follows once an operation has the card and its prerequisite reads
-/// are done (RAPP v26.10.21 §8.2 items 3 and 6).
+/// are done (RAPP v26.10.22 §8.2 items 3 and 6).
 internal enum PrerequisitesOutcome: Equatable {
-  /// Show the consent view and wait for the holder.
+  /// Take the PIN, prompting the holder when it is not held.
   case awaitConsent
-  /// Execute this read and answer directly with a result; no consent.
+  /// Execute this read and answer directly with a result; the holder is
+  /// asked nothing.
   case executeSafeRead(AuthorizedSafeRead)
 }

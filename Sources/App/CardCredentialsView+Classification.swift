@@ -28,21 +28,6 @@ extension CardCredentialsView {
     #endif
   }
 
-  /// Returns the transient PIN only to the card-reading operation.
-  @MainActor
-  internal func enteredPin1() -> String? {
-    guard isPin1EntryComplete else { return nil }
-    isPin1FieldFocused = false
-    return pin1Entry
-  }
-
-  /// Removes PIN1 from UI memory after every completed NFC operation.
-  @MainActor
-  internal func clearPin1Entry() {
-    pin1Entry = ""
-    isPin1FieldFocused = false
-  }
-
   /// One side-effect-free NFC snapshot decides activation, recovery, and the
   /// healthy path before PIN management opens.
   internal func classifyIdentityCard(for purpose: CardConnectionPurpose) {
@@ -89,7 +74,6 @@ extension CardCredentialsView {
       handleWrongCardAccessNumber()
 
     case .failed:
-      clearPin1Entry()
       transition(.classificationFailed)
     }
   }
@@ -97,17 +81,14 @@ extension CardCredentialsView {
   private func handleActivated(entered: String, purpose _: CardConnectionPurpose) {
     if !isDemonstration, !model.saveCardAccessNumber(entered) {
       cardAccessNumberEntry = ""
-      clearPin1Entry()
       isCardAccessNumberFieldFocused = true
       transition(.classificationFailed)
       return
     }
     if retryHealth.recovery != nil {
-      clearPin1Entry()
       transition(.classificationRecoveryRequired)
       return
     }
-    clearPin1Entry()
     transition(.classificationActivated)
   }
 
@@ -115,10 +96,6 @@ extension CardCredentialsView {
     scheme: ActivationScheme,
     needs: CardActivationNeeds
   ) {
-    if !isDemonstration {
-      model.forgetPin1()
-    }
-    clearPin1Entry()
     activationScheme = scheme
     activationNeeds = needs
     transition(.classificationActivationRequired)
@@ -130,7 +107,6 @@ extension CardCredentialsView {
     }
     cardAccessNumberEntry = ""
     isCardAccessNumberFieldFocused = true
-    clearPin1Entry()
     transition(.classificationWrongCardAccessNumber)
   }
 
@@ -158,16 +134,6 @@ extension CardCredentialsView {
     } else if !hasIdentity, flowState == .identityHome {
       transition(.identityForgotten)
     }
-  }
-
-  /// Commits verified PIN 1 at the device boundary.
-  internal func storeVerifiedPin1(_ pin1: String) -> Bool {
-    #if os(iOS)
-      if isDemonstration {
-        return demoMode.hasIdentity
-      }
-    #endif
-    return model.savePin1(pin1)
   }
 
   /// Completes registration from the operation result instead of waiting for
@@ -209,13 +175,9 @@ extension CardCredentialsView {
 
   /// Sets the identity up in one hold.
   internal func connectIdentityCard() {
-    if !pin1Entry.isEmpty, !isPin1EntryComplete { return }
-    let pin1 = enteredPin1()
-    guard isCardAccessNumberEntryComplete, pin1 != nil || OnDemandPinExperiment.isEnabled else {
+    guard isCardAccessNumberEntryComplete else {
       #if DEBUG
-        DebugConsole.emit(
-          "connectIdentityCard: guard failed complete=\(isCardAccessNumberEntryComplete) pin1=\(pin1 != nil)"
-        )
+        DebugConsole.emit("connectIdentityCard: guard failed, access number incomplete")
       #endif
       return
     }
@@ -238,13 +200,10 @@ extension CardCredentialsView {
       #if REFINEID_LOCAL_CARD && os(iOS)
         let succeeded = await CardRegistrationSections.registerIdentity(
           cardAccessNumber: entered,
-          pin1: pin1,
           model: primingModel,
-          commit: IdentityCommitments(
-            storeCardAccessNumber: storeProvenCardAccessNumber,
-            storeVerifiedPin1: storeVerifiedPin1,
-            clearPin1Entry: clearPin1Entry
-          ) { isRegistered = true })
+          commit: IdentityCommitments(storeCardAccessNumber: storeProvenCardAccessNumber) {
+            isRegistered = true
+          })
         finishIdentitySetup(succeeded: succeeded)
       #else
         transition(.classificationFailed)
@@ -259,7 +218,6 @@ extension CardCredentialsView {
       retryHealth.update(primingModel.credentialReport)
       guard !succeeded else {
         if retryHealth.recovery != nil {
-          clearPin1Entry()
           transition(.classificationRecoveryRequired)
           return
         }
@@ -275,18 +233,15 @@ extension CardCredentialsView {
           }
           cardAccessNumberEntry = ""
           isCardAccessNumberFieldFocused = true
-          clearPin1Entry()
           transition(.classificationWrongCardAccessNumber)
         }
 
       case .activationRequired(let scheme, let needs):
-        clearPin1Entry()
         activationScheme = scheme
         activationNeeds = needs
         transition(.classificationActivationRequired)
 
       case .secureChannelTimedOut, nil:
-        clearPin1Entry()
         transition(.classificationFailed)
       }
     #endif
@@ -310,11 +265,9 @@ extension CardCredentialsView {
     }
   }
 
-  /// Empties both fields once they have nothing left to describe.
+  /// Empties the field once it has nothing left to describe.
   internal func clearEntries() {
     cardAccessNumberEntry = ""
-    pin1Entry = ""
     isCardAccessNumberFieldFocused = false
-    isPin1FieldFocused = false
   }
 }

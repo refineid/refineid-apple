@@ -47,8 +47,9 @@ The Rust core remains the reference oracle.
   credential transport, and wrong-PIN rejection memory. Normal minting and
   authentication never probe PIN2 or PUK. The
   system-driven NFC field also omits the PIN1 preflight because its measured
-  deadline cannot carry that extra APDU; it uses the explicitly stored PIN1
-  and revokes the identity on a confirmed rejection.
+  deadline cannot carry that extra APDU; it asks PIN1 on the system sheet
+  once, holds it only in the extension's memory for that card, and forgets
+  it on a confirmed rejection. No PIN is ever stored.
 
 ## 6. Production NFC
 

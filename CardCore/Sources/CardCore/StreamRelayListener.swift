@@ -69,7 +69,7 @@ import Foundation
     /// `admitsReplacement` says its first frame may take the open
     /// connection's place: the owner answers yes only for a preamble that
     /// routes to a pairing it serves while the open session carries no
-    /// operation, so a requester's standing session (RAPP v26.10.21 §8.4)
+    /// operation, so a requester's standing session (RAPP v26.10.22 §8.4)
     /// never keeps another process of the same requester from its
     /// operation, and a stranger displaces nothing. The admitted dialer is
     /// then reported as connected, its first frame first.

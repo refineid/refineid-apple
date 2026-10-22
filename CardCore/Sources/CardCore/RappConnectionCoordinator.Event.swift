@@ -12,7 +12,7 @@
       case transportFailure
       case localRequest
 
-      /// Whether the peer revoked the pairing (RAPP v26.10.21 §4.6 item 4).
+      /// Whether the peer revoked the pairing (RAPP v26.10.22 §4.6 item 4).
       public var peerRevokedPairing: Bool {
         self == .handshake(.pairRevoked) || self == .operation(.pairRevoked)
       }
@@ -45,7 +45,7 @@
       case completed(operationID: RappOperationIdentifier, result: RappOperationResult)
       case terminal(operationID: RappOperationIdentifier, reason: RappTerminalReason)
       case progress(operationID: RappOperationIdentifier, event: ProgressEvent)
-      /// The custodian's word on which card it can serve now (RAPP v26.10.21
+      /// The custodian's word on which card it can serve now (RAPP v26.10.22
       /// §8.4).
       case cardStatus(RappCardStatus)
       /// The session's operation ended with the session (§8.1 item 3).

@@ -48,7 +48,7 @@
     /// present, remote identities are withdrawn. Nothing is written unless
     /// the phone's open session says a card is present, and an identity is
     /// offered only for the card that session names: one published for
-    /// another card is withdrawn, to be read afresh (RAPP v26.10.21 §8.4
+    /// another card is withdrawn, to be read afresh (RAPP v26.10.22 §8.4
     /// items 2 and 3).
     internal func ensurePublished() {
       guard Self.isRemoteCardEnabled else {

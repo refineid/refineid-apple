@@ -26,16 +26,16 @@ internal struct FieldSpec {
   private static let fingerprint = Shape.bytes(Size.digest)
   private static let challenge = Shape.bytes(Size.digest)
 
-  /// `close-reason-val` (RAPP v26.10.21 §7.1).
+  /// `close-reason-val` (RAPP v26.10.22 §7.1).
   internal static let closeReasons: Set<String> = [
     "normal", "complete", "user_disconnect", "policy", "protocol_violation", "pairing_revoked",
     "shutdown", "card_unavailable", "service_withdrawn",
   ]
 
-  /// `operation-status-val` (RAPP v26.10.21 §7.1).
+  /// `operation-status-val` (RAPP v26.10.22 §7.1).
   internal static let operationStatuses: Set<String> = ["completed", "rejected", "cancelled"]
 
-  /// Bounds on the error body's text fields (RAPP v26.10.21 §10.3).
+  /// Bounds on the error body's text fields (RAPP v26.10.22 §10.3).
   internal static let errorNameLengths = 1...64
   internal static let errorMessageLengths = 1...512
 

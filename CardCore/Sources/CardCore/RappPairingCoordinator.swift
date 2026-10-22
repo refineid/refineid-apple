@@ -4,7 +4,7 @@
   import Foundation
   import RappEngine
 
-  /// Drives one RAPP v26.10.21 pairing ceremony over one transport.
+  /// Drives one RAPP v26.10.22 pairing ceremony over one transport.
   ///
   /// The custodian creates a random offer, shows a pairing code and waits;
   /// the requester types the code, connects and reads the offer through the
@@ -82,7 +82,7 @@
       /// Three wrong codes destroyed the custodian's offer.
       case attemptsExhausted
       /// The peer never confirmed storing the pairing; the record this
-      /// endpoint stored is revoked (RAPP v26.10.21 §4.3 item 4).
+      /// endpoint stored is revoked (RAPP v26.10.22 §4.3 item 4).
       case storageUnconfirmed
     }
 
@@ -109,7 +109,7 @@
       case awaitingPeerHello
       case awaitingPeerConfirmation
       /// The record is stored and `pairing.stored` sent; the peer's is
-      /// awaited (RAPP v26.10.21 §4.3 item 4).
+      /// awaited (RAPP v26.10.22 §4.3 item 4).
       case awaitingPeerStored
       case completed
       case closed
@@ -126,7 +126,7 @@
     internal var bridge: RappPairingBridge?
     internal let vault: RappDeviceVault
     internal var transport: any RappFrameTransport
-    /// The transport profile this ceremony runs over (RAPP v26.10.21 §2.2).
+    /// The transport profile this ceremony runs over (RAPP v26.10.22 §2.2).
     internal let transportProfile: String
     internal let candidateID: String
     /// The canonical code a requester types, kept until its offer arrives.

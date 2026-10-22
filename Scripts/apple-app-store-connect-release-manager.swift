@@ -492,7 +492,7 @@ private func inspectReleaseArchive(_ archive: URL) {
   )
 
   let forbiddenStrings =
-    #"refineid-token-extension\.log|Uniffi callback interface .*handle missing in uniffiFree|\[(persistent-relay|persistent-token)\]|^(sign|session|discovery|mintFromPrime|createToken|supports|beginAuth|unseal|reader|prime): |^--(diagnostics|trace|reset-card-state|set-can|forget-can|set-pin1|prime)$"#
+    #"refineid-token-extension\.log|Uniffi callback interface .*handle missing in uniffiFree|\[(persistent-relay|persistent-token)\]|^(sign|session|discovery|mintFromPrime|createToken|supports|beginAuth|unseal|reader|prime): |^--(diagnostics|trace|reset-card-state|set-can|forget-can|prime)$"#
   for executable in executables {
     let output = releaseRun(
       "/usr/bin/strings",

@@ -49,7 +49,7 @@
     /// hints (transport hierarchy §4.3).
     ///
     /// A pairing this holder forgot keeps its hint until its close reaches the
-    /// requester (RAPP v26.10.21 §4.6 item 2).
+    /// requester (RAPP v26.10.22 §4.6 item 2).
     private func sessionRecord(_ contexts: [PhoneStreamPairContext]) -> [String: String] {
       let now = Date()
       return StreamRendezvousName.sessionRecord(
@@ -128,7 +128,7 @@
     }
 
     /// Announces that this holder stopped serving, then stops listening
-    /// (RAPP v26.10.21 §4.5): open sessions close with
+    /// (RAPP v26.10.22 §4.5): open sessions close with
     /// `service_withdrawn`, no connection is accepted, and the listener
     /// publishes the withdrawn record for a few seconds before it goes.
     internal func withdrawService(then tearDown: @escaping @MainActor () -> Void) {

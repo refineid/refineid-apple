@@ -106,14 +106,14 @@
         ))
     }
 
-    /// Tells the requester which card can answer now (RAPP v26.10.21 §8.4).
+    /// Tells the requester which card can answer now (RAPP v26.10.22 §8.4).
     public func reportCardStatus(_ status: RappCardStatus) async throws {
       let driver = try operationDriver()
       await handleOperation(await driver.reportCardStatus(status))
     }
 
-    /// Reports progress on an active operation, such as the consent view
-    /// being on screen (RAPP v26.10.21 §8.2 item 3).
+    /// Reports progress on an active operation, such as a PIN prompt being
+    /// on screen (RAPP v26.10.22 §8.2 item 3).
     public func reportProgress(operationID: RappOperationIdentifier, event: ProgressEvent)
       async throws
     {
@@ -148,7 +148,7 @@
         ))
     }
 
-    /// The retry floor refused before any verification (RAPP v26.10.21
+    /// The retry floor refused before any verification (RAPP v26.10.22
     /// §10.2).
     public func retryFloor(operationID: RappOperationIdentifier) async throws {
       let driver = try operationDriver()
@@ -180,7 +180,7 @@
       )
     }
 
-    /// Completes an identity read (RAPP v26.10.21 §9.1).
+    /// Completes an identity read (RAPP v26.10.22 §9.1).
     public func completeIdentity(
       operationID: RappOperationIdentifier,
       identity: RappOperationDriver.Identity

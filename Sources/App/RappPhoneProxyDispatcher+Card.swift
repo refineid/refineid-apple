@@ -117,7 +117,7 @@
     }
 
     /// Runs the one approved card command; a PIN the card refused is asked
-    /// for again on the phone while the retry floor allows (RAPP v26.10.21
+    /// for again on the phone while the retry floor allows (RAPP v26.10.22
     /// §10.2), and the requester learns only the outcome.
     internal func executeCardCommand(
       operationID: RappOperationIdentifier,
@@ -182,14 +182,16 @@
       }
       switch operation.kind {
       case .browserAuthenticate:
-        let pin1 = pin1ByOperation.removeValue(forKey: operationID)
-        return await RappCardExecutor.browserAuthentication(
+        guard let pin1 = pin1ByOperation.removeValue(forKey: operationID) else { return nil }
+        let outcome = await RappCardExecutor.browserAuthentication(
           cardAccessNumber: accessNumber,
           pin1: pin1,
           keyProfile: keyProfile,
           algorithm: algorithm,
           digest: operation.digest
         )
+        await settleHeldPin1(pin1, after: outcome)
+        return outcome
 
       case .signDocument:
         guard let pin2 = pin2ByOperation.removeValue(forKey: operationID) else {
@@ -206,6 +208,31 @@
       case .inspectCard, .readIdentity, .readAuthenticationCertificate,
         .readSignatureCertificate, .batchSignDocuments:
         return nil
+      }
+    }
+
+    /// Holds a typed PIN 1 once the card accepted it, and forgets a held one
+    /// the counter no longer confirms (RAPP v26.10.22 §11 item 2).
+    ///
+    /// A refusal is forgotten where it is answered; a transport failure
+    /// keeps what is held, since the counter is read again before its next
+    /// use.
+    private func settleHeldPin1(
+      _ pin1: RappCardExecutor.SigningPin,
+      after outcome: RappCardExecutor.Outcome
+    ) async {
+      switch (pin1, outcome) {
+      case (.enteredPin1(let digits), .result):
+        await MainActor.run {
+          guard let card = PhonePersistentTokenRelay.shared.servedCardFingerprint else { return }
+          HeldPin1.shared.hold(digits, card: card)
+        }
+
+      case (.heldPin1, .refusedBeforeCredentialTransmit(.heldPin1Unconfirmed)):
+        await MainActor.run { HeldPin1.shared.clear() }
+
+      default:
+        break
       }
     }
 
@@ -226,7 +253,7 @@
         }
 
       case .wrongCardAccessNumber:
-        CardCredentialStore.forgetAll()
+        CardCredentialStore.forgetCardAccessNumber()
         try? await coordinator.operationFailed(operationID: operationID)
 
       case .failed:

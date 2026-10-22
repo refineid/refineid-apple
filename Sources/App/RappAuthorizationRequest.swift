@@ -18,7 +18,7 @@
     internal let action: Action
     internal let displayContext: String?
     /// What the card said about the PIN the holder entered last for this
-    /// request, when it refused it (RAPP v26.10.21 §10.2).
+    /// request, when it refused it (RAPP v26.10.22 §10.2).
     internal let notice: String?
 
   }

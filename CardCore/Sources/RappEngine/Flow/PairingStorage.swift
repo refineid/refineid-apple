@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The storage exchange of a pairing ceremony (RAPP v26.10.21 §4.3 item 4):
+/// The storage exchange of a pairing ceremony (RAPP v26.10.22 §4.3 item 4):
 /// each endpoint confirms that its record is durably stored, and the
 /// pairing is active only once both confirmations have been exchanged.
 ///

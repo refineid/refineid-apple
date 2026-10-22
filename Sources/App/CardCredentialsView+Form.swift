@@ -68,8 +68,7 @@ extension CardCredentialsView {
           let includesFooter = true
         #endif
         if includesFooter {
-          let hidesFooter =
-            isCardAccessNumberFieldFocused || isPin1FieldFocused
+          let hidesFooter = isCardAccessNumberFieldFocused
           CardSetupFooter(isDemonstration: isDemonstration)
             .opacity(hidesFooter ? 0 : 1)
             .allowsHitTesting(!hidesFooter)
@@ -96,7 +95,6 @@ extension CardCredentialsView {
         if registered {
           showStoredCardAccessNumber()
           finishBrowserRegistration(succeeded: true)
-          clearPin1Entry()
         } else {
           synchronizeIdentityState()
         }
@@ -110,18 +108,10 @@ extension CardCredentialsView {
             for: VirtualIDCardOverlayNotification.editorDidDismiss)
         ) { _ in
           isCardAccessNumberFieldFocused = false
-          isPin1FieldFocused = false
         }
       #endif
       .onValueChange(of: isCardAccessNumberEntryComplete) { complete in
-        if complete {
-          #if os(iOS)
-            isPin1FieldFocused = true
-          #endif
-          return
-        }
-        pin1Entry = ""
-        isPin1FieldFocused = false
+        guard !complete else { return }
         #if os(iOS)
           if isDemonstration {
             demoMode.forgetIdentity()
@@ -147,7 +137,6 @@ extension CardCredentialsView {
       ) { _ in
         model.refresh()
         cardAccessNumberEntry = ""
-        clearPin1Entry()
         activationScheme = nil
         activationNeeds = nil
         model.invalidateCardStatus()

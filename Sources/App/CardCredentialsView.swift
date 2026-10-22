@@ -3,15 +3,17 @@
 import CardCore
 import SwiftUI
 
-/// Setting the card up: the access number, PIN1, and the hold that
-/// registers the card for Safari.
+/// Setting the card up: the access number and the hold that registers the
+/// card for Safari.
+///
+/// No PIN is entered here: PIN 1 is asked for when the card first signs
+/// and is held only in memory (RAPP v26.10.22 §11 item 2).
 ///
 /// This is the screen that matters, so it is the one the app opens on.
 /// Development builds keep technical state behind the Diagnostics row.
 ///
-/// The two credentials and the action they enable form one operation.
-/// Individual replacement controls would imply that they are independent;
-/// starting over is instead the explicit forget action below.
+/// The access number and the action it enables form one operation;
+/// starting over is the explicit forget action below.
 ///
 /// Every control a test drives carries an accessibility identifier, and
 /// the register of them is `UITestIdentifiers` in `Tests/RefineIDUITests`.
@@ -72,7 +74,6 @@ internal struct CardCredentialsView: View {
     @ObservedObject internal var demoMode = DemoMode.shared
   #endif
   @State internal var cardAccessNumberEntry = ""
-  @State internal var pin1Entry = ""
   @State internal var isScanning = false
   @State internal var scannerTorchEnabled = false
   @State internal var registrationReset = false
@@ -81,7 +82,6 @@ internal struct CardCredentialsView: View {
   @State internal var activationNeeds: CardActivationNeeds?
   @State internal var flowState = CardSetupStateMachine.initialState
   @FocusState internal var isCardAccessNumberFieldFocused: Bool
-  @FocusState internal var isPin1FieldFocused: Bool
 
   #if REFINEID_LOCAL_CARD && os(iOS)
     /// The priming model lives here, above everything a hold hides.
@@ -128,16 +128,8 @@ internal struct CardCredentialsView: View {
     isCardAccessNumberEntryComplete ? cardAccessNumberEntry : nil
   }
 
-  /// The PIN is valid for storage only inside the card's documented range.
-  internal var isPin1EntryComplete: Bool {
-    pin1Entry.count >= Pin1.minimumDigitCount
-      && pin1Entry.count <= Pin1.maximumDigitCount
-  }
-
   /// The point at which operations using the printed card number can be
   /// offered.
-  ///
-  /// Until all six digits exist, PIN1 has no card to belong to.
   internal var isCardAccessNumberEntryComplete: Bool {
     cardAccessNumberEntry.count == CardAccessNumber.digitCount
   }
@@ -246,16 +238,14 @@ internal struct CardCredentialsView: View {
     #endif
   }
 
-  /// Both credentials must be usable before minting starts.
+  /// The access number must be proved before minting starts.
   internal var canPrepareIdentity: Bool {
     #if os(iOS)
       if isDemonstration {
         return demoMode.hasValidatedConnection
-          && (isPin1EntryComplete || OnDemandPinExperiment.isEnabled)
       }
     #endif
     return model.contents.hasCardAccessNumber
-      && (isPin1EntryComplete || OnDemandPinExperiment.isEnabled)
   }
 
   #if os(iOS)
@@ -276,14 +266,6 @@ internal struct CardCredentialsView: View {
         && !model.isConnecting
     }
 
-    /// Whether PIN 1 has been stored on this device.
-    internal var isPin1Cached: Bool {
-      if isDemonstration {
-        return demoMode.hasValidatedConnection
-      }
-      return model.contents.hasPin1
-    }
-
     /// Whether Read Identity Card can start the NFC hold that primes the card.
     internal var canReadIdentityCard: Bool {
       guard
@@ -292,7 +274,6 @@ internal struct CardCredentialsView: View {
       else { return false }
       #if REFINEID_LOCAL_CARD
         if primingModel.isRunning { return false }
-        if !pin1Entry.isEmpty, !isPin1EntryComplete { return false }
       #endif
       return true
     }

@@ -8,10 +8,11 @@ import Foundation
 
 /// The phase one operation has reached.
 internal enum AuthorizationStage: Equatable {
-  /// Admitted; the reads that precede consent have not completed.
+  /// Admitted; the reads that precede the PIN have not completed.
   case requested
-  /// The consent view may be shown; only an action that needs the holder's
-  /// authorization comes here.
+  /// The custodian takes the PIN: it prompts for one it does not hold, and
+  /// entering it is the holder's consent (RAPP v26.10.22 §8.2 item 3); only
+  /// an action that needs a PIN comes here.
   case awaitingConsent
   /// A registered read is running.
   case executingSafeRead

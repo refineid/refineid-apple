@@ -10,7 +10,7 @@ import Foundation
 /// 2. User cancels or dismisses the matching operation (tied to `operationID`).
 /// 3. The card explicitly rejects the PIN or an ambiguous failure occurs during transmission.
 /// 4. A different card is presented (mismatch).
-/// 5. The experiment is disabled or credentials are forgotten.
+/// 5. The card's setup is forgotten.
 ///
 /// Lives purely in volatile process memory with zeroization upon deallocation.
 public final class TransientCandidatePin1: @unchecked Sendable {
@@ -49,9 +49,6 @@ public final class TransientCandidatePin1: @unchecked Sendable {
     operationID: UUID,
     correlationID: String
   ) -> Bool {
-    guard OnDemandPinExperiment.isEnabled else {
-      return false
-    }
     guard
       let digitStore = CredentialDigits.validated(
         digits,
@@ -74,12 +71,6 @@ public final class TransientCandidatePin1: @unchecked Sendable {
 
   /// Whether a valid candidate is pending for this card instance.
   public func hasPending(for instanceID: CardInstanceIdentifier) -> Bool {
-    guard OnDemandPinExperiment.isEnabled else {
-      lock.lock()
-      pending = nil
-      lock.unlock()
-      return false
-    }
     lock.lock()
     defer { lock.unlock() }
     guard let current = pending else {
@@ -97,12 +88,6 @@ public final class TransientCandidatePin1: @unchecked Sendable {
   /// Returns nil if no candidate exists or if the card does not match.
   /// On card mismatch, immediately clears the pending candidate to prevent cross-card leakage.
   public func checkout(for instanceID: CardInstanceIdentifier) -> Pin1? {
-    guard OnDemandPinExperiment.isEnabled else {
-      lock.lock()
-      pending = nil
-      lock.unlock()
-      return nil
-    }
     lock.lock()
     defer { lock.unlock() }
     guard let current = pending else {

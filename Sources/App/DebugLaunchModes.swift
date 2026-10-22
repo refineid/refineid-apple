@@ -113,10 +113,7 @@
       case .diagnostics:
         DebugModeReport(lines: DebugDiagnosticsReport.lines(), succeeded: true)
 
-      case .disableOnDemandPin, .enableOnDemandPin, .forgetPin1, .statusOnDemandPin:
-        Self.experimentReport(for: mode)
-
-      case .forgetCan, .setCan, .setPin1, .setPin2:
+      case .forgetCan, .setCan:
         Self.credentialReport(for: mode)
 
       case .localNetworkProbe:
@@ -275,29 +272,9 @@
         Self.forgetCardAccessNumber()
       case .setCan:
         Self.storeCardAccessNumber()
-      case .setPin1:
-        Self.storePin1()
-      case .setPin2:
-        Self.storePin2()
       default:
         DebugModeReport(lines: [], succeeded: false)
       }
-    }
-
-    /// Stores the PIN1 given after `--set-pin1`.
-    private static func storePin1() -> DebugModeReport {
-      Self.storeCredential(
-        named: "set-pin1",
-        digits: Self.value(after: .setPin1),
-        save: CardCredentialStore.save(pin1:))
-    }
-
-    /// Stores the PIN2 given after `--set-pin2`.
-    private static func storePin2() -> DebugModeReport {
-      Self.storeCredential(
-        named: "set-pin2",
-        digits: Self.value(after: .setPin2),
-        save: CardCredentialStore.save(pin2:))
     }
 
     /// Writes one credential and reports what the keychain said.
@@ -306,8 +283,7 @@
     /// write and a write the platform would not build an access control for
     /// are different faults with the same shape from outside, and the
     /// status is what tells them apart. The digits themselves are never
-    /// printed -- only how many there were, which is what catches a shell
-    /// that ate a leading zero.
+    /// printed.
     private static func storeCredential(
       named name: String,
       digits: String?,

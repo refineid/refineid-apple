@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.10.21 pairing bridge: CPace KC2, attempt accounting, ceremony")
+@Suite("RAPP v26.10.22 pairing bridge: CPace KC2, attempt accounting, ceremony")
 internal struct PairingBridgeTests {
   private static let code = "7KX4M9"
   private static let wrongCode = "7KX4M8"

@@ -119,8 +119,6 @@ extension VirtualIDCard {
     public var storedCardAccessNumber: String?
     /// The CAN in use on the currently open near-field connection.
     public var connectedCardAccessNumber: String?
-    /// True once PIN 1 has been taken into use on this device.
-    public var hasPin1: Bool
     /// True once the device has cached the holder's identity.
     public var cachedIdentity: Bool
     /// True once the device has published the card as a token.
@@ -132,14 +130,12 @@ extension VirtualIDCard {
     public init(
       storedCardAccessNumber: String? = nil,
       connectedCardAccessNumber: String? = nil,
-      hasPin1: Bool = false,
       cachedIdentity: Bool = false,
       tokenRegistered: Bool = false,
       pendingSigningRequest: Bool = false
     ) {
       self.storedCardAccessNumber = storedCardAccessNumber
       self.connectedCardAccessNumber = connectedCardAccessNumber
-      self.hasPin1 = hasPin1
       self.cachedIdentity = cachedIdentity
       self.tokenRegistered = tokenRegistered
       self.pendingSigningRequest = pendingSigningRequest

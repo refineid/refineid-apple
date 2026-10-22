@@ -2,12 +2,12 @@
 
 import Foundation
 
-/// One operation of a session from admission to its result (RAPP v26.10.21
+/// One operation of a session from admission to its result (RAPP v26.10.22
 /// §8).
 ///
 /// It lives in memory only and ends with the session.
 internal struct AuthorizationTransaction {
-  /// The request as admitted; the consent view renders from this snapshot
+  /// The request as admitted; the PIN prompt renders from this snapshot
   /// (§8.2 item 3).
   internal let request: OperationRequest
 
@@ -32,8 +32,8 @@ internal struct AuthorizationTransaction {
   /// Records that the operation has the card and its prerequisite reads are
   /// done.
   ///
-  /// An action that needs the holder's authorization waits for
-  /// consent; a read skips consent and runs (§8.2 items 3 and 6).
+  /// An action that needs a PIN waits for it; a read asks the holder nothing
+  /// and runs (§8.2 items 3 and 6).
   internal mutating func prerequisitesComplete() throws -> PrerequisitesOutcome {
     guard stage == .requested else { throw AuthorizationError.wrongStage(stage: stage) }
     guard request.operation.isConsequential else {

@@ -44,9 +44,9 @@
         offersNearField,
         "CAN entry does not match the device class")
 
-      let pin1Stored = app.switches["virtualCardPIN1Stored"]
-      scrollTo(pin1Stored, in: app)
-      XCTAssertTrue(pin1Stored.waitForExistence(timeout: Self.appearTimeout))
+      let identityCached = app.switches["virtualCardIdentityCached"]
+      scrollTo(identityCached, in: app)
+      XCTAssertTrue(identityCached.waitForExistence(timeout: Self.appearTimeout))
       XCTAssertEqual(
         app.descendants(matching: .any)["virtualCardStoredCAN"].exists,
         offersNearField,

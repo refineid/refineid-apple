@@ -49,7 +49,6 @@ internal struct DiagnosticsView: View {
       }
       clearLogsSection
       testCredentialsSection
-      experimentSection
     }
     // The list is the window's whole content and takes keyboard focus
     // on open, so without a name of its own VoiceOver announces the
@@ -192,28 +191,6 @@ internal struct DiagnosticsView: View {
     } footer: {
       Text(
         "Primes a synthetic test identity for remote card pairing and testing without a physical card."
-      )
-    }
-  }
-
-  private var experimentSection: some View {
-    Section {
-      Toggle(
-        "On-Demand PIN 1 Experiment",
-        isOn: Binding(
-          get: { OnDemandPinExperiment.isEnabled },
-          set: { enabled in
-            _ = OnDemandPinExperiment.setEnabled(enabled)
-            refresh()
-          }
-        )
-      )
-      .accessibilityIdentifier("onDemandPinExperimentToggle")
-    } header: {
-      Text("Experimental Features")
-    } footer: {
-      Text(
-        "Collects PIN 1 on demand via native sheet during Safari authentication instead of storing it."
       )
     }
   }

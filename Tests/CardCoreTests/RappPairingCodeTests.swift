@@ -20,7 +20,7 @@ import Testing
         #expect(code.count == RappPairingCode.codeLength)
         #expect(RappPairingCode.isValid(code))
         #expect(RappPairingCode.normalize(code) == code)
-        // Excluded visually ambiguous symbols per RAPP v26.10.21 §3.1
+        // Excluded visually ambiguous symbols per RAPP v26.10.22 §3.1
         #expect(!code.contains("I"))
         #expect(!code.contains("L"))
         #expect(!code.contains("O"))

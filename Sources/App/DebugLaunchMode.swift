@@ -36,17 +36,8 @@
     /// Print everything the status screen shows, as text.
     case diagnostics = "--diagnostics"
 
-    /// Disables the experimental on-demand PIN1 authentication flow.
-    case disableOnDemandPin = "--disable-ondemand-pin"
-
-    /// Enables the experimental on-demand PIN1 authentication flow.
-    case enableOnDemandPin = "--enable-ondemand-pin"
-
     /// Drop the stored card access number, wherever it is kept.
     case forgetCan = "--forget-can"
-
-    /// Drop stored PIN1, returning to on-demand collection for logins.
-    case forgetPin1 = "--forget-pin1"
 
     /// Open a listener, dial it from this device, and report both ends.
     ///
@@ -118,12 +109,6 @@
     /// Store a card access number given on the command line.
     case setCan = "--set-can"
 
-    /// Store a PIN1 given on the command line.
-    case setPin1 = "--set-pin1"
-
-    /// Store a PIN2 given on the command line.
-    case setPin2 = "--set-pin2"
-
     /// Sign a PDF at the archival level, with PIN2 read from the
     /// environment, and report what each step produced.
     case signDocument = "--sign-document"
@@ -131,9 +116,6 @@
     /// Sign against the card directly, with a PIN1 given on the command
     /// line, and verify the result.
     case signProbe = "--sign-probe"
-
-    /// Reports the status of the on-demand PIN1 experiment.
-    case statusOnDemandPin = "--status-ondemand-pin"
 
     /// Read the card and build the keychain items a token would publish.
     case tokenPublishProbe = "--token-publish-probe"
@@ -152,10 +134,9 @@
     /// window would have existed.
     internal var needsScene: Bool {
       switch self {
-      case .bleSpike, .diagnostics, .disableOnDemandPin, .enableOnDemandPin, .forgetCan,
-        .forgetPin1,
-        .localNetworkProbe, .paceCheck, .resetCardState, .selectPair, .setCan, .setPin1,
-        .setPin2, .signDocument, .signProbe, .statusOnDemandPin, .tokenPublishProbe, .trace:
+      case .bleSpike, .diagnostics, .forgetCan, .localNetworkProbe, .paceCheck,
+        .resetCardState, .selectPair, .setCan, .signDocument, .signProbe, .tokenPublishProbe,
+        .trace:
         false
 
       case .activationProbe, .bleOfferRemoteReader, .blePairWithOffer, .bleServeRemoteReader,
@@ -176,18 +157,15 @@
       switch self {
       case .activationProbe, .bleOfferRemoteReader, .blePairWithOffer, .bleServeRemoteReader,
         .bleSpike, .browseProbe,
-        .ctkSignProbe, .diagnostics,
-        .disableOnDemandPin,
-        .enableOnDemandPin, .forgetCan, .forgetPin1, .listenProbe, .offerRemoteReader,
+        .ctkSignProbe, .diagnostics, .forgetCan, .listenProbe, .offerRemoteReader,
         .openSafari, .paceCheck, .prime, .remoteIdentityProbe, .remoteSignProbe,
-        .resetCardState, .statusOnDemandPin, .tokenPublishProbe, .trace:
+        .resetCardState, .tokenPublishProbe, .trace:
         false
 
       case .localNetworkProbe:
         true
 
-      case .managementProbe, .selectPair, .setCan, .setPin1, .setPin2,
-        .signDocument, .signProbe:
+      case .managementProbe, .selectPair, .setCan, .signDocument, .signProbe:
         true
 
       case .pairWithOffer:

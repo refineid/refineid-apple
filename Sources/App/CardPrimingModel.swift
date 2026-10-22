@@ -71,19 +71,16 @@
       allowsNearField = SupportedCardTransports.offersNearField
     }
 
-    /// Primes the card using CAN alone for on-demand authentication.
-    internal func prime(cardAccessNumber: String) async {
-      await prime(cardAccessNumber: cardAccessNumber, pin1: nil)
-    }
-
-    /// Primes the card for later system-driven logins through the selected backend.
+    /// Primes the card for later system-driven logins with the access
+    /// number alone; PIN 1 is asked for when the card first signs (RAPP
+    /// v26.10.22 §11 item 2).
     ///
     /// The access number is supplied rather than read from storage, because
     /// a first setup has not stored one yet: this hold is what proves it.
-    internal func prime(cardAccessNumber: String, pin1: String?) async {
+    internal func prime(cardAccessNumber: String) async {
       guard !isRunning else { return }
       if DemoMode.shared.isActive {
-        await primeVirtualCard(cardAccessNumber: cardAccessNumber, pin1: pin1 ?? "")
+        await primeVirtualCard(cardAccessNumber: cardAccessNumber)
         return
       }
       refresh()
@@ -96,7 +93,6 @@
       let isRecovery = isRecoveryModeNext
       let outcome = await CardPriming.prime(
         cardAccessNumber: cardAccessNumber,
-        pin1: pin1,
         isRecovery: isRecovery,
         progress: { _ in
           // The meter on the system NFC sheet carries progress; the
@@ -138,12 +134,13 @@
       isRunning = false
     }
 
-    /// Simulates only card/device effects; callers still use ``prime(pin1:)``.
+    /// Simulates only card/device effects; callers still use
+    /// ``prime(cardAccessNumber:)``.
     ///
     /// A hold proves the access number over PACE before anything else,
     /// so the virtual run connects with the entered digits first and
-    /// only authenticates once the card has accepted them.
-    private func primeVirtualCard(cardAccessNumber: String, pin1: String) async {
+    /// only registers once the card has accepted them.
+    private func primeVirtualCard(cardAccessNumber: String) async {
       isRunning = true
       lastRunResult = .notRun
       failure = nil
@@ -151,7 +148,7 @@
       defer { isRunning = false }
       guard await connectVirtualCard(cardAccessNumber: cardAccessNumber) else { return }
       guard routeVirtualActivation() else { return }
-      await authenticateVirtualCard(pin1: pin1)
+      await registerVirtualCard()
     }
 
     /// Proves the entered digits against the virtual card.
@@ -189,33 +186,21 @@
       return false
     }
 
-    private func authenticateVirtualCard(pin1: String) async {
-      switch await DemoMode.shared.authenticate(pin1: pin1) {
+    private func registerVirtualCard() async {
+      switch await DemoMode.shared.register() {
       case .success:
         lastRunResult = .succeeded
 
       case let result:
-        failVirtualAuthentication(result)
+        failVirtualRegistration(result)
       }
     }
 
-    private func failVirtualAuthentication(_ result: VirtualIDCard.AuthenticationResult) {
+    private func failVirtualRegistration(_ result: VirtualIDCard.RegistrationResult) {
       lastRunResult = .failed
       switch result {
       case .success:
         return
-
-      case .invalidEntry:
-        failure = String(localized: "PIN 1 does not fit its digit rules.")
-
-      case .blocked:
-        failure = String(localized: "PIN 1 is blocked.")
-
-      case .rejected(let remaining):
-        failure = virtualRetryMessage(remaining: remaining, refused: false)
-
-      case .refusedLowAttempts(let remaining):
-        failure = virtualRetryMessage(remaining: remaining, refused: true)
 
       case .certificateUnavailable:
         failure = String(localized: "The card certificate could not be read.")
@@ -226,20 +211,6 @@
       case .transportFailure:
         failure = String(localized: "The identity card could not be read. Try again.")
       }
-    }
-
-    /// Names what a non-pristine counter leaves to spend, or nothing
-    /// when the card would not name a count.
-    private func virtualRetryMessage(remaining: UInt8, refused: Bool) -> String? {
-      guard let count = RetryCount(attemptsRemaining: remaining) else { return nil }
-      if refused {
-        return CredentialOutcomeMessage.lowAttemptRefusal(
-          credentialName: "PIN 1",
-          remaining: count)
-      }
-      return CredentialOutcomeMessage.rejection(
-        credentialName: "PIN 1",
-        remaining: count)
     }
   }
 

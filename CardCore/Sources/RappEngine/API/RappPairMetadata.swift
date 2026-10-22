@@ -16,7 +16,7 @@ public struct RappPairMetadata: Equatable, Sendable {
   public var candidateId: String
   /// When the pairing was created.
   public var createdAtMs: UInt64
-  /// Whether both endpoints confirmed storing the pairing (RAPP v26.10.21
+  /// Whether both endpoints confirmed storing the pairing (RAPP v26.10.22
   /// §4.3 item 4); an unconfirmed record is revoked, never used.
   public var storageConfirmed: Bool
   /// When the local user forgot the pairing while no session was open: the

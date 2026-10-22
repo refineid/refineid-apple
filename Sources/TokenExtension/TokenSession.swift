@@ -34,13 +34,10 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
   /// one PIN use).
   internal var collectedPin: String?
 
-  /// PIN2 collected by a qualified `beginAuth`, held for a minute.
-  ///
-  /// The card still verifies PIN2 immediately before every qualified
-  /// signature; what this holds is the entry, so a batch of documents
-  /// is one prompt rather than one prompt per document. See
-  /// ``Pin2Window`` for what that window does and does not do.
-  internal var pin2Window = Pin2Window()
+  /// PIN2 collected by a qualified `beginAuth`, consumed by the next
+  /// qualified `sign` whatever its outcome: PIN 2 is asked for every
+  /// signature and kept no longer (RAPP v26.10.22 §11 item 2).
+  internal var collectedPin2: String?
 
   /// Ephemeral session identifier for logging correlation.
   internal let sessionID: String
@@ -93,7 +90,7 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
         "beginAuth: op=\(operation.rawValue) - presenting PIN2 sheet "
           + "session=\(UInt(bitPattern: ObjectIdentifier(self).hashValue))"
       )
-      return Pin2AuthOperation { [weak self] pin in self?.pin2Window.hold(pin) }
+      return Pin2AuthOperation { [weak self] pin in self?.collectedPin2 = pin }
 
     case Pin1AuthOperation.signDataConstraint:
       return beginPin1Auth(cardToken: cardToken, operation: operation)
@@ -120,15 +117,14 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
     let instanceID = cardToken.cardInstanceID
     let hasAccepted = VolatileAcceptedPin1.shared.hasPin(for: instanceID)
     let hasPending = TransientCandidatePin1.shared.hasPending(for: instanceID)
-    let hasStored = CardCredentialStore.contents().hasPin1
-    if hasAccepted || hasPending || hasStored {
+    if hasAccepted || hasPending {
       TokenLog.info(
         "beginAuth: op=\(operation.rawValue) correlation=\(correlationID) "
           + "session=\(sessionID) - satisfied from memory"
       )
       return TKTokenAuthOperation()
     }
-    if OnDemandPinExperiment.isEnabled, cardToken.interface == .fieldWithDeadline {
+    if cardToken.interface == .fieldWithDeadline {
       TokenLog.notice(
         "beginAuth: op=\(operation.rawValue) correlation=\(correlationID) "
           + "session=\(sessionID) - presenting PIN sheet"

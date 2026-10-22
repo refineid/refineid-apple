@@ -6,36 +6,55 @@
   import Security
 
   extension RappCardExecutor {
+    /// The PIN a signature spends (RAPP v26.10.22 §8.2 item 3, §11 item 2).
+    internal enum SigningPin: Sendable, Equatable {
+      /// PIN 1 the holder typed for this browser authentication.
+      case enteredPin1(String)
+      /// PIN 1 held from an earlier operation the card accepted; spent only
+      /// while the card's PIN 1 counter shows no refusal since.
+      case heldPin1(String)
+      /// PIN 2 the holder typed for this signature or batch.
+      case pin2(String)
+
+      /// The credential the card checks it as.
+      internal var role: CredentialRole {
+        switch self {
+        case .enteredPin1, .heldPin1:
+          .pin1
+
+        case .pin2:
+          .pin2
+        }
+      }
+
+      /// The digits the card is sent.
+      internal var digits: String {
+        switch self {
+        case .enteredPin1(let digits), .heldPin1(let digits), .pin2(let digits):
+          digits
+        }
+      }
+    }
+
     internal struct SignParameters {
       internal let cardAccessNumber: String?
-      internal let documentPin1: String?
-      internal let documentPin2: String?
-      internal let role: CredentialRole
-      internal let slot: CertificateSlot
+      internal let pin: SigningPin
       internal let keyProfile: RappOperationDriver.KeyProfile
       internal let algorithm: RappOperationDriver.SignatureAlgorithm
       internal let digest: Data
-      internal let qualified: Bool
+
+      internal var role: CredentialRole { pin.role }
+
+      /// Whether this is a qualified signature, with PIN 2.
+      internal var qualified: Bool { pin.role == .pin2 }
+
+      /// The certificate whose key signs.
+      internal var slot: CertificateSlot { qualified ? .qualifiedSignature : .authentication }
     }
 
     internal static func browserAuthentication(
       cardAccessNumber: String?,
-      keyProfile: RappOperationDriver.KeyProfile,
-      algorithm: RappOperationDriver.SignatureAlgorithm,
-      digest: Data
-    ) async -> Outcome {
-      await browserAuthentication(
-        cardAccessNumber: cardAccessNumber,
-        pin1: nil,
-        keyProfile: keyProfile,
-        algorithm: algorithm,
-        digest: digest
-      )
-    }
-
-    internal static func browserAuthentication(
-      cardAccessNumber: String?,
-      pin1: String?,
+      pin1: SigningPin,
       keyProfile: RappOperationDriver.KeyProfile,
       algorithm: RappOperationDriver.SignatureAlgorithm,
       digest: Data
@@ -43,14 +62,10 @@
       await sign(
         SignParameters(
           cardAccessNumber: cardAccessNumber,
-          documentPin1: pin1,
-          documentPin2: nil,
-          role: .pin1,
-          slot: .authentication,
+          pin: pin1,
           keyProfile: keyProfile,
           algorithm: algorithm,
-          digest: digest,
-          qualified: false
+          digest: digest
         )
       )
     }
@@ -65,14 +80,10 @@
       await sign(
         SignParameters(
           cardAccessNumber: cardAccessNumber,
-          documentPin1: nil,
-          documentPin2: pin2,
-          role: .pin2,
-          slot: .qualifiedSignature,
+          pin: .pin2(pin2),
           keyProfile: keyProfile,
           algorithm: algorithm,
-          digest: digest,
-          qualified: true
+          digest: digest
         )
       )
     }
@@ -100,21 +111,18 @@
         return .refusedBeforeCredentialTransmit(.keyOrAlgorithmMismatch)
       }
 
-      if let context, !context.isRoleProbed(params.role) {
-        if let floorRefusal = evaluateRetryFloor(operations: operations, role: params.role) {
-          return .refusedBeforeCredentialTransmit(floorRefusal)
+      // The counter is read once per card session: a session that ended
+      // without the card answering opens a new one, and the next use reads
+      // it again (RAPP v26.10.22 §11 item 2).
+      if context?.isRoleProbed(params.role) != true {
+        if let refusal = evaluateRetryFloor(operations: operations, pin: params.pin) {
+          return .refusedBeforeCredentialTransmit(refusal)
         }
-        context.markRoleProbed(params.role)
-      } else if context == nil {
-        if let floorRefusal = evaluateRetryFloor(operations: operations, role: params.role) {
-          return .refusedBeforeCredentialTransmit(floorRefusal)
-        }
+        context?.markRoleProbed(params.role)
       }
 
       if let verificationOutcome = verifyCredential(
-        role: params.role,
-        documentPin1: params.documentPin1,
-        documentPin2: params.documentPin2,
+        params.pin,
         operations: operations,
         context: context
       ) {
@@ -128,10 +136,18 @@
       )
     }
 
+    /// Why the card's counter forbids spending `pin`, or nil when it
+    /// allows it.
+    ///
+    /// Beyond the retry floor, a held PIN 1 is spent only while the counter
+    /// shows no refusal since the card accepted it: a counter below its
+    /// pristine allowance means a refusal happened, so the held value is
+    /// not sent and the holder is asked instead.
     private static func evaluateRetryFloor(
       operations: CardOperations,
-      role: CredentialRole
+      pin: SigningPin
     ) -> Refusal? {
+      let role = pin.role
       let probe: RetryProbeOutcome
       do {
         probe = try operations.probeRetryCounter(role: role)
@@ -145,7 +161,15 @@
       case .invalidated:
         return .credentialInvalidated(role)
 
-      case .remaining, .verified:
+      case .remaining(let count):
+        let verdict = RetryFloor.evaluate(probeOutcome: probe)
+        guard verdict == .proceed else { return .retryFloor(role, verdict) }
+        if case .heldPin1 = pin, !count.isPristine {
+          return .heldPin1Unconfirmed
+        }
+        return nil
+
+      case .verified:
         let verdict = RetryFloor.evaluate(probeOutcome: probe)
         return verdict == .proceed ? nil : .retryFloor(role, verdict)
 
@@ -155,21 +179,16 @@
     }
 
     private static func verifyCredential(
-      role: CredentialRole,
-      documentPin1: String?,
-      documentPin2: String?,
+      _ pin: SigningPin,
       operations: CardOperations,
       context: RappNearFieldSessionHolder.Context?
     ) -> Outcome? {
-      switch role {
-      case .pin1:
-        verifyRolePin1(documentPin1: documentPin1, operations: operations, context: context)
+      switch pin {
+      case .enteredPin1(let digits), .heldPin1(let digits):
+        verifyRolePin1(digits, operations: operations, context: context)
 
-      case .pin2:
-        verifyRolePin2(documentPin2: documentPin2, operations: operations, context: context)
-
-      case .puk:
-        .refusedBeforeCredentialTransmit(.invalidCredential(role))
+      case .pin2(let digits):
+        verifyRolePin2(digits, operations: operations, context: context)
       }
     }
 
@@ -179,20 +198,11 @@
     /// a held channel: a PSO sent without a fresh VERIFY is refused with
     /// security status not satisfied.
     private static func verifyRolePin1(
-      documentPin1: String?,
+      _ rawDigits: String,
       operations: CardOperations,
       context: RappNearFieldSessionHolder.Context?
     ) -> Outcome? {
-      let pin: Pin1?
-      let rawDigits: String?
-      if let documentPin1 {
-        pin = Pin1(digits: documentPin1)
-        rawDigits = documentPin1
-      } else {
-        pin = CardCredentialStore.pin1()
-        rawDigits = CardCredentialStore.pin1Digits()
-      }
-      guard let pin, let rawDigits else {
+      guard let pin = Pin1(digits: rawDigits) else {
         return .refusedBeforeCredentialTransmit(.invalidCredential(.pin1))
       }
       if let context, context.isNegativePin(rawDigits) {
@@ -208,14 +218,11 @@
     }
 
     private static func verifyRolePin2(
-      documentPin2: String?,
+      _ documentPin2: String,
       operations: CardOperations,
       context: RappNearFieldSessionHolder.Context?
     ) -> Outcome? {
-      guard
-        let documentPin2,
-        let pin = Pin2(digits: documentPin2)
-      else {
+      guard let pin = Pin2(digits: documentPin2) else {
         return .refusedBeforeCredentialTransmit(.invalidCredential(.pin2))
       }
       if let context, context.isNegativePin(documentPin2) {
@@ -247,7 +254,7 @@
             expectedSignatureLength: identity.request.expectedSignatureLength
           )
         // Verified locally in its DER form; the wire carries the card's
-        // raw value (RAPP v26.10.21 §9.2).
+        // raw value (RAPP v26.10.22 §9.2).
         guard
           let verifiable = identity.request.wireSignature(from: raw),
           identity.request.isSatisfied(by: verifiable, from: identity.publicKey)

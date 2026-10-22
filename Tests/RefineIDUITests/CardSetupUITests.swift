@@ -47,9 +47,6 @@ internal final class CardSetupUITests: XCTestCase {
     let cardAccessNumber = try XCTUnwrap(
       UITestEnvironment.cardAccessNumber,
       Self.missing(UITestEnvironment.cardAccessNumberVariable))
-    let pin1 = try XCTUnwrap(
-      UITestEnvironment.pin1,
-      Self.missing(UITestEnvironment.pin1Variable))
 
     let app = UITestApp.launch()
     attachScreenshot(app.screenshot(), named: "01-setup-opened")
@@ -63,16 +60,15 @@ internal final class CardSetupUITests: XCTestCase {
 
     let entered = CardSetupScreen.enterCredentials(
       cardAccessNumber: cardAccessNumber,
-      pin1: pin1,
       in: app)
     attachScreenshot(app.screenshot(), named: "03-credentials-entered")
     XCTAssertTrue(
       entered,
-      "one of the two credential fields could not be filled")
+      "the card access number field could not be filled")
 
     let mint = app.buttons[UITestIdentifiers.primeStartButton]
     XCTAssertTrue(
       mint.waitForExistence(timeout: 10) && mint.isEnabled,
-      "valid CAN and PIN1 did not enable identity minting")
+      "a valid CAN did not enable identity minting")
   }
 }

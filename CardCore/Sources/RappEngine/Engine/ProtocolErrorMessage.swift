@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// An `error` message (RAPP v26.10.21 §7.1, §10.3): a registered name and,
+/// An `error` message (RAPP v26.10.22 §7.1, §10.3): a registered name and,
 /// when it concerns one, the operation.
 internal struct ProtocolErrorMessage: Equatable {
   internal let error: ResultError

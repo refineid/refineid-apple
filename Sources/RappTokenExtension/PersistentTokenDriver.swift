@@ -184,8 +184,12 @@ internal final class PersistentTokenDriver: TKTokenDriver,
             "performRelaySign: starting algorithm=\(algorithm), digest=\(request.digest.count) bytes"
           )
         #endif
+        // The identity stays offered between sessions: with none open the
+        // request dials and waits for the phone within its own wait (RAPP
+        // v26.10.22 §8.4 item 3).
         let response = try RappPersistentRequesterClient(
           displayName: "RefineID Token",
+          policy: .offeredIdentity,
           pair: persistentToken.pairRecord
         ).perform(
           .browserAuthentication(

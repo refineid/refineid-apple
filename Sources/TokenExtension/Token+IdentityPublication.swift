@@ -30,22 +30,11 @@ extension Token {
     interface: CardInterface,
     issuerDER: Data?
   ) throws -> [TKTokenKeychainItem] {
-    let hasStoredPin = CardCredentialStore.contents().hasPin1
-    let experimentEnabled = OnDemandPinExperiment.isEnabled
-    let requiresPin = OnDemandPinExperiment.requiresPasswordConstraint(
-      isContactless: interface == .fieldWithDeadline,
-      experimentEnabled: experimentEnabled,
-      hasStoredCredential: hasStoredPin
-    )
-    TokenLog.trace(
-      "publish: experiment=\(experimentEnabled) storedCredential=\(hasStoredPin) "
-        + "passwordConstraint=\(requiresPin) interface=\(interface)"
-    )
+    TokenLog.trace("publish: interface=\(interface)")
     let items = CardTokenPublicationItems.makeItems(
       leaf: leaf,
       profile: profile,
-      issuerDER: issuerDER,
-      requiresPinConstraint: requiresPin
+      issuerDER: issuerDER
     )
     guard !items.isEmpty else {
       TokenLog.error("publish: keychain item construction failed")

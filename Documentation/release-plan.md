@@ -25,7 +25,7 @@ Ship a small, trustworthy macOS App Store product named **RefineID**.
 The macOS release carries the local card and the remote card (owner
 decisions 2026-09-30 and 2026-10-10). It includes the CryptoTokenKit
 smart-card extension, contact and contactless reading, authentication, card
-activation, PIN management, local document signing, and RAPP v26.10.21
+activation, PIN management, local document signing, and RAPP v26.10.22
 pairing with a phone that holds the card: the Mac types the code the phone
 shows, and afterwards signs documents and authenticates through the phone,
 including from Safari through the remote-card CryptoTokenKit extension. The
@@ -189,10 +189,12 @@ disconnection. There is no timer. Every reader signature still obtains
 fresh PIN1 retry state and sends VERIFY PIN1; the memory removes repeated
 user entry, not card verification. PIN2 and PUK never enter this memory.
 
-The first confirmed PIN1 rejection clears that card's accepted PIN memory. For
-an automatically configured iOS identity it also removes stored PIN1, that
-physical card's prime, and its CryptoTokenKit registration. Transport, PACE,
-signature, and TLS failures do not revoke identity state.
+No PIN is ever written to storage on any device: PIN1 is asked for once and
+held only in memory, and PIN2 is asked for every signature or batch (RAPP
+v26.10.22 section 11 item 2). The first confirmed PIN1 rejection clears that
+card's accepted PIN memory and nothing else; the card the phone holds stays
+added. Transport, PACE, signature, and TLS failures do not revoke identity
+state.
 
 ## User experience
 

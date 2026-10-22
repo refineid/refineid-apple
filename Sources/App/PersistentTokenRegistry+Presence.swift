@@ -13,11 +13,12 @@
       let record: RappPairRecord
     }
 
-    /// Seconds a vanished advertisement may stay missing before the
-    /// borrowed identity is withdrawn.
+    /// Seconds a vanished advertisement may stay missing before the holder
+    /// counts as gone from the network and is no longer dialed.
     ///
-    /// Bonjour browse results drop a live name for a moment without
-    /// the holder having left.
+    /// Bonjour browse results drop a live name for a moment without the
+    /// holder having left. An open session and the offered identity do not
+    /// follow the advertisement (RAPP v26.10.22 §4.5 item 6, §8.4 item 3).
     private static let advertisementLossHoldSeconds = 30
 
     private static var advertisementLossHold: Duration {
@@ -27,7 +28,7 @@
     /// Every stored pairing in the vault, a forgotten one too.
     ///
     /// A forgotten pairing's hint brings the session that delivers its close
-    /// (RAPP v26.10.21 §4.6 item 2). Forgotten pairings come first, so a
+    /// (RAPP v26.10.22 §4.6 item 2). Forgotten pairings come first, so a
     /// phone that carries the hint of one and of a newer pairing hears the
     /// close before the newer pairing is used. A forgotten record whose 30
     /// days ran out is destroyed first (§4.6 item 3).
@@ -117,10 +118,11 @@
 
     /// Browses for a holder in session mode whose hints name a pairing.
     ///
-    /// The holder's record says it is on the network; whether a card can
-    /// answer is what its session says (RAPP v26.10.21 §8.4). Losing the
-    /// record ends the session and withdraws the borrowed identity. The
-    /// pairing stays so the next card can use it.
+    /// The holder's record says it is on the network and worth dialing;
+    /// whether a card can answer is what its session says (RAPP v26.10.22
+    /// §8.4). Losing the record stops the dialing; the identity follows the
+    /// session's word and its grace. The pairing stays so the next card can
+    /// use it.
     internal func startWatchingPresence() {
       guard Self.isRemoteCardEnabled else { return }
       guard !CardPresence.shared.isReaderCardPresent else {
@@ -190,7 +192,7 @@
       startWatchingPresence()
     }
 
-    /// The holder closed a session with `pairing_revoked` (RAPP v26.10.21
+    /// The holder closed a session with `pairing_revoked` (RAPP v26.10.22
     /// §4.6 item 4): this computer forgets the pairing too, the borrowed
     /// identity leaves at once, and the row names the phone that did it.
     internal func holderRevoked(pairID: Data) {
@@ -218,7 +220,7 @@
     }
 
     /// The token extension's own session heard `pairing_revoked` (RAPP
-    /// v26.10.21 §4.6 item 4): the pairing its identity was published for
+    /// v26.10.22 §4.6 item 4): the pairing its identity was published for
     /// ends here too, and the identity leaves at once, as on this process's
     /// own session.
     internal func holderRevokedElsewhere() {
@@ -227,7 +229,7 @@
     }
 
     /// This computer's close for a pairing it forgot reached the phone
-    /// (RAPP v26.10.21 §4.6 items 2 and 3): the record and its key go now.
+    /// (RAPP v26.10.22 §4.6 items 2 and 3): the record and its key go now.
     internal func revocationNoticeDelivered(pairID: Data) {
       try? RappPairRevocation.revoke(
         pairID: pairID, in: RappDeviceVault(), clock: RappPlatformClock())
@@ -276,12 +278,13 @@
         openHolderSession()
         return
       }
-      guard holderIsAdvertising || certificateDER != nil else { return }
+      guard holderIsAdvertising else { return }
       armAdvertisementLossHold()
     }
 
-    /// Ends the session and withdraws the borrowed identity unless the
-    /// browser reports the holder within ``advertisementLossHold``.
+    /// Marks the holder gone from the network unless the browser reports it
+    /// within ``advertisementLossHold``; an open session stays, and the
+    /// offered identity follows its grace (§4.5 item 6, §8.4 item 3).
     internal func armAdvertisementLossHold() {
       guard advertisementLossTask == nil else { return }
       advertisementLossTask = Task { @MainActor in
@@ -289,10 +292,8 @@
         guard !Task.isCancelled else { return }
         advertisementLossTask = nil
         holderIsAdvertising = false
-        closeHolderSession()
-        Self.withdrawPublishedIdentity()
         #if DEBUG
-          print("[persistent-token] holder left, withdrew identity")
+          print("[persistent-token] holder left the network")
           fflush(stdout)
         #endif
       }

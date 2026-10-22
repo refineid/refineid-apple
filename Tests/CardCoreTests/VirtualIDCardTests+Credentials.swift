@@ -148,53 +148,13 @@ extension VirtualIDCardTests {
     XCTAssertEqual(reconnected.device.storedCardAccessNumber, "123456")
   }
 
-  internal func testAuthenticationRetryFloorMatrix() async {
-    for attempts in UInt8(0)...RetryCount.pristineAllowance {
-      var state = VirtualIDCard.Scenario.activatedReader.snapshot
-      state.card.pin1.attemptsRemaining = attempts
-      let card = VirtualIDCard(snapshot: state)
-
-      let result = await card.authenticate(pin1: "0000")
-
-      switch attempts {
-      case 0:
-        XCTAssertEqual(result, .blocked)
-
-      case 1...lowAttemptRefusalCeiling:
-        XCTAssertEqual(result, .refusedLowAttempts(remaining: attempts))
-
-      default:
-        XCTAssertEqual(result, .rejected(remaining: attempts - 1))
-      }
-      let inspected = await card.inspect()
-      let expectedAttempts = attempts > lowAttemptRefusalCeiling ? attempts - 1 : attempts
-      XCTAssertEqual(inspected.card.pin1.attemptsRemaining, expectedAttempts)
-    }
-
-    var state = VirtualIDCard.Scenario.activatedReader.snapshot
-    state.card.pin1.attemptsRemaining = lowAttemptRefusalCeiling + 1
-    let successful = VirtualIDCard(snapshot: state)
-    guard case .success(let result) = await successful.authenticate(pin1: "1234")
-    else {
-      XCTFail("a safe correct PIN 1 was rejected")
-      return
-    }
-    XCTAssertEqual(
-      result.card.pin1.attemptsRemaining,
-      RetryCount.pristineAllowance)
-  }
-
-  internal func testAuthenticationCertificateAndPublicationFailures() async {
-    let malformed = VirtualIDCard(scenario: .activatedReader)
-    let malformedResult = await malformed.authenticate(pin1: "12")
-    XCTAssertEqual(malformedResult, .invalidEntry)
-
+  internal func testRegistrationCertificateAndPublicationFailures() async {
     for certificate in VirtualIDCard.CertificateState.allCases
     where certificate != .valid {
       var state = VirtualIDCard.Scenario.activatedReader.snapshot
       state.card.authenticationCertificate = certificate
       let card = VirtualIDCard(snapshot: state)
-      let result = await card.authenticate(pin1: "1234")
+      let result = await card.register()
       XCTAssertEqual(
         result,
         .certificateUnavailable,
@@ -207,24 +167,23 @@ extension VirtualIDCardTests {
     let publication = VirtualIDCard(snapshot: state)
     guard
       case .tokenPublicationFailed(let failed) =
-        await publication.authenticate(pin1: "1234")
+        await publication.register()
     else {
       XCTFail("token publication fault was not surfaced")
       return
     }
-    XCTAssertTrue(failed.device.hasPin1)
     XCTAssertTrue(failed.device.cachedIdentity)
     XCTAssertFalse(failed.device.tokenRegistered)
 
     state = VirtualIDCard.Scenario.activatedReader.snapshot
     state.faults = [
       VirtualIDCard.Fault(
-        operation: .authenticate,
+        operation: .register,
         phase: .afterCardExecution,
         effect: .timeout)
     ]
     let lostReply = VirtualIDCard(snapshot: state)
-    let lostResult = await lostReply.authenticate(pin1: "1234")
+    let lostResult = await lostReply.register()
     XCTAssertEqual(lostResult, .transportFailure(.timeout))
     let lostState = await lostReply.inspect()
     XCTAssertEqual(

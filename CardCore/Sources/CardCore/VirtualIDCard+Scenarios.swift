@@ -103,7 +103,6 @@ extension VirtualIDCard {
         device = DeviceState(
           storedCardAccessNumber: accessNumber,
           connectedCardAccessNumber: accessNumber,
-          hasPin1: true,
           cachedIdentity: true,
           tokenRegistered: true)
 
@@ -157,7 +156,7 @@ extension VirtualIDCard {
     case resetPIN2 = "resetPIN2"
     case activatePIN1 = "activatePIN1"
     case activatePIN2 = "activatePIN2"
-    case authenticate = "authenticate"
+    case register = "register"
     case publishToken = "publishToken"
     case authenticateSignature = "authenticateSignature"
     case qualifiedSignature = "qualifiedSignature"
@@ -270,7 +269,7 @@ extension VirtualIDCard {
       case .certificateReadFailure:
         [
           Fault(
-            operation: .authenticate,
+            operation: .register,
             phase: .beforeCommand,
             effect: .malformedResponse)
         ]
@@ -278,7 +277,7 @@ extension VirtualIDCard {
       case .tokenPublicationFailure:
         [
           Fault(
-            operation: .authenticate,
+            operation: .register,
             phase: .afterCardExecution,
             effect: .tokenNotPublished)
         ]

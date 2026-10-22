@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-/// Forgetting a pairing and telling the peer (RAPP v26.10.21 §4.6).
+/// Forgetting a pairing and telling the peer (RAPP v26.10.22 §4.6).
 @Suite("RAPP pairing revocation between the bridges")
 internal struct RevocationDriveTests {
   private static let start = OperationFixture.startMilliseconds

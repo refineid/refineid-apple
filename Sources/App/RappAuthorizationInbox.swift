@@ -11,8 +11,9 @@
   ///
   /// There is no automatic approval, timeout, or queue. A second operation is
   /// denied while one is visible; expiry and disconnect arrive from the RAPP
-  /// state machine and explicitly cancel the matching request. Reads never
-  /// come here: they skip consent (RAPP v26.10.21 §8.2 item 6).
+  /// state machine and explicitly cancel the matching request. Every request
+  /// is a PIN prompt, and entering the PIN is the holder's consent; reads
+  /// never come here (RAPP v26.10.22 §8.2 items 3 and 6).
   @MainActor
   internal final class RappAuthorizationInbox: ObservableObject {
     internal static let shared = RappAuthorizationInbox()
@@ -134,7 +135,7 @@
     }
 
     /// Tells the holder something about a request that ended without a
-    /// prompt, such as a retry-floor refusal (RAPP v26.10.21 §10.2).
+    /// prompt, such as a retry-floor refusal (RAPP v26.10.22 §10.2).
     internal func inform(_ message: String) {
       let content = UNMutableNotificationContent()
       content.title = "RefineID"

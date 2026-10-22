@@ -65,7 +65,7 @@ extension RappPairingModel {
   }
 
   /// Ends the session the pairing `pairID` carries with `pairing_revoked`;
-  /// false when none is open or the close did not leave (RAPP v26.10.21
+  /// false when none is open or the close did not leave (RAPP v26.10.22
   /// §4.6 items 1 and 2).
   private static func closeSessionForRevocation(pairID: Data) async -> Bool {
     var closed = false
@@ -99,7 +99,7 @@ extension RappPairingModel {
   }
 
   /// Forgets one paired device through the vault the list is read from
-  /// (RAPP v26.10.21 §4.6).
+  /// (RAPP v26.10.22 §4.6).
   ///
   /// A session open over the pairing closes with `pairing_revoked` and,
   /// once that close left, the record and its key go at once. Otherwise the

@@ -3,7 +3,7 @@
 import Foundation
 
 /// The device as a person names it, for the platform description a
-/// pairing carries (RAPP v26.10.21 section 7.1): "iPhone 15 Pro Max"
+/// pairing carries (RAPP v26.10.22 section 7.1): "iPhone 15 Pro Max"
 /// rather than the operating system, since the model tells which device
 /// this is and the system does not.
 ///

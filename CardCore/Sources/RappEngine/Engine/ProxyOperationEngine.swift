@@ -5,7 +5,7 @@ import Foundation
 /// The custodian's operations of one session: one live at a time, and every
 /// identifier used once.
 ///
-/// Nothing outlives the session (RAPP v26.10.21 §8.1).
+/// Nothing outlives the session (RAPP v26.10.22 §8.1).
 internal struct ProxyOperationEngine {
   /// The profiles the pairing granted; a request naming any other is
   /// refused before the holder is asked.

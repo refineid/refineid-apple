@@ -5,7 +5,7 @@
   import RappEngine
   /// Owns one established RAPP operation runtime and translates engine
   /// records into Sendable Apple-side values. It never performs card I/O
-  /// itself. Nothing of an operation outlives the session (RAPP v26.10.21
+  /// itself. Nothing of an operation outlives the session (RAPP v26.10.22
   /// §8.1 item 3).
   public actor RappOperationDriver {
     internal let bridge: RappOperationBridge
@@ -89,7 +89,7 @@
     }
 
     /// Starts a requester batch signature over named documents (RAPP
-    /// v26.10.21 §9.3); names and digests pair up by position.
+    /// v26.10.22 §9.3); names and digests pair up by position.
     public func beginBatchSignDocuments(
       documentNames: [String],
       keyProfile: KeyProfile,

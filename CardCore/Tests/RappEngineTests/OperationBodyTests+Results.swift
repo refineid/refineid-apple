@@ -83,6 +83,19 @@ extension OperationBodyTests {
     #expect(throws: (any Error).self) { _ = try received.typed(for: .readIdentity) }
   }
 
+  @Test("An inspection answers with the answer to reset alone")
+  internal func inspectionCarriesTheAnswerToResetAlone() throws {
+    let answerToReset = try Data(hex: try Self.corpus().fixedInputs.answerToReset)
+    let sent = ResultResponse(.inspection(answerToReset: answerToReset))
+    #expect(sent.fields == ["atr": .bytes(answerToReset)])
+    #expect(try sent.typed(for: .inspectCard) == .inspection(answerToReset: answerToReset))
+    var withProfiles = sent.fields
+    withProfiles["supported_profiles"] = .array(ProfileName.allCases.map { .text($0.rawValue) })
+    #expect(throws: CardOperationError.unexpectedField) {
+      _ = try ResultResponse(fields: withProfiles).typed(for: .inspectCard)
+    }
+  }
+
   @Test("Every registered failure matches byte for byte and decodes back")
   internal func failureResultBodies() throws {
     let corpus = try Self.corpus()

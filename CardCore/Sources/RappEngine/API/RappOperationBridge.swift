@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The operations of one established session (RAPP v26.10.21 §8).
+/// The operations of one established session (RAPP v26.10.22 §8).
 ///
 /// Every call answers with the bounded step the caller performs next. The
 /// bridge decides what must happen; the caller performs it, so nothing here

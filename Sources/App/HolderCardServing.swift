@@ -44,9 +44,8 @@
         return
       }
       // A connected requester hears about the change at once (RAPP
-      // v26.10.21 §8.4), whichever way it went; a card coupled or primed
-      // again answers an earlier failure to serve.
-      PhonePersistentTokenRelay.shared.cardAvailabilityChanged(servable: canServe)
+      // v26.10.22 §8.4 item 1), whichever way it went.
+      PhonePersistentTokenRelay.shared.cardAvailabilityChanged()
       guard wasAbleToServe != canServe else {
         if canServe, !PhonePersistentTokenRelay.shared.isServing {
           PhonePersistentTokenRelay.shared.start()
@@ -65,7 +64,7 @@
     ///
     /// Pairing stays.
     private static func dropReaderTokens() {
-      ReaderPin1Cache.shared.clear()
+      HeldPin1.shared.clear()
       wipeLocalTokens()
       PhonePersistentTokenRelay.shared.stopServing()
     }

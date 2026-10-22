@@ -8,7 +8,7 @@
   import RappEngine
 
   /// Drives both halves of a pairing over `fi.refineid.rapp.ble`
-  /// (RAPP v26.10.21 §4.2, §5) from the command line, and serves sessions
+  /// (RAPP v26.10.22 §4.2, §5) from the command line, and serves sessions
   /// over it with the stored pairings.
   ///
   /// The custodian prints the code it shows and serves its offer on the

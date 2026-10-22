@@ -3,7 +3,7 @@
 import CryptoKit
 import Foundation
 
-/// The plaintext first frame of every connection (RAPP v26.10.21 §2.2.1):
+/// The plaintext first frame of every connection (RAPP v26.10.22 §2.2.1):
 /// `[domain, purpose, routing]`.
 ///
 /// A pairing preamble carries no routing bytes. A session preamble carries

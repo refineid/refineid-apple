@@ -16,7 +16,7 @@
 
     /// How often a session advances its liveness and checks the live
     /// operation's deadline; the engine decides when a ping is due (RAPP
-    /// v26.10.21 §8.1 item 2, §8.3).
+    /// v26.10.22 §8.1 item 2, §8.3).
     public static let livenessPollIntervalMilliseconds: UInt64 = 1_000
 
     private static let logger = Logger(
@@ -223,7 +223,7 @@
     }
 
     /// Ends the session with `pairing_revoked` because this endpoint's
-    /// user is forgetting the pairing (RAPP v26.10.21 §4.6 item 1).
+    /// user is forgetting the pairing (RAPP v26.10.22 §4.6 item 1).
     ///
     /// Answers whether the close left on the transport. Only then may the
     /// record and its key be destroyed (§4.6 item 3); otherwise the pairing
@@ -235,7 +235,7 @@
     }
 
     /// Ends the session with `service_withdrawn` because the holder
-    /// stopped serving (RAPP v26.10.21 §4.5).
+    /// stopped serving (RAPP v26.10.22 §4.5).
     public func closeServiceWithdrawn() async {
       await endOperating { await $0.close(reason: .serviceWithdrawn) }
     }

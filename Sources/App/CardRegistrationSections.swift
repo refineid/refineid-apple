@@ -25,13 +25,10 @@
 
     /// Complete persistent identity state, read without waking NFC.
     ///
-    /// A registration without its prime or stored PIN cannot sign. Treating
-    /// that stale index as ready hid the mint action after a revocation.
+    /// A registration without its prime cannot sign. Treating that stale
+    /// index as ready hid the mint action after a revocation.
     internal static var hasRegisteredIdentity: Bool {
-      let credentials = CardCredentialStore.contents()
-      let pin1Ready = credentials.hasPin1 || OnDemandPinExperiment.isEnabled
-      return pin1Ready
-        && !PrimeStore.primedHolderNames().isEmpty
+      !PrimeStore.primedHolderNames().isEmpty
         && TKSmartCardTokenRegistrationManager.default.registeredSmartCardTokens
           .contains { CardTokenNamespace.owns(tokenIdentifier: $0) }
     }
@@ -48,20 +45,11 @@
     /// ``isRegistered`` stays about the card and is left alone.
     internal let isDemonstration: Bool
 
-    /// Supplies the transient PIN to the one NFC operation.
-    internal let enteredPin1: @MainActor () -> String?
-
     /// Supplies the access number the hold proves, entered or already stored.
     internal let cardAccessNumber: @MainActor () -> String?
 
     /// Commits the access number only after PACE proved it.
     internal let storeCardAccessNumber: @MainActor (String) -> Bool
-
-    /// Commits PIN1 only after the card accepted it.
-    internal let storeVerifiedPin1: @MainActor (String) -> Bool
-
-    /// Clears the transient entry after the operation ends.
-    internal let clearPin1Entry: @MainActor () -> Void
 
     /// Lets the application flow enter and leave its registration state.
     internal var onRegistrationStarted: @MainActor () -> Void = {
@@ -116,18 +104,13 @@
       Button {
         Task { @MainActor in
           guard let accessNumber = cardAccessNumber() else { return }
-          let pin1 = enteredPin1()
-          guard pin1 != nil || OnDemandPinExperiment.isEnabled else { return }
           onRegistrationStarted()
           let succeeded = await Self.registerIdentity(
             cardAccessNumber: accessNumber,
-            pin1: pin1,
             model: model,
-            commit: IdentityCommitments(
-              storeCardAccessNumber: storeCardAccessNumber,
-              storeVerifiedPin1: storeVerifiedPin1,
-              clearPin1Entry: clearPin1Entry
-            ) { isRegistered = true })
+            commit: IdentityCommitments(storeCardAccessNumber: storeCardAccessNumber) {
+              isRegistered = true
+            })
           onRegistrationFinished(succeeded)
         }
       } label: {
@@ -151,24 +134,19 @@
     /// and the later explicit certificate-read action.
     ///
     /// One hold does the whole thing: the access number is proved by PACE
-    /// inside it, and neither credential is written to this device until
-    /// that hold has produced a registered identity. Every outcome clears
-    /// the entered PIN.
+    /// inside it, and it is not written to this device until that hold has
+    /// produced a registered identity. PIN 1 is asked for when the card
+    /// first signs, never here (RAPP v26.10.22 §11 item 2).
     @MainActor
     internal static func registerIdentity(
       cardAccessNumber: String,
-      pin1: String?,
       model: CardPrimingModel,
       commit: IdentityCommitments
     ) async -> Bool {
-      defer { commit.clearPin1Entry() }
-      await model.prime(cardAccessNumber: cardAccessNumber, pin1: pin1)
+      await model.prime(cardAccessNumber: cardAccessNumber)
       guard case .succeeded = model.lastRunResult,
         commit.storeCardAccessNumber(cardAccessNumber)
       else { return false }
-      if let pin1 {
-        guard commit.storeVerifiedPin1(pin1) else { return false }
-      }
       commit.markRegistered()
       return true
     }

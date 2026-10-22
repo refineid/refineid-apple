@@ -39,7 +39,6 @@
     private static func storeCredentialsIfGiven(in app: XCUIApplication) {
       _ = CardSetupScreen.enterCredentials(
         cardAccessNumber: UITestEnvironment.cardAccessNumber,
-        pin1: UITestEnvironment.pin1,
         in: app)
     }
 

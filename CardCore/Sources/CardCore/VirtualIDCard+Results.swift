@@ -99,13 +99,9 @@ extension VirtualIDCard {
     }
   }
 
-  /// The outcome of authenticating with PIN 1.
-  public enum AuthenticationResult: Equatable, Sendable {
+  /// The outcome of registering the card on the device.
+  public enum RegistrationResult: Equatable, Sendable {
     case success(Snapshot)
-    case invalidEntry
-    case blocked
-    case rejected(remaining: UInt8)
-    case refusedLowAttempts(remaining: UInt8)
     case certificateUnavailable
     case tokenPublicationFailed(Snapshot)
     case transportFailure(FaultEffect)
