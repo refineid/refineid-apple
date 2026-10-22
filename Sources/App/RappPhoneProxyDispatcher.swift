@@ -6,11 +6,19 @@
   import RappEngine
 
   /// Exhaustive semantic dispatcher for one authenticated phone-side RAPP
-  /// connection. It sees no wire frames and owns no transport capability.
+  /// session. It sees no wire frames and owns no transport capability.
+  ///
+  /// Its prompts and summons name the computer of the session's own
+  /// pairing, and ending the session takes down its own prompt and no
+  /// other session's.
   internal actor RappPhoneProxyDispatcher {
     // MARK: Properties
 
     internal let inbox: RappAuthorizationInbox
+    /// The pairing the session runs over.
+    internal let pairID: Data
+    /// The session this dispatcher serves.
+    internal let session: UUID
     /// PIN 1 for each browser authentication, typed or held, until the card
     /// command spends it.
     internal var pin1ByOperation: [RappOperationIdentifier: RappCardExecutor.SigningPin] = [:]
@@ -24,21 +32,20 @@
     /// hears `consent_shown` once for each (§8.2 item 3).
     internal var promptedOperations: Set<RappOperationIdentifier> = []
 
-    // MARK: Lifecycle
+    // MARK: Computed Properties
 
-    internal init(inbox: RappAuthorizationInbox) {
-      self.inbox = inbox
+    /// The name the session's computer introduced itself with, for the
+    /// prompt and the summons.
+    internal var requesterName: String {
+      RappPairNames.name(forPairID: pairID) ?? String(localized: "Paired device")
     }
 
-    // MARK: Static Functions
+    // MARK: Lifecycle
 
-    /// The remembered name of the selected pair's requesting device.
-    internal static func requesterName() async -> String? {
-      let catalog = RappPairCatalog(vault: RappDeviceVault())
-      guard let selected = try? await catalog.selectedPair() else {
-        return nil
-      }
-      return RappPairNames.name(forPairID: selected.pairID)
+    internal init(inbox: RappAuthorizationInbox, pairID: Data, session: UUID) {
+      self.inbox = inbox
+      self.pairID = pairID
+      self.session = session
     }
 
     // MARK: Functions
@@ -48,7 +55,7 @@
       from coordinator: RappConnectionCoordinator
     ) async {
       switch event {
-      case .established, .progress, .cardStatus, .answered:
+      case .established, .progress, .cardStatus:
         return
 
       case .inspectPrerequisites(let operationID, let operation):
@@ -69,7 +76,10 @@
 
       case .completed(let operationID, _), .terminal(let operationID, _),
         .operationEnded(.dropped(let operationID)),
-        .operationEnded(.cardExchangeContinues(let operationID)):
+        .operationEnded(.cardExchangeContinues(let operationID)),
+        .answered(let operationID):
+        // An operation answered on a step, or expired with its prompt up:
+        // whatever of it is left, its prompt included, goes.
         await cancel(operationID)
 
       case .closed:
@@ -85,13 +95,17 @@
       return made
     }
 
+    /// Forgets the session's operations and takes down its own prompt.
     private func cleanup() async {
+      let prompts = Array(requestIDs.values)
       lastReadAuthCertDER = nil
       pin1ByOperation.removeAll(keepingCapacity: false)
       pin2ByOperation.removeAll(keepingCapacity: false)
       requestIDs.removeAll(keepingCapacity: false)
       promptedOperations.removeAll(keepingCapacity: false)
-      await inbox.cancelAll()
+      for requestID in prompts {
+        await inbox.cancel(requestID)
+      }
     }
   }
 #endif

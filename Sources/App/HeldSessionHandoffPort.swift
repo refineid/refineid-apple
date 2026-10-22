@@ -15,7 +15,7 @@
     /// Where the port thread waits for the main actor's answer.
     private final class Answering: Sendable {
       private let answer = OSAllocatedUnfairLock(
-        initialState: RappHeldSessionHandoff.Answer.dialStream)
+        initialState: RappHeldSessionHandoff.Answer.failed(.transport))
       private let done = DispatchSemaphore(value: 0)
 
       func set(_ value: RappHeldSessionHandoff.Answer) {

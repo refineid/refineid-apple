@@ -5,9 +5,8 @@ import Testing
 
 @testable import RefineID
 
-/// Which transport the requester dials, and who carries the token
-/// extension's operation (RAPP transport hierarchy §3, STPA CC-53, CC-71,
-/// CC-72).
+/// Which transport the requester dials, and which advertiser over
+/// Bluetooth (RAPP transport hierarchy §3, STPA CC-53, CC-72).
 @Suite
 internal struct RequesterTransportPolicyTests {
   /// The smallest step of the clock the refusal window runs on.
@@ -42,19 +41,6 @@ internal struct RequesterTransportPolicyTests {
       Self.policy(streamInSight: true, streamFailed: true, bluetoothUsable: false).nextDial
         == .stream)
     #expect(Self.policy(streamInSight: false, bluetoothUsable: false).nextDial == nil)
-  }
-
-  @Test("The app carries the extension's operation on Bluetooth, never on the stream")
-  internal func handoffCarrier() {
-    let onNetwork = Self.policy(streamInSight: true)
-    let offNetwork = Self.policy(streamInSight: false)
-    #expect(onNetwork.handoffCarrier(held: .bluetooth) == .app)
-    #expect(offNetwork.handoffCarrier(held: .stream) == .extensionOverStream)
-    #expect(onNetwork.handoffCarrier(held: nil) == .extensionOverStream)
-    #expect(offNetwork.handoffCarrier(held: nil) == .app)
-    #expect(
-      Self.policy(streamInSight: false, bluetoothUsable: false).handoffCarrier(held: nil)
-        == .extensionOverStream)
   }
 
   @Test("The advertiser that routed is dialed first")

@@ -94,10 +94,14 @@
       }
     }
 
-    /// Runs one liveness poll and deadline check.
+    /// Runs one liveness poll and deadline check; an operation cancelled
+    /// for its deadline is reported answered, so its owner takes its prompt
+    /// down (§8.1 item 2).
     public func pollLiveness() async {
       guard phase == .operating, let operation else { return }
-      await handleOperation(await operation.expireDue())
+      let expiry = await operation.expireDue()
+      await handleOperation(expiry.commands)
+      if let expired = expiry.expired { answered(expired) }
       guard phase == .operating else { return }
       await handleOperation(await operation.pollLiveness())
     }

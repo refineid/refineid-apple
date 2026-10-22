@@ -3,15 +3,9 @@
 #if os(iOS) && REFINEID_LOCAL_CARD
   import CardCore
   import Foundation
-  import Network
   import os
   import RappEngine
-  /// Owns the phone side of one mutually authenticated RAPP connection.
-  ///
-  /// The transport is an opaque frame carrier chosen by the selected pair:
-  /// MultipeerConnectivity advertises nearby, while the stream profile dials
-  /// the requester's stored listener endpoints. All identity, sequencing,
-  /// operation, and fail-stop decisions belong to RAPP.
+
   #if DEBUG
     /// The event's case name alone, which is what a timeline needs.
     internal func eventCaseName(_ event: RappConnectionCoordinator.Event) -> String {
@@ -19,27 +13,39 @@
     }
   #endif
 
+  /// Owns the phone side of RAPP: every session the paired computers open,
+  /// and the one queue their operations take the card through (RAPP
+  /// v26.10.22 §8.2 item 2, §8.3).
+  ///
+  /// Each routed connection is a session of its own, on the stream
+  /// listener, the Bluetooth server, or, in a build without the stream, the
+  /// nearby relay; an open session is never a reason to refuse, hold or
+  /// displace another (STPA CC-58). The transports are opaque frame
+  /// carriers; all identity, sequencing, operation, and fail-stop decisions
+  /// belong to RAPP.
   @MainActor
   internal final class PhonePersistentTokenRelay: ObservableObject {
     // MARK: Static Properties
 
     internal static let shared = PhonePersistentTokenRelay()
 
-    internal static let maximumPreCoordinatorFrames = 4
-    internal static let nearbyRedialDelayMilliseconds = 150
-
     // MARK: Properties
 
     internal let vault = RappDeviceVault()
     private let policy = RappRequesterPolicy.interactive
     private var pairingsObserver: (any NSObjectProtocol)?
-    internal var relay: PersistentRelaySession?
+    /// The sessions open now, by their own identifier.
+    internal var sessions: [UUID: ServedSession] = [:]
+    /// Hands the card to one operation at a time, across every session.
+    internal let cardQueue = CustodianCardQueue<ServedSession.Turn>()
+    /// What this phone knows of the reader card it serves.
+    internal var readerCard = ReaderCard()
     #if REFINEID_STREAM_TRANSPORT
-      internal var streamListeners: [String: StreamRelayListener] = [:]
-      internal var activeStreamListener: StreamRelayListener?
+      /// The session listener, while the phone serves the stream.
+      internal var sessionListener: StreamSessionListener?
+      /// Takes the listener's events on the main actor, in order.
+      internal var sessionListenerEvents: Task<Void, Never>?
       internal var sessionListening = SessionListening()
-      /// The transport the open session runs over.
-      internal var servedTransport: ServedTransport?
       /// The GATT server, while the phone serves over Bluetooth.
       internal var bluetoothServer: RappBleGattPeripheral?
       /// Takes the server's events on the main actor, in order.
@@ -55,35 +61,15 @@
       internal var streamSuspended = false
       /// Observes the app entering and leaving the background.
       internal var lifecycleObservers: [any NSObjectProtocol] = []
+    #else
+      /// The nearby relay, while the phone serves it.
+      internal var relay: PersistentRelaySession?
+      /// Names the nearby connection, so a report from an earlier one is
+      /// dropped.
+      internal var nearbyConnectionID: UUID?
+      /// Frames the nearby connection delivered before its session started.
+      internal var preCoordinatorFrames: [Data] = []
     #endif
-    internal var coordinator: RappConnectionCoordinator?
-    internal var dispatcher: RappPhoneProxyDispatcher?
-    /// The pairing the open session serves and when it last went idle,
-    /// as one value so the listener's queue reads a consistent snapshot.
-    ///
-    /// `idleSince` is nil while an operation is in flight (never
-    /// displace a busy session) and while a handshake is still coming
-    /// up; `pairing` names the requester so its own app and token
-    /// extension hand the session over at once, a different one waits
-    /// out the hold (R-59).
-    nonisolated internal let sessionServing = OSAllocatedUnfairLock<
-      (pairing: Data?, idleSince: ContinuousClock.Instant?)
-    >(initialState: (nil, nil))
-    /// The pairings a dialer may displace an idle session for, read on
-    /// the listener's queue with its own replay memory.
-    nonisolated internal let replacementRouting = OSAllocatedUnfairLock<
-      (records: [RappPairRecord], router: RappSessionRouter)
-    >(initialState: ([], RappSessionRouter()))
-    /// The operations the open session is running.
-    internal var operationsInFlight: Set<RappOperationIdentifier> = []
-    /// What the open session was last told about the card.
-    internal var reportedCardStatus: RappCardStatus?
-    /// What this phone knows of the reader card it serves.
-    internal var readerCard = ReaderCard()
-    /// The pairing the open session runs over.
-    internal var activePairID: Data?
-    internal var connectionID: UUID?
-    internal var preCoordinatorFrames: [Data] = []
     @Published internal var isActivelyConnected = false {
       didSet { connectionIndicator.update(active: isActivelyConnected) }
     }
@@ -97,11 +83,6 @@
       [weak self] shown in
       self?.isPeerConnected = shown
     }
-
-    /// Frames enter the coordinator in arrival order through this
-    /// bounded chain; reset between connections.
-    internal let frameDelivery = OrderedDelivery(
-      capacity: OrderedDelivery.relayFrameCapacity)
 
     // MARK: Lifecycle
 
@@ -140,171 +121,139 @@
         guard !contexts.isEmpty else { return }
         startBluetoothServing(contexts)
         guard !streamSuspended else { return }
-        pruneStreamTransports(keeping: streamKeys(for: contexts))
         startListening(contexts)
       #else
-        guard relay == nil, coordinator == nil,
-          hasUsableSelectedPair()
-        else { return }
-        let nearbyConnectionID = UUID()
-        let nearby = PersistentRelaySession(
-          role: .cardHolder,
-          displayName: "RefineID iPhone"
-        ) { [weak self] event in
-          Task { @MainActor in
-            self?.receive(event, connectionID: nearbyConnectionID)
-          }
-        }
-        connectionID = nearbyConnectionID
-        relay = nearby
-        nearby.start()
+        startNearby()
       #endif
     }
 
-    private func receive(
-      _ event: PersistentRelayEvent,
-      connectionID: UUID
-    ) {
-      guard self.connectionID == connectionID else { return }
-      switch event {
-      case .connected:
-        establish(connectionID: connectionID)
-
-      case .frame(let frame):
-        if let coordinator {
-          deliverInOrder { await coordinator.receive(frame) }
-        } else if preCoordinatorFrames.count < Self.maximumPreCoordinatorFrames {
-          preCoordinatorFrames.append(frame)
-        } else {
-          relay?.cancel()
-        }
-
-      case .closed:
-        handleTransportClosed(redialDelayMilliseconds: Self.nearbyRedialDelayMilliseconds)
-      }
-    }
-
-    private func establish(connectionID: UUID) {
-      guard self.connectionID == connectionID, coordinator == nil,
-        let relay
-      else { return }
-
-      let transport = RappClosureFrameTransport(
-        sender: { [weak relay] frame in
-          guard let relay else {
-            throw PersistentRelayTransportError.disconnected
-          }
-          try relay.send(frame)
-        },
-        closer: { [weak relay] in relay?.cancel() }
-      )
-      establishCoordinator(
-        connectionID: connectionID,
-        transport: transport
-      ) { [weak relay] in
-        relay?.cancel()
-      }
-    }
-
-    internal func establishCoordinator(
-      connectionID: UUID,
-      transport: RappClosureFrameTransport,
-      failTransport: () -> Void
-    ) {
-      establishCoordinator(
-        connectionID: connectionID,
-        pair: nil,
-        transportProfile: rappStreamProfileName(),
-        transport: transport,
-        failTransport: failTransport
-      )
-    }
-
-    internal func establishCoordinator(
-      connectionID: UUID,
-      pair explicitPair: RappPairRecord?,
+    /// Opens the session a routed connection carries, over `pair`.
+    ///
+    /// `frames` carries the session's frames on `transport`; nil when the
+    /// session could not be made, and the caller drops the connection.
+    @discardableResult
+    internal func openSession(
+      pair: RappPairRecord,
+      on transport: ServedTransport,
       transportProfile: String,
-      transport: RappClosureFrameTransport,
-      failTransport: () -> Void
-    ) {
+      frames: RappClosureFrameTransport,
+      earlyFrames: [Data]
+    ) -> ServedSession? {
+      let coordinator: RappConnectionCoordinator
       do {
-        let pair: RappPairRecord
-        if let explicitPair {
-          pair = explicitPair
-        } else if let resolved = try PhoneProxyPairSelection.resolveSelectedPair(vault: vault) {
-          pair = resolved
-        } else {
-          failTransport()
-          return
-        }
-        let made = try RappConnectionCoordinator(
+        coordinator = try RappConnectionCoordinator(
           role: .proxy,
           pair: pair,
-          transport: transport,
-          maximumLifetimeMilliseconds:
-            policy.maximumOperationLifetimeMilliseconds,
-          transportProfile: transportProfile
-        )
-        let madeDispatcher = RappPhoneProxyDispatcher(
-          inbox: RappAuthorizationInbox.shared
-        )
-        coordinator = made
-        dispatcher = madeDispatcher
-        activePairID = pair.metadata().pairId
-        sessionServing.withLock { $0 = (pair.metadata().pairId, nil) }
-        isActivelyConnected = true
-
-        let earlyFrames = preCoordinatorFrames
-        preCoordinatorFrames.removeAll(keepingCapacity: false)
-        pumpEvents(
-          from: made,
-          dispatcher: madeDispatcher,
-          connectionID: connectionID,
-          earlyFrames: earlyFrames
-        )
+          transport: frames,
+          maximumLifetimeMilliseconds: policy.maximumOperationLifetimeMilliseconds,
+          transportProfile: transportProfile)
       } catch {
         #if DEBUG
           DevErrorLog.report("session not started: \(DevErrorLog.reason(error))", source: .app)
         #endif
-        failTransport()
+        return nil
+      }
+      let session = ServedSession(
+        transport: transport, pairID: pair.metadata().pairId, coordinator: coordinator,
+        cardQueue: cardQueue
+      ) { [weak self] session, report in
+        self?.sessionReported(session, report)
+      }
+      sessions[session.identifier] = session
+      isActivelyConnected = true
+      PairLastUse.markUsed(pairID: session.pairID, at: Date())
+      session.start(earlyFrames: earlyFrames)
+      return session
+    }
+
+    /// The open session on `transport`, if any.
+    internal func session(on transport: ServedTransport) -> ServedSession? {
+      sessions.values.first { $0.transport == transport }
+    }
+
+    /// Acts on what one session reports.
+    private func sessionReported(_ session: ServedSession, _ report: ServedSession.Report) {
+      switch report {
+      case .established:
+        // The custodian's first word on a session is which card can
+        // answer (§8.4); the requester offers nothing before it.
+        session.reportedCardStatus = nil
+        reportCardStatus(to: session)
+        prepareReaderCard()
+
+      case .operationOver:
+        #if REFINEID_STREAM_TRANSPORT
+          suspendStreamWhenIdle()
+        #endif
+
+      case .frameOverrun:
+        #if DEBUG
+          DevErrorLog.report("session dropped: frames outran the delivery queue", source: .app)
+        #endif
+        dropTransport(of: session)
+        session.transportClosed()
+
+      case .closed(let reason):
+        sessionClosed(session, reason: reason)
       }
     }
 
-    private func pumpEvents(
-      from coordinator: RappConnectionCoordinator,
-      dispatcher: RappPhoneProxyDispatcher,
-      connectionID: UUID,
-      earlyFrames: [Data]
+    /// Forgets a session that ended, and the pairing when its close ended
+    /// that too.
+    private func sessionClosed(
+      _ session: ServedSession, reason: RappConnectionCoordinator.CloseReason
     ) {
-      Task { [weak self] in
-        for await event in coordinator.events {
-          await dispatcher.receive(event, from: coordinator)
-          self?.observe(event, connectionID: connectionID)
+      #if DEBUG
+        if let failure = reason.devErrorName(midOperation: !session.isIdle) {
+          DevErrorLog.report("session closed: \(failure)", source: .app)
+        }
+      #endif
+      guard sessions.removeValue(forKey: session.identifier) != nil else { return }
+      endPairingIfOver(reason, pairID: session.pairID)
+      if sessions.isEmpty {
+        isActivelyConnected = false
+        Task {
+          await RappReaderSessionHolder.shared.close()
+          await RappNearFieldSessionHolder.shared.closeSession()
         }
       }
-      // The replay joins the same chain later frames append to, so a
-      // frame arriving during the replay cannot overtake it.
-      deliverInOrder {
-        await coordinator.start()
-        for frame in earlyFrames {
-          await coordinator.receive(frame)
-        }
+      if !hasUsablePair() {
+        tearDownTransport()
+        return
+      }
+      #if REFINEID_STREAM_TRANSPORT
+        suspendStreamWhenIdle()
+      #endif
+    }
+
+    /// Ends the connection under `session`: its stream connection, its
+    /// Bluetooth link, or the nearby relay.
+    internal func dropTransport(of session: ServedSession) {
+      switch session.transport {
+      #if REFINEID_STREAM_TRANSPORT
+        case .stream(let connection):
+          sessionListener?.disconnect(connection)
+
+        case .bluetooth(let link):
+          bluetoothServer?.close(link)
+      #else
+        case .nearby:
+          relay?.cancel()
+      #endif
       }
     }
 
-    /// Runs `work` after every delivery enqueued before it, cancelling a
-    /// transport whose peer outruns the bounded chain.
-    internal func deliverInOrder(_ work: @escaping @Sendable () async -> Void) {
-      if frameDelivery.deliver(work) { return }
-      #if DEBUG
-        print("[stream-holder] deliverInOrder rejected! cancelling transport")
-        fflush(stdout)
-        DevErrorLog.report("session dropped: frames outran the delivery queue", source: .app)
-      #endif
-      relay?.cancel()
-      #if REFINEID_STREAM_TRANSPORT
-        dropServedTransport()
-      #endif
+    /// Destroys the pairing `pairID` when the session's close ended it: the
+    /// requester revoked it, or this phone delivered the close of a pairing
+    /// its holder forgot (RAPP v26.10.22 §4.6 items 2 to 4).
+    private func endPairingIfOver(_ reason: RappConnectionCoordinator.CloseReason, pairID: Data) {
+      guard reason.peerRevokedPairing || reason == .handshake(.revocationNoticeDelivered) else {
+        return
+      }
+      try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: RappPlatformClock())
+      RappPairNames.forget(pairID: pairID)
+      NotificationCenter.default.post(
+        name: RappPairingModel.pairingsDidChangeNotification, object: nil)
     }
   }
 #endif

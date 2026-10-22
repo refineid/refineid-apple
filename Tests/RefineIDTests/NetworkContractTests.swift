@@ -69,9 +69,9 @@ internal struct NetworkContractTests {
     let expected: Set<String> = [
       "CardCore/Sources/CardCore/StreamRelayBrowser.swift",
       "CardCore/Sources/CardCore/StreamRelayListener.swift",
-      "CardCore/Sources/CardCore/StreamRelayListener+Challenge.swift",
       "CardCore/Sources/CardCore/StreamRelayPresence.swift",
       "CardCore/Sources/CardCore/StreamRelaySession.swift",
+      "CardCore/Sources/CardCore/StreamSessionListener.swift",
       "Sources/App/AuthoritySchemeResolver.swift",
       "Sources/App/DebugBrowseProbe.swift",
       "Sources/App/DebugLocalNetworkProbe.swift",
@@ -98,14 +98,14 @@ internal struct NetworkContractTests {
   internal func macOSNeverListens() throws {
     let actual = try Self.files(
       containingAny: [
-        "StreamRelayListener {", "StreamRelayListener(", "NWListener(using",
-        "MCNearbyServiceAdvertiser(",
+        "StreamRelayListener {", "StreamRelayListener(", "StreamSessionListener {",
+        "StreamSessionListener(", "NWListener(using", "MCNearbyServiceAdvertiser(",
       ]
     )
     let expected: Set<String> = [
       "CardCore/Sources/CardCore/PersistentRelaySession.swift",
       "CardCore/Sources/CardCore/StreamRelayListener.swift",
-      "CardCore/Sources/CardCore/StreamRelayListener+Challenge.swift",
+      "CardCore/Sources/CardCore/StreamSessionListener.swift",
       "Sources/App/DebugListenProbe.swift",
       "Sources/App/LocalNetworkAccessDetector.swift",
       "Sources/App/PairingRelay.swift",
@@ -145,6 +145,7 @@ internal struct NetworkContractTests {
     #expect(
       advertisers == [
         "CardCore/Sources/CardCore/StreamRelayListener.swift",
+        "CardCore/Sources/CardCore/StreamSessionListener.swift",
         "Sources/App/LocalNetworkAccessDetector.swift",
       ],
       "A new advertisement needs a contract entry in Documentation/decisions.md first."

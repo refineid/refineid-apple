@@ -177,8 +177,8 @@
       /// dials it and no other (RAPP v26.10.22 §4.6 item 2).
       internal var pairInSight: Data?
 
-      /// Dials the phone again after a session ended while it stayed on
-      /// the network.
+      /// Dials the phone again once the wait after a session that ended is
+      /// over.
       internal var redialTask: Task<Void, Never>?
 
       /// Whether the phone still confirms the offered card (§8.4 item 3).
@@ -187,11 +187,10 @@
       /// Withdraws the identity once ``identityOffer`` has lapsed.
       internal var offerLapseTask: Task<Void, Never>?
 
-      /// The transport the open session runs over; nil while none is open.
-      internal var heldTransport: RequesterTransport?
-
-      /// Whether the open session came up.
-      internal var heldSessionEstablished = false
+      /// The one session this computer holds with the phone: whether it is
+      /// being dialled or is up, over which transport, and when the next
+      /// dial may go.
+      internal var sessionSlot = RequesterSessionSlot()
 
       /// Whether Bonjour lists the phone's record this moment, without the
       /// hold ``holderIsAdvertising`` applies to a vanished one: a record

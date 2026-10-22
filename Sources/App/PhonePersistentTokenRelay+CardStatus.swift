@@ -80,18 +80,25 @@
       return .present(fingerprint)
     }
 
-    /// Tells the connected requester which card can answer, when that
-    /// changed since it was last told on this session; nothing is sent
-    /// without a session.
+    /// Tells every open session which card can answer, each one when it
+    /// changed since that session was last told (§8.4 item 1).
     internal func reportCardStatus() {
-      guard let coordinator else { return }
+      for session in sessions.values where session.isEstablished {
+        reportCardStatus(to: session)
+      }
+    }
+
+    /// Tells `session` which card can answer, when that changed since it
+    /// was last told.
+    internal func reportCardStatus(to session: ServedSession) {
       let status = cardStatus
-      guard status != reportedCardStatus else { return }
-      reportedCardStatus = status
+      guard status != session.reportedCardStatus else { return }
+      session.reportedCardStatus = status
+      let coordinator = session.coordinator
       Task { try? await coordinator.reportCardStatus(status) }
     }
 
-    /// A reader card or a prime arrived or left: the requester hears which
+    /// A reader card or a prime arrived or left: every requester hears which
     /// card the phone holds now, and a PIN 1 held for another card ends
     /// (§11 item 2).
     internal func cardAvailabilityChanged() {
@@ -113,11 +120,11 @@
     /// card's authentication certificate once, so `card.status` can name
     /// the card.
     ///
-    /// Both run on the reader holder's chain, the card turn the operations
-    /// take (RAPP v26.10.22 §8.2 item 2); one preparation runs at a time,
-    /// and a card that changed meanwhile is prepared once it is done.
+    /// Both run on the reader holder's chain, between the card exchanges
+    /// the operations make, and command no PIN; one preparation runs at a
+    /// time, and a card that changed meanwhile is prepared once it is done.
     internal func prepareReaderCard() {
-      guard coordinator != nil, CardPresence.shared.isReaderCardPresent,
+      guard !sessions.isEmpty, CardPresence.shared.isReaderCardPresent,
         readerCard.preparation == nil
       else { return }
       let epoch = readerCard.epoch
@@ -143,83 +150,6 @@
       guard epoch == readerCard.epoch, CardPresence.shared.isReaderCardPresent else { return }
       readerCard.certificate = certificate
       reportCardStatus()
-    }
-
-    internal func observe(
-      _ event: RappConnectionCoordinator.Event,
-      connectionID: UUID
-    ) {
-      #if DEBUG
-        // Ahead of the connection check: a session whose transport has
-        // already gone reports its close after the connection was dropped.
-        if case .closed(let reason) = event,
-          let failure = reason.devErrorName(midOperation: !operationsInFlight.isEmpty)
-        {
-          DevErrorLog.report("session closed: \(failure)", source: .app)
-        }
-      #endif
-      guard self.connectionID == connectionID else { return }
-      #if DEBUG
-        HolderTrace.say("session event \(eventCaseName(event))")
-      #endif
-      switch event {
-      case .established:
-        // The custodian's first word on a session is which card can
-        // answer (§8.4); the requester offers nothing before it.
-        operationsInFlight.removeAll()
-        reportedCardStatus = nil
-        sessionServing.withLock { $0.idleSince = .now }
-        reportCardStatus()
-        prepareReaderCard()
-
-      case .inspectPrerequisites(let operationID, _),
-        .awaitUserApproval(let operationID, _),
-        .executeSafeRead(let operationID, _),
-        .executeCardCommand(let operationID, _):
-        operationsInFlight.insert(operationID)
-        sessionServing.withLock { $0.idleSince = nil }
-
-      case .completed(let operationID, _), .terminal(let operationID, _),
-        .operationEnded(.dropped(let operationID)),
-        .operationEnded(.cardExchangeContinues(let operationID)),
-        .answered(let operationID):
-        operationEnded(operationID)
-
-      case .closed(let reason):
-        operationsInFlight.removeAll()
-        sessionServing.withLock { $0 = (nil, nil) }
-        endPairingIfOver(reason)
-        Task {
-          await RappReaderSessionHolder.shared.close()
-          await RappNearFieldSessionHolder.shared.closeSession()
-        }
-
-      case .progress, .cardStatus:
-        break
-      }
-    }
-
-    internal func operationEnded(_ operationID: RappOperationIdentifier) {
-      operationsInFlight.remove(operationID)
-      let idle = operationsInFlight.isEmpty
-      sessionServing.withLock { $0.idleSince = idle ? .now : nil }
-      #if REFINEID_STREAM_TRANSPORT
-        if idle { suspendStreamWhenIdle() }
-      #endif
-    }
-
-    /// Destroys the pairing the closed session ran over when the session
-    /// ended it: the requester revoked it, or this phone delivered the close
-    /// of a pairing its holder forgot (RAPP v26.10.22 §4.6 items 2 to 4).
-    private func endPairingIfOver(_ reason: RappConnectionCoordinator.CloseReason) {
-      guard reason.peerRevokedPairing || reason == .handshake(.revocationNoticeDelivered),
-        let pairID = activePairID
-      else { return }
-      try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: RappPlatformClock())
-      RappPairNames.forget(pairID: pairID)
-      activePairID = nil
-      NotificationCenter.default.post(
-        name: RappPairingModel.pairingsDidChangeNotification, object: nil)
     }
   }
 #endif

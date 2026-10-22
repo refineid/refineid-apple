@@ -200,14 +200,18 @@
     }
 
     /// Cancels the live operation when its deadline passed before the card
-    /// was commanded (§8.1 item 2).
-    public func expireDue() -> [Command] {
-      guard !closed else { return [] }
+    /// was commanded (§8.1 item 2), answering the commands and the
+    /// operation it cancelled, if any.
+    public func expireDue() -> (commands: [Command], expired: RappOperationIdentifier?) {
+      guard !closed else { return ([], nil) }
+      let action: RappBridgeAction
       do {
-        return try commands(bridge.expireDue(nowMs: clock.monotonicMilliseconds()))
+        action = try bridge.expireDue(nowMs: clock.monotonicMilliseconds())
       } catch {
-        return []
+        return ([], nil)
       }
+      guard case .sendFrame(_, let expired) = action else { return (commands(action), nil) }
+      return (commands(action), expired)
     }
 
     /// Completes an inspection with the card's answer to reset, or its

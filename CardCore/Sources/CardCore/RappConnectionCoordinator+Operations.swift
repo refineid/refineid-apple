@@ -5,6 +5,18 @@
   import RappEngine
 
   extension RappConnectionCoordinator {
+    /// Whether `command` is the custodian's next step on its operation, so
+    /// the operation goes on.
+    private static func isCustodianStep(_ command: RappOperationDriver.Command) -> Bool {
+      switch command {
+      case .awaitUserApproval, .executeCardCommand, .executeSafeRead, .inspectPrerequisites:
+        true
+
+      default:
+        false
+      }
+    }
+
     /// Starts an inspect-card operation with the given expiry window.
     public func beginInspectCard(expiresAfterMilliseconds: UInt64) async throws {
       let driver = try operationDriver()
@@ -122,16 +134,24 @@
       await handleOperation(try await driver.reportProgress(operationID: operationID, event: event))
     }
 
-    /// Reports that proxy-side prerequisites for the operation are met.
+    /// Reports that proxy-side prerequisites for the operation are met; an
+    /// operation past its deadline is cancelled instead and reported
+    /// answered (§8.1 item 2).
     public func prerequisitesComplete(operationID: RappOperationIdentifier) async throws {
       let driver = try operationDriver()
-      await handleOperation(try await driver.prerequisitesComplete(operationID: operationID))
+      let commands = try await driver.prerequisitesComplete(operationID: operationID)
+      await handleOperation(commands)
+      if !commands.contains(where: Self.isCustodianStep) { answered(operationID) }
     }
 
-    /// Records the local user's approval of the pending operation.
+    /// Records the local user's approval of the pending operation; an
+    /// operation past its deadline is cancelled instead and reported
+    /// answered (§8.1 item 2).
     public func approve(operationID: RappOperationIdentifier) async throws {
       let driver = try operationDriver()
-      await handleOperation(try await driver.approve(operationID: operationID))
+      let commands = try await driver.approve(operationID: operationID)
+      await handleOperation(commands)
+      if !commands.contains(where: Self.isCustodianStep) { answered(operationID) }
     }
 
     /// Records the local user's denial of the pending operation.

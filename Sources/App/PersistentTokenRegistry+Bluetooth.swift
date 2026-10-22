@@ -5,9 +5,13 @@
   import Foundation
   import RappEngine
 
-  /// The registry's Bluetooth half: the operations the token extension
-  /// hands over (CC-71), and the Bluetooth link's steps.
+  /// The registry's Bluetooth half, and the operations the token extension
+  /// hands over (CC-71).
   extension PersistentTokenRegistry {
+    /// How often a handed-over operation looks again for a session it can
+    /// run on while none is up.
+    private static let carryPollMilliseconds = 250
+
     /// The failure a requester reports for an operation the held session
     /// could not answer.
     private static func clientError(
@@ -16,9 +20,6 @@
       switch error as? RappHeldRequesterSession.OperationError {
       case .terminal(let reason):
         .terminal(reason)
-
-      case .operationInFlight:
-        .terminal(.busy)
 
       case .unexpectedResult:
         .unexpectedResult
@@ -30,46 +31,64 @@
 
     /// Carries an operation the token extension handed over (CC-71).
     ///
-    /// Over Bluetooth only this app holds a link to the phone, so the app
-    /// runs the operation on its session, dialing one and waiting for it
-    /// within the handoff's window when none is open. Otherwise the
-    /// extension dials the stream itself, as it does without this app.
+    /// This computer holds one session with the phone, and the app holds
+    /// it, over either transport: the operation runs on it, after any
+    /// operation already running there. With none open the app dials one,
+    /// within the dial's back-off, and waits for it within the handoff's
+    /// window; a session over another pairing, one being forgotten, is
+    /// waited out.
     internal func carry(
       _ request: RappHeldSessionHandoff.Request
     ) async -> RappHeldSessionHandoff.Answer {
-      guard Self.dialsPhones, !CardPresence.shared.isReaderCardPresent else { return .dialStream }
+      guard Self.dialsPhones, !CardPresence.shared.isReaderCardPresent else {
+        return .failed(.peerNotFound)
+      }
       let deadline = ContinuousClock.now + .seconds(RappHeldSessionHandoff.establishWaitSeconds)
+      let poll = Duration.milliseconds(Self.carryPollMilliseconds)
       while ContinuousClock.now < deadline {
-        guard transportPolicy.handoffCarrier(held: heldTransport) == .app else {
-          return .dialStream
-        }
-        if let pairID = request.pairID, let held = holderSession, held.pairID != pairID {
-          return .dialStream
-        }
-        if holderSession == nil {
-          redialTask?.cancel()
-          redialTask = nil
-          openHolderSession()
-        }
-        guard let session = holderSession else { return .failed(.peerNotFound) }
-        if await session.established(within: deadline - .now) {
+        openHolderSession()
+        if let session = holderSession, request.pairID == nil || request.pairID == session.pairID,
+          await session.established(within: deadline - .now)
+        {
           #if DEBUG
-            print("[persistent-token] carrying the extension's operation over Bluetooth")
+            print("[persistent-token] carrying the extension's operation")
             fflush(stdout)
           #endif
-          do {
-            return .response(try await session.perform(request.operation))
-          } catch {
-            #if DEBUG
-              DevErrorLog.report(
-                "handed-over operation failed: \(DevErrorLog.reason(error))", source: .app)
-            #endif
-            return .failed(Self.clientError(error))
-          }
+          return await perform(request.operation, on: session)
         }
-        try? await Task.sleep(for: Self.redialDelay)
+        try? await Task.sleep(for: min(poll, deadline - .now))
       }
       return .failed(.peerNotFound)
+    }
+
+    /// Runs `operation` for this app on the computer's one session with the
+    /// phone, as a handed-over operation runs (CC-71), and answers what the
+    /// phone answered.
+    internal func perform(_ operation: RappRequesterOperation) async throws
+      -> RappRequesterResponse
+    {
+      switch await carry(RappHeldSessionHandoff.Request(pairID: nil, operation: operation)) {
+      case .response(let response):
+        return response
+
+      case .failed(let error):
+        throw error
+      }
+    }
+
+    /// Runs a handed-over operation on `session` and answers its outcome.
+    private func perform(
+      _ operation: RappRequesterOperation, on session: RappHeldRequesterSession
+    ) async -> RappHeldSessionHandoff.Answer {
+      do {
+        return .response(try await session.perform(operation))
+      } catch {
+        #if DEBUG
+          DevErrorLog.report(
+            "handed-over operation failed: \(DevErrorLog.reason(error))", source: .app)
+        #endif
+        return .failed(Self.clientError(error))
+      }
     }
 
     /// Follows the Bluetooth link's steps: Bluetooth found off or refused

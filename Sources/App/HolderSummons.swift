@@ -11,8 +11,10 @@
   /// Core NFC opens a reader session only for an app in the foreground. The
   /// summons posts a time-sensitive notification naming the computer that
   /// asks, and waits until the app is active, the limit passes, or the
-  /// session ends. Tapping the notification brings the app forward; the
-  /// card is then commanded as from the foreground.
+  /// session that asked ends. Tapping the notification brings the app
+  /// forward; the card is then commanded as from the foreground. Only the
+  /// operation holding the card summons, and a session that ends takes
+  /// down its own summons and no other.
   @MainActor
   internal final class HolderSummons {
     internal static let shared = HolderSummons()
@@ -34,6 +36,8 @@
     }
 
     private var waiting: [UUID: CheckedContinuation<Bool, Never>] = [:]
+    /// The session each summons was made for.
+    private var owners: [UUID: UUID] = [:]
     private var activationObserver: (any NSObjectProtocol)?
 
     private init() {
@@ -44,15 +48,16 @@
       }
     }
 
-    /// Asks the holder to bring the app forward for `requester`; true once
-    /// the app is active, false when the limit passed or the session ended
-    /// first.
-    internal func summon(requester: String) async -> Bool {
+    /// Asks the holder to bring the app forward for `requester`, on behalf
+    /// of the session `owner`; true once the app is active, false when the
+    /// limit passed or the session ended first.
+    internal func summon(requester: String, owner: UUID) async -> Bool {
       guard UIApplication.shared.applicationState != .active else { return true }
       let ticket = UUID()
       post(ticket, requester: requester)
       let came = await withCheckedContinuation { continuation in
         waiting[ticket] = continuation
+        owners[ticket] = owner
         Task { @MainActor in
           try? await Task.sleep(for: Self.limit)
           self.resume(ticket, false)
@@ -62,18 +67,27 @@
       return came
     }
 
-    /// Ends every summons: the session that asked is gone.
+    /// Ends the summons of the session `owner`: it is gone.
+    internal func cancel(owner: UUID) {
+      for (ticket, ticketOwner) in owners where ticketOwner == owner {
+        resume(ticket, false)
+      }
+    }
+
+    /// Ends every summons: serving stopped.
     internal func cancelAll() {
       resumeAll(false)
     }
 
     private func resume(_ ticket: UUID, _ came: Bool) {
+      owners.removeValue(forKey: ticket)
       waiting.removeValue(forKey: ticket)?.resume(returning: came)
     }
 
     private func resumeAll(_ came: Bool) {
       let all = waiting
       waiting.removeAll()
+      owners.removeAll()
       for continuation in all.values {
         continuation.resume(returning: came)
       }

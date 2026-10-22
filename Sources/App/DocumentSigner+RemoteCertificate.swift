@@ -18,7 +18,7 @@ extension DocumentSigner {
     /// is held or under way.
     internal func certificate(
       for pairID: Data?,
-      fetch: @escaping @Sendable () throws -> Data
+      fetch: @escaping @Sendable () async throws -> Data
     ) async throws -> Data {
       if pairID != self.pairID {
         self.pairID = pairID
@@ -28,7 +28,7 @@ extension DocumentSigner {
       if let read {
         current = read
       } else {
-        current = Task.detached(priority: .userInitiated) { try fetch() }
+        current = Task.detached(priority: .userInitiated) { try await fetch() }
         read = current
       }
       do {
@@ -64,7 +64,7 @@ extension DocumentSigner {
     let pairID = try? RappDeviceVault().selectedPairID()
     let displayName = ProcessInfo.processInfo.hostName
     return try await Self.remoteCertificates.certificate(for: pairID) {
-      try Self.fetchRemoteSignatureCertificate(displayName: displayName)
+      try await Self.fetchRemoteSignatureCertificate(displayName: displayName)
     }
   }
 }

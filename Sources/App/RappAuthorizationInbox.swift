@@ -9,19 +9,30 @@
 
   /// Main-actor rendezvous between the authenticated proxy and SwiftUI.
   ///
-  /// There is no automatic approval, timeout, or queue. A second operation is
-  /// denied while one is visible; expiry and disconnect arrive from the RAPP
-  /// state machine and explicitly cancel the matching request. Every request
+  /// There is no automatic approval, timeout, or queue: only the operation
+  /// holding the card asks (RAPP v26.10.22 §8.2 item 2), and a second
+  /// request is denied while one is visible. Expiry and disconnect arrive
+  /// from the RAPP state machine and explicitly cancel the matching
+  /// request, also one cancelled on its way to the screen. Every request
   /// is a PIN prompt, and entering the PIN is the holder's consent; reads
-  /// never come here (RAPP v26.10.22 §8.2 items 3 and 6).
+  /// never come here (§8.2 items 3 and 6).
   @MainActor
   internal final class RappAuthorizationInbox: ObservableObject {
     internal static let shared = RappAuthorizationInbox()
 
     private static let notificationPrefix = "rapp-auth-"
 
+    /// How many requests withdrawn before they reached the screen are
+    /// remembered; one request is on its way at a time, the card turn
+    /// holder's.
+    private static let withdrawalMemory = 8
+
     @Published internal private(set) var request: RappAuthorizationRequest?
     private var continuation: CheckedContinuation<RappAuthorizationDecision, Never>?
+
+    /// Requests cancelled before they reached the screen, newest last, so
+    /// one that arrives after its own cancellation is never shown.
+    private var withdrawn: [String] = []
 
     private init() {
       // The authorization prompt waits for the holder's opt-in: asking
@@ -32,6 +43,10 @@
     internal func ask(
       _ offered: RappAuthorizationRequest
     ) async -> RappAuthorizationDecision {
+      if let index = withdrawn.firstIndex(of: offered.requestID) {
+        withdrawn.remove(at: index)
+        return .denied
+      }
       guard request == nil, continuation == nil else { return .denied }
       playPromptFeedback()
       postNotification(for: offered)
@@ -69,14 +84,15 @@
 
     /// Cancels only the operation the protocol named.
     ///
-    /// A late cancellation cannot dismiss or decide a newer request.
+    /// A late cancellation cannot dismiss or decide a newer request; one
+    /// that comes before its request reached the screen keeps it off.
     internal func cancel(_ requestID: String) {
+      guard request?.requestID == requestID else {
+        withdrawn.append(requestID)
+        if withdrawn.count > Self.withdrawalMemory { withdrawn.removeFirst() }
+        return
+      }
       complete(requestID, with: .denied)
-    }
-
-    internal func cancelAll() {
-      guard let request else { return }
-      complete(request.requestID, with: .denied)
     }
 
     private func complete(
