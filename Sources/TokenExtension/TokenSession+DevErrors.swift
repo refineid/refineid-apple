@@ -4,7 +4,7 @@
   import CryptoTokenKit
   import Foundation
 
-  /// How a failed signature reaches the development error strip.
+  /// How a failed signature reaches the development error display.
   extension TokenSession {
     /// Records a signature the system asked for and did not get.
     ///

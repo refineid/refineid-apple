@@ -8,7 +8,7 @@
   import Security
 
   /// The recent errors of every RefineID process, for the development
-  /// error strip.
+  /// error display.
   ///
   /// The app and both token extensions report here. The extensions run in
   /// processes of their own, so the entries live in one keychain item in
@@ -45,6 +45,11 @@
       internal let message: String
       /// How many times in a row it was reported.
       internal let occurrences: Int
+
+      /// The message, with how many times in a row it came.
+      internal var text: String {
+        occurrences > 1 ? "\(message) (x\(occurrences))" : message
+      }
     }
 
     // MARK: Static Properties
@@ -63,7 +68,7 @@
 
     /// Whether this process records errors: never in a test run, unless a
     /// UI test opted in, so a test's failures never reach a developer's
-    /// own strip.
+    /// own display.
     internal static let isRecording =
       !TestCredentialEnvironment.isTestMode
       || ProcessInfo.processInfo.arguments.contains(uiTestOptInArgument)
@@ -148,6 +153,20 @@
       return Array(kept.suffix(Self.capacity))
     }
 
+    /// `entry` as one line of text: when, from where, and what.
+    ///
+    /// The time is ISO 8601 in `timeZone`, so a pasted line still says
+    /// which day it came from.
+    internal static func line(for entry: Entry, timeZone: TimeZone) -> String {
+      let time = Date.ISO8601FormatStyle(timeZone: timeZone).format(entry.date)
+      return "\(time) \(entry.source.rawValue) \(entry.text)"
+    }
+
+    /// `entries` as lines of text, in the order given.
+    internal static func transcript(of entries: [Entry], timeZone: TimeZone) -> String {
+      entries.map { Self.line(for: $0, timeZone: timeZone) }.joined(separator: "\n")
+    }
+
     /// `message` on one line and no longer than ``maximumMessageLength``.
     internal static func sanitized(_ message: String) -> String {
       let flattened = message.components(separatedBy: .controlCharacters).joined(separator: " ")
@@ -173,7 +192,7 @@
     /// one case and as `name` where it carries anything else.
     ///
     /// Counts, labels, lists and text never pass: what a payload holds is
-    /// how a secret would reach the strip. A value that is no case at all
+    /// how a secret would reach the display. A value that is no case at all
     /// is named by its type.
     internal static func caseName(of value: Any) -> String {
       let described = String(describing: value)

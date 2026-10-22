@@ -14,6 +14,7 @@ internal struct DiagnosticsView: View {
 
   @State private var snapshot: DiagnosticsSnapshot?
   @State private var reportCopied = false
+  @State private var errorsCopied = false
   @State private var clearMessage: String?
   @State private var clearSucceeded = true
   @State private var showsClearConfirmation = false
@@ -36,6 +37,7 @@ internal struct DiagnosticsView: View {
         capabilitySection
       #endif
       if let snapshot {
+        errorSection(snapshot)
         ForEach(snapshot.sections, id: \.title) { section in
           reportSection(section)
         }
@@ -60,6 +62,7 @@ internal struct DiagnosticsView: View {
     #endif
     .toolbar { toolbarContent }
     .task { refresh() }
+    .onChange(of: DevErrorModel.shared.entries.first?.identifier) { refresh() }
     // An alert, not a confirmation dialog: a dialog is presented as a
     // popover anchored to its source, which drops the cancel action and
     // was measured landing over the navigation bar, far from the button
@@ -207,6 +210,36 @@ internal struct DiagnosticsView: View {
     return collected.isEmpty ? probed : collected + "\n\n" + probed
   }
 
+  /// Every recorded error in full, oldest first as the report prints
+  /// them, and a way in the header to copy them alone.
+  ///
+  /// Developer-facing, so not localised. The messages wrap: an error is
+  /// one sentence, not a column of a table.
+  private func errorSection(_ snapshot: DiagnosticsSnapshot) -> some View {
+    Section {
+      if snapshot.errors.isEmpty {
+        Text(verbatim: "(nothing recorded)")
+          .foregroundStyle(.secondary)
+      } else {
+        ForEach(snapshot.errors, id: \.identifier) { entry in
+          DevErrorList.Row(entry: entry)
+        }
+      }
+    } header: {
+      HStack {
+        Text(verbatim: snapshot.errorSection.title)
+        Spacer()
+        if !snapshot.errors.isEmpty {
+          Button {
+            copyErrors(snapshot.errors)
+          } label: {
+            Text(verbatim: errorsCopied ? "Copied" : "Copy All")
+          }
+        }
+      }
+    }
+  }
+
   /// One selectable, monospaced report block.
   ///
   /// The block scrolls sideways rather than wrapping: these are fixed
@@ -251,6 +284,15 @@ internal struct DiagnosticsView: View {
     Task {
       try? await Task.sleep(for: Self.copyFeedbackDuration)
       reportCopied = false
+    }
+  }
+
+  private func copyErrors(_ errors: [DevErrorLog.Entry]) {
+    DiagnosticsClipboard.copy(DevErrorLog.transcript(of: errors, timeZone: .current))
+    errorsCopied = true
+    Task {
+      try? await Task.sleep(for: Self.copyFeedbackDuration)
+      errorsCopied = false
     }
   }
 

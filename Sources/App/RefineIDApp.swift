@@ -115,6 +115,17 @@ internal struct RefineIDApp: App {
         CommandGroup(replacing: .help) {
           // Intentionally empty: no help item, so no Help menu.
         }
+        #if DEBUG
+          CommandGroup(before: .windowList) {
+            if DevErrorModel.isEnabled {
+              Button {
+                DevErrorWindow.shared.show()
+              } label: {
+                Text(verbatim: "Errors")
+              }
+            }
+          }
+        #endif
       }
 
       Settings {
@@ -165,7 +176,7 @@ internal struct RefineIDApp: App {
         .writingToolsBehavior(.disabled)
     }
     #if DEBUG
-      .modifier(DevErrorStrip())
+      .modifier(DevErrorDisplay())
     #endif
     // Off the launch path for the reason in the initializer below:
     // withdrawing reads the driver configuration, a synchronous call

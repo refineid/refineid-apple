@@ -5,7 +5,7 @@
   import Foundation
 
   /// How the custodian's failed operations reach the development error
-  /// strip.
+  /// display.
   extension RappPhoneProxyDispatcher {
     /// Records that an operation ended without its result.
     ///
