@@ -2631,6 +2631,22 @@
         }
       }
     },
+    "Insert the card into the phone's card reader.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Syötä kortti puhelimen kortinlukijaan."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sätt in kortet i telefonens kortläsare."
+          }
+        }
+      }
+    },
     "Insert your card": {
       "localizations": {
         "fi": {

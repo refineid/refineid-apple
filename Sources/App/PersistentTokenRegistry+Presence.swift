@@ -21,7 +21,7 @@
     /// follow the advertisement (RAPP v26.10.22 §4.5 item 6, §8.4 item 3).
     private static let advertisementLossHoldSeconds = 30
 
-    internal static var advertisementLossHold: Duration {
+    private static var advertisementLossHold: Duration {
       Duration.seconds(advertisementLossHoldSeconds)
     }
 

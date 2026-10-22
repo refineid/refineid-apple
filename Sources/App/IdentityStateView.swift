@@ -13,9 +13,7 @@
   /// must not be shouted as one: the row shows nothing while it settles
   /// and only warns once the state has lasted long enough to mean
   /// something. A phone's card says it is connecting until the holder's
-  /// name, and a connected phone without a card is named only once that
-  /// has lasted as long as the registry holds a lost phone before calling
-  /// it gone.
+  /// name, and a phone that holds no card asks for it.
   internal struct IdentityStateView: View {
     /// One tracked event.
     ///
@@ -64,9 +62,6 @@
 
     @State private var isFetching = PersistentTokenRegistry.shared.isRunning
 
-    /// The waiting line that has lasted long enough to show.
-    @State private var settledLine: IdentityLine?
-
     /// The person line the remote-card registry already holds.
     ///
     /// Used when the keychain has not yet listed the borrowed token
@@ -97,9 +92,6 @@
         .task(id: trackKey) {
           await track()
         }
-        .task(id: line) {
-          await settle(line)
-        }
         .onReceive(
           NotificationCenter.default.publisher(
             for: PersistentTokenRegistry.fetchStateDidChangeNotification
@@ -119,26 +111,17 @@
         cardPresent: cardPresence.isCardPresent,
         phonePresent: PersistentTokenRegistry.shared.holderIsAdvertising,
         pairedPhone: PersistentTokenRegistry.shared.pairedPhone,
-        phoneThatForgot: PersistentTokenRegistry.shared.phoneThatForgot
+        phoneThatForgot: PersistentTokenRegistry.shared.phoneThatForgot,
+        phoneReportsNoCard: PersistentTokenRegistry.shared.holderReportsNoCard
       )
     }
 
-    /// The line the facts call for now.
-    private var line: IdentityLine {
-      IdentityLine.derive(facts)
-    }
-
-    /// The line to show: a waiting line only once it has lasted.
-    private var shownLine: IdentityLine? {
-      line.waitsBeforeShowing && settledLine != line ? nil : line
-    }
-
     @ViewBuilder private var content: some View {
-      switch shownLine {
+      switch IdentityLine.derive(facts) {
       case .empty, .reading:
         Text("")
 
-      case nil, .connecting:
+      case .connecting:
         Text("Connecting...")
           .foregroundStyle(.secondary)
 
@@ -160,8 +143,8 @@
         Text("Insert the card into the reader.")
           .foregroundStyle(.secondary)
 
-      case .phoneConnected(let phone):
-        Text("\(phone) connected")
+      case .insertCardInPhone:
+        Text("Insert the card into the phone's card reader.")
           .foregroundStyle(.secondary)
 
       case .phoneForgot(let phone):
@@ -171,16 +154,6 @@
       case .pairPhone:
         RemotePairingPromptView()
       }
-    }
-
-    /// Lets a waiting line show once it has lasted, and forgets it as
-    /// soon as another line takes over.
-    private func settle(_ line: IdentityLine) async {
-      settledLine = nil
-      guard line.waitsBeforeShowing else { return }
-      try? await Task.sleep(for: PersistentTokenRegistry.advertisementLossHold)
-      guard !Task.isCancelled else { return }
-      settledLine = line
     }
 
     /// Follows one availability and reads the name when ready.
