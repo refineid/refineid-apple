@@ -64,7 +64,7 @@
         Self.withdrawPublishedIdentity()
         return
       }
-      guard case .present(let named) = holderCardStatus else { return }
+      guard case .present(let named)? = holderCardStatus?.card else { return }
       if let published = Self.publishedCertificateDER(),
         RappCertificateFingerprint(certificate: published) != named
       {

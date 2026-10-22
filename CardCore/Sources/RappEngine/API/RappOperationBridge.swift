@@ -58,8 +58,8 @@ public final class RappOperationBridge: @unchecked Sendable {
 
   /// Takes the established session as the custodian.
   ///
-  /// Report the card with ``reportCardStatus(authenticationCertificate:)``
-  /// right after, so `card.status` follows `session.ready` (§8.4).
+  /// Report the card and the reader with ``reportCardStatus(_:)`` right
+  /// after, so `card.status` follows `session.ready` (§8.4).
   ///
   /// - Throws: ``RappBindingError/WrongPhase`` when the session is not
   /// established, and ``RappBindingError/InvalidInput`` on a zero

@@ -293,6 +293,9 @@ internal final class PersistentTokenDriver: TKTokenDriver,
   override internal init() {
     super.init()
     delegate = self
+    #if DEBUG
+      reportRefusedMessages()
+    #endif
   }
 
   internal func tokenDriver(
@@ -302,3 +305,13 @@ internal final class PersistentTokenDriver: TKTokenDriver,
     try PersistentToken(tokenDriver: self, configuration: configuration)
   }
 }
+
+#if DEBUG
+  /// Every message a peer sent that the protocol refuses shows among the
+  /// development errors, named by its type and the rule it broke.
+  private func reportRefusedMessages() {
+    RappRefusalLog.install { line in
+      DevErrorLog.report("message refused: \(line)", source: .rappTokenExtension)
+    }
+  }
+#endif

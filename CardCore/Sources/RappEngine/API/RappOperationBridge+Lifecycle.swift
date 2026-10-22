@@ -137,6 +137,7 @@ extension RappOperationBridge {
       do {
         message = try SessionMessageCodec.message(from: envelope, nowMilliseconds: nowMs)
       } catch {
+        RappRefusalLog.refused(envelope.messageType, because: error)
         return violationClose()
       }
       return dispatch(message)

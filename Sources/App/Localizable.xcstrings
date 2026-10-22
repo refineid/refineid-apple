@@ -3884,6 +3884,22 @@
         }
       }
     },
+    "Place the card on the phone.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aseta kortti puhelimeen."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lägg kortet på telefonen."
+          }
+        }
+      }
+    },
     "Platform": {
       "localizations": {
         "fi": {
@@ -6827,18 +6843,18 @@
         }
       }
     },
-    "Open RefineID / Remote Access on your phone and enter the pairing code:": {
+    "Open RefineID remote access on your phone and enter the pairing code:": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Avaa puhelimesta RefineID / Etäkäyttö ja syötä yhdistämiskoodi:"
+            "value": "Avaa puhelimesta RefineID etäkäyttö ja syötä yhdistämiskoodi:"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Öppna RefineID / Fjärråtkomst på telefonen och ange kopplingskoden:"
+            "value": "Öppna RefineID fjärråtkomst på telefonen och ange kopplingskoden:"
           }
         }
       }

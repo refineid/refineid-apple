@@ -168,17 +168,21 @@ internal struct BridgeDriveTests {
         == .terminal(identifier, .operationExpired))
   }
 
-  @Test("The card's status names its certificate's fingerprint, or its absence")
+  @Test("The card's status names its certificate's fingerprint or its absence, and the reader")
   internal func cardStatus() throws {
     let session = try Self.established()
     let fingerprint = try #require(
       RappCertificateFingerprint(certificate: OperationFixture.certificate))
-    for status in [RappCardStatus.present(fingerprint), .absent] {
-      let report = try session.custodian.reportCardStatus(status)
-      #expect(try deliver(report, to: session.requester, at: Self.start) == .cardStatus(status))
+    for card in [RappCardPresence.present(fingerprint), .absent] {
+      for reader in [RappCardReader.attached, .absent] {
+        let status = RappCardStatus(card: card, reader: reader)
+        let report = try session.custodian.reportCardStatus(status)
+        #expect(try deliver(report, to: session.requester, at: Self.start) == .cardStatus(status))
+      }
     }
     #expect(
-      (try? session.requester.reportCardStatus(.absent)) == nil,
+      (try? session.requester.reportCardStatus(RappCardStatus(card: .absent, reader: .absent)))
+        == nil,
       "only the custodian reports the card")
   }
 

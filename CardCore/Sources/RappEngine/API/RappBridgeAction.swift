@@ -28,7 +28,8 @@ public enum RappBridgeAction: Equatable, Sendable {
   case terminal(RappOperationIdentifier, RappTerminalReason)
   /// The custodian reported a change of the operation's state.
   case progress(RappOperationIdentifier, ProgressEvent)
-  /// The custodian reported which card it can serve now (§8.4).
+  /// The custodian reported the card it holds and whether a card reader is
+  /// connected to it (§8.4).
   case cardStatus(RappCardStatus)
   /// Nothing to do.
   case noAction

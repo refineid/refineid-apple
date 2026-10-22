@@ -80,7 +80,8 @@ internal struct BridgeSessionTests {
     let custodianOnly = try establishedSession(pairing, nowMilliseconds: Self.start)
     let violation = custodianOnly.custodian.receiveFrame(
       bytes: try injected(
-        .cardStatus, RappCardStatus.present(fingerprint).wireBody, from: custodianOnly.requester),
+        .cardStatus, RappCardStatus(card: .present(fingerprint), reader: .absent).wireBody,
+        from: custodianOnly.requester),
       nowMs: Self.start)
     #expect(
       violation
@@ -116,17 +117,31 @@ internal struct BridgeSessionTests {
 
     // The pairing stays: the next session over the same records works.
     let next = try establishedSession(pairing, nowMilliseconds: Self.start)
+    let absent = RappCardStatus(card: .absent, reader: .absent)
     #expect(
       try deliver(
-        try next.custodian.reportCardStatus(.absent), to: next.requester, at: Self.start)
-        == .cardStatus(.absent))
+        try next.custodian.reportCardStatus(absent), to: next.requester, at: Self.start)
+        == .cardStatus(absent))
+  }
+
+  @Test("A card status without the reader's attachment closes the session as a violation")
+  internal func cardStatusWithoutReaderIsAViolation() throws {
+    let session = try establishedSession(
+      try PairedBridges.pair(granting: everyProfile), nowMilliseconds: Self.start)
+    var body = RappCardStatus(card: .absent, reader: .attached).wireBody
+    body["reader_attached"] = nil
+    let refused = session.requester.receiveFrame(
+      bytes: try injected(.cardStatus, body, from: session.custodian), nowMs: Self.start)
+    #expect(
+      refused == .sendClose(try frame(refused), reason: .protocolViolation, endedOperation: nil))
   }
 
   @Test("A frame that fails authentication ends the session silently")
   internal func integrityFailureEndsTheSession() throws {
     let pairing = try PairedBridges.pair(granting: everyProfile)
     let session = try establishedSession(pairing, nowMilliseconds: Self.start)
-    var tampered = try frame(try session.custodian.reportCardStatus(.absent))
+    var tampered = try frame(
+      try session.custodian.reportCardStatus(RappCardStatus(card: .absent, reader: .absent)))
     tampered[tampered.startIndex] ^= tamperByteMask
     #expect(
       session.requester.receiveFrame(bytes: tampered, nowMs: Self.start)

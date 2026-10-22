@@ -60,8 +60,6 @@
     internal let pairID: Data
     /// The session's protocol state.
     internal let coordinator: RappConnectionCoordinator
-    /// What this session was last told about the card.
-    internal var reportedCardStatus: RappCardStatus?
     /// Whether the handshake completed.
     internal private(set) var isEstablished = false
     /// Whether the session ended.

@@ -70,32 +70,47 @@
       }
     }
 
-    /// Which card the phone holds (§8.4 items 1 and 2).
+    /// Which card the phone holds, and whether a contact card reader is
+    /// connected to it (§8.4 items 1 and 2).
     ///
-    /// Present while it holds one whose authentication certificate is known,
-    /// so the requester can tell which card it is. An operation the card did
-    /// not answer changes nothing here.
+    /// The card is present while the phone holds one whose authentication
+    /// certificate is known, so the requester can tell which card it is; an
+    /// NFC card the holder added stays present whether or not a reader is
+    /// connected. An operation the card did not answer changes nothing here.
     internal var cardStatus: RappCardStatus {
-      guard let fingerprint = servedCardFingerprint else { return .absent }
-      return .present(fingerprint)
+      RappCardStatus(
+        card: servedCardFingerprint.map(RappCardPresence.present) ?? .absent,
+        reader: CardPresence.shared.isReaderConnected ? .attached : .absent)
     }
 
-    /// Tells every open session which card can answer, each one when it
-    /// changed since that session was last told (§8.4 item 1).
+    /// Tells every open session which card the phone holds and whether a
+    /// reader is connected to it, each one when that changed since the
+    /// session was last told (§8.4 item 1, CC-61, CC-81).
     internal func reportCardStatus() {
-      for session in sessions.values where session.isEstablished {
-        reportCardStatus(to: session)
-      }
+      tell(cardStatus, sessions.values.filter(\.isEstablished))
     }
 
-    /// Tells `session` which card can answer, when that changed since it
-    /// was last told.
+    /// Tells `session` which card the phone holds and whether a reader is
+    /// connected to it, when that changed since it was last told.
     internal func reportCardStatus(to session: ServedSession) {
-      let status = cardStatus
-      guard status != session.reportedCardStatus else { return }
-      session.reportedCardStatus = status
-      let coordinator = session.coordinator
-      Task { try? await coordinator.reportCardStatus(status) }
+      tell(cardStatus, [session])
+    }
+
+    private func tell(_ status: RappCardStatus, _ targets: [ServedSession]) {
+      let due = Set(cardReports.sessions(toTell: status, among: targets.map(\.identifier)))
+      for session in targets where due.contains(session.identifier) {
+        let coordinator = session.coordinator
+        Task {
+          do {
+            try await coordinator.reportCardStatus(status)
+          } catch {
+            #if DEBUG
+              DevErrorLog.report(
+                "card.status not sent: \(DevErrorLog.reason(error))", source: .app)
+            #endif
+          }
+        }
+      }
     }
 
     /// A reader card or a prime arrived or left: every requester hears which

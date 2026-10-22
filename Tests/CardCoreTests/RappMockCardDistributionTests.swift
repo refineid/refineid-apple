@@ -22,7 +22,8 @@ import Testing
       for await event in coordinator.events {
         switch event {
         case .established:
-          try await coordinator.reportCardStatus(.present(fingerprint))
+          try await coordinator.reportCardStatus(
+            RappCardStatus(card: .present(fingerprint), reader: .absent))
 
         case .inspectPrerequisites(let operationID, _):
           try await coordinator.prerequisitesComplete(operationID: operationID)
@@ -137,7 +138,7 @@ import Testing
       let received = try await requesterOutcome.value
       try await proxyOutcome.value
 
-      #expect(received.status == .present(fingerprint))
+      #expect(received.status == RappCardStatus(card: .present(fingerprint), reader: .absent))
       #expect(received.result == .certificate(certDER))
       await connection.requester.close()
       await connection.proxy.close()

@@ -87,11 +87,13 @@ extension RappOperationBridge {
     }
   }
 
-  /// Tells the requester which card can answer now (§8.4).
+  /// Tells the requester which card the custodian holds and whether a
+  /// contact card reader is connected to it (§8.4).
   ///
-  /// Call it once right after the session is established and again whenever the
-  /// card or its presence changes; a card busy with another session's operation
-  /// is present.
+  /// Call it once right after the session is established and again whenever
+  /// the card, its presence or the reader's attachment changes; a card busy
+  /// with another session's operation is present, and detaching a reader
+  /// removes the card in it.
   public func reportCardStatus(_ status: RappCardStatus) throws -> RappBridgeAction {
     try locked {
       guard case .proxy = side else { throw RappBindingError.WrongPhase }

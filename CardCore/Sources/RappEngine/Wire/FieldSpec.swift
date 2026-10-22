@@ -78,7 +78,10 @@ internal struct FieldSpec {
       [Self("pair_id", pairIdentifier)]
 
     case .cardStatus:
-      [Self("card_present", .boolean), Self("certificate_fingerprint", fingerprint)]
+      [
+        Self("card_present", .boolean), Self("reader_attached", .boolean),
+        Self("certificate_fingerprint", fingerprint),
+      ]
 
     case .sessionReady:
       [Self("parameters", .map), Self("nonce", challenge)]

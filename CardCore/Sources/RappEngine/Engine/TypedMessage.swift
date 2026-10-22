@@ -7,7 +7,8 @@ import Foundation
 /// The engines dispatch on this rather than on raw envelopes, so the wire
 /// layer stays the only place that parses bytes.
 internal enum TypedMessage: Equatable {
-  /// The custodian's word on which card it can serve now (§8.4).
+  /// The card the custodian holds, and whether a card reader is connected
+  /// to it (§8.4).
   case cardStatus(RappCardStatus)
   case error(ProtocolErrorMessage)
   case operationProgress(OperationProgressMessage)

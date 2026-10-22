@@ -45,8 +45,8 @@
       case completed(operationID: RappOperationIdentifier, result: RappOperationResult)
       case terminal(operationID: RappOperationIdentifier, reason: RappTerminalReason)
       case progress(operationID: RappOperationIdentifier, event: ProgressEvent)
-      /// The custodian's word on which card it can serve now (RAPP v26.10.22
-      /// §8.4).
+      /// The custodian's word on the card it holds and on its card reader
+      /// (RAPP v26.10.22 §8.4).
       case cardStatus(RappCardStatus)
       /// The session's operation ended with the session (§8.1 item 3).
       case operationEnded(RappEndedOperation)

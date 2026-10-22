@@ -112,7 +112,7 @@
       settleDialTask = nil
       holderSession = session
       holderSessionToken = token
-      holderReportsNoCard = false
+      holderCardStatus = nil
       #if DEBUG
         print("[persistent-token] dialing the phone over \(transport)")
         fflush(stdout)
@@ -139,8 +139,7 @@
       redialTask = nil
       settleDialTask?.cancel()
       settleDialTask = nil
-      holderCardStatus = .absent
-      holderReportsNoCard = false
+      holderCardStatus = nil
       holderSession?.close()
       forgetHeldSession()
       confirmationLost()
@@ -154,8 +153,7 @@
       guard let session = holderSession, session.pairID == pairID else { return false }
       redialTask?.cancel()
       redialTask = nil
-      holderCardStatus = .absent
-      holderReportsNoCard = false
+      holderCardStatus = nil
       forgetHeldSession()
       let told = await session.closePairingRevoked()
       Self.withdrawPublishedIdentity()
@@ -198,22 +196,19 @@
       }
     }
 
-    /// Takes the phone's word on its card.
+    /// Takes the phone's word on its card and its card reader.
     ///
     /// Any card status means the session established and reached the
     /// custodian's first word (RAPP §8.4): the redial loop succeeded, so
-    /// its deadline starts over for any later loss (R-58).
+    /// its deadline starts over for any later loss (R-58). The reader
+    /// changes only how the card is asked for; the card alone governs the
+    /// offer (§8.4 items 3 and 6, CC-82).
     private func cardStatusReported(_ status: RappCardStatus) {
       continuousFailureSince = nil
       holderCardStatus = status
-      if case .absent = status {
-        holderReportsNoCard = true
-      } else {
-        holderReportsNoCard = false
-      }
       let offered = (certificateDER ?? Self.publishedCertificateDER())
         .flatMap(RappCertificateFingerprint.init(certificate:))
-      respond(to: identityOffer.receive(status, offered: offered, at: .now))
+      respond(to: identityOffer.receive(status.card, offered: offered, at: .now))
     }
 
     /// Acts on what the phone's `card.status` did to the offer: the card
@@ -276,7 +271,7 @@
       let delay = CertificateFetchBackoff.delay(afterFailures: fetchBackoff.failures)
       Task { @MainActor in
         try? await Task.sleep(for: delay)
-        guard case .present = holderCardStatus, certificateDER == nil else { return }
+        guard case .present? = holderCardStatus?.card, certificateDER == nil else { return }
         readCertificate()
       }
     }
@@ -297,8 +292,7 @@
         sessionSlot.ended(at: .now)
       }
       forgetHeldSession()
-      holderCardStatus = .absent
-      holderReportsNoCard = false
+      holderCardStatus = nil
       if reason.peerRevokedPairing {
         if let ended {
           holderRevoked(pairID: ended.pairID)

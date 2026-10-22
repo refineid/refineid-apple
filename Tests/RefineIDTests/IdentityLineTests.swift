@@ -1,5 +1,7 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
+import Foundation
+import RappEngine
 import Testing
 
 @testable import RefineID
@@ -16,6 +18,18 @@ internal struct IdentityLineTests {
   }
 
   private static let phone = "Alpha iPhone"
+
+  /// The phone's word: no card, a contact reader attached to it.
+  private static let noCardReaderAttached = RappCardStatus(card: .absent, reader: .attached)
+
+  /// The phone's word: no card and no reader, as on a phone that reads
+  /// cards only over NFC.
+  private static let noCardNoReader = RappCardStatus(card: .absent, reader: .absent)
+
+  /// The phone's word: a card in its reader.
+  private static let cardInReader = RappCertificateFingerprint(
+    certificate: Data("authentication certificate".utf8)
+  ).map { RappCardStatus(card: .present($0), reader: .attached) }
 
   private static let idle = RequesterFacts(
     availability: .noCard,
@@ -65,28 +79,70 @@ internal struct IdentityLineTests {
       },
       line: .connecting),
     Case(
-      name: "paired phone holds no card",
+      name: "paired phone holds no card, its reader attached",
       facts: with { facts in
         facts.pairedPhone = phone
         facts.phonePresent = true
-        facts.phoneReportsNoCard = true
+        facts.phoneCardStatus = noCardReaderAttached
       },
-      line: .insertCardInPhone),
+      line: .phoneCard(.insertIntoPhoneReader)),
+    Case(
+      name: "paired phone holds no card and has no reader",
+      facts: with { facts in
+        facts.pairedPhone = phone
+        facts.phonePresent = true
+        facts.phoneCardStatus = noCardNoReader
+      },
+      line: .phoneCard(.placeOnPhone)),
     Case(
       name: "a phone without a card outranks the identity still in its grace",
       facts: with { facts in
         facts.availability = .ready
         facts.pairedPhone = phone
-        facts.phoneReportsNoCard = true
+        facts.phoneCardStatus = noCardReaderAttached
       },
-      line: .insertCardInPhone),
+      line: .phoneCard(.insertIntoPhoneReader)),
+    Case(
+      name: "a phone without a card or a reader outranks the identity still in its grace",
+      facts: with { facts in
+        facts.availability = .ready
+        facts.pairedPhone = phone
+        facts.phoneCardStatus = noCardNoReader
+      },
+      line: .phoneCard(.placeOnPhone)),
+    Case(
+      name: "a phone without a card, its card unread, asks for the card",
+      facts: with { facts in
+        facts.availability = .cardWithoutIdentity
+        facts.pairedPhone = phone
+        facts.phonePresent = true
+        facts.phoneCardStatus = noCardNoReader
+      },
+      line: .phoneCard(.placeOnPhone)),
+    Case(
+      name: "a phone holding a card in its reader shows the holder",
+      facts: with { facts in
+        facts.availability = .ready
+        facts.pairedPhone = phone
+        facts.phonePresent = true
+        facts.phoneCardStatus = cardInReader
+      },
+      line: .holder),
+    Case(
+      name: "a phone holding a card in its reader, the card unread, is connecting",
+      facts: with { facts in
+        facts.pairedPhone = phone
+        facts.phonePresent = true
+        facts.phoneCardStatus = cardInReader
+      },
+      line: .connecting),
     Case(
       name: "a reader card here outranks a phone without a card",
       facts: with { facts in
         facts.availability = .ready
         facts.cardPresent = true
         facts.pairedPhone = phone
-        facts.phoneReportsNoCard = true
+        facts.phoneCardStatus = noCardReaderAttached
       },
       line: .holder),
     Case(
@@ -94,7 +150,7 @@ internal struct IdentityLineTests {
       facts: with { facts in
         facts.readerConnected = true
         facts.pairedPhone = phone
-        facts.phoneReportsNoCard = true
+        facts.phoneCardStatus = noCardReaderAttached
       },
       line: .insertCard),
     Case(
@@ -199,5 +255,18 @@ internal struct IdentityLineTests {
   @Test(arguments: cases)
   internal func derivesTheLine(_ testCase: Case) {
     #expect(IdentityLine.derive(testCase.facts) == testCase.line)
+  }
+
+  /// The phone's reader is named only for no card beside an attached
+  /// reader; no card and no reader asks for the card on the phone, and a
+  /// present card or no word asks for nothing (RAPP v26.10.22 §8.4 item 6).
+  @Test
+  internal func phoneCardRequestFollowsCardAndReader() throws {
+    let present = try #require(Self.cardInReader)
+    #expect(PhoneCardRequest(Self.noCardReaderAttached) == .insertIntoPhoneReader)
+    #expect(PhoneCardRequest(Self.noCardNoReader) == .placeOnPhone)
+    #expect(PhoneCardRequest(present) == nil)
+    #expect(PhoneCardRequest(RappCardStatus(card: present.card, reader: .absent)) == nil)
+    #expect(PhoneCardRequest(nil) == nil)
   }
 }

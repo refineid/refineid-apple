@@ -70,6 +70,11 @@ import SwiftUI
     internal var remoteReaderSection: some View {
       Section {
         remoteIdentityRow
+        // The paired phone holds no card: ask for it the way its reader
+        // allows (RAPP v26.10.22 §8.4 item 6).
+        if let request = PersistentTokenRegistry.shared.holderCardRequest {
+          PhoneCardRequestLine(request: request)
+        }
         if case .failed(let message) = pairingModel.phase {
           Text(message)
             .foregroundStyle(.secondary)

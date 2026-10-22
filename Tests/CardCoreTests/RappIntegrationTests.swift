@@ -240,15 +240,21 @@ import Testing
       await connection.proxy.close()
     }
 
-    /// The custodian's word on its card reaches the requester as it was
-    /// said: which card is present, then that none is (§8.4).
+    /// The custodian's word on its card and its reader reaches the
+    /// requester as it was said: which card is present, a reader attached
+    /// beside it, and then neither (§8.4).
     @Test
-    internal func cardStatusCarriesTheFingerprintAndItsAbsence() async throws {
+    internal func cardStatusCarriesTheFingerprintTheReaderAndTheirAbsence() async throws {
       let fixture = try await RappIntegrationConnectionSupport.makePairedFixture()
       defer { RappIntegrationConnectionSupport.deleteKeychainServices(for: fixture) }
       let connection = try await RappIntegrationConnectionSupport.makeConnection(fixture)
       let fingerprint = try #require(RappIntegrationFixtures.cardFingerprint)
-      let reported: [RappCardStatus] = [.present(fingerprint), .absent]
+      let reported = [
+        RappCardStatus(card: .present(fingerprint), reader: .absent),
+        RappCardStatus(card: .present(fingerprint), reader: .attached),
+        RappCardStatus(card: .absent, reader: .attached),
+        RappCardStatus(card: .absent, reader: .absent),
+      ]
 
       let requesterHeard = Task {
         try await RappIntegrationConnectionSupport.awaitCardStatuses(
