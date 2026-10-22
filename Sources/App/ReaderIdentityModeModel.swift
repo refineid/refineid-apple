@@ -170,39 +170,22 @@
       /// The holder's name read straight off the card in a reader, for a
       /// card the system has published no token for.
       ///
-      /// A contact reader reaches the card without PACE, so no card access
-      /// number is needed. Only reader slots are tried: the contactless
-      /// face of a dual-interface reader would need one. The session is
-      /// held for the read alone.
+      /// The read takes its turn on the reader holder's chain, the one the
+      /// phone's remote serving and the app's own card work share, and
+      /// reuses the channel held there. A session of its own would contend
+      /// with the one the phone holds open for a connected computer, and
+      /// the read would come back empty. A contact reader reaches the card
+      /// without PACE, so no card access number is needed.
       nonisolated private static func holderNameFromReader() async -> String? {
-        guard let manager = TKSmartCardSlotManager.default else { return nil }
-        let cards = await CardSlotSearch.allOccupied(in: manager)
-          .filter { CardTransport.transport(forSlotNamed: $0.name) == .reader }
-          .compactMap { $0.slot.makeSmartCard().map(CardMaintenance.UncheckedCard.init) }
-        guard !cards.isEmpty else { return nil }
-        return await withCheckedContinuation { continuation in
-          DispatchQueue.global(qos: .userInitiated).async {
-            for card in cards {
-              if let name = Self.holderName(on: card) {
-                continuation.resume(returning: name)
-                return
-              }
-            }
-            continuation.resume(returning: nil)
+        let read = await RappReaderSessionHolder.shared.execute(cardAccessNumber: nil) {
+          operations, _ in
+          guard let certificate = try? operations.readCertificate(.authentication) else {
+            return .refusedBeforeCredentialTransmit(.certificateUnavailable)
           }
+          return .result(certificate)
         }
-      }
-
-      /// One card's holder name, or nil when it could not be read.
-      nonisolated private static func holderName(on card: CardMaintenance.UncheckedCard) -> String?
-      {
-        let read: String?? = try? SmartCardChannel(card.card).withSession { channel in
-          let operations = CardOperations(channel: channel)
-          try operations.selectFineidApplication()
-          return DistinguishedName.holderLine(
-            fromCertificate: try operations.readCertificate(.authentication))
-        }
-        return read.flatMap(\.self)
+        guard case .connected(.result(let certificate))? = read else { return nil }
+        return DistinguishedName.holderLine(fromCertificate: certificate)
       }
     #endif
 
