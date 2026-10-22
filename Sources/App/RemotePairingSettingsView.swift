@@ -86,7 +86,8 @@
         guard pair.role == .requester, !derivedRemotePairIDs.contains(pair.pairID) else {
           return false
         }
-        let pairName = RappPairNames.displayName(forPairID: pair.pairID)
+        // Only a stored name can say a pairing is a device already listed.
+        guard let pairName = RappPairNames.name(forPairID: pair.pairID) else { return true }
         return !validRemoteDevices.contains { remote in
           remote.deviceName.caseInsensitiveCompare(pairName) == .orderedSame
             || remote.modelName.caseInsensitiveCompare(pairName) == .orderedSame
@@ -97,7 +98,8 @@
       var seenPairIDs = Set<Data>()
       let deduplicatedExtraPairs = validExtraPairs.filter { pair in
         guard seenPairIDs.insert(pair.pairID).inserted else { return false }
-        let name = RappPairNames.displayName(forPairID: pair.pairID)
+        // Pairings without a stored name are each shown.
+        guard let name = RappPairNames.name(forPairID: pair.pairID) else { return true }
         return seenExtraNames.insert(name.lowercased()).inserted
       }
 
