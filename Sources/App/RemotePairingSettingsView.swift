@@ -83,11 +83,10 @@
       )
 
       let validExtraPairs = model.pairs.filter { pair in
-        guard pair.role == .requester, !derivedRemotePairIDs.contains(pair.pairID),
-          let pairName = RappPairNames.name(forPairID: pair.pairID)
-        else {
+        guard pair.role == .requester, !derivedRemotePairIDs.contains(pair.pairID) else {
           return false
         }
+        let pairName = RappPairNames.displayName(forPairID: pair.pairID)
         return !validRemoteDevices.contains { remote in
           remote.deviceName.caseInsensitiveCompare(pairName) == .orderedSame
             || remote.modelName.caseInsensitiveCompare(pairName) == .orderedSame
@@ -97,9 +96,8 @@
       var seenExtraNames = Set<String>()
       var seenPairIDs = Set<Data>()
       let deduplicatedExtraPairs = validExtraPairs.filter { pair in
-        guard seenPairIDs.insert(pair.pairID).inserted,
-          let name = RappPairNames.name(forPairID: pair.pairID)
-        else { return false }
+        guard seenPairIDs.insert(pair.pairID).inserted else { return false }
+        let name = RappPairNames.displayName(forPairID: pair.pairID)
         return seenExtraNames.insert(name.lowercased()).inserted
       }
 
@@ -158,7 +156,7 @@
       }
 
       for pair in deduplicatedExtraPairs {
-        guard let pairName = RappPairNames.name(forPairID: pair.pairID) else { continue }
+        let pairName = RappPairNames.displayName(forPairID: pair.pairID)
         let idStr = pair.pairID.base64EncodedString()
         let isPreferred =
           idStr == effectivePreferredID

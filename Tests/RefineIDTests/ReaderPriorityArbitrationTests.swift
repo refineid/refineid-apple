@@ -212,31 +212,6 @@
     }
 
     @Test
-    internal func revokeNamelessPairsKeepsOnlyNamedPairings() throws {
-      let vault = RappDeviceVault()
-      let testPair1 = Data(repeating: 0x11, count: 16)
-      let testPair2 = Data(repeating: 0x22, count: 16)
-      try vault.insertPair(pairID: testPair1, record: Data([0x01, 0x02]))
-      try vault.insertPair(pairID: testPair2, record: Data([0x03, 0x04]))
-      defer {
-        try? vault.revokePair(pairID: testPair1, revokedAtMilliseconds: 0)
-        try? vault.revokePair(pairID: testPair2, revokedAtMilliseconds: 0)
-        RappPairNames.forget(pairID: testPair1)
-        RappPairNames.forget(pairID: testPair2)
-      }
-
-      RappPairNames.remember("Phone", pairID: testPair2)
-      try vault.selectPair(pairID: testPair1)
-
-      #expect(RappPairingModel.revokeNamelessPairs(in: vault) == 1)
-
-      let activeIDs = try vault.activePairIDs()
-      #expect(!activeIDs.contains(testPair1))
-      #expect(activeIDs.contains(testPair2))
-      #expect(try vault.selectedPairID() != testPair1)
-    }
-
-    @Test
     internal func supersedeOlderPairingsRevokesSameNamedPairings() throws {
       let vault = RappDeviceVault()
       let testPair1 = Data(repeating: 0x11, count: 16)

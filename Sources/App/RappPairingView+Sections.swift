@@ -70,8 +70,8 @@ extension RappPairingView {
   }
 
   @ViewBuilder internal var pairedDevicesSection: some View {
-    let named = pairingModel.pairs.compactMap { pair in
-      RappPairNames.name(forPairID: pair.pairID).map { (pairID: pair.pairID, name: $0) }
+    let named = pairingModel.pairs.map { pair in
+      (pairID: pair.pairID, name: RappPairNames.displayName(forPairID: pair.pairID))
     }
     if !named.isEmpty {
       Section(header: Text(String(localized: "Paired computers"))) {

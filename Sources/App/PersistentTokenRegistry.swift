@@ -200,7 +200,7 @@
     internal func refreshPairing() {
       pairedPhone =
         Self.isRemoteCardEnabled
-        ? Self.activePairID.flatMap(RappPairNames.name(forPairID:)) : nil
+        ? Self.activePairID.map(RappPairNames.displayName(forPairID:)) : nil
       if pairedPhone != nil {
         phoneThatForgot = nil
       }
