@@ -172,17 +172,6 @@ internal struct CardCredentialsView: View {
     return PrimeStore.primedHolderNames().first
   }
 
-  /// The identifier (SATU / PEUIN) of the complete identity, if present.
-  internal var identityIdentifier: String? {
-    #if os(iOS)
-      if isDemonstration {
-        return nil
-      }
-    #endif
-    guard isRegistered else { return nil }
-    return PrimeStore.primedIdentifiers().first
-  }
-
   /// Whether there is a complete, displayable identity.
   internal var hasIdentity: Bool {
     identityHolder != nil
