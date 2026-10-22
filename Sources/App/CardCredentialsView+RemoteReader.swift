@@ -10,7 +10,6 @@ import SwiftUI
     private enum RemoteReaderLayout {
       static let tapTargetSide: CGFloat = 44
       static let forgetButtonGap: CGFloat = 4
-      static let identityDetailsSpacing: CGFloat = 4
     }
 
     @ViewBuilder private var remoteActionContent: some View {
@@ -35,14 +34,10 @@ import SwiftUI
         PersistentTokenRegistry.shared.holderLine != nil
       {
         HStack {
-          VStack(alignment: .leading, spacing: RemoteReaderLayout.identityDetailsSpacing) {
-            PersonRowLabel(configured: true)
-            Text(holder)
-              .font(.body)
-              .foregroundStyle(.secondary)
-              .textSelection(.enabled)
-              .accessibilityIdentifier("remoteCardHolder")
-          }
+          PersonRowLabel.cardIcon(systemName: "person.fill.checkmark", lit: true)
+          Text(holder)
+            .textSelection(.enabled)
+            .accessibilityIdentifier("remoteCardHolder")
           Spacer(minLength: RemoteReaderLayout.forgetButtonGap)
           Button(role: .destructive) {
             withAnimation {
