@@ -3,7 +3,7 @@
 import Foundation
 
 /// The TXT conventions the session and withdrawn records share (RAPP
-/// v26.10.18 §4.5 and the transport hierarchy §4.3).
+/// v26.10.21 §4.5 and the transport hierarchy §4.3).
 ///
 /// Keys match without regard to ASCII case (RFC 6763 §6.4) and appear at
 /// most once; values match exactly, and hint lists are lowercase hex.

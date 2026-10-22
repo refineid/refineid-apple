@@ -3,22 +3,24 @@
 #if REFINEID_LOCAL_CARD && os(iOS)
   import CardCore
   import Foundation
+  import RappEngine
 
   /// Completion, failure, and cancellation handling for one authenticated
   /// phone-side RAPP connection.
   extension RappPhoneProxyDispatcher {
-    /// The attempts a rejected credential still has, when the card reported
-    /// a count above zero.
-    internal static func attemptsLeft(after rejection: RappCardExecutor.Rejection) -> UInt8? {
-      guard case .credential(_, let remaining?) = rejection, !remaining.isBlocked else {
-        return nil
-      }
-      return remaining.attemptsRemaining
+    /// What follows an outcome that may be a refused PIN.
+    internal enum RefusedPinStep {
+      /// The holder entered a new PIN for the same operation.
+      case askedAgain
+      /// The holder declined; the operation has ended.
+      case declined
+      /// The outcome ends the operation as it stands.
+      case outcomeStands
     }
 
     internal func finishRead(
       _ outcome: RappNfcCardExecutor.Outcome,
-      operationID: Data,
+      operationID: RappOperationIdentifier,
       coordinator: RappConnectionCoordinator
     ) async {
       if case .result(let bytes) = outcome {
@@ -30,7 +32,7 @@
 
     internal func finishSignature(
       _ outcome: RappNfcCardExecutor.Outcome,
-      operationID: Data,
+      operationID: RappOperationIdentifier,
       coordinator: RappConnectionCoordinator
     ) async {
       if case .result(let signature) = outcome {
@@ -56,9 +58,53 @@
       }
     }
 
+    /// Asks the holder for the PIN again when the card refused the one
+    /// entered and the retry floor still allows a verification (RAPP
+    /// v26.10.21 §10.2), telling the holder the attempts left.
+    internal func askAgainAfterRefusedPin(
+      _ outcome: RappNfcCardExecutor.Outcome,
+      operationID: RappOperationIdentifier,
+      operation: RappOperationDriver.Operation,
+      coordinator: RappConnectionCoordinator
+    ) async -> RefusedPinStep {
+      guard let notice = refusedPinNotice(outcome), let action = action(for: operation.kind)
+      else { return .outcomeStands }
+      if case .rejected(let rejection) = outcome {
+        await applyRejectedCredential(rejection)
+      }
+      pin1ByOperation.removeValue(forKey: operationID)
+      pin2ByOperation.removeValue(forKey: operationID)
+      let decision = await ask(
+        operationID: operationID, operation: operation, action: action, notice: notice,
+        coordinator: coordinator)
+      guard await acceptDecision(decision, operationID: operationID, operation: operation) else {
+        try? await coordinator.deny(operationID: operationID)
+        return .declined
+      }
+      return .askedAgain
+    }
+
+    /// What the holder is told before being asked again, or nil when the
+    /// outcome is not a refused PIN the floor lets the phone retry.
+    private func refusedPinNotice(_ outcome: RappNfcCardExecutor.Outcome) -> String? {
+      switch outcome {
+      case .rejected(.credential(let role, let remaining?))
+      where role != .puk && remaining.attemptsRemaining >= RetryFloor.minimumAttemptsToProceed:
+        CredentialOutcomeMessage.rejection(
+          credentialName: CredentialLabels.name(for: role), remaining: remaining)
+
+      case .refusedBeforeCredentialTransmit(.invalidCredential(let role)) where role != .puk:
+        CredentialOutcomeMessage.incorrect(credentialName: CredentialLabels.name(for: role))
+
+      default:
+        nil
+      }
+    }
+
+    /// Ends the operation with the result its outcome names (§10.3).
     internal func finishFailure(
       _ outcome: RappNfcCardExecutor.Outcome,
-      operationID: Data,
+      operationID: RappOperationIdentifier,
       coordinator: RappConnectionCoordinator
     ) async {
       #if DEBUG
@@ -68,35 +114,57 @@
       case .result:
         await coordinator.close()
 
-      case .rejected(let rejection):
-        await applyRejectedCredential(rejection)
-        // A mistyped PIN with attempts left keeps the session and the
-        // pairing (RAPP v26.10.9 section 10.2); a blocked or uncounted
-        // rejection revokes them.
-        if let remaining = Self.attemptsLeft(after: rejection) {
-          try? await coordinator.invalidCredential(
-            operationID: operationID, remainingRetries: remaining)
-        } else {
-          try? await coordinator.credentialRejected(operationID: operationID)
-        }
+      case .rejected(.cardAccessNumber):
+        CardCredentialStore.forgetAll()
+        try? await coordinator.operationFailed(operationID: operationID)
+
+      case .rejected(.credential(let role, let remaining)):
+        // The card refused the PIN and the floor allows no further
+        // verification: the remaining attempts are the issuer's.
+        await applyRejectedCredential(.credential(role, remaining: remaining))
+        await refuseAtRetryFloor(role: role, remaining: remaining)
+        try? await coordinator.retryFloor(operationID: operationID)
 
       case .refusedBeforeCredentialTransmit(let refusal):
-        switch refusal {
-        case .cardUnavailable:
-          try? await coordinator.cardRemovedBeforeTransmit(operationID: operationID)
-
-        case .credentialBlocked, .credentialInvalidated, .retryFloor:
-          try? await coordinator.retryRefused(operationID: operationID)
-
-        case .certificateUnavailable, .invalidCredential,
-          .keyOrAlgorithmMismatch:
-          try? await coordinator.requestInvalidOrUnsupported(
-            operationID: operationID)
-        }
+        await finishRefusal(refusal, operationID: operationID, coordinator: coordinator)
 
       case .completionAmbiguous:
-        try? await coordinator.cardCompletionAmbiguous(operationID: operationID)
+        try? await coordinator.cardError(operationID: operationID)
       }
+    }
+
+    private func finishRefusal(
+      _ refusal: RappCardExecutor.Refusal,
+      operationID: RappOperationIdentifier,
+      coordinator: RappConnectionCoordinator
+    ) async {
+      switch refusal {
+      case .cardUnavailable:
+        try? await coordinator.cardError(operationID: operationID)
+
+      case .credentialBlocked(let role), .credentialInvalidated(let role),
+        .retryFloor(let role, _):
+        await refuseAtRetryFloor(role: role, remaining: nil)
+        try? await coordinator.retryFloor(operationID: operationID)
+
+      case .invalidCredential:
+        try? await coordinator.operationFailed(operationID: operationID)
+
+      case .certificateUnavailable, .keyOrAlgorithmMismatch:
+        try? await coordinator.requestInvalidOrUnsupported(operationID: operationID)
+      }
+    }
+
+    /// Tells the holder that the card's remaining attempts are reserved for
+    /// its issuer's software (§10.2).
+    private func refuseAtRetryFloor(role: CredentialRole, remaining: RetryCount?) async {
+      guard let remaining else {
+        await inbox.inform(CredentialOutcomeMessage.lowAttemptRefusal())
+        return
+      }
+      await inbox.inform(
+        CredentialOutcomeMessage.lowAttemptRefusal(
+          credentialName: CredentialLabels.name(for: role), remaining: remaining))
     }
 
     private func applyRejectedCredential(_ rejection: RappCardExecutor.Rejection) async {
@@ -117,38 +185,20 @@
     }
 
     internal func invalid(
-      _ operationID: Data,
+      _ operationID: RappOperationIdentifier,
       coordinator: RappConnectionCoordinator
     ) async {
       try? await coordinator.requestInvalidOrUnsupported(operationID: operationID)
     }
 
-    internal func cancel(_ operationID: Data?) async {
+    internal func cancel(_ operationID: RappOperationIdentifier) async {
       #if DEBUG
-        HolderTrace.say("cancel: operationID=\(operationID?.base64EncodedString() ?? "all")")
+        HolderTrace.say("cancel: one operation")
       #endif
-      guard let operationID else {
-        pin1ByOperation.removeAll(keepingCapacity: false)
-        pin2ByOperation.removeAll(keepingCapacity: false)
-        pin2Window.forget()
-        await inbox.cancelAll()
-        return
-      }
       pin1ByOperation.removeValue(forKey: operationID)
       pin2ByOperation.removeValue(forKey: operationID)
-      await inbox.cancel(operationID.base64EncodedString())
-    }
-
-    internal func attempts(_ outcome: RetryProbeOutcome?) -> UInt8? {
-      switch outcome {
-      case .remaining(let count):
-        count.attemptsRemaining
-
-      case .locked:
-        0
-
-      case .invalidated, .noInformation, .other, .verified, nil:
-        nil
+      if let requestID = requestIDs.removeValue(forKey: operationID) {
+        await inbox.cancel(requestID)
       }
     }
   }

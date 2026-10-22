@@ -3,389 +3,235 @@
 import Foundation
 
 extension ProxyOperationEngine {
-  private static func stale(_ operationIdentifier: Data) -> ProxyDispatch {
-    .ignoredStale(
-      operationIdentifier: operationIdentifier,
-      response: .error(.unknownOperation(operationIdentifier: operationIdentifier)))
-  }
-
   /// The `card.status` message the custodian sends after `session.ready`
-  /// and on every change (RAPP v26.10.18 §8.4).
-  internal static func reportCardStatus(cardPresent: Bool) -> TypedMessage {
-    .cardStatus(cardPresent: cardPresent)
-  }
-
-  /// The result a journaled operation from an earlier session answers with.
-  private static func answer(for entry: RecoveredProxyRecord) -> OperationResultMessage {
-    let reference = OperationReference(
-      operationIdentifier: entry.record.operationIdentifier,
-      requestHash: entry.record.requestHash)
-    if let retained = entry.retainedResult {
-      return retained
-    }
-    if let retired = OperationJournal(recovered: entry.record).retiredAnswer(reference: reference) {
-      return retired
-    }
-    switch entry.record.state {
-    case .completed:
-      return .retired(reference: reference, disposition: .completed, preservedError: nil)
-
-    case .cancelled, .denied:
-      return .failure(reference: reference, failure: .cancelled)
-
-    case .credentialRejected:
-      return .failure(reference: reference, failure: .credentialRejected)
-
-    case .ambiguous, .committed, .executing, .resultPending, .deliveryUncertain:
-      return .failure(
-        reference: reference, failure: .cardCompletionAmbiguous,
-        batchSignatures: entry.record.batch?.completedSignatures ?? [])
-
-    case .idle, .requested, .awaitingConsent, .prepared, .rejected:
-      return .failure(reference: reference, failure: .retryPolicyRefused)
-    }
+  /// and on every change (RAPP v26.10.21 §8.4).
+  internal static func reportCardStatus(_ status: RappCardStatus) -> TypedMessage {
+    .cardStatus(status)
   }
 
   /// Classifies one authenticated peer message.
-  internal mutating func receive(
-    _ message: TypedMessage,
-    store: inout some JournalStore,
-    nowMilliseconds _: UInt64,
-    maximumLifetimeMilliseconds _: UInt64
-  ) throws -> ProxyDispatch {
+  ///
+  /// - Throws: ``EngineError/authenticatedProtocolViolation(_:)`` when the
+  ///   requester sends a message only a custodian sends; the session closes.
+  internal mutating func receive(_ message: TypedMessage) throws -> ProxyDispatch {
     switch message {
     case .operationRequest(let request):
-      return try receiveRequest(request, store: &store)
+      return receiveRequest(request)
 
     case .operationRequestRefused(let refusal):
-      return receiveRefusal(refusal)
+      if let answer = admissionRefusal(refusal.operationIdentifier) { return answer }
+      return .send(
+        .operationResult(
+          .rejection(
+            operationIdentifier: refusal.operationIdentifier, status: .rejected,
+            error: refusal.error)))
 
-    case .operationResultAck(let reference):
-      return try receiveAcknowledgement(reference, store: &store)
+    case .operationResult, .operationProgress, .cardStatus:
+      throw EngineError.authenticatedProtocolViolation(.custodianOnlyMessage)
 
-    case .operationStatusRequest(let operationIdentifier):
-      return statusAnswer(for: operationIdentifier)
-
-    case .cardStatus, .error, .other:
+    case .error, .other:
       return .notOperation(message)
-
-    case .operationResult, .operationStatus, .operationProgress:
-      return try refuseRequesterOnlyMessage(message)
     }
   }
 
-  /// Records that the profile's bounded reads finished.
-  internal mutating func prerequisitesComplete(operationIdentifier: Data) throws {
-    try withOperation(operationIdentifier) { operation in
-      do {
-        try operation.prerequisitesComplete()
-      } catch let error as AuthorizationError {
-        throw engineLocalError(error)
-      }
-    }
-  }
-
-  /// Applies the holder's approval of this exact request.
+  /// The operation has the card and its prerequisite reads are done.
   ///
-  /// An approval that arrives after the request's local deadline cancels the
-  /// operation instead (section 8.2.1); no card command is ever produced.
-  internal mutating func approve(
-    operationIdentifier: Data,
-    approval: UserApproval,
-    store: inout some JournalStore,
+  /// An action that needs the holder's authorization goes to consent; a read
+  /// skips consent and runs (§8.2 items 3 and 6). An operation whose deadline
+  /// has passed is cancelled instead (§8.1 item 2).
+  internal mutating func prerequisitesComplete(
+    operationIdentifier: RappOperationIdentifier,
     nowMilliseconds: UInt64,
     maximumLifetimeMilliseconds: UInt64
   ) throws -> ProxyDispatch {
-    guard let index = index(of: operationIdentifier) else {
+    guard var operation = live, operation.operationIdentifier == operationIdentifier else {
       throw EngineError.unknownLocalOperation
     }
-    let outcome: ApprovalOutcome
-    do {
-      outcome = try operations[index].approve(
-        approval, to: &store, nowMilliseconds: nowMilliseconds,
+    if operation.stage == .requested,
+      operation.isExpired(
+        nowMilliseconds: nowMilliseconds,
         maximumLifetimeMilliseconds: maximumLifetimeMilliseconds)
-    } catch AuthorizationError.expired {
-      return try finishFailure(
-        operationIdentifier: operationIdentifier, failure: .requestExpired, store: &store)
-    } catch let error as AuthorizationError {
-      throw engineLocalError(error)
+    {
+      return try finishFailure(operationIdentifier: operationIdentifier, failure: .requestExpired)
     }
+    let outcome: PrerequisitesOutcome
+    do {
+      outcome = try operation.prerequisitesComplete()
+    } catch {
+      throw EngineError.invalidLocalTransition
+    }
+    live = operation
     switch outcome {
-    case .executeCardCommand:
-      return .beginCardCommand(operationIdentifier: operationIdentifier)
+    case .awaitConsent:
+      return .awaitConsent(operationIdentifier: operationIdentifier)
 
     case .executeSafeRead(let read):
       return .executeSafeRead(operationIdentifier: operationIdentifier, read: read)
     }
   }
 
-  /// Retains a completed result before it may be released.
-  internal mutating func finishCompleted(
-    operationIdentifier: Data, result: OperationResultMessage, store: inout some JournalStore
-  ) throws -> ProxyDispatch {
-    try withOperation(operationIdentifier) { operation in
-      do {
-        try operation.finishCompleted(to: &store, result: result)
-      } catch let error as AuthorizationError {
-        throw engineLocalError(error)
-      }
-      return .send(.operationResult(result))
-    }
-  }
-
-  /// Records a stable failure and releases it.
+  /// Applies the holder's approval.
   ///
-  /// Three failures also close the session: a refused retry, a blocked
-  /// credential, and an ambiguous card completion. Each means the endpoint
-  /// can no longer make safe progress on this session.
-  internal mutating func finishFailure(
-    operationIdentifier: Data, failure: ProxyFailure, store: inout some JournalStore
+  /// An approval after the request's deadline cancels the operation instead and
+  /// no card command exists (§8.1 item 2).
+  internal mutating func approve(
+    operationIdentifier: RappOperationIdentifier,
+    approval: UserApproval,
+    nowMilliseconds: UInt64,
+    maximumLifetimeMilliseconds: UInt64
   ) throws -> ProxyDispatch {
-    try withOperation(operationIdentifier) { operation in
-      let result = OperationResultMessage.failure(
-        reference: operation.reference, failure: failure,
-        batchSignatures: operation.batchSignatures)
-      do {
-        try operation.finishFailure(to: &store, result: result)
-      } catch let error as AuthorizationError {
-        throw engineLocalError(error)
-      }
-      return .sendFailure(
-        message: .operationResult(result), closeSession: failure.closesSession)
-    }
-  }
-
-  /// Records one batch signature before the next document is signed.
-  internal mutating func recordBatchSignature(
-    operationIdentifier: Data, signature: Data, store: inout some JournalStore
-  ) throws {
-    try withOperation(operationIdentifier) { operation in
-      do {
-        try operation.recordBatchSignature(to: &store, signature: signature)
-      } catch let error as AuthorizationError {
-        throw engineLocalError(error)
-      }
-    }
-  }
-
-  /// Completes a batch with exactly the signatures it journaled.
-  internal mutating func completeBatch(
-    operationIdentifier: Data, store: inout some JournalStore
-  ) throws -> ProxyDispatch {
-    guard let index = index(of: operationIdentifier) else {
+    guard var operation = live, operation.operationIdentifier == operationIdentifier else {
       throw EngineError.unknownLocalOperation
     }
-    let result = OperationResultMessage.completed(
-      reference: operations[index].reference,
-      result: .signatures(operations[index].batchSignatures))
-    return try finishCompleted(
-      operationIdentifier: operationIdentifier, result: result, store: &store)
-  }
-
-  /// Create an authenticated advisory progress message for an active operation.
-  internal func reportProgress(
-    operationIdentifier: Data, event: ProgressEvent
-  ) throws -> TypedMessage {
-    guard
-      let operation = operations.first(where: { candidate in
-        candidate.reference.operationIdentifier == operationIdentifier
-      })
-    else {
-      throw EngineError.unknownLocalOperation
+    if operation.stage == .awaitingConsent,
+      operation.isExpired(
+        nowMilliseconds: nowMilliseconds,
+        maximumLifetimeMilliseconds: maximumLifetimeMilliseconds)
+    {
+      return try finishFailure(operationIdentifier: operationIdentifier, failure: .requestExpired)
     }
-    guard !operation.operationState.isTerminal, !operation.isRetired, event != .unknown else {
+    let command: AuthorizedCardCommand
+    do {
+      command = try operation.approve(
+        approval, nowMilliseconds: nowMilliseconds,
+        maximumLifetimeMilliseconds: maximumLifetimeMilliseconds
+      )
+      .execute { $0 }
+    } catch {
       throw EngineError.invalidLocalTransition
     }
-    return .operationProgress(
-      OperationProgressMessage(reference: operation.reference, event: event))
+    live = operation
+    return .executeCardCommand(operationIdentifier: operationIdentifier, command: command)
   }
 
-  /// Classifies every live operation when the session closes.
-  ///
-  /// An operation still awaiting consent is cancelled with nothing sent to
-  /// the card; one executing on the card runs to its own conclusion; a
-  /// completed result not yet acknowledged stays retained for re-delivery
-  /// (section 8.3). Best effort per operation: a record that could not be
-  /// written stays at its last persisted state, which recovery resolves.
-  internal mutating func sessionClosed(
-    store: inout some JournalStore
-  ) -> [ProxySessionCloseAction] {
-    var actions: [ProxySessionCloseAction] = []
-    for index in operations.indices {
-      let operationIdentifier = operations[index].reference.operationIdentifier
-      switch operations[index].stage {
-      case .requested, .awaitingConsent, .executingSafeRead:
-        let result = OperationResultMessage.failure(
-          reference: operations[index].reference, failure: .cancelled)
-        guard (try? operations[index].finishFailure(to: &store, result: result)) != nil
-        else { continue }
-        actions.append(.cancelled(operationIdentifier: operationIdentifier))
-
-      case .executing:
-        actions.append(.continueCardExchange(operationIdentifier: operationIdentifier))
-
-      case .resultPending:
-        guard (try? operations[index].deliveryBecameUncertain(to: &store)) != nil else {
-          continue
-        }
-        actions.append(.deliveryUncertain(operationIdentifier: operationIdentifier))
-
-      case .terminal:
-        break
-      }
-    }
-    return actions
+  /// Cancels the live operation when its deadline passed before the card
+  /// was commanded, waiting in the queue or for consent (§8.1 item 2); `nil`
+  /// when nothing is due.
+  internal mutating func expireDue(
+    nowMilliseconds: UInt64, maximumLifetimeMilliseconds: UInt64
+  ) throws -> ProxyDispatch? {
+    guard let operation = live,
+      operation.stage == .requested || operation.stage == .awaitingConsent,
+      operation.isExpired(
+        nowMilliseconds: nowMilliseconds,
+        maximumLifetimeMilliseconds: maximumLifetimeMilliseconds)
+    else { return nil }
+    return try finishFailure(
+      operationIdentifier: operation.operationIdentifier, failure: .requestExpired)
   }
 
-  /// Admits a new request, or resolves a reused identifier from the live
-  /// table, the journal and the tombstones (section 8.2.2).
-  private mutating func receiveRequest(
-    _ request: OperationRequest, store: inout some JournalStore
+  /// Ends the operation with its completed result.
+  internal mutating func finishCompleted(
+    operationIdentifier: RappOperationIdentifier, result: OperationResultMessage
   ) throws -> ProxyDispatch {
-    let requestHash: Data
-    do {
-      requestHash = try request.requestHash()
-    } catch {
-      throw EngineError.invalidLocalValue
-    }
-    if let index = index(of: request.operationIdentifier) {
-      guard operations[index].requestHash == requestHash else {
-        return .send(.error(.duplicateOperation(operationIdentifier: request.operationIdentifier)))
-      }
-      if let retained = operations[index].retainedResult {
-        return .send(.operationResult(retained))
-      }
-      if let retired = operations[index].journal.retiredAnswer(
-        reference: operations[index].reference)
-      {
-        return .send(.operationResult(retired))
-      }
-      return .ignoredDuplicate(operationIdentifier: request.operationIdentifier)
-    }
-    if let entry = recovered.first(where: { candidate in
-      candidate.record.operationIdentifier == request.operationIdentifier
-    }) {
-      guard entry.record.requestHash == requestHash else {
-        return .send(.error(.duplicateOperation(operationIdentifier: request.operationIdentifier)))
-      }
-      return .send(.operationResult(Self.answer(for: entry)))
-    }
-    guard !operations.contains(where: { !$0.operationState.isTerminal }) else {
-      return .send(.error(.operationFailed(operationIdentifier: request.operationIdentifier)))
-    }
-    let transaction: AuthorizationTransaction
-    do {
-      transaction = try AuthorizationTransaction(request: request)
-    } catch {
-      throw EngineError.invalidLocalValue
-    }
-    operations.append(transaction)
-    guard grantedProfiles.contains(request.profile) else {
-      return try finishFailure(
-        operationIdentifier: request.operationIdentifier, failure: .unauthorized, store: &store)
-    }
-    return .inspectPrerequisites(operationIdentifier: request.operationIdentifier)
-  }
-
-  /// A request this endpoint cannot serve is answered, not punished.
-  private func receiveRefusal(_ refusal: OperationRequestRefusal) -> ProxyDispatch {
-    let result = OperationResultMessage(
-      operationIdentifier: refusal.reference.operationIdentifier,
-      requestHash: refusal.reference.requestHash,
-      status: .rejected,
-      error: refusal.error)
+    try withLive(operationIdentifier) { try $0.finishCompleted(result) }
     return .send(.operationResult(result))
   }
 
-  /// Retires an acknowledged result, live or re-delivered, whatever its
-  /// status; any other acknowledgement is ignored without touching a
-  /// tombstone (RAPP v26.10.18 §8.2 item 5).
-  private mutating func receiveAcknowledgement(
-    _ reference: OperationReference, store: inout some JournalStore
+  /// Ends the operation with a result that did not complete.
+  internal mutating func finishFailure(
+    operationIdentifier: RappOperationIdentifier, failure: ProxyFailure
   ) throws -> ProxyDispatch {
-    let operationIdentifier = reference.operationIdentifier
-    if let index = index(of: operationIdentifier) {
-      guard operations[index].stage == .resultPending, operations[index].reference == reference
-      else { return .notOperation(.operationResultAck(reference)) }
-      do {
-        try operations[index].acknowledgeResult(to: &store, acknowledgement: reference)
-      } catch let error as AuthorizationError {
-        throw engineLocalError(error)
-      }
-      return .resultAcknowledged(operationIdentifier: operationIdentifier)
-    }
-    guard
-      let index = recovered.firstIndex(where: { candidate in
-        candidate.record.operationIdentifier == operationIdentifier
-      }),
-      recovered[index].record.requestHash == reference.requestHash,
-      recovered[index].retainedResult != nil,
-      !recovered[index].record.isRetired
-    else { return .notOperation(.operationResultAck(reference)) }
-    var journal = OperationJournal(recovered: recovered[index].record)
-    do {
-      try journal.acknowledgeResult(to: &store)
-    } catch {
-      throw EngineError.persistence
-    }
-    recovered[index] = RecoveredProxyRecord(record: journal.record, retainedResult: nil)
-    return .resultAcknowledged(operationIdentifier: operationIdentifier)
+    let result = OperationResultMessage.failure(
+      operationIdentifier: operationIdentifier, failure: failure)
+    try withLive(operationIdentifier) { try $0.finishFailure(result) }
+    return .send(.operationResult(result))
   }
 
-  /// A requester-only message is a violation only when it names a live
-  /// operation; otherwise it is a stale race or no operation message at all.
-  private func refuseRequesterOnlyMessage(_ message: TypedMessage) throws -> ProxyDispatch {
-    guard let operationIdentifier = message.referencedOperationIdentifier else {
-      return .notOperation(message)
-    }
-    guard let index = index(of: operationIdentifier),
-      !operations[index].operationState.isTerminal
-    else { return Self.stale(operationIdentifier) }
-    throw EngineError.authenticatedProtocolViolation(.illegalMessageForActiveOperation)
+  /// Records one batch signature as the card makes it.
+  internal mutating func recordBatchSignature(
+    operationIdentifier: RappOperationIdentifier, signature: Data
+  ) throws {
+    try withLive(operationIdentifier) { try $0.recordBatchSignature(signature) }
   }
 
-  /// The status report, followed by the result it re-delivers when one is
-  /// retained (section 8.3).
-  private func statusAnswer(for operationIdentifier: Data) -> ProxyDispatch {
-    if let index = index(of: operationIdentifier) {
-      let operation = operations[index]
-      let report = StatusReport(
-        operationIdentifier: operationIdentifier,
-        known: true,
-        state: operation.operationState,
-        requestHash: operation.reference.requestHash,
-        retired: operation.isRetired)
-      guard let retained = operation.retainedResult else {
-        return .send(.operationStatus(report))
-      }
-      return .sendAll([.operationStatus(report), .operationResult(retained)])
-    }
-    if let entry = recovered.first(where: { candidate in
-      candidate.record.operationIdentifier == operationIdentifier
-    }) {
-      let report = StatusReport(
-        operationIdentifier: operationIdentifier,
-        known: true,
-        state: entry.record.state,
-        requestHash: entry.record.requestHash,
-        retired: entry.record.state == .completed)
-      guard entry.record.state != .completed else { return .send(.operationStatus(report)) }
-      return .sendAll([.operationStatus(report), .operationResult(Self.answer(for: entry))])
-    }
-    return .send(
-      .operationStatus(StatusReport(operationIdentifier: operationIdentifier, known: false)))
-  }
-
-  private mutating func withOperation<Answer>(
-    _ operationIdentifier: Data, _ body: (inout AuthorizationTransaction) throws -> Answer
-  ) throws -> Answer {
-    guard let index = index(of: operationIdentifier) else {
+  /// Answers a batch once every document is signed, with exactly those
+  /// signatures.
+  internal mutating func completeBatch(operationIdentifier: RappOperationIdentifier) throws
+    -> ProxyDispatch
+  {
+    guard let operation = live, operation.operationIdentifier == operationIdentifier else {
       throw EngineError.unknownLocalOperation
     }
-    return try body(&operations[index])
+    return try finishCompleted(
+      operationIdentifier: operationIdentifier,
+      result: .completed(
+        operationIdentifier: operationIdentifier,
+        result: .signatures(operation.batchSignatures)))
   }
 
-  private func index(of operationIdentifier: Data) -> Int? {
-    operations.firstIndex { $0.reference.operationIdentifier == operationIdentifier }
+  /// A progress message for the live operation.
+  internal func reportProgress(
+    operationIdentifier: RappOperationIdentifier, event: ProgressEvent
+  ) throws -> TypedMessage {
+    guard let operation = live, operation.operationIdentifier == operationIdentifier else {
+      throw EngineError.unknownLocalOperation
+    }
+    guard !operation.isTerminal else { throw EngineError.invalidLocalTransition }
+    return .operationProgress(
+      OperationProgressMessage(operationIdentifier: operationIdentifier, event: event))
+  }
+
+  /// The session closed: every operation of it is over (§8.1 item 3).
+  ///
+  /// A card command in progress runs to the card's answer, which is discarded;
+  /// anything else is dropped.
+  internal mutating func sessionClosed() -> ProxySessionCloseAction? {
+    seen = []
+    guard let operation = live else { return nil }
+    live = nil
+    switch operation.stage {
+    case .terminal:
+      return nil
+
+    case .executing, .executingSafeRead:
+      return .continueCardExchange(operationIdentifier: operation.operationIdentifier)
+
+    case .requested, .awaitingConsent:
+      return .dropped(operationIdentifier: operation.operationIdentifier)
+    }
+  }
+
+  private mutating func receiveRequest(_ request: OperationRequest) -> ProxyDispatch {
+    let operationIdentifier = request.operationIdentifier
+    if let answer = admissionRefusal(operationIdentifier) { return answer }
+    guard grantedProfiles.contains(request.profile) else {
+      return .send(
+        .operationResult(
+          .failure(operationIdentifier: operationIdentifier, failure: .unauthorized)))
+    }
+    live = AuthorizationTransaction(request: request)
+    return .inspectPrerequisites(operationIdentifier: operationIdentifier)
+  }
+
+  /// The `error` that refuses a request before admission: an identifier the
+  /// session has seen, or a second request while one is live (§8.1 item 1).
+  ///
+  /// Every identifier counts as seen from here on.
+  private mutating func admissionRefusal(_ operationIdentifier: RappOperationIdentifier)
+    -> ProxyDispatch?
+  {
+    guard seen.insert(operationIdentifier).inserted else {
+      return .send(.error(.duplicate(operationIdentifier)))
+    }
+    if let live, !live.isTerminal {
+      return .send(.error(.busy(operationIdentifier)))
+    }
+    return nil
+  }
+
+  private mutating func withLive(
+    _ operationIdentifier: RappOperationIdentifier,
+    _ body: (inout AuthorizationTransaction) throws -> Void
+  ) throws {
+    guard var operation = live, operation.operationIdentifier == operationIdentifier else {
+      throw EngineError.unknownLocalOperation
+    }
+    do {
+      try body(&operation)
+    } catch {
+      throw EngineError.invalidLocalTransition
+    }
+    live = operation
   }
 }

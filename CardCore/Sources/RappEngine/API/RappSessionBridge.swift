@@ -2,11 +2,11 @@
 
 import Foundation
 
-/// One authenticated session over a stored pairing.
+/// One session over a stored pairing (RAPP v26.10.21 §6.3, §7.1 item 5).
 ///
-/// The session is ephemeral: it authenticates the pairing's keys, verifies
-/// that both endpoints agree on the same parameters, and carries operations
-/// until it closes. Closing spends the bridge.
+/// The session authenticates the pairing's keys with `Noise_KK`, then the
+/// custodian sends `session.ready` and the requester verifies it, and the
+/// session carries operations until it closes. Closing spends the bridge.
 public final class RappSessionBridge: @unchecked Sendable {
   /// Where the session has reached.
   private enum Phase {
@@ -17,11 +17,11 @@ public final class RappSessionBridge: @unchecked Sendable {
   }
 
   private let lock = NSLock()
-  private let pairRecord: PairRecord
+  private let pair: RappPairRecord
   private var phase: Phase
 
-  private init(pairRecord: PairRecord, handshake: SessionHandshake) {
-    self.pairRecord = pairRecord
+  private init(pair: RappPairRecord, handshake: SessionHandshake) {
+    self.pair = pair
     self.phase = .handshaking(handshake)
   }
 
@@ -29,46 +29,36 @@ public final class RappSessionBridge: @unchecked Sendable {
   /// bound to the connection's `transportProfile`.
   ///
   /// - Throws: ``RappBindingError/InvalidInput`` when the stored pairing is
-  ///   not this endpoint's, and ``RappBindingError/ProtocolFailure`` when the
+  ///   not this endpoint's or the profile is unregistered,
+  ///   ``RappBindingError/StorageUnconfirmed`` for a record the peer never
+  ///   confirmed, and ``RappBindingError/ProtocolFailure`` when the
   ///   handshake cannot start.
   public static func beginRequester(
-    pair: RappPairRecord,
-    vault: RappOperationVault,
-    transportProfile: String
+    pair: RappPairRecord, transportProfile: String
   ) throws -> RappSessionBridge {
-    _ = vault
-    do {
-      return RappSessionBridge(
-        pairRecord: pair.record,
+    try mapping {
+      RappSessionBridge(
+        pair: pair,
         handshake: try SessionHandshake.beginRequester(
           pair: pair.record, transportProfile: transportProfile, intent: ExplicitUserIntent()))
-    } catch let error as SessionError {
-      throw bindingError(error)
-    } catch {
-      throw RappBindingError.ProtocolFailure
     }
   }
 
-  /// Answers one incoming connection as the proxy, bound to the
+  /// Answers one incoming connection as the custodian, bound to the
   /// connection's `transportProfile`.
   ///
   /// - Throws: ``RappBindingError/InvalidInput`` when the stored pairing is
-  ///   not this endpoint's.
+  ///   not this endpoint's or the profile is unregistered, and
+  ///   ``RappBindingError/StorageUnconfirmed`` for a record the peer never
+  ///   confirmed.
   public static func beginProxy(
-    pair: RappPairRecord,
-    vault: RappOperationVault,
-    transportProfile: String
+    pair: RappPairRecord, transportProfile: String
   ) throws -> RappSessionBridge {
-    _ = vault
-    do {
-      return RappSessionBridge(
-        pairRecord: pair.record,
+    try mapping {
+      RappSessionBridge(
+        pair: pair,
         handshake: try SessionHandshake.beginProxy(
           pair: pair.record, transportProfile: transportProfile))
-    } catch let error as SessionError {
-      throw bindingError(error)
-    } catch {
-      throw RappBindingError.ProtocolFailure
     }
   }
 
@@ -76,6 +66,8 @@ public final class RappSessionBridge: @unchecked Sendable {
   private static func mapping<Value>(_ body: () throws -> Value) throws -> Value {
     do {
       return try body()
+    } catch let error as RappBindingError {
+      throw error
     } catch let error as SessionError {
       throw bindingError(error)
     } catch {
@@ -86,10 +78,10 @@ public final class RappSessionBridge: @unchecked Sendable {
   /// Names a session failure in the public vocabulary.
   private static func bindingError(_ error: SessionError) -> RappBindingError {
     switch error {
-    case .roleViolation:
+    case .roleViolation, .unregisteredTransport:
       .InvalidInput
 
-    case .closed:
+    case .closed, .duplicateReady, .readyIncomplete:
       .WrongPhase
 
     case .storageUnconfirmed:
@@ -131,7 +123,10 @@ public final class RappSessionBridge: @unchecked Sendable {
     }
   }
 
-  /// Moves from the handshake to mutual parameter verification.
+  /// Moves from the handshake to `session.ready`: the custodian sends it,
+  /// the requester verifies it.
+  ///
+  /// For a forgotten record, deliver ``deliverRevocationNotice()`` instead.
   ///
   /// - Throws: ``RappBindingError/WrongPhase`` before the handshake finished.
   public func enterAuthentication() throws {
@@ -141,11 +136,22 @@ public final class RappSessionBridge: @unchecked Sendable {
     }
   }
 
-  /// Sends this endpoint's parameter echo.
+  /// Whether the pairing was forgotten locally, so the session's first and
+  /// only message is the `pairing_revoked` close (§4.6 item 2).
+  public func revocationNoticePending() -> Bool {
+    pair.record.forgottenAtMilliseconds != nil
+  }
+
+  /// The custodian's `session.ready`: the exact session parameters with a
+  /// fresh random nonce.
   ///
-  /// - Throws: ``RappBindingError/WrongPhase`` outside authentication.
+  /// Then call ``enterEstablished()``.
+  ///
+  /// - Throws: ``RappBindingError/WrongPhase`` outside authentication, on a
+  /// requester, for a forgotten record, or on a second ready.
   public func sendReady(nonce: Data) throws -> Data {
-    try locked {
+    guard !revocationNoticePending() else { throw RappBindingError.WrongPhase }
+    return try locked {
       guard case .authenticating(var authentication) = phase else {
         throw RappBindingError.WrongPhase
       }
@@ -154,24 +160,59 @@ public final class RappSessionBridge: @unchecked Sendable {
     }
   }
 
-  /// Verifies the peer's parameter echo.
+  /// The requester reads the custodian's first message (§7.1 item 5).
   ///
-  /// - Throws: ``RappBindingError/ProtocolFailure`` when the echo does not
-  ///   match, which ends the pairing.
-  public func receiveReady(bytes: Data, nowMs _: UInt64) throws {
+  /// On ``RappReadyOutcome/verified`` call ``enterEstablished()``; every other
+  /// outcome ends the session. The pairing stays unless the custodian closed
+  /// with `pairingRevoked`.
+  ///
+  /// - Throws: ``RappBindingError/WrongPhase`` outside authentication or on
+  /// the custodian.
+  public func receiveReady(bytes: Data) throws -> RappReadyOutcome {
     try locked {
       guard case .authenticating(var authentication) = phase else {
         throw RappBindingError.WrongPhase
       }
-      defer { phase = .authenticating(authentication) }
-      try Self.mapping { try authentication.receiveReady(bytes) }
+      let outcome: RappReadyOutcome
+      do {
+        outcome = try authentication.receiveReady(bytes)
+      } catch {
+        throw RappBindingError.WrongPhase
+      }
+      phase = outcome == .verified ? .authenticating(authentication) : .closed
+      return outcome
     }
   }
 
-  /// Declares the session healthy, after both echoes verified.
+  /// The first and only message of a session whose record was forgotten:
+  /// the sealed `session.close` with reason `pairing_revoked` (§4.6 item
+  /// 2), sent once ``enterAuthentication()`` ran and before anything else.
   ///
-  /// - Throws: ``RappBindingError/WrongPhase`` before both echoes arrived.
+  /// The session closes and no card session starts; deliver the frame, drop
+  /// the link, then destroy the record with
+  /// ``RappPairRecord/revoke(vault:revokedAtMs:)``.
+  ///
+  /// - Throws: ``RappBindingError/WrongPhase`` outside authentication, after
+  /// the custodian's `session.ready`, or for a record that is not
+  /// forgotten.
+  public func deliverRevocationNotice() throws -> Data {
+    guard revocationNoticePending() else { throw RappBindingError.WrongPhase }
+    return try locked {
+      guard case .authenticating(var authentication) = phase else {
+        throw RappBindingError.WrongPhase
+      }
+      phase = .closed
+      return try Self.mapping { try authentication.sendRevocationNotice() }
+    }
+  }
+
+  /// Promotes the session to healthy once the custodian sent, or the
+  /// requester verified, `session.ready`.
+  ///
+  /// - Throws: ``RappBindingError/WrongPhase`` before that, or for a
+  ///   forgotten record.
   public func enterEstablished() throws {
+    guard !revocationNoticePending() else { throw RappBindingError.WrongPhase }
     try locked {
       guard case .authenticating(let authentication) = phase else {
         throw RappBindingError.WrongPhase
@@ -180,7 +221,7 @@ public final class RappSessionBridge: @unchecked Sendable {
     }
   }
 
-  /// Whether the session is healthy and may carry operations.
+  /// Whether `session.ready` produced a healthy session.
   public func isEstablished() -> Bool {
     locked {
       guard case .established(let session) = phase else { return false }
@@ -188,68 +229,16 @@ public final class RappSessionBridge: @unchecked Sendable {
     }
   }
 
-  /// Closes the session and spends the bridge.
+  /// Closes the session and spends the bridge; the pairing stays.
   public func closeSession() {
     locked { phase = .closed }
-  }
-
-  /// Seals one opaque payload over the established session.
-  ///
-  /// A caller that carries its own correlation and answers each request
-  /// once needs the cipher and nothing above it: ordering and replay are
-  /// already settled by the nonce this advances.
-  ///
-  /// - Parameter payload: the bytes to seal.
-  /// - Returns: the frame to hand the transport.
-  /// - Throws: ``RappBindingError/WrongPhase`` before the session is
-  ///   established, and ``RappBindingError/ProtocolFailure`` if it cannot
-  ///   be sealed.
-  public func sealPayload(_ payload: Data) throws -> Data {
-    try locked {
-      guard case .established(var session) = phase else {
-        throw RappBindingError.WrongPhase
-      }
-      do {
-        let frame = try session.sealPayload(payload)
-        phase = .established(session)
-        return frame
-      } catch {
-        throw RappBindingError.ProtocolFailure
-      }
-    }
-  }
-
-  /// Opens one opaque payload from the established session.
-  ///
-  /// A frame that will not open ends the session and leaves the pairing
-  /// standing.
-  ///
-  /// - Parameter frame: the bytes the transport delivered.
-  /// - Returns: the payload the peer sealed.
-  /// - Throws: ``RappBindingError/WrongPhase`` before the session is
-  ///   established, and ``RappBindingError/ProtocolFailure`` when the
-  ///   frame does not open.
-  public func openPayload(_ frame: Data) throws -> Data {
-    try locked {
-      guard case .established(var session) = phase else {
-        throw RappBindingError.WrongPhase
-      }
-      do {
-        let payload = try session.openPayload(frame)
-        phase = .established(session)
-        return payload
-      } catch {
-        phase = .closed
-        throw RappBindingError.ProtocolFailure
-      }
-    }
   }
 
   /// The established session, for the operation bridge built over it.
   internal func takeEstablished() throws -> (session: EstablishedSession, pair: PairRecord) {
     try locked {
       guard case .established(let session) = phase else { throw RappBindingError.WrongPhase }
-      return (session, pairRecord)
+      return (session, pair.record)
     }
   }
 

@@ -5,7 +5,7 @@
   import OSLog
   import RappEngine
 
-  /// Runs one authenticated connection from Noise setup through durable card
+  /// Runs one authenticated connection from Noise setup through card
   /// operations. All externally visible events are semantic and authenticated.
   public actor RappConnectionCoordinator {
     private enum Phase: Equatable {
@@ -13,6 +13,11 @@
       case operating
       case closed
     }
+
+    /// How often a session advances its liveness and checks the live
+    /// operation's deadline; the engine decides when a ping is due (RAPP
+    /// v26.10.21 §8.1 item 2, §8.3).
+    public static let livenessPollIntervalMilliseconds: UInt64 = 1_000
 
     private static let logger = Logger(
       subsystem: "fi.refineid.ReFineID", category: "rapp-coordinator"
@@ -26,8 +31,6 @@
     private let transport: any RappFrameTransport
     private let handshake: RappSessionDriver
     private let maximumLifetimeMilliseconds: UInt64
-    private let liveness: RappOperationDriver.Liveness
-    private let clock: RappPlatformClock
     private let continuation: AsyncStream<Event>.Continuation
     private var operation: RappOperationDriver?
     private var phase = Phase.handshaking
@@ -41,21 +44,16 @@
     public init(
       role: RappSessionDriver.Role,
       pair: RappPairRecord,
-      vault: RappDeviceVault,
       transport: any RappFrameTransport,
       maximumLifetimeMilliseconds: UInt64,
-      liveness: RappOperationDriver.Liveness,
       transportProfile: String = rappStreamProfileName(),
       clock: RappPlatformClock = RappPlatformClock()
     ) throws {
       self.transport = transport
       self.maximumLifetimeMilliseconds = maximumLifetimeMilliseconds
-      self.liveness = liveness
-      self.clock = clock
       self.handshake = try RappSessionDriver(
         role: role,
         pair: pair,
-        vault: vault,
         transportProfile: transportProfile,
         clock: clock
       )
@@ -94,13 +92,12 @@
       }
     }
 
-    /// Runs one liveness poll with the given scheduling jitter.
-    public func pollLiveness(jitterMilliseconds: Int64) async {
+    /// Runs one liveness poll and deadline check.
+    public func pollLiveness() async {
       guard phase == .operating, let operation else { return }
-      await handleOperation(
-        await operation.pollLiveness(
-          jitterMilliseconds: jitterMilliseconds
-        ))
+      await handleOperation(await operation.expireDue())
+      guard phase == .operating else { return }
+      await handleOperation(await operation.pollLiveness())
     }
 
     /// Reports that the transport closed without a local request.
@@ -121,14 +118,17 @@
       }
     }
 
-    /// Closes the connection and finishes the event stream.
+    /// Closes the connection and finishes the event stream; the operation
+    /// that ended with the session is reported before the close.
     public func close() async {
       switch phase {
       case .handshaking:
         _ = await handshake.close()
 
       case .operating:
-        if let operation { _ = await operation.close() }
+        for command in await operation?.close() ?? [] {
+          if let event = Event(command) { continuation.yield(event) }
+        }
 
       case .closed:
         return
@@ -157,16 +157,11 @@
         case .established:
           do {
             operation = try await handshake.beginOperationDriver(
-              maximumLifetimeMilliseconds: maximumLifetimeMilliseconds,
-              liveness: liveness
+              maximumLifetimeMilliseconds: maximumLifetimeMilliseconds
             )
             phase = .operating
             continuation.yield(.established)
-            let now = clock.monotonicMilliseconds()
-            let (deadline, overflow) = now.addingReportingOverflow(
-              liveness.baseIntervalMilliseconds
-            )
-            scheduleLiveness(at: overflow ? UInt64.max : deadline)
+            startLiveness()
           } catch {
             #if DEBUG
               let errDesc = String(describing: error)
@@ -199,9 +194,6 @@
         case .send(let frame, let release):
           await sendOperationFrame(frame, release: release)
 
-        case .scheduleLiveness(let deadline):
-          scheduleLiveness(at: deadline)
-
         case .closed(let reason):
           await finish(.operation(reason))
 
@@ -229,21 +221,22 @@
     }
 
     /// Ends the session with `pairing_revoked` because this endpoint's
-    /// user is forgetting the pairing (RAPP v26.10.18 §4.6 item 1).
+    /// user is forgetting the pairing (RAPP v26.10.21 §4.6 item 1).
     public func closePairingRevoked() async {
       await endOperating { await $0.close(reason: .pairingRevoked) }
     }
 
     /// Ends the session with `service_withdrawn` because the holder
-    /// stopped serving (RAPP v26.10.18 §4.5).
+    /// stopped serving (RAPP v26.10.21 §4.5).
     public func closeServiceWithdrawn() async {
       await endOperating { await $0.close(reason: .serviceWithdrawn) }
     }
 
-    /// Ends the session and the pairing because the card can no longer
-    /// be served.
-    public func revokeBecauseCardUnavailable() async {
-      await endOperating { await $0.revokeBecauseCardUnavailable() }
+    /// Ends the session with `card_unavailable` because the custodian can
+    /// no longer serve any card for the rest of it (§8.4 item 5); the
+    /// pairing stays.
+    public func closeCardUnavailable() async {
+      await endOperating { await $0.close(reason: .cardUnavailable) }
     }
 
     /// Runs `ending` on the operation driver, or closes a session that
@@ -268,38 +261,21 @@
       }
     }
 
-    private func scheduleLiveness(at deadline: UInt64) {
-      guard phase == .operating else { return }
+    /// Polls liveness and the live operation's deadline on a fixed cadence
+    /// while the session operates.
+    private func startLiveness() {
       livenessTask?.cancel()
-
-      let now = clock.monotonicMilliseconds()
-      enum Timing {
-        static let nanosecondsPerMillisecond: UInt64 = 1_000_000
-      }
-
-      let delayMilliseconds = deadline > now ? deadline - now : 0
-      let maximumDelayNanoseconds = UInt64.max
-      let (convertedDelay, overflow) = delayMilliseconds.multipliedReportingOverflow(
-        by: Timing.nanosecondsPerMillisecond
-      )
-      let delayNanoseconds = overflow ? maximumDelayNanoseconds : convertedDelay
-      let maximumJitter = min(
-        liveness.maximumJitterMilliseconds,
-        UInt64(Int64.max)
-      )
-
+      let interval = Self.livenessPollIntervalMilliseconds
       livenessTask = Task { [weak self] in
-        do {
-          try await Task.sleep(nanoseconds: delayNanoseconds)
-        } catch {
-          return
+        while !Task.isCancelled {
+          do {
+            try await Task.sleep(for: .milliseconds(interval))
+          } catch {
+            return
+          }
+          guard let self else { return }
+          await pollLiveness()
         }
-        guard !Task.isCancelled, let self else { return }
-
-        var generator = SystemRandomNumberGenerator()
-        let bound = Int64(maximumJitter)
-        let jitter = Int64.random(in: -bound...bound, using: &generator)
-        await pollLiveness(jitterMilliseconds: jitter)
       }
     }
 

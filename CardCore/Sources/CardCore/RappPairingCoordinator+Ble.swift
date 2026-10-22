@@ -12,7 +12,7 @@
     }
 
     /// The offer the custodian serves through its transport's bootstrap: the
-    /// BLE characteristic, or the first stream frame (RAPP v26.10.9 §4.2).
+    /// BLE characteristic, or the first stream frame (RAPP v26.10.21 §4.2).
     public func bootstrapOffer() throws -> Data {
       guard let bridge else { throw RappBindingError.WrongPhase }
       return try bridge.encodedOffer()

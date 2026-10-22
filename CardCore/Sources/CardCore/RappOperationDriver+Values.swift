@@ -18,45 +18,6 @@
       case missingFrame
     }
 
-    /// Caller-injected liveness polling policy with no hidden timing constants.
-    public struct Liveness: Sendable, Equatable {
-      /// Interval between liveness polls before any backoff.
-      public let baseIntervalMilliseconds: UInt64
-      /// Time allowed for the peer to answer one liveness challenge.
-      public let responseTimeoutMilliseconds: UInt64
-      /// Upper bound the polling interval may back off to.
-      public let maximumIntervalMilliseconds: UInt64
-      /// Largest random offset applied to a scheduled poll.
-      public let maximumJitterMilliseconds: UInt64
-      /// Consecutive unanswered challenges tolerated before closing.
-      public let maximumMisses: UInt8
-
-      internal var binding: RappLivenessConfiguration {
-        RappLivenessConfiguration(
-          baseIntervalMs: baseIntervalMilliseconds,
-          responseTimeoutMs: responseTimeoutMilliseconds,
-          maximumIntervalMs: maximumIntervalMilliseconds,
-          maximumJitterMs: maximumJitterMilliseconds,
-          maximumMisses: maximumMisses
-        )
-      }
-
-      /// Creates a policy from explicit caller-chosen bounds.
-      public init(
-        baseIntervalMilliseconds: UInt64,
-        responseTimeoutMilliseconds: UInt64,
-        maximumIntervalMilliseconds: UInt64,
-        maximumJitterMilliseconds: UInt64,
-        maximumMisses: UInt8
-      ) {
-        self.baseIntervalMilliseconds = baseIntervalMilliseconds
-        self.responseTimeoutMilliseconds = responseTimeoutMilliseconds
-        self.maximumIntervalMilliseconds = maximumIntervalMilliseconds
-        self.maximumJitterMilliseconds = maximumJitterMilliseconds
-        self.maximumMisses = maximumMisses
-      }
-    }
-
     /// Card signing key profile named by an operation request.
     public enum KeyProfile: Sendable, Equatable {
       case ecdsaP256
@@ -171,8 +132,6 @@
       case readIdentity
       case readAuthenticationCertificate
       case readSignatureCertificate
-      case readRootCertificate
-      case readIntermediateCertificate
       case browserAuthenticate
       case signDocument
       case batchSignDocuments
@@ -190,12 +149,6 @@
 
         case .readSignatureCertificate:
           self = .readSignatureCertificate
-
-        case .readRootCertificate:
-          self = .readRootCertificate
-
-        case .readIntermediateCertificate:
-          self = .readIntermediateCertificate
 
         case .browserAuthenticate:
           self = .browserAuthenticate
@@ -237,162 +190,47 @@
       }
     }
 
-    /// Kind of a successfully completed operation result.
-    public enum ResultKind: Sendable, Equatable {
-      case inspection
-      case identity
-      case certificate
-      case signature
-      case signatures
-
-      internal init(_ value: RappResultKind) {
-        switch value {
-        case .inspection:
-          self = .inspection
-
-        case .identity:
-          self = .identity
-
-        case .certificate:
-          self = .certificate
-
-        case .signature:
-          self = .signature
-
-        case .signatures:
-          self = .signatures
-        }
-      }
-    }
-
-    /// Successful operation result with only the fields its kind populates.
-    public struct Result: Sendable, Equatable {
-      /// Result kind that selects which optional fields are populated.
-      public let kind: ResultKind
-      /// Whether PIN 1 still carries its factory value; inspection only.
-      public let pin1FactoryReported: Bool
-      /// Whether PIN 1 still carries its factory value when reported.
-      public let pin1Factory: Bool
-      /// Whether PIN 2 still carries its factory value; inspection only.
-      public let pin2FactoryReported: Bool
-      /// Whether PIN 2 still carries its factory value when reported.
-      public let pin2Factory: Bool
-      /// Remaining PIN 1 attempts when the card reported them.
-      public let pin1Attempts: UInt8?
-      /// Remaining PIN 2 attempts when the card reported them.
-      public let pin2Attempts: UInt8?
-      /// Remaining PUK attempts when the card reported them.
-      public let pukAttempts: UInt8?
-      /// Cardholder display name carried by identity results.
-      public let displayName: String?
-      /// Cardholder person identifier carried by identity results.
-      public let personID: String?
-      /// Certificate DER or signature bytes; empty for other result kinds.
-      public let bytes: Data
-      /// A batch's ordered signatures; empty for other result kinds.
-      public let signatures: [Data]
-
-      internal init(_ value: RappOperationResult) {
-        kind = ResultKind(value.kind)
-        pin1FactoryReported = value.pin1Factory != nil
-        pin1Factory = value.pin1Factory ?? false
-        pin2FactoryReported = value.pin2Factory != nil
-        pin2Factory = value.pin2Factory ?? false
-        pin1Attempts = value.pin1Attempts
-        pin2Attempts = value.pin2Attempts
-        pukAttempts = value.pukAttempts
-        displayName = value.displayName
-        personID = value.personId
-        bytes = value.bytes
-        signatures = value.signatures
-      }
-    }
-
-    /// Reason an operation ended without delivering a result.
-    public enum TerminalReason: Sendable, Equatable {
-      case userDenied
-      case requestExpired
-      case cancelled
-      case requestInvalidOrUnsupported
-      case retryPolicyRefused
-      case credentialRejected
-      case cardRemovedBeforeTransmit
-      case cardCompletionAmbiguous
-      case invalidCredential
-
-      internal init(_ value: RappTerminalReason) {
-        switch value {
-        case .userDenied:
-          self = .userDenied
-
-        case .requestExpired:
-          self = .requestExpired
-
-        case .cancelled:
-          self = .cancelled
-
-        case .requestInvalidOrUnsupported:
-          self = .requestInvalidOrUnsupported
-
-        case .retryPolicyRefused:
-          self = .retryPolicyRefused
-
-        case .credentialRejected:
-          self = .credentialRejected
-
-        case .cardRemovedBeforeTransmit:
-          self = .cardRemovedBeforeTransmit
-
-        case .cardCompletionAmbiguous:
-          self = .cardCompletionAmbiguous
-
-        case .invalidCredential:
-          self = .invalidCredential
-        }
-      }
-    }
-
-    /// Reason the operation session closed permanently.
+    /// Why the operation session closed permanently.
     public enum CloseReason: Sendable, Equatable {
       case localRequest
       case transportClosed
+      /// An authenticated protocol violation, sent or received, or a frame
+      /// that failed authentication; the pairing stays (§10.1).
       case protocolFailure
+      /// The peer revoked the pairing; revoke it here too and withdraw its
+      /// identity (§4.6 item 4).
       case pairRevoked
+      /// This endpoint's own close notice was released.
       case terminalFrameReleased
       /// The custodian stopped serving (`service_withdrawn`); the requester
       /// drops the card at once and redials only when it advertises again.
       case serviceWithdrawn
+      /// The peer closed the session with another registered reason.
+      case peerClosed(RappCloseReason)
     }
 
     /// A token that the transport must return after it has released a frame.
     public enum FrameRelease: Sendable, Equatable {
       case noRelease
-      case resultAcknowledgment(operationID: Data)
-      /// Acknowledges a result that ended the operation without an answer.
-      case terminalAcknowledgment(operationID: Data)
-      case closeSession
+      /// The frame was this endpoint's close; the session ends with it.
+      case closeSession(CloseReason)
     }
 
     /// Effect the caller must apply on behalf of the driver, which performs
     /// no card or transport I/O itself.
     public enum Command: Sendable, Equatable {
       case send(frame: Data, release: FrameRelease)
-      case inspectPrerequisites(operationID: Data, operation: Operation)
-      case awaitUserApproval(operationID: Data, operation: Operation)
-      case executeSafeRead(operationID: Data, operation: Operation)
-      case executeCardCommand(operationID: Data, operation: Operation)
-      case completed(operationID: Data, result: Result)
-      case terminal(operationID: Data?, state: String?, reason: TerminalReason?)
-      /// The signatures an interrupted batch made before it became
-      /// ambiguous, in document order; precedes that batch's `terminal`.
-      case batchSignatures(operationID: Data, signatures: [Data])
-      case operationFinished(operationID: Data?)
-      case peerBusy(operationID: Data?)
-      case peerUnknownOperation(operationID: Data?)
-      case progress(operationID: Data, event: ProgressEvent)
-      /// Whether the custodian can serve a card (RAPP v26.10.18 §8.4).
-      case cardStatus(present: Bool)
-      case scheduleLiveness(atMonotonicMilliseconds: UInt64)
+      case inspectPrerequisites(operationID: RappOperationIdentifier, operation: Operation)
+      case awaitUserApproval(operationID: RappOperationIdentifier, operation: Operation)
+      case executeSafeRead(operationID: RappOperationIdentifier, operation: Operation)
+      case executeCardCommand(operationID: RappOperationIdentifier, operation: Operation)
+      case completed(operationID: RappOperationIdentifier, result: RappOperationResult)
+      case terminal(operationID: RappOperationIdentifier, reason: RappTerminalReason)
+      case progress(operationID: RappOperationIdentifier, event: ProgressEvent)
+      /// The custodian's word on which card it can serve now (§8.4).
+      case cardStatus(RappCardStatus)
+      /// The session's operation ended with the session (§8.1 item 3).
+      case operationEnded(RappEndedOperation)
       case closed(CloseReason)
     }
   }

@@ -6,21 +6,10 @@ public struct RappOfferCandidate: Equatable, Sendable {
   public var profile: String
   /// The identifier naming this candidate within the offer.
   public var candidateId: String
-  /// Present only for the BLE profile, carrying the Service UUID.
-  public var bleServiceUUID: String?
-  /// Present only for the BLE profile, carrying the optional L2CAP PSM.
-  public var blePsm: UInt16?
 
   /// Describes one advertised transport.
-  public init(
-    profile: String,
-    candidateId: String,
-    bleServiceUUID: String? = nil,
-    blePsm: UInt16? = nil
-  ) {
+  public init(profile: String, candidateId: String) {
     self.profile = profile
     self.candidateId = candidateId
-    self.bleServiceUUID = bleServiceUUID
-    self.blePsm = blePsm
   }
 }

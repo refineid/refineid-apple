@@ -74,13 +74,15 @@
         ))
     }
 
-    /// The recorder a card session journals each batch signature through.
-    public func batchSignatureRecorder(operationID: Data) throws -> RappBatchSignatureRecorder {
+    /// The recorder a card session records each batch signature through.
+    public func batchSignatureRecorder(
+      operationID: RappOperationIdentifier
+    ) throws -> RappBatchSignatureRecorder {
       try operationDriver().batchSignatureRecorder(operationID: operationID)
     }
 
-    /// Completes a batch once every document's signature is journaled.
-    public func completeBatch(operationID: Data) async throws {
+    /// Completes a batch once every document is signed.
+    public func completeBatch(operationID: RappOperationIdentifier) async throws {
       let driver = try operationDriver()
       await handleOperation(try await driver.completeBatch(operationID: operationID))
     }
@@ -104,40 +106,41 @@
         ))
     }
 
-    /// Tells the requester whether a card this custodian can serve is
-    /// present (RAPP v26.10.18 §8.4).
-    public func reportCardStatus(present: Bool) async throws {
+    /// Tells the requester which card can answer now (RAPP v26.10.21 §8.4).
+    public func reportCardStatus(_ status: RappCardStatus) async throws {
       let driver = try operationDriver()
-      await handleOperation(await driver.reportCardStatus(present: present))
+      await handleOperation(await driver.reportCardStatus(status))
     }
 
     /// Reports progress on an active operation, such as the consent view
-    /// being on screen (RAPP v26.10.18 §8.2 item 3).
-    public func reportProgress(operationID: Data, event: ProgressEvent) async throws {
+    /// being on screen (RAPP v26.10.21 §8.2 item 3).
+    public func reportProgress(operationID: RappOperationIdentifier, event: ProgressEvent)
+      async throws
+    {
       let driver = try operationDriver()
       await handleOperation(try await driver.reportProgress(operationID: operationID, event: event))
     }
 
     /// Reports that proxy-side prerequisites for the operation are met.
-    public func prerequisitesComplete(operationID: Data) async throws {
+    public func prerequisitesComplete(operationID: RappOperationIdentifier) async throws {
       let driver = try operationDriver()
       await handleOperation(try await driver.prerequisitesComplete(operationID: operationID))
     }
 
     /// Records the local user's approval of the pending operation.
-    public func approve(operationID: Data) async throws {
+    public func approve(operationID: RappOperationIdentifier) async throws {
       let driver = try operationDriver()
       await handleOperation(try await driver.approve(operationID: operationID))
     }
 
     /// Records the local user's denial of the pending operation.
-    public func deny(operationID: Data) async throws {
+    public func deny(operationID: RappOperationIdentifier) async throws {
       let driver = try operationDriver()
       await handleOperation(try await driver.deny(operationID: operationID))
     }
 
     /// Rejects the operation as malformed or unsupported on this device.
-    public func requestInvalidOrUnsupported(operationID: Data) async throws {
+    public func requestInvalidOrUnsupported(operationID: RappOperationIdentifier) async throws {
       let driver = try operationDriver()
       await handleOperation(
         try await driver.requestInvalidOrUnsupported(
@@ -145,61 +148,41 @@
         ))
     }
 
-    /// Reports that the local retry policy refused to run the operation.
-    public func retryRefused(operationID: Data) async throws {
+    /// The retry floor refused before any verification (RAPP v26.10.21
+    /// §10.2).
+    public func retryFloor(operationID: RappOperationIdentifier) async throws {
       let driver = try operationDriver()
-      await handleOperation(try await driver.retryRefused(operationID: operationID))
+      await handleOperation(try await driver.retryFloor(operationID: operationID))
     }
 
-    /// Reports an incorrect credential with attempts remaining; the pairing
-    /// stays (RAPP v26.10.9 section 10.2).
-    public func invalidCredential(operationID: Data, remainingRetries: UInt8) async throws {
+    /// The card did not answer: no card within the wait, the field lost, a
+    /// transmission fault.
+    public func cardError(operationID: RappOperationIdentifier) async throws {
       let driver = try operationDriver()
-      await handleOperation(
-        try await driver.invalidCredential(
-          operationID: operationID, remainingRetries: remainingRetries))
+      await handleOperation(try await driver.cardError(operationID: operationID))
     }
 
-    /// Reports that the card blocked the presented credential.
-    public func credentialRejected(operationID: Data) async throws {
+    /// The custodian could not carry the operation out for a reason of its
+    /// own.
+    public func operationFailed(operationID: RappOperationIdentifier) async throws {
       let driver = try operationDriver()
-      await handleOperation(try await driver.credentialRejected(operationID: operationID))
+      await handleOperation(try await driver.operationFailed(operationID: operationID))
     }
 
-    /// Reports that the card left the reader before the command was sent.
-    public func cardRemovedBeforeTransmit(operationID: Data) async throws {
-      let driver = try operationDriver()
-      await handleOperation(
-        try await driver.cardRemovedBeforeTransmit(
-          operationID: operationID
-        ))
-    }
-
-    /// Reports that the card command's completion could not be confirmed.
-    public func cardCompletionAmbiguous(operationID: Data) async throws {
+    /// Completes an inspection with the card's answer to reset, or its
+    /// historical bytes.
+    public func completeInspection(operationID: RappOperationIdentifier, answerToReset: Data)
+      async throws
+    {
       let driver = try operationDriver()
       await handleOperation(
-        try await driver.cardCompletionAmbiguous(
-          operationID: operationID
-        ))
+        try await driver.completeInspection(operationID: operationID, answerToReset: answerToReset)
+      )
     }
 
-    /// Completes an inspection with PIN factory state and attempt counts.
-    public func completeInspection(
-      operationID: Data,
-      inspection: RappOperationDriver.Inspection
-    ) async throws {
-      let driver = try operationDriver()
-      await handleOperation(
-        try await driver.completeInspection(
-          operationID: operationID,
-          inspection: inspection
-        ))
-    }
-
-    /// Completes an identity read (RAPP v26.10.9 §9.1).
+    /// Completes an identity read (RAPP v26.10.21 §9.1).
     public func completeIdentity(
-      operationID: Data,
+      operationID: RappOperationIdentifier,
       identity: RappOperationDriver.Identity
     ) async throws {
       let driver = try operationDriver()
@@ -208,14 +191,16 @@
     }
 
     /// Completes a certificate read with the DER-encoded certificate.
-    public func completeCertificate(operationID: Data, der: Data) async throws {
+    public func completeCertificate(operationID: RappOperationIdentifier, der: Data) async throws {
       let driver = try operationDriver()
       await handleOperation(
         try await driver.completeCertificate(operationID: operationID, der: der))
     }
 
     /// Completes a signature operation with the raw signature bytes.
-    public func completeSignature(operationID: Data, signature: Data) async throws {
+    public func completeSignature(operationID: RappOperationIdentifier, signature: Data)
+      async throws
+    {
       let driver = try operationDriver()
       await handleOperation(
         try await driver.completeSignature(

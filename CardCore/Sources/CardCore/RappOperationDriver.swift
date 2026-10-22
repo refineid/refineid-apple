@@ -3,67 +3,38 @@
 #if canImport(RappEngine)
   import Foundation
   import RappEngine
-  /// Owns one established RAPP operation runtime and translates generated binding
-  /// records into Sendable Apple-side values. It never performs card I/O itself.
+  /// Owns one established RAPP operation runtime and translates engine
+  /// records into Sendable Apple-side values. It never performs card I/O
+  /// itself. Nothing of an operation outlives the session (RAPP v26.10.21
+  /// §8.1 item 3).
   public actor RappOperationDriver {
-    internal enum OperationCommandKind {
-      case inspect
-      case approval
-      case safeRead
-      case cardCommand
-    }
-
     internal let bridge: RappOperationBridge
     internal let entropy: RappPlatformEntropy
     internal let clock: RappPlatformClock
-    internal let vault: RappDeviceVault
-    internal let pairID: Data
     internal var closed = false
-
-    /// Whether this driver durably revoked the pairing while closing, so
-    /// the close is reported as a revocation rather than a released frame.
-    internal var revokedWhileClosing = false
-    /// Terminal steps held back until their acknowledgement frame has
-    /// left (RAPP v26.10.18 §8.2 item 5), by operation.
-    internal var heldTerminalSteps: [Data: [Command]] = [:]
 
     internal init(
       role: RappSessionDriver.Role,
-      pairID: Data,
       session: RappSessionBridge,
-      vault: RappDeviceVault,
       maximumLifetimeMilliseconds: UInt64,
-      liveness: Liveness,
       entropy: RappPlatformEntropy,
       clock: RappPlatformClock
     ) throws {
       self.entropy = entropy
       self.clock = clock
-      self.vault = vault
-      self.pairID = pairID
       let now = clock.monotonicMilliseconds()
       switch role {
       case .requester:
         bridge = try RappOperationBridge.beginRequester(
-          session: session,
-          vault: vault,
-          maximumLifetimeMs: maximumLifetimeMilliseconds,
-          liveness: liveness.binding,
-          nowMs: now
-        )
+          session: session, maximumLifetimeMs: maximumLifetimeMilliseconds, nowMs: now)
 
       case .proxy:
         bridge = try RappOperationBridge.beginProxy(
-          session: session,
-          vault: vault,
-          maximumLifetimeMs: maximumLifetimeMilliseconds,
-          liveness: liveness.binding,
-          nowMs: now
-        )
+          session: session, maximumLifetimeMs: maximumLifetimeMilliseconds, nowMs: now)
       }
     }
 
-    /// Starts a requester inspection of card and PIN status.
+    /// Starts a requester inspection of the card's answer to reset.
     public func beginInspectCard(expiresAfterMilliseconds: UInt64) throws -> [Command] {
       try commands(
         bridge.beginInspectCard(
@@ -117,8 +88,8 @@
         ))
     }
 
-    /// Starts a requester batch signature over 1 to 64 named documents
-    /// (RAPP v26.10.9 §9.3); names and digests pair up by position.
+    /// Starts a requester batch signature over named documents (RAPP
+    /// v26.10.21 §9.3); names and digests pair up by position.
     public func beginBatchSignDocuments(
       documentNames: [String],
       keyProfile: KeyProfile,
@@ -138,16 +109,16 @@
         ))
     }
 
-    /// The recorder a custodian's card session journals each batch
-    /// signature through, before it signs the next document.
+    /// The recorder a custodian's card session records each batch
+    /// signature through, as the card makes it.
     nonisolated public func batchSignatureRecorder(
-      operationID: Data
+      operationID: RappOperationIdentifier
     ) -> RappBatchSignatureRecorder {
       RappBatchSignatureRecorder(bridge: bridge, operationID: operationID)
     }
 
-    /// Completes a batch once every document's signature is journaled.
-    public func completeBatch(operationID: Data) throws -> [Command] {
+    /// Completes a batch once every document is signed.
+    public func completeBatch(operationID: RappOperationIdentifier) throws -> [Command] {
       try commands(bridge.completeBatch(operationId: operationID))
     }
 
@@ -176,97 +147,87 @@
       guard !closed else { return [] }
       do {
         return try commands(
-          bridge.receiveFrame(
-            bytes: frame,
-            nowMs: clock.monotonicMilliseconds()
-          ))
+          bridge.receiveFrame(bytes: frame, nowMs: clock.monotonicMilliseconds()))
       } catch {
         return protocolFailure()
       }
     }
 
-    /// Reports progress on an active operation.
-    public func reportProgress(operationID: Data, event: ProgressEvent) throws -> [Command] {
+    /// Reports a change of the live operation's state (§8.2).
+    public func reportProgress(operationID: RappOperationIdentifier, event: ProgressEvent) throws
+      -> [Command]
+    {
       try commands(bridge.reportProgress(operationId: operationID, event: event))
     }
 
-    /// Marks bounded card-status and certificate prerequisites complete.
-    public func prerequisitesComplete(operationID: Data) throws -> [Command] {
-      try commands(bridge.prerequisitesComplete(operationId: operationID))
+    /// The operation has the card and its prerequisite reads are done; a
+    /// read runs at once and an operation past its deadline is cancelled
+    /// (§8.1 item 2, §8.2 items 3 and 6).
+    public func prerequisitesComplete(operationID: RappOperationIdentifier) throws -> [Command] {
+      try commands(
+        bridge.prerequisitesComplete(operationId: operationID, nowMs: clock.monotonicMilliseconds())
+      )
     }
 
     /// Approves exactly the request displayed by the authorizer UI.
-    public func approve(operationID: Data) throws -> [Command] {
+    public func approve(operationID: RappOperationIdentifier) throws -> [Command] {
       try commands(
-        bridge.approve(
-          operationId: operationID,
-          approvedAtMs: clock.monotonicMilliseconds()
-        ))
+        bridge.approve(operationId: operationID, approvedAtMs: clock.monotonicMilliseconds()))
     }
 
-    /// Denies the exact request and emits a stable denial.
-    public func deny(operationID: Data) throws -> [Command] {
+    /// The holder declined.
+    public func deny(operationID: RappOperationIdentifier) throws -> [Command] {
       try commands(bridge.deny(operationId: operationID))
     }
 
     /// Rejects a request that is unsupported or contradicts the live card.
-    public func requestInvalidOrUnsupported(operationID: Data) throws -> [Command] {
+    public func requestInvalidOrUnsupported(operationID: RappOperationIdentifier) throws
+      -> [Command]
+    {
       try commands(bridge.requestInvalidOrUnsupported(operationId: operationID))
     }
 
-    /// Reports that local retry policy refused the request.
-    public func retryRefused(operationID: Data) throws -> [Command] {
-      try commands(bridge.retryRefused(operationId: operationID))
+    /// The retry floor refused before any verification (§10.2).
+    public func retryFloor(operationID: RappOperationIdentifier) throws -> [Command] {
+      try commands(bridge.retryFloor(operationId: operationID))
     }
 
-    /// Reports an incorrect credential with attempts remaining; the pairing
-    /// stays (RAPP v26.10.9 section 10.2).
-    public func invalidCredential(
-      operationID: Data, remainingRetries: UInt8
-    ) throws -> [Command] {
+    /// The card did not answer: no card within the wait, the field lost, a
+    /// transmission fault.
+    public func cardError(operationID: RappOperationIdentifier) throws -> [Command] {
+      try commands(bridge.cardError(operationId: operationID))
+    }
+
+    /// The custodian could not carry the operation out for a reason of its
+    /// own.
+    public func operationFailed(operationID: RappOperationIdentifier) throws -> [Command] {
+      try commands(bridge.operationFailed(operationId: operationID))
+    }
+
+    /// Cancels the live operation when its deadline passed before the card
+    /// was commanded (§8.1 item 2).
+    public func expireDue() -> [Command] {
+      guard !closed else { return [] }
+      do {
+        return try commands(bridge.expireDue(nowMs: clock.monotonicMilliseconds()))
+      } catch {
+        return []
+      }
+    }
+
+    /// Completes an inspection with the card's answer to reset, or its
+    /// historical bytes; empty when the platform exposes neither.
+    public func completeInspection(operationID: RappOperationIdentifier, answerToReset: Data) throws
+      -> [Command]
+    {
       try commands(
-        bridge.invalidCredential(operationId: operationID, remainingRetries: remainingRetries))
+        bridge.completeInspection(operationId: operationID, answerToReset: answerToReset))
     }
 
-    /// Reports that the card blocked the presented credential; the pairing
-    /// is revoked.
-    public func credentialRejected(operationID: Data) throws -> [Command] {
-      try commands(
-        bridge.credentialRejected(
-          operationId: operationID,
-          rejectedAtMs: clock.monotonicMilliseconds()
-        ))
-    }
-
-    /// Reports that the card left the reader before the command was sent.
-    public func cardRemovedBeforeTransmit(operationID: Data) throws -> [Command] {
-      try commands(bridge.cardRemovedBeforeTransmit(operationId: operationID))
-    }
-
-    /// Reports that card completion could not be determined either way.
-    public func cardCompletionAmbiguous(operationID: Data) throws -> [Command] {
-      try commands(bridge.cardCompletionAmbiguous(operationId: operationID))
-    }
-
-    /// Completes an inspection with factory state and remaining attempt counts.
-    public func completeInspection(
-      operationID: Data,
-      inspection: Inspection
-    ) throws -> [Command] {
-      try commands(
-        bridge.completeInspection(
-          operationId: operationID,
-          answerToReset: inspection.answerToReset,
-          pin1Factory: inspection.pin1Factory,
-          pin2Factory: inspection.pin2Factory,
-          pin1Attempts: inspection.pin1Attempts,
-          pin2Attempts: inspection.pin2Attempts,
-          pukAttempts: inspection.pukAttempts
-        ))
-    }
-
-    /// Completes an identity read (RAPP v26.10.9 §9.1).
-    public func completeIdentity(operationID: Data, identity: Identity) throws -> [Command] {
+    /// Completes an identity read (§9.1).
+    public func completeIdentity(operationID: RappOperationIdentifier, identity: Identity) throws
+      -> [Command]
+    {
       try commands(
         bridge.completeIdentity(
           operationId: operationID,
@@ -279,12 +240,16 @@
     }
 
     /// Completes a certificate read with DER bytes read from the card.
-    public func completeCertificate(operationID: Data, der: Data) throws -> [Command] {
+    public func completeCertificate(operationID: RappOperationIdentifier, der: Data) throws
+      -> [Command]
+    {
       try commands(bridge.completeCertificate(operationId: operationID, der: der))
     }
 
     /// Completes a signing operation with the card-produced signature.
-    public func completeSignature(operationID: Data, signature: Data) throws -> [Command] {
+    public func completeSignature(operationID: RappOperationIdentifier, signature: Data) throws
+      -> [Command]
+    {
       try commands(bridge.completeSignature(operationId: operationID, signature: signature))
     }
   }

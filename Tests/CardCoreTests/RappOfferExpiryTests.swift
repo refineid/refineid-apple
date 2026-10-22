@@ -1,14 +1,14 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
+import CardCore
 import Foundation
 import RappEngine
 import XCTest
 
+/// An offer lives five minutes from its creation (RAPP v26.10.21 §3.3 item 7).
 internal final class RappOfferExpiryTests: XCTestCase {
-  private static let cpaceRandomByteCount = 64
-  private static let offerIdentifierByteCount = 32
   private static let startedAt: UInt64 = 1_000
-  private static let offerLifetime: UInt64 = 60_000
+  private static let offerLifetime = rappOfferTtlMs()
 
   internal func testOfferExpiresAtItsMonotonicDeadline() throws {
     XCTAssertNoThrow(try begin(at: Self.startedAt + Self.offerLifetime - 1))
@@ -19,14 +19,14 @@ internal final class RappOfferExpiryTests: XCTestCase {
     let transportProfile = rappStreamProfileName()
     let bridge = try RappPairingBridge.custodianOffer(
       pairingCode: "246813",
-      offerId: Data(repeating: 0x10, count: Self.offerIdentifierByteCount),
-      profiles: ["fi.refineid.card-status.v1"],
+      offerId: try RappPlatformEntropy().offerID(),
+      profiles: rappCredentialProfiles(),
       transportProfiles: [transportProfile],
       startedAtMonotonicMs: Self.startedAt
     )
     try bridge.beginCpace(
       candidateId: try XCTUnwrap(rappCandidateIdentifier(transportProfile: transportProfile)),
-      randomBytes64: Data(repeating: 0x11, count: Self.cpaceRandomByteCount),
+      randomBytes64: try RappPlatformEntropy().cpaceRandom(),
       nowMonotonicMs: now)
   }
 

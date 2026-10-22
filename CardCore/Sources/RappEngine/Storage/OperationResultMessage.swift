@@ -2,25 +2,20 @@
 
 import Foundation
 
-/// One `operation.result` (RAPP v26.10.9 §7.1), as carried on the wire and
-/// retained until the requester acknowledges it.
+/// One `operation.result` (RAPP v26.10.21 §7.1).
 ///
 /// The response stays the map the wire carries: only the requester, which
 /// knows the operation it asked for, reads it as a typed answer.
 internal struct OperationResultMessage: Equatable {
-  internal var operationIdentifier: Data
-  internal var requestHash: Data
+  internal var operationIdentifier: RappOperationIdentifier
   internal var status: ResultStatus
   internal var error: ResultError?
   internal var response: ResultResponse?
-  internal var remainingRetries: UInt8?
-  internal var retired = false
 
   /// The body fields this result puts on the wire.
   internal var wireBody: [String: WireValue] {
     var body: [String: WireValue] = [
-      "operation_id": .bytes(operationIdentifier),
-      "request_hash": .bytes(requestHash),
+      "operation_id": .bytes(operationIdentifier.bytes),
       "status": .text(status.rawValue),
     ]
     if let response {
@@ -29,88 +24,44 @@ internal struct OperationResultMessage: Equatable {
     if let error {
       body["error"] = .text(error.rawValue)
     }
-    if let remainingRetries {
-      body["remaining_retries"] = .unsigned(UInt64(remainingRetries))
-    }
-    if retired {
-      body["retired"] = .boolean(true)
-    }
     return body
   }
 
-  /// Whether the status, error, and response agree.
-  ///
-  /// A live completed result carries a response and no error; a retired one
-  /// carries `operation_already_retired` and no response; every other status
-  /// carries an error its registry pairs with that status. An ambiguous
-  /// result may also carry a batch's partial progress (RAPP v26.10.9 §9.3).
+  /// Whether the status, error, and response agree: a completed result
+  /// carries a response and no error; every other status carries an error
+  /// the registry pairs with it, and no response (§8.2 item 5, §10.3).
   internal var isConsistent: Bool {
     switch (status, error, response) {
     case (.completed, .none, .some):
-      return !retired
-
-    case (.completed, .some(let error), .none):
-      return retired && error == .operationAlreadyRetired
-
-    case (.ambiguous, .some(let error), .some):
-      return !retired && error.permits(status)
+      true
 
     case (_, .some(let error), .none):
-      return status != .completed && error.permits(status)
+      status != .completed && error.permits(status)
 
     default:
-      return false
+      false
     }
   }
 
-  internal static func decode(_ bytes: Data) throws -> Self {
-    var map = try decodedMap(bytes)
-    let decodedOperationIdentifier = try takeBytes(&map, "operation_id")
-    let decodedRequestHash = try takeBytes(&map, "request_hash")
-    guard decodedOperationIdentifier.count == JournalSize.operationIdentifier,
-      decodedRequestHash.count == JournalSize.requestHash
-    else { throw PairRecordError.invalidInput }
-    guard let decodedStatus = ResultStatus(rawValue: try takeText(&map, "status")) else {
-      throw PairRecordError.invalidInput
+  /// A received `operation.result` body.
+  internal static func from(wireBody: [String: WireValue]) throws -> Self {
+    var map = wireBody
+    let decodedOperationIdentifier = try takeOperationIdentifier(&map, "operation_id")
+    guard let decodedStatus = ResultStatus(rawValue: try takeOperationText(&map, "status")) else {
+      throw CardOperationError.invalidField(field: "status")
     }
-    var message = Self(
-      operationIdentifier: decodedOperationIdentifier,
-      requestHash: decodedRequestHash,
-      status: decodedStatus)
-    try message.takeOptionalFields(from: &map)
-    guard map.isEmpty, message.isConsistent else { throw PairRecordError.invalidInput }
-    return message
-  }
-
-  /// Reads the fields a result may omit, refusing any of the wrong type.
-  private mutating func takeOptionalFields(from map: inout [String: WireValue]) throws {
+    var message = Self(operationIdentifier: decodedOperationIdentifier, status: decodedStatus)
     if map["error"] != nil {
-      error = ResultError(wireName: try takeText(&map, "error"))
-    }
-    switch map.removeValue(forKey: "response") {
-    case .none:
-      break
-
-    case .some(.map(let fields)):
-      response = ResultResponse(fields: fields)
-
-    case .some:
-      throw PairRecordError.invalidInput
-    }
-    if map["remaining_retries"] != nil {
-      guard let count = UInt8(exactly: try takeUnsigned(&map, "remaining_retries")) else {
-        throw PairRecordError.invalidInput
+      guard let decodedError = ResultError(rawValue: try takeOperationText(&map, "error")) else {
+        throw CardOperationError.invalidField(field: "error")
       }
-      remainingRetries = count
+      message.error = decodedError
     }
-    retired = try takeBoolean(&map, "retired", absent: false)
-  }
-
-  internal func encoded() throws -> Data {
-    do {
-      return try WireValue.map(wireBody).encoded()
-    } catch {
-      throw PairRecordError.invalidInput
+    if map["response"] != nil {
+      message.response = ResultResponse(fields: try takeOperationMap(&map, "response"))
     }
+    guard map.isEmpty else { throw CardOperationError.unexpectedField }
+    guard message.isConsistent else { throw CardOperationError.invalidField(field: "result") }
+    return message
   }
 }

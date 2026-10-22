@@ -32,7 +32,8 @@ internal struct FlowDriveTests {
     tamperedHandshakeFrame(ceremony)
     sessionRoleViolation(ceremony.peers)
     decryptFailureEndsSession(ceremony.peers)
-    repeatedReadyEndsPairing(ceremony.peers)
+    readyIsTheCustodiansAlone(ceremony.peers)
+    unexpectedFirstMessageClosesTheSession(ceremony.peers)
     parameterEchoMismatch(ceremony.peers)
     sessionHealthRequiresEchoes(ceremony.peers)
     negativeControl(everyProfile: ceremony.everyProfile)
@@ -110,17 +111,8 @@ internal struct FlowDriveTests {
       requesterSession.sessionIdentifier != peers.requester.pairIdentifier,
       "the session identifier is not the pair identifier")
 
-    // The slim relay's channel: a payload with no envelope over it, which
-    // brings its own correlation and needs the cipher and nothing else.
-    let slim = Data("one request".utf8)
-    check(
-      try proxySession.openPayload(try requesterSession.sealPayload(slim)) == slim
-        && (try requesterSession.openPayload(try proxySession.sealPayload(slim))) == slim,
-      "an opaque payload crosses the session both ways unchanged")
-
     let challenge = randomBytes(FlowLimit.livenessChallenge)
-    let pingFrame = try requesterSession.seal(
-      .livenessPing, body: ["challenge": .bytes(challenge), "last_received_sequence": .unsigned(0)])
+    let pingFrame = try requesterSession.seal(.livenessPing, body: ["challenge": .bytes(challenge)])
     let openedPing = try proxySession.open(pingFrame)
     check(openedPing.messageType == .livenessPing, "a sealed message opens on the other side")
     check(openedPing.body["challenge"] == .bytes(challenge), "the payload survives the channel")
@@ -164,8 +156,7 @@ internal struct FlowDriveTests {
   /// Offer lifetimes admit and refuse.
   private func offerExpiry(everyProfile: [ProfileName]) throws {
     let shortLifetime = OfferLimit.offerLifetimeMilliseconds
-    let expiringOffer = try makeOffer(profiles: everyProfile)
-    let expiringDeadline = try PairingOfferDeadline(offer: expiringOffer, startedAtMilliseconds: 0)
+    let expiringDeadline = try PairingOfferDeadline(startedAtMilliseconds: 0)
     check(
       expiringDeadline.isLive(nowMilliseconds: shortLifetime - 1),
       "the offer is live just inside its lifetime")
@@ -179,7 +170,8 @@ internal struct FlowDriveTests {
       startedAtMonotonicMs: 0)
     do {
       try bridge.beginCpace(
-        candidateId: "stream-1", randomBytes64: randomBytes(RappCpaceConstants.wideScalarSize),
+        candidateId: TransportRegistry.streamCandidateIdentifier,
+        randomBytes64: randomBytes(RappCpaceConstants.wideScalarSize),
         nowMonotonicMs: shortLifetime)
       check(false, "a ceremony started after the deadline is refused")
     } catch RappBindingError.OfferExpired {
@@ -188,38 +180,62 @@ internal struct FlowDriveTests {
       check(false, "a ceremony started after the deadline is refused")
     }
     try bridge.beginCpace(
-      candidateId: "stream-1", randomBytes64: randomBytes(RappCpaceConstants.wideScalarSize),
+      candidateId: TransportRegistry.streamCandidateIdentifier,
+      randomBytes64: randomBytes(RappCpaceConstants.wideScalarSize),
       nowMonotonicMs: shortLifetime - 1)
     check(true, "a ceremony started just inside the deadline begins")
   }
 
-  /// Liveness probes, echoes and mismatches.
+  /// Liveness: a ping after five seconds of silence, the end after thirty
+  /// (RAPP v26.10.21 §8.3).
   private func liveness() throws {
-
-    // The tracker owns the schedule, so a probe is registered by polling it.
-    let policy = LivenessConfiguration(
-      baseIntervalMilliseconds: 1_000, responseTimeoutMilliseconds: 500,
-      maximumIntervalMilliseconds: 8_000, maximumJitterMilliseconds: 100, maximumMisses: 3)
-    var tracker = try LivenessTracker(configuration: policy, nowMilliseconds: 0)
+    let ping = LivenessTracker.pingAfterSilenceMilliseconds
+    let limit = LivenessTracker.sessionSilenceLimitMilliseconds
+    let start: UInt64 = 0
+    let tick: UInt64 = 1
+    var tracker = LivenessTracker(nowMilliseconds: start)
     let outstanding = try #require(PingChallenge(randomBytes(PingChallenge.byteCount)))
     let other = try #require(PingChallenge(randomBytes(PingChallenge.byteCount)))
     check(
-      tracker.receivePong(nowMilliseconds: 0, challenge: outstanding) == .ignoredUnmatched,
+      tracker.receivePong(nowMilliseconds: start, challenge: outstanding) == .ignoredUnmatched,
       "a pong with no ping proves nothing")
     check(
-      tracker.poll(nowMilliseconds: 1_000, nextChallenge: outstanding, jitterMilliseconds: 0)
-        == .sendPing(outstanding), "a due probe sends the challenge")
+      tracker.poll(nowMilliseconds: ping - tick, nextChallenge: outstanding) == .noAction,
+      "no ping before five seconds of silence")
     check(
-      tracker.receivePong(nowMilliseconds: 1_010, challenge: other) == .ignoredUnmatched,
+      tracker.poll(nowMilliseconds: ping, nextChallenge: outstanding) == .sendPing(outstanding),
+      "five seconds of silence sends the challenge")
+    check(
+      tracker.poll(nowMilliseconds: ping + tick, nextChallenge: other) == .noAction,
+      "one ping per five seconds")
+    check(
+      tracker.receivePong(nowMilliseconds: ping, challenge: other) == .ignoredUnmatched,
       "a mismatched echo is discarded")
-    check(tracker.hasOutstandingChallenge, "the challenge stays outstanding after a mismatch")
     check(
-      tracker.receivePong(nowMilliseconds: 1_020, challenge: outstanding) == .accepted,
+      tracker.receivePong(nowMilliseconds: ping, challenge: outstanding) == .accepted,
       "the exact echo proves liveness")
-    check(!tracker.hasOutstandingChallenge, "an accepted echo clears the challenge")
     check(
-      tracker.receivePong(nowMilliseconds: 1_030, challenge: outstanding) == .ignoredUnmatched,
+      tracker.receivePong(nowMilliseconds: ping, challenge: outstanding) == .ignoredUnmatched,
       "the same echo does not prove liveness twice")
+    check(
+      tracker.poll(nowMilliseconds: ping + ping - tick, nextChallenge: other) == .noAction,
+      "an accepted echo restarts the silence")
+    check(
+      tracker.poll(nowMilliseconds: ping + ping, nextChallenge: other) == .sendPing(other),
+      "silence after the echo sends the next ping")
+    check(
+      tracker.poll(nowMilliseconds: ping + limit - tick, nextChallenge: other) != .closeSession,
+      "the session lives just inside thirty seconds of silence")
+    check(
+      tracker.poll(nowMilliseconds: ping + limit, nextChallenge: other) == .closeSession,
+      "thirty seconds without any message end the session")
+    check(
+      tracker.poll(nowMilliseconds: ping + limit, nextChallenge: other) == .alreadyClosed,
+      "a closed tracker stays closed")
+    var heard = LivenessTracker(nowMilliseconds: start)
+    heard.heard(nowMilliseconds: limit - tick)
+    check(
+      heard.poll(nowMilliseconds: limit, nextChallenge: other) == .noAction,
+      "any message from the peer ends the silence")
   }
-
 }

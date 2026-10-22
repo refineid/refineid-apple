@@ -2,59 +2,20 @@
 
 import Foundation
 
-// The factory flags are absent on every result that is not an inspection, and
-// absent is not false, so the interface carries them as optionals.
-// swiftlint:disable discouraged_optional_boolean
-
-/// The answer an operation produced.
+/// The answer a completed operation produced (RAPP v26.10.21 §9).
 ///
-/// The kind names which fields carry it; the rest stay absent.
-public struct RappOperationResult: Equatable, Sendable {
-  /// Which answer this result carries.
-  public var kind: RappResultKind
-  /// Whether PIN 1 is still the factory value.
-  public var pin1Factory: Bool?
-  /// Whether PIN 2 is still the factory value.
-  public var pin2Factory: Bool?
-  /// Attempts remaining on PIN 1, when the card reported them.
-  public var pin1Attempts: UInt8?
-  /// Attempts remaining on PIN 2, when the card reported them.
-  public var pin2Attempts: UInt8?
-  /// Attempts remaining on the unblocking code, when the card reported them.
-  public var pukAttempts: UInt8?
-  /// The cardholder's name, on an identity read.
-  public var displayName: String?
-  /// The cardholder's personal identifier, on an identity read.
-  public var personId: String?
-  /// The certificate or signature bytes, on a read or a signature.
-  public var bytes: Data
-  /// The ordered signatures of a batch, one per document.
-  public var signatures: [Data]
-
-  /// Creates a result carrying only the fields its kind defines.
-  public init(
-    kind: RappResultKind,
-    pin1Factory: Bool? = nil,
-    pin2Factory: Bool? = nil,
-    pin1Attempts: UInt8? = nil,
-    pin2Attempts: UInt8? = nil,
-    pukAttempts: UInt8? = nil,
-    displayName: String? = nil,
-    personId: String? = nil,
-    bytes: Data = Data(),
-    signatures: [Data] = []
-  ) {
-    self.kind = kind
-    self.pin1Factory = pin1Factory
-    self.pin2Factory = pin2Factory
-    self.pin1Attempts = pin1Attempts
-    self.pin2Attempts = pin2Attempts
-    self.pukAttempts = pukAttempts
-    self.displayName = displayName
-    self.personId = personId
-    self.bytes = bytes
-    self.signatures = signatures
-  }
+/// The certificates and signatures travel on to a verifier on the
+/// requester; the engine consults none of their bytes.
+public enum RappOperationResult: Equatable, Sendable {
+  /// `read_certificate`: the DER certificate.
+  case certificate(Data)
+  /// `read_identity`.
+  case identity(RappCardIdentity)
+  /// `inspect_card`: the card's answer to reset, or its historical bytes;
+  /// empty when the custodian's platform exposes neither.
+  case inspection(answerToReset: Data)
+  /// `browser_authenticate` or `sign_document`: the signature.
+  case signature(Data)
+  /// `batch_sign_documents`: the signatures, one per document, in order.
+  case signatures([Data])
 }
-
-// swiftlint:enable discouraged_optional_boolean

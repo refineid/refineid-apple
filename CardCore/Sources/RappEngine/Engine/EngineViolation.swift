@@ -2,17 +2,15 @@
 
 import Foundation
 
-/// An authenticated protocol violation seen by either engine.
+/// An authenticated protocol violation seen by either operation engine.
 ///
-/// Every case is attributable to the authenticated peer, so each one ends the
-/// pairing under the failure policy.
+/// Every case closes the session with a sealed `protocol_violation` close;
+/// none revokes the pairing (RAPP v26.10.21 §10.1).
 internal enum EngineViolation: Equatable {
-  case activeOperationIdentifierReused
-  case illegalMessageForActiveOperation
-  case illegalOperationTransition
-  case invalidOperationMessage
-  case invalidOperationRequest
-  case profileNotGranted
-  case referenceMismatch
-  case unexpectedPreparedForSafeRead
+  /// The requester sent a message only a custodian sends.
+  case custodianOnlyMessage
+  /// A result does not answer the live request.
+  case invalidResult
+  /// The custodian sent a message only a requester sends.
+  case requesterOnlyMessage
 }

@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The pairing ceremony of RAPP v26.10.9, from a random offer to a stored
+/// The pairing ceremony of RAPP v26.10.21, from a random offer to a stored
 /// pairing.
 ///
 /// The custodian creates the offer, shows the code and answers; the
@@ -22,7 +22,7 @@ public final class RappPairingBridge: @unchecked Sendable {
     case handshaking(PairingHandshake, deadline: UInt64)
     case confirming(PairingConfirmation, deadline: UInt64)
     /// The record is built and the storage exchange runs over the still
-    /// open channel (RAPP v26.10.18 §4.3 item 4), under the confirmation
+    /// open channel (RAPP v26.10.21 §4.3 item 4), under the confirmation
     /// deadline.
     case storage(PairingStorage, record: PairRecord, deadline: UInt64)
     case finished
@@ -53,8 +53,7 @@ public final class RappPairingBridge: @unchecked Sendable {
     self.offer = offer
     self.pairingCode = pairingCode
     do {
-      self.deadline = try PairingOfferDeadline(
-        offer: offer, startedAtMilliseconds: startedAtMonotonicMs)
+      self.deadline = try PairingOfferDeadline(startedAtMilliseconds: startedAtMonotonicMs)
       self.offerHash = try offer.offerHash()
     } catch {
       throw RappBindingError.InvalidInput
@@ -63,7 +62,7 @@ public final class RappPairingBridge: @unchecked Sendable {
   }
 
   /// Builds the custodian's offer, served over `transportProfiles`
-  /// (RAPP v26.10.9 §4.2).
+  /// (RAPP v26.10.21 §4.2).
   ///
   /// The offer identifier is fresh randomness the caller draws, never
   /// derived from the code; the requester learns it through the
@@ -94,7 +93,7 @@ public final class RappPairingBridge: @unchecked Sendable {
   }
 
   /// Builds the requester's side from the offer the custodian served over
-  /// the connection's transport (RAPP v26.10.9 §4.2 step 3).
+  /// the connection's transport (RAPP v26.10.21 §4.2 step 3).
   ///
   /// The offer must name the KC2 suite and carry an entry for
   /// `transportProfile`; anything else ends the flow before CPace, without
@@ -155,11 +154,6 @@ public final class RappPairingBridge: @unchecked Sendable {
     }
   }
 
-  /// How long the offer lives, in milliseconds.
-  public func offerTtlMs() -> UInt64 {
-    locked { offer.offerLifetimeMilliseconds }
-  }
-
   /// Whether three failed attempts destroyed the offer.
   public func attemptsExhausted() -> Bool {
     locked { ledger.isExhausted }
@@ -169,13 +163,7 @@ public final class RappPairingBridge: @unchecked Sendable {
   public func offerCandidates() -> [RappOfferCandidate] {
     locked {
       offer.transports.map { candidate in
-        let bleParams = BleProfile.parameters(of: candidate)
-        return RappOfferCandidate(
-          profile: candidate.profile,
-          candidateId: candidate.candidateIdentifier,
-          bleServiceUUID: bleParams?.serviceUUID,
-          blePsm: bleParams?.psm
-        )
+        RappOfferCandidate(profile: candidate.profile, candidateId: candidate.candidateIdentifier)
       }
     }
   }

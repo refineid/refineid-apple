@@ -6,7 +6,7 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.10.9 Noise transcripts on every transport (sections 4.3, 6.2 to 6.4)")
+@Suite("RAPP v26.10.21 Noise transcripts on every transport (sections 4.3, 6.2 to 6.4)")
 internal struct NoiseSessionCorpusTests {
   /// A fixed plaintext sealed under each split key at counter zero.
   private static let probe = Data("RAPP".utf8)

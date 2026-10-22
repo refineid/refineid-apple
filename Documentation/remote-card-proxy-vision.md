@@ -77,7 +77,7 @@ The **RefineID Remote Card Proxy** enables laptops and desktops (Linux, macOS) t
    * Mobile phone user taps **"Allow Remote Reader"** / **"Pair Computer"**.
    * Mobile phone announces its availability following the 3-Tier Hierarchy:
      1. **Tier 1 (Apple-native P2P)**: Apple Wireless Direct Link (AWDL / `MultipeerConnectivity`).
-     2. **Tier 2 (Bluetooth Low Energy)**: BLE L2CAP CoC (`fi.refineid.rapp.ble.v1`) with RSSI proximity gating ($\ge -70\text{ dBm}$).
+     2. **Tier 2 (Bluetooth Low Energy)**: BLE L2CAP CoC (`fi.refineid.rapp.ble`) with RSSI proximity gating ($\ge -70\text{ dBm}$).
      3. **Tier 3 (Local IP Stream)**: mDNS / DNS-SD (`_refineid-stream._tcp.local.`, RFC 6762/6763).
    * Desktop dials outbound directly to the announced phone.
    * Mobile displays the cryptographically random 6-character code in three groups:
@@ -88,7 +88,7 @@ The **RefineID Remote Card Proxy** enables laptops and desktops (Linux, macOS) t
      ========================================
      ```
 3. **Desktop Connection**:
-   * Desktop prompts: *"Enter the pairing code shown on your phone"*. The offer lasts 60 seconds and admits at most 3 attempts.
+   * Desktop prompts: *"Enter the pairing code shown on your phone"*. The offer lasts 5 minutes and admits at most 3 attempts.
 4. **Mutual Authentication (CPace, then `Noise_XXpsk3`)**:
    * CPace (`CPaceRistretto255`) keyed by the code yields the 32-byte pre-shared key (`psk3`).
    * Mobile and Desktop perform a 3-message `Noise_XXpsk3` handshake.

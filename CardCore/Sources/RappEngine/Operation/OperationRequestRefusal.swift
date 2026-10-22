@@ -5,10 +5,9 @@ import Foundation
 /// A request that parsed as an envelope but names something this endpoint
 /// cannot serve.
 ///
-/// It is a semantic rejection answered with a result, not an authenticated
-/// protocol violation (RAPP v26.10.9 §9.2), so it carries the reference the
-/// result must echo.
+/// It is answered with a rejected result, not a session close (RAPP
+/// v26.10.21 §10.1 item 3), so it carries the identifier the result names.
 internal struct OperationRequestRefusal: Error, Equatable {
-  internal let reference: OperationReference
+  internal let operationIdentifier: RappOperationIdentifier
   internal let error: ResultError
 }

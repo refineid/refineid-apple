@@ -5,7 +5,7 @@ import Foundation
 /// One decoded, schema-checked envelope.
 internal struct Envelope: Equatable {
   private static let knownFields: Set<String> = [
-    "version", "type", "session_id", "sequence", "body", "critical", "extensions",
+    "version", "type", "session_id", "sequence", "body",
   ]
 
   private static var versionValue: WireValue {
@@ -19,8 +19,6 @@ internal struct Envelope: Equatable {
   internal let sessionIdentifier: Data
   internal let sequence: UInt64
   internal let body: [String: WireValue]
-  internal let critical: [String]
-  internal let extensions: [String: WireValue]
 
   /// Decode and fully validate one envelope plaintext.
   internal static func decode(_ bytes: Data) throws -> Self {
@@ -43,15 +41,11 @@ internal struct Envelope: Equatable {
       throw WireError.wrongType(field: "body")
     }
 
-    let decodedCritical = try criticalNames(fields)
-    let decodedExtensions = try extensionValues(fields)
-
     try validate(body: decodedBody, for: decodedType)
-    try validate(critical: decodedCritical, extensions: decodedExtensions)
 
     return Self(
       messageType: decodedType, sessionIdentifier: decodedSession, sequence: decodedSequence,
-      body: decodedBody, critical: decodedCritical, extensions: decodedExtensions)
+      body: decodedBody)
   }
 
   private static func requireSupportedVersion(_ fields: [String: WireValue]) throws {
@@ -87,36 +81,9 @@ internal struct Envelope: Equatable {
     return identifier
   }
 
-  private static func criticalNames(_ fields: [String: WireValue]) throws -> [String] {
-    guard let value = fields["critical"] else { return [] }
-    guard case .array(let entries) = value else { throw WireError.wrongType(field: "critical") }
-    return try entries.map { entry in
-      guard case .text(let name) = entry else { throw WireError.wrongType(field: "critical") }
-      return name
-    }
-  }
-
-  private static func extensionValues(
-    _ fields: [String: WireValue]
-  ) throws -> [String: WireValue] {
-    guard let value = fields["extensions"] else { return [:] }
-    guard case .map(let entries) = value else {
-      throw WireError.wrongType(field: "extensions")
-    }
-    return entries
-  }
-
   private static func require(_ fields: [String: WireValue], _ name: String) throws -> WireValue {
     guard let value = fields[name] else { throw WireError.missingField(field: name) }
     return value
-  }
-
-  private static func validate(critical: [String], extensions: [String: WireValue]) throws {
-    var seen: Set<String> = []
-    for name in critical {
-      guard seen.insert(name).inserted else { throw WireError.duplicateMapKey }
-      guard extensions[name] != nil else { throw WireError.criticalExtensionMissing }
-    }
   }
 
   private static func validate(body: [String: WireValue], for messageType: MessageType) throws {
@@ -153,10 +120,9 @@ internal struct Envelope: Equatable {
       }
 
     case .error:
-      // Any name is admitted: an unrecognized one is handled as a general
-      // operation_failed (section 10.4), so only the lengths are bounded.
       guard let name = discriminant("error_name"),
-        FieldSpec.errorNameLengths.contains(name.utf8.count)
+        FieldSpec.errorNameLengths.contains(name.utf8.count),
+        ResultError(rawValue: name) != nil
       else { throw WireError.invalidValue(field: "error_name") }
       guard let message = discriminant("message"),
         FieldSpec.errorMessageLengths.contains(message.utf8.count)
@@ -168,22 +134,13 @@ internal struct Envelope: Equatable {
   }
 
   internal func encoded() throws -> Data {
-    var fields: [String: WireValue] = [
+    let fields: [String: WireValue] = [
       "version": Self.versionValue,
       "type": .text(messageType.rawValue),
       "session_id": .bytes(sessionIdentifier),
       "sequence": .unsigned(sequence),
       "body": .map(body),
     ]
-    if !critical.isEmpty { fields["critical"] = .array(critical.map { .text($0) }) }
-    if !extensions.isEmpty { fields["extensions"] = .map(extensions) }
     return try WireValue.map(fields).encoded()
-  }
-
-  /// Refuse an envelope whose critical extensions this endpoint cannot honour.
-  internal func requireSupportedCritical(_ supported: Set<String>) throws {
-    guard critical.allSatisfy(supported.contains) else {
-      throw WireError.unsupportedCriticalExtension
-    }
   }
 }

@@ -5,12 +5,26 @@ import Testing
 
 @testable import RappEngine
 
+/// One first message a custodian might send, and how the requester must
+/// read it.
+private struct FirstMessage {
+  enum Expectation {
+    case closed
+    case verified
+    case violation
+  }
+
+  let type: MessageType
+  let body: [String: WireValue]
+  let expectation: Expectation
+}
+
 extension FlowDriveTests {
   /// Unknown candidates are refused; an aborted candidate hands the offer back.
   internal func candidatePaths(_ ceremony: CeremonyState) throws {
 
     let twoCandidateOffer = try makeOffer(
-      profiles: ceremony.everyProfile, transportProfiles: [streamProfile, "apple-peer-v1"])
+      profiles: ceremony.everyProfile, transportProfiles: [streamProfile, RappBleGattProfile.name])
 
     do {
       _ = try PairingHandshake.begin(
@@ -27,14 +41,15 @@ extension FlowDriveTests {
     // A failed candidate hands the offer back, and the next candidate reuses it.
     let firstAttempt = try PairingHandshake.begin(
       .init(
-        role: .requester, offer: twoCandidateOffer, candidateIdentifier: "stream-1",
+        role: .requester, offer: twoCandidateOffer,
+        candidateIdentifier: TransportRegistry.streamCandidateIdentifier,
         localKeys: PairKeyMaterial(), presharedKey: flowPresharedKey))
     let recoveredOffer = firstAttempt.abort()
     let fallbackPeers = try runPairing(
       offer: recoveredOffer, grants: ceremony.everyProfile,
-      candidateIdentifier: "apple-peer-v1.nearby")
+      candidateIdentifier: RappBleGattProfile.candidateId)
     check(
-      fallbackPeers.requester.transport.candidateIdentifier == "apple-peer-v1.nearby",
+      fallbackPeers.requester.transport.candidateIdentifier == RappBleGattProfile.candidateId,
       "an aborted candidate returns the offer and the next candidate pairs")
   }
 
@@ -44,13 +59,15 @@ extension FlowDriveTests {
       var requester = try PairingHandshake.begin(
         .init(
           role: .requester, offer: try makeOffer(profiles: ceremony.everyProfile),
-          candidateIdentifier: "stream-1", localKeys: PairKeyMaterial(),
+          candidateIdentifier: TransportRegistry.streamCandidateIdentifier,
+          localKeys: PairKeyMaterial(),
           presharedKey: flowPresharedKey))
       var frame = try requester.writeMessage()
       frame[frame.startIndex] ^= tamperByteMask
       var proxy = try PairingHandshake.begin(
         .init(
-          role: .proxy, offer: ceremony.ceremonyOffer, candidateIdentifier: "stream-1",
+          role: .proxy, offer: ceremony.ceremonyOffer,
+          candidateIdentifier: TransportRegistry.streamCandidateIdentifier,
           localKeys: PairKeyMaterial(),
           presharedKey: flowPresharedKey))
       try proxy.readMessage(frame)
@@ -75,63 +92,129 @@ extension FlowDriveTests {
     }
   }
 
+  /// Both endpoints' authentications over one fresh handshake.
+  private func authentications(
+    _ peers: PairedPeers
+  ) throws -> (requester: SessionAuthentication, proxy: SessionAuthentication) {
+    var requesterHandshake = try SessionHandshake.beginRequester(
+      pair: peers.requester, transportProfile: streamProfile, intent: ExplicitUserIntent())
+    var proxyHandshake = try SessionHandshake.beginProxy(
+      pair: peers.proxy, transportProfile: streamProfile)
+    try proxyHandshake.readMessage(try requesterHandshake.writeMessage())
+    try requesterHandshake.readMessage(try proxyHandshake.writeMessage())
+    return (try requesterHandshake.intoAuthentication(), try proxyHandshake.intoAuthentication())
+  }
+
   /// A frame that fails to decrypt ends only the session.
   internal func decryptFailureEndsSession(_ peers: PairedPeers) {
-    // A frame that fails to decrypt is unattributable: the session ends, the
-    // pairing does not.
     do {
-      var requesterHandshake = try SessionHandshake.beginRequester(
-        pair: peers.requester, transportProfile: streamProfile, intent: ExplicitUserIntent())
-      var proxyHandshake = try SessionHandshake.beginProxy(
-        pair: peers.proxy, transportProfile: streamProfile)
-      try proxyHandshake.readMessage(try requesterHandshake.writeMessage())
-      try requesterHandshake.readMessage(try proxyHandshake.writeMessage())
-      var requesterAuthentication = try requesterHandshake.intoAuthentication()
-      var proxyAuthentication = try proxyHandshake.intoAuthentication()
-      var tampered = try requesterAuthentication.sendReady(nonce: randomBytes(FlowLimit.readyNonce))
+      var (requesterAuthentication, proxyAuthentication) = try authentications(peers)
+      var tampered = try proxyAuthentication.sendReady(nonce: randomBytes(FlowLimit.readyNonce))
       tampered[tampered.startIndex] ^= tamperByteMask
-      try proxyAuthentication.receiveReady(tampered)
-      check(false, "a frame that fails to decrypt ends only the session")
-    } catch SessionError.integrityFailure {
-      check(true, "a frame that fails to decrypt ends only the session")
+      check(
+        try requesterAuthentication.receiveReady(tampered) == .integrityFailure,
+        "a frame that fails to decrypt ends only the session")
     } catch {
       check(false, "a frame that fails to decrypt ends only the session")
     }
   }
 
-  /// A repeated ready ends the pairing.
-  internal func repeatedReadyEndsPairing(_ peers: PairedPeers) {
-    // A repeated ready is attributable to the peer, so it ends the pairing
-    // rather than only the session.
+  /// Only the custodian sends `session.ready`, once, and only the requester
+  /// reads it (RAPP v26.10.21 §7.1 item 5).
+  internal func readyIsTheCustodiansAlone(_ peers: PairedPeers) {
     do {
-      var requesterHandshake = try SessionHandshake.beginRequester(
-        pair: peers.requester, transportProfile: streamProfile, intent: ExplicitUserIntent())
-      var proxyHandshake = try SessionHandshake.beginProxy(
-        pair: peers.proxy, transportProfile: streamProfile)
-      try proxyHandshake.readMessage(try requesterHandshake.writeMessage())
-      try requesterHandshake.readMessage(try proxyHandshake.writeMessage())
-      var requesterAuthentication = try requesterHandshake.intoAuthentication()
-      var proxyAuthentication = try proxyHandshake.intoAuthentication()
-      let ready = try requesterAuthentication.sendReady(nonce: randomBytes(FlowLimit.readyNonce))
-      try proxyAuthentication.receiveReady(ready)
-      try proxyAuthentication.receiveReady(ready)
-      check(false, "a repeated ready ends the pairing")
-    } catch SessionError.pairingMustEnd(let cause) {
-      check(cause == .duplicateReady, "a repeated ready ends the pairing")
+      var (requesterAuthentication, proxyAuthentication) = try authentications(peers)
+      check(
+        (try? requesterAuthentication.sendReady(nonce: randomBytes(FlowLimit.readyNonce))) == nil,
+        "a requester never sends session.ready")
+      let ready = try proxyAuthentication.sendReady(nonce: randomBytes(FlowLimit.readyNonce))
+      check(
+        (try? proxyAuthentication.sendReady(nonce: randomBytes(FlowLimit.readyNonce))) == nil,
+        "the custodian sends session.ready once")
+      check(
+        (try? proxyAuthentication.receiveReady(ready)) == nil,
+        "a custodian never reads session.ready")
+      check(
+        try requesterAuthentication.receiveReady(ready) == .verified,
+        "the requester verifies the custodian's session.ready")
     } catch {
-      check(false, "a repeated ready ends the pairing")
+      check(false, "only the custodian sends session.ready")
+    }
+  }
+
+  /// The requester reads the custodian's first message.
+  ///
+  /// A ready with the expected parameters verifies, a close in its place
+  /// ends the session with its reason, and anything else - including a
+  /// ready with other parameters - closes it with a sealed
+  /// `protocol_violation` close (RAPP v26.10.21 §7.1 item 5). None of them
+  /// touches the pairing.
+  internal func unexpectedFirstMessageClosesTheSession(_ peers: PairedPeers) {
+    do {
+      let expected = SessionParameters(
+        transportProfile: streamProfile,
+        candidateIdentifier: TransportRegistry.streamCandidateIdentifier,
+        grantsHash: peers.requester.grantsHash)
+      let otherProfile = SessionParameters(
+        transportProfile: RappBleGattProfile.name,
+        candidateIdentifier: RappBleGattProfile.candidateId,
+        grantsHash: peers.requester.grantsHash)
+      let nonce = randomBytes(FlowLimit.readyNonce)
+      let firstMessages = [
+        FirstMessage(
+          type: .sessionReady, body: try SessionReady(parameters: expected, nonce: nonce).body(),
+          expectation: .verified),
+        FirstMessage(
+          type: .sessionClose, body: ["reason": .text(CloseReasonName.pairingRevoked)],
+          expectation: .closed),
+        FirstMessage(
+          type: .sessionReady,
+          body: try SessionReady(parameters: otherProfile, nonce: nonce).body(),
+          expectation: .violation),
+        FirstMessage(
+          type: .livenessPing,
+          body: ["challenge": .bytes(randomBytes(FlowLimit.livenessChallenge))],
+          expectation: .violation),
+      ]
+      for first in firstMessages {
+        var (custodian, requester) = matchedMessageChannels()
+        var authentication = SessionAuthentication(
+          role: .requester, pairIdentifier: peers.requester.pairIdentifier,
+          sessionIdentifier: matchedSessionIdentifier, expectedParameters: expected,
+          channel: requester)
+        let outcome = try authentication.receiveReady(
+          try custodian.seal(first.type, body: first.body))
+        switch (outcome, first.expectation) {
+        case (.verified, .verified):
+          check(true, "a ready with the expected parameters verifies")
+
+        case (.peerClosed(let reason), .closed):
+          check(
+            reason == .pairingRevoked,
+            "a close in place of ready ends the session with its reason")
+
+        case (.violationClosed(let notice), .violation):
+          check(notice != nil, "\(first.type.rawValue) first is answered with a sealed close")
+
+        default:
+          check(false, "\(first.type.rawValue) first gives \(first.expectation)")
+        }
+      }
+    } catch {
+      check(false, "the requester reads the custodian's first message")
     }
   }
 
   /// A session bound to a different transport than the peer's fails.
   internal func parameterEchoMismatch(_ peers: PairedPeers) {
-    // Each side binds the transport its connection uses (RAPP v26.10.9
-    // §4.3.5), so peers disagreeing about it cannot finish the handshake.
+    // Each side binds the transport its connection uses (RAPP v26.10.21
+    // §4.3 item 5), so peers disagreeing about it cannot finish the
+    // handshake.
     do {
       var requesterHandshake = try SessionHandshake.beginRequester(
         pair: peers.requester, transportProfile: streamProfile, intent: ExplicitUserIntent())
       var proxyHandshake = try SessionHandshake.beginProxy(
-        pair: peers.proxy, transportProfile: "apple-peer-v1")
+        pair: peers.proxy, transportProfile: RappBleGattProfile.name)
       try proxyHandshake.readMessage(try requesterHandshake.writeMessage())
       check(false, "a session bound to a different transport fails")
     } catch SessionError.noise {
@@ -141,9 +224,8 @@ extension FlowDriveTests {
     }
   }
 
-  /// A session is not healthy before both echoes verify.
+  /// A session is not healthy before `session.ready` is verified.
   internal func sessionHealthRequiresEchoes(_ peers: PairedPeers) {
-    // A session is not healthy until both echoes verify.
     do {
       var requesterHandshake = try SessionHandshake.beginRequester(
         pair: peers.requester, transportProfile: streamProfile, intent: ExplicitUserIntent())
@@ -153,11 +235,11 @@ extension FlowDriveTests {
       try requesterHandshake.readMessage(try proxyHandshake.writeMessage())
       let requesterAuthentication = try requesterHandshake.intoAuthentication()
       _ = try requesterAuthentication.intoEstablished()
-      check(false, "a session is not healthy before both echoes verify")
+      check(false, "a session is not healthy before ready is verified")
     } catch SessionError.readyIncomplete {
-      check(true, "a session is not healthy before both echoes verify")
+      check(true, "a session is not healthy before ready is verified")
     } catch {
-      check(false, "a session is not healthy before both echoes verify")
+      check(false, "a session is not healthy before ready is verified")
     }
   }
 
@@ -169,12 +251,14 @@ extension FlowDriveTests {
       let offerB = try makeOffer(profiles: everyProfile)
       var requester = try PairingHandshake.begin(
         .init(
-          role: .requester, offer: offerA, candidateIdentifier: "stream-1",
+          role: .requester, offer: offerA,
+          candidateIdentifier: TransportRegistry.streamCandidateIdentifier,
           localKeys: PairKeyMaterial(),
           presharedKey: flowPresharedKey))
       var proxy = try PairingHandshake.begin(
         .init(
-          role: .proxy, offer: offerB, candidateIdentifier: "stream-1",
+          role: .proxy, offer: offerB,
+          candidateIdentifier: TransportRegistry.streamCandidateIdentifier,
           localKeys: PairKeyMaterial(),
           presharedKey: flowPresharedKey))
       try proxy.readMessage(try requester.writeMessage())

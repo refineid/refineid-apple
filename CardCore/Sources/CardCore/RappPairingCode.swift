@@ -6,7 +6,7 @@
   import Security
 
   /// Generates, formats, and validates 6-character Crockford Base32 pairing codes
-  /// for simple, secure out-of-band peer pairing without QR codes per RAPP v26.10.18 §3.1.
+  /// for simple, secure out-of-band peer pairing without QR codes per RAPP v26.10.21 §3.1.
   public enum RappPairingCode {
     // MARK: Static Properties
 
@@ -27,9 +27,6 @@
     private static let asciiLowercase = Unicode.Scalar("a").value...Unicode.Scalar("z").value
     /// The double group size boundary for 4-character formatting.
     public static let doubleGroupSize = 4
-    /// The offer lifetime RAPP v26.10.9 §3.3 fixes: 60 seconds from the
-    /// moment the custodian shows the code.
-    public static let offerLifetimeMilliseconds: UInt64 = 60_000
 
     // MARK: Static Functions
 
@@ -44,7 +41,7 @@
       return String(bytes.map { alphabet[Int($0) % alphabet.count] })
     }
 
-    /// Applies the Crockford Base32 canonicalization pipeline per RAPP v26.10.18 §3.1.
+    /// Applies the Crockford Base32 canonicalization pipeline per RAPP v26.10.21 §3.1.
     ///
     /// NFKC first, then ASCII-only uppercasing and removal of ASCII
     /// whitespace and hyphens. Returns the canonical string, which may be

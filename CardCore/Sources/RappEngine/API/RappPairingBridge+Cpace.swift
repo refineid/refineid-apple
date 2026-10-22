@@ -51,7 +51,7 @@ extension RappPairingBridge {
   }
 
   /// The KC2 context for the one offer entry naming `candidateId`, bound to
-  /// its transport profile and candidate (RAPP v26.10.9 §6.1.1).
+  /// its transport profile and candidate (RAPP v26.10.21 §6.1.1).
   private func boundContext(candidateId: String) throws -> Data {
     let entries = offer.transports.filter { $0.candidateIdentifier == candidateId }
     guard entries.count == 1, let entry = entries.first,

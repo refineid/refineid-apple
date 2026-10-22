@@ -29,7 +29,7 @@ internal struct TransportChannelTests {
 
   private static func establishPairingChannels() throws -> Channels {
     let offerHash = Data(repeating: 0x66, count: 32)
-    let transportProfile = "apple-peer-v1"
+    let transportProfile = StreamProfile.name
     let prologue = try RappNoise.pairingPrologue(
       offerHash: offerHash, transportProfile: transportProfile)
     let initiatorStatic = Curve25519.KeyAgreement.PrivateKey().rawRepresentation
@@ -76,7 +76,7 @@ internal struct TransportChannelTests {
   private static func establishSessionChannels() throws -> Channels {
     let pairID = Data(repeating: 0x11, count: 16)
     let grantsHash = Data(repeating: 0x77, count: 32)
-    let transportProfile = "apple-peer-v1"
+    let transportProfile = StreamProfile.name
     let prologue = try RappNoise.sessionPrologue(
       pairIdentifier: pairID,
       grantsHash: grantsHash,

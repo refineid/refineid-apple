@@ -10,7 +10,7 @@ import Testing
 
 /// A requester finds a session-mode holder by its rotating hint alone and
 /// opens with fresh routing the holder resolves to its pairing (RAPP
-/// v26.10.18 §2.2.1 and the discovery hierarchy §4.3).
+/// v26.10.21 §2.2.1 and the discovery hierarchy §4.3).
 @Suite(.serialized)
 internal struct StreamSessionLoopbackTests {
   private static let attempts = 100
@@ -49,8 +49,7 @@ internal struct StreamSessionLoopbackTests {
     listener.start(
       displayName: name,
       txtRecord: StreamRendezvousName.sessionRecord(
-        candidates: [RappAnnouncementCandidate(hint: hint, lastUsedMs: 0)],
-        retentions: [], instance: name, at: Date()))
+        candidates: [RappAnnouncementCandidate(hint: hint, lastUsedMs: 0)]))
     defer { listener.cancel() }
 
     let found = StreamRelayEndpointBox()

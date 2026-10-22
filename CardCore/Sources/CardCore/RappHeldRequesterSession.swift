@@ -6,9 +6,9 @@
   import os
   import RappEngine
 
-  /// The requester's standing session with the custodian (RAPP v26.10.18
-  /// §8.4): dialled when the custodian is on the network, held open so the
-  /// custodian's `card.status` reaches the requester, and used for the
+  /// The requester's standing session with the custodian (RAPP v26.10.21
+  /// §8.3, §8.4): dialled when the custodian is on the network, held open so
+  /// the custodian's `card.status` reaches the requester, and used for the
   /// certificate read that an offered identity needs.
   ///
   /// Reports arrive on the transport's queues; the owner hops to its own.
@@ -20,8 +20,8 @@
       /// The Noise session is up; the custodian's first `card.status`
       /// follows.
       case established
-      /// The custodian's word on whether a card it can serve is present.
-      case cardStatus(present: Bool)
+      /// The custodian's word on which card it can serve now.
+      case cardStatus(RappCardStatus)
       /// The session ended; the owner decides whether to dial again.
       case closed(RappConnectionCoordinator.CloseReason)
     }
@@ -30,8 +30,7 @@
     public enum ReadError: Error, Equatable {
       case notEstablished
       case readInFlight
-      case peerBusy
-      case terminal(RappOperationDriver.TerminalReason?)
+      case terminal(RappTerminalReason)
       case closed
       case unexpectedResult
     }
@@ -46,7 +45,6 @@
     // MARK: Properties
 
     private let pair: RappPairRecord
-    private let vault: RappDeviceVault
     private let policy: RappRequesterPolicy
     private let report: @Sendable (Report) -> Void
     private let state = OSAllocatedUnfairLock(initialState: State())
@@ -63,12 +61,10 @@
     @preconcurrency
     public init(
       pair: RappPairRecord,
-      vault: RappDeviceVault = RappDeviceVault(),
       policy: RappRequesterPolicy = .interactive,
       report: @escaping @Sendable (Report) -> Void
     ) {
       self.pair = pair
-      self.vault = vault
       self.policy = policy
       self.report = report
       let owned = link
@@ -156,9 +152,9 @@
       }
     }
 
-    /// Ends the session with `pairing_revoked`, before the pairing it
-    /// runs over is forgotten (RAPP v26.10.18 §4.6 item 1); the close
-    /// frame is sent before the connection goes.
+    /// Ends the session with `pairing_revoked`, as the pairing it runs over
+    /// is forgotten (RAPP v26.10.21 §4.6 item 1); the close frame is sent
+    /// before the connection goes.
     public func closePairingRevoked() async {
       let coordinator = state.withLock { $0.coordinator }
       await coordinator?.closePairingRevoked()
@@ -217,10 +213,8 @@
         let coordinator = try RappConnectionCoordinator(
           role: .requester,
           pair: pair,
-          vault: vault,
           transport: transport,
-          maximumLifetimeMilliseconds: policy.maximumOperationLifetimeMilliseconds,
-          liveness: policy.liveness
+          maximumLifetimeMilliseconds: policy.maximumOperationLifetimeMilliseconds
         )
         let installed = state.withLock { state -> Bool in
           guard state.coordinator == nil, !state.finished else { return false }
@@ -246,8 +240,8 @@
       case .established:
         report(.established)
 
-      case .cardStatus(let present):
-        report(.cardStatus(present: present))
+      case .cardStatus(let status):
+        report(.cardStatus(status))
 
       case .progress(_, let progressEvent):
         RappRequesterNotices.post(progress: progressEvent)
@@ -256,15 +250,12 @@
         RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
         Self.settle(state, certificate(in: result))
 
-      case .terminal(_, _, let reason):
+      case .terminal(_, let reason):
         RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
         Self.settle(state, .failure(ReadError.terminal(reason)))
 
-      case .peerBusy:
-        Self.settle(state, .failure(ReadError.peerBusy))
-
-      case .operationFinished, .peerUnknownOperation, .batchSignatures:
-        Self.settle(state, .failure(ReadError.unexpectedResult))
+      case .operationEnded:
+        Self.settle(state, .failure(ReadError.closed))
 
       case .closed(let reason):
         RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
@@ -276,13 +267,11 @@
       }
     }
 
-    private func certificate(
-      in result: RappOperationDriver.Result
-    ) -> Result<Data, any Error> {
-      guard result.kind == .certificate, !result.bytes.isEmpty else {
+    private func certificate(in result: RappOperationResult) -> Result<Data, any Error> {
+      guard case .certificate(let der) = result, !der.isEmpty else {
         return .failure(ReadError.unexpectedResult)
       }
-      return .success(result.bytes)
+      return .success(der)
     }
 
     /// Reports the end once and releases the transport.

@@ -20,7 +20,7 @@ internal func randomBytes(_ count: Int) -> Data {
   return Data((0..<count).map { _ in UInt8.random(in: .min ... .max, using: &generator) })
 }
 
-internal let streamProfile = "fi.refineid.stream.v1"
+internal let streamProfile = "fi.refineid.stream"
 
 internal func makeOffer(profiles: [ProfileName]) throws -> PairingOffer {
   try makeOffer(profiles: profiles, transportProfiles: [streamProfile])
@@ -45,7 +45,9 @@ internal let flowPresharedKey = filler(presharedKeyFiller, NoiseSizes.keyLength)
 internal func runPairing(
   offer: PairingOffer, grants: [ProfileName]
 ) throws -> PairedPeers {
-  try runPairing(offer: offer, grants: grants, candidateIdentifier: "stream-1")
+  try runPairing(
+    offer: offer, grants: grants,
+    candidateIdentifier: TransportRegistry.streamCandidateIdentifier)
 }
 
 /// Runs the Noise_XXpsk3 handshake and the pairing channel over a shared key.
@@ -86,7 +88,7 @@ internal func runPairing(
   let requesterPairIdentifier = requesterConfirmation.pairIdentifier
   let proxyPairIdentifier = proxyConfirmation.pairIdentifier
   // Both store their record, then confirm it to each other (RAPP
-  // v26.10.18 §4.3 item 4); only both confirmations make a pairing active.
+  // v26.10.21 §4.3 item 4); only both confirmations make a pairing active.
   var (requesterRecord, requesterStorage) = try requesterConfirmation.intoStorage(
     createdAtMilliseconds: FlowFixture.createdAtMilliseconds)
   var (proxyRecord, proxyStorage) = try proxyConfirmation.intoStorage(
@@ -119,12 +121,42 @@ internal func runSession(
   var requesterAuthentication = try requester.intoAuthentication()
   var proxyAuthentication = try proxy.intoAuthentication()
 
-  try proxyAuthentication.receiveReady(
-    try requesterAuthentication.sendReady(nonce: randomBytes(FlowLimit.readyNonce)))
-  try requesterAuthentication.receiveReady(
+  // Only the custodian sends session.ready; the requester verifies it
+  // (RAPP v26.10.21 §7.1 item 5).
+  let outcome = try requesterAuthentication.receiveReady(
     try proxyAuthentication.sendReady(nonce: randomBytes(FlowLimit.readyNonce)))
+  guard outcome == .verified else { throw SessionError.readyIncomplete }
 
   return (
     try requesterAuthentication.intoEstablished(), try proxyAuthentication.intoEstablished()
+  )
+}
+
+/// The filler byte of the key a matched channel pair shares.
+private let matchedChannelKeyFiller: UInt8 = 0x2B
+
+/// The filler byte of the session identifier a matched channel pair names.
+private let matchedSessionFiller: UInt8 = 0x3C
+
+/// The session identifier ``matchedMessageChannels()`` names.
+internal let matchedSessionIdentifier = filler(
+  matchedSessionFiller, WireLimits.sessionIdentifier)
+
+/// Two envelope channels where whatever the first seals, the second opens at
+/// sequence 0: a peer's first message without running a handshake.
+internal func matchedMessageChannels() -> (sender: RappMessageChannel, receiver: RappMessageChannel)
+{
+  let key = filler(matchedChannelKeyFiller, NoiseSizes.keyLength)
+  var send = NoiseCipherState()
+  var receive = NoiseCipherState()
+  send.initializeKey(key)
+  receive.initializeKey(key)
+  return (
+    RappMessageChannel(
+      channel: RappSecureChannel(send: send, receive: receive),
+      sessionIdentifier: matchedSessionIdentifier),
+    RappMessageChannel(
+      channel: RappSecureChannel(send: send, receive: receive),
+      sessionIdentifier: matchedSessionIdentifier)
   )
 }

@@ -4,386 +4,158 @@ import Foundation
 
 /// Turning an engine dispatch into the caller's next step.
 extension RappOperationBridge {
-  /// Classifies one authenticated message on whichever side runs here.
+  /// Classifies one typed message on whichever side runs here.
   ///
-  /// A message the engine refuses as an authenticated protocol violation
-  /// takes the specification's first-incident revocation rather than
-  /// escaping as an error the caller cannot classify.
-  internal func dispatch(_ message: TypedMessage, nowMs: UInt64) throws -> RappBridgeAction {
+  /// A message the engine refuses as an authenticated protocol violation closes
+  /// the session with a sealed `protocol_violation` close.
+  internal func dispatch(_ message: TypedMessage) -> RappBridgeAction {
     switch side {
     case .proxy(var engine):
-      return try dispatchProxy(&engine, message: message, nowMs: nowMs)
+      let dispatched: ProxyDispatch
+      do {
+        dispatched = try engine.receive(message)
+      } catch {
+        side = .proxy(engine)
+        return violationClose()
+      }
+      side = .proxy(engine)
+      return action(for: dispatched)
+
     case .requester(var engine):
-      return try dispatchRequester(&engine, message: message, nowMs: nowMs)
-    }
-  }
-
-  /// Runs one proxy-side receive and stores the engine's new state first.
-  private func dispatchProxy(
-    _ engine: inout ProxyOperationEngine,
-    message: TypedMessage,
-    nowMs: UInt64
-  ) throws -> RappBridgeAction {
-    var store = VaultProxyJournalStore(vault: vault, pairIdentifier: pairIdentifier)
-    let dispatch: ProxyDispatch
-    do {
-      dispatch = try mapping {
-        try engine.receive(
-          message, store: &store, nowMilliseconds: nowMs,
-          maximumLifetimeMilliseconds: maximumLifetimeMilliseconds)
+      let dispatched: RequesterDispatch
+      do {
+        dispatched = try engine.receive(message)
+      } catch {
+        side = .requester(engine)
+        return violationClose()
       }
-    } catch let error as RappBindingError where error == .ProtocolFailure {
-      side = .proxy(engine)
-      return violationClose()
-    } catch {
-      side = .proxy(engine)
-      throw error
-    }
-    side = .proxy(engine)
-    return try action(for: dispatch)
-  }
-
-  /// Runs one requester-side receive and stores the engine's new state first.
-  private func dispatchRequester(
-    _ engine: inout RequesterOperationEngine,
-    message: TypedMessage,
-    nowMs _: UInt64
-  ) throws -> RappBridgeAction {
-    var store = VaultRequesterJournalStore(vault: vault, pairIdentifier: pairIdentifier)
-    let dispatch: RequesterDispatch
-    do {
-      dispatch = try mapping { try engine.receive(message, store: &store) }
-    } catch let error as RappBindingError where error == .ProtocolFailure {
       side = .requester(engine)
-      return violationClose()
-    } catch {
-      side = .requester(engine)
-      throw error
-    }
-    side = .requester(engine)
-    return try action(for: dispatch)
-  }
-
-  /// Answers a liveness ping, or records a pong, before the operation layer
-  /// sees the envelope.
-  internal func livenessReply(to envelope: Envelope, nowMs: UInt64) throws -> RappBridgeAction? {
-    switch envelope.messageType {
-    case .livenessPing:
-      var body = envelope.body
-      let challenge = try takeBytes(&body, "challenge")
-      let frame = try sealed(.livenessPong, body: livenessBody(challenge))
-      return RappBridgeAction(kind: .sendFrame, frame: frame)
-
-    case .livenessPong:
-      var body = envelope.body
-      let echo = try takeBytes(&body, "challenge")
-      guard let challenge = PingChallenge(echo) else { return RappBridgeAction(kind: .noAction) }
-      _ = liveness.receivePong(nowMilliseconds: nowMs, challenge: challenge)
-      return RappBridgeAction(kind: .noAction)
-
-    case .sessionClose:
-      // A peer that entered revoked says so over the authenticated
-      // channel; receiving that notice marks this side's pairing revoked
-      // too (specification section 14.6). Every other reason closes only
-      // the session.
-      let reason: String? =
-        if case .text(let name)? = envelope.body["reason"] { name } else { nil }
-      if let reason, CloseReasonName.revokesPairing(reason) {
-        var action = closingAction(.pairRevoked)
-        action.revokesPairing = true
-        action.closeReason = RappCloseReason(rawValue: reason)
-        return action
-      }
-      var action = closingAction(.sessionClosed)
-      action.closeReason = reason.flatMap(RappCloseReason.init(rawValue:))
-      return action
-
-    default:
-      return nil
+      return action(for: dispatched)
     }
   }
 
-  /// Releases one failure result, closing the session when it is the last
-  /// frame the session carries.
-  private func sendFailureAction(
-    message: TypedMessage, closeSession: Bool
-  ) throws -> RappBridgeAction {
-    let frame = try sealedMessage(message)
-    let revokes = Self.failureRevokesPairing(message)
-    if closeSession {
-      // The failure result is the last frame this session carries; no
-      // later inbound frame may admit new work (invariant INV-16), and
-      // whatever else is still in flight is classified now.
-      classifyLiveOperations()
-      closed = true
-      session.close()
-    }
-    return RappBridgeAction(
-      kind: .sendFrame,
-      operationId: message.referencedOperationIdentifier,
-      frame: frame,
-      closeSessionAfterSend: closeSession,
-      revokesPairing: revokes)
-  }
-
-  /// Releases one outbound message on the authenticated session.
-  private func sendAction(message: TypedMessage) throws -> RappBridgeAction {
-    RappBridgeAction(
-      kind: .sendFrame,
-      operationId: message.referencedOperationIdentifier,
-      frame: try sealedMessage(message))
-  }
-
-  /// One session-level frame action, or nil for operation steps.
-  private func sessionFrameAction(for dispatch: ProxyDispatch) throws -> RappBridgeAction? {
+  /// The caller's next step for one custodian dispatch.
+  internal func action(for dispatch: ProxyDispatch) -> RappBridgeAction {
     switch dispatch {
+    case .inspectPrerequisites(let operationIdentifier):
+      operationAction(operationIdentifier, .inspectPrerequisites)
+
+    case .awaitConsent(let operationIdentifier):
+      operationAction(operationIdentifier, .awaitUserApproval)
+
+    case .executeSafeRead(let operationIdentifier, let read):
+      .custodianStep(operationIdentifier, .executeSafeRead, RappOperationDescriptor(read.operation))
+
+    case .executeCardCommand(let operationIdentifier, let command):
+      .custodianStep(
+        operationIdentifier, .executeCardCommand, RappOperationDescriptor(command.operation))
+
     case .send(let message):
-      return try sendAction(message: message)
-
-    case .sendAll(let messages):
-      guard let first = messages.first else { return RappBridgeAction(kind: .noAction) }
-      var action = try sendAction(message: first)
-      action.additionalFrames = try messages.dropFirst().map(sealedMessage)
-      return action
-
-    case .sendFailure(let message, let closeSession):
-      return try sendFailureAction(message: message, closeSession: closeSession)
-
-    case .ignoredStale(let operationIdentifier, let response):
-      return try staleAction(operationIdentifier: operationIdentifier, response: response)
+      send(message)
 
     case .notOperation:
-      return RappBridgeAction(kind: .noAction)
-
-    default:
-      return nil
+      .noAction
     }
-  }
-
-  /// The caller's next step for one proxy dispatch.
-  internal func action(for dispatch: ProxyDispatch) throws -> RappBridgeAction {
-    if let frame = try sessionFrameAction(for: dispatch) { return frame }
-    switch dispatch {
-
-    case .inspectPrerequisites(let operationIdentifier):
-      return try operationAction(.inspectPrerequisites, operationIdentifier: operationIdentifier)
-
-    case .executeSafeRead(let operationIdentifier, _):
-      return try operationAction(.executeSafeRead, operationIdentifier: operationIdentifier)
-
-    case .beginCardCommand(let operationIdentifier):
-      return try operationAction(.executeCardCommand, operationIdentifier: operationIdentifier)
-
-    case .resultAcknowledged(let operationIdentifier):
-      return RappBridgeAction(kind: .resultAcknowledged, operationId: operationIdentifier)
-
-    case .ignoredDuplicate(let operationIdentifier):
-      return RappBridgeAction(kind: .ignoredDuplicate, operationId: operationIdentifier)
-
-    default:
-      throw RappBindingError.WrongPhase
-    }
-  }
-
-  /// Answers one stale reference and changes nothing.
-  private func staleAction(
-    operationIdentifier: Data, response: TypedMessage
-  ) throws -> RappBridgeAction {
-    RappBridgeAction(
-      kind: .sendFrame, operationId: operationIdentifier,
-      frame: try sealedMessage(response))
   }
 
   /// The caller's next step for one requester dispatch.
-  internal func action(for dispatch: RequesterDispatch) throws -> RappBridgeAction {
-    if let action = try sessionAction(for: dispatch) { return action }
+  internal func action(for dispatch: RequesterDispatch) -> RappBridgeAction {
     switch dispatch {
+    case .cardStatus(let status):
+      .cardStatus(status)
+
     case .progress(let operationIdentifier, let event):
-      return RappBridgeAction(
-        kind: .progress,
-        operationId: operationIdentifier,
-        progressEvent: event)
+      .progress(operationIdentifier, event)
 
-    case .sendResultAcknowledgement(let operationIdentifier, let message):
-      return RappBridgeAction(
-        kind: .resultAcknowledgment, operationId: operationIdentifier,
-        frame: try sealedMessage(message))
+    case .completed(let operationIdentifier, let result):
+      .completed(operationIdentifier, RappOperationResult(result))
 
-    case .terminal(let operationIdentifier, let outcome, let ack):
-      let status = outcome.status
-      let error = outcome.error
-      let partial = outcome.batchSignatures
-      // A credential-rejected result revokes the pairing on both peers
-      // (section 10.2); this is the requester learning. The acknowledgement
-      // travels with the step so the custodian learns the result arrived
-      // (RAPP v26.10.18 §8.2 item 5).
-      let state = status.failureState ?? .completed
-      return RappBridgeAction(
-        kind: .terminal, operationId: operationIdentifier, frame: try sealedMessage(ack),
-        terminalState: state.rawValue,
-        terminalReason: RappTerminalReason(status: status, error: error),
-        revokesPairing: status == .credentialRejected, batchSignatures: partial)
+    case .ended(let operationIdentifier, _, let error),
+      .refused(let operationIdentifier, let error):
+      .terminal(operationIdentifier, RappTerminalReason(error))
 
-    case .cardStatus(let cardPresent):
-      return RappBridgeAction(kind: .cardStatus, cardPresent: cardPresent)
-
-    default:
-      throw RappBindingError.WrongPhase
+    case .peerError, .ignored, .notOperation:
+      .noAction
     }
   }
 
-  private func sessionAction(for dispatch: RequesterDispatch) throws -> RappBridgeAction? {
-    switch dispatch {
-    case .peerBusy:
-      RappBridgeAction(kind: .peerBusy)
-
-    case .peerUnknownOperation(let operationIdentifier):
-      RappBridgeAction(kind: .peerUnknownOperation, operationId: operationIdentifier)
-
-    case .statusAnnotated(let operationIdentifier):
-      RappBridgeAction(kind: .noAction, operationId: operationIdentifier)
-
-    case .ignoredStale(let operationIdentifier, let response):
-      try staleAction(operationIdentifier: operationIdentifier, response: response)
-
-    case .ignoredProgress(let operationIdentifier):
-      RappBridgeAction(kind: .noAction, operationId: operationIdentifier)
-
-    case .notOperation:
-      RappBridgeAction(kind: .noAction)
-
-    default:
-      nil
+  /// A step naming the live operation the custodian is asked about.
+  private func operationAction(
+    _ operationIdentifier: RappOperationIdentifier, _ step: RappCustodianStep
+  ) -> RappBridgeAction {
+    guard case .proxy(let engine) = side, let request = engine.request(operationIdentifier) else {
+      return .noAction
     }
+    return .custodianStep(operationIdentifier, step, RappOperationDescriptor(request.operation))
   }
 
-  /// A step naming the operation the holder is being asked about.
-  internal func operationAction(
-    _ kind: RappBridgeActionKind, operationIdentifier: Data
-  ) throws -> RappBridgeAction {
-    guard case .proxy(let engine) = side, let operation = engine.operation(operationIdentifier)
-    else { throw RappBindingError.WrongPhase }
-    return RappBridgeAction(
-      kind: kind,
-      operationId: operationIdentifier,
-      operation: RappOperationDescriptor(operation))
+  /// Seals one typed message, or closes the session when the channel can no
+  /// longer seal.
+  internal func send(_ message: TypedMessage) -> RappBridgeAction {
+    guard let messageType = message.messageType, let body = message.wireBody(),
+      let frame = try? session.seal(messageType, body: body)
+    else { return closingAction() }
+    return .sendFrame(frame, operationId: message.referencedOperationIdentifier)
   }
 
-  /// Marks the bridge spent and names why.
-  ///
-  /// Every close classifies the operations still in flight, so a session
-  /// ended by the peer or by an integrity failure leaves the same durable
-  /// terminal records a locally requested close does.
-  internal func closingAction(_ kind: RappBridgeActionKind) -> RappBridgeAction {
-    classifyLiveOperations()
-    closed = true
-    session.close()
-    return RappBridgeAction(kind: kind)
+  /// Seals one session-level message, or closes the session when the
+  /// channel can no longer seal.
+  internal func sendOrClose(
+    _ messageType: MessageType, body: [String: WireValue]
+  ) -> RappBridgeAction {
+    guard let frame = try? session.seal(messageType, body: body) else { return closingAction() }
+    return .sendFrame(frame, operationId: nil)
   }
 
-  /// Classifies every live operation for a closing session.
-  ///
-  /// Best effort by construction: a record whose terminal write fails
-  /// stays at its last persisted state, which recovery terminalizes the
-  /// next time the pairing begins operations.
-  internal func classifyLiveOperations() {
+  /// Ends the session without a notice of its own.
+  internal func closingAction() -> RappBridgeAction {
+    .sessionClosed(reason: nil, endedOperation: endOperations())
+  }
+
+  /// Ends the session and every operation of it (§8.1 item 3), naming the
+  /// operation that ended with it.
+  internal func endOperations() -> RappEndedOperation? {
+    var ended: RappEndedOperation?
     switch side {
     case .proxy(var engine):
-      var store = VaultProxyJournalStore(vault: vault, pairIdentifier: pairIdentifier)
-      _ = engine.sessionClosed(store: &store)
+      switch engine.sessionClosed() {
+      case .dropped(let operationIdentifier):
+        ended = .dropped(operationIdentifier)
+
+      case .continueCardExchange(let operationIdentifier):
+        ended = .cardExchangeContinues(operationIdentifier)
+
+      case nil:
+        break
+      }
       side = .proxy(engine)
 
     case .requester(var engine):
-      var store = VaultRequesterJournalStore(vault: vault, pairIdentifier: pairIdentifier)
-      _ = engine.sessionClosed(store: &store)
+      ended = engine.sessionClosed().map(RappEndedOperation.dropped)
       side = .requester(engine)
     }
-  }
-
-  /// Ends the session because the proxy can no longer serve the card.
-  ///
-  /// The pairing stays. Households keep the same peers while cards come
-  /// and go; only the published identity leaves with the card.
-  public func cardUnavailableClose() -> RappBridgeAction {
-    closeWithReason(.cardUnavailable)
-  }
-
-  /// Ends the session with an authenticated `session.close` carrying
-  /// `reason`; the pairing stays.
-  ///
-  /// A custodian whose holder switched remote access off closes every open
-  /// session with ``RappCloseReason/serviceWithdrawn`` before it stops
-  /// accepting connections (RAPP v26.10.18 §4.5).
-  public func closeWithReason(_ reason: RappCloseReason) -> RappBridgeAction {
-    locked {
-      guard !closed else { return RappBridgeAction(kind: .noAction) }
-      classifyLiveOperations()
-      let notice = try? session.seal(
-        .sessionClose,
-        body: [
-          "reason": .text(reason.rawValue),
-          "last_received_sequence": .unsigned(session.lastReceivedSequence),
-        ])
-      closed = true
-      session.close()
-      return RappBridgeAction(
-        kind: .sessionClosed,
-        frame: notice,
-        closeSessionAfterSend: notice != nil,
-        closeReason: reason)
-    }
-  }
-
-  /// Ends the session and the pairing after an authenticated protocol
-  /// violation, per the specification's first-incident revocation.
-  ///
-  /// The best-effort close notice is sealed while the channel still
-  /// exists; the caller releases it and durably revokes the pairing.
-  internal func violationClose() -> RappBridgeAction {
-    classifyLiveOperations()
-    let notice = try? session.seal(
-      .sessionClose,
-      body: [
-        "reason": .text(CloseReasonName.protocolViolation),
-        "last_received_sequence": .unsigned(session.lastReceivedSequence),
-      ])
+    liveness.close()
     closed = true
     session.close()
-    return RappBridgeAction(
-      kind: .pairRevoked,
-      frame: notice,
-      closeSessionAfterSend: notice != nil,
-      revokesPairing: true)
+    return ended
   }
 
-  internal func sealedMessage(_ message: TypedMessage) throws -> Data {
-    try mapping { try SessionMessageCodec.frame(for: message, session: &session) }
-  }
-
-  internal func sealed(_ messageType: MessageType, body: [String: WireValue]) throws -> Data {
-    try mapping { try session.seal(messageType, body: body) }
+  /// Ends the session after an authenticated protocol violation: the sealed
+  /// `protocol_violation` close, when the channel can still seal it, then
+  /// the link drops.
+  ///
+  /// The pairing stays (§10.1).
+  internal func violationClose() -> RappBridgeAction {
+    let notice = try? session.seal(
+      .sessionClose, body: ["reason": .text(CloseReasonName.protocolViolation)])
+    let ended = endOperations()
+    guard let notice else { return .sessionClosed(reason: nil, endedOperation: ended) }
+    return .sendClose(notice, reason: .protocolViolation, endedOperation: ended)
   }
 
   internal func locked<Value>(_ body: () throws -> Value) rethrows -> Value {
     lock.lock()
     defer { lock.unlock() }
     return try body()
-  }
-
-  /// Runs an engine step, naming its failure in the public vocabulary.
-  internal func mapping<Value>(_ body: () throws -> Value) throws -> Value {
-    do {
-      return try body()
-    } catch let error as RappBindingError {
-      throw error
-    } catch let error as EngineError {
-      throw Self.bindingError(error)
-    } catch is AuthorizationError, is CardOperationError, is JournalError {
-      throw RappBindingError.WrongPhase
-    } catch is SessionError {
-      throw RappBindingError.ProtocolFailure
-    } catch {
-      throw RappBindingError.LocalStateFailure
-    }
   }
 }

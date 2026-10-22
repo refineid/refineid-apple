@@ -5,15 +5,13 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.10.9 offer bootstrap on BLE and stream (section 4.2)")
+@Suite("RAPP v26.10.21 offer bootstrap on BLE and stream (section 4.2)")
 internal struct BootstrapOfferTests {
   private static let code = "7KX4M9"
   private static let profiles = [
-    "fi.refineid.card-status.v1", "fi.refineid.authentication.v1",
-    "fi.refineid.document-signing.v1",
+    "fi.refineid.card-status", "fi.refineid.authentication",
+    "fi.refineid.document-signing",
   ]
-  /// The encoded length section 4.2 states for the KC2 offer.
-  private static let specifiedOfferLength = 400
 
   private static func custodian(
     transportProfiles: [String] = [RappBleGattProfile.name]
@@ -39,12 +37,15 @@ internal struct BootstrapOfferTests {
     return (requesterRecord, custodianRecord)
   }
 
-  @Test("The bootstrap offer is the 400-byte KC2 offer with a random identifier")
+  @Test("The bootstrap offer is the corpus's BLE KC2 offer size with a random identifier")
   internal func offerShape() throws {
     let encoded = try Self.custodian().encodedOffer()
-    #expect(encoded.count == Self.specifiedOfferLength)
+    let pinned = try #require(
+      try CorpusFile.conformance(filePath: #filePath).pairingOffer.first { vector in
+        vector.transportProfiles == [RappBleGattProfile.name]
+      })
+    #expect(encoded.count == pinned.encodedLength)
     let offer = try PairingOffer.decode(encoded)
-    #expect(offer.offerLifetimeMilliseconds == RappBleGattProfile.offerLifetimeMilliseconds)
     #expect(offer.suites == [RappCpaceConstants.kc2Suite])
     #expect(offer.transports.map(\.profile) == [RappBleGattProfile.name])
     #expect(offer.transports.map(\.candidateIdentifier) == [RappBleGattProfile.candidateId])
@@ -53,10 +54,10 @@ internal struct BootstrapOfferTests {
 
   @Test(
     "A requester that read the bootstrap offer completes the ceremony on either transport",
-    arguments: [RappBleGattProfile.name, "fi.refineid.stream.v1"])
+    arguments: [RappBleGattProfile.name, StreamProfile.name])
   internal func ceremonyOverBootstrap(transportProfile: String) throws {
     let custodian = try Self.custodian(
-      transportProfiles: [RappBleGattProfile.name, "fi.refineid.stream.v1"])
+      transportProfiles: [RappBleGattProfile.name, StreamProfile.name])
     let requester = try RappPairingBridge.bootstrapOffer(
       encodedOffer: try custodian.encodedOffer(), transportProfile: transportProfile,
       pairingCode: Self.code, startedAtMonotonicMs: 0)
@@ -137,7 +138,7 @@ internal struct BootstrapOfferTests {
     #expect(throws: RappBindingError.InvalidInput) {
       try RappPairingBridge.custodianOffer(
         pairingCode: Self.code, offerId: randomBytes(OfferLimit.offerIdentifierSize),
-        profiles: Self.profiles, transportProfiles: ["fi.example.unregistered.v1"],
+        profiles: Self.profiles, transportProfiles: ["fi.example.unregistered"],
         startedAtMonotonicMs: 0)
     }
   }

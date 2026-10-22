@@ -2,29 +2,25 @@
 
 import Foundation
 
-/// The caller's next step after an inbound operation message.
+/// What an inbound message means to the requester.
 internal enum RequesterDispatch: Equatable {
-  /// The custodian reported whether a card it can serve is present
-  /// (RAPP v26.10.18 §8.4); the operation layer is unaffected.
-  case cardStatus(cardPresent: Bool)
-  /// An advisory progress event was ignored without an error response.
-  case ignoredProgress(operationIdentifier: Data)
-  /// A stale reference; answer it and change nothing.
-  case ignoredStale(operationIdentifier: Data, response: TypedMessage)
-  /// Not an operation message; the operation layer is unaffected.
+  /// The custodian's card is present, with its fingerprint, or absent
+  /// (RAPP v26.10.21 §8.4).
+  case cardStatus(RappCardStatus)
+  /// The live operation completed.
+  case completed(operationIdentifier: RappOperationIdentifier, result: CardOperationResult)
+  /// The live operation ended without completing: rejected or cancelled,
+  /// with why.
+  case ended(operationIdentifier: RappOperationIdentifier, status: ResultStatus, error: ResultError)
+  /// A message for an operation that is no longer live.
+  case ignored(operationIdentifier: RappOperationIdentifier)
+  /// Not an operation message.
   case notOperation(TypedMessage)
-  /// The peer could not admit the operation, such as while another runs.
-  case peerBusy
-  /// The peer answered a stale reference; an ordinary race.
-  case peerUnknownOperation(operationIdentifier: Data?)
-  /// An advisory progress event arrived for this active operation.
-  case progress(operationIdentifier: Data, event: ProgressEvent)
-  /// Release this acknowledgement for the completed result.
-  case sendResultAcknowledgement(operationIdentifier: Data, message: TypedMessage)
-  /// An authenticated status report was stored as an annotation.
-  case statusAnnotated(operationIdentifier: Data)
-  /// The operation reached its journaled terminal state, and why; the
-  /// acknowledgement that tells the custodian so travels with it (RAPP
-  /// v26.10.18 §8.2 item 5).
-  case terminal(operationIdentifier: Data, outcome: TerminalOutcome, acknowledgement: TypedMessage)
+  /// An `error` naming no operation.
+  case peerError(ResultError)
+  /// The live operation's state changed.
+  case progress(operationIdentifier: RappOperationIdentifier, event: ProgressEvent)
+  /// The custodian refused the request before admitting it (`busy`,
+  /// `duplicate_operation`).
+  case refused(operationIdentifier: RappOperationIdentifier, error: ResultError)
 }

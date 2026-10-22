@@ -4,79 +4,67 @@ import Testing
 
 @testable import RappEngine
 
+/// Invariants of the RAPP v26.10.21 formal model, read off the tables the
+/// engine carries.
 @Suite("RAPP state invariants")
 internal struct StateInvariantTests {
-  private func connected(_ role: EndpointRole) -> RappState {
-    var endpoint = RappState(role: role)
-    endpoint.pairing = .pairedConnected
-    endpoint.session = .healthy
-    return endpoint
+  /// The pairing events that may end a pairing: the local user forgetting it,
+  /// the close that tells the peer, the notice window, and the peer's notice
+  /// (§4.6).
+  private static let revokingEvents: Set<PairingEvent> = [
+    .forgetPairing, .revocationNoticeSent, .noticeWindowExpired, .peerRevocationNotice,
+  ]
+
+  @Test("No failure revokes a pairing (INV-08)")
+  internal func noFailureRevokesAPairing() {
+    for rule in RappModelTables.pairing
+    where rule.destination == .revoked || rule.destination == .revoking {
+      #expect(Self.revokingEvents.contains(rule.event), "\(rule.event.rawValue)")
+    }
+    let failures: [SessionEvent] = [
+      .authenticatedProtocolViolation, .sessionIntegrityFailed, .transportFailed,
+      .silenceLimitReached, .candidateFailure,
+    ]
+    for rule in RappModelTables.session where failures.contains(rule.event) {
+      #expect(
+        !rule.actions.contains(.markRecordRevoked) && !rule.actions.contains(.destroyPairKeys),
+        "\(rule.event.rawValue) leaves the pairing")
+    }
   }
 
-  @Test("Admission needs a stored pairing and a healthy session")
-  internal func admissionNeedsPairedAndHealthy() {
-    #expect(connected(.proxy).operationAdmissionPermitted)
+  @Test("Nothing of an operation outlives its session (INV-13)")
+  internal func sessionCloseEndsTheOperation() {
+    let closing = RappModelTables.operation.filter { $0.event == .sessionClosed }
+    #expect(!closing.isEmpty)
+    for rule in closing {
+      #expect(rule.destination == .idle, "\(rule.from.map(\.rawValue))")
+    }
   }
 
-  @Test("No admission without a healthy session")
-  internal func noAdmissionWithoutHealthySession() {
-    var idle = RappState(role: .proxy)
-    idle.pairing = .pairedDisconnected
-    #expect(!idle.operationAdmissionPermitted)
+  @Test("Only the custodian sends session.ready, then card.status")
+  internal func readyIsTheCustodians() throws {
+    let custodian = try #require(
+      SessionState.transition(from: .authenticating, on: .handshakeComplete, role: .proxy))
+    #expect(custodian.state == .healthy)
+    let ready = try #require(custodian.actions.firstIndex(of: .sendSessionReady))
+    let status = try #require(custodian.actions.firstIndex(of: .sendCardStatus))
+    #expect(ready < status)
+    let requester = try #require(
+      SessionState.transition(from: .authenticating, on: .handshakeComplete, role: .requester))
+    #expect(requester.state == .authenticating)
+    #expect(!requester.actions.contains(.sendSessionReady))
   }
 
-  @Test("Unattributable input never revokes the pairing")
-  internal func unattributableInputPreservesPairing() {
-    var endpoint = connected(.proxy)
-    _ = endpoint.sessionIntegrityFailed()
-    #expect(endpoint.pairing == .pairedConnected)
-    #expect(endpoint.session == .closing)
-  }
-
-  @Test("An authenticated violation revokes a stored pairing")
-  internal func authenticatedViolationRevokesStoredPairing() {
-    var endpoint = connected(.proxy)
-    _ = endpoint.authenticatedProtocolViolation()
-    #expect(endpoint.pairing == .revoked)
-  }
-
-  @Test("A violation before storage aborts the attempt only")
-  internal func violationBeforeStorageAbortsTheAttempt() {
-    var attempt = RappState(role: .proxy)
-    attempt.pairing = .confirming
-    _ = attempt.authenticatedProtocolViolation()
-    #expect(attempt.pairing == .unpaired)
-  }
-
-  @Test("A credential rejection ends the operation and closes the session")
-  internal func credentialRejectionEndsOperationAndSession() {
-    var endpoint = connected(.proxy)
-    endpoint.operation = .executing
-    let outcome = endpoint.credentialRejected()
-    #expect(endpoint.operation == .credentialRejected)
-    #expect(endpoint.session == .closing)
-    #expect(outcome.actions.contains(.revokePairAfterCredentialRejection))
-  }
-
-  @Test("A committed operation becomes ambiguous on the requester")
-  internal func committedOperationBecomesAmbiguous() {
-    var endpoint = connected(.requester)
-    endpoint.operation = .committed
-    _ = endpoint.forgetPairing()
-    #expect(endpoint.operation == .ambiguous)
-  }
-
-  @Test("A healthy session connects the pairing")
-  internal func healthySessionConnectsThePairing() {
-    var flow = RappState(role: .requester)
-    flow.pairing = .pairedDisconnected
-    flow.session =
-      SessionState.transition(from: .authenticating, on: .readyVerified, role: .requester)?.state
-      ?? .absent
-    flow.pairing =
-      PairingState.transition(from: flow.pairing, on: .sessionHealthy, role: .requester)?.state
-      ?? flow.pairing
-    #expect(flow.pairing == .pairedConnected)
-    #expect(flow.session == .healthy)
+  @Test("No private-key command before consent, and none under the retry floor")
+  internal func consentAndRetryFloorPrecedeTheCard() throws {
+    for rule in RappModelTables.operation where rule.actions.contains(.consumeCardCommand) {
+      #expect(rule.from == [.awaitingConsent] && rule.event == .userApproved)
+      let floor = try #require(rule.actions.firstIndex(of: .checkRetryFloor))
+      let command = try #require(rule.actions.firstIndex(of: .consumeCardCommand))
+      #expect(floor < command)
+    }
+    let read = try #require(
+      OperationState.transition(from: .requested, on: .cardAcquiredForRead, role: .proxy))
+    #expect(!read.actions.contains(.presentConsent))
   }
 }

@@ -8,7 +8,7 @@ import Testing
 @Suite("RAPP state tables against the vendored formal model")
 internal struct StateConformanceTests {
   /// Rule counts the model declares, per component machine.
-  private static let expectedRuleCounts = [("pairing", 22), ("session", 31), ("operation", 39)]
+  private static let expectedRuleCounts = [("pairing", 26), ("session", 27), ("operation", 25)]
 
   /// An action the perturbed control appends so the comparison must notice.
   private static let perturbingAction = "hide_pairing_code"
@@ -118,6 +118,20 @@ internal struct StateConformanceTests {
     let model = try reader()
     #expect(Set(RappGuard.allCases.map(\.rawValue)) == model.guardNames)
     #expect(Set(RappAction.allCases.map(\.rawValue)) == model.actionNames)
+  }
+
+  @Test("The state and event vocabularies match the model")
+  internal func stateAndEventVocabularies() throws {
+    let model = try reader()
+    #expect(PairingState.allCases.map(\.rawValue) == model.states["pairing"])
+    #expect(SessionState.allCases.map(\.rawValue) == model.states["session"])
+    #expect(OperationState.allCases.map(\.rawValue) == model.states["operation"])
+    func events(_ machine: String) -> Set<String> {
+      Set(model.rules[machine, default: []].map(\.event))
+    }
+    #expect(Set(PairingEvent.allCases.map(\.rawValue)) == events("pairing"))
+    #expect(Set(SessionEvent.allCases.map(\.rawValue)) == events("session"))
+    #expect(Set(OperationEvent.allCases.map(\.rawValue)) == events("operation"))
   }
 
   @Test("Every action and guard a rule names is declared")

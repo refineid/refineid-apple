@@ -32,7 +32,7 @@ private let misreadPairingCode = "246814"
     }
 
     private static let transportProfile = rappStreamProfileName()
-    private static let profiles = ["fi.refineid.authentication.v1"]
+    private static let profiles = rappCredentialProfiles()
     private static let cpaceRandomByteCount = 64
     /// Longer than the custodian's pre-authentication spacing (§3.3.8).
     private static let reconnectSpacingNanoseconds: UInt64 = 600_000_000

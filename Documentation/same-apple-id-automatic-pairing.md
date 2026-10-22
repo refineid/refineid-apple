@@ -117,7 +117,7 @@ For devices that **do not share an Apple ID** (e.g. pairing an Android phone wit
 
 ### 5.1 Pairing Code
 1. **Offer Generation**:
-   - The card holder displays a 6-character Crockford Base32 pairing code (e.g. `7K X4 M9`). The offer lasts 60 seconds and admits at most 3 attempts (RAPP v26.10.9 §3).
+   - The card holder displays a 6-character Crockford Base32 pairing code (e.g. `7K X4 M9`). The offer lasts 5 minutes and admits at most 3 attempts (RAPP v26.10.21 §3.3).
 2. **Key Exchange (CPace, then Noise XXpsk3)**:
    - The requesting device (Android, Linux, Windows, Mac, iPad) enters the code.
    - Devices run CPace keyed by the code, then the Noise XXpsk3 handshake keyed by the CPace result, and permanently vault the static keys in `RappDeviceVault`.

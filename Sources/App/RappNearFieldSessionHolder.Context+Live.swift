@@ -11,7 +11,9 @@
         isRoleProbed: { role in box.read().probedRoles.contains(role) },
         isNegativePin: { digits in box.read().isNegativePin(digits) },
         markRoleProbed: { role in box.mutate { $0.markProbed(role) } },
-        recordNegativePin: { digits in box.mutate { $0.recordNegativePin(digits) } }
+        recordNegativePin: { digits, role in
+          box.mutate { $0.recordNegativePin(digits, role: role) }
+        }
       )
     }
   }

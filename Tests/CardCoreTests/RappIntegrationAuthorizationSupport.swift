@@ -19,22 +19,17 @@ import Testing
       }
     }
 
-    private static func applyTermination(
-      _ termination: RappIntegrationFixtures.ProxyTermination,
-      operationID: Data,
-      coordinator: RappConnectionCoordinator,
-      progress: inout RappIntegrationFixtures.ProxyProgress
-    ) async throws {
-      switch termination {
-      case .cardRemovedBeforeTransmit:
-        try await coordinator.cardRemovedBeforeTransmit(operationID: operationID)
+    /// The failure an event that should not have come names.
+    private static func ending(_ event: RappConnectionCoordinator.Event) -> any Error {
+      switch event {
+      case .terminal(_, let reason):
+        RappIntegrationFixtures.TestFailure.operationTerminated(reason)
 
-      case .cardCompletionAmbiguous:
-        progress.executions += 1
-        try await coordinator.cardCompletionAmbiguous(operationID: operationID)
+      case .closed(let reason):
+        RappIntegrationFixtures.TestFailure.connectionClosed(reason)
 
-      case .userDenied, .retryPolicyRefused:
-        throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
+      default:
+        RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
       }
     }
 
@@ -47,20 +42,23 @@ import Testing
         coordinator,
         operation: expected,
         signature: signature,
-        cardHoldMilliseconds: 0
+        cardHold: .zero
       )
     }
 
+    /// Takes `expected` through inspection, consent and the card command,
+    /// then answers with `signature`; the custodian is done once the result
+    /// left, since nothing acknowledges it (RAPP v26.10.21 §8.2).
     internal static func authorizeAndComplete(
       _ coordinator: RappConnectionCoordinator,
       operation expected: RappIntegrationFixtures.RequestedOperation,
       signature: Data,
-      cardHoldMilliseconds: UInt64
+      cardHold: Duration
     ) async throws -> RappIntegrationFixtures.ProxyProgress {
       var progress = RappIntegrationFixtures.ProxyProgress()
       for await event in coordinator.events {
         switch event {
-        case .established, .cardStatus:
+        case .established:
           break
 
         case .inspectPrerequisites(let operationID, let operation):
@@ -76,113 +74,77 @@ import Testing
         case .executeCardCommand(let operationID, let operation):
           try requireExpected(operation, expected: expected)
           progress.executions += 1
-          // The antenna's share of the operation, where the proxy is busy
-          // with the card and answers nothing else.
-          if cardHoldMilliseconds > 0 {
-            try await Task.sleep(for: .milliseconds(cardHoldMilliseconds))
+          // The antenna's share of the operation, where the custodian is
+          // busy with the card and answers nothing but liveness.
+          if cardHold > .zero {
+            try await Task.sleep(for: cardHold)
           }
           try await coordinator.completeSignature(
             operationID: operationID,
             signature: signature
           )
-
-        case .operationFinished:
-          progress.acknowledgments += 1
           return progress
 
-        case .terminal(_, _, let reason):
-          throw RappIntegrationFixtures.TestFailure.operationTerminated(reason)
-
-        case .closed(let reason):
-          throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
-
-        case .executeSafeRead, .completed,
-          .peerBusy, .peerUnknownOperation, .progress, .batchSignatures:
-          throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
+        case .terminal, .closed, .executeSafeRead, .completed, .progress, .cardStatus,
+          .operationEnded:
+          throw Self.ending(event)
         }
       }
       throw RappIntegrationFixtures.TestFailure.operationEndedWithoutResult
     }
 
-    internal static func authorizeAndRejectCredential(
-      _ coordinator: RappConnectionCoordinator,
-      operation expected: RappIntegrationFixtures.RequestedOperation
-    ) async throws -> RappIntegrationFixtures.ProxyProgress {
-      var progress = RappIntegrationFixtures.ProxyProgress()
-      for await event in coordinator.events {
-        switch event {
-        case .established, .cardStatus:
-          break
-
-        case .inspectPrerequisites(let operationID, let operation):
-          try requireExpected(operation, expected: expected)
-          progress.prerequisites += 1
-          try await coordinator.prerequisitesComplete(operationID: operationID)
-
-        case .awaitUserApproval(let operationID, let operation):
-          try requireExpected(operation, expected: expected)
-          progress.approvals += 1
-          try await coordinator.approve(operationID: operationID)
-
-        case .executeCardCommand(let operationID, let operation):
-          try requireExpected(operation, expected: expected)
-          progress.executions += 1
-          try await coordinator.credentialRejected(operationID: operationID)
-          return progress
-
-        case .terminal(_, _, let reason):
-          throw RappIntegrationFixtures.TestFailure.operationTerminated(reason)
-
-        case .closed(let reason):
-          throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
-
-        case .executeSafeRead, .completed,
-          .operationFinished, .peerBusy, .peerUnknownOperation, .progress, .batchSignatures:
-          throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
-        }
-      }
-      throw RappIntegrationFixtures.TestFailure.operationEndedWithoutResult
-    }
-
-    /// Refuses the retry at inspection when `termination` says so, else
-    /// completes the inspection; true when the proxy is done.
+    /// Refuses at inspection when `termination` says so, else completes the
+    /// inspection; true when the custodian is done.
     private static func refusesAtInspection(
       _ termination: RappIntegrationFixtures.ProxyTermination,
-      operationID: Data,
+      operationID: RappOperationIdentifier,
       on coordinator: RappConnectionCoordinator
     ) async throws -> Bool {
-      guard termination == .retryPolicyRefused else {
+      switch termination {
+      case .retryFloor:
+        try await coordinator.retryFloor(operationID: operationID)
+        return true
+
+      case .unsupportedRequest:
+        try await coordinator.requestInvalidOrUnsupported(operationID: operationID)
+        return true
+
+      case .userDenied, .cardError, .operationFailed:
         try await coordinator.prerequisitesComplete(operationID: operationID)
         return false
       }
-      try await coordinator.retryRefused(operationID: operationID)
+    }
+
+    /// Denies when `termination` is a denial, else approves; true when the
+    /// custodian is done.
+    private static func decide(
+      _ termination: RappIntegrationFixtures.ProxyTermination,
+      operationID: RappOperationIdentifier,
+      on coordinator: RappConnectionCoordinator
+    ) async throws -> Bool {
+      guard termination == .userDenied else {
+        try await coordinator.approve(operationID: operationID)
+        return false
+      }
+      try await coordinator.deny(operationID: operationID)
       return true
     }
 
-    /// Denies when `termination` is a denial, else approves.
-    private static func decide(
+    /// Reports the card command's failure.
+    private static func failCardCommand(
       _ termination: RappIntegrationFixtures.ProxyTermination,
-      operationID: Data,
+      operationID: RappOperationIdentifier,
       on coordinator: RappConnectionCoordinator
     ) async throws {
-      if termination == .userDenied {
-        try await coordinator.deny(operationID: operationID)
-      } else {
-        try await coordinator.approve(operationID: operationID)
-      }
-    }
+      switch termination {
+      case .cardError:
+        try await coordinator.cardError(operationID: operationID)
 
-    /// The failure an event that should not have come names.
-    private static func ending(_ event: RappConnectionCoordinator.Event) -> any Error {
-      switch event {
-      case .terminal(_, _, let reason):
-        RappIntegrationFixtures.TestFailure.operationTerminated(reason)
+      case .operationFailed:
+        try await coordinator.operationFailed(operationID: operationID)
 
-      case .closed(let reason):
-        RappIntegrationFixtures.TestFailure.connectionClosed(reason)
-
-      default:
-        RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
+      case .retryFloor, .unsupportedRequest, .userDenied:
+        throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
       }
     }
 
@@ -194,7 +156,7 @@ import Testing
       var progress = RappIntegrationFixtures.ProxyProgress()
       for await event in coordinator.events {
         switch event {
-        case .established, .cardStatus:
+        case .established:
           break
 
         case .inspectPrerequisites(let operationID, let operation):
@@ -207,26 +169,18 @@ import Testing
         case .awaitUserApproval(let operationID, let operation):
           try requireExpected(operation, expected: expected)
           progress.approvals += 1
-          try await decide(termination, operationID: operationID, on: coordinator)
+          if try await decide(termination, operationID: operationID, on: coordinator) {
+            return progress
+          }
 
         case .executeCardCommand(let operationID, let operation):
           try requireExpected(operation, expected: expected)
-          try await applyTermination(
-            termination,
-            operationID: operationID,
-            coordinator: coordinator,
-            progress: &progress
-          )
-          // A session the proxy closed with the result carries no
-          // acknowledgement; one it kept open does (§8.2 item 5).
-          if termination.proxyTransportCloseCount > 0 { return progress }
-
-        case .operationFinished:
-          progress.acknowledgments += 1
+          progress.executions += 1
+          try await failCardCommand(termination, operationID: operationID, on: coordinator)
           return progress
 
-        case .terminal, .closed, .executeSafeRead, .completed,
-          .peerBusy, .peerUnknownOperation, .progress, .batchSignatures:
+        case .terminal, .closed, .executeSafeRead, .completed, .progress, .cardStatus,
+          .operationEnded:
           throw Self.ending(event)
         }
       }

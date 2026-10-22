@@ -3,16 +3,10 @@
 import Foundation
 
 /// The transport profiles an offer may name and the exact entry each one
-/// carries (RAPP v26.10.9 §2.2, §4.2).
-///
-/// `apple-peer-v1` is this implementation's Apple-to-Apple tier: it is not
-/// in the specification's registry and only Apple peers offer or accept it.
+/// carries (RAPP v26.10.21 §2.2, §4.2).
 internal enum TransportRegistry {
-  /// The stream profile's one candidate identifier (§2.2).
-  internal static let streamCandidateIdentifier = "stream-1"
-
-  internal static let applePeerProfile = "apple-peer-v1"
-  internal static let applePeerCandidateIdentifier = "apple-peer-v1.nearby"
+  /// The stream profile's registered candidate identifier (§2.2).
+  internal static let streamCandidateIdentifier = "stream"
 
   /// The offer entry for `profile`, or nothing for an unregistered one.
   internal static func entry(for profile: String) -> TransportCandidate? {
@@ -23,10 +17,6 @@ internal enum TransportRegistry {
     case StreamProfile.name:
       TransportCandidate(
         profile: profile, candidateIdentifier: streamCandidateIdentifier, parameters: [:])
-
-    case applePeerProfile:
-      TransportCandidate(
-        profile: profile, candidateIdentifier: applePeerCandidateIdentifier, parameters: [:])
 
     default:
       nil

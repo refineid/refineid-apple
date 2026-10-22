@@ -231,13 +231,14 @@ internal final class PersistentTokenDriver: TKTokenDriver,
         switch clientError {
         case .terminal(let reason):
           switch reason {
-          case .userDenied, .cancelled, .cardRemovedBeforeTransmit, .requestExpired:
+          case .userCancelled, .operationExpired, .cardError:
             return TKError(.canceledByUser)
 
-          case .credentialRejected, .retryPolicyRefused, .invalidCredential:
+          case .retryFloor:
             return TKError(.authenticationFailed)
 
-          case .requestInvalidOrUnsupported, .cardCompletionAmbiguous, .none:
+          case .busy, .duplicateOperation, .invalidLifetime, .unauthorized,
+            .unsupportedParameter, .operationFailed:
             return TKError(.corruptedData)
           }
 

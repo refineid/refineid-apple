@@ -23,8 +23,10 @@ internal struct ModelReader {
     fileprivate var guardNames: Set<String> = []
     fileprivate var actionNames: Set<String> = []
     fileprivate var rules: [String: [ParsedRule]] = ["pairing": [], "session": [], "operation": []]
+    fileprivate var states: [String: [String]] = ["pairing": [], "session": [], "operation": []]
     fileprivate var section = ""
     fileprivate var inTransitions = false
+    fileprivate var inStates = false
     fileprivate var current: ParsedRule?
 
     fileprivate mutating func flush() {
@@ -38,6 +40,7 @@ internal struct ModelReader {
       flush()
       let key = body.trimmingCharacters(in: .whitespaces).split(separator: ":", maxSplits: 1)[0]
       inTransitions = String(key) == "transitions"
+      inStates = String(key) == "states"
       if !inTransitions {
         if section == "guards" { guardNames.insert(String(key)) }
         if section == "actions" { actionNames.insert(String(key)) }
@@ -54,6 +57,7 @@ internal struct ModelReader {
       if indent == 0 {
         flush()
         inTransitions = false
+        inStates = false
         let name = body.split(separator: ":", maxSplits: 1)[0]
         section = String(name)
         if section == "document_version" {
@@ -68,8 +72,12 @@ internal struct ModelReader {
         return
       }
 
-      guard inTransitions else { return }
       let trimmed = body.trimmingCharacters(in: .whitespaces)
+      if inStates, indent == modelIndentRule, trimmed.hasPrefix("- "), states[section] != nil {
+        states[section]?.append(String(trimmed.dropFirst(ruleMarkerLength)))
+        return
+      }
+      guard inTransitions else { return }
       if indent == modelIndentRule, trimmed.hasPrefix("- ") {
         flush()
         var rule = ParsedRule()
@@ -86,6 +94,8 @@ internal struct ModelReader {
   internal let guardNames: Set<String>
   internal let actionNames: Set<String>
   internal let rules: [String: [ParsedRule]]
+  /// The states each machine declares, in model order.
+  internal let states: [String: [String]]
 
   internal init(text: String) {
     var parser = Parser()
@@ -98,6 +108,7 @@ internal struct ModelReader {
     self.guardNames = parser.guardNames
     self.actionNames = parser.actionNames
     self.rules = parser.rules
+    self.states = parser.states
   }
 
   private static func stripComment(_ line: String) -> String {
@@ -149,12 +160,14 @@ internal struct ModelReader {
   }
 }
 
+/// The endpoints a model rule's role names; `custodian` is the proxy
+/// endpoint.
 internal func roles(of ruleRole: String) -> [EndpointRole] {
   switch ruleRole {
-  case "requester":
+  case RuleRole.requester.rawValue:
     [.requester]
 
-  case "proxy":
+  case RuleRole.custodian.rawValue:
     [.proxy]
 
   default:

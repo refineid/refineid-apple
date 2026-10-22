@@ -128,11 +128,13 @@
       return !active.isEmpty
     }
 
-    /// Ends the open session with `pairing_revoked` before the pairing it
-    /// runs over is forgotten (RAPP v26.10.18 §4.6 item 1).
-    internal func closeForRevocation(pairID: Data) async {
-      guard let coordinator, activePairID == pairID else { return }
+    /// Ends the open session with `pairing_revoked` as the pairing it runs
+    /// over is forgotten (RAPP v26.10.21 §4.6 item 1); false when no session
+    /// over `pairID` is open.
+    internal func closeForRevocation(pairID: Data) async -> Bool {
+      guard let coordinator, activePairID == pairID else { return false }
       await coordinator.closePairingRevoked()
+      return true
     }
   }
 #endif

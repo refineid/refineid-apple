@@ -2,17 +2,15 @@
 
 import Foundation
 
-/// A rejected operation construction, hash, or parse.
+/// A rejected operation construction or parse.
 internal enum CardOperationError: Error, Equatable {
-  case hashFailure
   case invalidDisplayContext
   case invalidField(field: String)
   case invalidIdentifier
   case invalidLifetime
   case keyAlgorithmMismatch
+  case operationMismatch
   case profileActionMismatch
-  case profileNotGranted
-  case requestHashMismatch
   case unexpectedField
   case unknownAction
   case unknownProfile

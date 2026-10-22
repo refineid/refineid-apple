@@ -45,37 +45,27 @@
     /// before it announces itself anyway.
     private static let closeAllowanceMilliseconds = 500
 
-    /// The instance name the session listener publishes under.
-    private var sessionInstanceName: String? {
-      streamListeners[Self.sessionListenerKey]?.registeredName ?? sessionListening.requestedName
-    }
-
-    /// The session record for the pairings in `contexts`, published under
-    /// `instance`: their discovery hints, and the revocation hints of the
-    /// pairings this holder revoked within 30 days (RAPP v26.10.18 §4.6).
-    private func sessionRecord(
-      _ contexts: [PhoneStreamPairContext], instance: String
-    ) -> [String: String] {
+    /// The session record for the pairings in `contexts`: their discovery
+    /// hints (transport hierarchy §4.3).
+    ///
+    /// A pairing this holder forgot keeps its hint until its close reaches the
+    /// requester (RAPP v26.10.21 §4.6 item 2).
+    private func sessionRecord(_ contexts: [PhoneStreamPairContext]) -> [String: String] {
       let now = Date()
       return StreamRendezvousName.sessionRecord(
         candidates: contexts.compactMap { context in
           context.candidate(at: now) { pair, time in
             try pair.discoveryHint(unixTimeSeconds: time)
           }
-        },
-        retentions: RappPairRevocation.announcedRetentions(in: vault, at: now),
-        instance: instance,
-        at: now)
+        })
     }
 
-    /// Republishes the session record, after a pairing was revoked or a
-    /// window moved.
+    /// Republishes the session record, after a pairing ended or a window
+    /// moved.
     internal func refreshSessionRecord() {
-      guard let listener = streamListeners[Self.sessionListenerKey],
-        let instance = sessionInstanceName
-      else { return }
-      listener.updateTXTRecord(
-        sessionRecord(PhoneStreamPairContext.resolveAll(vault: vault), instance: instance))
+      guard let listener = streamListeners[Self.sessionListenerKey] else { return }
+      RappPairRevocation.expireRevocationNotices(in: vault, clock: RappPlatformClock())
+      listener.updateTXTRecord(sessionRecord(PhoneStreamPairContext.resolveAll(vault: vault)))
     }
 
     /// Listens once, under a fresh random name, for every active pair.
@@ -85,10 +75,8 @@
       sessionListening.withdrawal = nil
       let records = contexts.map(\.pairRecord)
       replacementRouting.withLock { $0.records = records }
-      if let listener = streamListeners[Self.sessionListenerKey],
-        let instance = sessionInstanceName
-      {
-        listener.updateTXTRecord(sessionRecord(contexts, instance: instance))
+      if let listener = streamListeners[Self.sessionListenerKey] {
+        listener.updateTXTRecord(sessionRecord(contexts))
       } else {
         sessionListening.router = RappSessionRouter()
         replacementRouting.withLock { $0.router = RappSessionRouter() }
@@ -134,13 +122,13 @@
         #endif
         let name = StreamRendezvousName.ephemeralName()
         sessionListening.requestedName = name
-        listener.start(displayName: name, txtRecord: sessionRecord(contexts, instance: name))
+        listener.start(displayName: name, txtRecord: sessionRecord(contexts))
       }
       startHintRotation()
     }
 
     /// Announces that this holder stopped serving, then stops listening
-    /// (RAPP v26.10.18 §4.5): open sessions close with
+    /// (RAPP v26.10.21 §4.5): open sessions close with
     /// `service_withdrawn`, no connection is accepted, and the listener
     /// publishes the withdrawn record for a few seconds before it goes.
     internal func withdrawService(then tearDown: @escaping @MainActor () -> Void) {

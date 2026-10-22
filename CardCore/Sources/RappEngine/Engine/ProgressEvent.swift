@@ -1,17 +1,22 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
+// The cases are ordered as an operation reaches them, as the specification
+// lists them, so the source reads line for line against the document.
+// swiftlint:disable sorted_enum_cases
+
 import Foundation
 
-/// Progress event during an authenticated operation (RAPP v26.10.18 §7.1).
+/// A change of a pending operation's state the custodian reports (RAPP
+/// v26.10.21 §7.1, §8.2).
 public enum ProgressEvent: String, Sendable, Equatable, CaseIterable {
-  case cardWaitEnded = "card_wait_ended"
+  /// Another session's operation holds the card (§8.2 item 2).
+  case queued = "queued"
   /// The custodian's consent view is on screen (§8.2 item 3).
   case consentShown = "consent_shown"
-  case unknown = "unknown"
+  /// The custodian waits for the holder to present the card (§8.2 item 4).
   case waitingForCard = "waiting_for_card"
-
-  /// Initializes a progress event from its wire representation, mapping unrecognized events to `.unknown`.
-  public init(wireValue: String) {
-    self = Self(rawValue: wireValue) ?? .unknown
-  }
+  /// The card was found or the wait is over.
+  case cardWaitEnded = "card_wait_ended"
 }
+
+// swiftlint:enable sorted_enum_cases

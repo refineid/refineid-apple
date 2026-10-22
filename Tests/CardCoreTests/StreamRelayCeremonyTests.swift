@@ -22,11 +22,8 @@ private let fixturePairingCode = "246813"
 
     private static let attempts = 150
     private static let pause = Duration.milliseconds(100)
-    private static let streamProfile = "fi.refineid.stream.v1"
-    private static let profiles = [
-      "fi.refineid.card-status.v1",
-      "fi.refineid.authentication.v1",
-    ]
+    private static let streamProfile = rappStreamProfileName()
+    private static let profiles = rappCredentialProfiles()
 
     // MARK: Static Functions
 
@@ -61,13 +58,13 @@ private let fixturePairingCode = "246813"
           return summary
 
         case .closed(let reason):
-          throw SignRelayPairingFailure.closed(String(describing: reason))
+          throw RappIntegrationFixtures.TestFailure.pairingClosed(reason)
 
         case .peerIntroduced, .offerRestored:
           continue
         }
       }
-      throw SignRelayPairingFailure.endedWithoutRecord
+      throw RappIntegrationFixtures.TestFailure.pairingEndedWithoutRecord
     }
 
     private static func options(

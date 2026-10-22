@@ -2,10 +2,9 @@
 
 import Foundation
 
-/// Which certificate a public read selects.
+/// Which certificate a `read_certificate` selects (RAPP v26.10.21 §9.2,
+/// §9.3).
 internal enum CertificateKind: String, CaseIterable, Equatable, Sendable {
   case authentication = "authentication"
-  case intermediateCa = "intermediate_ca"
-  case rootCa = "root_ca"
   case signature = "signature"
 }

@@ -24,7 +24,7 @@ internal struct StreamRelayCeremonyVaults {
   /// Removes everything the ceremony stored.
   internal func clean() {
     for prefix in prefixes {
-      for suffix in ["pair", "selection", "requester", "proxy"] {
+      for suffix in ["pair", "selection"] {
         SecItemDelete(
           [
             kSecClass as String: kSecClassGenericPassword,

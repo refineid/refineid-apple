@@ -4,7 +4,7 @@ import CryptoKit
 import Foundation
 
 /// Keys both endpoints of a pairing derive from its static X25519
-/// agreement (RAPP v26.10.18 §4.3).
+/// agreement (RAPP v26.10.21 §4.3).
 ///
 /// The agreement never crosses the wire, so a value keyed by it names the
 /// pairing only to its two endpoints. Each use takes its own HKDF info
@@ -13,10 +13,9 @@ internal enum PairKeys {
   /// Byte length of every key derived from the static agreement.
   internal static let size = 32
 
-  internal static let routingInfo = Data("RAPP-routing-v1".utf8)
-  internal static let discoveryInfo = Data("RAPP-discovery-hint-v2".utf8)
-  internal static let withdrawalInfo = Data("RAPP-withdrawal-v1".utf8)
-  internal static let revocationInfo = Data("RAPP-revocation-v1".utf8)
+  internal static let routingInfo = Data("rapp-routing".utf8)
+  internal static let discoveryInfo = Data("rapp-discovery-hint".utf8)
+  internal static let withdrawalInfo = Data("rapp-withdrawal".utf8)
 
   /// `HKDF-SHA-256(salt = pair_id, IKM = X25519(local static private,
   /// peer static public), info, L = 32)`, or `nil` when the agreement is

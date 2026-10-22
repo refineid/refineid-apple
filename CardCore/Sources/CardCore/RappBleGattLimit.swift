@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// Platform-facing numbers of the `fi.refineid.rapp.ble.v1` link.
+/// Platform-facing numbers of the `fi.refineid.rapp.ble` link.
 internal enum RappBleGattLimit {
   /// Bytes the ATT PDU header takes from the MTU, which the platform's
   /// reported value lengths already exclude.

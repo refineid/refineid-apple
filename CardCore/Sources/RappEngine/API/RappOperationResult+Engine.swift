@@ -3,31 +3,23 @@
 import Foundation
 
 /// Translations between the public vocabulary and the engine's own.
-///
-/// The public names are the ones callers already wrote against, so they are
-/// kept even where the engine spells a value differently.
 extension RappOperationResult {
   internal init(_ result: CardOperationResult) {
     switch result {
-    case .inspection(let report):
-      self.init(
-        kind: .inspection, pin1Factory: report.pin1Factory, pin2Factory: report.pin2Factory,
-        pin1Attempts: report.pin1Attempts, pin2Attempts: report.pin2Attempts,
-        pukAttempts: report.pukAttempts)
+    case .inspection(let answerToReset):
+      self = .inspection(answerToReset: answerToReset)
 
     case .identity(let identity):
-      self.init(
-        kind: .identity, displayName: identity.holderName, personId: identity.cardIdentifier,
-        bytes: identity.certificates.first ?? Data())
+      self = .identity(RappCardIdentity(identity))
 
     case .certificate(let der):
-      self.init(kind: .certificate, bytes: der)
+      self = .certificate(der)
 
     case .signature(let signature):
-      self.init(kind: .signature, bytes: signature)
+      self = .signature(signature)
 
     case .signatures(let signatures):
-      self.init(kind: .signatures, signatures: signatures)
+      self = .signatures(signatures)
     }
   }
 }

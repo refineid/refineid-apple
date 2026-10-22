@@ -24,7 +24,9 @@
       Duration.seconds(advertisementLossHoldSeconds)
     }
 
-    /// Every active pairing in the vault.
+    /// Every stored pairing in the vault, a forgotten one too: its hint
+    /// brings the session that delivers its close (RAPP v26.10.21 §4.6 item
+    /// 2).
     private static func activeHolderPairings() -> [HolderPairing] {
       let vault = RappDeviceVault()
       let pairIDs = (try? vault.activePairIDs()) ?? []
@@ -41,9 +43,7 @@
 
     /// What a published record says about one of `pairings`.
     ///
-    /// A session record whose `revoked` attribute carries a pairing's
-    /// revocation hint for `instance` names a pairing the phone forgot
-    /// (RAPP v26.10.18 §4.6); one carrying its discovery hint names the
+    /// A session record carrying a pairing's discovery hint names the
     /// pairing as served; a withdrawn record names the pairing whose
     /// withdrawal hint it carries for `instance`. Anything else is not a
     /// holder.
@@ -51,12 +51,6 @@
       of record: [String: String], instance: String, among pairings: [HolderPairing]
     ) -> StreamRelayPresence.Classification? {
       let now = Date()
-      if let revoked = pairings.first(where: { pairing in
-        StreamRendezvousName.sessionRecord(
-          record, instance: instance, revokes: pairing.record, at: now)
-      }) {
-        return .revoked(revoked.key)
-      }
       if let holder = pairings.first(where: { pairing in
         StreamRendezvousName.sessionRecord(record, holds: pairing.record, at: now)
       }) {
@@ -91,18 +85,6 @@
       }
     }
 
-    /// The revocation handler the browser calls on its own queue.
-    nonisolated private static func revocationHandler(
-      pairIDs: [String: Data]
-    ) -> @Sendable (String) -> Void {
-      { key in
-        guard let pairID = pairIDs[key] else { return }
-        Task { @MainActor in
-          Self.shared.holderRevoked(pairID: pairID)
-        }
-      }
-    }
-
     /// The change handler the browser calls on its own queue; it hops to
     /// the main actor for everything it touches.
     nonisolated private static func presenceHandler(
@@ -112,7 +94,10 @@
         Task { @MainActor in
           if present, let matchedName, let pairID = pairIDs[matchedName] {
             let vault = RappDeviceVault()
-            if (try? vault.selectedPairID()) != pairID {
+            let forgotten =
+              (try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault))?.metadata()
+              .forgottenAtMs != nil
+            if !forgotten, (try? vault.selectedPairID()) != pairID {
               try? vault.selectPair(pairID: pairID)
             }
           }
@@ -124,7 +109,7 @@
     /// Browses for a holder in session mode whose hints name a pairing.
     ///
     /// The holder's record says it is on the network; whether a card can
-    /// answer is what its session says (RAPP v26.10.18 §8.4). Losing the
+    /// answer is what its session says (RAPP v26.10.21 §8.4). Losing the
     /// record ends the session and withdraws the borrowed identity. The
     /// pairing stays so the next card can use it.
     internal func startWatchingPresence() {
@@ -149,8 +134,7 @@
         following: keys,
         classifyingRecord: Self.recordClassifier(among: pairings),
         onChange: Self.presenceHandler(pairIDs: pairIDs),
-        onWithdrawn: Self.withdrawalHandler(),
-        onRevoked: Self.revocationHandler(pairIDs: pairIDs))
+        onWithdrawn: Self.withdrawalHandler())
       presence = watcher
       watcher.start()
     }
@@ -197,9 +181,9 @@
       startWatchingPresence()
     }
 
-    /// The holder announced that it forgot the pairing (RAPP v26.10.18
-    /// §4.6 item 5): this computer forgets it too, the borrowed identity
-    /// leaves at once, and the row names the phone that did it.
+    /// The holder closed a session with `pairing_revoked` (RAPP v26.10.21
+    /// §4.6 item 4): this computer forgets the pairing too, the borrowed
+    /// identity leaves at once, and the row names the phone that did it.
     internal func holderRevoked(pairID: Data) {
       let vault = RappDeviceVault()
       let name = RappPairNames.name(forPairID: pairID)
@@ -219,6 +203,17 @@
       if let name {
         phoneThatForgot = name
       }
+      restartWatchingPresence()
+      NotificationCenter.default.post(
+        name: RappPairingModel.pairingsDidChangeNotification, object: nil)
+    }
+
+    /// This computer's close for a pairing it forgot reached the phone
+    /// (RAPP v26.10.21 §4.6 items 2 and 3): the record and its key go now.
+    internal func revocationNoticeDelivered(pairID: Data) {
+      try? RappPairRevocation.revoke(
+        pairID: pairID, in: RappDeviceVault(), clock: RappPlatformClock())
+      refreshPairing()
       restartWatchingPresence()
       NotificationCenter.default.post(
         name: RappPairingModel.pairingsDidChangeNotification, object: nil)

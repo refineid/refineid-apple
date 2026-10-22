@@ -2,6 +2,8 @@
 
 import Foundation
 
+@testable import RappEngine
+
 extension Data {
   /// Number of hexadecimal characters per byte.
   private static let charactersPerByte = 2
@@ -47,5 +49,13 @@ extension Data {
     default:
       nil
     }
+  }
+}
+
+extension RappOperationIdentifier {
+  /// The corpus writes identifiers as hex too.
+  internal init(hex: String) throws {
+    guard let identifier = Self(try Data(hex: hex)) else { throw CorpusError.invalidHex }
+    self = identifier
   }
 }

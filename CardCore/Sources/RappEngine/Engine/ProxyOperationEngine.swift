@@ -2,33 +2,29 @@
 
 import Foundation
 
-/// Operations for one authenticated proxy session.
+/// The custodian's operations of one session: one live at a time, and every
+/// identifier used once.
 ///
-/// Exactly one operation may be live. The engine holds the granted profiles
-/// authenticated by the pairing transcript, so a request naming any other
-/// profile is refused before the holder is ever asked.
+/// Nothing outlives the session (RAPP v26.10.21 §8.1).
 internal struct ProxyOperationEngine {
+  /// The profiles the pairing granted; a request naming any other is
+  /// refused before the holder is asked.
   internal let grantedProfiles: [ProfileName]
 
-  internal var operations: [AuthorizationTransaction]
+  internal var live: AuthorizationTransaction?
 
-  internal var recovered: [RecoveredProxyRecord]
-
-  /// The live operations, for tests and for status answers.
-  internal var liveOperationStates: [Data: OperationState] {
-    var states: [Data: OperationState] = [:]
-    for operation in operations {
-      states[operation.reference.operationIdentifier] = operation.operationState
-    }
-    return states
-  }
+  internal var seen: Set<RappOperationIdentifier>
 
   /// An engine bound to exactly the profiles the pairing granted.
-  ///
-  /// An empty grant set deliberately admits no operation at all.
-  internal init(grantedProfiles: [ProfileName], recovered: [RecoveredProxyRecord]) {
+  internal init(grantedProfiles: [ProfileName]) {
     self.grantedProfiles = grantedProfiles
-    self.operations = []
-    self.recovered = recovered
+    self.live = nil
+    self.seen = []
+  }
+
+  /// The live request the identifier names.
+  internal func request(_ operationIdentifier: RappOperationIdentifier) -> OperationRequest? {
+    guard let live, live.operationIdentifier == operationIdentifier else { return nil }
+    return live.request
   }
 }

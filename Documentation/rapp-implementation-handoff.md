@@ -1,6 +1,6 @@
 # RAPP Apple implementation handoff
 
-Status date: 2026-10-18
+Status date: 2026-10-22
 
 This document is the implementation handoff for Remote Authorization Proxy
 Protocol (RAPP) support in RefineID on Apple platforms. It describes what is
@@ -14,26 +14,24 @@ The vendored documents are the authority, and the Swift engine in
 `CardCore/Sources/RappEngine` implements them. There is no compiled protocol
 artifact in this repository.
 
-- Specification: `Documentation/protocol/rapp-v26.10.18.md`
-- Formal state model: `Documentation/protocol/rapp-state-machine-v26.10.18.yaml`;
+- Specification: `Documentation/protocol/rapp-v26.10.21.md`, with the
+  transport and discovery hierarchy it cites in
+  `Documentation/rapp-transport-and-discovery-hierarchy.md`.
+- Formal state model: `Documentation/protocol/rapp-state-machine-v26.10.21.yaml`;
   the pairing, session and operation tables transcribe it and are checked
   against it in both directions.
-- Conformance corpus: `Documentation/rapp-conformance/rapp-v26.10.18.json`
-  (`SHA-256 e6c2e58b94bc0e41eba47676ee00fed88921d9abf0f1aa8dc9398ff163b1fbbb`),
+- Conformance corpus: `Documentation/rapp-conformance/rapp-v26.10.21.json`
+  (`SHA-256 70c88ba7f9aa680248b120dbb4ecac0dfbb2c005be49aad5094e5dc8216348db`),
   copied unchanged from the reference repository. Its `cpace_kc2`,
   `noise_handshake`, `pairing_offer`, and `discovery_hint` sections are
   replayed byte for byte on both the BLE and stream profiles.
-- Vectors covering what the corpus does not reach, all v26.10.18 and copied
-  unchanged from the reference repository: `rapp-operation-v26.10.18.json`
-  (the reference operation bodies, the batch signing bodies, the storage
-  confirmation, card status and consent bodies), `rapp-routing-v26.10.18.json`
-  (session preambles), `rapp-withdrawal-v26.10.18.json` (service withdrawal),
-  `rapp-revocation-v26.10.18.json` (revocation keys, hints, announcements
-  and retention windows), `rapp-ble-sar-v26.10.18.json` (BLE segmentation
-  and reassembly); and, kept from earlier revisions,
-  `rapp-flow-v26.9.7.70.json` (ceremony bodies, re-encoded with the
-  v26.10.18 version triple) and `rapp-transport-v26.9.7.70.json`
-  (post-handshake framing).
+- Vectors covering what the corpus does not reach, all v26.10.21 and copied
+  unchanged from the reference repository: `rapp-operation-v26.10.21.json`
+  (operation bodies, the batch signing bodies, the storage confirmation,
+  card status, progress, result and error bodies, and the error names a
+  result may carry), `rapp-routing-v26.10.21.json` (session preambles),
+  `rapp-withdrawal-v26.10.21.json` (service withdrawal) and
+  `rapp-ble-sar-v26.10.21.json` (BLE segmentation and reassembly).
 
 The engine is held to those documents by its tests rather than by anyone
 remembering to follow them. The state tables are transcribed from the model
@@ -51,12 +49,20 @@ Important invariants already represented in the implementation are:
 
 - The phone is the authorizer and retains CAN, PIN 1, and PIN 2.
 - The requester receives operation results, not card credentials.
-- Every operation requires an explicit authorizer decision.
-- One authenticated protocol violation revokes the pairing immediately. There
-  is no two-strike policy.
-- Invalid card credentials, authenticated protocol anomalies, and ambiguous
-  card completion are fail-stop events.
-- Card activation and PIN management are not remotely exposed in RAPP 0.1.
+- Every operation that uses a private key requires the holder's decision on
+  the phone; reads (`inspect_card`, `read_identity`, `read_certificate`)
+  skip consent (RAPP v26.10.21 §8.2).
+- A session carries one live operation; a second is refused `busy`, a reused
+  identifier `duplicate_operation`, and the card serves operations in the
+  order they arrived (§8.1, §8.2).
+- An authenticated protocol violation closes the session with
+  `protocol_violation`; the pairing stays. No failure revokes a confirmed
+  pairing: only a user forgetting it does, and the peer is told by a
+  `pairing_revoked` close, in session or on the next one (§4.6, §10.1).
+- A PIN the card refuses is asked for again on the phone; the card's last
+  attempts are reserved for its issuer's software (`retry_floor`), and the
+  requester learns only the outcome (§10.2).
+- Card activation and PIN management are not remotely exposed.
 
 The presently supported remote operation families are card status, browser
 authentication, and qualified document signing.
@@ -70,9 +76,9 @@ and CryptoKit only, and is organised as:
 - `Wire/` deterministic CBOR, the envelope, and the message registry
 - `Rapp/` the prologues, the derivations, and the transport channel
 - `State/` the formal model transcribed as tables
-- `Storage/` the offer, the pair record, and the operation journal
+- `Storage/` the offer, the pair record, and the wire bodies of operations
 - `Flow/` the pairing and session ceremonies
-- `Runtime/` liveness, the failure policy, and framing
+- `Runtime/` session liveness
 - `Operation/` typed operations and their authorization
 - `Engine/` the proxy and requester operation engines
 - `API/` the interface `CardCore` calls
@@ -108,7 +114,7 @@ decide which transition and output are legal.
 
 ## Stream transport
 
-`fi.refineid.stream.v1` (RAPP v26.10.18 §2.2) lets a non-Apple requester
+`fi.refineid.stream` (RAPP v26.10.21 §2.2.2) lets a non-Apple requester
 participate without MultipeerConnectivity. The underlay is plain TCP. Every
 frame is a 2-byte big-endian length prefix plus payload; a zero length is
 malformed and the prefix bounds every allocation. The phone listens and the
@@ -119,7 +125,7 @@ layer never constructs those bytes.
 
 - Pairing: after a pairing preamble the custodian sends
   `encode_deterministic_cbor(pairing-offer)` as its first frame, with a
-  random `offer_id`, the connection's transport entry, and a 60000 ms
+  random `offer_id`, the connection's transport entry, and a 300000 ms
   lifetime. The requester reads that offer before CPace
   (`RappPairingCoordinator.requester(options:)`); over BLE the same offer
   is read from the bootstrap characteristic
@@ -131,10 +137,12 @@ layer never constructs those bytes.
 - Sessions bind the transport profile of the connection they run over,
   not the one the pair was made on.
 
-Stored pair records are format v2: they carry the pair's rendezvous token
-and, for stream pairs, the listener endpoint list. Format v1 records fail
-to load; the pair catalog and the phone relay treat an unloadable record
-as no usable pair, so existing holders pair again. That is intended.
+Stored pair records are format 6: they carry the pairing's transport
+binding and, for a pairing the local user forgot while no session was open,
+the time it was forgotten; such a record serves nothing and keeps its key
+only to deliver the `pairing_revoked` close on the next session, for at most
+30 days (§4.6). Records of another format fail to load and are removed at
+launch, so existing holders pair again.
 
 ## Application wiring
 

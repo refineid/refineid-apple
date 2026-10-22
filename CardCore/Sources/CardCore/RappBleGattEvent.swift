@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// What a `fi.refineid.rapp.ble.v1` link reports to its owner.
+/// What a `fi.refineid.rapp.ble` link reports to its owner.
 public enum RappBleGattEvent: Sendable, Equatable {
   /// The requester read the custodian's offer off the bootstrap
   /// characteristic; the pairing ceremony starts from it.

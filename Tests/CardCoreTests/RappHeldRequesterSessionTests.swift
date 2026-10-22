@@ -18,6 +18,13 @@
       }
     }
 
+    /// How many times the close report is looked for, and how long apart.
+    private static let closeChecks = 50
+    private static let closeCheckInterval = Duration.milliseconds(20)
+
+    /// How long a second close is given to produce a report it must not.
+    private static let repeatedCloseWait = Duration.milliseconds(50)
+
     private static func requester() throws -> RappPairRecord {
       let local = Curve25519.KeyAgreement.PrivateKey()
       let remote = Curve25519.KeyAgreement.PrivateKey()
@@ -31,10 +38,7 @@
     @Test("A read before the session is up is refused, and after it ended too")
     internal func readsOutsideTheSessionAreRefused() async throws {
       let reports = Reports()
-      let session = RappHeldRequesterSession(
-        pair: try Self.requester(),
-        vault: RappDeviceVault(accessGroup: nil, servicePrefix: "fi.refineid.test.held")
-      ) { report in
+      let session = RappHeldRequesterSession(pair: try Self.requester()) { report in
         Task { await reports.record(report) }
       }
       await #expect(throws: RappHeldRequesterSession.ReadError.notEstablished) {
@@ -42,9 +46,9 @@
       }
       session.close()
       var closed = false
-      for _ in 0..<50 where !closed {
+      for _ in 0..<Self.closeChecks where !closed {
         closed = await reports.received.contains(.closed(.localRequest))
-        if !closed { try await Task.sleep(for: .milliseconds(20)) }
+        if !closed { try await Task.sleep(for: Self.closeCheckInterval) }
       }
       #expect(closed)
       await #expect(throws: RappHeldRequesterSession.ReadError.closed) {
@@ -52,7 +56,7 @@
       }
       // A second end is not reported.
       session.close()
-      try await Task.sleep(for: .milliseconds(50))
+      try await Task.sleep(for: Self.repeatedCloseWait)
       #expect(await reports.received == [.closed(.localRequest)])
     }
   }

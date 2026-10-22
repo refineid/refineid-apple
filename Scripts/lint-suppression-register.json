@@ -83,7 +83,7 @@
       "count": 1
     },
     {
-      "file": "CardCore/Sources/RappEngine/API/RappBridgeActionKind.swift",
+      "file": "CardCore/Sources/RappEngine/API/RappBridgeAction.swift",
       "command": "disable",
       "rules": [
         "sorted_enum_cases"
@@ -91,7 +91,7 @@
       "count": 1
     },
     {
-      "file": "CardCore/Sources/RappEngine/API/RappBridgeActionKind.swift",
+      "file": "CardCore/Sources/RappEngine/API/RappBridgeAction.swift",
       "command": "enable",
       "rules": [
         "sorted_enum_cases"
@@ -100,15 +100,7 @@
     },
     {
       "file": "CardCore/Sources/RappEngine/API/RappOperationBridge+Authorization.swift",
-      "command": "disable",
-      "rules": [
-        "function_parameter_count"
-      ],
-      "count": 1
-    },
-    {
-      "file": "CardCore/Sources/RappEngine/API/RappOperationBridge+Authorization.swift",
-      "command": "enable",
+      "command": "disable:this",
       "rules": [
         "function_parameter_count"
       ],
@@ -139,22 +131,6 @@
       "count": 1
     },
     {
-      "file": "CardCore/Sources/RappEngine/API/RappOperationResult.swift",
-      "command": "disable",
-      "rules": [
-        "discouraged_optional_boolean"
-      ],
-      "count": 1
-    },
-    {
-      "file": "CardCore/Sources/RappEngine/API/RappOperationResult.swift",
-      "command": "enable",
-      "rules": [
-        "discouraged_optional_boolean"
-      ],
-      "count": 1
-    },
-    {
       "file": "CardCore/Sources/RappEngine/API/RappPeerHello.swift",
       "command": "disable",
       "rules": [
@@ -205,7 +181,23 @@
       "count": 1
     },
     {
-      "file": "CardCore/Sources/RappEngine/Engine/TypedMessage+WireBody.swift",
+      "file": "CardCore/Sources/RappEngine/Engine/ProgressEvent.swift",
+      "command": "disable",
+      "rules": [
+        "sorted_enum_cases"
+      ],
+      "count": 1
+    },
+    {
+      "file": "CardCore/Sources/RappEngine/Engine/ProgressEvent.swift",
+      "command": "enable",
+      "rules": [
+        "sorted_enum_cases"
+      ],
+      "count": 1
+    },
+    {
+      "file": "CardCore/Sources/RappEngine/Engine/TypedMessage.swift",
       "command": "disable:previous",
       "rules": [
         "discouraged_optional_collection"
@@ -334,38 +326,6 @@
     },
     {
       "file": "CardCore/Sources/RappEngine/Runtime/LivenessDecision.swift",
-      "command": "enable",
-      "rules": [
-        "sorted_enum_cases"
-      ],
-      "count": 1
-    },
-    {
-      "file": "CardCore/Sources/RappEngine/Runtime/UnexpectedInputClass.swift",
-      "command": "disable",
-      "rules": [
-        "sorted_enum_cases"
-      ],
-      "count": 1
-    },
-    {
-      "file": "CardCore/Sources/RappEngine/Runtime/UnexpectedInputClass.swift",
-      "command": "enable",
-      "rules": [
-        "sorted_enum_cases"
-      ],
-      "count": 1
-    },
-    {
-      "file": "CardCore/Sources/RappEngine/Runtime/UnexpectedInputHandling.swift",
-      "command": "disable",
-      "rules": [
-        "sorted_enum_cases"
-      ],
-      "count": 1
-    },
-    {
-      "file": "CardCore/Sources/RappEngine/Runtime/UnexpectedInputHandling.swift",
       "command": "enable",
       "rules": [
         "sorted_enum_cases"
@@ -609,14 +569,6 @@
       "command": "enable",
       "rules": [
         "sorted_enum_cases"
-      ],
-      "count": 1
-    },
-    {
-      "file": "CardCore/Tests/RappEngineTests/OperationDriveTests.swift",
-      "command": "disable:this",
-      "rules": [
-        "function_parameter_count"
       ],
       "count": 1
     },

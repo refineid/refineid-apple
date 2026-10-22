@@ -3,12 +3,12 @@
 import Foundation
 import Security
 
-/// Device-bound storage for RAPP pair keys and durable operation journals.
+/// Device-bound storage for RAPP pair records and the selected pairing.
 ///
 /// Every public mutation maps to one Keychain add or update. Removing a pair
-/// deletes the Keychain item so the same devices can pair again. Proxy
-/// records and retained results share one item so result transitions remain
-/// atomic without decoding Rust-owned journal bytes.
+/// deletes the Keychain item so the same devices can pair again. Nothing of
+/// an operation is stored: it lives and ends with its session (RAPP
+/// v26.10.21 §8.1 item 3).
 public final class RappDeviceVault: @unchecked Sendable {
   /// Storage failures surfaced by vault operations.
   public enum Failure: Error, Equatable, Sendable, LocalizedError, CustomStringConvertible {
@@ -38,20 +38,6 @@ public final class RappDeviceVault: @unchecked Sendable {
     }
   }
 
-  /// One proxy operation journal and its optionally retained result.
-  public struct StoredProxyJournal: Equatable, Sendable {
-    /// Rust-owned journal bytes for the proxy operation.
-    public let record: Data
-    /// Result bytes retained for redelivery; absent once acknowledged.
-    public let retainedResult: Data?
-
-    /// Creates a snapshot pairing journal bytes with a retained result.
-    public init(record: Data, retainedResult: Data?) {
-      self.record = record
-      self.retainedResult = retainedResult
-    }
-  }
-
   internal enum PairState: String, Codable {
     case active = "active"
     case revoked = "revoked"
@@ -64,19 +50,11 @@ public final class RappDeviceVault: @unchecked Sendable {
 
   internal struct Namespace {
     internal let pair: String
-    internal let requester: String
-    internal let proxy: String
     internal let selection: String
-    /// What a custodian keeps of a revoked pairing while it announces the
-    /// revocation (RAPP v26.10.18 §4.6 item 2).
-    internal let revocation: String
 
     internal init(prefix: String) {
       pair = "\(prefix).pair"
-      requester = "\(prefix).requester"
-      proxy = "\(prefix).proxy"
       selection = "\(prefix).selection"
-      revocation = "\(prefix).revocation"
     }
   }
 
@@ -86,26 +64,10 @@ public final class RappDeviceVault: @unchecked Sendable {
 
   internal enum IdentifierSize {
     internal static let pair = 16
-    internal static let operation = 16
   }
 
-  internal enum RetainedResultMutation {
-    case preserve
-    case replace(Data?)
-  }
-
-  internal enum StoredValue {
-    /// Keychain does not reliably replace a non-empty generic-password value
-    /// with zero-length data.
-    ///
-    /// This non-CBOR marker gives acknowledged proxy records one durable,
-    /// portable representation without deleting their Rust-owned journal
-    /// bytes.
-    internal static let noRetainedResult = Data("RefineID:RAPP:no-retained-result:v1".utf8)
-  }
-
-  /// The keychain service namespace holding pairs, journals, selection,
-  /// and device identity.
+  /// The keychain service namespace holding pairs, selection, and device
+  /// identity.
   public static let serviceNamespace = "fi.refineid.rapp"
 
   internal let accessGroup: String?
@@ -178,8 +140,9 @@ public final class RappDeviceVault: @unchecked Sendable {
     }
   }
 
-  /// Writes the confirmed pairing over the record stored under the same
-  /// identifier (RAPP v26.10.18 §4.3 item 4).
+  /// Writes the confirmed pairing, or the forgotten one, over the record
+  /// stored under the same identifier (RAPP v26.10.21 §4.3 item 4, §4.6
+  /// item 2).
   public func replacePair(pairID: Data, record: Data) throws {
     try synchronized {
       try requireIdentifier(pairID, size: IdentifierSize.pair)
@@ -192,41 +155,6 @@ public final class RappDeviceVault: @unchecked Sendable {
         service: namespace.pair,
         account: pairID.hexadecimal,
         attributes: [kSecValueData as String: record])
-    }
-  }
-
-  /// Keeps what a revoked pairing leaves behind for its announcement
-  /// (RAPP v26.10.18 §4.6 item 2), under the pairing's identifier.
-  public func storeRevocationRetention(pairID: Data, retention: Data) throws {
-    try synchronized {
-      try requireIdentifier(pairID, size: IdentifierSize.pair)
-      guard !retention.isEmpty else { throw Failure.malformed }
-      try upsert(
-        service: namespace.revocation,
-        account: pairID.hexadecimal,
-        attributes: [kSecValueData as String: retention])
-    }
-  }
-
-  /// Every revocation retention kept, with the identifier it is kept
-  /// under.
-  public func revocationRetentions() throws -> [(pairID: Data, retention: Data)] {
-    try synchronized {
-      try loadAll(service: namespace.revocation).compactMap { item in
-        guard let account = item[kSecAttrAccount as String] as? String,
-          let pairID = Data(strictHexadecimal: account),
-          let retention = item[kSecValueData as String] as? Data, !retention.isEmpty
-        else { throw Failure.malformed }
-        return (pairID, retention)
-      }
-    }
-  }
-
-  /// Destroys one revocation retention; absent is not an error.
-  public func removeRevocationRetention(pairID: Data) throws {
-    try synchronized {
-      try requireIdentifier(pairID, size: IdentifierSize.pair)
-      try deleteItem(service: namespace.revocation, account: pairID.hexadecimal)
     }
   }
 

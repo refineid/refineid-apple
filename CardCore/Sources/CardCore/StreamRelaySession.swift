@@ -5,7 +5,7 @@ import Foundation
 #if canImport(Network)
   import Network
 
-  /// A single TCP dialer for the `fi.refineid.stream.v1` transport profile.
+  /// A single TCP dialer for the `fi.refineid.stream` transport profile.
   ///
   /// The proxy dials the requester's listener endpoints in order and, on the
   /// first ready connection, releases the caller-provided plaintext preamble

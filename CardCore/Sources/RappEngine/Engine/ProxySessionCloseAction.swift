@@ -2,12 +2,11 @@
 
 import Foundation
 
-/// How an operation is classified when its session closes.
+/// What happens to the live operation when its session closes (RAPP
+/// v26.10.21 §8.1 item 3).
 internal enum ProxySessionCloseAction: Equatable {
-  /// Nothing was transmitted, so the operation is cancelled outright.
-  case cancelled(operationIdentifier: Data)
-  /// The card exchange is under way and finishes locally.
-  case continueCardExchange(operationIdentifier: Data)
-  /// A result exists but was never acknowledged.
-  case deliveryUncertain(operationIdentifier: Data)
+  /// The card command runs to the card's answer, which is discarded.
+  case continueCardExchange(operationIdentifier: RappOperationIdentifier)
+  /// The card was not commanded; the operation is dropped.
+  case dropped(operationIdentifier: RappOperationIdentifier)
 }

@@ -3,29 +3,21 @@
 import Foundation
 
 extension ResultError {
-  /// A received name, with an unrecognized one handled as a general
-  /// `operation_failed` (section 10.4).
-  internal init(wireName: String) {
-    self = Self(rawValue: wireName) ?? .operationFailed
-  }
-
-  /// Whether a result may pair this error with `status`.
+  /// Whether an `operation.result` may pair this error with `status`.
+  ///
+  /// `busy` and `duplicate_operation` refuse a request before admission and
+  /// travel only as an `error` message (RAPP v26.10.21 §8.1 item 1);
+  /// `operation_expired` cancels (§8.1 item 2); every other name rejects.
   internal func permits(_ status: ResultStatus) -> Bool {
     switch self {
+    case .busy, .duplicateOperation:
+      false
+
     case .operationExpired:
       status == .cancelled
 
-    case .cardBlocked:
-      status == .credentialRejected
-
-    case .cardError:
-      status == .cancelled || status == .ambiguous
-
-    case .operationAlreadyRetired:
-      status == .completed
-
-    case .userCancelled, .unauthorized, .unsupportedParameter, .invalidCredential,
-      .operationFailed, .duplicateOperation, .userDeclined, .storageExhausted, .invalidLifetime:
+    case .invalidLifetime, .unauthorized, .unsupportedParameter, .userCancelled, .retryFloor,
+      .cardError, .operationFailed:
       status == .rejected
     }
   }

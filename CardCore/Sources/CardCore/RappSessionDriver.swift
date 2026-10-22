@@ -4,7 +4,8 @@
   import Foundation
   import OSLog
   import RappEngine
-  /// Transport-independent coordinator for the authenticated RAPP session setup.
+  /// Transport-independent coordinator for the authenticated RAPP session setup
+  /// (RAPP v26.10.21 §6.3, §7.1 item 5).
   ///
   /// The surrounding transport may carry bytes and report closure, but it must not
   /// interpret RAPP frames or decide protocol state. Card operations may start only
@@ -21,14 +22,23 @@
       case localRequest
       case transportClosed
       case protocolFailure
+      /// The peer revoked the pairing; revoke it here too and withdraw its
+      /// identity (§4.6 item 4).
       case pairRevoked
+      /// This endpoint's pairing was forgotten and the session carried the
+      /// `pairing_revoked` close as its only message; destroy the record
+      /// now (§4.6 items 2 and 3).
+      case revocationNoticeDelivered
+      /// The custodian closed the session in place of `session.ready` with
+      /// another registered reason.
+      case peerClosed(RappCloseReason)
     }
 
     /// An effect the caller must apply, in array order, after a driver call.
     public enum Command: Sendable, Equatable {
       /// Deliver these opaque bytes to the selected transport peer.
       case send(Data)
-      /// Noise KK and mutual authenticated readiness have completed.
+      /// The handshake and `session.ready` have completed.
       case established
       /// Tear down the physical transport and discard the session driver.
       case closed(CloseReason)
@@ -38,8 +48,7 @@
       case idle
       case awaitingRequesterHandshake
       case awaitingResponderHandshake
-      case awaitingRequesterReady
-      case awaitingResponderReady
+      case awaitingCustodianReady
       case established
       case operationsTransferred
       case closed
@@ -48,8 +57,6 @@
     private static let logger = Logger(subsystem: "fi.refineid.ReFineID", category: "rapp-session")
 
     private let role: Role
-    private let pairID: Data
-    private let vault: RappDeviceVault
     private let session: RappSessionBridge
     private let entropy: RappPlatformEntropy
     private let clock: RappPlatformClock
@@ -60,31 +67,28 @@
     public init(
       role: Role,
       pair: RappPairRecord,
-      vault: RappDeviceVault,
       transportProfile: String = rappStreamProfileName(),
       entropy: RappPlatformEntropy = RappPlatformEntropy(),
       clock: RappPlatformClock = RappPlatformClock()
     ) throws {
       self.role = role
-      self.pairID = pair.metadata().pairId
-      self.vault = vault
       self.entropy = entropy
       self.clock = clock
 
       switch role {
       case .requester:
         self.session = try RappSessionBridge.beginRequester(
-          pair: pair, vault: vault, transportProfile: transportProfile)
+          pair: pair, transportProfile: transportProfile)
 
       case .proxy:
         self.session = try RappSessionBridge.beginProxy(
-          pair: pair, vault: vault, transportProfile: transportProfile)
+          pair: pair, transportProfile: transportProfile)
       }
     }
 
     /// Starts a fresh session.
     ///
-    /// The requester emits the first Noise KK frame; the proxy waits for
+    /// The requester emits the first Noise KK frame; the custodian waits for
     /// it. Reusing a driver is a protocol error.
     public func start() -> [Command] {
       guard state == .idle else {
@@ -116,14 +120,7 @@
       do {
         switch state {
         case .awaitingRequesterHandshake:
-          try session.readHandshakeFrame(bytes: frame)
-          let response = try session.writeHandshakeFrame()
-          guard try session.handshakeComplete() else {
-            return failClosed()
-          }
-          try session.enterAuthentication()
-          state = .awaitingRequesterReady
-          return [.send(response)]
+          return try answerHandshake(frame)
 
         case .awaitingResponderHandshake:
           try session.readHandshakeFrame(bytes: frame)
@@ -131,22 +128,14 @@
             return failClosed()
           }
           try session.enterAuthentication()
-          let ready = try session.sendReady(nonce: entropy.sessionReadyNonce())
-          state = .awaitingResponderReady
-          return [.send(ready)]
+          if session.revocationNoticePending() {
+            return deliverRevocationNotice(after: [])
+          }
+          state = .awaitingCustodianReady
+          return []
 
-        case .awaitingRequesterReady:
-          try session.receiveReady(bytes: frame, nowMs: clock.wallMilliseconds())
-          let ready = try session.sendReady(nonce: entropy.sessionReadyNonce())
-          try session.enterEstablished()
-          state = .established
-          return [.send(ready), .established]
-
-        case .awaitingResponderReady:
-          try session.receiveReady(bytes: frame, nowMs: clock.wallMilliseconds())
-          try session.enterEstablished()
-          state = .established
-          return [.established]
+        case .awaitingCustodianReady:
+          return try readCustodianReady(frame)
 
         case .idle, .established, .operationsTransferred, .closed:
           #if DEBUG
@@ -189,25 +178,20 @@
       state == .established && session.isEstablished()
     }
 
-    /// Transfers the established Noise session into the durable operation
-    /// runtime.
+    /// Transfers the established Noise session into the operation runtime.
     ///
     /// After this succeeds, all received frames belong to the returned
     /// driver and this handshake driver must be discarded.
     public func beginOperationDriver(
-      maximumLifetimeMilliseconds: UInt64,
-      liveness: RappOperationDriver.Liveness
+      maximumLifetimeMilliseconds: UInt64
     ) throws -> RappOperationDriver {
       guard state == .established, session.isEstablished() else {
         throw RappOperationDriver.LocalError.wrongPhase
       }
       let driver = try RappOperationDriver(
         role: role,
-        pairID: pairID,
         session: session,
-        vault: vault,
         maximumLifetimeMilliseconds: maximumLifetimeMilliseconds,
-        liveness: liveness,
         entropy: entropy,
         clock: clock
       )
@@ -215,10 +199,59 @@
       return driver
     }
 
-    private func failClosed() -> [Command] {
-      let pairWasRevoked = (try? vault.isRevoked(pairId: pairID)) == true
+    /// The custodian answers the requester's first handshake message: the
+    /// second, then `session.ready`, or the `pairing_revoked` close in its
+    /// place for a forgotten record.
+    private func answerHandshake(_ frame: Data) throws -> [Command] {
+      try session.readHandshakeFrame(bytes: frame)
+      let response = try session.writeHandshakeFrame()
+      guard try session.handshakeComplete() else {
+        return failClosed()
+      }
+      try session.enterAuthentication()
+      if session.revocationNoticePending() {
+        return deliverRevocationNotice(after: [.send(response)])
+      }
+      let ready = try session.sendReady(nonce: entropy.sessionReadyNonce())
+      try session.enterEstablished()
+      state = .established
+      return [.send(response), .send(ready), .established]
+    }
+
+    /// The requester reads the custodian's first message.
+    private func readCustodianReady(_ frame: Data) throws -> [Command] {
+      switch try session.receiveReady(bytes: frame) {
+      case .verified:
+        try session.enterEstablished()
+        state = .established
+        return [.established]
+
+      case .peerClosed(let reason):
+        closeSession()
+        return [.closed(reason == .pairingRevoked ? .pairRevoked : .peerClosed(reason))]
+
+      case .violationClosed(let notice):
+        closeSession()
+        return (notice.map { [Command.send($0)] } ?? []) + [.closed(.protocolFailure)]
+
+      case .integrityFailure:
+        return failClosed()
+      }
+    }
+
+    /// The close a forgotten record owes its peer, as the session's only
+    /// message.
+    private func deliverRevocationNotice(after preceding: [Command]) -> [Command] {
+      guard let notice = try? session.deliverRevocationNotice() else {
+        return preceding + failClosed()
+      }
       closeSession()
-      return [.closed(pairWasRevoked ? .pairRevoked : .protocolFailure)]
+      return preceding + [.send(notice), .closed(.revocationNoticeDelivered)]
+    }
+
+    private func failClosed() -> [Command] {
+      closeSession()
+      return [.closed(.protocolFailure)]
     }
 
     private func closeSession() {

@@ -12,6 +12,69 @@ import Testing
 
   @Suite("RAPP mock test certificate distribution and pairing", .serialized)
   internal struct RappMockCardDistributionTests {
+    /// The custodian announces the primed card, then answers the read with
+    /// its certificate.
+    private static func serveCertificate(
+      _ certificate: Data,
+      as fingerprint: RappCertificateFingerprint,
+      on coordinator: RappConnectionCoordinator
+    ) async throws {
+      for await event in coordinator.events {
+        switch event {
+        case .established:
+          try await coordinator.reportCardStatus(.present(fingerprint))
+
+        case .inspectPrerequisites(let operationID, _):
+          try await coordinator.prerequisitesComplete(operationID: operationID)
+
+        case .executeSafeRead(let operationID, _):
+          try await coordinator.completeCertificate(operationID: operationID, der: certificate)
+          return
+
+        case .closed(let reason):
+          throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
+
+        default:
+          throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
+        }
+      }
+      throw RappIntegrationFixtures.TestFailure.operationEndedWithoutResult
+    }
+
+    /// Waits for the custodian to name its card, reads that card's
+    /// authentication certificate, and answers with both.
+    private static func readCertificate(
+      _ coordinator: RappConnectionCoordinator
+    ) async throws -> (status: RappCardStatus, result: RappOperationResult) {
+      var announced: RappCardStatus?
+      for await event in coordinator.events {
+        switch event {
+        case .established, .progress:
+          break
+
+        case .cardStatus(let status):
+          announced = status
+          try await coordinator.beginReadCertificate(
+            signatureCertificate: false,
+            expiresAfterMilliseconds: RappIntegrationFixtures.FixtureTiming
+              .operationExpiryMilliseconds)
+
+        case .completed(_, let result):
+          guard let announced else {
+            throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
+          }
+          return (announced, result)
+
+        case .closed(let reason):
+          throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
+
+        default:
+          throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
+        }
+      }
+      throw RappIntegrationFixtures.TestFailure.operationEndedWithoutResult
+    }
+
     @Test("Primes synthetic test identity and verifies certificate decoding")
     internal func testSyntheticCertificatePriming() throws {
       PrimeStore.forgetAll()
@@ -52,92 +115,32 @@ import Testing
         holderName: holderName,
         certificate: certDER
       )
+      let primed = try #require(PrimeStore.primedAuthenticationCertificates().first)
+      let fingerprint = try #require(RappCertificateFingerprint(certificate: primed))
 
-      let code = RappPairingCode.generate()
-      let profiles = [
-        "fi.refineid.card-status.v1",
-        "fi.refineid.authentication.v1",
-        "fi.refineid.document-signing.v1",
-      ]
-      let (requester, proxy) = try await makeConnectedPair(
-        code: code,
-        profiles: profiles
-      )
+      let fixture = try await RappIntegrationConnectionSupport.makePairedFixture()
+      defer { RappIntegrationConnectionSupport.deleteKeychainServices(for: fixture) }
+      #expect(fixture.requesterSummary.pairID == fixture.proxySummary.pairID)
+      let connection = try await RappIntegrationConnectionSupport.makeConnection(fixture)
 
-      async let requesterPairTask = awaitPair(requester)
-      async let proxyPairTask = awaitPair(proxy)
-
-      // The requester waits for the offer the custodian serves on connecting.
-      await requester.transportConnected()
-      await proxy.transportConnected()
-
-      let requesterSummary = try await requesterPairTask
-      let proxySummary = try await proxyPairTask
-
-      #expect(requesterSummary.pairID == proxySummary.pairID)
-
-      // Test certificate distribution payload
-      let readCertResponse = PrimeStore.primedAuthenticationCertificates().first
-      #expect(readCertResponse == certDER)
-    }
-
-    private func makeConnectedPair(
-      code: String,
-      profiles: [String]
-    ) async throws -> (RappPairingCoordinator, RappPairingCoordinator) {
-      let testID = UUID().uuidString
-      let requesterVault = RappDeviceVault(
-        accessGroup: nil,
-        servicePrefix: "fi.refineid.tests.distrib.\(testID).requester"
-      )
-      let proxyVault = RappDeviceVault(
-        accessGroup: nil,
-        servicePrefix: "fi.refineid.tests.distrib.\(testID).proxy"
-      )
-      let requesterOutbound = SignRelayFrameEndpoint()
-      let proxyOutbound = SignRelayFrameEndpoint()
-
-      func options(
-        _ name: String, vault: RappDeviceVault, outbound: SignRelayFrameEndpoint
-      ) -> RappPairingCoordinator.Options {
-        RappPairingCoordinator.Options(
-          code: code,
-          profiles: profiles,
-          transportProfile: "apple-peer-v1",
-          displayName: name,
-          platform: "iOS",
-          vault: vault,
-          transport: RappClosureFrameTransport(
-            sender: { frame in await outbound.send(frame) },
-            closer: { await outbound.close() }
-          )
-        )
+      let requesterOutcome = Task { try await Self.readCertificate(connection.requester) }
+      let proxyOutcome = Task {
+        try await Self.serveCertificate(primed, as: fingerprint, on: connection.proxy)
       }
-      let requester = try RappPairingCoordinator.requester(
-        options: options("iPad Requester", vault: requesterVault, outbound: requesterOutbound))
-      let proxy = try RappPairingCoordinator.custodian(
-        options: options("iPhone Proxy", vault: proxyVault, outbound: proxyOutbound))
-      await requesterOutbound.install { frame in await proxy.receive(frame) }
-      await proxyOutbound.install { frame in await requester.receive(frame) }
-      return (requester, proxy)
-    }
-
-    private func awaitPair(
-      _ coordinator: RappPairingCoordinator
-    ) async throws -> RappPairingCoordinator.PairSummary {
-      for await event in coordinator.events {
-        switch event {
-        case .paired(let summary):
-          return summary
-
-        case .closed(let reason):
-          throw SignRelayPairingFailure.closed("\(reason)")
-
-        case .peerIntroduced, .offerRestored:
-          continue
-        }
+      defer {
+        requesterOutcome.cancel()
+        proxyOutcome.cancel()
       }
-      throw SignRelayPairingFailure.endedWithoutRecord
+
+      await connection.proxy.start()
+      await connection.requester.start()
+      let received = try await requesterOutcome.value
+      try await proxyOutcome.value
+
+      #expect(received.status == .present(fingerprint))
+      #expect(received.result == .certificate(certDER))
+      await connection.requester.close()
+      await connection.proxy.close()
     }
   }
 #endif

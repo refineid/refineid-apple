@@ -3,7 +3,7 @@
 import CryptoKit
 import Foundation
 
-/// The key a pairing's discovery hints are made with (RAPP v26.10.18 §4.3).
+/// The key a pairing's discovery hints are made with (RAPP v26.10.21 §4.3).
 internal struct DiscoveryKey {
   private let secret: SymmetricKey
 

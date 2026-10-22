@@ -41,29 +41,6 @@ extension RappPairRecord {
       instance: name, counter: WithdrawnRecord.counter(unixTimeSeconds: unixTimeSeconds))
   }
 
-  /// This pairing's revocation hint for `instance` in the epoch holding
-  /// `unixTimeSeconds` (RAPP v26.10.18 §4.6 item 3).
-  public func revocationHint(instance: String, unixTimeSeconds: UInt64) throws -> Data {
-    guard let name = InstanceName(instance), let key = RevocationKey(record: record) else {
-      throw RappBindingError.InvalidInput
-    }
-    return key.hint(instance: name, epoch: DiscoveryRecord.epoch(unixTimeSeconds: unixTimeSeconds))
-  }
-
-  /// Whether `txt` is a session record published on `instance` whose
-  /// `revoked` attribute announces this pairing: a verified revocation
-  /// (RAPP v26.10.18 §4.6 item 5).
-  public func matchesRevokedRecord(
-    instance: String, txt: [RappTxtEntry], unixTimeSeconds: UInt64
-  ) -> Bool {
-    guard let name = InstanceName(instance),
-      let parsed = DiscoveryRecord.parse(txt.map { ($0.key, $0.value) }),
-      let key = RevocationKey(record: record)
-    else { return false }
-    return key.matches(
-      parsed, instance: name, epoch: DiscoveryRecord.epoch(unixTimeSeconds: unixTimeSeconds))
-  }
-
   /// Whether `txt` is a withdrawn record that announces this pairing on
   /// `instance`.
   public func matchesWithdrawnRecord(

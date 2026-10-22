@@ -7,8 +7,7 @@ import Testing
 @testable import CardCore
 
 /// A listener with a connection open yields it only to a dialer whose first
-/// frame the owner admits; a stranger displaces nothing (RAPP v26.10.18
-/// §8.4).
+/// frame the owner admits; a stranger displaces nothing.
 @Suite(.serialized)
 internal struct StreamRelayListenerReplacementTests {
   private static let attempts = 100

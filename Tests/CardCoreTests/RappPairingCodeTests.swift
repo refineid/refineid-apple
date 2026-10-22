@@ -10,14 +10,17 @@ import Testing
 
   @Suite("RAPP 6-character Crockford Base32 pairing code and ceremony")
   internal struct RappPairingCodeTests {
+    /// How many generated codes the alphabet check samples.
+    private static let generatedSampleCount = 50
+
     @Test("Generates 6-character Crockford Base32 codes")
     internal func testCodeGeneration() {
-      for _ in 0..<50 {
+      for _ in 0..<Self.generatedSampleCount {
         let code = RappPairingCode.generate()
         #expect(code.count == RappPairingCode.codeLength)
         #expect(RappPairingCode.isValid(code))
         #expect(RappPairingCode.normalize(code) == code)
-        // Excluded visually ambiguous symbols per RAPP v26.10.18 §3.1
+        // Excluded visually ambiguous symbols per RAPP v26.10.21 §3.1
         #expect(!code.contains("I"))
         #expect(!code.contains("L"))
         #expect(!code.contains("O"))
@@ -72,19 +75,21 @@ import Testing
     @Test(
       "Completes end-to-end pairing ceremony between Requester and Proxy using Crockford code")
     internal func testPairingCeremonyWithSixDigitCode() async throws {
-      let code = "7KX4M9"
-      let profiles = [
-        "fi.refineid.card-status.v1",
-        "fi.refineid.authentication.v1",
-        "fi.refineid.document-signing.v1",
-      ]
+      let testID = UUID().uuidString
+      let requesterPrefix = "fi.refineid.tests.pairing.\(testID).requester"
+      let proxyPrefix = "fi.refineid.tests.pairing.\(testID).proxy"
+      defer {
+        RappIntegrationConnectionSupport.deleteKeychainServices(prefix: requesterPrefix)
+        RappIntegrationConnectionSupport.deleteKeychainServices(prefix: proxyPrefix)
+      }
       let (requester, proxy) = try await makeConnectedPair(
-        code: code,
-        profiles: profiles
+        code: "7KX4M9",
+        requesterPrefix: requesterPrefix,
+        proxyPrefix: proxyPrefix
       )
 
-      async let requesterPairTask = awaitPair(requester)
-      async let proxyPairTask = awaitPair(proxy)
+      async let requesterPairTask = RappIntegrationAuthorizationSupport.awaitPair(requester)
+      async let proxyPairTask = RappIntegrationAuthorizationSupport.awaitPair(proxy)
 
       // The requester waits for the offer the custodian serves on connecting.
       await requester.transportConnected()
@@ -100,32 +105,26 @@ import Testing
 
     private func makeConnectedPair(
       code: String,
-      profiles: [String]
+      requesterPrefix: String,
+      proxyPrefix: String
     ) async throws -> (RappPairingCoordinator, RappPairingCoordinator) {
-      let testID = UUID().uuidString
-      let requesterVault = RappDeviceVault(
-        accessGroup: nil,
-        servicePrefix: "fi.refineid.tests.pairing.\(testID).requester"
-      )
-      let proxyVault = RappDeviceVault(
-        accessGroup: nil,
-        servicePrefix: "fi.refineid.tests.pairing.\(testID).proxy"
-      )
-      let requesterOutbound = SignRelayFrameEndpoint()
-      let proxyOutbound = SignRelayFrameEndpoint()
+      let requesterVault = RappDeviceVault(accessGroup: nil, servicePrefix: requesterPrefix)
+      let proxyVault = RappDeviceVault(accessGroup: nil, servicePrefix: proxyPrefix)
+      let requesterOutbound = RappIntegrationFixtures.FrameEndpoint()
+      let proxyOutbound = RappIntegrationFixtures.FrameEndpoint()
 
       func options(
-        _ name: String, vault: RappDeviceVault, outbound: SignRelayFrameEndpoint
+        _ name: String, vault: RappDeviceVault, outbound: RappIntegrationFixtures.FrameEndpoint
       ) -> RappPairingCoordinator.Options {
         RappPairingCoordinator.Options(
           code: code,
-          profiles: profiles,
-          transportProfile: "apple-peer-v1",
+          profiles: RappIntegrationFixtures.profiles,
+          transportProfile: RappIntegrationFixtures.transportProfile,
           displayName: name,
           platform: "iOS",
           vault: vault,
           transport: RappClosureFrameTransport(
-            sender: { frame in await outbound.send(frame) },
+            sender: { frame in try await outbound.send(frame) },
             closer: { await outbound.close() }
           )
         )
@@ -137,24 +136,6 @@ import Testing
       await requesterOutbound.install { frame in await proxy.receive(frame) }
       await proxyOutbound.install { frame in await requester.receive(frame) }
       return (requester, proxy)
-    }
-
-    private func awaitPair(
-      _ coordinator: RappPairingCoordinator
-    ) async throws -> RappPairingCoordinator.PairSummary {
-      for await event in coordinator.events {
-        switch event {
-        case .paired(let summary):
-          return summary
-
-        case .closed(let reason):
-          throw SignRelayPairingFailure.closed("\(reason)")
-
-        case .peerIntroduced, .offerRestored:
-          continue
-        }
-      }
-      throw SignRelayPairingFailure.endedWithoutRecord
     }
   }
 #endif

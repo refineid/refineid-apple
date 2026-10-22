@@ -7,8 +7,8 @@
   import os
   import RappEngine
 
-  /// Drives both halves of a pairing over `fi.refineid.rapp.ble.v1`
-  /// (RAPP v26.10.9 §4.2, §5) from the command line, and serves sessions
+  /// Drives both halves of a pairing over `fi.refineid.rapp.ble`
+  /// (RAPP v26.10.21 §4.2, §5) from the command line, and serves sessions
   /// over it with the stored pairings.
   ///
   /// The custodian prints the code it shows and serves its offer on the
@@ -232,7 +232,7 @@
     ) -> RappPairingCoordinator.Options {
       RappPairingCoordinator.Options(
         code: code,
-        profiles: RappApplePeerProfile.supportedCredentialProfiles,
+        profiles: rappCredentialProfiles(),
         transportProfile: RappBleGattProfile.name,
         displayName: RappPairingModel.localDisplayName,
         platform: RappPairingModel.localPlatform,

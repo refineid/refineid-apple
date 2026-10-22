@@ -3,7 +3,7 @@
 import Foundation
 
 /// Routes first frames for one listener, remembering the routing nonces it
-/// admitted so a replayed preamble is refused (RAPP v26.10.18 §2.2.1).
+/// admitted so a replayed preamble is refused (RAPP v26.10.21 §2.2.1).
 public final class RappSessionRouter: @unchecked Sendable {
   private let lock = NSLock()
   private var replay = RoutingReplayCache()

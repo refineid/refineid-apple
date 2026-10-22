@@ -34,7 +34,6 @@ extension RappNoiseAndEnvelopeCorpusSupport {
     case canonicalCBORHex = "canonical_cbor_hex"
     case error = "error"
     case name = "name"
-    case supportedCritical = "supported_critical"
   }
 
   internal struct Corpus: Decodable {
@@ -111,7 +110,6 @@ extension RappNoiseAndEnvelopeCorpusSupport {
     internal let name: String
     internal let canonicalCBORHex: String
     internal let error: String
-    internal let supportedCritical: [String]
 
     // MARK: Lifecycle
 
@@ -120,7 +118,6 @@ extension RappNoiseAndEnvelopeCorpusSupport {
       name = try container.decode(String.self, forKey: .name)
       canonicalCBORHex = try container.decode(String.self, forKey: .canonicalCBORHex)
       error = try container.decode(String.self, forKey: .error)
-      supportedCritical = try container.decode([String].self, forKey: .supportedCritical)
     }
   }
 }

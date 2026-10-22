@@ -7,10 +7,18 @@ import Foundation
 /// The record holds the pairing's keys, so it is never handed out as bytes
 /// except through the vault the caller owns.
 public final class RappPairRecord: @unchecked Sendable {
-  internal let record: PairRecord
+  private let lock = NSLock()
+  private var stored: PairRecord
+
+  /// The record as it stands now.
+  internal var record: PairRecord {
+    lock.lock()
+    defer { lock.unlock() }
+    return stored
+  }
 
   internal init(record: PairRecord) {
-    self.record = record
+    self.stored = record
   }
 
   /// Reads the pairing the identifier names.
@@ -19,17 +27,17 @@ public final class RappPairRecord: @unchecked Sendable {
   ///   pairing carries the identifier, and
   ///   ``RappBindingError/LocalStateFailure`` when storage refused.
   public static func loadFromVault(pairId: Data, vault: RappPairVault) throws -> RappPairRecord {
-    let stored: Data?
+    let loaded: Data?
     do {
-      stored = try vault.loadDeviceOnly(pairId: pairId)
+      loaded = try vault.loadDeviceOnly(pairId: pairId)
     } catch {
       throw RappBindingError.LocalStateFailure
     }
-    guard let stored else {
+    guard let loaded else {
       throw RappBindingError.PairNotFound
     }
     do {
-      return RappPairRecord(record: try PairRecord.decode(stored))
+      return RappPairRecord(record: try PairRecord.decode(loaded))
     } catch {
       throw RappBindingError.InvalidInput
     }
@@ -55,33 +63,36 @@ public final class RappPairRecord: @unchecked Sendable {
 
   /// What the pairing says about itself, without its keys.
   public func metadata() -> RappPairMetadata {
-    RappPairMetadata(
-      pairId: record.pairIdentifier,
-      role: RappEndpointRole(record.role),
-      profiles: record.profiles.map(\.rawValue),
-      transportProfile: record.transport.profile,
-      candidateId: record.transport.candidateIdentifier,
-      createdAtMs: record.createdAtMilliseconds,
-      storageConfirmed: record.storageConfirmed)
+    let current = record
+    return RappPairMetadata(
+      pairId: current.pairIdentifier,
+      role: RappEndpointRole(current.role),
+      profiles: current.profiles.map(\.rawValue),
+      transportProfile: current.transport.profile,
+      candidateId: current.transport.candidateIdentifier,
+      createdAtMs: current.createdAtMilliseconds,
+      storageConfirmed: current.storageConfirmed,
+      forgottenAtMs: current.forgottenAtMilliseconds)
   }
 
   /// Stores the confirmed pairing over the unconfirmed record written
-  /// before the peer's `pairing.stored` arrived (RAPP v26.10.18 §4.3 item
+  /// before the peer's `pairing.stored` arrived (RAPP v26.10.21 §4.3 item
   /// 4).
   ///
   /// - Throws: ``RappBindingError/StorageUnconfirmed`` for a record that is
   ///   not confirmed, and ``RappBindingError/LocalStateFailure`` when
   ///   storage refused the write.
   public func replaceDeviceOnly(vault: RappPairVault) throws {
-    guard record.storageConfirmed else { throw RappBindingError.StorageUnconfirmed }
+    let current = record
+    guard current.storageConfirmed else { throw RappBindingError.StorageUnconfirmed }
     let encoded: Data
     do {
-      encoded = try record.encoded()
+      encoded = try current.encoded()
     } catch {
       throw RappBindingError.InvalidInput
     }
     do {
-      try vault.replaceDeviceOnly(pairId: record.pairIdentifier, record: encoded)
+      try vault.replaceDeviceOnly(pairId: current.pairIdentifier, record: encoded)
     } catch {
       throw RappBindingError.LocalStateFailure
     }
@@ -92,37 +103,74 @@ public final class RappPairRecord: @unchecked Sendable {
   /// - Throws: ``RappBindingError/LocalStateFailure`` when storage
   ///   refused the write.
   public func persistDeviceOnly(vault: RappPairVault) throws {
+    let current = record
     let encoded: Data
     do {
-      encoded = try record.encoded()
+      encoded = try current.encoded()
     } catch {
       throw RappBindingError.InvalidInput
     }
     do {
-      try vault.insertDeviceOnly(pairId: record.pairIdentifier, record: encoded)
+      try vault.insertDeviceOnly(pairId: current.pairIdentifier, record: encoded)
     } catch {
       throw RappBindingError.LocalStateFailure
     }
   }
 
-  /// Ends the pairing and destroys its keys, at `revokedAtMs` milliseconds
-  /// since the Unix epoch.
+  /// The local user forgets the pairing while no session to the peer is
+  /// open (RAPP v26.10.21 §4.6).
   ///
-  /// The encoded revocation retention comes back for the caller to keep
-  /// (RAPP v26.10.18 §4.6 item 2): a custodian announces it for 30 days
-  /// through ``rappSessionRecord(candidates:retentions:instance:unixTimeSeconds:)``.
-  /// It holds the revocation key and is the caller's to protect; a
-  /// degenerate agreement yields none.
+  /// A confirmed record is stored as forgotten and keeps its key only to
+  /// deliver the `pairing_revoked` close on the next session; an unconfirmed
+  /// one is destroyed at once and nobody is told. With a session open, close
+  /// it with reason `pairingRevoked` and call ``revoke(vault:revokedAtMs:)``
+  /// instead. `forgottenAtMs` is milliseconds since the Unix epoch.
+  ///
+  /// - Throws: ``RappBindingError/LocalStateFailure`` when storage refused.
+  public func forget(vault: RappPairVault, forgottenAtMs: UInt64) throws -> RappForgetOutcome {
+    try locked {
+      guard stored.storageConfirmed else {
+        do {
+          try vault.revokeDeviceOnly(pairId: stored.pairIdentifier, revokedAtMs: forgottenAtMs)
+        } catch {
+          throw RappBindingError.LocalStateFailure
+        }
+        return .destroyed
+      }
+      let forgotten = stored.forgotten(at: forgottenAtMs)
+      do {
+        try vault.replaceDeviceOnly(pairId: forgotten.pairIdentifier, record: forgotten.encoded())
+      } catch {
+        throw RappBindingError.LocalStateFailure
+      }
+      stored = forgotten
+      return .noticePending
+    }
+  }
+
+  /// Whether a forgotten record kept its key for 30 days without a session
+  /// to deliver the close (§4.6 item 3); destroy it then with
+  /// ``revoke(vault:revokedAtMs:)``.
+  public func revocationNoticeExpired(nowMs: UInt64) -> Bool {
+    record.revocationNoticeExpired(nowMilliseconds: nowMs)
+  }
+
+  /// Ends the pairing and destroys its keys, at `revokedAtMs` milliseconds
+  /// since the Unix epoch (§4.6 items 3 and 4).
   ///
   /// - Throws: ``RappBindingError/LocalStateFailure`` when storage
   ///   refused.
-  public func revoke(vault: RappPairVault, revokedAtMs: UInt64) throws -> Data? {
-    let retention = RevocationRetention(record: record, revokedAtMilliseconds: revokedAtMs)
+  public func revoke(vault: RappPairVault, revokedAtMs: UInt64) throws {
     do {
       try vault.revokeDeviceOnly(pairId: record.pairIdentifier, revokedAtMs: revokedAtMs)
     } catch {
       throw RappBindingError.LocalStateFailure
     }
-    return try? retention?.encoded()
+  }
+
+  private func locked<Value>(_ body: () throws -> Value) rethrows -> Value {
+    lock.lock()
+    defer { lock.unlock() }
+    return try body()
   }
 }

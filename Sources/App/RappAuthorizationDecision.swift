@@ -2,7 +2,6 @@
 
 #if os(iOS) || os(macOS)
   internal enum RappAuthorizationDecision: Sendable, Equatable, CustomReflectable {
-    case approved
     case approvedBrowserAuthentication(pin1: Pin1AuthorizationDigits)
     case approvedDocumentSignature(pin2: Pin2AuthorizationDigits)
     case denied
@@ -10,8 +9,6 @@
     /// High-level name of the decision suitable for tracing without logging credentials.
     internal var summary: String {
       switch self {
-      case .approved:
-        return "approved"
       case .approvedBrowserAuthentication:
         return "approvedBrowserAuthentication"
       case .approvedDocumentSignature:

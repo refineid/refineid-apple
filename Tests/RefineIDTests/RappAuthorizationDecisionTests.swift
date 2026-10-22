@@ -37,7 +37,6 @@ internal struct RappAuthorizationDecisionTests {
 
     #expect(decision1.summary == "approvedBrowserAuthentication")
     #expect(decision2.summary == "approvedDocumentSignature")
-    #expect(RappAuthorizationDecision.approved.summary == "approved")
     #expect(RappAuthorizationDecision.denied.summary == "denied")
 
     let mirror1 = Mirror(reflecting: pin1Digits)

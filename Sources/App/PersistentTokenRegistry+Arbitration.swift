@@ -47,7 +47,7 @@
     /// The physical reader has absolute priority. When a reader card is
     /// present, remote identities are withdrawn. Over the stream
     /// transport nothing is written unless the phone's open session says
-    /// a card is present (RAPP v26.10.18 §8.4).
+    /// a card is present (RAPP v26.10.21 §8.4).
     internal func ensurePublished() {
       guard Self.isRemoteCardEnabled else {
         Self.withdrawPublishedIdentity()
@@ -63,13 +63,18 @@
         return
       }
       #if REFINEID_STREAM_TRANSPORT
-        guard holderCardPresent else { return }
+        guard case .present(let named) = holderCardStatus else { return }
       #endif
       if !Self.needsIdentity {
         seedHolderLine()
         return
       }
       guard let der = certificateDER ?? Self.publishedCertificateDER() else { return }
+      #if REFINEID_STREAM_TRANSPORT
+        // Only the card the phone named on this session (RAPP v26.10.21
+        // §8.4 item 2).
+        guard RappCertificateFingerprint(certificate: der) == named else { return }
+      #endif
       Self.publish(der)
     }
 

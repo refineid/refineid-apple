@@ -125,46 +125,47 @@ private let fixturePairingCode = "246813"
     internal static func makeConnection(
       _ fixture: RappIntegrationFixtures.PairingFixture
     ) async throws -> RappIntegrationFixtures.ConnectionFixture {
-      try await makeConnection(fixture, liveness: RappIntegrationFixtures.liveness)
+      try await makeConnection(
+        requesterPair: try RappPairRecord.loadFromVault(
+          pairId: fixture.requesterSummary.pairID,
+          vault: fixture.requesterVault
+        ),
+        proxyPair: try RappPairRecord.loadFromVault(
+          pairId: fixture.proxySummary.pairID,
+          vault: fixture.proxyVault
+        )
+      )
     }
 
+    /// Two coordinators over the two halves of one pairing, wired to each
+    /// other; neither has started.
     internal static func makeConnection(
-      _ fixture: RappIntegrationFixtures.PairingFixture,
-      liveness: RappOperationDriver.Liveness
+      requesterPair: RappPairRecord,
+      proxyPair: RappPairRecord
     ) async throws -> RappIntegrationFixtures.ConnectionFixture {
-      let requesterPair = try RappPairRecord.loadFromVault(
-        pairId: fixture.requesterSummary.pairID,
-        vault: fixture.requesterVault
-      )
-      let proxyPair = try RappPairRecord.loadFromVault(
-        pairId: fixture.proxySummary.pairID,
-        vault: fixture.proxyVault
-      )
       let requesterOutbound = RappIntegrationFixtures.FrameEndpoint()
       let proxyOutbound = RappIntegrationFixtures.FrameEndpoint()
       let requester = try RappConnectionCoordinator(
         role: .requester,
         pair: requesterPair,
-        vault: fixture.requesterVault,
         transport: RappClosureFrameTransport(
           sender: { frame in try await requesterOutbound.send(frame) },
           closer: { await requesterOutbound.close() }
         ),
         maximumLifetimeMilliseconds: RappIntegrationFixtures.FixtureTiming
           .connectionMaximumLifetimeMilliseconds,
-        liveness: liveness
+        transportProfile: RappIntegrationFixtures.transportProfile
       )
       let proxy = try RappConnectionCoordinator(
         role: .proxy,
         pair: proxyPair,
-        vault: fixture.proxyVault,
         transport: RappClosureFrameTransport(
           sender: { frame in try await proxyOutbound.send(frame) },
           closer: { await proxyOutbound.close() }
         ),
         maximumLifetimeMilliseconds: RappIntegrationFixtures.FixtureTiming
           .connectionMaximumLifetimeMilliseconds,
-        liveness: liveness
+        transportProfile: RappIntegrationFixtures.transportProfile
       )
       await requesterOutbound.install { frame in await proxy.receive(frame) }
       await proxyOutbound.install { frame in await requester.receive(frame) }
@@ -176,86 +177,14 @@ private let fixturePairingCode = "246813"
       )
     }
 
-    internal static func awaitCompletion(
-      _ coordinator: RappConnectionCoordinator,
-      operation: RappIntegrationFixtures.RequestedOperation
-    ) async throws -> RappOperationDriver.Result {
-      for await event in coordinator.events {
-        switch event {
-        case .cardStatus:
-          break
-
-        case .established:
-          try await operation.begin(on: coordinator)
-
-        case .completed(_, let result):
-          return result
-
-        case .terminal(_, _, let reason):
-          throw RappIntegrationFixtures.TestFailure.operationTerminated(reason)
-
-        case .closed(let reason):
-          throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
-
-        case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
-          .executeCardCommand, .operationFinished,
-          .peerBusy, .peerUnknownOperation, .progress, .batchSignatures:
-          throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
-        }
-      }
-      throw RappIntegrationFixtures.TestFailure.operationEndedWithoutResult
-    }
-
-    /// Runs `operation` to its terminal event and closes at once on it,
-    /// as the app does; the acknowledgement must already have left.
-    internal static func awaitTerminal(
-      _ coordinator: RappConnectionCoordinator,
-      operation: RappIntegrationFixtures.RequestedOperation
-    ) async throws -> RappOperationDriver.TerminalReason? {
-      for await event in coordinator.events {
-        switch event {
-        case .cardStatus:
-          break
-
-        case .established:
-          try await operation.begin(on: coordinator)
-
-        case .terminal(_, _, let reason):
-          await coordinator.close()
-          return reason
-
-        case .closed(let reason):
-          throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
-
-        case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
-          .executeCardCommand, .completed,
-          .operationFinished, .peerBusy, .peerUnknownOperation, .progress, .batchSignatures:
-          throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
-        }
-      }
-      throw RappIntegrationFixtures.TestFailure.operationEndedWithoutResult
-    }
-
     internal static func deleteKeychainServices(for fixture: RappIntegrationFixtures.PairingFixture)
     {
-      deleteKeychainServices(
-        prefix: fixture.requesterPrefix,
-        pairID: fixture.requesterSummary.pairID
-      )
-      deleteKeychainServices(
-        prefix: fixture.proxyPrefix,
-        pairID: fixture.proxySummary.pairID
-      )
+      deleteKeychainServices(prefix: fixture.requesterPrefix)
+      deleteKeychainServices(prefix: fixture.proxyPrefix)
     }
 
-    internal static func deleteKeychainServices(prefix: String, pairID: Data) {
-      let pairHex = pairID.map { String(format: "%02x", $0) }.joined()
-      for suffix in [
-        "pair",
-        "selection",
-        "requester.\(pairHex)",
-        "proxy.\(pairHex)",
-      ] {
+    internal static func deleteKeychainServices(prefix: String) {
+      for suffix in ["pair", "selection"] {
         let query: [String: Any] = [
           kSecClass as String: kSecClassGenericPassword,
           kSecAttrService as String: "\(prefix).\(suffix)",

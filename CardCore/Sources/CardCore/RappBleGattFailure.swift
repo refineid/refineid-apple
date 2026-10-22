@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// Why a `fi.refineid.rapp.ble.v1` link ended.
+/// Why a `fi.refineid.rapp.ble` link ended.
 public enum RappBleGattFailure: Error, Sendable, Equatable {
   /// The negotiated ATT MTU is below 512 (§5.2 step 1).
   case attMtuTooSmall

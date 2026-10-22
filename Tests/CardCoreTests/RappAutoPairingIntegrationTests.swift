@@ -2,14 +2,13 @@
 
 #if canImport(RappEngine)
   @testable import CardCore
+  import CryptoKit
   import Foundation
   import RappEngine
   import Testing
 
   @Suite("RappAutoPairingIntegrationTests", .serialized)
   internal struct RappAutoPairingIntegrationTests {
-    private static let signature = Data([0x30, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02])
-
     @Test("Complete end-to-end zero-touch autopairing, Noise session handshake, and signing")
     internal func testAutoPairingAndEndToEndSessionCrossing() async throws {
       RappPairNames.forgetAll()
@@ -19,7 +18,7 @@
       // 1. Initialize iPhone (Card Holder) & Mac (Requester)
       let phonePrefix = "fi.refineid.test.e2e.phone.\(UUID().uuidString)"
       let phoneID = try makeIdentity(
-        service: "\(phonePrefix).identity", name: "iPhone", model: "iPhone16,1", seed: 0x55)
+        service: "\(phonePrefix).identity", name: "iPhone", model: "iPhone16,1", seed: "e2e phone")
       let phoneVault = RappDeviceVault(accessGroup: nil, servicePrefix: phonePrefix)
       let phoneCoordinator = RappCloudSyncCoordinator(
         localIdentity: phoneID, localRole: .holder, cloudStorage: storage)
@@ -27,7 +26,7 @@
 
       let macPrefix = "fi.refineid.test.e2e.mac.\(UUID().uuidString)"
       let macID = try makeIdentity(
-        service: "\(macPrefix).identity", name: "Mac", model: "Mac15,3", seed: 0x66)
+        service: "\(macPrefix).identity", name: "Mac", model: "Mac15,3", seed: "e2e mac")
       let macVault = RappDeviceVault(accessGroup: nil, servicePrefix: macPrefix)
       let macCoordinator = RappCloudSyncCoordinator(
         localIdentity: macID, localRole: .requester, cloudStorage: storage)
@@ -42,10 +41,8 @@
       // 3. Establish live session over loopback wire and execute signature
       try await assertSessionAndSignature(
         requesterPair: macPairs[0],
-        requesterVault: macVault,
         proxyPair: phonePairs[0],
-        proxyVault: phoneVault,
-        seed: 0xEE
+        origin: "https://e2e.example.invalid"
       )
     }
 
@@ -58,7 +55,8 @@
       // 1. Initialize iPhone holder with primed identity
       let phonePrefix = "fi.refineid.test.multi.phone.\(UUID().uuidString)"
       let phoneID = try makeIdentity(
-        service: "\(phonePrefix).identity", name: "Alpha iPhone", model: "iPhone16,1", seed: 0x11)
+        service: "\(phonePrefix).identity", name: "Alpha iPhone", model: "iPhone16,1",
+        seed: "multi phone")
       let phoneVault = RappDeviceVault(accessGroup: nil, servicePrefix: phonePrefix)
       let phoneCoordinator = RappCloudSyncCoordinator(
         localIdentity: phoneID, localRole: .holder, cloudStorage: storage)
@@ -67,7 +65,7 @@
       // 2. Initialize Mac requester
       let macPrefix = "fi.refineid.test.multi.mac.\(UUID().uuidString)"
       let macID = try makeIdentity(
-        service: "\(macPrefix).identity", name: "Alpha Mac", model: "Mac15,3", seed: 0x22)
+        service: "\(macPrefix).identity", name: "Alpha Mac", model: "Mac15,3", seed: "multi mac")
       let macVault = RappDeviceVault(accessGroup: nil, servicePrefix: macPrefix)
       let macCoordinator = RappCloudSyncCoordinator(
         localIdentity: macID, localRole: .requester, cloudStorage: storage)
@@ -76,7 +74,8 @@
       // 3. Initialize iPad requester
       let ipadPrefix = "fi.refineid.test.multi.ipad.\(UUID().uuidString)"
       let ipadID = try makeIdentity(
-        service: "\(ipadPrefix).identity", name: "Alpha iPad", model: "iPad14,3", seed: 0x33)
+        service: "\(ipadPrefix).identity", name: "Alpha iPad", model: "iPad14,3", seed: "multi ipad"
+      )
       let ipadVault = RappDeviceVault(accessGroup: nil, servicePrefix: ipadPrefix)
       let ipadCoordinator = RappCloudSyncCoordinator(
         localIdentity: ipadID, localRole: .requester, cloudStorage: storage)
@@ -111,7 +110,8 @@
       // 1. Initialize iPhone holder and Mac requester
       let phonePrefix = "fi.refineid.test.reset.phone.\(UUID().uuidString)"
       let phoneID = try makeIdentity(
-        service: "\(phonePrefix).identity", name: "iPhone", model: "iPhone16,1", seed: 0x77)
+        service: "\(phonePrefix).identity", name: "iPhone", model: "iPhone16,1", seed: "reset phone"
+      )
       let phoneVault = RappDeviceVault(accessGroup: nil, servicePrefix: phonePrefix)
       let phoneCoordinator = RappCloudSyncCoordinator(
         localIdentity: phoneID, localRole: .holder, cloudStorage: storage)
@@ -119,7 +119,7 @@
 
       let macPrefix = "fi.refineid.test.reset.mac.\(UUID().uuidString)"
       let macID = try makeIdentity(
-        service: "\(macPrefix).identity", name: "Mac", model: "Mac15,3", seed: 0x88)
+        service: "\(macPrefix).identity", name: "Mac", model: "Mac15,3", seed: "reset mac")
       let macVault = RappDeviceVault(accessGroup: nil, servicePrefix: macPrefix)
       let macCoordinator = RappCloudSyncCoordinator(
         localIdentity: macID, localRole: .requester, cloudStorage: storage)
@@ -134,8 +134,7 @@
       #expect(try macVault.selectedPairID() == pairID)
 
       // 3. User hits minus / resets pairing on Mac
-      try macVault.revokePair(pairID: pairID, revokedAtMilliseconds: 1_000_000)
-      try macVault.clearSelectedPair()
+      try RappPairRevocation.revoke(pairID: pairID, in: macVault, clock: RappPlatformClock())
       #expect(try macVault.activePairIDs().isEmpty)
       #expect(try macVault.loadPair(pairID: pairID) == nil)
       #expect(try macVault.pairIsRevoked(pairID: pairID) == false)
@@ -151,47 +150,46 @@
       // 5. Establish live session to prove end-to-end cryptographic and operational validity
       try await assertSessionAndSignature(
         requesterPair: repairedMacPairs[0],
-        requesterVault: macVault,
         proxyPair: initialPhonePairs[0],
-        proxyVault: phoneVault,
-        seed: 0xAA
+        origin: "https://reset.example.invalid"
       )
     }
 
+    /// Opens a session over the two halves of the pairing and signs one
+    /// challenge through it.
     private func assertSessionAndSignature(
       requesterPair: RappPairRecord,
-      requesterVault: RappDeviceVault,
       proxyPair: RappPairRecord,
-      proxyVault: RappDeviceVault,
-      seed: UInt8
+      origin: String
     ) async throws {
-      let requesterSession = try SignRelaySession(
-        role: .requester, pair: requesterPair, vault: requesterVault)
-      let proxySession = try SignRelaySession(
-        role: .proxy, pair: proxyPair, vault: proxyVault)
-
-      let wire = SignRelayWire(requester: requesterSession, proxy: proxySession)
-      await wire.answerWith { request in
-        .signatureResponse(requestID: request.requestID, signature: Self.signature)
+      let connection = try await RappIntegrationConnectionSupport.makeConnection(
+        requesterPair: requesterPair, proxyPair: proxyPair)
+      let operation = RappIntegrationFixtures.RequestedOperation.browserAuthentication(
+        origin: origin)
+      let requesterOutcome = Task {
+        try await RappIntegrationConnectionSupport.awaitCompletion(
+          connection.requester, operation: operation)
       }
-      try await wire.establish()
+      let proxyOutcome = Task {
+        try await RappIntegrationAuthorizationSupport.authorizeAndComplete(
+          connection.proxy, operation: operation, signature: RappIntegrationFixtures.signature)
+      }
+      defer {
+        requesterOutcome.cancel()
+        proxyOutcome.cancel()
+      }
 
-      #expect(await requesterSession.isEstablished)
-      #expect(await proxySession.isEstablished)
-
-      let requestID = UUID()
-      let answer = try await wire.ask(
-        .signatureRequest(
-          requestID: requestID,
-          profile: .ecdsaP256,
-          algorithm: .ecdsaSHA256,
-          digest: Data(repeating: seed, count: 32)
-        )
-      )
-      #expect(answer == .signatureResponse(requestID: requestID, signature: Self.signature))
+      await connection.proxy.start()
+      await connection.requester.start()
+      #expect(try await requesterOutcome.value == .signature(RappIntegrationFixtures.signature))
+      _ = try await proxyOutcome.value
+      await connection.requester.close()
+      await connection.proxy.close()
     }
 
-    private func makeIdentity(service: String, name: String, model: String, seed: UInt8) throws
+    /// An identity whose fixed key derives from `seed`, so each simulated
+    /// device keeps its own.
+    private func makeIdentity(service: String, name: String, model: String, seed: String) throws
       -> RappDeviceIdentity
     {
       try RappDeviceIdentity(
@@ -199,7 +197,7 @@
         service: service,
         deviceName: name,
         modelName: model,
-        fixedPrivateKey: Data(repeating: seed, count: 32),
+        fixedPrivateKey: Data(SHA256.hash(data: Data(seed.utf8))),
         fixedDeviceID: UUID()
       )
     }

@@ -2,216 +2,109 @@
 
 import Foundation
 
-/// Every live and terminal requester operation for one paired endpoint.
+/// The requester's operations on one session: one live at a time, every
+/// identifier used once.
 ///
-/// Terminal entries stay addressable so an authenticated status report can
-/// still annotate them after the fact.
+/// Nothing outlives the session; a requester that did not receive a result
+/// starts a new operation (RAPP v26.10.21 §8.1 item 3).
 internal struct RequesterOperationEngine {
-  private var operations: [RequesterOperation]
+  private var live: OperationRequest?
 
-  private var recovered: [RequesterJournalRecord]
+  private var used: Set<RappOperationIdentifier> = []
 
-  internal var liveOperationStates: [Data: OperationState] {
-    var states: [Data: OperationState] = [:]
-    for operation in operations {
-      states[operation.record.operationIdentifier] = operation.record.state
-    }
-    return states
+  internal init() {
+    self.live = nil
   }
 
-  internal init(recovered: [RequesterJournalRecord]) {
-    self.operations = []
-    self.recovered = recovered
-  }
-
-  private static func stale(_ operationIdentifier: Data) -> RequesterDispatch {
-    .ignoredStale(
-      operationIdentifier: operationIdentifier,
-      response: .error(.unknownOperation(operationIdentifier: operationIdentifier)))
-  }
-
-  /// A peer error carries no operation state, so it classifies directly.
-  private static func errorDispatch(_ error: ProtocolErrorMessage) -> RequesterDispatch {
-    switch error {
-    case .operationFailed:
-      .peerBusy
-
-    case .unknownOperation(let operationIdentifier):
-      .peerUnknownOperation(operationIdentifier: operationIdentifier)
-
-    case .duplicateOperation(let operationIdentifier):
-      .peerUnknownOperation(operationIdentifier: operationIdentifier)
-    }
-  }
-
-  /// Writes a unique operation before its request frame is released.
-  internal mutating func begin(
-    _ request: OperationRequest, store: inout some RequesterJournalStore
-  ) throws -> TypedMessage {
-    guard !contains(request.operationIdentifier) else {
+  /// Starts an operation; the returned message is its `operation.request`.
+  internal mutating func begin(_ request: OperationRequest) throws -> TypedMessage {
+    guard live == nil else { throw EngineError.liveOperation }
+    guard !used.contains(request.operationIdentifier) else {
       throw EngineError.duplicateLocalOperationIdentifier
     }
-    var operation: RequesterOperation
     do {
-      operation = try RequesterOperation(request: request)
+      try request.validate()
     } catch {
       throw EngineError.invalidLocalValue
     }
-    let message = try operation.begin(to: &store)
-    operations.append(operation)
-    return message
-  }
-
-  /// Abandons one request locally; no message travels.
-  internal mutating func cancel(
-    operationIdentifier: Data, store: inout some RequesterJournalStore
-  ) throws -> OperationState {
-    try withOperation(operationIdentifier) { try $0.cancel(to: &store) }
+    used.insert(request.operationIdentifier)
+    live = request
+    return .operationRequest(request)
   }
 
   /// Classifies one authenticated inbound message.
-  internal mutating func receive(
-    _ message: TypedMessage, store: inout some RequesterJournalStore
-  ) throws -> RequesterDispatch {
-    if case .operationStatus(let report) = message {
-      return try receiveStatus(report, store: &store)
-    }
-    if case .error(let error) = message {
-      return Self.errorDispatch(error)
-    }
-    if case .cardStatus(let cardPresent) = message {
-      return .cardStatus(cardPresent: cardPresent)
-    }
-    guard let operationIdentifier = message.referencedOperationIdentifier else {
-      return .notOperation(message)
-    }
-    guard let index = index(of: operationIdentifier) else {
-      if case .operationProgress = message {
-        return .ignoredProgress(operationIdentifier: operationIdentifier)
-      }
-      return Self.stale(operationIdentifier)
-    }
-    guard !operations[index].record.state.isTerminal else {
-      if case .operationProgress = message {
-        return .ignoredProgress(operationIdentifier: operationIdentifier)
-      }
-      return Self.stale(operationIdentifier)
-    }
-
-    return try receiveActiveOperation(
-      message, index: index, operationIdentifier: operationIdentifier, store: &store)
-  }
-
-  private mutating func receiveActiveOperation(
-    _ message: TypedMessage,
-    index: Int,
-    operationIdentifier: Data,
-    store: inout some RequesterJournalStore
-  ) throws -> RequesterDispatch {
+  ///
+  /// - Throws: ``EngineError/authenticatedProtocolViolation(_:)`` when the
+  ///   custodian sends a message only a requester sends, or a result that
+  ///   does not answer the live request; the session closes.
+  internal mutating func receive(_ message: TypedMessage) throws -> RequesterDispatch {
     switch message {
+    case .cardStatus(let status):
+      return .cardStatus(status)
+
+    case .error(let error):
+      return receiveError(error)
+
     case .operationProgress(let progress):
-      do {
-        try operations[index].receiveProgress(progress)
-      } catch {
-        return .ignoredProgress(operationIdentifier: operationIdentifier)
+      guard live?.operationIdentifier == progress.operationIdentifier else {
+        return .ignored(operationIdentifier: progress.operationIdentifier)
       }
-      guard progress.event != .unknown else {
-        return .ignoredProgress(operationIdentifier: operationIdentifier)
-      }
-      return .progress(operationIdentifier: operationIdentifier, event: progress.event)
+      return .progress(operationIdentifier: progress.operationIdentifier, event: progress.event)
 
     case .operationResult(let result):
-      let action = try operations[index].receiveResult(result, to: &store)
-      return switch action {
-      case .sendAcknowledgement(let message):
-        .sendResultAcknowledgement(operationIdentifier: operationIdentifier, message: message)
+      return try receiveResult(result)
 
-      case .terminal(_, let outcome, let acknowledgement):
-        .terminal(
-          operationIdentifier: operationIdentifier, outcome: outcome,
-          acknowledgement: acknowledgement)
-      }
+    case .operationRequest, .operationRequestRefused:
+      throw EngineError.authenticatedProtocolViolation(.requesterOnlyMessage)
 
-    default:
-      throw EngineError.authenticatedProtocolViolation(.illegalMessageForActiveOperation)
+    case .other:
+      return .notOperation(message)
     }
   }
 
-  /// Records that the acknowledgement went out and releases the result.
-  internal mutating func acknowledgementReleased(
-    operationIdentifier: Data, store: inout some RequesterJournalStore
-  ) throws -> CardOperationResult {
-    try withOperation(operationIdentifier) { try $0.acknowledgementSent(to: &store) }
+  /// The session closed: the live operation, if any, is lost with it.
+  internal mutating func sessionClosed() -> RappOperationIdentifier? {
+    used = []
+    defer { live = nil }
+    return live?.operationIdentifier
   }
 
-  /// Records that a terminal result's acknowledgement went out.
-  internal mutating func terminalAcknowledgementReleased(
-    operationIdentifier: Data, store: inout some RequesterJournalStore
-  ) throws {
-    try withOperation(operationIdentifier) { try $0.terminalAcknowledgementSent(to: &store) }
-  }
-
-  /// Classifies every live operation when the session closes.
-  ///
-  /// Best effort per operation: one record's failed terminal write must
-  /// not leave the rest unclassified, and a record that could not be
-  /// written stays at its last persisted state, which recovery resolves
-  /// the next time this pairing begins operations.
-  internal mutating func sessionClosed(
-    store: inout some RequesterJournalStore
-  ) -> [(operationIdentifier: Data, state: OperationState)] {
-    var classified: [(operationIdentifier: Data, state: OperationState)] = []
-    for index in operations.indices where !operations[index].record.state.isTerminal {
-      let operationIdentifier = operations[index].record.operationIdentifier
-      guard let state = try? operations[index].sessionClosed(to: &store) else { continue }
-      classified.append((operationIdentifier, state))
+  private mutating func receiveResult(_ result: OperationResultMessage) throws
+    -> RequesterDispatch
+  {
+    let operationIdentifier = result.operationIdentifier
+    guard let request = live, request.operationIdentifier == operationIdentifier else {
+      return .ignored(operationIdentifier: operationIdentifier)
     }
-    return classified
-  }
-
-  private mutating func receiveStatus(
-    _ report: StatusReport, store: inout some RequesterJournalStore
-  ) throws -> RequesterDispatch {
-    let operationIdentifier = report.operationIdentifier
-    if let index = index(of: operationIdentifier) {
-      try operations[index].annotateStatus(report, to: &store)
-    } else if let index = recovered.firstIndex(where: { candidate in
-      candidate.operationIdentifier == operationIdentifier
-    }) {
-      if let hash = report.requestHash, hash != recovered[index].requestHash {
-        throw EngineError.authenticatedProtocolViolation(.referenceMismatch)
-      }
-      recovered[index].reconciliation = report
+    live = nil
+    do {
+      try result.validate(for: operationIdentifier, operation: request.operation)
+    } catch {
+      throw EngineError.authenticatedProtocolViolation(.invalidResult)
+    }
+    if result.status == .completed {
       do {
-        if recovered[index].state.isTerminal {
-          try store.remove(operationIdentifier: operationIdentifier)
-        } else {
-          try store.persist(recovered[index])
-        }
+        return .completed(
+          operationIdentifier: operationIdentifier,
+          result: try result.typedResult(for: request.operation))
       } catch {
-        throw EngineError.persistence
+        throw EngineError.authenticatedProtocolViolation(.invalidResult)
       }
-    } else {
-      return Self.stale(operationIdentifier)
     }
-    return .statusAnnotated(operationIdentifier: operationIdentifier)
-  }
-
-  private mutating func withOperation<Answer>(
-    _ operationIdentifier: Data, _ body: (inout RequesterOperation) throws -> Answer
-  ) throws -> Answer {
-    guard let index = index(of: operationIdentifier) else {
-      throw EngineError.unknownLocalOperation
+    guard let error = result.error else {
+      throw EngineError.authenticatedProtocolViolation(.invalidResult)
     }
-    return try body(&operations[index])
+    return .ended(operationIdentifier: operationIdentifier, status: result.status, error: error)
   }
 
-  private func index(of operationIdentifier: Data) -> Int? {
-    operations.firstIndex { $0.record.operationIdentifier == operationIdentifier }
-  }
-
-  private func contains(_ operationIdentifier: Data) -> Bool {
-    index(of: operationIdentifier) != nil
-      || recovered.contains { $0.operationIdentifier == operationIdentifier }
+  private mutating func receiveError(_ error: ProtocolErrorMessage) -> RequesterDispatch {
+    guard let operationIdentifier = error.operationIdentifier else {
+      return .peerError(error.error)
+    }
+    guard live?.operationIdentifier == operationIdentifier else {
+      return .ignored(operationIdentifier: operationIdentifier)
+    }
+    live = nil
+    return .refused(operationIdentifier: operationIdentifier, error: error.error)
   }
 }

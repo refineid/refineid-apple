@@ -3,7 +3,7 @@
 import CryptoKit
 import Foundation
 
-/// The plaintext first frame of every connection (RAPP v26.10.18 §2.2.1):
+/// The plaintext first frame of every connection (RAPP v26.10.21 §2.2.1):
 /// `[domain, purpose, routing]`.
 ///
 /// A pairing preamble carries no routing bytes. A session preamble carries
@@ -33,10 +33,10 @@ internal enum RoutingPreamble: Equatable {
   internal static func domain(forProfile profile: String) -> String? {
     switch profile {
     case StreamProfile.name:
-      "RAPP-stream-v1"
+      "rapp-stream"
 
     case RappBleGattProfile.name:
-      "RAPP-ble-v1"
+      "rapp-ble"
 
     default:
       nil

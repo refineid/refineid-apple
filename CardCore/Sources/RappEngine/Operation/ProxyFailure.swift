@@ -4,90 +4,61 @@ import Foundation
 
 /// Why the custodian ends an operation without an answer.
 ///
-/// Each reason fixes the status and the registered error the result carries,
-/// so a result cannot pair a failure with a status that contradicts it.
-internal enum ProxyFailure: Equatable {
-  /// The session ended before the card was touched.
-  case cancelled
-  /// The card may have acted; the outcome cannot be known.
-  case cardCompletionAmbiguous
-  /// The card left before any command was sent.
-  case cardRemovedBeforeTransmit
-  /// The card reports the credential blocked.
-  case credentialRejected
-  /// The card refused the credential and attempts remain (section 10.2).
-  case invalidCredential(remainingRetries: UInt8)
-  /// The local deadline passed before approval.
+/// Each reason fixes the status and the registered error the result carries
+/// (RAPP v26.10.21 §10.3), so a result cannot pair a failure with a status
+/// that contradicts it.
+internal enum ProxyFailure: Equatable, CaseIterable {
+  /// The card returned no answer: no card within the wait, the field lost,
+  /// a transmission fault.
+  case cardError
+  /// The custodian could not carry the operation out for a reason of its
+  /// own.
+  case operationFailed
+  /// The deadline passed before the card was commanded (§8.1 item 2).
   case requestExpired
   /// The request names a parameter this endpoint cannot serve.
   case requestInvalidOrUnsupported
-  /// The retry floor refused the command (section 10.3).
-  case retryPolicyRefused
-  /// The pairing did not grant the requested profile.
+  /// The card reports fewer than three remaining attempts for the PIN; no
+  /// verification was sent (§10.2).
+  case retryFloor
+  /// The pairing did not grant the requested profile (§8.2 item 1).
   case unauthorized
-  /// The holder declined on screen.
+  /// The holder declined on screen (§8.2 item 3).
   case userDenied
 
   internal var status: ResultStatus {
     switch self {
-    case .userDenied, .requestInvalidOrUnsupported, .unauthorized, .retryPolicyRefused,
-      .invalidCredential:
-      .rejected
-
-    case .requestExpired, .cancelled, .cardRemovedBeforeTransmit:
+    case .requestExpired:
       .cancelled
 
-    case .credentialRejected:
-      .credentialRejected
-
-    case .cardCompletionAmbiguous:
-      .ambiguous
+    case .cardError, .operationFailed, .requestInvalidOrUnsupported, .retryFloor, .unauthorized,
+      .userDenied:
+      .rejected
     }
   }
 
   internal var error: ResultError {
     switch self {
-    case .userDenied:
-      .userCancelled
+    case .cardError:
+      .cardError
 
-    case .requestExpired, .cancelled:
+    case .operationFailed:
+      .operationFailed
+
+    case .requestExpired:
       .operationExpired
 
     case .requestInvalidOrUnsupported:
       .unsupportedParameter
 
+    case .retryFloor:
+      .retryFloor
+
     case .unauthorized:
       .unauthorized
 
-    case .retryPolicyRefused:
-      .operationFailed
-
-    case .credentialRejected:
-      .cardBlocked
-
-    case .invalidCredential:
-      .invalidCredential
-
-    case .cardRemovedBeforeTransmit, .cardCompletionAmbiguous:
-      .cardError
+    case .userDenied:
+      .userCancelled
     }
-  }
-
-  /// Whether the endpoint can make no further safe progress on the session.
-  internal var closesSession: Bool {
-    switch self {
-    case .retryPolicyRefused, .credentialRejected, .cardCompletionAmbiguous:
-      true
-
-    case .userDenied, .requestExpired, .cancelled, .requestInvalidOrUnsupported, .unauthorized,
-      .cardRemovedBeforeTransmit, .invalidCredential:
-      false
-    }
-  }
-
-  /// The attempts an invalid-credential result reports remaining.
-  internal var remainingRetries: UInt8? {
-    guard case .invalidCredential(let remainingRetries) = self else { return nil }
-    return remainingRetries
   }
 }

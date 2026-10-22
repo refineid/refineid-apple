@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The vendored routing corpus (RAPP v26.10.18 §2.2.1 and §4.3).
+/// The vendored routing corpus (RAPP v26.10.21 §2.2.1 and §4.3).
 
 /// One pairing a selection vector ranks.
 internal struct SelectionCandidate: Decodable {

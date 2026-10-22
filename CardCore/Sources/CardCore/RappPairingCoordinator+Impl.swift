@@ -5,7 +5,7 @@
   import RappEngine
 
   extension RappPairingCoordinator {
-    /// Watchdog windows matching the engine's deadlines (RAPP v26.10.9 §3.3).
+    /// Watchdog windows matching the engine's deadlines (RAPP v26.10.21 §3.3).
     private enum Window {
       static let attemptMilliseconds: UInt64 = 5_000
       static let handshakeMilliseconds: UInt64 = 10_000
@@ -36,7 +36,7 @@
     ///
     /// A custodian serves its offer as the first frame on a frame
     /// transport; a requester without an offer waits for that frame. At most
-    /// one connection per 500 ms reaches the offer (RAPP v26.10.9 §3.3.8).
+    /// one connection per 500 ms reaches the offer (RAPP v26.10.21 §3.3 item 8).
     public func transportConnected() async {
       guard state == .offer else {
         await fail(.protocolFailure)
@@ -240,7 +240,7 @@
 
     /// Stores the unconfirmed record, then tells the peer.
     ///
-    /// The storage exchange is RAPP v26.10.18 §4.3 item 4; the
+    /// The storage exchange is RAPP v26.10.21 §4.3 item 4; the
     /// confirmation deadline keeps running.
     private func store(now: UInt64) async throws {
       let record = try live().buildPairRecord(

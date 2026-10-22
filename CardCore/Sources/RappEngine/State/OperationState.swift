@@ -5,46 +5,22 @@
 // break the correspondence the bidirectional conformance test protects.
 // swiftlint:disable sorted_enum_cases
 
-/// Operation component state.
+/// Operation component state (RAPP v26.10.21 formal state model).
 ///
-/// An operation instance exists per operation identifier. Terminal states are
-/// permanent journal records that accept no further transitions.
+/// An operation instance exists per operation identifier within one session;
+/// `none` is the absence of one, and also where an operation goes when its
+/// session ends. Raw values are the formal model's names.
 internal enum OperationState: String, CaseIterable, Sendable {
   case idle = "none"
   case requested = "requested"
-  /// Proxy only.
+  /// Custodian only.
+  case queued = "queued"
+  /// Custodian only.
   case awaitingConsent = "awaiting_consent"
-  case prepared = "prepared"
-  case committed = "committed"
-  /// Proxy only.
   case executing = "executing"
-  /// Proxy only.
-  case resultPending = "result_pending"
   case completed = "completed"
-  case denied = "denied"
-  case cancelled = "cancelled"
   case rejected = "rejected"
-  case credentialRejected = "credential_rejected"
-  case ambiguous = "ambiguous"
-  case deliveryUncertain = "delivery_uncertain"
-
-  /// Whether this state is a permanent journal record.
-  internal var isTerminal: Bool {
-    switch self {
-    case .completed, .denied, .cancelled, .rejected, .credentialRejected,
-      .ambiguous, .deliveryUncertain:
-      true
-
-    case .idle, .requested, .awaitingConsent, .prepared, .committed, .executing,
-      .resultPending:
-      false
-    }
-  }
-
-  /// Whether the instance occupies the single active-operation slot.
-  internal var isActive: Bool {
-    self != .idle && !isTerminal
-  }
+  case cancelled = "cancelled"
 }
 
 // swiftlint:enable sorted_enum_cases

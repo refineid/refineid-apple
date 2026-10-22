@@ -16,7 +16,6 @@ internal struct MessageRegistryTests {
   private static let shortIdentifierSize = 15
   private static let sequence: UInt64 = 7
   private static let expiryMilliseconds: UInt64 = 120_000
-  private static let errorCode: UInt64 = 1_001
 
   private static let session = Data(repeating: 0xA1, count: WireLimits.sessionIdentifier)
   private static let operation = Data(repeating: 0xB2, count: identifierSize)
@@ -34,7 +33,7 @@ internal struct MessageRegistryTests {
       ["parameters": .map([:]), "display_name": .text("RefineID"), "platform": .text("iOS")]
 
     case .pairingConfirm:
-      ["granted_profiles": .array([.text("fi.refineid.authentication.v1")])]
+      ["granted_profiles": .array([.text("fi.refineid.authentication")])]
 
     case .pairingAbort:
       ["reason": .text("declined")]
@@ -43,16 +42,16 @@ internal struct MessageRegistryTests {
       ["pair_id": .bytes(operation)]
 
     case .cardStatus:
-      ["card_present": .boolean(true)]
+      ["card_present": .boolean(true), "certificate_fingerprint": .bytes(digest)]
 
     case .sessionReady:
       ["parameters": .map([:]), "nonce": .bytes(digest)]
 
     case .sessionClose:
-      ["reason": .text("user_disconnect"), "last_received_sequence": .unsigned(sequence)]
+      ["reason": .text("user_disconnect")]
 
     case .livenessPing, .livenessPong:
-      ["challenge": .bytes(digest), "last_received_sequence": .unsigned(1)]
+      ["challenge": .bytes(digest)]
 
     default:
       [:]
@@ -63,41 +62,20 @@ internal struct MessageRegistryTests {
     switch messageType {
     case .operationRequest:
       [
-        "operation_id": .bytes(operation), "profile": .text("fi.refineid.authentication.v1"),
+        "operation_id": .bytes(operation), "profile": .text("fi.refineid.authentication"),
         "action": .text("browser_authenticate"),
         "expires_after_ms": .unsigned(expiryMilliseconds), "context": .map([:]),
         "payload": .map([:]),
       ]
 
-    case .operationResultAck:
-      ["operation_id": .bytes(operation), "request_hash": .bytes(digest)]
-
     case .operationProgress:
-      [
-        "operation_id": .bytes(operation), "request_hash": .bytes(digest),
-        "event": .text("waiting_for_card"),
-      ]
+      ["operation_id": .bytes(operation), "event": .text("waiting_for_card")]
 
     case .operationResult:
-      [
-        "operation_id": .bytes(operation), "request_hash": .bytes(digest),
-        "status": .text("completed"), "response": .map([:]),
-      ]
-
-    case .operationStatusRequest:
-      ["operation_id": .bytes(operation)]
-
-    case .operationStatus:
-      [
-        "operation_id": .bytes(operation), "known": .boolean(true),
-        "state": .text("completed"),
-      ]
+      ["operation_id": .bytes(operation), "status": .text("completed"), "response": .map([:])]
 
     default:
-      [
-        "error_code": .unsigned(errorCode), "error_name": .text("unknown_operation"),
-        "message": .text("The operation is unknown."),
-      ]
+      ["error_name": .text("busy"), "message": .text("Another operation is live.")]
     }
   }
   @Test("Every registered message type survives a round trip")
@@ -105,7 +83,7 @@ internal struct MessageRegistryTests {
     for messageType in MessageType.allCases {
       let envelope = Envelope(
         messageType: messageType, sessionIdentifier: Self.session, sequence: Self.sequence,
-        body: Self.body(for: messageType), critical: [], extensions: [:])
+        body: Self.body(for: messageType))
       let decoded = try Envelope.decode(try envelope.encoded())
       #expect(decoded == envelope, "\(messageType.rawValue)")
     }
@@ -120,6 +98,19 @@ internal struct MessageRegistryTests {
     var hashOnRequest = Self.body(for: .operationRequest)
     hashOnRequest["request_hash"] = .bytes(Self.digest)
     expectRefusal(hashOnRequest, .operationRequest, "UnknownField")
+
+    var unregisteredErrorName = Self.body(for: .error)
+    unregisteredErrorName["error_name"] = .text("unknown_operation")
+    expectRefusal(unregisteredErrorName, .error, "InvalidValue { field: \"error_name\" }")
+
+    var sequencedClose = Self.body(for: .sessionClose)
+    sequencedClose["last_received_sequence"] = .unsigned(Self.sequence)
+    expectRefusal(sequencedClose, .sessionClose, "UnknownField")
+
+    var shortFingerprint = Self.body(for: .cardStatus)
+    shortFingerprint["certificate_fingerprint"] = .bytes(Data(count: Self.shortIdentifierSize))
+    expectRefusal(
+      shortFingerprint, .cardStatus, "WrongType { field: \"certificate_fingerprint\" }")
 
     var emptyErrorName = Self.body(for: .error)
     emptyErrorName["error_name"] = .text("")
@@ -139,8 +130,12 @@ internal struct MessageRegistryTests {
     expectRefusal(badReason, .sessionClose, "InvalidValue { field: \"reason\" }")
 
     var badStatus = Self.body(for: .operationResult)
-    badStatus["status"] = .text("finished")
+    badStatus["status"] = .text("ambiguous")
     expectRefusal(badStatus, .operationResult, "InvalidValue { field: \"status\" }")
+
+    var retiredReason = Self.body(for: .sessionClose)
+    retiredReason["reason"] = .text("credential_rejected")
+    expectRefusal(retiredReason, .sessionClose, "InvalidValue { field: \"reason\" }")
   }
 
   private func expectRefusal(
@@ -150,8 +145,7 @@ internal struct MessageRegistryTests {
     sourceLocation: SourceLocation = #_sourceLocation
   ) {
     let envelope = Envelope(
-      messageType: messageType, sessionIdentifier: Self.session, sequence: 0, body: body,
-      critical: [], extensions: [:])
+      messageType: messageType, sessionIdentifier: Self.session, sequence: 0, body: body)
     let actual = CorpusFailure.name { _ = try Envelope.decode(try envelope.encoded()) }
     #expect(actual == expected, sourceLocation: sourceLocation)
   }

@@ -5,25 +5,14 @@
   import RappEngine
 
   /// Timing policy for one requester-side RAPP operation: the lifetime the
-  /// operation is granted, the bound on the synchronous wait, and the pacing
-  /// of liveness probes on the established channel.
+  /// operation is granted, the bound on the synchronous wait, and the
+  /// window for finding the custodian at all.
+  ///
+  /// Session liveness is the protocol's own (RAPP v26.10.21 §8.3).
   public struct RappRequesterPolicy: Sendable, Equatable {
     private enum Timing {
       static let interactiveOperationLifetimeMilliseconds: UInt64 = 120_000
       static let synchronousWaitTimeoutSeconds: TimeInterval = 125
-      static let baseIntervalMilliseconds: UInt64 = 5_000
-
-      /// How long a probe waits for its answer.
-      ///
-      /// A card read is not a stall: PACE and an on-card signature take
-      /// several seconds with the holder's card on the phone, and a probe
-      /// sent during one is answered when that work yields. Three seconds
-      /// declared a working peer dead in the middle of the signature it had
-      /// been asked for.
-      static let responseTimeoutMilliseconds: UInt64 = 10_000
-      static let maximumIntervalMilliseconds: UInt64 = 60_000
-      static let maximumJitterMilliseconds: UInt64 = 500
-      static let maximumMisses: UInt8 = 3
     }
 
     /// Longest wait for a paired device to be found at all.
@@ -38,14 +27,7 @@
     /// without adding UI timing heuristics.
     public static let interactive = Self(
       maximumOperationLifetimeMilliseconds: Timing.interactiveOperationLifetimeMilliseconds,
-      synchronousWaitTimeout: Timing.synchronousWaitTimeoutSeconds,
-      liveness: .init(
-        baseIntervalMilliseconds: Timing.baseIntervalMilliseconds,
-        responseTimeoutMilliseconds: Timing.responseTimeoutMilliseconds,
-        maximumIntervalMilliseconds: Timing.maximumIntervalMilliseconds,
-        maximumJitterMilliseconds: Timing.maximumJitterMilliseconds,
-        maximumMisses: Timing.maximumMisses
-      )
+      synchronousWaitTimeout: Timing.synchronousWaitTimeoutSeconds
     )
 
     // MARK: Properties
@@ -59,20 +41,16 @@
 
     /// Longest wait for a paired device to be found at all.
     public let discoveryTimeout: TimeInterval
-    /// Liveness probing configuration for the established channel.
-    public let liveness: RappOperationDriver.Liveness
 
     /// Composes a policy from explicit timing values.
     public init(
       maximumOperationLifetimeMilliseconds: UInt64,
       synchronousWaitTimeout: TimeInterval,
-      liveness: RappOperationDriver.Liveness,
       discoveryTimeout: TimeInterval = Self.defaultDiscoveryTimeout
     ) {
       self.maximumOperationLifetimeMilliseconds = maximumOperationLifetimeMilliseconds
       self.synchronousWaitTimeout = synchronousWaitTimeout
       self.discoveryTimeout = discoveryTimeout
-      self.liveness = liveness
     }
   }
 #endif

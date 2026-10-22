@@ -65,7 +65,7 @@
 
     /// The requester side over a frame transport: the user typed the code
     /// the custodian shows, and the offer arrives as the custodian's first
-    /// frame after the pairing preamble (RAPP v26.10.9 §4.2).
+    /// frame after the pairing preamble (RAPP v26.10.21 §4.2).
     ///
     /// - Throws: ``RappBindingError/InvalidInput`` for a code that is not
     ///   exactly six characters of the code alphabet or an unregistered
@@ -138,7 +138,7 @@
         clock: options.clock,
         entropy: options.entropy,
         offerDeadlineMilliseconds: deadline(
-          startedAt: startedAt, lifetime: RappPairingCode.offerLifetimeMilliseconds))
+          startedAt: startedAt, lifetime: rappOfferTtlMs()))
     }
 
     internal static func deadline(startedAt: UInt64, lifetime: UInt64) -> UInt64 {

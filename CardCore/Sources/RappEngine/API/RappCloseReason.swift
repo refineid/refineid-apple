@@ -2,17 +2,16 @@
 
 import Foundation
 
-/// `close-reason-val` (RAPP v26.10.18 §7.1).
+/// `close-reason-val` (RAPP v26.10.21 §7.1).
 public enum RappCloseReason: String, CaseIterable, Equatable, Sendable {
   case cardUnavailable = "card_unavailable"
   case complete = "complete"
-  case credentialRejected = "credential_rejected"
   case normal = "normal"
   case pairingRevoked = "pairing_revoked"
   case policy = "policy"
   case protocolViolation = "protocol_violation"
   /// The custodian stopped serving because its holder switched remote
-  /// access off or quit; a requester drops the card at once.
+  /// access off or quit; a requester drops the card at once (§4.5).
   case serviceWithdrawn = "service_withdrawn"
   case shutdown = "shutdown"
   case userDisconnect = "user_disconnect"

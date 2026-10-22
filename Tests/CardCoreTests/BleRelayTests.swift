@@ -38,14 +38,6 @@ internal final class BleRelayTests: XCTestCase {
     XCTAssertNil(RappBleRoutingPurpose(preamble: Data("noise".utf8)))
   }
 
-  internal func testBleCandidateParametersEncoding() throws {
-    let params = try rappBleCandidateParameters(
-      serviceUUID: BleProfile.defaultServiceUUIDString,
-      psm: 128
-    )
-    XCTAssertFalse(params.isEmpty)
-  }
-
   internal func testBleEndpointDefaults() {
     let endpoint = BleRelayEndpoint()
     XCTAssertEqual(endpoint.serviceUUIDString, "FA1D0001-C34A-4836-843B-7603B5749A32")

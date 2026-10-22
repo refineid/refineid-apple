@@ -28,7 +28,7 @@
 
     /// Milliseconds of the continuous clock: monotonic, and advancing
     /// while the device sleeps and the process is suspended, as operation
-    /// deadlines require (RAPP v26.10.18 §8.2 item 1).
+    /// deadlines require (RAPP v26.10.21 §8.1 item 2).
     public func monotonicMilliseconds() -> UInt64 {
       let ticks = mach_continuous_time()
       let (scaled, overflow) = ticks.multipliedReportingOverflow(by: Self.timebase.numerator)

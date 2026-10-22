@@ -8,7 +8,9 @@ import Foundation
 
 /// Typed output of one completed card operation.
 internal enum CardOperationResult: Equatable {
-  case inspection(CardInspection)
+  /// The answer to reset, or its historical bytes; empty when the
+  /// custodian's platform exposes neither.
+  case inspection(answerToReset: Data)
   case identity(CardIdentity)
   case certificate(Data)
   case signature(Data)

@@ -1,114 +1,141 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-/// The transition tables of the formal RAPP state model, transcribed in model
-/// order so a rule here and a rule there can be compared line for line.
+/// The transition tables of the formal RAPP state model (RAPP v26.10.21),
+/// transcribed in model order so a rule here and a rule there can be compared
+/// line for line.
 internal enum RappModelTables {
   /// Pairing component rules.
   internal static let pairing: [RappRule<PairingState, PairingEvent>] = [
     RappRule(
       from: .unpaired,
-      event: .createOffer,
-      role: .requester,
+      event: .startPairing,
+      role: .custodian,
       condition: .userInitiated,
-      destination: .offerActive,
-      actions: [.generateOfferId, .generatePairingSecret, .startOfferExpiry, .displayPairingCode]
+      destination: .offering,
+      actions: [.generateOffer, .generatePairingCode, .advertisePairingMode, .displayPairingCode]
+    ),
+    RappRule(
+      from: .offering,
+      event: .offerExpiredOrCancelled,
+      role: .custodian,
+      destination: .unpaired,
+      actions: [.destroyOffer, .hidePairingCode]
+    ),
+    RappRule(
+      from: .offering,
+      event: .attemptStarted,
+      role: .custodian,
+      destination: .exchanging,
+      actions: [.reserveAttempt]
     ),
     RappRule(
       from: .unpaired,
-      event: .offerScanned,
-      role: .proxy,
-      condition: .offerValidAndSupported,
-      destination: .handshaking,
-      actions: [.selectOneCandidate, .connectCandidate, .preparePairingResponder]
-    ),
-    RappRule(
-      from: .offerActive,
-      event: .candidateConnected,
+      event: .codeEntered,
       role: .requester,
-      condition: .offerLive,
-      destination: .handshaking,
-      actions: [.beginPairingHandshakeInitiator]
+      condition: .userInitiated,
+      destination: .exchanging,
+      actions: [.readOffer, .beginCpaceInitiator]
     ),
     RappRule(
-      from: .offerActive,
-      event: .offerExpiredOrCancelled,
+      from: .exchanging,
+      event: .attemptFailed,
+      role: .custodian,
+      destination: .offering,
+      actions: [.countFailedAttempt]
+    ),
+    RappRule(
+      from: .exchanging,
+      event: .lastAttemptFailed,
+      role: .custodian,
+      destination: .unpaired,
+      actions: [.destroyOffer, .hidePairingCode, .startPairingBackoff, .showAttemptsExhausted]
+    ),
+    RappRule(
+      from: .exchanging,
+      event: .attemptFailed,
       role: .requester,
       destination: .unpaired,
-      actions: [.destroyPairingSecret, .invalidateOffer, .hidePairingCode]
+      actions: [.closeCandidate, .showWrongCode]
+    ),
+    RappRule(
+      from: .exchanging,
+      event: .offerExpiredOrCancelled,
+      role: .custodian,
+      destination: .unpaired,
+      actions: [.destroyOffer, .hidePairingCode, .closeCandidate]
+    ),
+    RappRule(
+      from: .exchanging,
+      event: .keyConfirmed,
+      role: .custodian,
+      destination: .handshaking,
+      actions: [.consumeOffer, .hidePairingCode, .derivePairingSecret, .beginPairingHandshake]
+    ),
+    RappRule(
+      from: .exchanging,
+      event: .keyConfirmed,
+      role: .requester,
+      destination: .handshaking,
+      actions: [.derivePairingSecret, .beginPairingHandshake]
     ),
     RappRule(
       from: .handshaking,
       event: .handshakeAuthenticated,
-      role: .both,
+      role: .requester,
       condition: .transcriptMatches,
       destination: .confirming,
-      actions: [
-        .deriveChannelIdentifiers, .destroyPairingSecret,
-        .stopAcceptingCandidates, .hidePairingCode,
-        .sendPairingHello, .showPeerAndRequestedGrants,
-      ]
+      actions: [.deriveChannelIdentifiers, .destroyPairingSecret, .sendPairingHello]
+    ),
+    RappRule(
+      from: .handshaking,
+      event: .handshakeAuthenticated,
+      role: .custodian,
+      condition: .transcriptMatches,
+      destination: .confirming,
+      actions: [.deriveChannelIdentifiers, .destroyPairingSecret]
     ),
     RappRule(
       from: .handshaking,
       event: .handshakeFailed,
-      role: .requester,
-      destination: .offerActive,
-      actions: [.discardCandidate, .retainOffer]
-    ),
-    RappRule(
-      from: .handshaking,
-      event: .handshakeFailed,
-      role: .proxy,
+      role: .both,
       destination: .unpaired,
-      actions: [.discardCandidate]
-    ),
-    RappRule(
-      from: .handshaking,
-      event: .offerExpiredOrCancelled,
-      role: .requester,
-      destination: .unpaired,
-      actions: [.destroyPairingSecret, .invalidateOffer, .closeCandidate]
+      actions: [.destroyPairingSecret, .destroyCandidateKeys, .closeCandidate]
     ),
     RappRule(
       from: .confirming,
-      event: .bothUsersConfirmed,
+      event: .helloVerified,
+      role: .custodian,
+      destination: .confirming,
+      actions: [.sendPairingConfirm]
+    ),
+    RappRule(
+      from: .confirming,
+      event: .bothConfirmed,
       role: .both,
       condition: .grantedSetsEqual,
       destination: .storageConfirming,
-      actions: [.storePairRecordAtomically, .invalidateOffer, .sendPairingStored]
+      actions: [.storePairRecordAtomically, .sendPairingStored]
+    ),
+    RappRule(
+      from: .confirming,
+      event: .deniedAbortedOrTimedOut,
+      role: .both,
+      destination: .unpaired,
+      actions: [.sendPairingAbortBestEffort, .destroyCandidateKeys, .closeCandidate]
     ),
     RappRule(
       from: .storageConfirming,
       event: .peerStorageConfirmed,
       role: .both,
       destination: .pairedDisconnected,
-      actions: [.closePairingChannel]
+      actions: [.markRecordConfirmed, .closePairingChannel]
     ),
     RappRule(
       from: .storageConfirming,
       event: .deniedAbortedOrTimedOut,
       role: .both,
       destination: .unpaired,
-      actions: [
-        .retainRevocationKey, .revokeUnconfirmedPairRecord, .destroyPairKeys, .clearPairMetadata,
-        .closeCandidate,
-      ]
-    ),
-    RappRule(
-      from: .storageConfirming,
-      event: .authenticatedProtocolViolation,
-      role: .both,
-      destination: .revoked,
-      actions: [.retainRevocationKey, .destroyPairKeys, .closeCandidate, .showRevoked]
-    ),
-    RappRule(
-      from: .confirming,
-      event: .deniedAbortedOrTimedOut,
-      role: .both,
-      destination: .unpaired,
-      actions: [
-        .sendPairingAbortBestEffort, .destroyCandidateKeys, .invalidateOffer, .closeCandidate,
-      ]
+      actions: [.revokeUnconfirmedPairRecord, .destroyPairKeys, .closeCandidate]
     ),
     RappRule(
       from: .pairedDisconnected,
@@ -125,57 +152,46 @@ internal enum RappModelTables {
       actions: [.showPairedDisconnected]
     ),
     RappRule(
-      from: .pairedDisconnected,
-      event: .forgetPairing,
-      role: .both,
-      condition: .localUserAction,
-      destination: .unpaired,
-      actions: [.retainRevocationKey, .destroyPairKeys, .destroyRelayTokens, .clearPairMetadata]
-    ),
-    RappRule(
       from: .pairedConnected,
       event: .forgetPairing,
       role: .both,
       condition: .localUserAction,
-      destination: .unpaired,
-      actions: [
-        .sendCloseBestEffort, .closeSession, .retainRevocationKey, .destroyPairKeys,
-        .destroyRelayTokens, .clearPairMetadata,
-      ]
-    ),
-    RappRule(
-      from: .pairedConnected,
-      event: .authenticatedProtocolViolation,
-      role: .both,
       destination: .revoked,
       actions: [
-        .sendCloseBestEffort, .closeSession, .retainRevocationKey, .destroyPairKeys, .showRevoked,
-      ]
-    ),
-    RappRule(
-      from: .pairedConnected,
-      event: .localRevoke,
-      role: .both,
-      condition: .localUserAction,
-      destination: .revoked,
-      actions: [
-        .sendCloseBestEffort, .closeSession, .retainRevocationKey, .destroyPairKeys, .showRevoked,
+        .markRecordRevoked, .sendClosePairingRevoked, .closeSession, .destroyPairKeys,
+        .withdrawIdentity, .showForgotten,
       ]
     ),
     RappRule(
       from: .pairedDisconnected,
-      event: .localRevoke,
+      event: .forgetPairing,
       role: .both,
       condition: .localUserAction,
-      destination: .revoked,
-      actions: [.retainRevocationKey, .destroyPairKeys, .showRevoked]
+      destination: .revoking,
+      actions: [.markRecordRevoked, .withdrawIdentity, .showForgotten]
     ),
     RappRule(
-      from: .pairedConnected,
+      from: .revoking,
+      event: .revocationNoticeSent,
+      role: .both,
+      destination: .revoked,
+      actions: [.destroyPairKeys]
+    ),
+    RappRule(
+      from: .revoking,
+      event: .noticeWindowExpired,
+      role: .both,
+      destination: .revoked,
+      actions: [.destroyPairKeys]
+    ),
+    RappRule(
+      from: [.pairedDisconnected, .pairedConnected, .revoking],
       event: .peerRevocationNotice,
       role: .both,
       destination: .revoked,
-      actions: [.recordPeerInitiated, .closeSession, .destroyPairKeys, .showRevoked]
+      actions: [
+        .markRecordRevoked, .closeSession, .destroyPairKeys, .withdrawIdentity, .showPeerForgot,
+      ]
     ),
     RappRule(
       from: .revoked,

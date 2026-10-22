@@ -2,11 +2,13 @@
 
 import Foundation
 
-/// The operation protocol running over one established session.
+/// The operations of one established session (RAPP v26.10.21 §8).
 ///
 /// Every call answers with the bounded step the caller performs next. The
 /// bridge decides what must happen; the caller performs it, so nothing here
-/// touches a card, a transport, or a screen.
+/// touches a card, a transport, or a screen. The caller transports only
+/// opaque sealed frames and never sees a decrypted message, a PIN, a CAN or
+/// a pair key. Nothing of an operation outlives its session.
 public final class RappOperationBridge: @unchecked Sendable {
   /// Which side of the pairing this bridge serves.
   internal enum Side {
@@ -15,8 +17,7 @@ public final class RappOperationBridge: @unchecked Sendable {
   }
 
   internal let lock = NSLock()
-  internal let vault: RappOperationVault
-  internal let pairIdentifier: Data
+  internal let grantedProfiles: [ProfileName]
   internal let maximumLifetimeMilliseconds: UInt64
   internal var liveness: LivenessTracker
   internal var session: EstablishedSession
@@ -24,30 +25,54 @@ public final class RappOperationBridge: @unchecked Sendable {
   internal var closed = false
 
   internal init(
-    vault: RappOperationVault,
-    pairIdentifier: Data,
     session: EstablishedSession,
+    grantedProfiles: [ProfileName],
     side: Side,
     maximumLifetimeMs: UInt64,
-    liveness: RappLivenessConfiguration,
     nowMilliseconds: UInt64
   ) throws {
-    self.vault = vault
-    self.pairIdentifier = pairIdentifier
+    guard maximumLifetimeMs > 0 else { throw RappBindingError.InvalidInput }
     self.session = session
+    self.grantedProfiles = grantedProfiles
     self.side = side
     self.maximumLifetimeMilliseconds = maximumLifetimeMs
-    do {
-      self.liveness = try LivenessTracker(
-        configuration: LivenessConfiguration(
-          baseIntervalMilliseconds: liveness.baseIntervalMs,
-          responseTimeoutMilliseconds: liveness.responseTimeoutMs,
-          maximumIntervalMilliseconds: liveness.maximumIntervalMs,
-          maximumJitterMilliseconds: liveness.maximumJitterMs,
-          maximumMisses: liveness.maximumMisses),
-        nowMilliseconds: nowMilliseconds)
-    } catch {
-      throw RappBindingError.InvalidInput
-    }
+    self.liveness = LivenessTracker(nowMilliseconds: nowMilliseconds)
+  }
+
+  /// Takes the established session as the requester.
+  ///
+  /// - Throws: ``RappBindingError/WrongPhase`` when the session is not
+  ///   established, and ``RappBindingError/InvalidInput`` on a zero
+  ///   lifetime.
+  public static func beginRequester(
+    session: RappSessionBridge, maximumLifetimeMs: UInt64, nowMs: UInt64
+  ) throws -> RappOperationBridge {
+    let established = try session.takeEstablished()
+    return try RappOperationBridge(
+      session: established.session,
+      grantedProfiles: established.pair.profiles,
+      side: .requester(RequesterOperationEngine()),
+      maximumLifetimeMs: maximumLifetimeMs,
+      nowMilliseconds: nowMs)
+  }
+
+  /// Takes the established session as the custodian.
+  ///
+  /// Report the card with ``reportCardStatus(authenticationCertificate:)``
+  /// right after, so `card.status` follows `session.ready` (§8.4).
+  ///
+  /// - Throws: ``RappBindingError/WrongPhase`` when the session is not
+  /// established, and ``RappBindingError/InvalidInput`` on a zero
+  /// lifetime.
+  public static func beginProxy(
+    session: RappSessionBridge, maximumLifetimeMs: UInt64, nowMs: UInt64
+  ) throws -> RappOperationBridge {
+    let established = try session.takeEstablished()
+    return try RappOperationBridge(
+      session: established.session,
+      grantedProfiles: established.pair.profiles,
+      side: .proxy(ProxyOperationEngine(grantedProfiles: established.pair.profiles)),
+      maximumLifetimeMs: maximumLifetimeMs,
+      nowMilliseconds: nowMs)
   }
 }
