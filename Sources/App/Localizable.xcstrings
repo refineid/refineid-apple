@@ -2766,7 +2766,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Valmistellaan pariliitoskoodia…"
+            "value": "Valmistellaan yhdistämiskoodia…"
           }
         },
         "sv": {
@@ -3622,7 +3622,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pariliitoskoodi"
+            "value": "Yhdistämiskoodi"
           }
         },
         "sv": {
@@ -3638,7 +3638,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pariliitoskoodi"
+            "value": "Yhdistämiskoodi"
           }
         },
         "sv": {
@@ -3654,7 +3654,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Syötä pariliitoskoodi"
+            "value": "Syötä yhdistämiskoodi"
           }
         },
         "sv": {
@@ -6659,7 +6659,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laitetta, joka tarjoaa tätä pariliitoskoodia, ei löytynyt."
+            "value": "Laitetta, joka tarjoaa tätä yhdistämiskoodia, ei löytynyt."
           }
         },
         "sv": {
@@ -6707,7 +6707,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pariliitoskoodi ei kelpaa"
+            "value": "Yhdistämiskoodi ei kelpaa"
           }
         },
         "sv": {
@@ -6723,7 +6723,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pariliitoskoodia ei hyväksytty"
+            "value": "Yhdistämiskoodia ei hyväksytty"
           }
         },
         "sv": {
