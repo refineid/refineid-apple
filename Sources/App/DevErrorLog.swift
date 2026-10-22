@@ -5,6 +5,7 @@
   import CryptoTokenKit
   import Foundation
   import notify
+  import os
   import Security
 
   /// The recent errors of every RefineID process, for the development
@@ -20,6 +21,10 @@
   /// names the event and its reason and nothing else: never a PIN or its
   /// length, a card access number, a name, certificate content, a device
   /// name or a serial number.
+  ///
+  /// Every entry also goes to the unified log, subsystem `fi.refineid.ReFineID`
+  /// category `errors`, so `log stream` and Console show it beside the
+  /// other traces.
   ///
   /// Two processes reporting in the same instant can lose an entry: this
   /// is an instrument for noticing failures, not a ledger.
@@ -73,6 +78,9 @@
       !TestCredentialEnvironment.isTestMode
       || ProcessInfo.processInfo.arguments.contains(uiTestOptInArgument)
 
+    /// The unified-log channel every entry is also written to.
+    private static let logger = Logger(subsystem: "fi.refineid.ReFineID", category: "errors")
+
     /// Keychain service the log lives under, beside the extension trace.
     private static let service = "fi.refineid.trace"
 
@@ -103,7 +111,7 @@
 
     // MARK: Static Functions
 
-    /// Records one error and wakes the app.
+    /// Records one error, writes it to the unified log and wakes the app.
     ///
     /// Never throws and never fails its caller: a report that could break
     /// the path it watches would be taken out of it.
@@ -112,6 +120,7 @@
       let entry = Entry(
         identifier: UUID(), date: Date(), source: source, message: Self.sanitized(message),
         occurrences: 1)
+      Self.logger.error("\(source.rawValue, privacy: .public): \(entry.message, privacy: .public)")
       Self.lock.withLock {
         Self.write(Self.appending(entry, to: Self.stored()))
       }
