@@ -13,6 +13,18 @@ public enum RappPairNames: Sendable {
   internal static let key = "fi.refineid.rapp.pair-names"
   private static let lock = NSLock()
 
+  /// The suite test runs keep names in, apart from the app's own: a test
+  /// host shares the app's bundle identifier and so its standard defaults.
+  internal static let testSuiteName = "fi.refineid.tests.pair-names"
+
+  /// Where names are kept.
+  private static var store: UserDefaults {
+    guard TestCredentialEnvironment.isTestMode,
+      let suite = UserDefaults(suiteName: testSuiteName)
+    else { return .standard }
+    return suite
+  }
+
   // MARK: Public API
 
   /// Remembers the reviewed peer's name for one completed pair; a blank
@@ -29,7 +41,7 @@ public enum RappPairNames: Sendable {
       current[pairID.base64EncodedString()] = kept
       return current
     }()
-    UserDefaults.standard.set(names, forKey: key)
+    store.set(names, forKey: key)
   }
 
   /// The remembered name, or nil for a pair whose peer left none.
@@ -46,12 +58,12 @@ public enum RappPairNames: Sendable {
       current.removeValue(forKey: pairID.base64EncodedString())
       return current
     }()
-    UserDefaults.standard.set(names, forKey: key)
+    store.set(names, forKey: key)
   }
 
   /// Drops every remembered name, orphans included.
   public static func forgetAll() {
-    UserDefaults.standard.removeObject(forKey: key)
+    store.removeObject(forKey: key)
   }
 
   // MARK: Private Helpers
@@ -62,6 +74,6 @@ public enum RappPairNames: Sendable {
   }
 
   private static func stored() -> [String: String] {
-    UserDefaults.standard.dictionary(forKey: key) as? [String: String] ?? [:]
+    store.dictionary(forKey: key) as? [String: String] ?? [:]
   }
 }

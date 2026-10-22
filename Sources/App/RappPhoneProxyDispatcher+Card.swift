@@ -211,18 +211,23 @@
       }
     }
 
-    /// Holds a typed PIN 1 once the card accepted it, and forgets a held one
-    /// the counter no longer confirms (RAPP v26.10.22 §11 item 2).
+    /// Holds a typed PIN 1 once the card accepted it, or when no card came
+    /// to take it, and forgets a held one the counter no longer confirms
+    /// (RAPP v26.10.22 §11 item 2).
     ///
-    /// A refusal is forgotten where it is answered; a transport failure
-    /// keeps what is held, since the counter is read again before its next
-    /// use.
+    /// A PIN typed for a card that never arrived reached no card, so the
+    /// retry that follows uses it instead of asking again; the counter is
+    /// read before it is sent, and a card that refuses it ends it like any
+    /// held PIN. A refusal is forgotten where it is answered; a transport
+    /// failure keeps what is held, since the counter is read again before
+    /// its next use.
     private func settleHeldPin1(
       _ pin1: RappCardExecutor.SigningPin,
       after outcome: RappCardExecutor.Outcome
     ) async {
       switch (pin1, outcome) {
-      case (.enteredPin1(let digits), .result):
+      case (.enteredPin1(let digits), .result),
+        (.enteredPin1(let digits), .refusedBeforeCredentialTransmit(.cardUnavailable)):
         await MainActor.run {
           guard let card = PhonePersistentTokenRelay.shared.servedCardFingerprint else { return }
           HeldPin1.shared.hold(digits, card: card)

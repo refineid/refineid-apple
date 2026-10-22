@@ -28,9 +28,20 @@
     @Test
     internal func storedBlankReadsAsNoName() {
       defer { RappPairNames.forget(pairID: Self.pairID) }
-      UserDefaults.standard.set(
+      UserDefaults(suiteName: RappPairNames.testSuiteName)?.set(
         [Self.pairID.base64EncodedString(): " "], forKey: RappPairNames.key)
       #expect(RappPairNames.name(forPairID: Self.pairID) == nil)
+    }
+
+    /// A test host shares the app's bundle identifier, so names a test
+    /// keeps must stay out of the app's own defaults, where the app keeps
+    /// the names of real pairings.
+    @Test
+    internal func testNamesStayOutOfTheAppsDefaults() {
+      defer { RappPairNames.forget(pairID: Self.pairID) }
+      RappPairNames.remember("Alpha iPhone", pairID: Self.pairID)
+      let appNames = UserDefaults.standard.dictionary(forKey: RappPairNames.key)
+      #expect(appNames?[Self.pairID.base64EncodedString()] == nil)
     }
   }
 #endif
