@@ -10,16 +10,13 @@
   /// shows the phone and over Bluetooth otherwise (RAPP transport
   /// hierarchy §3).
   extension PersistentTokenRegistry {
-    /// Seconds between dials while no session is open.
-    private static let redialDelaySeconds = 2
-
     /// How long the redial loop may run over the stream without a usable
     /// session.
     ///
     /// Past this it stops and leaves a terminal state (R-58). It sits above
-    /// the longest interactive operation, so a legitimate long operation
-    /// during which the phone refuses a second session is not mistaken for
-    /// a dead loop. A fresh advertisement or a user action restarts it.
+    /// the longest interactive operation, so a phone busy with one is not
+    /// mistaken for a dead loop. A fresh advertisement or a user action
+    /// restarts it.
     /// Bluetooth dials on, each waiting for the phone's advertisement
     /// (CC-50). The offered identity follows ``RemoteIdentityOffer`` alone.
     private static let abortLoopSeconds = 150
@@ -31,8 +28,6 @@
     /// How long after a start the first dial waits for Bonjour to show the
     /// phone, so the stream is preferred when both could reach it.
     private static let settleSeconds = 3
-
-    internal static var redialDelay: Duration { .seconds(redialDelaySeconds) }
 
     /// The policy of a dial over Bluetooth: the interactive one, scanning
     /// for its own window.
@@ -80,11 +75,16 @@
     }
 
     /// Dials the phone along the transport the policy picks, unless a
-    /// session is open.
+    /// session is being dialled or open on any transport; while the wait
+    /// after the last one runs, the dial is put off until it is over.
     internal func openHolderSession() {
       guard Self.dialsPhones, !CardPresence.shared.isReaderCardPresent, holderSession == nil,
         let transport = transportPolicy.nextDial
       else { return }
+      guard sessionSlot.mayDial(at: .now) else {
+        if redialTask == nil { scheduleRedial() }
+        return
+      }
       let vault = RappDeviceVault()
       guard let pair = Self.sessionPair(in: vault, inSight: pairInSight) else {
         Self.withdrawPublishedIdentity()
@@ -107,12 +107,11 @@
           Self.shared.holderSessionReported(report, token: token)
         }
       }
+      guard sessionSlot.dial(over: transport, at: .now) else { return }
       settleDialTask?.cancel()
       settleDialTask = nil
       holderSession = session
       holderSessionToken = token
-      heldTransport = transport
-      heldSessionEstablished = false
       holderReportsNoCard = false
       #if DEBUG
         print("[persistent-token] dialing the phone over \(transport)")
@@ -167,8 +166,7 @@
     internal func forgetHeldSession() {
       holderSession = nil
       holderSessionToken = nil
-      heldTransport = nil
-      heldSessionEstablished = false
+      sessionSlot.released()
       holderOverBluetooth = false
     }
 
@@ -176,9 +174,9 @@
       guard token == holderSessionToken else { return }
       switch report {
       case .established:
-        heldSessionEstablished = true
-        holderOverBluetooth = heldTransport == .bluetooth
-        if heldTransport == .stream {
+        sessionSlot.established()
+        holderOverBluetooth = sessionSlot.transport == .bluetooth
+        if sessionSlot.transport == .stream {
           streamFailedInSight = false
         }
 
@@ -288,11 +286,15 @@
         reportEnd(reason)
       #endif
       let ended = holderSession
-      if heldTransport == .stream, !heldSessionEstablished, holderIsAdvertising {
+      if sessionSlot.transport == .stream, !sessionSlot.isEstablished, holderIsAdvertising {
         // The record is there and the phone did not answer: a suspended
         // app leaves its record behind, so the next dial tries Bluetooth
         // (CC-72).
         streamFailedInSight = true
+      }
+      // A session that carried a pairing's end ended as it should.
+      if !reason.peerRevokedPairing, reason != .handshake(.revocationNoticeDelivered) {
+        sessionSlot.ended(at: .now)
       }
       forgetHeldSession()
       holderCardStatus = .absent
@@ -334,7 +336,9 @@
       /// strip; a Bluetooth dial that reached no phone within its scan is
       /// the discovery failure itself.
       private func reportEnd(_ reason: RappConnectionCoordinator.CloseReason) {
-        if heldTransport == .bluetooth, !heldSessionEstablished, reason == .transportFailure {
+        if sessionSlot.transport == .bluetooth, !sessionSlot.isEstablished,
+          reason == .transportFailure
+        {
           DevErrorLog.report("phone over Bluetooth: not reached within the scan", source: .app)
         } else if let failure = reason.devErrorName(midOperation: isRunning) {
           DevErrorLog.report("phone session closed: \(failure)", source: .app)
@@ -362,9 +366,8 @@
       }
     }
 
-    /// Dials again after ``redialDelay``; over the stream only until the
-    /// loop has run for ``abortLoopSeconds`` without ever reaching a usable
-    /// session.
+    /// Dials again once the slot's back-off is over; over the stream only
+    /// until the loop has run for ``abortLoopSeconds`` without a session.
     internal func scheduleRedial() {
       redialTask?.cancel()
       let now = ContinuousClock.now
@@ -385,8 +388,9 @@
         redialTask = nil
         return
       }
+      let dialAt = sessionSlot.nextDialAt ?? now
       redialTask = Task { @MainActor in
-        try? await Task.sleep(for: Self.redialDelay)
+        try? await Task.sleep(until: dialAt, clock: .continuous)
         guard !Task.isCancelled else { return }
         redialTask = nil
         openHolderSession()

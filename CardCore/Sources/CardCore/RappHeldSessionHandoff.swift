@@ -7,13 +7,15 @@
   /// How the RAPP token extension hands an operation to the app on the same
   /// Mac, so the app carries it on the session it holds with the phone.
   ///
-  /// Every process of one Mac shares a single Bluetooth link and GATT client
-  /// to the phone, which the phone sees as one central with one channel
-  /// characteristic (RAPP v26.10.22 §5.2): a second RAPP connection from
-  /// the extension would interleave its fragments with the app's. The app
-  /// alone holds the Bluetooth session, and the extension asks it to carry
-  /// its operation. The app answers with the operation's outcome, or tells
-  /// the extension to dial the stream itself.
+  /// A Mac holds one session to its phone, and the app holds it, on either
+  /// transport. Every process of one Mac shares a single Bluetooth link and
+  /// GATT client to the phone, which the phone sees as one central with one
+  /// channel characteristic (RAPP v26.10.22 §5.2): a second RAPP connection
+  /// from the extension would interleave its fragments with the app's, and
+  /// on the stream it would be a second session beside the app's. So the
+  /// extension asks the running app to carry its operation, and the app
+  /// answers with the operation's outcome; the extension dials itself only
+  /// when no app holds the port.
   ///
   /// The message is a property list whose every field is named, read back
   /// at one border; it carries exactly what an operation request carries on
@@ -56,9 +58,6 @@
 
     /// What the app answers.
     public enum Answer: Sendable, Equatable {
-      /// The app holds no Bluetooth session to carry it: the extension
-      /// dials the stream itself.
-      case dialStream
       /// Why the operation produced no answer.
       case failed(RappRequesterClientError)
       /// The operation's answer.
@@ -69,9 +68,6 @@
       public init?(encoded: Data) {
         let fields = Coding.fields(encoded)
         switch fields[Key.answer] as? String {
-        case Tag.dialStream:
-          self = .dialStream
-
         case Tag.failed:
           guard let error = Coding.error(fields) else { return nil }
           self = .failed(error)
@@ -88,9 +84,6 @@
       /// The message carrying this answer.
       public func encoded() -> Data? {
         switch self {
-        case .dialStream:
-          return Coding.encode([Key.answer: Tag.dialStream])
-
         case .failed(let error):
           var fields = Coding.fields(of: error)
           fields[Key.answer] = Tag.failed
@@ -121,7 +114,6 @@
 
     /// The values a message names kinds with.
     private enum Tag {
-      static let dialStream = "dialStream"
       static let response = "response"
       static let failed = "failed"
       static let terminal = "terminal"
@@ -276,16 +268,17 @@
 
     #if os(macOS)
       /// Asks the app to carry `request`, waiting at most
-      /// ``answerWaitSeconds`` for its answer; nil when no app took the
-      /// request, so the extension may dial the stream itself.
+      /// ``answerWaitSeconds`` for its answer; nil only when no app holds
+      /// the port, so the extension may dial the phone itself.
       ///
-      /// An app that took the request and did not answer in time may still
-      /// be running the operation on the phone: that is a timeout, never a
-      /// reason to start the operation a second time.
+      /// An app that holds the port carries the operation on its session:
+      /// one busy with an earlier request, or one that did not answer in
+      /// time, may still be running the operation on the phone. That is a
+      /// failure, never a reason to open a second session or start the
+      /// operation a second time.
       public static func ask(_ request: Request) -> Answer? {
-        guard let payload = request.encoded(),
-          let remote = CFMessagePortCreateRemote(nil, portName as CFString)
-        else { return nil }
+        guard let payload = request.encoded() else { return .failed(.protocolFailure) }
+        guard let remote = CFMessagePortCreateRemote(nil, portName as CFString) else { return nil }
         defer { CFMessagePortInvalidate(remote) }
         var reply: Unmanaged<CFData>?
         let status = CFMessagePortSendRequest(
@@ -296,11 +289,15 @@
           guard let reply else { return .failed(.protocolFailure) }
           return Answer(encoded: reply.takeRetainedValue() as Data) ?? .failed(.protocolFailure)
 
-        case kCFMessagePortReceiveTimeout:
+        case kCFMessagePortSendTimeout, kCFMessagePortReceiveTimeout:
           return .failed(.timedOut)
 
-        default:
+        case kCFMessagePortIsInvalid, kCFMessagePortBecameInvalidError:
+          // The app quit: no session of its own carries the operation.
           return nil
+
+        default:
+          return .failed(.transport)
         }
       }
     #endif

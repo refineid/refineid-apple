@@ -53,7 +53,6 @@
     /// Why an operation over the session produced no answer.
     public enum OperationError: Error, Equatable {
       case notEstablished
-      case operationInFlight
       case terminal(RappTerminalReason)
       case closed
       case unexpectedResult
@@ -66,6 +65,10 @@
       internal var finished = false
       internal var bluetoothPeer: UUID?
       internal var pending: CheckedContinuation<RappOperationResult, any Error>?
+      /// Whether an operation holds the session's turn (§8.1 item 1).
+      internal var operating = false
+      /// The operations waiting for the turn, first come first served.
+      internal var waitingForTurn: [CheckedContinuation<Void, Never>] = []
       internal var awaitingEstablishment: [UUID: CheckedContinuation<Bool, Never>] = [:]
     }
 
@@ -139,6 +142,19 @@
       }
     }
 
+    /// Lets every operation waiting for the turn go on, to find the session
+    /// closed.
+    internal static func settleWaitingForTurn(_ state: OSAllocatedUnfairLock<State>) {
+      let waiting = state.withLock { held -> [CheckedContinuation<Void, Never>] in
+        let waiting = held.waitingForTurn
+        held.waitingForTurn.removeAll()
+        return waiting
+      }
+      for continuation in waiting {
+        continuation.resume()
+      }
+    }
+
     // MARK: Functions
 
     /// Dials along the route; a custodian not reached within the policy's
@@ -192,10 +208,15 @@
 
     /// Runs one operation over the session and answers what it yields.
     ///
-    /// One operation at a time; the session must be established.
+    /// The session carries one operation at a time (RAPP v26.10.22 §8.1
+    /// item 1): one that arrives while another runs waits for it, first come
+    /// first served, instead of being refused. The session must be
+    /// established.
     public func perform(_ operation: RappRequesterOperation) async throws
       -> RappRequesterResponse
     {
+      await takeTurn()
+      defer { releaseTurn() }
       let lifetime = policy.maximumOperationLifetimeMilliseconds
       let shared = state
       let result = try await withCheckedThrowingContinuation {
@@ -205,7 +226,6 @@
           guard held.established, let coordinator = held.coordinator else {
             return .failure(.notEstablished)
           }
-          guard held.pending == nil else { return .failure(.operationInFlight) }
           held.pending = continuation
           return .success(coordinator)
         }
@@ -227,6 +247,36 @@
         throw OperationError.unexpectedResult
       }
       return response
+    }
+
+    /// Waits until no other operation runs over the session, and returns at
+    /// once when the session has ended, so the caller finds it closed.
+    private func takeTurn() async {
+      let shared = state
+      await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+        let proceeds = shared.withLock { held -> Bool in
+          if held.finished { return true }
+          if !held.operating {
+            held.operating = true
+            return true
+          }
+          held.waitingForTurn.append(continuation)
+          return false
+        }
+        if proceeds { continuation.resume() }
+      }
+    }
+
+    /// Hands the turn to the operation that waited longest.
+    private func releaseTurn() {
+      let next = state.withLock { held -> CheckedContinuation<Void, Never>? in
+        guard !held.waitingForTurn.isEmpty else {
+          held.operating = false
+          return nil
+        }
+        return held.waitingForTurn.removeFirst()
+      }
+      next?.resume()
     }
 
     /// Ends the session with a plain close, after the frames in flight.
@@ -261,6 +311,7 @@
       guard first else { return }
       Self.settle(state, .failure(OperationError.closed))
       Self.settleEstablishment(state, false)
+      Self.settleWaitingForTurn(state)
       link.cancel()
       report(.closed(reason))
     }
@@ -268,6 +319,7 @@
     deinit {
       Self.settle(state, .failure(OperationError.closed))
       Self.settleEstablishment(state, false)
+      Self.settleWaitingForTurn(state)
     }
   }
 #endif

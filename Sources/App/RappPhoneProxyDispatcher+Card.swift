@@ -360,8 +360,7 @@
         HolderTrace.say("card wanted in the background: summoning the holder")
       #endif
       try? await coordinator.reportProgress(operationID: operationID, event: .waitingForCard)
-      let requester = await Self.requesterName() ?? String(localized: "Paired device")
-      guard await HolderSummons.shared.summon(requester: requester) else {
+      guard await HolderSummons.shared.summon(requester: requesterName, owner: session) else {
         #if DEBUG
           DevErrorLog.report("holder not summoned in time: card error", source: .app)
         #endif

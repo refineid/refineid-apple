@@ -27,16 +27,4 @@ internal struct RequesterTransportPolicy: Equatable, Sendable {
     if bluetoothUsable { return .bluetooth }
     return streamInSight ? .stream : nil
   }
-
-  /// Who carries an operation the extension hands over while a session
-  /// over `held` is open, or none is (nil) (CC-71).
-  internal func handoffCarrier(held: RequesterTransport?) -> HandoffCarrier {
-    switch held ?? nextDial {
-    case .bluetooth:
-      .app
-
-    case .stream, nil:
-      .extensionOverStream
-    }
-  }
 }

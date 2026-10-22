@@ -39,7 +39,6 @@ internal struct RappHeldSessionHandoffTests {
   /// Every answer the app can give.
   private static var answers: [RappHeldSessionHandoff.Answer] {
     var all: [RappHeldSessionHandoff.Answer] = [
-      .dialStream,
       .response(.authenticationCertificate(bytes)),
       .response(.signature(bytes)),
       .response(.signatureCertificate(bytes)),

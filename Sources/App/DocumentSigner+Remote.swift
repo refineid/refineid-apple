@@ -66,13 +66,13 @@ extension DocumentSigner {
   /// with retries, leaving the phone a moment before the next request.
   internal static func fetchRemoteSignatureCertificate(
     displayName: String
-  ) throws -> Data {
+  ) async throws -> Data {
     var certificate: Data?
     var certificateError: Error?
     for attempt in 1...RemoteSigningPolicy.maximumCertificateAttempts {
       do {
-        let certificateClient = RappPersistentRequesterClient(displayName: displayName)
-        let certificateResponse = try certificateClient.perform(.readSignatureCertificate)
+        let certificateResponse = try await Self.askPhone(
+          .readSignatureCertificate, displayName: displayName)
         if case .signatureCertificate(let cert) = certificateResponse {
           certificate = cert
           break
@@ -84,7 +84,7 @@ extension DocumentSigner {
         else {
           throw error
         }
-        Thread.sleep(forTimeInterval: RemoteSigningPolicy.retryDelaySeconds)
+        try? await Task.sleep(for: .seconds(RemoteSigningPolicy.retryDelaySeconds))
       } catch {
         throw error
       }
@@ -92,8 +92,23 @@ extension DocumentSigner {
     guard let certificate else {
       throw certificateError ?? Failure.remote(.noSignature)
     }
-    Thread.sleep(forTimeInterval: RemoteSigningPolicy.settleDelaySeconds)
+    try? await Task.sleep(for: .seconds(RemoteSigningPolicy.settleDelaySeconds))
     return certificate
+  }
+
+  /// Runs `operation` on the paired phone: on this computer's one session
+  /// with it where the build holds one, so signing never opens a second
+  /// session beside it; else on a session of its own.
+  private static func askPhone(
+    _ operation: RappRequesterOperation, displayName: String
+  ) async throws -> RappRequesterResponse {
+    #if REFINEID_STREAM_TRANSPORT
+      return try await PersistentTokenRegistry.shared.perform(operation)
+    #else
+      return try await Task.detached(priority: .userInitiated) {
+        try RappPersistentRequesterClient(displayName: displayName).perform(operation)
+      }.value
+    #endif
   }
 
   /// Performs one remote qualified-signature operation.
@@ -121,12 +136,10 @@ extension DocumentSigner {
       throw Failure.stampSignerChanged
     }
     do {
-      return try await Task.detached(priority: .userInitiated) {
-        try Self.executeRemoteQualifiedSignature(
-          documentName: documentName,
-          certificate: certificate,
-          content: content)
-      }.value
+      return try await Self.executeRemoteQualifiedSignature(
+        documentName: documentName,
+        certificate: certificate,
+        content: content)
     } catch Failure.remote(.unverifiedSignature) {
       // The card on the phone is not the one the certificate was read
       // from; the next signature reads it again.
@@ -139,7 +152,7 @@ extension DocumentSigner {
     documentName: String,
     certificate: Data,
     content: (Data) -> Data
-  ) throws -> CardMaintenance.QualifiedProduct {
+  ) async throws -> CardMaintenance.QualifiedProduct {
     let displayName = ProcessInfo.processInfo.hostName
     guard
       let securityCertificate = SecCertificateCreateWithData(
@@ -160,7 +173,7 @@ extension DocumentSigner {
       throw Failure.remote(.unusableCertificate)
     }
 
-    let signature = try Self.executeRemoteDocumentSigning(
+    let signature = try await Self.executeRemoteDocumentSigning(
       displayName: displayName,
       documentName: documentName,
       keyProfile: RappOperationDriver.KeyProfile(profile),
@@ -186,20 +199,19 @@ extension DocumentSigner {
     keyProfile: RappOperationDriver.KeyProfile,
     algorithm: RappOperationDriver.SignatureAlgorithm,
     digest: Data
-  ) throws -> Data {
+  ) async throws -> Data {
     var signingError: Error?
     for attempt in 1...RemoteSigningPolicy.maximumSigningAttempts {
       do {
         trace("remote signing attempt \(attempt)/\(RemoteSigningPolicy.maximumSigningAttempts)")
-        let signingClient = RappPersistentRequesterClient(displayName: displayName)
-        let signatureResponse = try signingClient.perform(
+        let signatureResponse = try await Self.askPhone(
           .documentSigning(
             documentName: documentName,
             keyProfile: keyProfile,
             algorithm: algorithm,
             digest: digest
-          )
-        )
+          ),
+          displayName: displayName)
         if case .signature(let signature) = signatureResponse {
           trace("remote signing succeeded: \(signature.count) bytes")
           return signature
@@ -213,7 +225,7 @@ extension DocumentSigner {
         else {
           throw error
         }
-        Thread.sleep(forTimeInterval: RemoteSigningPolicy.retryDelaySeconds)
+        try? await Task.sleep(for: .seconds(RemoteSigningPolicy.retryDelaySeconds))
       } catch {
         trace("attempt \(attempt) non-client error: \(error)")
         throw error
@@ -230,14 +242,26 @@ extension DocumentSigner {
     #endif
   }
 
+  /// Whether another attempt may succeed.
+  ///
+  /// It may when the session dropped, or, where each attempt dials a
+  /// session of its own, when the phone was not found in that dial's
+  /// window; the held session already waited out its own.
   private static func isRecoverableRemoteError(_ error: RappRequesterClientError) -> Bool {
     switch error {
-    case .transport, .peerNotFound, .protocolFailure:
-      true
+    case .transport, .protocolFailure:
+      return true
+
+    case .peerNotFound:
+      #if REFINEID_STREAM_TRANSPORT
+        return false
+      #else
+        return true
+      #endif
 
     case .noActivePair, .noSelectedPair, .terminal, .timedOut,
       .unexpectedResult:
-      false
+      return false
     }
   }
 }

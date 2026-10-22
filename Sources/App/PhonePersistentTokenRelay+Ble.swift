@@ -11,9 +11,10 @@
   /// `fi.refineid.rapp.ble` (RAPP v26.10.22 §5), serving the same pairings
   /// as the stream listener, beside it, and on from the background.
   ///
-  /// A central routes a session preamble on its link; the phone serves one
-  /// session at a time whatever transport carries it (CC-67), and the
-  /// operating system wakes the app for each write while it is in the
+  /// Each central whose link routes a session preamble gets a session of
+  /// its own, beside every other open session on either transport; a
+  /// computer is one central with one link, so it holds one session here.
+  /// The operating system wakes the app for each write while it is in the
   /// background. Entering the background takes the stream listener down
   /// while Bluetooth serves, since a suspended app cannot answer a dial
   /// (CC-68); the foreground brings it back. Neither is a withdrawal
@@ -24,17 +25,12 @@
     /// for its Bluetooth events after the system ended the process.
     internal static let bluetoothRestoreIdentifier = "fi.refineid.rapp-ble-custodian"
 
-    /// Admits a link's preamble on the server's queue.
-    ///
-    /// A session preamble routed to a pairing this phone serves (§2.2.1),
-    /// with the one-session gate (CC-67) open to it. The main actor decides
-    /// again before it displaces anything.
+    /// Admits a link's preamble on the server's queue: a session preamble
+    /// routed to a pairing this phone serves (§2.2.1).
     nonisolated private static func admitsBluetooth(
       _ purpose: RappBleRoutingPurpose,
       link: RappBleGattLink,
-      routing: OSAllocatedUnfairLock<BluetoothRouting>,
-      serving: OSAllocatedUnfairLock<(pairing: Data?, idleSince: ContinuousClock.Instant?)>,
-      holdSeconds: Int64
+      routing: OSAllocatedUnfairLock<BluetoothRouting>
     ) -> Bool {
       guard case .session(let preamble) = purpose else {
         #if DEBUG
@@ -43,27 +39,15 @@
         #endif
         return false
       }
-      let (pairing, idleSince) = serving.withLock { $0 }
       return routing.withLock { state in
-        let route = state.router.route(
-          transportProfile: RappBleGattProfile.name, preamble: preamble, records: state.records)
-        guard case .session(let index) = route, state.records.indices.contains(index) else {
+        let verdict = state.admission.admit(preamble, transportProfile: RappBleGattProfile.name)
+        guard case .open(let index) = verdict else {
           #if DEBUG
             DevErrorLog.report("ble link refused: preamble matches no pairing", source: .app)
           #endif
           return false
         }
-        let incoming = state.records[index]
-        let verdict = HolderSessionAdmission.decide(
-          incoming: incoming.metadata().pairId, pairing: pairing, idleSince: idleSince,
-          now: .now, hold: .seconds(holdSeconds))
-        guard verdict.admits else {
-          #if DEBUG
-            DevErrorLog.report("ble link refused: \(verdict)", source: .app)
-          #endif
-          return false
-        }
-        state.routed[link] = incoming
+        state.routed[link] = state.admission.records[index]
         return true
       }
     }
@@ -72,15 +56,13 @@
     /// server when it is not running.
     internal func startBluetoothServing(_ contexts: [PhoneStreamPairContext]) {
       let records = contexts.map(\.pairRecord)
-      bluetoothRouting.withLock { $0.records = records }
+      bluetoothRouting.withLock { $0.admission.records = records }
       guard bluetoothServer == nil else { return }
       bluetoothRouting.withLock { routing in
-        routing.router = RappSessionRouter()
+        routing.admission.forgetRouted()
         routing.routed.removeAll()
       }
       let routing = bluetoothRouting
-      let serving = sessionServing
-      let holdSeconds = Self.crossPeerHoldSeconds
       // One stream carries the server's events to the main actor in the
       // order the server reported them: a link's first frame never
       // overtakes its routing.
@@ -89,8 +71,7 @@
         restoreIdentifier: Self.bluetoothRestoreIdentifier,
         bootstrapOffer: nil,
         admits: { purpose, link in
-          Self.admitsBluetooth(
-            purpose, link: link, routing: routing, serving: serving, holdSeconds: holdSeconds)
+          Self.admitsBluetooth(purpose, link: link, routing: routing)
         },
         onEvent: { event in sink.yield(event) })
       bluetoothServer = server
@@ -110,42 +91,8 @@
       bluetoothServer = nil
       bluetoothAdvertising = false
       bluetoothRouting.withLock { $0.routed.removeAll() }
-    }
-
-    /// Re-decides on the main actor whether a dial routed to `incoming`
-    /// gets the session, and displaces the open one when it does (CC-67):
-    /// two transports racing for an empty slot cannot both win.
-    internal func admitSession(for incoming: Data) -> Bool {
-      let (pairing, idleSince) = sessionServing.withLock { $0 }
-      let verdict = HolderSessionAdmission.decide(
-        incoming: incoming, pairing: pairing, idleSince: idleSince, now: .now,
-        hold: .seconds(Self.crossPeerHoldSeconds))
-      guard verdict.admits else {
-        #if DEBUG
-          DevErrorLog.report("dial refused: \(verdict)", source: .app)
-        #endif
-        return false
-      }
-      if coordinator != nil {
-        dropServedTransport()
-        handleConnectionClosed()
-        RappAuthorizationInbox.shared.cancelAll()
-      }
-      return true
-    }
-
-    /// Ends the open session's transport: its stream connection or its
-    /// Bluetooth link.
-    internal func dropServedTransport() {
-      switch servedTransport {
-      case .stream:
-        activeStreamListener?.disconnect()
-
-      case .bluetooth(let link):
-        bluetoothServer?.close(link)
-
-      case nil:
-        break
+      for session in sessions.values {
+        if case .bluetooth = session.transport { session.transportClosed() }
       }
     }
 
@@ -188,15 +135,19 @@
     }
 
     /// Takes the stream listener down once no stream session carries an
-    /// operation; an idle stream session ends first, so its requester
-    /// dials again and finds Bluetooth.
+    /// operation: idle stream sessions end first, so their requesters dial
+    /// again and find Bluetooth; a busy one ends when its operation does.
     internal func suspendStreamWhenIdle() {
-      guard streamSuspended, !streamListeners.isEmpty else { return }
-      if servedTransport == .stream {
-        guard sessionServing.withLock({ $0.idleSince }) != nil else { return }
-        handleConnectionClosed()
+      guard streamSuspended, sessionListener != nil else { return }
+      let streamSessions = sessions.values.filter { session in
+        if case .stream = session.transport { return true }
+        return false
       }
-      pruneStreamTransports(keeping: [])
+      for session in streamSessions where session.isIdle {
+        session.close()
+      }
+      guard streamSessions.allSatisfy(\.isIdle) else { return }
+      stopListening()
     }
 
     private func receiveBluetooth(_ event: RappBleGattServerEvent) {
@@ -205,14 +156,7 @@
         bluetoothRouted(link)
 
       case .frame(let link, let frame):
-        guard servedTransport == .bluetooth(link) else { return }
-        if let coordinator {
-          deliverInOrder { await coordinator.receive(frame) }
-        } else if preCoordinatorFrames.count < Self.maximumPreCoordinatorFrames {
-          preCoordinatorFrames.append(frame)
-        } else {
-          bluetoothServer?.close(link)
-        }
+        session(on: .bluetooth(link))?.receive(frame)
 
       case .closed(let link, let failure):
         _ = bluetoothRouting.withLock { $0.routed.removeValue(forKey: link) }
@@ -221,44 +165,31 @@
             DevErrorLog.report("ble link closed: \(failure)", source: .app)
           }
         #endif
-        guard servedTransport == .bluetooth(link) else { return }
-        handleConnectionClosed()
-        RappAuthorizationInbox.shared.cancelAll()
+        session(on: .bluetooth(link))?.transportClosed()
 
       case .trace(let step):
         traceBluetooth(step)
       }
     }
 
-    /// Opens the session a link routed, once the main actor admits it too.
+    /// Opens the session a link routed.
     private func bluetoothRouted(_ link: RappBleGattLink) {
       guard let server = bluetoothServer, sessionListening.withdrawal == nil,
-        let pair = bluetoothRouting.withLock({ $0.routed.removeValue(forKey: link) }),
-        admitSession(for: pair.metadata().pairId)
+        let pair = bluetoothRouting.withLock({ $0.routed.removeValue(forKey: link) })
       else {
         bluetoothServer?.close(link)
         return
       }
-      let routedConnectionID = UUID()
-      connectionID = routedConnectionID
-      servedTransport = .bluetooth(link)
-      PairLastUse.markUsed(pairID: pair.metadata().pairId, at: Date())
-      let transport = RappClosureFrameTransport(
+      let frames = RappClosureFrameTransport(
         sender: { [weak server] frame in
           guard let server else { throw RappBleGattFailure.disconnected }
           try await server.send(frame, on: link)
         },
         closer: { [weak server] in server?.close(link) })
-      establishCoordinator(
-        connectionID: routedConnectionID, pair: pair, transportProfile: RappBleGattProfile.name,
-        transport: transport
-      ) { [weak server] in
-        server?.close(link)
-      }
-      if coordinator == nil {
-        servedTransport = nil
-        connectionID = nil
-      }
+      let opened = openSession(
+        pair: pair, on: .bluetooth(link), transportProfile: RappBleGattProfile.name,
+        frames: frames, earlyFrames: [])
+      if opened == nil { server.close(link) }
     }
 
     /// Follows the server's advertising, and in a development build writes

@@ -280,6 +280,7 @@
           continuousFailureSince = nil
           streamFailedInSight = false
           bluetoothUsable = Self.dialsOverBluetooth
+          sessionSlot.startOver()
         }
         advertisementLossTask?.cancel()
         advertisementLossTask = nil

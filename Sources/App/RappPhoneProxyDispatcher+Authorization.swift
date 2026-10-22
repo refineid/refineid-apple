@@ -80,7 +80,7 @@
     ) async -> RappAuthorizationDecision {
       let request = RappAuthorizationRequest(
         requestID: requestID(for: operationID),
-        requester: await Self.requesterName() ?? String(localized: "Paired device"),
+        requester: requesterName,
         action: action,
         displayContext: Self.promptContext(for: operation),
         notice: notice

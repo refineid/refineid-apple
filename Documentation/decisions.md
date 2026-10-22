@@ -5,6 +5,41 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-10-22 The phone serves every computer at once
+
+The iPhone serves every routed connection as a session of its own, on the
+stream and over Bluetooth, as RAPP v26.10.22 §2.2.2 and §8.3 say and STPA
+CC-58 requires. This supersedes the one-session gate of the Bluetooth entry
+below: `HolderSessionAdmission`, the cross-peer hold and the busy refusal
+are gone, and no session is ever displaced.
+
+- A dial is refused only for what routing refuses: a pairing preamble on
+  the session listener or server, a preamble that names no pairing served
+  here, a replayed nonce, a dial while service is being withdrawn, and a
+  stream dial while the stream is suspended for the background. The
+  session listener (`StreamSessionListener`) carries any number of
+  connections; one that sends no whole first frame within 5 seconds is
+  closed, and at most 8 may wait for theirs at once.
+- One card queue (`CustodianCardQueue`) hands the card to one whole
+  operation at a time across every session, first come first served, reads
+  included (§8.2 items 2 and 6). An operation joins when it is admitted;
+  while another session's operation holds the card its requester hears
+  `queued` once. The PIN prompt and the background summons belong to the
+  operation holding the card and name that session's computer. The card
+  goes to the next operation once the operation is over and its card
+  exchange has answered; one that expires or loses its session while it
+  waits leaves the queue, and an expired prompt is taken down (§8.1 item
+  2). `card.status` goes to every session on start and on every change.
+- The Mac holds one session with the phone, in the app, on either
+  transport. The RAPP token extension hands every operation to the running
+  app, which carries it on that session after any operation already running
+  there, as it does its own document signing; the answer "dial the stream
+  yourself" is gone, and the extension dials only when no app holds the
+  handoff port. A busy port or a late answer is a failure, never a second
+  session. A dial that fails, or a session that ends, is followed by a
+  wait that doubles from 2 to 32 seconds; a session that comes up, or the
+  phone newly seen on Bonjour, starts it over.
+
 ## 2026-10-22 The phone serves over Bluetooth from the background
 
 The iPhone serves RAPP sessions over `fi.refineid.rapp.ble` (RAPP v26.10.22
@@ -15,10 +50,8 @@ phase 4); no Bluetooth pairing exists in the product.
 - The phone's GATT server (`RappBleGattPeripheral`) publishes the RAPP
   service once and advertises it for as long as it serves. Each central
   that enables indications opens a link that routes one session preamble.
-  The phone serves one session at a time across both transports: a busy
-  session is never displaced, an idle one is handed over to its own
-  pairing at once and to another after the cross-peer hold
-  (`HolderSessionAdmission`). iOS cannot end a central's connection, so a
+  Each link carries a session of its own, beside the phone's other
+  sessions (see the entry above). iOS cannot end a central's connection, so a
   closed link answers writes with `writeNotPermitted` until the central
   lets go; no answer asks for link-layer security.
 - The development-shape iOS plist declares `UIBackgroundModes`
@@ -48,10 +81,10 @@ phase 4); no Bluetooth pairing exists in the product.
 - Every process of a Mac shares one Bluetooth link to the phone, so only
   the app holds one. The RAPP token extension hands its operation to the
   app over a `CFMessagePort` named under the app group
-  (`RappHeldSessionHandoff`); the app carries it on its Bluetooth session,
-  or answers that the extension dials the stream itself, as it also does
-  when no app answers. An app that took the request and did not answer in
-  time is a timeout, never a second operation.
+  (`RappHeldSessionHandoff`); the app carries it on its session, and the
+  extension dials itself only when no app answers (see the entry above).
+  An app that took the request and did not answer in time is a timeout,
+  never a second operation.
 - The `--ble-serve-remote-reader` launch mode is removed: serving over
   Bluetooth is the product's. `--ble-offer-remote-reader` and
   `--ble-pair-with-offer` stay as development pairing over Bluetooth.
