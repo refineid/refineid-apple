@@ -141,7 +141,8 @@
 
       case .completed(let operationID, _), .terminal(let operationID, _),
         .operationEnded(.dropped(let operationID)),
-        .operationEnded(.cardExchangeContinues(let operationID)):
+        .operationEnded(.cardExchangeContinues(let operationID)),
+        .answered(let operationID):
         operationEnded(operationID)
 
       case .closed(let reason):

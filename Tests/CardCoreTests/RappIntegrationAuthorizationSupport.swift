@@ -86,7 +86,7 @@ import Testing
           return progress
 
         case .terminal, .closed, .executeSafeRead, .completed, .progress, .cardStatus,
-          .operationEnded:
+          .operationEnded, .answered:
           throw Self.ending(event)
         }
       }
@@ -180,7 +180,7 @@ import Testing
           return progress
 
         case .terminal, .closed, .executeSafeRead, .completed, .progress, .cardStatus,
-          .operationEnded:
+          .operationEnded, .answered:
           throw Self.ending(event)
         }
       }

@@ -34,7 +34,7 @@ import Testing
           throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
 
         case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
-          .executeCardCommand, .operationEnded:
+          .executeCardCommand, .operationEnded, .answered:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
         }
       }
@@ -65,7 +65,7 @@ import Testing
           throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
 
         case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
-          .executeCardCommand, .operationEnded:
+          .executeCardCommand, .operationEnded, .answered:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
         }
       }
@@ -94,7 +94,7 @@ import Testing
           throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
 
         case .established, .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
-          .executeCardCommand, .operationEnded:
+          .executeCardCommand, .operationEnded, .answered:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
         }
       }

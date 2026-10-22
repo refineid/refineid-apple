@@ -186,6 +186,14 @@
       }
     }
 
+    /// Tells the session's owner that this custodian answered or refused
+    /// `operationID`: the engine sends the answer as a plain frame, so no
+    /// command marks the operation's end on this side.
+    internal func answered(_ operationID: RappOperationIdentifier) {
+      guard phase == .operating else { return }
+      continuation.yield(.answered(operationID: operationID))
+    }
+
     internal func handleOperation(_ commands: [RappOperationDriver.Command]) async {
       for command in commands where phase == .operating {
         if let event = Event(command) {
