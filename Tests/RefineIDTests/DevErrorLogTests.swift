@@ -10,7 +10,7 @@
   /// The development error log's ring and the names it gives errors.
   ///
   /// Only the rules are tested, not the keychain around them: a test run
-  /// records nothing, so a test's failures never reach a developer's strip.
+  /// records nothing, so a test's failures never reach a developer's display.
   @Suite
   internal struct DevErrorLogTests {
     /// A case a probe error carries.
@@ -18,7 +18,7 @@
       case leaf
     }
 
-    /// Errors shaped like the ones the strip names.
+    /// Errors shaped like the ones the display names.
     internal enum Probe: Error {
       case bare
       case counted(remaining: Int)
@@ -50,6 +50,8 @@
       static let message = "dial refused"
       /// One error reported twice in a row.
       static let repeated = 2
+      /// The zone a line's time is written in.
+      static let zone = TimeZone(secondsFromGMT: 0) ?? .current
     }
 
     private static func entry(
@@ -107,6 +109,40 @@
       let first = Self.entry(0, message: Fixture.message, source: .app)
       let other = Self.entry(1, message: Fixture.message, source: .rappTokenExtension)
       #expect(DevErrorLog.appending(other, to: [first]) == [first, other])
+    }
+
+    @Test
+    internal func aLineSaysWhenFromWhereAndWhat() {
+      let entry = Self.entry(0, message: Fixture.message, source: .rappTokenExtension)
+      let time = entry.date.ISO8601Format(.init(timeZone: Fixture.zone))
+      #expect(
+        DevErrorLog.line(for: entry, timeZone: Fixture.zone)
+          == "\(time) rapp-token \(Fixture.message)")
+    }
+
+    @Test
+    internal func aLineCarriesTheDayAndTheZone() {
+      let line = DevErrorLog.line(for: Self.entry(0), timeZone: Fixture.zone)
+      let stamp = line.prefix { $0 != " " }
+      #expect(stamp.contains("T"))
+      #expect(stamp.hasSuffix("Z"))
+    }
+
+    @Test
+    internal func aRepeatedErrorSaysHowOften() {
+      let first = Self.entry(0, message: Fixture.message, source: .app)
+      let again = Self.entry(1, message: Fixture.message, source: .app)
+      let counted = DevErrorLog.appending(again, to: [first])
+      #expect(counted.first?.text == "\(Fixture.message) (x\(Fixture.repeated))")
+      #expect(first.text == Fixture.message)
+    }
+
+    @Test
+    internal func aTranscriptIsOneLinePerEntryInTheOrderGiven() {
+      let entries = (0..<Fixture.overflow).map(Self.entry)
+      let lines = entries.map { DevErrorLog.line(for: $0, timeZone: Fixture.zone) }
+      let transcript = DevErrorLog.transcript(of: entries, timeZone: Fixture.zone)
+      #expect(transcript.components(separatedBy: "\n") == lines)
     }
 
     @Test

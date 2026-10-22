@@ -52,7 +52,7 @@
       }
     }
 
-    /// The close as the development error strip names it, or nil when the
+    /// The close as the development error display names it, or nil when the
     /// session ended the ordinary way.
     ///
     /// A transport that closes once the session is up is an ordinary end:

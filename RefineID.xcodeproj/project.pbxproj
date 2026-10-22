@@ -933,9 +933,11 @@
 				ENABLE_PREVIEWS = YES;
 				EXCLUDED_SOURCE_FILE_NAMES = (
 					CardCapabilityProbe.swift,
+					DevErrorDisplay.swift,
+					DevErrorList.swift,
 					DevErrorLog.swift,
-					DevErrorStrip.swift,
-					DevErrorStripModel.swift,
+					DevErrorModel.swift,
+					DevErrorWindow.swift,
 					"RappConnectionCoordinator.CloseReason+DevError.swift",
 					"RappPhoneProxyDispatcher+DevErrors.swift",
 					DiagnosticsClipboard.swift,
@@ -983,9 +985,11 @@
 				ENABLE_PREVIEWS = YES;
 				EXCLUDED_SOURCE_FILE_NAMES = (
 					CardCapabilityProbe.swift,
+					DevErrorDisplay.swift,
+					DevErrorList.swift,
 					DevErrorLog.swift,
-					DevErrorStrip.swift,
-					DevErrorStripModel.swift,
+					DevErrorModel.swift,
+					DevErrorWindow.swift,
 					"RappConnectionCoordinator.CloseReason+DevError.swift",
 					"RappPhoneProxyDispatcher+DevErrors.swift",
 					DiagnosticsClipboard.swift,

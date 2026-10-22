@@ -41,15 +41,28 @@ internal struct DiagnosticsSnapshot: Sendable {
   /// Enough of an identifier to tell two pairings apart.
   private static let identifierPrefixLength = 4
 
+  /// Every error the development error log holds, oldest first.
+  internal let errors: [DevErrorLog.Entry]
+
   /// The blocks, in reading order.
   internal let sections: [Section]
 
-  /// The whole snapshot as plain text, for the share and copy actions.
+  /// The errors as the text form prints them, one line each.
+  internal var errorSection: Section {
+    Section(
+      title: "Errors (\(errors.count))",
+      lines: errors.isEmpty
+        ? ["(nothing recorded)"]
+        : errors.map { DevErrorLog.line(for: $0, timeZone: .current) })
+  }
+
+  /// The whole snapshot as plain text, errors first, for the share and
+  /// copy actions.
   ///
   /// Getting a trace off the phone is the point of the screen: a photo of
   /// a scrolling list is not evidence anybody can grep.
   internal var text: String {
-    sections
+    ([errorSection] + sections)
       .map { section in
         (["== " + section.title + " =="] + section.lines).joined(separator: "\n")
       }
@@ -64,6 +77,7 @@ internal struct DiagnosticsSnapshot: Sendable {
   /// diagnostic capture doing it would alter the failure being observed.
   internal static func collect() -> Self {
     Self(
+      errors: DevErrorLog.read(),
       sections: [
         Self.registeredTokens(),
         Self.watcherTokens(),
