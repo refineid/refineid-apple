@@ -36,6 +36,14 @@ internal struct RefineIDApp: App {
   #endif
 
   #if os(macOS)
+    /// Whether this process only hosts the unit tests.
+    ///
+    /// XCTest injected its bundle and no UI test drives the app; such a run
+    /// opens no window and never takes focus or a place in the Dock.
+    private static let hostsUnitTests =
+      ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+      && !ProcessInfo.processInfo.arguments.contains("--ui-test")
+
     /// Title drawn in the macOS main window title bar.
     internal static var statusWindowTitle: String {
       #if DEBUG
@@ -83,6 +91,7 @@ internal struct RefineIDApp: App {
       }
       .defaultSize(width: StatusLayout.windowWidth, height: StatusLayout.windowHeight)
       .windowResizability(.contentSize)
+      .defaultLaunchBehavior(Self.hostsUnitTests ? .suppressed : .presented)
       // No help book ships, so the Help menu it would open does not
       // belong. Replacing the group with nothing leaves the menu with
       // no item, and MainMenuPruner removes the empty shell. About is
@@ -261,6 +270,9 @@ internal struct RefineIDApp: App {
     // No test-mode early return: the credential stores isolate
     // themselves, and UI-test launches need the launch modes below.
     #if os(macOS)
+      if Self.hostsUnitTests {
+        NSApplication.shared.setActivationPolicy(.prohibited)
+      }
       Self.configurePlatformDefaults()
     #endif
 
