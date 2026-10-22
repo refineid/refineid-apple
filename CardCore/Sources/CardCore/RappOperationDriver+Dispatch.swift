@@ -53,7 +53,8 @@
       return commands(bridge.closeWithReason(reason))
     }
 
-    /// Tells the requester which card can answer now (§8.4).
+    /// Tells the requester which card this custodian holds and whether a
+    /// contact card reader is connected to it (§8.4).
     public func reportCardStatus(_ status: RappCardStatus) -> [Command] {
       guard !closed else { return [] }
       do {

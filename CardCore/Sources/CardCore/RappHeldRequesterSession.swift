@@ -39,7 +39,7 @@
       /// The Noise session is up; the custodian's first `card.status`
       /// follows.
       case established
-      /// The custodian's word on which card it can serve now.
+      /// The custodian's word on the card it holds and on its card reader.
       case cardStatus(RappCardStatus)
       /// The Bluetooth link went to this advertiser, which routed the
       /// preamble or refused it.

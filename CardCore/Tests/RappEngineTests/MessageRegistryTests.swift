@@ -42,7 +42,10 @@ internal struct MessageRegistryTests {
       ["pair_id": .bytes(operation)]
 
     case .cardStatus:
-      ["card_present": .boolean(true), "certificate_fingerprint": .bytes(digest)]
+      [
+        "card_present": .boolean(true), "reader_attached": .boolean(false),
+        "certificate_fingerprint": .bytes(digest),
+      ]
 
     case .sessionReady:
       ["parameters": .map([:]), "nonce": .bytes(digest)]
@@ -106,6 +109,18 @@ internal struct MessageRegistryTests {
     var sequencedClose = Self.body(for: .sessionClose)
     sequencedClose["last_received_sequence"] = .unsigned(Self.sequence)
     expectRefusal(sequencedClose, .sessionClose, "UnknownField")
+
+    var readerUnsaid = Self.body(for: .cardStatus)
+    readerUnsaid["reader_attached"] = nil
+    expectRefusal(readerUnsaid, .cardStatus, "MissingField { field: \"reader_attached\" }")
+
+    var readerAsText = Self.body(for: .cardStatus)
+    readerAsText["reader_attached"] = .text("attached")
+    expectRefusal(readerAsText, .cardStatus, "WrongType { field: \"reader_attached\" }")
+
+    var strayCardField = Self.body(for: .cardStatus)
+    strayCardField["reader_name"] = .text("Reader")
+    expectRefusal(strayCardField, .cardStatus, "UnknownField")
 
     var shortFingerprint = Self.body(for: .cardStatus)
     shortFingerprint["certificate_fingerprint"] = .bytes(Data(count: Self.shortIdentifierSize))

@@ -3884,6 +3884,22 @@
         }
       }
     },
+    "Place the card on the phone.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aseta kortti puhelimeen."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lägg kortet på telefonen."
+          }
+        }
+      }
+    },
     "Platform": {
       "localizations": {
         "fi": {

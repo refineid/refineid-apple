@@ -54,6 +54,16 @@
       }
     }
 
+    /// A contact card reader was attached or detached: every requester
+    /// hears it (RAPP v26.10.22 §8.4 item 1, CC-81).
+    ///
+    /// The card that left with a detached reader was reported as it left.
+    internal static func readerAttachmentChanged() {
+      guard SupportedCardTransports.offersNearField else { return }
+      guard !DemoMode.shared.isActive else { return }
+      PhonePersistentTokenRelay.shared.reportCardStatus()
+    }
+
     /// Clears identities that belonged to a reader card.
     ///
     /// Pairing and serving stay.

@@ -119,7 +119,8 @@
         ))
     }
 
-    /// Tells the requester which card can answer now (RAPP v26.10.22 §8.4).
+    /// Tells the requester which card this custodian holds and whether a
+    /// contact card reader is connected to it (RAPP v26.10.22 §8.4).
     public func reportCardStatus(_ status: RappCardStatus) async throws {
       let driver = try operationDriver()
       await handleOperation(await driver.reportCardStatus(status))

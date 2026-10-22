@@ -50,14 +50,17 @@ internal struct RemoteIdentityOffer: Equatable, Sendable {
     standing = .unconfirmed(since: instant)
   }
 
-  /// Takes a session's `card.status` at `instant`, for an offer of the
-  /// card whose certificate has the fingerprint `offered`, or of none.
+  /// Takes the card a session's `card.status` names at `instant`, for an
+  /// offer of the card whose certificate has the fingerprint `offered`, or
+  /// of none.
+  ///
+  /// The custodian's card reader changes no offer (§8.4 item 6).
   internal mutating func receive(
-    _ status: RappCardStatus,
+    _ card: RappCardPresence,
     offered: RappCertificateFingerprint?,
     at instant: ContinuousClock.Instant
   ) -> Response {
-    switch status {
+    switch card {
     case .absent:
       loseConfirmation(at: instant)
       return .absent

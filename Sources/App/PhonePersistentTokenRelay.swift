@@ -40,6 +40,8 @@
     internal let cardQueue = CustodianCardQueue<ServedSession.Turn>()
     /// What this phone knows of the reader card it serves.
     internal var readerCard = ReaderCard()
+    /// What each open session was last told in `card.status`.
+    internal var cardReports = CardStatusReports<UUID>()
     #if REFINEID_STREAM_TRANSPORT
       /// The session listener, while the phone serves the stream.
       internal var sessionListener: StreamSessionListener?
@@ -175,9 +177,10 @@
     private func sessionReported(_ session: ServedSession, _ report: ServedSession.Report) {
       switch report {
       case .established:
-        // The custodian's first word on a session is which card can
-        // answer (§8.4); the requester offers nothing before it.
-        session.reportedCardStatus = nil
+        // The custodian's first word on a session is which card it holds
+        // and whether a reader is connected (§8.4); the requester offers
+        // nothing before it.
+        cardReports.forget(session.identifier)
         reportCardStatus(to: session)
         prepareReaderCard()
 
@@ -209,6 +212,7 @@
         }
       #endif
       guard sessions.removeValue(forKey: session.identifier) != nil else { return }
+      cardReports.forget(session.identifier)
       endPairingIfOver(reason, pairID: session.pairID)
       if sessions.isEmpty {
         isActivelyConnected = false

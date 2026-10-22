@@ -132,6 +132,10 @@ internal final class CardPresence: ObservableObject {
     let contactless = occupied.values.contains { slot in
       slot.atr.map { AnswerToReset.indicatesContactlessInterface(bytes: $0.bytes) } ?? false
     }
+    // The reader's attachment is settled before a departing card is
+    // reported, so a reader unplugged with its card in it reaches the
+    // requester as one word: no card, no reader.
+    let readerAttachmentChanged = recountReaderAttachment()
     if present != isCardPresent {
       isCardPresent = present
     }
@@ -152,15 +156,25 @@ internal final class CardPresence: ObservableObject {
         PersistentTokenRegistry.shared.readerCardPresenceChanged(isReaderCardPresent: readerPresent)
       #endif
     }
-    let readerConnected = slots.contains { name, _ in
-      CardTransport.transport(forSlotNamed: name) == .reader
-    }
-    if readerConnected != isReaderConnected {
-      isReaderConnected = readerConnected
-    }
     if readerReady != isReaderCardReady {
       isReaderCardReady = readerReady
     }
+    #if os(iOS) && REFINEID_LOCAL_CARD
+      if readerAttachmentChanged {
+        HolderCardServing.readerAttachmentChanged()
+      }
+    #endif
+  }
+
+  /// Follows whether a contact reader is connected; true when that
+  /// changed.
+  private func recountReaderAttachment() -> Bool {
+    let connected = slots.keys.contains { name in
+      CardTransport.transport(forSlotNamed: name) == .reader
+    }
+    guard connected != isReaderConnected else { return false }
+    isReaderConnected = connected
+    return true
   }
 
   #if DEBUG

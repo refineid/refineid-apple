@@ -142,13 +142,16 @@
       holderIsAdvertising || holderOverBluetooth
     }
 
-    /// The phone's last `card.status` on the open session; absent without
-    /// a session.
-    internal var holderCardStatus = RappCardStatus.absent
+    /// The phone's last `card.status` on the open session; nil without a
+    /// session or before its first report.
+    internal var holderCardStatus: RappCardStatus?
 
-    /// Whether the open session's last `card.status` says the phone holds
-    /// no card; false without a session or before its first report.
-    internal var holderReportsNoCard = false
+    /// How to ask for the phone's card, while the open session's last
+    /// `card.status` says the phone holds none (RAPP v26.10.22 §8.4 item
+    /// 6).
+    internal var holderCardRequest: PhoneCardRequest? {
+      PhoneCardRequest(holderCardStatus)
+    }
 
     /// The paired phone, by the name it introduced itself with; nil
     /// while no phone is paired.
@@ -367,7 +370,7 @@
       // Only the card the phone names on this session is offered (RAPP
       // v26.10.22 §8.4 item 2); a certificate read across a card change
       // waits for the phone's next word.
-      guard case .present(let named) = holderCardStatus,
+      guard case .present(let named)? = holderCardStatus?.card,
         RappCertificateFingerprint(certificate: fetched) == named
       else { return }
       switch Self.publish(fetched) {

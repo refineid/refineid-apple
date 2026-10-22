@@ -2,6 +2,7 @@
 
 import CardCore
 import Foundation
+import RappEngine
 
 #if os(macOS)
   import AppKit
@@ -27,6 +28,13 @@ extension RefineIDApp {
   #endif
 
   internal static func startRemoteServices() {
+    // Every message a peer sent that the protocol refuses shows among the
+    // development errors, named by its type and the rule it broke.
+    #if DEBUG
+      RappRefusalLog.install { line in
+        DevErrorLog.report("message refused: \(line)", source: .app)
+      }
+    #endif
     #if REFINEID_REMOTE_CARD
       guard !TestCredentialEnvironment.isTestMode else { return }
       #if DEBUG

@@ -21,14 +21,15 @@
     /// "Insert the card into the reader."
     case insertCard
 
-    /// "Insert the card into the phone's card reader.": the paired phone
-    /// says it holds no card.
-    case insertCardInPhone
-
     /// Nothing here can sign, no reader card and no paired phone: the row
     /// asks for a phone's pairing code, so a document waiting to be signed
     /// can be signed on the phone once it is paired.
     case pairPhone
+
+    /// "Insert the card into the phone's card reader." or "Place the card
+    /// on the phone.": the paired phone says it holds no card, and whether
+    /// a reader is attached to it picks which (RAPP v26.10.22 §8.4 item 6).
+    case phoneCard(PhoneCardRequest)
 
     /// The phone, by name, announced it forgot this computer.
     case phoneForgot(String)
@@ -46,16 +47,16 @@
     /// the holder can do now, while browsers keep the identity a little
     /// longer.
     internal static func derive(_ facts: RequesterFacts) -> Self {
-      let phoneHoldsNoCard = facts.phoneReportsNoCard && !facts.cardPresent
+      let phoneRequest = facts.cardPresent ? nil : PhoneCardRequest(facts.phoneCardStatus)
       switch facts.availability {
       case .ready:
-        return phoneHoldsNoCard ? .insertCardInPhone : .holder
+        return phoneRequest.map(Self.phoneCard) ?? .holder
 
       case .cardWithoutIdentity:
         if facts.cardPresent {
           return facts.warnsUnavailableCard ? .cardNotReady : .reading
         }
-        return phoneHoldsNoCard ? .insertCardInPhone : .connecting
+        return phoneRequest.map(Self.phoneCard) ?? .connecting
 
       case .noCard:
         if facts.readInFlight {
@@ -70,8 +71,8 @@
           }
           return .pairPhone
         }
-        if phoneHoldsNoCard {
-          return .insertCardInPhone
+        if let phoneRequest {
+          return .phoneCard(phoneRequest)
         }
         return facts.phonePresent ? .connecting : .empty
       }

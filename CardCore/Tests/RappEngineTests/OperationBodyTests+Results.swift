@@ -188,7 +188,7 @@ extension OperationBodyTests {
     }
   }
 
-  @Test("Card status names the certificate's fingerprint or the zero fingerprint")
+  @Test("Card status names the card by fingerprint or the zero fingerprint, and the reader")
   internal func cardStatusBodies() throws {
     let corpus = try Self.corpus()
     let certificate = try Data(hex: corpus.fixedInputs.certificateDer)
@@ -196,17 +196,42 @@ extension OperationBodyTests {
     #expect(fingerprint.digest == Data(SHA256.hash(data: certificate)))
     #expect(
       RappCertificateFingerprint(certificate: Data()) == nil, "an empty certificate names none")
-    let present = TypedMessage.cardStatus(.present(fingerprint))
-    let cases: [(String, TypedMessage)] = [
-      ("card-status-present", present),
-      ("card-status-absent", .cardStatus(.absent)),
+    let cases: [(String, RappCardStatus)] = [
+      (
+        "card-status-present-reader-attached",
+        RappCardStatus(card: .present(fingerprint), reader: .attached)
+      ),
+      (
+        "card-status-present-no-reader",
+        RappCardStatus(card: .present(fingerprint), reader: .absent)
+      ),
+      ("card-status-absent-reader-attached", RappCardStatus(card: .absent, reader: .attached)),
+      ("card-status-absent-no-reader", RappCardStatus(card: .absent, reader: .absent)),
     ]
-    for (name, message) in cases {
+    for (name, status) in cases {
+      let message = TypedMessage.cardStatus(status)
       let expected = try Self.expected(corpus, name)
       #expect(try Self.encoded(message) == expected, "\(name)")
       #expect(
         try Self.received(.cardStatus, bodyHex: expected, nowMilliseconds: Self.receiptMilliseconds)
           == message)
+    }
+  }
+
+  @Test("A card status that misnames the card or leaves out the reader is refused")
+  internal func refusedCardStatusBodies() throws {
+    let corpus = try Self.corpus()
+    let names = [
+      "card-status-present-without-fingerprint",
+      "card-status-absent-with-fingerprint",
+      "card-status-missing-reader-attached",
+    ]
+    for name in names {
+      let vector = try #require(corpus.rejected.first { $0.name == name }, "\(name)")
+      #expect(throws: (any Error).self, "\(name)") {
+        _ = try Self.received(
+          .cardStatus, bodyHex: vector.bodyHex, nowMilliseconds: Self.receiptMilliseconds)
+      }
     }
   }
 }

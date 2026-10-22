@@ -78,6 +78,21 @@ internal struct ReaderInstructionStringsTests {
   }
 
   @Test
+  internal func phoneCardRequestsMatchInEveryLanguage() throws {
+    let strings = try Self.catalog()
+    let reader = "Insert the card into the phone's card reader."
+    let phone = "Place the card on the phone."
+    #expect(
+      try Self.value(for: reader, language: "fi", in: strings)
+        == "Syötä kortti puhelimen kortinlukijaan.")
+    #expect(
+      try Self.value(for: reader, language: "sv", in: strings)
+        == "Sätt in kortet i telefonens kortläsare.")
+    #expect(try Self.value(for: phone, language: "fi", in: strings) == "Aseta kortti puhelimeen.")
+    #expect(try Self.value(for: phone, language: "sv", in: strings) == "Lägg kortet på telefonen.")
+  }
+
+  @Test
   internal func viewsUseTheTranslatedKeys() throws {
     let identity = try String(
       contentsOf: Self.root.appending(path: "Sources/App/IdentityStateView.swift"),
@@ -101,5 +116,11 @@ internal struct ReaderInstructionStringsTests {
       encoding: .utf8
     )
     #expect(settings.contains("Connect a card reader and insert your card."))
+    let request = try String(
+      contentsOf: Self.root.appending(path: "Sources/App/PhoneCardRequest.swift"),
+      encoding: .utf8
+    )
+    #expect(request.contains("Insert the card into the phone's card reader."))
+    #expect(request.contains("Place the card on the phone."))
   }
 }

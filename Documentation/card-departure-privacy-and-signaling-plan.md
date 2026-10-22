@@ -99,8 +99,6 @@ else.
   The session carries the phone's `card.status`, the certificate read an
   offered identity needs, and the liveness probes of RAPP §8.3: a ping
   after 5 seconds of silence, the session over after 30.
-- Liveness probes and status reports are frames of the same shape; a
-  card departure is indistinguishable from a keepalive to an observer.
 - The token extension dials its own session for a signature, and a
   request that finds no session open waits for one within the request's
   own deadline. The phone yields an idle standing session to that dial
@@ -115,21 +113,31 @@ else.
 
 ```
 { "type": "card.status",
-  "body": { "card_present": <bool>, "certificate_fingerprint": <32 bytes> } }
+  "body": { "card_present": <bool>, "reader_attached": <bool>,
+            "certificate_fingerprint": <32 bytes> } }
 ```
 
 The fingerprint is the SHA-256 digest of the DER of the card's
 authentication certificate while a card is present, and 32 zero bytes
-while none is, so the message has one size whatever it says.
+while none is. `reader_attached` is true while a contact card reader is
+connected to the phone, over USB or Lightning; the phone finds it among
+the CryptoTokenKit slots, as any slot but its own NFC slot.
 
 The phone sends it when the session is established and whenever the card
-it holds changes
+it holds changes or a reader is attached or detached, on every open
+session
 ([`PhonePersistentTokenRelay.reportCardStatus`](../Sources/App/PhonePersistentTokenRelay+CardStatus.swift)).
 A card is present from the moment a reader holds it until it is removed,
 and an NFC card from the moment the holder adds it to the phone until the
-holder removes it there (§8.4 item 1). An operation the card did not
-answer ends with `card_error` and changes nothing: the next operation
-asks the holder to present the card again.
+holder removes it there (§8.4 item 1). Detaching a reader removes the card
+in it; an NFC card the holder added stays present. An operation the card
+did not answer ends with `card_error` and changes nothing: the next
+operation asks the holder to present the card again.
+
+While the phone reports no card, the Mac's identity row and the iPad's
+identity section ask for it: "Insert the card into the phone's card
+reader." while a reader is attached to the phone, and "Place the card on
+the phone." otherwise (§8.4 item 6). The reader changes no offer.
 
 ### 3.4 Withdrawal on macOS
 
@@ -182,5 +190,8 @@ identity and names the phone in the identity row.
   (`StateConformanceTests`).
 - `RemoteIdentityOfferTests` pins the offer's lapse at the grace, and that
   absence starts it while a different card withdraws at once.
+- `CardStatusReportsTests` pins that every open session hears a reader
+  attached or detached, and `IdentityLineTests` that the phone's reader is
+  named only for no card beside an attached reader.
 - `NetworkContractTests.advertisementsCarryNoDeviceIdentity` pins what
   the phone publishes.

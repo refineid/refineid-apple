@@ -112,7 +112,7 @@
         phonePresent: PersistentTokenRegistry.shared.holderInSight,
         pairedPhone: PersistentTokenRegistry.shared.pairedPhone,
         phoneThatForgot: PersistentTokenRegistry.shared.phoneThatForgot,
-        phoneReportsNoCard: PersistentTokenRegistry.shared.holderReportsNoCard
+        phoneCardStatus: PersistentTokenRegistry.shared.holderCardStatus
       )
     }
 
@@ -143,9 +143,8 @@
         Text("Insert the card into the reader.")
           .foregroundStyle(.secondary)
 
-      case .insertCardInPhone:
-        Text("Insert the card into the phone's card reader.")
-          .foregroundStyle(.secondary)
+      case .phoneCard(let request):
+        PhoneCardRequestLine(request: request)
 
       case .phoneForgot(let phone):
         Text("\(phone) forgot this computer")

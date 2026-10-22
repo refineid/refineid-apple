@@ -41,7 +41,12 @@ internal struct Envelope: Equatable {
       throw WireError.wrongType(field: "body")
     }
 
-    try validate(body: decodedBody, for: decodedType)
+    do {
+      try validate(body: decodedBody, for: decodedType)
+    } catch {
+      RappRefusalLog.refused(decodedType, because: error)
+      throw error
+    }
 
     return Self(
       messageType: decodedType, sessionIdentifier: decodedSession, sequence: decodedSequence,
