@@ -51,14 +51,6 @@ public enum CardCredentialStore {
   /// Account for the card access number.
   internal static let cardAccessNumberAccount = "can"
 
-  /// Accounts earlier builds stored PIN 1 and PIN 2 under, in this
-  /// service; ``removeRetiredSecrets()`` deletes whatever they left.
-  private static let retiredPinAccounts = ["pin1", "pin2"]
-
-  /// Keychain coordinates used by the retired timed signing window.
-  private static let retiredSigningWindowService = "fi.refineid.pin1window"
-  private static let retiredSigningWindowAccount = "current"
-
   // MARK: Static Functions
 
   /// What is stored, without reading any secret.
@@ -225,26 +217,6 @@ public enum CardCredentialStore {
     query[kSecReturnData as String] = true
     var item: CFTypeRef?
     return SecItemCopyMatching(query as CFDictionary, &item)
-  }
-
-  /// Deletes every PIN item an earlier build stored on this device: PIN 1
-  /// and PIN 2 in this service, and the timed signing window's copy.
-  ///
-  /// No PIN may rest in storage (RAPP v26.10.22 §11 item 2), so what an
-  /// earlier build left behind is removed, never read.
-  public static func removeRetiredSecrets() {
-    guard !TestCredentialEnvironment.isTestMode else { return }
-    for account in retiredPinAccounts {
-      delete(account: account)
-    }
-    let query: [String: Any] = [
-      kSecClass as String: kSecClassGenericPassword,
-      kSecAttrService as String: retiredSigningWindowService,
-      kSecAttrAccount as String: retiredSigningWindowAccount,
-      kSecUseDataProtectionKeychain as String: KeychainPlatform.usesDataProtection,
-      kSecAttrSynchronizable as String: false,
-    ]
-    SecItemDelete(query as CFDictionary)
   }
 
   /// The primed identity for a card that was just read, built around the
