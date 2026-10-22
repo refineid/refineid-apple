@@ -37,12 +37,12 @@ internal struct ReaderInstructionStringsTests {
   internal func noReaderInstructionMatchesInEveryLanguage() throws {
     let strings = try Self.catalog()
     #expect(
-      try Self.value(for: "Connect a card reader", language: "fi", in: strings)
-        == "Liitä kortinlukija"
+      try Self.value(for: "Connect a card reader.", language: "fi", in: strings)
+        == "Liitä kortinlukija."
     )
     #expect(
-      try Self.value(for: "Connect a card reader", language: "sv", in: strings)
-        == "Anslut en kortläsare"
+      try Self.value(for: "Connect a card reader.", language: "sv", in: strings)
+        == "Anslut en kortläsare."
     )
   }
 
@@ -97,7 +97,7 @@ internal struct ReaderInstructionStringsTests {
       encoding: .utf8
     )
     #expect(identity.contains("Insert the card into the reader."))
-    #expect(identity.contains("Connect a card reader"))
+    #expect(identity.contains("Connect a card reader."))
     let prompt = try String(
       contentsOf: Self.root.appending(path: "Sources/App/RemotePairingPromptView.swift"),
       encoding: .utf8

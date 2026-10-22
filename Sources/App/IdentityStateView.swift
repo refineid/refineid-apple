@@ -169,7 +169,7 @@
           .foregroundStyle(.secondary)
 
       case .connectReader:
-        Text("Connect a card reader")
+        Text("Connect a card reader.")
           .foregroundStyle(.secondary)
       }
     }

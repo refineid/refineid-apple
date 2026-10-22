@@ -1671,19 +1671,19 @@
         }
       }
     },
-    "Connect a card reader": {
+    "Connect a card reader.": {
       "extractionState": "stale",
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Liitä kortinlukija"
+            "value": "Liitä kortinlukija."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Anslut en kortläsare"
+            "value": "Anslut en kortläsare."
           }
         }
       }

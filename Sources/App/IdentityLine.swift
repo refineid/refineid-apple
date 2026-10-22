@@ -11,7 +11,7 @@
     /// read or about to be.
     case connecting
 
-    /// "Connect a card reader".
+    /// "Connect a card reader."
     case connectReader
 
     /// Nothing worth a line: a paired phone that is not on the network
