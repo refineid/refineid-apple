@@ -4,7 +4,7 @@ import Foundation
 import Security
 
 extension PrimeStore {
-  /// Every decodable prime, including the short-lived staged record.
+  /// Every decodable prime.
   internal static func storedItems() -> [StoredItem] {
     if TestCredentialEnvironment.isTestMode {
       return TestCredentialEnvironment.allPrimes().compactMap { account, data in
@@ -85,8 +85,6 @@ extension PrimeStore {
         issuer: item.identity.issuerDER,
         tokenSerial: item.identity.tokenSerial,
         activationCheck: item.identity.activationCheck,
-        contactlessIdentification: item.identity.contactlessIdentification,
-        stagedAt: item.identity.stagedAt,
         signatureCertificate: der
       )
     else { return false }

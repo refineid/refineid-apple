@@ -48,7 +48,7 @@ extension Token {
     }
     CardCredentialStore.forgetCardAccessNumber()
     PrimeStore.forget(instanceID: cardInstanceID)
-    PrimeStore.forgetStaged()
+    PrimeStore.clearRegistrationField()
     TokenRegistrationRevoker.revoke(cardInstanceID, reason: .canRejection)
     TokenLog.error(
       "\(TokenRegistrationRevoker.Reason.canRejection.logPrefix); automatic identity revoked")

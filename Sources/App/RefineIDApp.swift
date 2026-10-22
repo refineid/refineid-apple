@@ -261,10 +261,6 @@ internal struct RefineIDApp: App {
       Self.configurePlatformDefaults()
     #endif
 
-    // No PIN rests in storage (RAPP v26.10.22 §11 item 2): whatever an
-    // earlier build stored is removed, never read.
-    CardCredentialStore.removeRetiredSecrets()
-
     Self.startRemoteServices()
 
     // A hold marks the next NFC field as its own registration field, and

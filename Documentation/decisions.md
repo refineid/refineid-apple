@@ -34,9 +34,9 @@ reading, and keeps every device's view of the card eventually consistent.
   holder to present the card again.
 - No PIN is stored on any device. PIN 1 and PIN 2 are gone from the shared
   keychain, together with the setup form's PIN 1 field, the on-demand PIN
-  experiment and its settings, and the debug flags that wrote them; what an
-  earlier build stored is deleted at launch and never read. The card access
-  number stays.
+  experiment and its settings, and the debug flags that wrote them. No
+  build that stored a PIN was released, so nothing cleans up after one.
+  The card access number stays.
 - The phone asks PIN 1 once and holds it only in memory, bound to the card
   it holds, for reader and NFC cards alike. A browser authentication with
   PIN 1 held runs with no prompt and no `consent_shown`; otherwise the PIN
