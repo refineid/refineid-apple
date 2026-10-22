@@ -2,18 +2,14 @@
 
 import Foundation
 
-/// One holder's approval of one exact request.
-///
-/// The approval carries the request hash, so it authorizes that request and
-/// no other. Moving it to a different request fails the comparison.
+/// The holder's approval of one operation of the session, the one the
+/// consent view rendered.
 internal struct UserApproval: Equatable {
-  internal let operationIdentifier: Data
-  internal let requestHash: Data
+  internal let operationIdentifier: RappOperationIdentifier
   internal let approvedAtMilliseconds: UInt64
 
-  internal init(for request: OperationRequest, approvedAtMilliseconds: UInt64) throws {
+  internal init(for request: OperationRequest, approvedAtMilliseconds: UInt64) {
     self.operationIdentifier = request.operationIdentifier
-    self.requestHash = try request.requestHash()
     self.approvedAtMilliseconds = approvedAtMilliseconds
   }
 }

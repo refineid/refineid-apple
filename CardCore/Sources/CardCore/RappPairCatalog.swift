@@ -4,7 +4,7 @@
   import Foundation
   import RappEngine
   /// Device-local view of active RAPP pair records. Pair private material
-  /// never leaves Rust.
+  /// never leaves the engine.
   public actor RappPairCatalog {
     /// Why a catalog read was refused.
     public enum CatalogError: Error, Sendable {
@@ -25,15 +25,18 @@
 
     /// Lists every active pair as a summary, in stable identifier order,
     /// refusing a vault that repeats a pair identifier.
+    ///
+    /// A pairing this endpoint forgot serves nothing and is not listed (RAPP
+    /// v26.10.21 §4.6).
     public func activePairs() throws -> [RappPairingCoordinator.PairSummary] {
       var seen = Set<Data>()
       return try vault.activePairIDs()
         .sorted { $0.lexicographicallyPrecedes($1) }
         .compactMap { pairID in
           guard seen.insert(pairID).inserted else { return nil }
-          guard let pair = try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault) else {
-            return nil
-          }
+          guard let pair = try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault),
+            pair.metadata().forgottenAtMs == nil
+          else { return nil }
           return RappPairingCoordinator.PairSummary(pair.metadata())
         }
     }
@@ -61,16 +64,19 @@
       try vault.clearSelectedPair()
     }
 
-    /// Deletes the pair record and keeps what announces the revocation
-    /// (RAPP v26.10.18 §4.6).
+    /// Forgets the pairing while no session to its peer is open: it serves
+    /// nothing from now on and keeps its key only to tell the peer on the
+    /// next session (RAPP v26.10.21 §4.6 item 2).
+    @discardableResult
+    public func forget(pairID: Data) throws -> RappForgetOutcome {
+      try RappPairRevocation.forget(try load(pairID: pairID), in: vault, clock: clock)
+    }
+
+    /// Destroys the pair record and its key now.
     ///
     /// Same-account auto-pairing may recreate it.
     public func revoke(pairID: Data) throws {
-      let pair = try load(pairID: pairID)
-      try RappPairRevocation.revoke(pair, in: vault, clock: clock)
-      if try vault.selectedPairID() == pairID {
-        try vault.clearSelectedPair()
-      }
+      try RappPairRevocation.revoke(pairID: pairID, in: vault, clock: clock)
     }
   }
 #endif

@@ -2,236 +2,121 @@
 
 import Foundation
 
-/// One operation from validated request to durable terminal state.
+/// One operation of a session from admission to its result (RAPP v26.10.21
+/// §8).
 ///
-/// The stage is authoritative before approval; afterwards the journal is,
-/// because only the journal survives a restart. Approval of a consequential
-/// action writes the in-flight entry before the card command exists
-/// (RAPP v26.10.9 §8.1).
+/// It lives in memory only and ends with the session.
 internal struct AuthorizationTransaction {
+  /// The request as admitted; the consent view renders from this snapshot
+  /// (§8.2 item 3).
   internal let request: OperationRequest
-
-  internal let requestHash: Data
-
-  internal private(set) var journal: OperationJournal
 
   internal private(set) var stage: AuthorizationStage
 
-  internal private(set) var retainedResult: OperationResultMessage?
+  /// The signatures a batch has made so far, in document order; empty for
+  /// every other operation.
+  internal private(set) var batchSignatures: [Data]
 
-  internal var reference: OperationReference {
-    OperationReference(
-      operationIdentifier: request.operationIdentifier, requestHash: requestHash)
-  }
+  internal var operationIdentifier: RappOperationIdentifier { request.operationIdentifier }
 
-  /// The signatures a batch has made so far, in document order.
-  internal var batchSignatures: [Data] {
-    journal.record.batch?.completedSignatures ?? []
-  }
+  /// Whether the operation has its result.
+  internal var isTerminal: Bool { stage == .terminal }
 
-  /// Whether the result was acknowledged and only the tombstone remains.
-  internal var isRetired: Bool { journal.isRetired }
-
-  /// The state the protocol shows for this operation.
-  ///
-  /// A result awaiting its acknowledgement shows the journal's state: a
-  /// success is pending delivery, a failure already names its terminal
-  /// disposition (RAPP v26.10.18 §8.2 item 5).
-  internal var operationState: OperationState {
-    switch stage {
-    case .requested:
-      .requested
-
-    case .awaitingConsent, .executingSafeRead:
-      .awaitingConsent
-
-    case .executing:
-      .executing
-
-    case .resultPending, .terminal:
-      journal.record.state
-    }
-  }
-
-  /// Prepares an operation, persisting and transmitting nothing.
-  internal init(request: OperationRequest) throws {
-    let hash = try request.requestHash()
+  /// Admits a request.
+  internal init(request: OperationRequest) {
     self.request = request
-    self.requestHash = hash
-    self.journal = OperationJournal(
-      pairIdentifier: request.pairIdentifier,
-      sessionIdentifier: request.sessionIdentifier,
-      operationIdentifier: request.operationIdentifier,
-      requestHash: hash)
     self.stage = .requested
-    self.retainedResult = nil
+    self.batchSignatures = []
   }
 
-  /// Records that the profile's bounded reads finished.
+  /// Records that the operation has the card and its prerequisite reads are
+  /// done.
   ///
-  /// Consent is not asked
-  /// before this point.
-  internal mutating func prerequisitesComplete() throws {
+  /// An action that needs the holder's authorization waits for
+  /// consent; a read skips consent and runs (§8.2 items 3 and 6).
+  internal mutating func prerequisitesComplete() throws -> PrerequisitesOutcome {
     guard stage == .requested else { throw AuthorizationError.wrongStage(stage: stage) }
-    stage = .awaitingConsent
-  }
-
-  /// Accepts the holder's consent for this exact request.
-  ///
-  /// A consequential action writes the durable in-flight entry before the
-  /// card command is handed out; if that write fails no command exists.
-  internal mutating func approve(
-    _ approval: UserApproval,
-    to store: inout some JournalStore,
-    nowMilliseconds: UInt64,
-    maximumLifetimeMilliseconds: UInt64
-  ) throws -> ApprovalOutcome {
-    guard stage == .awaitingConsent else { throw AuthorizationError.wrongStage(stage: stage) }
-    try validate(
-      approval, nowMilliseconds: nowMilliseconds,
-      maximumLifetimeMilliseconds: maximumLifetimeMilliseconds)
     guard request.operation.isConsequential else {
       stage = .executingSafeRead
       return .executeSafeRead(AuthorizedSafeRead(operation: request.operation))
     }
-    let command = AuthorizedCardCommand(operation: request.operation)
+    stage = .awaitingConsent
+    return .awaitConsent
+  }
+
+  /// Accepts the holder's approval and hands out the one card command.
+  internal mutating func approve(
+    _ approval: UserApproval,
+    nowMilliseconds: UInt64,
+    maximumLifetimeMilliseconds: UInt64
+  ) throws -> PendingCardCommand<AuthorizedCardCommand> {
+    guard stage == .awaitingConsent else { throw AuthorizationError.wrongStage(stage: stage) }
+    guard approval.operationIdentifier == request.operationIdentifier else {
+      throw AuthorizationError.approvalMismatch
+    }
+    let deadline: UInt64
     do {
-      _ = try journal.beginCardCommand(
-        to: &store, requestHash: requestHash, command: command,
-        batchTotal: request.operation.batchTotal)
-    } catch let error as JournalError {
-      throw AuthorizationError.journal(error)
-    }
-    stage = .executing
-    return .executeCardCommand
-  }
-
-  /// Records one batch signature as the card makes it.
-  internal mutating func recordBatchSignature(
-    to store: inout some JournalStore, signature: Data
-  ) throws {
-    guard stage == .executing else { throw AuthorizationError.wrongStage(stage: stage) }
-    try mapJournal { try journal.recordBatchSignature(to: &store, signature: signature) }
-  }
-
-  /// Retains a completed result before it may be released to the transport.
-  internal mutating func finishCompleted(
-    to store: inout some JournalStore, result: OperationResultMessage
-  ) throws {
-    guard result.status == .completed else { throw AuthorizationError.invalidResult }
-    do {
-      try result.validate(for: reference, operation: request.operation)
-    } catch {
-      throw AuthorizationError.invalidResult
-    }
-    if let batch = journal.record.batch {
-      // A batch completes only with exactly the signatures it journaled.
-      guard batch.completedSignatures.count == batch.total,
-        (try? result.typedResult(for: request.operation))
-          == .signatures(batch.completedSignatures)
-      else { throw AuthorizationError.invalidResult }
-    }
-    switch stage {
-    case .executing:
-      try mapJournal { try journal.finishCompleted(to: &store, result: result) }
-
-    case .executingSafeRead:
-      try mapJournal { try journal.finishSafeReadCompleted(to: &store, result: result) }
-
-    default:
-      throw AuthorizationError.wrongStage(stage: stage)
-    }
-    retainedResult = result
-    stage = .resultPending
-  }
-
-  /// Records a stable non-successful result from any legal stage, keeping
-  /// the result until the requester acknowledges it (RAPP v26.10.18 §8.2
-  /// item 5) so an identical retransmission is answered without the card.
-  internal mutating func finishFailure(
-    to store: inout some JournalStore, result: OperationResultMessage
-  ) throws {
-    guard result.status != .completed else { throw AuthorizationError.invalidResult }
-    do {
-      try result.validate(for: reference, operation: request.operation)
-    } catch {
-      throw AuthorizationError.invalidResult
-    }
-    guard let terminal = result.status.failureState else {
-      throw AuthorizationError.invalidResult
-    }
-    switch stage {
-    case .requested, .awaitingConsent, .executingSafeRead, .executing:
-      try mapJournal { try journal.finishFailure(to: &store, state: terminal, result: result) }
-
-    default:
-      throw AuthorizationError.wrongStage(stage: stage)
-    }
-    retainedResult = result
-    stage = .resultPending
-  }
-
-  /// Records the acknowledgement that releases the retained result.
-  internal mutating func acknowledgeResult(
-    to store: inout some JournalStore, acknowledgement: OperationReference
-  ) throws {
-    guard stage == .resultPending else { throw AuthorizationError.wrongStage(stage: stage) }
-    guard acknowledgement == reference else { throw AuthorizationError.referenceMismatch }
-    try mapJournal { try journal.acknowledgeResult(to: &store) }
-    retainedResult = nil
-    stage = .terminal
-  }
-
-  /// Records that the session was lost after the result was sent.
-  ///
-  /// The result stays retained and acknowledgeable so it can be delivered
-  /// again on request, but no automatic replay of the command or the result
-  /// follows. A failure's journal state is already terminal and is left as
-  /// it is.
-  internal mutating func deliveryBecameUncertain(
-    to store: inout some JournalStore
-  ) throws {
-    guard stage == .resultPending else { throw AuthorizationError.wrongStage(stage: stage) }
-    if journal.record.state == .resultPending {
-      try mapJournal { try journal.markDeliveryUncertain(to: &store) }
-    }
-  }
-
-  /// Resolves a record that a restart interrupted, without retrying it.
-  internal mutating func recoverAfterCrash(to store: inout some JournalStore) throws {
-    try mapJournal { try journal.recoverAfterCrash(to: &store) }
-    stage = .terminal
-  }
-
-  private func deadlineMilliseconds(_ maximumLifetimeMilliseconds: UInt64) throws -> UInt64 {
-    do {
-      return try request.localDeadlineMilliseconds(
+      deadline = try request.localDeadlineMilliseconds(
         maximumLifetimeMilliseconds: maximumLifetimeMilliseconds)
     } catch {
       throw AuthorizationError.expired
     }
-  }
-
-  private func validate(
-    _ approval: UserApproval,
-    nowMilliseconds: UInt64,
-    maximumLifetimeMilliseconds: UInt64
-  ) throws {
-    guard approval.operationIdentifier == request.operationIdentifier,
-      approval.requestHash == requestHash
-    else { throw AuthorizationError.approvalMismatch }
-    let deadline = try deadlineMilliseconds(maximumLifetimeMilliseconds)
     guard approval.approvedAtMilliseconds >= request.localStartMilliseconds,
-      approval.approvedAtMilliseconds <= deadline,
-      nowMilliseconds <= deadline
+      approval.approvedAtMilliseconds <= deadline, nowMilliseconds <= deadline
     else { throw AuthorizationError.expired }
+    stage = .executing
+    return PendingCardCommand(command: AuthorizedCardCommand(operation: request.operation))
   }
 
-  private func mapJournal<Answer>(_ body: () throws -> Answer) throws -> Answer {
+  /// Ends the operation with a result that did not complete.
+  internal mutating func finishFailure(_ result: OperationResultMessage) throws {
+    guard !isTerminal else { throw AuthorizationError.wrongStage(stage: stage) }
+    guard result.status != .completed else { throw AuthorizationError.invalidResult }
     do {
-      return try body()
-    } catch let error as JournalError {
-      throw AuthorizationError.journal(error)
+      try result.validate(for: request.operationIdentifier, operation: request.operation)
+    } catch {
+      throw AuthorizationError.invalidResult
     }
+    stage = .terminal
+  }
+
+  /// Ends the operation with its completed result.
+  ///
+  /// A batch completes only with exactly the signatures it recorded, one per
+  /// document.
+  internal mutating func finishCompleted(_ result: OperationResultMessage) throws {
+    guard stage == .executing || stage == .executingSafeRead else {
+      throw AuthorizationError.wrongStage(stage: stage)
+    }
+    guard result.status == .completed else { throw AuthorizationError.invalidResult }
+    do {
+      try result.validate(for: request.operationIdentifier, operation: request.operation)
+    } catch {
+      throw AuthorizationError.invalidResult
+    }
+    if let total = request.operation.batchTotal {
+      guard batchSignatures.count == total,
+        (try? result.typedResult(for: request.operation)) == .signatures(batchSignatures)
+      else { throw AuthorizationError.invalidResult }
+    }
+    stage = .terminal
+  }
+
+  /// Records one batch signature as the card makes it.
+  internal mutating func recordBatchSignature(_ signature: Data) throws {
+    guard stage == .executing else { throw AuthorizationError.wrongStage(stage: stage) }
+    guard let total = request.operation.batchTotal, batchSignatures.count < total,
+      !signature.isEmpty
+    else { throw AuthorizationError.invalidResult }
+    batchSignatures.append(signature)
+  }
+
+  /// Whether the request's local deadline has passed (§8.1 item 2).
+  internal func isExpired(nowMilliseconds: UInt64, maximumLifetimeMilliseconds: UInt64) -> Bool {
+    guard
+      let deadline = try? request.localDeadlineMilliseconds(
+        maximumLifetimeMilliseconds: maximumLifetimeMilliseconds)
+    else { return false }
+    return nowMilliseconds > deadline
   }
 }

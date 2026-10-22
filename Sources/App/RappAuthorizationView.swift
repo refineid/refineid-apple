@@ -24,9 +24,6 @@
 
       case .documentSignature:
         "Document signature"
-
-      case .shareCardInformation:
-        "Share card information"
       }
     }
 
@@ -52,9 +49,6 @@
 
           case .documentSignature:
             pin2Focused = true
-
-          case .shareCardInformation:
-            break
           }
         }
         .onDisappear {
@@ -75,6 +69,12 @@
             Text(displayContext)
               .multilineTextAlignment(.trailing)
           }
+        }
+      } footer: {
+        if let notice = request.notice {
+          Text(notice)
+            .foregroundStyle(.red)
+            .accessibilityIdentifier("rappNotice")
         }
       }
     }
@@ -146,9 +146,6 @@
 
       case .documentSignature:
         Pin2(digits: pin2) != nil
-
-      case .shareCardInformation:
-        true
       }
     }
 
@@ -161,9 +158,6 @@
       case .documentSignature:
         inbox.approveDocumentSignature(request.requestID, pin2: pin2)
         pin2 = ""
-
-      case .shareCardInformation:
-        inbox.approve(request.requestID)
       }
     }
 

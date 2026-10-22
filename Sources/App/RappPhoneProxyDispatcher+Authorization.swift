@@ -4,18 +4,20 @@
 
   import CardCore
   import Foundation
+  import RappEngine
 
   /// Authorization handling and approval resolution for remote proxy operations.
   extension RappPhoneProxyDispatcher {
     /// What the holder is shown: the origin or document name, or a batch's
-    /// whole document list in signing order (RAPP v26.10.9 §9.3).
+    /// whole document list in signing order (RAPP v26.10.21 §9.3, §11 item
+    /// 1).
     private static func consentContext(for operation: RappOperationDriver.Operation) -> String? {
       guard operation.kind == .batchSignDocuments else { return operation.displayContext }
       return operation.documentNames.joined(separator: "\n")
     }
 
     internal func inspectPrerequisites(
-      operationID: Data,
+      operationID: RappOperationIdentifier,
       operation: RappOperationDriver.Operation,
       coordinator: RappConnectionCoordinator
     ) async {
@@ -26,21 +28,16 @@
       try? await coordinator.prerequisitesComplete(operationID: operationID)
     }
 
+    /// Asks the holder to consent to an action that needs a PIN; reads never
+    /// come here (§8.2 items 3 and 6).
     internal func handleApproval(
-      operationID: Data,
+      operationID: RappOperationIdentifier,
       operation: RappOperationDriver.Operation,
       coordinator: RappConnectionCoordinator
     ) async {
-      #if DEBUG
-        HolderTrace.say(
-          "handleApproval: kind=\(operation.kind), isSafeRead=\(operation.kind.isSafeRead)"
-        )
-      #endif
       guard let action = action(for: operation.kind) else {
         #if DEBUG
-          HolderTrace.say(
-            "handleApproval: rejected because no action mapping for \(operation.kind)"
-          )
+          HolderTrace.say("handleApproval: no consent defined for \(operation.kind)")
         #endif
         try? await coordinator.requestInvalidOrUnsupported(operationID: operationID)
         return
@@ -49,21 +46,14 @@
         try? await coordinator.approve(operationID: operationID)
         return
       }
-      let request = RappAuthorizationRequest(
-        requestID: operationID.base64EncodedString(),
-        requester: await Self.requesterName()
-          ?? String(localized: "Paired device"),
-        action: action,
-        displayContext: Self.consentContext(for: operation)
-      )
       #if DEBUG
         HolderTrace.say("handleApproval: asking holder authorization for \(operation.kind)")
       #endif
-      // The requester learns the consent view is on screen (RAPP v26.10.18
-      // §8.2 item 3), so it can tell a prompt awaiting its user from a
-      // custodian that has shown none.
-      try? await coordinator.reportProgress(operationID: operationID, event: .consentShown)
-      let decision = await inbox.ask(request)
+      // The consent view goes up first and the requester learns it is on
+      // screen (§8.2 item 3).
+      let decision = await ask(
+        operationID: operationID, operation: operation, action: action, notice: nil,
+        coordinator: coordinator)
       #if DEBUG
         HolderTrace.say("handleApproval: holder decided \(decision.summary)")
       #endif
@@ -75,72 +65,96 @@
       )
     }
 
+    /// Shows the operation to the holder and waits for the decision.
+    ///
+    /// A `notice` says why the holder is asked again for the same
+    /// operation: the card refused the PIN entered last (§10.2).
+    internal func ask(
+      operationID: RappOperationIdentifier,
+      operation: RappOperationDriver.Operation,
+      action: RappAuthorizationRequest.Action,
+      notice: String?,
+      coordinator: RappConnectionCoordinator
+    ) async -> RappAuthorizationDecision {
+      let request = RappAuthorizationRequest(
+        requestID: requestID(for: operationID),
+        requester: await Self.requesterName() ?? String(localized: "Paired device"),
+        action: action,
+        displayContext: Self.consentContext(for: operation),
+        notice: notice
+      )
+      if notice == nil {
+        try? await coordinator.reportProgress(operationID: operationID, event: .consentShown)
+      }
+      return await inbox.ask(request)
+    }
+
+    /// PIN 1 the phone may reuse by its own policy (§11 item 2).
     private func tryAutoApprove(
-      operationID: Data,
+      operationID: RappOperationIdentifier,
       operation: RappOperationDriver.Operation
     ) async -> Bool {
-      if operation.kind.isSafeRead {
+      guard operation.kind == .browserAuthenticate else { return false }
+      let isReader = await MainActor.run { CardPresence.shared.isReaderCardPresent }
+      if isReader, let pin1 = await cachedReaderPin1() {
         #if DEBUG
-          HolderTrace.say("handleApproval: safe read auto-approved")
+          HolderTrace.say("handleApproval: using cached reader PIN 1")
         #endif
+        pin1ByOperation[operationID] = pin1
         return true
       }
-      if operation.kind == .browserAuthenticate {
-        let isReader = await MainActor.run { CardPresence.shared.isReaderCardPresent }
-        if isReader, let pin1 = await cachedReaderPin1() {
-          #if DEBUG
-            HolderTrace.say("handleApproval: using cached reader PIN 1")
-          #endif
-          pin1ByOperation[operationID] = pin1
-          return true
-        }
-        if !isReader, let storedPin1 = CardCredentialStore.pin1Digits() {
-          #if DEBUG
-            HolderTrace.say("handleApproval: using stored unattended PIN 1")
-          #endif
-          pin1ByOperation[operationID] = storedPin1
-          return true
-        }
+      if !isReader, let storedPin1 = CardCredentialStore.pin1Digits() {
+        #if DEBUG
+          HolderTrace.say("handleApproval: using stored unattended PIN 1")
+        #endif
+        pin1ByOperation[operationID] = storedPin1
+        return true
       }
       return false
     }
 
-    private func resolveApprovalDecision(
+    /// Takes the holder's decision: a denial ends the operation, an approval
+    /// holds the PIN entered for the card command.
+    internal func resolveApprovalDecision(
       _ decision: RappAuthorizationDecision,
-      operationID: Data,
+      operationID: RappOperationIdentifier,
       operation: RappOperationDriver.Operation,
       coordinator: RappConnectionCoordinator
     ) async {
-      #if DEBUG
-        HolderTrace.say("resolveApprovalDecision: \(decision.summary) for \(operation.kind)")
-      #endif
-      switch decision {
-      case .approved:
-        try? await coordinator.approve(operationID: operationID)
+      guard await acceptDecision(decision, operationID: operationID, operation: operation) else {
+        try? await coordinator.deny(operationID: operationID)
+        return
+      }
+      try? await coordinator.approve(operationID: operationID)
+    }
 
+    /// Holds the PIN an approval carries for `operation`; false for a
+    /// denial or a PIN of the wrong kind.
+    internal func acceptDecision(
+      _ decision: RappAuthorizationDecision,
+      operationID: RappOperationIdentifier,
+      operation: RappOperationDriver.Operation
+    ) async -> Bool {
+      switch decision {
       case .approvedBrowserAuthentication(let pin1):
-        guard operation.kind == .browserAuthenticate else {
-          try? await coordinator.requestInvalidOrUnsupported(operationID: operationID)
-          return
-        }
+        guard operation.kind == .browserAuthenticate else { return false }
         pin1ByOperation[operationID] = pin1.digits
         let isReader = await MainActor.run { CardPresence.shared.isReaderCardPresent }
         if isReader {
           await rememberReaderPin1(pin1.digits)
         }
-        try? await coordinator.approve(operationID: operationID)
+        return true
 
       case .approvedDocumentSignature(let pin2):
         guard operation.kind == .signDocument || operation.kind == .batchSignDocuments else {
-          try? await coordinator.requestInvalidOrUnsupported(operationID: operationID)
-          return
+          return false
         }
         pin2Window.hold(pin2.digits)
         pin2ByOperation[operationID] = pin2.digits
-        try? await coordinator.approve(operationID: operationID)
+        return true
 
       case .denied:
-        try? await coordinator.deny(operationID: operationID)
+        return false
       }
     }
 
@@ -149,7 +163,7 @@
     ) -> Bool {
       switch operation.kind {
       case .inspectCard, .readIdentity, .readAuthenticationCertificate,
-        .readSignatureCertificate, .readRootCertificate, .readIntermediateCertificate:
+        .readSignatureCertificate:
         return operation.keyProfile == nil
           && operation.algorithm == nil
           && operation.digest.isEmpty
@@ -172,7 +186,7 @@
         && !operation.digest.isEmpty
     }
 
-    private func action(
+    internal func action(
       for kind: RappOperationDriver.OperationKind
     ) -> RappAuthorizationRequest.Action? {
       switch kind {
@@ -183,8 +197,8 @@
         .documentSignature
 
       case .inspectCard, .readIdentity, .readAuthenticationCertificate,
-        .readSignatureCertificate, .readRootCertificate, .readIntermediateCertificate:
-        .shareCardInformation
+        .readSignatureCertificate:
+        nil
       }
     }
 

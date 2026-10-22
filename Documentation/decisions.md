@@ -5,6 +5,52 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-10-22 The Apple apps speak RAPP v26.10.21
+
+Every pairing and session on iPhone, iPad and Mac runs RAPP v26.10.21;
+the wire version in the Noise prologue refuses a v26.10.18 peer. The
+revision removes machinery rather than adding it, and the apps follow.
+
+- The transports are `fi.refineid.rapp.ble` and `fi.refineid.stream`,
+  with candidates `ble` and `stream`, and every derivation label is
+  lowercase without a version suffix. An offer lives five minutes.
+- An operation lives in its session. There are no acknowledgements, no
+  journals and no tombstones: a result is sent once, and an operation
+  ends with the session that carried it. The phone runs one operation
+  at a time; a second request on the session is refused `busy`, a
+  reused identifier `duplicate_operation`.
+- The reads (`inspect_card`, `read_identity`, `read_certificate`) skip
+  consent; the phone asks the holder only before a key is used, and
+  reports `consent_shown` while it asks. `inspect_card` answers with the
+  card's answer to reset and nothing else.
+- A PIN the card refuses is asked for again on the phone for the same
+  operation. When the card's remaining attempts reach the floor the
+  phone refuses with `retry_floor` and tells the holder so; the computer
+  learns only how the operation ended.
+- `card.status` carries the SHA-256 fingerprint of the card's
+  authentication certificate, zero bytes when no card can answer. The
+  Mac offers the CryptoTokenKit identity only while the session's last
+  `card.status` names a card whose fingerprint matches the certificate
+  it holds, and reads the certificate again when it does not.
+- The session pings after 5 seconds of silence and is over after 30.
+- No failure revokes a confirmed pairing; a protocol violation closes the
+  session and the pairing stays. Forgetting a pairing with a session open closes
+  it with `pairing_revoked` and destroys the record. Without one, the
+  record is kept forgotten (pair record format 6): it serves nothing and
+  keeps its key only to deliver the `pairing_revoked` close on the next
+  session, and goes once that close is sent or after 30 days. A phone
+  answers the next session with the close in place of `session.ready`;
+  a Mac dials a forgotten pairing first and sends the close after the
+  handshake. A Mac that receives the close forgets the pairing,
+  withdraws the identity and names the phone in the identity row. The
+  revocation keys, the rotating hints and the `revoked` attribute of the
+  session record are gone.
+
+The vendored specification, state model, corpus and vectors are the
+v26.10.21 set from the reference repository. Stored records of the
+earlier format are not migrated: a pair record that does not decode is
+removed at launch, and the devices pair again.
+
 ## 2026-10-18 The Apple apps speak RAPP v26.10.18
 
 Every pairing and session on iPhone, iPad and Mac runs RAPP v26.10.18;
@@ -64,6 +110,7 @@ v26.10.18 set from the reference repository; the ceremony bodies in
 Stored records of the earlier formats are not migrated: a pair record
 that does not decode is revoked and a journal that does not decode is
 dropped.
+Superseded on 2026-10-22 by RAPP v26.10.21, recorded above.
 
 ## 2026-10-18 The remote card has no pause row
 

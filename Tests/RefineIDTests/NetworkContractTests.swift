@@ -177,7 +177,7 @@ internal struct NetworkContractTests {
     )
   }
 
-  /// The `fi.refineid.rapp.ble.v1` GATT link is driven by the DEBUG
+  /// The `fi.refineid.rapp.ble` GATT link is driven by the DEBUG
   /// launch modes alone (decisions 2026-10-09).
   @Test
   internal func bleGattProfileStaysDebugOnly() throws {

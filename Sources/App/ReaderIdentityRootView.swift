@@ -59,62 +59,52 @@
       ) { req in
         alertActions(for: req)
       } message: { req in
-        if let displayContext = req.displayContext, !displayContext.isEmpty {
-          Text("\(req.requester)\n\(displayContext)")
-        } else {
-          Text(req.requester)
-        }
+        Text(
+          ([req.notice, req.requester, req.displayContext] as [String?])
+            .compactMap(\.self)
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n"))
       }
     }
 
     @ViewBuilder
     private func alertActions(for req: RappAuthorizationRequest) -> some View {
-      if req.action == .browserAuthentication || req.action == .documentSignature {
-        SecureField(
-          req.action == .documentSignature ? "PIN 2" : "PIN 1",
-          text: Binding(
-            get: { enteredPin },
-            set: { enteredPin = LimitedDigits.pin($0) }
-          )
+      SecureField(
+        req.action == .documentSignature ? "PIN 2" : "PIN 1",
+        text: Binding(
+          get: { enteredPin },
+          set: { enteredPin = LimitedDigits.pin($0) }
         )
-        .keyboardType(.numberPad)
-        .textContentType(.none)
-        .accessibilityIdentifier(req.action == .documentSignature ? "rappPin2" : "rappPin1")
+      )
+      .keyboardType(.numberPad)
+      .textContentType(.none)
+      .accessibilityIdentifier(req.action == .documentSignature ? "rappPin2" : "rappPin1")
 
-        Button("OK") {
-          submitPin(for: req)
-        }
-        .disabled(!isPinValid(enteredPin, for: req.action))
-        .accessibilityIdentifier("rappApprove")
-
-        Button("Cancel", role: .cancel) {
-          enteredPin = ""
-          authorizationInbox.deny(req.requestID)
-        }
-        .accessibilityIdentifier("rappDeny")
-      } else {
-        Button("Allow") {
-          authorizationInbox.approve(req.requestID)
-        }
-        .accessibilityIdentifier("rappApprove")
-
-        Button("Cancel", role: .cancel) {
-          authorizationInbox.deny(req.requestID)
-        }
-        .accessibilityIdentifier("rappDeny")
+      Button("OK") {
+        submitPin(for: req)
       }
+      .disabled(!isPinValid(enteredPin, for: req.action))
+      .accessibilityIdentifier("rappApprove")
+
+      Button("Cancel", role: .cancel) {
+        enteredPin = ""
+        authorizationInbox.deny(req.requestID)
+      }
+      .accessibilityIdentifier("rappDeny")
     }
 
     private func submitPin(for req: RappAuthorizationRequest) {
       let pin = enteredPin
       enteredPin = ""
-      if req.action == .browserAuthentication {
+      switch req.action {
+      case .browserAuthentication:
         if Pin1(digits: pin) != nil {
           authorizationInbox.approveBrowserAuthentication(req.requestID, pin1: pin)
         } else {
           authorizationInbox.deny(req.requestID)
         }
-      } else if req.action == .documentSignature {
+
+      case .documentSignature:
         if Pin2(digits: pin) != nil {
           authorizationInbox.approveDocumentSignature(req.requestID, pin2: pin)
         } else {
@@ -129,8 +119,6 @@
         "PIN 1"
       case .documentSignature:
         "PIN 2"
-      case .shareCardInformation:
-        String(localized: "Allow card read?")
       case nil:
         ""
       }
@@ -142,8 +130,6 @@
         Pin1(digits: pin) != nil
       case .documentSignature:
         Pin2(digits: pin) != nil
-      case .shareCardInformation:
-        true
       }
     }
   }

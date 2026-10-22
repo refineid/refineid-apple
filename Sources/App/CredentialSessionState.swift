@@ -22,8 +22,13 @@ internal struct CredentialSessionState: Equatable {
     probedRoles.insert(role)
   }
 
-  internal mutating func recordNegativePin(_ digits: String) {
+  /// The card refused `digits` for `role`: the digits are never sent
+  /// again in this session, and the role's counter is probed again before
+  /// its next verification, since the refusal spent an attempt (RAPP
+  /// v26.10.21 §10.2).
+  internal mutating func recordNegativePin(_ digits: String, role: CredentialRole) {
     negativePinFingerprints.insert(Self.fingerprint(digits))
+    probedRoles.remove(role)
   }
 
   /// Forgets everything the session learned.

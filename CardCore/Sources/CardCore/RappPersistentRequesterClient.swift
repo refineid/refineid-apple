@@ -18,6 +18,8 @@
       internal var operationStarted = false
       internal var completed = false
       internal var coordinator: RappConnectionCoordinator?
+      /// The pairing the session runs over, once it is chosen.
+      internal var pairID: Data?
       internal var response: RappRequesterResponse?
       internal var error: RappRequesterClientError?
     }

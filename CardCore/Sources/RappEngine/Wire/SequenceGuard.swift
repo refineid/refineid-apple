@@ -14,11 +14,6 @@ internal struct SequenceGuard {
 
   internal var expectedNextReceive: UInt64 { nextReceive }
 
-  /// The most recent accepted peer sequence, if any has been accepted.
-  internal var lastReceivedSequence: UInt64? {
-    nextReceive == 0 ? nil : nextReceive - 1
-  }
-
   internal init(sessionIdentifier: Data) {
     self.sessionIdentifier = sessionIdentifier
   }

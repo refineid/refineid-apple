@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.10.9 pairing offer and deadline (section 4.2)")
+@Suite("RAPP v26.10.21 pairing offer and deadline (section 4.2)")
 internal struct PairingOfferTests {
   /// Milliseconds the deadline fixture starts at.
   private static let deadlineStart: UInt64 = 10_000
@@ -31,7 +31,7 @@ internal struct PairingOfferTests {
   internal func transportsAreSorted() throws {
     let offer = try PairingOffer.create(
       offerIdentifier: filler(0x01, OfferLimit.offerIdentifierSize),
-      profiles: ["fi.refineid.card-status.v1"],
+      profiles: ["fi.refineid.card-status"],
       transportProfiles: [streamProfile, RappBleGattProfile.name])
     #expect(offer.transports.map(\.profile) == [RappBleGattProfile.name, streamProfile])
   }
@@ -44,7 +44,6 @@ internal struct PairingOfferTests {
     #expect(decoded.suites == offer.suites)
     #expect(decoded.profiles == offer.profiles)
     #expect(decoded.transports == offer.transports)
-    #expect(decoded.offerLifetimeMilliseconds == offer.offerLifetimeMilliseconds)
     #expect(try decoded.offerHash() == offer.offerHash())
   }
 
@@ -72,25 +71,23 @@ internal struct PairingOfferTests {
       _ = try PairingOffer(
         offerIdentifier: filler(0x01, OfferLimit.offerIdentifierSize),
         suites: ["Noise_XX_25519_ChaChaPoly_SHA256"],
-        profiles: ["fi.refineid.card-status.v1"],
-        transports: [try #require(TransportRegistry.entry(for: streamProfile))],
-        offerLifetimeMilliseconds: OfferLimit.offerLifetimeMilliseconds)
+        profiles: ["fi.refineid.card-status"],
+        transports: [try #require(TransportRegistry.entry(for: streamProfile))])
     }
   }
 
-  @Test("Any lifetime but the fixed 60 seconds is rejected")
+  @Test("Any lifetime but the fixed five minutes is rejected")
   internal func otherLifetimesAreRejected() throws {
-    let entry = try #require(TransportRegistry.entry(for: streamProfile))
+    guard case .map(var map) = try decodeDeterministicCbor(try makeOffer().encoded()) else {
+      Issue.record("offer is not a map")
+      return
+    }
     for lifetime in [
       OfferLimit.offerLifetimeMilliseconds - 1, OfferLimit.offerLifetimeMilliseconds + 1,
     ] {
+      map["offer_ttl_ms"] = .unsigned(lifetime)
       #expect(throws: PairingOfferError.invalidLifetime) {
-        _ = try PairingOffer(
-          offerIdentifier: filler(0x01, OfferLimit.offerIdentifierSize),
-          suites: [RappCpaceConstants.kc2Suite],
-          profiles: ["fi.refineid.card-status.v1"],
-          transports: [entry],
-          offerLifetimeMilliseconds: lifetime)
+        _ = try PairingOffer.decode(try WireValue.map(map).encoded())
       }
     }
   }
@@ -111,9 +108,8 @@ internal struct PairingOfferTests {
         _ = try PairingOffer(
           offerIdentifier: filler(0x01, OfferLimit.offerIdentifierSize),
           suites: [RappCpaceConstants.kc2Suite],
-          profiles: ["fi.refineid.card-status.v1"],
-          transports: transports,
-          offerLifetimeMilliseconds: OfferLimit.offerLifetimeMilliseconds)
+          profiles: ["fi.refineid.card-status"],
+          transports: transports)
       }
     }
   }
@@ -121,8 +117,7 @@ internal struct PairingOfferTests {
   @Test("A deadline is live only inside its interval")
   internal func deadlineIsLiveOnlyInsideItsInterval() throws {
     let lifetime = OfferLimit.offerLifetimeMilliseconds
-    let deadline = try PairingOfferDeadline(
-      offer: try makeOffer(), startedAtMilliseconds: Self.deadlineStart)
+    let deadline = try PairingOfferDeadline(startedAtMilliseconds: Self.deadlineStart)
     #expect(!deadline.isLive(nowMilliseconds: Self.deadlineStart - 1))
     #expect(deadline.isLive(nowMilliseconds: Self.deadlineStart))
     #expect(deadline.isLive(nowMilliseconds: Self.deadlineStart + lifetime - 1))
@@ -130,10 +125,9 @@ internal struct PairingOfferTests {
   }
 
   @Test("A deadline that would overflow is rejected")
-  internal func deadlineOverflowIsRejected() throws {
-    let offer = try makeOffer()
+  internal func deadlineOverflowIsRejected() {
     #expect(throws: (any Error).self) {
-      _ = try PairingOfferDeadline(offer: offer, startedAtMilliseconds: UInt64.max)
+      _ = try PairingOfferDeadline(startedAtMilliseconds: UInt64.max)
     }
   }
 }

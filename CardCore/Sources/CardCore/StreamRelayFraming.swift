@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The `fi.refineid.stream.v1` frame contract.
+/// The `fi.refineid.stream` frame contract.
 ///
 /// Every frame is a 2-byte big-endian length prefix followed by exactly that
 /// many payload bytes. A declared length of zero is malformed, and the

@@ -3,39 +3,38 @@
 import Foundation
 
 extension RappTerminalReason {
-  /// The reason a received failure result names (RAPP v26.10.9 §10).
-  internal init(status: ResultStatus, error: ResultError?) {
-    switch (status, error) {
-    case (.ambiguous, _):
-      self = .cardCompletionAmbiguous
+  /// The reason a registered error name gives.
+  internal init(_ error: ResultError) {
+    switch error {
+    case .busy:
+      self = .busy
 
-    case (.credentialRejected, _):
-      self = .credentialRejected
+    case .duplicateOperation:
+      self = .duplicateOperation
 
-    case (.cancelled, .some(.cardError)):
-      self = .cardRemovedBeforeTransmit
+    case .invalidLifetime:
+      self = .invalidLifetime
 
-    case (.cancelled, _):
-      self = .requestExpired
+    case .operationExpired:
+      self = .operationExpired
 
-    case (_, .some(.userCancelled)), (_, .some(.userDeclined)):
-      self = .userDenied
+    case .unauthorized:
+      self = .unauthorized
 
-    case (_, .some(.invalidCredential)):
-      self = .invalidCredential
+    case .unsupportedParameter:
+      self = .unsupportedParameter
 
-    case (_, .some(.operationFailed)), (_, .some(.storageExhausted)):
-      // The custodian declined to proceed with the card, as its retry
-      // floor or its storage requires.
-      self = .retryPolicyRefused
+    case .userCancelled:
+      self = .userCancelled
 
-    default:
-      self = .requestInvalidOrUnsupported
+    case .retryFloor:
+      self = .retryFloor
+
+    case .cardError:
+      self = .cardError
+
+    case .operationFailed:
+      self = .operationFailed
     }
-  }
-
-  /// The reason a local custodian failure reports.
-  internal init(_ failure: ProxyFailure) {
-    self.init(status: failure.status, error: failure.error)
   }
 }

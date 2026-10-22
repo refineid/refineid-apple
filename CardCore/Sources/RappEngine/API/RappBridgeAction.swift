@@ -2,77 +2,41 @@
 
 import Foundation
 
-/// The bounded step the caller performs next.
-///
-/// The kind names the step; the other fields carry only what that step needs.
-public struct RappBridgeAction: Equatable, Sendable {
-  /// What the caller does next.
-  public var kind: RappBridgeActionKind
-  /// The operation this step belongs to, when it belongs to one.
-  public var operationId: Data?
-  /// What the holder is being asked to allow, when consent is being sought.
-  public var operation: RappOperationDescriptor?
-  /// The sealed frame to release, when the step releases one.
-  public var frame: Data?
-  /// Further sealed frames to release after `frame`, in order, such as the
-  /// result a status report re-delivers.
-  public var additionalFrames: [Data]
-  /// The journaled state an ended operation reached.
-  public var terminalState: String?
-  /// Why an operation ended without an answer.
-  public var terminalReason: RappTerminalReason?
-  /// Close the session once the accompanying frame has been released.
-  public var closeSessionAfterSend: Bool
-  /// Durably revoke the stored pairing before releasing any frame.
-  ///
-  /// Set for the conditions whose pairing effect the specification's
-  /// failure taxonomy names as revocation: a rejected credential, an
-  /// authenticated protocol violation, and a peer's authenticated
-  /// revocation notice. A card leaving is not among them.
-  public var revokesPairing: Bool
-  /// Monotonic time of the next required liveness poll.
-  public var nextPollAtMs: UInt64?
-  /// Advisory progress event reported by peer.
-  public var progressEvent: ProgressEvent?
-  /// The signatures an interrupted batch made before it became ambiguous,
-  /// in document order; empty otherwise (RAPP v26.10.9 §9.3).
-  public var batchSignatures: [Data]
-  /// The reason of a session close, whether the peer sent it or this
-  /// endpoint did.
-  public var closeReason: RappCloseReason?
-  /// Whether the custodian can serve a card now, on a `cardStatus` step.
-  public var cardPresent: Bool
+// The cases are ordered as the engine emits them through an operation's life,
+// so the source reads in the order the caller meets them.
+// swiftlint:disable sorted_enum_cases
 
-  /// Describes one step, carrying only what that step needs.
-  public init(
-    kind: RappBridgeActionKind,
-    operationId: Data? = nil,
-    operation: RappOperationDescriptor? = nil,
-    frame: Data? = nil,
-    additionalFrames: [Data] = [],
-    terminalState: String? = nil,
-    terminalReason: RappTerminalReason? = nil,
-    closeSessionAfterSend: Bool = false,
-    revokesPairing: Bool = false,
-    nextPollAtMs: UInt64? = nil,
-    progressEvent: ProgressEvent? = nil,
-    batchSignatures: [Data] = [],
-    closeReason: RappCloseReason? = nil,
-    cardPresent: Bool = false
-  ) {
-    self.kind = kind
-    self.operationId = operationId
-    self.operation = operation
-    self.frame = frame
-    self.additionalFrames = additionalFrames
-    self.terminalState = terminalState
-    self.terminalReason = terminalReason
-    self.closeSessionAfterSend = closeSessionAfterSend
-    self.revokesPairing = revokesPairing
-    self.nextPollAtMs = nextPollAtMs
-    self.progressEvent = progressEvent
-    self.batchSignatures = batchSignatures
-    self.closeReason = closeReason
-    self.cardPresent = cardPresent
-  }
+/// The bounded step the caller performs next (RAPP v26.10.21 §8).
+///
+/// Every outcome is data. The engine decides what must happen and the caller
+/// performs it, so nothing here touches a card, a transport, or a screen. A
+/// frame is sealed ciphertext in transit to the transport; nothing else
+/// carries protocol bytes.
+public enum RappBridgeAction: Equatable, Sendable {
+  /// Release the frame on the session; it belongs to `operationId`'s
+  /// operation when it names one.
+  case sendFrame(Data, operationId: RappOperationIdentifier?)
+  /// Release this endpoint's sealed `session.close` carrying `reason`, then
+  /// drop the link; the session is over and `endedOperation`, when present,
+  /// ended with it (§8.1 item 3).
+  case sendClose(Data, reason: RappCloseReason, endedOperation: RappEndedOperation?)
+  /// Perform the custodian's next step for the described live operation.
+  case custodianStep(RappOperationIdentifier, RappCustodianStep, RappOperationDescriptor)
+  /// The requester's operation completed with its answer.
+  case completed(RappOperationIdentifier, RappOperationResult)
+  /// The requester's operation ended without completing, and why.
+  case terminal(RappOperationIdentifier, RappTerminalReason)
+  /// The custodian reported a change of the operation's state.
+  case progress(RappOperationIdentifier, ProgressEvent)
+  /// The custodian reported which card it can serve now (§8.4).
+  case cardStatus(RappCardStatus)
+  /// Nothing to do.
+  case noAction
+  /// The session is over; the pairing stays. `reason` names the peer's
+  /// authenticated close, if one ended it; on `pairingRevoked`, revoke the
+  /// record and withdraw its identity (§4.6 item 4). `endedOperation`, when
+  /// present, ended with the session (§8.1 item 3).
+  case sessionClosed(reason: RappCloseReason?, endedOperation: RappEndedOperation?)
 }
+
+// swiftlint:enable sorted_enum_cases

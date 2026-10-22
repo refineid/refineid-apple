@@ -2,26 +2,21 @@
 
 import Foundation
 
-/// One typed request, bound to a pairing and carried by a session.
-///
-/// The request hash covers the pairing and every field a holder is shown and
-/// every field the card acts on, so an approval cannot be moved to a
-/// different request or pairing. The session is provenance only.
+/// One typed request, which lives inside the session that carried it (RAPP
+/// v26.10.21 §8.1).
 internal struct OperationRequest: Equatable {
-  /// The lifetime a request that names none receives (section 8.2.1).
+  /// The lifetime a request that names none receives (§8.1 item 2).
   internal static let defaultLifetimeMilliseconds: UInt64 = 300_000
 
-  internal let operationIdentifier: Data
-
-  internal let pairIdentifier: Data
-
-  internal let sessionIdentifier: Data
+  /// Used once per session.
+  internal let operationIdentifier: RappOperationIdentifier
 
   internal let profile: ProfileName
 
-  /// Local monotonic receipt time.
+  /// Local receipt or creation time on the continuous clock, which advances
+  /// through suspension (§8.1 item 2).
   ///
-  /// Never sent and never hashed.
+  /// Never sent.
   internal let localStartMilliseconds: UInt64
 
   /// Relative validity the peer sends, capped again by local policy.
@@ -30,17 +25,13 @@ internal struct OperationRequest: Equatable {
   internal let operation: CardOperation
 
   internal init(
-    operationIdentifier: Data,
-    pairIdentifier: Data,
-    sessionIdentifier: Data,
+    operationIdentifier: RappOperationIdentifier,
     profile: ProfileName,
     localStartMilliseconds: UInt64,
     expiresAfterMilliseconds: UInt64,
     operation: CardOperation
   ) throws {
     self.operationIdentifier = operationIdentifier
-    self.pairIdentifier = pairIdentifier
-    self.sessionIdentifier = sessionIdentifier
     self.profile = profile
     self.localStartMilliseconds = localStartMilliseconds
     self.expiresAfterMilliseconds = expiresAfterMilliseconds
@@ -48,18 +39,17 @@ internal struct OperationRequest: Equatable {
     try validate()
   }
 
-  /// Parses a received request; both peers derive its hash.
+  /// Parses a received request.
   ///
   /// - Throws: ``OperationRequestRefusal`` when the request is well formed
-  ///   but names a profile, action or parameter this endpoint cannot serve.
+  ///   but names a lifetime, profile, action or parameter this endpoint
+  ///   cannot serve, and ``CardOperationError`` when it breaks the schema.
   internal static func from(
     wireBody: [String: WireValue],
-    pairIdentifier: Data,
-    sessionIdentifier: Data,
     localStartMilliseconds: UInt64
   ) throws -> Self {
     var body = wireBody
-    let decodedOperationIdentifier = try takeOperationBytes(&body, "operation_id")
+    let decodedOperationIdentifier = try takeOperationIdentifier(&body, "operation_id")
     let profileName = try takeOperationText(&body, "profile")
     let action = try takeOperationText(&body, "action")
     let context = try takeOperationMap(&body, "context")
@@ -69,47 +59,28 @@ internal struct OperationRequest: Equatable {
       lifetime = try takeOperationUnsigned(&body, "expires_after_ms")
     }
     guard body.isEmpty else { throw CardOperationError.unexpectedField }
-    let rawHash: Data
-    do {
-      rawHash = try RappHashes.requestHash(
-        of: RappRequestBinding(
-          pairIdentifier: pairIdentifier, operationIdentifier: decodedOperationIdentifier,
-          profile: profileName, action: action, context: context, payload: payload))
-    } catch {
-      throw CardOperationError.hashFailure
-    }
-    let reference = OperationReference(
-      operationIdentifier: decodedOperationIdentifier, requestHash: rawHash)
     guard lifetime > 0 else {
-      throw OperationRequestRefusal(reference: reference, error: .invalidLifetime)
+      throw OperationRequestRefusal(
+        operationIdentifier: decodedOperationIdentifier, error: .invalidLifetime)
     }
     do {
       guard let decodedProfile = ProfileName(rawValue: profileName) else {
         throw CardOperationError.unknownProfile
       }
-      let request = try Self(
+      return try Self(
         operationIdentifier: decodedOperationIdentifier,
-        pairIdentifier: pairIdentifier,
-        sessionIdentifier: sessionIdentifier,
         profile: decodedProfile,
         localStartMilliseconds: localStartMilliseconds,
         expiresAfterMilliseconds: lifetime,
         operation: try CardOperation.from(action: action, context: context, payload: payload))
-      guard try request.requestHash() == rawHash else {
-        throw CardOperationError.requestHashMismatch
-      }
-      return request
     } catch {
-      throw OperationRequestRefusal(reference: reference, error: .unsupportedParameter)
+      throw OperationRequestRefusal(
+        operationIdentifier: decodedOperationIdentifier, error: .unsupportedParameter)
     }
   }
 
-  /// Rejects a request whose identifiers, lifetime, or profile do not agree.
+  /// Rejects a request whose lifetime or profile do not agree.
   internal func validate() throws {
-    guard operationIdentifier.count == OperationSize.operationIdentifier,
-      pairIdentifier.count == OperationSize.pairIdentifier,
-      sessionIdentifier.count == OperationSize.sessionIdentifier
-    else { throw CardOperationError.invalidIdentifier }
     guard expiresAfterMilliseconds > 0 else { throw CardOperationError.invalidLifetime }
     guard profile == operation.requiredProfile else {
       throw CardOperationError.profileActionMismatch
@@ -117,15 +88,8 @@ internal struct OperationRequest: Equatable {
     try operation.validate()
   }
 
-  /// The pairing must have granted the profile this action belongs to.
-  ///
-  /// This is
-  /// checked before any card contact.
-  internal func requireGranted(by granted: [ProfileName]) throws {
-    guard granted.contains(profile) else { throw CardOperationError.profileNotGranted }
-  }
-
-  /// Local monotonic deadline, shortened by this endpoint's own maximum.
+  /// Local deadline on the continuous clock, shortened by this endpoint's
+  /// own maximum.
   internal func localDeadlineMilliseconds(maximumLifetimeMilliseconds: UInt64) throws -> UInt64 {
     try validate()
     guard maximumLifetimeMilliseconds > 0 else { throw CardOperationError.invalidLifetime }
@@ -134,27 +98,10 @@ internal struct OperationRequest: Equatable {
     return overflowed ? UInt64.max : deadline
   }
 
-  /// What the approval and the durable journal commit to.
-  internal func requestHash() throws -> Data {
-    try validate()
-    let binding = RappRequestBinding(
-      pairIdentifier: pairIdentifier,
-      operationIdentifier: operationIdentifier,
-      profile: profile.rawValue,
-      action: operation.action,
-      context: operation.context,
-      payload: operation.payload)
-    do {
-      return try RappHashes.requestHash(of: binding)
-    } catch {
-      throw CardOperationError.hashFailure
-    }
-  }
-
   /// The exact `operation.request` body.
   internal func wireBody() -> [String: WireValue] {
     [
-      "operation_id": .bytes(operationIdentifier),
+      "operation_id": .bytes(operationIdentifier.bytes),
       "profile": .text(profile.rawValue),
       "action": .text(operation.action),
       "expires_after_ms": .unsigned(expiresAfterMilliseconds),

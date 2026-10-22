@@ -2,14 +2,9 @@
 
 import Foundation
 
-/// The registered session.close reason vocabulary, named once.
+/// The registered `session.close` reasons the engine itself sends, named
+/// once (RAPP v26.10.21 §7.1).
 internal enum CloseReasonName {
   internal static let pairingRevoked = "pairing_revoked"
   internal static let protocolViolation = "protocol_violation"
-  /// A custodian that can no longer serve the card (RAPP v26.10.9 §7.1).
-
-  /// Whether this close reason carries the Section 14.6 pairing notice.
-  internal static func revokesPairing(_ reason: String) -> Bool {
-    reason == pairingRevoked || reason == protocolViolation
-  }
 }

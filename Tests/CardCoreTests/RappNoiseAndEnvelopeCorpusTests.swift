@@ -6,6 +6,9 @@ import XCTest
 
 /// Wire version hashed into every prologue (specification Section 6).
 internal final class RappNoiseAndEnvelopeCorpusTests: XCTestCase {
+  /// The malformed envelopes the corpus pins.
+  private static let rejectedEnvelopeVectorCount = 10
+
   private func checkStaticKeys(
     _ vector: RappNoiseAndEnvelopeCorpusSupport.NoiseVector
   ) throws {
@@ -36,7 +39,7 @@ internal final class RappNoiseAndEnvelopeCorpusTests: XCTestCase {
     switch vector.suite {
     case RappNoiseAndEnvelopeCorpusSupport.pairingSuite:
       expectedPrologue = encodeArray([
-        encodeText("RAPP-pairing-v1"),
+        encodeText(RappNoiseAndEnvelopeCorpusSupport.pairingPrologueLabel),
         encodeArray([
           encodeUnsigned(RappNoiseAndEnvelopeCorpusSupport.wire.major),
           encodeUnsigned(RappNoiseAndEnvelopeCorpusSupport.wire.minor),
@@ -51,7 +54,7 @@ internal final class RappNoiseAndEnvelopeCorpusTests: XCTestCase {
 
     case RappNoiseAndEnvelopeCorpusSupport.sessionSuite:
       expectedPrologue = encodeArray([
-        encodeText("RAPP-session-v1"),
+        encodeText(RappNoiseAndEnvelopeCorpusSupport.sessionPrologueLabel),
         encodeArray([
           encodeUnsigned(RappNoiseAndEnvelopeCorpusSupport.wire.major),
           encodeUnsigned(RappNoiseAndEnvelopeCorpusSupport.wire.minor),
@@ -80,7 +83,7 @@ internal final class RappNoiseAndEnvelopeCorpusTests: XCTestCase {
     XCTAssertEqual(corpus.noiseHandshake.count, 4)
     XCTAssertEqual(
       Set(corpus.noiseHandshake.map(\.transportProfile)),
-      ["fi.refineid.rapp.ble.v1", "fi.refineid.stream.v1"])
+      ["fi.refineid.rapp.ble", "fi.refineid.stream"])
 
     for vector in corpus.noiseHandshake {
       try checkStaticKeys(vector)
@@ -89,13 +92,17 @@ internal final class RappNoiseAndEnvelopeCorpusTests: XCTestCase {
       let handshakeHash = decodeHex(vector.handshakeHashHex)
       XCTAssertEqual(handshakeHash.count, 64, vector.name)
       XCTAssertEqual(
-        deriveIdentifier(domain: "RAPP-session-id-v1", handshakeHash: handshakeHash),
+        deriveIdentifier(
+          domain: RappNoiseAndEnvelopeCorpusSupport.sessionIdentifierLabel,
+          handshakeHash: handshakeHash),
         vector.sessionIDHex,
         vector.name
       )
       if vector.suite == RappNoiseAndEnvelopeCorpusSupport.pairingSuite {
         XCTAssertEqual(
-          deriveIdentifier(domain: "RAPP-pair-id-v1", handshakeHash: handshakeHash),
+          deriveIdentifier(
+            domain: RappNoiseAndEnvelopeCorpusSupport.pairIdentifierLabel,
+            handshakeHash: handshakeHash),
           vector.pairIDHex,
           vector.name
         )
@@ -108,7 +115,7 @@ internal final class RappNoiseAndEnvelopeCorpusTests: XCTestCase {
 
   internal func testMalformedEnvelopesMatchIndependentSwiftDecoder() throws {
     let corpus = try loadCorpus()
-    XCTAssertEqual(corpus.rejectedEnvelope.count, 12)
+    XCTAssertEqual(corpus.rejectedEnvelope.count, Self.rejectedEnvelopeVectorCount)
 
     for vector in corpus.rejectedEnvelope {
       let encoded = decodeHex(vector.canonicalCBORHex)
@@ -116,9 +123,7 @@ internal final class RappNoiseAndEnvelopeCorpusTests: XCTestCase {
       let value = try decoder.decode(depth: 0)
       XCTAssertTrue(decoder.isAtEnd, "Trailing bytes in \(vector.name)")
       XCTAssertEqual(
-        RappNoiseAndEnvelopeCorpusSupport.validateEnvelope(
-          value,
-          supportedCritical: Set(vector.supportedCritical)),
+        RappNoiseAndEnvelopeCorpusSupport.validateEnvelope(value),
         vector.error,
         vector.name
       )

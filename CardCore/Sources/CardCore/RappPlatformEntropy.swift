@@ -28,8 +28,12 @@
     }
 
     /// Returns a fresh operation identifier.
-    public func operationID() throws -> Data {
-      try bytes(count: rappRandomByteCounts().operationId)
+    public func operationID() throws -> RappOperationIdentifier {
+      guard
+        let identifier = RappOperationIdentifier(
+          try bytes(count: rappRandomByteCounts().operationId))
+      else { throw RappPlatformPrimitiveError.invalidByteCount }
+      return identifier
     }
 
     /// Returns a fresh liveness challenge.

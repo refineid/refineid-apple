@@ -19,7 +19,7 @@
       internal let isRoleProbed: @Sendable (CredentialRole) -> Bool
       internal let isNegativePin: @Sendable (String) -> Bool
       internal let markRoleProbed: @Sendable (CredentialRole) -> Void
-      internal let recordNegativePin: @Sendable (String) -> Void
+      internal let recordNegativePin: @Sendable (String, CredentialRole) -> Void
     }
 
     /// The exclusive card session and the operations over its secure

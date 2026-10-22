@@ -14,27 +14,10 @@ internal struct RappMessageChannel {
 
   private let sessionIdentifier: Data
 
-  /// The highest peer sequence accepted so far, for close and liveness bodies.
-  internal var lastReceivedSequence: UInt64? { sequence.lastReceivedSequence }
-
   internal init(channel: RappSecureChannel, sessionIdentifier: Data) {
     self.channel = channel
     self.sessionIdentifier = sessionIdentifier
     self.sequence = SequenceGuard(sessionIdentifier: sessionIdentifier)
-  }
-
-  /// Seals one opaque payload, with no envelope around it.
-  ///
-  /// The cipher beneath already advances a nonce per frame in each
-  /// direction, so ordering and replay are settled there. A caller that
-  /// carries its own correlation needs nothing else from this layer.
-  internal mutating func sealPayload(_ payload: Data) throws -> Data {
-    try channel.seal(payload)
-  }
-
-  /// Opens one opaque payload.
-  internal mutating func openPayload(_ frame: Data) throws -> Data {
-    try channel.open(frame)
   }
 
   internal mutating func seal(
@@ -44,9 +27,7 @@ internal struct RappMessageChannel {
       messageType: messageType,
       sessionIdentifier: sessionIdentifier,
       sequence: try sequence.nextOutgoing(),
-      body: body,
-      critical: [],
-      extensions: [:])
+      body: body)
     return try channel.seal(try envelope.encoded())
   }
 
@@ -55,7 +36,8 @@ internal struct RappMessageChannel {
   /// The cipher's counter nonce already refuses a replayed, reordered or
   /// skipped frame, so a decrypted envelope naming another session or a
   /// sequence off its nonce position can only be a peer that seals
-  /// nonconforming envelopes - an authenticated protocol violation.
+  /// nonconforming envelopes - an authenticated protocol violation that
+  /// closes the session (RAPP v26.10.21 §7.2).
   internal mutating func open(_ frame: Data) throws -> Envelope {
     var decoded: Envelope?
     var guardCopy = sequence

@@ -3,6 +3,7 @@
 #if REFINEID_LOCAL_CARD && os(iOS)
   import CardCore
   import Foundation
+  import RappEngine
 
   /// Exhaustive semantic dispatcher for one authenticated phone-side RAPP
   /// connection. It sees no wire frames and owns no transport capability.
@@ -10,10 +11,12 @@
     // MARK: Properties
 
     internal let inbox: RappAuthorizationInbox
-    internal var pin1ByOperation: [Data: String] = [:]
-    internal var pin2ByOperation: [Data: String] = [:]
+    internal var pin1ByOperation: [RappOperationIdentifier: String] = [:]
+    internal var pin2ByOperation: [RappOperationIdentifier: String] = [:]
     internal var pin2Window = Pin2Window()
     internal var lastReadAuthCertDER: Data?
+    /// The prompt each operation shows the holder, by operation.
+    internal var requestIDs: [RappOperationIdentifier: String] = [:]
 
     // MARK: Lifecycle
 
@@ -39,7 +42,7 @@
       from coordinator: RappConnectionCoordinator
     ) async {
       switch event {
-      case .established, .peerBusy, .progress, .batchSignatures, .cardStatus:
+      case .established, .progress, .cardStatus:
         return
 
       case .inspectPrerequisites(let operationID, let operation):
@@ -58,12 +61,9 @@
         await executeCardCommand(
           operationID: operationID, operation: operation, coordinator: coordinator)
 
-      case .operationFinished(let operationID),
-        .peerUnknownOperation(let operationID),
-        .terminal(let operationID, _, _):
-        await cancel(operationID)
-
-      case .completed(let operationID, _):
+      case .completed(let operationID, _), .terminal(let operationID, _),
+        .operationEnded(.dropped(let operationID)),
+        .operationEnded(.cardExchangeContinues(let operationID)):
         await cancel(operationID)
 
       case .closed:
@@ -71,10 +71,19 @@
       }
     }
 
+    /// The prompt identifier for `operationID`, made once per operation.
+    internal func requestID(for operationID: RappOperationIdentifier) -> String {
+      if let existing = requestIDs[operationID] { return existing }
+      let made = UUID().uuidString
+      requestIDs[operationID] = made
+      return made
+    }
+
     private func cleanup() async {
       lastReadAuthCertDER = nil
       pin1ByOperation.removeAll(keepingCapacity: false)
       pin2ByOperation.removeAll(keepingCapacity: false)
+      requestIDs.removeAll(keepingCapacity: false)
       pin2Window.forget()
       await inbox.cancelAll()
     }

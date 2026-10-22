@@ -2,9 +2,9 @@
 
 import Foundation
 
-/// The `fi.refineid.stream.v1` transport profile.
+/// The `fi.refineid.stream` transport profile.
 ///
 /// The engine owns the profile's name, so a caller never spells it.
 internal enum StreamProfile {
-  internal static let name = "fi.refineid.stream.v1"
+  internal static let name = "fi.refineid.stream"
 }

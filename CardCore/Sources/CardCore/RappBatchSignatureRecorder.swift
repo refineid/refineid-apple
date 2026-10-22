@@ -4,22 +4,20 @@
   import Foundation
   import RappEngine
 
-  /// Journals a batch's signatures from inside one synchronous card session
-  /// (RAPP v26.10.9 §8.1, §9.3).
-  ///
-  /// Each signature is durable before the card is asked for the next one,
-  /// so an interruption delivers what was made and never makes it again.
+  /// Records a batch's signatures from inside one synchronous card session
+  /// (RAPP v26.10.21 §9.3), so the batch completes with exactly the
+  /// signatures the card made, one per document.
   public final class RappBatchSignatureRecorder: Sendable {
     private let bridge: RappOperationBridge
-    private let operationID: Data
+    private let operationID: RappOperationIdentifier
 
-    internal init(bridge: RappOperationBridge, operationID: Data) {
+    internal init(bridge: RappOperationBridge, operationID: RappOperationIdentifier) {
       self.bridge = bridge
       self.operationID = operationID
     }
 
-    /// Records one signature; false means it is not durable and the batch
-    /// must stop before the next document.
+    /// Records one signature; false means the batch can no longer complete
+    /// and must stop before the next document.
     public func record(_ signature: Data) -> Bool {
       (try? bridge.recordBatchSignature(operationId: operationID, signature: signature)) != nil
     }

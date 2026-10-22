@@ -2,152 +2,143 @@
 
 import Foundation
 
-// The inspection answer names one parameter per value the card reported.
-// swiftlint:disable function_parameter_count
-
-/// The holder's decisions, and the answers a card produced.
+/// The custodian's steps: the holder's decisions, and the answers a card
+/// produced.
 extension RappOperationBridge {
-  /// Records that the profile's bounded reads finished.
-  public func prerequisitesComplete(operationId: Data) throws -> RappBridgeAction {
-    try locked {
-      guard case .proxy(var engine) = side else { throw RappBindingError.WrongPhase }
-      defer { side = .proxy(engine) }
-      try mapping { try engine.prerequisitesComplete(operationIdentifier: operationId) }
-      guard let operation = engine.operation(operationId) else {
-        throw RappBindingError.WrongPhase
-      }
-      return RappBridgeAction(
-        kind: .awaitUserApproval,
-        operationId: operationId,
-        operation: RappOperationDescriptor(operation))
+  /// The operation has the card and its prerequisite reads are done.
+  ///
+  /// An action that needs the holder's authorization gives `awaitUserApproval`;
+  /// a read skips consent and gives `executeSafeRead` (RAPP v26.10.21 §8.2
+  /// items 3 and 6). An operation past its deadline is cancelled instead, with
+  /// the result to send. `nowMs` is the continuous clock.
+  public func prerequisitesComplete(operationId: RappOperationIdentifier, nowMs: UInt64) throws
+    -> RappBridgeAction
+  {
+    try withProxy { engine in
+      try engine.prerequisitesComplete(
+        operationIdentifier: operationId, nowMilliseconds: nowMs,
+        maximumLifetimeMilliseconds: maximumLifetimeMilliseconds)
     }
   }
 
-  /// Applies the holder's approval of this exact request.
-  public func approve(operationId: Data, approvedAtMs: UInt64) throws -> RappBridgeAction {
-    try withProxy { engine, store in
+  /// Approves exactly the request the consent view rendered.
+  public func approve(operationId: RappOperationIdentifier, approvedAtMs: UInt64) throws
+    -> RappBridgeAction
+  {
+    try withProxy { engine in
       guard let request = engine.request(operationId) else { throw RappBindingError.WrongPhase }
-      let approval = try UserApproval(for: request, approvedAtMilliseconds: approvedAtMs)
       return try engine.approve(
         operationIdentifier: operationId,
-        approval: approval,
-        store: &store,
+        approval: UserApproval(for: request, approvedAtMilliseconds: approvedAtMs),
         nowMilliseconds: approvedAtMs,
         maximumLifetimeMilliseconds: maximumLifetimeMilliseconds)
     }
   }
 
-  /// Refuses the request because the holder denied it.
-  public func deny(operationId: Data) throws -> RappBridgeAction {
+  /// The holder declined (§8.2 item 3).
+  public func deny(operationId: RappOperationIdentifier) throws -> RappBridgeAction {
     try finishFailure(operationId: operationId, failure: .userDenied)
   }
 
-  /// Reports authenticated advisory progress on an active operation.
-  public func reportProgress(operationId: Data, event: ProgressEvent) throws -> RappBridgeAction {
-    try locked {
-      guard case .proxy(let engine) = side else { throw RappBindingError.WrongPhase }
-      let message = try mapping {
-        try engine.reportProgress(operationIdentifier: operationId, event: event)
-      }
-      return RappBridgeAction(
-        kind: .sendFrame,
-        operationId: operationId,
-        frame: try sealedMessage(message))
-    }
-  }
-
-  /// Tells the requester whether a card this custodian can serve is present
-  /// (RAPP v26.10.18 §8.4): once right after the session is established,
-  /// and again on every change.
-  public func reportCardStatus(cardPresent: Bool) throws -> RappBridgeAction {
-    try locked {
-      guard case .proxy = side else { throw RappBindingError.WrongPhase }
-      guard !closed else { return RappBridgeAction(kind: .noAction) }
-      return RappBridgeAction(
-        kind: .sendFrame,
-        frame: try sealedMessage(ProxyOperationEngine.reportCardStatus(cardPresent: cardPresent)))
-    }
-  }
-
-  /// Refuses a request this endpoint cannot present or serve.
-  public func requestInvalidOrUnsupported(operationId: Data) throws -> RappBridgeAction {
+  /// Rejects a request the custodian cannot serve, such as one naming a key
+  /// the card does not hold.
+  public func requestInvalidOrUnsupported(operationId: RappOperationIdentifier) throws
+    -> RappBridgeAction
+  {
     try finishFailure(operationId: operationId, failure: .requestInvalidOrUnsupported)
   }
 
-  /// Refuses an automatic retry the policy forbids.
-  public func retryRefused(operationId: Data) throws -> RappBridgeAction {
-    try finishFailure(operationId: operationId, failure: .retryPolicyRefused)
+  /// The retry floor refused before any verification: the card reports
+  /// fewer than three remaining attempts for the PIN, or none it can read
+  /// (§10.2).
+  public func retryFloor(operationId: RappOperationIdentifier) throws -> RappBridgeAction {
+    try finishFailure(operationId: operationId, failure: .retryFloor)
   }
 
-  /// Reports an incorrect credential with attempts remaining (section 10.2).
+  /// The card did not answer: no card within the wait, the field lost, a
+  /// transmission fault.
+  public func cardError(operationId: RappOperationIdentifier) throws -> RappBridgeAction {
+    try finishFailure(operationId: operationId, failure: .cardError)
+  }
+
+  /// The custodian could not carry the operation out for a reason of its
+  /// own.
+  public func operationFailed(operationId: RappOperationIdentifier) throws -> RappBridgeAction {
+    try finishFailure(operationId: operationId, failure: .operationFailed)
+  }
+
+  /// Cancels the live operation if its deadline passed before the card was
+  /// commanded (§8.1 item 2); `noAction` when nothing is due. `nowMs` is the
+  /// continuous clock.
+  public func expireDue(nowMs: UInt64) throws -> RappBridgeAction {
+    try locked {
+      guard case .proxy(var engine) = side, !closed else { throw RappBindingError.WrongPhase }
+      let dispatched: ProxyDispatch?
+      do {
+        dispatched = try engine.expireDue(
+          nowMilliseconds: nowMs, maximumLifetimeMilliseconds: maximumLifetimeMilliseconds)
+      } catch {
+        throw RappBindingError.WrongPhase
+      }
+      side = .proxy(engine)
+      guard let dispatched else { return .noAction }
+      return action(for: dispatched)
+    }
+  }
+
+  /// Tells the requester which card can answer now (§8.4).
   ///
-  /// The result carries the remaining count; the session and the pairing
-  /// stay.
-  public func invalidCredential(
-    operationId: Data, remainingRetries: UInt8
-  ) throws -> RappBridgeAction {
-    guard remainingRetries > 0 else { throw RappBindingError.InvalidInput }
-    return try finishFailure(
-      operationId: operationId, failure: .invalidCredential(remainingRetries: remainingRetries))
+  /// Call it once right after the session is established and again whenever the
+  /// card or its presence changes; a card busy with another session's operation
+  /// is present.
+  public func reportCardStatus(_ status: RappCardStatus) throws -> RappBridgeAction {
+    try locked {
+      guard case .proxy = side else { throw RappBindingError.WrongPhase }
+      guard !closed else { return .sessionClosed(reason: nil, endedOperation: nil) }
+      return send(ProxyOperationEngine.reportCardStatus(status))
+    }
   }
 
-  /// Reports that the card blocked the credential (section 10.2); the
-  /// pairing is revoked.
-  public func credentialRejected(
-    operationId: Data, rejectedAtMs _: UInt64
-  ) throws -> RappBridgeAction {
-    try finishFailure(operationId: operationId, failure: .credentialRejected)
+  /// Reports a change of the live operation's state (§8.2).
+  public func reportProgress(operationId: RappOperationIdentifier, event: ProgressEvent) throws
+    -> RappBridgeAction
+  {
+    try locked {
+      guard case .proxy(let engine) = side, !closed else { throw RappBindingError.WrongPhase }
+      let message: TypedMessage
+      do {
+        message = try engine.reportProgress(operationIdentifier: operationId, event: event)
+      } catch {
+        throw RappBindingError.WrongPhase
+      }
+      return send(message)
+    }
   }
 
-  /// Cancels after the card left before transmission provably began.
-  public func cardRemovedBeforeTransmit(operationId: Data) throws -> RappBridgeAction {
-    try finishFailure(operationId: operationId, failure: .cardRemovedBeforeTransmit)
+  /// Answers an inspection with the card's answer to reset, or its
+  /// historical bytes; empty when the platform exposes neither.
+  public func completeInspection(operationId: RappOperationIdentifier, answerToReset: Data) throws
+    -> RappBridgeAction
+  {
+    try complete(operationId: operationId, result: .inspection(answerToReset: answerToReset))
   }
 
-  /// Marks the operation ambiguous; the card command is never repeated.
-  public func cardCompletionAmbiguous(operationId: Data) throws -> RappBridgeAction {
-    try finishFailure(operationId: operationId, failure: .cardCompletionAmbiguous)
-  }
-
-  /// Answers an inspection.
-  ///
-  /// The answer to reset is the card's own, or its historical bytes; it is
-  /// empty when the platform exposes neither.
-  public func completeInspection(
-    operationId: Data,
-    answerToReset: Data,
-    pin1Factory: Bool,
-    pin2Factory: Bool,
-    pin1Attempts: UInt8?,
-    pin2Attempts: UInt8?,
-    pukAttempts: UInt8?
-  ) throws -> RappBridgeAction {
-    var inspection = CardInspection(
-      pin1Factory: pin1Factory,
-      pin2Factory: pin2Factory,
-      pin1Attempts: pin1Attempts,
-      pin2Attempts: pin2Attempts,
-      pukAttempts: pukAttempts)
-    inspection.answerToReset = answerToReset
-    return try complete(operationId: operationId, result: .inspection(inspection))
-  }
-
-  /// Answers an identity read (RAPP v26.10.9 §9.1).
+  /// Answers an identity read (§9.1).
   ///
   /// Both dates are `YYYY-MM-DD`; at least one DER certificate travels.
-  public func completeIdentity(
-    operationId: Data,
+  public func completeIdentity(  // swiftlint:disable:this function_parameter_count
+    operationId: RappOperationIdentifier,
     holderName: String,
     cardId: String,
     issuanceDate: String,
     expirationDate: String,
     certificates: [Data]
   ) throws -> RappBridgeAction {
-    let identity = CardIdentity(
-      holderName: holderName, cardIdentifier: cardId, issuanceDate: issuanceDate,
-      expirationDate: expirationDate, certificates: certificates, tokenDisplayName: nil)
+    let identity: CardIdentity
     do {
-      try identity.validate()
+      identity = try CardIdentity(
+        holderName: holderName, cardIdentifier: cardId, issuanceDate: issuanceDate,
+        expirationDate: expirationDate, certificates: certificates, tokenDisplayName: nil)
     } catch {
       throw RappBindingError.InvalidInput
     }
@@ -155,63 +146,75 @@ extension RappOperationBridge {
   }
 
   /// Answers a certificate read.
-  public func completeCertificate(operationId: Data, der: Data) throws -> RappBridgeAction {
+  public func completeCertificate(operationId: RappOperationIdentifier, der: Data) throws
+    -> RappBridgeAction
+  {
     try complete(operationId: operationId, result: .certificate(der))
   }
 
   /// Answers a signature.
-  public func completeSignature(operationId: Data, signature: Data) throws -> RappBridgeAction {
+  public func completeSignature(operationId: RappOperationIdentifier, signature: Data) throws
+    -> RappBridgeAction
+  {
     try complete(operationId: operationId, result: .signature(signature))
   }
 
-  /// Journals one batch signature before the next document is signed.
-  ///
-  /// A signature recorded here is delivered even if the batch is
-  /// interrupted, and is never made again.
-  public func recordBatchSignature(operationId: Data, signature: Data) throws {
+  /// Records one batch signature as the card makes it.
+  public func recordBatchSignature(operationId: RappOperationIdentifier, signature: Data) throws {
     try locked {
-      guard case .proxy(var engine) = side else { throw RappBindingError.WrongPhase }
-      defer { side = .proxy(engine) }
-      var store = VaultProxyJournalStore(vault: vault, pairIdentifier: pairIdentifier)
-      try mapping {
-        try engine.recordBatchSignature(
-          operationIdentifier: operationId, signature: signature, store: &store)
+      guard case .proxy(var engine) = side, !closed else { throw RappBindingError.WrongPhase }
+      do {
+        try engine.recordBatchSignature(operationIdentifier: operationId, signature: signature)
+      } catch {
+        throw RappBindingError.WrongPhase
       }
+      side = .proxy(engine)
     }
   }
 
-  /// Answers a batch once every document's signature is journaled.
-  public func completeBatch(operationId: Data) throws -> RappBridgeAction {
-    try withProxy { engine, store in
-      try engine.completeBatch(operationIdentifier: operationId, store: &store)
+  /// Answers a batch once every document is signed, with exactly those
+  /// signatures.
+  public func completeBatch(operationId: RappOperationIdentifier) throws -> RappBridgeAction {
+    try withProxy { engine in try engine.completeBatch(operationIdentifier: operationId) }
+  }
+
+  /// Ends the operation with a result that did not complete.
+  private func finishFailure(
+    operationId: RappOperationIdentifier, failure: ProxyFailure
+  ) throws -> RappBridgeAction {
+    try withProxy { engine in
+      try engine.finishFailure(operationIdentifier: operationId, failure: failure)
     }
   }
 
-  /// Records that a terminal result's acknowledgement reached transport.
-  public func terminalAcknowledgmentReleased(operationId: Data) throws {
-    try locked {
-      guard case .requester(var engine) = side else { throw RappBindingError.WrongPhase }
-      defer { side = .requester(engine) }
-      var store = VaultRequesterJournalStore(vault: vault, pairIdentifier: pairIdentifier)
-      try mapping {
-        try engine.terminalAcknowledgementReleased(
-          operationIdentifier: operationId, store: &store)
-      }
+  /// Ends the operation with its completed result.
+  private func complete(
+    operationId: RappOperationIdentifier, result: CardOperationResult
+  ) throws -> RappBridgeAction {
+    try withProxy { engine in
+      try engine.finishCompleted(
+        operationIdentifier: operationId,
+        result: .completed(operationIdentifier: operationId, result: result))
     }
   }
 
-  /// Releases a completed result once its acknowledgement reached transport.
-  public func acknowledgmentReleased(operationId: Data) throws -> RappOperationResult {
+  /// Runs one custodian step that produces a dispatch, writing the engine
+  /// back.
+  private func withProxy(
+    _ body: (inout ProxyOperationEngine) throws -> ProxyDispatch
+  ) throws -> RappBridgeAction {
     try locked {
-      guard case .requester(var engine) = side else { throw RappBindingError.WrongPhase }
-      defer { side = .requester(engine) }
-      var store = VaultRequesterJournalStore(vault: vault, pairIdentifier: pairIdentifier)
-      let result = try mapping {
-        try engine.acknowledgementReleased(operationIdentifier: operationId, store: &store)
+      guard case .proxy(var engine) = side, !closed else { throw RappBindingError.WrongPhase }
+      let dispatched: ProxyDispatch
+      do {
+        dispatched = try body(&engine)
+      } catch let error as RappBindingError {
+        throw error
+      } catch {
+        throw RappBindingError.WrongPhase
       }
-      return RappOperationResult(result)
+      side = .proxy(engine)
+      return action(for: dispatched)
     }
   }
 }
-
-// swiftlint:enable function_parameter_count

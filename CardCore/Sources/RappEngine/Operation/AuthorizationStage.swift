@@ -6,13 +6,18 @@
 
 import Foundation
 
-/// The phase an authorization has reached.
+/// The phase one operation has reached.
 internal enum AuthorizationStage: Equatable {
+  /// Admitted; the reads that precede consent have not completed.
   case requested
+  /// The consent view may be shown; only an action that needs the holder's
+  /// authorization comes here.
   case awaitingConsent
+  /// A registered read is running.
   case executingSafeRead
+  /// The one card command has been handed to the card adapter.
   case executing
-  case resultPending
+  /// The result is out.
   case terminal
 }
 

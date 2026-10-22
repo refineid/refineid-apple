@@ -1,6 +1,5 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-import CryptoKit
 import Foundation
 import Testing
 
@@ -14,8 +13,8 @@ internal struct WireCorpusTests {
   @Test("Corpus identity and section sizes are fixed")
   internal func corpusIdentity() throws {
     let corpus = try CorpusFile.conformance(filePath: #filePath)
-    #expect(corpus.format == "fi.refineid.rapp.conformance-v1")
-    #expect(corpus.protocolDocumentVersion == "26.10.18")
+    #expect(corpus.format == "fi.refineid.rapp.conformance")
+    #expect(corpus.protocolDocumentVersion == "26.10.21")
     #expect(corpus.noiseHandshake.count == 4)
     #expect(corpus.pairingOffer.count == 3)
     #expect(corpus.cpaceKc2.count == 2)
@@ -44,10 +43,7 @@ internal struct WireCorpusTests {
   internal func rejectedEnvelope() throws {
     for vector in try CorpusFile.conformance(filePath: #filePath).rejectedEnvelope {
       let encoded = try Data(hex: vector.canonicalCBORHex)
-      let supported = Set(vector.supportedCritical)
-      let actual = CorpusFailure.name {
-        try Envelope.decode(encoded).requireSupportedCritical(supported)
-      }
+      let actual = CorpusFailure.name { _ = try Envelope.decode(encoded) }
       #expect(actual == vector.error, "\(vector.name)")
     }
   }
@@ -60,10 +56,7 @@ internal struct WireCorpusTests {
         "type": .text(MessageType.livenessPing.rawValue),
         "session_id": .bytes(Self.sampleSession),
         "sequence": .unsigned(0),
-        "body": .map([
-          "challenge": .bytes(Self.sampleDigest),
-          "last_received_sequence": .unsigned(0),
-        ]),
+        "body": .map(["challenge": .bytes(Self.sampleDigest)]),
       ])
       let encoded = try envelope.encoded()
       let failure = CorpusFailure.name { _ = try Envelope.decode(encoded) }
@@ -137,22 +130,6 @@ internal struct WireCorpusTests {
     }
   }
 
-  @Test("One typed request binds to exactly one pairing")
-  internal func requestHash() throws {
-    for vector in try CorpusFile.conformance(filePath: #filePath).requestHash {
-      let binding = RappRequestBinding(
-        pairIdentifier: try Data(hex: vector.pairIDHex),
-        operationIdentifier: try Data(hex: vector.operationIDHex),
-        profile: vector.profile,
-        action: vector.action,
-        context: try vector.context.mapValue("context"),
-        payload: try vector.payload.mapValue("payload"))
-      let preimage = try RappHashes.requestPreimage(of: binding)
-      #expect(preimage.hex == vector.preimageCBORHex, "\(vector.name)")
-      #expect(Data(SHA256.hash(data: preimage)).hex == vector.sha256Hex, "\(vector.name)")
-    }
-  }
-
   @Test("Identifiers are domain-separated halves of a transcript hash")
   internal func identifierDerivation() throws {
     for vector in try CorpusFile.conformance(filePath: #filePath).identifierDerivation {
@@ -175,9 +152,7 @@ internal struct WireCorpusTests {
   internal func wellFormedEnvelopeIsAccepted() throws {
     let envelope = Envelope(
       messageType: .livenessPing, sessionIdentifier: Self.sampleSession, sequence: 0,
-      body: [
-        "challenge": .bytes(Self.sampleDigest), "last_received_sequence": .unsigned(0),
-      ], critical: [], extensions: [:])
+      body: ["challenge": .bytes(Self.sampleDigest)])
     let decoded = try Envelope.decode(try envelope.encoded())
     #expect(decoded == envelope)
   }

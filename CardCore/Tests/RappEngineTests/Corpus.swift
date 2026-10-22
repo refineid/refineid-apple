@@ -16,7 +16,6 @@ internal struct Corpus: Decodable {
     case protocolDocumentVersion = "protocol_document_version"
     case rejectedCBOR = "rejected_cbor"
     case rejectedEnvelope = "rejected_envelope"
-    case requestHash = "request_hash"
     case sequenceGuard = "sequence_guard"
     case wireVersion = "wire_version"
   }
@@ -30,7 +29,6 @@ internal struct Corpus: Decodable {
   internal let sequenceGuard: [SequenceGuardVector]
   internal let grantEnforcement: [GrantEnforcementVector]
   internal let grantsHash: [GrantsVector]
-  internal let requestHash: [RequestVector]
   internal let identifierDerivation: [IdentifierVector]
   internal let noiseHandshake: [NoiseVector]
   internal let pairingOffer: [PairingOfferVector]

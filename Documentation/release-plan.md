@@ -25,7 +25,7 @@ Ship a small, trustworthy macOS App Store product named **RefineID**.
 The macOS release carries the local card and the remote card (owner
 decisions 2026-09-30 and 2026-10-10). It includes the CryptoTokenKit
 smart-card extension, contact and contactless reading, authentication, card
-activation, PIN management, local document signing, and RAPP v26.10.9
+activation, PIN management, local document signing, and RAPP v26.10.21
 pairing with a phone that holds the card: the Mac types the code the phone
 shows, and afterwards signs documents and authenticates through the phone,
 including from Safari through the remote-card CryptoTokenKit extension. The

@@ -23,21 +23,19 @@ internal struct FieldSpec {
 
   private static let operationIdentifier = Shape.bytes(Size.operationIdentifier)
   private static let pairIdentifier = Shape.bytes(Size.pairIdentifier)
-  private static let requestHash = Shape.bytes(Size.digest)
+  private static let fingerprint = Shape.bytes(Size.digest)
   private static let challenge = Shape.bytes(Size.digest)
 
-  /// `close-reason-val` (RAPP v26.10.9 section 7.1).
+  /// `close-reason-val` (RAPP v26.10.21 §7.1).
   internal static let closeReasons: Set<String> = [
-    "normal", "complete", "user_disconnect", "policy", "credential_rejected",
-    "protocol_violation", "pairing_revoked", "shutdown", "card_unavailable", "service_withdrawn",
+    "normal", "complete", "user_disconnect", "policy", "protocol_violation", "pairing_revoked",
+    "shutdown", "card_unavailable", "service_withdrawn",
   ]
 
-  /// `operation-status-val` (RAPP v26.10.9 section 7.1).
-  internal static let operationStatuses: Set<String> = [
-    "completed", "rejected", "credential_rejected", "cancelled", "ambiguous",
-  ]
+  /// `operation-status-val` (RAPP v26.10.21 §7.1).
+  internal static let operationStatuses: Set<String> = ["completed", "rejected", "cancelled"]
 
-  /// Bounds on the error body's text fields (RAPP v26.10.9 section 10.4).
+  /// Bounds on the error body's text fields (RAPP v26.10.21 §10.3).
   internal static let errorNameLengths = 1...64
   internal static let errorMessageLengths = 1...512
 
@@ -80,23 +78,16 @@ internal struct FieldSpec {
       [Self("pair_id", pairIdentifier)]
 
     case .cardStatus:
-      [Self("card_present", .boolean)]
+      [Self("card_present", .boolean), Self("certificate_fingerprint", fingerprint)]
 
     case .sessionReady:
       [Self("parameters", .map), Self("nonce", challenge)]
 
     case .sessionClose:
-      [Self("reason", .text), Self("last_received_sequence", .unsigned)]
+      [Self("reason", .text)]
 
     case .livenessPing, .livenessPong:
-      // The reported position is informational: the cipher state below
-      // already refuses anything out of order, so a peer that leaves it out
-      // has told this side nothing it did not know. Requiring it made a
-      // heartbeat able to end a pairing.
-      [
-        Self("challenge", challenge),
-        Self("last_received_sequence", .unsigned, optional: true),
-      ]
+      [Self("challenge", challenge)]
 
     default:
       []
@@ -113,38 +104,18 @@ internal struct FieldSpec {
         Self("expires_after_ms", .unsigned, optional: true),
       ]
 
-    case .operationResultAck:
-      [Self("operation_id", operationIdentifier), Self("request_hash", requestHash)]
-
     case .operationProgress:
-      [
-        Self("operation_id", operationIdentifier), Self("request_hash", requestHash),
-        Self("event", .text),
-      ]
+      [Self("operation_id", operationIdentifier), Self("event", .text)]
 
     case .operationResult:
       [
-        Self("operation_id", operationIdentifier), Self("request_hash", requestHash),
-        Self("status", .text), Self("response", .map, optional: true),
-        Self("error", .text, optional: true),
-        Self("remaining_retries", .unsigned, optional: true),
-        Self("retired", .boolean, optional: true),
-      ]
-
-    case .operationStatusRequest:
-      [Self("operation_id", operationIdentifier)]
-
-    case .operationStatus:
-      [
-        Self("operation_id", operationIdentifier), Self("known", .boolean),
-        Self("state", .text, optional: true),
-        Self("request_hash", requestHash, optional: true),
-        Self("retired", .boolean, optional: true),
+        Self("operation_id", operationIdentifier), Self("status", .text),
+        Self("response", .map, optional: true), Self("error", .text, optional: true),
       ]
 
     default:
       [
-        Self("error_code", .unsigned), Self("error_name", .text), Self("message", .text),
+        Self("error_name", .text), Self("message", .text),
         Self("operation_id", operationIdentifier, optional: true),
       ]
     }

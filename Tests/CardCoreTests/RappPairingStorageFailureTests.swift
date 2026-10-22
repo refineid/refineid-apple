@@ -12,7 +12,7 @@ private let fixturePairingCode = "246813"
   import RappEngine
 
   /// A custodian that stored its record and then hears nonsense instead of
-  /// the peer's `pairing.stored` revokes the record (RAPP v26.10.18 §4.3
+  /// the peer's `pairing.stored` revokes the record (RAPP v26.10.21 §4.3
   /// item 4).
   internal final class RappPairingStorageFailureTests: XCTestCase {
     private actor RecordingTransport: RappFrameTransport {
@@ -32,8 +32,7 @@ private let fixturePairingCode = "246813"
     }
 
     private static let transportProfile = rappStreamProfileName()
-    private static let profiles = ["fi.refineid.authentication.v1"]
-    private static let cpaceRandomByteCount = 64
+    private static let profiles = rappCredentialProfiles()
 
     private var now: UInt64 { RappPlatformClock().monotonicMilliseconds() }
 
@@ -59,7 +58,7 @@ private let fixturePairingCode = "246813"
       try requester.beginCpace(
         candidateId: try XCTUnwrap(
           rappCandidateIdentifier(transportProfile: Self.transportProfile)),
-        randomBytes64: Data(repeating: 0x11, count: Self.cpaceRandomByteCount),
+        randomBytes64: try RappPlatformEntropy().cpaceRandom(),
         nowMonotonicMs: now)
 
       await custodian.receive(try requester.writeCpaceFrame(nowMonotonicMs: now))
@@ -115,11 +114,10 @@ private let fixturePairingCode = "246813"
       XCTAssertEqual(stored.count, 1)
       let pairID = try XCTUnwrap(stored.first)
 
-      await custodian.receive(Data(count: 32))
+      await custodian.receive(Data("not a pairing.stored frame".utf8))
       await fulfillment(of: [ended], timeout: 2)
       XCTAssertEqual(try vault.activePairIDs(), [])
-      // The record is gone and what announces its revocation is kept.
-      XCTAssertEqual(try vault.revocationRetentions().map(\.pairID), [pairID])
+      XCTAssertNil(try vault.loadPair(pairID: pairID))
       await custodian.close()
     }
   }

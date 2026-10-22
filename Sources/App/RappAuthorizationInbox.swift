@@ -11,7 +11,8 @@
   ///
   /// There is no automatic approval, timeout, or queue. A second operation is
   /// denied while one is visible; expiry and disconnect arrive from the RAPP
-  /// state machine and explicitly cancel the matching request.
+  /// state machine and explicitly cancel the matching request. Reads never
+  /// come here: they skip consent (RAPP v26.10.21 §8.2 item 6).
   @MainActor
   internal final class RappAuthorizationInbox: ObservableObject {
     internal static let shared = RappAuthorizationInbox()
@@ -43,10 +44,6 @@
       let generator = UINotificationFeedbackGenerator()
       generator.notificationOccurred(.warning)
       UISoundLibrary.play(named: "Handoff-EncoreInfinitum")
-    }
-
-    internal func approve(_ requestID: String) {
-      complete(requestID, with: .approved)
     }
 
     internal func approveBrowserAuthentication(
@@ -107,10 +104,6 @@
           localized:
             "Document signature requested by \(request.requester). Tap to approve & present card."
         )
-      case .shareCardInformation:
-        content.body = String(
-          localized: "Card information requested by \(request.requester). Tap to approve."
-        )
       }
       content.sound = .default
       // The paired computer is waiting now; a Focus may still silence
@@ -138,6 +131,18 @@
         guard !stale.isEmpty else { return }
         center.removeDeliveredNotifications(withIdentifiers: stale)
       }
+    }
+
+    /// Tells the holder something about a request that ended without a
+    /// prompt, such as a retry-floor refusal (RAPP v26.10.21 §10.2).
+    internal func inform(_ message: String) {
+      let content = UNMutableNotificationContent()
+      content.title = "RefineID"
+      content.body = message
+      content.interruptionLevel = .timeSensitive
+      UNUserNotificationCenter.current().add(
+        UNNotificationRequest(
+          identifier: Self.notificationPrefix + UUID().uuidString, content: content, trigger: nil))
     }
 
     private func removeNotification(for requestID: String) {

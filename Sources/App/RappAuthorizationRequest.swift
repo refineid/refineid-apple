@@ -11,32 +11,15 @@
     internal enum Action: Sendable, Equatable {
       case browserAuthentication
       case documentSignature
-      case shareCardInformation
     }
 
     internal let requestID: String
     internal let requester: String
     internal let action: Action
     internal let displayContext: String?
+    /// What the card said about the PIN the holder entered last for this
+    /// request, when it refused it (RAPP v26.10.21 §10.2).
+    internal let notice: String?
 
-    internal init(
-      requestID: String,
-      requester: String,
-      action: Action
-    ) {
-      self.init(requestID: requestID, requester: requester, action: action, displayContext: nil)
-    }
-
-    internal init(
-      requestID: String,
-      requester: String,
-      action: Action,
-      displayContext: String?
-    ) {
-      self.requestID = requestID
-      self.requester = requester
-      self.action = action
-      self.displayContext = displayContext
-    }
   }
 #endif

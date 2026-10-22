@@ -2,27 +2,22 @@
 
 import Foundation
 
-/// An authenticated advisory progress notice on an active operation.
+/// One `operation.progress` (RAPP v26.10.21 §7.1).
 internal struct OperationProgressMessage: Equatable {
-  internal let reference: OperationReference
+  internal let operationIdentifier: RappOperationIdentifier
   internal let event: ProgressEvent
 
   internal var wireBody: [String: WireValue] {
-    var body = reference.wireBody
-    body["event"] = .text(event.rawValue)
-    return body
+    ["operation_id": .bytes(operationIdentifier.bytes), "event": .text(event.rawValue)]
   }
 
   internal static func from(wireBody: [String: WireValue]) throws -> Self {
     var body = wireBody
-    guard let eventValue = body.removeValue(forKey: "event"),
-      case .text(let eventName) = eventValue
-    else {
-      throw MessageFieldError.invalidField("event")
+    let decodedOperationIdentifier = try takeOperationIdentifier(&body, "operation_id")
+    guard let decodedEvent = ProgressEvent(rawValue: try takeOperationText(&body, "event")) else {
+      throw CardOperationError.invalidField(field: "event")
     }
-    return Self(
-      reference: try OperationReference.from(wireBody: body),
-      event: ProgressEvent(wireValue: eventName)
-    )
+    guard body.isEmpty else { throw CardOperationError.unexpectedField }
+    return Self(operationIdentifier: decodedOperationIdentifier, event: decodedEvent)
   }
 }

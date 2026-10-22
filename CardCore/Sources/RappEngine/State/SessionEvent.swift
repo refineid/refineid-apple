@@ -6,35 +6,36 @@
 // swiftlint:disable sorted_enum_cases
 
 /// Session component event.
+///
+/// Raw values are the formal model's event names, so a Swift case and a model
+/// rule are compared without a translation table.
 internal enum SessionEvent: String, CaseIterable, Sendable {
   case connect = "connect"
-  case transportAccepted = "transport_accepted"
+  case preambleReceived = "preamble_received"
   case transportConnected = "transport_connected"
   case transportFailed = "transport_failed"
-  case userDisconnect = "user_disconnect"
   case handshakeComplete = "handshake_complete"
-  case secondSessionDetected = "second_session_detected"
-  case readyVerified = "ready_verified"
-  /// Handshake failure or pre-authentication garbage; policy class 1.
-  case candidateFailure = "candidate_failure"
-  case busyReceived = "busy_received"
+  /// The pairing is revoking: the close is the session's first message.
+  case handshakeCompleteWhileRevoking = "handshake_complete_while_revoking"
+  /// A received `session.close`; on the requester also a revoking
+  /// custodian's close in place of `session.ready`.
   case peerCloseReceived = "peer_close_received"
-  /// Policy class 4.
+  case readyVerified = "ready_verified"
+  /// Before authentication: the connection closes, nothing stored changes.
+  case candidateFailure = "candidate_failure"
+  /// Version, `session_id`, sequence or message misuse.
   case authenticatedProtocolViolation = "authenticated_protocol_violation"
-  case livenessMissed = "liveness_missed"
-  case livenessRestored = "liveness_restored"
-  case livenessDeadlineExpired = "liveness_deadline_expired"
-  /// Produced by the operation action that requests a session close.
+  /// `liveness_ping_after_silence_ms` without a message.
+  case peerSilent = "peer_silent"
+  /// `session_silence_limit_ms` without a message.
+  case silenceLimitReached = "silence_limit_reached"
+  case userDisconnect = "user_disconnect"
   case localCloseRequested = "local_close_requested"
-  /// Produced by the operation action for a rejected credential.
-  case credentialRejected = "credential_rejected"
-  case cardCompletionAmbiguous = "card_completion_ambiguous"
-  /// Policy class 2; no pairing effect.
+  case serviceWithdrawn = "service_withdrawn"
+  case cardUnavailable = "card_unavailable"
+  /// A frame failed authenticated decryption or framing.
   case sessionIntegrityFailed = "session_integrity_failed"
-  /// Produced by pairing actions and rule X-01.
   case closeRequestedByPairing = "close_requested_by_pairing"
-  /// Policy class 5.
-  case localSecurityShutdown = "local_security_shutdown"
   case closeCompleteOrDeadline = "close_complete_or_deadline"
 }
 

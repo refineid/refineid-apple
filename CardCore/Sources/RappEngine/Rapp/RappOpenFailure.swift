@@ -4,13 +4,14 @@ import Foundation
 
 /// Why a received frame could not be turned into a message.
 ///
-/// The two cases carry different consequences, so they are never merged: a
-/// frame that fails to decrypt cannot be attributed to the paired peer, while
-/// one that decrypts and then breaks the protocol can.
+/// The two cases are kept apart because only the first can still be
+/// answered: a frame that decrypted and broke the protocol is answered with
+/// a sealed `protocol_violation` close, while one that fails to decrypt
+/// closes the session silently (RAPP v26.10.21 §10.1).
 internal enum RappOpenFailure: Error, Equatable {
-  /// Decrypted, then nonconforming. The pairing ends.
+  /// Decrypted, then nonconforming.
   case authenticatedProtocolViolation
 
-  /// Not attributable to the peer. Close this session and nothing more.
+  /// Failed authenticated decryption.
   case sessionIntegrityFailure
 }

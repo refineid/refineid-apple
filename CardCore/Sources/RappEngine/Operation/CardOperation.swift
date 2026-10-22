@@ -23,14 +23,14 @@ internal enum CardOperation: Equatable {
   case signDocument(
     documentName: String, keyProfile: CardKeyProfile, algorithm: SignatureAlgorithm, digest: Data)
 
-  /// Signs 1 to 64 documents under one PIN 2 entry (RAPP v26.10.9 §9.3);
-  /// names and digests pair up by position.
+  /// Signs one or more documents under one PIN 2 entry (RAPP v26.10.21
+  /// §9.3); names and digests pair up by position.
   case batchSignDocuments(
     documentNames: [String], keyProfile: CardKeyProfile, algorithm: SignatureAlgorithm,
     digests: [Data])
 
-  /// Whether this action crosses the prepare and commit boundary, so that it
-  /// may consume a credential attempt or invoke a private key.
+  /// Whether this action commands a private key behind a PIN, and so needs
+  /// the holder's consent (RAPP v26.10.21 §8.2 items 3 and 6).
   internal var isConsequential: Bool {
     switch self {
     case .browserAuthenticate, .signDocument, .batchSignDocuments:
@@ -59,8 +59,6 @@ internal enum CardOperation: Equatable {
         .authentication
       case .signature:
         .documentSigning
-      case .rootCa, .intermediateCa:
-        .cardStatus
       }
 
     case .browserAuthenticate:
@@ -94,7 +92,7 @@ internal enum CardOperation: Equatable {
     }
   }
 
-  /// Consent context, shown to the holder and bound into the request hash.
+  /// Consent context, shown to the holder.
   internal var context: [String: WireValue] {
     switch self {
     case .inspectCard, .readIdentity, .readCertificate:
@@ -216,8 +214,7 @@ internal enum CardOperation: Equatable {
       try Self.validateNamedDigest(documentName, keyProfile, algorithm, digest)
 
     case .batchSignDocuments(let documentNames, let keyProfile, let algorithm, let digests):
-      guard OperationLimit.batchDocuments.contains(digests.count),
-        documentNames.count == digests.count
+      guard !digests.isEmpty, documentNames.count == digests.count
       else { throw CardOperationError.invalidField(field: "digests") }
       for (name, digest) in zip(documentNames, digests) {
         guard OperationLimit.batchDocumentNameBytes.contains(name.utf8.count) else {

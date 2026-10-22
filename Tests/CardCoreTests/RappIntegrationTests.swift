@@ -7,9 +7,22 @@ import Testing
 @testable import CardCore
 
 #if canImport(RappEngine)
-  import RappEngine
+  @testable import RappEngine
   @Suite
   internal struct RappIntegrationTests {
+    // MARK: Static Properties
+
+    /// How long the card command holds the custodian: past the silence
+    /// after which a ping goes out (RAPP v26.10.21 §8.3), plus two liveness
+    /// polls so the exchange has happened before the answer leaves.
+    private static let cardHoldPastPing = Duration.milliseconds(
+      LivenessTracker.pingAfterSilenceMilliseconds
+        + RappConnectionCoordinator.livenessPollIntervalMilliseconds
+        + RappConnectionCoordinator.livenessPollIntervalMilliseconds)
+
+    /// What the requester sends on a session without liveness: the opening
+    /// handshake message and one operation request.
+    private static let requesterFramesWithoutLiveness = 2
 
     // MARK: Functions
 
@@ -20,7 +33,7 @@ import Testing
         sender: { frame in await recorder.record(frame) },
         closer: { await recorder.close() }
       )
-      let frame = Data([0x01, 0x02, 0x03])
+      let frame = Data("first frame".utf8)
 
       try await transport.send(frame)
       await transport.close()
@@ -31,7 +44,7 @@ import Testing
       #expect(snapshot.closeCount == 1)
 
       do {
-        try await transport.send(Data([0x04]))
+        try await transport.send(Data("after close".utf8))
         Issue.record("A closed RAPP transport accepted another frame")
       } catch is CancellationError {
         // Expected: a closed transport cannot silently reopen.
@@ -42,7 +55,7 @@ import Testing
 
     @Test
     internal func cardOperationMappingsAreCompleteAndRoundTrip() throws {
-      let keyProfiles: [CardKeyProfile] = [
+      let keyProfiles: [CardCore.CardKeyProfile] = [
         .ecdsaP256,
         .ecdsaP384,
         .rsa2048,
@@ -79,7 +92,7 @@ import Testing
     }
 
     @Test
-    internal func swiftCoordinatorsPairThroughRustAndRevocationRemovesThePair() async throws {
+    internal func coordinatorsPairAndRevocationRemovesThePair() async throws {
       let fixture = try await RappIntegrationConnectionSupport.makePairedFixture()
       defer { RappIntegrationConnectionSupport.deleteKeychainServices(for: fixture) }
 
@@ -89,7 +102,9 @@ import Testing
       #expect(Set(fixture.requesterSummary.profiles) == Set(RappIntegrationFixtures.profiles))
       #expect(Set(fixture.proxySummary.profiles) == Set(RappIntegrationFixtures.profiles))
       #expect(fixture.requesterSummary.transportProfile == RappIntegrationFixtures.transportProfile)
-      #expect(fixture.requesterSummary.candidateID == RappIntegrationFixtures.candidateID)
+      #expect(
+        fixture.requesterSummary.candidateID
+          == rappCandidateIdentifier(transportProfile: RappIntegrationFixtures.transportProfile))
       #expect(
         try fixture.requesterVault.loadPair(
           pairID: fixture.requesterSummary.pairID) != nil)
@@ -114,22 +129,16 @@ import Testing
           pairID: fixture.proxySummary.pairID) == false)
     }
 
-    /// Neither peer may treat that crossing as a reason to end the pairing:
-    /// a holder who presented a card slightly slowly would be told to scan
-    /// a fresh code, and the pairing they had would be gone.
+    /// A card command that outlasts the silence after which a ping goes out
+    /// keeps the session and the pairing: liveness is answered while the
+    /// custodian waits on the card.
     @Test
     internal func aCardCommandOutlastingLivenessKeepsTheSessionAndPairing() async throws {
       let fixture = try await RappIntegrationConnectionSupport.makePairedFixture()
       defer { RappIntegrationConnectionSupport.deleteKeychainServices(for: fixture) }
-      let connection = try await RappIntegrationConnectionSupport.makeConnection(
-        fixture,
-        liveness: RappIntegrationFixtures.interactiveLiveness
-      )
-      let signature = Data([0x30, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02])
+      let connection = try await RappIntegrationConnectionSupport.makeConnection(fixture)
       let operation = RappIntegrationFixtures.RequestedOperation.browserAuthentication(
-        origin: "https://example.invalid",
-        digest: Data(repeating: 0xA5, count: 32)
-      )
+        origin: "https://example.invalid")
 
       let requesterOutcome = Task {
         try await RappIntegrationConnectionSupport.awaitCompletion(
@@ -139,8 +148,8 @@ import Testing
         try await RappIntegrationAuthorizationSupport.authorizeAndComplete(
           connection.proxy,
           operation: operation,
-          signature: signature,
-          cardHoldMilliseconds: 7_000
+          signature: RappIntegrationFixtures.signature,
+          cardHold: Self.cardHoldPastPing
         )
       }
       defer {
@@ -153,8 +162,11 @@ import Testing
       let result = try await requesterOutcome.value
       _ = try await proxyOutcome.value
 
-      #expect(result.kind == .signature)
-      #expect(result.bytes == signature)
+      #expect(result == .signature(RappIntegrationFixtures.signature))
+      #expect(
+        await connection.requesterOutbound.snapshot().frames.count
+          > Self.requesterFramesWithoutLiveness,
+        "no liveness message crossed the card command")
       #expect(
         try fixture.requesterVault.pairIsRevoked(
           pairID: fixture.requesterSummary.pairID) == false)
@@ -165,17 +177,18 @@ import Testing
       await connection.proxy.close()
     }
 
+    /// Every failure the custodian reports reaches the requester as its
+    /// registered error, keeps both pairings, and leaves the session
+    /// serving the next operation.
     @Test(arguments: RappIntegrationFixtures.ProxyTermination.allCases)
-    internal func nonCredentialTerminalPathsRespectCommandBoundaryAndPreservePairing(
+    internal func terminalPathsKeepTheSessionAndPairing(
       termination: RappIntegrationFixtures.ProxyTermination
     ) async throws {
       let fixture = try await RappIntegrationConnectionSupport.makePairedFixture()
       defer { RappIntegrationConnectionSupport.deleteKeychainServices(for: fixture) }
       let connection = try await RappIntegrationConnectionSupport.makeConnection(fixture)
       let operation = RappIntegrationFixtures.RequestedOperation.browserAuthentication(
-        origin: "https://terminal.example.invalid",
-        digest: Data(repeating: UInt8(termination.hashValue & 0xFF), count: 32)
-      )
+        origin: termination.origin)
 
       let requesterOutcome = Task {
         try await RappIntegrationConnectionSupport.awaitTerminal(
@@ -200,80 +213,59 @@ import Testing
 
       #expect(reason == termination.reason)
       #expect(progress == termination.progress)
-      // The terminal event came after its acknowledgement left: the
-      // journal it released is gone although the requester closed at once.
-      #expect(
-        try fixture.requesterVault.loadRequester(pairID: fixture.requesterSummary.pairID).isEmpty
-          == termination.requesterJournalForgotten)
+      #expect(await connection.proxyOutbound.snapshot().closeCount == 0)
+
+      let next = RappIntegrationFixtures.RequestedOperation.browserAuthentication(
+        origin: "https://next.example.invalid")
+      let nextProxy = Task {
+        try await RappIntegrationAuthorizationSupport.authorizeAndComplete(
+          connection.proxy, operation: next, signature: RappIntegrationFixtures.signature)
+      }
+      defer { nextProxy.cancel() }
+      let result = try await RappIntegrationConnectionSupport.complete(
+        next, on: connection.requester)
+      _ = try await nextProxy.value
+      #expect(result == .signature(RappIntegrationFixtures.signature))
+
       #expect(
         try fixture.requesterVault.pairIsRevoked(
           pairID: fixture.requesterSummary.pairID) == false)
       #expect(
         try fixture.proxyVault.pairIsRevoked(
           pairID: fixture.proxySummary.pairID) == false)
-      #expect(
-        await connection.proxyOutbound.snapshot().closeCount
-          == termination.proxyTransportCloseCount)
+      #expect(try fixture.requesterVault.loadPair(pairID: fixture.requesterSummary.pairID) != nil)
+      #expect(try fixture.proxyVault.loadPair(pairID: fixture.proxySummary.pairID) != nil)
 
       await connection.requester.close()
       await connection.proxy.close()
     }
 
+    /// The custodian's word on its card reaches the requester as it was
+    /// said: which card is present, then that none is (§8.4).
     @Test
-    internal func credentialRejectionRevokesBothPeersWithoutAnotherExecution() async throws {
+    internal func cardStatusCarriesTheFingerprintAndItsAbsence() async throws {
       let fixture = try await RappIntegrationConnectionSupport.makePairedFixture()
       defer { RappIntegrationConnectionSupport.deleteKeychainServices(for: fixture) }
       let connection = try await RappIntegrationConnectionSupport.makeConnection(fixture)
-      let digest = Data(repeating: 0x5A, count: 32)
-      let operation = RappIntegrationFixtures.RequestedOperation.browserAuthentication(
-        origin: "https://example.invalid",
-        digest: digest
-      )
+      let fingerprint = try #require(RappIntegrationFixtures.cardFingerprint)
+      let reported: [RappCardStatus] = [.present(fingerprint), .absent]
 
-      let requesterOutcome = Task {
-        try await RappIntegrationConnectionSupport.awaitTerminal(
-          connection.requester, operation: operation)
+      let requesterHeard = Task {
+        try await RappIntegrationConnectionSupport.awaitCardStatuses(
+          connection.requester, count: reported.count)
       }
-      let proxyOutcome = Task {
-        try await RappIntegrationAuthorizationSupport.authorizeAndRejectCredential(
-          connection.proxy,
-          operation: operation
-        )
-      }
-      defer {
-        requesterOutcome.cancel()
-        proxyOutcome.cancel()
-      }
+      defer { requesterHeard.cancel() }
 
       await connection.proxy.start()
       await connection.requester.start()
-      let reason = try await requesterOutcome.value
-      let progress = try await proxyOutcome.value
+      try await RappIntegrationConnectionSupport.awaitEstablished(connection.proxy)
+      for status in reported {
+        try await connection.proxy.reportCardStatus(status)
+      }
 
+      #expect(try await requesterHeard.value == reported)
       await connection.requester.close()
       await connection.proxy.close()
-
-      #expect(reason == .credentialRejected)
-      #expect(
-        progress
-          == RappIntegrationFixtures.ProxyProgress(
-            prerequisites: 1,
-            approvals: 1,
-            executions: 1,
-            acknowledgments: 0
-          ))
-      #expect(
-        try fixture.requesterVault.pairIsRevoked(
-          pairID: fixture.requesterSummary.pairID) == false)
-      #expect(
-        try fixture.proxyVault.pairIsRevoked(
-          pairID: fixture.proxySummary.pairID) == false)
-      #expect(
-        try fixture.requesterVault.loadPair(
-          pairID: fixture.requesterSummary.pairID) == nil)
-      #expect(try fixture.proxyVault.loadPair(pairID: fixture.proxySummary.pairID) == nil)
-      #expect(try fixture.requesterVault.activePairIDs().isEmpty)
-      #expect(try fixture.proxyVault.activePairIDs().isEmpty)
     }
   }
 #endif

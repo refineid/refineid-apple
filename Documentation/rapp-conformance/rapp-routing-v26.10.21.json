@@ -1,0 +1,361 @@
+{
+  "format": "fi.refineid.rapp.routing-vectors",
+  "protocol_document_version": "26.10.21",
+  "provenance": "Derived by tools/rapp-vectors/generate.py from the inputs in this file and RAPP v26.10.21 sections 2.2.1 and 4.3 and hierarchy specification section 4.3, with standard-library primitives checked against RFC 7748 section 6.1, RFC 8439 section 2.8.2 and RFC 9496 appendix A.1; the engine is not used.",
+  "pair_keys": [
+    {
+      "name": "custodian-and-requester-agree",
+      "pair_id_hex": "33333333333333333333333333333333",
+      "custodian_static_private_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+      "requester_static_private_hex": "2222222222222222222222222222222222222222222222222222222222222222",
+      "shared_secret_hex": "9e004098efc091d4ec2663b4e9f5cfd4d7064571690b4bea97ab146ab9f35056",
+      "discovery_key_hex": "7c44754280e7d29c707412ccc7f099d8595a9e2474a89dc19b0679739a643373",
+      "routing_key_hex": "7f53bec7c7ba119a6ece0406cb83e55d954effe7a22a795b5e73d80522a5a3e5"
+    }
+  ],
+  "discovery_hint": [
+    {
+      "name": "epoch-zero",
+      "unix_time_seconds": 0,
+      "epoch": 0,
+      "discovery_hint_hex": "4e392ee3a4368182"
+    },
+    {
+      "name": "epoch-1990560",
+      "unix_time_seconds": 1791504899,
+      "epoch": 1990560,
+      "discovery_hint_hex": "731f265bc8f6bce5"
+    }
+  ],
+  "discovery_acceptance": [
+    {
+      "name": "same-epoch",
+      "published_epoch": 1990560,
+      "published_hint_hex": "731f265bc8f6bce5",
+      "requester_epoch": 1990560,
+      "expected": "accepted"
+    },
+    {
+      "name": "requester-one-epoch-later",
+      "published_epoch": 1990560,
+      "published_hint_hex": "731f265bc8f6bce5",
+      "requester_epoch": 1990561,
+      "expected": "accepted"
+    },
+    {
+      "name": "requester-one-epoch-earlier",
+      "published_epoch": 1990560,
+      "published_hint_hex": "731f265bc8f6bce5",
+      "requester_epoch": 1990559,
+      "expected": "accepted"
+    },
+    {
+      "name": "requester-two-epochs-later",
+      "published_epoch": 1990560,
+      "published_hint_hex": "731f265bc8f6bce5",
+      "requester_epoch": 1990562,
+      "expected": "rejected"
+    },
+    {
+      "name": "withdrawal-hint-is-not-a-discovery-hint",
+      "published_epoch": 1990560,
+      "published_hint_hex": "05f4a939a170e513",
+      "requester_epoch": 1990560,
+      "expected": "rejected",
+      "withdrawal_instance_name": "refineid-7f2a1c84"
+    }
+  ],
+  "routing_tag": [
+    {
+      "name": "rapp-stream",
+      "transport_profile": "fi.refineid.stream",
+      "nonce_hex": "44444444444444444444444444444444",
+      "routing_tag_hex": "a09a6add3714bee03f06d252451d620c"
+    },
+    {
+      "name": "rapp-ble",
+      "transport_profile": "fi.refineid.rapp.ble",
+      "nonce_hex": "44444444444444444444444444444444",
+      "routing_tag_hex": "1de154396fd3db2a0e57472d9abcaa7c"
+    }
+  ],
+  "routing_preamble": [
+    {
+      "name": "rapp-stream-pairing",
+      "transport_profile": "fi.refineid.stream",
+      "purpose": "pairing",
+      "encoded_hex": "836b726170702d73747265616d6770616972696e6740"
+    },
+    {
+      "name": "rapp-stream-session",
+      "transport_profile": "fi.refineid.stream",
+      "purpose": "session",
+      "nonce_hex": "44444444444444444444444444444444",
+      "routing_tag_hex": "a09a6add3714bee03f06d252451d620c",
+      "encoded_hex": "836b726170702d73747265616d6773657373696f6e582044444444444444444444444444444444a09a6add3714bee03f06d252451d620c"
+    },
+    {
+      "name": "rapp-ble-pairing",
+      "transport_profile": "fi.refineid.rapp.ble",
+      "purpose": "pairing",
+      "encoded_hex": "8368726170702d626c656770616972696e6740"
+    },
+    {
+      "name": "rapp-ble-session",
+      "transport_profile": "fi.refineid.rapp.ble",
+      "purpose": "session",
+      "nonce_hex": "44444444444444444444444444444444",
+      "routing_tag_hex": "1de154396fd3db2a0e57472d9abcaa7c",
+      "encoded_hex": "8368726170702d626c656773657373696f6e5820444444444444444444444444444444441de154396fd3db2a0e57472d9abcaa7c"
+    }
+  ],
+  "routing_lookup": [
+    {
+      "name": "second-of-two-pairings",
+      "transport_profile": "fi.refineid.stream",
+      "routing_hex": "44444444444444444444444444444444a09a6add3714bee03f06d252451d620c",
+      "custodian_pair_ids_hex": [
+        "55555555555555555555555555555555",
+        "33333333333333333333333333333333"
+      ],
+      "expected_index": 1
+    },
+    {
+      "name": "only-pairing",
+      "transport_profile": "fi.refineid.stream",
+      "routing_hex": "44444444444444444444444444444444a09a6add3714bee03f06d252451d620c",
+      "custodian_pair_ids_hex": [
+        "33333333333333333333333333333333"
+      ],
+      "expected_index": 0
+    },
+    {
+      "name": "ble-tag-on-stream",
+      "transport_profile": "fi.refineid.stream",
+      "routing_hex": "444444444444444444444444444444441de154396fd3db2a0e57472d9abcaa7c",
+      "custodian_pair_ids_hex": [
+        "33333333333333333333333333333333"
+      ],
+      "expected_index": null
+    },
+    {
+      "name": "altered-tag",
+      "transport_profile": "fi.refineid.stream",
+      "routing_hex": "44444444444444444444444444444444a19a6add3714bee03f06d252451d620c",
+      "custodian_pair_ids_hex": [
+        "33333333333333333333333333333333"
+      ],
+      "expected_index": null
+    },
+    {
+      "name": "unknown-pairing",
+      "transport_profile": "fi.refineid.stream",
+      "routing_hex": "44444444444444444444444444444444a09a6add3714bee03f06d252451d620c",
+      "custodian_pair_ids_hex": [
+        "55555555555555555555555555555555"
+      ],
+      "expected_index": null
+    }
+  ],
+  "discovery_record": [
+    {
+      "name": "minimal",
+      "txt": [
+        [
+          "v",
+          "1"
+        ],
+        [
+          "mode",
+          "session"
+        ]
+      ],
+      "hints_hex": [],
+      "expected": "accepted"
+    },
+    {
+      "name": "one-hint",
+      "txt": [
+        [
+          "v",
+          "1"
+        ],
+        [
+          "mode",
+          "session"
+        ],
+        [
+          "hints",
+          "731f265bc8f6bce5"
+        ]
+      ],
+      "hints_hex": [
+        "731f265bc8f6bce5"
+      ],
+      "expected": "accepted"
+    },
+    {
+      "name": "mixed-case-keys",
+      "txt": [
+        [
+          "V",
+          "1"
+        ],
+        [
+          "MODE",
+          "session"
+        ],
+        [
+          "Hints",
+          "731f265bc8f6bce5"
+        ]
+      ],
+      "hints_hex": [
+        "731f265bc8f6bce5"
+      ],
+      "expected": "accepted"
+    },
+    {
+      "name": "uppercase-hex",
+      "txt": [
+        [
+          "v",
+          "1"
+        ],
+        [
+          "mode",
+          "session"
+        ],
+        [
+          "hints",
+          "731F265BC8F6BCE5"
+        ]
+      ],
+      "expected": "rejected"
+    },
+    {
+      "name": "five-hints",
+      "txt": [
+        [
+          "v",
+          "1"
+        ],
+        [
+          "mode",
+          "session"
+        ],
+        [
+          "hints",
+          "731f265bc8f6bce5,731f265bc8f6bce5,731f265bc8f6bce5,731f265bc8f6bce5,731f265bc8f6bce5"
+        ]
+      ],
+      "expected": "rejected"
+    },
+    {
+      "name": "empty-hint-list",
+      "txt": [
+        [
+          "v",
+          "1"
+        ],
+        [
+          "mode",
+          "session"
+        ],
+        [
+          "hints",
+          ""
+        ]
+      ],
+      "expected": "rejected"
+    },
+    {
+      "name": "unknown-key",
+      "txt": [
+        [
+          "v",
+          "1"
+        ],
+        [
+          "mode",
+          "session"
+        ],
+        [
+          "name",
+          "phone"
+        ]
+      ],
+      "expected": "rejected"
+    },
+    {
+      "name": "pairing-mode",
+      "txt": [
+        [
+          "v",
+          "1"
+        ],
+        [
+          "mode",
+          "pairing"
+        ]
+      ],
+      "expected": "rejected"
+    },
+    {
+      "name": "repeated-key-in-other-case",
+      "txt": [
+        [
+          "v",
+          "1"
+        ],
+        [
+          "mode",
+          "session"
+        ],
+        [
+          "hints",
+          "731f265bc8f6bce5"
+        ],
+        [
+          "HINTS",
+          "731f265bc8f6bce5"
+        ]
+      ],
+      "expected": "rejected"
+    }
+  ],
+  "announcement_selection": [
+    {
+      "name": "five-pairings-four-announced",
+      "limit": 4,
+      "candidates": [
+        {
+          "hint_hex": "2020202020202020",
+          "last_used_ms": 2000
+        },
+        {
+          "hint_hex": "2121212121212121",
+          "last_used_ms": 2001
+        },
+        {
+          "hint_hex": "2222222222222222",
+          "last_used_ms": 2002
+        },
+        {
+          "hint_hex": "2323232323232323",
+          "last_used_ms": 2003
+        },
+        {
+          "hint_hex": "2424242424242424",
+          "last_used_ms": 2004
+        }
+      ],
+      "announced_hex": [
+        "2424242424242424",
+        "2323232323232323",
+        "2222222222222222",
+        "2121212121212121"
+      ]
+    }
+  ]
+}

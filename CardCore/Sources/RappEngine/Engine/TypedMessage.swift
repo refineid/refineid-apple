@@ -2,14 +2,13 @@
 
 import Foundation
 
-/// One typed message on an authenticated session.
+/// One typed message on an established session.
 ///
 /// The engines dispatch on this rather than on raw envelopes, so the wire
 /// layer stays the only place that parses bytes.
 internal enum TypedMessage: Equatable {
-  /// The custodian's word on whether a card it can serve is present
-  /// (RAPP v26.10.18 §8.4).
-  case cardStatus(cardPresent: Bool)
+  /// The custodian's word on which card it can serve now (§8.4).
+  case cardStatus(RappCardStatus)
   case error(ProtocolErrorMessage)
   case operationProgress(OperationProgressMessage)
   case operationRequest(OperationRequest)
@@ -17,40 +16,82 @@ internal enum TypedMessage: Equatable {
   /// inbound only, answered with a rejected result.
   case operationRequestRefused(OperationRequestRefusal)
   case operationResult(OperationResultMessage)
-  case operationResultAck(OperationReference)
-  case operationStatus(StatusReport)
-  case operationStatusRequest(operationIdentifier: Data)
-  /// A message outside the operation protocol, such as liveness.
+  /// A message outside the operation protocol: liveness, a close, or one
+  /// that belongs to an earlier phase.
   case other(MessageType)
 
-  /// The operation an operation message refers to, if it refers to one.
-  ///
-  /// A message with no reference belongs to no operation instance, so it can
-  /// never be a stale-reference race.
-  internal var referencedOperationIdentifier: Data? {
+  /// The operation the message names, if it names one.
+  internal var referencedOperationIdentifier: RappOperationIdentifier? {
     switch self {
     case .operationRequest(let request):
       request.operationIdentifier
 
     case .operationRequestRefused(let refusal):
-      refusal.reference.operationIdentifier
-
-    case .operationResultAck(let reference):
-      reference.operationIdentifier
+      refusal.operationIdentifier
 
     case .operationProgress(let progress):
-      progress.reference.operationIdentifier
+      progress.operationIdentifier
 
     case .operationResult(let result):
       result.operationIdentifier
 
-    case .operationStatusRequest(let operationIdentifier):
-      operationIdentifier
+    case .error(let error):
+      error.operationIdentifier
 
-    case .operationStatus(let report):
-      report.operationIdentifier
+    case .cardStatus, .other:
+      nil
+    }
+  }
 
-    case .cardStatus, .error, .other:
+  /// The registered message type, for a message this endpoint sends.
+  internal var messageType: MessageType? {
+    switch self {
+    case .cardStatus:
+      .cardStatus
+
+    case .error:
+      .error
+
+    case .operationProgress:
+      .operationProgress
+
+    case .operationRequest:
+      .operationRequest
+
+    case .operationResult:
+      .operationResult
+
+    case .other(let type):
+      type
+
+    case .operationRequestRefused:
+      nil
+    }
+  }
+
+  /// The exact body this message puts on the wire.
+  ///
+  /// A message outside the operation protocol has no body here, because its
+  /// own layer owns that encoding; an inbound refusal has none either.
+  internal func wireBody() -> [String: WireValue]? {
+    // swiftlint:disable:previous discouraged_optional_collection
+    switch self {
+    case .cardStatus(let status):
+      status.wireBody
+
+    case .error(let error):
+      error.wireBody
+
+    case .operationProgress(let progress):
+      progress.wireBody
+
+    case .operationRequest(let request):
+      request.wireBody()
+
+    case .operationResult(let result):
+      result.wireBody
+
+    case .other, .operationRequestRefused:
       nil
     }
   }

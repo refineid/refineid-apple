@@ -36,6 +36,15 @@ internal func takeOperationBytes(_ map: inout [String: WireValue], _ field: Stri
   return value
 }
 
+internal func takeOperationIdentifier(
+  _ map: inout [String: WireValue], _ field: String
+) throws -> RappOperationIdentifier {
+  guard let identifier = RappOperationIdentifier(try takeOperationBytes(&map, field)) else {
+    throw CardOperationError.invalidIdentifier
+  }
+  return identifier
+}
+
 internal func takeOperationUnsigned(_ map: inout [String: WireValue], _ field: String) throws
   -> UInt64
 {
@@ -78,4 +87,13 @@ internal func takeOperationBytesArray(_ map: inout [String: WireValue], _ field:
     }
     return bytes
   }
+}
+
+internal func takeOperationArray(_ map: inout [String: WireValue], _ field: String) throws
+  -> [WireValue]
+{
+  guard case .some(.array(let values)) = map.removeValue(forKey: field) else {
+    throw CardOperationError.invalidField(field: field)
+  }
+  return values
 }

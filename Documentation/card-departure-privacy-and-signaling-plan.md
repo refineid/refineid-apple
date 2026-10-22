@@ -7,11 +7,12 @@ borrowed CryptoTokenKit (CTK) identity at once, without waiting out a
 network timeout, and without anyone on the local network learning that
 a card was inserted or removed.
 
-RAPP v26.10.18 §8.4 settles this with an in-band message: the custodian
-sends `card.status` as its first word on every operational session and
+RAPP v26.10.21 §8.4 settles this with an in-band message: the custodian
+sends `card.status` right after `session.ready` on every session and
 again on every change, and a requester offers the identity only while it
-holds an open session whose last `card.status` said present. This
-document records the design as it is built on Apple platforms.
+holds an open session whose last `card.status` said present for the card
+whose certificate it offers. This document records the design as it is
+built on Apple platforms.
 
 ---
 
@@ -59,7 +60,7 @@ else.
 |  HolderCardServing -> PhonePersistentTokenRelay            |
 |          |                                                 |
 |          v                                                 |
-|  Encrypted RAPP frame: card.status { card_present: false } |
+|  Encrypted RAPP frame: card.status, absent, zero digest    |
 +---------------------------+--------------------------------+
                             | Noise session (ChaCha20-Poly1305)
                             v
@@ -68,7 +69,7 @@ else.
 |  RappHeldRequesterSession decrypts the frame               |
 |          |                                                 |
 |          v                                                 |
-|  RappConnectionCoordinator: .cardStatus(present: false)    |
+|  RappConnectionCoordinator: .cardStatus(.absent)           |
 |          |                                                 |
 |          v                                                 |
 |  PersistentTokenRegistry withdraws the CTK identity        |
@@ -80,11 +81,10 @@ else.
 - The phone listens under a fresh random name, `refineid-` and eight hex
   characters, drawn whenever listening starts. Nothing derived from a
   rendezvous token is published (discovery hierarchy §4.1 to §4.3).
-- The TXT record carries `v=1`, `mode=session`, rotating discovery hints
-  for the pairings the phone serves and, for thirty days after a
-  revocation, the rotating revocation hints of pairings it forgot
-  (RAPP v26.10.18 §4.6). A hint links the record to a pairing only within
-  its window and only for the peer that holds the key.
+- The TXT record carries `v=1`, `mode=session` and rotating discovery
+  hints for the pairings the phone serves (discovery hierarchy §4.3). A
+  hint links the record to a pairing only within its window and only for
+  the peer that holds the key.
 - No device name, user name, cardholder identifier, SATU or card
   attribute is published. The record says the phone is on the network;
   whether a card can answer is said only inside the session.
@@ -95,7 +95,8 @@ else.
   requester session with it
   ([`RappHeldRequesterSession`](../CardCore/Sources/CardCore/RappHeldRequesterSession.swift)).
   The session carries the phone's `card.status`, the certificate read an
-  offered identity needs, and the liveness probes of RAPP §8.2.
+  offered identity needs, and the liveness probes of RAPP §8.3: a ping
+  after 5 seconds of silence, the session over after 30.
 - Liveness probes and status reports are frames of the same shape; a
   card departure is indistinguishable from a keepalive to an observer.
 - The token extension dials its own session for a signature. The phone
@@ -107,12 +108,17 @@ else.
 
 ### 3.3 The status message
 
-`card.status` is an authenticated in-session message (RAPP v26.10.18
+`card.status` is an authenticated in-session message (RAPP v26.10.21
 §7.1):
 
 ```
-{ "type": "card.status", "card_present": <bool> }
+{ "type": "card.status",
+  "body": { "card_present": <bool>, "certificate_fingerprint": <32 bytes> } }
 ```
+
+The fingerprint is the SHA-256 digest of the DER of the card's
+authentication certificate while a card is present, and 32 zero bytes
+while none is, so the message has one size whatever it says.
 
 The phone sends it when the session is established and whenever what it
 can serve changes
@@ -128,16 +134,18 @@ the next coupling, prime or answered operation reports present again.
 
 [`PersistentTokenRegistry`](../Sources/App/PersistentTokenRegistry.swift)
 offers the identity only while the standing session's last
-`card.status` said present (§8.4). It withdraws the identity, keeping
+`card.status` said present with the fingerprint of the certificate it
+holds (§8.4); on a different fingerprint it reads the certificate again
+before offering anything. It withdraws the identity, keeping
 the pairing and the session, when the phone says absent; it withdraws
 and drops the session when the session closes, when liveness fails,
 when the phone announces withdrawal (§4.5) or when the phone's record
 leaves the network. A reader card in the Mac outranks all of it.
 
-A phone that announces it forgot the pairing (§4.6) ends the session
-with `pairing_revoked` or publishes the revocation hint; either way the
-Mac forgets the pairing, withdraws the identity and names the phone in
-the identity row.
+A phone that forgot the pairing (§4.6) ends the open session with
+`pairing_revoked`, or answers the next session with that close in place
+of `session.ready`; either way the Mac forgets the pairing, withdraws the
+identity and names the phone in the identity row.
 
 ---
 
@@ -152,19 +160,19 @@ the identity row.
   `card.status` of present offers the identity again without a
   ceremony.
 - **INV-CARD-DEPART-4**: no identity is offered without an open session
-  that has said present.
+  that has said present with that identity's certificate fingerprint.
 
 ---
 
 ## 5. Verification
 
 - The engine's `card.status` body is replayed byte for byte against
-  `rapp-operation-v26.10.18.json` (`OperationBodyTests`).
-- The revocation announcement a phone publishes after forgetting a
-  pairing is replayed against `rapp-revocation-v26.10.18.json`
-  (`RevocationCorpusTests`).
+  `rapp-operation-v26.10.21.json` (`OperationBodyTests`).
+- The `pairing_revoked` close of a forgotten pairing, in session and on
+  the next session in both directions, is driven end to end
+  (`RevocationDriveTests`).
 - The state tables are checked against
-  `rapp-state-machine-v26.10.18.yaml` in both directions
+  `rapp-state-machine-v26.10.21.yaml` in both directions
   (`StateConformanceTests`).
 - `NetworkContractTests.advertisementsCarryNoDeviceIdentity` pins what
   the phone publishes.

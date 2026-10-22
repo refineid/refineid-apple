@@ -13,29 +13,6 @@ extension RappDeviceVault {
       || status == errSecMissingEntitlement
   }
 
-  internal func persistProxyValue(
-    pairID: Data,
-    operationID: Data,
-    record: Data,
-    retainedResult: RetainedResultMutation
-  ) throws {
-    try synchronized {
-      try requireOperationIdentifiers(pairID: pairID, operationID: operationID)
-      guard !record.isEmpty else { throw Failure.malformed }
-      let service = operationService(namespace: namespace.proxy, pairID: pairID)
-      let account = operationID.hexadecimal
-      var attributes: [String: Any] = [kSecAttrGeneric as String: record]
-      switch retainedResult {
-      case .preserve:
-        try updateExisting(service: service, account: account, attributes: attributes)
-
-      case .replace(let result):
-        attributes[kSecValueData as String] = result ?? StoredValue.noRetainedResult
-        try upsert(service: service, account: account, attributes: attributes)
-      }
-    }
-  }
-
   internal func pairMarker(
     state: PairState,
     revokedAtMilliseconds: UInt64?
@@ -57,15 +34,6 @@ extension RappDeviceVault {
     } catch {
       throw Failure.malformed
     }
-  }
-
-  internal func operationService(namespace: String, pairID: Data) -> String {
-    "\(namespace).\(pairID.hexadecimal)"
-  }
-
-  internal func requireOperationIdentifiers(pairID: Data, operationID: Data) throws {
-    try requireIdentifier(pairID, size: IdentifierSize.pair)
-    try requireIdentifier(operationID, size: IdentifierSize.operation)
   }
 
   internal func requireIdentifier(_ value: Data, size: Int) throws {

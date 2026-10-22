@@ -176,7 +176,7 @@ internal struct CpaceTests {
     #expect(isk.suffix(8) == expectedIskSuffix)
   }
 
-  @Test("KC2 replays the v26.10.9 corpus byte for byte on every transport")
+  @Test("KC2 replays the v26.10.21 corpus byte for byte on every transport")
   internal func kc2CorpusVectors() throws {
     let vectors = try CorpusFile.conformance(filePath: #filePath).cpaceKc2
     #expect(Set(vectors.map(\.transportProfile)) == [RappBleGattProfile.name, streamProfile])
@@ -211,7 +211,8 @@ internal struct CpaceTests {
     let offerIdentifier = Data(repeating: 0x42, count: RappCpaceConstants.offerIdSize)
     let context = try cpaceKc2Context(
       offerHash: Data(repeating: 0x66, count: RappCpaceConstants.offerIdSize),
-      transportProfile: streamProfile, candidateIdentifier: "stream-1")
+      transportProfile: streamProfile,
+      candidateIdentifier: TransportRegistry.streamCandidateIdentifier)
     let initiator = try CpaceKc2Initiator(
       code: "7KX4M9", context: context, offerIdentifier: offerIdentifier,
       randomBytes: Data(repeating: 0x11, count: RappCpaceConstants.wideScalarSize))
@@ -229,7 +230,8 @@ internal struct CpaceTests {
     let offerIdentifier = Data(repeating: 0x42, count: RappCpaceConstants.offerIdSize)
     let context = try cpaceKc2Context(
       offerHash: Data(repeating: 0x66, count: RappCpaceConstants.offerIdSize),
-      transportProfile: streamProfile, candidateIdentifier: "stream-1")
+      transportProfile: streamProfile,
+      candidateIdentifier: TransportRegistry.streamCandidateIdentifier)
     let initiator = try CpaceKc2Initiator(
       code: "7KX4M9", context: context, offerIdentifier: offerIdentifier,
       randomBytes: Data(repeating: 0x11, count: RappCpaceConstants.wideScalarSize))

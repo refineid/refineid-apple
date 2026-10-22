@@ -12,7 +12,6 @@ extension RappConformanceCorpusSupport {
     case identifierDerivation = "identifier_derivation"
     case protocolDocumentVersion = "protocol_document_version"
     case rejectedCBOR = "rejected_cbor"
-    case requestHash = "request_hash"
   }
 
   private enum CBORVectorKeys: String, CodingKey {
@@ -35,18 +34,6 @@ extension RappConformanceCorpusSupport {
     case sha256Hex = "sha256_hex"
   }
 
-  private enum RequestVectorKeys: String, CodingKey {
-    case action = "action"
-    case context = "context"
-    case name = "name"
-    case operationIDHex = "operation_id_hex"
-    case payload = "payload"
-    case pairIDHex = "pair_id_hex"
-    case preimageCBORHex = "preimage_cbor_hex"
-    case profile = "profile"
-    case sha256Hex = "sha256_hex"
-  }
-
   private enum RejectedCBORVectorKeys: String, CodingKey {
     case encodedHex = "encoded_hex"
     case error = "error"
@@ -61,7 +48,6 @@ extension RappConformanceCorpusSupport {
     internal let deterministicCBOR: [CBORVector]
     internal let identifierDerivation: [IdentifierVector]
     internal let grantsHash: [GrantsVector]
-    internal let requestHash: [RequestVector]
     internal let rejectedCBOR: [RejectedCBORVector]
 
     // MARK: Lifecycle
@@ -74,7 +60,6 @@ extension RappConformanceCorpusSupport {
       identifierDerivation = try container.decode(
         [IdentifierVector].self, forKey: .identifierDerivation)
       grantsHash = try container.decode([GrantsVector].self, forKey: .grantsHash)
-      requestHash = try container.decode([RequestVector].self, forKey: .requestHash)
       rejectedCBOR = try container.decode([RejectedCBORVector].self, forKey: .rejectedCBOR)
     }
   }
@@ -130,35 +115,6 @@ extension RappConformanceCorpusSupport {
       name = try container.decode(String.self, forKey: .name)
       profiles = try container.decode([String].self, forKey: .profiles)
       canonicalCBORHex = try container.decode(String.self, forKey: .canonicalCBORHex)
-      sha256Hex = try container.decode(String.self, forKey: .sha256Hex)
-    }
-  }
-
-  internal struct RequestVector: Decodable {
-    // MARK: Properties
-
-    internal let name: String
-    internal let pairIDHex: String
-    internal let operationIDHex: String
-    internal let profile: String
-    internal let action: String
-    internal let context: CorpusValue
-    internal let payload: CorpusValue
-    internal let preimageCBORHex: String
-    internal let sha256Hex: String
-
-    // MARK: Lifecycle
-
-    internal init(from decoder: Decoder) throws {
-      let container = try decoder.container(keyedBy: RequestVectorKeys.self)
-      name = try container.decode(String.self, forKey: .name)
-      pairIDHex = try container.decode(String.self, forKey: .pairIDHex)
-      operationIDHex = try container.decode(String.self, forKey: .operationIDHex)
-      profile = try container.decode(String.self, forKey: .profile)
-      action = try container.decode(String.self, forKey: .action)
-      context = try container.decode(CorpusValue.self, forKey: .context)
-      payload = try container.decode(CorpusValue.self, forKey: .payload)
-      preimageCBORHex = try container.decode(String.self, forKey: .preimageCBORHex)
       sha256Hex = try container.decode(String.self, forKey: .sha256Hex)
     }
   }

@@ -7,6 +7,14 @@ import Testing
 
 @Suite("RAPP pair record storage format")
 internal struct PairRecordTests {
+  /// When the fixture is forgotten, in milliseconds since the Unix epoch.
+  private let forgottenAtMilliseconds: UInt64 = 1_700_000_000_000
+  /// Days a forgotten record keeps its key (RAPP v26.10.21 §4.6 item 3).
+  private let revocationNoticeDays: UInt64 = 30
+  private let millisecondsPerDay: UInt64 = 86_400_000
+  /// The smallest step of the millisecond clock.
+  private let tick: UInt64 = 1
+
   /// A record encoded with the field named replaced by the given value, so a
   /// rejection is driven from a record that is otherwise valid.
   private func mutated(
@@ -23,11 +31,9 @@ internal struct PairRecordTests {
     return try WireValue.map(map).encoded()
   }
 
-  @Test("Encoding is byte-identical to the reference implementation")
-  internal func encodingMatchesReference() throws {
-    #expect(
-      try makePairRecord().encoded()
-        == (try Data(hex: expectedPairRecordHex.filter { !$0.isWhitespace })))
+  @Test("The record stores exactly its fields under their storage keys")
+  internal func encodingMatchesTheStoredForm() throws {
+    #expect(try makePairRecord().encoded() == (try expectedPairRecordValue().encoded()))
   }
 
   @Test("A decode round trip preserves every field")
@@ -73,7 +79,37 @@ internal struct PairRecordTests {
     let encoded = try makePairRecord().encoded()
     #expect(throws: (any Error).self) {
       _ = try PairRecord.decode(
-        try mutated(encoded, "profiles", .array([.text("fi.refineid.unknown.v1")])))
+        try mutated(encoded, "profiles", .array([.text("fi.refineid.unknown")])))
+    }
+  }
+
+  @Test("A forgotten record keeps the time it was forgotten")
+  internal func forgottenRecordRoundTrips() throws {
+    let forgotten = try makePairRecord().forgotten(at: forgottenAtMilliseconds)
+    let decoded = try PairRecord.decode(try forgotten.encoded())
+    #expect(decoded.forgottenAtMilliseconds == forgottenAtMilliseconds)
+    #expect(decoded == forgotten)
+  }
+
+  @Test("A forgotten record keeps its key for thirty days")
+  internal func revocationNoticeWindow() throws {
+    let record = try makePairRecord()
+    #expect(!record.revocationNoticeExpired(nowMilliseconds: .max))
+    let forgotten = record.forgotten(at: forgottenAtMilliseconds)
+    let window = revocationNoticeDays * millisecondsPerDay
+    #expect(!forgotten.revocationNoticeExpired(nowMilliseconds: forgottenAtMilliseconds))
+    #expect(
+      !forgotten.revocationNoticeExpired(
+        nowMilliseconds: forgottenAtMilliseconds + window - tick))
+    #expect(
+      forgotten.revocationNoticeExpired(nowMilliseconds: forgottenAtMilliseconds + window))
+  }
+
+  @Test("Only a confirmed record is stored as forgotten")
+  internal func unconfirmedForgottenRecordIsRejected() throws {
+    let forgotten = try makePairRecord().forgotten(at: forgottenAtMilliseconds).encoded()
+    #expect(throws: (any Error).self) {
+      _ = try PairRecord.decode(try mutated(forgotten, "storage_confirmed", .boolean(false)))
     }
   }
 

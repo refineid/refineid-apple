@@ -8,9 +8,9 @@ import Foundation
 
 /// Credential profiles the registry admits.
 internal enum ProfileName: String, CaseIterable, Equatable {
-  case cardStatus = "fi.refineid.card-status.v1"
-  case authentication = "fi.refineid.authentication.v1"
-  case documentSigning = "fi.refineid.document-signing.v1"
+  case cardStatus = "fi.refineid.card-status"
+  case authentication = "fi.refineid.authentication"
+  case documentSigning = "fi.refineid.document-signing"
 }
 
 // swiftlint:enable sorted_enum_cases

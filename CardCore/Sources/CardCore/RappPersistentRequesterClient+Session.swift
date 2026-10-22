@@ -17,17 +17,17 @@
           finish(error: .noSelectedPair)
           return
         }
+        let pairID = pair.metadata().pairId
         let coordinator = try RappConnectionCoordinator(
           role: .requester,
           pair: pair,
-          vault: vault,
           transport: transport,
-          maximumLifetimeMilliseconds: policy.maximumOperationLifetimeMilliseconds,
-          liveness: policy.liveness
+          maximumLifetimeMilliseconds: policy.maximumOperationLifetimeMilliseconds
         )
         let installed = state.withLock { state -> Bool in
           guard state.coordinator == nil, !state.completed else { return false }
           state.coordinator = coordinator
+          state.pairID = pairID
           return true
         }
         guard installed else { return }
@@ -59,26 +59,26 @@
       case .established:
         await beginOperation(on: coordinator)
 
-      case .progress(let operationID, let progressEvent):
-        handleProgress(operationID: operationID, progressEvent: progressEvent)
+      case .progress(_, let progressEvent):
+        RappRequesterNotices.post(progress: progressEvent)
 
       case .completed(_, let result):
         await handleCompleted(result, on: coordinator)
 
-      case .terminal(_, _, let reason):
+      case .terminal(_, let reason):
         await handleTerminal(reason, on: coordinator)
 
       case .closed(let reason):
         handleClosed(reason)
 
-      case .cardStatus:
+      case .cardStatus, .operationEnded:
         // A one-shot request offers nothing to a local consumer; the
-        // registry's held session acts on the custodian's word.
+        // registry's held session acts on the custodian's word. An
+        // operation that ends with the session is reported by the close.
         break
 
       case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
-        .executeCardCommand, .operationFinished,
-        .peerBusy, .peerUnknownOperation, .batchSignatures:
+        .executeCardCommand:
         #if DEBUG
           Self.logger.notice(
             "[RappRequester] coordinator unexpected proxy event on requester: \(eventDesc, privacy: .public)"
@@ -89,13 +89,8 @@
       }
     }
 
-    private func handleProgress(operationID: Data, progressEvent: ProgressEvent) {
-      guard !operationID.isEmpty else { return }
-      RappRequesterNotices.post(progress: progressEvent)
-    }
-
     private func handleCompleted(
-      _ result: RappOperationDriver.Result,
+      _ result: RappOperationResult,
       on coordinator: RappConnectionCoordinator
     ) async {
       RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
@@ -112,7 +107,7 @@
     }
 
     private func handleTerminal(
-      _ reason: RappOperationDriver.TerminalReason?,
+      _ reason: RappTerminalReason,
       on coordinator: RappConnectionCoordinator
     ) async {
       RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
@@ -127,15 +122,30 @@
 
     private func handleClosed(_ reason: RappConnectionCoordinator.CloseReason) {
       RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
-      if reason == .operation(.serviceWithdrawn) {
+      if reason.serviceWithdrawn {
         RappRequesterNotices.post(RappServiceNotificationNames.serviceWithdrawnDarwinNotification)
       }
+      endPairing(after: reason)
       #if DEBUG
         Self.logger.notice(
           "[RappRequester] coordinator closed: \(String(describing: reason), privacy: .public)"
         )
       #endif
       finish(error: .transport)
+    }
+
+    /// Ends the pairing this request ran over when its session said so: the
+    /// custodian revoked it, or this endpoint delivered the close of a
+    /// pairing it forgot (RAPP v26.10.21 §4.6 items 2 to 4).
+    private func endPairing(after reason: RappConnectionCoordinator.CloseReason) {
+      let revokedByPeer = reason.peerRevokedPairing
+      guard revokedByPeer || reason == .handshake(.revocationNoticeDelivered),
+        let pairID = state.withLock({ $0.pairID })
+      else { return }
+      try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: RappPlatformClock())
+      if revokedByPeer {
+        RappRequesterNotices.post(RappServiceNotificationNames.pairingRevokedDarwinNotification)
+      }
     }
 
     /// Asks for the operation this request was made for, once.
@@ -208,21 +218,17 @@
 
     /// The answer a result carries, when its kind is the one the operation
     /// asked for.
-    private func response(
-      for result: RappOperationDriver.Result
-    ) -> RappRequesterResponse? {
-      switch (operation, result.kind) {
-      case (.readAuthenticationCertificate, .certificate):
-        result.bytes.isEmpty ? nil : .authenticationCertificate(result.bytes)
+    private func response(for result: RappOperationResult) -> RappRequesterResponse? {
+      switch (operation, result) {
+      case (.readAuthenticationCertificate, .certificate(let der)):
+        der.isEmpty ? nil : .authenticationCertificate(der)
 
-      case (.readSignatureCertificate, .certificate):
-        result.bytes.isEmpty ? nil : .signatureCertificate(result.bytes)
+      case (.readSignatureCertificate, .certificate(let der)):
+        der.isEmpty ? nil : .signatureCertificate(der)
 
-      case (.browserAuthentication, .signature):
-        result.bytes.isEmpty ? nil : .signature(result.bytes)
-
-      case (.documentSigning, .signature):
-        result.bytes.isEmpty ? nil : .signature(result.bytes)
+      case (.browserAuthentication, .signature(let signature)),
+        (.documentSigning, .signature(let signature)):
+        signature.isEmpty ? nil : .signature(signature)
 
       default:
         nil

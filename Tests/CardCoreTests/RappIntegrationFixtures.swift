@@ -1,5 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
+import CryptoKit
 import Foundation
 import Security
 import Testing
@@ -13,93 +14,80 @@ import Testing
 
     internal typealias FrameReceiver = @Sendable (Data) async -> Void
 
+    /// How far the custodian took an operation before it ended.
     internal struct ProxyProgress: Equatable {
       internal var prerequisites = 0
       internal var approvals = 0
       internal var executions = 0
-      internal var acknowledgments = 0
     }
 
+    /// Each way the custodian ends an operation without a completed
+    /// result, and the registered error the requester receives for it
+    /// (RAPP v26.10.21 §10.3).
     internal enum ProxyTermination: CaseIterable, Sendable {
-      case cardCompletionAmbiguous
-      case cardRemovedBeforeTransmit
-      case retryPolicyRefused
+      case cardError
+      case operationFailed
+      case retryFloor
+      case unsupportedRequest
       case userDenied
 
       // MARK: Computed Properties
 
-      internal var reason: RappOperationDriver.TerminalReason {
+      internal var reason: RappTerminalReason {
         switch self {
+        case .cardError:
+          .cardError
+
+        case .operationFailed:
+          .operationFailed
+
+        case .retryFloor:
+          .retryFloor
+
+        case .unsupportedRequest:
+          .unsupportedParameter
+
         case .userDenied:
-          .userDenied
-
-        case .retryPolicyRefused:
-          .retryPolicyRefused
-
-        case .cardRemovedBeforeTransmit:
-          .cardRemovedBeforeTransmit
-
-        case .cardCompletionAmbiguous:
-          .cardCompletionAmbiguous
+          .userCancelled
         }
       }
 
+      /// Where the custodian stops: a refusal before consent, a denial at
+      /// consent, or a card command that produced no answer.
       internal var progress: ProxyProgress {
         switch self {
-        case .userDenied:
-          ProxyProgress(prerequisites: 1, approvals: 1, acknowledgments: 1)
-
-        case .retryPolicyRefused:
+        case .retryFloor, .unsupportedRequest:
           ProxyProgress(prerequisites: 1)
 
-        case .cardRemovedBeforeTransmit:
-          ProxyProgress(prerequisites: 1, approvals: 1, acknowledgments: 1)
+        case .userDenied:
+          ProxyProgress(prerequisites: 1, approvals: 1)
 
-        case .cardCompletionAmbiguous:
+        case .cardError, .operationFailed:
           ProxyProgress(prerequisites: 1, approvals: 1, executions: 1)
         }
       }
 
-      /// Whether the requester's journal is gone once its terminal event
-      /// has been delivered: an ambiguous completion keeps it for
-      /// reconciliation (RAPP v26.10.18 §8.3).
-      internal var requesterJournalForgotten: Bool {
-        self != .cardCompletionAmbiguous
-      }
-
-      internal var proxyTransportCloseCount: Int {
-        switch self {
-        case .retryPolicyRefused, .cardCompletionAmbiguous:
-          1
-
-        case .userDenied, .cardRemovedBeforeTransmit:
-          0
-        }
+      /// A synthetic origin naming the path, so each case signs its own
+      /// challenge.
+      internal var origin: String {
+        "https://\(self).example.invalid"
       }
     }
 
     internal enum TestFailure: Error {
       case connectionClosed(RappConnectionCoordinator.CloseReason)
       case operationEndedWithoutResult
-      case operationTerminated(RappOperationDriver.TerminalReason?)
+      case operationTerminated(RappTerminalReason)
       case pairingClosed(RappPairingCoordinator.CloseReason)
       case pairingEndedWithoutRecord
       case receiverMissing
       case unexpectedConnectionEvent
-      case unexpectedTransportError
+      case unexpectedResult(RappOperationResult)
     }
 
     internal enum FixtureTiming {
       internal static let operationExpiryMilliseconds: UInt64 = 60_000
-      internal static let pairingOfferLifetimeMilliseconds: UInt64 = 60_000
       internal static let connectionMaximumLifetimeMilliseconds: UInt64 = 60_000
-      internal static let probingBaseIntervalMilliseconds: UInt64 = 60_000
-      internal static let probingResponseTimeoutMilliseconds: UInt64 = 10_000
-      internal static let probingMaximumIntervalMilliseconds: UInt64 = 60_000
-      internal static let toleratedMisses: UInt8 = 3
-      internal static let interactiveBaseIntervalMilliseconds: UInt64 = 5_000
-      internal static let interactiveResponseTimeoutMilliseconds: UInt64 = 3_000
-      internal static let interactiveMaximumJitterMilliseconds: UInt64 = 500
     }
 
     internal struct PairingFixture {
@@ -157,6 +145,16 @@ import Testing
         case .browserAuthentication(_, let digest), .documentSigning(_, let digest):
           digest
         }
+      }
+
+      // MARK: Static Functions
+
+      /// A browser authentication for `origin` over the SHA-256 digest of
+      /// a synthetic challenge, the digest size the ECDSA P-256 profile
+      /// signs.
+      internal static func browserAuthentication(origin: String) -> Self {
+        .browserAuthentication(
+          origin: origin, digest: Data(SHA256.hash(data: Data("challenge for \(origin)".utf8))))
       }
 
       // MARK: Functions
@@ -260,35 +258,16 @@ import Testing
 
     // MARK: Static Properties
 
-    internal static let profiles = [
-      "fi.refineid.card-status.v1",
-      "fi.refineid.authentication.v1",
-      "fi.refineid.document-signing.v1",
-    ]
-    internal static let transportProfile = "apple-peer-v1"
-    internal static let candidateID = "apple-peer-v1.nearby"
-    internal static let liveness = RappOperationDriver.Liveness(
-      baseIntervalMilliseconds: FixtureTiming.probingBaseIntervalMilliseconds,
-      responseTimeoutMilliseconds: FixtureTiming.probingResponseTimeoutMilliseconds,
-      maximumIntervalMilliseconds: FixtureTiming.probingMaximumIntervalMilliseconds,
-      maximumJitterMilliseconds: 0,
-      maximumMisses: FixtureTiming.toleratedMisses
-    )
+    internal static let profiles = rappCredentialProfiles()
+    internal static let transportProfile = rappStreamProfileName()
 
-    /// What the shipped requester actually runs with.
-    ///
-    /// The suite's own liveness never fires inside a test, so every path
-    /// below was measured with no probe in flight. A card read takes
-    /// several seconds of antenna time, which is longer than this
-    /// interval, so on a device a probe is always in flight while an
-    /// operation is executing -- the one arrangement the fast fixture
-    /// could not produce.
-    internal static let interactiveLiveness = RappOperationDriver.Liveness(
-      baseIntervalMilliseconds: FixtureTiming.interactiveBaseIntervalMilliseconds,
-      responseTimeoutMilliseconds: FixtureTiming.interactiveResponseTimeoutMilliseconds,
-      maximumIntervalMilliseconds: FixtureTiming.probingMaximumIntervalMilliseconds,
-      maximumJitterMilliseconds: FixtureTiming.interactiveMaximumJitterMilliseconds,
-      maximumMisses: FixtureTiming.toleratedMisses
-    )
+    /// A synthetic signature; the custodian relays the card's bytes
+    /// without reading them.
+    internal static let signature = Data("synthetic card signature".utf8)
+
+    /// The fingerprint of a synthetic authentication certificate, naming
+    /// the card the custodian serves.
+    internal static let cardFingerprint = RappCertificateFingerprint(
+      certificate: Data("synthetic authentication certificate".utf8))
   }
 #endif

@@ -6,8 +6,8 @@ import Foundation
   @preconcurrency import CoreBluetooth
   import RappEngine
 
-  /// The requester end of `fi.refineid.rapp.ble.v1`: the GATT central
-  /// (RAPP v26.10.9 §4.4, §5.2).
+  /// The requester end of `fi.refineid.rapp.ble`: the GATT central
+  /// (RAPP v26.10.21 §4.4, §5.2).
   ///
   /// It connects to a custodian whose median RSSI clears the proximity
   /// threshold, checks the MTU, enables indications, reads the offer for a

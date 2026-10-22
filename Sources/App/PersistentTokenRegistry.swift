@@ -10,13 +10,14 @@
   import Security
 
   /// Publishes the paired phone's authentication certificate as a per-user
-  /// persistent CryptoTokenKit identity while the phone says a card is
-  /// present (RAPP v26.10.18 §8.4).
+  /// persistent CryptoTokenKit identity while the phone says that card is
+  /// present (RAPP v26.10.21 §8.4).
   ///
   /// Private-key operations stay delegated to the phone. The identity is
   /// offered only while this process holds an open session with the phone
-  /// whose last `card.status` said present; it leaves when the phone says
-  /// absent, when the session ends, or when the phone leaves the network.
+  /// whose last `card.status` named that certificate's card; it leaves when
+  /// the phone says absent or names another card, when the session ends,
+  /// or when the phone leaves the network.
   @MainActor
   @Observable
   internal final class PersistentTokenRegistry {
@@ -110,16 +111,16 @@
     /// the borrowed identity.
     internal var holderIsAdvertising = false
 
-    /// The phone's last `card.status` on the open session; false without
+    /// The phone's last `card.status` on the open session; absent without
     /// a session.
-    internal var holderCardPresent = false
+    internal var holderCardStatus = RappCardStatus.absent
 
     /// The paired phone, by the name it introduced itself with; nil
     /// while no phone is paired.
     internal private(set) var pairedPhone: String?
 
-    /// The phone that announced it forgot this computer (RAPP v26.10.18
-    /// §4.6), by name, until a phone is paired again.
+    /// The phone that told this computer it forgot it (RAPP v26.10.21 §4.6
+    /// item 4), by name, until a phone is paired again.
     internal var phoneThatForgot: String?
 
     #if REFINEID_STREAM_TRANSPORT
@@ -132,6 +133,10 @@
 
       /// The standing session with the phone, while one is open.
       internal var holderSession: RappHeldRequesterSession?
+
+      /// The pairing whose hint the phone on the network carries; a session
+      /// dials it and no other (RAPP v26.10.21 §4.6 item 2).
+      internal var pairInSight: Data?
 
       /// Dials the phone again after a session ended while it stayed on
       /// the network.
@@ -291,6 +296,12 @@
         #endif
         return
       }
+      // Only the card the phone names on this session is offered (RAPP
+      // v26.10.21 §8.4 item 2); a certificate read across a card change
+      // waits for the phone's next word.
+      guard case .present(let named) = holderCardStatus,
+        RappCertificateFingerprint(certificate: fetched) == named
+      else { return }
       switch Self.publish(fetched) {
       case .notPublished:
         fetchBackoff.recordFailure(at: .now)

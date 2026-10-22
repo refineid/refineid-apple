@@ -2,305 +2,183 @@
 
 extension RappModelTables {
   /// Operation component rules.
-  ///
-  /// Messages naming an unknown or terminal operation are stale-reference
-  /// races and appear in no rule; they transition nothing.
   internal static let operation: [RappRule<OperationState, OperationEvent>] = [
     RappRule(
       from: .idle,
-      event: .requestSent,
-      role: .requester,
-      condition: .admissionPermitted,
+      event: .requestReceived,
+      role: .custodian,
       destination: .requested,
-      actions: [.computeRequestHash, .journalRequest, .startExpiryClock]
+      actions: [.startExpiryClock]
     ),
     RappRule(
       from: .idle,
-      event: .requestReceived,
-      role: .proxy,
-      condition: .admissionPermitted,
-      destination: .requested,
-      actions: [.validateSchemaHashExpiryAndContext, .startExpiryClock]
+      event: .requestDuplicate,
+      role: .custodian,
+      destination: .idle,
+      actions: [.sendErrorDuplicateOperation]
     ),
     RappRule(
-      from: .requested,
-      event: .requestValid,
-      role: .proxy,
-      destination: .awaitingConsent,
-      actions: [.beginSafePrerequisiteReads, .presentConsentPerProfile]
+      from: .idle,
+      event: .requestWhileBusy,
+      role: .custodian,
+      destination: .idle,
+      actions: [.sendErrorBusy]
     ),
     RappRule(
-      from: .requested,
-      event: .requestInvalidOrUnsupported,
-      role: .proxy,
+      from: .idle,
+      event: .requestUnauthorized,
+      role: .custodian,
       destination: .rejected,
-      actions: [.sendResultRejected]
+      actions: [.sendResultUnauthorized]
     ),
     RappRule(
-      from: [.requested, .awaitingConsent],
-      event: .cancelReceived,
-      role: .proxy,
-      destination: .cancelled,
-      actions: [.clearOperationCredentials, .dismissConsent, .sendResultCancelled]
+      from: .idle,
+      event: .requestUnsupported,
+      role: .custodian,
+      destination: .rejected,
+      actions: [.sendResultUnsupportedParameter]
     ),
     RappRule(
-      from: [.requested, .awaitingConsent],
-      event: .requestExpired,
-      role: .proxy,
-      destination: .cancelled,
-      actions: [.clearOperationCredentials, .dismissConsent, .sendResultCancelled]
+      from: .requested,
+      event: .cardHeldElsewhere,
+      role: .custodian,
+      destination: .queued,
+      actions: [.sendProgressQueued]
+    ),
+    RappRule(
+      from: [.requested, .queued],
+      event: .cardAcquiredForConsent,
+      role: .custodian,
+      destination: .awaitingConsent,
+      actions: [.presentConsent, .sendProgressConsentShown]
+    ),
+    RappRule(
+      from: [.requested, .queued],
+      event: .cardAcquiredForRead,
+      role: .custodian,
+      destination: .executing,
+      actions: [.executeRead]
     ),
     RappRule(
       from: .awaitingConsent,
       event: .userDenied,
-      role: .proxy,
-      destination: .denied,
-      actions: [.clearOperationCredentials, .sendResultDenied]
-    ),
-    RappRule(
-      from: .awaitingConsent,
-      event: .retryPolicyRefused,
-      role: .proxy,
+      role: .custodian,
       destination: .rejected,
-      actions: [
-        .clearOperationCredentials, .sendResultRetryPolicyRefused, .requestSessionClose,
-      ]
+      actions: [.dismissConsent, .sendResultUserCancelled, .releaseCard]
     ),
     RappRule(
       from: .awaitingConsent,
-      event: .invalidCanOrPin1OrPin2,
-      role: .proxy,
-      destination: .credentialRejected,
-      actions: [
-        .clearAllActiveCredentials, .removeRejectedCredentialAndDerivedState,
-        .sendResultCredentialRejectedBestEffort, .revokePairAfterCredentialRejection,
-        .requestSessionCloseCredentialRejected,
-      ]
-    ),
-    RappRule(
-      from: .awaitingConsent,
-      event: .safeReadsComplete,
-      role: .proxy,
-      condition: .profileHasNoConsequentialCommand,
-      destination: .resultPending,
-      actions: [.persistResult, .sendResultCompleted]
-    ),
-    RappRule(
-      from: .awaitingConsent,
-      event: .userApprovedAndProxyReady,
-      role: .proxy,
-      condition: .zeroTransmissions,
-      destination: .prepared,
-      actions: [.sendPrepared]
-    ),
-    RappRule(
-      from: .prepared,
-      event: .cancelReceived,
-      role: .proxy,
-      destination: .cancelled,
-      actions: [.clearOperationCredentials, .sendResultCancelled]
-    ),
-    RappRule(
-      from: .prepared,
-      event: .requestExpired,
-      role: .proxy,
-      destination: .cancelled,
-      actions: [.clearOperationCredentials, .sendResultCancelled]
-    ),
-    RappRule(
-      from: .prepared,
-      event: .validCommit,
-      role: .proxy,
-      condition: .hashMatches,
-      destination: .committed,
-      actions: [.durablyWriteCommitBeforeTransmission]
-    ),
-    RappRule(
-      from: .committed,
-      event: .beginCardCommand,
-      role: .proxy,
-      condition: .zeroTransmissions,
+      event: .userApproved,
+      role: .custodian,
       destination: .executing,
-      actions: [.consumeNonClonableCommand, .incrementTransmissionCountOnce]
+      actions: [.dismissConsent, .checkRetryFloor, .consumeCardCommand]
     ),
     RappRule(
-      from: .committed,
-      event: .cancelReceived,
-      role: .proxy,
-      condition: .provenNoTransmission,
-      destination: .cancelled,
-      actions: [.persistCancelled, .clearOperationCredentials, .sendResultCancelled]
+      from: .executing,
+      event: .waitingForCard,
+      role: .custodian,
+      destination: .executing,
+      actions: [.sendProgressWaitingForCard]
     ),
     RappRule(
-      from: [.committed, .executing],
-      event: .crashRecoveredWithoutTerminalResult,
-      role: .both,
-      destination: .ambiguous,
-      actions: [.persistAmbiguous, .prohibitRetry]
+      from: .executing,
+      event: .cardFound,
+      role: .custodian,
+      destination: .executing,
+      actions: [.sendProgressCardWaitEnded]
+    ),
+    RappRule(
+      from: .executing,
+      event: .wrongPin,
+      role: .custodian,
+      destination: .executing,
+      actions: [.promptPinAgain]
+    ),
+    RappRule(
+      from: .executing,
+      event: .retryFloorRefused,
+      role: .custodian,
+      destination: .rejected,
+      actions: [.clearOperationCredentials, .sendResultRetryFloor, .releaseCard]
     ),
     RappRule(
       from: .executing,
       event: .cardSuccess,
-      role: .proxy,
-      destination: .resultPending,
-      actions: [.persistResult, .clearOperationCredentials, .sendResultCompleted]
-    ),
-    RappRule(
-      from: .executing,
-      event: .invalidCanOrPin1OrPin2,
-      role: .proxy,
-      destination: .credentialRejected,
-      actions: [
-        .clearAllActiveCredentials, .removeRejectedCredentialAndDerivedState,
-        .sendResultCredentialRejectedBestEffort, .revokePairAfterCredentialRejection,
-        .requestSessionCloseCredentialRejected,
-      ]
-    ),
-    RappRule(
-      from: .executing,
-      event: .cardPolicyRejection,
-      role: .proxy,
-      destination: .rejected,
-      actions: [.clearOperationCredentials, .persistRejection, .sendResultRejected]
-    ),
-    RappRule(
-      from: .executing,
-      event: .cardRemovedBeforeTransmit,
-      role: .proxy,
-      condition: .provenNoTransmission,
-      destination: .cancelled,
-      actions: [.persistCancelled, .clearOperationCredentials, .sendResultCancelled]
-    ),
-    RappRule(
-      from: .executing,
-      event: .cardRemovedOrTransportUncertain,
-      role: .proxy,
-      destination: .ambiguous,
-      actions: [
-        .clearOperationCredentials, .persistAmbiguous, .prohibitRetry,
-        .sendResultAmbiguousBestEffort, .requestSessionCloseAmbiguous,
-      ]
-    ),
-    RappRule(
-      from: .executing,
-      event: .cancelReceived,
-      role: .proxy,
-      destination: .executing,
-      actions: [.recordAdvisoryCancel]
-    ),
-    RappRule(
-      from: .executing,
-      event: .sessionClosedPostCommit,
-      role: .proxy,
-      destination: .executing,
-      actions: [.continueCardExchangeLocally, .noteResultDeliveryImpossible]
-    ),
-    RappRule(
-      from: .resultPending,
-      event: .validResultAck,
-      role: .proxy,
+      role: .custodian,
       destination: .completed,
-      actions: [.persistCompleted, .releaseResult]
+      actions: [.clearOperationCredentials, .sendResultCompleted, .releaseCard]
     ),
     RappRule(
-      from: .resultPending,
-      event: .sessionClosedBeforeAck,
-      role: .proxy,
-      destination: .deliveryUncertain,
-      actions: [.persistDeliveryUncertain, .prohibitCardRetry, .retainResultUnderLocalStorage]
+      from: .executing,
+      event: .cardError,
+      role: .custodian,
+      destination: .rejected,
+      actions: [.clearOperationCredentials, .sendResultCardError, .releaseCard]
     ),
     RappRule(
-      from: .committed,
-      event: .sessionClosedPostCommit,
-      role: .proxy,
+      from: [.requested, .queued, .awaitingConsent],
+      event: .requestExpired,
+      role: .custodian,
       destination: .cancelled,
-      actions: [.persistCancelled, .clearOperationCredentials]
+      actions: [.dismissConsent, .sendResultOperationExpired, .releaseCard]
+    ),
+    RappRule(
+      from: [.requested, .queued, .awaitingConsent],
+      event: .sessionClosed,
+      role: .custodian,
+      destination: .idle,
+      actions: [.dismissConsent, .clearOperationCredentials, .releaseCard]
+    ),
+    RappRule(
+      from: .executing,
+      event: .sessionClosed,
+      role: .custodian,
+      destination: .idle,
+      actions: [
+        .continueCardExchangeLocally, .discardAnswer, .clearOperationCredentials, .releaseCard,
+      ]
+    ),
+    RappRule(
+      from: .idle,
+      event: .requestSent,
+      role: .requester,
+      destination: .requested,
+      actions: []
     ),
     RappRule(
       from: .requested,
-      event: .preparedReceived,
+      event: .progressReceived,
       role: .requester,
-      condition: .hashEchoMatches,
-      destination: .prepared,
-      actions: [.journalPrepared]
-    ),
-    RappRule(
-      from: [.requested, .prepared],
-      event: .cancelSentOrRequestExpired,
-      role: .requester,
-      destination: .cancelled,
-      actions: [.sendOperationCancel, .journalCancelled]
-    ),
-    RappRule(
-      from: .prepared,
-      event: .commitSent,
-      role: .requester,
-      destination: .committed,
-      actions: [.journalCommitIntentDurably]
+      destination: .requested,
+      actions: [.showProgress]
     ),
     RappRule(
       from: .requested,
       event: .resultCompletedReceived,
       role: .requester,
-      condition: .profileHasNoConsequentialCommand,
       destination: .completed,
-      actions: [.retainResultUnderLocalStorage, .sendResultAck, .journalCompleted]
+      actions: [.releaseResult]
     ),
     RappRule(
-      from: [.requested, .prepared],
-      event: .resultDeniedReceived,
-      role: .requester,
-      destination: .denied,
-      actions: [.journalDenied, .sendResultAck]
-    ),
-    RappRule(
-      from: [.requested, .prepared, .committed],
-      event: .resultCancelledReceived,
-      role: .requester,
-      destination: .cancelled,
-      actions: [.journalCancelled, .sendResultAck]
-    ),
-    RappRule(
-      from: [.requested, .prepared, .committed],
+      from: .requested,
       event: .resultRejectedReceived,
       role: .requester,
       destination: .rejected,
-      actions: [.journalRejected, .sendResultAck]
+      actions: [.releaseFailure]
     ),
     RappRule(
-      from: [.requested, .prepared, .committed],
-      event: .resultCredentialRejectedReceived,
+      from: .requested,
+      event: .resultCancelledReceived,
       role: .requester,
-      destination: .credentialRejected,
-      actions: [.journalCredentialRejected, .sendResultAck, .revokePairAfterCredentialRejection]
-    ),
-    RappRule(
-      from: .committed,
-      event: .resultCompletedReceived,
-      role: .requester,
-      destination: .completed,
-      actions: [.retainResultUnderLocalStorage, .sendResultAck, .journalCompleted]
-    ),
-    RappRule(
-      from: .committed,
-      event: .resultAmbiguousReceived,
-      role: .requester,
-      destination: .ambiguous,
-      actions: [.journalAmbiguous, .sendResultAck, .prohibitRetry]
-    ),
-    RappRule(
-      from: .committed,
-      event: .sessionClosedPostCommit,
-      role: .requester,
-      destination: .ambiguous,
-      actions: [.journalAmbiguous, .prohibitRetry]
-    ),
-    RappRule(
-      from: [.requested, .awaitingConsent, .prepared],
-      event: .sessionClosedPreCommit,
-      role: .both,
       destination: .cancelled,
-      actions: [.clearOperationCredentials, .persistCancelled]
+      actions: [.releaseFailure]
+    ),
+    RappRule(
+      from: .requested,
+      event: .sessionClosed,
+      role: .requester,
+      destination: .idle,
+      actions: [.reportOperationLost]
     ),
   ]
 }

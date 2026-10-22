@@ -9,22 +9,22 @@ extension RappModelTables {
       role: .requester,
       condition: .initiationPermitted,
       destination: .connecting,
-      actions: [.selectOneTransport, .openTransport]
+      actions: [.openTransport]
     ),
     RappRule(
       from: .absent,
-      event: .transportAccepted,
-      role: .proxy,
-      condition: .pairingPaired,
+      event: .preambleReceived,
+      role: .custodian,
+      condition: .pairingRouted,
       destination: .authenticating,
-      actions: [.associatePairingFromRendezvous, .beginKkResponder]
+      actions: [.beginKkResponder]
     ),
     RappRule(
       from: .connecting,
       event: .transportConnected,
       role: .requester,
       destination: .authenticating,
-      actions: [.beginKkInitiator]
+      actions: [.sendSessionPreamble, .beginKkInitiator]
     ),
     RappRule(
       from: .connecting,
@@ -34,60 +34,47 @@ extension RappModelTables {
       actions: [.destroySessionMaterial, .showConnectionStopped]
     ),
     RappRule(
-      from: .connecting,
-      event: .userDisconnect,
-      role: .requester,
-      destination: .closed,
-      actions: [.abortCandidate, .destroySessionMaterial, .showConnectionStopped]
+      from: .authenticating,
+      event: .handshakeComplete,
+      role: .custodian,
+      destination: .healthy,
+      actions: [.deriveSessionIdentifiers, .sendSessionReady, .sendCardStatus, .startLiveness]
     ),
     RappRule(
       from: .authenticating,
       event: .handshakeComplete,
-      role: .both,
+      role: .requester,
       destination: .authenticating,
-      actions: [.deriveSessionIdentifiers, .sendSessionReady]
+      actions: [.deriveSessionIdentifiers]
     ),
     RappRule(
       from: .authenticating,
-      event: .secondSessionDetected,
-      role: .proxy,
-      condition: .anotherSessionLive,
+      event: .handshakeCompleteWhileRevoking,
+      role: .both,
       destination: .closed,
-      actions: [.sendErrorBusy, .destroySessionMaterial, .closeCandidate]
+      actions: [.deriveSessionIdentifiers, .sendClosePairingRevoked, .destroySessionMaterial]
+    ),
+    RappRule(
+      from: .authenticating,
+      event: .peerCloseReceived,
+      role: .requester,
+      destination: .closed,
+      actions: [.recordPeerCloseReason, .destroySessionMaterial]
     ),
     RappRule(
       from: .authenticating,
       event: .readyVerified,
-      role: .both,
+      role: .requester,
       condition: .readyParametersMatch,
       destination: .healthy,
-      actions: [.startAuthenticatedLiveness, .showConnected]
+      actions: [.startLiveness, .showConnected]
     ),
     RappRule(
       from: .authenticating,
       event: .candidateFailure,
       role: .both,
       destination: .closed,
-      actions: [
-        .destroySessionMaterial, .closeCandidate, .countCandidateFailureHint,
-        .showConnectionStopped,
-      ]
-    ),
-    RappRule(
-      from: .authenticating,
-      event: .busyReceived,
-      role: .requester,
-      destination: .closed,
-      actions: [.destroySessionMaterial, .closeCandidate, .showConnectionStopped]
-    ),
-    RappRule(
-      from: .authenticating,
-      event: .peerCloseReceived,
-      role: .both,
-      destination: .closed,
-      actions: [
-        .recordPeerCloseReason, .destroySessionMaterial, .closeCandidate, .showConnectionStopped,
-      ]
+      actions: [.destroySessionMaterial, .closeCandidate]
     ),
     RappRule(
       from: .authenticating,
@@ -101,50 +88,91 @@ extension RappModelTables {
       event: .authenticatedProtocolViolation,
       role: .both,
       destination: .closing,
-      actions: [.sendCloseBestEffort, .showDisconnecting]
+      actions: [.sendCloseProtocolViolation, .showDisconnecting]
     ),
     RappRule(
       from: .healthy,
-      event: .livenessMissed,
+      event: .peerSilent,
       role: .both,
-      destination: .checking,
-      actions: [.blockNewOperations, .startBackoffAndDeadline, .showChecking]
-    ),
-    RappRule(
-      from: .checking,
-      event: .livenessRestored,
-      role: .both,
-      condition: .deadlineNotExpired,
       destination: .healthy,
-      actions: [.resetBackoff, .showConnected]
+      actions: [.sendLivenessPing]
     ),
     RappRule(
-      from: .checking,
-      event: .livenessDeadlineExpired,
+      from: .healthy,
+      event: .silenceLimitReached,
+      role: .both,
+      destination: .closing,
+      actions: [.noteCloseNoticeImpossible, .showDisconnecting]
+    ),
+    RappRule(
+      from: .healthy,
+      event: .userDisconnect,
+      role: .both,
+      destination: .closing,
+      actions: [.sendCloseUserDisconnect, .showDisconnecting]
+    ),
+    RappRule(
+      from: .healthy,
+      event: .localCloseRequested,
+      role: .both,
+      destination: .closing,
+      actions: [.sendCloseNormal, .showDisconnecting]
+    ),
+    RappRule(
+      from: .healthy,
+      event: .serviceWithdrawn,
+      role: .custodian,
+      destination: .closing,
+      actions: [.sendCloseServiceWithdrawn, .showDisconnecting]
+    ),
+    RappRule(
+      from: .healthy,
+      event: .cardUnavailable,
+      role: .custodian,
+      destination: .closing,
+      actions: [.sendCloseCardUnavailable, .showDisconnecting]
+    ),
+    RappRule(
+      from: .healthy,
+      event: .peerCloseReceived,
+      role: .both,
+      destination: .closing,
+      actions: [.recordPeerCloseReason, .showDisconnecting]
+    ),
+    RappRule(
+      from: .healthy,
+      event: .transportFailed,
+      role: .both,
+      destination: .closing,
+      actions: [.noteCloseNoticeImpossible, .showDisconnecting]
+    ),
+    RappRule(
+      from: .healthy,
+      event: .sessionIntegrityFailed,
+      role: .both,
+      destination: .closing,
+      actions: [.noteCloseNoticeImpossible, .showDisconnecting]
+    ),
+    RappRule(
+      from: .healthy,
+      event: .authenticatedProtocolViolation,
+      role: .both,
+      destination: .closing,
+      actions: [.sendCloseProtocolViolation, .showDisconnecting]
+    ),
+    RappRule(
+      from: .healthy,
+      event: .closeRequestedByPairing,
       role: .both,
       destination: .closing,
       actions: [.showDisconnecting]
     ),
     RappRule(
-      from: [.healthy, .checking],
-      event: .userDisconnect,
+      from: [.connecting, .authenticating],
+      event: .closeRequestedByPairing,
       role: .both,
-      destination: .closing,
-      actions: [.sendCloseBestEffort, .showDisconnecting]
-    ),
-    RappRule(
-      from: [.healthy, .checking],
-      event: .localCloseRequested,
-      role: .both,
-      destination: .closing,
-      actions: [.sendCloseBestEffort, .showDisconnecting]
-    ),
-    RappRule(
-      from: [.healthy, .checking],
-      event: .peerCloseReceived,
-      role: .both,
-      destination: .closing,
-      actions: [.recordPeerCloseReason, .showDisconnecting]
+      destination: .closed,
+      actions: [.destroySessionMaterial, .closeCandidate, .showConnectionStopped]
     ),
     RappRule(
       from: .closing,
@@ -152,72 +180,6 @@ extension RappModelTables {
       role: .both,
       destination: .closing,
       actions: []
-    ),
-    RappRule(
-      from: [.healthy, .checking],
-      event: .credentialRejected,
-      role: .proxy,
-      destination: .closing,
-      actions: [
-        .retainRevocationKey, .destroyPairKeys, .showRevoked, .sendCloseBestEffort,
-        .showDisconnecting,
-      ]
-    ),
-    RappRule(
-      from: [.healthy, .checking],
-      event: .cardCompletionAmbiguous,
-      role: .proxy,
-      destination: .closing,
-      actions: [.showDisconnecting]
-    ),
-    RappRule(
-      from: [.healthy, .checking],
-      event: .transportFailed,
-      role: .both,
-      destination: .closing,
-      actions: [.noteCloseNoticeImpossible, .showDisconnecting]
-    ),
-    RappRule(
-      from: [.healthy, .checking],
-      event: .sessionIntegrityFailed,
-      role: .both,
-      destination: .closing,
-      actions: [.noteCloseNoticeImpossible, .showDisconnecting]
-    ),
-    RappRule(
-      from: [.healthy, .checking],
-      event: .authenticatedProtocolViolation,
-      role: .both,
-      destination: .closing,
-      actions: [.sendCloseBestEffort, .showDisconnecting]
-    ),
-    RappRule(
-      from: [.healthy, .checking],
-      event: .closeRequestedByPairing,
-      role: .both,
-      destination: .closing,
-      actions: [.showDisconnecting]
-    ),
-    RappRule(
-      from: [.connecting, .authenticating],
-      event: .closeRequestedByPairing,
-      role: .both,
-      destination: .closed,
-      actions: [.destroySessionMaterial, .closeCandidate, .showConnectionStopped]
-    ),
-    RappRule(
-      from: [.healthy, .checking],
-      event: .localSecurityShutdown,
-      role: .both,
-      destination: .closing,
-      actions: [.noteCloseNoticeImpossible, .showDisconnecting]
-    ),
-    RappRule(
-      from: [.connecting, .authenticating],
-      event: .localSecurityShutdown,
-      role: .both,
-      destination: .closed,
-      actions: [.destroySessionMaterial, .showConnectionStopped]
     ),
     RappRule(
       from: .closing,
@@ -231,10 +193,7 @@ extension RappModelTables {
       event: .closeCompleteOrDeadline,
       role: .both,
       destination: .closed,
-      actions: [
-        .destroySessionMaterial, .destroyCredentialBuffers, .persistTerminalSessionRecord,
-        .showConnectionStopped,
-      ]
+      actions: [.destroySessionMaterial, .destroyCredentialBuffers, .showConnectionStopped]
     ),
   ]
 }

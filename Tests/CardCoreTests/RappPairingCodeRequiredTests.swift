@@ -18,8 +18,8 @@ import Testing
     private func options(code: String, suffix: String) -> RappPairingCoordinator.Options {
       RappPairingCoordinator.Options(
         code: code,
-        profiles: ["fi.refineid.card-status.v1"],
-        transportProfile: "apple-peer-v1",
+        profiles: rappCredentialProfiles(),
+        transportProfile: rappStreamProfileName(),
         displayName: "Peer",
         platform: "macOS",
         vault: makeVault(suffix: suffix),

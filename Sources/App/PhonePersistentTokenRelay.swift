@@ -65,9 +65,13 @@
       (records: [RappPairRecord], router: RappSessionRouter)
     >(initialState: ([], RappSessionRouter()))
     /// The operations the open session is running.
-    internal var operationsInFlight: Set<Data> = []
-    /// The word on the card the requester is given (RAPP v26.10.18 §8.4).
+    internal var operationsInFlight: Set<RappOperationIdentifier> = []
+    /// The word on the card the requester is given (RAPP v26.10.21 §8.4).
     internal var cardReport = CustodianCardReport(servable: canServeCard)
+    /// What the open session was last told about the card.
+    internal var reportedCardStatus: RappCardStatus?
+    /// What this phone knows of the reader card it serves.
+    internal var readerCard = ReaderCard()
     /// The pairing the open session runs over.
     internal var activePairID: Data?
     internal var connectionID: UUID?
@@ -229,11 +233,9 @@
         let made = try RappConnectionCoordinator(
           role: .proxy,
           pair: pair,
-          vault: vault,
           transport: transport,
           maximumLifetimeMilliseconds:
             policy.maximumOperationLifetimeMilliseconds,
-          liveness: policy.liveness,
           transportProfile: transportProfile
         )
         let madeDispatcher = RappPhoneProxyDispatcher(

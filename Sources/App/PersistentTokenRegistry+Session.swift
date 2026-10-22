@@ -6,7 +6,7 @@
   import RappEngine
 
   /// The standing session with the phone that the offered identity rests
-  /// on (RAPP v26.10.18 §8.4).
+  /// on (RAPP v26.10.21 §8.3, §8.4).
   extension PersistentTokenRegistry {
     /// Seconds a session may stay down, while the phone stays on the
     /// network, before the identity is withdrawn.
@@ -34,15 +34,28 @@
 
     private static var redialDelay: Duration { .seconds(redialDelaySeconds) }
 
-    /// The pairing a session runs over: the chosen one, else the newest.
-    private static func sessionPair(in vault: RappDeviceVault) -> RappPairRecord? {
+    /// The pairing a session runs over.
+    ///
+    /// It is the one whose hint the phone in sight carries, which for a
+    /// pairing this computer forgot delivers its `pairing_revoked` close to
+    /// that phone and no other (RAPP v26.10.21 §4.6 item 2); with none in
+    /// sight, the chosen usable pairing, else the newest. A forgotten pairing
+    /// is dialed only when its phone is in sight, and not once its 30 days
+    /// ran out (§4.6 item 3).
+    private static func sessionPair(in vault: RappDeviceVault, inSight: Data?) -> RappPairRecord? {
+      RappPairRevocation.expireRevocationNotices(in: vault, clock: RappPlatformClock())
       let pairIDs = (try? vault.activePairIDs()) ?? []
-      guard !pairIDs.isEmpty else { return nil }
-      if let selected = try? vault.selectedPairID(), pairIDs.contains(selected) {
-        return try? RappPairRecord.loadFromVault(pairId: selected, vault: vault)
-      }
       let pairs = pairIDs.compactMap { try? RappPairRecord.loadFromVault(pairId: $0, vault: vault) }
-      guard let newest = pairs.max(by: { $0.metadata().createdAtMs < $1.metadata().createdAtMs })
+      if let inSight, let named = pairs.first(where: { $0.metadata().pairId == inSight }) {
+        return named
+      }
+      let usable = pairs.filter { $0.metadata().forgottenAtMs == nil }
+      if let selected = try? vault.selectedPairID(),
+        let chosen = usable.first(where: { $0.metadata().pairId == selected })
+      {
+        return chosen
+      }
+      guard let newest = usable.max(by: { $0.metadata().createdAtMs < $1.metadata().createdAtMs })
       else { return nil }
       try? vault.selectPair(pairID: newest.metadata().pairId)
       return newest
@@ -54,11 +67,11 @@
         holderIsAdvertising, holderSession == nil
       else { return }
       let vault = RappDeviceVault()
-      guard let pair = Self.sessionPair(in: vault) else {
+      guard let pair = Self.sessionPair(in: vault, inSight: pairInSight) else {
         Self.withdrawPublishedIdentity()
         return
       }
-      let session = RappHeldRequesterSession(pair: pair, vault: vault) { report in
+      let session = RappHeldRequesterSession(pair: pair) { report in
         Task { @MainActor in
           Self.shared.holderSessionReported(report)
         }
@@ -73,23 +86,26 @@
       redialTask = nil
       sessionLossTask?.cancel()
       sessionLossTask = nil
-      holderCardPresent = false
+      holderCardStatus = .absent
       holderSession?.close()
       holderSession = nil
     }
 
     /// Ends the open session with `pairing_revoked` when it runs over
-    /// `pairID`, before the pairing is forgotten (RAPP v26.10.18 §4.6).
-    internal func closeSessionForRevocation(pairID: Data) async {
-      guard let session = holderSession, session.pairID == pairID else { return }
+    /// `pairID`, as the pairing is forgotten (RAPP v26.10.21 §4.6 item 1);
+    /// false when no session over `pairID` is open or the close did not
+    /// leave, so the pairing is kept forgotten for its next session.
+    internal func closeSessionForRevocation(pairID: Data) async -> Bool {
+      guard let session = holderSession, session.pairID == pairID else { return false }
       redialTask?.cancel()
       redialTask = nil
       sessionLossTask?.cancel()
       sessionLossTask = nil
-      holderCardPresent = false
+      holderCardStatus = .absent
       holderSession = nil
-      await session.closePairingRevoked()
+      let told = await session.closePairingRevoked()
       Self.withdrawPublishedIdentity()
+      return told
     }
 
     private func holderSessionReported(_ report: RappHeldRequesterSession.Report) {
@@ -97,17 +113,19 @@
       case .established:
         break
 
-      case .cardStatus(let present):
+      case .cardStatus(let status):
         // Any card status means the session established and reached the
         // custodian's first word (RAPP §8.4): the redial loop succeeded,
         // so its deadline starts over for any later loss (R-58).
         continuousFailureSince = nil
-        holderCardPresent = present
-        if present {
+        holderCardStatus = status
+        switch status {
+        case .present:
           sessionLossTask?.cancel()
           sessionLossTask = nil
           offerIdentity()
-        } else {
+
+        case .absent:
           Self.withdrawPublishedIdentity()
         }
 
@@ -116,13 +134,21 @@
       }
     }
 
-    /// Offers the identity the phone's present card backs: a certificate
-    /// already held is published again, one not yet held is read.
+    /// Offers the identity of the card the phone names: a certificate
+    /// already held is published again only while its fingerprint is the
+    /// one the phone reported on this session, any other is read afresh
+    /// (RAPP v26.10.21 §8.4 item 2).
     private func offerIdentity() {
-      guard holderCardPresent, !CardPresence.shared.isReaderCardPresent else { return }
-      if certificateDER != nil {
+      guard case .present(let fingerprint) = holderCardStatus,
+        !CardPresence.shared.isReaderCardPresent
+      else { return }
+      let held = certificateDER ?? Self.publishedCertificateDER()
+      if let held, RappCertificateFingerprint(certificate: held) == fingerprint {
         ensurePublished()
         return
+      }
+      if held != nil {
+        Self.withdrawPublishedIdentity()
       }
       readCertificate()
     }
@@ -146,7 +172,7 @@
       let delay = CertificateFetchBackoff.delay(afterFailures: fetchBackoff.failures)
       Task { @MainActor in
         try? await Task.sleep(for: delay)
-        guard holderCardPresent, certificateDER == nil else { return }
+        guard case .present = holderCardStatus, certificateDER == nil else { return }
         readCertificate()
       }
     }
@@ -154,17 +180,24 @@
     private func holderSessionEnded(_ reason: RappConnectionCoordinator.CloseReason) {
       let ended = holderSession
       holderSession = nil
-      holderCardPresent = false
-      switch reason {
-      case .operation(.serviceWithdrawn):
-        // The phone stopped serving; its next session record brings it
-        // back.
-        Self.withdrawPublishedIdentity()
-
-      case .operation(.pairRevoked):
+      holderCardStatus = .absent
+      if reason.peerRevokedPairing {
         if let ended {
           holderRevoked(pairID: ended.pairID)
         }
+        return
+      }
+      if reason == .handshake(.revocationNoticeDelivered) {
+        if let ended {
+          revocationNoticeDelivered(pairID: ended.pairID)
+        }
+        return
+      }
+      switch reason {
+      case _ where reason.serviceWithdrawn:
+        // The phone stopped serving; its next session record brings it
+        // back.
+        Self.withdrawPublishedIdentity()
 
       case .localRequest:
         break
@@ -187,7 +220,7 @@
         try? await Task.sleep(for: Self.sessionLossGrace)
         guard !Task.isCancelled else { return }
         sessionLossTask = nil
-        guard !holderCardPresent else { return }
+        guard case .absent = holderCardStatus else { return }
         Self.withdrawPublishedIdentity()
       }
     }

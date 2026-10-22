@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// `nonce || routing_tag` of a session preamble (RAPP v26.10.18 §2.2.1).
+/// `nonce || routing_tag` of a session preamble (RAPP v26.10.21 §2.2.1).
 internal struct SessionRouting: Equatable {
   internal static let nonceSize = 16
   internal static let tagSize = 16

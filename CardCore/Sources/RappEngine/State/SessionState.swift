@@ -5,30 +5,18 @@
 // break the correspondence the bidirectional conformance test protects.
 // swiftlint:disable sorted_enum_cases
 
-/// Session component state.
+/// Session component state (RAPP v26.10.21 formal state model).
 ///
-/// A session instance exists per connection attempt; `absent` means no live
-/// instance for the pairing, and `closed` is terminal for the instance.
+/// A session instance exists per connection; `closed` is terminal for the
+/// instance. Raw values are the formal model's names.
 internal enum SessionState: String, CaseIterable, Sendable {
   case absent = "absent"
   /// Requester only.
   case connecting = "connecting"
   case authenticating = "authenticating"
   case healthy = "healthy"
-  case checking = "checking"
   case closing = "closing"
   case closed = "closed"
-
-  /// Whether the session can still carry authenticated traffic.
-  internal var carriesAuthenticatedTraffic: Bool {
-    switch self {
-    case .healthy, .checking:
-      true
-
-    case .absent, .connecting, .authenticating, .closing, .closed:
-      false
-    }
-  }
 }
 
 // swiftlint:enable sorted_enum_cases

@@ -2,9 +2,7 @@
 
 import Foundation
 
-/// The vendored routing corpus (RAPP v26.10.18 §2.2.1 and §4.3).
-
-/// The vendored withdrawal corpus (RAPP v26.10.18 §4.5).
+/// The vendored withdrawal corpus (RAPP v26.10.21 §4.5).
 internal struct WithdrawalCorpus: Decodable {
   private enum CodingKeys: String, CodingKey {
     case announcementSelection = "announcement_selection"

@@ -19,10 +19,6 @@ extension RappOperationKind {
         self = .readAuthenticationCertificate
       case .signature:
         self = .readSignatureCertificate
-      case .rootCa:
-        self = .readRootCertificate
-      case .intermediateCa:
-        self = .readIntermediateCertificate
       }
 
     case .browserAuthenticate:

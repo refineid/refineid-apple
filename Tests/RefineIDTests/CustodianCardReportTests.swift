@@ -4,7 +4,7 @@ import Testing
 
 @testable import RefineID
 
-/// When the custodian's word on its card changes (RAPP v26.10.18 §8.4).
+/// When the custodian's word on its card changes (RAPP v26.10.21 §8.4).
 @Suite
 internal struct CustodianCardReportTests {
   @Test("A servable card is present until an operation ends without it")

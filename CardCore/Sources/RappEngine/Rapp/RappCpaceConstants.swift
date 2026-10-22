@@ -3,7 +3,7 @@
 import Foundation
 
 /// Domain separators, sizes and profile literals for the CPaceRistretto255
-/// KC2 profile (draft-irtf-cfrg-cpace-21, RAPP v26.10.9 §6.1).
+/// KC2 profile (draft-irtf-cfrg-cpace-21, RAPP v26.10.21 §6.1).
 internal enum RappCpaceConstants {
   internal static let pointSize = 32
   internal static let offerIdSize = 32
@@ -26,16 +26,16 @@ internal enum RappCpaceConstants {
   internal static let kc2Suite =
     "CPACE-RISTR255-SHA512-RAPP-KC2 + Noise_XXpsk3_25519_ChaChaPoly_SHA512"
 
-  internal static let contextDomain = "RAPP-PAIRING-CONTEXT-v2"
+  internal static let contextDomain = "rapp-pairing-context"
   internal static let initiatorRole = "requester"
   internal static let responderRole = "custodian"
 
-  internal static let transcriptDomain = Data("RAPP-CPACE-TRANSCRIPT-v2".utf8)
-  internal static let pskInfo = Data("RAPP-NOISE-PSK-v2".utf8)
-  internal static let confirmAKeyInfo = Data("RAPP-CPACE-CONFIRM-A-KEY-v2".utf8)
-  internal static let confirmBKeyInfo = Data("RAPP-CPACE-CONFIRM-B-KEY-v2".utf8)
-  internal static let confirmATagDomain = Data("RAPP-CPACE-CONFIRM-A-v2".utf8)
-  internal static let confirmBTagDomain = Data("RAPP-CPACE-CONFIRM-B-v2".utf8)
+  internal static let transcriptDomain = Data("rapp-cpace-transcript".utf8)
+  internal static let pskInfo = Data("rapp-noise-psk".utf8)
+  internal static let confirmAKeyInfo = Data("rapp-cpace-confirm-a-key".utf8)
+  internal static let confirmBKeyInfo = Data("rapp-cpace-confirm-b-key".utf8)
+  internal static let confirmATagDomain = Data("rapp-cpace-confirm-a".utf8)
+  internal static let confirmBTagDomain = Data("rapp-cpace-confirm-b".utf8)
 
   /// RFC 5869 numbers HKDF-Expand blocks from one; one block covers 32 bytes.
   internal static let firstExpandBlock: UInt8 = 1

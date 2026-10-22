@@ -4,6 +4,7 @@
 
   import CardCore
   import Foundation
+  import RappEngine
   import Testing
 
   @testable import RefineID
@@ -18,15 +19,12 @@
       RappRequesterClientError.noSelectedPair,
       RappRequesterClientError.timedOut,
       RappRequesterClientError.transport,
-      RappRequesterClientError.terminal(.userDenied),
-      RappRequesterClientError.terminal(.requestExpired),
-      RappRequesterClientError.terminal(.cancelled),
-      RappRequesterClientError.terminal(.requestInvalidOrUnsupported),
-      RappRequesterClientError.terminal(.retryPolicyRefused),
-      RappRequesterClientError.terminal(.credentialRejected),
-      RappRequesterClientError.terminal(.cardRemovedBeforeTransmit),
-      RappRequesterClientError.terminal(.cardCompletionAmbiguous),
-      RappRequesterClientError.terminal(.invalidCredential),
+      RappRequesterClientError.terminal(.userCancelled),
+      RappRequesterClientError.terminal(.operationExpired),
+      RappRequesterClientError.terminal(.busy),
+      RappRequesterClientError.terminal(.unsupportedParameter),
+      RappRequesterClientError.terminal(.retryFloor),
+      RappRequesterClientError.terminal(.cardError),
     ]
 
     @Test
@@ -45,15 +43,27 @@
     }
 
     @Test
-    internal func phoneCredentialOutcomesMatchTheLocalOnes() {
+    internal func everyRegisteredErrorHasAMessage() {
+      for reason in RappTerminalReason.allCases {
+        #expect(
+          !DocumentSigningMessage.message(for: RappRequesterClientError.terminal(reason))
+            .isEmpty)
+      }
+    }
+
+    @Test
+    internal func thePhoneRetryFloorMatchesTheLocalOne() {
       #expect(
-        DocumentSigningMessage.message(
-          for: RappRequesterClientError.terminal(.credentialRejected))
-          == DocumentSigningMessage.message(for: DocumentSigner.Failure.card(.pinBlocked)))
+        DocumentSigningMessage.message(for: RappRequesterClientError.terminal(.retryFloor))
+          == DocumentSigningMessage.message(
+            for: DocumentSigner.Failure.card(.floorRefused(.refuseLowAttempts))))
+    }
+
+    @Test
+    internal func aPhoneThatCouldNotSignReadsAsNoSignature() {
       #expect(
-        DocumentSigningMessage.message(
-          for: RappRequesterClientError.terminal(.invalidCredential))
-          == CredentialOutcomeMessage.incorrect(credentialName: "PIN 2"))
+        DocumentSigningMessage.message(for: RappRequesterClientError.terminal(.operationFailed))
+          == DocumentSigningMessage.message(for: DocumentSigner.Failure.remote(.noSignature)))
     }
 
     @Test

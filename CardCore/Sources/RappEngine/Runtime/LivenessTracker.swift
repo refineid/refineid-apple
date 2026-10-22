@@ -2,127 +2,72 @@
 
 import Foundation
 
-/// One session's liveness timer.
+/// One session's liveness (RAPP v26.10.21 §8.3): a ping after 5 seconds of
+/// silence, and again every 5 seconds while the silence lasts; the session
+/// is over after 30 seconds without any message from the peer.
 ///
-/// The tracker owns no clock. Every decision is a pure function of an injected
-/// monotonic timestamp, so a schedule is reproducible in a test and cannot
-/// drift with wall-clock changes.
+/// The tracker owns no clock. Every decision is a pure function of an
+/// injected monotonic timestamp, so a schedule is reproducible in a test.
 internal struct LivenessTracker {
-  private enum Phase: Equatable {
-    case waiting(nextProbeAtMilliseconds: UInt64, consecutiveMisses: UInt8)
-    case awaitingPong(
-      challenge: PingChallenge, deadlineMilliseconds: UInt64, consecutiveMisses: UInt8)
-    case closed
+  /// Silence after which a ping is sent.
+  internal static let pingAfterSilenceMilliseconds: UInt64 = 5_000
+
+  /// Silence that ends the session.
+  internal static let sessionSilenceLimitMilliseconds: UInt64 = 30_000
+
+  private var lastHeardMilliseconds: UInt64
+  private var lastPingMilliseconds: UInt64?
+  private var outstanding: PingChallenge?
+  private var closed = false
+
+  internal init(nowMilliseconds: UInt64) {
+    lastHeardMilliseconds = nowMilliseconds
   }
 
-  /// The smallest interval a negative jitter may produce, so a schedule can
-  /// never collapse to an immediate reprobe.
-  private static let minimumJitteredInterval: UInt64 = 1
-
-  /// Largest shift the backoff applies before it saturates.
-  private static let maximumBackoffShift: UInt8 = 63
-
-  private let configuration: LivenessConfiguration
-
-  private var phase: Phase
-
-  /// Whether the tracker still expects an echo for a probe it sent.
-  internal var hasOutstandingChallenge: Bool {
-    if case .awaitingPong = phase { return true }
-    return false
-  }
-
-  internal init(configuration: LivenessConfiguration, nowMilliseconds: UInt64) throws {
-    let validated = try configuration.validated()
-    self.configuration = validated
-    phase = .waiting(
-      nextProbeAtMilliseconds: nowMilliseconds &+ validated.baseIntervalMilliseconds,
-      consecutiveMisses: 0)
-  }
-
-  private static func jittered(
-    interval: UInt64,
-    maximumJitter: UInt64,
-    jitter: Int64
-  ) -> UInt64 {
-    let magnitude = min(jitter.magnitude, maximumJitter)
-    if jitter < 0 {
-      return max(interval > magnitude ? interval - magnitude : 0, minimumJitteredInterval)
-    }
-    return interval &+ magnitude
+  /// Any message from the peer ends the silence.
+  internal mutating func heard(nowMilliseconds: UInt64) {
+    lastHeardMilliseconds = nowMilliseconds
+    lastPingMilliseconds = nil
   }
 
   /// Advances the timer.
   ///
-  /// The challenge is consumed only when a probe is due.
+  /// The challenge is consumed only when a ping is due.
   internal mutating func poll(
-    nowMilliseconds: UInt64,
-    nextChallenge: PingChallenge,
-    jitterMilliseconds: Int64
+    nowMilliseconds: UInt64, nextChallenge: PingChallenge
   ) -> LivenessDecision {
-    switch phase {
-    case .waiting(let nextProbeAt, let misses) where nowMilliseconds >= nextProbeAt:
-      phase = .awaitingPong(
-        challenge: nextChallenge,
-        deadlineMilliseconds: nowMilliseconds &+ configuration.responseTimeoutMilliseconds,
-        consecutiveMisses: misses)
-      return .sendPing(nextChallenge)
-
-    case .awaitingPong(_, let deadline, let misses) where nowMilliseconds >= deadline:
-      return missProbe(nowMilliseconds: nowMilliseconds, misses: misses, jitter: jitterMilliseconds)
-
-    case .closed:
-      return .alreadyClosed
-
-    case .waiting, .awaitingPong:
-      return .noAction
+    guard !closed else { return .alreadyClosed }
+    let silence =
+      nowMilliseconds > lastHeardMilliseconds
+      ? nowMilliseconds - lastHeardMilliseconds : 0
+    guard silence < Self.sessionSilenceLimitMilliseconds else {
+      closed = true
+      return .closeSession
     }
+    let sincePing =
+      lastPingMilliseconds.map { ping in
+        nowMilliseconds > ping ? nowMilliseconds - ping : 0
+      } ?? silence
+    guard silence >= Self.pingAfterSilenceMilliseconds,
+      sincePing >= Self.pingAfterSilenceMilliseconds
+    else { return .noAction }
+    lastPingMilliseconds = nowMilliseconds
+    outstanding = nextChallenge
+    return .sendPing(nextChallenge)
   }
 
-  /// Accepts only the exact challenge currently outstanding.
+  /// Accepts only the exact challenge outstanding.
   internal mutating func receivePong(
-    nowMilliseconds: UInt64,
-    challenge: PingChallenge
+    nowMilliseconds: UInt64, challenge: PingChallenge
   ) -> PongDisposition {
-    guard case .awaitingPong(let expected, _, _) = phase, challenge == expected else {
-      return .ignoredUnmatched
-    }
-    phase = .waiting(
-      nextProbeAtMilliseconds: nowMilliseconds &+ configuration.baseIntervalMilliseconds,
-      consecutiveMisses: 0)
+    guard outstanding == challenge else { return .ignoredUnmatched }
+    outstanding = nil
+    heard(nowMilliseconds: nowMilliseconds)
     return .accepted
   }
 
   /// Closes this tracker permanently.
   internal mutating func close() {
-    phase = .closed
-  }
-
-  private mutating func missProbe(
-    nowMilliseconds: UInt64,
-    misses: UInt8,
-    jitter: Int64
-  ) -> LivenessDecision {
-    let attempted = misses == UInt8.max ? misses : misses + 1
-    guard attempted < configuration.maximumMisses else {
-      phase = .closed
-      return .closeSession
-    }
-    let interval = Self.jittered(
-      interval: backoffInterval(misses: attempted),
-      maximumJitter: configuration.maximumJitterMilliseconds,
-      jitter: jitter)
-    let nextProbeAt = nowMilliseconds &+ interval
-    phase = .waiting(nextProbeAtMilliseconds: nextProbeAt, consecutiveMisses: attempted)
-    return .probeMissed(nextProbeAtMilliseconds: nextProbeAt)
-  }
-
-  /// Doubles the base interval once per miss, bounded by the policy ceiling.
-  private func backoffInterval(misses: UInt8) -> UInt64 {
-    let shift = min(misses, Self.maximumBackoffShift)
-    let multiplier = UInt64(1) << UInt64(shift)
-    let scaled = configuration.baseIntervalMilliseconds.multipliedReportingOverflow(by: multiplier)
-    let interval = scaled.overflow ? UInt64.max : scaled.partialValue
-    return min(interval, configuration.maximumIntervalMilliseconds)
+    closed = true
   }
 }

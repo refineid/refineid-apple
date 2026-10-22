@@ -6,7 +6,7 @@ import Foundation
 /// Scheme name carried inside the encoded offer.
 internal let offerSchemeName = "rapp"
 
-/// Validated pairing offer (RAPP v26.10.9 §4.2).
+/// Validated pairing offer (RAPP v26.10.21 §4.2).
 ///
 /// The offer carries no secret: the pre-shared key comes from CPace, so the
 /// offer is public and its hash binds the context, the prologue and the
@@ -20,25 +20,24 @@ internal struct PairingOffer: Sendable {
   internal let suites: [String]
   internal let profiles: [String]
   internal let transports: [TransportCandidate]
-  internal let offerLifetimeMilliseconds: UInt64
 
+  /// Every offer lives `OfferLimit.offerLifetimeMilliseconds` (§3.3), so its
+  /// `offer_ttl_ms` is that and nothing else.
   internal init(
     offerIdentifier: Data,
     suites: [String],
     profiles: [String],
-    transports: [TransportCandidate],
-    offerLifetimeMilliseconds: UInt64
+    transports: [TransportCandidate]
   ) throws {
     self.offerIdentifier = offerIdentifier
     self.suites = suites
     self.profiles = profiles
     self.transports = transports
-    self.offerLifetimeMilliseconds = offerLifetimeMilliseconds
     try validate()
   }
 
   /// A fresh offer naming `transportProfiles`, each with its registered
-  /// entry (RAPP v26.10.9 §4.2).
+  /// entry (RAPP v26.10.21 §4.2).
   ///
   /// The identifier is randomness the caller draws; it is never derived
   /// from the pairing code.
@@ -57,8 +56,7 @@ internal struct PairingOffer: Sendable {
       profiles: profiles,
       transports: entries.sorted { first, second in
         Data(first.profile.utf8).lexicographicallyPrecedes(Data(second.profile.utf8))
-      },
-      offerLifetimeMilliseconds: OfferLimit.offerLifetimeMilliseconds)
+      })
   }
 
   /// Decodes `encode_deterministic_cbor(pairing-offer)`.
@@ -82,13 +80,14 @@ internal struct PairingOffer: Sendable {
     let decodedSuites = try offerTakeTextArray(&map, "suites")
     let decodedProfiles = try offerTakeTextArray(&map, "profiles")
     let decodedTransports = try offerTakeArray(&map, "transports").map(candidateFrom)
-    let lifetime = try offerTakeUnsigned(&map, "offer_ttl_ms")
+    guard try offerTakeUnsigned(&map, "offer_ttl_ms") == OfferLimit.offerLifetimeMilliseconds else {
+      throw PairingOfferError.invalidLifetime
+    }
     return try Self(
       offerIdentifier: decodedOfferIdentifier,
       suites: decodedSuites,
       profiles: decodedProfiles,
-      transports: decodedTransports,
-      offerLifetimeMilliseconds: lifetime)
+      transports: decodedTransports)
   }
 
   private static func candidateValue(_ candidate: TransportCandidate) -> WireValue {
@@ -125,9 +124,6 @@ internal struct PairingOffer: Sendable {
     guard transports.count <= OfferLimit.transportCandidates else {
       throw PairingOfferError.tooManyTransports
     }
-    guard offerLifetimeMilliseconds == OfferLimit.offerLifetimeMilliseconds else {
-      throw PairingOfferError.invalidLifetime
-    }
     let names = transports.map { Data($0.profile.utf8) }
     guard zip(names, names.dropFirst()).allSatisfy({ $0.lexicographicallyPrecedes($1) }),
       transports.allSatisfy({ TransportRegistry.entry(for: $0.profile) == $0 })
@@ -150,7 +146,7 @@ internal struct PairingOffer: Sendable {
       "suites": .array(suites.map(WireValue.text)),
       "profiles": .array(profiles.map(WireValue.text)),
       "transports": .array(transports.map(Self.candidateValue)),
-      "offer_ttl_ms": .unsigned(offerLifetimeMilliseconds),
+      "offer_ttl_ms": .unsigned(OfferLimit.offerLifetimeMilliseconds),
     ]
     let bytes = try WireValue.map(map).encoded()
     guard bytes.count <= OfferLimit.encodedOfferSize else { throw PairingOfferError.oversized }

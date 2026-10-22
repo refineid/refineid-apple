@@ -3,7 +3,7 @@
 import Foundation
 
 /// Routes first frames for one listener, remembering the routing nonces it
-/// admitted so a replayed preamble is refused (RAPP v26.10.18 §2.2.1).
+/// admitted so a replayed preamble is refused (RAPP v26.10.21 §2.2.1).
 public final class RappSessionRouter: @unchecked Sendable {
   private let lock = NSLock()
   private var replay = RoutingReplayCache()
@@ -23,7 +23,7 @@ public final class RappSessionRouter: @unchecked Sendable {
       return .pairing
 
     case .session(let routing):
-      let keys = records.map { RoutingKey(record: $0.record) }
+      let keys = records.map { pair in (try? pair.record).flatMap(RoutingKey.init(record:)) }
       guard let index = RoutingKey.route(keys: keys, profile: transportProfile, routing: routing)
       else { return .refuse }
       let fresh = lock.withLock { replay.admit(routing.nonce) }

@@ -4,322 +4,154 @@
   import Foundation
   import RappEngine
 
-  extension RappBridgeActionKind {
-    /// Whether the step names an operation for the card or the holder.
-    ///
-    /// Exhaustive on purpose: a new kind must be routed here explicitly
-    /// rather than falling silently into the session-level table.
-    internal var isOperationStep: Bool {
-      switch self {
-      case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
-        .executeCardCommand, .terminal, .cancelled, .progress:
-        true
-
-      case .sendFrame, .resultAcknowledgment, .completed, .resultAcknowledged,
-        .peerBusy, .peerUnknownOperation, .ignoredDuplicate, .noAction,
-        .sessionClosed, .pairRevoked, .cardStatus:
-        false
-      }
-    }
-  }
-
   /// Turning one bridge action into the caller's commands.
   extension RappOperationDriver {
     /// Must be called only after the transport reports whether it released the
-    /// corresponding frame.
-    ///
-    /// A failed release classifies all in-flight work as a closed or ambiguous
-    /// session through the Rust engine.
+    /// corresponding frame; a failed release closes the session.
     public func frameReleased(_ release: FrameRelease, succeeded: Bool) -> [Command] {
       guard !closed else { return [] }
       guard succeeded else { return transportClosed() }
+      switch release {
+      case .noRelease:
+        return []
 
-      do {
-        switch release {
-        case .noRelease:
-          return []
-
-        case .resultAcknowledgment(let operationID):
-          let result = try bridge.acknowledgmentReleased(operationId: operationID)
-          return [.completed(operationID: operationID, result: Result(result))]
-
-        case .terminalAcknowledgment(let operationID):
-          try bridge.terminalAcknowledgmentReleased(operationId: operationID)
-          return heldTerminalSteps.removeValue(forKey: operationID) ?? []
-
-        case .closeSession:
-          closed = true
-          return [.closed(revokedWhileClosing ? .pairRevoked : .terminalFrameReleased)]
-        }
-      } catch {
-        return protocolFailure()
+      case .closeSession(let reason):
+        closed = true
+        return [.closed(reason)]
       }
     }
 
-    /// Advances authenticated liveness with fresh challenge bytes and the
-    /// caller-generated jitter.
-    public func pollLiveness(jitterMilliseconds: Int64) -> [Command] {
+    /// Advances liveness with fresh challenge bytes: a ping after 5 seconds
+    /// of silence, the session's end after 30 (RAPP v26.10.21 §8.3).
+    public func pollLiveness() -> [Command] {
       guard !closed else { return [] }
       do {
         return try commands(
           bridge.pollLiveness(
-            nowMs: clock.monotonicMilliseconds(),
-            challenge: entropy.livenessChallenge(),
-            jitterMs: jitterMilliseconds
-          ))
+            nowMs: clock.monotonicMilliseconds(), challenge: entropy.livenessChallenge()))
       } catch {
         return protocolFailure()
       }
     }
 
     /// Closes the session after the transport reported closure.
-    ///
-    /// A pairing revoked while this driver lived outranks the transport
-    /// as the reason: the close is the revocation's, however the frames
-    /// stopped flowing.
     public func transportClosed() -> [Command] {
       guard !closed else { return [] }
-      closed = true
-      _ = bridge.closeSession()
-      return [.closed(revokedWhileClosing ? .pairRevoked : .transportClosed)]
+      return ending(bridge.closeSession(), as: .transportClosed)
     }
 
     /// Closes the session at local request.
     public func close() -> [Command] {
       guard !closed else { return [] }
-      closed = true
-      _ = bridge.closeSession()
-      return [.closed(revokedWhileClosing ? .pairRevoked : .localRequest)]
+      return ending(bridge.closeSession(), as: .localRequest)
     }
 
     /// Ends the session with an authenticated close carrying `reason`;
-    /// the pairing stays.
+    /// the pairing stays unless `reason` is `pairingRevoked`.
     public func close(reason: RappCloseReason) -> [Command] {
       guard !closed else { return [] }
-      do {
-        return try commands(bridge.closeWithReason(reason))
-      } catch {
-        return close()
-      }
+      return commands(bridge.closeWithReason(reason))
     }
 
-    /// Tells the requester whether a card this custodian can serve is
-    /// present (RAPP v26.10.18 §8.4).
-    public func reportCardStatus(present: Bool) -> [Command] {
+    /// Tells the requester which card can answer now (§8.4).
+    public func reportCardStatus(_ status: RappCardStatus) -> [Command] {
       guard !closed else { return [] }
       do {
-        return try commands(bridge.reportCardStatus(cardPresent: present))
+        return try commands(bridge.reportCardStatus(status))
       } catch {
         return []
       }
     }
 
-    /// Ends the session and the pairing because the card can no longer
-    /// be served.
-    public func revokeBecauseCardUnavailable() -> [Command] {
-      guard !closed else { return [] }
-      do {
-        return try commands(bridge.cardUnavailableClose())
-      } catch {
-        return close()
-      }
-    }
+    internal func commands(_ action: RappBridgeAction) -> [Command] {
+      switch action {
+      case .sendFrame(let frame, _):
+        return [.send(frame: frame, release: .noRelease)]
 
-    internal func commands(_ action: RappBridgeAction) throws -> [Command] {
-      if action.revokesPairing {
-        // The revocation is written before any notice frame is released,
-        // so the pairing is dead even if the notice never arrives. The
-        // close is reported as a revocation either way - the protocol
-        // event happened and the app must fail-stop - but a refused
-        // write is retried once here and again on the next incident,
-        // not silently forgotten.
-        revokedWhileClosing = true
-        revokePairDurably()
-      }
-      if let frame = action.frame, action.kind == .terminal {
-        // The terminal step and its acknowledgement are one outcome: the
-        // custodian learns the result arrived, then the app learns the
-        // result, so nothing the app does on it can cut the frame off.
-        guard let operationID = action.operationId else {
-          throw LocalError.missingOperationIdentifier
-        }
-        heldTerminalSteps[operationID] = try stepCommands(action)
-        return [.send(frame: frame, release: try release(for: action))]
-      }
-      if let frame = action.frame {
-        let followUps = action.additionalFrames.map { Command.send(frame: $0, release: .noRelease) }
-        return try scheduled(
-          [.send(frame: frame, release: release(for: action))] + followUps, for: action)
-      }
-      if action.kind.isOperationStep {
-        return try stepCommands(action)
-      }
-      return try lifecycleCommands(action)
-    }
+      case .sendClose(let frame, let reason, let ended):
+        return closing(frame: frame, reason: reason, ended: ended)
 
-    /// Writes the revocation the vault must hold, retrying one refusal.
-    ///
-    /// A pairing already revoked answers the second attempt as done; a
-    /// vault refusing both writes leaves the record for the next
-    /// incident, while the in-memory fail-stop still ends this
-    /// connection.
-    private func revokePairDurably() {
-      let revokedAt = clock.wallMilliseconds()
-      if (try? vault.revokeDeviceOnly(pairId: pairID, revokedAtMs: revokedAt)) != nil {
-        return
-      }
-      try? vault.revokeDeviceOnly(pairId: pairID, revokedAtMs: revokedAt)
-    }
+      case .custodianStep(let operationID, let step, let descriptor):
+        return [custodianCommand(step, operationID: operationID, operation: Operation(descriptor))]
 
-    /// The release token the transport must return for one frame.
-    private func release(for action: RappBridgeAction) throws -> FrameRelease {
-      if action.kind == .resultAcknowledgment {
-        guard let operationID = action.operationId else {
-          throw LocalError.missingOperationIdentifier
-        }
-        return .resultAcknowledgment(operationID: operationID)
-      }
-      if action.kind == .terminal {
-        guard let operationID = action.operationId else {
-          throw LocalError.missingOperationIdentifier
-        }
-        return .terminalAcknowledgment(operationID: operationID)
-      }
-      return action.closeSessionAfterSend ? .closeSession : .noRelease
-    }
+      case .completed(let operationID, let result):
+        return [.completed(operationID: operationID, result: result)]
 
-    /// Commands for the steps that name an operation.
-    private func stepCommands(_ action: RappBridgeAction) throws -> [Command] {
-      let operationID = action.operationId
-      switch action.kind {
-      case .inspectPrerequisites:
-        return scheduled(
-          [try operationCommand(action, operationID: operationID, kind: .inspect)],
-          for: action
-        )
+      case .terminal(let operationID, let reason):
+        return [.terminal(operationID: operationID, reason: reason)]
 
-      case .awaitUserApproval:
-        return scheduled(
-          [try operationCommand(action, operationID: operationID, kind: .approval)],
-          for: action
-        )
+      case .progress(let operationID, let event):
+        return [.progress(operationID: operationID, event: event)]
 
-      case .executeSafeRead:
-        return scheduled(
-          [try operationCommand(action, operationID: operationID, kind: .safeRead)],
-          for: action
-        )
+      case .cardStatus(let status):
+        return [.cardStatus(status)]
 
-      case .executeCardCommand:
-        return scheduled(
-          [try operationCommand(action, operationID: operationID, kind: .cardCommand)],
-          for: action
-        )
-
-      case .terminal, .cancelled:
-        var commands: [Command] = []
-        if let operationID, !action.batchSignatures.isEmpty {
-          commands.append(
-            .batchSignatures(operationID: operationID, signatures: action.batchSignatures))
-        }
-        commands.append(
-          .terminal(
-            operationID: operationID,
-            state: action.terminalState,
-            reason: action.terminalReason.map(TerminalReason.init)))
-        return scheduled(commands, for: action)
-
-      case .progress:
-        guard let operationID, let event = action.progressEvent else {
-          throw LocalError.missingOperationIdentifier
-        }
-        return scheduled([.progress(operationID: operationID, event: event)], for: action)
-
-      case .sendFrame, .resultAcknowledgment, .completed, .resultAcknowledged,
-        .peerBusy, .peerUnknownOperation, .ignoredDuplicate, .noAction,
-        .sessionClosed, .pairRevoked, .cardStatus:
-        throw LocalError.wrongPhase
-      }
-    }
-
-    /// Commands for the session-level outcomes.
-    private func lifecycleCommands(_ action: RappBridgeAction) throws -> [Command] {
-      let operationID = action.operationId
-      switch action.kind {
-      case .resultAcknowledged:
-        return scheduled([.operationFinished(operationID: operationID)], for: action)
-
-      case .peerBusy:
-        return scheduled([.peerBusy(operationID: operationID)], for: action)
-
-      case .peerUnknownOperation:
-        return scheduled([.peerUnknownOperation(operationID: operationID)], for: action)
+      case .noAction:
+        return []
 
       case .sessionClosed:
-        closed = true
-        return [
-          .closed(action.closeReason == .serviceWithdrawn ? .serviceWithdrawn : .protocolFailure)
-        ]
-
-      case .pairRevoked:
-        closed = true
-        return [.closed(.pairRevoked)]
-
-      case .cardStatus:
-        let present = action.cardPresent
-        return scheduled([.cardStatus(present: present)], for: action)
-
-      case .sendFrame, .resultAcknowledgment:
-        throw LocalError.missingFrame
-
-      case .completed:
-        throw LocalError.wrongPhase
-
-      case .ignoredDuplicate, .noAction:
-        return scheduled([], for: action)
-
-      case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,
-        .executeCardCommand, .terminal, .cancelled, .progress:
-        throw LocalError.wrongPhase
+        return ending(action, as: closeReason(received: action))
       }
     }
 
-    private func scheduled(
-      _ commands: [Command],
-      for action: RappBridgeAction
-    ) -> [Command] {
-      guard let deadline = action.nextPollAtMs else { return commands }
-      return commands + [.scheduleLiveness(atMonotonicMilliseconds: deadline)]
+    /// The command for the custodian's next step on its live operation.
+    private func custodianCommand(
+      _ step: RappCustodianStep, operationID: RappOperationIdentifier, operation: Operation
+    ) -> Command {
+      switch step {
+      case .inspectPrerequisites:
+        .inspectPrerequisites(operationID: operationID, operation: operation)
+
+      case .awaitUserApproval:
+        .awaitUserApproval(operationID: operationID, operation: operation)
+
+      case .executeSafeRead:
+        .executeSafeRead(operationID: operationID, operation: operation)
+
+      case .executeCardCommand:
+        .executeCardCommand(operationID: operationID, operation: operation)
+      }
     }
 
-    private func operationCommand(
-      _ action: RappBridgeAction,
-      operationID: Data?,
-      kind: OperationCommandKind
-    ) throws -> Command {
-      guard let operationID else { throw LocalError.missingOperationIdentifier }
-      guard let descriptor = action.operation else { throw LocalError.missingOperation }
-      let operation = Operation(descriptor)
-      switch kind {
-      case .inspect:
-        return .inspectPrerequisites(operationID: operationID, operation: operation)
+    /// The commands for a `session.close` this endpoint sends: the operation
+    /// that ended with the session, then the frame, whose release ends it.
+    private func closing(
+      frame: Data, reason: RappCloseReason, ended: RappEndedOperation?
+    ) -> [Command] {
+      let release: CloseReason =
+        reason == .protocolViolation ? .protocolFailure : .terminalFrameReleased
+      let send = Command.send(frame: frame, release: .closeSession(release))
+      guard let ended else { return [send] }
+      return [.operationEnded(ended), send]
+    }
 
-      case .approval:
-        return .awaitUserApproval(operationID: operationID, operation: operation)
+    /// The commands for a session that ended: the operation that ended with
+    /// it, then the close.
+    private func ending(_ action: RappBridgeAction, as reason: CloseReason) -> [Command] {
+      closed = true
+      guard case .sessionClosed(_, let ended?) = action else { return [.closed(reason)] }
+      return [.operationEnded(ended), .closed(reason)]
+    }
 
-      case .safeRead:
-        return .executeSafeRead(operationID: operationID, operation: operation)
+    /// Why the session closed when the peer closed it, or it ended without a
+    /// notice.
+    private func closeReason(received action: RappBridgeAction) -> CloseReason {
+      guard case .sessionClosed(let reason?, _) = action else { return .transportClosed }
+      switch reason {
+      case .pairingRevoked:
+        return .pairRevoked
 
-      case .cardCommand:
-        return .executeCardCommand(operationID: operationID, operation: operation)
+      case .serviceWithdrawn:
+        return .serviceWithdrawn
+
+      default:
+        return .peerClosed(reason)
       }
     }
 
     internal func protocolFailure() -> [Command] {
       guard !closed else { return [] }
-      closed = true
-      _ = bridge.closeSession()
-      return [.closed(.protocolFailure)]
+      return ending(bridge.closeSession(), as: .protocolFailure)
     }
   }
 #endif

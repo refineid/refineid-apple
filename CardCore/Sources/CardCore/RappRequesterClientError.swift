@@ -12,7 +12,7 @@
     /// nothing about the card was learned.
     case peerNotFound
     case protocolFailure
-    case terminal(RappOperationDriver.TerminalReason?)
+    case terminal(RappTerminalReason)
     case timedOut
     case transport
     case unexpectedResult

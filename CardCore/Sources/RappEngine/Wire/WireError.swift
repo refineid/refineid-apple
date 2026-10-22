@@ -8,7 +8,6 @@ import Foundation
 /// names cross the conformance corpus verbatim.
 internal enum WireError: Error, Equatable, CustomStringConvertible {
   case collectionTooLarge(got: Int)
-  case criticalExtensionMissing
   case duplicateMapKey
   case forbiddenCborType
   case integerOverflow
@@ -25,7 +24,6 @@ internal enum WireError: Error, Equatable, CustomStringConvertible {
   case truncated
   case unknownField
   case unknownMessageType
-  case unsupportedCriticalExtension
   case unsupportedVersion
   case wrongLength(field: String, expected: Int, got: Int)
   case wrongSequence(expected: UInt64, got: UInt64)
@@ -36,9 +34,6 @@ internal enum WireError: Error, Equatable, CustomStringConvertible {
     switch self {
     case .collectionTooLarge(let got):
       "CollectionTooLarge { got: \(got) }"
-
-    case .criticalExtensionMissing:
-      "CriticalExtensionMissing"
 
     case .duplicateMapKey:
       "DuplicateMapKey"
@@ -87,9 +82,6 @@ internal enum WireError: Error, Equatable, CustomStringConvertible {
 
     case .unknownMessageType:
       "UnknownMessageType"
-
-    case .unsupportedCriticalExtension:
-      "UnsupportedCriticalExtension"
 
     case .unsupportedVersion:
       "UnsupportedVersion"

@@ -15,9 +15,6 @@ internal struct EstablishedSession {
 
   internal var isOpen: Bool { channel != nil }
 
-  /// The highest peer sequence accepted, for close and liveness bodies.
-  internal var lastReceivedSequence: UInt64 { channel?.lastReceivedSequence ?? 0 }
-
   internal init(
     role: EndpointRole,
     pairIdentifier: Data,
@@ -28,33 +25,6 @@ internal struct EstablishedSession {
     self.pairIdentifier = pairIdentifier
     self.sessionIdentifier = sessionIdentifier
     self.channel = channel
-  }
-
-  /// Seals one opaque payload over this session's cipher.
-  internal mutating func sealPayload(_ payload: Data) throws -> Data {
-    guard var working = channel else { throw SessionError.closed }
-    let frame: Data
-    do {
-      frame = try working.sealPayload(payload)
-    } catch {
-      throw SessionError.noise
-    }
-    channel = working
-    return frame
-  }
-
-  /// Opens one opaque payload, ending the session if it will not open.
-  internal mutating func openPayload(_ frame: Data) throws -> Data {
-    guard var working = channel else { throw SessionError.closed }
-    let payload: Data
-    do {
-      payload = try working.openPayload(frame)
-    } catch {
-      channel = nil
-      throw SessionError.integrityFailure
-    }
-    channel = working
-    return payload
   }
 
   internal mutating func seal(
@@ -80,11 +50,10 @@ internal struct EstablishedSession {
       channel = nil
       throw SessionError.integrityFailure
     } catch {
-      // The frame decrypted, so it came from the paired peer holding the
-      // right key, and its contents broke the protocol. The channel stays
-      // open - the cipher state is intact - so the operation bridge can
-      // still seal the close notice the violation owes the peer before it
-      // closes the session and applies the pairing effect.
+      // The frame decrypted and its contents broke the protocol. The
+      // channel stays open - the cipher state is intact - so the operation
+      // bridge can still seal the protocol_violation close before it closes
+      // the session (RAPP v26.10.21 §10.1).
       channel = working
       throw SessionError.unexpectedMessage
     }

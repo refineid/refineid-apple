@@ -35,11 +35,11 @@ internal struct SessionHandshake {
   }
 
   /// Binds the session to the connection's transport, not the one the
-  /// pairing ran over (RAPP v26.10.9 §4.3.5).
+  /// pairing ran over (RAPP v26.10.21 §4.3 item 5).
   private static func begin(pair: PairRecord, transportProfile: String) throws -> Self {
     guard pair.storageConfirmed else { throw SessionError.storageUnconfirmed }
     guard let transport = TransportRegistry.entry(for: transportProfile) else {
-      throw SessionError.noise
+      throw SessionError.unregisteredTransport
     }
     do {
       let decodedNoise = try NoiseHandshakeState(

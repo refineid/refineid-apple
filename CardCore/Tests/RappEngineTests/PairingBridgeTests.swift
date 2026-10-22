@@ -5,16 +5,15 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.10.9 pairing bridge: CPace KC2, attempt accounting, ceremony")
+@Suite("RAPP v26.10.21 pairing bridge: CPace KC2, attempt accounting, ceremony")
 internal struct PairingBridgeTests {
   private static let code = "7KX4M9"
   private static let wrongCode = "7KX4M8"
-  private static let candidate = "stream-1"
+  private static let candidate = TransportRegistry.streamCandidateIdentifier
   private static let profiles = [
-    "fi.refineid.card-status.v1", "fi.refineid.authentication.v1",
-    "fi.refineid.document-signing.v1",
+    "fi.refineid.card-status", "fi.refineid.authentication",
+    "fi.refineid.document-signing",
   ]
-  private static let lifetime: UInt64 = 60_000
   private static let attemptWindow = CpaceAttemptLedger.attemptWindowMilliseconds
 
   /// The custodian's offer over the stream transport.

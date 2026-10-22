@@ -1,16 +1,4 @@
-// Copyright 2026 Petri Koistinen <petri.koistinen@iki.fi>
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     https://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 import CryptoKit
 import Foundation
@@ -18,6 +6,13 @@ import Testing
 
 @Suite("RAPP independent conformance corpus")
 internal struct RappConformanceCorpusTests {
+  // MARK: Static Properties
+
+  /// The pinned corpus file, and the SHA-256 digest of its bytes.
+  private static let corpusPath = "Documentation/rapp-conformance/rapp-v26.10.21.json"
+  private static let corpusDigest =
+    "70c88ba7f9aa680248b120dbb4ecac0dfbb2c005be49aad5094e5dc8216348db"
+
   // MARK: Static Functions
 
   private static func corpus() throws -> RappConformanceCorpusSupport.Corpus {
@@ -32,7 +27,7 @@ internal struct RappConformanceCorpusTests {
     return try Data(
       contentsOf:
         repositoryRoot
-        .appendingPathComponent("Documentation/rapp-conformance/rapp-v26.10.18.json")
+        .appendingPathComponent(corpusPath)
     )
   }
 
@@ -42,19 +37,16 @@ internal struct RappConformanceCorpusTests {
   internal func corpusIdentity() throws {
     let source = try Self.corpusSource()
     let digest = Data(SHA256.hash(data: source))
-    #expect(
-      RappConformanceCorpusSupport.hex(digest)
-        == "e6c2e58b94bc0e41eba47676ee00fed88921d9abf0f1aa8dc9398ff163b1fbbb")
+    #expect(RappConformanceCorpusSupport.hex(digest) == Self.corpusDigest)
 
     let corpus = try JSONDecoder().decode(
       RappConformanceCorpusSupport.Corpus.self,
       from: source)
-    #expect(corpus.format == "fi.refineid.rapp.conformance-v1")
-    #expect(corpus.protocolDocumentVersion == "26.10.18")
+    #expect(corpus.format == "fi.refineid.rapp.conformance")
+    #expect(corpus.protocolDocumentVersion == "26.10.21")
     #expect(corpus.deterministicCBOR.count == 15)
     #expect(corpus.identifierDerivation.count == 2)
     #expect(corpus.grantsHash.count == 3)
-    #expect(corpus.requestHash.count == 1)
     #expect(corpus.rejectedCBOR.count == 8)
   }
 
@@ -71,10 +63,13 @@ internal struct RappConformanceCorpusTests {
   internal func identifierDerivation() throws {
     for vector in try Self.corpus().identifierDerivation {
       let handshakeHash = try RappConformanceCorpusSupport.data(fromHex: vector.handshakeHashHex)
-      let pairInput = Data("RAPP-pair-id-v1".utf8) + handshakeHash
-      let sessionInput = Data("RAPP-session-id-v1".utf8) + handshakeHash
-      let pairID = Data(SHA512.hash(data: pairInput).prefix(16))
-      let sessionID = Data(SHA512.hash(data: sessionInput).prefix(16))
+      let pairInput =
+        Data(RappNoiseAndEnvelopeCorpusSupport.pairIdentifierLabel.utf8) + handshakeHash
+      let sessionInput =
+        Data(RappNoiseAndEnvelopeCorpusSupport.sessionIdentifierLabel.utf8) + handshakeHash
+      let identifierLength = RappNoiseAndEnvelopeCorpusSupport.Constants.hashPrefixLength
+      let pairID = Data(SHA512.hash(data: pairInput).prefix(identifierLength))
+      let sessionID = Data(SHA512.hash(data: sessionInput).prefix(identifierLength))
       let expectedPairID = try RappConformanceCorpusSupport.data(fromHex: vector.pairIDHex)
       let expectedSessionID = try RappConformanceCorpusSupport.data(fromHex: vector.sessionIDHex)
       #expect(pairID == expectedPairID)
@@ -93,28 +88,6 @@ internal struct RappConformanceCorpusTests {
       )
       let expectedPreimage = try RappConformanceCorpusSupport.data(
         fromHex: vector.canonicalCBORHex
-      )
-      let expectedHash = try RappConformanceCorpusSupport.data(fromHex: vector.sha256Hex)
-      #expect(preimage == expectedPreimage)
-      #expect(Data(SHA256.hash(data: preimage)) == expectedHash)
-    }
-  }
-
-  @Test("Swift independently constructs and commits a request")
-  internal func requestHash() throws {
-    for vector in try Self.corpus().requestHash {
-      let preimageValue = try RappConformanceCorpusSupport.CorpusValue.array([
-        .text("RAPP-request-v1"),
-        .bytes(RappConformanceCorpusSupport.data(fromHex: vector.pairIDHex)),
-        .bytes(RappConformanceCorpusSupport.data(fromHex: vector.operationIDHex)),
-        .text(vector.profile),
-        .text(vector.action),
-        vector.context,
-        vector.payload,
-      ])
-      let preimage = try RappConformanceCorpusSupport.DeterministicCBOR.encode(preimageValue)
-      let expectedPreimage = try RappConformanceCorpusSupport.data(
-        fromHex: vector.preimageCBORHex
       )
       let expectedHash = try RappConformanceCorpusSupport.data(fromHex: vector.sha256Hex)
       #expect(preimage == expectedPreimage)

@@ -2,6 +2,7 @@
 
 import CardCore
 import Foundation
+import RappEngine
 
 /// One localized failure vocabulary shared by macOS and iOS signing.
 internal enum DocumentSigningMessage {
@@ -100,40 +101,31 @@ internal enum DocumentSigningMessage {
     }
   }
 
-  private static func terminalReasonMessage(
-    _ reason: RappOperationDriver.TerminalReason?
-  ) -> String {
+  /// What the requester's user is told for the error name the phone gave
+  /// (RAPP v26.10.21 §10.3).
+  private static func terminalReasonMessage(_ reason: RappTerminalReason) -> String {
     switch reason {
-    case .userDenied:
+    case .userCancelled:
       text(
         "error.remoteDenied",
         "The signature request was declined on the paired phone.")
 
-    case .invalidCredential:
-      CredentialOutcomeMessage.incorrect(credentialName: "PIN 2")
-
-    case .credentialRejected:
-      pin2BlockedMessage()
-
-    case .retryPolicyRefused:
+    case .retryFloor:
       CredentialOutcomeMessage.lowAttemptRefusal()
 
-    case .requestExpired:
+    case .operationExpired:
       text("error.remoteExpired", "The request was not approved on the phone in time.")
 
-    case .cancelled:
+    case .busy, .duplicateOperation, .invalidLifetime:
       text("error.remoteCancelled", "The signature request was cancelled.")
 
-    case .requestInvalidOrUnsupported:
+    case .unauthorized, .unsupportedParameter:
       text("error.remoteUnsupported", "The phone cannot make this kind of signature.")
 
-    case .cardRemovedBeforeTransmit:
-      text("error.remoteCardRemoved", "The card was removed before signing.")
-
-    case .cardCompletionAmbiguous:
+    case .cardError:
       text("error.remoteAmbiguous", "The card's answer was lost. Nothing was written.")
 
-    case nil:
+    case .operationFailed:
       remoteAnswerMessage(.noSignature)
     }
   }

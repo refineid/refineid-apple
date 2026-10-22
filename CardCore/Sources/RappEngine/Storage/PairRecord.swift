@@ -3,7 +3,7 @@
 import Foundation
 
 /// Storage-format version of a persisted pairing.
-internal let pairRecordFormatVersion: UInt64 = 5
+internal let pairRecordFormatVersion: UInt64 = 6
 
 /// One durable pairing, as stored on this device only.
 internal struct PairRecord: Equatable {
@@ -12,7 +12,13 @@ internal struct PairRecord: Equatable {
     "format_version", "pair_id", "role", "local_static_private",
     "local_static_public", "remote_static_public", "grants_hash", "profiles", "transport_profile",
     "candidate_id", "transport_parameters", "created_at_ms", "storage_confirmed",
+    "forgotten_at_ms",
   ]
+
+  /// Days a forgotten record keeps its key for the `pairing_revoked` close
+  /// (RAPP v26.10.21 §4.6 item 3).
+  private static let revocationNoticeDays: UInt64 = 30
+  private static let millisecondsPerDay: UInt64 = 86_400_000
 
   internal let pairIdentifier: Data
   internal let role: EndpointRole
@@ -26,9 +32,15 @@ internal struct PairRecord: Equatable {
   /// Whether both endpoints confirmed storing the pairing.
   ///
   /// A record stored before the peer's `pairing.stored` is unconfirmed
-  /// (RAPP v26.10.18 §4.3 item 4): it opens no session, routes nothing,
+  /// (RAPP v26.10.21 §4.3 item 4): it opens no session, routes nothing,
   /// and is revoked when found at start-up.
   internal private(set) var storageConfirmed: Bool
+  /// When the local user forgot the pairing while no session was open, in
+  /// milliseconds since the Unix epoch.
+  ///
+  /// A forgotten record serves nothing and keeps its key only to deliver the
+  /// `pairing_revoked` close on the next session (§4.6 item 2).
+  internal private(set) var forgottenAtMilliseconds: UInt64?
 
   internal init(
     pairIdentifier: Data,
@@ -66,6 +78,7 @@ internal struct PairRecord: Equatable {
     self.transport = transport
     self.createdAtMilliseconds = createdAtMilliseconds
     self.storageConfirmed = storageConfirmed
+    self.forgottenAtMilliseconds = nil
   }
 
   internal static func decode(_ bytes: Data) throws -> Self {
@@ -95,8 +108,21 @@ internal struct PairRecord: Equatable {
     )
     let decodedCreatedAtMilliseconds = try takeUnsigned(&map, "created_at_ms")
     let decodedStorageConfirmed = try takeBoolean(&map, "storage_confirmed")
+    let decodedForgottenAt: UInt64?
+    switch try takeStoredValue(&map, "forgotten_at_ms") {
+    case .null:
+      decodedForgottenAt = nil
+
+    case .unsigned(let value):
+      decodedForgottenAt = value
+
+    default:
+      throw PairRecordError.invalidInput
+    }
     guard map.isEmpty else { throw PairRecordError.invalidInput }
-    return try Self(
+    // Only a confirmed record is kept as forgotten (§4.6 item 2).
+    if decodedForgottenAt != nil, !decodedStorageConfirmed { throw PairRecordError.invalidInput }
+    let record = try Self(
       pairIdentifier: decodedPairIdentifier,
       role: decodedRole,
       localStaticPrivate: decodedLocalStaticPrivate,
@@ -108,6 +134,16 @@ internal struct PairRecord: Equatable {
       createdAtMilliseconds: decodedCreatedAtMilliseconds,
       storageConfirmed: decodedStorageConfirmed
     )
+    return decodedForgottenAt.map(record.forgotten(at:)) ?? record
+  }
+
+  /// Whether the 30 days a forgotten record keeps its key have passed
+  /// (§4.6 item 3).
+  internal func revocationNoticeExpired(nowMilliseconds: UInt64) -> Bool {
+    guard let forgottenAtMilliseconds else { return false }
+    let window = Self.revocationNoticeDays * Self.millisecondsPerDay
+    let (deadline, overflowed) = forgottenAtMilliseconds.addingReportingOverflow(window)
+    return !overflowed && nowMilliseconds >= deadline
   }
 
   internal func encoded() throws -> Data {
@@ -125,6 +161,7 @@ internal struct PairRecord: Equatable {
       "transport_parameters": .map(transport.parameters),
       "created_at_ms": .unsigned(createdAtMilliseconds),
       "storage_confirmed": .boolean(storageConfirmed),
+      "forgotten_at_ms": forgottenAtMilliseconds.map { .unsigned($0) } ?? .null,
     ])
     do {
       return try value.encoded()
@@ -138,6 +175,13 @@ internal struct PairRecord: Equatable {
   internal func confirmed() -> Self {
     var record = self
     record.storageConfirmed = true
+    return record
+  }
+
+  /// This record forgotten by the local user at `forgottenAtMilliseconds`.
+  internal func forgotten(at forgottenAtMilliseconds: UInt64) -> Self {
+    var record = self
+    record.forgottenAtMilliseconds = forgottenAtMilliseconds
     return record
   }
 }

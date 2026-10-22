@@ -32,7 +32,7 @@ internal enum RappNoiseAndEnvelopeCorpusSupport {
     internal static let byteCountUInt64 = 8
     internal static let wireMajor: UInt64 = 26
     internal static let wireMinor: UInt64 = 10
-    internal static let wirePatch: UInt64 = 18
+    internal static let wirePatch: UInt64 = 21
     internal static let versionLength = 3
     internal static let patchIndex = 2
     internal static let sessionIDLength = 16
@@ -70,6 +70,25 @@ internal enum RappNoiseAndEnvelopeCorpusSupport {
     case truncated
     case unsupported
   }
+
+  /// The prologue and identifier labels (RAPP v26.10.21 §4.3 items 1, 2
+  /// and 5).
+  internal static let pairingPrologueLabel = "rapp-pairing"
+  internal static let sessionPrologueLabel = "rapp-session"
+  internal static let pairIdentifierLabel = "rapp-pair-id"
+  internal static let sessionIdentifierLabel = "rapp-session-id"
+
+  /// The registered transport profiles (§2.2).
+  internal static let transportProfiles: Set<String> = [
+    "fi.refineid.rapp.ble", "fi.refineid.stream",
+  ]
+
+  /// The registered message types (§7.1).
+  internal static let messageTypes: Set<String> = [
+    "pairing.hello", "pairing.confirm", "pairing.abort", "pairing.stored", "session.ready",
+    "session.close", "liveness.ping", "liveness.pong", "operation.request", "operation.result",
+    "operation.progress", "card.status", "error",
+  ]
 
   internal static let pairingSuite = "Noise_XXpsk3_25519_ChaChaPoly_SHA512"
   internal static let sessionSuite = "Noise_KK_25519_ChaChaPoly_SHA512"
@@ -171,7 +190,7 @@ internal enum RappNoiseAndEnvelopeCorpusSupport {
       repositoryRoot
       .appendingPathComponent("Documentation")
       .appendingPathComponent("rapp-conformance")
-      .appendingPathComponent("rapp-v26.10.18.json")
+      .appendingPathComponent("rapp-v26.10.21.json")
     return try JSONDecoder().decode(Corpus.self, from: Data(contentsOf: url))
   }
 

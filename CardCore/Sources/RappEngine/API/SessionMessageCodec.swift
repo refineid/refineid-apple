@@ -2,27 +2,22 @@
 
 import Foundation
 
-/// Translates between sealed session frames and typed messages.
+/// Reads an authenticated envelope as a typed message.
 ///
 /// Only an authenticated envelope reaches this point, so a body that does not
-/// parse here is an authenticated peer sending something the protocol forbids.
+/// parse here is an authenticated peer sending something the protocol
+/// forbids.
 internal enum SessionMessageCodec {
   /// The typed message an authenticated envelope carries.
-  internal static func message(
-    from envelope: Envelope,
-    pairIdentifier: Data,
-    sessionIdentifier: Data,
-    nowMilliseconds: UInt64
-  ) throws -> TypedMessage {
+  internal static func message(from envelope: Envelope, nowMilliseconds: UInt64) throws
+    -> TypedMessage
+  {
     switch envelope.messageType {
     case .operationRequest:
       do {
         return .operationRequest(
           try OperationRequest.from(
-            wireBody: envelope.body,
-            pairIdentifier: pairIdentifier,
-            sessionIdentifier: sessionIdentifier,
-            localStartMilliseconds: nowMilliseconds))
+            wireBody: envelope.body, localStartMilliseconds: nowMilliseconds))
       } catch let refusal as OperationRequestRefusal {
         return .operationRequestRefused(refusal)
       }
@@ -31,39 +26,16 @@ internal enum SessionMessageCodec {
       return .operationProgress(try OperationProgressMessage.from(wireBody: envelope.body))
 
     case .operationResult:
-      return .operationResult(
-        try OperationResultMessage.decode(try WireValue.map(envelope.body).encoded()))
-
-    case .operationResultAck:
-      return .operationResultAck(try OperationReference.from(wireBody: envelope.body))
-
-    case .operationStatus:
-      return .operationStatus(try StatusReport.from(wireBody: envelope.body))
-
-    case .operationStatusRequest:
-      var body = envelope.body
-      return .operationStatusRequest(operationIdentifier: try takeBytes(&body, "operation_id"))
+      return .operationResult(try OperationResultMessage.from(wireBody: envelope.body))
 
     case .error:
-      return .error(ProtocolErrorMessage.from(wireBody: envelope.body))
+      return .error(try ProtocolErrorMessage.from(wireBody: envelope.body))
 
     case .cardStatus:
-      var body = envelope.body
-      return .cardStatus(cardPresent: try takeBoolean(&body, "card_present"))
+      return .cardStatus(try RappCardStatus.from(wireBody: envelope.body))
 
     default:
       return .other(envelope.messageType)
     }
-  }
-
-  /// The sealed frame a typed message becomes.
-  internal static func frame(
-    for message: TypedMessage,
-    session: inout EstablishedSession
-  ) throws -> Data {
-    guard let messageType = message.messageType, let body = message.wireBody() else {
-      throw EngineError.invalidLocalValue
-    }
-    return try session.seal(messageType, body: body)
   }
 }

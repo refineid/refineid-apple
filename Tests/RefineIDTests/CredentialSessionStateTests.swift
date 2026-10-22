@@ -14,7 +14,7 @@ internal struct CredentialSessionStateTests {
   internal func sessionEndForgetsEverything() {
     var state = CredentialSessionState()
     state.markProbed(.pin1)
-    state.recordNegativePin(Self.refusedDigits)
+    state.recordNegativePin(Self.refusedDigits, role: .pin2)
     #expect(state.probedRoles.contains(.pin1))
     #expect(state.isNegativePin(Self.refusedDigits))
     state.sessionEnded()
@@ -22,12 +22,21 @@ internal struct CredentialSessionStateTests {
     #expect(!state.isNegativePin(Self.refusedDigits))
   }
 
+  @Test("A refused PIN is probed again before its next verification")
+  internal func refusedPinIsProbedAgain() {
+    var state = CredentialSessionState()
+    state.markProbed(.pin1)
+    state.recordNegativePin(Self.refusedDigits, role: .pin1)
+    #expect(!state.probedRoles.contains(.pin1))
+    #expect(state.isNegativePin(Self.refusedDigits))
+  }
+
   @Test("A write through the box is visible to the next read at once")
   internal func boxWriteIsVisibleAtOnce() {
     let box = CredentialSessionBox()
     box.mutate { $0.markProbed(.pin1) }
     #expect(box.read().probedRoles.contains(.pin1))
-    box.mutate { $0.recordNegativePin(Self.refusedDigits) }
+    box.mutate { $0.recordNegativePin(Self.refusedDigits, role: .pin1) }
     #expect(box.read().isNegativePin(Self.refusedDigits))
     box.mutate { $0.sessionEnded() }
     #expect(box.read() == CredentialSessionState())

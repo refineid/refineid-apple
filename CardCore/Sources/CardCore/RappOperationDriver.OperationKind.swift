@@ -1,15 +1,11 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 extension RappOperationDriver.OperationKind {
-  /// Whether the operation only reads public data.
-  ///
-  /// Safe reads within one session ride on the session's single consent;
-  /// a consequential operation always asks the holder.
+  /// Whether the operation only reads: it commands no private key and no
+  /// PIN, and skips consent (RAPP v26.10.21 §8.2 item 6).
   public var isSafeRead: Bool {
     switch self {
-    case .inspectCard, .readIdentity,
-      .readAuthenticationCertificate, .readSignatureCertificate,
-      .readRootCertificate, .readIntermediateCertificate:
+    case .inspectCard, .readIdentity, .readAuthenticationCertificate, .readSignatureCertificate:
       return true
 
     case .browserAuthenticate, .signDocument, .batchSignDocuments:

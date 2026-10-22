@@ -16,6 +16,10 @@ private let fillerGrantsHash: UInt8 = 0x66
 /// Fixed times, so an encoding is reproducible run to run.
 private let fixtureRecordCreatedAtMilliseconds: UInt64 = 1_700_000_000_000
 
+/// The listener endpoint the stream binding carries, from the IPv4
+/// documentation range (RFC 5737).
+private let fixtureEndpoint = "192.0.2.1:47110"
+
 internal func filler(_ byte: UInt8, _ count: Int) -> Data {
   Data(repeating: byte, count: count)
 }
@@ -25,8 +29,8 @@ internal func filler(_ byte: UInt8, _ count: Int) -> Data {
 internal func makeOffer() throws -> PairingOffer {
   try PairingOffer.create(
     offerIdentifier: filler(fillerOfferIdentifier, OfferLimit.offerIdentifierSize),
-    profiles: ["fi.refineid.card-status.v1", "fi.refineid.authentication.v1"],
-    transportProfiles: ["fi.refineid.stream.v1", "apple-peer-v1"])
+    profiles: ["fi.refineid.card-status", "fi.refineid.authentication"],
+    transportProfiles: [StreamProfile.name, RappBleGattProfile.name])
 }
 
 internal func makePairRecord() throws -> PairRecord {
@@ -39,11 +43,34 @@ internal func makePairRecord() throws -> PairRecord {
     grantsHash: filler(fillerGrantsHash, PairRecordSize.grantsHash),
     profiles: [.cardStatus, .authentication],
     transport: PairTransportBinding(
-      profile: "fi.refineid.stream.v1",
-      candidateIdentifier: "stream-1",
-      parameters: ["endpoints": .array([.text("192.0.2.1:47110")])]
+      profile: StreamProfile.name,
+      candidateIdentifier: TransportRegistry.streamCandidateIdentifier,
+      parameters: ["endpoints": .array([.text(fixtureEndpoint)])]
     ),
     createdAtMilliseconds: fixtureRecordCreatedAtMilliseconds,
     storageConfirmed: true
   )
+}
+
+/// The stored form of ``makePairRecord()``, assembled field by field from
+/// the record's storage keys, so a renamed key or a changed value shows.
+internal func expectedPairRecordValue() -> WireValue {
+  .map([
+    "format_version": .unsigned(pairRecordFormatVersion),
+    "pair_id": .bytes(filler(fillerPairIdentifier, PairRecordSize.pairIdentifier)),
+    "role": .text(EndpointRole.requester.rawValue),
+    "local_static_private": .bytes(filler(fillerLocalStaticPrivate, PairRecordSize.staticKey)),
+    "local_static_public": .bytes(filler(fillerLocalStaticPublic, PairRecordSize.staticKey)),
+    "remote_static_public": .bytes(filler(fillerRemoteStaticPublic, PairRecordSize.staticKey)),
+    "grants_hash": .bytes(filler(fillerGrantsHash, PairRecordSize.grantsHash)),
+    "profiles": .array([
+      .text(ProfileName.cardStatus.rawValue), .text(ProfileName.authentication.rawValue),
+    ]),
+    "transport_profile": .text(StreamProfile.name),
+    "candidate_id": .text(TransportRegistry.streamCandidateIdentifier),
+    "transport_parameters": .map(["endpoints": .array([.text(fixtureEndpoint)])]),
+    "created_at_ms": .unsigned(fixtureRecordCreatedAtMilliseconds),
+    "storage_confirmed": .boolean(true),
+    "forgotten_at_ms": .null,
+  ])
 }

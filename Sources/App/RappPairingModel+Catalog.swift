@@ -17,7 +17,8 @@ extension RappPairingModel {
   ///
   /// Same-account auto-pairing recreates complementary peers on the next
   /// reconcile. The pairing is gone here even if a peer never receives a
-  /// close frame: the vault is the record this device honours.
+  /// close frame: the vault is the record this device honours, and the
+  /// namespace it lives in is wiped.
   internal static func revokeEveryStoredPair() {
     let vault = RappDeviceVault()
     let pairIDs = (try? vault.activePairIDs()) ?? []
@@ -37,7 +38,7 @@ extension RappPairingModel {
         PersistentTokenRegistry.shared.stopWatchingPresence()
       #endif
     #endif
-    // Sweeping a thousand journals takes seconds; the list is already
+    // Sweeping the keychain namespace takes time; the list is already
     // empty in memory, so the wipe leaves the main thread.
     Task.detached(priority: .userInitiated) {
       _ = try? vault.deleteServiceNamespace(RappDeviceVault.serviceNamespace)
@@ -63,14 +64,19 @@ extension RappPairingModel {
     return revoked
   }
 
-  /// Ends the session the pairing `pairID` carries, if one is open.
-  private static func closeSessionForRevocation(pairID: Data) async {
+  /// Ends the session the pairing `pairID` carries with `pairing_revoked`;
+  /// false when none is open or the close did not leave (RAPP v26.10.21
+  /// §4.6 items 1 and 2).
+  private static func closeSessionForRevocation(pairID: Data) async -> Bool {
+    var closed = false
     #if os(iOS) && REFINEID_LOCAL_CARD
-      await PhonePersistentTokenRelay.shared.closeForRevocation(pairID: pairID)
+      closed = await PhonePersistentTokenRelay.shared.closeForRevocation(pairID: pairID) || closed
     #endif
     #if (os(macOS) || os(iOS)) && REFINEID_STREAM_TRANSPORT
-      await PersistentTokenRegistry.shared.closeSessionForRevocation(pairID: pairID)
+      closed =
+        await PersistentTokenRegistry.shared.closeSessionForRevocation(pairID: pairID) || closed
     #endif
+    return closed
   }
 
   internal func refresh() {
@@ -92,21 +98,32 @@ extension RappPairingModel {
     NotificationCenter.default.post(name: Self.pairingsDidChangeNotification, object: nil)
   }
 
-  /// Forgets one paired device through the vault the list is read from.
+  /// Forgets one paired device through the vault the list is read from
+  /// (RAPP v26.10.21 §4.6).
   ///
-  /// A session open over the pairing closes with `pairing_revoked`
-  /// first (RAPP v26.10.18 §4.6 item 1). The row goes with the record.
-  /// The name goes only once the record is gone; a row that stays keeps
-  /// its name.
+  /// A session open over the pairing closes with `pairing_revoked` and,
+  /// once that close left, the record and its key go at once. Otherwise the
+  /// record is kept, forgotten, only to tell the peer on its next session. Either way the row goes, and
+  /// the name with it once the record is no longer listed; a row that
+  /// stays keeps its name.
   internal func revoke(pairID: Data) {
     Task { @MainActor in
-      await Self.closeSessionForRevocation(pairID: pairID)
-      revokeStored(pairID: pairID)
+      let told = await Self.closeSessionForRevocation(pairID: pairID)
+      forgetStored(pairID: pairID, told: told)
     }
   }
 
-  private func revokeStored(pairID: Data) {
-    guard (try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: clock)) != nil else {
+  private func forgetStored(pairID: Data, told: Bool) {
+    #if os(macOS) || os(iOS)
+      let wasOffered = PersistentTokenRegistry.activePairID == pairID
+    #endif
+    let ended: Bool =
+      if told {
+        (try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: clock)) != nil
+      } else {
+        (try? catalogForget(pairID: pairID)) != nil
+      }
+    guard ended else {
       refresh()
       return
     }
@@ -116,8 +133,11 @@ extension RappPairingModel {
     }
     refresh()
     #if os(macOS) || os(iOS)
-      let remaining = (try? vault.activePairIDs()) ?? []
-      if remaining.isEmpty || PersistentTokenRegistry.activePairID == pairID {
+      let usable = ((try? vault.activePairIDs()) ?? []).contains { remaining in
+        (try? RappPairRecord.loadFromVault(pairId: remaining, vault: vault))?.metadata()
+          .forgottenAtMs == nil
+      }
+      if !usable || wasOffered {
         PersistentTokenRegistry.withdrawPublishedIdentity()
       }
       #if REFINEID_STREAM_TRANSPORT
@@ -125,6 +145,13 @@ extension RappPairingModel {
       #endif
     #endif
     NotificationCenter.default.post(name: Self.pairingsDidChangeNotification, object: nil)
+  }
+
+  /// Marks the pairing forgotten: it serves nothing and keeps its key
+  /// only for the `pairing_revoked` close on its next session.
+  private func catalogForget(pairID: Data) throws {
+    try RappPairRevocation.forget(
+      try RappPairRecord.loadFromVault(pairId: pairID, vault: vault), in: vault, clock: clock)
   }
 
   internal func revokeAll() {

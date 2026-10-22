@@ -7,7 +7,5 @@ internal enum AuthorizationError: Error, Equatable {
   case approvalMismatch
   case expired
   case invalidResult
-  case journal(JournalError)
-  case referenceMismatch
   case wrongStage(stage: AuthorizationStage)
 }

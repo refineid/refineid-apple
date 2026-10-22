@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// What the custodian tells its requester about the card (RAPP v26.10.18
+/// What the custodian tells its requester about the card (RAPP v26.10.21
 /// §8.4), and when the word changes.
 ///
 /// A card is present while the phone can serve one (a reader card or a

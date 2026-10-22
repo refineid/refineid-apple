@@ -202,7 +202,7 @@
       if outcome == nil {
         OperationPhaseTrace.mark("credential-verified")
       } else if case .rejected = outcome {
-        context?.recordNegativePin(rawDigits)
+        context?.recordNegativePin(rawDigits, .pin1)
       }
       return outcome
     }
@@ -223,7 +223,7 @@
       }
       let outcome = verifyPin2(pin, with: operations)
       if case .rejected = outcome {
-        context?.recordNegativePin(documentPin2)
+        context?.recordNegativePin(documentPin2, .pin2)
       }
       return outcome
     }
@@ -247,7 +247,7 @@
             expectedSignatureLength: identity.request.expectedSignatureLength
           )
         // Verified locally in its DER form; the wire carries the card's
-        // raw value (RAPP v26.10.9 section 9.2).
+        // raw value (RAPP v26.10.21 §9.2).
         guard
           let verifiable = identity.request.wireSignature(from: raw),
           identity.request.isSatisfied(by: verifiable, from: identity.publicKey)

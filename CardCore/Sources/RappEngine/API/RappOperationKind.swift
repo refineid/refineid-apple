@@ -10,8 +10,6 @@ public enum RappOperationKind: Sendable {
   case readIdentity
   case readAuthenticationCertificate
   case readSignatureCertificate
-  case readRootCertificate
-  case readIntermediateCertificate
   case browserAuthenticate
   case signDocument
   case batchSignDocuments
