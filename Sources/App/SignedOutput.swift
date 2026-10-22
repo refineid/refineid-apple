@@ -59,7 +59,7 @@
       panel.directoryURL = first.deletingLastPathComponent()
       panel.message =
         together
-        ? String(localized: "Where to keep the signed portfolio.")
+        ? String(localized: "Where to keep the signed ASiC-E file.")
         : String(localized: "Where to keep the signed document.")
       panel.prompt = String(localized: "Sign")
       if together {

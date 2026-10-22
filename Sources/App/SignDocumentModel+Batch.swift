@@ -62,7 +62,7 @@
       guard !originals.contains(destination.standardizedFileURL) else {
         report(
           String(
-            localized: "The signed container cannot replace one of the originals."
+            localized: "The signed ASiC-E file cannot replace one of the originals."
           )
         )
         return

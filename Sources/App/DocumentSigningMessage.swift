@@ -51,7 +51,7 @@ internal enum DocumentSigningMessage {
   private static func asicSignerMessage(_ failure: AsicSigner.Failure) -> String {
     switch failure {
     case .container:
-      text("error.container", "The signed container could not be written.")
+      text("error.container", "The signed ASiC-E file could not be written.")
 
     case .signedOctetsChanged:
       text(

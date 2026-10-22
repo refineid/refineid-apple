@@ -167,19 +167,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The signed portfolio could not be written."
+            "value" : "The signed ASiC-E file could not be written."
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Allekirjoitussalkkua ei voitu kirjoittaa."
+            "value" : "Allekirjoitettua ASiC-E-tiedostoa ei voitu kirjoittaa."
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Den signerade portföljen kunde inte skrivas."
+            "value" : "Den signerade ASiC-E-filen kunde inte skrivas."
           }
         }
       }
