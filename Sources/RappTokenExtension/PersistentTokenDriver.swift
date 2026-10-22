@@ -167,6 +167,12 @@ internal final class PersistentTokenDriver: TKTokenDriver,
           )
         #endif
         Self.say("rapp sign rejected after \(Self.millisecondsSince(started)) ms")
+        #if DEBUG
+          DevErrorLog.report(
+            "rapp sign: signature failed verification after "
+              + "\(Self.millisecondsSince(started)) ms",
+            source: .rappTokenExtension)
+        #endif
         throw TKError(.corruptedData)
       }
       Self.say("rapp sign served after \(Self.millisecondsSince(started)) ms")
@@ -222,6 +228,10 @@ internal final class PersistentTokenDriver: TKTokenDriver,
             "rapp sign failed after \(Self.millisecondsSince(started)) ms: \(error) -> TKError(\(tkError.code))"
           )
           ExtensionTrace.flush()
+          DevErrorLog.report(
+            "rapp sign failed after \(elapsed) ms: \(DevErrorLog.reason(error)) "
+              + "-> \(DevErrorLog.reason(tkError))",
+            source: .rappTokenExtension)
         #endif
         throw tkError
       }

@@ -251,6 +251,9 @@
           earlyFrames: earlyFrames
         )
       } catch {
+        #if DEBUG
+          DevErrorLog.report("session not started: \(DevErrorLog.reason(error))", source: .app)
+        #endif
         failTransport()
       }
     }
@@ -327,6 +330,7 @@
       #if DEBUG
         print("[stream-holder] deliverInOrder rejected! cancelling transport")
         fflush(stdout)
+        DevErrorLog.report("session dropped: frames outran the delivery queue", source: .app)
       #endif
       relay?.cancel()
       #if REFINEID_STREAM_TRANSPORT

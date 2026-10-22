@@ -118,6 +118,15 @@
       _ event: RappConnectionCoordinator.Event,
       connectionID: UUID
     ) {
+      #if DEBUG
+        // Ahead of the connection check: a session whose transport has
+        // already gone reports its close after the connection was dropped.
+        if case .closed(let reason) = event,
+          let failure = reason.devErrorName(midOperation: !operationsInFlight.isEmpty)
+        {
+          DevErrorLog.report("session closed: \(failure)", source: .app)
+        }
+      #endif
       guard self.connectionID == connectionID else { return }
       #if DEBUG
         HolderTrace.say("session event \(eventCaseName(event))")

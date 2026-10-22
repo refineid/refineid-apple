@@ -316,6 +316,9 @@
       else { return }
       switch Self.publish(fetched) {
       case .notPublished:
+        #if DEBUG
+          DevErrorLog.report("phone identity not published", source: .app)
+        #endif
         fetchBackoff.recordFailure(at: .now)
 
       case .readerHasPriority, .published:
