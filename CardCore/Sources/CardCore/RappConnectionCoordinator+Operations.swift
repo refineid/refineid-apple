@@ -85,6 +85,7 @@
     public func completeBatch(operationID: RappOperationIdentifier) async throws {
       let driver = try operationDriver()
       await handleOperation(try await driver.completeBatch(operationID: operationID))
+      answered(operationID)
     }
 
     /// Starts a sign-document operation over the digest of a named document.
@@ -137,6 +138,7 @@
     public func deny(operationID: RappOperationIdentifier) async throws {
       let driver = try operationDriver()
       await handleOperation(try await driver.deny(operationID: operationID))
+      answered(operationID)
     }
 
     /// Rejects the operation as malformed or unsupported on this device.
@@ -146,6 +148,7 @@
         try await driver.requestInvalidOrUnsupported(
           operationID: operationID
         ))
+      answered(operationID)
     }
 
     /// The retry floor refused before any verification (RAPP v26.10.22
@@ -153,6 +156,7 @@
     public func retryFloor(operationID: RappOperationIdentifier) async throws {
       let driver = try operationDriver()
       await handleOperation(try await driver.retryFloor(operationID: operationID))
+      answered(operationID)
     }
 
     /// The card did not answer: no card within the wait, the field lost, a
@@ -160,6 +164,7 @@
     public func cardError(operationID: RappOperationIdentifier) async throws {
       let driver = try operationDriver()
       await handleOperation(try await driver.cardError(operationID: operationID))
+      answered(operationID)
     }
 
     /// The custodian could not carry the operation out for a reason of its
@@ -167,6 +172,7 @@
     public func operationFailed(operationID: RappOperationIdentifier) async throws {
       let driver = try operationDriver()
       await handleOperation(try await driver.operationFailed(operationID: operationID))
+      answered(operationID)
     }
 
     /// Completes an inspection with the card's answer to reset, or its
@@ -178,6 +184,7 @@
       await handleOperation(
         try await driver.completeInspection(operationID: operationID, answerToReset: answerToReset)
       )
+      answered(operationID)
     }
 
     /// Completes an identity read (RAPP v26.10.22 §9.1).
@@ -188,6 +195,7 @@
       let driver = try operationDriver()
       await handleOperation(
         try await driver.completeIdentity(operationID: operationID, identity: identity))
+      answered(operationID)
     }
 
     /// Completes a certificate read with the DER-encoded certificate.
@@ -195,6 +203,7 @@
       let driver = try operationDriver()
       await handleOperation(
         try await driver.completeCertificate(operationID: operationID, der: der))
+      answered(operationID)
     }
 
     /// Completes a signature operation with the raw signature bytes.
@@ -207,6 +216,7 @@
           operationID: operationID,
           signature: signature
         ))
+      answered(operationID)
     }
   }
 #endif

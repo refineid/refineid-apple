@@ -260,6 +260,10 @@
       case .operationEnded:
         Self.settle(state, .failure(ReadError.closed))
 
+      case .answered:
+        // Only a custodian answers an operation.
+        break
+
       case .closed(let reason):
         RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
         finish(reason)

@@ -71,10 +71,11 @@
       case .closed(let reason):
         handleClosed(reason)
 
-      case .cardStatus, .operationEnded:
+      case .cardStatus, .operationEnded, .answered:
         // A one-shot request offers nothing to a local consumer; the
         // registry's held session acts on the custodian's word. An
-        // operation that ends with the session is reported by the close.
+        // operation that ends with the session is reported by the close,
+        // and only a custodian answers an operation.
         break
 
       case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead,

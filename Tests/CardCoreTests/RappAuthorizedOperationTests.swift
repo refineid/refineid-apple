@@ -56,8 +56,41 @@ import Testing
         case .closed(let reason):
           throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
 
+        case .answered:
+          // The custodian's own word that an earlier operation is over.
+          break
+
         case .executeCardCommand, .completed, .terminal, .progress, .cardStatus, .operationEnded:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
+        }
+      }
+      throw RappIntegrationFixtures.TestFailure.operationEndedWithoutResult
+    }
+
+    /// Answers a certificate read, then waits for the custodian's own word
+    /// that the read is over; true when that word names the read answered.
+    private static func answerAndAwaitAnswered(
+      _ coordinator: RappConnectionCoordinator
+    ) async throws -> Bool {
+      var answeredRead: RappOperationIdentifier?
+      for await event in coordinator.events {
+        switch event {
+        case .inspectPrerequisites(let operationID, _):
+          try await coordinator.prerequisitesComplete(operationID: operationID)
+
+        case .executeSafeRead(let operationID, _):
+          answeredRead = operationID
+          try await coordinator.completeCertificate(operationID: operationID, der: certificate)
+
+        case .answered(let operationID):
+          return operationID == answeredRead
+
+        case .closed(let reason):
+          throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
+
+        case .established, .awaitUserApproval, .executeCardCommand, .completed, .terminal,
+          .progress, .cardStatus, .operationEnded:
+          break
         }
       }
       throw RappIntegrationFixtures.TestFailure.operationEndedWithoutResult
@@ -89,7 +122,7 @@ import Testing
           throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
 
         case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead, .executeCardCommand,
-          .operationEnded:
+          .operationEnded, .answered:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
         }
       }
@@ -169,6 +202,29 @@ import Testing
 
       #expect(result == .certificate(Self.certificate))
       #expect(progress == ReadProgress(prerequisites: 1, approvals: 0, safeReads: 1))
+      await connection.requester.close()
+      await connection.proxy.close()
+    }
+
+    /// Answering a read ends it on the custodian's side, so the session is
+    /// idle for the next dial instead of busy for good.
+    @Test
+    internal func answeringAReadTellsTheCustodianItIsOver() async throws {
+      let fixture = try await RappIntegrationConnectionSupport.makePairedFixture()
+      defer { RappIntegrationConnectionSupport.deleteKeychainServices(for: fixture) }
+      let connection = try await RappIntegrationConnectionSupport.makeConnection(fixture)
+
+      let requesterOutcome = Task { try await Self.readCertificate(connection.requester) }
+      let proxyOutcome = Task { try await Self.answerAndAwaitAnswered(connection.proxy) }
+      defer {
+        requesterOutcome.cancel()
+        proxyOutcome.cancel()
+      }
+
+      await connection.proxy.start()
+      await connection.requester.start()
+      #expect(try await requesterOutcome.value == .certificate(Self.certificate))
+      #expect(try await proxyOutcome.value)
       await connection.requester.close()
       await connection.proxy.close()
     }

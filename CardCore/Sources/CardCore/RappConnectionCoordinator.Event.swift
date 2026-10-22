@@ -50,6 +50,9 @@
       case cardStatus(RappCardStatus)
       /// The session's operation ended with the session (§8.1 item 3).
       case operationEnded(RappEndedOperation)
+      /// This custodian answered or refused `operationID`, so the operation
+      /// is over on its side and the session is free for the next one.
+      case answered(operationID: RappOperationIdentifier)
       case closed(CloseReason)
 
       internal init?(_ command: RappOperationDriver.Command) {
