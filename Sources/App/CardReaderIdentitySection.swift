@@ -6,16 +6,14 @@
   /// The identity area for cards in an attached reader.
   ///
   /// The same Person row NFC uses once an identity exists. A reader
-  /// already named the holder, so CAN and PIN 1 do not appear here.
+  /// already named the holder, so CAN and PIN 1 do not appear here. The
+  /// section appears once the holder's name is read, never as a wait.
   internal struct CardReaderIdentitySection: View {
     internal let holders: [String]
 
     internal var body: some View {
-      Section {
-        if holders.isEmpty {
-          ProgressView()
-            .frame(maxWidth: .infinity, alignment: .center)
-        } else {
+      if !holders.isEmpty {
+        Section {
           ForEach(holders, id: \.self) { holder in
             NavigationLink(value: CardCredentialsView.Route.identity(.reader(holder: holder))) {
               MenuRow(holder, systemImage: "person", tint: .accentColor)
@@ -23,9 +21,9 @@
             }
             .accessibilityIdentifier("identitySubmenuButton")
           }
+        } header: {
+          CompactSectionHeader(title: String(localized: "Identity"))
         }
-      } header: {
-        CompactSectionHeader(title: String(localized: "Identity"))
       }
     }
   }

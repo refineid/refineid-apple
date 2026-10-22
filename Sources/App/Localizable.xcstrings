@@ -6750,6 +6750,22 @@
         }
       }
     },
+    "Connecting...": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yhdistetään…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ansluter…"
+          }
+        }
+      }
+    },
     "Connecting to the phone": {
       "localizations": {
         "fi": {

@@ -7,6 +7,10 @@
     /// The card has stayed present without an identity long enough to warn.
     case cardNotReady
 
+    /// "Connecting…": the phone's card is on its way to the holder's name,
+    /// read or about to be.
+    case connecting
+
     /// "Connect a card reader".
     case connectReader
 
@@ -26,22 +30,24 @@
     /// The phone, by name, announced it forgot this computer.
     case phoneForgot(String)
 
-    /// A card in the reader is settling, or a read of the phone's card is
-    /// in flight; the row shows nothing until the holder's name.
+    /// A card in the reader is settling; it mints in well under a second,
+    /// so the row shows nothing until the holder's name.
     case reading
 
     // MARK: Computed Properties
 
     /// Whether the row shows this line only once it has lasted.
     ///
-    /// A phone connected before its card is read is on the way to the
-    /// holder's name and not worth a flash; a connection that lasts is.
+    /// A phone connected before its card reports is on the way to the
+    /// holder's name, and the row says it is connecting; a connection that
+    /// lasts without a card is named.
     internal var waitsBeforeShowing: Bool {
       switch self {
       case .phoneConnected:
         true
 
-      case .cardNotReady, .connectReader, .empty, .holder, .insertCard, .phoneForgot, .reading:
+      case .cardNotReady, .connectReader, .connecting, .empty, .holder, .insertCard, .phoneForgot,
+        .reading:
         false
       }
     }
@@ -58,14 +64,11 @@
         if facts.cardPresent {
           return facts.warnsUnavailableCard ? .cardNotReady : .reading
         }
-        if facts.phonePresent, !facts.readInFlight, let phone = facts.pairedPhone {
-          return .phoneConnected(phone)
-        }
-        return .reading
+        return .connecting
 
       case .noCard:
         if facts.readInFlight {
-          return .reading
+          return .connecting
         }
         if facts.readerConnected {
           return .insertCard
