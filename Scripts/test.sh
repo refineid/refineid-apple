@@ -9,7 +9,7 @@
 #   Scripts/test.sh pr        # PR / pre-push tier (lint, package tests, iOS build, RefineIDTests)
 #   Scripts/test.sh nfc-signing # retained-field lifecycle and PACE regression tests
 #   Scripts/test.sh full      # release regression tier (PR checks plus core and isolated RAPP tests)
-#   Scripts/test.sh macos-mvp # localized local-card UI and excluded-service checks
+#   Scripts/test.sh macos-mvp # localized local-card UI checks
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -98,7 +98,6 @@ case "${mode}" in
     result_path="build/macos-mvp-ui-$(date -u +%Y%m%dT%H%M%SZ).xcresult"
     xcodebuild test -scheme RefineID -destination 'platform=macOS' \
       -only-testing:RefineIDUITests/MacMvpUITests \
-      -only-testing:RefineIDUITests/ScsSettingsUITests \
       -resultBundlePath "${result_path}" -quiet \
       || fail "macOS MVP UI checks failed."
     ;;

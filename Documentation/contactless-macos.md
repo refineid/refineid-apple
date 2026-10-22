@@ -5,7 +5,7 @@ and the platform facts the design rests on. The flow is out of the
 first App Store release (`Documentation/decisions.md`, 2026-08-11):
 `FEATURE_CONTACTLESS` is off and the `application-groups` entitlement
 it needs is removed, so no group container is created. This document
-describes the flow as built, for when it returns as a Settings toggle.
+describes the flow as built.
 
 ## The flow
 

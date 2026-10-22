@@ -36,7 +36,7 @@ extension RappPairingModel {
   private func handleClosed(_ reason: RappPairingCoordinator.CloseReason) {
     switch (reason, phase) {
     case (.offerExpired, .offer):
-      // An unused code lapses after a minute; the next one follows.
+      // An unused code lapses with its offer after five minutes; the next one follows.
       createOffer()
 
     case (.attemptsExhausted, _):

@@ -39,9 +39,11 @@
         discoveryTimeout: bluetoothScanSeconds)
     }
 
-    /// What decides the next dial's transport now.
+    /// What decides the next dial's transport now, and whether a card in
+    /// this computer's reader leaves nothing to dial.
     internal var transportPolicy: RequesterTransportPolicy {
       RequesterTransportPolicy(
+        localCardPresent: CardPresence.shared.isReaderCardPresent,
         streamInSight: holderIsAdvertising && holderRecordListed,
         streamFailedInSight: streamFailedInSight,
         bluetoothUsable: bluetoothUsable)
@@ -75,11 +77,11 @@
     }
 
     /// Dials the phone along the transport the policy picks, unless a
-    /// session is being dialled or open on any transport; while the wait
-    /// after the last one runs, the dial is put off until it is over.
+    /// session is being dialled or open on any transport, or a card in this
+    /// computer's reader overrides the phone; while the wait after the last
+    /// session runs, the dial is put off until it is over.
     internal func openHolderSession() {
-      guard Self.dialsPhones, !CardPresence.shared.isReaderCardPresent, holderSession == nil,
-        let transport = transportPolicy.nextDial
+      guard Self.dialsPhones, holderSession == nil, let transport = transportPolicy.nextDial
       else { return }
       guard sessionSlot.mayDial(at: .now) else {
         if redialTask == nil { scheduleRedial() }

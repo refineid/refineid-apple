@@ -7,15 +7,18 @@ internal struct PhoneCardRequestLine: View {
   internal let request: PhoneCardRequest
 
   internal var body: some View {
-    Group {
-      switch request {
-      case .insertIntoPhoneReader:
-        Text("Insert the card into the phone's card reader.")
+    Text(Self.instruction(for: request))
+      .foregroundStyle(.secondary)
+  }
 
-      case .placeOnPhone:
-        Text("Place the card on the phone.")
-      }
+  /// The words that ask for the card, in the user's language.
+  nonisolated internal static func instruction(for request: PhoneCardRequest) -> String {
+    switch request {
+    case .insertIntoPhoneReader:
+      String(localized: "Insert the card into the phone's card reader.")
+
+    case .placeOnPhone:
+      String(localized: "Place the card on the phone.")
     }
-    .foregroundStyle(.secondary)
   }
 }

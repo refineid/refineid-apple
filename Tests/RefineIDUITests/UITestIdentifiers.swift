@@ -57,6 +57,10 @@ internal enum UITestIdentifiers {
   /// The main window's route into credential management.
   internal static let pinManagementButton = "manageCard"
 
+  /// The Mac's PIN codes window, which the key beside a local card's
+  /// holder opens.
+  internal static let pinCodesWindow = "pin-codes"
+
   /// The button that commits an irreversible card operation, inside
   /// the confirmation put to the holder first.
   internal static let managementConfirm = "managementConfirm"

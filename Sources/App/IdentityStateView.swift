@@ -12,8 +12,11 @@
   /// present without an identity yet published. That is not a fault and
   /// must not be shouted as one: the row shows nothing while it settles
   /// and only warns once the state has lasted long enough to mean
-  /// something. A phone's card says it is connecting until the holder's
-  /// name, and a phone that holds no card asks for it.
+  /// something. A card in this Mac's reader overrides the paired phone and
+  /// carries the control that opens its PIN codes. A paired phone's line
+  /// ends with the phone's name and the control that forgets it: its card
+  /// says it is connecting until the holder's name, and a phone that holds
+  /// no card asks for it.
   internal struct IdentityStateView: View {
     /// One tracked event.
     ///
@@ -102,49 +105,71 @@
     }
 
     /// What the row knows now.
+    ///
+    /// A demonstration's card sits in a virtual reader, and no phone is
+    /// paired with it.
     private var facts: RequesterFacts {
-      RequesterFacts(
+      if DemoMode.shared.isActive {
+        let card = DemoMode.shared.state.card
+        return RequesterFacts(
+          availability: availability,
+          warnsUnavailableCard: warnsUnavailableCard,
+          readInFlight: false,
+          readerConnected: card.readerConnected,
+          cardPresent: card.cardPresent,
+          phonePresent: false,
+          pairedPhone: nil,
+          phoneThatForgot: nil,
+          phoneCardStatus: nil
+        )
+      }
+      let registry = PersistentTokenRegistry.shared
+      return RequesterFacts(
         availability: availability,
         warnsUnavailableCard: warnsUnavailableCard,
         readInFlight: isFetching,
         readerConnected: cardPresence.isReaderConnected,
         cardPresent: cardPresence.isCardPresent,
-        phonePresent: PersistentTokenRegistry.shared.holderInSight,
-        pairedPhone: PersistentTokenRegistry.shared.pairedPhone,
-        phoneThatForgot: PersistentTokenRegistry.shared.phoneThatForgot,
-        phoneCardStatus: PersistentTokenRegistry.shared.holderCardStatus
+        phonePresent: registry.holderInSight,
+        pairedPhone: registry.pairedPhone,
+        phoneThatForgot: registry.phoneThatForgot,
+        phoneCardStatus: registry.holderCardStatus
       )
     }
 
     @ViewBuilder private var content: some View {
       switch IdentityLine.derive(facts) {
-      case .empty, .reading:
+      case .reading:
         Text("")
 
-      case .connecting:
-        Text("Connecting...")
-          .foregroundStyle(.secondary)
-
-      case .holder:
+      case .localHolder:
         // Who is about to sign: someone with two cards can see which
         // one is in the reader before spending a PIN on it. Until the
-        // name is read the row shows nothing - a claim without the
+        // name is read the line names no one - a claim without the
         // name behind it is not worth showing. The empty text is
         // still a rendered view: a structurally absent one would
         // never run the task that reads the name.
-        Text(holder ?? borrowedHolderLine ?? "")
-          .textSelection(.enabled)
+        HStack {
+          Text(holder ?? "")
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+          PinCodesButton()
+        }
 
       case .cardNotReady:
-        Text("Card detected, not ready - if this lasts, re-insert it")
-          .foregroundStyle(.orange)
+        HStack {
+          Text("Card detected, not ready - if this lasts, re-insert it")
+            .foregroundStyle(.orange)
+            .frame(maxWidth: .infinity, alignment: .leading)
+          PinCodesButton()
+        }
 
       case .insertCard:
         Text("Insert the card into the reader.")
           .foregroundStyle(.secondary)
 
-      case .phoneCard(let request):
-        PhoneCardRequestLine(request: request)
+      case .paired(let lead, let phone):
+        PairedPhoneLine(lead: lead, phone: phone, holder: holder ?? borrowedHolderLine)
 
       case .phoneForgot(let phone):
         Text("\(phone) forgot this computer")

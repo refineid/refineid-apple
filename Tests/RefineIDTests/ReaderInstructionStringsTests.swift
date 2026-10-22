@@ -63,18 +63,26 @@ internal struct ReaderInstructionStringsTests {
   }
 
   @Test
-  internal func settingsInstructionMatchesInEveryLanguage() throws {
+  internal func pairedPhoneAndPinCodesMatchInEveryLanguage() throws {
     let strings = try Self.catalog()
-    #expect(
-      try Self.value(
-        for: "Connect a card reader and insert your card.", language: "fi", in: strings
-      ) == "Liitä kortinlukija ja laita henkilökortti siihen."
-    )
-    #expect(
-      try Self.value(
-        for: "Connect a card reader and insert your card.", language: "sv", in: strings
-      ) == "Anslut en kortläsare och sätt in identitetskortet i den."
-    )
+    let finnish: [String: String] = [
+      "(paired phone: %@)": "(yhdistetty puhelin: %@)",
+      "Paired phone: %@": "Yhdistetty puhelin: %@",
+      "Remove phone pairing": "Poista puhelimen yhdistäminen",
+      "PIN Codes": "PIN-koodit",
+    ]
+    let swedish: [String: String] = [
+      "(paired phone: %@)": "(kopplad telefon: %@)",
+      "Paired phone: %@": "Kopplad telefon: %@",
+      "Remove phone pairing": "Ta bort kopplingen till telefonen",
+      "PIN Codes": "PIN-koder",
+    ]
+    for (key, value) in finnish {
+      #expect(try Self.value(for: key, language: "fi", in: strings) == value)
+    }
+    for (key, value) in swedish {
+      #expect(try Self.value(for: key, language: "sv", in: strings) == value)
+    }
   }
 
   @Test
@@ -111,11 +119,18 @@ internal struct ReaderInstructionStringsTests {
       encoding: .utf8
     )
     #expect(notes.contains("!cardPresence.isReaderConnected"))
-    let settings = try String(
-      contentsOf: Self.root.appending(path: "Sources/App/RefineIDSettingsView.swift"),
+    let phoneLine = try String(
+      contentsOf: Self.root.appending(path: "Sources/App/PairedPhoneLine.swift"),
       encoding: .utf8
     )
-    #expect(settings.contains("Connect a card reader and insert your card."))
+    #expect(phoneLine.contains("(paired phone: \\(phone))"))
+    #expect(phoneLine.contains("Paired phone: \\(phone)"))
+    #expect(phoneLine.contains("Remove phone pairing"))
+    let pinCodes = try String(
+      contentsOf: Self.root.appending(path: "Sources/App/PinCodesButton.swift"),
+      encoding: .utf8
+    )
+    #expect(pinCodes.contains("PIN Codes"))
     let request = try String(
       contentsOf: Self.root.appending(path: "Sources/App/PhoneCardRequestLine.swift"),
       encoding: .utf8

@@ -139,11 +139,7 @@ internal struct RefineIDApp: App {
         #endif
       }
 
-      Settings {
-        RefineIDSettingsView()
-          .writingToolsBehavior(.disabled)
-          .windowFullScreenBehavior(.disabled)
-      }
+      PinCodesWindow()
 
       // Development builds only: the release configurations exclude the
       // diagnostics sources at file level, so the scene must not exist

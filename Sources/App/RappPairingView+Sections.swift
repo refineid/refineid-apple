@@ -128,7 +128,7 @@ extension RappPairingView {
 
   private func peerDeleteButton(for pairID: Data) -> some View {
     Button(role: .destructive) {
-      pairingModel.revoke(pairID: pairID)
+      Task { await pairingModel.forget(pairID: pairID) }
     } label: {
       Image(systemName: "trash")
         .foregroundStyle(.red)

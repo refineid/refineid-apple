@@ -43,6 +43,21 @@ internal struct RequesterTransportPolicyTests {
     #expect(Self.policy(streamInSight: false, bluetoothUsable: false).nextDial == nil)
   }
 
+  @Test("A card in this computer's reader leaves nothing to dial, however the phone is reached")
+  internal func localCardOverridesThePhone() {
+    for streamInSight in [false, true] {
+      for streamFailed in [false, true] {
+        for bluetoothUsable in [false, true] {
+          var policy = Self.policy(
+            streamInSight: streamInSight, streamFailed: streamFailed,
+            bluetoothUsable: bluetoothUsable)
+          policy.localCardPresent = true
+          #expect(policy.nextDial == nil)
+        }
+      }
+    }
+  }
+
   @Test("The advertiser that routed is dialed first")
   internal func routedPeerIsPreferred() {
     var peers = RequesterBluetoothPeers()

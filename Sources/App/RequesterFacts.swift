@@ -20,10 +20,11 @@
     /// A card is in a reader attached to this computer.
     internal var cardPresent: Bool
 
-    /// The presence browser reports the paired phone.
+    /// The paired phone is in sight, on the network or over Bluetooth.
     internal var phonePresent: Bool
 
-    /// The paired phone, by the name it introduced itself with.
+    /// The paired phone, by the name it introduced itself with; nil while
+    /// no usable pairing exists.
     internal var pairedPhone: String?
 
     /// The phone that announced it forgot this computer, by name.

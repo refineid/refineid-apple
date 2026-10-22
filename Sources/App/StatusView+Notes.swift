@@ -33,21 +33,25 @@
 
     /// Whether the paired phone is in sight, on the network or over
     /// Bluetooth.
+    ///
+    /// A phone whose pairing this computer forgot is in sight only to hear
+    /// that close, and serves nothing here.
     private var holderInSight: Bool {
       #if REFINEID_REMOTE_CARD && REFINEID_STREAM_TRANSPORT
-        remoteRegistry.holderInSight
+        remoteRegistry.pairedPhone != nil && remoteRegistry.holderInSight
       #else
         false
       #endif
     }
 
-    /// Whether the window asks for a card reader or a phone: nothing is
-    /// serving a card, and nothing is waiting to be signed.
+    /// Whether the window asks for a phone's pairing code: no reader is
+    /// attached, no phone is paired, no card is serving, and nothing is
+    /// waiting to be signed.
     internal var shouldShowPairingPrompt: Bool {
       #if REFINEID_REMOTE_CARD
         !DemoMode.shared.isActive
           && !cardPresence.isReaderConnected
-          && !holderInSight
+          && remoteRegistry.pairedPhone == nil
           && availability == .noCard
           && signingModel.pending == nil
           && signingModel.queued.isEmpty
@@ -81,13 +85,10 @@
 
     /// The phone that forgot this computer, when one did, and the way to
     /// pair a phone.
-    ///
-    /// A paired phone off the network has no line: the prompt alone says
-    /// what to do.
     @ViewBuilder internal var pairingPromptSection: some View {
       #if REFINEID_REMOTE_CARD
         Section {
-          if remoteRegistry.pairedPhone == nil, remoteRegistry.phoneThatForgot != nil {
+          if remoteRegistry.phoneThatForgot != nil {
             IdentityStateView(
               availability: availability,
               warnsUnavailableCard: ActivationWatch.shared.warnsUnavailableCard
