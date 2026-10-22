@@ -22,104 +22,53 @@ private let fixturePairingCode = "246813"
         accessGroup: nil,
         servicePrefix: requesterPrefix
       )
-      let proxyVault = RappDeviceVault(
-        accessGroup: nil,
-        servicePrefix: proxyPrefix
-      )
-      let requesterOutbound = RappIntegrationFixtures.FrameEndpoint()
-      let proxyOutbound = RappIntegrationFixtures.FrameEndpoint()
-      let requesterTransport = RappClosureFrameTransport(
-        sender: { frame in try await requesterOutbound.send(frame) },
-        closer: { await requesterOutbound.close() }
-      )
-      let proxyTransport = RappClosureFrameTransport(
-        sender: { frame in try await proxyOutbound.send(frame) },
-        closer: { await proxyOutbound.close() }
-      )
-      let requester = try makePairingRequester(
-        vault: requesterVault,
-        transport: requesterTransport
-      )
-      let proxy = try makePairingProxy(
-        vault: proxyVault,
-        transport: proxyTransport
-      )
-      await requesterOutbound.install { frame in await proxy.receive(frame) }
-      await proxyOutbound.install { frame in await requester.receive(frame) }
+      let proxy = try await RappTestPairingPhone.showing(
+        fixturePairingCode, name: "Authorizer iPhone", servicePrefix: proxyPrefix,
+        dropAfter: nil)
+      let link = proxy.link
+      let search = try RappPairingSearch<String>(
+        options: RappPairingCoordinator.Options(
+          code: fixturePairingCode,
+          profiles: RappIntegrationFixtures.profiles,
+          transportProfile: RappIntegrationFixtures.transportProfile,
+          displayName: "Requester Mac",
+          platform: "macOS",
+          vault: requesterVault)
+      ) { _ in link.dial() }
+      await search.found("phone")
 
-      let outcomes = try await approvePairedOutcomes(
-        requester: requester,
-        proxy: proxy
-      )
+      let requesterSummary = try await awaitPair(search)
+      let proxySummary = try paired(await proxy.close())
       return await RappIntegrationFixtures.PairingFixture(
         requesterVault: requesterVault,
-        proxyVault: proxyVault,
-        requesterSummary: outcomes.requester,
-        proxySummary: outcomes.proxy,
-        requesterFrames: requesterOutbound.snapshot(),
-        proxyFrames: proxyOutbound.snapshot(),
+        proxyVault: proxy.vault,
+        requesterSummary: requesterSummary,
+        proxySummary: proxySummary,
+        requesterFrames: link.requesterSent,
+        proxyFrames: link.custodianSent,
         requesterPrefix: requesterPrefix,
         proxyPrefix: proxyPrefix
       )
     }
 
-    private static func approvePairedOutcomes(
-      requester: RappPairingCoordinator,
-      proxy: RappPairingCoordinator
-    ) async throws -> (
-      requester: RappPairingCoordinator.PairSummary,
-      proxy: RappPairingCoordinator.PairSummary
-    ) {
-      let requesterOutcome = Task {
-        try await RappIntegrationAuthorizationSupport.awaitPair(requester)
+    /// The pairing the requester's search made.
+    private static func awaitPair(
+      _ search: RappPairingSearch<String>
+    ) async throws -> RappPairingCoordinator.PairSummary {
+      for await event in search.events {
+        if case .paired(let summary) = event { return summary }
       }
-      let proxyOutcome = Task {
-        try await RappIntegrationAuthorizationSupport.awaitPair(proxy)
-      }
-      defer {
-        requesterOutcome.cancel()
-        proxyOutcome.cancel()
-      }
-
-      // The requester waits for the offer the custodian serves on connecting.
-      await requester.transportConnected()
-      await proxy.transportConnected()
-      return try await (requesterOutcome.value, proxyOutcome.value)
+      throw RappIntegrationFixtures.TestFailure.pairingEndedWithoutRecord
     }
 
-    private static func pairingOptions(
-      displayName: String,
-      platform: String,
-      vault: RappDeviceVault,
-      transport: RappClosureFrameTransport
-    ) -> RappPairingCoordinator.Options {
-      RappPairingCoordinator.Options(
-        code: fixturePairingCode,
-        profiles: RappIntegrationFixtures.profiles,
-        transportProfile: RappIntegrationFixtures.transportProfile,
-        displayName: displayName,
-        platform: platform,
-        vault: vault,
-        transport: transport
-      )
-    }
-
-    private static func makePairingRequester(
-      vault: RappDeviceVault,
-      transport: RappClosureFrameTransport
-    ) throws -> RappPairingCoordinator {
-      try RappPairingCoordinator.requester(
-        options: pairingOptions(
-          displayName: "Requester Mac", platform: "macOS", vault: vault, transport: transport))
-    }
-
-    private static func makePairingProxy(
-      vault: RappDeviceVault,
-      transport: RappClosureFrameTransport
-    ) throws -> RappPairingCoordinator {
-      try RappPairingCoordinator.custodian(
-        options: pairingOptions(
-          displayName: "Authorizer iPhone", platform: "iOS", vault: vault, transport: transport))
+    /// The pairing among a custodian's outcomes.
+    private static func paired(
+      _ outcomes: [RappPairingCoordinator.Event]
+    ) throws -> RappPairingCoordinator.PairSummary {
+      for event in outcomes {
+        if case .paired(let summary) = event { return summary }
+      }
+      throw RappIntegrationFixtures.TestFailure.pairingEndedWithoutRecord
     }
 
     internal static func makeConnection(

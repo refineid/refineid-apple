@@ -14,8 +14,16 @@ internal enum PairingEvent: String, CaseIterable, Sendable {
   case offerExpiredOrCancelled = "offer_expired_or_cancelled"
   case attemptStarted = "attempt_started"
   case codeEntered = "code_entered"
+  /// On the requester: the endpoint opened did not take the code, because
+  /// its custodian refused it or it served no offer the requester could try.
   case attemptFailed = "attempt_failed"
   case lastAttemptFailed = "last_attempt_failed"
+  /// Every custodian the requester tried refused the code, and no endpoint
+  /// is left to open.
+  case lastCandidateFailed = "last_candidate_failed"
+  /// No endpoint served an offer the requester could try, and its search
+  /// ended.
+  case noCustodianTried = "no_custodian_tried"
   case keyConfirmed = "key_confirmed"
   case handshakeAuthenticated = "handshake_authenticated"
   case handshakeFailed = "handshake_failed"

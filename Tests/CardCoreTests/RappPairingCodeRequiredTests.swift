@@ -10,9 +10,9 @@ import Testing
 
   /// The pairing code is what the two peers key the CPace PAKE on.
   ///
-  /// A coordinator built without a usable code has nothing to agree a
-  /// secret on, and must refuse to be built rather than fall back to a
-  /// handshake that agrees on no secret at all.
+  /// A search or a ceremony built without a usable code has nothing to
+  /// agree a secret on, and must refuse to be built rather than fall back to
+  /// a handshake that agrees on no secret at all.
   @Suite("Pairing refuses to start without a code both peers share")
   internal struct RappPairingCodeRequiredTests {
     private func options(code: String, suffix: String) -> RappPairingCoordinator.Options {
@@ -22,9 +22,15 @@ import Testing
         transportProfile: rappStreamProfileName(),
         displayName: "Peer",
         platform: "macOS",
-        vault: makeVault(suffix: suffix),
-        transport: discardingTransport()
+        vault: makeVault(suffix: suffix)
       )
+    }
+
+    /// The requester's search for `code`; it opens no connection here.
+    private func search(code: String, suffix: String) throws -> RappPairingSearch<String> {
+      try RappPairingSearch(options: options(code: code, suffix: suffix)) { _ in
+        RappPairingConnection(transport: discardingTransport(), events: AsyncStream { $0.finish() })
+      }
     }
 
     @Test(
@@ -33,8 +39,7 @@ import Testing
     )
     internal func requesterRefusesMalformedCode(_ code: String) throws {
       #expect(throws: (any Error).self) {
-        try RappPairingCoordinator.requester(
-          options: options(code: code, suffix: "requester-malformed"))
+        try search(code: code, suffix: "requester-malformed")
       }
     }
 
@@ -45,22 +50,21 @@ import Testing
     internal func custodianRefusesMalformedCode(_ code: String) throws {
       #expect(throws: (any Error).self) {
         try RappPairingCoordinator.custodian(
-          options: options(code: code, suffix: "custodian-malformed"))
+          options: options(code: code, suffix: "custodian-malformed"),
+          transport: discardingTransport())
       }
     }
 
     @Test("An over-long code is refused rather than truncated")
     internal func overLongCodeIsRefused() throws {
       #expect(throws: (any Error).self) {
-        try RappPairingCoordinator.requester(
-          options: options(code: "2468139", suffix: "requester-truncated"))
+        try search(code: "2468139", suffix: "requester-truncated")
       }
     }
 
     @Test("A code carrying spaces is normalized rather than refused")
     internal func codeIsNormalizedBeforeUse() throws {
-      _ = try RappPairingCoordinator.requester(
-        options: options(code: "246 813", suffix: "requester-spaced"))
+      _ = try search(code: "246 813", suffix: "requester-spaced")
     }
 
     /// A transport that discards every frame, for the refusals that never

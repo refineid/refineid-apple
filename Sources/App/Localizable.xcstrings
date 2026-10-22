@@ -6377,18 +6377,18 @@
         }
       }
     },
-    "Could not find a device offering this pairing code.": {
+    "No phone in pairing mode was found": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laitetta, joka tarjoaa tätä yhdistämiskoodia, ei löytynyt."
+            "value": "Yhdistämistilassa olevaa puhelinta ei löytynyt"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hittade ingen enhet som erbjuder den här koden."
+            "value": "Ingen telefon i parkopplingsläge hittades"
           }
         }
       }

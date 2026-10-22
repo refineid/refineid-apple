@@ -17,6 +17,7 @@ internal enum RappGuard: String, CaseIterable, Sendable {
   case initiationPermitted = "initiation_permitted"
   case pairingRouted = "pairing_routed"
   case readyParametersMatch = "ready_parameters_match"
+  case untriedPairingCandidate = "untried_pairing_candidate"
 }
 
 // swiftlint:enable sorted_enum_cases

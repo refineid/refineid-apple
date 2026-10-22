@@ -7,12 +7,13 @@
   /// Drives one RAPP v26.10.22 pairing ceremony over one transport.
   ///
   /// The custodian creates a random offer, shows a pairing code and waits;
-  /// the requester types the code, connects and reads the offer through the
-  /// transport's bootstrap. CPace KC2 proves both hold the code, Noise_XXpsk3 binds
-  /// fresh pair keys, and the custodian grants the requested profiles
-  /// without a separate approval: entering the code is the authorization.
-  /// The engine owns every secret; this actor moves frames and reports
-  /// progress.
+  /// the requester's side starts from the offer one connection served
+  /// through the transport's bootstrap, with the code its user typed
+  /// (``RappPairingSearch`` reads it). CPace KC2 proves both hold the code,
+  /// Noise_XXpsk3 binds fresh pair keys, and the custodian grants the
+  /// requested profiles without a separate approval: entering the code is
+  /// the authorization. The engine owns every secret; this actor moves
+  /// frames and reports progress.
   public actor RappPairingCoordinator {
     // MARK: Nested Types
 
@@ -81,6 +82,9 @@
       case offerExpired
       /// Three wrong codes destroyed the custodian's offer.
       case attemptsExhausted
+      /// No CPace step 2 arrived within the attempt deadline of the
+      /// requester's step 1 (RAPP v26.10.22 §3.3 item 3).
+      case attemptTimedOut
       /// The peer never confirmed storing the pairing; the record this
       /// endpoint stored is revoked (RAPP v26.10.22 §4.3 item 4).
       case storageUnconfirmed
@@ -91,6 +95,9 @@
       /// A custodian attempt failed and the same offer awaits a new
       /// connection; the transport must be replaced before it can answer.
       case offerRestored
+      /// The custodian's T_B verified: it holds the code the requester's
+      /// user typed (RAPP v26.10.22 §6.1.3 step 3).
+      case keyConfirmed
       /// The peer's authenticated introduction, for naming the pairing.
       case peerIntroduced(Peer)
       case paired(PairSummary)
@@ -99,7 +106,6 @@
 
     internal enum State: Equatable {
       case offer
-      case requesterAwaitingOffer
       case requesterAwaitingStepTwo
       case requesterAwaitingHandshakeTwo
       case custodianAwaitingStepOne
@@ -121,16 +127,13 @@
     nonisolated public let events: AsyncStream<Event>
 
     internal let role: Role
-    /// The ceremony's engine; a stream requester has none until the
-    /// custodian's offer frame arrives.
-    internal var bridge: RappPairingBridge?
+    /// The ceremony's engine.
+    internal let bridge: RappPairingBridge
     internal let vault: RappDeviceVault
     internal var transport: any RappFrameTransport
     /// The transport profile this ceremony runs over (RAPP v26.10.22 §2.2).
     internal let transportProfile: String
     internal let candidateID: String
-    /// The canonical code a requester types, kept until its offer arrives.
-    internal let pairingCode: String
     internal let profiles: [String]
     internal let displayName: String
     internal let platform: String
@@ -149,10 +152,9 @@
 
     internal init(
       role: Role,
-      bridge: RappPairingBridge?,
+      bridge: RappPairingBridge,
       transportProfile: String,
       candidateID: String,
-      pairingCode: String,
       profiles: [String],
       displayName: String,
       platform: String,
@@ -165,7 +167,6 @@
       self.role = role
       self.bridge = bridge
       self.transportProfile = transportProfile
-      self.pairingCode = pairingCode
       self.candidateID = candidateID
       self.profiles = profiles
       self.displayName = displayName
