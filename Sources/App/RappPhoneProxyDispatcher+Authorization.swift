@@ -23,7 +23,7 @@
       coordinator: RappConnectionCoordinator
     ) async {
       guard prerequisitesExist(for: operation) else {
-        try? await coordinator.requestInvalidOrUnsupported(operationID: operationID)
+        await invalid(operationID, coordinator: coordinator)
         return
       }
       try? await coordinator.prerequisitesComplete(operationID: operationID)
@@ -41,7 +41,7 @@
         #if DEBUG
           HolderTrace.say("handleApproval: no PIN defined for \(operation.kind)")
         #endif
-        try? await coordinator.requestInvalidOrUnsupported(operationID: operationID)
+        await invalid(operationID, coordinator: coordinator)
         return
       }
       if await takeHeldPin1(operationID: operationID, operation: operation) {

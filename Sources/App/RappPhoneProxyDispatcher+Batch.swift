@@ -43,6 +43,12 @@
           return
         }
         if batch.signed > 0 {
+          #if DEBUG
+            DevErrorLog.report(
+              "operation answered cardError: batch stopped after "
+                + "\(batch.signed) of \(operation.digests.count) signatures",
+              source: .app)
+          #endif
           try? await coordinator.cardError(operationID: operationID)
           return
         }

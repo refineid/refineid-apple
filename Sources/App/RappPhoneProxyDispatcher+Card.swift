@@ -258,10 +258,17 @@
         }
 
       case .wrongCardAccessNumber:
+        #if DEBUG
+          DevErrorLog.report(
+            "operation answered operationFailed: card access number rejected", source: .app)
+        #endif
         CardCredentialStore.forgetCardAccessNumber()
         try? await coordinator.operationFailed(operationID: operationID)
 
       case .failed:
+        #if DEBUG
+          DevErrorLog.report("operation answered cardError: inspection failed", source: .app)
+        #endif
         try? await coordinator.cardError(operationID: operationID)
       }
     }

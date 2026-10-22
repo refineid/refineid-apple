@@ -70,6 +70,8 @@
         } catch {
           #if DEBUG
             HolderTrace.say("answer refused: \(String(describing: error))")
+            DevErrorLog.report(
+              "signature not delivered: \(DevErrorLog.reason(error))", source: .app)
           #endif
         }
       } else {
@@ -134,6 +136,7 @@
     ) async {
       #if DEBUG
         HolderTrace.say("finishFailure: outcome=\(outcome)")
+        Self.reportFailure(outcome)
       #endif
       switch outcome {
       case .result:
@@ -209,6 +212,9 @@
       _ operationID: RappOperationIdentifier,
       coordinator: RappConnectionCoordinator
     ) async {
+      #if DEBUG
+        DevErrorLog.report("operation answered requestInvalid", source: .app)
+      #endif
       try? await coordinator.requestInvalidOrUnsupported(operationID: operationID)
     }
 

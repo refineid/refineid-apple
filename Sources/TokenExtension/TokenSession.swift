@@ -216,6 +216,9 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
     } catch {
       TokenLog.error(
         "sign: exit failed session=\(sessionID) \(error) ms=\(Self.elapsed(since: started))")
+      #if DEBUG
+        Self.reportSignFailure(error, milliseconds: Self.elapsed(since: started))
+      #endif
       throw error
     }
   }

@@ -169,7 +169,16 @@
       }
       beginRead()
       Task {
-        let fetched = try? await session.readAuthenticationCertificate()
+        let fetched: Data?
+        do {
+          fetched = try await session.readAuthenticationCertificate()
+        } catch {
+          fetched = nil
+          #if DEBUG
+            DevErrorLog.report(
+              "certificate read failed: \(DevErrorLog.reason(error))", source: .app)
+          #endif
+        }
         finishRead(fetched)
       }
     }
@@ -185,6 +194,11 @@
     }
 
     private func holderSessionEnded(_ reason: RappConnectionCoordinator.CloseReason) {
+      #if DEBUG
+        if let failure = reason.devErrorName(midOperation: isRunning) {
+          DevErrorLog.report("phone session closed: \(failure)", source: .app)
+        }
+      #endif
       let ended = holderSession
       holderSession = nil
       holderSessionToken = nil
@@ -251,6 +265,11 @@
         // Stop dialing and leave a terminal state instead of looping; a
         // fresh advertisement (holderIsAdvertising) or a user action
         // starts a new attempt. The offer's grace has run by now.
+        #if DEBUG
+          DevErrorLog.report(
+            "phone session: no usable session in \(Self.abortLoopSeconds) s, stopped dialling",
+            source: .app)
+        #endif
         continuousFailureSince = nil
         redialTask = nil
         return

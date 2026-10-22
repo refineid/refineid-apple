@@ -155,6 +155,9 @@ internal struct RefineIDApp: App {
       contentForLaunchMode
         .writingToolsBehavior(.disabled)
     }
+    #if DEBUG
+      .modifier(DevErrorStrip())
+    #endif
     // Off the launch path for the reason in the initializer below:
     // withdrawing reads the driver configuration, a synchronous call
     // into `ctkd`, so it starts from the first screen rather than

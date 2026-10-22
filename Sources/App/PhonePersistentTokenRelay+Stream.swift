@@ -3,6 +3,7 @@
 #if os(iOS) && REFINEID_LOCAL_CARD && REFINEID_STREAM_TRANSPORT
   import CardCore
   import Foundation
+  import os
   import RappEngine
 
   /// The one session listener's state between dials.
@@ -45,6 +46,58 @@
     /// before it announces itself anyway.
     private static let closeAllowanceMilliseconds = 500
 
+    /// Whether a dialer whose first frame is `preamble` may take the open
+    /// session's place; asked on the listener's queue.
+    nonisolated private static func admitsReplacement(
+      preamble: Data,
+      routing: OSAllocatedUnfairLock<(records: [RappPairRecord], router: RappSessionRouter)>,
+      serving: OSAllocatedUnfairLock<(pairing: Data?, idleSince: ContinuousClock.Instant?)>,
+      profile: String,
+      holdSeconds: Int64
+    ) -> Bool {
+      // Only a session preamble naming a served pairing displaces a
+      // session (RAPP §2.2.1, §8.4); a stranger or a pairing attempt
+      // displaces nothing.
+      let (served, router) = routing.withLock { $0 }
+      let route = router.route(transportProfile: profile, preamble: preamble, records: served)
+      guard case .session(let index) = route, served.indices.contains(index) else {
+        #if DEBUG
+          DevErrorLog.report(
+            route == .pairing
+              ? "dial refused: pairing attempt while a session is open"
+              : "dial refused: preamble matches no pairing, a session is open",
+            source: .app)
+        #endif
+        return false
+      }
+      let incoming = served[index].metadata().pairId
+      let (pairing, idleSince) = serving.withLock { $0 }
+      // An operation in flight, or a handshake still coming up,
+      // protects the session whoever dials: a busy session is never
+      // displaced, so a signature is never cut short.
+      guard let since = idleSince else {
+        #if DEBUG
+          DevErrorLog.report("dial refused: session busy", source: .app)
+        #endif
+        return false
+      }
+      // The requester's own app and token extension share one
+      // pairing; between them, hand over as soon as the session is
+      // idle, with no cross-peer hold (R-59).
+      if pairing == incoming { return true }
+      // A different requester waits until the holder has been idle
+      // past the hold, so f, the Mac and Windows stop stealing each
+      // other's session between operations.
+      let heldLongEnough = ContinuousClock.now - since >= .seconds(holdSeconds)
+      #if DEBUG
+        if !heldLongEnough {
+          DevErrorLog.report(
+            "dial refused: another pairing's session idle under \(holdSeconds) s", source: .app)
+        }
+      #endif
+      return heldLongEnough
+    }
+
     /// The session record for the pairings in `contexts`: their discovery
     /// hints (transport hierarchy §4.3).
     ///
@@ -86,29 +139,9 @@
         let profile = rappStreamProfileName()
         let listener = StreamRelayListener(
           admitsReplacement: { preamble in
-            // Only a session preamble naming a served pairing displaces a
-            // session (RAPP §2.2.1, §8.4); a stranger or a pairing attempt
-            // displaces nothing.
-            let (served, router) = routing.withLock { $0 }
-            guard
-              case .session(let index) = router.route(
-                transportProfile: profile, preamble: preamble, records: served),
-              served.indices.contains(index)
-            else { return false }
-            let incoming = served[index].metadata().pairId
-            let (pairing, idleSince) = serving.withLock { $0 }
-            // An operation in flight, or a handshake still coming up,
-            // protects the session whoever dials: a busy session is never
-            // displaced, so a signature is never cut short.
-            guard let since = idleSince else { return false }
-            // The requester's own app and token extension share one
-            // pairing; between them, hand over as soon as the session is
-            // idle, with no cross-peer hold (R-59).
-            if pairing == incoming { return true }
-            // A different requester waits until the holder has been idle
-            // past the hold, so f, the Mac and Windows stop stealing each
-            // other's session between operations.
-            return ContinuousClock.now - since >= .seconds(holdSeconds)
+            Self.admitsReplacement(
+              preamble: preamble, routing: routing, serving: serving,
+              profile: profile, holdSeconds: holdSeconds)
           },
           onEvent: { [weak self] event in
             Task { @MainActor in
@@ -224,6 +257,11 @@
         #if DEBUG
           print("[stream-holder] already connected to a peer, disconnecting incoming")
           fflush(stdout)
+          DevErrorLog.report(
+            coordinator == nil
+              ? "dial refused: service is being withdrawn"
+              : "dial refused: a session is still open",
+            source: .app)
         #endif
         listener.disconnect()
         return
@@ -256,6 +294,13 @@
           transportProfile: rappStreamProfileName(), preamble: frame,
           records: contexts.map(\.pairRecord))
         guard case .session(let index) = route, contexts.indices.contains(index) else {
+          #if DEBUG
+            DevErrorLog.report(
+              route == .pairing
+                ? "dial refused: pairing preamble on the session listener"
+                : "dial refused: preamble matches no pairing",
+              source: .app)
+          #endif
           listener.disconnect()
           return
         }
@@ -268,6 +313,9 @@
       } else if preCoordinatorFrames.count < Self.maximumPreCoordinatorFrames {
         preCoordinatorFrames.append(frame)
       } else {
+        #if DEBUG
+          DevErrorLog.report("dial dropped: too many frames before the session", source: .app)
+        #endif
         listener.disconnect()
       }
     }
