@@ -80,9 +80,6 @@
     internal var reportedCardStatus: RappCardStatus?
     /// What this phone knows of the reader card it serves.
     internal var readerCard = ReaderCard()
-    /// The primed card's fingerprint as last read with protected data
-    /// available, which stands in for it while the phone is locked.
-    internal var primedFingerprintWhileLocked: RappCertificateFingerprint?
     /// The pairing the open session runs over.
     internal var activePairID: Data?
     internal var connectionID: UUID?

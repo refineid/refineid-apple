@@ -12,11 +12,22 @@ public struct RappCertificateFingerprint: Hashable, Sendable {
 
   internal let digest: Data
 
+  /// The fingerprint's bytes, for keeping where the custodian can read them
+  /// while the phone is locked.
+  public var storedBytes: Data {
+    digest
+  }
+
   /// The fingerprint of `certificate`, the DER encoding of an
   /// authentication certificate; nil for an empty one.
   public init?(certificate: Data) {
     guard !certificate.isEmpty else { return nil }
     digest = Data(SHA256.hash(data: certificate))
+  }
+
+  /// A fingerprint this device kept itself, as ``storedBytes`` gave it.
+  public init?(stored: Data) {
+    self.init(received: stored)
   }
 
   /// A received fingerprint: 32 bytes, not all zero, since 32 zero bytes

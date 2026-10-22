@@ -151,7 +151,11 @@ import Foundation
     internal func wrote(error: (any Error)?) {
       guard !finished else { return }
       guard error == nil, !outbound.isEmpty else {
-        finish(routed ? .disconnected : .routingRefused)
+        // Before routing only the custodian's own refusal of the write is a
+        // refusal; a link that dropped under the write is lost, and the
+        // phone may be dialled again at once.
+        let refused = !routed && (error as? CBATTError)?.code == .writeNotPermitted
+        finish(refused ? .routingRefused : .disconnected)
         return
       }
       outbound.removeFirst()
