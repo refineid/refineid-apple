@@ -68,6 +68,7 @@
       }
       holderSession = session
       holderSessionToken = token
+      holderReportsNoCard = false
       session.start()
     }
 
@@ -77,6 +78,7 @@
       redialTask?.cancel()
       redialTask = nil
       holderCardStatus = .absent
+      holderReportsNoCard = false
       holderSession?.close()
       holderSession = nil
       holderSessionToken = nil
@@ -92,6 +94,7 @@
       redialTask?.cancel()
       redialTask = nil
       holderCardStatus = .absent
+      holderReportsNoCard = false
       holderSession = nil
       holderSessionToken = nil
       let told = await session.closePairingRevoked()
@@ -111,6 +114,11 @@
         // so its deadline starts over for any later loss (R-58).
         continuousFailureSince = nil
         holderCardStatus = status
+        if case .absent = status {
+          holderReportsNoCard = true
+        } else {
+          holderReportsNoCard = false
+        }
         let offered = (certificateDER ?? Self.publishedCertificateDER())
           .flatMap(RappCertificateFingerprint.init(certificate:))
         respond(to: identityOffer.receive(status, offered: offered, at: .now))
@@ -181,6 +189,7 @@
       holderSession = nil
       holderSessionToken = nil
       holderCardStatus = .absent
+      holderReportsNoCard = false
       if reason.peerRevokedPairing {
         if let ended {
           holderRevoked(pairID: ended.pairID)

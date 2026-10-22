@@ -6,67 +6,60 @@
   import CryptoTokenKit
   import Foundation
 
-  /// Whether this phone can still serve a card, and what leaves with it.
+  /// What the card this phone holds does to serving.
   ///
-  /// A connected reader is a card this device can answer for. Losing it
-  /// wipes the CryptoTokenKit identities that were offering that card
-  /// and stops the holder advertisement so a paired requester withdraws
-  /// its copy. The pairing stays: a household keeps the same peers while
-  /// cards come and go.
-  ///
-  /// A stored NFC prime is different: the field has no lasting connected
-  /// state, so the prime and the advertisement stay.
+  /// Serving does not wait for a card: while Remote Access is on and a
+  /// computer is paired, the phone stays reachable and tells the computer
+  /// which card it holds, none included (RAPP v26.10.22 §8.4 item 1), so
+  /// the computer can ask for the card instead of pairing again. A reader
+  /// card that leaves takes the CryptoTokenKit identities offering it and
+  /// a held PIN 1 with it; the pairing and the session stay.
   @MainActor
   internal enum HolderCardServing {
-    /// Whether a serving state has been measured this run.
+    /// Whether a card has been measured this run.
     private static var didMeasure = false
 
-    /// Last computed serving state, so an unchanged recount is silent.
-    private static var wasAbleToServe = false
+    /// Whether the phone held a card when last measured, so an unchanged
+    /// recount is silent.
+    private static var heldCard = false
 
     /// Recomputes from the reader slot and the prime store.
     internal static func availabilityChanged() {
       guard SupportedCardTransports.offersNearField else { return }
       guard !DemoMode.shared.isActive else { return }
-      let canServe =
+      let holdsCard =
         PrimeStore.storedCount() > 0 || CardPresence.shared.isReaderCardPresent
       if !didMeasure {
-        if !canServe {
+        if !holdsCard {
           guard CardPresence.shared.hasCompletedInitialScan else { return }
         }
         didMeasure = true
-        wasAbleToServe = canServe
-        if canServe {
-          PhonePersistentTokenRelay.shared.start()
-        } else {
+        heldCard = holdsCard
+        if !holdsCard {
           dropReaderTokens()
         }
+        PhonePersistentTokenRelay.shared.start()
         return
       }
       // A connected requester hears about the change at once (RAPP
       // v26.10.22 §8.4 item 1), whichever way it went.
       PhonePersistentTokenRelay.shared.cardAvailabilityChanged()
-      guard wasAbleToServe != canServe else {
-        if canServe, !PhonePersistentTokenRelay.shared.isServing {
-          PhonePersistentTokenRelay.shared.start()
-        }
-        return
-      }
-      wasAbleToServe = canServe
-      if canServe {
+      if !PhonePersistentTokenRelay.shared.isServing {
         PhonePersistentTokenRelay.shared.start()
-        return
       }
-      dropReaderTokens()
+      guard heldCard != holdsCard else { return }
+      heldCard = holdsCard
+      if !holdsCard {
+        dropReaderTokens()
+      }
     }
 
     /// Clears identities that belonged to a reader card.
     ///
-    /// Pairing stays.
+    /// Pairing and serving stay.
     private static func dropReaderTokens() {
       HeldPin1.shared.clear()
       wipeLocalTokens()
-      PhonePersistentTokenRelay.shared.stopServing()
     }
 
     private static func wipeLocalTokens() {

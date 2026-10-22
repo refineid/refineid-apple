@@ -122,10 +122,6 @@
       // A proxy without an antenna is not a proxy: only near-field
       // devices advertise as the card holder.
       guard SupportedCardTransports.offersNearField else { return }
-      // A holder with no card has nothing to serve; advertising would
-      // keep remotes offering an identity this phone can no longer sign.
-      guard PrimeStore.storedCount() > 0 || CardPresence.shared.isReaderCardPresent
-      else { return }
       #if REFINEID_STREAM_TRANSPORT
         guard coordinator == nil,
           hasUsablePair()

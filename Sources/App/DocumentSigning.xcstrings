@@ -650,7 +650,7 @@
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Yhteys pariksi liitettyyn puhelimeen katkesi."
+            "value" : "Yhteys puhelimeen katkesi."
           }
         },
         "sv" : {
@@ -716,7 +716,7 @@
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Puhelinta ei ole liitetty pariksi."
+            "value" : "Puhelinta ei ole yhdistetty."
           }
         },
         "sv" : {
@@ -738,7 +738,7 @@
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pariksi liitetty puhelin ei vastannut."
+            "value" : "Puhelin ei vastannut."
           }
         },
         "sv" : {

@@ -19,9 +19,7 @@
 
     // MARK: Functions
 
-    /// Stops advertising without asking the holder to pair again.
-    ///
-    /// The pairing remains. A card that comes back listens again.
+    /// Stops advertising without telling the paired computers.
     internal func stopServing() {
       tearDownTransport()
     }

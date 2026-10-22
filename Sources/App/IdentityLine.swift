@@ -21,13 +21,14 @@
     /// "Insert the card into the reader."
     case insertCard
 
+    /// "Insert the card into the phone's card reader.": the paired phone
+    /// says it holds no card.
+    case insertCardInPhone
+
     /// Nothing here can sign, no reader card and no paired phone: the row
     /// asks for a phone's pairing code, so a document waiting to be signed
     /// can be signed on the phone once it is paired.
     case pairPhone
-
-    /// The paired phone, by name, is on the network.
-    case phoneConnected(String)
 
     /// The phone, by name, announced it forgot this computer.
     case phoneForgot(String)
@@ -36,37 +37,25 @@
     /// so the row shows nothing until the holder's name.
     case reading
 
-    // MARK: Computed Properties
-
-    /// Whether the row shows this line only once it has lasted.
-    ///
-    /// A phone connected before its card reports is on the way to the
-    /// holder's name, and the row says it is connecting; a connection that
-    /// lasts without a card is named.
-    internal var waitsBeforeShowing: Bool {
-      switch self {
-      case .phoneConnected:
-        true
-
-      case .cardNotReady, .connecting, .empty, .holder, .insertCard, .pairPhone, .phoneForgot,
-        .reading:
-        false
-      }
-    }
-
     // MARK: Static Functions
 
     /// The line for `facts`; the first rule that matches wins.
+    ///
+    /// The phone's word that it holds no card outranks an identity still
+    /// offered in its grace (RAPP v26.10.22 §8.4 item 3): the row says what
+    /// the holder can do now, while browsers keep the identity a little
+    /// longer.
     internal static func derive(_ facts: RequesterFacts) -> Self {
+      let phoneHoldsNoCard = facts.phoneReportsNoCard && !facts.cardPresent
       switch facts.availability {
       case .ready:
-        return .holder
+        return phoneHoldsNoCard ? .insertCardInPhone : .holder
 
       case .cardWithoutIdentity:
         if facts.cardPresent {
           return facts.warnsUnavailableCard ? .cardNotReady : .reading
         }
-        return .connecting
+        return phoneHoldsNoCard ? .insertCardInPhone : .connecting
 
       case .noCard:
         if facts.readInFlight {
@@ -75,13 +64,16 @@
         if facts.readerConnected {
           return .insertCard
         }
-        guard let phone = facts.pairedPhone else {
+        guard facts.pairedPhone != nil else {
           if let forgot = facts.phoneThatForgot {
             return .phoneForgot(forgot)
           }
           return .pairPhone
         }
-        return facts.phonePresent ? .phoneConnected(phone) : .empty
+        if phoneHoldsNoCard {
+          return .insertCardInPhone
+        }
+        return facts.phonePresent ? .connecting : .empty
       }
     }
   }

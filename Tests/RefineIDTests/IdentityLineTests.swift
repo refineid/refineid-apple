@@ -58,12 +58,45 @@ internal struct IdentityLineTests {
       },
       line: .connecting),
     Case(
-      name: "paired phone present",
+      name: "paired phone present, no card reported yet",
       facts: with { facts in
         facts.pairedPhone = phone
         facts.phonePresent = true
       },
-      line: .phoneConnected(phone)),
+      line: .connecting),
+    Case(
+      name: "paired phone holds no card",
+      facts: with { facts in
+        facts.pairedPhone = phone
+        facts.phonePresent = true
+        facts.phoneReportsNoCard = true
+      },
+      line: .insertCardInPhone),
+    Case(
+      name: "a phone without a card outranks the identity still in its grace",
+      facts: with { facts in
+        facts.availability = .ready
+        facts.pairedPhone = phone
+        facts.phoneReportsNoCard = true
+      },
+      line: .insertCardInPhone),
+    Case(
+      name: "a reader card here outranks a phone without a card",
+      facts: with { facts in
+        facts.availability = .ready
+        facts.cardPresent = true
+        facts.pairedPhone = phone
+        facts.phoneReportsNoCard = true
+      },
+      line: .holder),
+    Case(
+      name: "an empty reader here outranks a phone without a card",
+      facts: with { facts in
+        facts.readerConnected = true
+        facts.pairedPhone = phone
+        facts.phoneReportsNoCard = true
+      },
+      line: .insertCard),
     Case(
       name: "a phone on the network without a pairing is nothing to show",
       facts: with { $0.phonePresent = true }, line: .pairPhone),
@@ -166,17 +199,5 @@ internal struct IdentityLineTests {
   @Test(arguments: cases)
   internal func derivesTheLine(_ testCase: Case) {
     #expect(IdentityLine.derive(testCase.facts) == testCase.line)
-  }
-
-  /// Only a connected phone waits to show; the name, instructions and
-  /// errors show at once.
-  @Test
-  internal func onlyAConnectedPhoneWaitsToShow() {
-    #expect(IdentityLine.phoneConnected(Self.phone).waitsBeforeShowing)
-    let immediate: [IdentityLine] = [
-      .cardNotReady, .connecting, .empty, .holder, .insertCard, .pairPhone,
-      .phoneForgot(Self.phone), .reading,
-    ]
-    #expect(immediate.allSatisfy { !$0.waitsBeforeShowing })
   }
 }

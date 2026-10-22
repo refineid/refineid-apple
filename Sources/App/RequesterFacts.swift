@@ -27,6 +27,9 @@
 
     /// The phone that announced it forgot this computer, by name.
     internal var phoneThatForgot: String?
+
+    /// The phone's open session says it holds no card.
+    internal var phoneReportsNoCard = false
   }
 
 #endif

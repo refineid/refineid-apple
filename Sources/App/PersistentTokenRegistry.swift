@@ -117,6 +117,10 @@
     /// a session.
     internal var holderCardStatus = RappCardStatus.absent
 
+    /// Whether the open session's last `card.status` says the phone holds
+    /// no card; false without a session or before its first report.
+    internal var holderReportsNoCard = false
+
     /// The paired phone, by the name it introduced itself with; nil
     /// while no phone is paired.
     internal private(set) var pairedPhone: String?
