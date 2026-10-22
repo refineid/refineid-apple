@@ -56,8 +56,11 @@ import Testing
         case .closed(let reason):
           throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
 
-        case .executeCardCommand, .completed, .terminal, .progress, .cardStatus, .operationEnded,
-          .answered:
+        case .answered:
+          // The custodian's own word that an earlier operation is over.
+          break
+
+        case .executeCardCommand, .completed, .terminal, .progress, .cardStatus, .operationEnded:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
         }
       }

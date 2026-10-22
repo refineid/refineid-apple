@@ -58,7 +58,8 @@ import Testing
       var progress = RappIntegrationFixtures.ProxyProgress()
       for await event in coordinator.events {
         switch event {
-        case .established:
+        case .established, .answered:
+          // The custodian's own word that an earlier operation is over.
           break
 
         case .inspectPrerequisites(let operationID, let operation):
@@ -86,7 +87,7 @@ import Testing
           return progress
 
         case .terminal, .closed, .executeSafeRead, .completed, .progress, .cardStatus,
-          .operationEnded, .answered:
+          .operationEnded:
           throw Self.ending(event)
         }
       }
@@ -156,7 +157,8 @@ import Testing
       var progress = RappIntegrationFixtures.ProxyProgress()
       for await event in coordinator.events {
         switch event {
-        case .established:
+        case .established, .answered:
+          // The custodian's own word that an earlier operation is over.
           break
 
         case .inspectPrerequisites(let operationID, let operation):
@@ -180,7 +182,7 @@ import Testing
           return progress
 
         case .terminal, .closed, .executeSafeRead, .completed, .progress, .cardStatus,
-          .operationEnded, .answered:
+          .operationEnded:
           throw Self.ending(event)
         }
       }
