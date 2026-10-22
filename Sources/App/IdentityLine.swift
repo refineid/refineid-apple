@@ -11,9 +11,6 @@
     /// read or about to be.
     case connecting
 
-    /// "Connect a card reader."
-    case connectReader
-
     /// Nothing worth a line: a paired phone that is not on the network
     /// leaves the row empty, and the pairing prompt below it stands.
     case empty
@@ -23,6 +20,11 @@
 
     /// "Insert the card into the reader."
     case insertCard
+
+    /// Nothing here can sign, no reader card and no paired phone: the row
+    /// asks for a phone's pairing code, so a document waiting to be signed
+    /// can be signed on the phone once it is paired.
+    case pairPhone
 
     /// The paired phone, by name, is on the network.
     case phoneConnected(String)
@@ -46,7 +48,7 @@
       case .phoneConnected:
         true
 
-      case .cardNotReady, .connectReader, .connecting, .empty, .holder, .insertCard, .phoneForgot,
+      case .cardNotReady, .connecting, .empty, .holder, .insertCard, .pairPhone, .phoneForgot,
         .reading:
         false
       }
@@ -77,7 +79,7 @@
           if let forgot = facts.phoneThatForgot {
             return .phoneForgot(forgot)
           }
-          return .connectReader
+          return .pairPhone
         }
         return facts.phonePresent ? .phoneConnected(phone) : .empty
       }

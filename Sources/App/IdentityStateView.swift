@@ -168,9 +168,8 @@
         Text("\(phone) forgot this computer")
           .foregroundStyle(.secondary)
 
-      case .connectReader:
-        Text("Connect a card reader.")
-          .foregroundStyle(.secondary)
+      case .pairPhone:
+        RemotePairingPromptView()
       }
     }
 
