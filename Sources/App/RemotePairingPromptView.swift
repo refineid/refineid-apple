@@ -28,9 +28,13 @@
     }
 
     @ViewBuilder private var promptText: some View {
-      Text(String(localized: "Connect a card reader or open RefineID on your phone"))
-        .textSelection(.enabled)
-        .fixedSize(horizontal: false, vertical: true)
+      Text(
+        String(
+          localized: "Open RefineID / Remote Access on your phone and enter the pairing code:"
+        )
+      )
+      .textSelection(.enabled)
+      .fixedSize(horizontal: false, vertical: true)
       HStack {
         CodeBoxesField(
           label: String(localized: "Pairing code"),

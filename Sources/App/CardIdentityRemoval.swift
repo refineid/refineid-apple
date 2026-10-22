@@ -35,7 +35,17 @@ internal enum CardIdentityRemoval {
   }
 
   /// Completes pairing and namespace removal before reporting completion.
+  ///
+  /// With every pairing gone the phone has nothing to serve, so Remote
+  /// Access turns off as well; turning it back on starts a new pairing.
   private static func removeAllRemoteConfiguration() async -> ConfigurationRemoval {
+    #if os(iOS)
+      RemoteAccessServing.setEnabled(false)
+    #endif
+    defer {
+      NotificationCenter.default.post(
+        name: RappPairingModel.pairingsDidChangeNotification, object: nil)
+    }
     let vault = RappDeviceVault()
     let catalog = RappPairCatalog(vault: vault)
     if let pairs = try? await catalog.activePairs() {

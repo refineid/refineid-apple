@@ -78,12 +78,15 @@
       .accessibilityIdentifier("loginIdentityStatus")
     }
 
-    /// The paired phone's line, when there is one, and the way to connect
-    /// a reader or another phone.
+    /// The phone that forgot this computer, when one did, and the way to
+    /// pair a phone.
+    ///
+    /// A paired phone off the network has no line: the prompt alone says
+    /// what to do.
     @ViewBuilder internal var pairingPromptSection: some View {
       #if REFINEID_REMOTE_CARD
         Section {
-          if remoteRegistry.pairedPhone != nil || remoteRegistry.phoneThatForgot != nil {
+          if remoteRegistry.pairedPhone == nil, remoteRegistry.phoneThatForgot != nil {
             IdentityStateView(
               availability: availability,
               warnsUnavailableCard: ActivationWatch.shared.warnsUnavailableCard

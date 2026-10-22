@@ -2632,18 +2632,18 @@
         }
       }
     },
-    "Insert the card into the reader": {
+    "Insert the card into the reader.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Syötä kortti lukijaan"
+            "value": "Syötä kortti lukijaan."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sätt in kortet i läsaren"
+            "value": "Sätt in kortet i läsaren."
           }
         }
       }
@@ -2766,7 +2766,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Valmistellaan pariliitoskoodia…"
+            "value": "Valmistellaan yhdistämiskoodia…"
           }
         },
         "sv": {
@@ -3622,7 +3622,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pariliitoskoodi"
+            "value": "Yhdistämiskoodi"
           }
         },
         "sv": {
@@ -3638,7 +3638,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pariliitoskoodi"
+            "value": "Yhdistämiskoodi"
           }
         },
         "sv": {
@@ -3654,7 +3654,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Syötä pariliitoskoodi"
+            "value": "Syötä yhdistämiskoodi"
           }
         },
         "sv": {
@@ -6659,7 +6659,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laitetta, joka tarjoaa tätä pariliitoskoodia, ei löytynyt."
+            "value": "Laitetta, joka tarjoaa tätä yhdistämiskoodia, ei löytynyt."
           }
         },
         "sv": {
@@ -6707,7 +6707,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pariliitoskoodi ei kelpaa"
+            "value": "Yhdistämiskoodi ei kelpaa"
           }
         },
         "sv": {
@@ -6723,7 +6723,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pariliitoskoodia ei hyväksytty"
+            "value": "Yhdistämiskoodia ei hyväksytty"
           }
         },
         "sv": {
@@ -6812,18 +6812,18 @@
         }
       }
     },
-    "Connect a card reader or open RefineID on your phone": {
+    "Open RefineID / Remote Access on your phone and enter the pairing code:": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Liitä kortinlukija tai avaa puhelimesta RefineID"
+            "value": "Avaa puhelimesta RefineID / Etäkäyttö ja syötä yhdistämiskoodi:"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Anslut en kortläsare eller öppna RefineID på telefonen"
+            "value": "Öppna RefineID / Fjärråtkomst på telefonen och ange kopplingskoden:"
           }
         }
       }

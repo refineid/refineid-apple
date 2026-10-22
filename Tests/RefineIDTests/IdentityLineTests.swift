@@ -41,7 +41,7 @@ internal struct IdentityLineTests {
       line: .insertCard),
     Case(
       name: "paired phone off the network",
-      facts: with { $0.pairedPhone = phone }, line: .phoneUnreachable(phone)),
+      facts: with { $0.pairedPhone = phone }, line: .empty),
     Case(
       name: "empty reader beats an unreachable phone",
       facts: with { facts in
@@ -166,5 +166,17 @@ internal struct IdentityLineTests {
   @Test(arguments: cases)
   internal func derivesTheLine(_ testCase: Case) {
     #expect(IdentityLine.derive(testCase.facts) == testCase.line)
+  }
+
+  /// Only a connected phone waits to show; the name, instructions and
+  /// errors show at once.
+  @Test
+  internal func onlyAConnectedPhoneWaitsToShow() {
+    #expect(IdentityLine.phoneConnected(Self.phone).waitsBeforeShowing)
+    let immediate: [IdentityLine] = [
+      .cardNotReady, .connectReader, .empty, .holder, .insertCard, .phoneForgot(Self.phone),
+      .reading,
+    ]
+    #expect(immediate.allSatisfy { !$0.waitsBeforeShowing })
   }
 }
