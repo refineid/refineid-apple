@@ -132,8 +132,11 @@ internal struct CardManagementView: View {
       #endif
       #if os(macOS)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-          if !awaitsActivation, model.report != nil {
-            attemptsBar(model: model)
+          if !awaitsActivation, let report = model.report {
+            let readings = Self.readingsBelowFull(report)
+            if !readings.isEmpty {
+              attemptsBar(readings)
+            }
           }
         }
       #endif

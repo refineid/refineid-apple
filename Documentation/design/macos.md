@@ -121,6 +121,10 @@ reader: the attempts left, and changing or resetting PIN 1 and PIN 2. Only
 the toolbar button opens it, while it shows the two keys. It has no
 Window menu item, never opens at launch, and is not restored. It closes when the card leaves the reader.
 
+The "Attempts left:" row along the foot of the window lists only the
+counters below full. While PIN 1, PIN 2 and the PUK are all full, the
+row is not shown.
+
 ## A local card turns remote use off
 
 Inserting a card into this Mac's own reader turns remote use off, as a

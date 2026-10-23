@@ -8,23 +8,56 @@ import SwiftUI
   /// How a retry counter is shown: the number against a full card, a
   /// colour band, and a marker so the band never rests on colour alone.
   ///
-  /// The bands are this app's own rule made visible. Full is green;
-  /// below full is orange, because something has already gone wrong
-  /// once; one or two is red, the range it refuses to work in; and
-  /// zero is blue, because blocked is not a warning but an instruction
-  /// - the PUK undoes it.
+  /// The bands are this app's own rule made visible. A full counter is
+  /// not shown at all; below full is orange, because something has
+  /// already gone wrong once; one or two is red, the range it refuses
+  /// to work in; and zero is blue, because blocked is not a warning but
+  /// an instruction - the PUK undoes it.
   extension CardManagementView {
     // MARK: Nested Types
+
+    /// One credential's reading as the bar lists it.
+    internal struct AttemptsReading {
+      internal let name: String
+      internal let outcome: RetryProbeOutcome
+    }
 
     private enum AttemptsLayout {
       static let rowSymbolSpacing: CGFloat = 4
       static let attemptsSpacing: CGFloat = 14
       static let barHorizontalPadding: CGFloat = 16
       static let barVerticalPadding: CGFloat = 6
-      static let barLineSpacing: CGFloat = 4
     }
 
     // MARK: Static Functions
+
+    /// The credentials short of a full counter, in card order; empty
+    /// while every counter is full.
+    internal static func readingsBelowFull(
+      _ report: CredentialProbeReport
+    ) -> [AttemptsReading] {
+      [
+        AttemptsReading(name: "PIN 1", outcome: report.pin1),
+        AttemptsReading(name: "PIN 2", outcome: report.pin2),
+        AttemptsReading(name: "PUK", outcome: report.puk),
+      ]
+      .filter { !isFull($0.outcome) }
+    }
+
+    /// A counter at its full allowance, or a PIN verified this session,
+    /// which the card has reset to full.
+    private static func isFull(_ outcome: RetryProbeOutcome) -> Bool {
+      switch outcome {
+      case .remaining(let count):
+        !count.isBlocked && count.attemptsRemaining >= RetryCount.pristineAllowance
+
+      case .verified:
+        true
+
+      case .locked, .invalidated, .noInformation, .other:
+        false
+      }
+    }
 
     /// The marker beside each count, so the band is never carried by
     /// colour alone.
@@ -139,18 +172,16 @@ import SwiftUI
 
     // MARK: Functions
 
-    /// The counters, pinned along the foot of the window.
+    /// The counters short of full, pinned along the foot of the window.
     @ViewBuilder
-    internal func attemptsBar(model: CardManagementModel) -> some View {
-      VStack(alignment: .leading, spacing: AttemptsLayout.barLineSpacing) {
-        HStack(spacing: AttemptsLayout.attemptsSpacing) {
-          Text("Attempts left:")
-            .foregroundStyle(.secondary)
-          attemptsEntry("PIN 1", model.report?.pin1)
-          attemptsEntry("PIN 2", model.report?.pin2)
-          attemptsEntry("PUK", model.report?.puk)
-          Spacer()
+    internal func attemptsBar(_ readings: [AttemptsReading]) -> some View {
+      HStack(spacing: AttemptsLayout.attemptsSpacing) {
+        Text("Attempts left:")
+          .foregroundStyle(.secondary)
+        ForEach(readings, id: \.name) { reading in
+          attemptsEntry(reading.name, reading.outcome)
         }
+        Spacer()
       }
       .font(.footnote)
       .padding(.horizontal, AttemptsLayout.barHorizontalPadding)
@@ -159,11 +190,8 @@ import SwiftUI
       .background(.bar)
     }
 
-    /// One credential's reading.
-    ///
-    /// A symbol appears only when the count is not healthy, so the
-    /// line stays quiet while everything is fine and still never
-    /// relies on colour alone when it is not.
+    /// One credential's reading, with a symbol so it never relies on
+    /// colour alone.
     @ViewBuilder
     internal func attemptsEntry(
       _ name: String,
