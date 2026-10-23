@@ -10,26 +10,6 @@ import Testing
 @Suite
 internal struct CardIdentityViewTests {
   private static let maxPersonNameLength = 54
-  private static let photoDataMinByteCount = 100
-
-  @Test
-  @MainActor
-  internal func cardPhotoStoreSavesAndRetrievesPhoto() {
-    let holder = "MÖTTÖNEN-KUMPULAINEN-AALTONEN VELI-MATTI-ANTERO-KALEVI"
-    #expect(holder.count == Self.maxPersonNameLength)
-
-    CardPhotoStore.deletePhoto(for: holder)
-    #expect(CardPhotoStore.getPhoto(for: holder) == nil)
-
-    let sample = CardPhotoStore.syntheticSamplePhoto(name: holder)
-    #expect(sample.count > Self.photoDataMinByteCount)
-
-    CardPhotoStore.savePhoto(sample, for: holder)
-    #expect(CardPhotoStore.getPhoto(for: holder) == sample)
-
-    CardPhotoStore.deletePhoto(for: holder)
-    #expect(CardPhotoStore.getPhoto(for: holder) == nil)
-  }
 
   @Test
   @MainActor
@@ -37,9 +17,14 @@ internal struct CardIdentityViewTests {
     let longName = "MÖTTÖNEN-KUMPULAINEN-AALTONEN VELI-MATTI-ANTERO-KALEVI"
     #expect(longName.count == Self.maxPersonNameLength)
 
-    let section = CardIdentitySection(holder: longName)
+    var didRemove = false
+    let section = CardIdentitySection(holder: longName) {
+      didRemove = true
+    }
     _ = section.body
     #expect(section.holder == longName)
+    section.onRemove()
+    #expect(didRemove)
   }
 
   #if REFINEID_LOCAL_CARD && os(iOS)
@@ -57,62 +42,8 @@ internal struct CardIdentityViewTests {
 
   @Test
   @MainActor
-  internal func identitySubmenuViewInitializesWithFiftyFourCharacterName() {
-    let longName = "MÖTTÖNEN-KUMPULAINEN-AALTONEN VELI-MATTI-ANTERO-KALEVI"
-    var didForget = false
-    let submenu = CardIdentitySubmenuView(
-      holder: longName,
-      onForget: {
-        didForget = true
-      },
-      onReadPhoto: { _ in
-        .success(CardPhotoStore.syntheticSamplePhoto(name: longName))
-      }
-    )
-    _ = submenu.body
-    submenu.onForget?()
-    #expect(didForget)
-  }
-
-  @Test
-  @MainActor
   internal func rappPairingViewRendersCardRemoteAccess() {
     let pairingView = RappPairingView()
     _ = pairingView.body
-  }
-
-  @Test
-  @MainActor
-  internal func cardIdentityPhotoViewRenders() {
-    let longName = "MÖTTÖNEN-KUMPULAINEN-AALTONEN VELI-MATTI-ANTERO-KALEVI"
-    let photoView = CardIdentityPhotoView(
-      holder: longName,
-      onReadPhoto: { _ in
-        .cardAccessNumberRequired
-      }
-    )
-    _ = photoView.body
-  }
-
-  @Test
-  @MainActor
-  internal func cardIdentityPhotoPlaceholderViewRenders() {
-    let longName = "MÖTTÖNEN-KUMPULAINEN-AALTONEN VELI-MATTI-ANTERO-KALEVI"
-    let idlePlaceholder = CardIdentityPhotoPlaceholderView(holder: longName, isReadingPhoto: false)
-    _ = idlePlaceholder.body
-    let loadingPlaceholder = CardIdentityPhotoPlaceholderView(
-      holder: longName, isReadingPhoto: true)
-    _ = loadingPlaceholder.body
-  }
-
-  @Test
-  @MainActor
-  internal func cardIdentityPhotoActionsViewRenders() {
-    let longName = "MÖTTÖNEN-KUMPULAINEN-AALTONEN VELI-MATTI-ANTERO-KALEVI"
-    let sample = CardPhotoStore.syntheticSamplePhoto(name: longName)
-    CardPhotoStore.savePhoto(sample, for: longName)
-    #expect(CardPhotoStore.photoFileURL(for: longName) != nil)
-    let actionsView = CardIdentityPhotoActionsView(holder: longName, photoData: sample)
-    _ = actionsView.body
   }
 }

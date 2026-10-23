@@ -19,53 +19,11 @@
       /// The holder as a person reads it.
       internal let name: String
 
-      /// The certificate's separately stated given name.
-      internal let givenName: String
-
-      /// The certificate's separately stated surname.
-      internal let surname: String
-
       /// The identifier stated under it.
       internal let identifier: String
 
       /// The holder's traced handwriting, or nil when the card has none.
       internal let signature: SignatureArtwork.Artwork?
-
-      /// A signed QR matrix treated with the holder's portrait.
-      internal let qrPortrait: QrPortrait.Artwork?
-
-      internal init(
-        name: String,
-        identifier: String,
-        signature: SignatureArtwork.Artwork?,
-        givenName: String,
-        surname: String
-      ) {
-        self.init(
-          name: name,
-          identifier: identifier,
-          signature: signature,
-          qrPortrait: nil,
-          givenName: givenName,
-          surname: surname
-        )
-      }
-
-      internal init(
-        name: String,
-        identifier: String,
-        signature: SignatureArtwork.Artwork?,
-        qrPortrait: QrPortrait.Artwork?,
-        givenName: String,
-        surname: String
-      ) {
-        self.name = name
-        self.givenName = givenName
-        self.surname = surname
-        self.identifier = identifier
-        self.signature = signature
-        self.qrPortrait = qrPortrait
-      }
     }
 
     /// The ring.
@@ -144,14 +102,6 @@
 
     /// The page carrying the mark.
     internal static func mark(_ statement: Statement) -> StampMark {
-      if let portraitArtwork = statement.qrPortrait {
-        return Self.portraitMark(
-          portraitArtwork,
-          signature: statement.signature,
-          givenName: statement.givenName,
-          surname: statement.surname
-        )
-      }
       let centreX = 0.0
       let centreY = 0.0
       var body = "q\n"

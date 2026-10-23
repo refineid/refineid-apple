@@ -85,7 +85,7 @@ Remote-card user story:
 - The `refineid` command line tool or any command line installer.
 - Rust libraries, Rust runtime code, helper executables, daemons, or privileged
   helpers in the App Store artifact.
-- Portrait and stored handwritten-signature display.
+- Stored handwritten-signature display.
 - Safari extensions, browser shells, Internet relays, macOS NFC, telemetry,
   analytics, accounts, and cloud services.
 

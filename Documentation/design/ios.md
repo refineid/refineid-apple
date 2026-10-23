@@ -3,6 +3,19 @@
 The iPhone and iPad app as it is. The UI principles every screen follows
 are in [ui.md](ui.md).
 
+## The identity row
+
+The main screen's "Identity" section shows the holder as one row: the
+`person` symbol, then the holder's name. The row opens no other page.
+
+- **Identity on the phone.** The row ends in a red `minus.circle` button,
+  "Remove identity from phone". It removes the identity from the phone at
+  once, with no confirmation, and the card access number entry returns.
+- **Card in an attached reader.** Each card in the reader has the same row,
+  with no button: the name comes from the card in the reader.
+
+The app does not read, store or show the holder's photo.
+
 ## The card in the phone's near field
 
 When a paired computer needs the card and the holder's card is a

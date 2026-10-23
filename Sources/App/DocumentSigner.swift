@@ -175,41 +175,6 @@ internal enum DocumentSigner {
     return Product(bytes: archived, completion: .archival)
   }
 
-  /// A detached raw signature over the stamp's compact claim.
-  ///
-  /// This card operation comes first because its bytes are drawn into
-  /// the revision the document signature covers. The leaf certificate
-  /// stays in the PDF CMS; a twelve-hex key ID selects it without
-  /// making the QR several kilobytes larger.
-  internal static func attestation(
-    over claim: StampAttestation.Claim,
-    pin2: String,
-    expectedCertificate: Data
-  ) async throws -> Data {
-    let answer = await CardMaintenance.qualifiedSignature(
-      pin2: pin2,
-      expectedCertificate: expectedCertificate,
-      transport: .reader,
-      cardAccessNumber: nil
-    ) { _ in
-      claim.bytes
-    }
-    switch answer {
-    case .signerCertificateMismatch:
-      throw Failure.stampSignerChanged
-
-    case .refused(let outcome):
-      throw Failure.card(outcome)
-
-    case .signed(let product):
-      return StampAttestation.payload(
-        claim: claim,
-        signerCertificate: product.certificate,
-        signature: product.signature
-      )
-    }
-  }
-
   /// Reads the qualified certificate, verifies PIN2 and signs, in
   /// one exclusive card session.
   private static func cardMaterial(

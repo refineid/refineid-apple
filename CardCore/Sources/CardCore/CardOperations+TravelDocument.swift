@@ -63,25 +63,6 @@ extension CardOperations {
     return try DisplayedSignature.image(inDataGroup: group)
   }
 
-  /// The holder's portrait, when the card carries one.
-  ///
-  /// The inventory gate has the same secure-messaging consequence as
-  /// DG7: never probe a file the card did not announce.
-  public func readDisplayedPortrait() throws -> DisplayedPortrait.Image? {
-    try readDisplayedPortrait(listedBy: readDataGroupInventory())
-  }
-
-  /// DG2 under an inventory already read in this secure session.
-  public func readDisplayedPortrait(
-    listedBy inventory: DataGroupInventory
-  ) throws -> DisplayedPortrait.Image? {
-    guard inventory.carriesDisplayedPortrait else {
-      return nil
-    }
-    let group = try readTravelDocumentFile(.displayedPortrait)
-    return try DisplayedPortrait.image(inDataGroup: group)
-  }
-
   /// Selects one file under the travel-document application and
   /// reads its single DER object.
   private func readTravelDocumentFile(_ file: FileIdentifier) throws -> Data {

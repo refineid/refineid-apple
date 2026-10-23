@@ -19,11 +19,6 @@ public struct DataGroupInventory: Equatable, Sendable {
     markers.contains(FineidValues.dataGroupSevenMarker)
   }
 
-  /// Whether the card carries the holder's facial image.
-  public var carriesDisplayedPortrait: Bool {
-    markers.contains(FineidValues.dataGroupTwoMarker)
-  }
-
   /// How many data groups the card announced, for diagnostics.
   public var count: Int {
     markers.count

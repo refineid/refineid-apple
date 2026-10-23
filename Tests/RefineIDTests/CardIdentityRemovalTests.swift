@@ -16,14 +16,13 @@ internal struct CardIdentityRemovalTests {
         return CardStateReset.Outcome(lines: [], succeeded: resetSucceeded)
       },
       forgetCredentials: { stages.append("credentials") },
-      clearPhotos: { stages.append("photos") },
       removeRemoteConfiguration: {
         stages.append("remote-start")
         await Task.yield()
         stages.append("remote-finished")
         return CardIdentityRemoval.ConfigurationRemoval(succeeded: true, failures: [])
       })
-    #expect(stages == ["identity", "credentials", "photos", "remote-start", "remote-finished"])
+    #expect(stages == ["identity", "credentials", "remote-start", "remote-finished"])
     #expect(outcome.succeeded == resetSucceeded)
   }
 
@@ -33,12 +32,11 @@ internal struct CardIdentityRemovalTests {
     let outcome = await CardIdentityRemoval.perform(
       reset: { CardStateReset.Outcome(lines: [], succeeded: true) },
       forgetCredentials: { completedStages += 1 },
-      clearPhotos: { completedStages += 1 },
       removeRemoteConfiguration: {
         CardIdentityRemoval.ConfigurationRemoval(
           succeeded: false, failures: ["Cleanup failure: keychain namespace (OSStatus=-50)"])
       })
-    #expect(completedStages == 2)
+    #expect(completedStages == 1)
     #expect(!outcome.succeeded)
     #expect(outcome.summary.contains("keychain namespace (OSStatus=-50)"))
   }

@@ -15,19 +15,16 @@ internal enum CardIdentityRemoval {
     await perform(
       reset: CardStateReset.perform,
       forgetCredentials: CardCredentialStore.forgetCardAccessNumber,
-      clearPhotos: CardPhotoStore.clear,
       removeRemoteConfiguration: removeAllRemoteConfiguration)
   }
 
   internal static func perform(
     reset: () -> CardStateReset.Outcome,
     forgetCredentials: () -> Void,
-    clearPhotos: () -> Void,
     removeRemoteConfiguration: () async -> ConfigurationRemoval
   ) async -> CardStateReset.Outcome {
     let identity = reset()
     forgetCredentials()
-    clearPhotos()
     let remoteRemoved = await removeRemoteConfiguration()
     return CardStateReset.Outcome(
       lines: identity.lines + remoteRemoved.failures,
