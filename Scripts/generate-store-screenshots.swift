@@ -19,7 +19,7 @@ import Cocoa
 struct SlideData {
     let filename: String
     let title: String
-    let subtitle: String
+    let subtitle: String?
     let assetName: String
 }
 
@@ -34,7 +34,7 @@ let macosCatalog: [String: [SlideData]] = [
         SlideData(
             filename: "02-phone.png",
             title: "Käytä puhelinta kortinlukijana",
-            subtitle: "PIN-koodit pysyvät puhelimessa.",
+            subtitle: nil,
             assetName: "window-phone-fi.png"
         )
     ],
@@ -48,7 +48,7 @@ let macosCatalog: [String: [SlideData]] = [
         SlideData(
             filename: "02-phone.png",
             title: "Use your phone as a card reader",
-            subtitle: "Your PIN codes stay on the phone.",
+            subtitle: nil,
             assetName: "window-phone-en.png"
         )
     ],
@@ -62,7 +62,7 @@ let macosCatalog: [String: [SlideData]] = [
         SlideData(
             filename: "02-phone.png",
             title: "Använd telefonen som kortläsare",
-            subtitle: "PIN-koderna stannar i telefonen.",
+            subtitle: nil,
             assetName: "window-phone-sv.png"
         )
     ]
@@ -276,8 +276,10 @@ func renderMacOS(locale: String, slide: SlideData) {
     (slide.title as NSString).draw(in: titleRect, withAttributes: titleAttr)
     currentTopY -= 130
 
-    // 3. Subtitle
-    let subFontSize: CGFloat = slide.subtitle.count > 80 ? 36 : 40
+    // 3. Subtitle; a slide without one keeps its space, so every window
+    // in the carousel sits at the same height.
+    let subtitle = slide.subtitle ?? ""
+    let subFontSize: CGFloat = subtitle.count > 80 ? 36 : 40
     let subFont = NSFont.systemFont(ofSize: subFontSize, weight: .medium)
     let subStyle = NSMutableParagraphStyle()
     subStyle.alignment = .center
@@ -288,7 +290,7 @@ func renderMacOS(locale: String, slide: SlideData) {
         .paragraphStyle: subStyle
     ]
     let subRect = CGRect(x: 180, y: currentTopY - 100, width: CGFloat(width - 360), height: 100)
-    (slide.subtitle as NSString).draw(in: subRect, withAttributes: subAttr)
+    (subtitle as NSString).draw(in: subRect, withAttributes: subAttr)
     currentTopY -= 110
 
     // 4. Window Asset
@@ -385,7 +387,8 @@ func renderIOS(locale: String, slide: SlideData) {
     let titleHeight = ceil(titleBounding.height)
 
     // 3. Subtitle metrics
-    let subLength = slide.subtitle.count
+    let subtitle = slide.subtitle ?? ""
+    let subLength = subtitle.count
     let subFontSize: CGFloat = subLength > 50 ? 58 : 64
     let subFont = NSFont.systemFont(ofSize: subFontSize, weight: .medium)
     let subStyle = NSMutableParagraphStyle()
@@ -396,7 +399,7 @@ func renderIOS(locale: String, slide: SlideData) {
         .foregroundColor: NSColor(calibratedWhite: 0.88, alpha: 1.0),
         .paragraphStyle: subStyle
     ]
-    let subBounding = (slide.subtitle as NSString).boundingRect(
+    let subBounding = (subtitle as NSString).boundingRect(
         with: CGSize(width: CGFloat(width - 120), height: 400),
         options: [.usesLineFragmentOrigin, .usesFontLeading],
         attributes: subAttr
@@ -424,7 +427,7 @@ func renderIOS(locale: String, slide: SlideData) {
     let titleRect = CGRect(x: 50, y: titleBottomY, width: CGFloat(width - 100), height: titleHeight)
 
     (slide.title as NSString).draw(in: titleRect, withAttributes: titleAttr)
-    (slide.subtitle as NSString).draw(in: subRect, withAttributes: subAttr)
+    (subtitle as NSString).draw(in: subRect, withAttributes: subAttr)
 
     // 5. Phone Screen presentation
     let phoneURL = assetsDir.appendingPathComponent(slide.assetName)
@@ -547,7 +550,8 @@ func renderIPad(locale: String, slide: SlideData) {
     let titleHeight = ceil(titleBounding.height)
 
     // 3. Subtitle metrics
-    let subLength = slide.subtitle.count
+    let subtitle = slide.subtitle ?? ""
+    let subLength = subtitle.count
     let subFontSize: CGFloat = subLength > 55 ? 68 : 74
     let subFont = NSFont.systemFont(ofSize: subFontSize, weight: .medium)
     let subStyle = NSMutableParagraphStyle()
@@ -558,7 +562,7 @@ func renderIPad(locale: String, slide: SlideData) {
         .foregroundColor: NSColor(calibratedWhite: 0.88, alpha: 1.0),
         .paragraphStyle: subStyle
     ]
-    let subBounding = (slide.subtitle as NSString).boundingRect(
+    let subBounding = (subtitle as NSString).boundingRect(
         with: CGSize(width: CGFloat(width - 200), height: 400),
         options: [.usesLineFragmentOrigin, .usesFontLeading],
         attributes: subAttr
@@ -586,7 +590,7 @@ func renderIPad(locale: String, slide: SlideData) {
     let titleRect = CGRect(x: 80, y: titleBottomY, width: CGFloat(width - 160), height: titleHeight)
 
     (slide.title as NSString).draw(in: titleRect, withAttributes: titleAttr)
-    (slide.subtitle as NSString).draw(in: subRect, withAttributes: subAttr)
+    (subtitle as NSString).draw(in: subRect, withAttributes: subAttr)
 
     // 5. iPad Screen presentation
     let ipadURL = assetsDir.appendingPathComponent(slide.assetName)

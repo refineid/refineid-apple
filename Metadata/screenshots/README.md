@@ -153,11 +153,11 @@ The captions live in `Scripts/generate-store-screenshots.swift`.
 | Platform | Locale | Slide | Title | Subtitle |
 | :--- | :--- | :--- | :--- | :--- |
 | macOS | **fi** | 01 | **Tunnistaudu henkilökortilla verkkopalveluihin** | Liitä kortinlukija Maciin. |
-| macOS | **fi** | 02 | **Käytä puhelinta kortinlukijana** | PIN-koodit pysyvät puhelimessa. |
+| macOS | **fi** | 02 | **Käytä puhelinta kortinlukijana** | (none) |
 | macOS | **en-US** | 01 | **Log in to web services with your identity card** | Connect a card reader to your Mac. |
-| macOS | **en-US** | 02 | **Use your phone as a card reader** | Your PIN codes stay on the phone. |
+| macOS | **en-US** | 02 | **Use your phone as a card reader** | (none) |
 | macOS | **sv** | 01 | **Identifiera dig till e-tjänster med identitetskort** | Anslut en kortläsare till din Mac. |
-| macOS | **sv** | 02 | **Använd telefonen som kortläsare** | PIN-koderna stannar i telefonen. |
+| macOS | **sv** | 02 | **Använd telefonen som kortläsare** | (none) |
 | iPhone, iPad | **fi** | 01 | **Tunnistaudu henkilökortilla verkkopalveluihin** | Voit käyttää myös puhelinta langattomana kortinlukijana. |
 | iPhone, iPad | **fi** | 02 | **Allekirjoita asiakirjoja** | Luo ja tarkasta hyväksyttyjä sähköisiä allekirjoituksia. |
 | iPhone, iPad | **en-US** | 01 | **Log in to web services with your identity card** | You can also use your phone as a wireless card reader. |
