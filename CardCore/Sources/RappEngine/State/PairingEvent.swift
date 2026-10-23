@@ -44,6 +44,10 @@ internal enum PairingEvent: String, CaseIterable, Sendable {
   /// `session.close` with reason `pairing_revoked`, also in place of
   /// `session.ready`.
   case peerRevocationNotice = "peer_revocation_notice"
+  /// Produced in place of `session_closed` on a custodian whose session the
+  /// requester closed with reason `service_withdrawn`: the computer withdrew
+  /// (§4.5 item 9).
+  case peerWithdrawalNotice = "peer_withdrawal_notice"
 }
 
 // swiftlint:enable sorted_enum_cases

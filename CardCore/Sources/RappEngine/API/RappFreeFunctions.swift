@@ -29,6 +29,12 @@ public func rappIdentityOfferGraceMs() -> UInt64 {
   IdentityOfferGrace.milliseconds
 }
 
+/// How long a requester that quits waits for its `service_withdrawn` closes
+/// to leave before it exits, in milliseconds (RAPP v26.10.22 §4.5 item 8).
+public func rappQuitWithdrawalBoundMs() -> UInt64 {
+  QuitWithdrawalBound.milliseconds
+}
+
 /// The credential profiles the registry admits, in the order it registers
 /// them (RAPP v26.10.22 §9).
 public func rappCredentialProfiles() -> [String] {

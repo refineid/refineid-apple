@@ -6,15 +6,17 @@
   import Observation
 
   /// The Mac's one switch for remote use (hierarchy specification §5.2,
-  /// STPA §27): Bluetooth and local-network discovery, sessions with the
-  /// phone, and the phone's identity.
+  /// STPA §27 and §28): Bluetooth and local-network discovery, sessions
+  /// with the phone, and the phone's identity.
   ///
-  /// Off by default, and the choice is kept across restarts. While it is
-  /// off nothing remote runs, and the app asks macOS for no local-network or
-  /// Bluetooth permission. Turning it on starts the watches whose Bluetooth
-  /// manager and first Bonjour browse ask for them (CC-96), and the registry
-  /// follows the paired phone; turning it off stops all of it at once and
-  /// keeps the pairing (CC-94).
+  /// Off at every launch (CC-99). While it is off nothing remote runs, and
+  /// the app asks macOS for no local-network or Bluetooth permission.
+  /// Turning it on starts the watches whose Bluetooth manager and first
+  /// Bonjour browse ask for them (CC-96), and the registry follows the
+  /// paired phone. Turning it off, by a click, a card in this Mac's reader
+  /// or quitting, is this computer's withdrawal: an open session closes
+  /// with `service_withdrawn`, everything remote stops at once, and the
+  /// pairing stays (RAPP v26.10.22 §4.5 item 8, CC-94, CC-98).
   @MainActor
   @Observable
   internal final class RemoteUseSwitch {

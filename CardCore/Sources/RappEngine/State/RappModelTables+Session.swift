@@ -121,9 +121,16 @@ extension RappModelTables {
     RappRule(
       from: .healthy,
       event: .serviceWithdrawn,
-      role: .custodian,
+      role: .both,
       destination: .closing,
       actions: [.sendCloseServiceWithdrawn, .showDisconnecting]
+    ),
+    RappRule(
+      from: [.connecting, .authenticating],
+      event: .serviceWithdrawn,
+      role: .requester,
+      destination: .closed,
+      actions: [.destroySessionMaterial, .closeCandidate, .showConnectionStopped]
     ),
     RappRule(
       from: .healthy,

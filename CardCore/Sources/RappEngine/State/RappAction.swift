@@ -50,6 +50,7 @@ internal enum RappAction: String, CaseIterable, Sendable {
   case showPairedDisconnected = "show_paired_disconnected"
   case showForgotten = "show_forgotten"
   case showPeerForgot = "show_peer_forgot"
+  case showPeerWithdrawn = "show_peer_withdrawn"
   case clearResidualPairRecord = "clear_residual_pair_record"
   case openTransport = "open_transport"
   case sendSessionPreamble = "send_session_preamble"

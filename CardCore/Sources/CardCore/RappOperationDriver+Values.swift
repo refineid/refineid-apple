@@ -202,8 +202,10 @@
       case pairRevoked
       /// This endpoint's own close notice was released.
       case terminalFrameReleased
-      /// The custodian stopped serving (`service_withdrawn`); the requester
-      /// drops the card at once and redials only when it advertises again.
+      /// The peer withdrew (`service_withdrawn`, §4.5): a custodian stopped
+      /// serving, or a requester stopped using, every pairing. The pairing
+      /// stays; a requester drops the card at once and redials only when
+      /// the custodian advertises again (item 6).
       case serviceWithdrawn
       /// The peer closed the session with another registered reason.
       case peerClosed(RappCloseReason)

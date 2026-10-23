@@ -39,7 +39,7 @@
 
     #if os(macOS)
       /// Follows the switch: on, the paired phone is followed as at launch;
-      /// off, everything remote stops at once.
+      /// off, this computer withdraws and everything remote stops at once.
       internal func remoteUseChanged() {
         guard Self.dialsPhones else { return }
         if Self.remoteUseOn {
@@ -49,14 +49,17 @@
         }
       }
 
-      /// Stops following the phone as remote use turns off (CC-94).
+      /// Stops following the phone as remote use turns off: this
+      /// computer's withdrawal (RAPP v26.10.22 §4.5 item 8, CC-94, CC-98).
       ///
-      /// The session closes and the browse stops at once, the phone's
+      /// An open session closes with `service_withdrawn` and a dial under
+      /// way ends without a notice. The browse stops at once, the phone's
       /// identity leaves at once rather than after its grace, and what
       /// discovery learned is forgotten. The pairings stay, so turning
       /// remote use on again resumes without a new code.
       private func stopFollowing() {
         #if REFINEID_STREAM_TRANSPORT
+          withdrawHolderSession()
           stopWatchingPresence()
           offerLapseTask?.cancel()
           offerLapseTask = nil
@@ -71,6 +74,36 @@
         #endif
         Self.withdrawPublishedIdentity()
       }
+
+      #if REFINEID_STREAM_TRANSPORT
+        /// Ends the session as this computer withdraws (RAPP v26.10.22 §4.5
+        /// item 8), answering whether its close left; nil when no session
+        /// is open or being dialled.
+        ///
+        /// An open session closes with `service_withdrawn`, a dial under
+        /// way ends without a notice, and no dial is left waiting. The
+        /// pairing stays.
+        @discardableResult
+        internal func withdrawHolderSession() -> Task<Bool, Never>? {
+          redialTask?.cancel()
+          redialTask = nil
+          settleDialTask?.cancel()
+          settleDialTask = nil
+          holderCardStatus = nil
+          guard let session = holderSession else { return nil }
+          let established = sessionSlot.isEstablished
+          forgetHeldSession()
+          return Task.detached {
+            let told = await session.closeServiceWithdrawn()
+            #if DEBUG
+              if established, !told {
+                DevErrorLog.report("phone session: withdrawal close did not leave", source: .app)
+              }
+            #endif
+            return told
+          }
+        }
+      #endif
     #endif
   }
 #endif

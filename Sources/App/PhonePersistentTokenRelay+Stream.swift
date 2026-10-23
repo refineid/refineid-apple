@@ -44,7 +44,7 @@
     ) async {
       await withTaskGroup(of: Void.self) { group in
         for coordinator in coordinators {
-          group.addTask { await coordinator.closeServiceWithdrawn() }
+          group.addTask { _ = await coordinator.closeServiceWithdrawn() }
         }
       }
     }
