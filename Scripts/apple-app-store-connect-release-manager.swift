@@ -598,8 +598,11 @@ private func inspectReleaseArchive(_ archive: URL) {
       "com.apple.developer.team-identifier",
       "get-task-allow",
     ]
-    entitlementRules = bundles.map {
-      ($0, allowed, ["keychain-access-groups"])
+    // The app alone raises the time-sensitive summons that brings the
+    // holder to the phone when a paired computer needs the card.
+    let appOnly: Set<String> = ["com.apple.developer.usernotifications.time-sensitive"]
+    entitlementRules = bundles.map { bundle in
+      (bundle, bundle == layout.app ? allowed.union(appOnly) : allowed, ["keychain-access-groups"])
     }
   }
   for rule in entitlementRules {
