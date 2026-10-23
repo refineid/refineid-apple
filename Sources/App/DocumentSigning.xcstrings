@@ -839,28 +839,6 @@
         }
       }
     },
-    "error.stampRendering" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The signed portrait QR could not be rendered. Nothing was written."
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Allekirjoitettua QR-kuvaa ei voitu muodostaa. Mitään ei kirjoitettu."
-          }
-        },
-        "sv" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Den signerade QR-bilden kunde inte skapas. Ingenting skrevs."
-          }
-        }
-      }
-    },
     "error.timestampRevoked" : {
       "extractionState" : "stale",
       "localizations" : {

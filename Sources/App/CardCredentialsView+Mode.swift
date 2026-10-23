@@ -24,15 +24,6 @@ extension CardCredentialsView {
   internal enum Route: Hashable {
     case verifyDocuments
     case remoteAccess
-    case identity(IdentityOrigin)
-  }
-
-  /// Whose identity a submenu shows, carried by the row that opened it.
-  internal enum IdentityOrigin: Hashable {
-    /// The identity this phone registered.
-    case phone(holder: String)
-    /// A card in an attached reader.
-    case reader(holder: String)
   }
 
   /// The one thing the screen is showing.

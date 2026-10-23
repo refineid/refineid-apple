@@ -10,8 +10,8 @@ The PDF signature, rather than the visible stamp, supplies that verification.
   each advice stamp. Apply the rotation to the complete vector mark around its
   center. Store the chosen transform in its PDF signature appearance stream;
   displaying, saving, or adding another signature does not choose another angle.
-  The circular footprint and placement reach stay the same. Identity/portrait/QR
-  stamps use their own styles and are outside this rule.
+  The circular footprint and placement reach stay the same. The identity stamp
+  uses its own style and is outside this rule.
 - Font: Helvetica Bold, matching the PDF appearance's Helvetica-Bold resource.
 - Center: four lines, with the command on its own line. All four lines use
   one shared size per locale, preferably 9 points. Fit the entire block uniformly

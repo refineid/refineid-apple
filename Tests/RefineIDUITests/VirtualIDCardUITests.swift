@@ -56,23 +56,21 @@
         "dismissing PIN management lost the registered identity origin")
     }
 
-    internal func testRegisteredNFCCardOpensIdentitySubmenuAndDisplaysPhotoOptions() {
+    internal func testRegisteredNFCIdentityRowRemovesTheIdentityAtOnce() {
       let app = UITestApp.launchVirtualCard()
       applyScenario("registered-nfc", in: app)
 
-      let identityButton = app.buttons[UITestIdentifiers.identitySubmenuButton]
-      XCTAssertTrue(identityButton.waitForExistence(timeout: UITestApp.appearTimeout))
-      identityButton.tap()
+      let identity = app.staticTexts[UITestIdentifiers.identityStatus]
+      XCTAssertTrue(identity.waitForExistence(timeout: UITestApp.appearTimeout))
+      let removeButton = app.buttons[UITestIdentifiers.forgetCardIdentityButton]
+      XCTAssertTrue(removeButton.waitForExistence(timeout: UITestApp.appearTimeout))
+      removeButton.tap()
 
-      let readPhotoButton = app.buttons[UITestIdentifiers.readPhotoFromCardButton]
-      XCTAssertTrue(readPhotoButton.waitForExistence(timeout: UITestApp.appearTimeout))
-      readPhotoButton.tap()
-
-      let photoView = app.buttons[UITestIdentifiers.cardPhotoView]
-      XCTAssertTrue(photoView.waitForExistence(timeout: UITestApp.appearTimeout))
-
-      let forgetButton = app.buttons[UITestIdentifiers.forgetCardIdentityButton]
-      XCTAssertTrue(forgetButton.waitForExistence(timeout: UITestApp.appearTimeout))
+      let cardAccessNumber = app.textFields[UITestIdentifiers.cardAccessNumberField]
+      XCTAssertTrue(
+        cardAccessNumber.waitForExistence(timeout: UITestApp.appearTimeout),
+        "removing the identity did not return to card setup")
+      XCTAssertFalse(identity.exists)
     }
 
     internal func testScenarioFactoryFreshReaderRoutesThroughGUI() {

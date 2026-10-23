@@ -41,7 +41,6 @@ internal struct TravelDocumentInventoryTests {
     let inventory = try operations.readDataGroupInventory()
 
     #expect(inventory.count == 5)
-    #expect(inventory.carriesDisplayedPortrait)
     #expect(inventory.carriesDisplayedSignature)
     #expect(channel.isExhausted)
   }
@@ -56,7 +55,6 @@ internal struct TravelDocumentInventoryTests {
     let inventory = try operations.readDataGroupInventory()
 
     #expect(inventory.count == 4)
-    #expect(inventory.carriesDisplayedPortrait)
     #expect(!inventory.carriesDisplayedSignature)
   }
 
@@ -86,16 +84,13 @@ internal struct TravelDocumentInventoryTests {
   }
 
   @Test
-  internal func oneInventoryGatesBothDisplayedImages() throws {
+  internal func oneInventoryGatesTheDisplayedSignature() throws {
     let signature = "670C0201015F4306FFD8FFE00010"
-    let portrait = "75080102FFD8FFE00010"
     let channel = ScriptedChannel(
       Self.inventoryScript(file: Self.commonDataFile)
         + [
           ("00A4020C020107", "9000"),
           ("00B0000080", signature + "9000"),
-          ("00A4020C020102", "9000"),
-          ("00B0000080", portrait + "9000"),
         ]
     )
     let operations = CardOperations(channel: channel)
@@ -103,10 +98,6 @@ internal struct TravelDocumentInventoryTests {
 
     #expect(
       try operations.readDisplayedSignature(listedBy: inventory)?.bytes
-        == WireHex.data("FFD8FFE00010")
-    )
-    #expect(
-      try operations.readDisplayedPortrait(listedBy: inventory)?.bytes
         == WireHex.data("FFD8FFE00010")
     )
     #expect(channel.isExhausted)

@@ -32,18 +32,9 @@ internal enum UITestIdentifiers {
   /// The PIN1 entry field, present until an identity is set.
   internal static let pin1Field = "pin1Field"
 
-  /// The destructive action, present only while card state exists.
+  /// The minus at the end of the identity row, which removes the
+  /// identity from the phone.
   internal static let forgetCardIdentityButton = "forgetCardIdentityButton"
-
-  /// The button opening the identity submenu.
-  internal static let identitySubmenuButton = "identitySubmenuButton"
-
-  /// The button in the identity submenu to read the photo.
-  internal static let readPhotoFromCardButton = "readPhotoFromCardButton"
-
-  /// The photo container or placeholder in the identity submenu.
-  internal static let cardPhotoView = "cardPhotoView"
-  internal static let cardPhotoPlaceholder = "cardPhotoPlaceholder"
 
   /// The line saying the identity is set, present once registered.
   internal static let identityStatus = "identityStatus"

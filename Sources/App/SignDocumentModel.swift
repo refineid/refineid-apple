@@ -156,11 +156,7 @@
     /// is six digits, so anything shorter is not a wrong number, it
     /// is a number still being typed - reading it would refuse the
     /// holder's own card and say so while they were mid-entry.
-    /// Reads only the data groups the chosen style needs.
-    internal func readStamp(
-      accessNumber digits: String,
-      style: DocumentStampStyle
-    ) async {
+    internal func readStamp(accessNumber digits: String) async {
       guard digits.count == CardAccessNumber.digitCount else {
         stampState = nil
         stampFailure = nil
@@ -173,8 +169,7 @@
       let appearance = cardAppearance
       defer { readingStamp = false }
       let outcome = await CardMaintenance.displayedSignature(
-        accessNumber: digits,
-        includePortrait: style.readsPortrait
+        accessNumber: digits
       )
       guard appearance == cardAppearance else { return }
       applyStampOutcome(outcome)
@@ -209,12 +204,9 @@
           statement: StampRenderer.Statement(
             name: mark.name,
             identifier: mark.identifier,
-            signature: artwork,
-            givenName: mark.givenName,
-            surname: mark.surname
+            signature: artwork
           ),
-          signerCertificate: mark.certificate,
-          portrait: mark.portrait
+          signerCertificate: mark.certificate
         )
 
       case .absent:

@@ -17,7 +17,9 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   states, off among them, never do: they take the secondary text color, or
   green for a working connection. Color never carries meaning that the
   screen does not also state in text or shape, such as a line of text, a
-  tooltip, an accessibility value or a different symbol.
+  tooltip, an accessibility value or a different symbol. On iPhone and
+  iPad, a removal button takes the platform's destructive red, as iOS
+  lists do: it is a control, not a state.
 - **Six-box code entry.** A pairing code and a card access number are typed
   into the six-box field (`CodeBoxesField`), never into a plain text field.
   The field has a VoiceOver label.

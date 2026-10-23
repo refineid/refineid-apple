@@ -17,7 +17,7 @@ extension CardCredentialsView {
       remoteReaderSection
 
     case .identity(let holder):
-      CardIdentitySection(holder: holder)
+      CardIdentitySection(holder: holder, onRemove: forgetCurrentIdentity)
 
     case .setup:
       createIdentitySection
@@ -152,18 +152,12 @@ extension CardCredentialsView {
   internal func forgetCurrentIdentity() {
     #if os(iOS)
       if isDemonstration {
-        if let holder = identityHolder {
-          CardPhotoStore.deletePhoto(for: holder)
-        }
         demoMode.forgetIdentity()
         clearEntries()
         return
       }
     #endif
     Task {
-      if let holder = identityHolder {
-        CardPhotoStore.deletePhoto(for: holder)
-      }
       await model.forgetEverything()
       registrationReset.toggle()
       isRegistered = false
@@ -181,24 +175,6 @@ extension CardCredentialsView {
 
       case .remoteAccess:
         RappPairingView()
-
-      case .identity(.phone(let holder)):
-        CardIdentitySubmenuView(
-          holder: holder,
-          onForget: forgetCurrentIdentity,
-          onReadPhoto: { can in
-            await readCardPhoto(for: holder, accessNumber: can)
-          }
-        )
-
-      case .identity(.reader(let holder)):
-        CardIdentitySubmenuView(
-          holder: holder,
-          onForget: nil,
-          onReadPhoto: { can in
-            await readCardPhoto(for: holder, accessNumber: can)
-          }
-        )
       }
     }
 

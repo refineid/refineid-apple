@@ -33,94 +33,14 @@
       /// The image, as the card stores it, or nil when this card has none.
       internal let bytes: Data?
 
-      /// The portrait image from DG2, or nil when this card has none.
-      internal let portrait: Data?
-
       /// The exact qualified-signature certificate that states the identity.
       internal let certificate: Data
 
       /// The holder as a person reads it.
       internal let name: String
 
-      /// The certificate's separately stated given name.
-      internal let givenName: String
-
-      /// The certificate's separately stated surname.
-      internal let surname: String
-
       /// The identifier the certificate states.
       internal let identifier: String
-
-      internal init(
-        bytes: Data?,
-        certificate: Data,
-        name: String,
-        identifier: String
-      ) {
-        self.init(
-          bytes: bytes,
-          certificate: certificate,
-          name: name,
-          identifier: identifier,
-          givenName: "",
-          surname: ""
-        )
-      }
-
-      internal init(
-        bytes: Data?,
-        certificate: Data,
-        name: String,
-        identifier: String,
-        givenName: String,
-        surname: String
-      ) {
-        self.init(
-          bytes: bytes,
-          portrait: nil,
-          certificate: certificate,
-          name: name,
-          identifier: identifier,
-          givenName: givenName,
-          surname: surname
-        )
-      }
-
-      internal init(
-        bytes: Data?,
-        portrait: Data?,
-        certificate: Data,
-        name: String,
-        identifier: String
-      ) {
-        self.init(
-          bytes: bytes,
-          portrait: portrait,
-          certificate: certificate,
-          name: name,
-          identifier: identifier,
-          givenName: "",
-          surname: ""
-        )
-      }
-
-      internal init(
-        bytes: Data?,
-        portrait: Data?,
-        certificate: Data,
-        name: String,
-        identifier: String,
-        givenName: String,
-        surname: String
-      ) {
-        self.bytes = bytes
-        self.portrait = portrait
-        self.certificate = certificate
-        self.name = name
-        self.identifier = identifier
-        self.givenName = givenName
-        self.surname = surname
-      }
     }
 
     /// What reading the signature answered.
@@ -144,29 +64,24 @@
 
     /// Reads the visible identity behind a PACE channel opened with `digits`.
     internal static func displayedSignature(
-      accessNumber digits: String,
-      includePortrait: Bool
+      accessNumber digits: String
     ) async -> SignatureOutcome {
       guard let number = CardAccessNumber(digits: digits) else {
         return .wrongAccessNumber
       }
       let answer = await Self.onTravelDocument(accessNumber: number) {
         operations in
-        Self.displayedMark(from: operations, includePortrait: includePortrait)
+        Self.displayedMark(from: operations)
       }
       return answer ?? .noCard
     }
 
-    /// Reads the requested displayed images and identity in their required order.
+    /// Reads the handwritten signature and the certificate identity.
     private static func displayedMark(
-      from operations: CardOperations,
-      includePortrait: Bool
+      from operations: CardOperations
     ) -> SignatureOutcome {
-      // DG2 and DG7 must be attempted while the travel-document
-      // application is still selected. Read EF.COM once: every extra
-      // secure-messaging exchange costs NFC time, and the inventory is
-      // the gate that makes both data-group reads safe. Read the small,
-      // essential DG7 before the larger, optional portrait.
+      // DG7 is read while the travel-document application is still
+      // selected, behind the EF.COM inventory that makes the read safe.
       guard let inventory = try? operations.readDataGroupInventory() else {
         return .imageUnreadable
       }
@@ -175,15 +90,6 @@
         image = try operations.readDisplayedSignature(listedBy: inventory)
       } catch {
         return .imageUnreadable
-      }
-      let portrait: DisplayedPortrait.Image?
-      if includePortrait {
-        // A portrait is decoration. If a future card carries an image
-        // encoding this build cannot read, retain the existing DG7 and
-        // certificate-identity stamp rather than suppressing it.
-        portrait = try? operations.readDisplayedPortrait(listedBy: inventory)
-      } else {
-        portrait = nil
       }
       // Carry the exact certificate beside the visible identity. The
       // signing session later requires the same DER before spending PIN2.
@@ -199,14 +105,10 @@
       return .mark(
         Mark(
           bytes: image?.bytes,
-          portrait: portrait?.bytes,
           certificate: certificate,
           name: name,
           identifier: DistinguishedName.identifier(inName: facts.subjectName)
-            ?? "",
-          givenName: DistinguishedName.givenName(inName: facts.subjectName)
-            ?? "",
-          surname: DistinguishedName.surname(inName: facts.subjectName) ?? ""
+            ?? ""
         )
       )
     }

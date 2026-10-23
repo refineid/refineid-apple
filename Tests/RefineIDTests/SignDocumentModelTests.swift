@@ -44,7 +44,7 @@ internal struct SignDocumentModelTests {
   @Test
   @MainActor
   internal func validationFailureExplainsThatNoFileWasWritten() {
-    let message = SignDocumentModel.message(
+    let message = DocumentSigningMessage.message(
       for: DocumentSigner.Failure.validation(EvidenceFailure.unavailable)
     )
 
@@ -126,10 +126,7 @@ internal struct SignDocumentModelTests {
 
     model.applyStampOutcome(identity)
     let partiallyTypedAccessNumber = "123"
-    await model.readStamp(
-      accessNumber: partiallyTypedAccessNumber,
-      style: .signatureAndIdentity
-    )
+    await model.readStamp(accessNumber: partiallyTypedAccessNumber)
     #expect(model.stampMark() == nil)
 
     model.applyStampOutcome(identity)
@@ -249,7 +246,7 @@ internal struct SignDocumentModelTests {
   @Test
   @MainActor
   internal func signerChangeExplainsThatNoFileWasWritten() {
-    let message = SignDocumentModel.message(
+    let message = DocumentSigningMessage.message(
       for: DocumentSigner.Failure.stampSignerChanged
     )
 

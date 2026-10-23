@@ -27,11 +27,10 @@
       accessNumber: String,
       to destination: URL
     ) async throws {
-      let stampStyle = DocumentStampStyle.load()
       // The card is read for the mark here, where the holder has
       // asked for a signature - not while they were still typing the
       // number that unlocks it.
-      await readStamp(accessNumber: accessNumber, style: stampStyle)
+      await readStamp(accessNumber: accessNumber)
       let document = try Data(contentsOf: source)
       let signedAt = Date()
       let visibleStamp = self.visibleStamp(on: document)

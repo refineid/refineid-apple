@@ -2442,29 +2442,6 @@
         }
       }
     },
-    "identity.readPhoto": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Read photo from card"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lue kuva kortilta"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Läs bild från kortet"
-          }
-        }
-      }
-    },
     "identity.remove": {
       "extractionState": "manual",
       "localizations": {
@@ -3736,22 +3713,6 @@
         }
       }
     },
-    "Portrait QR": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kasvokuva-QR"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Porträtt-QR"
-          }
-        }
-      }
-    },
     "Present your identity card": {
       "localizations": {
         "fi": {
@@ -4771,22 +4732,6 @@
         }
       }
     },
-    "Signature, name and SATU": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nimikirjoitus, nimi ja SATU"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Namnteckning, namn och SATU"
-          }
-        }
-      }
-    },
     "Signing document…": {
       "localizations": {
         "fi": {
@@ -5216,22 +5161,6 @@
         }
       }
     },
-    "The card's handwritten signature appears on a line, with its certificate name and SATU below.": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kortin nimikirjoitus näkyy viivalla, ja sen alla varmenteen nimi ja SATU."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kortets namnteckning visas på en linje, med certifikatets namn och SATU under."
-          }
-        }
-      }
-    },
     "The certificate identity could not be read.": {
       "localizations": {
         "fi": {
@@ -5450,22 +5379,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Telefonens kortläsare är upptagen. Försök igen om en stund."
-          }
-        }
-      }
-    },
-    "The portrait forms a signed QR stamp carrying the document name and signing time.": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kasvokuvasta muodostuu allekirjoitettu QR-leima, jossa on asiakirjan nimi ja allekirjoitusaika."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Porträttet bildar en signerad QR-stämpel med dokumentets namn och signeringstid."
           }
         }
       }

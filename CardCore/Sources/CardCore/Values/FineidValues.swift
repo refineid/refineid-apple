@@ -75,9 +75,6 @@ internal enum FineidValues {
   /// EF.COM: the list of data groups this card actually carries.
   internal static let fileIdCommonData: UInt16 = 0x011E
 
-  /// EF.DG2: the holder's facial image.
-  internal static let fileIdDisplayedPortrait: UInt16 = 0x0102
-
   /// EF.DG7: the displayed signature or usual mark.
   internal static let fileIdDisplayedSignature: UInt16 = 0x0107
 
@@ -86,9 +83,6 @@ internal enum FineidValues {
 
   /// The tag DG7 marks the whole displayed-signature template with.
   internal static let displayedSignatureTag: UInt8 = 0x67
-
-  /// The tag DG2 marks the whole facial-image template with.
-  internal static let displayedPortraitTag: UInt8 = 0x75
 
   /// The first byte of the biometric image's two-byte tag, the
   /// high-tag-number form's introducer.
@@ -99,9 +93,6 @@ internal enum FineidValues {
 
   /// The data-group list entry standing for DG7.
   internal static let dataGroupSevenMarker: UInt8 = 0x67
-
-  /// The data-group list entry standing for DG2.
-  internal static let dataGroupTwoMarker: UInt8 = 0x75
 
   /// EF.CardAccess: the SecurityInfos a terminal reads BEFORE PACE to
   /// learn which variants the card supports, under the main file
