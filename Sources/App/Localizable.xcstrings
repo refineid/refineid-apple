@@ -6629,6 +6629,134 @@
           }
         }
       }
+    },
+    "Connect a card reader.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liitä kortinlukija."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anslut en kortläsare."
+          }
+        }
+      }
+    },
+    "Off": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pois"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Av"
+          }
+        }
+      }
+    },
+    "On": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Päällä"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "På"
+          }
+        }
+      }
+    },
+    "Phone connected": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Puhelin yhdistetty"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Telefon ansluten"
+          }
+        }
+      }
+    },
+    "Blocked: %@": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estetty: %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blockerad: %@"
+          }
+        }
+      }
+    },
+    "Bluetooth is off": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bluetooth on pois päältä"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bluetooth är avstängt"
+          }
+        }
+      }
+    },
+    "Bluetooth is not allowed": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bluetoothia ei ole sallittu"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bluetooth är inte tillåtet"
+          }
+        }
+      }
+    },
+    "local network is not allowed": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "paikallisverkkoa ei ole sallittu"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "lokalt nätverk är inte tillåtet"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

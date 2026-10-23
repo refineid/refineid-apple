@@ -31,22 +31,24 @@ internal struct IdentityLineTests {
     certificate: Data("authentication certificate".utf8)
   ).map { RappCardStatus(card: .present($0), reader: .attached) }
 
+  /// Remote use on, nothing here and nothing paired.
   private static let idle = RequesterFacts(
     availability: .noCard,
     warnsUnavailableCard: false,
     readInFlight: false,
     readerConnected: false,
     cardPresent: false,
+    remoteUse: true,
     phonePresent: false,
     pairedPhone: nil
   )
 
   internal static let cases: [Case] = [
-    // No card here and no phone paired.
+    // Remote use on, no card here and no phone paired.
     Case(name: "nothing here asks for a pairing code", facts: idle, line: .pairPhone),
     Case(
-      name: "an empty reader, nothing paired",
-      facts: with { $0.readerConnected = true }, line: .insertCard),
+      name: "an empty reader, nothing paired, still asks for a pairing code",
+      facts: with { $0.readerConnected = true }, line: .pairPhone),
     Case(
       name: "a phone on the network without a pairing asks for a pairing code",
       facts: with { $0.phonePresent = true }, line: .pairPhone),
@@ -62,12 +64,12 @@ internal struct IdentityLineTests {
       name: "the phone that forgot this computer is named",
       facts: with { $0.phoneThatForgot = phone }, line: .phoneForgot(phone)),
     Case(
-      name: "an empty reader beats the phone that forgot this computer",
+      name: "the phone that forgot this computer is named beside an empty reader",
       facts: with { facts in
         facts.readerConnected = true
         facts.phoneThatForgot = phone
       },
-      line: .insertCard),
+      line: .phoneForgot(phone)),
 
     // A card in this Mac's reader.
     Case(

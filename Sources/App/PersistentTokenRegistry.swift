@@ -17,9 +17,10 @@
   /// offered on a certificate whose fingerprint the phone confirmed on a
   /// session, and stays offered between sessions: a request with no session
   /// open dials the phone itself. It leaves at once when a session names
-  /// another card, when the pairing is forgotten or revoked, and when the
-  /// phone announces it stopped serving; otherwise once no session has
-  /// reported the card present for ``RemoteIdentityOffer/grace``.
+  /// another card, when the pairing is forgotten or revoked, when the
+  /// phone announces it stopped serving, and when remote use is turned off;
+  /// otherwise once no session has reported the card present for
+  /// ``RemoteIdentityOffer/grace``.
   @MainActor
   @Observable
   internal final class PersistentTokenRegistry {
@@ -272,10 +273,10 @@
     #endif
 
     /// Starts following the paired phone at launch on the requesting
-    /// device.
+    /// device, and when remote use is turned on.
     internal func start() {
       refreshPairing()
-      guard Self.dialsPhones else {
+      guard Self.followsPhone else {
         Self.withdrawPublishedIdentity()
         return
       }
@@ -307,7 +308,7 @@
     /// previous pair left behind.
     internal func startAfterPairing() {
       refreshPairing()
-      guard Self.dialsPhones else {
+      guard Self.followsPhone else {
         Self.withdrawPublishedIdentity()
         return
       }
@@ -389,7 +390,7 @@
         #endif
         fetchBackoff.recordFailure(at: .now)
 
-      case .readerHasPriority, .published:
+      case .readerHasPriority, .remoteUseOff, .published:
         fetchBackoff.reset()
       }
     }

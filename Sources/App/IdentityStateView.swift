@@ -13,7 +13,8 @@
   /// must not be shouted as one: the row shows nothing while it settles
   /// and only warns once the state has lasted long enough to mean
   /// something. A card in this Mac's reader overrides the paired phone and
-  /// carries the control that opens its PIN codes. A paired phone's line
+  /// carries the control that opens its PIN codes. With remote use off the
+  /// row asks for a reader or its card. A paired phone's line
   /// ends with the phone's name and the control that forgets it: its card
   /// says it is connecting until the holder's name, and a phone that holds
   /// no card asks for it.
@@ -104,6 +105,15 @@
         }
     }
 
+    /// Whether the holder has remote use on.
+    private var remoteUse: Bool {
+      #if REFINEID_REMOTE_CARD
+        RemoteUseSwitch.shared.isOn
+      #else
+        false
+      #endif
+    }
+
     /// What the row knows now.
     ///
     /// A demonstration's card sits in a virtual reader, and no phone is
@@ -117,6 +127,7 @@
           readInFlight: false,
           readerConnected: card.readerConnected,
           cardPresent: card.cardPresent,
+          remoteUse: remoteUse,
           phonePresent: false,
           pairedPhone: nil,
           phoneThatForgot: nil,
@@ -130,6 +141,7 @@
         readInFlight: isFetching,
         readerConnected: cardPresence.isReaderConnected,
         cardPresent: cardPresence.isCardPresent,
+        remoteUse: remoteUse,
         phonePresent: registry.holderInSight,
         pairedPhone: registry.pairedPhone,
         phoneThatForgot: registry.phoneThatForgot,
@@ -163,6 +175,10 @@
             .frame(maxWidth: .infinity, alignment: .leading)
           PinCodesButton()
         }
+
+      case .connectReader:
+        Text("Connect a card reader.")
+          .foregroundStyle(.secondary)
 
       case .insertCard:
         Text("Insert the card into the reader.")

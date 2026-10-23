@@ -89,6 +89,13 @@
       }
       .padding(Self.padding)
       .frame(minWidth: minimumWidth, alignment: .leading)
+      #if REFINEID_REMOTE_CARD
+        .toolbar {
+          ToolbarItem(placement: .primaryAction) {
+            RemoteUseButton()
+          }
+        }
+      #endif
       .task {
         #if FEATURE_CONTACTLESS
           SealedCardSection.withdrawOfferedNumber()

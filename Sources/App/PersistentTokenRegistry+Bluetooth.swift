@@ -36,11 +36,22 @@
     /// operation already running there. With none open the app dials one,
     /// within the dial's back-off, and waits for it within the handoff's
     /// window; a session over another pairing, one being forgotten, is
-    /// waited out.
+    /// waited out. While remote use is off or a card is in this computer's
+    /// reader, the operation is refused (CC-94, CC-86).
     internal func carry(
       _ request: RappHeldSessionHandoff.Request
     ) async -> RappHeldSessionHandoff.Answer {
-      guard Self.dialsPhones, !CardPresence.shared.isReaderCardPresent else {
+      guard Self.followsPhone else {
+        #if DEBUG
+          DevErrorLog.report("handed-over operation refused: remote use is off", source: .app)
+        #endif
+        return .failed(.peerNotFound)
+      }
+      guard !CardPresence.shared.isReaderCardPresent else {
+        #if DEBUG
+          DevErrorLog.report(
+            "handed-over operation refused: a local card overrides the phone", source: .app)
+        #endif
         return .failed(.peerNotFound)
       }
       let deadline = ContinuousClock.now + .seconds(RappHeldSessionHandoff.establishWaitSeconds)

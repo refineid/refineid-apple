@@ -5,16 +5,21 @@
   /// The one line the identity row shows, chosen from the requester's facts.
   ///
   /// A card in this Mac's reader overrides the paired phone: while one is
-  /// there the line speaks of that card alone. Otherwise a paired phone
-  /// names itself after whatever the line says, beside the control that
-  /// forgets it, and with no phone paired the line asks for a pairing code.
+  /// there the line speaks of that card alone. With remote use off the line
+  /// speaks of this Mac's reader alone. Otherwise a paired phone names
+  /// itself after whatever the line says, beside the control that forgets
+  /// it, and with no phone paired the line asks for a pairing code.
   internal enum IdentityLine: Equatable, Sendable {
     /// The card in this Mac's reader has stayed without an identity long
     /// enough to warn; the PIN codes stay one click away.
     case cardNotReady
 
-    /// "Insert the card into the reader.": a reader is attached, empty, and
-    /// no phone is paired.
+    /// "Connect a card reader.": remote use is off and no reader is
+    /// attached.
+    case connectReader
+
+    /// "Insert the card into the reader.": remote use is off and a reader
+    /// is attached, empty.
     case insertCard
 
     /// The holder's name from the card in this Mac's reader, beside the
@@ -25,9 +30,9 @@
     /// that forgets the pairing.
     case paired(PairedLead, phone: String)
 
-    /// No card here and no phone paired: the row asks for a phone's pairing
-    /// code, so a document waiting to be signed can be signed on the phone
-    /// once it is paired.
+    /// Remote use on, no card here and no phone paired: the row asks for a
+    /// phone's pairing code, an attached reader or not, so a document
+    /// waiting to be signed can be signed on the phone once it is paired.
     case pairPhone
 
     /// The phone, by name, announced it forgot this computer.
@@ -72,10 +77,10 @@
           return facts.warnsUnavailableCard ? .cardNotReady : .reading
         }
       }
+      guard facts.remoteUse else {
+        return facts.readerConnected ? .insertCard : .connectReader
+      }
       guard let phone = facts.pairedPhone else {
-        if facts.readerConnected {
-          return .insertCard
-        }
         if let forgot = facts.phoneThatForgot {
           return .phoneForgot(forgot)
         }

@@ -39,10 +39,11 @@
         discoveryTimeout: bluetoothScanSeconds)
     }
 
-    /// What decides the next dial's transport now, and whether a card in
-    /// this computer's reader leaves nothing to dial.
+    /// What decides the next dial's transport now, and whether remote use
+    /// being off or a card in this computer's reader leaves nothing to dial.
     internal var transportPolicy: RequesterTransportPolicy {
       RequesterTransportPolicy(
+        remoteUseOn: Self.remoteUseOn,
         localCardPresent: CardPresence.shared.isReaderCardPresent,
         streamInSight: holderIsAdvertising && holderRecordListed,
         streamFailedInSight: streamFailedInSight,
@@ -77,9 +78,10 @@
     }
 
     /// Dials the phone along the transport the policy picks, unless a
-    /// session is being dialled or open on any transport, or a card in this
-    /// computer's reader overrides the phone; while the wait after the last
-    /// session runs, the dial is put off until it is over.
+    /// session is being dialled or open on any transport, remote use is off,
+    /// or a card in this computer's reader overrides the phone; while the
+    /// wait after the last session runs, the dial is put off until it is
+    /// over.
     internal func openHolderSession() {
       guard Self.dialsPhones, holderSession == nil, let transport = transportPolicy.nextDial
       else { return }

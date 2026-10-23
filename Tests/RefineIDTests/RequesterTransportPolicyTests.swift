@@ -6,18 +6,35 @@ import Testing
 @testable import RefineID
 
 /// Which transport the requester dials, and which advertiser over
-/// Bluetooth (RAPP transport hierarchy §3, STPA CC-53, CC-72).
+/// Bluetooth (RAPP transport hierarchy §3, §5.2, STPA CC-53, CC-72, CC-94).
 @Suite
 internal struct RequesterTransportPolicyTests {
   /// The smallest step of the clock the refusal window runs on.
   private static let tick = Duration.milliseconds(1)
 
+  /// The policy with remote use on.
   private static func policy(
     streamInSight: Bool, streamFailed: Bool = false, bluetoothUsable: Bool = true
   ) -> RequesterTransportPolicy {
     RequesterTransportPolicy(
-      streamInSight: streamInSight, streamFailedInSight: streamFailed,
+      remoteUseOn: true, streamInSight: streamInSight, streamFailedInSight: streamFailed,
       bluetoothUsable: bluetoothUsable)
+  }
+
+  @Test("Remote use starts off, and off leaves nothing to dial, however the phone is reached")
+  internal func remoteUseOffDialsNothing() {
+    #expect(RequesterTransportPolicy(streamInSight: true).nextDial == nil)
+    for streamInSight in [false, true] {
+      for streamFailed in [false, true] {
+        for bluetoothUsable in [false, true] {
+          var policy = Self.policy(
+            streamInSight: streamInSight, streamFailed: streamFailed,
+            bluetoothUsable: bluetoothUsable)
+          policy.remoteUseOn = false
+          #expect(policy.nextDial == nil)
+        }
+      }
+    }
   }
 
   @Test("Bonjour showing the phone sends the dial over the stream")

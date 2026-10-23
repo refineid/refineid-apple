@@ -17,6 +17,9 @@
       /// A card in a reader outranks the phone; nothing was offered.
       case readerHasPriority
 
+      /// Remote use is off; nothing was offered.
+      case remoteUseOff
+
       /// Nothing was offered: no pairing to bind it to, a certificate
       /// the token cannot use, or no driver.
       case notPublished
@@ -113,6 +116,7 @@
         #endif
         return .readerHasPriority
       }
+      guard remoteUseOn else { return .remoteUseOff }
       guard
         let driver = driverConfiguration,
         let certificate = SecCertificateCreateWithData(nil, certificateDER as CFData),

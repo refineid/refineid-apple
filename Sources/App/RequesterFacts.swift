@@ -20,6 +20,9 @@
     /// A card is in a reader attached to this computer.
     internal var cardPresent: Bool
 
+    /// The holder has remote use on (hierarchy specification §5.2).
+    internal var remoteUse: Bool
+
     /// The paired phone is in sight, on the network or over Bluetooth.
     internal var phonePresent: Bool
 

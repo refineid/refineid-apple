@@ -183,11 +183,11 @@
     /// An incomplete code never reaches the network, so no phone is
     /// needed.
     internal func testThePhoneCodeFieldPassesTheAudit() throws {
-      let app = UITestApp.launch()
+      let app = UITestApp.launch(arguments: [UITestApp.remoteUseOnArgument])
       let field = app.windows["status"].textFields[UITestIdentifiers.pairingCodeField]
       try XCTSkipUnless(
         field.waitForExistence(timeout: UITestApp.appearTimeout),
-        "a reader is connected; the window asks for the card, not a phone code"
+        "a card is in the reader; the window shows its holder, not a phone code"
       )
       XCTAssertEqual(field.label, "Pairing code", "the phone code field has no label of its own")
       field.click()

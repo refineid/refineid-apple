@@ -3,11 +3,35 @@
 import Foundation
 import Testing
 
-/// The no-card instructions say the same thing in every language: a
-/// connected reader asks for the card and nothing else; without one the
-/// window asks for the phone.
+/// The no-card instructions say the same thing in every language: with
+/// remote use off the window asks for a reader, or for the card in it; with
+/// remote use on and no phone paired it asks for the phone's code.
 @Suite
 internal struct ReaderInstructionStringsTests {
+  /// The remote-use switch's name and states in Finnish, by key.
+  private static let remoteUseFinnish: [String: String] = [
+    "Remote Access": "Etäkäyttö",
+    "Off": "Pois",
+    "On": "Päällä",
+    "Phone connected": "Puhelin yhdistetty",
+    "Blocked: %@": "Estetty: %@",
+    "Bluetooth is off": "Bluetooth on pois päältä",
+    "Bluetooth is not allowed": "Bluetoothia ei ole sallittu",
+    "local network is not allowed": "paikallisverkkoa ei ole sallittu",
+  ]
+
+  /// The same in Swedish.
+  private static let remoteUseSwedish: [String: String] = [
+    "Remote Access": "Fjärråtkomst",
+    "Off": "Av",
+    "On": "På",
+    "Phone connected": "Telefon ansluten",
+    "Blocked: %@": "Blockerad: %@",
+    "Bluetooth is off": "Bluetooth är avstängt",
+    "Bluetooth is not allowed": "Bluetooth är inte tillåtet",
+    "local network is not allowed": "lokalt nätverk är inte tillåtet",
+  ]
+
   private static var root: URL {
     URL(fileURLWithPath: #filePath)
       .deletingLastPathComponent()
@@ -86,6 +110,25 @@ internal struct ReaderInstructionStringsTests {
   }
 
   @Test
+  internal func readerRequestWithRemoteUseOffMatchesInEveryLanguage() throws {
+    let strings = try Self.catalog()
+    let key = "Connect a card reader."
+    #expect(try Self.value(for: key, language: "fi", in: strings) == "Liitä kortinlukija.")
+    #expect(try Self.value(for: key, language: "sv", in: strings) == "Anslut en kortläsare.")
+  }
+
+  @Test
+  internal func remoteUseSwitchWordsMatchInEveryLanguage() throws {
+    let strings = try Self.catalog()
+    for (key, value) in Self.remoteUseFinnish {
+      #expect(try Self.value(for: key, language: "fi", in: strings) == value)
+    }
+    for (key, value) in Self.remoteUseSwedish {
+      #expect(try Self.value(for: key, language: "sv", in: strings) == value)
+    }
+  }
+
+  @Test
   internal func phoneCardRequestsMatchInEveryLanguage() throws {
     let strings = try Self.catalog()
     let reader = "Insert the card into the phone's card reader."
@@ -118,7 +161,16 @@ internal struct ReaderInstructionStringsTests {
       contentsOf: Self.root.appending(path: "Sources/App/StatusView+Notes.swift"),
       encoding: .utf8
     )
-    #expect(notes.contains("!cardPresence.isReaderConnected"))
+    #expect(notes.contains("RemoteUseSwitch.shared.isOn"))
+    #expect(!notes.contains("isReaderConnected"))
+    #expect(identity.contains("Connect a card reader."))
+    let remoteUseFiles = try ["RemoteUseState.swift", "RemoteUseBlockage.swift"].map { name in
+      try String(contentsOf: Self.root.appending(path: "Sources/App/\(name)"), encoding: .utf8)
+    }
+    let remoteUse = remoteUseFiles.joined()
+    for key in Self.remoteUseFinnish.keys {
+      #expect(remoteUse.contains(key.replacingOccurrences(of: "%@", with: "\\(")))
+    }
     let phoneLine = try String(
       contentsOf: Self.root.appending(path: "Sources/App/PairedPhoneLine.swift"),
       encoding: .utf8

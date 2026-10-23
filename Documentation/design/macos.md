@@ -6,7 +6,9 @@ menu holds About, which links the site. The View menu holds Demo Mode.
 
 ## The window
 
-The status window (`StatusView`) is sized to its content. From the top:
+The status window (`StatusView`) is sized to its content. Its toolbar
+holds one control, the remote-use switch, at the right end. From the top,
+the window shows:
 
 1. The identity line.
 2. The document drop area, while an identity is available or documents
@@ -17,6 +19,47 @@ A card waiting to be taken into use replaces these with the activation
 form. A contactless card that needs its access number replaces them with
 the six-box access number entry.
 
+## Remote use
+
+One toolbar button is the switch for all remote use: Bluetooth and
+local-network discovery, sessions with the phone, and the phone's identity
+(`RemoteUseSwitch`, `RemoteUseButton`; hierarchy specification §5.2). It
+is off by default and keeps its state across restarts. A click turns it
+on or off. VoiceOver reads it as a toggle.
+
+- **Off.** Nothing remote runs: no Bonjour browse, no Bluetooth scan, no
+  dial, and no phone identity. The app asks macOS for no local-network or
+  Bluetooth permission. An operation that the token extension hands over
+  is refused. The identity line speaks of this Mac's reader only.
+- **Turning on.** Turning on is when macOS asks for the permissions. A
+  Bluetooth manager asks for Bluetooth. A Bonjour browse asks for the
+  local network and runs until macOS allows it. With no phone paired, the
+  pairing prompt shows, beside a card reader or not. With a pairing, the
+  phone's line returns.
+- **Turning off.** Every session with the phone closes at once. The
+  phone's identity is withdrawn at once, without its grace, and scanning
+  stops. The pairing is kept, so turning remote use on again reconnects
+  without a code.
+
+A card in this Mac's own reader still overrides the phone while remote use
+is on (see below).
+
+The button's symbol shows the state:
+
+| State | Symbol | Color |
+|---|---|---|
+| Off | `key.radiowaves.forward.slash` | secondary |
+| On, no session with the phone | `key.radiowaves.forward` | secondary |
+| On, a session with the phone open | `key.radiowaves.forward` | green |
+| On, blocked: this Mac's Bluetooth is off or not allowed, or the local network is not allowed | `key.radiowaves.forward.slash` | orange |
+
+An open session shows as connected even while something else is blocked.
+The tooltip and the VoiceOver label say "Etäkäyttö". The tooltip and the
+accessibility value name the state: "Pois", "Päällä", "Puhelin
+yhdistetty", or "Estetty:" followed by the cause. Words name each state,
+so no state rests on color alone. The identity line also says whether the
+phone serves the card. A symbol change uses the Magic Replace transition.
+
 ## The identity line
 
 `IdentityLine.derive` picks the line from the requester's facts
@@ -24,8 +67,9 @@ the six-box access number entry.
 
 | State | Line | Control |
 |---|---|---|
-| No card here, no phone paired | "Avaa puhelimesta RefineID etäkäyttö ja syötä yhdistämiskoodi:" and the six-box code entry | |
-| Empty reader here, no phone paired | "Syötä kortti lukijaan." | |
+| Remote use off, no reader here | "Liitä kortinlukija." | |
+| Remote use off, empty reader here | "Syötä kortti lukijaan." | |
+| Remote use on, no card here, no phone paired | "Avaa puhelimesta RefineID etäkäyttö ja syötä yhdistämiskoodi:" and the six-box code entry | |
 | The phone forgot this computer | "*phone* unohti tämän tietokoneen" above the pairing prompt | |
 | Card in this Mac's reader | *HOLDER NAME* | key |
 | Card in this Mac's reader, not ready after a while | the re-insert warning | key |
@@ -52,8 +96,9 @@ vertically centered. Each is a button with a VoiceOver label and a tooltip.
   again is removed too.
 - **Key** (`key`, "PIN-koodit"). It opens the PIN codes window.
 
-A Mac pairs one phone. The pairing prompt shows only while no phone is
-paired, and there is no "forget all".
+A Mac pairs one phone. The pairing prompt shows only while remote use is
+on and no phone is paired, and there is no "forget all". The phone rows
+of the table above need remote use on.
 
 ## The PIN codes window
 
@@ -76,8 +121,8 @@ its session with the paired phone:
 - Document signing uses the local card.
 - The identity line shows only the local card.
 
-When the card leaves the reader, browsing and dialing resume, and the phone
-line returns. The pairing is kept throughout.
+When the card leaves the reader, browsing and dialing resume while remote
+use is on, and the phone line returns. The pairing is kept throughout.
 
 ## Running without the window
 

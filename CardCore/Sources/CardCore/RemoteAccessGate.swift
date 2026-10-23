@@ -2,12 +2,14 @@
 
 import Foundation
 
-/// Whether this device may serve or seek a card over the local network.
+/// Whether this device may serve or seek a card remotely.
 ///
-/// Remote card use is opt-in: nothing advertises, browses, or asks for
-/// notification permission until the holder turns Remote Access on. The
-/// choice persists on the device, and a fresh install starts off. macOS
-/// keeps its established requester behavior and always reads on.
+/// Remote card use is opt-in. A phone advertises nothing and asks for no
+/// notification permission until the holder turns Remote Access on; a Mac
+/// browses, scans and dials nothing, and asks for no local-network or
+/// Bluetooth permission, until the holder turns remote use on (hierarchy
+/// specification §5.2). The choice persists on the device, and a fresh
+/// install starts off.
 public enum RemoteAccessGate: Sendable {
   // MARK: Nested Types
 
@@ -32,30 +34,21 @@ public enum RemoteAccessGate: Sendable {
 
   // MARK: Public API
 
-  /// Whether remote transports may start on this launch.
+  /// Whether remote transports may run now.
   public static var isEnabled: Bool {
-    #if os(macOS)
-      return true
-    #else
-      return effectiveEnabled()
-    #endif
+    effectiveEnabled()
   }
 
   /// Records the holder's choice.
   ///
   /// Test runs keep the choice in memory so one test cannot leak it
-  /// into the next through persisted defaults. Production macOS has
-  /// no choice to record and ignores the call.
+  /// into the next through persisted defaults.
   public static func setEnabled(_ enabled: Bool) {
     if TestCredentialEnvironment.isTestMode {
       setSessionOverride(enabled)
       return
     }
-    #if os(macOS)
-      return
-    #else
-      setStoredEnabled(enabled, in: .standard)
-    #endif
+    setStoredEnabled(enabled, in: .standard)
   }
 
   // MARK: Internal Helpers

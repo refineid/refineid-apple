@@ -13,6 +13,11 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   not asked.
 - **No recovery buttons.** No "paused" state waits for a "resume". Back-offs
   stay silent and clear themselves.
+- **Red and orange mean errors.** Only an error takes red or orange. Normal
+  states, off among them, never do: they take the secondary text color, or
+  green for a working connection. Color never carries meaning that the
+  screen does not also state in text or shape, such as a line of text, a
+  tooltip, an accessibility value or a different symbol.
 - **Six-box code entry.** A pairing code and a card access number are typed
   into the six-box field (`CodeBoxesField`), never into a plain text field.
   The field has a VoiceOver label.
