@@ -18,6 +18,12 @@ internal enum UITestApp {
   /// each helper inventing its own idea of "too long".
   internal static let appearTimeout: TimeInterval = 10
 
+  /// The launch argument that turns remote use on for one test run.
+  ///
+  /// It must match `RemoteAccessGate.enabledLaunchArgument`. Remote use is
+  /// off by default, and off the window asks for no pairing code.
+  internal static let remoteUseOnArgument = "--remote-access-on"
+
   /// Launches the app under test in a stated language.
   ///
   /// The language is pinned rather than inherited. A run on a Mac set

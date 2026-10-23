@@ -59,7 +59,7 @@ In the diagram, Bluetooth Low Energy (BLE) is the Bluetooth transport; discovery
 ### 2.1 The Custodian (Phone)
 The mobile device is the authoritative security anchor:
 - **Custody of Secrets**: It interacts directly with the physical smart card over ISO/IEC 7816 / ISO/IEC 14443 contactless NFC.
-- **Biometric Presence & Protected Path**: PIN1 is verified locally via Secure Enclave / KeyStore caching or user entry. PIN2 (Qualified Electronic Signature) prompts appear exclusively on the phone's protected display.
+- **Protected Path**: PIN1 is entered by the holder on the phone and held only in the Custodian's memory, never in storage (RAPP v26.10.22 §11 item 2). PIN2 (Qualified Electronic Signature) prompts appear exclusively on the phone's protected display.
 - **Listener Gating**: The phone must not bind any network listening socket or broadcast advertisements unless the user has explicitly enabled "Allow Remote Card Reader" in application settings. When disabled, the listener is immediately terminated and unannounced.
 
 ### 2.2 The Requester (Workstation)
@@ -192,13 +192,16 @@ To maintain clean, unobtrusive operation on enterprise and personal workstations
 - The application monitors local Personal Computer/Smart Card (PC/SC) smart card readers (integrated laptop slots, USB CCID readers via `pcscd` or `winscard`).
 - Background radio scanning, mDNS service browsing, and network polling must not run by default.
 
-### 5.2 Pairing Is the Opt-In
-- The user's decision to use a phone as a card reader is the pairing itself: typing the code the phone shows (RAPP §3) pairs the workstation with that phone, and forgetting a pairing withdraws the decision for it. Workstations must not present a separate switch for the remote reader.
-- Only while at least one usable stored pairing exists:
+### 5.2 Remote Use Is the Opt-In
+- A workstation offers one switch for remote use, off by default and kept across restarts. While it is off the workstation is Local Card Reader Software only (§5.1): it browses no mDNS, scans no BLE, dials no phone, offers no identity from a phone, and requests no local-network or Bluetooth permission from the operating system. Turning it on is the moment the workstation asks for those permissions.
+- While remote use is on and no usable stored pairing exists, the workstation asks for the pairing code a phone shows (RAPP §3) and browses `mode=pairing` only while a code is being tried (RAPP §4.2).
+- While remote use is on and at least one usable stored pairing exists:
   1. The Requester activates the mDNS browser and/or the BLE scanner.
   2. Paired Custodians appear in the reader selection list when discovered.
   3. Outbound connections are established on demand when the card is consulted or, under the offering rule (RAPP §8.4), held while an identity is offered.
-- Forgetting the last pairing immediately halts background scanners, closes any idle outbound sockets, and purges transient discovery caches.
+- Turning remote use off closes every session at once, withdraws every identity offered from a phone at once, halts the scanners and purges transient discovery caches. Stored pairings are kept, so turning it on again resumes without a new code.
+- Forgetting the last pairing halts the scanners, closes any idle outbound sockets and purges transient discovery caches, as turning remote use off does.
+- A card in a reader attached to the workstation overrides remote use while it is present: the workstation holds no phone session and offers no phone identity (STPA CC-86).
 
 ---
 

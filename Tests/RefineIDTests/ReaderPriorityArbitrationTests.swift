@@ -119,7 +119,10 @@
         let initialPresence = CardPresence.shared.isReaderCardPresent
         let registry = PersistentTokenRegistry.shared
         let initialBluetooth = registry.bluetoothUsable
+        RemoteAccessGate.setEnabled(true)
         defer {
+          RemoteAccessGate.setEnabled(false)
+          registry.remoteUseChanged()
           CardPresence.shared.setReaderCardPresentForTesting(initialPresence)
           registry.bluetoothUsable = initialBluetooth
         }

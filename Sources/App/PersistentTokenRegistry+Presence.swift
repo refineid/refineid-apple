@@ -122,9 +122,9 @@
     /// whether a card can answer is what its session says (RAPP v26.10.22
     /// §8.4). Losing the record stops the dialing; the identity follows the
     /// session's word and its grace. The pairing stays so the next card can
-    /// use it.
+    /// use it. Nothing browses while remote use is off.
     internal func startWatchingPresence() {
-      guard Self.dialsPhones else { return }
+      guard Self.followsPhone else { return }
       guard !CardPresence.shared.isReaderCardPresent else {
         Self.withdrawPublishedIdentity()
         return
@@ -170,9 +170,10 @@
       }
     }
 
-    /// Restarts browsing for the currently selected holder.
+    /// Restarts browsing for the currently selected holder, while remote
+    /// use is on.
     internal func restartWatchingPresence() {
-      guard Self.dialsPhones else { return }
+      guard Self.followsPhone else { return }
       guard !CardPresence.shared.isReaderCardPresent else {
         stopWatchingPresence()
         Self.withdrawPublishedIdentity()
@@ -257,6 +258,9 @@
     }
 
     internal func holderPresenceChanged(_ present: Bool) {
+      // A report the browser sent before remote use was turned off
+      // changes nothing.
+      guard Self.followsPhone else { return }
       holderRecordListed = present
       if CardPresence.shared.isReaderCardPresent {
         stopWatchingPresence()

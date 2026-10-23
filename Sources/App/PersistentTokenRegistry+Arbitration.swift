@@ -14,7 +14,8 @@
     /// - Wireless connections to other devices (presence browsing, in-flight fetches) are put into passive state.
     /// - Remote tokens are suppressed from publishing.
     /// When the reader card leaves:
-    /// - Presence watching resumes if pairings exist, allowing remote card discovery when no physical card is present.
+    /// - Presence watching resumes if pairings exist and remote use is on,
+    ///   allowing remote card discovery when no physical card is present.
     internal func readerCardPresenceChanged(isReaderCardPresent: Bool) {
       guard Self.dialsPhones else {
         Self.withdrawPublishedIdentity()
@@ -45,13 +46,13 @@
     /// Writes the borrowed certificate again if this process still holds it.
     ///
     /// The physical reader has absolute priority. When a reader card is
-    /// present, remote identities are withdrawn. Nothing is written unless
-    /// the phone's open session says a card is present, and an identity is
-    /// offered only for the card that session names: one published for
-    /// another card is withdrawn, to be read afresh (RAPP v26.10.22 §8.4
-    /// items 2 and 3).
+    /// present, or remote use is off, remote identities are withdrawn.
+    /// Nothing is written unless the phone's open session says a card is
+    /// present, and an identity is offered only for the card that session
+    /// names: one published for another card is withdrawn, to be read
+    /// afresh (RAPP v26.10.22 §8.4 items 2 and 3).
     internal func ensurePublished() {
-      guard Self.dialsPhones else {
+      guard Self.followsPhone else {
         Self.withdrawPublishedIdentity()
         return
       }
@@ -83,7 +84,7 @@
 
     /// Fills the person line from a certificate this process already holds.
     internal func seedHolderLine() {
-      guard Self.dialsPhones else {
+      guard Self.followsPhone else {
         Self.withdrawPublishedIdentity()
         return
       }

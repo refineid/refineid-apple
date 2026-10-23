@@ -52,6 +52,12 @@ extension RefineIDApp {
           PersistentTokenRegistry.shared.start()
         }
       #else
+        // Remote use off asks macOS for nothing at launch: no watch
+        // starts, and the registry withdraws what an earlier run offered
+        // without browsing or dialing (CC-96).
+        #if os(macOS)
+          RemoteUseSwitch.shared.start()
+        #endif
         PersistentTokenRegistry.shared.start()
       #endif
       #if os(macOS)

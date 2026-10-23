@@ -44,13 +44,15 @@
       #endif
     }
 
-    /// Whether the window asks for a phone's pairing code: no reader is
-    /// attached, no phone is paired, no card is serving, and nothing is
-    /// waiting to be signed.
+    /// Whether the window asks for a phone's pairing code: remote use is
+    /// on, no phone is paired, no card is serving, and nothing is waiting to
+    /// be signed.
+    ///
+    /// An attached reader still works beside the prompt.
     internal var shouldShowPairingPrompt: Bool {
       #if REFINEID_REMOTE_CARD
         !DemoMode.shared.isActive
-          && !cardPresence.isReaderConnected
+          && RemoteUseSwitch.shared.isOn
           && remoteRegistry.pairedPhone == nil
           && availability == .noCard
           && signingModel.pending == nil

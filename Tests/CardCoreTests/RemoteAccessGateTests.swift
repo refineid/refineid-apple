@@ -53,10 +53,14 @@ internal struct RemoteAccessGateTests {
     store.removePersistentDomain(forName: Self.suiteName)
   }
 
-  #if os(macOS)
-    @Test("macOS keeps its established requester behavior")
-    internal func macOSAlwaysOn() {
-      #expect(RemoteAccessGate.isEnabled == true)
-    }
-  #endif
+  @Test("Every device reads the holder's choice, off until it is made")
+  internal func everyDeviceFollowsTheChoice() {
+    RemoteAccessGate.clearSessionOverride()
+    #expect(RemoteAccessGate.isEnabled == false)
+    RemoteAccessGate.setEnabled(true)
+    #expect(RemoteAccessGate.isEnabled == true)
+    RemoteAccessGate.setEnabled(false)
+    #expect(RemoteAccessGate.isEnabled == false)
+    RemoteAccessGate.clearSessionOverride()
+  }
 }

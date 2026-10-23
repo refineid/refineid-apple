@@ -60,7 +60,9 @@ internal struct NetworkContractTests {
   /// Signing fetches timestamps and revocation material; the relay,
   /// discovery, and server files serve remote card and signing
   /// service builds; the probes are debug-only; the detector runs a
-  /// link-local Bonjour self-check.
+  /// link-local Bonjour self-check; the Mac's permission watch browses
+  /// only once the holder turns remote use on, and reads no record
+  /// (hierarchy specification §5.2, STPA CC-96).
   @Test
   internal func trafficCapableApiSetIsListed() throws {
     let actual = try Self.files(
@@ -76,6 +78,7 @@ internal struct NetworkContractTests {
       "Sources/App/DebugBrowseProbe.swift",
       "Sources/App/DebugLocalNetworkProbe.swift",
       "Sources/App/LocalNetworkAccessDetector.swift",
+      "Sources/App/LocalNetworkPermissionWatch.swift",
       "Sources/App/ScsServer.swift",
       "Sources/App/SigningNetwork.swift",
       "Sources/App/SigningNetwork+AddressClassification.swift",

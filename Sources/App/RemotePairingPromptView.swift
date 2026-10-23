@@ -25,6 +25,15 @@
       .onValueChange(of: failure) { message in
         refused = message != nil
       }
+      .onDisappear {
+        // Turning remote use off ends a code being tried: its browse
+        // stops with it.
+        #if REFINEID_REMOTE_CARD
+          if !RemoteUseSwitch.shared.isOn {
+            model.resetAttempt()
+          }
+        #endif
+      }
     }
 
     @ViewBuilder private var promptText: some View {
