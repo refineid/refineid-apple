@@ -72,6 +72,34 @@ internal struct BridgeSessionTests {
         == .sessionClosed(reason: .serviceWithdrawn, endedOperation: nil))
   }
 
+  @Test("A requester's withdrawal reaches the custodian, ends its operation, and keeps the pairing")
+  internal func requesterWithdrawal() throws {
+    let pairing = try PairedBridges.pair(granting: everyProfile)
+    let identifier = OperationFixture.operationIdentifier
+    let session = try establishedSession(pairing, nowMilliseconds: Self.start)
+    try Self.liveRead(session, identifier)
+    let notice = session.requester.closeWithReason(.serviceWithdrawn)
+    #expect(
+      notice
+        == .sendClose(
+          try frame(notice), reason: .serviceWithdrawn, endedOperation: .dropped(identifier)))
+    #expect(
+      try deliver(notice, to: session.custodian, at: Self.start)
+        == .sessionClosed(reason: .serviceWithdrawn, endedOperation: .dropped(identifier)))
+    #expect(
+      session.custodian.closeWithReason(.normal)
+        == .sessionClosed(reason: nil, endedOperation: nil),
+      "the custodian sends no close of its own")
+
+    // The pairing stays: the next session over the same records works.
+    let next = try establishedSession(pairing, nowMilliseconds: Self.start)
+    let absent = RappCardStatus(card: .absent, reader: .absent)
+    #expect(
+      try deliver(
+        try next.custodian.reportCardStatus(absent), to: next.requester, at: Self.start)
+        == .cardStatus(absent))
+  }
+
   @Test("A message the receiving role never receives closes the session, not the pairing")
   internal func violationsCloseTheSession() throws {
     let pairing = try PairedBridges.pair(granting: everyProfile)

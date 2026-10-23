@@ -17,7 +17,8 @@
         self == .handshake(.pairRevoked) || self == .operation(.pairRevoked)
       }
 
-      /// Whether the custodian announced that it stopped serving (§4.5).
+      /// Whether the peer announced its withdrawal: a custodian stopped
+      /// serving, or a requester stopped using, every pairing (§4.5).
       public var serviceWithdrawn: Bool {
         self == .operation(.serviceWithdrawn) || self == .handshake(.peerClosed(.serviceWithdrawn))
       }

@@ -246,10 +246,18 @@
       return wasOperating && closeReason == .operation(.terminalFrameReleased)
     }
 
-    /// Ends the session with `service_withdrawn` because the holder
-    /// stopped serving (RAPP v26.10.22 §4.5).
-    public func closeServiceWithdrawn() async {
+    /// Ends the session with `service_withdrawn` because this endpoint
+    /// withdraws: its holder turned remote access or remote use off, or quit
+    /// (RAPP v26.10.22 §4.5 items 3 and 8).
+    ///
+    /// An open session sends the close before the connection goes; one not
+    /// yet open closes without a notice. Answers whether the close left on
+    /// the transport.
+    @discardableResult
+    public func closeServiceWithdrawn() async -> Bool {
+      let wasOperating = phase == .operating
       await endOperating { await $0.close(reason: .serviceWithdrawn) }
+      return wasOperating && closeReason == .operation(.terminalFrameReleased)
     }
 
     /// Ends the session with `card_unavailable` because the custodian can

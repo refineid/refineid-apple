@@ -300,6 +300,20 @@
       return told
     }
 
+    /// Ends the session with `service_withdrawn`, as this computer stops
+    /// using remote access (RAPP v26.10.22 §4.5 item 8); the pairing stays.
+    ///
+    /// An open session sends the close before the connection goes; one
+    /// still being dialled closes without a notice. The answer says whether
+    /// a close left: written to the stream, or acknowledged by the
+    /// Bluetooth write response.
+    public func closeServiceWithdrawn() async -> Bool {
+      let coordinator = state.withLock { $0.coordinator }
+      let told = await coordinator?.closeServiceWithdrawn() ?? false
+      finish(.localRequest)
+      return told
+    }
+
     /// Reports the end once and releases the transport.
     internal func finish(_ reason: RappConnectionCoordinator.CloseReason) {
       let first = state.withLock { state -> Bool in

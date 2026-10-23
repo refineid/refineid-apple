@@ -168,6 +168,13 @@ internal enum RappModelTables {
     ),
     RappRule(
       from: .pairedConnected,
+      event: .peerWithdrawalNotice,
+      role: .custodian,
+      destination: .pairedDisconnected,
+      actions: [.showPeerWithdrawn]
+    ),
+    RappRule(
+      from: .pairedConnected,
       event: .forgetPairing,
       role: .both,
       condition: .localUserAction,

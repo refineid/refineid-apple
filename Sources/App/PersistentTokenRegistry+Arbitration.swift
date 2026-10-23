@@ -13,8 +13,9 @@
     /// - All other identities (the remote RAPP token and any displaced configurations) are withdrawn.
     /// - Wireless connections to other devices (presence browsing, in-flight fetches) are put into passive state.
     /// - Remote tokens are suppressed from publishing.
-    /// - Remote use is turned off, as if the holder had clicked the switch;
-    ///   only the holder turns it on again.
+    /// - Remote use is turned off, as if the holder had clicked the switch:
+    ///   an open session with the phone closes with `service_withdrawn`
+    ///   (RAPP v26.10.22 §4.5 item 8). Only the holder turns it on again.
     /// When the reader card leaves:
     /// - Presence watching resumes if pairings exist and remote use is on,
     ///   allowing remote card discovery when no physical card is present.

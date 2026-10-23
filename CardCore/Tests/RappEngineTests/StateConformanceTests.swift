@@ -8,7 +8,7 @@ import Testing
 @Suite("RAPP state tables against the vendored formal model")
 internal struct StateConformanceTests {
   /// Rule counts the model declares, per component machine.
-  private static let expectedRuleCounts = [("pairing", 28), ("session", 27), ("operation", 25)]
+  private static let expectedRuleCounts = [("pairing", 29), ("session", 28), ("operation", 25)]
 
   /// The model constants the engine holds as numbers, by name.
   private static let engineConstants: [String: UInt64] = [
@@ -19,6 +19,7 @@ internal struct StateConformanceTests {
     "session_silence_limit_ms": LivenessTracker.sessionSilenceLimitMilliseconds,
     "revocation_notice_days": PairRecord.revocationNoticeDays,
     "identity_offer_grace_ms": IdentityOfferGrace.milliseconds,
+    "quit_withdrawal_bound_ms": QuitWithdrawalBound.milliseconds,
   ]
 
   /// Model constants the engine holds by its shape rather than as a number

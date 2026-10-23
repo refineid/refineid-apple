@@ -10,8 +10,8 @@ public enum RappCloseReason: String, CaseIterable, Equatable, Sendable {
   case pairingRevoked = "pairing_revoked"
   case policy = "policy"
   case protocolViolation = "protocol_violation"
-  /// The custodian stopped serving because its holder switched remote
-  /// access off or quit; a requester drops the card at once (§4.5).
+  /// The sender withdrew: a custodian stopped serving, or a requester
+  /// stopped using, every pairing (§4.5). The pairing stays.
   case serviceWithdrawn = "service_withdrawn"
   case shutdown = "shutdown"
   case userDisconnect = "user_disconnect"

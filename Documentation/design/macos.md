@@ -40,10 +40,17 @@ a toggle.
   local network and runs until macOS allows it. With no phone paired, the
   pairing prompt shows, beside a card reader or not. With a pairing, the
   phone's line returns.
-- **Turning off.** Every session with the phone closes at once. The
-  phone's identity is withdrawn at once, without its grace, and scanning
-  stops. The pairing is kept, so turning remote use on again reconnects
-  without a code.
+- **Turning off.** Every session with the phone closes at once with
+  `service_withdrawn`, which tells the phone this computer is off (RAPP
+  v26.10.22 §4.5 item 8). A connection still being made closes without a
+  notice. The phone's identity is withdrawn at once, without its grace,
+  and scanning stops. The pairing is kept, so turning remote use on again
+  reconnects without a code.
+- **Quitting.** Quitting while remote use is on turns it off first, as a
+  click would (`QuitWithdrawal`). The app exits once the session's close
+  has left, written to the stream or acknowledged over Bluetooth, or after
+  1 second, whichever comes first. Quitting with remote use off exits at
+  once.
 
 A card in this Mac's own reader still overrides the phone while remote use
 is on (see below).
@@ -132,8 +139,9 @@ click on the switch would, so the Mac neither holds nor dials its session
 with the paired phone:
 
 - `CardPresence` reports the card to `PersistentTokenRegistry`. The
-  registry withdraws the phone's published identity, closes the session and
-  stops browsing for the phone.
+  registry withdraws the phone's published identity, closes the session
+  with `service_withdrawn` as the switch does, and stops browsing for the
+  phone.
 - `RequesterTransportPolicy` leaves nothing to dial, so no dial, redial or
   Bluetooth scan starts.
 - An operation the token extension hands over is refused.

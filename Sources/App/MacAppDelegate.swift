@@ -20,10 +20,31 @@
   /// the run loop, before it is ever drawn. The work the status screen
   /// starts once per run is started here instead, since no screen
   /// appears.
+  ///
+  /// Quitting while remote use is on turns it off first, and the app exits
+  /// once the session's `service_withdrawn` close has left or
+  /// ``QuitWithdrawal/bound`` has passed (RAPP v26.10.22 §4.5 item 8).
   @MainActor
   internal final class MacAppDelegate: NSObject, NSApplicationDelegate {
     internal func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
       false
+    }
+
+    internal func applicationShouldTerminate(_ sender: NSApplication)
+      -> NSApplication.TerminateReply
+    {
+      #if REFINEID_REMOTE_CARD && REFINEID_STREAM_TRANSPORT
+        guard
+          let closes = QuitWithdrawal.begin(
+            remoteUse: .shared, registry: .shared)
+        else { return .terminateNow }
+        QuitWithdrawal.wait(for: closes, atMost: QuitWithdrawal.bound) {
+          sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+      #else
+        return .terminateNow
+      #endif
     }
 
     internal func applicationDidFinishLaunching(_: Notification) {

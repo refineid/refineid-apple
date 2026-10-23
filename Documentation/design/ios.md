@@ -39,3 +39,18 @@ between sessions, and `restartPolling()` reactivates the card and reruns
 PACE. Core NFC is also unavailable to extensions and allows one reader
 session in the system, so it would be a second NFC stack beside the slot
 the token extension signs through.
+
+## A computer that turns remote use off
+
+A paired computer that turns remote use off, has it turned off by a card
+in its own reader, or quits closes its session with `service_withdrawn`
+(RAPP v26.10.22 §4.5 items 8 and 9). The phone ends that session without a
+close of its own. The session's operation ends with it, and its PIN prompt
+and its summons go. The pairing stays, nothing stored changes, and no
+error is shown or reported. The phone keeps serving every pairing, and the
+computer's next dial opens a session as any other.
+
+The phone shows no connection state for each computer: "Paired computers"
+lists names only. The "Connected" badge on the "Remote Access" row, and
+the green antenna on its screen, follow whether any session is open, so a
+computer that withdraws stops counting there as its session ends.

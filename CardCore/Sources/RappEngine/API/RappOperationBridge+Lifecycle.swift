@@ -175,9 +175,10 @@ extension RappOperationBridge {
   ///
   /// A session already closed gives `sessionClosed` without a frame.
   ///
-  /// A custodian whose holder switched remote access off closes every open
-  /// session with ``RappCloseReason/serviceWithdrawn`` before it stops
-  /// accepting connections (§4.5).
+  /// An endpoint that withdraws, custodian or requester, closes every open
+  /// session with ``RappCloseReason/serviceWithdrawn`` (§4.5 items 3 and 8);
+  /// a requester that quits waits at most ``rappQuitWithdrawalBoundMs()`` for
+  /// the frames to leave.
   public func closeWithReason(_ reason: RappCloseReason) -> RappBridgeAction {
     locked {
       guard !closed else { return .sessionClosed(reason: nil, endedOperation: nil) }
