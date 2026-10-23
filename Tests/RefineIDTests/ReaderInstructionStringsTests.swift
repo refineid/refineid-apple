@@ -179,7 +179,7 @@ internal struct ReaderInstructionStringsTests {
     #expect(phoneLine.contains("Paired phone: \\(phone)"))
     #expect(phoneLine.contains("Remove phone pairing"))
     let pinCodes = try String(
-      contentsOf: Self.root.appending(path: "Sources/App/PinCodesButton.swift"),
+      contentsOf: Self.root.appending(path: "Sources/App/RemoteUseButton.swift"),
       encoding: .utf8
     )
     #expect(pinCodes.contains("PIN Codes"))

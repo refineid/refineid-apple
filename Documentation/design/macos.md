@@ -53,6 +53,13 @@ The button's symbol shows the state:
 | On, no session with the phone | `key.radiowaves.forward` | secondary |
 | On, a session with the phone open | `key.radiowaves.forward` | green |
 | On, blocked: this Mac's Bluetooth is off or not allowed, or the local network is not allowed | `key.radiowaves.forward` | orange |
+| A card in this Mac's reader | `key.2.on.ring`, one key for each PIN | secondary |
+
+While a card is in this Mac's reader the button opens the PIN codes window
+instead, under the name "PIN-koodit": the local card overrides remote use
+then, so the switch has nothing to switch, and the two keys tell the
+holder the card is here. When the card leaves, the button is the switch
+again, in the state it was in.
 
 An open session shows as connected even while something else is blocked.
 The tooltip and the VoiceOver label say "Etäkäyttö". The tooltip and the
@@ -74,8 +81,8 @@ every other change is a change of colour.
 | Remote use off, empty reader here | "Syötä kortti lukijaan." | |
 | Remote use on, no card here, no phone paired | "Avaa puhelimesta RefineID etäkäyttö ja syötä yhdistämiskoodi:" and the six-box code entry | |
 | The phone forgot this computer | "*phone* unohti tämän tietokoneen" above the pairing prompt | |
-| Card in this Mac's reader | *HOLDER NAME* | key |
-| Card in this Mac's reader, not ready after a while | the re-insert warning | key |
+| Card in this Mac's reader | *HOLDER NAME* | |
+| Card in this Mac's reader, not ready after a while | the re-insert warning | |
 | Paired phone out of sight | "Yhdistetty puhelin: *phone*" | minus |
 | Paired phone, card on its way | "Yhdistetään… (yhdistetty puhelin: *phone*)" | minus |
 | Paired phone with its card | "*HOLDER NAME* (yhdistetty puhelin: *phone*)" | minus |
@@ -97,7 +104,6 @@ vertically centered. Each is a button with a VoiceOver label and a tooltip.
   Without a session, the record stays forgotten until the next session
   delivers that close. A same-account record that would pair the phone
   again is removed too.
-- **Key** (`key`, "PIN-koodit"). It opens the PIN codes window.
 
 A Mac pairs one phone. The pairing prompt shows only while remote use is
 on and no phone is paired, and there is no "forget all". The phone rows
@@ -107,7 +113,7 @@ of the table above need remote use on.
 
 `PinCodesWindow` holds `CardManagementView` for the card in this Mac's
 reader: the attempts left, and changing or resetting PIN 1 and PIN 2. Only
-the key opens it. It has no Window menu item, never opens at launch, and is
+the toolbar button opens it, while it shows the two keys. It has no Window menu item, never opens at launch, and is
 not restored. It closes when the card leaves the reader.
 
 ## A local card overrides the phone
