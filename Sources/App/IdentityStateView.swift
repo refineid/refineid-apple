@@ -150,7 +150,7 @@
     }
 
     private var readingLine: some View {
-      Text("Reading the card…")
+      Text("Reading information…")
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
