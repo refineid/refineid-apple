@@ -161,20 +161,14 @@
         // name behind it is not worth showing. The empty text is
         // still a rendered view: a structurally absent one would
         // never run the task that reads the name.
-        HStack {
-          Text(holder ?? "")
-            .textSelection(.enabled)
-            .frame(maxWidth: .infinity, alignment: .leading)
-          PinCodesButton()
-        }
+        Text(holder ?? "")
+          .textSelection(.enabled)
+          .frame(maxWidth: .infinity, alignment: .leading)
 
       case .cardNotReady:
-        HStack {
-          Text("Card detected, not ready - if this lasts, re-insert it")
-            .foregroundStyle(.orange)
-            .frame(maxWidth: .infinity, alignment: .leading)
-          PinCodesButton()
-        }
+        Text("Card detected, not ready - if this lasts, re-insert it")
+          .foregroundStyle(.orange)
+          .frame(maxWidth: .infinity, alignment: .leading)
 
       case .connectReader:
         Text("Connect a card reader.")
