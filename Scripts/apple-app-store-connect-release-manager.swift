@@ -2409,62 +2409,6 @@ private func installRemoveStaleBuildTrees(sparing current: URL) {
   if removed == 0 { installNote("install-macos", "no stale build trees found") }
 }
 
-/// A binary's hash with its signature removed: signing embeds a fresh
-/// signature on every build, so what has to match is the code.
-private func installUnsignedHash(_ binary: URL) -> String {
-  let scratch = releaseFileManager.temporaryDirectory
-    .appendingPathComponent("refineid-appex-\(UUID().uuidString)")
-  defer { try? releaseFileManager.removeItem(at: scratch) }
-  guard (try? releaseFileManager.copyItem(at: binary, to: scratch)) != nil else { return "" }
-  releaseRun(
-    "/usr/bin/codesign", ["--remove-signature", scratch.path], capture: true, allowFailure: true)
-  guard let data = try? Data(contentsOf: scratch) else { return "" }
-  return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
-}
-
-/// Whether the built token extensions would run the same code as the
-/// installed ones. Every executable is compared, not the bundle (each
-/// install stamps a fresh build number) and not only the named executable
-/// (a Debug build keeps its code in a .debug.dylib beside a loader stub).
-private func installExtensionsUnchanged(built: URL) -> Bool {
-  for name in ["RefineIDTokenExtension", "RefineIDRappTokenExtension"] {
-    let relative = "Contents/PlugIns/\(name).appex/Contents/MacOS"
-    let builtDirectory = built.appendingPathComponent(relative)
-    guard releaseIsDirectory(builtDirectory) else { continue }
-    let liveDirectory = installMacTarget.appendingPathComponent(relative)
-    guard releaseIsDirectory(liveDirectory) else { return false }
-    let binaries =
-      (try? releaseFileManager.contentsOfDirectory(
-        at: builtDirectory, includingPropertiesForKeys: nil)) ?? []
-    for binary in binaries {
-      let live = liveDirectory.appendingPathComponent(binary.lastPathComponent)
-      guard releaseFileManager.fileExists(atPath: live.path),
-        installUnsignedHash(binary) == installUnsignedHash(live)
-      else { return false }
-    }
-  }
-  return true
-}
-
-/// Ends every macOS RefineID process so the bundle can be replaced. Only
-/// the macOS layout has Contents/MacOS, so a simulator install is spared.
-private func installKillMacApp() {
-  let pattern = "/RefineID.app/Contents/MacOS/RefineID"
-  guard releaseRun("/usr/bin/pgrep", ["-f", pattern], capture: true, allowFailure: true).status
-    == 0
-  else { return }
-  installNote("install-macos", "killing the running macOS app")
-  releaseRun("/usr/bin/pkill", ["-KILL", "-f", pattern], capture: true, allowFailure: true)
-  for _ in 0..<10 {
-    if releaseRun("/usr/bin/pgrep", ["-f", pattern], capture: true, allowFailure: true).status
-      != 0
-    {
-      return
-    }
-    usleep(100_000)
-  }
-}
-
 /// A process left running on a replaced bundle answers nothing; ctkd then
 /// waits ten seconds per request and the app hangs at launch.
 private func installStopExtensions() {
@@ -2481,28 +2425,28 @@ private func installCardIsInserted() -> Bool {
   ).stdout.contains("ATR:")
 }
 
-/// A card insertion is CryptoTokenKit's supported discovery boundary.
-/// Replacing a live extension leaves ctkd holding the old token and
-/// executable, so a changed extension waits for the card to leave; the
-/// reader stays connected.
-private func installWaitForCardRelease() {
-  guard installCardIsInserted() else { return }
-  guard isatty(STDIN_FILENO) != 0 else {
-    releaseFail(
-      "a card is inserted. Remove only the card, leave the USB reader connected, "
-        + "and run this again.")
-  }
-  installNote("install-macos", "remove the card; leave the USB reader connected")
-  while installCardIsInserted() { sleep(1) }
-  installNote("install-macos", "card removed; waiting for CryptoTokenKit to withdraw its token")
-  for _ in 0..<5 {
-    let identities = releaseRun(
-      "/usr/sbin/sc_auth", ["identities"], capture: true, allowFailure: true)
-    if !identities.stdout.contains("fi.refineid") { return }
+/// How long the restarted token watcher gets to mint the inserted card.
+private let installTokenRemintSeconds = 25
+
+/// CryptoTokenKit mints a reader card's token once per physical insertion
+/// (Documentation/card-transports.md), so a card left in the reader across
+/// a driver replacement keeps no token. The per-user token watcher reads
+/// the slots afresh when it starts: ending it lets launchd start it on the
+/// next request, and it mints the card with the new driver.
+private func installRemintInsertedCard() {
+  installNote("install-macos", "card in the reader; restarting the token watcher to mint it")
+  releaseRun(
+    "/usr/bin/pkill", ["-U", String(getuid()), "-x", "ctkd"], capture: true, allowFailure: true)
+  for _ in 0..<installTokenRemintSeconds {
     sleep(1)
+    let tokens = releaseRun(
+      "/usr/bin/security", ["list-smartcards"], capture: true, allowFailure: true)
+    if tokens.stdout.contains("fi.refineid") {
+      installNote("install-macos", "card minted with the new driver")
+      return
+    }
   }
-  releaseFail(
-    "CryptoTokenKit still publishes the removed card. Log out before replacing the extension.")
+  installNote("install-macos", "card not minted; re-insert it")
 }
 
 private func installReportRegistrations() {
@@ -2579,22 +2523,11 @@ private func installMacOS(_ arguments: [String], stamp: Bool = true) {
   installRemoveStrayCopies(keeping: built)
   installRemoveStaleBuildTrees(sparing: installMacDerivedData)
   installKillMacApp()
-  // CryptoTokenKit mints a token only when a card is inserted, so stopping
-  // or unregistering a driver with the card in the reader leaves that card
-  // without a token until it is re-inserted. Unchanged extensions stay
-  // running and registered while the bundle around them is replaced.
-  let extensionsUnchanged = installExtensionsUnchanged(built: built)
-  if extensionsUnchanged {
-    installNote("install-macos", "extensions unchanged; keeping them running")
-  } else {
-    installWaitForCardRelease()
-    installStopExtensions()
-  }
+  let cardInserted = installCardIsInserted()
+  installStopExtensions()
 
   installNote("install-macos", "installing to \(installMacTarget.path)")
-  if !extensionsUnchanged {
-    installUnregister(installMacTarget)
-  }
+  installUnregister(installMacTarget)
   try? releaseFileManager.removeItem(at: installMacTarget)
   do {
     try releaseFileManager.copyItem(at: built, to: installMacTarget)
@@ -2620,14 +2553,12 @@ private func installMacOS(_ arguments: [String], stamp: Bool = true) {
     sleep(3)
     installKillMacApp()
   }
+  if cardInserted {
+    installRemintInsertedCard()
+  }
   installNote("install-macos", "launching \(installMacTarget.path)")
   releaseRun("/usr/bin/open", [installMacTarget.path])
-  if extensionsUnchanged {
-    installNote("install-macos", "done.")
-  } else {
-    installNote(
-      "install-macos", "done. Insert the card; CryptoTokenKit will mint it with the new driver.")
-  }
+  installNote("install-macos", "done.")
 }
 
 // MARK: - Installs on iPhone and iPad

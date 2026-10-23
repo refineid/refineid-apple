@@ -227,6 +227,10 @@ when the app is reinstalled or updated over a card left in the slot. The
 slot then reports a valid card the whole time, yet no RefineID token is
 ever published for it, and no session activity from the app re-triggers
 the mint. On the next real insertion the card mints normally again.
+A restart of the user's own `ctkd`, the token watcher launchd starts on
+demand, reads the slots afresh and mints such a card without a
+re-insertion (observed, not documented by Apple); the release manager's
+Mac install does that when a card is in the reader.
 
 Two rules follow from this, and from the card interfaces above.
 
