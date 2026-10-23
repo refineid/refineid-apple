@@ -3981,6 +3981,22 @@
         }
       }
     },
+    "Reading information…": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tietoja luetaan…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läser uppgifter…"
+          }
+        }
+      }
+    },
     "Reading report": {
       "localizations": {
         "fi": {

@@ -149,21 +149,29 @@
       )
     }
 
+    private var readingLine: some View {
+      Text("Reading information…")
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     @ViewBuilder private var content: some View {
       switch IdentityLine.derive(facts) {
       case .reading:
-        Text("")
+        readingLine
 
       case .localHolder:
         // Who is about to sign: someone with two cards can see which
         // one is in the reader before spending a PIN on it. Until the
         // name is read the line names no one - a claim without the
-        // name behind it is not worth showing. The empty text is
-        // still a rendered view: a structurally absent one would
-        // never run the task that reads the name.
-        Text(holder ?? "")
-          .textSelection(.enabled)
-          .frame(maxWidth: .infinity, alignment: .leading)
+        // name behind it is not worth showing.
+        if let holder {
+          Text(holder)
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+          readingLine
+        }
 
       case .cardNotReady:
         Text("Card detected, not ready - if this lasts, re-insert it")
