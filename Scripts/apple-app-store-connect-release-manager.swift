@@ -2409,6 +2409,25 @@ private func installRemoveStaleBuildTrees(sparing current: URL) {
   if removed == 0 { installNote("install-macos", "no stale build trees found") }
 }
 
+/// Ends every macOS RefineID process so the bundle can be replaced. Only
+/// the macOS layout has Contents/MacOS, so a simulator install is spared.
+private func installKillMacApp() {
+  let pattern = "/RefineID.app/Contents/MacOS/RefineID"
+  guard releaseRun("/usr/bin/pgrep", ["-f", pattern], capture: true, allowFailure: true).status
+    == 0
+  else { return }
+  installNote("install-macos", "killing the running macOS app")
+  releaseRun("/usr/bin/pkill", ["-KILL", "-f", pattern], capture: true, allowFailure: true)
+  for _ in 0..<10 {
+    if releaseRun("/usr/bin/pgrep", ["-f", pattern], capture: true, allowFailure: true).status
+      != 0
+    {
+      return
+    }
+    usleep(100_000)
+  }
+}
+
 /// A process left running on a replaced bundle answers nothing; ctkd then
 /// waits ten seconds per request and the app hangs at launch.
 private func installStopExtensions() {
