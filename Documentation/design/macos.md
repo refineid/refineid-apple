@@ -52,14 +52,16 @@ The button's symbol shows the state:
 | Off | `key.radiowaves.forward.slash` | secondary |
 | On, no session with the phone | `key.radiowaves.forward` | secondary |
 | On, a session with the phone open | `key.radiowaves.forward` | green |
-| On, blocked: this Mac's Bluetooth is off or not allowed, or the local network is not allowed | `key.radiowaves.forward.slash` | orange |
+| On, blocked: this Mac's Bluetooth is off or not allowed, or the local network is not allowed | `key.radiowaves.forward` | orange |
 
 An open session shows as connected even while something else is blocked.
 The tooltip and the VoiceOver label say "Etäkäyttö". The tooltip and the
 accessibility value name the state: "Pois", "Päällä", "Puhelin
 yhdistetty", or "Estetty:" followed by the cause. Words name each state,
 so no state rests on color alone. The identity line also says whether the
-phone serves the card. A symbol change uses the Magic Replace transition.
+phone serves the card. The slash means off, so the symbol changes only
+when the switch is turned on or off, with the Magic Replace transition;
+every other change is a change of colour.
 
 ## The identity line
 
