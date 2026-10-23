@@ -1,5 +1,8 @@
 # The Mac app
 
+UI text is quoted in its English source form; the translations are in
+`Sources/App/Localizable.xcstrings`.
+
 The Mac app is one window. It says whose card can log in and signs
 documents with it. There is no Settings window and no Help menu. The app
 menu holds About, which links the site. The View menu holds Demo Mode.
@@ -25,8 +28,8 @@ the six-box access number entry.
 One toolbar button is the switch for all remote use: Bluetooth and
 local-network discovery, sessions with the phone, and the phone's identity
 (`RemoteUseSwitch`, `RemoteUseButton`; hierarchy specification §5.2). It
-is off by default and keeps its state across restarts. A click turns it
-on or off. VoiceOver reads it as a toggle.
+is off at every launch. A click turns it on or off. VoiceOver reads it as
+a toggle.
 
 - **Off.** Nothing remote runs: no Bonjour browse, no Bluetooth scan, no
   dial, and no phone identity. The app asks macOS for no local-network or
@@ -56,15 +59,17 @@ The button's symbol shows the state:
 | A card in this Mac's reader | `key.2.on.ring`, one key for each PIN | secondary |
 
 While a card is in this Mac's reader the button opens the PIN codes window
-instead, under the name "PIN-koodit": the local card overrides remote use
-then, so the switch has nothing to switch, and the two keys tell the
-holder the card is here. When the card leaves, the button is the switch
-again, in the state it was in.
+instead, under the name "PIN Codes", and the two keys tell the holder
+the card is here. Inserting the card turns remote use off, as a click on
+the switch would. When the card leaves, the button is the switch again,
+off. Every launch starts with remote use off too. Only the holder turns it
+on, and that click is the only time the app asks macOS for Bluetooth or
+local-network permission.
 
 An open session shows as connected even while something else is blocked.
-The tooltip and the VoiceOver label say "Etäkäyttö". The tooltip and the
-accessibility value name the state: "Pois", "Päällä", "Puhelin
-yhdistetty", or "Estetty:" followed by the cause. Words name each state,
+The tooltip and the VoiceOver label say "Remote Access". The tooltip and the
+accessibility value name the state: "Off", "On", "Phone connected",
+or "Blocked:" followed by the cause. Words name each state,
 so no state rests on color alone. The identity line also says whether the
 phone serves the card. The slash means off, so the symbol changes only
 when the switch is turned on or off, with the Magic Replace transition;
@@ -77,17 +82,17 @@ every other change is a change of colour.
 
 | State | Line | Control |
 |---|---|---|
-| Remote use off, no reader here | "Liitä kortinlukija." | |
-| Remote use off, empty reader here | "Syötä kortti lukijaan." | |
-| Remote use on, no card here, no phone paired | "Avaa puhelimesta RefineID etäkäyttö ja syötä yhdistämiskoodi:" and the six-box code entry | |
-| The phone forgot this computer | "*phone* unohti tämän tietokoneen" above the pairing prompt | |
+| Remote use off, no reader here | "Connect a card reader." | |
+| Remote use off, empty reader here | "Insert the card into the reader." | |
+| Remote use on, no card here, no phone paired | "Open RefineID remote access on your phone and enter the pairing code:" and the six-box code entry | |
+| The phone forgot this computer | "*phone* forgot this computer" above the pairing prompt | |
 | Card in this Mac's reader | *HOLDER NAME* | |
 | Card in this Mac's reader, not ready after a while | the re-insert warning | |
-| Paired phone out of sight | "Yhdistetty puhelin: *phone*" | minus |
-| Paired phone, card on its way | "Yhdistetään… (yhdistetty puhelin: *phone*)" | minus |
-| Paired phone with its card | "*HOLDER NAME* (yhdistetty puhelin: *phone*)" | minus |
-| Paired phone without a card | "Aseta kortti puhelimeen." or "Syötä kortti puhelimen kortinlukijaan.", then "(yhdistetty puhelin: *phone*)" | minus |
-| Paired phone, empty reader here | "Syötä kortti lukijaan. (yhdistetty puhelin: *phone*)" | minus |
+| Paired phone out of sight | "Paired phone: *phone*" | minus |
+| Paired phone, card on its way | "Connecting... (paired phone: *phone*)" | minus |
+| Paired phone with its card | "*HOLDER NAME* (paired phone: *phone*)" | minus |
+| Paired phone without a card | "Place the card on the phone." or "Insert the card into the phone's card reader.", then "(paired phone: *phone*)" | minus |
+| Paired phone, empty reader here | "Insert the card into the reader. (paired phone: *phone*)" | minus |
 
 A card in this Mac's reader shows nothing while it settles, which takes
 well under a second.
@@ -97,7 +102,7 @@ reader decides which instruction a phone without a card gets (RAPP
 v26.10.22 §8.4 item 6). The controls sit at the right end of the line,
 vertically centered. Each is a button with a VoiceOver label and a tooltip.
 
-- **Minus** (`person.badge.minus`, "Poista puhelimen yhdistäminen"). It
+- **Minus** (`person.badge.minus`, "Remove phone pairing"). It
   forgets the paired phone at once, with no confirmation. The line drops
   the phone, and the pairing prompt returns. The pairing ends as RAPP
   v26.10.22 §4.6 says. An open session closes with `pairing_revoked`.
@@ -113,13 +118,14 @@ of the table above need remote use on.
 
 `PinCodesWindow` holds `CardManagementView` for the card in this Mac's
 reader: the attempts left, and changing or resetting PIN 1 and PIN 2. Only
-the toolbar button opens it, while it shows the two keys. It has no Window menu item, never opens at launch, and is
-not restored. It closes when the card leaves the reader.
+the toolbar button opens it, while it shows the two keys. It has no
+Window menu item, never opens at launch, and is not restored. It closes when the card leaves the reader.
 
-## A local card overrides the phone
+## A local card turns remote use off
 
-While a card is in this Mac's own reader, the Mac neither holds nor dials
-its session with the paired phone:
+Inserting a card into this Mac's own reader turns remote use off, as a
+click on the switch would, so the Mac neither holds nor dials its session
+with the paired phone:
 
 - `CardPresence` reports the card to `PersistentTokenRegistry`. The
   registry withdraws the phone's published identity, closes the session and
@@ -130,8 +136,8 @@ its session with the paired phone:
 - Document signing uses the local card.
 - The identity line shows only the local card.
 
-When the card leaves the reader, browsing and dialing resume while remote
-use is on, and the phone line returns. The pairing is kept throughout.
+When the card leaves the reader, remote use stays off until the holder
+turns it on again. The pairing is kept throughout.
 
 ## Running without the window
 
