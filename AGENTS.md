@@ -208,3 +208,7 @@ record for RAPP and its applications.
   a code review from the project's author.
 - Check every finding against the code. Fix the real ones and list the
   rejected ones, with the reason, in the pull request description.
+
+## Working method
+
+Read [Documentation/process/working-method.md](Documentation/process/working-method.md) before starting: the roles (front agent, implementation agents), what a brief contains, the feedback loops, and which documentation is kept. The same file is in every RefineID repository.
