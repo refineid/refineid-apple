@@ -100,15 +100,17 @@ extension RefineIDApp {
         PersistentTokenRegistry.shared.idleSweep.start {
           PersistentTokenRegistry.shared.sweepIdlePairings()
         }
+        let store = RemoteUseForgetting.Store.standard
+        // An earlier run's click off is finished as any forgetting is, so a
+        // click off or a quit meanwhile follows it.
+        let finishing = PersistentTokenRegistry.shared.finishForgetting(
+          after: nil, in: RappDeviceVault(), store: store,
+          directory: RappAutoPairingService.shared)
         Task { @MainActor in
-          let store = RemoteUseForgetting.Store.standard
-          RemoteUseForgetting.report(
-            await RemoteUseForgetting.finish(
-              in: RappDeviceVault(), store: store, clock: RappPlatformClock(),
-              directory: RappAutoPairingService.shared))
+          await finishing.value
           let pairingRemains =
             PersistentTokenRegistry.sweepIdlePairingsAtLaunch()
-            && RemoteUseForgetting.requestedAt(in: store) == nil
+            && RemoteUseForgetting.pending(in: store) == nil
           CardPresence.shared.afterInitialScan(atMost: readerScanBound) {
             RemoteUseSwitch.shared.start(
               pairingRemains: pairingRemains, suspended: CardPresence.shared.isReaderCardPresent)

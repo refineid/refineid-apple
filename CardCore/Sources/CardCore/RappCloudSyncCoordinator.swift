@@ -128,15 +128,25 @@
       saveDirectory(directory)
     }
 
-    /// Removes from the directory every device this one pairs with, so the
-    /// directory pairs none of them with it again; answers how many went.
-    @discardableResult
-    public func removeComplementaryDevices() -> Int {
-      let complementary = remoteDevices().filter { pairs(with: $0.role) }
-      for remote in complementary {
-        removeRemoteDevice(deviceID: remote.deviceID)
+    /// Removes from the directory exactly the devices whose same-account
+    /// pairing with this one has one of `pairIDs`.
+    ///
+    /// They are matched by their static keys, and a device paired only with
+    /// another computer stays. Answers whether, read again, the directory
+    /// holds none of them.
+    public func removeDevices(pairedThrough pairIDs: Set<Data>) -> Bool {
+      let paired = { (record: RappCloudDeviceRecord) -> Bool in
+        pairIDs.contains(
+          RappSameAccountPairBuilder.derivePairIdentifier(
+            publicKeyA: self.localIdentity.publicKeyData, publicKeyB: record.staticPublicKey))
       }
-      return complementary.count
+      let directory = loadDirectory()
+      let kept = directory.filter { $0.key == localIdentity.deviceID || !paired($0.value) }
+      if kept.count != directory.count {
+        inMemoryDirectory = inMemoryDirectory.filter { !paired($0.value) }
+        saveDirectory(kept)
+      }
+      return !loadDirectory().values.contains(where: paired)
     }
 
     /// Whether this device pairs with a device of `role`: a requester with

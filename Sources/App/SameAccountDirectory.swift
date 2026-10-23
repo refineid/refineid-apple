@@ -3,13 +3,16 @@
 #if os(macOS) && REFINEID_REMOTE_CARD
 
   import CardCore
+  import Foundation
 
   /// The account's directory of same-account devices, as forgetting every
   /// pairing sees it.
   internal protocol SameAccountDirectory: Sendable {
-    /// Removes every device this one pairs with, so none of them pairs with
-    /// it again; false when the directory could not be reached.
-    func removeComplementaryDevices() async -> Bool
+    /// Removes exactly the devices whose same-account pairing with this one
+    /// has one of `pairIDs`, so none of them pairs with it again; true once
+    /// the directory, read again, holds none of them, false while it does
+    /// or cannot be reached.
+    func removeDevices(pairedThrough pairIDs: Set<Data>) async -> Bool
   }
 
   extension RappAutoPairingService: SameAccountDirectory {}

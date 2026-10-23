@@ -100,7 +100,7 @@
         directory: any SameAccountDirectory
       ) {
         guard forgetting == nil else { return }
-        guard RemoteUseForgetting.requestedAt(in: store) == nil else {
+        guard RemoteUseForgetting.pending(in: store) == nil else {
           finishForgetting(after: nil, in: vault, store: store, directory: directory)
           return
         }
@@ -111,19 +111,22 @@
       /// Forgets every pairing as the holder turns remote use off (RAPP
       /// v26.10.22 §4.6 item 6, CC-100).
       ///
-      /// The click is stored in `store` first (``RemoteUseForgetting``).
-      /// The phone's identity leaves at once and everything remote stops.
-      /// An open session closes with `pairing_revoked`; once its close left,
-      /// or after ``QuitWithdrawal/bound``, every pairing `vault` held is
-      /// destroyed with its key and every phone this computer pairs with
-      /// leaves the account's `directory`, off the main thread so a quit can
-      /// wait on it. A phone with no session open is told nothing.
+      /// The click is stored in `store` first, with the pairings `vault`
+      /// holds (``RemoteUseForgetting``). The phone's identity leaves at
+      /// once and everything remote stops. An open session closes with
+      /// `pairing_revoked`; once its close left, or after
+      /// ``QuitWithdrawal/bound``, those pairings are destroyed with their
+      /// keys and their phones leave the account's `directory`, off the
+      /// main thread so a quit can wait on it. A phone with no session open
+      /// is told nothing. A click off while an earlier one is still
+      /// forgetting follows it.
       internal func forgetEveryPairing(
         in vault: RappDeviceVault,
         store: RemoteUseForgetting.Store,
         directory: any SameAccountDirectory
       ) {
-        RemoteUseForgetting.request(at: RappPlatformClock().wallMilliseconds(), in: store)
+        RemoteUseForgetting.request(
+          at: RappPlatformClock().wallMilliseconds(), listing: vault, in: store)
         phoneThatForgot = nil
         #if REFINEID_STREAM_TRANSPORT
           let closes = revokeHolderSession()
@@ -135,17 +138,29 @@
       }
 
       /// Finishes the stored click once `closes` left or its bound passed,
-      /// off the main thread, then follows on the main actor: with remote
-      /// use on again, the paired phone is followed once nothing the click
-      /// forgets is left, and remote use goes off while something is.
-      private func finishForgetting(
+      /// off the main thread, and answers once the app followed.
+      ///
+      /// One destruction runs at a time: this one starts once any still
+      /// running has ended, and a quit waiting on the latest waits on all.
+      /// Only the latest one, on the main actor, lets go of the in-flight
+      /// state and follows: with remote use on again, the paired phone is
+      /// followed once nothing a click forgets is left, and remote use goes
+      /// off while something is.
+      @discardableResult
+      internal func finishForgetting(
         after closes: Task<Bool, Never>?,
         in vault: RappDeviceVault,
         store: RemoteUseForgetting.Store,
         directory: any SameAccountDirectory
-      ) {
+      ) -> Task<Void, Never> {
         let clock = RappPlatformClock()
+        let earlier = pairingDestruction
+        forgettingGeneration += 1
+        let generation = forgettingGeneration
         let destruction = Task.detached {
+          if let earlier {
+            _ = await earlier.value
+          }
           #if REFINEID_STREAM_TRANSPORT
             if let closes {
               _ = await Self.settled(closes, atMost: QuitWithdrawal.bound)
@@ -155,20 +170,23 @@
             in: vault, store: store, clock: clock, directory: directory)
         }
         pairingDestruction = destruction
-        forgetting = Task { @MainActor [weak self] in
+        let following = Task { @MainActor [weak self] in
           let outcome = await destruction.value
           guard let self else { return }
+          forgotten(outcome, in: vault)
+          guard forgettingGeneration == generation else { return }
           pairingDestruction = nil
           forgetting = nil
-          forgotten(outcome, in: vault)
           guard Self.followsPhone else { return }
-          if RemoteUseForgetting.requestedAt(in: store) == nil {
+          if RemoteUseForgetting.pending(in: store) == nil {
             start()
             RappAutoPairingService.shared.reconcile()
           } else {
             RemoteUseSwitch.shared.stop()
           }
         }
+        forgetting = following
+        return following
       }
 
       /// Follows what forgetting the pairings did: a failure is reported,

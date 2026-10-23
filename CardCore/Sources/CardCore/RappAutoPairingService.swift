@@ -132,16 +132,19 @@
       }
     }
 
-    /// Removes from the account's directory every device this one pairs
-    /// with, so none of them pairs with it again; true once the directory
-    /// holds none, or when this device has no same-account identity and so
-    /// pairs with none.
-    public func removeComplementaryDevices() async -> Bool {
+    /// Removes from the account's directory exactly the devices whose
+    /// same-account pairing with this one has one of `pairIDs`.
+    ///
+    /// None of them then pairs with it again. True once the directory, read
+    /// again, holds none of them, and false while it does. A device with no
+    /// same-account identity pairs with none, so for it the directory holds
+    /// none.
+    public func removeDevices(pairedThrough pairIDs: Set<Data>) async -> Bool {
       start()
       guard let coordinator else { return true }
-      await coordinator.removeComplementaryDevices()
+      let gone = await coordinator.removeDevices(pairedThrough: pairIDs)
       updateCachedRemoteDevices(await coordinator.remoteDevices())
-      return true
+      return gone
     }
 
     /// Clears all remote devices from cloud synchronization and reconciles.

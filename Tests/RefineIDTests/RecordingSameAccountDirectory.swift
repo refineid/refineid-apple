@@ -6,34 +6,73 @@
 
   @testable import RefineID
 
-  /// A same-account directory that counts its removals and is reachable or
-  /// not as a test says.
+  /// A same-account directory that records what it was asked to remove,
+  /// still holds those phones or not as a test says, and holds each removal
+  /// until the test releases it when told to.
   internal final class RecordingSameAccountDirectory: SameAccountDirectory,
     @unchecked Sendable
   {
     private let lock = NSLock()
     private var reachable: Bool
-    private var removed = 0
+    private var holding = false
+    private var requests: [Set<Data>] = []
+    private var held: [CheckedContinuation<Void, Never>] = []
+    private var duringRemoval: (@Sendable () -> Void)?
 
-    /// How often the directory was asked to remove the phones.
-    internal var removals: Int {
-      lock.withLock { removed }
+    /// The pairings each removal was asked for, in order.
+    internal var removals: [Set<Data>] {
+      lock.withLock { requests }
+    }
+
+    /// How many removals wait for ``release()``.
+    internal var waiting: Int {
+      lock.withLock { held.count }
     }
 
     internal init(reachable: Bool) {
       self.reachable = reachable
     }
 
-    /// Makes the directory reachable, or not, from now on.
+    /// Makes the phones leave, or stay, from now on.
     internal func setReachable(_ value: Bool) {
       lock.withLock { reachable = value }
     }
 
-    internal func removeComplementaryDevices() -> Bool {
-      lock.withLock {
-        removed += 1
-        return reachable
+    /// Holds every removal from now on until ``release()``.
+    internal func hold() {
+      lock.withLock { holding = true }
+    }
+
+    /// Lets every held removal go, and holds none from now on.
+    internal func release() {
+      let released = lock.withLock {
+        holding = false
+        defer { held = [] }
+        return held
       }
+      for continuation in released {
+        continuation.resume()
+      }
+    }
+
+    /// Runs `action` while the next removal is under way.
+    internal func onRemoval(_ action: @escaping @Sendable () -> Void) {
+      lock.withLock { duringRemoval = action }
+    }
+
+    internal func removeDevices(pairedThrough pairIDs: Set<Data>) async -> Bool {
+      let (mustWait, action) = lock.withLock {
+        requests.append(pairIDs)
+        defer { duringRemoval = nil }
+        return (holding, duringRemoval)
+      }
+      action?()
+      if mustWait {
+        await withCheckedContinuation { continuation in
+          lock.withLock { held.append(continuation) }
+        }
+      }
+      return lock.withLock { reachable }
     }
   }
 

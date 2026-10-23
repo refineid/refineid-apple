@@ -76,6 +76,10 @@
     /// that ends starts nothing.
     @ObservationIgnored private var hasStarted = false
 
+    /// Whether the holder clicked the switch before the launch decided:
+    /// the click stands.
+    @ObservationIgnored private var holderClickedFirst = false
+
     // MARK: Computed Properties
 
     /// What blocks remote use while it is on, if anything.
@@ -110,12 +114,17 @@
     /// A launch that restores it on, unsuspended, starts the watches without
     /// the holder's click; macOS granted their permissions when the holder
     /// turned remote use on and paired (CC-101). Suspended, nothing starts
-    /// until the card leaves (CC-102).
+    /// until the card leaves (CC-102). A click the holder made before the
+    /// launch decided stands.
     internal func start(pairingRemains: Bool, suspended: Bool) {
+      hasStarted = true
+      guard !holderClickedFirst else {
+        suspend(suspended)
+        return
+      }
       RemoteAccessGate.setEnabled(pairingRemains)
       isOn = pairingRemains
       isSuspended = suspended
-      hasStarted = true
       if pairingRemains, !suspended {
         startWatches()
       }
@@ -145,6 +154,9 @@
     /// The holder's click: on turns remote use on, off forgets every
     /// pairing.
     internal func toggle() {
+      if !hasStarted {
+        holderClickedFirst = true
+      }
       if isOn {
         move(on: false, as: .forgetting)
       } else {

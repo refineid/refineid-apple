@@ -72,12 +72,12 @@
       let idle = await RemoteUseForgetting.finish(
         in: vault, store: store, clock: RappPlatformClock(), directory: directory)
       #expect(idle == RemoteUseForgetting.Outcome(), "without a stored click nothing goes")
-      #expect(directory.removals == 0)
+      #expect(directory.removals.isEmpty)
 
-      RemoteUseForgetting.request(at: clickedAt, in: store)
-      RemoteUseForgetting.request(at: clickedAt - 1, in: store)
-      #expect(
-        RemoteUseForgetting.requestedAt(in: store) == clickedAt, "a later click covers more")
+      // The click was stored with the pairings it forgets, and the app
+      // ended before anything else ran.
+      RemoteUseForgetting.request(
+        at: clickedAt, forgetting: [beforeID], listed: true, in: store)
       let outcome = await RemoteUseForgetting.finish(
         in: vault, store: store, clock: RappPlatformClock(), directory: directory)
 
@@ -85,34 +85,105 @@
       #expect(outcome.failures == 0)
       #expect(try vault.activePairIDs() == [after.metadata().pairId])
       #expect(RappPairNames.name(forPairID: beforeID) == nil, "the name goes with the key")
-      #expect(directory.removals == 1)
-      #expect(RemoteUseForgetting.requestedAt(in: store) == nil)
+      #expect(directory.removals == [[beforeID]], "only its own phones leave the directory")
+      #expect(RemoteUseForgetting.pending(in: store) == nil)
     }
 
-    @Test("A crash or an unreachable directory keeps the click until the phones leave it")
+    @Test("A later click covers an earlier one still pending")
+    internal func laterClickCovers() {
+      let store = Self.scratchStore()
+      defer { Self.clearScratchStore() }
+      let first = Data("first pairing id".utf8)
+      let second = Data("second pairing id".utf8)
+      RemoteUseForgetting.request(
+        at: Self.earlierCreation + 1, forgetting: [first], listed: true, in: store)
+      RemoteUseForgetting.request(
+        at: Self.earlierCreation, forgetting: [second], listed: true, in: store)
+      let pending = RemoteUseForgetting.pending(in: store)
+      #expect(pending?.clickedAtMs == Self.earlierCreation + 1)
+      #expect(Set(pending?.pairIDs ?? []) == [first, second])
+      #expect(pending?.needsListing == false)
+    }
+
+    @Test("A click stored while the vault could not be listed lists it before destroying")
+    internal func unlistedClickIsListedFirst() async throws {
+      let vault = RappDeviceVault()
+      let store = Self.scratchStore()
+      defer { Self.clearScratchStore() }
+      let directory = RecordingSameAccountDirectory(reachable: true)
+      let before = try Self.storedPairing(in: vault, createdAt: Self.earlierCreation)
+      let clickedAt = Self.earlierCreation + 1
+      let after = try Self.storedPairing(in: vault, createdAt: clickedAt + 1)
+      defer {
+        try? vault.revokePair(
+          pairID: after.metadata().pairId, revokedAtMilliseconds: Self.revocationTime)
+      }
+      RemoteUseForgetting.request(at: clickedAt, forgetting: [], listed: false, in: store)
+      #expect(RemoteUseForgetting.pending(in: store)?.needsListing == true)
+
+      let outcome = await RemoteUseForgetting.finish(
+        in: vault, store: store, clock: RappPlatformClock(), directory: directory)
+      #expect(outcome.destroyed == [before.metadata().pairId])
+      #expect(directory.removals == [[before.metadata().pairId]])
+      #expect(try vault.activePairIDs() == [after.metadata().pairId])
+      #expect(RemoteUseForgetting.pending(in: store) == nil)
+    }
+
+    @Test("A crash or a directory still holding the phones keeps the click until they leave")
     internal func directoryIsPartOfTheClick() async throws {
       let vault = RappDeviceVault()
       let store = Self.scratchStore()
       defer { Self.clearScratchStore() }
       let directory = RecordingSameAccountDirectory(reachable: false)
-      _ = try Self.storedPairing(in: vault, createdAt: Self.earlierCreation)
+      let pairing = try Self.storedPairing(in: vault, createdAt: Self.earlierCreation)
+      let pairID = pairing.metadata().pairId
 
       // The click was stored, and the app ended before anything else ran.
-      RemoteUseForgetting.request(at: Self.earlierCreation + 1, in: store)
+      RemoteUseForgetting.request(
+        at: Self.earlierCreation + 1, forgetting: [pairID], listed: true, in: store)
 
-      let unreachable = await RemoteUseForgetting.finish(
+      let held = await RemoteUseForgetting.finish(
         in: vault, store: store, clock: RappPlatformClock(), directory: directory)
-      #expect(unreachable.destroyed.count == 1)
-      #expect(unreachable.failures == 1)
+      #expect(held.destroyed == [pairID])
+      #expect(held.failures == 1)
       #expect(try vault.activePairIDs().isEmpty)
-      #expect(RemoteUseForgetting.requestedAt(in: store) != nil, "the next try owes the directory")
+      #expect(RemoteUseForgetting.pending(in: store) != nil, "the next try owes the directory")
 
       directory.setReachable(true)
       let reached = await RemoteUseForgetting.finish(
         in: vault, store: store, clock: RappPlatformClock(), directory: directory)
-      #expect(reached == RemoteUseForgetting.Outcome())
-      #expect(directory.removals == 2)
-      #expect(RemoteUseForgetting.requestedAt(in: store) == nil)
+      #expect(reached == RemoteUseForgetting.Outcome(), "nothing left to destroy")
+      #expect(directory.removals == [[pairID], [pairID]], "the directory is asked again")
+      #expect(RemoteUseForgetting.pending(in: store) == nil)
+    }
+
+    @Test("An attempt clears only the click it finished, never one stored meanwhile")
+    internal func compareAndClear() async throws {
+      let vault = RappDeviceVault()
+      let store = Self.scratchStore()
+      defer { Self.clearScratchStore() }
+      let directory = RecordingSameAccountDirectory(reachable: true)
+      let first = try Self.storedPairing(in: vault, createdAt: Self.earlierCreation)
+      let second = try Self.storedPairing(in: vault, createdAt: Self.earlierCreation + 1)
+      let firstID = first.metadata().pairId
+      let secondID = second.metadata().pairId
+      RemoteUseForgetting.request(
+        at: Self.earlierCreation + 1, forgetting: [firstID], listed: true, in: store)
+      directory.onRemoval {
+        // A second click off arrives while the first is being finished.
+        RemoteUseForgetting.request(
+          at: Self.earlierCreation + 2, forgetting: [secondID], listed: true, in: store)
+      }
+
+      _ = await RemoteUseForgetting.finish(
+        in: vault, store: store, clock: RappPlatformClock(), directory: directory)
+      let later = try #require(RemoteUseForgetting.pending(in: store), "the second click stays")
+      #expect(Set(later.pairIDs) == [firstID, secondID])
+
+      _ = await RemoteUseForgetting.finish(
+        in: vault, store: store, clock: RappPlatformClock(), directory: directory)
+      #expect(RemoteUseForgetting.pending(in: store) == nil)
+      #expect(try vault.activePairIDs().isEmpty)
     }
   }
 
