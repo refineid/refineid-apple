@@ -4,9 +4,9 @@
 
   import SwiftUI
 
-  /// The remote-use switch at the top right of the status window, above the
-  /// line it changes: a click turns remote use on or off, and the symbol is
-  /// the state (STPA CC-95).
+  /// The remote-use switch at the right end of the window's toolbar, in the
+  /// title bar: a click turns remote use on or off, and the symbol is the
+  /// state (STPA CC-95).
   ///
   /// The help and the accessibility value name the state in words, the
   /// blocked state's cause included, so no state rests on colour alone.
@@ -29,9 +29,6 @@
           .foregroundStyle(Self.style(state.tone))
           .replacingSymbol()
       }
-      .buttonStyle(.glass)
-      .buttonBorderShape(.circle)
-      .controlSize(.large)
       .help(Text(state.help))
       .accessibilityLabel(Text(RemoteUseState.label))
       .accessibilityValue(Text(state.value))

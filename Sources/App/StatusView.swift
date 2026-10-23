@@ -82,12 +82,6 @@
 
     internal var body: some View {
       VStack(alignment: .leading, spacing: Self.spacing) {
-        #if REFINEID_REMOTE_CARD
-          HStack {
-            Spacer()
-            RemoteUseButton()
-          }
-        #endif
         statusForm
         if demoMode.isActive {
           CardSetupFooter(isDemonstration: true)
@@ -95,6 +89,13 @@
       }
       .padding(Self.padding)
       .frame(minWidth: minimumWidth, alignment: .leading)
+      #if REFINEID_REMOTE_CARD
+        .toolbar {
+          ToolbarItem(placement: .primaryAction) {
+            RemoteUseButton()
+          }
+        }
+      #endif
       .task {
         #if FEATURE_CONTACTLESS
           SealedCardSection.withdrawOfferedNumber()
