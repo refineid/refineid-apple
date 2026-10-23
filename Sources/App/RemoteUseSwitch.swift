@@ -75,10 +75,17 @@
 
     // MARK: Functions
 
-    /// Starts the watches at launch when the stored choice is on; off, the
-    /// launch asks macOS for nothing.
+    /// Starts a launch with remote use off, whatever the last run left.
+    ///
+    /// Only the holder's click turns it on, and that click is the only time
+    /// the app asks macOS for Bluetooth or local-network permission (STPA
+    /// CC-96). A UI test may start with it on through the launch argument.
     internal func start() {
       guard isOn else { return }
+      guard TestCredentialEnvironment.isTestMode else {
+        turn(on: false)
+        return
+      }
       startWatches()
     }
 

@@ -6,7 +6,7 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   holder's name or a signed document, and the errors. It shows no transient
   status on the way.
 - **No explainer text.** No caption restates what is already visible: a name
-  stands without a "Henkilö" caption before it. Controls carry no standards
+  stands without a "Person" caption before it. Controls carry no standards
   acronyms. A control's accessibility label names it for VoiceOver; a line of
   prose above it does not.
 - **No confirmation dialogs.** A chosen action happens. "Are you sure?" is

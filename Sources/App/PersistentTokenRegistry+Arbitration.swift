@@ -13,10 +13,17 @@
     /// - All other identities (the remote RAPP token and any displaced configurations) are withdrawn.
     /// - Wireless connections to other devices (presence browsing, in-flight fetches) are put into passive state.
     /// - Remote tokens are suppressed from publishing.
+    /// - Remote use is turned off, as if the holder had clicked the switch;
+    ///   only the holder turns it on again.
     /// When the reader card leaves:
     /// - Presence watching resumes if pairings exist and remote use is on,
     ///   allowing remote card discovery when no physical card is present.
     internal func readerCardPresenceChanged(isReaderCardPresent: Bool) {
+      #if os(macOS) && REFINEID_REMOTE_CARD
+        if isReaderCardPresent {
+          RemoteUseSwitch.shared.turn(on: false)
+        }
+      #endif
       guard Self.dialsPhones else {
         Self.withdrawPublishedIdentity()
         return
