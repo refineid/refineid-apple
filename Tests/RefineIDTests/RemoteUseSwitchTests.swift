@@ -13,76 +13,77 @@
 
   @testable import RefineID
 
-  /// The Mac's remote-use switch (hierarchy specification §5.2, STPA §27):
-  /// off by default and kept, nothing remote while it is off, and turning
-  /// it off ends everything remote at once while the pairing stays.
+  /// The Mac's remote-use switch, which is the pairing (hierarchy
+  /// specification §5.2, STPA §29): restored at launch only while a pairing
+  /// remains, nothing remote while it is off, and the holder's click off
+  /// forgets every pairing.
   @Suite(.serialized)
   @MainActor
   internal struct RemoteUseSwitchTests {
     /// A watch that records what the switch asks of it, and reports what a
     /// test says it found.
     @MainActor
-    private final class RecordingWatch: RemoteUseWatch {
-      private(set) var starts = 0
-      private(set) var stops = 0
+    internal final class RecordingWatch: RemoteUseWatch {
+      internal private(set) var starts = 0
+      internal private(set) var stops = 0
       private var report: (@MainActor (RemoteUseBlockage?) -> Void)?
 
-      var isWatching: Bool {
+      internal var isWatching: Bool {
         report != nil
       }
 
-      func start(report: @escaping @MainActor (RemoteUseBlockage?) -> Void) {
+      internal func start(report: @escaping @MainActor (RemoteUseBlockage?) -> Void) {
         starts += 1
         self.report = report
       }
 
-      func stop() {
+      internal func stop() {
         stops += 1
         report = nil
       }
 
-      func found(_ blockage: RemoteUseBlockage?) {
+      internal func found(_ blockage: RemoteUseBlockage?) {
         report?(blockage)
       }
     }
 
-    /// How often the switch told the requester it moved.
+    /// How the switch told the requester it moved.
     @MainActor
-    private final class FollowCount {
-      var value = 0
+    internal final class Moves {
+      internal var value: [RemoteUseSwitch.Move] = []
     }
 
     /// A switch on recording watches, and what it told the requester.
-    private struct Rig {
-      let remoteUse: RemoteUseSwitch
-      let bluetooth: RecordingWatch
-      let localNetwork: RecordingWatch
-      let follows: FollowCount
+    internal struct Rig {
+      internal let remoteUse: RemoteUseSwitch
+      internal let bluetooth: RecordingWatch
+      internal let localNetwork: RecordingWatch
+      internal let moves: Moves
     }
 
-    private static let phone = "Alpha iPhone"
+    internal static let phone = "Alpha iPhone"
 
     /// When the test pairing was made, in milliseconds since the Unix
     /// epoch.
-    private static let pairingCreation: UInt64 = 1_000
+    internal static let pairingCreation: UInt64 = 1_000
 
     /// When a test pairing is revoked; the vault records no time for it.
-    private static let revocationTime: UInt64 = 0
+    internal static let revocationTime: UInt64 = 0
 
-    private static func rig() -> Rig {
+    internal static func rig() -> Rig {
       let bluetooth = RecordingWatch()
       let localNetwork = RecordingWatch()
-      let follows = FollowCount()
-      let remoteUse = RemoteUseSwitch(bluetooth: bluetooth, localNetwork: localNetwork) {
-        follows.value += 1
+      let moves = Moves()
+      let remoteUse = RemoteUseSwitch(bluetooth: bluetooth, localNetwork: localNetwork) { move in
+        moves.value.append(move)
       }
       return Rig(
-        remoteUse: remoteUse, bluetooth: bluetooth, localNetwork: localNetwork, follows: follows)
+        remoteUse: remoteUse, bluetooth: bluetooth, localNetwork: localNetwork, moves: moves)
     }
 
     /// A requester's pairing with a phone of its own keys, stored in
     /// `vault`.
-    private static func storedPairing(in vault: RappDeviceVault) throws -> RappPairRecord {
+    internal static func storedPairing(in vault: RappDeviceVault) throws -> RappPairRecord {
       let local = Curve25519.KeyAgreement.PrivateKey()
       let remote = Curve25519.KeyAgreement.PrivateKey()
       let pairing = try RappSameAccountPairBuilder.makePairRecord(
@@ -97,14 +98,15 @@
 
     // MARK: The switch
 
-    @Test("Remote use starts off, and a launch with it off asks macOS for nothing")
-    internal func startsOffAndAsksForNothing() {
+    @Test("A launch with no pairing left starts off and asks macOS for nothing")
+    internal func launchWithoutPairingStartsOff() {
       let rig = Self.rig()
+      rig.remoteUse.start(pairingRemains: false, suspended: false)
       #expect(!rig.remoteUse.isOn)
-      rig.remoteUse.start()
+      #expect(!PersistentTokenRegistry.remoteUseOn)
       #expect(rig.bluetooth.starts == 0)
       #expect(rig.localNetwork.starts == 0)
-      #expect(rig.follows.value == 0)
+      #expect(rig.moves.value.isEmpty)
 
       // The app's own switch holds no Bluetooth manager and runs no browse.
       let shared = RemoteUseSwitch.shared
@@ -113,17 +115,29 @@
       #expect(!shared.localNetworkWatch.isWatching)
     }
 
-    @Test("Turning remote use on starts both watches; off stops them and forgets what they found")
-    internal func turningOnAndOff() {
+    @Test("A launch with a pairing left restores remote use on, without a click")
+    internal func launchWithPairingRestoresOn() {
       let rig = Self.rig()
-      defer { rig.remoteUse.turn(on: false) }
+      defer { rig.remoteUse.stop() }
+      rig.remoteUse.start(pairingRemains: true, suspended: false)
+      #expect(rig.remoteUse.isOn)
+      #expect(PersistentTokenRegistry.remoteUseOn)
+      #expect(rig.bluetooth.starts == 1)
+      #expect(rig.localNetwork.starts == 1)
+      #expect(rig.moves.value.isEmpty, "the registry starts from the launch itself")
+    }
+
+    @Test("The click turns remote use on and starts both watches; off forgets and stops them")
+    internal func clickingOnAndOff() {
+      let rig = Self.rig()
+      defer { rig.remoteUse.stop() }
 
       rig.remoteUse.toggle()
       #expect(rig.remoteUse.isOn)
       #expect(PersistentTokenRegistry.remoteUseOn)
       #expect(rig.bluetooth.starts == 1)
       #expect(rig.localNetwork.starts == 1)
-      #expect(rig.follows.value == 1)
+      #expect(rig.moves.value == [.turnedOn])
 
       rig.bluetooth.found(.bluetoothOff)
       #expect(rig.remoteUse.blockage == .bluetoothOff)
@@ -133,29 +147,51 @@
       #expect(!PersistentTokenRegistry.remoteUseOn)
       #expect(rig.bluetooth.stops == 1)
       #expect(rig.localNetwork.stops == 1)
-      #expect(rig.follows.value == 2)
+      #expect(rig.moves.value == [.turnedOn, .forgetting])
       #expect(rig.remoteUse.blockage == nil)
       #expect(!rig.bluetooth.isWatching)
       #expect(!rig.localNetwork.isWatching)
     }
 
-    @Test("The choice is kept: a switch made later reads it")
-    internal func choiceIsKept() {
-      let first = Self.rig().remoteUse
-      defer { first.turn(on: false) }
-      first.turn(on: true)
-      let later = Self.rig().remoteUse
-      #expect(later.isOn)
-      later.start()
-      first.turn(on: false)
-      #expect(!Self.rig().remoteUse.isOn)
+    @Test("A stop turns remote use off keeping the pairings, and only while it is on")
+    internal func stopKeepsThePairings() {
+      let rig = Self.rig()
+      rig.remoteUse.stop()
+      #expect(rig.moves.value.isEmpty)
+      rig.remoteUse.toggle()
+      rig.remoteUse.stop()
+      #expect(!rig.remoteUse.isOn)
+      #expect(rig.moves.value == [.turnedOn, .stopped])
+      #expect(!rig.bluetooth.isWatching)
+      #expect(!rig.localNetwork.isWatching)
+    }
+
+    @Test("Remote use turns off when the last pairing ends other than by the click")
+    internal func lastPairingEndingTurnsRemoteUseOff() throws {
+      let rig = Self.rig()
+      let registry = PersistentTokenRegistry.shared
+      let vault = RappDeviceVault()
+      rig.remoteUse.toggle()
+      defer { rig.remoteUse.stop() }
+
+      registry.remoteUseFollowsThePairings(rig.remoteUse, in: vault)
+      #expect(!rig.remoteUse.isOn, "no active pairing is left")
+      #expect(rig.moves.value == [.turnedOn, .stopped], "the pairings are kept as they are")
+
+      rig.remoteUse.toggle()
+      let pairing = try Self.storedPairing(in: vault)
+      registry.remoteUseFollowsThePairings(rig.remoteUse, in: vault)
+      #expect(rig.remoteUse.isOn, "a pairing remains")
+      _ = try RappPairRevocation.forget(pairing, in: vault, clock: RappPlatformClock())
+      registry.remoteUseFollowsThePairings(rig.remoteUse, in: vault)
+      #expect(!rig.remoteUse.isOn, "a forgotten pairing owing its close serves nothing")
     }
 
     @Test("A refused permission is named before Bluetooth that is merely off")
     internal func blockagePriority() {
       let rig = Self.rig()
-      rig.remoteUse.turn(on: true)
-      defer { rig.remoteUse.turn(on: false) }
+      rig.remoteUse.toggle()
+      defer { rig.remoteUse.stop() }
 
       rig.bluetooth.found(.bluetoothOff)
       #expect(rig.remoteUse.blockage == .bluetoothOff)
@@ -280,53 +316,6 @@
       #expect(PersistentTokenRegistry.publish(signer.certificate) == .remoteUseOff)
       #expect(registry.certificateDER == nil)
       #expect(!DocumentSigner.usesRappSigning)
-    }
-
-    @Test("Turning off closes the session and withdraws the identity at once; the pairing stays")
-    internal func turningOffEndsEverythingRemote() throws {
-      let registry = PersistentTokenRegistry.shared
-      let vault = RappDeviceVault()
-      let pairing = try Self.storedPairing(in: vault)
-      let pairID = pairing.metadata().pairId
-      RappPairNames.remember(Self.phone, pairID: pairID)
-      defer {
-        RappPairNames.forget(pairID: pairID)
-        try? vault.revokePair(pairID: pairID, revokedAtMilliseconds: Self.revocationTime)
-        registry.refreshPairing(in: vault)
-      }
-      registry.refreshPairing(in: vault)
-
-      // Remote use as it was before the switch moved: a session up over
-      // Bluetooth, the phone in sight, its card's identity offered.
-      registry.holderSession = RappHeldRequesterSession(pair: pairing) { _ in
-        // A session never started reports nothing worth keeping.
-      }
-      registry.holderSessionToken = UUID()
-      registry.sessionSlot = RequesterSessionSlot()
-      let dialed = registry.sessionSlot.dial(over: .bluetooth, at: .now)
-      #expect(dialed)
-      registry.sessionSlot.established()
-      registry.holderOverBluetooth = true
-      registry.holderIsAdvertising = true
-      registry.certificateDER = Data("certificate".utf8)
-      registry.holderLine = "TEST HOLDER"
-      #expect(registry.holderSessionOpen)
-
-      // Remote use is off in a test run; the registry follows the switch.
-      registry.remoteUseChanged()
-
-      #expect(registry.holderSession == nil)
-      #expect(!registry.holderSessionOpen)
-      #expect(!registry.holderInSight)
-      #expect(registry.presence == nil)
-      #expect(registry.redialTask == nil)
-      // Withdrawn at once: no grace is left to run.
-      #expect(registry.certificateDER == nil)
-      #expect(registry.holderLine == nil)
-      #expect(registry.offerLapseTask == nil)
-      // The pairing stays, so turning remote use on resumes without a code.
-      #expect(registry.pairedPhone == Self.phone)
-      #expect(PersistentTokenRegistry.pairedPhoneID(in: vault) == pairID)
     }
   }
 

@@ -11,6 +11,14 @@ import RappEngine
 extension RefineIDApp {
   private static var pairingsChangeObserver: (any NSObjectProtocol)?
 
+  #if os(macOS) && REFINEID_REMOTE_CARD
+    /// How long a launch waits for the first look at the card readers
+    /// before it decides remote use as if no card were in one; a card seen
+    /// later suspends remote use as any other.
+    private static let readerScanBound = Duration.seconds(readerScanBoundSeconds)
+    private static let readerScanBoundSeconds: Int64 = 3
+  #endif
+
   #if os(macOS)
     internal static func configurePlatformDefaults() {
       SingleInstance.enforce()
@@ -45,21 +53,7 @@ extension RefineIDApp {
       if vault.dropUnreadablePairs() > 0 {
         PersistentTokenRegistry.withdrawPublishedIdentity()
       }
-      #if REFINEID_LOCAL_CARD && os(iOS)
-        HolderCardServing.availabilityChanged()
-        PhonePersistentTokenRelay.shared.start()
-        if !SupportedCardTransports.offersNearField {
-          PersistentTokenRegistry.shared.start()
-        }
-      #else
-        // Remote use off asks macOS for nothing at launch: no watch
-        // starts, and the registry withdraws what an earlier run offered
-        // without browsing or dialing (CC-96).
-        #if os(macOS)
-          RemoteUseSwitch.shared.start()
-        #endif
-        PersistentTokenRegistry.shared.start()
-      #endif
+      startFromThePairings()
       #if os(macOS)
         RappCardPromptNotificationRelay.shared.start()
         #if REFINEID_STREAM_TRANSPORT
@@ -86,4 +80,66 @@ extension RefineIDApp {
       }
     #endif
   }
+
+  #if REFINEID_REMOTE_CARD
+    /// Sweeps the pairings for idle expiry (RAPP v26.10.22 §4.6 item 5),
+    /// then serves or follows from what remains, and sweeps again while the
+    /// app runs.
+    ///
+    /// On the Mac, a click off that did not finish forgetting is finished
+    /// first, its pairings and its phones' same-account records, and remote
+    /// use stays off while it cannot be (CC-100). Remote use is then
+    /// restored on only while a pairing remains, once the readers have been
+    /// looked at or ``readerScanBound`` has passed: a card in this Mac's
+    /// reader starts it suspended (CC-102). Off, it asks macOS for nothing,
+    /// and the registry withdraws what an earlier run offered without
+    /// browsing or dialing (CC-96, CC-101).
+    private static func startFromThePairings() {
+      #if os(macOS)
+        RemoteUseSwitch.shared.holdUntilLaunched()
+        PersistentTokenRegistry.shared.idleSweep.start {
+          PersistentTokenRegistry.shared.sweepIdlePairings()
+        }
+        let store = RemoteUseForgetting.Store.standard
+        // An earlier run's click off is finished as any forgetting is, so a
+        // click off or a quit meanwhile follows it.
+        let finishing = PersistentTokenRegistry.shared.finishForgetting(
+          after: nil, in: RappDeviceVault(), store: store,
+          directory: RappAutoPairingService.shared)
+        Task { @MainActor in
+          await finishing.value
+          let pairingRemains =
+            PersistentTokenRegistry.sweepIdlePairingsAtLaunch()
+            && RemoteUseForgetting.pending(in: store) == nil
+          CardPresence.shared.afterInitialScan(atMost: readerScanBound) {
+            RemoteUseSwitch.shared.start(
+              pairingRemains: pairingRemains, suspended: CardPresence.shared.isReaderCardPresent)
+            PersistentTokenRegistry.shared.start()
+          }
+        }
+      #else
+        PersistentTokenRegistry.sweepIdlePairingsAtLaunch()
+        startServing()
+      #endif
+    }
+
+    #if !os(macOS)
+      /// Serves the paired computers on a phone, and follows the paired
+      /// phone on a device without a card of its own.
+      private static func startServing() {
+        #if REFINEID_LOCAL_CARD && os(iOS)
+          HolderCardServing.availabilityChanged()
+          PhonePersistentTokenRelay.shared.start()
+          PhonePersistentTokenRelay.shared.idleSweep.start {
+            PhonePersistentTokenRelay.shared.sweepIdlePairings()
+          }
+          guard !SupportedCardTransports.offersNearField else { return }
+        #endif
+        PersistentTokenRegistry.shared.start()
+        PersistentTokenRegistry.shared.idleSweep.start {
+          PersistentTokenRegistry.shared.sweepIdlePairings()
+        }
+      }
+    #endif
+  #endif
 }

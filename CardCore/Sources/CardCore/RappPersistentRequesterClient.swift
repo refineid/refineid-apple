@@ -20,6 +20,8 @@
       internal var coordinator: RappConnectionCoordinator?
       /// The pairing the session runs over, once it is chosen.
       internal var pairID: Data?
+      /// Whether the session was established (RAPP v26.10.22 §4.6 item 5).
+      internal var established = false
       internal var response: RappRequesterResponse?
       internal var error: RappRequesterClientError?
     }

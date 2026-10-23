@@ -42,6 +42,8 @@
     internal var readerCard = ReaderCard()
     /// What each open session was last told in `card.status`.
     internal var cardReports = CardStatusReports<UUID>()
+    /// Sweeps the pairings for idle expiry while the app runs.
+    internal let idleSweep = PairingIdleSweep()
     #if REFINEID_STREAM_TRANSPORT
       /// The session listener, while the phone serves the stream.
       internal var sessionListener: StreamSessionListener?
@@ -177,6 +179,7 @@
     private func sessionReported(_ session: ServedSession, _ report: ServedSession.Report) {
       switch report {
       case .established:
+        PersistentTokenRegistry.recordSession(pairID: session.pairID)
         // The custodian's first word on a session is which card it holds
         // and whether a reader is connected (§8.4); the requester offers
         // nothing before it.
@@ -213,6 +216,9 @@
       #endif
       guard sessions.removeValue(forKey: session.identifier) != nil else { return }
       cardReports.forget(session.identifier)
+      if session.isEstablished {
+        PersistentTokenRegistry.recordSession(pairID: session.pairID)
+      }
       endPairingIfOver(reason, pairID: session.pairID)
       if sessions.isEmpty {
         isActivelyConnected = false
@@ -245,6 +251,26 @@
           relay?.cancel()
       #endif
       }
+    }
+
+    /// Sweeps every pairing for idle expiry (RAPP v26.10.22 §4.6 item 5): a
+    /// computer a session is established with is recorded, and one with
+    /// none for 30 days expires silently and leaves the paired computers.
+    internal func sweepIdlePairings() {
+      let established = Set(
+        sessions.values.filter { $0.isEstablished && !$0.hasEnded }.map(\.pairID))
+      let sweep = RappPairIdleExpiry.sweep(
+        in: vault, nowMilliseconds: RappPlatformClock().wallMilliseconds(),
+        established: established)
+      #if DEBUG
+        if sweep.failures > 0 {
+          DevErrorLog.report(
+            "pairing idle expiry: \(sweep.failures) pairing(s) not swept", source: .app)
+        }
+      #endif
+      guard !sweep.expired.isEmpty else { return }
+      NotificationCenter.default.post(
+        name: RappPairingModel.pairingsDidChangeNotification, object: nil)
     }
 
     /// Destroys the pairing `pairID` when the session's close ended it: the

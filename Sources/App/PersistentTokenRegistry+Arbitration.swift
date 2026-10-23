@@ -9,45 +9,35 @@
     /// Notified when a physical card in a reader is inserted or removed.
     ///
     /// The physical reader has absolute priority over RAPP remote tokens and connections.
-    /// When a reader card is present:
-    /// - All other identities (the remote RAPP token and any displaced configurations) are withdrawn.
-    /// - Wireless connections to other devices (presence browsing, in-flight fetches) are put into passive state.
-    /// - Remote tokens are suppressed from publishing.
-    /// - Remote use is turned off, as if the holder had clicked the switch:
-    ///   an open session with the phone closes with `service_withdrawn`
-    ///   (RAPP v26.10.22 §4.5 item 8). Only the holder turns it on again.
-    /// When the reader card leaves:
-    /// - Presence watching resumes if pairings exist and remote use is on,
-    ///   allowing remote card discovery when no physical card is present.
+    /// A reader card suspends remote use while it is present (hierarchy
+    /// specification §5.2, CC-102):
+    /// - This computer withdraws: an open session with the phone closes
+    ///   with `service_withdrawn` (RAPP v26.10.22 §4.5 item 8), the phone's
+    ///   identity and any displaced configurations leave, and nothing
+    ///   browses, scans or dials.
+    /// - The switch and the pairings stay as they are; its watches stop.
+    /// When the reader card leaves, remote use resumes as it was: with a
+    /// pairing the phone is followed again without a code, and with none
+    /// the code entry is offered again.
     internal func readerCardPresenceChanged(isReaderCardPresent: Bool) {
       #if os(macOS) && REFINEID_REMOTE_CARD
-        if isReaderCardPresent {
-          RemoteUseSwitch.shared.turn(on: false)
-        }
+        RemoteUseSwitch.shared.suspend(isReaderCardPresent)
       #endif
       guard Self.dialsPhones else {
         Self.withdrawPublishedIdentity()
         return
       }
       if isReaderCardPresent {
-        Self.withdrawPublishedIdentity()
+        withdraw()
         _ = DriverConfiguredCredentials.dropDisplacedRemoteCardConfigurations()
-        #if REFINEID_STREAM_TRANSPORT
-          closeHolderSession()
-          stopWatchingPresence()
-        #endif
         #if DEBUG
           print(
             "[persistent-token] reader card present; remote identity withdrawn and wireless passive"
           )
           fflush(stdout)
         #endif
-      } else {
-        #if REFINEID_STREAM_TRANSPORT
-          restartWatchingPresence()
-        #else
-          ensurePublished()
-        #endif
+      } else if Self.followsPhone {
+        start()
       }
     }
 

@@ -6,10 +6,13 @@
 
   extension RappPairingSearch {
     /// Opens the next endpoint found, when no pairing connection is open.
-    internal func openNext() {
-      guard !isEnded, attempt == nil,
-        let endpoint = try? candidates.nextEndpoint()
-      else { return }
+    internal func openNext() async {
+      guard !isEnded, attempt == nil else { return }
+      guard remoteUseAvailable() else {
+        await end(.interrupted)
+        return
+      }
+      guard let endpoint = try? candidates.nextEndpoint() else { return }
       generation += 1
       let current = generation
       let connection = dial(endpoint)
@@ -147,14 +150,17 @@
       attempt = nil
       // Only a connection whose custodian has not taken the code gets here,
       // so the ledger has a connection open and is not settled.
-      guard let next = try? candidates.closed() else {
+      guard let next = try? candidates.closed(remoteUseAvailable: remoteUseAvailable()) else {
         await end(.ceremonyEnded(.protocolFailure))
         return
       }
       continuation.yield(.declined(refusal))
       switch next {
+      case .interrupted:
+        await end(.interrupted)
+
       case .tryNext:
-        openNext()
+        await openNext()
 
       case .notAccepted:
         await end(.notAccepted)

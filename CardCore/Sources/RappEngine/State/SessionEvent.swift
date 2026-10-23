@@ -31,8 +31,9 @@ internal enum SessionEvent: String, CaseIterable, Sendable {
   case silenceLimitReached = "silence_limit_reached"
   case userDisconnect = "user_disconnect"
   case localCloseRequested = "local_close_requested"
-  /// The endpoint withdraws: its holder turned remote access or remote use
-  /// off, or quit the application (§4.5).
+  /// The endpoint withdraws (§4.5): a custodian's holder turned remote
+  /// access off, a card in a reader attached to a requester suspends its
+  /// remote use, or the holder quit the application.
   case serviceWithdrawn = "service_withdrawn"
   case cardUnavailable = "card_unavailable"
   /// A frame failed authenticated decryption or framing.

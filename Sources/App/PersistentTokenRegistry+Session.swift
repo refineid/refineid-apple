@@ -149,23 +149,13 @@
       confirmationLost()
     }
 
-    /// Ends the open session with `pairing_revoked` when it runs over
-    /// `pairID`, as the pairing is forgotten (RAPP v26.10.22 §4.6 item 1);
-    /// false when no session over `pairID` is open or the close did not
-    /// leave, so the pairing is kept forgotten for its next session.
-    internal func closeSessionForRevocation(pairID: Data) async -> Bool {
-      guard let session = holderSession, session.pairID == pairID else { return false }
-      redialTask?.cancel()
-      redialTask = nil
-      holderCardStatus = nil
-      forgetHeldSession()
-      let told = await session.closePairingRevoked()
-      Self.withdrawPublishedIdentity()
-      return told
-    }
-
-    /// Clears what the registry knows of the session it let go.
+    /// Clears what the registry knows of the session it let go; a session
+    /// that was established is recorded in its pairing as it ends (RAPP
+    /// v26.10.22 §4.6 item 5).
     internal func forgetHeldSession() {
+      if sessionSlot.isEstablished, let pairID = holderSession?.pairID {
+        Self.recordSession(pairID: pairID)
+      }
       holderSession = nil
       holderSessionToken = nil
       sessionSlot.released()
@@ -177,6 +167,9 @@
       switch report {
       case .established:
         sessionSlot.established()
+        if let pairID = holderSession?.pairID {
+          Self.recordSession(pairID: pairID)
+        }
         holderOverBluetooth = sessionSlot.transport == .bluetooth
         if sessionSlot.transport == .stream {
           streamFailedInSight = false
@@ -291,11 +284,11 @@
         // (CC-72).
         streamFailedInSight = true
       }
+      forgetHeldSession()
       // A session that carried a pairing's end ended as it should.
       if !reason.peerRevokedPairing, reason != .handshake(.revocationNoticeDelivered) {
         sessionSlot.ended(at: .now)
       }
-      forgetHeldSession()
       holderCardStatus = nil
       if reason.peerRevokedPairing {
         if let ended {

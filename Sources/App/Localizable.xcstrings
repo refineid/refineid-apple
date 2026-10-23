@@ -6544,22 +6544,6 @@
         }
       }
     },
-    "Remove phone pairing": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Poista puhelimen yhdistäminen"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ta bort kopplingen till telefonen"
-          }
-        }
-      }
-    },
     "Connect a card reader.": {
       "localizations": {
         "fi": {

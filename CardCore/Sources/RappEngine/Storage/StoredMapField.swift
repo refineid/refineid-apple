@@ -32,6 +32,22 @@ internal func takeUnsigned(
   return value
 }
 
+/// An unsigned field that may be null.
+internal func takeOptionalUnsigned(
+  _ map: inout [String: WireValue], _ field: String
+) throws -> UInt64? {
+  switch try takeStoredValue(&map, field) {
+  case .null:
+    return nil
+
+  case .unsigned(let value):
+    return value
+
+  default:
+    throw PairRecordError.invalidInput
+  }
+}
+
 internal func takeBoolean(_ map: inout [String: WireValue], _ field: String) throws -> Bool {
   guard case .boolean(let value) = try takeStoredValue(&map, field) else {
     throw PairRecordError.invalidInput

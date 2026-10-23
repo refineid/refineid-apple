@@ -8,8 +8,11 @@
   @testable import RefineID
 
   /// How long quitting waits for the withdrawal close (RAPP v26.10.22 §4.5
-  /// item 8): until it has left or the bound has passed, whichever comes
-  /// first, and the quit is answered once.
+  /// item 8).
+  ///
+  /// Until it has left or the bound has passed, whichever comes first, and
+  /// the quit is answered once. A click off still forgetting is waited for
+  /// first, until its pairings are destroyed (§4.6 item 6).
   @Suite
   @MainActor
   internal struct QuitWithdrawalTests {
@@ -20,6 +23,8 @@
       static let shortBound: Duration = .milliseconds(20)
       /// How long a close that never leaves takes.
       static let stuckClose: Duration = .seconds(30)
+      /// How long a forgetting takes to destroy its pairings.
+      static let destruction: Duration = .milliseconds(60)
       static let poll: Duration = .milliseconds(10)
       static let patience = 100
     }
@@ -28,6 +33,25 @@
     @MainActor
     private final class Answers {
       var count = 0
+    }
+
+    /// Whether the pairings were destroyed.
+    private final class Destroyed: @unchecked Sendable {
+      private let lock = NSLock()
+      private var value = false
+
+      var isDone: Bool {
+        lock.withLock { value }
+      }
+
+      func done() {
+        lock.withLock { value = true }
+      }
+    }
+
+    /// What a quit waits on: only `closes`.
+    private static func closing(_ closes: Task<Bool, Never>) -> QuitWithdrawal.Pending {
+      QuitWithdrawal.Pending(forgetting: nil, closes: closes)
     }
 
     private static func wait(until condition: () -> Bool) async throws {
@@ -40,7 +64,9 @@
     internal func closeLeftAnswersAtOnce() async throws {
       let answers = Answers()
       let closes = Task { true }
-      QuitWithdrawal.wait(for: closes, atMost: Fixture.longBound) { answers.count += 1 }
+      QuitWithdrawal.wait(for: Self.closing(closes), atMost: Fixture.longBound) {
+        answers.count += 1
+      }
       try await Self.wait { answers.count == 1 }
       #expect(answers.count == 1)
     }
@@ -53,7 +79,9 @@
         return false
       }
       defer { closes.cancel() }
-      QuitWithdrawal.wait(for: closes, atMost: Fixture.shortBound) { answers.count += 1 }
+      QuitWithdrawal.wait(for: Self.closing(closes), atMost: Fixture.shortBound) {
+        answers.count += 1
+      }
       try await Self.wait { answers.count == 1 }
       #expect(answers.count == 1)
     }
@@ -62,10 +90,33 @@
     internal func answeredOnce() async throws {
       let answers = Answers()
       let closes = Task { true }
-      QuitWithdrawal.wait(for: closes, atMost: Fixture.shortBound) { answers.count += 1 }
+      QuitWithdrawal.wait(for: Self.closing(closes), atMost: Fixture.shortBound) {
+        answers.count += 1
+      }
       try await Task.sleep(for: Fixture.shortBound * 2)
       try await Self.wait { answers.count == 1 }
       #expect(answers.count == 1)
+    }
+
+    @Test("A quit during a click off is answered only once its pairings are destroyed")
+    internal func forgettingIsWaitedFor() async throws {
+      let answers = Answers()
+      let destroyed = Destroyed()
+      let forgetting = Task.detached {
+        try? await Task.sleep(for: Fixture.destruction)
+        destroyed.done()
+        return RemoteUseForgetting.Outcome()
+      }
+      QuitWithdrawal.wait(
+        for: QuitWithdrawal.Pending(forgetting: forgetting, closes: Task { true }),
+        atMost: Fixture.shortBound
+      ) {
+        #expect(destroyed.isDone, "the quit waited for the destruction")
+        answers.count += 1
+      }
+      try await Self.wait { answers.count == 1 }
+      #expect(answers.count == 1)
+      #expect(destroyed.isDone)
     }
   }
 

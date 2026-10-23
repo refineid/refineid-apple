@@ -73,7 +73,8 @@ public final class RappPairRecord: @unchecked Sendable {
       candidateId: record.transport.candidateIdentifier,
       createdAtMs: record.createdAtMilliseconds,
       storageConfirmed: record.storageConfirmed,
-      forgottenAtMs: record.forgottenAtMilliseconds)
+      forgottenAtMs: record.forgottenAtMilliseconds,
+      lastSessionAtMs: record.lastSessionAtMilliseconds)
   }
 
   /// Revokes `record` in the vault, which destroys its secret before
@@ -148,14 +149,19 @@ public final class RappPairRecord: @unchecked Sendable {
     }
   }
 
-  /// The local user forgets the pairing while no session to the peer is
-  /// open (RAPP v26.10.22 §4.6).
+  /// The custodian's user forgets the pairing while no session to the peer
+  /// is open (RAPP v26.10.22 §4.6).
   ///
-  /// A confirmed record is stored as forgotten and keeps its key only to
+  /// Idle expiry is ``sweep(vault:nowMs:sessionEstablished:)``'s. A
+  /// confirmed record is stored as forgotten and keeps its key only to
   /// deliver the `pairing_revoked` close on the next session; an unconfirmed
   /// one is destroyed at once, here and in the vault, and nobody is told.
   /// With a session open, close it with reason `pairingRevoked` and call
-  /// ``revoke(vault:revokedAtMs:)`` instead. `forgottenAtMs` is milliseconds
+  /// ``revoke(vault:revokedAtMs:)`` instead. A requester whose holder turns
+  /// remote use off never forgets this way: it closes each open session with
+  /// `pairingRevoked`, waits at most ``rappQuitWithdrawalBoundMs()`` for the
+  /// closes to leave, and calls ``revoke(vault:revokedAtMs:)`` for every
+  /// pairing, owing nothing (§4.6 item 6). `forgottenAtMs` is milliseconds
   /// since the Unix epoch.
   ///
   /// - Throws: ``RappBindingError/WrongPhase`` for a revoked pairing, and
@@ -187,6 +193,51 @@ public final class RappPairRecord: @unchecked Sendable {
   /// has nothing left to expire.
   public func revocationNoticeExpired(nowMs: UInt64) -> Bool {
     locked { stored?.revocationNoticeExpired(nowMilliseconds: nowMs) ?? false }
+  }
+
+  /// Checks this pairing for idle expiry at `nowMs`, milliseconds since the
+  /// Unix epoch, and stores what changed (RAPP v26.10.22 §4.6 item 5).
+  ///
+  /// `sessionEstablished` says whether a session to the pairing is
+  /// established now. With one, the time is recorded and the pairing kept,
+  /// whatever was recorded before, so no order of calls expires a pairing in
+  /// session; the recorded time never moves back. Without one, the pairing
+  /// expires 30 days after its latest recorded session, or its creation
+  /// while it has had none, and is then stored as forgotten. The change is
+  /// stored first and taken into memory only once the vault confirmed it, so
+  /// a sweep that failed to store is repeated whole by the next one.
+  ///
+  /// Sweep every pairing at launch and at least once a day, and sweep a
+  /// pairing with `sessionEstablished` true once its session is established
+  /// and when that session ends.
+  ///
+  /// - Throws: ``RappBindingError/WrongPhase`` for a revoked record,
+  ///   ``RappBindingError/StorageUnconfirmed`` for one the peer has not
+  ///   confirmed, and ``RappBindingError/LocalStateFailure`` on a storage
+  ///   failure, which changes nothing.
+  public func sweep(
+    vault: RappPairVault, nowMs: UInt64, sessionEstablished: Bool
+  ) throws -> RappSweepOutcome {
+    try locked {
+      guard var current = stored else { throw RappBindingError.WrongPhase }
+      guard current.storageConfirmed else { throw RappBindingError.StorageUnconfirmed }
+      let pairID = current.pairIdentifier
+      let outcome: PairRecordSweepOutcome
+      do {
+        outcome = try current.sweep(
+          nowMilliseconds: nowMs, sessionEstablished: sessionEstablished
+        ) { encoded in
+          try vault.replaceDeviceOnly(pairId: pairID, record: encoded)
+        }
+      } catch PairRecordError.invalidInput {
+        throw RappBindingError.ProtocolFailure
+      } catch {
+        throw RappBindingError.LocalStateFailure
+      }
+      stored = current
+      summary = Self.summary(of: current)
+      return RappSweepOutcome(outcome)
+    }
   }
 
   /// Ends the pairing and destroys its keys, at `revokedAtMs` milliseconds

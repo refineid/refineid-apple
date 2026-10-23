@@ -55,6 +55,38 @@
       #expect(remotesForB.first?.role == .holder)
     }
 
+    @Test("A computer removes only the phones it paired with; another computer's phone stays")
+    internal func removesOnlyItsOwnPhones() async throws {
+      let runID = UUID().uuidString
+      let storage = InMemoryCloudStorage()
+      let phoneIdentity = try makeIdentity(
+        service: "fi.refineid.test.phone.\(runID)", name: "Alpha iPhone", model: "iPhone16,1",
+        seed: 0x01)
+      let otherPhoneIdentity = try makeIdentity(
+        service: "fi.refineid.test.other-phone.\(runID)", name: "Beta iPhone",
+        model: "iPhone15,2", seed: 0x04)
+      let computerIdentity = try makeIdentity(
+        service: "fi.refineid.test.computer.\(runID)", name: "Alpha MacBook Pro",
+        model: "Mac15,3", seed: 0x02)
+      let computer = RappCloudSyncCoordinator(
+        localIdentity: computerIdentity, localRole: .requester, cloudStorage: storage)
+      for (identity, role) in [
+        (phoneIdentity, RappDeviceRole.holder), (otherPhoneIdentity, .holder),
+      ] {
+        await RappCloudSyncCoordinator(
+          localIdentity: identity, localRole: role, cloudStorage: storage
+        ).publishLocalDevice()
+      }
+      await computer.publishLocalDevice()
+      let ownPairing = RappSameAccountPairBuilder.derivePairIdentifier(
+        publicKeyA: computerIdentity.publicKeyData, publicKeyB: phoneIdentity.publicKeyData)
+
+      #expect(await computer.removeDevices(pairedThrough: [ownPairing]))
+      let left = await computer.remoteDevices()
+      #expect(left.map(\.deviceName) == ["Beta iPhone"], "a phone it never paired with stays")
+      #expect(await computer.removeDevices(pairedThrough: [ownPairing]), "already gone")
+    }
+
     @Test("Reconciles 1:N multi-device topology across iPhone, Mac, and iPad")
     internal func testMultiDeviceReconciliation() async throws {
       let runID = UUID().uuidString

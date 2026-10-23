@@ -128,6 +128,34 @@
       saveDirectory(directory)
     }
 
+    /// Removes from the directory exactly the devices whose same-account
+    /// pairing with this one has one of `pairIDs`.
+    ///
+    /// They are matched by their static keys, and a device paired only with
+    /// another computer stays. Answers whether, read again, the directory
+    /// holds none of them.
+    public func removeDevices(pairedThrough pairIDs: Set<Data>) -> Bool {
+      let paired = { (record: RappCloudDeviceRecord) -> Bool in
+        pairIDs.contains(
+          RappSameAccountPairBuilder.derivePairIdentifier(
+            publicKeyA: self.localIdentity.publicKeyData, publicKeyB: record.staticPublicKey))
+      }
+      let directory = loadDirectory()
+      let kept = directory.filter { $0.key == localIdentity.deviceID || !paired($0.value) }
+      if kept.count != directory.count {
+        inMemoryDirectory = inMemoryDirectory.filter { !paired($0.value) }
+        saveDirectory(kept)
+      }
+      return !loadDirectory().values.contains(where: paired)
+    }
+
+    /// Whether this device pairs with a device of `role`: a requester with
+    /// a holder, and a holder with a requester.
+    public func pairs(with role: RappDeviceRole) -> Bool {
+      (localRole == .requester && role == .holder)
+        || (localRole == .holder && role == .requester)
+    }
+
     /// Fetches all remote devices currently registered in iCloud.
     public func remoteDevices() -> [RappCloudDeviceRecord] {
       let directory = loadDirectory()
@@ -169,12 +197,7 @@
       var establishedPairs: [RappPairRecord] = []
 
       for remote in remotes {
-        // Pair with peers of the complementary role (or all peers if applicable)
-        let isComplementary =
-          (localRole == .requester && remote.role == .holder)
-          || (localRole == .holder && remote.role == .requester)
-
-        guard isComplementary else { continue }
+        guard pairs(with: remote.role) else { continue }
 
         let pairID = RappSameAccountPairBuilder.derivePairIdentifier(
           publicKeyA: localIdentity.publicKeyData,

@@ -93,8 +93,9 @@ import Testing
           transportProfile: RappIntegrationFixtures.transportProfile,
           displayName: "iPad Requester",
           platform: "iOS",
-          vault: RappDeviceVault(accessGroup: nil, servicePrefix: requesterPrefix))
-      ) { _ in link.dial() }
+          vault: RappDeviceVault(accessGroup: nil, servicePrefix: requesterPrefix)),
+        remoteUseAvailable: { true },
+        dial: { _ in link.dial() })
 
       await search.found("phone")
       var requesterSummary: RappPairingCoordinator.PairSummary?

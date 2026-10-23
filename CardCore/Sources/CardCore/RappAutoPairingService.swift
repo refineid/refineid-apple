@@ -104,14 +104,12 @@
       Task {
         let pairsBefore = RappPairingSnapshot(vault: vault)
         // Remote access is opt-in: while the holder has it off, nothing
-        // may re-enter the vault, or turning it off would not hold.
-        #if os(iOS)
-          if RemoteAccessGate.isEnabled {
-            _ = (try? await coordinator.reconcileVault(vault: vault)) ?? []
-          }
-        #else
+        // may re-enter the vault, or turning it off would not hold. On a
+        // computer the switch is the pairing, so a pairing made while it
+        // is off would turn remote use on at the next launch.
+        if RemoteAccessGate.isEnabled {
           _ = (try? await coordinator.reconcileVault(vault: vault)) ?? []
-        #endif
+        }
         let remotes = await coordinator.remoteDevices()
         self.updateCachedRemoteDevices(remotes)
         let pairsChanged = pairsBefore.differs(from: RappPairingSnapshot(vault: vault))
@@ -132,6 +130,21 @@
         self.updateCachedRemoteDevices(remotes)
         reconcile()
       }
+    }
+
+    /// Removes from the account's directory exactly the devices whose
+    /// same-account pairing with this one has one of `pairIDs`.
+    ///
+    /// None of them then pairs with it again. True once the directory, read
+    /// again, holds none of them, and false while it does. A device with no
+    /// same-account identity pairs with none, so for it the directory holds
+    /// none.
+    public func removeDevices(pairedThrough pairIDs: Set<Data>) async -> Bool {
+      start()
+      guard let coordinator else { return true }
+      let gone = await coordinator.removeDevices(pairedThrough: pairIDs)
+      updateCachedRemoteDevices(await coordinator.remoteDevices())
+      return gone
     }
 
     /// Clears all remote devices from cloud synchronization and reconciles.

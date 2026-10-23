@@ -82,9 +82,10 @@ private let fixturePairingCode = "246813"
     /// The requester's search, which dials each listener address it is
     /// given over the stream transport.
     private static func makeRequester(vault: RappDeviceVault) throws -> RappPairingSearch<String> {
-      try RappPairingSearch(options: options("Requester", vault: vault)) { endpoint in
-        RappPairingConnection.stream(toAddresses: [endpoint])
-      }
+      try RappPairingSearch(
+        options: options("Requester", vault: vault),
+        remoteUseAvailable: { true },
+        dial: { endpoint in RappPairingConnection.stream(toAddresses: [endpoint]) })
     }
 
     /// The card holder, which publishes and listens.

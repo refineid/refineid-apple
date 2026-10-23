@@ -60,7 +60,7 @@ internal struct RappPairingCandidatesTests {
     #expect(throws: RappBindingError.ProtocolFailure) {
       try Self.tryCode(requester: first, custodian: other)
     }
-    #expect(try candidates.closed() == .tryNext)
+    #expect(try candidates.closed(remoteUseAvailable: true) == .tryNext)
 
     #expect(try candidates.nextEndpoint() == "right")
     let second = try Self.requester(of: right, transport: streamProfile)
@@ -85,12 +85,43 @@ internal struct RappPairingCandidatesTests {
       try Self.tryCode(requester: first, custodian: phone)
     }
     #expect(phone.candidateFailed(nowMonotonicMs: Self.now), "the phone keeps its offer")
-    #expect(try candidates.closed() == .tryNext)
+    #expect(try candidates.closed(remoteUseAvailable: true) == .tryNext)
 
     _ = try candidates.nextEndpoint()
     let again = try Self.requester(of: phone, transport: RappBleGattProfile.name)
     #expect(try candidates.beginTry(again) == false)
-    #expect(try candidates.closed() == .notAccepted)
+    #expect(try candidates.closed(remoteUseAvailable: true) == .notAccepted)
+  }
+
+  @Test("A local card or remote use off ends the search; a refused code is still reported")
+  internal func unavailableRemoteUseInterrupts() throws {
+    let other = try Self.custodian(showing: Self.otherCode, transports: [streamProfile])
+    let candidates = RappPairingCandidates<String>()
+    candidates.found("other")
+    candidates.found("right")
+    _ = try candidates.nextEndpoint()
+    let first = try Self.requester(of: other, transport: streamProfile)
+    #expect(try candidates.beginTry(first))
+    #expect(throws: RappBindingError.ProtocolFailure) {
+      try Self.tryCode(requester: first, custodian: other)
+    }
+    #expect(try candidates.closed(remoteUseAvailable: false) == .interrupted)
+
+    let another = try Self.custodian(showing: Self.otherCode, transports: [streamProfile])
+    let refused = RappPairingCandidates<String>()
+    refused.found("only")
+    _ = try refused.nextEndpoint()
+    let only = try Self.requester(of: another, transport: streamProfile)
+    #expect(try refused.beginTry(only))
+    #expect(throws: RappBindingError.ProtocolFailure) {
+      try Self.tryCode(requester: only, custodian: another)
+    }
+    #expect(try refused.closed(remoteUseAvailable: false) == .notAccepted)
+
+    let unseen = RappPairingCandidates<String>()
+    unseen.found("silent")
+    _ = try unseen.nextEndpoint()
+    #expect(try unseen.closed(remoteUseAvailable: false) == .interrupted)
   }
 
   @Test("Only a requester's offer awaiting CPace begins a try")

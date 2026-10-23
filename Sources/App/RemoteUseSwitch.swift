@@ -5,34 +5,57 @@
   import CardCore
   import Observation
 
-  /// The Mac's one switch for remote use (hierarchy specification §5.2,
-  /// STPA §27 and §28): Bluetooth and local-network discovery, sessions
-  /// with the phone, and the phone's identity.
+  /// The Mac's one switch for remote use, which is the pairing (hierarchy
+  /// specification §5.2, STPA §29): Bluetooth and local-network discovery,
+  /// sessions with the phone, and the phone's identity.
   ///
-  /// Off at every launch (CC-99). While it is off nothing remote runs, and
-  /// the app asks macOS for no local-network or Bluetooth permission.
-  /// Turning it on starts the watches whose Bluetooth manager and first
-  /// Bonjour browse ask for them (CC-96), and the registry follows the
-  /// paired phone. Turning it off, by a click, a card in this Mac's reader
-  /// or quitting, is this computer's withdrawal: an open session closes
-  /// with `service_withdrawn`, everything remote stops at once, and the
-  /// pairing stays (RAPP v26.10.22 §4.5 item 8, CC-94, CC-98).
+  /// Each launch restores it on only while an active pairing remains after
+  /// the idle-expiry sweep, and off otherwise (CC-101). While it is off
+  /// nothing remote runs, and the app asks macOS for no local-network or
+  /// Bluetooth permission. The holder's click turning it on starts the
+  /// watches whose Bluetooth manager and first Bonjour browse ask for them
+  /// (CC-96), and the registry follows the paired phone or offers the code
+  /// entry. The holder's click turning it off forgets every pairing (RAPP
+  /// v26.10.22 §4.6 item 6, CC-100). It also turns off, keeping the
+  /// pairings as they are, when the last pairing ends other than by that
+  /// click and as the app quits. A card in this Mac's reader suspends it:
+  /// the switch keeps its state and its watches stop until the card leaves
+  /// (CC-102).
   @MainActor
   @Observable
   internal final class RemoteUseSwitch {
+    // MARK: Nested Types
+
+    /// What the requester does as the switch moves.
+    internal enum Move: Equatable, Sendable {
+      /// The holder turned remote use off: forget every pairing.
+      case forgetting
+
+      /// Remote use stopped without the holder's click, the pairings kept
+      /// as they are: the last one ended otherwise, or the app quits.
+      case stopped
+
+      /// The holder turned remote use on: follow the paired phone, or
+      /// offer the code entry.
+      case turnedOn
+    }
+
     // MARK: Static Properties
 
     internal static let shared = RemoteUseSwitch(
       bluetooth: BluetoothReadinessWatch(),
       localNetwork: LocalNetworkPermissionWatch()
-    ) {
-      PersistentTokenRegistry.shared.remoteUseChanged()
+    ) { move in
+      PersistentTokenRegistry.shared.remoteUseChanged(move)
     }
 
     // MARK: Properties
 
-    /// Whether the holder has remote use on.
+    /// Whether remote use is on.
     internal private(set) var isOn: Bool
+
+    /// Whether a card in this Mac's reader suspends remote use.
+    internal private(set) var isSuspended = false
 
     /// What the Bluetooth watch says blocks remote use.
     internal private(set) var bluetoothBlockage: RemoteUseBlockage?
@@ -46,8 +69,16 @@
     /// The watch whose browse asks for local-network permission.
     @ObservationIgnored internal let localNetworkWatch: any RemoteUseWatch
 
-    /// Tells the requester the switch moved.
-    @ObservationIgnored private let follow: @MainActor () -> Void
+    /// Tells the requester how the switch moved.
+    @ObservationIgnored private let follow: @MainActor (Move) -> Void
+
+    /// Whether the launch has decided remote use; before it, a suspension
+    /// that ends starts nothing.
+    @ObservationIgnored private var hasStarted = false
+
+    /// Whether the holder clicked the switch before the launch decided:
+    /// the click stands.
+    @ObservationIgnored private var holderClickedFirst = false
 
     // MARK: Computed Properties
 
@@ -62,12 +93,11 @@
 
     // MARK: Lifecycle
 
-    /// A switch on the holder's stored choice, with the two watches and
-    /// what follows a change.
+    /// A switch with the two watches and what follows a move.
     internal init(
       bluetooth: any RemoteUseWatch,
       localNetwork: any RemoteUseWatch,
-      follow: @escaping @MainActor () -> Void
+      follow: @escaping @MainActor (Move) -> Void
     ) {
       isOn = RemoteAccessGate.isEnabled
       bluetoothWatch = bluetooth
@@ -77,36 +107,81 @@
 
     // MARK: Functions
 
-    /// Starts a launch with remote use off, whatever the last run left.
+    /// Restores remote use at launch: on while `pairingRemains`, an active
+    /// pairing left after the launch's idle-expiry sweep, and off otherwise;
+    /// suspended while `suspended`, a card in this Mac's reader.
     ///
-    /// Only the holder's click turns it on, and that click is the only time
-    /// the app asks macOS for Bluetooth or local-network permission (STPA
-    /// CC-96). A UI test may start with it on through the launch argument.
-    internal func start() {
-      guard isOn else { return }
-      guard TestCredentialEnvironment.isTestMode else {
-        turn(on: false)
+    /// A launch that restores it on, unsuspended, starts the watches without
+    /// the holder's click; macOS granted their permissions when the holder
+    /// turned remote use on and paired (CC-101). Suspended, nothing starts
+    /// until the card leaves (CC-102). A click the holder made before the
+    /// launch decided stands.
+    internal func start(pairingRemains: Bool, suspended: Bool) {
+      hasStarted = true
+      guard !holderClickedFirst else {
+        suspend(suspended)
         return
       }
-      startWatches()
+      RemoteAccessGate.setEnabled(pairingRemains)
+      isOn = pairingRemains
+      isSuspended = suspended
+      if pairingRemains, !suspended {
+        startWatches()
+      }
     }
 
-    /// Turns remote use the other way, as a click on the switch asks.
+    /// Keeps remote use off until the launch decides it, so nothing remote
+    /// runs before the pairings are swept and the readers looked at.
+    internal func holdUntilLaunched() {
+      RemoteAccessGate.setEnabled(false)
+      isOn = false
+    }
+
+    /// A card in this Mac's reader arrived, `suspended`, or left: the
+    /// watches stop while it is there and run again once it leaves, while
+    /// remote use is on.
+    internal func suspend(_ suspended: Bool) {
+      guard suspended != isSuspended else { return }
+      isSuspended = suspended
+      guard hasStarted, isOn else { return }
+      if suspended {
+        stopWatches()
+      } else {
+        startWatches()
+      }
+    }
+
+    /// The holder's click: on turns remote use on, off forgets every
+    /// pairing.
     internal func toggle() {
-      turn(on: !isOn)
+      if !hasStarted {
+        holderClickedFirst = true
+      }
+      if isOn {
+        move(on: false, as: .forgetting)
+      } else {
+        move(on: true, as: .turnedOn)
+      }
     }
 
-    /// Records the holder's choice and acts on it at once.
-    internal func turn(on wanted: Bool) {
+    /// Turns remote use off, keeping the pairings as they are: the last one
+    /// ended other than by the holder's click, or the app quits.
+    internal func stop() {
+      move(on: false, as: .stopped)
+    }
+
+    private func move(on wanted: Bool, as move: Move) {
       guard wanted != isOn else { return }
       RemoteAccessGate.setEnabled(wanted)
       isOn = wanted
-      if wanted {
-        startWatches()
-      } else {
-        stopWatches()
+      if !isSuspended {
+        if wanted {
+          startWatches()
+        } else {
+          stopWatches()
+        }
       }
-      follow()
+      follow(move)
     }
 
     private func startWatches() {

@@ -7,8 +7,7 @@
   /// A card in this Mac's reader overrides the paired phone: while one is
   /// there the line speaks of that card alone. With remote use off the line
   /// speaks of this Mac's reader alone. Otherwise a paired phone's line
-  /// stands beside the control that forgets it, and with no phone paired
-  /// the line asks for a pairing code.
+  /// stands, and with no phone paired the line asks for a pairing code.
   internal enum IdentityLine: Equatable, Sendable {
     /// The card in this Mac's reader has stayed without an identity long
     /// enough to warn; the PIN codes stay one click away.
@@ -26,8 +25,8 @@
     /// control that opens the PIN codes.
     case localHolder
 
-    /// The paired phone's line, beside the control that forgets the
-    /// pairing; `phone` is the label the holder's line names it by.
+    /// The paired phone's line; `phone` is the label the holder's line
+    /// names it by.
     case paired(PairedLead, phone: String)
 
     /// Remote use on, no card here and no phone paired: the row asks for a

@@ -7,8 +7,9 @@
   /// The button at the right end of the window's toolbar, in the title bar.
   ///
   /// While a card is in this Mac's reader it shows two keys, one for each
-  /// PIN, and opens the PIN codes window: the local card overrides remote
-  /// use then (STPA CC-86), so the switch has nothing to switch. Otherwise
+  /// PIN, and opens the PIN codes window: the local card suspends remote
+  /// use then (STPA CC-86, CC-102), and the switch keeps its state until
+  /// the card leaves. Otherwise
   /// it is the remote-use switch: a click turns remote use on or off, and
   /// the symbol is the state (STPA CC-95). The help and the accessibility
   /// value name the state in words, the blocked state's cause included, so

@@ -14,10 +14,10 @@
   /// and only warns once the state has lasted long enough to mean
   /// something. A card in this Mac's reader overrides the paired phone and
   /// carries the control that opens its PIN codes. With remote use off the
-  /// row asks for a reader or its card. A paired phone's line ends with
-  /// the control that forgets it: it says it is connecting until the
-  /// phone offers an identity, then names the holder and the phone, and
-  /// asks for the card when the phone's card reader is empty.
+  /// row asks for a reader or its card. A paired phone's line says it is
+  /// connecting until the phone offers an identity, then names the holder
+  /// and the phone, and asks for the card when the phone's card reader is
+  /// empty.
   internal struct IdentityStateView: View {
     /// One tracked event.
     ///

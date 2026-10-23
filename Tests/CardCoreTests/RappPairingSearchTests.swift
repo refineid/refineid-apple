@@ -17,6 +17,20 @@ import Testing
 
     private typealias Search = RappPairingSearch<String>
 
+    /// Whether a requester's remote use is available, as a test sets it.
+    private final class Availability: @unchecked Sendable {
+      private let lock = NSLock()
+      private var value = true
+
+      var isAvailable: Bool {
+        lock.withLock { value }
+      }
+
+      func set(_ available: Bool) {
+        lock.withLock { value = available }
+      }
+    }
+
     // MARK: Static Properties
 
     /// The code the user types, which the right phone shows.
@@ -42,9 +56,12 @@ import Testing
         code, name: "Phone \(side)", servicePrefix: prefix(testID, side), dropAfter: dropAfter)
     }
 
-    /// A requester searching with the typed code, dialling the named links.
+    /// A requester searching with the typed code, dialling the named links
+    /// while remote use is available.
     private static func search(
-      testID: String, links: [String: RappTestPairingLink]
+      testID: String,
+      links: [String: RappTestPairingLink],
+      availability: Availability = Availability()
     ) throws -> Search {
       let options = RappPairingCoordinator.Options(
         code: typedCode,
@@ -53,10 +70,13 @@ import Testing
         displayName: "Requester Mac",
         platform: "macOS",
         vault: RappDeviceVault(accessGroup: nil, servicePrefix: prefix(testID, "requester")))
-      return try Search(options: options) { endpoint in
-        links[endpoint, default: RappTestPairingLink(servedOffer: nil, dropAfter: dropsAsItOpens)]
-          .dial()
-      }
+      return try Search(
+        options: options,
+        remoteUseAvailable: { availability.isAvailable },
+        dial: { endpoint in
+          links[endpoint, default: RappTestPairingLink(servedOffer: nil, dropAfter: dropsAsItOpens)]
+            .dial()
+        })
     }
 
     /// Everything the search reported, once it ended.
@@ -163,6 +183,40 @@ import Testing
       let empty = try Self.search(testID: testID, links: [:])
       await empty.endDiscovery()
       #expect(await Self.outcome(of: empty) == [.closed(.noneInPairingMode)])
+    }
+
+    @Test("A local card or remote use off ends the search: no further phone is opened")
+    internal func unavailableRemoteUseInterrupts() async throws {
+      let testID = UUID().uuidString
+      defer { Self.clean(testID, sides: ["first"]) }
+      let first = try await Self.phone(
+        showing: Self.otherCode, testID: testID, side: "first", dropAfter: nil)
+      let second = RappTestPairingLink(servedOffer: nil, dropAfter: Self.dropsAsItOpens)
+      let availability = Availability()
+      let search = try Self.search(
+        testID: testID, links: ["first": first.link, "second": second],
+        availability: availability)
+
+      await search.found("first")
+      // A card arrives, or the holder turns remote use off, while the
+      // first phone is tried.
+      availability.set(false)
+      await search.found("second")
+      let events = await Self.outcome(of: search)
+
+      #expect(events == [.declined(.refused(.protocolFailure)), .closed(.interrupted)])
+      #expect(await !second.isOpened, "no further phone is dialled")
+      _ = await first.close()
+
+      let unavailable = try Self.search(
+        testID: testID, links: ["second": second], availability: availability)
+      await unavailable.found("second")
+      #expect(await Self.outcome(of: unavailable) == [.closed(.interrupted)])
+      #expect(await !second.isOpened, "nothing is dialled while remote use is unavailable")
+
+      let interrupted = try Self.search(testID: testID, links: [:])
+      await interrupted.interrupt()
+      #expect(await Self.outcome(of: interrupted) == [.closed(.interrupted)])
     }
 
     @Test("A phone found again under another name gets no second guess")

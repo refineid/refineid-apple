@@ -8,7 +8,7 @@ import Testing
 @Suite("RAPP state tables against the vendored formal model")
 internal struct StateConformanceTests {
   /// Rule counts the model declares, per component machine.
-  private static let expectedRuleCounts = [("pairing", 29), ("session", 28), ("operation", 25)]
+  private static let expectedRuleCounts = [("pairing", 34), ("session", 28), ("operation", 25)]
 
   /// The model constants the engine holds as numbers, by name.
   private static let engineConstants: [String: UInt64] = [
@@ -18,6 +18,7 @@ internal struct StateConformanceTests {
     "liveness_ping_after_silence_ms": LivenessTracker.pingAfterSilenceMilliseconds,
     "session_silence_limit_ms": LivenessTracker.sessionSilenceLimitMilliseconds,
     "revocation_notice_days": PairRecord.revocationNoticeDays,
+    "pairing_idle_expiry_days": PairRecord.pairingIdleExpiryDays,
     "identity_offer_grace_ms": IdentityOfferGrace.milliseconds,
     "quit_withdrawal_bound_ms": QuitWithdrawalBound.milliseconds,
   ]
@@ -27,6 +28,12 @@ internal struct StateConformanceTests {
   /// floor the custodian's card layer applies.
   private static let constantsHeldElsewhere: Set<String> = [
     "live_operations_per_session", "card_commands_per_operation", "minimum_remaining_attempts",
+  ]
+
+  /// Conditions every requester guard that reaches a phone carries
+  /// (hierarchy specification §5.2).
+  private static let remoteUseConditions = [
+    "remote use is on", "no card is in a reader attached to it",
   ]
 
   /// An action the perturbed control appends so the comparison must notice.
@@ -176,6 +183,22 @@ internal struct StateConformanceTests {
     }
     #expect(used.subtracting(model.actionNames).isEmpty)
     #expect(conditions.subtracting(model.guardNames).isEmpty)
+  }
+
+  @Test("Every requester guard that reaches a phone needs remote use on and no local card")
+  internal func remoteUseGuardsTheRequester() throws {
+    let statements = try reader().guardStatements
+    for condition in [RappGuard.initiationPermitted, .untriedPairingCandidate] {
+      let statement = try #require(statements[condition.rawValue])
+      for clause in Self.remoteUseConditions {
+        #expect(statement.contains(clause), "\(condition.rawValue) lacks \(clause)")
+      }
+    }
+    #expect(
+      SessionState.outcome(
+        from: .absent, on: .connect, role: .requester,
+        guards: RappGuards.allSatisfied.setting(.initiationPermitted, false))
+        == .guardFailed(.initiationPermitted))
   }
 
   @Test("A perturbed action list is detected as a discrepancy")

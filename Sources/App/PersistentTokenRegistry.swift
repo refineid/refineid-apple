@@ -20,7 +20,8 @@
   /// another card, when the pairing is forgotten or revoked, when the
   /// phone announces it stopped serving, and when remote use is turned off;
   /// otherwise once no session has reported the card present for
-  /// ``RemoteIdentityOffer/grace``.
+  /// ``RemoteIdentityOffer/grace``. A pairing idle for 30 days expires
+  /// silently (RAPP v26.10.22 §4.6 item 5).
   @MainActor
   @Observable
   internal final class PersistentTokenRegistry {
@@ -205,7 +206,25 @@
 
       /// Dials once Bonjour has had its chance to show the phone.
       internal var settleDialTask: Task<Void, Never>?
+
     #endif
+
+    #if os(macOS) && REFINEID_REMOTE_CARD
+      /// The latest click off forgetting every pairing (RAPP v26.10.22 §4.6
+      /// item 6), or one left unfinished tried again; nil once it finished
+      /// and the app followed.
+      internal var forgetting: Task<Void, Never>?
+
+      /// The latest forgetting's destruction, off the main thread, which a
+      /// quit waits on; nil once it finished.
+      internal var pairingDestruction: Task<RemoteUseForgetting.Outcome, Never>?
+
+      /// Counts the forgettings started; only the latest lets go of them.
+      internal var forgettingGeneration = 0
+    #endif
+
+    /// Sweeps the pairings for idle expiry while the app runs.
+    internal let idleSweep = PairingIdleSweep()
 
     // MARK: Lifecycle
 
@@ -253,24 +272,16 @@
       }
     }
 
-    #if os(macOS)
-      /// Forgets the paired phone, as the control beside its name asks.
-      ///
-      /// The row stops naming the phone at once; the pairing then ends as
-      /// RAPP v26.10.22 §4.6 says, through `model`, and the row follows
-      /// what its vault then holds.
-      internal func forgetPairedPhone(through model: RappPairingModel) async {
-        guard let pairID = pairedPhoneID else { return }
-        pairedPhone = nil
-        pairedPhoneID = nil
-        await model.forgetPhone(pairID: pairID)
-        refreshPairing(in: model.vault)
-      }
-    #endif
-
     /// Starts following the paired phone at launch on the requesting
-    /// device, and when remote use is turned on.
+    /// device, when remote use is turned on, and when a card leaves this
+    /// device's reader.
+    ///
+    /// While a click off is forgetting the pairings, following waits until
+    /// they are gone (RAPP v26.10.22 §4.6 item 6).
     internal func start() {
+      #if os(macOS) && REFINEID_REMOTE_CARD
+        guard forgetting == nil else { return }
+      #endif
       refreshPairing()
       guard Self.followsPhone else {
         Self.withdrawPublishedIdentity()
