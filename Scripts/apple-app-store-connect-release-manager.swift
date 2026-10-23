@@ -30,6 +30,10 @@
 //   apple-app-store-connect-release-manager.swift install-nfc-timing [<device>]
 //   apple-app-store-connect-release-manager.swift install-pkcs11 [--check]
 //   apple-app-store-connect-release-manager.swift stamp [--dry-run | --tag <channel>]
+//   apple-app-store-connect-release-manager.swift capture-screenshots
+//       [--platform macos|ios|ipad|all] [--locale fi|en-US|sv|all]
+//       Captures every App Store screen from a demonstration launch and composes
+//       Metadata/screenshots/<locale>/<DISPLAY_TYPE>/. See Metadata/screenshots/README.md.
 //   apple-app-store-connect-release-manager.swift get <path>
 //   apple-app-store-connect-release-manager.swift api <METHOD> <path> [json|-]
 //   apple-app-store-connect-release-manager.swift app-id
@@ -53,8 +57,10 @@
 //   apple-app-store-connect-release-manager.swift submissions
 //   apple-app-store-connect-release-manager.swift submit <ios|macos> <versionString>
 
+import CoreGraphics
 import CryptoKit
 import Foundation
+import ImageIO
 
 // MARK: - Local release engineering
 
@@ -1389,13 +1395,690 @@ private func releaseCandidate(_ arguments: [String]) {
   print("Candidate complete: \(marketingVersion) (\(buildNumber)), commit \(commit)")
 }
 
-private func releaseCaptureScreenshots(_ arguments: [String]) {
-  let script = releaseRepositoryRoot.appendingPathComponent("Scripts/store-screenshot-ios.sh")
-  guard releaseFileManager.fileExists(atPath: script.path) else {
-    releaseFail("screenshot script not found at \(script.path)")
+// MARK: - App Store screenshots
+
+/// One store locale: the folder App Store Connect reads, and the language
+/// and region the app is captured in. A raw capture is named by its
+/// language.
+private struct StoreLocale {
+  let folder: String
+  let language: String
+  let region: String
+}
+
+private let storeLocales = [
+  StoreLocale(folder: "fi", language: "fi", region: "fi_FI"),
+  StoreLocale(folder: "en-US", language: "en", region: "en_US"),
+  StoreLocale(folder: "sv", language: "sv", region: "sv_SE"),
+]
+
+/// One screen the store shows: the raw capture it is composed from, and
+/// the demonstration state the app is launched into for it. Every state
+/// is a virtual card, so no capture reads a real card or a real holder.
+private struct StoreScreen {
+  let asset: String
+  let arguments: [String]
+}
+
+/// The size of an image, in pixels.
+private struct StorePixelSize: Equatable, CustomStringConvertible {
+  let width: Int
+  let height: Int
+
+  var description: String { "\(width)x\(height)" }
+}
+
+/// The simulator one platform is captured on, found by its name and
+/// created when missing. Its own device, so a capture never touches the
+/// simulators used for testing.
+private struct StoreSimulator {
+  let name: String
+  let deviceType: String
+}
+
+/// A platform in the store: its display type, the size App Store Connect
+/// takes for it, and its screens in store order.
+private enum StorePlatform: String, CaseIterable {
+  case macos
+  case ios
+  case ipad
+
+  var displayType: String {
+    switch self {
+    case .macos: "APP_DESKTOP"
+    case .ios: "APP_IPHONE_67"
+    case .ipad: "APP_IPAD_PRO_3GEN_129"
+    }
   }
-  print("Capturing iOS store screenshots...")
-  releaseRun("/bin/bash", [script.path] + arguments, currentDirectory: releaseRepositoryRoot)
+
+  var storeSize: StorePixelSize {
+    switch self {
+    case .macos: StorePixelSize(width: 2880, height: 1800)
+    case .ios: StorePixelSize(width: 1290, height: 2796)
+    case .ipad: StorePixelSize(width: 2048, height: 2732)
+    }
+  }
+
+  var screens: [StoreScreen] {
+    switch self {
+    case .macos:
+      [
+        StoreScreen(asset: "window-card", arguments: ["--virtual-card", "activated-reader"]),
+        StoreScreen(
+          asset: "window-phone",
+          arguments: ["--virtual-card", "activated-reader", "--mock-remote-connected"]),
+      ]
+    case .ios:
+      [
+        StoreScreen(
+          asset: "iphone-main",
+          arguments: ["--virtual-card", "registered-nfc", "--mock-remote-connected"]),
+        StoreScreen(
+          asset: "iphone-documents",
+          arguments: ["--virtual-card", "registered-nfc", "--open-document-signing"]),
+      ]
+    case .ipad:
+      [
+        StoreScreen(
+          asset: "ipad-main",
+          arguments: ["--virtual-card", "activated-reader", "--mock-remote-connected"]),
+        StoreScreen(
+          asset: "ipad-documents",
+          arguments: ["--virtual-card", "activated-reader", "--open-document-signing"]),
+      ]
+    }
+  }
+
+  /// The simulator that captures this platform, whose screen is the
+  /// store size itself; nil for the Mac, captured as a window.
+  var simulator: StoreSimulator? {
+    switch self {
+    case .macos:
+      nil
+    case .ios:
+      StoreSimulator(
+        name: "RefineID Store iPhone",
+        deviceType: "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Plus")
+    case .ipad:
+      StoreSimulator(
+        name: "RefineID Store iPad",
+        deviceType: "com.apple.CoreSimulator.SimDeviceType.iPad-Pro-12-9-inch-6th-generation-16GB")
+    }
+  }
+}
+
+private let storeScope = "capture-screenshots"
+private let storeScreenshots = releaseRepositoryRoot.appendingPathComponent("Metadata/screenshots")
+private let storeAssets = storeScreenshots.appendingPathComponent("assets")
+private let storeBuildRoot = releaseRepositoryRoot.appendingPathComponent("build/store-screenshots")
+private let storeComposer = releaseRepositoryRoot.appendingPathComponent(
+  "Scripts/generate-store-screenshots.swift")
+private let storeVirtualCardArgument = "--virtual-card"
+
+/// A screen counts as settled once this many captures a second apart hold
+/// the same pixels, and it gets this many captures to get there.
+private let storeSettleInterval: TimeInterval = 1
+private let storeStillCaptures = 3
+private let storeSettleAttempts = 30
+
+/// A capture shows content once anything differs between its top and
+/// bottom tenths: a launch screen is one colour there. Every eighth pixel
+/// of every eighth row is looked at.
+private let storeContentBandDivisor = 10
+private let storeContentSampleStride = 8
+
+/// How long a launch may take to show its process and its window.
+private let storeLaunchPolls = 100
+private let storeLaunchPollInterval: TimeInterval = 0.2
+
+/// How long a capture copy gets to quit before it is made to.
+private let storeQuitPolls = 50
+private let storeQuitPollInterval: useconds_t = 100_000
+
+/// A Mac window captured below this many pixels per point was drawn on a
+/// display too coarse for the store's canvas.
+private let storeMacMinimumScale = 2
+
+/// The smallest window height that is the status window rather than a
+/// sliver of the menu bar.
+private let storeMacMinimumWindowHeight = 100.0
+
+/// The status bar every simulator capture shows.
+private let storeStatusBar = [
+  "--time", "9:41",
+  "--dataNetwork", "wifi",
+  "--wifiMode", "active", "--wifiBars", "3",
+  "--cellularMode", "active", "--cellularBars", "4",
+  "--batteryState", "charged", "--batteryLevel", "100",
+]
+
+/// The Mac's appearance, pinned for the one launch: dark, with standard
+/// contrast and transparency whatever this Mac's accessibility settings
+/// are, and no saved window state read or written in the container the
+/// installed copy shares.
+private let storeMacAppearanceArguments = [
+  "-AppleInterfaceStyle", "Dark",
+  "-increaseContrast", "NO",
+  "-reduceTransparency", "NO",
+  "-ApplePersistenceIgnoreState", "YES",
+]
+
+private let storeUsage =
+  "usage: capture-screenshots [--platform macos|ios|ipad|all] [--locale fi|en-US|sv|all]"
+
+/// What every capture launch says beside its screen's own state: no
+/// development aids, no motion, and the locale's language and region.
+private func storeLaunchArguments(_ screen: StoreScreen, _ locale: StoreLocale) -> [String] {
+  screen.arguments + [
+    "--hide-diagnostics", "--ui-test-disable-motion",
+    "-AppleLanguages", "(\(locale.language))",
+    "-AppleLocale", locale.region,
+  ]
+}
+
+private func storeAsset(_ screen: StoreScreen, _ locale: StoreLocale) -> URL {
+  storeAssets.appendingPathComponent("\(screen.asset)-\(locale.language).png")
+}
+
+private func storeImage(_ url: URL) -> CGImage? {
+  guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+  return CGImageSourceCreateImageAtIndex(source, 0, nil)
+}
+
+/// Whether a capture shows anything between its top and bottom tenths.
+private func storeShowsContent(_ image: CGImage, pixels: Data) -> Bool {
+  let bytesPerPixel = image.bitsPerPixel / 8
+  let band = image.height / storeContentBandDivisor
+  let rowStride = storeContentSampleStride * image.bytesPerRow
+  let pixelStride = storeContentSampleStride * bytesPerPixel
+  return pixels.withUnsafeBytes { bytes in
+    let reference = band * image.bytesPerRow
+    for row in stride(from: reference, to: (image.height - band) * image.bytesPerRow, by: rowStride) {
+      for offset in stride(from: row, to: row + image.width * bytesPerPixel, by: pixelStride) {
+        for byte in 0..<bytesPerPixel where bytes[offset + byte] != bytes[reference + byte] {
+          return true
+        }
+      }
+    }
+    return false
+  }
+}
+
+/// Captures until the screen shows content and holds still, so no image is
+/// taken of a launch screen, mid-animation, or before its content arrived.
+/// Answers why it failed, or nil.
+private func storeSettledCapture(to destination: URL, capture: (URL) -> Void) -> String? {
+  let scratch = releaseFileManager.temporaryDirectory
+    .appendingPathComponent("refineid-store-\(UUID().uuidString)")
+  do {
+    try releaseFileManager.createDirectory(at: scratch, withIntermediateDirectories: true)
+  } catch {
+    return "could not create \(scratch.path): \(error.localizedDescription)"
+  }
+  defer { try? releaseFileManager.removeItem(at: scratch) }
+  var previous: Data?
+  var still = 0
+  for attempt in 0..<storeSettleAttempts {
+    Thread.sleep(forTimeInterval: storeSettleInterval)
+    let file = scratch.appendingPathComponent("\(attempt).png")
+    capture(file)
+    guard let image = storeImage(file), let data = image.dataProvider?.data,
+      storeShowsContent(image, pixels: data as Data)
+    else {
+      previous = nil
+      still = 0
+      continue
+    }
+    let pixels = data as Data
+    still = pixels == previous ? still + 1 : 1
+    previous = pixels
+    if still == storeStillCaptures {
+      releaseReplace(destination, with: file)
+      return nil
+    }
+  }
+  return "\(destination.lastPathComponent) never showed still content"
+}
+
+// MARK: Mac window
+
+/// The process running this executable, once it runs.
+private func storeWaitForProcess(_ executable: String) -> pid_t? {
+  for _ in 0..<storeLaunchPolls {
+    let found = releaseRun("/usr/bin/pgrep", ["-f", executable], capture: true, allowFailure: true)
+    if let line = found.stdout.split(separator: "\n").first, let pid = pid_t(line) {
+      return pid
+    }
+    Thread.sleep(forTimeInterval: storeLaunchPollInterval)
+  }
+  return nil
+}
+
+/// The status window of a process: its largest on-screen window at the
+/// normal level, and that window's size in points.
+private func storeWaitForWindow(of pid: pid_t) -> (id: CGWindowID, width: Double)? {
+  for _ in 0..<storeLaunchPolls {
+    let windows =
+      CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
+      as? [[String: Any]] ?? []
+    let candidates = windows.compactMap { info -> (id: CGWindowID, width: Double, area: Double)? in
+      guard (info[kCGWindowOwnerPID as String] as? pid_t) == pid,
+        (info[kCGWindowLayer as String] as? Int) == 0,
+        let number = info[kCGWindowNumber as String] as? CGWindowID,
+        let bounds = info[kCGWindowBounds as String] as? [String: Double],
+        let width = bounds["Width"], let height = bounds["Height"],
+        height >= storeMacMinimumWindowHeight
+      else { return nil }
+      return (number, width, width * height)
+    }
+    if let window = candidates.max(by: { $0.area < $1.area }) {
+      return (window.id, window.width)
+    }
+    Thread.sleep(forTimeInterval: storeLaunchPollInterval)
+  }
+  return nil
+}
+
+/// Quits a capture copy, and makes it quit if it will not.
+private func storeStop(_ pid: pid_t) {
+  kill(pid, SIGTERM)
+  for _ in 0..<storeQuitPolls {
+    if kill(pid, 0) != 0 { return }
+    usleep(storeQuitPollInterval)
+  }
+  kill(pid, SIGKILL)
+}
+
+/// Captures the status window of one launch of the built copy. Answers
+/// why it failed, or nil.
+///
+/// Every launch carries a virtual card, so the copy holds no card session
+/// and runs beside the installed one without asking it to quit.
+private func storeCaptureMacWindow(app: URL, arguments: [String], to destination: URL) -> String? {
+  guard arguments.contains(storeVirtualCardArgument) else {
+    return "a Mac capture launch must carry \(storeVirtualCardArgument)"
+  }
+  let executable = app.appendingPathComponent("Contents/MacOS/RefineID").path
+  releaseRun("/usr/bin/pkill", ["-f", executable], capture: true, allowFailure: true)
+  releaseRun("/usr/bin/open", ["-n", "-a", app.path, "--args"] + arguments)
+  guard let pid = storeWaitForProcess(executable) else { return "the built copy did not start" }
+  defer { storeStop(pid) }
+  // Launched without saved state, the app presents no window. Opening the
+  // running copy again presents it, as a click on its Dock icon does; the
+  // arguments only matter should the copy have gone.
+  Thread.sleep(forTimeInterval: storeSettleInterval)
+  releaseRun("/usr/bin/open", ["-a", app.path, "--args"] + arguments)
+  guard let window = storeWaitForWindow(of: pid) else { return "the built copy showed no window" }
+  if let failure = storeSettledCapture(
+    to: destination,
+    capture: { file in
+      releaseRun("/usr/sbin/screencapture", ["-x", "-l\(window.id)", file.path])
+    })
+  {
+    return failure
+  }
+  guard let image = storeImage(destination),
+    Double(image.width) >= Double(storeMacMinimumScale) * window.width
+  else {
+    return "\(destination.lastPathComponent) is below \(storeMacMinimumScale)x; "
+      + "capture on a Retina display"
+  }
+  return nil
+}
+
+/// Builds the Mac app and captures every Mac screen in every locale.
+///
+/// The build is a second copy beside the installed one. Its token
+/// extensions are unregistered once the captures are done, so the system
+/// keeps choosing the installed copy's driver.
+private func storeCaptureMac(_ locales: [StoreLocale]) {
+  guard CGPreflightScreenCaptureAccess() else {
+    releaseFail(
+      "this terminal may not record the screen. Allow it under System Settings > "
+        + "Privacy & Security > Screen & System Audio Recording, then run this again.")
+  }
+  let derivedData = storeBuildRoot.appendingPathComponent("macos")
+  installNote(storeScope, "building Debug for macOS")
+  releaseRun(
+    "/usr/bin/xcodebuild",
+    [
+      "-project", "RefineID.xcodeproj",
+      "-scheme", "RefineID",
+      "-configuration", "Debug",
+      "-destination", "platform=macOS,arch=arm64",
+      "-derivedDataPath", derivedData.path,
+      "CLANG_COVERAGE_MAPPING=NO",
+      "ENABLE_CODE_COVERAGE=NO",
+      "-quiet",
+      "build",
+    ] + releaseSigningArguments(),
+    currentDirectory: releaseRepositoryRoot)
+  let app = derivedData.appendingPathComponent("Build/Products/Debug/\(installMacName)")
+  guard releaseIsDirectory(app) else { releaseFail("build produced no \(installMacName)") }
+  for locale in locales {
+    for screen in StorePlatform.macos.screens {
+      let destination = storeAsset(screen, locale)
+      if let failure = storeCaptureMacWindow(
+        app: app,
+        arguments: storeLaunchArguments(screen, locale) + storeMacAppearanceArguments,
+        to: destination)
+      {
+        installUnregister(app)
+        releaseFail(failure)
+      }
+      installNote(storeScope, "captured \(destination.lastPathComponent)")
+    }
+  }
+  installUnregister(app)
+}
+
+// MARK: Simulators
+
+private func storeSimulatorListing() -> [[String: Any]] {
+  let listing = releaseRun(
+    "/usr/bin/xcrun", ["simctl", "list", "devices", "available", "--json"], capture: true)
+  guard
+    let root = try? JSONSerialization.jsonObject(with: Data(listing.stdout.utf8))
+      as? [String: Any],
+    let runtimes = root["devices"] as? [String: [[String: Any]]]
+  else { releaseFail("could not read the simulator list") }
+  return runtimes.filter { $0.key.contains("iOS") }.values.flatMap(\.self)
+}
+
+/// The newest iOS runtime that runs a device type.
+private func storeRuntime(for deviceType: String) -> String {
+  let listing = releaseRun("/usr/bin/xcrun", ["simctl", "list", "runtimes", "--json"], capture: true)
+  guard
+    let root = try? JSONSerialization.jsonObject(with: Data(listing.stdout.utf8))
+      as? [String: Any],
+    let runtimes = root["runtimes"] as? [[String: Any]]
+  else { releaseFail("could not read the simulator runtimes") }
+  let fitting = runtimes.filter { runtime in
+    runtime["platform"] as? String == "iOS"
+      && runtime["isAvailable"] as? Bool == true
+      && (runtime["supportedDeviceTypes"] as? [[String: Any]] ?? []).contains {
+        $0["identifier"] as? String == deviceType
+      }
+  }
+  let newest = fitting.max { first, second in
+    (first["version"] as? String ?? "")
+      .compare(second["version"] as? String ?? "", options: .numeric) == .orderedAscending
+  }
+  guard let identifier = newest?["identifier"] as? String else {
+    releaseFail("no installed iOS runtime runs \(deviceType)")
+  }
+  return identifier
+}
+
+/// The simulator's identifier, created when missing, and whether it was
+/// already running.
+private func storeSimulatorDevice(_ simulator: StoreSimulator) -> (udid: String, wasBooted: Bool) {
+  if let device = storeSimulatorListing().first(where: { $0["name"] as? String == simulator.name }),
+    let udid = device["udid"] as? String
+  {
+    return (udid, device["state"] as? String == "Booted")
+  }
+  installNote(storeScope, "creating the simulator \(simulator.name)")
+  let created = releaseRun(
+    "/usr/bin/xcrun",
+    [
+      "simctl", "create", simulator.name, simulator.deviceType,
+      storeRuntime(for: simulator.deviceType),
+    ],
+    capture: true)
+  return (created.stdout.trimmingCharacters(in: .whitespacesAndNewlines), false)
+}
+
+/// Boots a simulator and settles everything a capture shows besides the
+/// app: dark, standard contrast and text size.
+private func storePrepareSimulator(_ udid: String) {
+  releaseRun("/usr/bin/xcrun", ["simctl", "bootstatus", udid, "-b"], capture: true)
+  for setting in [
+    ["appearance", "dark"], ["increase_contrast", "disabled"], ["content_size", "large"],
+  ] {
+    releaseRun("/usr/bin/xcrun", ["simctl", "ui", udid] + setting, capture: true)
+  }
+}
+
+/// Sets the simulator's language and region, which format the status
+/// bar's time, and puts the status bar in place. The status bar reads them
+/// once per boot, so the simulator restarts in between.
+private func storeSetSimulatorLocale(_ udid: String, _ locale: StoreLocale) {
+  for write in [
+    ["AppleLocale", "-string", locale.region], ["AppleLanguages", "-array", locale.language],
+  ] {
+    releaseRun(
+      "/usr/bin/xcrun", ["simctl", "spawn", udid, "defaults", "write", "-g"] + write,
+      capture: true)
+  }
+  releaseRun("/usr/bin/xcrun", ["simctl", "shutdown", udid], capture: true)
+  releaseRun("/usr/bin/xcrun", ["simctl", "bootstatus", udid, "-b"], capture: true)
+  releaseRun(
+    "/usr/bin/xcrun", ["simctl", "status_bar", udid, "override"] + storeStatusBar, capture: true)
+}
+
+/// Captures one screen on a simulator. Answers why it failed, or nil.
+private func storeCaptureSimulatorScreen(
+  _ udid: String, platform: StorePlatform, arguments: [String], to destination: URL
+) -> String? {
+  releaseRun(
+    "/usr/bin/xcrun",
+    ["simctl", "launch", "--terminate-running-process", udid, bundleID] + arguments,
+    capture: true)
+  if let failure = storeSettledCapture(
+    to: destination,
+    capture: { file in
+      releaseRun(
+        "/usr/bin/xcrun", ["simctl", "io", udid, "screenshot", "--type=png", file.path],
+        capture: true)
+    })
+  {
+    return failure
+  }
+  guard let image = storeImage(destination),
+    StorePixelSize(width: image.width, height: image.height) == platform.storeSize
+  else {
+    return "\(destination.lastPathComponent) is not \(platform.storeSize)"
+  }
+  return platform == .ipad ? storeRemoveIPadDate(destination) : nil
+}
+
+/// Builds the app for the simulator and captures every screen of the
+/// chosen platforms in every locale.
+private func storeCaptureSimulators(_ platforms: [StorePlatform], _ locales: [StoreLocale]) {
+  let devices = platforms.compactMap { platform -> (StorePlatform, String, Bool)? in
+    guard let simulator = platform.simulator else { return nil }
+    let device = storeSimulatorDevice(simulator)
+    storePrepareSimulator(device.udid)
+    return (platform, device.udid, device.wasBooted)
+  }
+  guard let first = devices.first else { return }
+  let derivedData = storeBuildRoot.appendingPathComponent("ios")
+  installNote(storeScope, "building Debug for the iOS simulator")
+  releaseRun(
+    "/usr/bin/xcodebuild",
+    [
+      "-project", "RefineID.xcodeproj",
+      "-scheme", "RefineID",
+      "-configuration", "Debug",
+      "-destination", "platform=iOS Simulator,id=\(first.1)",
+      "-derivedDataPath", derivedData.path,
+      "CLANG_COVERAGE_MAPPING=NO",
+      "ENABLE_CODE_COVERAGE=NO",
+      "-quiet",
+      "build",
+    ],
+    currentDirectory: releaseRepositoryRoot)
+  let app = derivedData.appendingPathComponent("Build/Products/Debug-iphonesimulator/RefineID.app")
+  guard releaseIsDirectory(app) else { releaseFail("build produced no simulator RefineID.app") }
+  for (_, udid, _) in devices {
+    // A fresh install starts every capture from the same empty state.
+    releaseRun(
+      "/usr/bin/xcrun", ["simctl", "uninstall", udid, bundleID], capture: true,
+      allowFailure: true)
+    releaseRun("/usr/bin/xcrun", ["simctl", "install", udid, app.path], capture: true)
+  }
+  for (platform, udid, _) in devices {
+    for locale in locales {
+      storeSetSimulatorLocale(udid, locale)
+      for screen in platform.screens {
+        let destination = storeAsset(screen, locale)
+        if let failure = storeCaptureSimulatorScreen(
+          udid, platform: platform, arguments: storeLaunchArguments(screen, locale),
+          to: destination)
+        {
+          releaseFail(failure)
+        }
+        installNote(storeScope, "captured \(destination.lastPathComponent)")
+      }
+    }
+  }
+  for (_, udid, wasBooted) in devices {
+    releaseRun(
+      "/usr/bin/xcrun", ["simctl", "terminate", udid, bundleID], capture: true,
+      allowFailure: true)
+    if !wasBooted {
+      releaseRun("/usr/bin/xcrun", ["simctl", "shutdown", udid], capture: true, allowFailure: true)
+    }
+  }
+}
+
+/// The iPad status bar's height, and the widest gap inside its time ("9:41
+/// AM"), in pixels; the gap before the date is wider.
+private let storeIPadStatusBarHeight = 54
+private let storeIPadTimeGap = 16
+
+/// A pixel that differs from the background by more than this, summed
+/// over its three channels, is ink.
+private let storeInkThreshold = 60
+
+/// Paints over everything in the left half of an iPad status bar after the
+/// time with the bar's own colour: the date, which would date the
+/// screenshot, and the app's name. The time and the indicators stay.
+/// Answers why it failed, or nil.
+private func storeRemoveIPadDate(_ url: URL) -> String? {
+  let channels = 4
+  guard let image = storeImage(url),
+    let space = CGColorSpace(name: CGColorSpace.sRGB),
+    let context = CGContext(
+      data: nil, width: image.width, height: image.height, bitsPerComponent: 8,
+      bytesPerRow: image.width * channels, space: space,
+      bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue),
+    let buffer = context.data
+  else { return "could not read \(url.lastPathComponent)" }
+  let width = image.width
+  let height = image.height
+  context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+  // Bitmap memory runs top down: row zero is the top of the screen.
+  let pixels = buffer.bindMemory(to: UInt8.self, capacity: width * height * channels)
+  let background = (0..<3).map { Int(pixels[$0]) }
+  let inkColumns = (0..<(width / 2)).map { x in
+    (0..<storeIPadStatusBarHeight).contains { y in
+      let offset = (y * width + x) * channels
+      return (0..<3).reduce(0) { $0 + abs(Int(pixels[offset + $1]) - background[$1]) }
+        > storeInkThreshold
+    }
+  }
+  guard let timeStart = inkColumns.firstIndex(of: true) else {
+    return "\(url.lastPathComponent) shows no time in its status bar"
+  }
+  var timeEnd = timeStart
+  var column = timeStart
+  while column < inkColumns.count, column - timeEnd <= storeIPadTimeGap {
+    if inkColumns[column] { timeEnd = column }
+    column += 1
+  }
+  let maximum = 255.0
+  context.setFillColor(
+    red: Double(background[0]) / maximum, green: Double(background[1]) / maximum,
+    blue: Double(background[2]) / maximum, alpha: 1)
+  context.fill(
+    CGRect(
+      x: timeEnd + storeIPadTimeGap, y: height - storeIPadStatusBarHeight,
+      width: width / 2 - timeEnd - storeIPadTimeGap, height: storeIPadStatusBarHeight))
+  guard let patched = context.makeImage(),
+    let destination = CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil)
+  else { return "could not write \(url.lastPathComponent)" }
+  CGImageDestinationAddImage(destination, patched, nil)
+  return CGImageDestinationFinalize(destination) ? nil : "could not write \(url.lastPathComponent)"
+}
+
+// MARK: Composition
+
+/// Checks every composed image: the display type's size, no alpha, and one
+/// image per screen.
+private func storeVerify(_ platforms: [StorePlatform], _ locales: [StoreLocale]) {
+  for locale in locales {
+    for platform in platforms {
+      let folder = storeScreenshots.appendingPathComponent(locale.folder)
+        .appendingPathComponent(platform.displayType)
+      let images =
+        ((try? releaseFileManager.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil))
+        ?? [])
+        .filter { $0.pathExtension == "png" }
+        .sorted { $0.lastPathComponent < $1.lastPathComponent }
+      guard images.count == platform.screens.count else {
+        releaseFail(
+          "\(folder.path) holds \(images.count) images for \(platform.screens.count) screens")
+      }
+      for image in images {
+        guard let source = CGImageSourceCreateWithURL(image as CFURL, nil),
+          let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+          let width = properties[kCGImagePropertyPixelWidth] as? Int,
+          let height = properties[kCGImagePropertyPixelHeight] as? Int
+        else { releaseFail("could not read \(image.path)") }
+        let size = StorePixelSize(width: width, height: height)
+        guard size == platform.storeSize else {
+          releaseFail("\(image.path) is \(size), not \(platform.storeSize)")
+        }
+        guard properties[kCGImagePropertyHasAlpha] as? Bool != true else {
+          releaseFail("\(image.path) has an alpha channel")
+        }
+        let relative = image.path.replacingOccurrences(
+          of: releaseRepositoryRoot.path + "/", with: "")
+        installNote(storeScope, "\(relative) \(size)")
+      }
+    }
+  }
+}
+
+/// `capture-screenshots`: launches the app in a demonstration state for
+/// every chosen platform, screen and locale, captures the raw screens into
+/// Metadata/screenshots/assets, composes the store images and checks them.
+private func releaseCaptureScreenshots(_ arguments: [String]) {
+  var platformChoice = "all"
+  var localeChoice = "all"
+  var remaining = arguments[...]
+  while let argument = remaining.popFirst() {
+    switch argument {
+    case "--platform":
+      platformChoice = remaining.popFirst() ?? ""
+    case "--locale":
+      localeChoice = remaining.popFirst() ?? ""
+    default:
+      releaseFail(storeUsage)
+    }
+  }
+  let platforms =
+    platformChoice == "all"
+    ? StorePlatform.allCases : StorePlatform(rawValue: platformChoice).map { [$0] } ?? []
+  let locales =
+    localeChoice == "all" ? storeLocales : storeLocales.filter { $0.folder == localeChoice }
+  guard !platforms.isEmpty, !locales.isEmpty else { releaseFail(storeUsage) }
+
+  installHideFromSpotlight(storeBuildRoot)
+  if platforms.contains(.macos) {
+    storeCaptureMac(locales)
+  }
+  storeCaptureSimulators(platforms.filter { $0 != .macos }, locales)
+  installNote(storeScope, "composing")
+  releaseRun(
+    "/usr/bin/xcrun",
+    ["swift", storeComposer.path, "--platform", platformChoice, "--locale", localeChoice],
+    currentDirectory: releaseRepositoryRoot,
+    capture: true)
+  storeVerify(platforms, locales)
+  installNote(storeScope, "done")
 }
 
 // MARK: - Version stamp
@@ -2356,8 +3039,9 @@ private func printReleaseManagerUsage() {
           Archive, inspect, and export a clean-tree candidate. Upload is opt-in.
       inspect-archive <path-to-xcarchive>
           Apply every reviewed archive gate without uploading or changing App Store state.
-      capture-screenshots [options]
-          Capture localized App Store screenshots on simulator (e.g. --all, --locale fi).
+      capture-screenshots [--platform macos|ios|ipad|all] [--locale fi|en-US|sv|all]
+          Capture every App Store screen from a demonstration launch (Mac window,
+          iPhone and iPad simulators) and compose the store images. Default: all.
 
     App Store Connect commands:
       distribute <ios|macos> <group> [build-id]

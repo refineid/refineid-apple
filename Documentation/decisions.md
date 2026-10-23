@@ -375,11 +375,12 @@ positioning.
    edge without artificial internal frame padding or excessive negative space,
    maximizing readability of app controls and document details while adhering to
    Apple Review Guidelines §2.3.3.
-3. **Automated Multi-Screen Asset Pipeline**: `Scripts/store-screenshot-ios.sh`
-   automates simulator state setup (appearance, 9:41 status bar time, battery,
-   iPad date removal) and captures both primary views (Authentication and Document
-   Signing with `--open-document-signing`) directly into raw assets, feeding
-   `Scripts/generate-store-screenshots.swift` for reproducible composition.
+3. **Automated Multi-Screen Asset Pipeline**:
+   `Scripts/apple-app-store-connect-release-manager.swift capture-screenshots`
+   sets up the Mac window and simulator state (appearance, 9:41 status bar time,
+   battery, iPad date removal) and captures every store screen directly into raw
+   assets, feeding `Scripts/generate-store-screenshots.swift` for reproducible
+   composition.
 4. **Automated Store Metadata & Screenshot Sync on Candidate Upload**:
    `Scripts/apple-app-store-connect-release-manager.swift` automatically ensures
    the editable App Store version (`PREPARE_FOR_SUBMISSION`), syncs localized

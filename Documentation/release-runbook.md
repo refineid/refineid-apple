@@ -196,14 +196,17 @@ for the intended next action.
 
 ## 4. Distribute through TestFlight
 
-### macOS MVP scope
+### macOS scope
 
-The candidate retains local card authentication, activation, PIN management,
-and document signing. SCS and RAPP are excluded. Verify a saved SCS opt-in
-cannot start a listener or request certificate trust, and saved RAPP pairings
-cannot start discovery, reconnect, publish an identity, or expose pairing UI.
-The archive must contain only the local token extension, with no server
-entitlement or local-network declarations. iOS scope is unchanged.
+The candidate ships local card authentication, activation, PIN management and
+document signing, and the remote card over RAPP, with the Mac as a requester
+that only dials the paired phone: `REFINEID_REMOTE_CARD` is set for the
+TestFlight and Release configurations in `Config/Features.xcconfig`. SCS is in
+no macOS build; verify a saved SCS opt-in cannot start a listener or request
+certificate trust. The archive carries the local token extension and the
+remote card's token extension, each with its own entitlements, no server
+entitlement, and the local-network and Bonjour declarations the remote card
+needs; `inspect-archive` checks these. iOS scope is unchanged.
 
 ### Screenshot visibility
 
@@ -252,7 +255,7 @@ Test the exact uploaded build. At minimum, retain evidence for:
 - Reader insertion, removal, contention, sleep, wake, extension restart, app
   restart, and Mac restart.
 - Activated-card identity publication and signing.
-- Absence of SCS and RAPP on fresh installs and upgrades with saved preferences.
+- Absence of SCS on fresh installs and upgrades with saved preferences.
 - Factory-fresh card detection without activation unless that specific test is
   separately approved.
 - Retry counters before and after any credential operation.
@@ -272,7 +275,7 @@ Scripts/apple-app-store-connect-release-manager.swift metadata macos "$VERSION"
 Scripts/apple-app-store-connect-release-manager.swift app-info
 Scripts/apple-app-store-connect-release-manager.swift review-contact macos "$VERSION"
 # Generate/refresh screenshots if needed:
-# Scripts/apple-app-store-connect-release-manager.swift capture-screenshots --all
+# Scripts/apple-app-store-connect-release-manager.swift capture-screenshots
 Scripts/apple-app-store-connect-release-manager.swift screenshots macos "$VERSION"
 Scripts/apple-app-store-connect-release-manager.swift age-rating
 Scripts/apple-app-store-connect-release-manager.swift export-compliance macos

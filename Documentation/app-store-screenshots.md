@@ -86,52 +86,29 @@ let cornerRadius: CGFloat = 44.0
 
 ---
 
-## 4. Operational Workflow: Updating Screenshots for New Outlooks
+## 4. Operational Workflow: Updating Screenshots
 
-When application visuals, fonts, views, or themes change in the future, follow this runbook to update all screenshots:
+When application visuals, fonts, views, or themes change, run one command:
+
+```sh
+Scripts/apple-app-store-connect-release-manager.swift capture-screenshots
+```
 
 ```mermaid
 flowchart TD
-    A["Application UI Changed"] --> B["Capture Raw Simulator Assets<br/><code>Scripts/store-screenshot-ios.sh --capture-assets --all</code>"]
-    B --> C["Automated Screen 1 & 2 Capture<br/>(Main App + Document Signing)"]
-    C --> D["Status Bar Sanitization<br/>(9:41, Dark Mode, Date Removal)"]
-    D --> E["Save to <code>Metadata/screenshots/assets/</code>"]
-    E --> F["Compose Marketing Screenshots<br/><code>swift Scripts/generate-store-screenshots.swift --platform all --locale all</code>"]
-    F --> G["Verify Spec Invariants<br/><code>sips -g pixelWidth -g pixelHeight -g hasAlpha</code>"]
-    G --> H["Commit & Push PR to Main"]
+    A["Application UI Changed"] --> B["<code>capture-screenshots</code>"]
+    B --> C["Mac window and iPhone and iPad simulator captures<br/>(demonstration state, synthetic identity, every locale)"]
+    C --> D["Raw captures in <code>Metadata/screenshots/assets/</code>"]
+    D --> E["Composition by <code>Scripts/generate-store-screenshots.swift</code>"]
+    E --> F["Size, alpha and count checks"]
+    F --> G["Commit & Push PR to Main"]
 ```
 
-### Step 1: Simulator Asset Capture
-Run:
-```sh
-Scripts/store-screenshot-ios.sh --capture-assets --all
-```
-This automatically boots the iPhone and iPad simulators, sets pristine status bars, builds and installs the app, launches each localized scenario for Screen 01 and Screen 02, sanitizes the iPad status bar date, saves raw PNGs into `Metadata/screenshots/assets/`, and automatically triggers `generate-store-screenshots.swift`.
+[`Metadata/screenshots/README.md`](../Metadata/screenshots/README.md) lists the
+screens, their demonstration states, and how to narrow a run to one platform
+or locale.
 
-### Step 2: macOS Window Capture
-If the macOS interface changed:
-1. Launch macOS RefineID in Debug mode:
-   ```sh
-   build/Build/Products/Debug/RefineID.app/Contents/MacOS/RefineID --hide-diagnostics --mock-remote-connected --virtual-card registered-nfc -AppleLanguages '(fi)' -AppleLocale fi
-   ```
-2. Capture the window:
-   ```sh
-   Scripts/store-screenshot.sh window-card-fi
-   mv ~/Desktop/refineid-store-screenshots/window-card-fi.png Metadata/screenshots/assets/window-card-fi.png
-   ```
-3. Repeat for document signing (`--open-document-signing`) and other locales.
-4. Run:
-   ```sh
-   swift Scripts/generate-store-screenshots.swift --platform macos --locale all
-   ```
-
-### Step 3: Verify Integrity & Release
-Run linter and verify dimensions:
-```sh
-./Scripts/lint.sh
-find Metadata/screenshots -name "*.png" ! -path "*/assets/*" | xargs sips -g pixelWidth -g pixelHeight -g hasAlpha
-```
-Upload to App Store Connect when cutting candidate:
+Upload to App Store Connect when cutting a candidate:
 ```sh
 Scripts/apple-app-store-connect-release-manager.swift screenshots ios <version>
 Scripts/apple-app-store-connect-release-manager.swift screenshots macos <version>

@@ -1,20 +1,70 @@
 # App Store Marketing Screenshots
 
-RefineID uses automated, high-fidelity marketing screenshots for **macOS (`APP_DESKTOP`)**, **iOS (`APP_IPHONE_67`)**, and **iPadOS (`APP_IPAD_PRO_3GEN_129`)** across all supported store locales (**Finnish `fi`**, **English `en-US`**, and **Swedish `sv`**).
+## The command
 
-All marketing screenshots are generated with zero alpha channel, top-anchored typographical rhythm, realistic device frames, ambient shadows, and an official dark Golden Gate wallpaper matching Apple Human Interface Guidelines and App Store Review Guidelines.
+```sh
+Scripts/apple-app-store-connect-release-manager.swift capture-screenshots
+```
 
----
+It refreshes every App Store screenshot: **macOS (`APP_DESKTOP`)**, **iPhone
+(`APP_IPHONE_67`)** and **iPad (`APP_IPAD_PRO_3GEN_129`)**, in **Finnish
+`fi`**, **English `en-US`** and **Swedish `sv`**. Narrow a run with
+`--platform macos|ios|ipad|all` and `--locale fi|en-US|sv|all` (both default
+to `all`):
 
-## macOS MVP
+```sh
+Scripts/apple-app-store-connect-release-manager.swift capture-screenshots --platform macos --locale fi
+```
 
-The macOS catalog contains one screenshot per locale: `01-authentication.png`.
-It shows a local card and reader. SCS, phone pairing, and wireless-reader claims
-must not appear. iOS and iPadOS retain their two-image catalogs.
-Recapture the macOS window from this build before composing the final assets;
-older `window-card-*` inputs can contain remote connection indicators.
+For each chosen platform, locale and screen it:
 
-## 1. Specifications and Display Types
+1. Builds the Debug app into `build/store-screenshots/`.
+2. Launches it in the screen's demonstration state: a virtual card with the
+   synthetic identity, the locale forced with `-AppleLanguages` and
+   `-AppleLocale`, and `--hide-diagnostics`.
+3. Captures the screen into `assets/` once it shows content and three
+   captures a second apart are identical, so no launch screen or animation
+   frame is kept.
+4. Composes the store images into `<locale>/<DISPLAY_TYPE>/` with
+   `Scripts/generate-store-screenshots.swift`, and checks each one's size, that
+   it has no alpha channel, and that there is one image per screen.
+
+No step is manual.
+
+- **Mac.** The Mac window is captured from a second copy of the app, built
+  from this checkout and launched beside any installed copy, which keeps
+  running: a virtual-card launch holds no card session, uses in-memory stores,
+  and restores no saved window state. Its token extensions are
+  unregistered when the captures are done. The launch pins dark appearance and
+  standard contrast and transparency, whatever this Mac's accessibility
+  settings are. The terminal needs Screen Recording permission, and the window
+  must be on a Retina display.
+- **iPhone and iPad.** The captures run on two simulators of their own,
+  `RefineID Store iPhone` (iPhone 16 Plus) and `RefineID Store iPad` (iPad Pro
+  12.9-inch, 6th generation), created on first use. Each starts from a fresh
+  install, in dark appearance with standard contrast and text size, with the
+  status bar at `9:41` in the locale's format, full Wi-Fi and cellular signal
+  and a charged battery. The simulator restarts for each locale, since its
+  status bar reads the region once per boot. The iPad status bar's date and app name
+  are painted over, keeping the time.
+
+## Screens
+
+| Platform | Store image | Raw capture | Demonstration state |
+| :--- | :--- | :--- | :--- |
+| macOS | `01-authentication.png` | `window-card-<lang>.png` | Card in this Mac's reader: the holder's name, PIN Codes in the toolbar (`--virtual-card activated-reader`) |
+| macOS | `02-phone.png` | `window-phone-<lang>.png` | Paired phone serving the card, remote use on and connected (`--virtual-card activated-reader --mock-remote-connected`) |
+| iPhone | `01-app-main.png` | `iphone-main-<lang>.png` | Main screen, remote access connected (`--virtual-card registered-nfc --mock-remote-connected`) |
+| iPhone | `02-documents.png` | `iphone-documents-<lang>.png` | Signing a document (`--virtual-card registered-nfc --open-document-signing`) |
+| iPad | `01-main.png` | `ipad-main-<lang>.png` | Main screen, remote access connected (`--virtual-card activated-reader --mock-remote-connected`) |
+| iPad | `02-documents.png` | `ipad-documents-<lang>.png` | Signing a document (`--virtual-card activated-reader --open-document-signing`) |
+
+`<lang>` is `fi`, `en` or `sv`. The holder is the virtual card's synthetic
+identity: `ESIMERKKI ERJA` in Finnish, `EXEMPEL EVA` in Swedish and `DOE JANE`
+in English. The paired phone is labelled `iPhone 15 Pro Max`. The
+demonstration flags exist in Debug builds only.
+
+## Specifications and Display Types
 
 | Platform | App Store `DISPLAY_TYPE` | Target Device | Canvas Resolution | Aspect Ratio | Color Space & Alpha |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -22,23 +72,13 @@ older `window-card-*` inputs can contain remote connection indicators.
 | **iOS** | `APP_IPHONE_67` | iPhone 6.7″ / 6.9″ Pro Max & Plus | **1290 × 2796 px** | 19.5:9 | sRGB, 0% alpha (`noneSkipLast`) |
 | **iPadOS** | `APP_IPAD_PRO_3GEN_129` | iPad Pro 12.9″ / 13″ (6th gen) | **2048 × 2732 px** | 4:3 | sRGB, 0% alpha (`noneSkipLast`) |
 
-### Strict Apple Store Standards Enforced:
-1. **0% Alpha Channel**: Apple Store Connect rejects screenshots with an alpha channel. The generator allocates 32-bit bitmaps with `CGImageAlphaInfo.noneSkipLast.rawValue` to guarantee `hasAlpha: no`.
-2. **Pristine Status Bar**: 
-   - Status bar time is frozen at `9:41`.
-   - Full Wi-Fi (3 bars) and Cellular (4 bars) signal.
-   - Battery state: `100% charged`.
-3. **Timeless iPad Status Bar**:
-   - Standard iPad simulator captures display a localized calendar date (e.g. `Sat 26. Sep`), causing screenshots to visually date quickly.
-   - The capture tooling programmatically patches out the calendar date with an exact dark background fill while keeping the `9:41` clock and system indicators intact.
-4. **Clean Production State**:
-   - Apps launch with `--hide-diagnostics` to suppress debug overlays, telemetry footers, and diagnostic buttons.
-5. **Data Privacy**:
-   - Synthetic citizen identities only (`ESIMERKKI ERJA 12345678N` / `DOE JANE 12345678N`). Never capture or display real credentials or real personal data.
+App Store Connect rejects screenshots with an alpha channel. The generator
+allocates 32-bit bitmaps with `CGImageAlphaInfo.noneSkipLast.rawValue` to
+guarantee `hasAlpha: no`.
 
 ---
 
-## 2. Visual Architecture & Design System
+## Visual Architecture & Design System
 
 The screenshot design system provides visual consistency when users swipe through the App Store carousel:
 
@@ -83,102 +123,69 @@ The screenshot design system provides visual consistency when users swipe throug
 
 ---
 
-## 3. Directory Layout
+## Directory Layout
 
 ```
 Metadata/screenshots/
 ├── README.md                                    # This documentation
-├── assets/                                      # Source assets used by the Swift generator
+├── assets/                                      # Raw captures and the wallpaper the composer reads
 │   ├── golden-gate-dark.png                     # Dark Golden Gate wallpaper canvas
-│   ├── iphone-main-{fi,en,sv}.png               # iPhone Screen 01 (Authentication & card)
-│   ├── iphone-documents-{fi,en,sv}.png          # iPhone Screen 02 (Document signing)
-│   ├── ipad-main-{fi,en,sv}.png                 # iPad Screen 01 (Authentication & card)
-│   ├── ipad-documents-{fi,en,sv}.png            # iPad Screen 02 (Document signing)
-│   ├── window-card-{fi,en,sv}.png               # macOS Screen 01 (Authentication window)
-│   └── window-documents-{fi,en,sv}.png          # macOS Screen 02 (Document signing window)
-├── fi/                                          # Finnish App Store Screenshots
-│   ├── APP_DESKTOP/                             # 2880x1800 macOS (01-authentication)
+│   ├── window-card-{fi,en,sv}.png               # macOS 01 (card in this Mac's reader)
+│   ├── window-phone-{fi,en,sv}.png              # macOS 02 (paired phone)
+│   ├── iphone-main-{fi,en,sv}.png               # iPhone 01 (main screen)
+│   ├── iphone-documents-{fi,en,sv}.png          # iPhone 02 (document signing)
+│   ├── ipad-main-{fi,en,sv}.png                 # iPad 01 (main screen)
+│   └── ipad-documents-{fi,en,sv}.png            # iPad 02 (document signing)
+├── fi/                                          # Finnish App Store screenshots
+│   ├── APP_DESKTOP/                             # 2880x1800 macOS (01-authentication, 02-phone)
 │   ├── APP_IPHONE_67/                           # 1290x2796 iPhone (01-app-main, 02-documents)
 │   └── APP_IPAD_PRO_3GEN_129/                   # 2048x2732 iPad (01-main, 02-documents)
-├── en-US/                                       # English App Store Screenshots (same hierarchy)
-└── sv/                                          # Swedish App Store Screenshots (same hierarchy)
+├── en-US/                                       # English App Store screenshots (same hierarchy)
+└── sv/                                          # Swedish App Store screenshots (same hierarchy)
 ```
 
 ---
 
-## 4. Localized Slides Content Catalog
+## Localized Slides Content Catalog
 
-| Locale | Slide | Title | Subtitle |
-| :--- | :--- | :--- | :--- |
-| **fi** | 01 | **Tunnistaudu henkilökortilla verkkopalveluihin** | Voit käyttää myös puhelinta langattomana kortinlukijana. |
-| **fi** | 02 | **Allekirjoita asiakirjoja** | Luo ja tarkasta hyväksyttyjä sähköisiä allekirjoituksia. |
-| **en-US**| 01 | **Log in to web services with your identity card** | You can also use your phone as a wireless card reader. |
-| **en-US**| 02 | **Sign documents** | Create and verify qualified electronic signatures. |
-| **sv** | 01 | **Identifiera dig till e-tjänster med identitetskort** | Du kan även använda telefonen som trådlös kortläsare. |
-| **sv** | 02 | **Underteckna dokument** | Skapa och granska kvalificerade elektroniska underskrifter. |
+The captions live in `Scripts/generate-store-screenshots.swift`.
+
+| Platform | Locale | Slide | Title | Subtitle |
+| :--- | :--- | :--- | :--- | :--- |
+| macOS | **fi** | 01 | **Tunnistaudu henkilökortilla verkkopalveluihin** | Liitä kortinlukija Maciin. |
+| macOS | **fi** | 02 | **Käytä puhelinta kortinlukijana** | (none) |
+| macOS | **en-US** | 01 | **Log in to web services with your identity card** | Connect a card reader to your Mac. |
+| macOS | **en-US** | 02 | **Use your phone as a card reader** | (none) |
+| macOS | **sv** | 01 | **Identifiera dig till e-tjänster med identitetskort** | Anslut en kortläsare till din Mac. |
+| macOS | **sv** | 02 | **Använd telefonen som kortläsare** | (none) |
+| iPhone, iPad | **fi** | 01 | **Tunnistaudu henkilökortilla verkkopalveluihin** | Voit käyttää myös puhelinta langattomana kortinlukijana. |
+| iPhone, iPad | **fi** | 02 | **Allekirjoita asiakirjoja** | Luo ja tarkasta hyväksyttyjä sähköisiä allekirjoituksia. |
+| iPhone, iPad | **en-US** | 01 | **Log in to web services with your identity card** | You can also use your phone as a wireless card reader. |
+| iPhone, iPad | **en-US** | 02 | **Sign documents** | Create and verify qualified electronic signatures. |
+| iPhone, iPad | **sv** | 01 | **Identifiera dig till e-tjänster med identitetskort** | Du kan även använda telefonen som trådlös kortläsare. |
+| iPhone, iPad | **sv** | 02 | **Underteckna dokument** | Skapa och granska kvalificerade elektroniska underskrifter. |
 
 ---
 
-## 5. Tooling & Execution
+## Composing Only
 
-### Composing Marketing Screenshots (`generate-store-screenshots.swift`)
-
-The Swift generator is the primary tool that renders marketing screenshots from the raw assets:
+After changing a caption or the layout, compose from the raw captures
+already in `assets/` without capturing again:
 
 ```sh
-# Generate all platforms and all locales (macOS, iOS, iPadOS for fi, en-US, sv):
 swift Scripts/generate-store-screenshots.swift --platform all --locale all
-
-# Or target a specific platform and locale:
-swift Scripts/generate-store-screenshots.swift --platform ios --locale fi
-swift Scripts/generate-store-screenshots.swift --platform ipad --locale en-US
 swift Scripts/generate-store-screenshots.swift --platform macos --locale sv
 ```
 
-### Capturing Simulator UI Assets (`store-screenshot-ios.sh`)
-
-When the application's visual interface changes, use `store-screenshot-ios.sh` to update simulator assets and immediately regenerate store screenshots:
-
-```sh
-# Capture all iPhone and iPad simulator screens and rebuild marketing screenshots:
-Scripts/store-screenshot-ios.sh --capture-assets --all
-
-# Or capture for a specific locale:
-Scripts/store-screenshot-ios.sh --capture-assets --locale fi
-
-# Or capture raw simulator screenshots into a custom directory without marketing framing:
-Scripts/store-screenshot-ios.sh --all --output-dir /tmp/raw-screenshots
-```
-
-**Simulator Launch Arguments automated by the script:**
-- **Main Screen (01)**:
-  `-AppleLanguages "($LANG)" -AppleLocale "$LOCALE" --hide-diagnostics --mock-remote-connected --virtual-card registered-nfc`
-- **Document Signing (02)**:
-  `-AppleLanguages "($LANG)" -AppleLocale "$LOCALE" --hide-diagnostics --open-document-signing --virtual-card registered-nfc`
-
-### Capturing macOS Window Assets (`store-screenshot.sh`)
-
-To update macOS window assets when the Mac UI changes:
-1. Launch RefineID in Debug mode with synthetic demo state:
-   ```sh
-   # Main card window:
-   build/Build/Products/Debug/RefineID.app/Contents/MacOS/RefineID --hide-diagnostics --mock-remote-connected --virtual-card registered-nfc -AppleLanguages '(fi)' -AppleLocale fi
-   ```
-2. Capture the window:
-   ```sh
-   Scripts/store-screenshot.sh window-card-fi
-   mv ~/Desktop/refineid-store-screenshots/window-card-fi.png Metadata/screenshots/assets/window-card-fi.png
-   ```
-3. Re-run `swift Scripts/generate-store-screenshots.swift --platform macos --locale fi`.
+The composer refuses to write a slide whose raw capture is missing.
 
 ---
 
-## 6. Verifying Compliance Before Submission
+## Verifying Compliance Before Submission
 
-To verify all output files comply with Apple requirements, run:
+`capture-screenshots` checks every composed image. To check by hand:
 
 ```sh
-# Verify resolutions and confirm hasAlpha: no across all files:
 find Metadata/screenshots -name "*.png" ! -path "*/assets/*" | xargs sips -g pixelWidth -g pixelHeight -g hasAlpha
 ```
 
@@ -186,7 +193,7 @@ Every screenshot must return `hasAlpha: no` and match the standard resolution fo
 
 ---
 
-## 7. Uploading to App Store Connect
+## Uploading to App Store Connect
 
 Upload screenshots through the automated release manager:
 

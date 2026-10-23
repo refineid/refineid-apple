@@ -18,6 +18,9 @@ import os.log
 /// another process: the first screen's task calls it, or the Mac's
 /// application delegate at a login launch, which shows no screen, and
 /// it leaves the main actor before touching the store.
+///
+/// A test or virtual-card run leaves the store alone: it is the system's,
+/// shared with the installed copy and the card in its reader.
 internal enum DisplacedRemoteCardWithdrawal {
   #if DEBUG
     /// Withdrawal counts, in development builds only.
@@ -34,7 +37,7 @@ internal enum DisplacedRemoteCardWithdrawal {
   /// Withdraws once per run, off the main actor.
   @MainActor
   internal static func performOnce() {
-    guard !performed else { return }
+    guard !performed, !TestCredentialEnvironment.isTestMode else { return }
     performed = true
     Task.detached(priority: .utility) {
       let dropped = DriverConfiguredCredentials.dropDisplacedRemoteCardConfigurations()
