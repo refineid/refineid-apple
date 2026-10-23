@@ -35,11 +35,9 @@ internal struct IdentityLineTests {
   private static let idle = RequesterFacts(
     availability: .noCard,
     warnsUnavailableCard: false,
-    readInFlight: false,
     readerConnected: false,
     cardPresent: false,
     remoteUse: true,
-    phonePresent: false,
     pairedPhone: nil
   )
 
@@ -50,16 +48,11 @@ internal struct IdentityLineTests {
       name: "an empty reader, nothing paired, still asks for a pairing code",
       facts: with { $0.readerConnected = true }, line: .pairPhone),
     Case(
-      name: "a phone on the network without a pairing asks for a pairing code",
-      facts: with { $0.phonePresent = true }, line: .pairPhone),
+      name: "a phone's word without a pairing asks for a pairing code",
+      facts: with { $0.phoneCardStatus = noCardReaderAttached }, line: .pairPhone),
     Case(
-      name: "a forgotten pairing's phone in sight asks for a pairing code",
-      facts: with { facts in
-        facts.availability = .cardWithoutIdentity
-        facts.phonePresent = true
-        facts.readInFlight = true
-      },
-      line: .pairPhone),
+      name: "an identity left without a pairing asks for a pairing code",
+      facts: with { $0.availability = .ready }, line: .pairPhone),
     Case(
       name: "the phone that forgot this computer is named",
       facts: with { $0.phoneThatForgot = phone }, line: .phoneForgot(phone)),
@@ -87,7 +80,6 @@ internal struct IdentityLineTests {
         facts.readerConnected = true
         facts.cardPresent = true
         facts.pairedPhone = phone
-        facts.phonePresent = true
         facts.phoneCardStatus = cardInReader
       },
       line: .localHolder),
@@ -114,8 +106,6 @@ internal struct IdentityLineTests {
         facts.availability = .cardWithoutIdentity
         facts.cardPresent = true
         facts.pairedPhone = phone
-        facts.phonePresent = true
-        facts.readInFlight = true
       },
       line: .reading),
     Case(
@@ -130,43 +120,20 @@ internal struct IdentityLineTests {
 
     // A paired phone, no card here.
     Case(
-      name: "a paired phone out of sight names the phone alone",
-      facts: with { $0.pairedPhone = phone }, line: .paired(.away, phone: phone)),
+      name: "a paired phone offering no identity is connecting",
+      facts: with { $0.pairedPhone = phone }, line: .paired(.connecting, phone: phone)),
     Case(
-      name: "a paired phone out of sight beside an empty reader asks for the card here",
+      name: "a paired phone beside an empty reader here is connecting",
       facts: with { facts in
         facts.readerConnected = true
         facts.pairedPhone = phone
       },
-      line: .paired(.insertCard, phone: phone)),
-    Case(
-      name: "a paired phone present, no card reported yet, is connecting",
-      facts: with { facts in
-        facts.pairedPhone = phone
-        facts.phonePresent = true
-      },
       line: .paired(.connecting, phone: phone)),
     Case(
-      name: "a paired phone here with its card unread is connecting",
+      name: "a paired phone with its card unread is connecting",
       facts: with { facts in
         facts.availability = .cardWithoutIdentity
         facts.pairedPhone = phone
-        facts.phonePresent = true
-      },
-      line: .paired(.connecting, phone: phone)),
-    Case(
-      name: "a read in flight is connecting",
-      facts: with { facts in
-        facts.pairedPhone = phone
-        facts.readInFlight = true
-      },
-      line: .paired(.connecting, phone: phone)),
-    Case(
-      name: "a read in flight beats an empty reader",
-      facts: with { facts in
-        facts.readerConnected = true
-        facts.pairedPhone = phone
-        facts.readInFlight = true
       },
       line: .paired(.connecting, phone: phone)),
     Case(
@@ -174,65 +141,21 @@ internal struct IdentityLineTests {
       facts: with { facts in
         facts.availability = .cardWithoutIdentity
         facts.pairedPhone = phone
-        facts.phonePresent = true
         facts.warnsUnavailableCard = true
       },
       line: .paired(.connecting, phone: phone)),
     Case(
-      name: "a paired phone holds no card, its reader attached",
+      name: "a phone holding a card in its reader, the card unread, is connecting",
       facts: with { facts in
         facts.pairedPhone = phone
-        facts.phonePresent = true
-        facts.phoneCardStatus = noCardReaderAttached
+        facts.phoneCardStatus = cardInReader
       },
-      line: .paired(.phoneCard(.insertIntoPhoneReader), phone: phone)),
-    Case(
-      name: "a paired phone holds no card and has no reader",
-      facts: with { facts in
-        facts.pairedPhone = phone
-        facts.phonePresent = true
-        facts.phoneCardStatus = noCardNoReader
-      },
-      line: .paired(.phoneCard(.placeOnPhone), phone: phone)),
-    Case(
-      name: "a phone without a card outranks the identity still in its grace",
-      facts: with { facts in
-        facts.availability = .ready
-        facts.pairedPhone = phone
-        facts.phoneCardStatus = noCardReaderAttached
-      },
-      line: .paired(.phoneCard(.insertIntoPhoneReader), phone: phone)),
-    Case(
-      name: "a phone without a card or a reader outranks the identity still in its grace",
-      facts: with { facts in
-        facts.availability = .ready
-        facts.pairedPhone = phone
-        facts.phoneCardStatus = noCardNoReader
-      },
-      line: .paired(.phoneCard(.placeOnPhone), phone: phone)),
-    Case(
-      name: "a phone without a card, its card unread, asks for the card",
-      facts: with { facts in
-        facts.availability = .cardWithoutIdentity
-        facts.pairedPhone = phone
-        facts.phonePresent = true
-        facts.phoneCardStatus = noCardNoReader
-      },
-      line: .paired(.phoneCard(.placeOnPhone), phone: phone)),
-    Case(
-      name: "an empty reader here outranks a phone without a card",
-      facts: with { facts in
-        facts.readerConnected = true
-        facts.pairedPhone = phone
-        facts.phoneCardStatus = noCardReaderAttached
-      },
-      line: .paired(.insertCard, phone: phone)),
+      line: .paired(.connecting, phone: phone)),
     Case(
       name: "a phone holding a card in its reader shows the holder",
       facts: with { facts in
         facts.availability = .ready
         facts.pairedPhone = phone
-        facts.phonePresent = true
         facts.phoneCardStatus = cardInReader
       },
       line: .paired(.holder, phone: phone)),
@@ -242,18 +165,62 @@ internal struct IdentityLineTests {
         facts.availability = .ready
         facts.readerConnected = true
         facts.pairedPhone = phone
-        facts.phonePresent = true
         facts.phoneCardStatus = cardInReader
       },
       line: .paired(.holder, phone: phone)),
     Case(
-      name: "a phone holding a card in its reader, the card unread, is connecting",
+      name: "an identity with no word from the phone yet shows the holder",
+      facts: with { facts in
+        facts.availability = .ready
+        facts.pairedPhone = phone
+      },
+      line: .paired(.holder, phone: phone)),
+    Case(
+      name: "a phone without a card reader reporting no card keeps the holder",
+      facts: with { facts in
+        facts.availability = .ready
+        facts.pairedPhone = phone
+        facts.phoneCardStatus = noCardNoReader
+      },
+      line: .paired(.holder, phone: phone)),
+    Case(
+      name: "a phone without a card reader reporting no card, no identity, is connecting",
       facts: with { facts in
         facts.pairedPhone = phone
-        facts.phonePresent = true
-        facts.phoneCardStatus = cardInReader
+        facts.phoneCardStatus = noCardNoReader
       },
       line: .paired(.connecting, phone: phone)),
+    Case(
+      name: "a phone's empty card reader asks for the card",
+      facts: with { facts in
+        facts.pairedPhone = phone
+        facts.phoneCardStatus = noCardReaderAttached
+      },
+      line: .paired(.phoneReader, phone: phone)),
+    Case(
+      name: "a phone's empty card reader outranks the identity still in its grace",
+      facts: with { facts in
+        facts.availability = .ready
+        facts.pairedPhone = phone
+        facts.phoneCardStatus = noCardReaderAttached
+      },
+      line: .paired(.phoneReader, phone: phone)),
+    Case(
+      name: "a phone's empty card reader, its card unread, asks for the card",
+      facts: with { facts in
+        facts.availability = .cardWithoutIdentity
+        facts.pairedPhone = phone
+        facts.phoneCardStatus = noCardReaderAttached
+      },
+      line: .paired(.phoneReader, phone: phone)),
+    Case(
+      name: "a phone's empty card reader outranks an empty reader here",
+      facts: with { facts in
+        facts.readerConnected = true
+        facts.pairedPhone = phone
+        facts.phoneCardStatus = noCardReaderAttached
+      },
+      line: .paired(.phoneReader, phone: phone)),
   ]
 
   private static func with(_ change: (inout RequesterFacts) -> Void) -> RequesterFacts {

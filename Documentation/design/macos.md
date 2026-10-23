@@ -96,20 +96,35 @@ every other change is a change of colour.
 | Card in this Mac's reader, name not read yet | "Reading information…" | |
 | Card in this Mac's reader | *HOLDER NAME* | |
 | Card in this Mac's reader, not ready after a while | the re-insert warning | |
-| Paired phone out of sight | "Paired phone: *phone*" | minus |
-| Paired phone, card on its way | "Connecting... (paired phone: *phone*)" | minus |
-| Paired phone with its card | "*HOLDER NAME* (paired phone: *phone*)" | minus |
-| Paired phone without a card | "Place the card on the phone." or "Insert the card into the phone's card reader.", then "(paired phone: *phone*)" | minus |
-| Paired phone, empty reader here | "Insert the card into the reader. (paired phone: *phone*)" | minus |
+| Paired phone, no identity from it yet | "Connecting to the phone…" | minus |
+| Paired phone, its identity offered | "*HOLDER NAME* (paired: *phone*)" | minus |
+| Paired phone, its card reader empty | "Insert the card into the phone's card reader." | minus |
 
 A card inserted into this Mac's reader shows "Reading information…" in the
 secondary text color until its token is published and the holder's name
 is read, which takes a second or two.
 
-The phone part of a line is in the secondary text color. The phone's
-reader decides which instruction a phone without a card gets (RAPP
-v26.10.22 §8.4 item 6). The controls sit at the right end of the line,
-vertically centered. Each is a button with a VoiceOver label and a tooltip.
+A paired phone's line takes the first of these that holds:
+
+1. The phone reports no card in the card reader attached to it (RAPP
+   v26.10.22 §8.4 item 6): "Insert the card into the phone's card
+   reader.", even while its identity is still offered in its grace.
+2. The phone's identity is offered: the holder's line. A phone without a
+   card reader reporting no card leaves it standing.
+3. Otherwise: "Connecting to the phone…".
+
+An empty reader on this Mac leaves a paired phone's line as it is. Until
+the holder's name is read, the holder's line says "Connecting to the
+phone…". Only the holder's name is in the primary text color; the rest
+of a paired phone's line is secondary.
+
+*phone* is the phone's model, the `platform` its pairing hello sent,
+when the model begins with the `display_name` it sent, ignoring case: an
+iPhone named "iPhone" shows as "iPhone 15 Pro Max". Otherwise *phone* is
+that name. The same label names a pairing in the paired list.
+
+The controls sit at the right end of the line, vertically centered. Each
+is a button with a VoiceOver label and a tooltip.
 
 - **Minus** (`person.badge.minus`, "Remove phone pairing"). It
   forgets the paired phone at once, with no confirmation. The line drops

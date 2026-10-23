@@ -6521,6 +6521,22 @@
         }
       }
     },
+    "Connecting to the phone…": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yhdistetään puhelimeen…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ansluter till telefonen…"
+          }
+        }
+      }
+    },
     "Open RefineID remote access on your phone and enter the pairing code:": {
       "localizations": {
         "fi": {
@@ -6598,34 +6614,18 @@
         }
       }
     },
-    "(paired phone: %@)": {
+    "(paired: %@)": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "(yhdistetty puhelin: %@)"
+            "value": "(yhdistetty: %@)"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "(kopplad telefon: %@)"
-          }
-        }
-      }
-    },
-    "Paired phone: %@": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Yhdistetty puhelin: %@"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kopplad telefon: %@"
+            "value": "(kopplad: %@)"
           }
         }
       }

@@ -199,7 +199,9 @@
     /// identity leaves at once, and the row names the phone that did it.
     internal func holderRevoked(pairID: Data) {
       let vault = RappDeviceVault()
-      let name = RappPairNames.name(forPairID: pairID)
+      let name = RappPairNames.label(
+        name: RappPairNames.name(forPairID: pairID),
+        model: RappPairNames.model(forPairID: pairID))
       if holderSession?.pairID == pairID {
         closeHolderSession()
       }

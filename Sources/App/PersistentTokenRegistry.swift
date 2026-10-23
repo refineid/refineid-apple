@@ -62,10 +62,6 @@
       #endif
     }
 
-    internal static let fetchStateDidChangeNotification = Notification.Name(
-      "fi.refineid.PersistentTokenRegistry.fetchStateDidChange"
-    )
-
     // MARK: Static Computed Properties
 
     internal static var driverConfiguration: TKTokenDriver.Configuration? {
@@ -358,18 +354,12 @@
     /// Marks a certificate read as in flight.
     internal func beginRead() {
       isRunning = true
-      NotificationCenter.default.post(
-        name: Self.fetchStateDidChangeNotification, object: nil)
     }
 
     /// Takes what a certificate read produced; a certificate is offered,
     /// a failure is counted for the next attempt.
     internal func finishRead(_ fetched: Data?) {
-      defer {
-        isRunning = false
-        NotificationCenter.default.post(
-          name: Self.fetchStateDidChangeNotification, object: nil)
-      }
+      defer { isRunning = false }
       guard let fetched else {
         fetchBackoff.recordFailure(at: .now)
         #if REFINEID_STREAM_TRANSPORT

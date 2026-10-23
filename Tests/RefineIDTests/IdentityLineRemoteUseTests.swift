@@ -24,11 +24,9 @@ internal struct IdentityLineRemoteUseTests {
   private static let off = RequesterFacts(
     availability: .noCard,
     warnsUnavailableCard: false,
-    readInFlight: false,
     readerConnected: false,
     cardPresent: false,
     remoteUse: false,
-    phonePresent: false,
     pairedPhone: nil
   )
 
@@ -39,11 +37,7 @@ internal struct IdentityLineRemoteUseTests {
       facts: with { $0.readerConnected = true }, line: .insertCard),
     Case(
       name: "a paired phone is not named",
-      facts: with { facts in
-        facts.pairedPhone = phone
-        facts.phonePresent = true
-      },
-      line: .connectReader),
+      facts: with { $0.pairedPhone = phone }, line: .connectReader),
     Case(
       name: "a paired phone is not named beside an empty reader",
       facts: with { facts in
@@ -85,7 +79,7 @@ internal struct IdentityLineRemoteUseTests {
   }
 
   /// Turning remote use on brings the pairing prompt beside an empty
-  /// reader, and the paired phone's line with a pairing.
+  /// reader, and with a pairing the paired phone's line, connecting.
   @Test
   internal func remoteUseOnBringsThePhoneBack() {
     var facts = Self.with { $0.readerConnected = true }
@@ -93,6 +87,6 @@ internal struct IdentityLineRemoteUseTests {
     facts.remoteUse = true
     #expect(IdentityLine.derive(facts) == .pairPhone)
     facts.pairedPhone = Self.phone
-    #expect(IdentityLine.derive(facts) == .paired(.insertCard, phone: Self.phone))
+    #expect(IdentityLine.derive(facts) == .paired(.connecting, phone: Self.phone))
   }
 }
