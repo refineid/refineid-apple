@@ -30,6 +30,12 @@ let macosCatalog: [String: [SlideData]] = [
             title: "Tunnistaudu henkilökortilla verkkopalveluihin",
             subtitle: "Liitä kortinlukija Maciin.",
             assetName: "window-card-fi.png"
+        ),
+        SlideData(
+            filename: "02-phone.png",
+            title: "Käytä puhelinta kortinlukijana",
+            subtitle: "PIN-koodit pysyvät puhelimessa.",
+            assetName: "window-phone-fi.png"
         )
     ],
     "en-US": [
@@ -38,6 +44,12 @@ let macosCatalog: [String: [SlideData]] = [
             title: "Log in to web services with your identity card",
             subtitle: "Connect a card reader to your Mac.",
             assetName: "window-card-en.png"
+        ),
+        SlideData(
+            filename: "02-phone.png",
+            title: "Use your phone as a card reader",
+            subtitle: "Your PIN codes stay on the phone.",
+            assetName: "window-phone-en.png"
         )
     ],
     "sv": [
@@ -46,6 +58,12 @@ let macosCatalog: [String: [SlideData]] = [
             title: "Identifiera dig till e-tjänster med identitetskort",
             subtitle: "Anslut en kortläsare till din Mac.",
             assetName: "window-card-sv.png"
+        ),
+        SlideData(
+            filename: "02-phone.png",
+            title: "Använd telefonen som kortläsare",
+            subtitle: "PIN-koderna stannar i telefonen.",
+            assetName: "window-phone-sv.png"
         )
     ]
 ]
@@ -278,8 +296,11 @@ func renderMacOS(locale: String, slide: SlideData) {
     if let winImg = NSImage(contentsOf: windowURL) {
         let maxAvailableWidth = CGFloat(width) - 300
         let maxAvailableHeight = currentTopY - 60
-        let imgW = winImg.size.width
-        let imgH = winImg.size.height
+        // Sized by pixels, not points: a Retina capture says 144 dpi, which
+        // would otherwise halve the window on the canvas.
+        let pixels = winImg.representations.first
+        let imgW = CGFloat(pixels?.pixelsWide ?? Int(winImg.size.width))
+        let imgH = CGFloat(pixels?.pixelsHigh ?? Int(winImg.size.height))
         var scale = min(maxAvailableWidth / imgW, maxAvailableHeight / imgH)
         if scale > 2.05 { scale = 2.05 }
         let drawW = imgW * scale
@@ -620,6 +641,23 @@ func renderIPad(locale: String, slide: SlideData) {
     let destination = targetDir.appendingPathComponent(slide.filename)
     try? pngData.write(to: destination)
     print("Wrote \(destination.path) [\(width)x\(height), 0% alpha]")
+}
+
+/// Stops before drawing a slide whose capture is missing: a store image
+/// without its screen must never be written.
+func requireAsset(_ slide: SlideData) {
+    let asset = assetsDir.appendingPathComponent(slide.assetName)
+    guard FileManager.default.fileExists(atPath: asset.path) else {
+        FileHandle.standardError.write(Data("Error: missing capture \(asset.path)\n".utf8))
+        exit(1)
+    }
+}
+
+for locale in locales {
+    for platform in platforms {
+        let catalog = platform == "macos" ? macosCatalog : (platform == "ios" ? iosCatalog : ipadCatalog)
+        catalog[locale]?.forEach(requireAsset)
+    }
 }
 
 for locale in locales {

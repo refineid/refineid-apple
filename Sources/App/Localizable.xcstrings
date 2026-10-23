@@ -1824,18 +1824,19 @@
         }
       }
     },
-    "DOE JANE 12345678N": {
+    "DOE JANE": {
+      "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "ESIMERKKI ERJA 12345678N"
+            "value": "ESIMERKKI ERJA"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "EXEMPEL EVA 12345678N"
+            "value": "EXEMPEL EVA"
           }
         }
       }

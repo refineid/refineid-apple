@@ -108,9 +108,15 @@
     /// What the row knows now.
     ///
     /// A demonstration's card sits in a virtual reader, and no phone is
-    /// paired with it.
+    /// paired with it unless a development launch shows one
+    /// (``DemoPairedPhone``).
     private var facts: RequesterFacts {
       if DemoMode.shared.isActive {
+        #if DEBUG
+          if DemoPairedPhone.isShown {
+            return DemoPairedPhone.facts(availability: availability)
+          }
+        #endif
         let card = DemoMode.shared.state.card
         return RequesterFacts(
           availability: availability,

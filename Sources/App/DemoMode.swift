@@ -22,7 +22,7 @@
 
     internal static let shared = DemoMode()
 
-    internal static let launchArgument = "--virtual-card"
+    nonisolated internal static let launchArgument = "--virtual-card"
 
     /// A demonstration fakes the antenna, never the device class: only
     /// an iPhone is offered near-field states.

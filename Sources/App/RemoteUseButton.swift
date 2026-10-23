@@ -27,11 +27,17 @@
     /// Whether a card is in this Mac's reader, or in a demonstration's
     /// virtual one.
     private var readerCardIsPresent: Bool {
-      demoMode.isActive ? demoMode.isReaderCardPresent : cardPresence.isReaderCardPresent
+      #if DEBUG
+        if DemoPairedPhone.isShown { return false }
+      #endif
+      return demoMode.isActive ? demoMode.isReaderCardPresent : cardPresence.isReaderCardPresent
     }
 
     private var state: RemoteUseState {
-      RemoteUseState.derive(
+      #if DEBUG
+        if DemoPairedPhone.isShown { return .connected }
+      #endif
+      return RemoteUseState.derive(
         isOn: remoteUse.isOn,
         sessionOpen: registry.holderSessionOpen,
         blockage: remoteUse.blockage)
