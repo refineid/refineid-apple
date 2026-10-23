@@ -1893,15 +1893,22 @@ private func installMacOS(_ arguments: [String], stamp: Bool = true) {
   installRemoveStrayCopies(keeping: built)
   installRemoveStaleBuildTrees(sparing: installMacDerivedData)
   installKillMacApp()
-  if installExtensionsUnchanged(built: built) {
-    installNote("install-macos", "extension unchanged; installing without asking for the card")
+  // CryptoTokenKit mints a token only when a card is inserted, so stopping
+  // or unregistering a driver with the card in the reader leaves that card
+  // without a token until it is re-inserted. Unchanged extensions stay
+  // running and registered while the bundle around them is replaced.
+  let extensionsUnchanged = installExtensionsUnchanged(built: built)
+  if extensionsUnchanged {
+    installNote("install-macos", "extensions unchanged; keeping them running")
   } else {
     installWaitForCardRelease()
+    installStopExtensions()
   }
-  installStopExtensions()
 
   installNote("install-macos", "installing to \(installMacTarget.path)")
-  installUnregister(installMacTarget)
+  if !extensionsUnchanged {
+    installUnregister(installMacTarget)
+  }
   try? releaseFileManager.removeItem(at: installMacTarget)
   do {
     try releaseFileManager.copyItem(at: built, to: installMacTarget)
@@ -1929,8 +1936,12 @@ private func installMacOS(_ arguments: [String], stamp: Bool = true) {
   }
   installNote("install-macos", "launching \(installMacTarget.path)")
   releaseRun("/usr/bin/open", [installMacTarget.path])
-  installNote(
-    "install-macos", "done. Insert the card; CryptoTokenKit will mint it with the new driver.")
+  if extensionsUnchanged {
+    installNote("install-macos", "done.")
+  } else {
+    installNote(
+      "install-macos", "done. Insert the card; CryptoTokenKit will mint it with the new driver.")
+  }
 }
 
 // MARK: - Installs on iPhone and iPad
