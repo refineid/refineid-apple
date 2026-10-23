@@ -128,6 +128,24 @@
       saveDirectory(directory)
     }
 
+    /// Removes from the directory every device this one pairs with, so the
+    /// directory pairs none of them with it again; answers how many went.
+    @discardableResult
+    public func removeComplementaryDevices() -> Int {
+      let complementary = remoteDevices().filter { pairs(with: $0.role) }
+      for remote in complementary {
+        removeRemoteDevice(deviceID: remote.deviceID)
+      }
+      return complementary.count
+    }
+
+    /// Whether this device pairs with a device of `role`: a requester with
+    /// a holder, and a holder with a requester.
+    public func pairs(with role: RappDeviceRole) -> Bool {
+      (localRole == .requester && role == .holder)
+        || (localRole == .holder && role == .requester)
+    }
+
     /// Fetches all remote devices currently registered in iCloud.
     public func remoteDevices() -> [RappCloudDeviceRecord] {
       let directory = loadDirectory()
@@ -169,12 +187,7 @@
       var establishedPairs: [RappPairRecord] = []
 
       for remote in remotes {
-        // Pair with peers of the complementary role (or all peers if applicable)
-        let isComplementary =
-          (localRole == .requester && remote.role == .holder)
-          || (localRole == .holder && remote.role == .requester)
-
-        guard isComplementary else { continue }
+        guard pairs(with: remote.role) else { continue }
 
         let pairID = RappSameAccountPairBuilder.derivePairIdentifier(
           publicKeyA: localIdentity.publicKeyData,

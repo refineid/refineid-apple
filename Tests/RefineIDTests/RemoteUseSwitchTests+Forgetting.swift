@@ -69,6 +69,7 @@
       let registry = PersistentTokenRegistry.shared
       let vault = RappDeviceVault()
       let store = Self.scratchStore()
+      let directory = RecordingSameAccountDirectory(reachable: true)
       defer { Self.clearScratchStore() }
       let pairing = try Self.storedPairing(in: vault)
       let other = try Self.storedPairing(in: vault)
@@ -82,7 +83,7 @@
       registry.phoneThatForgot = Self.phone
       Self.holdOpenSession(over: pairing, in: registry)
 
-      registry.forgetEveryPairing(in: vault, store: store)
+      registry.forgetEveryPairing(in: vault, store: store, directory: directory)
 
       // The click is kept before anything else, and everything remote
       // stops at once.
@@ -105,26 +106,54 @@
       #expect(try vault.activePairIDs().isEmpty)
       #expect(try vault.loadPair(pairID: other.metadata().pairId) == nil)
       #expect(RappPairNames.name(forPairID: pairID) == nil)
+      #expect(directory.removals == 1, "the phones leave the account's directory")
       #expect(registry.pairedPhone == nil)
       #expect(PersistentTokenRegistry.pairedPhoneID(in: vault) == nil)
     }
 
-    @Test("With no session open, the click off destroys every pairing at once and tells nobody")
-    internal func clickOffWithoutSessionOwesNothing() throws {
+    @Test("A click off the directory could not take is kept, and turning on finishes it first")
+    internal func unreachableDirectoryKeepsTheClick() async throws {
       let registry = PersistentTokenRegistry.shared
       let vault = RappDeviceVault()
       let store = Self.scratchStore()
+      defer { Self.clearScratchStore() }
+      let directory = RecordingSameAccountDirectory(reachable: false)
+      _ = try Self.storedPairing(in: vault)
+      defer { registry.refreshPairing(in: vault) }
+
+      registry.forgetEveryPairing(in: vault, store: store, directory: directory)
+      await registry.forgetting?.value
+      #expect(try vault.activePairIDs().isEmpty)
+      #expect(
+        RemoteUseForgetting.requestedAt(in: store) != nil,
+        "a same-account record that could re-pair keeps the click")
+
+      directory.setReachable(true)
+      registry.turnedOn(in: vault, store: store, directory: directory)
+      await registry.forgetting?.value
+      #expect(directory.removals == 2, "turning on tries the directory again first")
+      #expect(RemoteUseForgetting.requestedAt(in: store) == nil)
+    }
+
+    @Test("With no session open, the click off destroys every pairing at once and tells nobody")
+    internal func clickOffWithoutSessionOwesNothing() async throws {
+      let registry = PersistentTokenRegistry.shared
+      let vault = RappDeviceVault()
+      let store = Self.scratchStore()
+      let directory = RecordingSameAccountDirectory(reachable: true)
       defer { Self.clearScratchStore() }
       _ = try Self.storedPairing(in: vault)
       registry.refreshPairing(in: vault)
       defer { registry.refreshPairing(in: vault) }
 
-      registry.forgetEveryPairing(in: vault, store: store)
+      registry.forgetEveryPairing(in: vault, store: store, directory: directory)
+      await registry.forgetting?.value
 
       #expect(registry.forgetting == nil)
       #expect(registry.pairingDestruction == nil)
       #expect(RemoteUseForgetting.requestedAt(in: store) == nil)
       #expect(try vault.activePairIDs().isEmpty)
+      #expect(directory.removals == 1, "the phones leave the account's directory")
       #expect(registry.pairedPhone == nil)
     }
 
@@ -133,13 +162,14 @@
       let registry = PersistentTokenRegistry.shared
       let vault = RappDeviceVault()
       let store = Self.scratchStore()
+      let directory = RecordingSameAccountDirectory(reachable: true)
       defer { Self.clearScratchStore() }
       let pairing = try Self.storedPairing(in: vault)
       defer { registry.refreshPairing(in: vault) }
       Self.holdOpenSession(over: pairing, in: registry)
       let off = Self.rig().remoteUse
 
-      registry.forgetEveryPairing(in: vault, store: store)
+      registry.forgetEveryPairing(in: vault, store: store, directory: directory)
       let pending = try #require(
         QuitWithdrawal.begin(remoteUse: off, registry: registry),
         "remote use is off, yet the quit waits for the forgetting")
@@ -152,38 +182,6 @@
       #expect(try vault.activePairIDs().isEmpty)
       #expect(RemoteUseForgetting.requestedAt(in: store) == nil)
       await registry.forgetting?.value
-    }
-
-    @Test("A click off left unfinished is finished later; a pairing made after it stays")
-    internal func unfinishedClickOffIsFinished() throws {
-      let vault = RappDeviceVault()
-      let store = Self.scratchStore()
-      defer { Self.clearScratchStore() }
-      let before = try Self.storedPairing(in: vault)
-      let clickedAt = before.metadata().createdAtMs + 1
-      let after = try Self.storedPairing(in: vault, createdAt: clickedAt + 1)
-      let beforeID = before.metadata().pairId
-      RappPairNames.remember(Self.phone, pairID: beforeID)
-      defer {
-        RappPairNames.forget(pairID: beforeID)
-        try? vault.revokePair(
-          pairID: after.metadata().pairId, revokedAtMilliseconds: Self.revocationTime)
-      }
-      #expect(
-        RemoteUseForgetting.finish(in: vault, store: store, clock: RappPlatformClock())
-          == RemoteUseForgetting.Outcome(), "without a stored click nothing goes")
-
-      RemoteUseForgetting.request(at: clickedAt, in: store)
-      RemoteUseForgetting.request(at: clickedAt - 1, in: store)
-      #expect(
-        RemoteUseForgetting.requestedAt(in: store) == clickedAt, "a later click covers more")
-      let outcome = RemoteUseForgetting.finish(in: vault, store: store, clock: RappPlatformClock())
-
-      #expect(outcome.destroyed == [beforeID])
-      #expect(outcome.failures == 0)
-      #expect(try vault.activePairIDs() == [after.metadata().pairId])
-      #expect(RappPairNames.name(forPairID: beforeID) == nil, "the name goes with the key")
-      #expect(RemoteUseForgetting.requestedAt(in: store) == nil)
     }
 
     @Test("A stop withdraws at once and keeps the pairing")

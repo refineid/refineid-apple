@@ -47,10 +47,11 @@ reads it as a toggle.
   item 6). The Mac stores the click first (`RemoteUseForgetting`). An open
   session closes with `pairing_revoked`, and the Mac waits at most 1
   second for that close to leave; then every pairing made before the
-  click is destroyed with its key, and its name goes once its key is
-  gone. A pairing the keychain does not let go stays under the stored
-  click, which turning on again and the next launch finish first; while
-  they cannot, remote use stays off. A connection still being made closes without a
+  click is destroyed with its key, its name goes once its key is gone,
+  and every phone the Mac pairs with leaves the account's same-account
+  directory. What the keychain or the directory does not let go stays
+  under the stored click, which turning on again and the next launch
+  finish first; while they cannot, remote use stays off. A connection still being made closes without a
   notice. A phone with no session open is told nothing and forgets this
   computer by its own idle expiry. The phone's identity is withdrawn at
   once, without its grace, and scanning stops. The click asks for no
@@ -68,8 +69,10 @@ reads it as a toggle.
 - **Launch.** Every launch, a start at login included, first finishes a
   click off that did not finish, then expires the pairings that had no
   session for 30 days, then restores remote use on while an active
-  pairing remains and off otherwise. It decides only after the readers
-  are looked at: a card in this Mac's reader starts remote use suspended.
+  pairing remains and off otherwise. It decides once the readers are
+  looked at, or after 3 seconds without an answer from them, as if no
+  card were in one: a card in this Mac's reader starts remote use
+  suspended, and a card seen later suspends it then.
   A launch that restores it on asks for no permission. Sleep leaves
   remote use as it was.
 

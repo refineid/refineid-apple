@@ -40,34 +40,6 @@
     }
 
     #if os(macOS) && REFINEID_REMOTE_CARD
-      /// Removes the same-account records of the phones `vault` pairs this
-      /// computer with, so the account's directory does not pair them again.
-      private static func removeSameAccountRecords(in vault: RappDeviceVault) {
-        let pairIDs: [Data]
-        do {
-          pairIDs = try vault.activePairIDs()
-        } catch {
-          #if DEBUG
-            DevErrorLog.report(
-              "remote use off: pairings not listed: \(DevErrorLog.reason(error))", source: .app)
-          #endif
-          return
-        }
-        let service = RappAutoPairingService.shared
-        let localKey = service.localIdentity?.publicKeyData
-        let names = Set(pairIDs.compactMap { RappPairNames.name(forPairID: $0)?.lowercased() })
-        for device in service.remoteDevices where device.role == .holder {
-          let derived = localKey.map { key in
-            RappSameAccountPairBuilder.derivePairIdentifier(
-              publicKeyA: key, publicKeyB: device.staticPublicKey)
-          }
-          let paired = derived.map(pairIDs.contains) ?? false
-          if paired || names.contains(device.deviceName.lowercased()) {
-            service.removeRemoteDevice(deviceID: device.deviceID)
-          }
-        }
-      }
-
       #if REFINEID_STREAM_TRANSPORT
         /// Waits for `closes`, at most `limit`, answering whether the close
         /// left in time.
@@ -103,31 +75,33 @@
         guard Self.dialsPhones else { return }
         switch move {
         case .forgetting:
-          forgetEveryPairing(in: RappDeviceVault(), store: .standard)
+          forgetEveryPairing(
+            in: RappDeviceVault(), store: .standard, directory: RappAutoPairingService.shared)
 
         case .stopped:
           withdraw()
 
         case .turnedOn:
-          turnedOn(in: RappDeviceVault(), store: .standard)
+          turnedOn(
+            in: RappDeviceVault(), store: .standard, directory: RappAutoPairingService.shared)
         }
       }
 
       /// Follows the holder's click turning remote use on.
       ///
-      /// A click off still forgetting starts following once its pairings
-      /// are gone. One whose pairings the vault refused is tried again
-      /// first, and while it cannot finish remote use stays off: a pairing
-      /// the holder forgot is never followed (CC-100).
-      private func turnedOn(in vault: RappDeviceVault, store: RemoteUseForgetting.Store) {
-        #if REFINEID_STREAM_TRANSPORT
-          guard forgetting == nil else { return }
-        #endif
-        let outcome = RemoteUseForgetting.finish(
-          in: vault, store: store, clock: RappPlatformClock())
-        RemoteUseForgetting.report(outcome)
+      /// A click off still forgetting follows once its pairings are gone.
+      /// One left unfinished is tried again first, and while it cannot
+      /// finish remote use stays off: a pairing the holder forgot is never
+      /// followed, and its phone's same-account record never pairs again
+      /// (CC-100).
+      internal func turnedOn(
+        in vault: RappDeviceVault,
+        store: RemoteUseForgetting.Store,
+        directory: any SameAccountDirectory
+      ) {
+        guard forgetting == nil else { return }
         guard RemoteUseForgetting.requestedAt(in: store) == nil else {
-          RemoteUseSwitch.shared.stop()
+          finishForgetting(after: nil, in: vault, store: store, directory: directory)
           return
         }
         start()
@@ -141,43 +115,60 @@
       /// The phone's identity leaves at once and everything remote stops.
       /// An open session closes with `pairing_revoked`; once its close left,
       /// or after ``QuitWithdrawal/bound``, every pairing `vault` held is
-      /// destroyed with its key, off the main thread so a quit can wait on
-      /// it. A phone with no session open is told nothing. A same-account
-      /// record that would pair the phone again goes too.
+      /// destroyed with its key and every phone this computer pairs with
+      /// leaves the account's `directory`, off the main thread so a quit can
+      /// wait on it. A phone with no session open is told nothing.
       internal func forgetEveryPairing(
-        in vault: RappDeviceVault, store: RemoteUseForgetting.Store
+        in vault: RappDeviceVault,
+        store: RemoteUseForgetting.Store,
+        directory: any SameAccountDirectory
       ) {
-        let clock = RappPlatformClock()
-        RemoteUseForgetting.request(at: clock.wallMilliseconds(), in: store)
+        RemoteUseForgetting.request(at: RappPlatformClock().wallMilliseconds(), in: store)
         phoneThatForgot = nil
-        Self.removeSameAccountRecords(in: vault)
         #if REFINEID_STREAM_TRANSPORT
           let closes = revokeHolderSession()
-          withdraw()
-          guard let closes else {
-            forgotten(RemoteUseForgetting.finish(in: vault, store: store, clock: clock), in: vault)
-            return
-          }
-          let destruction = Task.detached {
-            _ = await Self.settled(closes, atMost: QuitWithdrawal.bound)
-            return RemoteUseForgetting.finish(in: vault, store: store, clock: clock)
-          }
-          pairingDestruction = destruction
-          forgetting = Task { @MainActor [weak self] in
-            let outcome = await destruction.value
-            guard let self else { return }
-            pairingDestruction = nil
-            forgetting = nil
-            forgotten(outcome, in: vault)
-            // The holder turned remote use on again meanwhile.
-            if Self.followsPhone {
-              turnedOn(in: vault, store: store)
-            }
-          }
         #else
-          withdraw()
-          forgotten(RemoteUseForgetting.finish(in: vault, store: store, clock: clock), in: vault)
+          let closes: Task<Bool, Never>? = nil
         #endif
+        withdraw()
+        finishForgetting(after: closes, in: vault, store: store, directory: directory)
+      }
+
+      /// Finishes the stored click once `closes` left or its bound passed,
+      /// off the main thread, then follows on the main actor: with remote
+      /// use on again, the paired phone is followed once nothing the click
+      /// forgets is left, and remote use goes off while something is.
+      private func finishForgetting(
+        after closes: Task<Bool, Never>?,
+        in vault: RappDeviceVault,
+        store: RemoteUseForgetting.Store,
+        directory: any SameAccountDirectory
+      ) {
+        let clock = RappPlatformClock()
+        let destruction = Task.detached {
+          #if REFINEID_STREAM_TRANSPORT
+            if let closes {
+              _ = await Self.settled(closes, atMost: QuitWithdrawal.bound)
+            }
+          #endif
+          return await RemoteUseForgetting.finish(
+            in: vault, store: store, clock: clock, directory: directory)
+        }
+        pairingDestruction = destruction
+        forgetting = Task { @MainActor [weak self] in
+          let outcome = await destruction.value
+          guard let self else { return }
+          pairingDestruction = nil
+          forgetting = nil
+          forgotten(outcome, in: vault)
+          guard Self.followsPhone else { return }
+          if RemoteUseForgetting.requestedAt(in: store) == nil {
+            start()
+            RappAutoPairingService.shared.reconcile()
+          } else {
+            RemoteUseSwitch.shared.stop()
+          }
+        }
       }
 
       /// Follows what forgetting the pairings did: a failure is reported,

@@ -11,6 +11,14 @@ import RappEngine
 extension RefineIDApp {
   private static var pairingsChangeObserver: (any NSObjectProtocol)?
 
+  #if os(macOS) && REFINEID_REMOTE_CARD
+    /// How long a launch waits for the first look at the card readers
+    /// before it decides remote use as if no card were in one; a card seen
+    /// later suspends remote use as any other.
+    private static let readerScanBound = Duration.seconds(readerScanBoundSeconds)
+    private static let readerScanBoundSeconds: Int64 = 3
+  #endif
+
   #if os(macOS)
     internal static func configurePlatformDefaults() {
       SingleInstance.enforce()
@@ -79,29 +87,33 @@ extension RefineIDApp {
     /// app runs.
     ///
     /// On the Mac, a click off that did not finish forgetting is finished
-    /// first, and remote use stays off while it cannot be (CC-100). Remote
-    /// use is then restored on only while a pairing remains, once the
-    /// readers have been looked at: a card in this Mac's reader starts it
-    /// suspended (CC-102). Off, it asks macOS for nothing, and the registry
-    /// withdraws what an earlier run offered without browsing or dialing
-    /// (CC-96, CC-101).
+    /// first, its pairings and its phones' same-account records, and remote
+    /// use stays off while it cannot be (CC-100). Remote use is then
+    /// restored on only while a pairing remains, once the readers have been
+    /// looked at or ``readerScanBound`` has passed: a card in this Mac's
+    /// reader starts it suspended (CC-102). Off, it asks macOS for nothing,
+    /// and the registry withdraws what an earlier run offered without
+    /// browsing or dialing (CC-96, CC-101).
     private static func startFromThePairings() {
       #if os(macOS)
-        let store = RemoteUseForgetting.Store.standard
-        RemoteUseForgetting.report(
-          RemoteUseForgetting.finish(
-            in: RappDeviceVault(), store: store, clock: RappPlatformClock()))
-        let pairingRemains =
-          PersistentTokenRegistry.sweepIdlePairingsAtLaunch()
-          && RemoteUseForgetting.requestedAt(in: store) == nil
         RemoteUseSwitch.shared.holdUntilLaunched()
         PersistentTokenRegistry.shared.idleSweep.start {
           PersistentTokenRegistry.shared.sweepIdlePairings()
         }
-        CardPresence.shared.afterInitialScan {
-          RemoteUseSwitch.shared.start(
-            pairingRemains: pairingRemains, suspended: CardPresence.shared.isReaderCardPresent)
-          PersistentTokenRegistry.shared.start()
+        Task { @MainActor in
+          let store = RemoteUseForgetting.Store.standard
+          RemoteUseForgetting.report(
+            await RemoteUseForgetting.finish(
+              in: RappDeviceVault(), store: store, clock: RappPlatformClock(),
+              directory: RappAutoPairingService.shared))
+          let pairingRemains =
+            PersistentTokenRegistry.sweepIdlePairingsAtLaunch()
+            && RemoteUseForgetting.requestedAt(in: store) == nil
+          CardPresence.shared.afterInitialScan(atMost: readerScanBound) {
+            RemoteUseSwitch.shared.start(
+              pairingRemains: pairingRemains, suspended: CardPresence.shared.isReaderCardPresent)
+            PersistentTokenRegistry.shared.start()
+          }
         }
       #else
         PersistentTokenRegistry.sweepIdlePairingsAtLaunch()

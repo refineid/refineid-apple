@@ -55,6 +55,35 @@
       #expect(remotesForB.first?.role == .holder)
     }
 
+    @Test("A requester removes every phone it pairs with from the directory, and nothing else")
+    internal func removesComplementaryDevices() async throws {
+      let runID = UUID().uuidString
+      let storage = InMemoryCloudStorage()
+      let phone = RappCloudSyncCoordinator(
+        localIdentity: try makeIdentity(
+          service: "fi.refineid.test.phone.\(runID)", name: "Alpha iPhone", model: "iPhone16,1",
+          seed: 0x01),
+        localRole: .holder, cloudStorage: storage)
+      let tablet = RappCloudSyncCoordinator(
+        localIdentity: try makeIdentity(
+          service: "fi.refineid.test.tablet.\(runID)", name: "Alpha iPad", model: "iPad14,1",
+          seed: 0x03),
+        localRole: .requester, cloudStorage: storage)
+      let computer = RappCloudSyncCoordinator(
+        localIdentity: try makeIdentity(
+          service: "fi.refineid.test.computer.\(runID)", name: "Alpha MacBook Pro",
+          model: "Mac15,3", seed: 0x02),
+        localRole: .requester, cloudStorage: storage)
+      await phone.publishLocalDevice()
+      await tablet.publishLocalDevice()
+      await computer.publishLocalDevice()
+
+      #expect(await computer.removeComplementaryDevices() == 1)
+      let left = await computer.remoteDevices()
+      #expect(left.map(\.role) == [.requester], "only the phone goes")
+      #expect(await computer.removeComplementaryDevices() == 0)
+    }
+
     @Test("Reconciles 1:N multi-device topology across iPhone, Mac, and iPad")
     internal func testMultiDeviceReconciliation() async throws {
       let runID = UUID().uuidString

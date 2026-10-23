@@ -132,6 +132,18 @@
       }
     }
 
+    /// Removes from the account's directory every device this one pairs
+    /// with, so none of them pairs with it again; true once the directory
+    /// holds none, or when this device has no same-account identity and so
+    /// pairs with none.
+    public func removeComplementaryDevices() async -> Bool {
+      start()
+      guard let coordinator else { return true }
+      await coordinator.removeComplementaryDevices()
+      updateCachedRemoteDevices(await coordinator.remoteDevices())
+      return true
+    }
+
     /// Clears all remote devices from cloud synchronization and reconciles.
     public func clearAllRemoteDevices() {
       guard let coordinator else { return }

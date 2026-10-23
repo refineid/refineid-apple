@@ -58,11 +58,12 @@ internal final class CardPresence: ObservableObject {
   private var stateObservations: [String: NSKeyValueObservation] = [:]
 
   /// What waits for the first live slot inventory.
-  private var initialScanWaiters: [@MainActor () -> Void] = []
+  private let initialScan = InitialScanGate()
 
   private init() {
     guard let manager = TKSmartCardSlotManager.default else {
       hasCompletedInitialScan = true
+      initialScan.complete()
       return
     }
     namesObservation = manager.observe(\.slotNames, options: [.initial]) {
@@ -94,22 +95,17 @@ internal final class CardPresence: ObservableObject {
           PersistentTokenRegistry.shared.readerCardPresenceChanged(isReaderCardPresent: true)
         }
       #endif
-      let waiters = initialScanWaiters
-      initialScanWaiters = []
-      for waiter in waiters {
-        waiter()
-      }
+      initialScan.complete()
     }
   }
 
   /// Runs `action` once the first live slot inventory has said whether a
-  /// card is in a reader: at once when it has.
-  internal func afterInitialScan(_ action: @escaping @MainActor () -> Void) {
-    guard hasCompletedInitialScan else {
-      initialScanWaiters.append(action)
-      return
-    }
-    action()
+  /// card is in a reader, at once when it has, or after `limit` without it;
+  /// a card seen later is reported as any other.
+  internal func afterInitialScan(
+    atMost limit: Duration, _ action: @escaping @MainActor () -> Void
+  ) {
+    initialScan.wait(atMost: limit, action)
   }
 
   /// Watches one slot's card state.
