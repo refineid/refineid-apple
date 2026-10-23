@@ -22,7 +22,9 @@ internal final class CardPresence: ObservableObject {
 
   /// Whether a card is present in an external reader rather than the
   /// iPhone's temporary NFC slot.
-  @Published internal private(set) var isReaderCardPresent = false
+  @Published internal private(set) var isReaderCardPresent = false {
+    didSet { RemoteUseAvailability.readerCardChanged(present: isReaderCardPresent) }
+  }
 
   /// Whether an external smart card reader hardware is connected.
   @Published internal private(set) var isReaderConnected = false
@@ -54,6 +56,9 @@ internal final class CardPresence: ObservableObject {
 
   /// Per-slot state observations, keyed like `slots`.
   private var stateObservations: [String: NSKeyValueObservation] = [:]
+
+  /// What waits for the first live slot inventory.
+  private var initialScanWaiters: [@MainActor () -> Void] = []
 
   private init() {
     guard let manager = TKSmartCardSlotManager.default else {
@@ -89,7 +94,22 @@ internal final class CardPresence: ObservableObject {
           PersistentTokenRegistry.shared.readerCardPresenceChanged(isReaderCardPresent: true)
         }
       #endif
+      let waiters = initialScanWaiters
+      initialScanWaiters = []
+      for waiter in waiters {
+        waiter()
+      }
     }
+  }
+
+  /// Runs `action` once the first live slot inventory has said whether a
+  /// card is in a reader: at once when it has.
+  internal func afterInitialScan(_ action: @escaping @MainActor () -> Void) {
+    guard hasCompletedInitialScan else {
+      initialScanWaiters.append(action)
+      return
+    }
+    action()
   }
 
   /// Watches one slot's card state.

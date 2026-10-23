@@ -104,12 +104,37 @@
       defer { remoteUse.stop() }
       try Self.holdUnstartedSession(in: registry)
 
-      let closes = try #require(QuitWithdrawal.begin(remoteUse: remoteUse, registry: registry))
+      let pending = try #require(QuitWithdrawal.begin(remoteUse: remoteUse, registry: registry))
       #expect(!remoteUse.isOn)
       #expect(!PersistentTokenRegistry.remoteUseOn)
       #expect(moves.value == [.turnedOn, .stopped], "quitting forgets no pairing")
       #expect(registry.holderSession == nil)
+      #expect(pending.forgetting == nil)
+      let closes = try #require(pending.closes)
       #expect(await !closes.value, "a session never dialled has no close to send")
+    }
+
+    @Test("A launch with a card in this Mac's reader starts suspended, and resumes as it leaves")
+    internal func launchWithLocalCardStartsSuspended() {
+      let rig = Self.rig()
+      defer { rig.remoteUse.stop() }
+      rig.remoteUse.suspend(true)
+      #expect(rig.bluetooth.starts == 0, "a card before the launch decides starts nothing")
+
+      rig.remoteUse.start(pairingRemains: true, suspended: true)
+      #expect(rig.remoteUse.isOn, "suspension leaves the switch on")
+      #expect(rig.remoteUse.isSuspended)
+      #expect(rig.bluetooth.starts == 0)
+      #expect(rig.localNetwork.starts == 0, "no browse while a local card is in")
+
+      rig.remoteUse.suspend(false)
+      #expect(rig.bluetooth.starts == 1)
+      #expect(rig.localNetwork.starts == 1)
+      rig.remoteUse.suspend(true)
+      #expect(rig.bluetooth.stops == 1)
+      #expect(rig.localNetwork.stops == 1)
+      #expect(rig.remoteUse.isOn)
+      #expect(rig.moves.value.isEmpty, "a local card moves no switch")
     }
 
     @Test("A card in this Mac's reader suspends remote use; the switch and the pairing stay")

@@ -31,8 +31,8 @@
         // it, and the typed code goes with this view (hierarchy
         // specification §5.2, CC-102).
         #if REFINEID_REMOTE_CARD
-          if !RemoteUseSwitch.shared.isOn || CardPresence.shared.isReaderCardPresent {
-            model.resetAttempt()
+          if !RemoteUseAvailability.isAvailable {
+            model.interruptSearch()
           }
         #endif
       }

@@ -19,7 +19,7 @@ extension RappPairingModel {
     case .ceremonyEnded:
       String(localized: "Pairing ended before it was completed")
 
-    case .localRequest:
+    case .interrupted, .localRequest:
       nil
 
     case .noneInPairingMode:
@@ -75,6 +75,10 @@ extension RappPairingModel {
 
     case .paired(let pair):
       handlePaired(pair)
+
+    case .closed(.interrupted):
+      // The code entry is offered afresh once remote use resumes.
+      resetAttempt()
 
     case .closed(let reason):
       guard !isFinished, let failure = Self.failure(for: reason) else { return }

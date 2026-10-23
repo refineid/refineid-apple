@@ -15,11 +15,14 @@
     ///   with `service_withdrawn` (RAPP v26.10.22 §4.5 item 8), the phone's
     ///   identity and any displaced configurations leave, and nothing
     ///   browses, scans or dials.
-    /// - The switch and the pairings stay as they are.
+    /// - The switch and the pairings stay as they are; its watches stop.
     /// When the reader card leaves, remote use resumes as it was: with a
     /// pairing the phone is followed again without a code, and with none
     /// the code entry is offered again.
     internal func readerCardPresenceChanged(isReaderCardPresent: Bool) {
+      #if os(macOS) && REFINEID_REMOTE_CARD
+        RemoteUseSwitch.shared.suspend(isReaderCardPresent)
+      #endif
       guard Self.dialsPhones else {
         Self.withdrawPublishedIdentity()
         return

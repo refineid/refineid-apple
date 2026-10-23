@@ -57,6 +57,8 @@
       #endif
       switch event {
       case .established:
+        state.withLock { $0.established = true }
+        recordSession()
         await beginOperation(on: coordinator)
 
       case .progress(_, let progressEvent):
@@ -122,6 +124,9 @@
     }
 
     private func handleClosed(_ reason: RappConnectionCoordinator.CloseReason) {
+      if state.withLock({ $0.established }) {
+        recordSession()
+      }
       RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
       if reason.serviceWithdrawn {
         RappRequesterNotices.post(RappServiceNotificationNames.serviceWithdrawnDarwinNotification)
@@ -133,6 +138,20 @@
         )
       #endif
       finish(error: .transport)
+    }
+
+    /// Records the session in its pairing's stored record, as it is
+    /// established and as it ends, for idle expiry (RAPP v26.10.22 §4.6
+    /// item 5).
+    private func recordSession() {
+      guard let pairID = state.withLock({ $0.pairID }) else { return }
+      let recorded = RappPairIdleExpiry.recordSession(
+        pairID: pairID, in: vault, nowMilliseconds: RappPlatformClock().wallMilliseconds())
+      #if DEBUG
+        if !recorded {
+          Self.logger.error("[RappRequester] session time not stored")
+        }
+      #endif
     }
 
     /// Ends the pairing this request ran over when its session said so: the

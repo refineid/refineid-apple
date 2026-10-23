@@ -33,8 +33,9 @@ private let fixturePairingCode = "246813"
           transportProfile: RappIntegrationFixtures.transportProfile,
           displayName: "Requester Mac",
           platform: "macOS",
-          vault: requesterVault)
-      ) { _ in link.dial() }
+          vault: requesterVault),
+        remoteUseAvailable: { true },
+        dial: { _ in link.dial() })
       await search.found("phone")
 
       let requesterSummary = try await awaitPair(search)

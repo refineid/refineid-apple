@@ -23,42 +23,42 @@
     /// A watch that records what the switch asks of it, and reports what a
     /// test says it found.
     @MainActor
-    private final class RecordingWatch: RemoteUseWatch {
-      private(set) var starts = 0
-      private(set) var stops = 0
+    internal final class RecordingWatch: RemoteUseWatch {
+      internal private(set) var starts = 0
+      internal private(set) var stops = 0
       private var report: (@MainActor (RemoteUseBlockage?) -> Void)?
 
-      var isWatching: Bool {
+      internal var isWatching: Bool {
         report != nil
       }
 
-      func start(report: @escaping @MainActor (RemoteUseBlockage?) -> Void) {
+      internal func start(report: @escaping @MainActor (RemoteUseBlockage?) -> Void) {
         starts += 1
         self.report = report
       }
 
-      func stop() {
+      internal func stop() {
         stops += 1
         report = nil
       }
 
-      func found(_ blockage: RemoteUseBlockage?) {
+      internal func found(_ blockage: RemoteUseBlockage?) {
         report?(blockage)
       }
     }
 
     /// How the switch told the requester it moved.
     @MainActor
-    private final class Moves {
-      var value: [RemoteUseSwitch.Move] = []
+    internal final class Moves {
+      internal var value: [RemoteUseSwitch.Move] = []
     }
 
     /// A switch on recording watches, and what it told the requester.
-    private struct Rig {
-      let remoteUse: RemoteUseSwitch
-      let bluetooth: RecordingWatch
-      let localNetwork: RecordingWatch
-      let moves: Moves
+    internal struct Rig {
+      internal let remoteUse: RemoteUseSwitch
+      internal let bluetooth: RecordingWatch
+      internal let localNetwork: RecordingWatch
+      internal let moves: Moves
     }
 
     internal static let phone = "Alpha iPhone"
@@ -70,7 +70,7 @@
     /// When a test pairing is revoked; the vault records no time for it.
     internal static let revocationTime: UInt64 = 0
 
-    private static func rig() -> Rig {
+    internal static func rig() -> Rig {
       let bluetooth = RecordingWatch()
       let localNetwork = RecordingWatch()
       let moves = Moves()
@@ -101,7 +101,7 @@
     @Test("A launch with no pairing left starts off and asks macOS for nothing")
     internal func launchWithoutPairingStartsOff() {
       let rig = Self.rig()
-      rig.remoteUse.start(pairingRemains: false)
+      rig.remoteUse.start(pairingRemains: false, suspended: false)
       #expect(!rig.remoteUse.isOn)
       #expect(!PersistentTokenRegistry.remoteUseOn)
       #expect(rig.bluetooth.starts == 0)
@@ -119,7 +119,7 @@
     internal func launchWithPairingRestoresOn() {
       let rig = Self.rig()
       defer { rig.remoteUse.stop() }
-      rig.remoteUse.start(pairingRemains: true)
+      rig.remoteUse.start(pairingRemains: true, suspended: false)
       #expect(rig.remoteUse.isOn)
       #expect(PersistentTokenRegistry.remoteUseOn)
       #expect(rig.bluetooth.starts == 1)

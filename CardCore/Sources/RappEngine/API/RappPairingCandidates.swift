@@ -69,12 +69,19 @@ public final class RappPairingCandidates<Endpoint: Equatable & Sendable>: @unche
   /// tried, no CPace step 2 within the attempt deadline, or a `T_B` that did
   /// not verify.
   ///
+  /// `remoteUseAvailable` says whether the requester's remote use is on and
+  /// no card is in a reader attached to it; without it no further custodian
+  /// is tried and the answer is ``RappNextCandidate/interrupted``, unless
+  /// every custodian tried already refused the code (hierarchy
+  /// specification §5.2).
+  ///
   /// - Throws: ``RappBindingError/WrongPhase`` when no connection is open or
   ///   the code is already accepted or refused.
-  public func closed() throws -> RappNextCandidate {
+  public func closed(remoteUseAvailable: Bool) throws -> RappNextCandidate {
     try locked { candidates in
       do {
-        return RappNextCandidate(try candidates.closed())
+        return RappNextCandidate(
+          try candidates.closed(), remoteUseAvailable: remoteUseAvailable)
       } catch {
         throw RappBindingError.WrongPhase
       }

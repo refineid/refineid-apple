@@ -210,8 +210,12 @@
       #if os(macOS) && REFINEID_REMOTE_CARD
         /// The holder's click off forgetting every pairing, while the open
         /// session's `pairing_revoked` close leaves (RAPP v26.10.22 §4.6
-        /// item 6); nil once the pairings are gone.
+        /// item 6); nil once the pairings are gone and the app followed.
         internal var forgetting: Task<Void, Never>?
+
+        /// The destruction of the pairings the click off forgets, off the
+        /// main thread, which a quit waits on; nil once it finished.
+        internal var pairingDestruction: Task<RemoteUseForgetting.Outcome, Never>?
       #endif
     #endif
 

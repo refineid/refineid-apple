@@ -44,9 +44,13 @@ reads it as a toggle.
   for phones in pairing mode only while a code is tried. With a pairing,
   the phone's line returns.
 - **Turning off.** The click forgets every pairing (RAPP v26.10.22 §4.6
-  item 6). An open session closes with `pairing_revoked`, and the Mac
-  waits at most 1 second for that close to leave; then every pairing and
-  its key are destroyed. A connection still being made closes without a
+  item 6). The Mac stores the click first (`RemoteUseForgetting`). An open
+  session closes with `pairing_revoked`, and the Mac waits at most 1
+  second for that close to leave; then every pairing made before the
+  click is destroyed with its key, and its name goes once its key is
+  gone. A pairing the keychain does not let go stays under the stored
+  click, which turning on again and the next launch finish first; while
+  they cannot, remote use stays off. A connection still being made closes without a
   notice. A phone with no session open is told nothing and forgets this
   computer by its own idle expiry. The phone's identity is withdrawn at
   once, without its grace, and scanning stops. The click asks for no
@@ -58,12 +62,16 @@ reads it as a toggle.
   (`QuitWithdrawal`): the session closes with `service_withdrawn` and the
   pairing is kept. The app exits once the close has left, written to the
   stream or acknowledged over Bluetooth, or after 1 second, whichever
-  comes first. Quitting with remote use off exits at once.
-- **Launch.** Every launch, a start at login included, first expires the
-  pairings that had no session for 30 days, then restores remote use on
-  while an active pairing remains and off otherwise. A launch that
-  restores it on asks for no permission. Sleep leaves remote use as it
-  was.
+  comes first. A quit while a click off is still forgetting waits until
+  its pairings are destroyed. Quitting with remote use off and nothing
+  being forgotten exits at once.
+- **Launch.** Every launch, a start at login included, first finishes a
+  click off that did not finish, then expires the pairings that had no
+  session for 30 days, then restores remote use on while an active
+  pairing remains and off otherwise. It decides only after the readers
+  are looked at: a card in this Mac's reader starts remote use suspended.
+  A launch that restores it on asks for no permission. Sleep leaves
+  remote use as it was.
 
 A card in this Mac's own reader suspends remote use while it is there
 (see below).
@@ -168,9 +176,11 @@ the Mac neither holds nor dials its session with the paired phone
 - Document signing uses the local card.
 - The identity line shows only the local card.
 
-The switch and the pairing stay as they are. When the card leaves, remote
-use resumes as it was: with a pairing, the Mac finds and dials the phone
-again without a code; with none, the pairing prompt returns.
+The switch and the pairing stay as they are; the switch's Bluetooth and
+local-network watches stop while the card is there. A launch with a card
+in the reader starts this way. When the card leaves, remote use resumes
+as it was: with a pairing, the Mac finds and dials the phone again
+without a code; with none, the pairing prompt returns.
 
 ## Running without the window
 

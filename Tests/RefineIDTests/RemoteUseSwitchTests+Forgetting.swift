@@ -3,6 +3,7 @@
 #if os(macOS) && REFINEID_REMOTE_CARD && REFINEID_STREAM_TRANSPORT
 
   import CardCore
+  import CryptoKit
   import Foundation
   import RappEngine
   import Testing
@@ -10,8 +11,39 @@
   @testable import RefineID
 
   /// The holder's click off forgets every pairing (RAPP v26.10.22 §4.6 item
-  /// 6, CC-100); a stop withdraws and keeps them (§4.5 item 8).
+  /// 6, CC-100), durably and before a quit lets the app go; a stop
+  /// withdraws and keeps them (§4.5 item 8).
   extension RemoteUseSwitchTests {
+    /// The defaults suite these tests keep the holder's click in.
+    private static let storeName = "fi.refineid.tests.remote-use-forgetting"
+
+    /// A defaults suite of these tests' own, emptied first.
+    private static func scratchStore() -> RemoteUseForgetting.Store {
+      clearScratchStore()
+      return RemoteUseForgetting.Store(suiteName: storeName)
+    }
+
+    /// Removes what these tests kept.
+    private static func clearScratchStore() {
+      UserDefaults.standard.removePersistentDomain(forName: storeName)
+    }
+
+    /// A requester's pairing made at `createdAt`, stored in `vault`.
+    private static func storedPairing(
+      in vault: RappDeviceVault, createdAt: UInt64
+    ) throws -> RappPairRecord {
+      let local = Curve25519.KeyAgreement.PrivateKey()
+      let remote = Curve25519.KeyAgreement.PrivateKey()
+      let pairing = try RappSameAccountPairBuilder.makePairRecord(
+        localStaticPrivate: local.rawRepresentation,
+        localStaticPublic: local.publicKey.rawRepresentation,
+        localRole: .requester,
+        remotePublicKey: remote.publicKey.rawRepresentation,
+        createdAtMilliseconds: createdAt)
+      try vault.insertPair(pairID: pairing.metadata().pairId, record: try pairing.encodedBytes())
+      return pairing
+    }
+
     /// Gives `registry` a session over `pairing` as remote use had it: up
     /// over Bluetooth, the phone in sight, its card's identity offered.
     private static func holdOpenSession(
@@ -32,10 +64,12 @@
       #expect(registry.holderSessionOpen)
     }
 
-    @Test("The holder's click off revokes the session's pairing and forgets every pairing")
+    @Test("The holder's click off is stored first, revokes the session and forgets every pairing")
     internal func clickOffForgetsEveryPairing() async throws {
       let registry = PersistentTokenRegistry.shared
       let vault = RappDeviceVault()
+      let store = Self.scratchStore()
+      defer { Self.clearScratchStore() }
       let pairing = try Self.storedPairing(in: vault)
       let other = try Self.storedPairing(in: vault)
       let pairID = pairing.metadata().pairId
@@ -48,9 +82,11 @@
       registry.phoneThatForgot = Self.phone
       Self.holdOpenSession(over: pairing, in: registry)
 
-      registry.forgetEveryPairing(in: vault)
+      registry.forgetEveryPairing(in: vault, store: store)
 
-      // Everything remote stops at once.
+      // The click is kept before anything else, and everything remote
+      // stops at once.
+      #expect(RemoteUseForgetting.requestedAt(in: store) != nil)
       #expect(registry.holderSession == nil)
       #expect(!registry.holderSessionOpen)
       #expect(!registry.holderInSight)
@@ -58,11 +94,14 @@
       #expect(registry.certificateDER == nil)
       #expect(registry.holderLine == nil)
       #expect(registry.phoneThatForgot == nil)
-      let forgetting = try #require(registry.forgetting, "the open session's close leaves first")
+      #expect(registry.pairingDestruction != nil, "the open session's close leaves first")
+      let forgetting = try #require(registry.forgetting)
       await forgetting.value
 
       // Then every pairing is gone with its key and its name.
       #expect(registry.forgetting == nil)
+      #expect(registry.pairingDestruction == nil)
+      #expect(RemoteUseForgetting.requestedAt(in: store) == nil)
       #expect(try vault.activePairIDs().isEmpty)
       #expect(try vault.loadPair(pairID: other.metadata().pairId) == nil)
       #expect(RappPairNames.name(forPairID: pairID) == nil)
@@ -74,15 +113,77 @@
     internal func clickOffWithoutSessionOwesNothing() throws {
       let registry = PersistentTokenRegistry.shared
       let vault = RappDeviceVault()
+      let store = Self.scratchStore()
+      defer { Self.clearScratchStore() }
       _ = try Self.storedPairing(in: vault)
       registry.refreshPairing(in: vault)
       defer { registry.refreshPairing(in: vault) }
 
-      registry.forgetEveryPairing(in: vault)
+      registry.forgetEveryPairing(in: vault, store: store)
 
       #expect(registry.forgetting == nil)
+      #expect(registry.pairingDestruction == nil)
+      #expect(RemoteUseForgetting.requestedAt(in: store) == nil)
       #expect(try vault.activePairIDs().isEmpty)
       #expect(registry.pairedPhone == nil)
+    }
+
+    @Test("A quit during the click off waits until its pairings are destroyed")
+    internal func quitDuringClickOffWaitsForTheDestruction() async throws {
+      let registry = PersistentTokenRegistry.shared
+      let vault = RappDeviceVault()
+      let store = Self.scratchStore()
+      defer { Self.clearScratchStore() }
+      let pairing = try Self.storedPairing(in: vault)
+      defer { registry.refreshPairing(in: vault) }
+      Self.holdOpenSession(over: pairing, in: registry)
+      let off = Self.rig().remoteUse
+
+      registry.forgetEveryPairing(in: vault, store: store)
+      let pending = try #require(
+        QuitWithdrawal.begin(remoteUse: off, registry: registry),
+        "remote use is off, yet the quit waits for the forgetting")
+      #expect(pending.closes == nil)
+      let destruction = try #require(pending.forgetting)
+      let outcome = await destruction.value
+
+      #expect(outcome.destroyed == [pairing.metadata().pairId])
+      #expect(outcome.failures == 0)
+      #expect(try vault.activePairIDs().isEmpty)
+      #expect(RemoteUseForgetting.requestedAt(in: store) == nil)
+      await registry.forgetting?.value
+    }
+
+    @Test("A click off left unfinished is finished later; a pairing made after it stays")
+    internal func unfinishedClickOffIsFinished() throws {
+      let vault = RappDeviceVault()
+      let store = Self.scratchStore()
+      defer { Self.clearScratchStore() }
+      let before = try Self.storedPairing(in: vault)
+      let clickedAt = before.metadata().createdAtMs + 1
+      let after = try Self.storedPairing(in: vault, createdAt: clickedAt + 1)
+      let beforeID = before.metadata().pairId
+      RappPairNames.remember(Self.phone, pairID: beforeID)
+      defer {
+        RappPairNames.forget(pairID: beforeID)
+        try? vault.revokePair(
+          pairID: after.metadata().pairId, revokedAtMilliseconds: Self.revocationTime)
+      }
+      #expect(
+        RemoteUseForgetting.finish(in: vault, store: store, clock: RappPlatformClock())
+          == RemoteUseForgetting.Outcome(), "without a stored click nothing goes")
+
+      RemoteUseForgetting.request(at: clickedAt, in: store)
+      RemoteUseForgetting.request(at: clickedAt - 1, in: store)
+      #expect(
+        RemoteUseForgetting.requestedAt(in: store) == clickedAt, "a later click covers more")
+      let outcome = RemoteUseForgetting.finish(in: vault, store: store, clock: RappPlatformClock())
+
+      #expect(outcome.destroyed == [beforeID])
+      #expect(outcome.failures == 0)
+      #expect(try vault.activePairIDs() == [after.metadata().pairId])
+      #expect(RappPairNames.name(forPairID: beforeID) == nil, "the name goes with the key")
+      #expect(RemoteUseForgetting.requestedAt(in: store) == nil)
     }
 
     @Test("A stop withdraws at once and keeps the pairing")

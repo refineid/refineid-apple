@@ -17,12 +17,19 @@
   /// verified T_B ends the search, and the ceremony continues with that
   /// custodian alone. The code is reported as not accepted only once every
   /// custodian tried refused it, and no report names a custodian (STPA
-  /// CC-83, CC-84).
+  /// CC-83, CC-84). No endpoint is opened while the requester's remote use
+  /// is unavailable, off or suspended by a card in its own reader: the
+  /// search then ends as interrupted (hierarchy specification §5.2, STPA
+  /// CC-102).
   public actor RappPairingSearch<Endpoint: Equatable & Sendable> {
     // MARK: Nested Types
 
     /// Opens a pairing connection to an endpoint discovery found.
     public typealias Dial = @Sendable (Endpoint) -> RappPairingConnection
+
+    /// Whether the requester's remote use is on and no card is in a reader
+    /// attached to it, read whenever an endpoint would be opened.
+    public typealias Availability = @Sendable () -> Bool
 
     /// How one pairing connection ended without its custodian taking the
     /// code; the search moves on.
@@ -43,6 +50,10 @@
     public enum CloseReason: Sendable, Equatable {
       /// A custodian took the code, and the ceremony then ended.
       case ceremonyEnded(RappPairingCoordinator.CloseReason)
+      /// Remote use stopped being available during the search: turned off,
+      /// or suspended by a card in a reader attached to the requester. The
+      /// typed code is dropped and nothing is reported to the user.
+      case interrupted
       /// The search was closed locally.
       case localRequest
       /// No custodian in pairing mode was tried.
@@ -97,6 +108,7 @@
     /// The canonical code the user typed.
     internal let code: String
     internal let dial: Dial
+    internal let remoteUseAvailable: Availability
     internal let candidates = RappPairingCandidates<Endpoint>()
     internal var attempt: Attempt?
     internal var generation = 0
@@ -108,13 +120,18 @@
     // MARK: Lifecycle
 
     /// The search for the code in `options`, opening connections with
-    /// `dial`.
+    /// `dial` while `remoteUseAvailable` holds.
     ///
     /// - Throws: ``RappBindingError/InvalidInput`` for a code that is not
     ///   six characters of the code alphabet.
-    public init(options: RappPairingCoordinator.Options, dial: @escaping Dial) throws {
+    public init(
+      options: RappPairingCoordinator.Options,
+      remoteUseAvailable: @escaping Availability,
+      dial: @escaping Dial
+    ) throws {
       self.code = try RappPairingCoordinator.canonicalCode(options.code)
       self.options = options
+      self.remoteUseAvailable = remoteUseAvailable
       self.dial = dial
       (events, continuation) = AsyncStream.makeStream(of: Event.self)
     }
@@ -123,10 +140,10 @@
 
     /// Records an endpoint discovery found in pairing mode, and opens it
     /// when no pairing connection is open.
-    public func found(_ endpoint: Endpoint) {
+    public func found(_ endpoint: Endpoint) async {
       guard !isEnded, !discoveryEnded else { return }
       candidates.found(endpoint)
-      openNext()
+      await openNext()
     }
 
     /// Discovery stopped looking.
@@ -149,6 +166,12 @@
     /// Ends the search at local request, closing any ceremony it runs.
     public func close() async {
       await end(.localRequest)
+    }
+
+    /// Ends the search as remote use stops being available, closing the
+    /// connection it holds (the state model's `search_interrupted`).
+    public func interrupt() async {
+      await end(.interrupted)
     }
 
     /// Ends the search without a pairing.

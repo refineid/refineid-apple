@@ -28,9 +28,13 @@ import Testing
 
     /// The requester's search for `code`; it opens no connection here.
     private func search(code: String, suffix: String) throws -> RappPairingSearch<String> {
-      try RappPairingSearch(options: options(code: code, suffix: suffix)) { _ in
-        RappPairingConnection(transport: discardingTransport(), events: AsyncStream { $0.finish() })
-      }
+      try RappPairingSearch(
+        options: options(code: code, suffix: suffix),
+        remoteUseAvailable: { true },
+        dial: { _ in
+          RappPairingConnection(
+            transport: discardingTransport(), events: AsyncStream { $0.finish() })
+        })
     }
 
     @Test(

@@ -40,9 +40,19 @@
     }
 
     #if os(macOS) && REFINEID_REMOTE_CARD
-      /// Removes the same-account records of the phones `pairIDs` pair this
+      /// Removes the same-account records of the phones `vault` pairs this
       /// computer with, so the account's directory does not pair them again.
-      private static func removeSameAccountRecords(of pairIDs: [Data]) {
+      private static func removeSameAccountRecords(in vault: RappDeviceVault) {
+        let pairIDs: [Data]
+        do {
+          pairIDs = try vault.activePairIDs()
+        } catch {
+          #if DEBUG
+            DevErrorLog.report(
+              "remote use off: pairings not listed: \(DevErrorLog.reason(error))", source: .app)
+          #endif
+          return
+        }
         let service = RappAutoPairingService.shared
         let localKey = service.localIdentity?.publicKeyData
         let names = Set(pairIDs.compactMap { RappPairNames.name(forPairID: $0)?.lowercased() })
@@ -93,66 +103,88 @@
         guard Self.dialsPhones else { return }
         switch move {
         case .forgetting:
-          forgetEveryPairing(in: RappDeviceVault())
+          forgetEveryPairing(in: RappDeviceVault(), store: .standard)
 
         case .stopped:
           withdraw()
 
         case .turnedOn:
-          start()
-          RappAutoPairingService.shared.reconcile()
+          turnedOn(in: RappDeviceVault(), store: .standard)
         }
+      }
+
+      /// Follows the holder's click turning remote use on.
+      ///
+      /// A click off still forgetting starts following once its pairings
+      /// are gone. One whose pairings the vault refused is tried again
+      /// first, and while it cannot finish remote use stays off: a pairing
+      /// the holder forgot is never followed (CC-100).
+      private func turnedOn(in vault: RappDeviceVault, store: RemoteUseForgetting.Store) {
+        #if REFINEID_STREAM_TRANSPORT
+          guard forgetting == nil else { return }
+        #endif
+        let outcome = RemoteUseForgetting.finish(
+          in: vault, store: store, clock: RappPlatformClock())
+        RemoteUseForgetting.report(outcome)
+        guard RemoteUseForgetting.requestedAt(in: store) == nil else {
+          RemoteUseSwitch.shared.stop()
+          return
+        }
+        start()
+        RappAutoPairingService.shared.reconcile()
       }
 
       /// Forgets every pairing as the holder turns remote use off (RAPP
       /// v26.10.22 §4.6 item 6, CC-100).
       ///
+      /// The click is stored in `store` first (``RemoteUseForgetting``).
       /// The phone's identity leaves at once and everything remote stops.
       /// An open session closes with `pairing_revoked`; once its close left,
-      /// or after ``QuitWithdrawal/bound``, every pairing this computer held
-      /// is destroyed with its key. A phone with no session open is told
-      /// nothing. A same-account record that would pair the phone again
-      /// goes too. `vault` holds the pairings.
-      internal func forgetEveryPairing(in vault: RappDeviceVault) {
-        let pairIDs = (try? vault.activePairIDs()) ?? []
+      /// or after ``QuitWithdrawal/bound``, every pairing `vault` held is
+      /// destroyed with its key, off the main thread so a quit can wait on
+      /// it. A phone with no session open is told nothing. A same-account
+      /// record that would pair the phone again goes too.
+      internal func forgetEveryPairing(
+        in vault: RappDeviceVault, store: RemoteUseForgetting.Store
+      ) {
+        let clock = RappPlatformClock()
+        RemoteUseForgetting.request(at: clock.wallMilliseconds(), in: store)
         phoneThatForgot = nil
-        Self.removeSameAccountRecords(of: pairIDs)
+        Self.removeSameAccountRecords(in: vault)
         #if REFINEID_STREAM_TRANSPORT
           let closes = revokeHolderSession()
           withdraw()
           guard let closes else {
-            destroy(pairIDs, in: vault)
+            forgotten(RemoteUseForgetting.finish(in: vault, store: store, clock: clock), in: vault)
             return
           }
-          forgetting = Task { @MainActor [weak self] in
+          let destruction = Task.detached {
             _ = await Self.settled(closes, atMost: QuitWithdrawal.bound)
+            return RemoteUseForgetting.finish(in: vault, store: store, clock: clock)
+          }
+          pairingDestruction = destruction
+          forgetting = Task { @MainActor [weak self] in
+            let outcome = await destruction.value
             guard let self else { return }
+            pairingDestruction = nil
             forgetting = nil
-            destroy(pairIDs, in: vault)
+            forgotten(outcome, in: vault)
+            // The holder turned remote use on again meanwhile.
             if Self.followsPhone {
-              start()
+              turnedOn(in: vault, store: store)
             }
           }
         #else
           withdraw()
-          destroy(pairIDs, in: vault)
+          forgotten(RemoteUseForgetting.finish(in: vault, store: store, clock: clock), in: vault)
         #endif
       }
 
-      /// Destroys every pairing `pairIDs` names, with its key and its name,
-      /// and tells the rest of the app the pairings changed.
-      private func destroy(_ pairIDs: [Data], in vault: RappDeviceVault) {
-        let clock = RappPlatformClock()
-        for pairID in pairIDs {
-          do {
-            try RappPairRevocation.revoke(pairID: pairID, in: vault, clock: clock)
-          } catch {
-            #if DEBUG
-              DevErrorLog.report("pairing not destroyed: the vault refused", source: .app)
-            #endif
-          }
-          RappPairNames.forget(pairID: pairID)
-        }
+      /// Follows what forgetting the pairings did: a failure is reported,
+      /// the row follows what `vault` holds, and the rest of the app learns
+      /// the pairings changed.
+      private func forgotten(_ outcome: RemoteUseForgetting.Outcome, in vault: RappDeviceVault) {
+        RemoteUseForgetting.report(outcome)
         refreshPairing(in: vault)
         NotificationCenter.default.post(
           name: RappPairingModel.pairingsDidChangeNotification, object: nil)

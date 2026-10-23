@@ -11,6 +11,19 @@ extension RappPairingModel {
   /// How long the requester looks for custodians in pairing mode.
   private static let discoveryNanoseconds: UInt64 = 15_000_000_000
 
+  /// Ends the code being tried as remote use stops being available.
+  ///
+  /// Remote use was turned off, or a card in this device's reader suspends
+  /// it (the state model's `search_interrupted`). The connection open for
+  /// the code closes and nothing is reported.
+  internal func interruptSearch() {
+    let activeSearch = search
+    relay?.cancel()
+    finishAttempt()
+    phase = .idle
+    Task { await activeSearch?.interrupt() }
+  }
+
   internal func startCodeEntry() {
     resetAttempt()
     phase = .codeEntry
@@ -28,9 +41,10 @@ extension RappPairingModel {
     }
     let newSearch: RappPairingSearch<PairingEndpoint>
     do {
-      newSearch = try RappPairingSearch(options: options(code: code)) { endpoint in
-        PairingCandidateLink.dial(endpoint)
-      }
+      newSearch = try RappPairingSearch(
+        options: options(code: code),
+        remoteUseAvailable: { RemoteUseAvailability.isAvailable },
+        dial: { endpoint in PairingCandidateLink.dial(endpoint) })
     } catch {
       fail(String(localized: "The pairing code is invalid"))
       return

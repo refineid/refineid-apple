@@ -18,8 +18,9 @@
   /// entry. The holder's click turning it off forgets every pairing (RAPP
   /// v26.10.22 §4.6 item 6, CC-100). It also turns off, keeping the
   /// pairings as they are, when the last pairing ends other than by that
-  /// click and as the app quits; a card in this Mac's reader leaves it as
-  /// it is (CC-102).
+  /// click and as the app quits. A card in this Mac's reader suspends it:
+  /// the switch keeps its state and its watches stop until the card leaves
+  /// (CC-102).
   @MainActor
   @Observable
   internal final class RemoteUseSwitch {
@@ -53,6 +54,9 @@
     /// Whether remote use is on.
     internal private(set) var isOn: Bool
 
+    /// Whether a card in this Mac's reader suspends remote use.
+    internal private(set) var isSuspended = false
+
     /// What the Bluetooth watch says blocks remote use.
     internal private(set) var bluetoothBlockage: RemoteUseBlockage?
 
@@ -67,6 +71,10 @@
 
     /// Tells the requester how the switch moved.
     @ObservationIgnored private let follow: @MainActor (Move) -> Void
+
+    /// Whether the launch has decided remote use; before it, a suspension
+    /// that ends starts nothing.
+    @ObservationIgnored private var hasStarted = false
 
     // MARK: Computed Properties
 
@@ -96,15 +104,40 @@
     // MARK: Functions
 
     /// Restores remote use at launch: on while `pairingRemains`, an active
-    /// pairing left after the launch's idle-expiry sweep, and off otherwise.
+    /// pairing left after the launch's idle-expiry sweep, and off otherwise;
+    /// suspended while `suspended`, a card in this Mac's reader.
     ///
-    /// A launch that restores it on starts the watches without the holder's
-    /// click; macOS granted their permissions when the holder turned remote
-    /// use on and paired (CC-101).
-    internal func start(pairingRemains: Bool) {
+    /// A launch that restores it on, unsuspended, starts the watches without
+    /// the holder's click; macOS granted their permissions when the holder
+    /// turned remote use on and paired (CC-101). Suspended, nothing starts
+    /// until the card leaves (CC-102).
+    internal func start(pairingRemains: Bool, suspended: Bool) {
       RemoteAccessGate.setEnabled(pairingRemains)
       isOn = pairingRemains
-      if pairingRemains {
+      isSuspended = suspended
+      hasStarted = true
+      if pairingRemains, !suspended {
+        startWatches()
+      }
+    }
+
+    /// Keeps remote use off until the launch decides it, so nothing remote
+    /// runs before the pairings are swept and the readers looked at.
+    internal func holdUntilLaunched() {
+      RemoteAccessGate.setEnabled(false)
+      isOn = false
+    }
+
+    /// A card in this Mac's reader arrived, `suspended`, or left: the
+    /// watches stop while it is there and run again once it leaves, while
+    /// remote use is on.
+    internal func suspend(_ suspended: Bool) {
+      guard suspended != isSuspended else { return }
+      isSuspended = suspended
+      guard hasStarted, isOn else { return }
+      if suspended {
+        stopWatches()
+      } else {
         startWatches()
       }
     }
@@ -129,10 +162,12 @@
       guard wanted != isOn else { return }
       RemoteAccessGate.setEnabled(wanted)
       isOn = wanted
-      if wanted {
-        startWatches()
-      } else {
-        stopWatches()
+      if !isSuspended {
+        if wanted {
+          startWatches()
+        } else {
+          stopWatches()
+        }
       }
       follow(move)
     }
