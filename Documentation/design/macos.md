@@ -6,14 +6,14 @@ menu holds About, which links the site. The View menu holds Demo Mode.
 
 ## The window
 
-The status window (`StatusView`) is sized to its content. Its toolbar
-holds one control, the remote-use switch, at the right end. From the top,
-the window shows:
+The status window (`StatusView`) is sized to its content and has no
+toolbar. From the top, the window shows:
 
-1. The identity line.
-2. The document drop area, while an identity is available or documents
+1. The remote-use switch, at the right, above the line it changes.
+2. The identity line.
+3. The document drop area, while an identity is available or documents
    are waiting.
-3. The signing controls and the outcome of the last action.
+4. The signing controls and the outcome of the last action.
 
 A card waiting to be taken into use replaces these with the activation
 form. A contactless card that needs its access number replaces them with
@@ -21,7 +21,8 @@ the six-box access number entry.
 
 ## Remote use
 
-One toolbar button is the switch for all remote use: Bluetooth and
+One round button at the top right of the window is the switch for all
+remote use: Bluetooth and
 local-network discovery, sessions with the phone, and the phone's identity
 (`RemoteUseSwitch`, `RemoteUseButton`; hierarchy specification §5.2). It
 is off by default and keeps its state across restarts. A click turns it
@@ -51,14 +52,16 @@ The button's symbol shows the state:
 | Off | `key.radiowaves.forward.slash` | secondary |
 | On, no session with the phone | `key.radiowaves.forward` | secondary |
 | On, a session with the phone open | `key.radiowaves.forward` | green |
-| On, blocked: this Mac's Bluetooth is off or not allowed, or the local network is not allowed | `key.radiowaves.forward.slash` | orange |
+| On, blocked: this Mac's Bluetooth is off or not allowed, or the local network is not allowed | `key.radiowaves.forward` | orange |
 
 An open session shows as connected even while something else is blocked.
 The tooltip and the VoiceOver label say "Etäkäyttö". The tooltip and the
 accessibility value name the state: "Pois", "Päällä", "Puhelin
 yhdistetty", or "Estetty:" followed by the cause. Words name each state,
 so no state rests on color alone. The identity line also says whether the
-phone serves the card. A symbol change uses the Magic Replace transition.
+phone serves the card. The slash means off, so the symbol changes only
+when the switch is turned on or off, with the Magic Replace transition;
+every other change is a change of colour.
 
 ## The identity line
 

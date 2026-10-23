@@ -199,7 +199,7 @@
       #expect(RemoteUseState.connected.symbolName == "key.radiowaves.forward")
       #expect(RemoteUseState.connected.tone == .connected)
       let blocked = RemoteUseState.blocked(.bluetoothOff)
-      #expect(blocked.symbolName == "key.radiowaves.forward.slash")
+      #expect(blocked.symbolName == "key.radiowaves.forward")
       #expect(blocked.tone == .warning)
     }
 

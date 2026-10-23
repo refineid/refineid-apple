@@ -45,13 +45,15 @@
 
     // MARK: Computed Properties
 
-    /// The SF Symbol drawing the state.
+    /// The SF Symbol drawing the state: the slash means off, so the symbol
+    /// changes only when the switch does, and a change of state while on is
+    /// a change of colour alone.
     internal var symbolName: String {
       switch self {
-      case .off, .blocked:
+      case .off:
         "key.radiowaves.forward.slash"
 
-      case .waiting, .connected:
+      case .waiting, .connected, .blocked:
         "key.radiowaves.forward"
       }
     }
