@@ -45,21 +45,7 @@ extension RefineIDApp {
       if vault.dropUnreadablePairs() > 0 {
         PersistentTokenRegistry.withdrawPublishedIdentity()
       }
-      #if REFINEID_LOCAL_CARD && os(iOS)
-        HolderCardServing.availabilityChanged()
-        PhonePersistentTokenRelay.shared.start()
-        if !SupportedCardTransports.offersNearField {
-          PersistentTokenRegistry.shared.start()
-        }
-      #else
-        // Remote use off asks macOS for nothing at launch: no watch
-        // starts, and the registry withdraws what an earlier run offered
-        // without browsing or dialing (CC-96).
-        #if os(macOS)
-          RemoteUseSwitch.shared.start()
-        #endif
-        PersistentTokenRegistry.shared.start()
-      #endif
+      startFromThePairings()
       #if os(macOS)
         RappCardPromptNotificationRelay.shared.start()
         #if REFINEID_STREAM_TRANSPORT
@@ -86,4 +72,34 @@ extension RefineIDApp {
       }
     #endif
   }
+
+  #if REFINEID_REMOTE_CARD
+    /// Sweeps the pairings for idle expiry (RAPP v26.10.22 §4.6 item 5),
+    /// then serves or follows from what remains, and sweeps again while the
+    /// app runs.
+    ///
+    /// On the Mac, remote use is restored on only while a pairing remains;
+    /// off, it asks macOS for nothing, and the registry withdraws what an
+    /// earlier run offered without browsing or dialing (CC-96, CC-101).
+    private static func startFromThePairings() {
+      #if os(macOS)
+        RemoteUseSwitch.shared.start(
+          pairingRemains: PersistentTokenRegistry.sweepIdlePairingsAtLaunch())
+      #else
+        PersistentTokenRegistry.sweepIdlePairingsAtLaunch()
+      #endif
+      #if REFINEID_LOCAL_CARD && os(iOS)
+        HolderCardServing.availabilityChanged()
+        PhonePersistentTokenRelay.shared.start()
+        PhonePersistentTokenRelay.shared.idleSweep.start {
+          PhonePersistentTokenRelay.shared.sweepIdlePairings()
+        }
+        guard !SupportedCardTransports.offersNearField else { return }
+      #endif
+      PersistentTokenRegistry.shared.start()
+      PersistentTokenRegistry.shared.idleSweep.start {
+        PersistentTokenRegistry.shared.sweepIdlePairings()
+      }
+    }
+  #endif
 }

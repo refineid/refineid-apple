@@ -24,6 +24,11 @@ internal enum PairingEvent: String, CaseIterable, Sendable {
   /// No endpoint served an offer the requester could try, and its search
   /// ended.
   case noCustodianTried = "no_custodian_tried"
+  /// Remote use stopped being available during the requester's search: a
+  /// card in a reader attached to it, or the holder turned remote use off.
+  /// The search ends; the code entry is offered again once remote use
+  /// resumes.
+  case searchInterrupted = "search_interrupted"
   case keyConfirmed = "key_confirmed"
   case handshakeAuthenticated = "handshake_authenticated"
   case handshakeFailed = "handshake_failed"
@@ -36,7 +41,17 @@ internal enum PairingEvent: String, CaseIterable, Sendable {
   case sessionHealthy = "session_healthy"
   /// Produced by the session machine entering closed.
   case sessionClosed = "session_closed"
+  /// The local user forgot the pairing; on a requester, by turning remote
+  /// use off, which forgets every pairing it holds and, with no session
+  /// open, owes the custodian nothing (§4.6 item 6).
   case forgetPairing = "forget_pairing"
+  /// The idle-expiry sweep, with a session to the pairing established or
+  /// with none and the pairing short of the idle limit (§4.6 item 5).
+  case expiryCheck = "expiry_check"
+  /// The idle-expiry sweep found no session established and the pairing
+  /// `pairing_idle_expiry_days` of wall-clock time past its latest recorded
+  /// session, or its creation (§4.6 item 5).
+  case idleExpired = "idle_expired"
   /// Produced by the next session sending the close as its first message.
   case revocationNoticeSent = "revocation_notice_sent"
   /// `revocation_notice_days` after the revocation.

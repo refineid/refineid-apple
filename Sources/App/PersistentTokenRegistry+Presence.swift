@@ -195,8 +195,11 @@
     }
 
     /// The holder closed a session with `pairing_revoked` (RAPP v26.10.22
-    /// §4.6 item 4): this computer forgets the pairing too, the borrowed
-    /// identity leaves at once, and the row names the phone that did it.
+    /// §4.6 item 4).
+    ///
+    /// This computer forgets the pairing too, the borrowed identity leaves
+    /// at once, and the row names the phone that did it. On the Mac remote
+    /// use turns off when that was the last pairing (CC-101).
     internal func holderRevoked(pairID: Data) {
       let vault = RappDeviceVault()
       let name = RappPairNames.label(
@@ -218,6 +221,9 @@
       if let name {
         phoneThatForgot = name
       }
+      #if os(macOS) && REFINEID_REMOTE_CARD
+        remoteUseFollowsThePairings(.shared, in: vault)
+      #endif
       restartWatchingPresence()
       NotificationCenter.default.post(
         name: RappPairingModel.pairingsDidChangeNotification, object: nil)

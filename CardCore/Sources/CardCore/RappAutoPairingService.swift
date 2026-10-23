@@ -104,14 +104,12 @@
       Task {
         let pairsBefore = RappPairingSnapshot(vault: vault)
         // Remote access is opt-in: while the holder has it off, nothing
-        // may re-enter the vault, or turning it off would not hold.
-        #if os(iOS)
-          if RemoteAccessGate.isEnabled {
-            _ = (try? await coordinator.reconcileVault(vault: vault)) ?? []
-          }
-        #else
+        // may re-enter the vault, or turning it off would not hold. On a
+        // computer the switch is the pairing, so a pairing made while it
+        // is off would turn remote use on at the next launch.
+        if RemoteAccessGate.isEnabled {
           _ = (try? await coordinator.reconcileVault(vault: vault)) ?? []
-        #endif
+        }
         let remotes = await coordinator.remoteDevices()
         self.updateCachedRemoteDevices(remotes)
         let pairsChanged = pairsBefore.differs(from: RappPairingSnapshot(vault: vault))

@@ -4,11 +4,11 @@
 
   import SwiftUI
 
-  /// The paired phone's line: what the phone says, and the control that
-  /// forgets the pairing.
+  /// The paired phone's line: what the phone says.
   ///
-  /// The control stands whatever the phone says, so every pairing can be
-  /// removed from here.
+  /// The line carries no control of its own: the remote-use switch is the
+  /// pairing, and turning it off forgets the phone (hierarchy specification
+  /// §5.2).
   internal struct PairedPhoneLine: View {
     /// What the line says.
     internal let lead: IdentityLine.PairedLead
@@ -21,23 +21,10 @@
     internal let holder: String?
 
     internal var body: some View {
-      HStack {
-        Text(Self.line(lead: lead, phone: phone, holder: holder))
-          .textSelection(.enabled)
-          .fixedSize(horizontal: false, vertical: true)
-          .frame(maxWidth: .infinity, alignment: .leading)
-        Button {
-          Task {
-            await PersistentTokenRegistry.shared.forgetPairedPhone(through: RappPairingModel())
-          }
-        } label: {
-          Image(systemName: "person.badge.minus")
-        }
-        .buttonStyle(.borderless)
-        .help(Text("Remove phone pairing"))
-        .accessibilityLabel(Text("Remove phone pairing"))
-        .accessibilityIdentifier("forgetPairedPhone")
-      }
+      Text(Self.line(lead: lead, phone: phone, holder: holder))
+        .textSelection(.enabled)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// The words of the line: the holder's name in the primary color,

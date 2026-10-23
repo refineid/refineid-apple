@@ -53,17 +53,32 @@ PACE. Core NFC is also unavailable to extensions and allows one reader
 session in the system, so it would be a second NFC stack beside the slot
 the token extension signs through.
 
-## A computer that turns remote use off
+## A computer that withdraws or forgets the phone
 
-A paired computer that turns remote use off, has it turned off by a card
-in its own reader, or quits closes its session with `service_withdrawn`
-(RAPP v26.10.22 §4.5 items 8 and 9). The phone ends that session without a
-close of its own. The session's operation ends with it, and its PIN prompt
-and its summons go. The pairing stays, nothing stored changes, and no
-error is shown or reported. The phone keeps serving every pairing, and the
-computer's next dial opens a session as any other.
+A paired computer that a card in its own reader suspends, or that quits,
+closes its session with `service_withdrawn` (RAPP v26.10.22 §4.5 items 8
+and 9). The phone ends that session without a close of its own. The
+session's operation ends with it, and its PIN prompt and its summons go.
+The pairing stays, nothing stored changes, and no error is shown or
+reported. The phone keeps serving every pairing, and the computer's next
+dial opens a session as any other.
+
+A computer whose holder turns remote use off forgets the phone (§4.6 item
+6). An open session closes with `pairing_revoked`, and the phone forgets
+the computer at once: it leaves "Paired computers". With no session open
+the phone is told nothing and forgets the computer by idle expiry.
 
 The phone shows no connection state for each computer: "Paired computers"
 lists names only. The "Connected" badge on the "Remote Access" row, and
 the green antenna on its screen, follow whether any session is open, so a
 computer that withdraws stops counting there as its session ends.
+
+## Idle expiry
+
+A pairing that has had no established session for 30 days expires (RAPP
+v26.10.22 §4.6 item 5). The phone records each session as it is
+established and as it ends, and checks every pairing at launch and every
+hour while the app runs; a computer with a session open never expires.
+An expired computer leaves "Paired computers" silently: nothing is sent,
+shown or reported. If that computer opens a session within the next 30
+days, the phone tells it with `pairing_revoked`.

@@ -19,10 +19,14 @@ public struct RappPairMetadata: Equatable, Sendable {
   /// Whether both endpoints confirmed storing the pairing (RAPP v26.10.22
   /// §4.3 item 4); an unconfirmed record is revoked, never used.
   public var storageConfirmed: Bool
-  /// When the local user forgot the pairing while no session was open: the
-  /// record serves nothing and keeps its key only to deliver the
-  /// `pairing_revoked` close on the next session (§4.6 item 2).
+  /// When the local user forgot the pairing, or it expired, while no
+  /// session was open: the record serves nothing and keeps its key only to
+  /// deliver the `pairing_revoked` close on the next session (§4.6 item 2).
   public var forgottenAtMs: UInt64?
+  /// The latest wall-clock time ``RappPairRecord/sweep(vault:nowMs:sessionEstablished:)``
+  /// recorded at which the pairing had an established session, or nil while
+  /// it has had none (§4.6 item 5).
+  public var lastSessionAtMs: UInt64?
 
   /// Describes a stored pairing.
   public init(
@@ -33,7 +37,8 @@ public struct RappPairMetadata: Equatable, Sendable {
     candidateId: String,
     createdAtMs: UInt64,
     storageConfirmed: Bool,
-    forgottenAtMs: UInt64? = nil
+    forgottenAtMs: UInt64? = nil,
+    lastSessionAtMs: UInt64? = nil
   ) {
     self.pairId = pairId
     self.role = role
@@ -43,5 +48,6 @@ public struct RappPairMetadata: Equatable, Sendable {
     self.createdAtMs = createdAtMs
     self.storageConfirmed = storageConfirmed
     self.forgottenAtMs = forgottenAtMs
+    self.lastSessionAtMs = lastSessionAtMs
   }
 }

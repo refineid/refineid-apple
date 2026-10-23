@@ -30,9 +30,17 @@ public func rappIdentityOfferGraceMs() -> UInt64 {
 }
 
 /// How long a requester that quits waits for its `service_withdrawn` closes
-/// to leave before it exits, in milliseconds (RAPP v26.10.22 §4.5 item 8).
+/// to leave before it exits, and one whose holder turned remote use off
+/// waits for its `pairing_revoked` closes, in milliseconds (RAPP v26.10.22
+/// §4.5 item 8, §4.6 item 6).
 public func rappQuitWithdrawalBoundMs() -> UInt64 {
   QuitWithdrawalBound.milliseconds
+}
+
+/// How long a pairing lives without an established session before it
+/// expires, in milliseconds (RAPP v26.10.22 §4.6 item 5).
+public func rappPairingIdleExpiryMs() -> UInt64 {
+  PairRecord.pairingIdleExpiryMilliseconds
 }
 
 /// The credential profiles the registry admits, in the order it registers

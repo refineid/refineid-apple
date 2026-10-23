@@ -92,13 +92,11 @@ internal struct ReaderInstructionStringsTests {
     let finnish: [String: String] = [
       "(paired: %@)": "(yhdistetty: %@)",
       "Connecting to the phone…": "Yhdistetään puhelimeen…",
-      "Remove phone pairing": "Poista puhelimen yhdistäminen",
       "PIN Codes": "PIN-koodit",
     ]
     let swedish: [String: String] = [
       "(paired: %@)": "(kopplad: %@)",
       "Connecting to the phone…": "Ansluter till telefonen…",
-      "Remove phone pairing": "Ta bort kopplingen till telefonen",
       "PIN Codes": "PIN-koder",
     ]
     for (key, value) in finnish {
@@ -177,7 +175,7 @@ internal struct ReaderInstructionStringsTests {
     )
     #expect(phoneLine.contains("(paired: \\(phone))"))
     #expect(phoneLine.contains("Connecting to the phone…"))
-    #expect(phoneLine.contains("Remove phone pairing"))
+    #expect(!phoneLine.contains("Button"), "the switch is the only control that forgets")
     let pinCodes = try String(
       contentsOf: Self.root.appending(path: "Sources/App/RemoteUseButton.swift"),
       encoding: .utf8

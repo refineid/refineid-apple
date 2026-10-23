@@ -10,13 +10,10 @@
 
   @testable import RefineID
 
-  /// The phone the identity row names, and the control that forgets it
-  /// (RAPP v26.10.22 §4.6).
+  /// The phone the identity row names (RAPP v26.10.22 §4.6).
   @Suite(.serialized)
   @MainActor
   internal struct PairedPhoneTests {
-    private static let phone = "Alpha iPhone"
-
     /// When the older of two pairings was made, in milliseconds since the
     /// Unix epoch.
     private static let olderCreation: UInt64 = 1_000
@@ -59,28 +56,6 @@
       #expect(PersistentTokenRegistry.pairedPhoneID(in: vault) == nil)
     }
 
-    @Test("The minus beside the phone's name forgets its pairing, and the row drops the phone")
-    internal func forgettingThePairedPhoneEndsItsPairing() async throws {
-      let vault = RappDeviceVault()
-      let pairing = try Self.makePairing(createdAt: Self.newerCreation)
-      let pairID = pairing.metadata().pairId
-      try Self.store(pairing, in: vault)
-      RappPairNames.remember(Self.phone, pairID: pairID)
-      defer { RappPairNames.forget(pairID: pairID) }
-
-      let registry = PersistentTokenRegistry.shared
-      registry.refreshPairing(in: vault)
-      #expect(registry.pairedPhone == Self.phone)
-      #expect(registry.pairedPhoneID == pairID)
-
-      await registry.forgetPairedPhone(through: RappPairingModel(vault: vault))
-
-      #expect(registry.pairedPhone == nil)
-      #expect(PersistentTokenRegistry.pairedPhoneID(in: vault) == nil)
-      #expect(RappPairNames.name(forPairID: pairID) == nil)
-      registry.refreshPairing(in: vault)
-      #expect(registry.pairedPhone == nil)
-    }
   }
 
 #endif

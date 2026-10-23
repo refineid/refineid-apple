@@ -27,33 +27,46 @@ the six-box access number entry.
 
 One toolbar button is the switch for all remote use: Bluetooth and
 local-network discovery, sessions with the phone, and the phone's identity
-(`RemoteUseSwitch`, `RemoteUseButton`; hierarchy specification §5.2). It
-is off at every launch. A click turns it on or off. VoiceOver reads it as
-a toggle.
+(`RemoteUseSwitch`, `RemoteUseButton`; hierarchy specification §5.2). The
+switch is the pairing: it is on while the Mac holds an active pairing, and
+turning it off forgets the phone. A click turns it on or off. VoiceOver
+reads it as a toggle.
 
-- **Off.** Nothing remote runs: no Bonjour browse, no Bluetooth scan, no
-  dial, and no phone identity. The app asks macOS for no local-network or
-  Bluetooth permission. An operation that the token extension hands over
-  is refused. The identity line speaks of this Mac's reader only.
+- **Off.** Nothing remote runs, for any reason: no Bonjour browse, no
+  Bluetooth scan, no dial, and no phone identity. The app asks macOS for no
+  local-network or Bluetooth permission. An operation that the token
+  extension hands over is refused. The identity line speaks of this Mac's
+  reader only.
 - **Turning on.** Turning on is when macOS asks for the permissions. A
   Bluetooth manager asks for Bluetooth. A Bonjour browse asks for the
   local network and runs until macOS allows it. With no phone paired, the
-  pairing prompt shows, beside a card reader or not. With a pairing, the
-  phone's line returns.
-- **Turning off.** Every session with the phone closes at once with
-  `service_withdrawn`, which tells the phone this computer is off (RAPP
-  v26.10.22 §4.5 item 8). A connection still being made closes without a
-  notice. The phone's identity is withdrawn at once, without its grace,
-  and scanning stops. The pairing is kept, so turning remote use on again
-  reconnects without a code.
-- **Quitting.** Quitting while remote use is on turns it off first, as a
-  click would (`QuitWithdrawal`). The app exits once the session's close
-  has left, written to the stream or acknowledged over Bluetooth, or after
-  1 second, whichever comes first. Quitting with remote use off exits at
-  once.
+  pairing prompt shows, beside a card reader or not, and the Mac browses
+  for phones in pairing mode only while a code is tried. With a pairing,
+  the phone's line returns.
+- **Turning off.** The click forgets every pairing (RAPP v26.10.22 §4.6
+  item 6). An open session closes with `pairing_revoked`, and the Mac
+  waits at most 1 second for that close to leave; then every pairing and
+  its key are destroyed. A connection still being made closes without a
+  notice. A phone with no session open is told nothing and forgets this
+  computer by its own idle expiry. The phone's identity is withdrawn at
+  once, without its grace, and scanning stops. The click asks for no
+  confirmation. Turning remote use on again asks for a new pairing code.
+- **The last pairing ends.** When the phone forgets this computer
+  (`pairing_revoked`) or the pairing expires after 30 days without a
+  session, remote use turns off.
+- **Quitting.** Quitting while remote use is on withdraws
+  (`QuitWithdrawal`): the session closes with `service_withdrawn` and the
+  pairing is kept. The app exits once the close has left, written to the
+  stream or acknowledged over Bluetooth, or after 1 second, whichever
+  comes first. Quitting with remote use off exits at once.
+- **Launch.** Every launch, a start at login included, first expires the
+  pairings that had no session for 30 days, then restores remote use on
+  while an active pairing remains and off otherwise. A launch that
+  restores it on asks for no permission. Sleep leaves remote use as it
+  was.
 
-A card in this Mac's own reader still overrides the phone while remote use
-is on (see below).
+A card in this Mac's own reader suspends remote use while it is there
+(see below).
 
 The button's symbol shows the state:
 
@@ -67,11 +80,8 @@ The button's symbol shows the state:
 
 While a card is in this Mac's reader the button opens the PIN codes window
 instead, under the name "PIN Codes", and the two keys tell the holder
-the card is here. Inserting the card turns remote use off, as a click on
-the switch would. When the card leaves, the button is the switch again,
-off. Every launch starts with remote use off too. Only the holder turns it
-on, and that click is the only time the app asks macOS for Bluetooth or
-local-network permission.
+the card is here. When the card leaves, the button is the switch again,
+as it was before the card came.
 
 An open session shows as connected even while something else is blocked.
 The tooltip and the VoiceOver label say "Remote Access". The tooltip and the
@@ -87,18 +97,18 @@ every other change is a change of colour.
 `IdentityLine.derive` picks the line from the requester's facts
 (`RequesterFacts`). `IdentityStateView` draws it.
 
-| State | Line | Control |
-|---|---|---|
-| Remote use off, no reader here | "Connect a card reader." | |
-| Remote use off, empty reader here | "Insert the card into the reader." | |
-| Remote use on, no card here, no phone paired | "Open RefineID remote access on your phone and enter the pairing code:" and the six-box code entry | |
-| The phone forgot this computer | "*phone* forgot this computer" above the pairing prompt | |
-| Card in this Mac's reader, name not read yet | "Reading information…" | |
-| Card in this Mac's reader | *HOLDER NAME* | |
-| Card in this Mac's reader, not ready after a while | the re-insert warning | |
-| Paired phone, no identity from it yet | "Connecting to the phone…" | minus |
-| Paired phone, its identity offered | "*HOLDER NAME* (paired: *phone*)" | minus |
-| Paired phone, its card reader empty | "Insert the card into the phone's card reader." | minus |
+| State | Line |
+|---|---|
+| Remote use off, no reader here | "Connect a card reader." |
+| Remote use off, empty reader here | "Insert the card into the reader." |
+| Remote use on, no card here, no phone paired | "Open RefineID remote access on your phone and enter the pairing code:" and the six-box code entry |
+| Remote use turned on again after the phone forgot this computer | "*phone* forgot this computer" above the pairing prompt |
+| Card in this Mac's reader, name not read yet | "Reading information…" |
+| Card in this Mac's reader | *HOLDER NAME* |
+| Card in this Mac's reader, not ready after a while | the re-insert warning |
+| Paired phone, no identity from it yet | "Connecting to the phone…" |
+| Paired phone, its identity offered | "*HOLDER NAME* (paired: *phone*)" |
+| Paired phone, its card reader empty | "Insert the card into the phone's card reader." |
 
 A card inserted into this Mac's reader shows "Reading information…" in the
 secondary text color until its token is published and the holder's name
@@ -123,20 +133,12 @@ when the model begins with the `display_name` it sent, ignoring case: an
 iPhone named "iPhone" shows as "iPhone 15 Pro Max". Otherwise *phone* is
 that name. The same label names a pairing in the paired list.
 
-The controls sit at the right end of the line, vertically centered. Each
-is a button with a VoiceOver label and a tooltip.
-
-- **Minus** (`person.badge.minus`, "Remove phone pairing"). It
-  forgets the paired phone at once, with no confirmation. The line drops
-  the phone, and the pairing prompt returns. The pairing ends as RAPP
-  v26.10.22 §4.6 says. An open session closes with `pairing_revoked`.
-  Without a session, the record stays forgotten until the next session
-  delivers that close. A same-account record that would pair the phone
-  again is removed too.
+A paired phone's line carries no control: the remote-use switch is the
+only control that forgets the phone.
 
 A Mac pairs one phone. The pairing prompt shows only while remote use is
-on and no phone is paired, and there is no "forget all". The phone rows
-of the table above need remote use on.
+on and no phone is paired. The phone rows of the table above need remote
+use on.
 
 ## The PIN codes window
 
@@ -149,24 +151,26 @@ The "Attempts left:" row along the foot of the window lists only the
 counters below full. While PIN 1, PIN 2 and the PUK are all full, the
 row is not shown.
 
-## A local card turns remote use off
+## A local card suspends remote use
 
-Inserting a card into this Mac's own reader turns remote use off, as a
-click on the switch would, so the Mac neither holds nor dials its session
-with the paired phone:
+A card in this Mac's own reader suspends remote use while it is there, so
+the Mac neither holds nor dials its session with the paired phone
+(hierarchy specification §5.2):
 
 - `CardPresence` reports the card to `PersistentTokenRegistry`. The
-  registry withdraws the phone's published identity, closes the session
-  with `service_withdrawn` as the switch does, and stops browsing for the
-  phone.
+  registry withdraws (RAPP v26.10.22 §4.5 item 8): it closes the session
+  with `service_withdrawn`, withdraws the phone's published identity, and
+  stops browsing for the phone.
 - `RequesterTransportPolicy` leaves nothing to dial, so no dial, redial or
   Bluetooth scan starts.
+- A pairing search under way ends, and the typed code is dropped.
 - An operation the token extension hands over is refused.
 - Document signing uses the local card.
 - The identity line shows only the local card.
 
-When the card leaves the reader, remote use stays off until the holder
-turns it on again. The pairing is kept throughout.
+The switch and the pairing stay as they are. When the card leaves, remote
+use resumes as it was: with a pairing, the Mac finds and dials the phone
+again without a code; with none, the pairing prompt returns.
 
 ## Running without the window
 

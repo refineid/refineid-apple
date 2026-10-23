@@ -52,6 +52,16 @@ internal func makePairRecord() throws -> PairRecord {
   )
 }
 
+/// ``makePairRecord()`` as stored before the peer confirmed it (RAPP
+/// v26.10.22 §4.3 item 4).
+internal func makeUnconfirmedPairRecord() throws -> PairRecord {
+  guard case .map(var map) = expectedPairRecordValue() else {
+    throw PairRecordError.invalidInput
+  }
+  map["storage_confirmed"] = .boolean(false)
+  return try PairRecord.decode(try WireValue.map(map).encoded())
+}
+
 /// The stored form of ``makePairRecord()``, assembled field by field from
 /// the record's storage keys, so a renamed key or a changed value shows.
 internal func expectedPairRecordValue() -> WireValue {
@@ -72,5 +82,6 @@ internal func expectedPairRecordValue() -> WireValue {
     "created_at_ms": .unsigned(fixtureRecordCreatedAtMilliseconds),
     "storage_confirmed": .boolean(true),
     "forgotten_at_ms": .null,
+    "last_session_at_ms": .null,
   ])
 }

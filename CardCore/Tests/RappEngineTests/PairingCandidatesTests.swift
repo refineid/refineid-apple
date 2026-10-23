@@ -154,7 +154,7 @@ internal struct PairingCandidatesTests {
 
   @Test("The outcomes drive the requester's pairing machine")
   internal func outcomesDriveThePairingMachine() throws {
-    let tryNext = NextCandidate.tryNext.pairingEvent
+    let tryNext = NextCandidate.tryNext.pairingEvent(remoteUseAvailable: true)
     let next = try #require(
       PairingState.transition(
         from: .exchanging, on: tryNext.event, role: .requester, guards: tryNext.guards))
@@ -162,7 +162,7 @@ internal struct PairingCandidatesTests {
     #expect(next.actions.contains(.tryNextCandidate))
     #expect(!next.actions.contains(.showWrongCode))
 
-    let notAccepted = NextCandidate.notAccepted.pairingEvent
+    let notAccepted = NextCandidate.notAccepted.pairingEvent(remoteUseAvailable: true)
     #expect(notAccepted.event == .lastCandidateFailed)
     let last = try #require(
       PairingState.transition(
@@ -170,7 +170,7 @@ internal struct PairingCandidatesTests {
     #expect(last.state == .unpaired)
     #expect(last.actions.contains(.showWrongCode))
 
-    let noneTried = NextCandidate.noneTried.pairingEvent
+    let noneTried = NextCandidate.noneTried.pairingEvent(remoteUseAvailable: true)
     let none = try #require(
       PairingState.transition(
         from: .exchanging, on: noneTried.event, role: .requester, guards: noneTried.guards))
@@ -182,5 +182,31 @@ internal struct PairingCandidatesTests {
         from: .exchanging, on: .attemptFailed, role: .requester, guards: notAccepted.guards)
         == .guardFailed(.untriedPairingCandidate),
       "a refusal with nobody left to try never stays exchanging")
+  }
+
+  @Test("A local card, or remote use turned off, ends the search")
+  internal func unavailableRemoteUseEndsTheSearch() throws {
+    for outcome in [NextCandidate.tryNext, .noneTried] {
+      let interrupted = outcome.pairingEvent(remoteUseAvailable: false)
+      #expect(interrupted.event == .searchInterrupted)
+      let ended = try #require(
+        PairingState.transition(
+          from: .exchanging, on: interrupted.event, role: .requester,
+          guards: interrupted.guards))
+      #expect(ended.state == .unpaired)
+      #expect(ended.actions == [.closeCandidate])
+    }
+    #expect(
+      NextCandidate.notAccepted.pairingEvent(remoteUseAvailable: false).event
+        == .lastCandidateFailed,
+      "a code every custodian tried refused is still reported")
+    #expect(
+      PairingState.outcome(
+        from: .exchanging, on: .attemptFailed, role: .requester, guards: .noneSatisfied)
+        == .guardFailed(.untriedPairingCandidate),
+      "no further custodian is tried without the guard")
+    #expect(
+      PairingState.outcome(from: .exchanging, on: .searchInterrupted, role: .proxy) == .noRule,
+      "only a requester searches")
   }
 }

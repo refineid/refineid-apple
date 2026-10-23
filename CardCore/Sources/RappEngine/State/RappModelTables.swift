@@ -4,8 +4,12 @@
 /// transcribed in model order so a rule here and a rule there can be compared
 /// line for line.
 internal enum RappModelTables {
-  /// Pairing component rules.
-  internal static let pairing: [RappRule<PairingState, PairingEvent>] = [
+  /// Pairing component rules, in model order.
+  internal static let pairing = pairingCeremony + pairingLifetime
+
+  /// Pairing component rules from the offer to both endpoints storing the
+  /// pairing (RAPP v26.10.22 §3, §4.3).
+  private static let pairingCeremony: [RappRule<PairingState, PairingEvent>] = [
     RappRule(
       from: .unpaired,
       event: .startPairing,
@@ -71,6 +75,13 @@ internal enum RappModelTables {
       role: .requester,
       destination: .unpaired,
       actions: [.closeCandidate, .showNoneInPairingMode]
+    ),
+    RappRule(
+      from: .exchanging,
+      event: .searchInterrupted,
+      role: .requester,
+      destination: .unpaired,
+      actions: [.closeCandidate]
     ),
     RappRule(
       from: .exchanging,
@@ -151,77 +162,6 @@ internal enum RappModelTables {
       role: .both,
       destination: .unpaired,
       actions: [.revokeUnconfirmedPairRecord, .destroyPairKeys, .closeCandidate]
-    ),
-    RappRule(
-      from: .pairedDisconnected,
-      event: .sessionHealthy,
-      role: .both,
-      destination: .pairedConnected,
-      actions: [.showConnected]
-    ),
-    RappRule(
-      from: .pairedConnected,
-      event: .sessionClosed,
-      role: .both,
-      destination: .pairedDisconnected,
-      actions: [.showPairedDisconnected]
-    ),
-    RappRule(
-      from: .pairedConnected,
-      event: .peerWithdrawalNotice,
-      role: .custodian,
-      destination: .pairedDisconnected,
-      actions: [.showPeerWithdrawn]
-    ),
-    RappRule(
-      from: .pairedConnected,
-      event: .forgetPairing,
-      role: .both,
-      condition: .localUserAction,
-      destination: .revoked,
-      actions: [
-        .markRecordRevoked, .sendClosePairingRevoked, .closeSession, .destroyPairKeys,
-        .withdrawIdentity, .showForgotten,
-      ]
-    ),
-    RappRule(
-      from: .pairedDisconnected,
-      event: .forgetPairing,
-      role: .both,
-      condition: .localUserAction,
-      destination: .revoking,
-      actions: [.markRecordRevoked, .withdrawIdentity, .showForgotten]
-    ),
-    RappRule(
-      from: .revoking,
-      event: .revocationNoticeSent,
-      role: .both,
-      destination: .revoked,
-      actions: [.destroyPairKeys]
-    ),
-    RappRule(
-      from: .revoking,
-      event: .noticeWindowExpired,
-      role: .both,
-      destination: .revoked,
-      actions: [.destroyPairKeys]
-    ),
-    RappRule(
-      from: [.pairedDisconnected, .pairedConnected, .revoking],
-      event: .peerRevocationNotice,
-      role: .both,
-      destination: .revoked,
-      actions: [
-        .markRecordRevoked, .closeSession, .destroyPairKeys, .withdrawIdentity, .showPeerForgot,
-      ]
-    ),
-    RappRule(
-      from: .revoked,
-      event: .forgetPairing,
-      role: .both,
-      condition: .localUserAction,
-      destination: .unpaired,
-      actions: [.clearResidualPairRecord]
     ),
   ]
 }

@@ -17,15 +17,26 @@ internal enum NextCandidate: Equatable, Sendable {
   case tryNext
 
   /// The pairing-machine event of this outcome on the requester, with the
-  /// guards it carries. ``noneTried`` is ``PairingEvent/noCustodianTried``
-  /// once the requester's search ends.
-  internal var pairingEvent: (event: PairingEvent, guards: RappGuards) {
-    switch self {
-    case .noneTried:
-      (.noCustodianTried, .noneSatisfied)
-
+  /// guards it carries.
+  ///
+  /// `remoteUseAvailable` says whether the requester's remote use is on and
+  /// no card is in a reader attached to it. Without it
+  /// no further custodian is tried and the search ends as
+  /// ``PairingEvent/searchInterrupted``, unless every custodian tried already
+  /// refused the code (hierarchy specification §5.2). ``noneTried`` is
+  /// ``PairingEvent/noCustodianTried`` once the requester's search ends.
+  internal func pairingEvent(remoteUseAvailable: Bool) -> (
+    event: PairingEvent, guards: RappGuards
+  ) {
+    if self != .notAccepted, !remoteUseAvailable {
+      return (.searchInterrupted, .noneSatisfied)
+    }
+    return switch self {
     case .notAccepted:
       (.lastCandidateFailed, .noneSatisfied)
+
+    case .noneTried:
+      (.noCustodianTried, .noneSatisfied)
 
     case .tryNext:
       (.attemptFailed, RappGuards(satisfied: [.untriedPairingCandidate]))

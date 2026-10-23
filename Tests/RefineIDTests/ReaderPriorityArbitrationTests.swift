@@ -122,7 +122,7 @@
         RemoteAccessGate.setEnabled(true)
         defer {
           RemoteAccessGate.setEnabled(false)
-          registry.remoteUseChanged()
+          registry.remoteUseChanged(.stopped)
           CardPresence.shared.setReaderCardPresentForTesting(initialPresence)
           registry.bluetoothUsable = initialBluetooth
         }

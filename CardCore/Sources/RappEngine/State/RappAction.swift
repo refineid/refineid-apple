@@ -45,6 +45,7 @@ internal enum RappAction: String, CaseIterable, Sendable {
   case sendClosePairingRevoked = "send_close_pairing_revoked"
   case closeSession = "close_session"
   case destroyPairKeys = "destroy_pair_keys"
+  case recordLastSession = "record_last_session"
   case withdrawIdentity = "withdraw_identity"
   case showConnected = "show_connected"
   case showPairedDisconnected = "show_paired_disconnected"

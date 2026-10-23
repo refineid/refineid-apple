@@ -26,10 +26,12 @@
         refused = message != nil
       }
       .onDisappear {
-        // Turning remote use off ends a code being tried: its browse
-        // stops with it.
+        // Turning remote use off, or a card in this Mac's reader
+        // suspending it, ends a code being tried: its browse stops with
+        // it, and the typed code goes with this view (hierarchy
+        // specification §5.2, CC-102).
         #if REFINEID_REMOTE_CARD
-          if !RemoteUseSwitch.shared.isOn {
+          if !RemoteUseSwitch.shared.isOn || CardPresence.shared.isReaderCardPresent {
             model.resetAttempt()
           }
         #endif

@@ -9,17 +9,24 @@ import Testing
 @Suite("RAPP state invariants")
 internal struct StateInvariantTests {
   /// The pairing events that may end a pairing: the local user forgetting it,
-  /// the close that tells the peer, the notice window, and the peer's notice
-  /// (§4.6).
+  /// idle expiry, the close that tells the peer, the notice window, and the
+  /// peer's notice (§4.6).
   private static let revokingEvents: Set<PairingEvent> = [
-    .forgetPairing, .revocationNoticeSent, .noticeWindowExpired, .peerRevocationNotice,
+    .forgetPairing, .idleExpired, .revocationNoticeSent, .noticeWindowExpired,
+    .peerRevocationNotice,
   ]
 
-  /// Actions that change or end a stored pairing.
+  /// Actions that store, confirm, revoke or end a stored pairing; recording
+  /// a session's time is none of them.
   private static let pairingChangingActions: Set<RappAction> = [
     .storePairRecordAtomically, .markRecordConfirmed, .revokeUnconfirmedPairRecord,
     .markRecordRevoked, .sendClosePairingRevoked, .destroyPairKeys, .clearResidualPairRecord,
   ]
+
+  /// Whether `action` tells anyone anything: a user or the peer.
+  private static func isNotice(_ action: RappAction) -> Bool {
+    action.rawValue.hasPrefix("show_") || action.rawValue.hasPrefix("send_")
+  }
 
   @Test("No failure revokes a pairing (INV-08)")
   internal func noFailureRevokesAPairing() {
@@ -38,8 +45,8 @@ internal struct StateInvariantTests {
     }
   }
 
-  @Test("No withdrawal changes a stored pairing (INV-14)")
-  internal func noWithdrawalChangesAStoredPairing() {
+  @Test("No withdrawal revokes a pairing (INV-14)")
+  internal func noWithdrawalRevokesAPairing() {
     let pairing = RappModelTables.pairing.filter { $0.event == .peerWithdrawalNotice }
     let session = RappModelTables.session.filter { $0.event == .serviceWithdrawn }
     #expect(!pairing.isEmpty && !session.isEmpty, "the tables name withdrawal")
@@ -49,6 +56,48 @@ internal struct StateInvariantTests {
     }
     for rule in session {
       #expect(Self.pairingChangingActions.isDisjoint(with: rule.actions))
+    }
+  }
+
+  @Test("No pairing expires while a session to it is established (INV-15)")
+  internal func noPairingExpiresInSession() throws {
+    let expiries = RappModelTables.pairing.filter { $0.event == .idleExpired }
+    #expect(!expiries.isEmpty, "the tables name idle expiry")
+    for rule in expiries {
+      #expect(rule.from == [.pairedDisconnected], "only with no session established")
+      #expect(rule.role == .both, "both endpoints expire a pairing")
+      #expect(
+        rule.actions.allSatisfy { !Self.isNotice($0) }, "idle expiry is silent")
+    }
+    for role in [EndpointRole.requester, .proxy] {
+      #expect(PairingState.outcome(from: .pairedConnected, on: .idleExpired, role: role) == .noRule)
+      let check = try #require(
+        PairingState.transition(from: .pairedConnected, on: .expiryCheck, role: role))
+      #expect(check.state == .pairedConnected)
+      #expect(check.actions == [.recordLastSession])
+    }
+  }
+
+  @Test("A requester that forgets with no session open owes nothing (§4.6 item 6)")
+  internal func requesterForgetOwesNothing() throws {
+    let forgotten = try #require(
+      PairingState.transition(from: .pairedDisconnected, on: .forgetPairing, role: .requester))
+    #expect(forgotten.state == .revoked)
+    #expect(forgotten.actions.contains(.destroyPairKeys))
+    #expect(!forgotten.actions.contains(.sendClosePairingRevoked))
+    let custodian = try #require(
+      PairingState.transition(from: .pairedDisconnected, on: .forgetPairing, role: .proxy))
+    #expect(custodian.state == .revoking)
+  }
+
+  @Test("Every session start and end records the last session")
+  internal func sessionsRecordTheLastSession() {
+    for event in [PairingEvent.sessionHealthy, .sessionClosed, .peerWithdrawalNotice] {
+      let rules = RappModelTables.pairing.filter { $0.event == event }
+      #expect(!rules.isEmpty, "\(event.rawValue)")
+      for rule in rules {
+        #expect(rule.actions.first == .recordLastSession, "\(event.rawValue)")
+      }
     }
   }
 
@@ -80,7 +129,7 @@ internal struct StateInvariantTests {
     let off = try #require(
       PairingState.transition(from: .pairedConnected, on: .peerWithdrawalNotice, role: .proxy))
     #expect(off.state == .pairedDisconnected)
-    #expect(off.actions == [.showPeerWithdrawn])
+    #expect(off.actions == [.recordLastSession, .showPeerWithdrawn])
     let back = try #require(
       PairingState.transition(from: off.state, on: .sessionHealthy, role: .proxy))
     #expect(back.state == .pairedConnected)

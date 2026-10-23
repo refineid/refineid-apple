@@ -93,26 +93,6 @@ extension RappPairingModel {
     forgetStored(pairID: pairID, told: told)
   }
 
-  #if os(macOS)
-    /// Forgets the paired phone `pairID` names, with the same-account record
-    /// that would pair this computer with it again.
-    internal func forgetPhone(pairID: Data) async {
-      let name = RappPairNames.name(forPairID: pairID)
-      let localKey = RappAutoPairingService.shared.localIdentity?.publicKeyData
-      for device in RappAutoPairingService.shared.remoteDevices where device.role == .holder {
-        let derived = localKey.map { key in
-          RappSameAccountPairBuilder.derivePairIdentifier(
-            publicKeyA: key, publicKeyB: device.staticPublicKey)
-        }
-        let named = name.map { device.deviceName.caseInsensitiveCompare($0) == .orderedSame }
-        if derived == pairID || named == true {
-          RappAutoPairingService.shared.removeRemoteDevice(deviceID: device.deviceID)
-        }
-      }
-      await forget(pairID: pairID)
-    }
-  #endif
-
   private func forgetStored(pairID: Data, told: Bool) {
     #if os(macOS) || os(iOS)
       let wasOffered = PersistentTokenRegistry.pairedPhoneID(in: vault) == pairID

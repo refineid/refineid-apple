@@ -8,9 +8,11 @@
   /// Quitting while remote use is on: this computer's withdrawal (RAPP
   /// v26.10.22 §4.5 item 8, hierarchy specification §5.2).
   ///
-  /// Remote use turns off as a click would, so an open session closes with
-  /// `service_withdrawn`, and the quit waits for that close to leave, or
-  /// for the bound to pass, before the app exits.
+  /// An open session closes with `service_withdrawn`, remote use stops
+  /// with every pairing kept, and the quit waits for that close to leave,
+  /// or for the bound to pass, before the app exits; the next launch
+  /// restores remote use on while a pairing remains. The holder's click off
+  /// waits on its `pairing_revoked` closes the same way (§4.6 item 6).
   @MainActor
   internal enum QuitWithdrawal {
     // MARK: Nested Types
@@ -33,21 +35,22 @@
 
     // MARK: Static Properties
 
-    /// How long quitting waits for the withdrawal close to leave.
+    /// How long quitting waits for the withdrawal close to leave, and the
+    /// holder's click off for the revocation close.
     internal static let bound = Duration.milliseconds(Int64(rappQuitWithdrawalBoundMs()))
 
     // MARK: Static Functions
 
-    /// Withdraws the session of `registry` and turns `remoteUse` off, when
-    /// it is on, answering the session's close; nil when nothing is left
-    /// to wait for.
+    /// Withdraws the session of `registry` and stops `remoteUse`, when it
+    /// is on, keeping every pairing, and answers the session's close; nil
+    /// when nothing is left to wait for.
     internal static func begin(
       remoteUse: RemoteUseSwitch,
       registry: PersistentTokenRegistry
     ) -> Task<Bool, Never>? {
       guard remoteUse.isOn else { return nil }
       let closes = registry.withdrawHolderSession()
-      remoteUse.turn(on: false)
+      remoteUse.stop()
       return closes
     }
 
