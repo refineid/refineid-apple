@@ -11,9 +11,6 @@
     /// A card has been present without an identity long enough to warn.
     internal var warnsUnavailableCard: Bool
 
-    /// A read of the phone's certificate is in flight.
-    internal var readInFlight: Bool
-
     /// A reader is attached.
     internal var readerConnected: Bool
 
@@ -22,9 +19,6 @@
 
     /// The holder has remote use on (hierarchy specification §5.2).
     internal var remoteUse: Bool
-
-    /// The paired phone is in sight, on the network or over Bluetooth.
-    internal var phonePresent: Bool
 
     /// The paired phone, by the name it introduced itself with; nil while
     /// no usable pairing exists.

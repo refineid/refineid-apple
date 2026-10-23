@@ -6,9 +6,9 @@
   ///
   /// A card in this Mac's reader overrides the paired phone: while one is
   /// there the line speaks of that card alone. With remote use off the line
-  /// speaks of this Mac's reader alone. Otherwise a paired phone names
-  /// itself after whatever the line says, beside the control that forgets
-  /// it, and with no phone paired the line asks for a pairing code.
+  /// speaks of this Mac's reader alone. Otherwise a paired phone's line
+  /// stands beside the control that forgets it, and with no phone paired
+  /// the line asks for a pairing code.
   internal enum IdentityLine: Equatable, Sendable {
     /// The card in this Mac's reader has stayed without an identity long
     /// enough to warn; the PIN codes stay one click away.
@@ -26,8 +26,8 @@
     /// control that opens the PIN codes.
     case localHolder
 
-    /// The paired phone: what it says, then its name, beside the control
-    /// that forgets the pairing.
+    /// The paired phone's line, beside the control that forgets the
+    /// pairing; `phone` is the label the holder's line names it by.
     case paired(PairedLead, phone: String)
 
     /// Remote use on, no card here and no phone paired: the row asks for a
@@ -42,26 +42,18 @@
     /// second, so the row shows nothing until the holder's name.
     case reading
 
-    /// What the line says before the paired phone's name.
+    /// What the paired phone's line says.
     internal enum PairedLead: Equatable, Sendable {
-      /// Nothing: the phone is not in sight, and its name stands alone.
-      case away
-
-      /// "Connecting...": the phone's card is on its way to the holder's
-      /// name, read or about to be.
+      /// "Connecting to the phone…": the phone offers no identity yet.
       case connecting
 
-      /// The holder's name, from the certificate the phone confirmed.
+      /// The holder's name from the certificate the phone confirmed, then
+      /// "(paired: *phone*)".
       case holder
 
-      /// "Insert the card into the reader.": this Mac's own reader is
-      /// attached and empty, and the phone has no card on offer.
-      case insertCard
-
-      /// "Insert the card into the phone's card reader." or "Place the card
-      /// on the phone.": the phone says it holds no card, and whether a
-      /// reader is attached to it picks which (RAPP v26.10.22 §8.4 item 6).
-      case phoneCard(PhoneCardRequest)
+      /// "Insert the card into the phone's card reader.": the phone
+      /// reports no card in the card reader attached to it.
+      case phoneReader
     }
 
     // MARK: Static Functions
@@ -89,34 +81,18 @@
       return .paired(pairedLead(facts), phone: phone)
     }
 
-    /// What the paired phone's line says first; the first rule that matches
+    /// What the paired phone's line says; the first rule that matches
     /// wins.
     ///
-    /// The phone's word that it holds no card outranks an identity still
-    /// offered in its grace (RAPP v26.10.22 §8.4 item 3): the row says what
-    /// the holder can do now, while browsers keep the identity a little
-    /// longer.
+    /// The phone's word that its card reader is empty outranks an identity
+    /// still offered in its grace (RAPP v26.10.22 §8.4 item 3). A phone
+    /// without a card reader that reports no card leaves the identity it
+    /// offers standing.
     private static func pairedLead(_ facts: RequesterFacts) -> PairedLead {
-      let phoneRequest = PhoneCardRequest(facts.phoneCardStatus)
-      switch facts.availability {
-      case .ready:
-        return phoneRequest.map(PairedLead.phoneCard) ?? .holder
-
-      case .cardWithoutIdentity:
-        return phoneRequest.map(PairedLead.phoneCard) ?? .connecting
-
-      case .noCard:
-        if facts.readInFlight {
-          return .connecting
-        }
-        if facts.readerConnected {
-          return .insertCard
-        }
-        if let phoneRequest {
-          return .phoneCard(phoneRequest)
-        }
-        return facts.phonePresent ? .connecting : .away
+      if PhoneCardRequest(facts.phoneCardStatus) == .insertIntoPhoneReader {
+        return .phoneReader
       }
+      return facts.availability == .ready ? .holder : .connecting
     }
   }
 

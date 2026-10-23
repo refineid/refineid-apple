@@ -76,6 +76,8 @@ internal final class RappPairingModel: ObservableObject {
   internal var eventTask: Task<Void, Never>?
   internal var pairingTimeoutTask: Task<Void, Never>?
   internal var reviewedPeerName: String?
+  /// The platform the reviewed peer described itself with: its model.
+  internal var reviewedPeerModel: String?
 
   /// Ceremony events enter the coordinator in arrival order through
   /// this bounded chain; reset between attempts.
@@ -260,6 +262,7 @@ internal final class RappPairingModel: ObservableObject {
   internal func finishAttempt() {
     isOffering = false
     reviewedPeerName = nil
+    reviewedPeerModel = nil
     relay = nil
     relayGeneration = nil
     coordinator = nil

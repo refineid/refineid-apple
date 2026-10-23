@@ -14,10 +14,10 @@
   /// and only warns once the state has lasted long enough to mean
   /// something. A card in this Mac's reader overrides the paired phone and
   /// carries the control that opens its PIN codes. With remote use off the
-  /// row asks for a reader or its card. A paired phone's line
-  /// ends with the phone's name and the control that forgets it: its card
-  /// says it is connecting until the holder's name, and a phone that holds
-  /// no card asks for it.
+  /// row asks for a reader or its card. A paired phone's line ends with
+  /// the control that forgets it: it says it is connecting until the
+  /// phone offers an identity, then names the holder and the phone, and
+  /// asks for the card when the phone's card reader is empty.
   internal struct IdentityStateView: View {
     /// One tracked event.
     ///
@@ -64,8 +64,6 @@
     /// it.
     @State private var holder: String?
 
-    @State private var isFetching = PersistentTokenRegistry.shared.isRunning
-
     /// The person line the remote-card registry already holds.
     ///
     /// Used when the keychain has not yet listed the borrowed token
@@ -96,13 +94,6 @@
         .task(id: trackKey) {
           await track()
         }
-        .onReceive(
-          NotificationCenter.default.publisher(
-            for: PersistentTokenRegistry.fetchStateDidChangeNotification
-          )
-        ) { _ in
-          isFetching = PersistentTokenRegistry.shared.isRunning
-        }
     }
 
     /// Whether the holder has remote use on.
@@ -124,11 +115,9 @@
         return RequesterFacts(
           availability: availability,
           warnsUnavailableCard: warnsUnavailableCard,
-          readInFlight: false,
           readerConnected: card.readerConnected,
           cardPresent: card.cardPresent,
           remoteUse: remoteUse,
-          phonePresent: false,
           pairedPhone: nil,
           phoneThatForgot: nil,
           phoneCardStatus: nil
@@ -138,11 +127,9 @@
       return RequesterFacts(
         availability: availability,
         warnsUnavailableCard: warnsUnavailableCard,
-        readInFlight: isFetching,
         readerConnected: cardPresence.isReaderConnected,
         cardPresent: cardPresence.isCardPresent,
         remoteUse: remoteUse,
-        phonePresent: registry.holderInSight,
         pairedPhone: registry.pairedPhone,
         phoneThatForgot: registry.phoneThatForgot,
         phoneCardStatus: registry.holderCardStatus

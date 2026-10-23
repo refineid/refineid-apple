@@ -4,16 +4,16 @@
 
   import SwiftUI
 
-  /// The paired phone's line: what the phone says, then the phone's name
-  /// in the secondary color, and the control that forgets the pairing.
+  /// The paired phone's line: what the phone says, and the control that
+  /// forgets the pairing.
   ///
-  /// The control stands whatever the phone says, a phone with no card or
-  /// one out of reach included, so every pairing can be removed from here.
+  /// The control stands whatever the phone says, so every pairing can be
+  /// removed from here.
   internal struct PairedPhoneLine: View {
-    /// What the line says before the phone's name.
+    /// What the line says.
     internal let lead: IdentityLine.PairedLead
 
-    /// The phone, by the name it introduced itself with.
+    /// The phone's label: its model, or the name it introduced itself with.
     internal let phone: String
 
     /// The holder's name from the certificate the phone confirmed, once
@@ -43,39 +43,28 @@
     /// The words of the line: the holder's name in the primary color,
     /// everything else in the secondary one.
     ///
-    /// With nothing to say before it, the phone's name stands alone.
+    /// The holder's line ends with the phone's label. Until the holder's
+    /// name is read, the line says it is connecting.
     nonisolated internal static func line(
       lead: IdentityLine.PairedLead, phone: String, holder: String?
     ) -> AttributedString {
-      guard let opening = Self.opening(lead: lead, holder: holder) else {
-        return Self.secondary(String(localized: "Paired phone: \(phone)"))
-      }
-      var line =
-        lead == .holder ? AttributedString(opening) : Self.secondary(opening)
-      line.append(Self.secondary(" " + String(localized: "(paired phone: \(phone))")))
-      return line
-    }
-
-    /// What is said before the phone's name; nil when nothing is.
-    nonisolated private static func opening(lead: IdentityLine.PairedLead, holder: String?)
-      -> String?
-    {
       switch lead {
-      case .away:
-        nil
-
       case .connecting:
-        String(localized: "Connecting...")
+        return Self.connecting()
 
       case .holder:
-        holder.flatMap { $0.isEmpty ? nil : $0 }
+        guard let holder, !holder.isEmpty else { return Self.connecting() }
+        var line = AttributedString(holder)
+        line.append(Self.secondary(" " + String(localized: "(paired: \(phone))")))
+        return line
 
-      case .insertCard:
-        String(localized: "Insert the card into the reader.")
-
-      case .phoneCard(let request):
-        PhoneCardRequestLine.instruction(for: request)
+      case .phoneReader:
+        return Self.secondary(PhoneCardRequestLine.instruction(for: .insertIntoPhoneReader))
       }
+    }
+
+    nonisolated private static func connecting() -> AttributedString {
+      Self.secondary(String(localized: "Connecting to the phone…"))
     }
 
     nonisolated private static func secondary(_ words: String) -> AttributedString {
