@@ -50,6 +50,16 @@ internal struct FieldSignature {
     return mayHold
   }
 
+  /// Forgets the refused PIN when its fingerprint is known, and every
+  /// held PIN either way.
+  private func forget(_ fingerprint: PinFingerprint?) {
+    if let fingerprint {
+      token.forgetPinAfterRefusal(fingerprint: fingerprint)
+    } else {
+      token.forgetHeldPins()
+    }
+  }
+
   /// Establishes the contactless channel and signs `request` in it.
   ///
   /// The PIN is spent exactly once. There is deliberately no fresh-card
@@ -116,14 +126,12 @@ internal struct FieldSignature {
       : nil
     do {
       try operations.verifyPin1(pin1.consumeForSingleTransmission())
-    } catch CardOperationError.pinRejected, CardOperationError.pinBlocked {
-      if let fingerprint {
-        token.forgetPinAfterRefusal(fingerprint: fingerprint)
-      } else {
-        TransientCandidatePin1.shared.clear(for: token.cardInstanceID)
-        VolatileAcceptedPin1.shared.clear(for: token.cardInstanceID)
-      }
+    } catch CardOperationError.pinRejected {
+      forget(fingerprint)
       throw TokenError.pinRejected
+    } catch CardOperationError.pinBlocked {
+      forget(fingerprint)
+      throw TokenError.signRefused
     } catch {
       // Ambiguous transport/communication failure during or after VERIFY transmission:
       // clear unverified candidate store, but preserve previously accepted memory.

@@ -34,8 +34,10 @@ internal enum TokenError: Error {
   /// The card's raw signature could not be re-encoded.
   case signatureMalformed
 
-  /// Signing was refused (retry floor, unreadable state, or a rejected
-  /// signing command).
+  /// Signing was refused for a reason no new PIN entry changes: the
+  /// retry floor, a blocked PIN, unreadable state, or a rejected signing
+  /// command. Surfaces as a cancellation, so the system does not prompt
+  /// again.
   case signRefused
 
   /// The stored number was just refused by this card; not retrying yet.
@@ -56,8 +58,11 @@ internal enum TokenError: Error {
     case .certificateUnreadable, .signatureMalformed:
       TKError(.corruptedData)
 
-    case .pinAlreadyRejected, .pinFormatInvalid, .pinRejected, .signRefused:
+    case .pinAlreadyRejected, .pinFormatInvalid, .pinRejected:
       TKError(.authenticationFailed)
+
+    case .signRefused:
+      TKError(.canceledByUser)
 
     case .activationRequired, .primeMissing, .unsealAlreadyRefused,
       .unsupportedKeyProfile:

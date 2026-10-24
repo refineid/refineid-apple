@@ -88,7 +88,7 @@ internal enum QualifiedSignature {
       throw TokenError.pinRejected
     } catch CardOperationError.pinBlocked {
       token.forgetPinAfterRefusal(fingerprint: fingerprint)
-      throw TokenError.pinRejected
+      throw TokenError.signRefused
     } catch CardOperationError.credentialInvalidated {
       // A never-activated signature slot: not a wrong PIN, not a card
       // fault - a state the holder resolves through activation.
