@@ -1034,6 +1034,22 @@
         }
       }
     },
+    "Back": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Takaisin"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tillbaka"
+          }
+        }
+      }
+    },
     "Remove the card from the reader for a moment.": {
       "localizations": {
         "fi": {
