@@ -174,6 +174,23 @@ The "Attempts left:" row along the foot of the window lists only the
 counters below full. While PIN 1, PIN 2 and the PUK are all full, the
 row is not shown.
 
+## The PIN sheet after a refusal
+
+The system's PIN sheet is the only place a Safari login talks to the
+holder, so every refusal by the token extension is reported to the system
+as a failed authentication, and the sheet comes back: a wrong PIN, a PIN
+the card refused before, the retry floor at two tries left, and a blocked
+PIN alike. The returning sheet is the holder's sign that nothing was
+accepted. A refusal is never reported as a cancellation, which would end
+the login quietly as if the holder had pressed Cancel.
+
+A refused PIN forgets the PINs the token holds and nothing else: the token
+stays live, so the returning sheet reaches a card that can still answer.
+CryptoTokenKit mints a reader card once per insertion, so a token ended on
+a refusal would leave the card in the reader with nothing to sign until it
+was pulled out and put back. Only a PACE failure, which proves the stored
+card access number cannot open the card, ends the token.
+
 ## A local card suspends remote use
 
 A card in this Mac's own reader suspends remote use while it is there, so

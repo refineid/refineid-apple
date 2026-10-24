@@ -34,8 +34,10 @@ internal enum TokenError: Error {
   /// The card's raw signature could not be re-encoded.
   case signatureMalformed
 
-  /// Signing was refused (retry floor, unreadable state, or a rejected
-  /// signing command).
+  /// Signing was refused: the retry floor, a blocked PIN, unreadable
+  /// state, or a rejected signing command. Surfaces as an authentication
+  /// failure, so the system asks again; the returning sheet is the
+  /// holder's sign that nothing was accepted.
   case signRefused
 
   /// The stored number was just refused by this card; not retrying yet.
@@ -57,6 +59,12 @@ internal enum TokenError: Error {
       TKError(.corruptedData)
 
     case .pinAlreadyRejected, .pinFormatInvalid, .pinRejected, .signRefused:
+      // Every refusal is a failed authentication on purpose, the retry
+      // floor and a blocked PIN included: the system then shows the PIN
+      // sheet again, and that returning sheet is the only sign the
+      // holder gets that nothing was accepted. Reporting a refusal as a
+      // cancellation would end the login quietly instead, which the
+      // owner has ruled out (Documentation/design/macos.md).
       TKError(.authenticationFailed)
 
     case .activationRequired, .primeMissing, .unsealAlreadyRefused,
