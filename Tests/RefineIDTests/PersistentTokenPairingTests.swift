@@ -58,6 +58,17 @@
       #expect(PersistentTokenPairing(configurationData: nil) == nil)
     }
 
+    @Test("A pairing whose record does not load is not published")
+    internal func unreadablePairingIsNotPublished() throws {
+      let vault = RappDeviceVault()
+      let local = Curve25519.KeyAgreement.PrivateKey()
+      let remote = Curve25519.KeyAgreement.PrivateKey()
+      let pairID = try Self.makePairing(local: local, remote: remote).metadata().pairId
+      try vault.insertPair(pairID: pairID, record: Data(remote.publicKey.rawRepresentation))
+      #expect(try vault.activePairIDs() == [pairID])
+      #expect(PersistentTokenRegistry.publishedPairing(in: vault) == nil)
+    }
+
     @Test("No pairing in the vault publishes no pairing")
     internal func emptyVaultPublishesNothing() {
       #expect(PersistentTokenRegistry.publishedPairing(in: RappDeviceVault()) == nil)
