@@ -53,6 +53,12 @@ PACE. Core NFC is also unavailable to extensions and allows one reader
 session in the system, so it would be a second NFC stack beside the slot
 the token extension signs through.
 
+## The activation screen
+
+Activation is left only through the bar's back button. The system back
+button is hidden, which also turns off the edge swipe: a swipe that
+started as a scroll closed the screen in the middle of entering the codes.
+
 ## The PIN prompt
 
 A paired computer's request that needs a PIN the phone does not hold

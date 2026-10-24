@@ -197,6 +197,20 @@ extension CardCredentialsView {
             onActivationSucceeded: activationSucceeded
           )
           .id(CardSetupStateMachine.Destination.activation)
+          // Only the bar's back button leaves activation: hiding the
+          // system one also disables the edge swipe, which closed the
+          // screen by accident mid-entry.
+          .navigationBarBackButtonHidden(true)
+          .toolbar {
+            ToolbarItem(placement: .navigation) {
+              Button {
+                flowDestination.wrappedValue = nil
+              } label: {
+                Label("Back", systemImage: "chevron.backward")
+              }
+              .accessibilityIdentifier("activationBack")
+            }
+          }
         }
 
       case .pinManagement:
