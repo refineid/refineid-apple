@@ -8,7 +8,7 @@
   import RappEngine
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// How often a test looks again while it waits, and how many times.
   private enum Patience {

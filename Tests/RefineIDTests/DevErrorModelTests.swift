@@ -4,7 +4,7 @@
   import Foundation
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// When the development error display expands, what it lists, when it
   /// collapses, and what it copies.

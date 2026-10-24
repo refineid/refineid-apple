@@ -2,7 +2,7 @@
 
 import XCTest
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// A `--pretend-paired` launch starts the pairing row paired, and
 /// revoking it returns the row to Connect.

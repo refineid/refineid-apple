@@ -7,7 +7,7 @@
   import Security
 
   @testable import CardCore
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// Builds and inspects the exact post-card PAdES-B-T test stage.
   internal enum DebugRevokedDocumentSigningFixture {

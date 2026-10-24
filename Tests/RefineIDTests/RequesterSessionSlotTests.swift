@@ -3,7 +3,7 @@
 import Foundation
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// A computer holds one session with its phone, and dials again only after
 /// a wait that grows to a bound (STPA CC-71, CC-d).

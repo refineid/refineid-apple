@@ -8,7 +8,7 @@
   import Security
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// A phone's signature reaches CMS and Security.framework as DER whichever
   /// form the phone sent (RAPP v26.10.9 section 9.2).

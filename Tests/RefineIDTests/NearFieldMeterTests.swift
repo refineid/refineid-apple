@@ -3,7 +3,7 @@
 import Foundation
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// Every NFC operation draws one meter: the operation's name on the
 /// first line, a ball per step on the second; a failure turns its step

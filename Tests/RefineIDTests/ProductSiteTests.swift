@@ -5,7 +5,7 @@
   import Foundation
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// The About box names the public site from one definition.
   @Suite

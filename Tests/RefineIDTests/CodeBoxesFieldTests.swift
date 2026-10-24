@@ -5,7 +5,7 @@
   import CardCore
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// What one edit of a box field keeps, and when it submits.
   @Suite

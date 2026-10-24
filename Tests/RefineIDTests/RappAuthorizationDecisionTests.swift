@@ -4,7 +4,7 @@ import CardCore
 import Foundation
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 @Suite("RAPP authorization decision and PIN custody")
 internal struct RappAuthorizationDecisionTests {

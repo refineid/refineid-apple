@@ -6,7 +6,7 @@
   import Foundation
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// Verifies timeout configurations for desktop smart card readers.
   @Suite

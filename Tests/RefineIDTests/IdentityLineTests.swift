@@ -4,7 +4,7 @@ import Foundation
 import RappEngine
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// Which line the identity row shows for each combination of facts.
 @Suite

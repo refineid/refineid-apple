@@ -3,7 +3,7 @@
 import Foundation
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// The wait before a requester dials its phone again doubles from a short
 /// first wait to a bound, and starts over on a session that came up.

@@ -4,7 +4,7 @@
 
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// The demonstration's paired phone draws the line a paired phone draws.
   @Suite

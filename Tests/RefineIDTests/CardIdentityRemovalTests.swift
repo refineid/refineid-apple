@@ -2,7 +2,7 @@
 
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 @Suite("Shared identity cleanup")
 @MainActor

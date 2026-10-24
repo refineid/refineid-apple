@@ -4,7 +4,7 @@
 
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// The login row names a person only when a card or a holder is here.
   @Suite

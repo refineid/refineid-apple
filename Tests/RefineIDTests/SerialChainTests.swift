@@ -3,7 +3,7 @@
 import Foundation
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// Bodies on the chain run in order, and a body calling back in proceeds.
 @Suite

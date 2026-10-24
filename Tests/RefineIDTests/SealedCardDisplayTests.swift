@@ -5,7 +5,7 @@
   import Foundation
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// The sealed-card section shows entry only when nothing is stored
   /// or the stored numbers just failed.

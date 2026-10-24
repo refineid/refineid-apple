@@ -2,7 +2,7 @@
 
 import Foundation
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 internal struct StateEvent: Hashable {
   internal let state: CardSetupStateMachine.State

@@ -29,6 +29,14 @@
       let (events, sink) = AsyncStream.makeStream(of: Event.self)
       let session = dialer { event in
         switch event {
+        case .closed(.localNetworkDenied):
+          sink.yield(.notOpened(.localNetworkDenied))
+          sink.finish()
+
+        case .closed(.unreachable):
+          sink.yield(.notOpened(.noAnswer))
+          sink.finish()
+
         case .closed:
           sink.yield(.closed)
           sink.finish()

@@ -104,11 +104,13 @@
         }
         boxes
           .overlay {
+            // The field draws nothing: its text, caret and selection
+            // highlight would cover the boxes. It keeps focus, input
+            // and its accessibility element.
             TextField(label, text: $text)
               .textFieldStyle(.plain)
               .labelsHidden()
-              .foregroundStyle(.clear)
-              .tint(.clear)
+              .opacity(0)
               .autocorrectionDisabled()
               .focused($focused)
               .accessibilityLabel(Text(label))

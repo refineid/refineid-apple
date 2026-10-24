@@ -3,7 +3,7 @@
 import Foundation
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// The warm near field keeps the field, the card session and its PACE
 /// channel open between operations for as long as the platform keeps the

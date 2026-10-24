@@ -8,7 +8,7 @@
   import Security
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// When a physical card in a reader is connected, it has absolute priority
   /// over RAPP tokens, passive-states all wireless discovery, and withdraws

@@ -4,7 +4,7 @@ import CardCore
 import Foundation
 import Security
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// Generated, hermetic signer keys and certificates for direct tests.
 internal enum SignerCertificateFixtures {

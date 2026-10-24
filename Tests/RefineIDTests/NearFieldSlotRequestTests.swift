@@ -3,7 +3,7 @@
 import Foundation
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// Asking for the near-field slot waits out a busy radio and the reader's
 /// pause after a field, and gives up at once on any other refusal.

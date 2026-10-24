@@ -185,6 +185,38 @@ import Testing
       #expect(await Self.outcome(of: empty) == [.closed(.noneInPairingMode)])
     }
 
+    @Test("A phone found but never reached is told apart from none in pairing mode")
+    internal func unreachedPhone() async throws {
+      let testID = UUID().uuidString
+      defer { Self.clean(testID, sides: []) }
+      let outcomes: [(RappPairingConnection.OpenFailure, Search.CloseReason)] = [
+        (.noAnswer, .unreachable), (.localNetworkDenied, .localNetworkDenied),
+      ]
+      for (failure, reason) in outcomes {
+        let search = try Self.search(
+          testID: testID, links: ["unreached": RappTestPairingLink(failingToOpen: failure)])
+        // The dial reports from its own task, after discovery ended: a
+        // connection being opened runs to its end.
+        await search.found("unreached")
+        await search.endDiscovery()
+        #expect(
+          await Self.outcome(of: search) == [.declined(.notOpened(failure)), .closed(reason)])
+      }
+
+      // A phone that answered and served no offer is not in pairing mode.
+      let silent = RappTestPairingLink(servedOffer: nil, dropAfter: nil)
+      let denied = RappTestPairingLink(failingToOpen: .localNetworkDenied)
+      let search = try Self.search(testID: testID, links: ["silent": silent, "denied": denied])
+      await search.found("denied")
+      await search.found("silent")
+      await search.endDiscovery()
+      #expect(
+        await Self.outcome(of: search) == [
+          .declined(.notOpened(.localNetworkDenied)), .declined(.noOffer),
+          .closed(.noneInPairingMode),
+        ])
+    }
+
     @Test("A local card or remote use off ends the search: no further phone is opened")
     internal func unavailableRemoteUseInterrupts() async throws {
       let testID = UUID().uuidString

@@ -7,6 +7,24 @@ import SwiftUI
 
 /// What the model does with each event the pairing ceremony reports.
 extension RappPairingModel {
+  /// What the requester says when the platform keeps it off the local
+  /// network, naming where the holder allows it.
+  nonisolated private static var localNetworkDeniedFailure: String {
+    #if os(macOS)
+      String(
+        localized: """
+          macOS is blocking RefineID from the local network. Allow it in \
+          System Settings › Privacy & Security › Local Network.
+          """)
+    #else
+      String(
+        localized: """
+          RefineID is not allowed to use the local network. Allow it in \
+          Settings › Privacy & Security › Local Network.
+          """)
+    #endif
+  }
+
   /// What the requester tells its user when the search ends without a
   /// pairing; nothing when it was closed here.
   ///
@@ -22,11 +40,17 @@ extension RappPairingModel {
     case .interrupted, .localRequest:
       nil
 
+    case .localNetworkDenied:
+      localNetworkDeniedFailure
+
     case .noneInPairingMode:
       String(localized: "No phone in pairing mode was found")
 
     case .notAccepted:
       String(localized: "The pairing code was not accepted")
+
+    case .unreachable:
+      String(localized: "A phone in pairing mode was found but could not be reached")
     }
   }
 

@@ -6,7 +6,7 @@
   import ServiceManagement
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// A login launch is read from the launch event, and the app registers
   /// itself once, never against a registration the holder removed.

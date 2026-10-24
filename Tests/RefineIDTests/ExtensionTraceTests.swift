@@ -3,7 +3,7 @@
 #if DEBUG
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// Exercises the trace's line and trimming rules.
   ///

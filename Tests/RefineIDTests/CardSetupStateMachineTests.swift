@@ -3,7 +3,7 @@
 import Foundation
 import XCTest
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 internal final class CardSetupStateMachineTests: XCTestCase {
   private func loadGrammar() throws -> ParsedGrammar {

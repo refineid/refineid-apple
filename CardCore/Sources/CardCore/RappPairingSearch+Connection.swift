@@ -38,24 +38,8 @@
       guard let current = attempt, current.generation == stepGeneration, !current.closing
       else { return }
       switch step {
-      case .connection(.connected):
-        attempt?.arrived = true
-        guard current.coordinator == nil else { return }
-        attempt?.feeders.append(offerDeadline(current.steps))
-
-      case .connection(.frame(let frame)):
-        if let coordinator = current.coordinator {
-          await coordinator.receive(frame)
-        } else {
-          await admitOffer(frame, generation: stepGeneration)
-        }
-
-      case .connection(.closed):
-        if let coordinator = current.coordinator {
-          await coordinator.transportClosed()
-        } else {
-          await connectionEnded(.noOffer, generation: stepGeneration)
-        }
+      case .connection(let event):
+        await connection(event, of: current)
 
       case .offerOverdue:
         guard current.coordinator == nil else { return }
@@ -63,6 +47,34 @@
 
       case .ceremony(let event):
         await ceremony(event, generation: stepGeneration)
+      }
+    }
+
+    /// What the connection open now reports.
+    private func connection(_ event: RappPairingConnection.Event, of current: Attempt) async {
+      switch event {
+      case .connected:
+        attempt?.arrived = true
+        anyOpened = true
+        guard current.coordinator == nil else { return }
+        attempt?.feeders.append(offerDeadline(current.steps))
+
+      case .frame(let frame):
+        if let coordinator = current.coordinator {
+          await coordinator.receive(frame)
+        } else {
+          await admitOffer(frame, generation: current.generation)
+        }
+
+      case .closed:
+        if let coordinator = current.coordinator {
+          await coordinator.transportClosed()
+        } else {
+          await connectionEnded(.noOffer, generation: current.generation)
+        }
+
+      case .notOpened(let failure):
+        await connectionEnded(.notOpened(failure), generation: current.generation)
       }
     }
 
@@ -148,6 +160,9 @@
       await current.transport.close()
       guard !isEnded, attempt?.generation == stepGeneration else { return }
       attempt = nil
+      if case .notOpened(let failure) = refusal {
+        openFailures.insert(failure)
+      }
       // Only a connection whose custodian has not taken the code gets here,
       // so the ledger has a connection open and is not settled.
       guard let next = try? candidates.closed(remoteUseAvailable: remoteUseAvailable()) else {
@@ -167,7 +182,7 @@
 
       case .noneTried:
         if discoveryEnded {
-          await end(.noneInPairingMode)
+          await end(noneTriedReason)
         }
       }
     }

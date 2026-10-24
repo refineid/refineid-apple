@@ -2,7 +2,7 @@
 
 import Foundation
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// A near field whose platform behaves as measured on an iPhone.
 ///

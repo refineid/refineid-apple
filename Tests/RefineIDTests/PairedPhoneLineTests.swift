@@ -6,7 +6,7 @@
   import SwiftUI
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// The words of a paired phone's line, and their colors.
   @Suite

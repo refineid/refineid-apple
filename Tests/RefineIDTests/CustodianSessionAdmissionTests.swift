@@ -6,7 +6,7 @@ import Foundation
 import RappEngine
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// Every dial whose preamble routes to a pairing served here opens a
 /// session of its own, however many are open, and only what routing

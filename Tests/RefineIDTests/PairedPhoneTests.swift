@@ -8,7 +8,7 @@
   import RappEngine
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// The phone the identity row names (RAPP v26.10.22 §4.6).
   @Suite(.serialized)

@@ -2,7 +2,7 @@
 
 import XCTest
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// An offer marks the model as offering for as long as the ceremony it
 /// started runs; a failed or cancelled attempt clears the mark.

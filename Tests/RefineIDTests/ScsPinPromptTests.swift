@@ -5,7 +5,7 @@ import CardCore
 import Foundation
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 @Suite("Localized signing prompts", .serialized)
 @MainActor
