@@ -90,12 +90,12 @@ internal struct ReaderInstructionStringsTests {
   internal func pairedPhoneAndPinCodesMatchInEveryLanguage() throws {
     let strings = try Self.catalog()
     let finnish: [String: String] = [
-      "(paired: %@)": "(yhdistetty: %@)",
+      "(via phone)": "(puhelimen kautta)",
       "Connecting to the phone…": "Yhdistetään puhelimeen…",
       "PIN Codes": "PIN-koodit",
     ]
     let swedish: [String: String] = [
-      "(paired: %@)": "(kopplad: %@)",
+      "(via phone)": "(via telefonen)",
       "Connecting to the phone…": "Ansluter till telefonen…",
       "PIN Codes": "PIN-koder",
     ]
@@ -173,7 +173,7 @@ internal struct ReaderInstructionStringsTests {
       contentsOf: Self.root.appending(path: "Sources/App/PairedPhoneLine.swift"),
       encoding: .utf8
     )
-    #expect(phoneLine.contains("(paired: \\(phone))"))
+    #expect(phoneLine.contains("(via phone)"))
     #expect(phoneLine.contains("Connecting to the phone…"))
     #expect(!phoneLine.contains("Button"), "the switch is the only control that forgets")
     let pinCodes = try String(

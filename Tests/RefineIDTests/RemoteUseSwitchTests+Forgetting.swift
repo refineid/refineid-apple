@@ -121,7 +121,7 @@
       #expect(try vault.loadPair(pairID: other.metadata().pairId) == nil)
       #expect(RappPairNames.name(forPairID: pairID) == nil)
       #expect(directory.removals.count == 1, "the phones leave the account's directory")
-      #expect(registry.pairedPhone == nil)
+      #expect(registry.pairedPhoneID == nil)
       #expect(PersistentTokenRegistry.pairedPhoneID(in: vault) == nil)
     }
 
@@ -168,7 +168,7 @@
       #expect(RemoteUseForgetting.pending(in: store) == nil)
       #expect(try vault.activePairIDs().isEmpty)
       #expect(directory.removals.count == 1, "the phones leave the account's directory")
-      #expect(registry.pairedPhone == nil)
+      #expect(registry.pairedPhoneID == nil)
     }
 
     @Test("A quit during the click off waits until its pairings are destroyed")
@@ -266,7 +266,7 @@
       #expect(registry.offerLapseTask == nil)
       #expect(registry.forgetting == nil)
       // The pairing stays, so the next launch restores remote use on.
-      #expect(registry.pairedPhone == Self.phone)
+      #expect(registry.pairedPhoneID == pairID)
       #expect(PersistentTokenRegistry.pairedPhoneID(in: vault) == pairID)
     }
   }

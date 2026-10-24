@@ -99,7 +99,6 @@ extension RappPairingModel {
       return
     }
     reviewedPeerName = name
-    reviewedPeerModel = peer.platform
   }
 
   private func handleClosed(_ reason: RappPairingCoordinator.CloseReason) {
@@ -119,7 +118,7 @@ extension RappPairingModel {
     }
   }
 
-  /// Keeps the pair under the name and model its peer gave.
+  /// Keeps the pair under the name its peer gave.
   ///
   /// A pair whose peer gave none is revoked before it can be listed or
   /// chosen. A phone that offered lists the new computer and shows the
@@ -136,9 +135,6 @@ extension RappPairingModel {
     do {
       try vault.selectPair(pairID: pair.pairID)
       RappPairNames.remember(reviewedPeerName, pairID: pair.pairID)
-      if let reviewedPeerModel {
-        RappPairNames.rememberModel(reviewedPeerModel, pairID: pair.pairID)
-      }
       supersedeOlderPairings(with: pair.pairID)
       RappPairingBackoff.shared.recordSuccess()
       selectedPairID = pair.pairID

@@ -11,10 +11,10 @@
   internal struct DemoPairedPhoneTests {
     @Test
     @MainActor
-    internal func aReadyCardNamesTheHolderAndThePhone() {
+    internal func aReadyCardNamesTheHolder() {
       #expect(
         IdentityLine.derive(DemoPairedPhone.facts(availability: .ready))
-          == .paired(.holder, phone: DemoPairedPhone.label))
+          == .paired(.holder))
     }
 
     @Test
@@ -22,7 +22,7 @@
     internal func noCardIsStillConnecting() {
       #expect(
         IdentityLine.derive(DemoPairedPhone.facts(availability: .noCard))
-          == .paired(.connecting, phone: DemoPairedPhone.label))
+          == .paired(.connecting))
     }
   }
 

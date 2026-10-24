@@ -11,19 +11,17 @@
   /// The words of a paired phone's line, and their colors.
   @Suite
   internal struct PairedPhoneLineTests {
-    private static let phone = "Alpha iPhone"
-
     private static let holder = "SAMPLE HOLDER"
 
     /// The attribute the line's colors are set in.
     private static let color = AttributeScopes.SwiftUIAttributes.ForegroundColorAttribute.self
 
-    /// The holder's name keeps the primary color; the phone's label after
-    /// it takes the secondary one.
+    /// The holder's name keeps the primary color; "(via phone)" after it
+    /// takes the secondary one.
     @Test
-    internal func holderLineNamesThePhoneAfterTheHolder() throws {
-      let line = PairedPhoneLine.line(lead: .holder, phone: Self.phone, holder: Self.holder)
-      let suffix = " " + String(localized: "(paired: \(Self.phone))")
+    internal func holderLineSaysViaPhoneAfterTheHolder() throws {
+      let line = PairedPhoneLine.line(lead: .holder, holder: Self.holder)
+      let suffix = " " + String(localized: "(via phone)")
       #expect(String(line.characters) == Self.holder + suffix)
       let first = try #require(line.runs.first)
       let last = try #require(line.runs.last)
@@ -33,19 +31,18 @@
       #expect(last[Self.color] == .secondary)
     }
 
-    /// Connecting, the line names no phone and is secondary throughout.
+    /// Connecting, the line is secondary throughout.
     @Test
-    internal func connectingLineNamesNoPhone() {
-      let line = PairedPhoneLine.line(lead: .connecting, phone: Self.phone, holder: Self.holder)
+    internal func connectingLineIsSecondary() {
+      let line = PairedPhoneLine.line(lead: .connecting, holder: Self.holder)
       #expect(String(line.characters) == String(localized: "Connecting to the phone…"))
       #expect(line.runs.allSatisfy { $0[Self.color] == .secondary })
     }
 
-    /// The request for the phone's card reader names no phone and is
-    /// secondary throughout.
+    /// The request for the phone's card reader is secondary throughout.
     @Test
     internal func phoneReaderLineAsksForTheCardAlone() {
-      let line = PairedPhoneLine.line(lead: .phoneReader, phone: Self.phone, holder: Self.holder)
+      let line = PairedPhoneLine.line(lead: .phoneReader, holder: Self.holder)
       #expect(
         String(line.characters)
           == String(localized: "Insert the card into the phone's card reader."))
@@ -56,7 +53,7 @@
     /// connecting.
     @Test(arguments: [nil, ""] as [String?])
     internal func holderLineWithoutANameIsConnecting(_ holder: String?) {
-      let line = PairedPhoneLine.line(lead: .holder, phone: Self.phone, holder: holder)
+      let line = PairedPhoneLine.line(lead: .holder, holder: holder)
       #expect(String(line.characters) == String(localized: "Connecting to the phone…"))
       #expect(line.runs.allSatisfy { $0[Self.color] == .secondary })
     }

@@ -20,9 +20,8 @@
     /// The holder has remote use on (hierarchy specification §5.2).
     internal var remoteUse: Bool
 
-    /// The paired phone, by the name it introduced itself with; nil while
-    /// no usable pairing exists.
-    internal var pairedPhone: String?
+    /// A usable pairing with a phone exists.
+    internal var phonePaired: Bool
 
     /// The phone that announced it forgot this computer, by name.
     internal var phoneThatForgot: String?

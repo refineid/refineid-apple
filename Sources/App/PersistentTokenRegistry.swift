@@ -143,11 +143,7 @@
       PhoneCardRequest(holderCardStatus)
     }
 
-    /// The paired phone, by the name it introduced itself with; nil
-    /// while no usable pairing exists.
-    internal private(set) var pairedPhone: String?
-
-    /// The pairing ``pairedPhone`` names.
+    /// The paired phone's pairing; nil while no usable pairing exists.
     internal private(set) var pairedPhoneID: Data?
 
     /// The phone that told this computer it forgot it (RAPP v26.10.22 §4.6
@@ -266,8 +262,7 @@
     /// Reads which phone `vault` pairs, for the identity row.
     internal func refreshPairing(in vault: RappDeviceVault) {
       pairedPhoneID = Self.dialsPhones ? Self.pairedPhoneID(in: vault) : nil
-      pairedPhone = pairedPhoneID.map(RappPairNames.displayName(forPairID:))
-      if pairedPhone != nil {
+      if pairedPhoneID != nil {
         phoneThatForgot = nil
       }
     }

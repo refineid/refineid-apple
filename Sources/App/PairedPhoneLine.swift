@@ -13,15 +13,12 @@
     /// What the line says.
     internal let lead: IdentityLine.PairedLead
 
-    /// The phone's label: its model, or the name it introduced itself with.
-    internal let phone: String
-
     /// The holder's name from the certificate the phone confirmed, once
     /// read.
     internal let holder: String?
 
     internal var body: some View {
-      Text(Self.line(lead: lead, phone: phone, holder: holder))
+      Text(Self.line(lead: lead, holder: holder))
         .textSelection(.enabled)
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -30,10 +27,10 @@
     /// The words of the line: the holder's name in the primary color,
     /// everything else in the secondary one.
     ///
-    /// The holder's line ends with the phone's label. Until the holder's
-    /// name is read, the line says it is connecting.
+    /// The holder's line ends with "(via phone)". Until the holder's name
+    /// is read, the line says it is connecting.
     nonisolated internal static func line(
-      lead: IdentityLine.PairedLead, phone: String, holder: String?
+      lead: IdentityLine.PairedLead, holder: String?
     ) -> AttributedString {
       switch lead {
       case .connecting:
@@ -42,7 +39,7 @@
       case .holder:
         guard let holder, !holder.isEmpty else { return Self.connecting() }
         var line = AttributedString(holder)
-        line.append(Self.secondary(" " + String(localized: "(paired: \(phone))")))
+        line.append(Self.secondary(" " + String(localized: "(via phone)")))
         return line
 
       case .phoneReader:

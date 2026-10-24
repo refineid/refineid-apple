@@ -202,9 +202,7 @@
     /// use turns off when that was the last pairing (CC-101).
     internal func holderRevoked(pairID: Data) {
       let vault = RappDeviceVault()
-      let name = RappPairNames.label(
-        name: RappPairNames.name(forPairID: pairID),
-        model: RappPairNames.model(forPairID: pairID))
+      let name = RappPairNames.name(forPairID: pairID)
       if holderSession?.pairID == pairID {
         closeHolderSession()
       }

@@ -61,8 +61,7 @@ No step is manual.
 
 `<lang>` is `fi`, `en` or `sv`. The holder is the virtual card's synthetic
 identity: `ESIMERKKI ERJA` in Finnish, `EXEMPEL EVA` in Swedish and `DOE JANE`
-in English. The paired phone is labelled `iPhone 15 Pro Max`. The
-demonstration flags exist in Debug builds only.
+in English. The demonstration flags exist in Debug builds only.
 
 ## Specifications and Display Types
 

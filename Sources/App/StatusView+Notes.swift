@@ -38,7 +38,7 @@
     /// that close, and serves nothing here.
     private var holderInSight: Bool {
       #if REFINEID_REMOTE_CARD && REFINEID_STREAM_TRANSPORT
-        remoteRegistry.pairedPhone != nil && remoteRegistry.holderInSight
+        remoteRegistry.pairedPhoneID != nil && remoteRegistry.holderInSight
       #else
         false
       #endif
@@ -53,7 +53,7 @@
       #if REFINEID_REMOTE_CARD
         !DemoMode.shared.isActive
           && RemoteUseSwitch.shared.isOn
-          && remoteRegistry.pairedPhone == nil
+          && remoteRegistry.pairedPhoneID == nil
           && availability == .noCard
           && signingModel.pending == nil
           && signingModel.queued.isEmpty

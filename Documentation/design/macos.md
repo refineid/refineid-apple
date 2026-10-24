@@ -121,7 +121,7 @@ every other change is a change of colour.
 | Card in this Mac's reader | *HOLDER NAME* |
 | Card in this Mac's reader, not ready after a while | the re-insert warning |
 | Paired phone, no identity from it yet | "Connecting to the phone…" |
-| Paired phone, its identity offered | "*HOLDER NAME* (paired: *phone*)" |
+| Paired phone, its identity offered | "*HOLDER NAME* (via phone)" |
 | Paired phone, its card reader empty | "Insert the card into the phone's card reader." |
 
 A card inserted into this Mac's reader shows "Reading information…" in the
@@ -142,10 +142,9 @@ the holder's name is read, the holder's line says "Connecting to the
 phone…". Only the holder's name is in the primary text color; the rest
 of a paired phone's line is secondary.
 
-*phone* is the phone's model, the `platform` its pairing hello sent,
-when the model begins with the `display_name` it sent, ignoring case: an
-iPhone named "iPhone" shows as "iPhone 15 Pro Max". Otherwise *phone* is
-that name. The same label names a pairing in the paired list.
+A paired phone's line names no phone. In "*phone* forgot this
+computer" and in the paired list, the phone is named by the
+`display_name` its pairing hello sent.
 
 A paired phone's line carries no control: the remote-use switch is the
 only control that forgets the phone.
