@@ -22,14 +22,36 @@ internal struct FieldSignature {
     self.accessNumber = accessNumber
   }
 
-  /// Refuses before VERIFY PIN1 unless the PIN1 counter permits it.
-  private static func requireRetryFloor(_ operations: CardOperations) throws {
-    let verdict = RetryFloor.evaluate(
-      probeOutcome: try operations.probeRetryCounter(role: .pin1))
+  /// Refuses before VERIFY PIN1 unless the PIN1 counter permits it, and
+  /// hands back the probe for the holding decision.
+  private static func requireRetryFloor(_ operations: CardOperations) throws -> RetryProbeOutcome {
+    let probe = try operations.probeRetryCounter(role: .pin1)
+    let verdict = RetryFloor.evaluate(probeOutcome: probe)
     guard verdict == .proceed else {
       TokenLog.error("sign: PIN1 retry floor refuses (\(verdict))")
       throw TokenError.signRefused
     }
+    return probe
+  }
+
+  /// Whether PIN 1 may be held after this probe.
+  ///
+  /// The rule is ``Pin1Retention``. A probe that forbids holding drops the
+  /// accepted memory, and a value reused from that memory is not sent: the
+  /// holder is asked instead.
+  private func holdPermitted(
+    after probe: RetryProbeOutcome,
+    origin: AuthorizedPin1.Origin
+  ) throws -> Bool {
+    if Pin1Retention.permitsHolding(after: probe) {
+      return true
+    }
+    VolatileAcceptedPin1.shared.clear(for: token.cardInstanceID)
+    if origin == .acceptedMemory {
+      TokenLog.info("sign: PIN1 counter not pristine; reused PIN1 dropped, asking the holder")
+      throw TokenError.authenticationRequired
+    }
+    return false
   }
 
   /// Establishes the contactless channel and signs `request` in it.
@@ -40,13 +62,17 @@ internal struct FieldSignature {
   /// PACE channel. A PACE authentication-token mismatch is cryptographic
   /// proof that the stored CAN cannot open the presented card, so it revokes
   /// this automatic identity rather than leaving a mintable broken token.
-  internal func perform(pin1: consuming Pin1, request: SignRequest) throws -> Data {
+  internal func perform(
+    pin1: consuming Pin1,
+    origin: AuthorizedPin1.Origin,
+    request: SignRequest
+  ) throws -> Data {
     // Claim the channel for this powered field, preparing it if the hold was
     // passive. A lease serializes the secure-messaging counter across signatures.
     do {
       let lease = try token.heldSession.preparedChannel(accessNumber: accessNumber)
       defer { _ = lease.channel }
-      return try sign(in: lease.channel, pin1: pin1, request: request)
+      return try sign(in: lease.channel, pin1: pin1, origin: origin, request: request)
     } catch PaceEstablishment.Failure.authenticationTokenMismatch {
       token.revokeAutomaticIdentityAfterCanRejection()
       throw TokenError.primeMissing
@@ -67,9 +93,14 @@ internal struct FieldSignature {
   /// The certificate is present as the token's cached leaf public key,
   /// which checks the signature below; the serial is present as the
   /// cached serial the rejected-PIN memory binds to.
+  ///
+  /// A probe that does not permit holding (``Pin1Retention``) drops the
+  /// accepted memory; a value reused from it is then not sent, and the
+  /// holder is asked instead.
   private func sign(
     in channel: SecureMessagingChannel,
     pin1: consuming Pin1,
+    origin: AuthorizedPin1.Origin,
     request: SignRequest
   ) throws -> Data {
     let operations = CardOperations(channel: channel)
@@ -82,11 +113,11 @@ internal struct FieldSignature {
     if let fingerprint, CredentialMemory.rejectedPins.isKnownRejected(fingerprint) {
       throw TokenError.pinAlreadyRejected
     }
-    try Self.requireRetryFloor(operations)
-    let pendingAcceptance = VolatileAcceptedPin1.shared.prepareAcceptance(
-      of: pin1,
-      for: token.cardInstanceID
-    )
+    let mayHold = try holdPermitted(after: Self.requireRetryFloor(operations), origin: origin)
+    let pendingAcceptance: VolatileAcceptedPin1.PendingAcceptance? =
+      mayHold
+      ? VolatileAcceptedPin1.shared.prepareAcceptance(of: pin1, for: token.cardInstanceID)
+      : nil
     do {
       try operations.verifyPin1(pin1.consumeForSingleTransmission())
     } catch CardOperationError.pinRejected, CardOperationError.pinBlocked {
@@ -108,7 +139,7 @@ internal struct FieldSignature {
     }
     // VERIFY succeeded on the physical card: promote to accepted memory and clear candidate.
     TransientCandidatePin1.shared.clear(for: token.cardInstanceID)
-    pendingAcceptance.commit()
+    pendingAcceptance?.commit()
     let raw = try operations.computeAuthenticationSignature(
       overDigest: request.digest,
       algorithm: request.algorithm,
