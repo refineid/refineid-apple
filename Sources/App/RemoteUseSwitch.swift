@@ -170,6 +170,17 @@
       move(on: false, as: .stopped)
     }
 
+    /// The app is active again, perhaps back from the settings where the
+    /// holder allowed the local network: a refusal the watch reported is
+    /// asked afresh, and stands until the new browse answers.
+    internal func recheckLocalNetwork() {
+      guard isOn, !isSuspended, localNetworkBlockage != nil else { return }
+      localNetworkWatch.stop()
+      localNetworkWatch.start { [weak self] blockage in
+        self?.localNetworkBlockage = blockage
+      }
+    }
+
     private func move(on wanted: Bool, as move: Move) {
       guard wanted != isOn else { return }
       RemoteAccessGate.setEnabled(wanted)

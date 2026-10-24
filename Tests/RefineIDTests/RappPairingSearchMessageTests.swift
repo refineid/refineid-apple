@@ -33,27 +33,29 @@ internal final class RappPairingSearchMessageTests: XCTestCase {
   }
 
   internal func testOnlyEveryRefusalIsAWrongCode() {
-    XCTAssertEqual(RappPairingModel.failure(for: Reason.notAccepted), Self.notAccepted)
+    XCTAssertEqual(RappPairingModel.failure(for: Reason.notAccepted)?.message, Self.notAccepted)
     let others: [Reason] = [
       .noneInPairingMode, .ceremonyEnded(.transportFailure), .ceremonyEnded(.protocolFailure),
     ]
     for reason in others {
-      XCTAssertNotEqual(RappPairingModel.failure(for: reason), Self.notAccepted, "\(reason)")
+      XCTAssertNotEqual(
+        RappPairingModel.failure(for: reason)?.message, Self.notAccepted, "\(reason)")
     }
   }
 
   internal func testASearchThatTriedNoPhoneSaysNoneWasFound() {
     XCTAssertEqual(
-      RappPairingModel.failure(for: Reason.noneInPairingMode),
+      RappPairingModel.failure(for: Reason.noneInPairingMode)?.message,
       String(localized: "No phone in pairing mode was found"))
   }
 
-  internal func testAPhoneFoundButUnreachedIsNotCalledMissing() throws {
+  internal func testAPhoneFoundButUnreachedIsNotCalledMissing() {
     let missing = String(localized: "No phone in pairing mode was found")
     XCTAssertEqual(
-      RappPairingModel.failure(for: Reason.unreachable),
+      RappPairingModel.failure(for: Reason.unreachable)?.message,
       String(localized: "A phone in pairing mode was found but could not be reached"))
-    let denied = try XCTUnwrap(RappPairingModel.failure(for: Reason.localNetworkDenied))
+    XCTAssertEqual(RappPairingModel.failure(for: Reason.localNetworkDenied), .localNetworkDenied)
+    let denied = RappPairingModel.Failure.localNetworkDenied.message
     XCTAssertNotEqual(denied, missing)
     XCTAssertEqual(
       denied,
@@ -70,7 +72,7 @@ internal final class RappPairingSearchMessageTests: XCTestCase {
 
   internal func testAFailureAfterTheCodeWasTakenEndsThePairing() {
     XCTAssertEqual(
-      RappPairingModel.failure(for: Reason.ceremonyEnded(.attemptTimedOut)),
+      RappPairingModel.failure(for: Reason.ceremonyEnded(.attemptTimedOut))?.message,
       String(localized: "Pairing ended before it was completed"))
   }
 

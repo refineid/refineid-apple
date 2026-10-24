@@ -17,6 +17,9 @@
       case .frame(let payload):
         self = .frame(payload)
 
+      case .closed(.localNetworkDenied):
+        self = .closed(.localNetworkDenied)
+
       case .closed:
         self = .closed(.disconnected)
       }

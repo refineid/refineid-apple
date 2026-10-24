@@ -166,6 +166,7 @@
       guard token == holderSessionToken else { return }
       switch report {
       case .established:
+        localNetworkDenied = false
         sessionSlot.established()
         if let pairID = holderSession?.pairID {
           Self.recordSession(pairID: pairID)
@@ -190,6 +191,12 @@
 
       case .closed(let reason):
         holderSessionEnded(reason)
+
+      case .localNetworkDenied:
+        #if DEBUG
+          DevErrorLog.report("phone session: the local network is denied", source: .app)
+        #endif
+        localNetworkDenied = true
       }
     }
 

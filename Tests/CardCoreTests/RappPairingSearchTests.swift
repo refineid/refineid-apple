@@ -185,7 +185,7 @@ import Testing
       #expect(await Self.outcome(of: empty) == [.closed(.noneInPairingMode)])
     }
 
-    @Test("A phone found but never reached is told apart from none in pairing mode")
+    @Test("A phone found but never reached is told apart; a denial ends the search at once")
     internal func unreachedPhone() async throws {
       let testID = UUID().uuidString
       defer { Self.clean(testID, sides: []) }
@@ -196,9 +196,12 @@ import Testing
         let search = try Self.search(
           testID: testID, links: ["unreached": RappTestPairingLink(failingToOpen: failure)])
         // The dial reports from its own task, after discovery ended: a
-        // connection being opened runs to its end.
+        // connection being opened runs to its end. A denial ends the search
+        // without waiting for discovery.
         await search.found("unreached")
-        await search.endDiscovery()
+        if failure == .noAnswer {
+          await search.endDiscovery()
+        }
         #expect(
           await Self.outcome(of: search) == [.declined(.notOpened(failure)), .closed(reason)])
       }
@@ -319,4 +322,5 @@ import Testing
       _ = await right.close()
     }
   }
+
 #endif

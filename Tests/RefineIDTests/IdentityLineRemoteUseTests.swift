@@ -64,6 +64,9 @@ internal struct IdentityLineRemoteUseTests {
         facts.cardPresent = true
       },
       line: .reading),
+    Case(
+      name: "a denied local network is not shown",
+      facts: with { $0.localNetworkDenied = true }, line: .connectReader),
   ]
 
   private static func with(_ change: (inout RequesterFacts) -> Void) -> RequesterFacts {

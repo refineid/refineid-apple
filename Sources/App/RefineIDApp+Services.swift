@@ -6,10 +6,19 @@ import RappEngine
 
 #if os(macOS)
   import AppKit
+#elseif os(iOS)
+  import UIKit
 #endif
 
 extension RefineIDApp {
   private static var pairingsChangeObserver: (any NSObjectProtocol)?
+  private static var activationObserver: (any NSObjectProtocol)?
+
+  #if os(macOS)
+    private static let becameActive = NSApplication.didBecomeActiveNotification
+  #else
+    private static let becameActive = UIApplication.didBecomeActiveNotification
+  #endif
 
   #if os(macOS) && REFINEID_REMOTE_CARD
     /// How long a launch waits for the first look at the card readers
@@ -62,6 +71,14 @@ extension RefineIDApp {
       #endif
       RappAutoPairingService.shared.start()
 
+      activationObserver = NotificationCenter.default.addObserver(
+        forName: becameActive, object: nil, queue: .main
+      ) { _ in
+        MainActor.assumeIsolated {
+          retryAfterLocalNetworkDenial()
+        }
+      }
+
       pairingsChangeObserver = NotificationCenter.default.addObserver(
         forName: RappAutoPairingService.pairingsDidChangeNotification,
         object: nil,
@@ -82,6 +99,19 @@ extension RefineIDApp {
   }
 
   #if REFINEID_REMOTE_CARD
+    /// The app is active again, perhaps back from the settings where the
+    /// holder allowed the local network: a denial seen earlier is asked
+    /// afresh, so nothing needs restarting by hand.
+    @MainActor
+    private static func retryAfterLocalNetworkDenial() {
+      #if os(macOS)
+        RemoteUseSwitch.shared.recheckLocalNetwork()
+      #endif
+      #if REFINEID_STREAM_TRANSPORT
+        PersistentTokenRegistry.shared.retryAfterLocalNetworkDenial()
+      #endif
+    }
+
     /// Sweeps the pairings for idle expiry (RAPP v26.10.22 §4.6 item 5),
     /// then serves or follows from what remains, and sweeps again while the
     /// app runs.

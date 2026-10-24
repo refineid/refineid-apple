@@ -93,7 +93,10 @@
           await coordinator?.receive(frame)
         }
 
-      case .closed:
+      case .closed(let failure):
+        if case .localNetworkDenied = failure {
+          report(.localNetworkDenied)
+        }
         // The coordinator names the end: a close the custodian announced
         // keeps its reason, a bare transport loss is a failure.
         deliverInOrder { [weak self] in

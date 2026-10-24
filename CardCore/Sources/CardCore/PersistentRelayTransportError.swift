@@ -11,6 +11,9 @@ import Foundation
     case cancelled
     case codec(String)
     case disconnected
+    /// The channel never opened, and the platform denied this app the
+    /// local network.
+    case localNetworkDenied
     case send(String)
     case startup(String)
     case timedOut

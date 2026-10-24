@@ -7,7 +7,9 @@
   /// A card in this Mac's reader overrides the paired phone: while one is
   /// there the line speaks of that card alone. With remote use off the line
   /// speaks of this Mac's reader alone. Otherwise a paired phone's line
-  /// stands, and with no phone paired the line asks for a pairing code.
+  /// stands, and with no phone paired the line asks for a pairing code;
+  /// a local-network denial stands in for the pairing code and for a
+  /// phone still connecting.
   internal enum IdentityLine: Equatable, Sendable {
     /// The card in this Mac's reader has stayed without an identity long
     /// enough to warn; the PIN codes stay one click away.
@@ -24,6 +26,11 @@
     /// The holder's name from the card in this Mac's reader, beside the
     /// control that opens the PIN codes.
     case localHolder
+
+    /// Remote use on and macOS denies this app the local network, while
+    /// no phone offers an identity: the error, with the settings one
+    /// click away.
+    case localNetworkDenied
 
     /// The paired phone's line.
     case paired(PairedLead)
@@ -74,9 +81,13 @@
         if let forgot = facts.phoneThatForgot {
           return .phoneForgot(forgot)
         }
-        return .pairPhone
+        return facts.localNetworkDenied ? .localNetworkDenied : .pairPhone
       }
-      return .paired(pairedLead(facts))
+      let lead = pairedLead(facts)
+      if lead == .connecting, facts.localNetworkDenied {
+        return .localNetworkDenied
+      }
+      return .paired(lead)
     }
 
     /// What the paired phone's line says; the first rule that matches

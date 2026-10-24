@@ -233,6 +233,7 @@
         bluetoothUsable = Self.dialsOverBluetooth
         continuousFailureSince = nil
       #endif
+      localNetworkDenied = false
       Self.withdrawPublishedIdentity()
     }
 
@@ -272,6 +273,18 @@
         let told = await session.closePairingRevoked()
         Self.withdrawPublishedIdentity()
         return told
+      }
+
+      /// The app is active again, perhaps back from the settings where the
+      /// holder allowed the local network: a denial seen earlier is
+      /// forgotten and the paired phone dialled afresh at once, so a denial
+      /// that stands is seen again on that dial.
+      internal func retryAfterLocalNetworkDenial() {
+        guard localNetworkDenied else { return }
+        localNetworkDenied = false
+        guard Self.followsPhone, pairedPhoneID != nil else { return }
+        continuousFailureSince = nil
+        openHolderSession()
       }
 
       /// Lets go of the session and closes it with `close`, answering

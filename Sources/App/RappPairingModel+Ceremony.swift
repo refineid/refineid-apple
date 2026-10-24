@@ -7,24 +7,6 @@ import SwiftUI
 
 /// What the model does with each event the pairing ceremony reports.
 extension RappPairingModel {
-  /// What the requester says when the platform keeps it off the local
-  /// network, naming where the holder allows it.
-  nonisolated private static var localNetworkDeniedFailure: String {
-    #if os(macOS)
-      String(
-        localized: """
-          macOS is blocking RefineID from the local network. Allow it in \
-          System Settings › Privacy & Security › Local Network.
-          """)
-    #else
-      String(
-        localized: """
-          RefineID is not allowed to use the local network. Allow it in \
-          Settings › Privacy & Security › Local Network.
-          """)
-    #endif
-  }
-
   /// What the requester tells its user when the search ends without a
   /// pairing; nothing when it was closed here.
   ///
@@ -32,25 +14,25 @@ extension RappPairingModel {
   /// accepted only when every custodian tried refused it (CC-83).
   nonisolated internal static func failure(
     for reason: RappPairingSearch<PairingEndpoint>.CloseReason
-  ) -> String? {
+  ) -> Failure? {
     switch reason {
     case .ceremonyEnded:
-      String(localized: "Pairing ended before it was completed")
+      .reported(String(localized: "Pairing ended before it was completed"))
 
     case .interrupted, .localRequest:
       nil
 
     case .localNetworkDenied:
-      localNetworkDeniedFailure
+      .localNetworkDenied
 
     case .noneInPairingMode:
-      String(localized: "No phone in pairing mode was found")
+      .reported(String(localized: "No phone in pairing mode was found"))
 
     case .notAccepted:
-      String(localized: "The pairing code was not accepted")
+      .reported(String(localized: "The pairing code was not accepted"))
 
     case .unreachable:
-      String(localized: "A phone in pairing mode was found but could not be reached")
+      .reported(String(localized: "A phone in pairing mode was found but could not be reached"))
     }
   }
 
@@ -111,6 +93,9 @@ extension RappPairingModel {
           "pairing ended: " + DevErrorLog.caseName(of: reason), source: .app)
       #endif
       fail(failure)
+      if failure == .localNetworkDenied {
+        PersistentTokenRegistry.shared.localNetworkDenied = true
+      }
     }
   }
 
@@ -193,7 +178,7 @@ extension RappPairingModel {
         self.coordinator === coordinator,
         !isFinished
       else {
-        self?.fail(String(localized: "Pairing could not be started"))
+        self?.fail(.reported(String(localized: "Pairing could not be started")))
         return
       }
       replacement.start()
