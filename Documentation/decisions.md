@@ -997,8 +997,9 @@ Two things had to be measured rather than assumed:
 
 `CardCore` never sees the condition. Xcode compiles the local package
 with `-DSWIFT_PACKAGE` alone, not `DEBUG`, so a guard inside
-`ExtensionTrace` would have removed the trace from Profile as well, which is the one build that needs it. The
-gate therefore lives in the targets that do get the condition, and
+`ExtensionTrace` would have removed the trace from Profile as well,
+which is the one build that needs it. The gate therefore lives in the
+targets that do get the condition, and
 `ExtensionTrace` stays as it is. `ExtensionTrace.clear()` is left
 reachable everywhere on purpose: never writing is the requirement, and a
 shipped build must still be able to delete a buffer an earlier
