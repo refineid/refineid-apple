@@ -8,9 +8,9 @@ import Foundation
 /// local-network, Bluetooth or notification permission until the holder
 /// turns Remote Access on; a Mac browses, scans and dials nothing, and asks
 /// for no local-network, Bluetooth or notification permission, until the
-/// holder turns remote use on (hierarchy specification §5.2). The choice persists on the device, and a fresh
-/// install starts off; a Mac's launch sets it from its pairings, on while
-/// one remains.
+/// holder turns remote use on (hierarchy specification §5.2). The choice
+/// persists on the device, and a fresh install starts off; a Mac's launch
+/// sets it from its pairings, on while one remains.
 public enum RemoteAccessGate: Sendable {
   // MARK: Nested Types
 

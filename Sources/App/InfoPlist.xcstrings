@@ -68,9 +68,15 @@
       }
     },
     "NFCReaderUsageDescription" : {
-      "comment" : "Purpose of reading the identity card by holding it to the iPhone. The English source is the NFCReaderUsageDescription value in Config/RefineID-iOS-Info.plist.",
+      "comment" : "Purpose of reading the identity card by holding it to the iPhone. The English text is the NFCReaderUsageDescription value in Config/RefineID-iOS-Info.plist.",
       "extractionState" : "manual",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RefineID reads your identity card over NFC for authentication, document signing, activation, and PIN management."
+          }
+        },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
@@ -86,9 +92,15 @@
       }
     },
     "NSBluetoothAlwaysUsageDescription" : {
-      "comment" : "Bluetooth permission prompt, shown when the holder turns Remote Access on. The English source is the NSBluetoothAlwaysUsageDescription value in the app Info.plist.",
+      "comment" : "Bluetooth permission prompt, shown when the holder turns Remote Access on. The English text is the NSBluetoothAlwaysUsageDescription value in the app Info.plist.",
       "extractionState" : "manual",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RefineID connects your phone and computer over Bluetooth while Remote Access is on."
+          }
+        },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
@@ -104,9 +116,15 @@
       }
     },
     "NSCameraUsageDescription" : {
-      "comment" : "Camera permission prompt, shown when the holder chooses to scan the card access number. The English source is the NSCameraUsageDescription value in Config/RefineID-iOS-Info.plist.",
+      "comment" : "Camera permission prompt, shown when the holder chooses to scan the card access number. The English text is the NSCameraUsageDescription value in Config/RefineID-iOS-Info.plist.",
       "extractionState" : "manual",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RefineID reads the access number printed on your card so you do not have to type it."
+          }
+        },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
@@ -146,9 +164,15 @@
       }
     },
     "NSLocalNetworkUsageDescription" : {
-      "comment" : "Local-network permission prompt, shown when the holder turns Remote Access on. The English source is the NSLocalNetworkUsageDescription value in the app Info.plist.",
+      "comment" : "Local-network permission prompt, shown when the holder turns Remote Access on. The English text is the NSLocalNetworkUsageDescription value in the app Info.plist.",
       "extractionState" : "manual",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RefineID connects your phone and computer over the local network while Remote Access is on."
+          }
+        },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
