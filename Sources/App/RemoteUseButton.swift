@@ -26,6 +26,10 @@
     @ObservedObject private var cardPresence = CardPresence.shared
     @ObservedObject private var demoMode = DemoMode.shared
     @ObservedObject private var retryHealth = CredentialRetryHealth.shared
+    /// Whether the PIN codes window has opened by itself for the card now
+    /// in the reader; it opens once per insertion, so a window the holder
+    /// closed stays closed through later readings of the same card.
+    @State private var openedForCard = false
     @Environment(\.openWindow)
     private var openWindow
 
@@ -77,8 +81,14 @@
       .accessibilityLabel(readerCardIsPresent ? Text("PIN Codes") : Text(RemoteUseState.label))
       .accessibilityValue(symbolValue)
       .onValueChange(of: cardNeedsReset) { needsReset in
-        if needsReset {
+        if needsReset, !openedForCard {
+          openedForCard = true
           openWindow(id: PinCodesWindow.windowID)
+        }
+      }
+      .onValueChange(of: readerCardIsPresent) { present in
+        if !present {
+          openedForCard = false
         }
       }
       .accessibilityAddTraits(readerCardIsPresent ? [] : .isToggle)

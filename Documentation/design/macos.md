@@ -168,9 +168,10 @@ use on.
 `PinCodesWindow` holds `CardManagementView` for the card in this Mac's
 reader: the attempts left, and changing or resetting PIN 1 and PIN 2. The
 toolbar button opens it, while it shows the two keys, and it opens by
-itself when the card's reading says a code is below the retry floor. It has
-no Window menu item, never opens at launch on its own, and is not restored.
-It closes when the card leaves the reader.
+itself, once per insertion, when the card's reading says a code is below
+the retry floor; a card already in the reader at launch counts as inserted
+then. It has no Window menu item, opens at launch only for such a card,
+and is not restored. It closes when the card leaves the reader.
 
 While a code is below the floor, the two keys in the toolbar are red and
 the window's top section says why the card cannot be used and the way
