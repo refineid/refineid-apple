@@ -180,7 +180,7 @@
         }
 
       case .cardNotReady:
-        Text("Card detected, not ready - if this lasts, re-insert it")
+        Text("Remove the card from the reader for a moment.")
           .foregroundStyle(.orange)
           .frame(maxWidth: .infinity, alignment: .leading)
 

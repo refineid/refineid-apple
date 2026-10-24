@@ -998,18 +998,18 @@
         }
       }
     },
-    "Card detected, not ready - if this lasts, re-insert it": {
+    "Remove the card from the reader for a moment.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kortti havaittu, ei valmis - jos tila jatkuu, aseta kortti uudelleen"
+            "value": "Ota kortti pois lukijasta hetkeksi."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kort upptäckt, inte klart - sätt i kortet igen om det fortsätter"
+            "value": "Ta ut kortet ur läsaren en stund."
           }
         }
       }
