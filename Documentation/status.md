@@ -392,7 +392,12 @@ dominate the phone trace.
 The benchmark is reproducible from the repository:
 
     swiftc -O -whole-module-optimization \
-      CardCore/Sources/CardCore/**/*.swift \
+      CardCore/Sources/CardCore/Crypto/U384.swift \
+      CardCore/Sources/CardCore/Crypto/FieldP384.swift \
+      CardCore/Sources/CardCore/Crypto/BrainpoolPoint.swift \
+      CardCore/Sources/CardCore/Crypto/BrainpoolP384r1.swift \
+      CardCore/Sources/CardCore/Values/BrainpoolP384r1Values.swift \
+      CardCore/Sources/CardCore/Values/Sec1Values.swift \
       Scripts/BrainpoolBenchmark.swift \
       -o /tmp/refineid-brainpool-benchmark
     /tmp/refineid-brainpool-benchmark
