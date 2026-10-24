@@ -6,17 +6,6 @@ import SwiftUI
 extension CardManagementView {
   // MARK: Static Functions
 
-  private static func spentAttempts(
-    _ report: CredentialProbeReport
-  ) -> [(name: String, remaining: RetryCount)] {
-    [("PIN 1", report.pin1), ("PIN 2", report.pin2), ("PUK", report.puk)]
-      .compactMap { name, outcome in
-        guard case .remaining(let count) = outcome, !count.isPristine
-        else { return nil }
-        return (name, count)
-      }
-  }
-
   internal static func initialTask(
     for recovery: CredentialRetryHealth.Recovery?
   ) -> ManagementTask {
@@ -70,25 +59,7 @@ extension CardManagementView {
         }
 
       case nil:
-        spentAttemptsSection(retryHealth: retryHealth)
-      }
-    }
-  }
-
-  /// The yellow key's explanation: which codes have spent attempts,
-  /// how many remain, and that one correct entry restores them all.
-  @ViewBuilder
-  internal func spentAttemptsSection(
-    retryHealth: CredentialRetryHealth
-  ) -> some View {
-    if retryHealth.level == .warning, let report = retryHealth.report {
-      let spent = Self.spentAttempts(report)
-      if !spent.isEmpty {
-        Section {
-          CredentialOutcomeText(
-            message: CredentialOutcomeMessage.spentAttemptsNotice(spent),
-            tone: .notice)
-        }
+        EmptyView()
       }
     }
   }
