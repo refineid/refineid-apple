@@ -27,7 +27,7 @@ internal struct IdentityLineRemoteUseTests {
     readerConnected: false,
     cardPresent: false,
     remoteUse: false,
-    pairedPhone: nil
+    phonePaired: false
   )
 
   internal static let cases: [Case] = [
@@ -36,13 +36,13 @@ internal struct IdentityLineRemoteUseTests {
       name: "an empty reader asks for the card",
       facts: with { $0.readerConnected = true }, line: .insertCard),
     Case(
-      name: "a paired phone is not named",
-      facts: with { $0.pairedPhone = phone }, line: .connectReader),
+      name: "a paired phone is not shown",
+      facts: with { $0.phonePaired = true }, line: .connectReader),
     Case(
-      name: "a paired phone is not named beside an empty reader",
+      name: "a paired phone is not shown beside an empty reader",
       facts: with { facts in
         facts.readerConnected = true
-        facts.pairedPhone = phone
+        facts.phonePaired = true
       },
       line: .insertCard),
     Case(
@@ -86,7 +86,7 @@ internal struct IdentityLineRemoteUseTests {
     #expect(IdentityLine.derive(facts) == .insertCard)
     facts.remoteUse = true
     #expect(IdentityLine.derive(facts) == .pairPhone)
-    facts.pairedPhone = Self.phone
-    #expect(IdentityLine.derive(facts) == .paired(.connecting, phone: Self.phone))
+    facts.phonePaired = true
+    #expect(IdentityLine.derive(facts) == .paired(.connecting))
   }
 }

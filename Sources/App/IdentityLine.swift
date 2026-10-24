@@ -25,9 +25,8 @@
     /// control that opens the PIN codes.
     case localHolder
 
-    /// The paired phone's line; `phone` is the label the holder's line
-    /// names it by.
-    case paired(PairedLead, phone: String)
+    /// The paired phone's line.
+    case paired(PairedLead)
 
     /// Remote use on, no card here and no phone paired: the row asks for a
     /// phone's pairing code, an attached reader or not, so a document
@@ -47,7 +46,7 @@
       case connecting
 
       /// The holder's name from the certificate the phone confirmed, then
-      /// "(paired: *phone*)".
+      /// "(via phone)".
       case holder
 
       /// "Insert the card into the phone's card reader.": the phone
@@ -71,13 +70,13 @@
       guard facts.remoteUse else {
         return facts.readerConnected ? .insertCard : .connectReader
       }
-      guard let phone = facts.pairedPhone else {
+      guard facts.phonePaired else {
         if let forgot = facts.phoneThatForgot {
           return .phoneForgot(forgot)
         }
         return .pairPhone
       }
-      return .paired(pairedLead(facts), phone: phone)
+      return .paired(pairedLead(facts))
     }
 
     /// What the paired phone's line says; the first rule that matches

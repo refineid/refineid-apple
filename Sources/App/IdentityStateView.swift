@@ -124,7 +124,7 @@
           readerConnected: card.readerConnected,
           cardPresent: card.cardPresent,
           remoteUse: remoteUse,
-          pairedPhone: nil,
+          phonePaired: false,
           phoneThatForgot: nil,
           phoneCardStatus: nil
         )
@@ -136,7 +136,7 @@
         readerConnected: cardPresence.isReaderConnected,
         cardPresent: cardPresence.isCardPresent,
         remoteUse: remoteUse,
-        pairedPhone: registry.pairedPhone,
+        phonePaired: registry.pairedPhoneID != nil,
         phoneThatForgot: registry.phoneThatForgot,
         phoneCardStatus: registry.holderCardStatus
       )
@@ -179,8 +179,8 @@
         Text("Insert the card into the reader.")
           .foregroundStyle(.secondary)
 
-      case .paired(let lead, let phone):
-        PairedPhoneLine(lead: lead, phone: phone, holder: holder ?? borrowedHolderLine)
+      case .paired(let lead):
+        PairedPhoneLine(lead: lead, holder: holder ?? borrowedHolderLine)
 
       case .phoneForgot(let phone):
         Text("\(phone) forgot this computer")

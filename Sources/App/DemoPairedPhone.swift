@@ -19,9 +19,6 @@
     /// The launch argument that shows the paired phone.
     internal static let launchArgument = "--mock-remote-connected"
 
-    /// The phone's label: a model, as a phone named after its model shows.
-    internal static let label = "iPhone 15 Pro Max"
-
     /// Whether this run shows the paired phone.
     internal static var isShown: Bool {
       DemoMode.shared.isActive
@@ -38,7 +35,7 @@
         readerConnected: false,
         cardPresent: false,
         remoteUse: true,
-        pairedPhone: Self.label,
+        phonePaired: true,
         phoneThatForgot: nil,
         phoneCardStatus: nil
       )

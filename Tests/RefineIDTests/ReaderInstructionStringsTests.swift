@@ -90,12 +90,12 @@ internal struct ReaderInstructionStringsTests {
   internal func pairedPhoneAndPinCodesMatchInEveryLanguage() throws {
     let strings = try Self.catalog()
     let finnish: [String: String] = [
-      "(paired: %@)": "(yhdistetty: %@)",
+      "(via phone)": "(puhelimen kautta)",
       "Connecting to the phone…": "Yhdistetään puhelimeen…",
       "PIN Codes": "PIN-koodit",
     ]
     let swedish: [String: String] = [
-      "(paired: %@)": "(kopplad: %@)",
+      "(via phone)": "(via telefonen)",
       "Connecting to the phone…": "Ansluter till telefonen…",
       "PIN Codes": "PIN-koder",
     ]

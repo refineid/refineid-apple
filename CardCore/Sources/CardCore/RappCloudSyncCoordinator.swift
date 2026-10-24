@@ -221,7 +221,6 @@
 
         establishedPairs.append(pair)
         RappPairNames.remember(remote.deviceName, pairID: pairID)
-        RappPairNames.rememberModel(remote.modelName, pairID: pairID)
 
       }
 

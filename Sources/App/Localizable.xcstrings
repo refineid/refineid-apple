@@ -6528,18 +6528,18 @@
         }
       }
     },
-    "(paired: %@)": {
+    "(via phone)": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "(yhdistetty: %@)"
+            "value": "(puhelimen kautta)"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "(kopplad: %@)"
+            "value": "(via telefonen)"
           }
         }
       }
