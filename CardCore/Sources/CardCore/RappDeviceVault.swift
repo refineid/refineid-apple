@@ -113,7 +113,9 @@ public final class RappDeviceVault: @unchecked Sendable {
     item[kSecAttrGeneric as String] = marker
     item[kSecValueData as String] = record
     inMemoryStore[namespace.pair, default: [:]][pairID.hexadecimal] = item
-    if TestCredentialEnvironment.isTestMode { return }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode { return }
+    #endif
     let status = SecItemAdd(item as CFDictionary, nil)
     #if DEBUG
       print("[RappDeviceVault] insertPair status: \(status)")

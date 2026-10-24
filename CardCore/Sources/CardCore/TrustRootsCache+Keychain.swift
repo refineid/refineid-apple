@@ -61,10 +61,12 @@ extension TrustRootsCache {
     let fingerprint = Data(SHA256.hash(data: der))
     let account = fingerprint.map { String(format: "%02x", $0) }.joined()
 
-    if TestCredentialEnvironment.isTestMode {
-      TestCredentialEnvironment.storeTrustedCa(der, account: account)
-      return
-    }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        TestCredentialEnvironment.storeTrustedCa(der, account: account)
+        return
+      }
+    #endif
 
     var coordinates = query(account: account)
     coordinates[kSecValueData as String] = der
@@ -83,10 +85,12 @@ extension TrustRootsCache {
 
   /// Deletes all persistent CA items from Keychain or test store.
   internal static func deletePersistentCas() {
-    if TestCredentialEnvironment.isTestMode {
-      TestCredentialEnvironment.forgetAllTrustedCas()
-      return
-    }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        TestCredentialEnvironment.forgetAllTrustedCas()
+        return
+      }
+    #endif
     let deleteQuery = baseSearchQuery()
     let status = SecItemDelete(deleteQuery as CFDictionary)
     if status != errSecSuccess, status != errSecItemNotFound {
@@ -96,17 +100,19 @@ extension TrustRootsCache {
 
   /// Loads persisted certificates on startup, purging any expired or invalid ones.
   internal func loadPersistedCas() {
-    if TestCredentialEnvironment.isTestMode {
-      let items = TestCredentialEnvironment.allTrustedCas().sorted { $0.account < $1.account }
-      for (account, data) in items {
-        if !Self.meetsPersistencePolicy(data) {
-          TestCredentialEnvironment.deleteTrustedCa(account: account)
-          continue
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        let items = TestCredentialEnvironment.allTrustedCas().sorted { $0.account < $1.account }
+        for (account, data) in items {
+          if !Self.meetsPersistencePolicy(data) {
+            TestCredentialEnvironment.deleteTrustedCa(account: account)
+            continue
+          }
+          loadValidCertificate(data)
         }
-        loadValidCertificate(data)
+        return
       }
-      return
-    }
+    #endif
 
     var search = Self.baseSearchQuery()
     search[kSecMatchLimit as String] = kSecMatchLimitAll

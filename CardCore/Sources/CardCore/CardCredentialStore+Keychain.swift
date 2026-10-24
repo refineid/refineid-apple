@@ -81,9 +81,11 @@ extension CardCredentialStore {
   /// it exists -- so both that and success count as present, and neither
   /// prompts the holder just to draw a status row.
   internal static func exists(account: String) -> Bool {
-    if TestCredentialEnvironment.isTestMode {
-      return TestCredentialEnvironment.credentialExists(account: account)
-    }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        return TestCredentialEnvironment.credentialExists(account: account)
+      }
+    #endif
     var query = self.query(account: account)
     query[kSecMatchLimit as String] = kSecMatchLimitOne
     query[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUISkip
@@ -93,9 +95,11 @@ extension CardCredentialStore {
 
   /// Reads a value from the shared group both binaries are entitled to.
   internal static func readShared(account: String) -> String? {
-    if TestCredentialEnvironment.isTestMode {
-      return TestCredentialEnvironment.readCredential(account: account)
-    }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        return TestCredentialEnvironment.readCredential(account: account)
+      }
+    #endif
     var query = self.query(account: account, accessGroup: sharedKeychainGroup)
     query[kSecReturnData as String] = true
     query[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -113,9 +117,11 @@ extension CardCredentialStore {
   /// Nothing in the app calls this to display a value -- it exists so
   /// card setup can use what was entered earlier.
   internal static func read(account: String) -> String? {
-    if TestCredentialEnvironment.isTestMode {
-      return TestCredentialEnvironment.readCredential(account: account)
-    }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        return TestCredentialEnvironment.readCredential(account: account)
+      }
+    #endif
     var query = self.query(account: account)
     query[kSecReturnData as String] = true
     query[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -137,10 +143,12 @@ extension CardCredentialStore {
   /// Writes a value into the shared group both binaries are entitled to.
   internal static func writeShared(_ digits: String, account: String) -> OSStatus {
     guard let data = digits.data(using: .utf8) else { return errSecParam }
-    if TestCredentialEnvironment.isTestMode {
-      TestCredentialEnvironment.writeCredential(digits, account: account)
-      return errSecSuccess
-    }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        TestCredentialEnvironment.writeCredential(digits, account: account)
+        return errSecSuccess
+      }
+    #endif
     let coordinates = query(account: account, accessGroup: sharedKeychainGroup)
     let replacement = [kSecValueData as String: data]
     let updated = SecItemUpdate(
@@ -158,10 +166,12 @@ extension CardCredentialStore {
 
   internal static func write(_ digits: String, account: String) -> OSStatus {
     guard let data = digits.data(using: .utf8) else { return errSecParam }
-    if TestCredentialEnvironment.isTestMode {
-      TestCredentialEnvironment.writeCredential(digits, account: account)
-      return errSecSuccess
-    }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        TestCredentialEnvironment.writeCredential(digits, account: account)
+        return errSecSuccess
+      }
+    #endif
     let coordinates = query(account: account)
     let replacement = [kSecValueData as String: data]
     let updated = SecItemUpdate(
@@ -190,18 +200,22 @@ extension CardCredentialStore {
   /// rejected. Measured: this is exactly why storing PIN1 appeared to do
   /// nothing while storing the ungated access number worked.
   internal static func delete(account: String) {
-    if TestCredentialEnvironment.isTestMode {
-      TestCredentialEnvironment.deleteCredential(account: account)
-      return
-    }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        TestCredentialEnvironment.deleteCredential(account: account)
+        return
+      }
+    #endif
     SecItemDelete(query(account: account) as CFDictionary)
   }
 
   /// Whether a shared item is present, without authenticating.
   internal static func existsShared(account: String) -> Bool {
-    if TestCredentialEnvironment.isTestMode {
-      return TestCredentialEnvironment.credentialExists(account: account)
-    }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        return TestCredentialEnvironment.credentialExists(account: account)
+      }
+    #endif
     var query = self.query(account: account, accessGroup: sharedKeychainGroup)
     query[kSecMatchLimit as String] = kSecMatchLimitOne
     query[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUISkip
@@ -211,10 +225,12 @@ extension CardCredentialStore {
 
   /// Removes a shared item.
   internal static func deleteShared(account: String) {
-    if TestCredentialEnvironment.isTestMode {
-      TestCredentialEnvironment.deleteCredential(account: account)
-      return
-    }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        TestCredentialEnvironment.deleteCredential(account: account)
+        return
+      }
+    #endif
     let coordinates = query(account: account, accessGroup: sharedKeychainGroup)
     SecItemDelete(coordinates as CFDictionary)
   }

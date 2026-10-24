@@ -35,7 +35,9 @@
     }
 
     internal func start() {
-      guard !TestCredentialEnvironment.isTestMode else { return }
+      #if DEBUG
+        guard !TestCredentialEnvironment.isTestMode else { return }
+      #endif
       // The host RefineID application is the sole consumer of UserNotifications in this bundle.
       let center = UNUserNotificationCenter.current()
       center.delegate = self

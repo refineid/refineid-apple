@@ -45,10 +45,12 @@ public enum RemoteAccessGate: Sendable {
   /// Test runs keep the choice in memory so one test cannot leak it
   /// into the next through persisted defaults.
   public static func setEnabled(_ enabled: Bool) {
-    if TestCredentialEnvironment.isTestMode {
-      setSessionOverride(enabled)
-      return
-    }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        setSessionOverride(enabled)
+        return
+      }
+    #endif
     setStoredEnabled(enabled, in: .standard)
   }
 
@@ -64,9 +66,11 @@ public enum RemoteAccessGate: Sendable {
     case .unset:
       break
     }
-    if TestCredentialEnvironment.isTestMode {
-      return ProcessInfo.processInfo.arguments.contains(enabledLaunchArgument)
-    }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        return ProcessInfo.processInfo.arguments.contains(enabledLaunchArgument)
+      }
+    #endif
     return storedEnabled(in: .standard)
   }
 

@@ -32,9 +32,11 @@ extension RappDeviceVault {
   public func deleteServiceNamespace(_ prefix: String = "fi.refineid") throws -> Int {
     try synchronized {
       guard !prefix.isEmpty else { throw Failure.malformed }
-      if TestCredentialEnvironment.isTestMode {
-        return deleteInMemoryNamespace(prefix: prefix)
-      }
+      #if DEBUG
+        if TestCredentialEnvironment.isTestMode {
+          return deleteInMemoryNamespace(prefix: prefix)
+        }
+      #endif
       return try deleteKeychainNamespace(prefix: prefix)
     }
   }

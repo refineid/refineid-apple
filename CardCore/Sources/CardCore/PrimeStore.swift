@@ -64,10 +64,12 @@ public enum PrimeStore {
     forLookup lookupID: PrimeLookupIdentifier
   ) -> Bool {
     guard let payload = try? JSONEncoder().encode(identity) else { return false }
-    if TestCredentialEnvironment.isTestMode {
-      TestCredentialEnvironment.storePrime(payload, account: lookupID.value)
-      return true
-    }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        TestCredentialEnvironment.storePrime(payload, account: lookupID.value)
+        return true
+      }
+    #endif
     let coordinates = query(account: lookupID.value)
     let replacement = [kSecValueData as String: payload]
     let updated = SecItemUpdate(coordinates as CFDictionary, replacement as CFDictionary)
@@ -163,20 +165,22 @@ public enum PrimeStore {
 
   /// Decodes and validates one record by keychain account.
   internal static func read(account: String) -> PrimedIdentity? {
-    if TestCredentialEnvironment.isTestMode {
-      guard let data = TestCredentialEnvironment.readPrime(account: account),
-        let stored = try? JSONDecoder().decode(PrimedIdentity.self, from: data)
-      else {
-        return nil
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        guard let data = TestCredentialEnvironment.readPrime(account: account),
+          let stored = try? JSONDecoder().decode(PrimedIdentity.self, from: data)
+        else {
+          return nil
+        }
+        return PrimedIdentity(
+          can: stored.can,
+          certificate: stored.certDER,
+          issuer: stored.issuerDER,
+          tokenSerial: stored.tokenSerial,
+          activationCheck: stored.activationCheck,
+          signatureCertificate: stored.signatureCertDER)
       }
-      return PrimedIdentity(
-        can: stored.can,
-        certificate: stored.certDER,
-        issuer: stored.issuerDER,
-        tokenSerial: stored.tokenSerial,
-        activationCheck: stored.activationCheck,
-        signatureCertificate: stored.signatureCertDER)
-    }
+    #endif
     var query = self.query(account: account)
     query[kSecReturnData as String] = true
     query[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -243,10 +247,12 @@ public enum PrimeStore {
   /// must be able to revoke it for all their cards at once, without
   /// having to present each card again to name it.
   public static func forgetAll() {
-    if TestCredentialEnvironment.isTestMode {
-      TestCredentialEnvironment.forgetAllPrimes()
-      return
-    }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        TestCredentialEnvironment.forgetAllPrimes()
+        return
+      }
+    #endif
     var query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service,

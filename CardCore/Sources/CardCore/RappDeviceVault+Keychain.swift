@@ -63,9 +63,11 @@ extension RappDeviceVault {
     if let inMemory = inMemoryStore[service]?[account] {
       return inMemory
     }
-    if TestCredentialEnvironment.isTestMode {
-      return [:]
-    }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        return [:]
+      }
+    #endif
     var query = itemQuery(service: service, account: account)
     query[kSecReturnAttributes as String] = kCFBooleanTrue
     query[kSecReturnData as String] = kCFBooleanTrue
@@ -116,9 +118,11 @@ extension RappDeviceVault {
   }
 
   internal func loadAll(service: String) throws -> [[String: Any]] {
-    if TestCredentialEnvironment.isTestMode {
-      return sortItems(inMemoryItems(for: service))
-    }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        return sortItems(inMemoryItems(for: service))
+      }
+    #endif
     var query = itemQuery(service: service)
     query[kSecReturnAttributes as String] = kCFBooleanTrue
     query[kSecMatchLimit as String] = kSecMatchLimitAll
@@ -160,16 +164,14 @@ extension RappDeviceVault {
     account: String,
     attributes: [String: Any]
   ) throws {
-    if inMemoryStore[service]?[account] != nil || TestCredentialEnvironment.isTestMode {
-      // Mirror SecItemUpdate merge semantics: fold the attributes into the
-      // stored item and keep its account, so later reads see one whole item.
-      var stored = inMemoryStore[service]?[account] ?? [:]
-      stored[kSecAttrAccount as String] = account
-      for (key, value) in attributes {
-        stored[key] = value
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        mergeInMemory(service: service, account: account, attributes: attributes)
+        return
       }
-      inMemoryStore[service, default: [:]][account] = stored
-      if TestCredentialEnvironment.isTestMode { return }
+    #endif
+    if inMemoryStore[service]?[account] != nil {
+      mergeInMemory(service: service, account: account, attributes: attributes)
     }
     let status = SecItemUpdate(
       itemQuery(service: service, account: account) as CFDictionary,
@@ -193,6 +195,21 @@ extension RappDeviceVault {
     }
   }
 
+  /// Mirrors SecItemUpdate merge semantics: folds the attributes into the
+  /// stored item and keeps its account, so later reads see one whole item.
+  private func mergeInMemory(
+    service: String,
+    account: String,
+    attributes: [String: Any]
+  ) {
+    var stored = inMemoryStore[service]?[account] ?? [:]
+    stored[kSecAttrAccount as String] = account
+    for (key, value) in attributes {
+      stored[key] = value
+    }
+    inMemoryStore[service, default: [:]][account] = stored
+  }
+
   internal func upsert(
     service: String,
     account: String,
@@ -203,7 +220,9 @@ extension RappDeviceVault {
       stored[key] = value
     }
     inMemoryStore[service, default: [:]][account] = stored
-    if TestCredentialEnvironment.isTestMode { return }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode { return }
+    #endif
     let query = itemQuery(service: service, account: account)
     let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
     if updateStatus == errSecSuccess || Self.isInteractionNotAllowed(updateStatus) { return }
@@ -228,7 +247,9 @@ extension RappDeviceVault {
 
   internal func deleteItem(service: String, account: String) throws {
     inMemoryStore[service]?.removeValue(forKey: account)
-    if TestCredentialEnvironment.isTestMode { return }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode { return }
+    #endif
     let query = itemQuery(service: service, account: account)
     var status = SecItemDelete(query as CFDictionary)
     #if os(macOS)
@@ -244,7 +265,9 @@ extension RappDeviceVault {
 
   internal func deleteAll(service: String) throws {
     inMemoryStore.removeValue(forKey: service)
-    if TestCredentialEnvironment.isTestMode { return }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode { return }
+    #endif
     let query = itemQuery(service: service)
     var status = SecItemDelete(query as CFDictionary)
     #if os(macOS)

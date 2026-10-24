@@ -31,9 +31,10 @@
     /// Whether a test or a debug launch mode drives this process.
     private static var launchIsAutomated: Bool {
       #if DEBUG
-        if DebugLaunchModes.selected() != nil { return true }
+        return DebugLaunchModes.selected() != nil || TestCredentialEnvironment.isTestMode
+      #else
+        return false
       #endif
-      return TestCredentialEnvironment.isTestMode
     }
 
     /// Whether this copy of the app sits in an Applications folder.

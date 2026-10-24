@@ -19,10 +19,14 @@ public enum RappPairNames: Sendable {
 
   /// Where names are kept.
   private static var store: UserDefaults {
-    guard TestCredentialEnvironment.isTestMode,
-      let suite = UserDefaults(suiteName: testSuiteName)
-    else { return .standard }
-    return suite
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode,
+        let suite = UserDefaults(suiteName: testSuiteName)
+      {
+        return suite
+      }
+    #endif
+    return .standard
   }
 
   // MARK: Public API

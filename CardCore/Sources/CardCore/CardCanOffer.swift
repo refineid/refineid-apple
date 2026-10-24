@@ -143,10 +143,12 @@ public enum CardCanOffer {
 
   /// The library accounts holding stored numbers.
   internal static func libraryAccounts() -> [String] {
-    if TestCredentialEnvironment.isTestMode {
-      return TestCredentialEnvironment.credentialAccounts(
-        prefix: libraryPrefix, suffix: librarySuffix)
-    }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        return TestCredentialEnvironment.credentialAccounts(
+          prefix: libraryPrefix, suffix: librarySuffix)
+      }
+    #endif
     var query = CardCredentialStore.query(
       account: offerAccount, accessGroup: CardCredentialStore.sharedKeychainGroup)
     query.removeValue(forKey: kSecAttrAccount as String)

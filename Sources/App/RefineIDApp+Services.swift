@@ -44,8 +44,8 @@ extension RefineIDApp {
       }
     #endif
     #if REFINEID_REMOTE_CARD
-      guard !TestCredentialEnvironment.isTestMode else { return }
       #if DEBUG
+        guard !TestCredentialEnvironment.isTestMode else { return }
         if DebugLaunchModes.selected() != nil { return }
       #endif
 
