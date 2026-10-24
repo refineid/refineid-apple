@@ -119,7 +119,7 @@ every other change is a change of colour.
 | Remote use turned on again after the phone forgot this computer | "*phone* forgot this computer" above the pairing prompt |
 | Card in this Mac's reader, name not read yet | "Reading information…" |
 | Card in this Mac's reader | *HOLDER NAME* |
-| Card in this Mac's reader, not ready after a while | the re-insert warning |
+| Card in this Mac's reader, no token for it after a while | "Remove the card from the reader for a moment." in orange |
 | Paired phone, no identity from it yet | "Connecting to the phone…" |
 | Paired phone, its identity offered | "*HOLDER NAME* (via phone)" |
 | Paired phone, its card reader empty | "Insert the card into the phone's card reader." |
