@@ -5,9 +5,9 @@ import Testing
 
 @testable import RefineID
 
-/// Every NFC operation draws one meter: a ball per step, then the
-/// operation's name; a failure turns its step red and its sentence
-/// follows.
+/// Every NFC operation draws one meter: the operation's name on the
+/// first line, a ball per step on the second; a failure turns its step
+/// red and its sentence follows.
 @Suite
 internal struct NearFieldMeterTests {
   /// What a sheet drew, in order.
@@ -39,7 +39,7 @@ internal struct NearFieldMeterTests {
 
   /// The whole message for `markers` and `operation`.
   private static func message(_ markers: [String], _ operation: NearFieldOperation) -> String {
-    Self.row(markers) + NearFieldMeter.textGap + operation.title
+    operation.title + NearFieldMeter.lineBreak + Self.row(markers)
   }
 
   @Test("Each operation has its steps in the order they happen")
@@ -60,16 +60,23 @@ internal struct NearFieldMeterTests {
     }
   }
 
-  @Test("Every operation starts with the card found and the secure channel, and has a name")
+  @Test("Every operation opens with the card found and the secure channel, under a one-line name")
   internal func everyOperationOpensTheSameWay() {
     let opening: [NearFieldStep] = [.found, .secureChannel]
     for operation in NearFieldOperation.allCases {
       #expect(Array(operation.steps.prefix(opening.count)) == opening)
       #expect(!operation.title.isEmpty)
+      #expect(!operation.title.contains(NearFieldMeter.lineBreak))
     }
   }
 
-  @Test("The opening meter is every ball white, then the operation's name")
+  @Test("Every read of the card carries the same name")
+  internal func readsShareOneName() {
+    #expect(NearFieldOperation.identity.title == NearFieldOperation.setup.title)
+    #expect(NearFieldOperation.cardStatus.title == NearFieldOperation.setup.title)
+  }
+
+  @Test("The opening meter is the operation's name, then every ball white")
   internal func openingMeter() {
     let operation = NearFieldOperation.setup
     let white = Array(repeating: NearFieldMeter.waiting, count: operation.steps.count)
@@ -151,14 +158,15 @@ internal struct NearFieldMeterTests {
     #expect(foreign.states == [.done, .failed, .waiting])
   }
 
-  @Test("The recovery countdown follows the balls, and ends as the balls alone")
+  @Test("The recovery countdown follows the balls under the name, and ends as the meter alone")
   internal func recoveryText() {
     var meter = NearFieldMeter(.setup)
     meter.reach(.secureChannel)
     #expect(
       meter.recoveryText(remainingSeconds: Self.countdownSeconds)
-        == meter.markers + NearFieldMeter.textGap + "\(Self.countdownSeconds)s")
-    #expect(meter.recoveryText(remainingSeconds: .zero) == meter.markers)
+        == NearFieldOperation.setup.title + NearFieldMeter.lineBreak + meter.markers
+        + NearFieldMeter.textGap + "\(Self.countdownSeconds)s")
+    #expect(meter.recoveryText(remainingSeconds: .zero) == meter.text)
   }
 
   @Test("A stopped countdown draws nothing after the next change")

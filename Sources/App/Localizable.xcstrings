@@ -1038,22 +1038,6 @@
         }
       }
     },
-    "Card status": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kortin tila"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kortstatus"
-          }
-        }
-      }
-    },
     "Card type": {
       "extractionState": "manual",
       "localizations": {
@@ -3533,6 +3517,134 @@
           "stringUnit": {
             "state": "translated",
             "value": "RefineID:s kortidentiteter för Safari återställdes."
+          }
+        }
+      }
+    },
+    "Activating Card": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Otetaan korttia käyttöön"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktiverar kortet"
+          }
+        }
+      }
+    },
+    "Authenticating": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tunnistaudutaan"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Identifierar"
+          }
+        }
+      }
+    },
+    "Changing PIN 1": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vaihdetaan PIN 1"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Byter PIN 1"
+          }
+        }
+      }
+    },
+    "Changing PIN 2": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vaihdetaan PIN 2"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Byter PIN 2"
+          }
+        }
+      }
+    },
+    "Reading Identity Card": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Luetaan henkilökorttia"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läser identitetskortet"
+          }
+        }
+      }
+    },
+    "Resetting PIN 1": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avataan PIN 1"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Återställer PIN 1"
+          }
+        }
+      }
+    },
+    "Resetting PIN 2": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avataan PIN 2"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Återställer PIN 2"
+          }
+        }
+      }
+    },
+    "Signing": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allekirjoitetaan"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undertecknar"
           }
         }
       }
