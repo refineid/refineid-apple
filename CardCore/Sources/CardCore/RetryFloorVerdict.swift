@@ -11,8 +11,8 @@ public enum RetryFloorVerdict: Equatable, Sendable {
   /// maximum (S1 v4.2 §3.5); the operation may proceed.
   case proceed
 
-  /// Zero attempts remain: the credential is blocked; direct the user to
-  /// issuer recovery.
+  /// Zero attempts remain: the credential is blocked. A blocked PIN is
+  /// reset with the PUK; a blocked PUK only by the issuer.
   case refuseBlocked
 
   /// One or two attempts remain: refuse before prompting for or sending

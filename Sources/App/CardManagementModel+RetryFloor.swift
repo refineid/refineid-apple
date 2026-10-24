@@ -8,13 +8,20 @@ extension CardManagementModel {
   /// A missing report keeps the form responsive while the asynchronous probe
   /// arrives. Once a credential-specific reading exists, the UI cannot offer
   /// an operation the fresh same-session backend probe would refuse.
-  /// Activation may write either PIN independently.
   ///
-  /// Every PIN still awaiting its factory-state write must be above the
-  /// same retry floor.
+  /// Activation is judged on the credential it presents: under the
+  /// activation-code scheme that is the PUK, whatever the factory-blocked
+  /// PINs show; under the activation-PIN scheme it is every PIN still
+  /// awaiting its factory-state write.
   internal var allowsActivationOperation: Bool {
-    (!activationNeeds.pin1 || allowsCredentialOperation(spending: .pin1))
-      && (!activationNeeds.pin2 || allowsCredentialOperation(spending: .pin2))
+    switch activationScheme {
+    case .activationCodeIsPuk:
+      return allowsCredentialOperation(spending: .puk)
+
+    case .presetActivationPin, .none:
+      return (!activationNeeds.pin1 || allowsCredentialOperation(spending: .pin1))
+        && (!activationNeeds.pin2 || allowsCredentialOperation(spending: .pin2))
+    }
   }
 
   private func retryOutcome(for role: CredentialRole) -> RetryProbeOutcome? {

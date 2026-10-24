@@ -2,19 +2,20 @@
 
 /// Every CTK PIN-bearing command obtains fresh retry state first,
 /// side-effect-free, and this rule decides whether the operation may proceed.
+///
+/// A credential is presented only with at least
+/// `minimumAttemptsToProceed` attempts left, or when it is already
+/// verified. One or two attempts left, a blocked credential and an
+/// unreadable counter are refused: RefineID never spends an attempt that
+/// could block the card. Each operation judges the credential it presents,
+/// so a reset presents the PUK and is judged on the PUK's counter whatever
+/// the PIN it resets shows.
 public enum RetryFloor {
-  /// An unblocked operation proceeds only when at least this many attempts
-  /// remain.
-  ///
-  /// Zero also proceeds because a blocked credential has no attempt left
-  /// for the operation to consume.
   private enum Constants {
     static let minimumAttemptsToProceed: UInt8 = 3
-    static let lowAttemptsThreshold: UInt8 = 2
   }
 
-  /// An unblocked operation proceeds only when more attempts remain than
-  /// the low-attempt cutoff.
+  /// An operation proceeds only when at least this many attempts remain.
   public static let minimumAttemptsToProceed: UInt8 = Constants.minimumAttemptsToProceed
 
   /// Decides from one fresh reading.
@@ -27,7 +28,10 @@ public enum RetryFloor {
   /// immediately before it.
   public static func evaluate(freshReading: RetryCount?) -> RetryFloorVerdict {
     guard let reading = freshReading else { return .refuseUnreadable }
-    if (1...Constants.lowAttemptsThreshold).contains(reading.attemptsRemaining) {
+    if reading.isBlocked {
+      return .refuseBlocked
+    }
+    if reading.attemptsRemaining < Constants.minimumAttemptsToProceed {
       return .refuseLowAttempts
     }
     return .proceed
@@ -55,7 +59,7 @@ public enum RetryFloor {
       return .proceed
 
     case .locked:
-      return .proceed
+      return .refuseBlocked
 
     case .invalidated, .noInformation, .other:
       return .refuseUnreadable

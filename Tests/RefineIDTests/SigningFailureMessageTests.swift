@@ -60,6 +60,16 @@
     }
 
     @Test
+    internal func aFloorRefusalNamesPin2AndPointsToThePuk() {
+      for verdict in [RetryFloorVerdict.refuseLowAttempts, .refuseBlocked] {
+        let message = DocumentSigningMessage.message(
+          for: DocumentSigner.Failure.card(.floorRefused(verdict)))
+        #expect(message.contains("PIN 2"))
+        #expect(message.contains("PUK"))
+      }
+    }
+
+    @Test
     internal func aPhoneThatCouldNotSignReadsAsNoSignature() {
       #expect(
         DocumentSigningMessage.message(for: RappRequesterClientError.terminal(.operationFailed))

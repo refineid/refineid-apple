@@ -3239,6 +3239,23 @@
         }
       }
     },
+    "PIN 2 is blocked": {
+      "extractionState": "manual",
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 2 on lukittu"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 2 är spärrad"
+          }
+        }
+      }
+    },
     "PIN 2 is incorrect.": {
       "extractionState": "manual",
       "localizations": {
@@ -5714,23 +5731,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Använd en ansluten kortläsare"
-          }
-        }
-      }
-    },
-    "Use another software or reset %@.": {
-      "extractionState": "manual",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Käytä toista ohjelmistoa tai palauta %@."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Använd en annan programvara eller återställ %@."
           }
         }
       }

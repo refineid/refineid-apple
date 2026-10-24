@@ -20,13 +20,19 @@ extension CardManagementModel {
       return true
 
     case (.success, .some(let second)):
-      failure = message(for: second, presenting: entry)
-        .map { "PIN 1 was set, but PIN 2 was not: \($0)" }
+      failure = message(
+        for: second, presenting: entry,
+        spending: activationSpends(activation.scheme, writing: .pin2)
+      )
+      .map { "PIN 1 was set, but PIN 2 was not: \($0)" }
       return false
 
     case (.alreadyActivated, .some(let second)):
-      failure = message(for: second, presenting: entry)
-        .map { "PIN 2 was not set: \($0)" }
+      failure = message(
+        for: second, presenting: entry,
+        spending: activationSpends(activation.scheme, writing: .pin2)
+      )
+      .map { "PIN 2 was not set: \($0)" }
       return false
 
     case (.alreadyActivated, nil):
@@ -34,8 +40,25 @@ extension CardManagementModel {
       return false
 
     case (let first, _):
-      failure = message(for: first, presenting: entry)
+      failure = message(
+        for: first, presenting: entry,
+        spending: activationSpends(activation.scheme, writing: .pin1))
       return false
+    }
+  }
+
+  /// The credential an activation write presents: the activation code
+  /// is the PUK; an activation PIN is the PIN it replaces.
+  private func activationSpends(
+    _ scheme: ActivationScheme,
+    writing role: CredentialRole
+  ) -> CredentialRole {
+    switch scheme {
+    case .activationCodeIsPuk:
+      .puk
+
+    case .presetActivationPin:
+      role
     }
   }
 
@@ -51,6 +74,7 @@ extension CardManagementModel {
 
   internal func perform(
     presenting: String,
+    spending role: CredentialRole,
     accepted: String,
     _ operation: () async -> CardMaintenance.MutationReport
   ) async -> Bool {
@@ -63,7 +87,7 @@ extension CardManagementModel {
     if mutation.outcome == .success {
       notice = accepted
     } else {
-      failure = message(for: mutation.outcome, presenting: presenting)
+      failure = message(for: mutation.outcome, presenting: presenting, spending: role)
     }
     if let snapshot = mutation.snapshot {
       apply(snapshot, preservingOutcome: true)
@@ -90,7 +114,8 @@ extension CardManagementModel {
 
   internal func message(
     for outcome: CardMaintenance.Outcome,
-    presenting: String
+    presenting: String,
+    spending role: CredentialRole
   ) -> String? {
     switch outcome {
     case .success:
@@ -102,14 +127,14 @@ extension CardManagementModel {
     case .noCard:
       unreadableCardMessage
 
-    case .floorRefused(.refuseBlocked), .pinBlocked:
-      "\(presenting) is blocked."
+    case .pinBlocked:
+      CredentialOutcomeMessage.blocked(role)
 
-    case .floorRefused(.refuseLowAttempts):
-      CredentialOutcomeMessage.lowAttemptRefusal()
-
-    case .floorRefused:
+    case .floorRefused(.refuseUnreadable):
       "The \(presenting) retry counter could not be read; nothing was sent."
+
+    case .floorRefused(let verdict):
+      CredentialOutcomeMessage.floorRefusal(role: role, verdict: verdict, remaining: nil)
 
     case .rejected(let remaining):
       CredentialOutcomeMessage.rejection(
