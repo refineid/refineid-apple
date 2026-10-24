@@ -21,6 +21,9 @@
       if case Failure.secureChannelTimedOut = error {
         return String(localized: "Connection timed out")
       }
+      if case Failure.primeNotStored = error {
+        return String(localized: "Could not save card details")
+      }
       if let failure = error as? CardOperationError {
         switch failure {
         case .pinRejected:

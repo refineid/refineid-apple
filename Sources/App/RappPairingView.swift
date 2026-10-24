@@ -126,23 +126,22 @@ internal struct RappPairingView: View {
     }
   }
 
-  /// Starts serving, then lets the system ask for what it has no answer for.
+  /// Starts serving and shows the code at once, while the system is asked
+  /// for what it has no answer for; a denied local network withdraws the
+  /// code.
   private func turnRemoteAccessOn() {
     #if os(iOS)
       RemoteAccessServing.setEnabled(true)
       remoteAccessEnabled = true
+      if case .idle = model.phase {
+        model.createOffer()
+      }
       Task { @MainActor in
-        switch await RemoteAccessPermissions.localNetworkAccess() {
-        case .allowed:
-          if case .idle = model.phase {
-            model.createOffer()
-          }
-
-        case .denied:
-          remoteAccessEnabled = false
-          RemoteAccessServing.setEnabled(false)
-          showingLocalNetworkDenied = true
-        }
+        guard case .denied = await RemoteAccessPermissions.localNetworkAccess() else { return }
+        model.resetAttempt()
+        remoteAccessEnabled = false
+        RemoteAccessServing.setEnabled(false)
+        showingLocalNetworkDenied = true
       }
     #else
       remoteAccessEnabled = true

@@ -65,8 +65,8 @@
         let outcome = await RappCardExecutor.readCertificate(
           cardAccessNumber: accessNumber,
           signatureCertificate: true)
-        if case .result(let der) = outcome, !isReader {
-          PrimeStore.updateSignatureCertificate(der)
+        if case .result(let der) = outcome, !isReader, let accessNumber {
+          PrimeStore.updateSignatureCertificate(der, cardAccessNumber: accessNumber)
         }
         return outcome
 

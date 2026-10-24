@@ -325,7 +325,9 @@
         case .authentication:
           return stored?.certDER
         case .qualifiedSignature:
-          return stored?.signatureCertDER
+          return params.cardAccessNumber.flatMap { accessNumber in
+            PrimeStore.signatureCertificate(cardAccessNumber: accessNumber)
+          }
         default:
           return nil
         }
@@ -338,8 +340,10 @@
               ? .secondQualifiedSignature : .secondAuthentication
           ))
       }()
-      if cachedCertData == nil, let readFromCard, params.slot == .qualifiedSignature {
-        PrimeStore.updateSignatureCertificate(readFromCard)
+      if allowCache, cachedCertData == nil, let readFromCard,
+        params.slot == .qualifiedSignature, let accessNumber = params.cardAccessNumber
+      {
+        PrimeStore.updateSignatureCertificate(readFromCard, cardAccessNumber: accessNumber)
       }
       guard
         let certificateData = cachedCertData ?? readFromCard,

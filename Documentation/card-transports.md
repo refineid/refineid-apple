@@ -79,13 +79,18 @@ device (see `Documentation/ios-native-nfc-safari.md`):
 1. **Prime, once per card, in one field.** The app opens an NFC slot,
    runs PACE with the CAN, reads the authentication certificate (`EF.4331`)
    and card serial, checks activation state with memoized retry probes, stores
-   them plus the CAN in a keychain item shared with the extension, and registers
-   the token -- all inside the same hold in ~1-1.5 seconds. The qualified
-   signature certificate (`EF.4332`) is deferred and loaded on demand during
-   actual document signing or proxy operations, and cached in `PrimeStore` so
-   it is never reread. A known public issuing CA comes from the app bundle
-   after an exact issuer/subject match; only an unknown issuer is read from the
-   card. The card is identified by a hash of its ATR. Two bridges make the
+   them plus the CAN in a keychain item shared with the extension as soon as
+   they are read, so the extension's mint overlaps the rest of the hold, and
+   registers the token -- all inside the same hold. The qualified signature
+   certificate (`EF.4332`) is not read at setup: the first signature that
+   needs it reads it in its own card session and caches it in the prime of
+   the card whose CAN opened that session. Issuing and root CA certificates
+   come from the persisted CA cache; the card's issuing CA is read only when
+   no cached one matches the leaf's issuer, and its root only when no cached
+   root issued that CA. A card root is admitted only when it is self-signed,
+   a CA within its validity and the verified issuer of the issuing CA. A
+   cached CA is retired only by its own expiry. The card is identified by a
+   hash of its ATR. Two bridges make the
    single field work: a registration mark, written before the slot opens, tells
    the extension to publish without taking the card session; and the extension's
    mint waits briefly for the prime (`TokenDriver.awaitPrime`), because `ctkd`

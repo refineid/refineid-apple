@@ -78,10 +78,24 @@ extension PrimeStore {
     SecItemDelete(query(account: account) as CFDictionary)
   }
 
-  /// Updates the cached signature certificate for the stored primed identity.
+  /// The qualified signature certificate cached for the card opened with
+  /// `cardAccessNumber`, or nil when none is cached for that card.
+  public static func signatureCertificate(cardAccessNumber: String) -> Data? {
+    storedItems().first { $0.identity.can == cardAccessNumber }?.identity.signatureCertDER
+  }
+
+  /// Caches the qualified signature certificate in the prime of the card
+  /// opened with `cardAccessNumber`.
+  ///
+  /// The access number binds the certificate to the card: PACE with it
+  /// succeeded in the session that read `der`, so the certificate lands
+  /// only in the prime of the card that supplied it. False when no prime
+  /// holds that access number.
   @discardableResult
-  public static func updateSignatureCertificate(_ der: Data) -> Bool {
-    guard let item = storedItems().first else { return false }
+  public static func updateSignatureCertificate(_ der: Data, cardAccessNumber: String) -> Bool {
+    guard let item = storedItems().first(where: { $0.identity.can == cardAccessNumber }) else {
+      return false
+    }
     guard
       let updated = PrimedIdentity(
         can: item.identity.can,

@@ -4,59 +4,35 @@
 
   import CardCore
   import Foundation
-  import Security
 
   /// The card I/O of a first prime: PACE and the reads, inside the one
   /// field's exclusive card session.
   extension CardPriming {
-    /// What the one field reads off a card this device has never primed.
-    internal struct Payload: Sendable {
-      /// Public CTK identity name derived from the printed card serial.
-      internal let instance: CardInstanceIdentifier
-
-      /// Authentication certificate DER.
-      internal let certificate: Data
-
-      /// Issuing certificate DER when this build or the card supplied it.
-      internal let issuer: Data?
-
-      /// Full PKCS#15 serial retained for exact reconstruction.
-      internal let tokenSerial: String
-
-      /// Proof that the live card did not report a factory activation state.
-      internal let activationCheck: PrimedIdentity.ActivationCheck
-
-      /// The credential counters read in this same hold.
-      ///
-      /// Read here because the recovery route decided right after this
-      /// hold is what consumes them; nothing stores them as a lasting
-      /// claim about the card.
-      internal let credentialReport: CredentialProbeReport?
-
-      /// Signature certificate DER, when present on the card.
-      internal let signatureCertificate: Data?
-    }
-
     /// Reads everything the later signature must not have to read.
     ///
     /// Runs on the card queue, inside the card's exclusive session.
+    /// `store` receives the identity as soon as it is read and checked, so
+    /// the token extension's mint, already waiting in this field, finds
+    /// the prime while the hold reads the counters and any root.
     internal static func read(
-      from session: NearFieldCardSession,
-      sheet: NearFieldSheet,
-      accessNumber: CardAccessNumber,
-      isRecovery: Bool
+      _ execution: HoldExecution,
+      store: StoreIdentity
     ) throws -> Payload {
+      let sheet = execution.sheet
+      let accessNumber = execution.accessNumber.value
+      let isRecovery = execution.isRecovery
       let waitBudget: SmartCardChannel.ResponseWait = isRecovery ? .nearFieldRecovery : .nearField
-      return try session.withCardSession(waits: waitBudget) { channel in
+      return try execution.session.withCardSession(waits: waitBudget) { channel in
         let keys = try Self.establishPace(
           channel: channel,
           accessNumber: accessNumber,
           sheet: sheet,
           isRecovery: isRecovery)
-        sheet.reach(.certificate)
-        return try Self.readIdentity(
+        return try Self.readSecuredPayload(
           operations: CardOperations(
-            channel: SecureMessagingChannel(wrapping: channel, sessionKeys: keys)))
+            channel: SecureMessagingChannel(wrapping: channel, sessionKeys: keys)),
+          sheet: sheet,
+          store: store)
       }
     }
 
@@ -96,74 +72,6 @@
         // digits do not describe. A FINEID card may answer with 6300.
         throw Failure.wrongCardAccessNumber
       }
-    }
-
-    /// The reads behind the secure channel, validated into a payload.
-    ///
-    /// PIN1 is not sent. The certificate is public and the secure channel
-    /// is the only thing it needs, so setup asks the card for nothing it
-    /// will not use. The counters are read because the route chosen
-    /// immediately after this hold depends on them.
-    private static func readIdentity(
-      operations: CardOperations
-    ) throws -> Payload {
-      let certificate = try operations.readCertificate(.authentication)
-      let activationCheck = try Self.activationCheck(
-        certificate: certificate,
-        operations: operations
-      )
-      let credentialReport = try? operations.probeCredentials()
-      let serial = try operations.readTokenSerial()
-      guard let instance = CardInstanceIdentifier(tokenSerial: serial) else {
-        throw Failure.unidentifiedCard
-      }
-      guard SecCertificateCreateWithData(nil, certificate as CFData) != nil else {
-        throw Failure.certificateUnreadable
-      }
-      var issuer = TrustRootsCache.shared.der(matching: certificate)
-      if issuer == nil {
-        if let cardIssuer = try? operations.readCertificate(.issuing) {
-          TrustRootsCache.shared.register(cardIssuer)
-          issuer = cardIssuer
-        }
-      }
-      if TrustRootsCache.shared.rootCertificate == nil,
-        let cardRoot = try? operations.readCertificate(.root)
-      {
-        TrustRootsCache.shared.registerRoot(cardRoot)
-      }
-      let signatureCertificate =
-        (try? operations.readCertificate(.qualifiedSignature))
-        ?? (try? operations.readCertificate(.secondQualifiedSignature))
-      return Payload(
-        instance: instance,
-        certificate: certificate,
-        issuer: issuer,
-        tokenSerial: serial.value,
-        activationCheck: activationCheck,
-        credentialReport: credentialReport,
-        signatureCertificate: signatureCertificate)
-    }
-
-    /// Accepts only a card with no known factory activation state.
-    ///
-    /// Unknown schemes retain their existing issuer-managed path. The reads
-    /// used for known citizen cards do not change credential counters.
-    private static func activationCheck(
-      certificate: Data,
-      operations: CardOperations
-    ) throws -> PrimedIdentity.ActivationCheck {
-      guard
-        let scheme = ActivationScheme.classify(
-          authenticationCertificateDER: certificate)
-      else {
-        return .passed
-      }
-      let needs = operations.activationNeeds(scheme: scheme)
-      guard !needs.any else {
-        throw Failure.activationRequired(scheme: scheme, needs: needs)
-      }
-      return .passed
     }
 
     /// Runs one blocking card exchange off the cooperative pool.

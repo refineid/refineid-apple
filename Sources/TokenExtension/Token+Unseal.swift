@@ -189,18 +189,11 @@ extension Token {
     TokenLog.info("readIdentity: leaf \(leaf.count) bytes; reading token serial")
     let serial = try operations.readTokenSerial()
     TokenLog.info("readIdentity: token serial read; resolving issuer")
-    var issuer = TrustRootsCache.shared.der(matching: leaf)
-    if issuer == nil {
-      if let cardIssuer = try? operations.readCertificate(.issuing) {
-        TrustRootsCache.shared.register(cardIssuer)
-        issuer = cardIssuer
-      }
-    }
-    if TrustRootsCache.shared.rootCertificate == nil,
-      let cardRoot = try? operations.readCertificate(.root)
-    {
-      TrustRootsCache.shared.registerRoot(cardRoot)
-    }
+    let issuer = TrustRootsCache.shared.issuer(
+      for: leaf,
+      cardIssuer: { try? operations.readCertificate(.issuing) },
+      cardRoot: { try? operations.readCertificate(.root) }
+    )
     TokenLog.info("readIdentity: issuer \(issuer?.count ?? -1) bytes")
     // The qualified leaf is optional and therefore read LAST. A card
     // that lacks the slot answers the select with `6A82`, and a

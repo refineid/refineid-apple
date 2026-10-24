@@ -54,6 +54,12 @@ extension CardMaintenance {
     cardAccessNumber: String?,
     contentBuilder: @escaping @Sendable (Data) -> Data
   ) async -> QualifiedAnswer {
+    // Only the phone's own field is opened with the primed card's access
+    // number; a reader may hold any card.
+    let primedAccessNumber = transport == .nearField ? cardAccessNumber : nil
+    let cached = primedAccessNumber.flatMap { accessNumber in
+      PrimeStore.signatureCertificate(cardAccessNumber: accessNumber)
+    }
     let result = await onCard(
       transport: transport,
       cardAccessNumber: cardAccessNumber,
@@ -63,9 +69,14 @@ extension CardMaintenance {
       Self.qualifiedInSession(
         operations,
         pin2: pin2,
+        cachedCertificate: cached,
         expectedCertificate: expectedCertificate,
         builder: contentBuilder
       )
+    }
+    if case .signed(let product)? = result, cached == nil, let primedAccessNumber {
+      PrimeStore.updateSignatureCertificate(
+        product.certificate, cardAccessNumber: primedAccessNumber)
     }
     return result ?? .refused(.noCard)
   }
@@ -93,6 +104,7 @@ extension CardMaintenance {
   private static func qualifiedInSession(
     _ operations: CardOperations,
     pin2: String,
+    cachedCertificate: Data?,
     expectedCertificate: Data?,
     builder: (Data) -> Data
   ) -> QualifiedAnswer {
@@ -103,7 +115,7 @@ extension CardMaintenance {
     guard verdict == .proceed else {
       return .refused(.floorRefused(verdict))
     }
-    guard let identity = Self.qualifiedIdentity(operations) else {
+    guard let identity = Self.qualifiedIdentity(cachedCertificate, operations) else {
       return .refused(.failed)
     }
     Self.cacheCardAuthorities(for: identity.certificate, operations: operations)
@@ -166,21 +178,32 @@ extension CardMaintenance {
     for leaf: Data,
     operations: CardOperations
   ) {
-    guard TrustRootsCache.shared.der(matching: leaf) == nil else { return }
-    let issuer = try? operations.readCertificate(.issuing)
-    let root = try? operations.readCertificate(.root)
-    _ = TrustRootsCache.shared.ensureIssuer(
-      for: leaf, cardIssuer: issuer, cardRoot: root
+    _ = TrustRootsCache.shared.issuer(
+      for: leaf,
+      cardIssuer: { try? operations.readCertificate(.issuing) },
+      cardRoot: { try? operations.readCertificate(.root) }
     )
   }
 
-  /// Reads and classifies the qualified certificate without spending PIN2.
+  /// The qualified certificate: the cached one, or else read from either
+  /// of its locations on the card, without spending PIN2.
+  internal static func qualifiedCertificate(
+    cached: Data?,
+    operations: CardOperations
+  ) -> Data? {
+    if let cached { return cached }
+    return (try? operations.readCertificate(.qualifiedSignature))
+      ?? (try? operations.readCertificate(.secondQualifiedSignature))
+  }
+
+  /// Classifies the cached qualified certificate, or else the one read
+  /// from the card.
   private static func qualifiedIdentity(
+    _ cached: Data?,
     _ operations: CardOperations
   ) -> QualifiedIdentity? {
     guard
-      let certificate = (try? operations.readCertificate(.qualifiedSignature))
-        ?? (try? operations.readCertificate(.secondQualifiedSignature)),
+      let certificate = Self.qualifiedCertificate(cached: cached, operations: operations),
       let securityCertificate = SecCertificateCreateWithData(
         nil, certificate as CFData
       ),
