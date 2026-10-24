@@ -6,7 +6,7 @@
   import Testing
 
   @testable import CardCore
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   extension SharedCertificateCacheTests {
     /// The card reads of a first setup, counted on a card that answers

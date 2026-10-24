@@ -2,7 +2,7 @@
 
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// When a held card session is reused and when it ends.
 @Suite

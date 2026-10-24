@@ -60,6 +60,9 @@
   only with zero trailers. Never commit or push with `--no-verify`, never
   disable or work around a gate to land a change, and never leave hooks
   uninstalled. Fix findings instead of dodging them.
+- `RefineIDTests` run in `RefineIDTestHost`, the app's sources under their
+  own bundle identifier, so a test run never shares privacy permissions,
+  keychain or single-instance identity with the installed app.
 - Commit often when compiles and lint is clean. Push when feature is ready.
   Subject and body only: no AI attribution, co-author, sign-off, or review
   trailers.

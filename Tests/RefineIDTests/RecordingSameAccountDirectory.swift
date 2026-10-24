@@ -4,7 +4,7 @@
 
   import Foundation
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// A same-account directory that records what it was asked to remove,
   /// still holds those phones or not as a test says, and holds each removal

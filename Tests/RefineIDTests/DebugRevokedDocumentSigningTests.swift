@@ -6,7 +6,7 @@
   import Testing
 
   @testable import CardCore
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// Direct checks for the development-only revoked-signer escape hatch.
   @Suite

@@ -4,7 +4,7 @@
 
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// Direct geometry checks for handwritten and identity-only stamps.
   @Suite

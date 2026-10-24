@@ -3,7 +3,7 @@
 import Foundation
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// Direct checks for bounded and safe redirect behavior.
 @Suite

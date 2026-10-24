@@ -5,7 +5,7 @@
   import Foundation
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// The development error log's ring and the names it gives errors.
   ///

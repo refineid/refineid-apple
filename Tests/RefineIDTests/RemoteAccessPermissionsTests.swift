@@ -4,7 +4,7 @@ import Foundation
 import Testing
 import UserNotifications
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// What turning Remote Access on asks for, by permission state.
 @Suite

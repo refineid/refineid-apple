@@ -3,7 +3,7 @@
 import Foundation
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// Direct checks for certificate-controlled endpoint policy.
 @Suite

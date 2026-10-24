@@ -3245,6 +3245,22 @@
         }
       }
     },
+    "A phone in pairing mode was found but could not be reached": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yhdistämistilassa oleva puhelin löytyi, mutta siihen ei saatu yhteyttä"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En telefon i parkopplingsläge hittades men gick inte att nå"
+          }
+        }
+      }
+    },
     "Pairing ended before it was completed": {
       "localizations": {
         "fi": {
@@ -3397,6 +3413,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lägg tillbaka kortet"
+          }
+        }
+      }
+    },
+    "RefineID is not allowed to use the local network. Allow it in Settings › Privacy & Security › Local Network.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RefineID ei saa käyttää lähiverkkoa. Salli se kohdassa Asetukset › Tietosuoja ja suojaus › Paikallinen verkko."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RefineID får inte använda det lokala nätverket. Tillåt det i Inställningar › Integritet och säkerhet › Lokalt nätverk."
           }
         }
       }
@@ -5913,6 +5945,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Anslutning misslyckades"
+          }
+        }
+      }
+    },
+    "macOS is blocking RefineID from the local network. Allow it in System Settings › Privacy & Security › Local Network.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS estää RefineIDtä käyttämästä lähiverkkoa. Salli se kohdassa Järjestelmäasetukset › Tietosuoja ja suojaus › Paikallinen verkko."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS hindrar RefineID från att använda det lokala nätverket. Tillåt det i Systeminställningar › Integritet och säkerhet › Lokalt nätverk."
           }
         }
       }

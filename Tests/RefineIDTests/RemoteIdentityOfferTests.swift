@@ -4,7 +4,7 @@ import Foundation
 import RappEngine
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// When the identity a phone confirmed stays offered (RAPP v26.10.22 §8.4
 /// item 3).

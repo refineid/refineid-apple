@@ -3,7 +3,7 @@
 import Foundation
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// How often the background certificate read may ask the phone.
 @Suite

@@ -11,7 +11,7 @@
   import RappEngine
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// The Mac's remote-use switch, which is the pairing (hierarchy
   /// specification §5.2, STPA §29): restored at launch only while a pairing

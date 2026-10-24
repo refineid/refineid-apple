@@ -2,7 +2,7 @@
 
 import Foundation
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 internal struct ParsedGrammar {
   internal let initialState: CardSetupStateMachine.State

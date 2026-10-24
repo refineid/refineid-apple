@@ -4,7 +4,7 @@ import Foundation
 import Testing
 
 @testable import CardCore
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// Direct fail-closed and TSA-chain checks around evidence collection.
 @Suite

@@ -13,7 +13,8 @@ import Foundation
   /// The custodian is a real ceremony, or nothing but an offer served as
   /// the first frame. The link drops, as a network does, when the
   /// requester closes it or after the custodian sent `dropAfter` frames;
-  /// with none to send, it drops as it opens.
+  /// with none to send, it drops as it opens. A link made with an open
+  /// failure never opens.
   internal actor RappTestPairingLink {
     // MARK: Properties
 
@@ -29,6 +30,7 @@ import Foundation
     private let sink: AsyncStream<RappPairingConnection.Event>.Continuation
     private let servedOffer: Data?
     private let dropAfter: Int?
+    private let openFailure: RappPairingConnection.OpenFailure?
     private var custodian: RappPairingCoordinator?
     private var isDown = false
 
@@ -39,6 +41,15 @@ import Foundation
     internal init(servedOffer: Data?, dropAfter: Int?) {
       self.servedOffer = servedOffer
       self.dropAfter = dropAfter
+      openFailure = nil
+      (events, sink) = AsyncStream.makeStream(of: RappPairingConnection.Event.self)
+    }
+
+    /// A link to a custodian that dialling cannot reach, for `failure`.
+    internal init(failingToOpen failure: RappPairingConnection.OpenFailure) {
+      servedOffer = nil
+      dropAfter = nil
+      openFailure = failure
       (events, sink) = AsyncStream.makeStream(of: RappPairingConnection.Event.self)
     }
 
@@ -67,6 +78,12 @@ import Foundation
 
     private func open() async {
       isOpened = true
+      if let openFailure {
+        isDown = true
+        sink.yield(.notOpened(openFailure))
+        sink.finish()
+        return
+      }
       guard dropAfter != 0 else {
         await linkDown()
         return

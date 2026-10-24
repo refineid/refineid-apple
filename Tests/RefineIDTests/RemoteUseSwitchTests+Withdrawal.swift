@@ -8,7 +8,7 @@
   import RappEngine
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// A card in this Mac's reader, and quitting while remote use is on, is
   /// this computer's withdrawal (RAPP v26.10.22 §4.5 item 8): the session

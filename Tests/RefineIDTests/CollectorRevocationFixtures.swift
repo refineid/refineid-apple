@@ -3,7 +3,7 @@
 import CryptoKit
 import Foundation
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// Generated certificate and CRL material for collector boundary tests.
 internal enum CollectorRevocationFixtures {

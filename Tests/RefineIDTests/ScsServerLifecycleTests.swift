@@ -4,7 +4,7 @@ import Network
 import Synchronization
 import XCTest
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 @MainActor
 internal final class ScsServerLifecycleTests: XCTestCase {

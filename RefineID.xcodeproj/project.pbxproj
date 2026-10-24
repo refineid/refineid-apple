@@ -32,6 +32,12 @@
 		BC000000000000000000000F /* ExtensionTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000E /* ExtensionTrace.swift */; };
 		BC0000000000000000000010 /* ExtensionTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000E /* ExtensionTrace.swift */; };
 		BC0000000000000000000011 /* ExtensionTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000E /* ExtensionTrace.swift */; };
+		CE0000000000000000000002 /* CardCore in Frameworks */ = {isa = PBXBuildFile; productRef = CE0000000000000000000003 /* CardCore */; };
+		CE0000000000000000000004 /* CardTimingProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000004 /* CardTimingProbe.swift */; };
+		CE0000000000000000000005 /* CardTimingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000006 /* CardTimingView.swift */; };
+		CE0000000000000000000006 /* PaceTimingCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000008 /* PaceTimingCommand.swift */; };
+		CE0000000000000000000007 /* PaceTimingValues.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000A /* PaceTimingValues.swift */; };
+		CE0000000000000000000008 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2D0000000000000000000008 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -67,8 +73,8 @@
 			isa = PBXContainerItemProxy;
 			containerPortal = 1D0000000000000000000001 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 4D0000000000000000000001;
-			remoteInfo = RefineID;
+			remoteGlobalIDString = CE0000000000000000000020;
+			remoteInfo = RefineIDTestHost;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -107,6 +113,7 @@
 		2D0000000000000000000014 /* RefineID-iOS-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "RefineID-iOS-Info.plist"; sourceTree = "<group>"; };
 		3D00000000000000000000AB /* RefineID-iOS-Store-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "RefineID-iOS-Store-Info.plist"; sourceTree = "<group>"; };
 		5ADED64532B13872419C7B30 /* RefineIDRappTokenExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RefineIDRappTokenExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		CE0000000000000000000001 /* RefineIDTestHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RefineIDTestHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BD0000000000000000000001 /* RefineIDTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RefineIDTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BC0000000000000000000002 /* SmartCardTransmit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/TokenExtension/SmartCardTransmit.swift; sourceTree = SOURCE_ROOT; };
 		BC0000000000000000000004 /* CardTimingProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Samples/NFCCardTiming/Sources/CardTimingProbe.swift; sourceTree = SOURCE_ROOT; };
@@ -207,6 +214,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CE0000000000000000000010 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE0000000000000000000002 /* CardCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -232,6 +247,7 @@
 				BD0000000000000000000001 /* RefineIDTests.xctest */,
 				2D000000000000000000000E /* RefineIDUITests.xctest */,
 				5ADED64532B13872419C7B30 /* RefineIDRappTokenExtension.appex */,
+				CE0000000000000000000001 /* RefineIDTestHost.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -460,6 +476,29 @@
 			productReference = BD0000000000000000000001 /* RefineIDTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		CE0000000000000000000020 /* RefineIDTestHost */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CE0000000000000000000030 /* Build configuration list for PBXNativeTarget "RefineIDTestHost" */;
+			buildPhases = (
+				CE0000000000000000000011 /* Sources */,
+				CE0000000000000000000010 /* Frameworks */,
+				CE0000000000000000000012 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				3D0000000000000000000001 /* App */,
+			);
+			name = RefineIDTestHost;
+			packageProductDependencies = (
+				CE0000000000000000000003 /* CardCore */,
+			);
+			productName = RefineIDTestHost;
+			productReference = CE0000000000000000000001 /* RefineIDTestHost.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -484,7 +523,10 @@
 					};
 					BD0000000000000000000005 = {
 						CreatedOnToolsVersion = 26.6;
-						TestTargetID = 4D0000000000000000000001;
+						TestTargetID = CE0000000000000000000020;
+					};
+					CE0000000000000000000020 = {
+						CreatedOnToolsVersion = 26.6;
 					};
 				};
 			};
@@ -514,6 +556,7 @@
 				BD0000000000000000000005 /* RefineIDTests */,
 				4D0000000000000000000005 /* RefineIDUITests */,
 				806E99C31A2DA667E67A9153 /* RefineIDRappTokenExtension */,
+				CE0000000000000000000020 /* RefineIDTestHost */,
 			);
 		};
 /* End PBXProject section */
@@ -547,6 +590,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				6D000000000000000000000B /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CE0000000000000000000012 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE0000000000000000000008 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -612,6 +663,17 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CE0000000000000000000011 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE0000000000000000000004 /* CardTimingProbe.swift in Sources */,
+				CE0000000000000000000005 /* CardTimingView.swift in Sources */,
+				CE0000000000000000000006 /* PaceTimingCommand.swift in Sources */,
+				CE0000000000000000000007 /* PaceTimingValues.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -638,7 +700,7 @@
 		};
 		BD0000000000000000000007 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 4D0000000000000000000001 /* RefineID */;
+			target = CE0000000000000000000020 /* RefineIDTestHost */;
 			targetProxy = BD0000000000000000000006 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -1632,7 +1694,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.Tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = macosx;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RefineID.app/Contents/MacOS/RefineID";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RefineIDTestHost.app/Contents/MacOS/RefineIDTestHost";
 			};
 			name = Debug;
 		};
@@ -1646,7 +1708,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.Tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = macosx;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RefineID.app/Contents/MacOS/RefineID";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RefineIDTestHost.app/Contents/MacOS/RefineIDTestHost";
 			};
 			name = Profile;
 		};
@@ -1660,7 +1722,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.Tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = macosx;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RefineID.app/Contents/MacOS/RefineID";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RefineIDTestHost.app/Contents/MacOS/RefineIDTestHost";
 			};
 			name = TestFlight;
 		};
@@ -1674,7 +1736,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.Tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = macosx;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RefineID.app/Contents/MacOS/RefineID";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RefineIDTestHost.app/Contents/MacOS/RefineIDTestHost";
 			};
 			name = Release;
 		};
@@ -1711,6 +1773,159 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 			};
 			name = Debug;
+		};
+		CE0000000000000000000031 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "Config/RefineIDTestHost.entitlements";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/RefineID-Store-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "RefineID Test Host";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright 2026 Petri Koistinen";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.testhost;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Debug;
+		};
+		CE0000000000000000000032 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "Config/RefineIDTestHost.entitlements";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/RefineID-Store-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "RefineID Test Host";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright 2026 Petri Koistinen";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.testhost;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Profile;
+		};
+		CE0000000000000000000033 /* TestFlight */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "Config/RefineIDTestHost.entitlements";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				EXCLUDED_SOURCE_FILE_NAMES = (
+					CardCapabilityProbe.swift,
+					DevErrorDisplay.swift,
+					DevErrorList.swift,
+					DevErrorLog.swift,
+					ExtensionTrace.swift,
+					DevErrorModel.swift,
+					DevErrorWindow.swift,
+					"RappConnectionCoordinator.CloseReason+DevError.swift",
+					"RappPhoneProxyDispatcher+DevErrors.swift",
+					DiagnosticsClipboard.swift,
+					DiagnosticsSnapshot.swift,
+					DiagnosticsView.swift,
+					CardTimingProbe.swift,
+					CardTimingView.swift,
+					PaceTimingCommand.swift,
+					PaceTimingValues.swift,
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/RefineID-Store-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "RefineID Test Host";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright 2026 Petri Koistinen";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.testhost;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = TestFlight;
+		};
+		CE0000000000000000000034 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "Config/RefineIDTestHost.entitlements";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				EXCLUDED_SOURCE_FILE_NAMES = (
+					CardCapabilityProbe.swift,
+					DevErrorDisplay.swift,
+					DevErrorList.swift,
+					DevErrorLog.swift,
+					ExtensionTrace.swift,
+					DevErrorModel.swift,
+					DevErrorWindow.swift,
+					"RappConnectionCoordinator.CloseReason+DevError.swift",
+					"RappPhoneProxyDispatcher+DevErrors.swift",
+					DiagnosticsClipboard.swift,
+					DiagnosticsSnapshot.swift,
+					DiagnosticsView.swift,
+					CardTimingProbe.swift,
+					CardTimingView.swift,
+					PaceTimingCommand.swift,
+					PaceTimingValues.swift,
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/RefineID-Store-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "RefineID Test Host";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright 2026 Petri Koistinen";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.testhost;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
@@ -1803,6 +2018,17 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		CE0000000000000000000030 /* Build configuration list for PBXNativeTarget "RefineIDTestHost" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CE0000000000000000000031 /* Debug */,
+				CE0000000000000000000032 /* Profile */,
+				CE0000000000000000000033 /* TestFlight */,
+				CE0000000000000000000034 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -1839,6 +2065,11 @@
 			productName = CardCore;
 		};
 		AD0000000000000000000006 /* CardCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AD0000000000000000000001 /* XCLocalSwiftPackageReference "CardCore" */;
+			productName = CardCore;
+		};
+		CE0000000000000000000003 /* CardCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = AD0000000000000000000001 /* XCLocalSwiftPackageReference "CardCore" */;
 			productName = CardCore;

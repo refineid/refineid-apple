@@ -3,7 +3,7 @@
 import Foundation
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// The signing steps and the certificate read ahead of them.
 @Suite

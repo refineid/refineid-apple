@@ -4,7 +4,7 @@ import Foundation
 import RappEngine
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// The custodian tells every open session its card and its card reader
 /// once right after `session.ready` and again on every change, a reader

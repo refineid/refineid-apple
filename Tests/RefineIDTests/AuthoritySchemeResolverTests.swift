@@ -2,7 +2,7 @@
 
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// Direct checks for authority-address syntax before any network probe.
 @Suite

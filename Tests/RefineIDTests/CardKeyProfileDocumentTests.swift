@@ -7,7 +7,7 @@
   import Security
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// The app's certificate profile must select one exact PDF-signing request.
   @Suite

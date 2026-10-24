@@ -5,7 +5,7 @@
   import CardCore
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// The phone code keeps only what a code holds.
   @MainActor

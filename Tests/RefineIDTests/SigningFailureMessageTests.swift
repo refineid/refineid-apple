@@ -7,7 +7,7 @@
   import RappEngine
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// Every signing failure names its own cause and waits to be acknowledged.
   @Suite

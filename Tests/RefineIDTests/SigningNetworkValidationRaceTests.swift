@@ -3,7 +3,7 @@
 import Foundation
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// The validated exchange and its unvalidated companion, raced.
 @Suite

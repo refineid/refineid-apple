@@ -4,7 +4,7 @@ import AppKit
 import Foundation
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// Direct user-facing explanations for failures after the card signs.
 @Suite

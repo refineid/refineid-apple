@@ -8,7 +8,7 @@
   import RappEngine
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// The holder's click off is kept until its pairings and its phones'
   /// same-account records are gone (RAPP v26.10.22 §4.6 item 6, CC-100).

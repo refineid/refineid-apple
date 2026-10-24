@@ -2,7 +2,7 @@
 
 import XCTest
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// The phone's PIN prompt names the act in its title and, in one sentence,
 /// the computer that asks and the documents a signature covers.

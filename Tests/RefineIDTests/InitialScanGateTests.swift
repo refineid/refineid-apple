@@ -3,7 +3,7 @@
 import Foundation
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// What waits for the first look at the card readers runs once: when the
 /// look is taken, or after its bound when the look never comes.

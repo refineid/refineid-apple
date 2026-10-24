@@ -3,7 +3,7 @@
 import Foundation
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// Which transport the requester dials, and which advertiser over
 /// Bluetooth (RAPP transport hierarchy §3, §5.2, STPA CC-53, CC-72, CC-94).

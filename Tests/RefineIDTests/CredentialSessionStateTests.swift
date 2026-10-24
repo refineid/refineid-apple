@@ -3,7 +3,7 @@
 import CardCore
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// What one card session remembers about its credentials, and for how long.
 @Suite

@@ -5,7 +5,7 @@ import Foundation
 import SwiftUI
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 @Suite
 internal struct CardIdentityViewTests {

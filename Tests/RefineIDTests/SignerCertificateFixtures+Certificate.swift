@@ -4,7 +4,7 @@ import CardCore
 import Foundation
 import Security
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// The X.509 certificate factory for the generated signers.
 extension SignerCertificateFixtures {

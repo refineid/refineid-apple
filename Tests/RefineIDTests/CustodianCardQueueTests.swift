@@ -3,7 +3,7 @@
 import Foundation
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// The card serves one whole operation at a time across every session,
 /// first come first served, and a waiting operation that ends leaves the

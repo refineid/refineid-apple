@@ -5,7 +5,7 @@
   import Foundation
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// How long quitting waits for the withdrawal close (RAPP v26.10.22 §4.5
   /// item 8).

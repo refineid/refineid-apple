@@ -3,7 +3,7 @@
 import Foundation
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// The identity line with remote use off speaks of this Mac's reader alone
 /// (hierarchy specification §5.2); a card in the reader still shows its

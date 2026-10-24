@@ -3,7 +3,7 @@
 import Foundation
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// The shapes a pile of documents can take, and the names its outputs
 /// are given.

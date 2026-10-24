@@ -2,7 +2,7 @@
 
 import Testing
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 /// When a card command summons the holder before it runs (STPA CC-69).
 @Suite

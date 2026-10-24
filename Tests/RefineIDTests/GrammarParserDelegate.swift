@@ -2,7 +2,7 @@
 
 import Foundation
 
-@testable import RefineID
+@testable import RefineIDTestHost
 
 internal final class GrammarParserDelegate: NSObject, XMLParserDelegate {
   internal var initialState: CardSetupStateMachine.State?

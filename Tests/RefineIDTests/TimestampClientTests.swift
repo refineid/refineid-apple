@@ -6,7 +6,7 @@
   import Foundation
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// Direct checks for the compact timestamp's verify-before-strip boundary.
   @Suite
