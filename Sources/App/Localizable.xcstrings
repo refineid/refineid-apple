@@ -3438,7 +3438,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "RefineID ei saa käyttää lähiverkkoa. Salli se kohdassa Asetukset › Tietosuoja ja suojaus › Paikallinen verkko."
+            "value": "RefineID ei saa käyttää lähiverkkoa. Salli se kohdassa Asetukset › Tietosuoja ja suojaus › Lähiverkko."
           }
         },
         "sv": {
@@ -5970,7 +5970,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "macOS estää RefineIDtä käyttämästä lähiverkkoa. Salli se kohdassa Järjestelmäasetukset › Tietosuoja ja suojaus › Paikallinen verkko."
+            "value": "macOS estää RefineIDtä käyttämästä lähiverkkoa. Salli se kohdassa Järjestelmäasetukset › Tietosuoja ja suojaus › Lähiverkko."
           }
         },
         "sv": {
@@ -6351,7 +6351,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "paikallisverkkoa ei ole sallittu"
+            "value": "lähiverkkoa ei ole sallittu"
           }
         },
         "sv": {

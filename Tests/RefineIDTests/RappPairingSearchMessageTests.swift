@@ -107,7 +107,7 @@ internal final class RappPairingSearchMessageTests: XCTestCase {
         """,
       finnish: """
         macOS estää RefineIDtä käyttämästä lähiverkkoa. Salli se kohdassa \
-        Järjestelmäasetukset › Tietosuoja ja suojaus › Paikallinen verkko.
+        Järjestelmäasetukset › Tietosuoja ja suojaus › Lähiverkko.
         """,
       swedish: """
         macOS hindrar RefineID från att använda det lokala nätverket. Tillåt det i \
