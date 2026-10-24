@@ -187,7 +187,7 @@
       #expect(!rig.remoteUse.isOn, "a forgotten pairing owing its close serves nothing")
     }
 
-    @Test("A refused permission is named before Bluetooth that is merely off")
+    @Test("A refused permission is named before Bluetooth off, and asked afresh on return")
     internal func blockagePriority() {
       let rig = Self.rig()
       rig.remoteUse.toggle()
@@ -197,6 +197,9 @@
       #expect(rig.remoteUse.blockage == .bluetoothOff)
       rig.localNetwork.found(.localNetworkNotAllowed)
       #expect(rig.remoteUse.blockage == .localNetworkNotAllowed)
+      rig.remoteUse.recheckLocalNetwork()
+      #expect(rig.localNetwork.starts == 2, "back in the app, a refusal is asked afresh")
+      #expect(rig.remoteUse.blockage == .localNetworkNotAllowed, "and stands until answered")
       rig.localNetwork.found(nil)
       #expect(rig.remoteUse.blockage == .bluetoothOff)
       rig.bluetooth.found(.bluetoothNotAllowed)

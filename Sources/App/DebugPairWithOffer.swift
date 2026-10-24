@@ -58,9 +58,9 @@
             ],
             succeeded: true)
 
-        case .failed(let message):
+        case .failed(let failure):
           return DebugModeReport(
-            lines: ["pair-with-offer: " + message],
+            lines: ["pair-with-offer: " + failure.message],
             succeeded: false)
 
         case .connecting, .idle, .offer, .codeEntry:
@@ -110,9 +110,9 @@
             ],
             succeeded: true)
 
-        case .failed(let message):
+        case .failed(let failure):
           return DebugModeReport(
-            lines: ["offer-remote-reader: " + message],
+            lines: ["offer-remote-reader: " + failure.message],
             succeeded: false)
 
         case .connecting, .idle, .codeEntry:

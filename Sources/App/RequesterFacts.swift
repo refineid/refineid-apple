@@ -26,6 +26,10 @@
     /// The phone that announced it forgot this computer, by name.
     internal var phoneThatForgot: String?
 
+    /// The platform denies this app the local network: a browse or a dial
+    /// to a phone was refused it.
+    internal var localNetworkDenied = false
+
     /// The phone's latest `card.status` on the open session; nil without a
     /// session or before its first report.
     internal var phoneCardStatus: RappCardStatus?

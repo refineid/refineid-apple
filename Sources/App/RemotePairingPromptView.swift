@@ -25,6 +25,15 @@
       .onValueChange(of: failure) { message in
         refused = message != nil
       }
+      .onReceive(
+        NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+      ) { _ in
+        // Back from System Settings: the code is offered afresh.
+        if model.phase == .failed(.localNetworkDenied) {
+          codeEntry = ""
+          model.startCodeEntry()
+        }
+      }
       .onDisappear {
         // Turning remote use off, or a card in this Mac's reader
         // suspending it, ends a code being tried: its browse stops with
@@ -71,15 +80,17 @@
             .accessibilityLabel(Text(String(localized: "Connecting to the phone")))
         }
       }
-      if let failure {
+      if model.phase == .failed(.localNetworkDenied) {
+        LocalNetworkDeniedNotice()
+      } else if let failure {
         Text(failure)
           .foregroundStyle(.red)
       }
     }
 
     private var failure: String? {
-      if case .failed(let message) = model.phase {
-        return message
+      if case .failed(let failure) = model.phase {
+        return failure.message
       }
       return nil
     }

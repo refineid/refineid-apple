@@ -181,7 +181,7 @@
         await end(.notAccepted)
 
       case .noneTried:
-        if discoveryEnded {
+        if discoveryEnded || localNetworkDenied {
           await end(noneTriedReason)
         }
       }

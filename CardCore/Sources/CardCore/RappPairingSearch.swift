@@ -19,7 +19,7 @@
   /// custodian tried refused it, and no report names a custodian (STPA
   /// CC-83, CC-84). A search that tried none tells a custodian it found but
   /// could not reach, and the platform denying the local network, from
-  /// finding none in pairing mode. No endpoint is opened while the
+  /// finding none in pairing mode; a denial ends it at once. No endpoint is opened while the
   /// requester's remote use is unavailable, off or suspended by a card in
   /// its own reader: the search then ends as interrupted (hierarchy
   /// specification §5.2, STPA CC-102).
@@ -132,6 +132,15 @@
 
     // MARK: Computed Properties
 
+    /// Whether the platform denies this app the local network.
+    ///
+    /// A connection failed for that reason and none opened. No custodian
+    /// found later could be reached either, so the search need not wait
+    /// for discovery to end.
+    internal var localNetworkDenied: Bool {
+      !anyOpened && openFailures.contains(.localNetworkDenied)
+    }
+
     /// Why a search that tried no custodian ends: a custodian that opened a
     /// connection and served no offer is not in pairing mode, while one
     /// that could not be reached says nothing of it.
@@ -139,7 +148,7 @@
       if anyOpened || openFailures.isEmpty {
         return .noneInPairingMode
       }
-      return openFailures.contains(.localNetworkDenied) ? .localNetworkDenied : .unreachable
+      return localNetworkDenied ? .localNetworkDenied : .unreachable
     }
 
     // MARK: Lifecycle

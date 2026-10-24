@@ -150,6 +150,11 @@
     /// item 4), by name, until a phone is paired again.
     internal var phoneThatForgot: String?
 
+    /// Whether the platform denied this app the local network on a dial
+    /// to a phone, until a session is up, remote use stops, or the app is
+    /// active again and tries afresh.
+    internal var localNetworkDenied = false
+
     #if REFINEID_STREAM_TRANSPORT
       internal var presence: StreamRelayPresence?
 

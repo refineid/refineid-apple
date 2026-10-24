@@ -19,7 +19,27 @@ internal final class RappPairingModel: ObservableObject {
     case codeEntry
     case connecting
     case paired(RappPairingCoordinator.PairSummary)
-    case failed(String)
+    case failed(Failure)
+  }
+
+  /// Why an attempt ended without a pairing.
+  internal enum Failure: Equatable {
+    /// The platform keeps this app off the local network; the holder
+    /// allows it in the settings.
+    case localNetworkDenied
+    /// Anything else, in the words the user is told.
+    case reported(String)
+
+    /// What the user is told.
+    internal var message: String {
+      switch self {
+      case .localNetworkDenied:
+        LocalNetworkSettings.deniedMessage
+
+      case .reported(let message):
+        message
+      }
+    }
   }
 
   /// The in-protocol name this device introduces itself with.
@@ -134,7 +154,7 @@ internal final class RappPairingModel: ObservableObject {
     #endif
     let wait = RappPairingBackoff.shared.secondsUntilNextOffer()
     guard wait == 0 else {
-      phase = .failed(String(localized: "Pairing locked. Try again in \(wait) s."))
+      phase = .failed(.reported(String(localized: "Pairing locked. Try again in \(wait) s.")))
       scheduleOfferAfterLockout(seconds: wait)
       return
     }
@@ -149,7 +169,7 @@ internal final class RappPairingModel: ObservableObject {
       Task { await newCoordinator.start() }
       custodianRelay.start()
     } catch {
-      fail(String(localized: "Pairing could not be started"))
+      fail(.reported(String(localized: "Pairing could not be started")))
     }
   }
 
@@ -191,7 +211,7 @@ internal final class RappPairingModel: ObservableObject {
         return
       }
     #endif
-    fail(failure)
+    fail(.reported(failure))
   }
 
   /// The channel this device's offer is served on.
@@ -245,10 +265,10 @@ internal final class RappPairingModel: ObservableObject {
     relay?.cancel()
   }
 
-  internal func fail(_ message: String) {
+  internal func fail(_ failure: Failure) {
     let activeCoordinator = coordinator
     let activeSearch = search
-    phase = .failed(message)
+    phase = .failed(failure)
     relay?.cancel()
     finishAttempt()
     Task {

@@ -48,6 +48,9 @@
       case bluetoothTrace(RappBleGattTrace)
       /// The session ended; the owner decides whether to dial again.
       case closed(RappConnectionCoordinator.CloseReason)
+      /// The dial never opened because the platform denies this app the
+      /// local network; `closed` follows.
+      case localNetworkDenied
     }
 
     /// Why an operation over the session produced no answer.

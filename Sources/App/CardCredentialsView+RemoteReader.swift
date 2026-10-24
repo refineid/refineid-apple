@@ -75,9 +75,15 @@ import SwiftUI
         if let request = PersistentTokenRegistry.shared.holderCardRequest {
           PhoneCardRequestLine(request: request)
         }
-        if case .failed(let message) = pairingModel.phase {
-          Text(message)
-            .foregroundStyle(.secondary)
+        if case .failed(let failure) = pairingModel.phase {
+          if failure == .localNetworkDenied {
+            LocalNetworkDeniedNotice()
+          } else {
+            Text(failure.message)
+              .foregroundStyle(.secondary)
+          }
+        } else if PersistentTokenRegistry.shared.localNetworkDenied {
+          LocalNetworkDeniedNotice()
         }
         if remoteModel.phase == .failed {
           Text(remoteModel.failureText ?? String(localized: "The remote card could not be read."))
@@ -89,6 +95,14 @@ import SwiftUI
       .onValueChange(of: remoteModel.needsFreshPairing) { needsFresh in
         if needsFresh {
           remoteModel.acknowledgeFreshPairing()
+          pairingModel.startCodeEntry()
+        }
+      }
+      .onReceive(
+        NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
+      ) { _ in
+        // Back from the settings: the code is offered afresh.
+        if pairingModel.phase == .failed(.localNetworkDenied) {
           pairingModel.startCodeEntry()
         }
       }

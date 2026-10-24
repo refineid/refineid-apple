@@ -105,6 +105,17 @@
       #endif
     }
 
+    /// Whether the platform denies this app the local network: the
+    /// remote-use switch's browse or a dial to a phone was refused it.
+    private var localNetworkDenied: Bool {
+      #if REFINEID_REMOTE_CARD
+        PersistentTokenRegistry.shared.localNetworkDenied
+          || RemoteUseSwitch.shared.blockage == .localNetworkNotAllowed
+      #else
+        false
+      #endif
+    }
+
     /// What the row knows now.
     ///
     /// A demonstration's card sits in a virtual reader, and no phone is
@@ -126,6 +137,7 @@
           remoteUse: remoteUse,
           phonePaired: false,
           phoneThatForgot: nil,
+          localNetworkDenied: false,
           phoneCardStatus: nil
         )
       }
@@ -138,6 +150,7 @@
         remoteUse: remoteUse,
         phonePaired: registry.pairedPhoneID != nil,
         phoneThatForgot: registry.phoneThatForgot,
+        localNetworkDenied: localNetworkDenied,
         phoneCardStatus: registry.holderCardStatus
       )
     }
@@ -188,6 +201,9 @@
 
       case .pairPhone:
         RemotePairingPromptView()
+
+      case .localNetworkDenied:
+        LocalNetworkDeniedNotice()
       }
     }
 

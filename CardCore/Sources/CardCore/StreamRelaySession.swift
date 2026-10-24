@@ -128,8 +128,17 @@ import Foundation
       queue.async { self.finish(.cancelled) }
     }
 
+    /// Dials the next endpoint, or ends the session once none is left.
+    ///
+    /// A denial of the local network is the app's, not the endpoint's: no
+    /// further dial would open, so the session ends as soon as one dial
+    /// saw it.
     private func dialNext() {
       guard !isFinished else { return }
+      guard !sawLocalNetworkDenial else {
+        finishUnopened()
+        return
+      }
       let dialed: NWConnection
       if let service {
         guard nextEndpointIndex < Self.serviceAttempts else {

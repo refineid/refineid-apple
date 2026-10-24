@@ -22,8 +22,8 @@ internal final class RappPairingOfferTests: XCTestCase {
   internal func testAFailedAttemptClearsTheOfferingMark() {
     let model = RappPairingModel()
     model.createOffer(customCode: "7KX4M9")
-    model.fail("ended")
+    model.fail(.reported("ended"))
     XCTAssertFalse(model.isOffering)
-    XCTAssertEqual(model.phase, RappPairingModel.Phase.failed("ended"))
+    XCTAssertEqual(model.phase, RappPairingModel.Phase.failed(.reported("ended")))
   }
 }

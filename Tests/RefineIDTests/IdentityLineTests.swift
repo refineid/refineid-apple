@@ -221,6 +221,34 @@ internal struct IdentityLineTests {
         facts.phoneCardStatus = noCardReaderAttached
       },
       line: .paired(.phoneReader)),
+
+    // The local network denied to this app.
+    Case(
+      name: "a denied local network stands in for the pairing code",
+      facts: with { $0.localNetworkDenied = true }, line: .localNetworkDenied),
+    Case(
+      name: "a denied local network stands in for a phone still connecting",
+      facts: with { facts in
+        facts.phonePaired = true
+        facts.localNetworkDenied = true
+      },
+      line: .localNetworkDenied),
+    Case(
+      name: "a phone offering its holder over Bluetooth keeps its line",
+      facts: with { facts in
+        facts.availability = .ready
+        facts.phonePaired = true
+        facts.localNetworkDenied = true
+      },
+      line: .paired(.holder)),
+    Case(
+      name: "a local card outranks a denied local network",
+      facts: with { facts in
+        facts.availability = .ready
+        facts.cardPresent = true
+        facts.localNetworkDenied = true
+      },
+      line: .localHolder),
   ]
 
   private static func with(_ change: (inout RequesterFacts) -> Void) -> RequesterFacts {

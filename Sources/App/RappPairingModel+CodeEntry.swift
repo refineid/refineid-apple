@@ -36,7 +36,7 @@ extension RappPairingModel {
     resetAttempt()
     let code = RappPairingCode.normalize(rawCode)
     guard RappPairingCode.isValid(code) else {
-      fail(String(localized: "The pairing code is invalid"))
+      fail(.reported(String(localized: "The pairing code is invalid")))
       return
     }
     let newSearch: RappPairingSearch<PairingEndpoint>
@@ -46,7 +46,7 @@ extension RappPairingModel {
         remoteUseAvailable: { RemoteUseAvailability.isAvailable },
         dial: { endpoint in PairingCandidateLink.dial(endpoint) })
     } catch {
-      fail(String(localized: "The pairing code is invalid"))
+      fail(.reported(String(localized: "The pairing code is invalid")))
       return
     }
     install(search: newSearch)
