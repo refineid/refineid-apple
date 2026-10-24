@@ -100,7 +100,11 @@ internal struct CardActivationSection: View {
       .controlSize(.large)
       .listRowInsets(EdgeInsets())
       .listRowBackground(Color.clear)
+    #else
+      .frame(maxWidth: .infinity)
+      .listRowBackground(Color.clear)
     #endif
+    .keyboardShortcut(.defaultAction)
     .disabled(
       !isComplete
         || !model.canContactCard
