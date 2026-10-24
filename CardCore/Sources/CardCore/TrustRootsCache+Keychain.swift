@@ -74,12 +74,7 @@ extension TrustRootsCache {
     if status == errSecDuplicateItem {
       let updateQuery = query(account: account)
       let replacement = [kSecValueData as String: der]
-      let updateStatus = SecItemUpdate(updateQuery as CFDictionary, replacement as CFDictionary)
-      if updateStatus != errSecSuccess {
-        ExtensionTrace.append("TrustRootsCache SecItemUpdate failed: \(updateStatus)")
-      }
-    } else if status != errSecSuccess {
-      ExtensionTrace.append("TrustRootsCache SecItemAdd failed: \(status)")
+      _ = SecItemUpdate(updateQuery as CFDictionary, replacement as CFDictionary)
     }
   }
 
@@ -92,10 +87,7 @@ extension TrustRootsCache {
       }
     #endif
     let deleteQuery = baseSearchQuery()
-    let status = SecItemDelete(deleteQuery as CFDictionary)
-    if status != errSecSuccess, status != errSecItemNotFound {
-      ExtensionTrace.append("TrustRootsCache deletePersistentCas failed: \(status)")
-    }
+    _ = SecItemDelete(deleteQuery as CFDictionary)
   }
 
   /// Loads persisted certificates on startup, purging any expired or invalid ones.
@@ -140,10 +132,7 @@ extension TrustRootsCache {
     for (account, data) in sortedItems {
       if !Self.meetsPersistencePolicy(data) {
         let deleteQuery = Self.query(account: account)
-        let deleteStatus = SecItemDelete(deleteQuery as CFDictionary)
-        if deleteStatus != errSecSuccess, deleteStatus != errSecItemNotFound {
-          ExtensionTrace.append("TrustRootsCache SecItemDelete expired CA failed: \(deleteStatus)")
-        }
+        _ = SecItemDelete(deleteQuery as CFDictionary)
         continue
       }
       loadValidCertificate(data)

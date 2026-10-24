@@ -999,11 +999,10 @@ Two things had to be measured rather than assumed:
 with `-DSWIFT_PACKAGE` alone, not `DEBUG`, so a guard inside
 `ExtensionTrace` would have removed the trace from Profile as well,
 which is the one build that needs it. The gate therefore lives in the
-targets that do get the condition, and
-`ExtensionTrace` stays as it is. `ExtensionTrace.clear()` is left
-reachable everywhere on purpose: never writing is the requirement, and a
-shipped build must still be able to delete a buffer an earlier
-development build left on the device.
+targets that do get the condition: `ExtensionTrace` is an app-side
+source compiled into the app and the three extensions under
+`#if DEBUG`, and TestFlight and Release exclude it, so a shipped binary
+carries neither the trace nor its keychain service.
 
 An empty inlined function is not enough on its own. With a plain
 `String` parameter the call disappears but the interpolation that built
@@ -1272,10 +1271,12 @@ The three binaries cannot see each other's logs. On iOS 26
 `TokenLog` writes sits in a container no other process may open, so a
 failure inside `ctkd` is indistinguishable from any other failure.
 
-`CardCore/ExtensionTrace` is the one shared sink: a bounded
-(20 000-byte, oldest-half-dropped) generic-password item under service
-`fi.refineid.trace`, `WhenUnlockedThisDeviceOnly` and
-non-synchronizable, in the keychain group all three binaries share. The
+`ExtensionTrace` (Debug and Profile only) is the one shared sink: a
+bounded (20 000-byte, oldest-half-dropped) generic-password item under
+service `fi.refineid.trace`, `WhenUnlockedThisDeviceOnly` and
+non-synchronizable, in the data-protection keychain and the access group
+all the binaries share, so access follows the entitlement and never the
+signature of the build that created the item. The
 app reads it on the diagnostics screen and through `--trace`.
 `TokenLog` writes to it as well as to its own file, so there is one text
 and two readers rather than two texts. `record` versus `append` is the
