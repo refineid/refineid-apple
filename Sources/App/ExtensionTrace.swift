@@ -89,7 +89,7 @@
 
     /// Cap on one line, so a single runaway message cannot displace the
     /// whole trace.
-    private static let maximumLineLength: Int = 512
+    internal static let maximumLineLength: Int = 512
 
     /// Separates two lines in the stored blob.
     private static let separator: Character = "\n"
@@ -208,7 +208,7 @@
     }
 
     /// One line stamped, flattened onto a single line, and clamped.
-    private static func stamped(_ line: String) -> String {
+    internal static func stamped(_ line: String) -> String {
       let flattened = line.components(separatedBy: Self.forbidden).joined(separator: " ")
       return Self.stamp() + " " + String(flattened.prefix(Self.maximumLineLength))
     }

@@ -5,13 +5,13 @@
 
   @testable import RefineID
 
-  /// Exercises the trace's trimming rule.
+  /// Exercises the trace's line and trimming rules.
   ///
-  /// Only the rule is tested, not the keychain around it: a test run records
-  /// nothing, and the rule is where a mistake would actually live. The
-  /// mistake that matters is cutting the wrong end -- a trace that kept the
-  /// OLDEST lines would answer every question with the state from before
-  /// the run being measured.
+  /// Only the rules are tested, not the keychain around them: a test run
+  /// records nothing, and the rules are where a mistake would actually live.
+  /// The mistake that matters most is cutting the wrong end -- a trace that
+  /// kept the OLDEST lines would answer every question with the state from
+  /// before the run being measured.
   @Suite
   internal struct ExtensionTraceTests {
     /// Separates two lines in the stored blob.
@@ -61,6 +61,31 @@
       let kept = ExtensionTrace.trimmed(overfull)
       #expect(kept.hasSuffix("\(Self.overflowingLineCount - 1) " + Self.filler))
       #expect(!kept.hasPrefix("0 "))
+    }
+
+    @Test
+    internal func aStampedLineCannotForgeAnotherLine() {
+      let stamped = ExtensionTrace.stamped("first\nsecond\rthird")
+      let carriesNewline = stamped.contains(where: \.isNewline)
+      #expect(!carriesNewline)
+      #expect(stamped.hasSuffix("first second third"))
+    }
+
+    @Test
+    internal func aStampedLineIsClamped() {
+      let runaway = String(repeating: "z", count: ExtensionTrace.maximumLineLength * 2)
+      let stamped = ExtensionTrace.stamped(runaway)
+      let body = stamped.drop { $0 != " " }.dropFirst()
+      #expect(body.count == ExtensionTrace.maximumLineLength)
+    }
+
+    @Test
+    internal func pendingLinesDrainOldestFirstAndOnce() {
+      let pending = ExtensionTrace.Pending()
+      pending.record("one")
+      pending.record("two")
+      #expect(pending.drain() == ["one", "two"])
+      #expect(pending.drain().isEmpty)
     }
 
     @Test
