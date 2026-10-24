@@ -174,10 +174,15 @@ import Foundation
     /// Every dial is bounded, not only one that reports itself waiting: a
     /// connection to an address nothing answers on stays preparing, and a
     /// preparing dial that is never given up on is a peer that never
-    /// arrives.
+    /// arrives. A dial whose path the platform refused the local network
+    /// in the meantime ends the session instead.
     private func waitOut(attempt: Int, connection: NWConnection) {
       queue.asyncAfter(deadline: .now() + Self.attemptSeconds) { [weak self] in
         guard let self, attempt == generation, !isFinished, !isReady else { return }
+        guard LocalNetworkVerdict.of(connection) != .denied else {
+          endDenied()
+          return
+        }
         connection.cancel()
         dialNext()
       }

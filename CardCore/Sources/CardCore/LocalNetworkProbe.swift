@@ -16,7 +16,8 @@
   /// as it starts, and sends nothing.
   ///
   /// All work runs on the caller's serial queue; `cancel()` runs on it too
-  /// and stops every callback.
+  /// and stops every callback. Each running lookup holds the probe, so a
+  /// callback never outlives it.
   internal final class LocalNetworkProbe: @unchecked Sendable {
     // MARK: Static Properties
 
@@ -26,6 +27,8 @@
     private static let anyInterface = UInt32(kDNSServiceInterfaceIndexAny)
     /// What `getnameinfo` returns on success.
     private static let nameInfoSucceeded: Int32 = 0
+    /// The scope of an IPv6 socket address that names no interface.
+    private static let noScope: UInt32 = 0
 
     // MARK: Properties
 
@@ -53,8 +56,28 @@
 
     // MARK: Static Functions
 
-    /// The numeric host of a socket address, scoped to its interface when
-    /// it is link-local.
+    /// The numeric host of a socket address; a link-local IPv6 address
+    /// without a scope is scoped to `interfaceIndex`, the interface it was
+    /// found on.
+    private static func numericHost(
+      _ address: UnsafePointer<sockaddr>, interfaceIndex: UInt32
+    ) -> NWEndpoint.Host? {
+      guard address.pointee.sa_family == sa_family_t(AF_INET6) else {
+        return numericHost(address)
+      }
+      var scoped = address.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) { $0.pointee }
+      let isLinkLocal = withUnsafeBytes(of: scoped.sin6_addr) { bytes in
+        IPv6Address(Data(bytes))?.isLinkLocal ?? false
+      }
+      if isLinkLocal, scoped.sin6_scope_id == noScope {
+        scoped.sin6_scope_id = interfaceIndex
+      }
+      return withUnsafePointer(to: &scoped) { pointer in
+        pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { numericHost($0) }
+      }
+    }
+
+    /// The numeric host of a socket address as it stands.
     private static func numericHost(_ address: UnsafePointer<sockaddr>) -> NWEndpoint.Host? {
       var text = [CChar](repeating: 0, count: Int(NI_MAXHOST))
       let status = getnameinfo(
@@ -75,6 +98,7 @@
       }
       let interfaceIndex = interface.map { UInt32($0.index) } ?? Self.anyInterface
       var reference: DNSServiceRef?
+      let context = Unmanaged.passRetained(self)
       let error = DNSServiceResolve(
         &reference, Self.noFlags, interfaceIndex, name, type, domain,
         { _, _, interfaceIndex, error, _, hostTarget, port, _, _, context in
@@ -84,18 +108,20 @@
             error: error, hostTarget: hostTarget, networkOrderPort: port,
             interfaceIndex: interfaceIndex)
         },
-        Unmanaged.passUnretained(self).toOpaque())
-      serviceResolution = attach(reference, error: error)
+        context.toOpaque())
+      serviceResolution = attach(reference, error: error, context: context)
     }
 
     /// Stops every lookup and connection; no verdict follows.
     internal func cancel() {
       isDone = true
-      for reference in [serviceResolution, addressLookup].compactMap(\.self) {
-        DNSServiceRefDeallocate(reference)
-      }
+      let references = [serviceResolution, addressLookup].compactMap(\.self)
       serviceResolution = nil
       addressLookup = nil
+      for reference in references {
+        DNSServiceRefDeallocate(reference)
+        Unmanaged.passUnretained(self).release()
+      }
       for connection in connections {
         connection.stateUpdateHandler = nil
         connection.cancel()
@@ -105,16 +131,25 @@
 
     /// Puts a started lookup on the queue; nil, after reporting what its
     /// error says, when it did not start.
-    private func attach(_ reference: DNSServiceRef?, error: DNSServiceErrorType) -> DNSServiceRef? {
+    ///
+    /// A lookup that did not start gives back the hold its `context` took
+    /// on the probe.
+    private func attach(
+      _ reference: DNSServiceRef?,
+      error: DNSServiceErrorType,
+      context: Unmanaged<LocalNetworkProbe>
+    ) -> DNSServiceRef? {
       guard error == kDNSServiceErr_NoError, let reference else {
         if let reference {
           DNSServiceRefDeallocate(reference)
         }
+        context.release()
         report(LocalNetworkVerdict.of(resolutionError: error))
         return nil
       }
       guard DNSServiceSetDispatchQueue(reference, queue) == kDNSServiceErr_NoError else {
         DNSServiceRefDeallocate(reference)
+        context.release()
         return nil
       }
       return reference
@@ -136,22 +171,27 @@
       }
       servicePort = port
       var reference: DNSServiceRef?
+      let context = Unmanaged.passRetained(self)
       let started = DNSServiceGetAddrInfo(
         &reference, Self.noFlags, interfaceIndex, Self.bothAddressFamilies, hostTarget,
-        { _, _, _, error, _, address, _, context in
+        { _, _, interfaceIndex, error, _, address, _, context in
           guard let context else { return }
           let probe = Unmanaged<LocalNetworkProbe>.fromOpaque(context).takeUnretainedValue()
-          probe.found(error: error, address: address)
+          probe.found(error: error, address: address, interfaceIndex: interfaceIndex)
         },
-        Unmanaged.passUnretained(self).toOpaque())
-      addressLookup = attach(reference, error: started)
+        context.toOpaque())
+      addressLookup = attach(reference, error: started, context: context)
     }
 
     /// Opens a connection to one address the host resolved to.
-    private func found(error: DNSServiceErrorType, address: UnsafePointer<sockaddr>?) {
+    private func found(
+      error: DNSServiceErrorType,
+      address: UnsafePointer<sockaddr>?,
+      interfaceIndex: UInt32
+    ) {
       guard !isDone else { return }
       guard error == kDNSServiceErr_NoError, let address, let port = servicePort,
-        let host = Self.numericHost(address)
+        let host = Self.numericHost(address, interfaceIndex: interfaceIndex)
       else {
         report(LocalNetworkVerdict.of(resolutionError: error))
         return

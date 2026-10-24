@@ -48,6 +48,11 @@
       Int(error) == kDNSServiceErr_PolicyDenied ? .denied : nil
     }
 
+    /// The verdict of `connection` in the state it is in now.
+    public static func of(_ connection: NWConnection) -> Self? {
+      of(state: connection.state, unsatisfiedReason: connection.currentPath?.unsatisfiedReason)
+    }
+
     /// The verdict of `connection` in `state`, which reports `error`: by
     /// its own path, or by its name lookup.
     public static func of(
