@@ -13,7 +13,7 @@ import Testing
 @Suite
 internal struct RetryFloorPolicyTests {
   @Test
-  internal func theFloorRefusesExactlyOneAndTwoAttempts() throws {
+  internal func theFloorProceedsOnlyAtThreeOrMoreAttempts() throws {
     // Three or more: room to be wrong and try again.
     for remaining in [UInt8(3), 4, 5] {
       let count = try #require(RetryCount(attemptsRemaining: remaining))
@@ -24,10 +24,9 @@ internal struct RetryFloorPolicyTests {
       let count = try #require(RetryCount(attemptsRemaining: remaining))
       #expect(RetryFloor.evaluate(freshReading: count) == .refuseLowAttempts)
     }
-    // Zero: already blocked and cannot spend another attempt. Let the
-    // card operation route into its unblock path.
+    // Zero: blocked. Nothing is sent; the PUK resets it.
     let blocked = try #require(RetryCount(attemptsRemaining: 0))
-    #expect(RetryFloor.evaluate(freshReading: blocked) == .proceed)
+    #expect(RetryFloor.evaluate(freshReading: blocked) == .refuseBlocked)
   }
 
   @Test
@@ -52,10 +51,10 @@ internal struct RetryFloorPolicyTests {
   }
 
   @Test
-  internal func aLockedCredentialCanProceedWithoutSpendingAnAttempt() {
-    // A locked credential cannot spend another attempt; unlike an
-    // unreadable counter, its state is explicit and safe to route.
-    #expect(RetryFloor.evaluate(probeOutcome: .locked) == .proceed)
+  internal func aLockedCredentialIsRefusedAsBlocked() {
+    // A locked credential is refused like a zero count, and told apart
+    // from an unreadable counter so the refusal can name the PUK.
+    #expect(RetryFloor.evaluate(probeOutcome: .locked) == .refuseBlocked)
   }
 
   @Test
@@ -67,7 +66,7 @@ internal struct RetryFloorPolicyTests {
     let low = try #require(RetryCount(attemptsRemaining: 2))
     let healthy = try #require(RetryCount(attemptsRemaining: 5))
     let state = CredentialRetryState(pin1: blocked, pin2: low, puk: healthy)
-    #expect(RetryFloor.evaluate(freshReading: state.pin1) == .proceed)
+    #expect(RetryFloor.evaluate(freshReading: state.pin1) == .refuseBlocked)
     #expect(RetryFloor.evaluate(freshReading: state.pin2) == .refuseLowAttempts)
     #expect(RetryFloor.evaluate(freshReading: state.puk) == .proceed)
   }

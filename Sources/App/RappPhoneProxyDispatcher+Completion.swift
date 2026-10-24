@@ -150,7 +150,10 @@
         // The card refused the PIN and the floor allows no further
         // verification: the remaining attempts are the issuer's.
         await applyRejectedCredential(.credential(role, remaining: remaining))
-        await refuseAtRetryFloor(role: role, remaining: remaining)
+        await refuseAtRetryFloor(
+          role: role,
+          verdict: remaining.map { RetryFloor.evaluate(freshReading: $0) } ?? .refuseLowAttempts,
+          remaining: remaining)
         try? await coordinator.retryFloor(operationID: operationID)
 
       case .refusedBeforeCredentialTransmit(let refusal):
@@ -170,9 +173,16 @@
       case .cardUnavailable:
         try? await coordinator.cardError(operationID: operationID)
 
-      case .credentialBlocked(let role), .credentialInvalidated(let role),
-        .retryFloor(let role, _):
-        await refuseAtRetryFloor(role: role, remaining: nil)
+      case .credentialBlocked(let role):
+        await refuseAtRetryFloor(role: role, verdict: .refuseBlocked, remaining: nil)
+        try? await coordinator.retryFloor(operationID: operationID)
+
+      case .credentialInvalidated(let role):
+        await refuseAtRetryFloor(role: role, verdict: .refuseUnreadable, remaining: nil)
+        try? await coordinator.retryFloor(operationID: operationID)
+
+      case .retryFloor(let role, let verdict):
+        await refuseAtRetryFloor(role: role, verdict: verdict, remaining: nil)
         try? await coordinator.retryFloor(operationID: operationID)
 
       case .invalidCredential, .heldPin1Unconfirmed:
@@ -183,16 +193,16 @@
       }
     }
 
-    /// Tells the holder that the card's remaining attempts are reserved for
-    /// its issuer's software (§10.2).
-    private func refuseAtRetryFloor(role: CredentialRole, remaining: RetryCount?) async {
-      guard let remaining else {
-        await inbox.inform(CredentialOutcomeMessage.lowAttemptRefusal())
-        return
-      }
+    /// Tells the holder which credential the retry floor kept from the card
+    /// and how to recover it (§10.2).
+    private func refuseAtRetryFloor(
+      role: CredentialRole,
+      verdict: RetryFloorVerdict,
+      remaining: RetryCount?
+    ) async {
       await inbox.inform(
-        CredentialOutcomeMessage.lowAttemptRefusal(
-          credentialName: CredentialLabels.name(for: role), remaining: remaining))
+        CredentialOutcomeMessage.floorRefusal(
+          role: role, verdict: verdict, remaining: remaining))
     }
 
     private func applyRejectedCredential(_ rejection: RappCardExecutor.Rejection) async {

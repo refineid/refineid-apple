@@ -111,7 +111,8 @@ internal enum DocumentSigningMessage {
         "The signature request was declined on the paired phone.")
 
     case .retryFloor:
-      CredentialOutcomeMessage.lowAttemptRefusal()
+      CredentialOutcomeMessage.floorRefusal(
+        role: .pin2, verdict: .refuseLowAttempts, remaining: nil)
 
     case .operationExpired:
       text("error.remoteExpired", "The request was not approved on the phone in time.")
@@ -136,11 +137,11 @@ internal enum DocumentSigningMessage {
       CredentialOutcomeMessage.rejection(
         credentialName: "PIN 2", remaining: remaining)
 
-    case .pinBlocked, .floorRefused(.refuseBlocked):
-      pin2BlockedMessage()
+    case .pinBlocked:
+      CredentialOutcomeMessage.blocked(.pin2)
 
-    case .floorRefused(.refuseLowAttempts):
-      CredentialOutcomeMessage.lowAttemptRefusal()
+    case .floorRefused(let verdict):
+      CredentialOutcomeMessage.floorRefusal(role: .pin2, verdict: verdict, remaining: nil)
 
     case .invalidated:
       text(
@@ -153,10 +154,6 @@ internal enum DocumentSigningMessage {
     default:
       text("error.cardFailed", "The card did not complete the signature.")
     }
-  }
-
-  private static func pin2BlockedMessage() -> String {
-    text("error.pin2Blocked", "PIN 2 is blocked. Reset it in PIN settings.")
   }
 
   private static func documentMessage(_ failure: PdfSigningError) -> String {

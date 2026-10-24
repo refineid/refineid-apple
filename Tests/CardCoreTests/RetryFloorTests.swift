@@ -11,9 +11,9 @@ internal struct RetryFloorTests {
   }
 
   @Test
-  internal func zeroCanProceedWithoutSpendingAnAttempt() throws {
+  internal func zeroIsRefusedAsBlocked() throws {
     let reading = try #require(RetryCount(attemptsRemaining: 0))
-    #expect(RetryFloor.evaluate(freshReading: reading) == .proceed)
+    #expect(RetryFloor.evaluate(freshReading: reading) == .refuseBlocked)
   }
 
   @Test
@@ -44,7 +44,7 @@ internal struct RetryFloorTests {
     let safe = try #require(
       RetryCount(attemptsRemaining: RetryFloor.minimumAttemptsToProceed))
     #expect(RetryFloor.evaluate(probeOutcome: .remaining(safe)) == .proceed)
-    #expect(RetryFloor.evaluate(probeOutcome: .locked) == .proceed)
+    #expect(RetryFloor.evaluate(probeOutcome: .locked) == .refuseBlocked)
     #expect(RetryFloor.evaluate(probeOutcome: .noInformation) == .refuseUnreadable)
     #expect(RetryFloor.evaluate(probeOutcome: .other(0x6A88)) == .refuseUnreadable)
     #expect(RetryFloor.evaluate(probeOutcome: .verified) == .proceed)

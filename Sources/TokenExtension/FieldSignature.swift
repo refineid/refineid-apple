@@ -22,6 +22,16 @@ internal struct FieldSignature {
     self.accessNumber = accessNumber
   }
 
+  /// Refuses before VERIFY PIN1 unless the PIN1 counter permits it.
+  private static func requireRetryFloor(_ operations: CardOperations) throws {
+    let verdict = RetryFloor.evaluate(
+      probeOutcome: try operations.probeRetryCounter(role: .pin1))
+    guard verdict == .proceed else {
+      TokenLog.error("sign: PIN1 retry floor refuses (\(verdict))")
+      throw TokenError.signRefused
+    }
+  }
+
   /// Establishes the contactless channel and signs `request` in it.
   ///
   /// The PIN is spent exactly once. There is deliberately no fresh-card
@@ -46,7 +56,8 @@ internal struct FieldSignature {
     }
   }
 
-  /// VERIFY PIN1 and the on-card signature, inside the PACE channel.
+  /// The PIN1 retry floor, VERIFY PIN1 and the on-card signature, inside
+  /// the PACE channel.
   ///
   /// Nothing here reads what the prime already knows. The authentication
   /// certificate and the token serial are public, unchanging and stored
@@ -71,6 +82,7 @@ internal struct FieldSignature {
     if let fingerprint, CredentialMemory.rejectedPins.isKnownRejected(fingerprint) {
       throw TokenError.pinAlreadyRejected
     }
+    try Self.requireRetryFloor(operations)
     let pendingAcceptance = VolatileAcceptedPin1.shared.prepareAcceptance(
       of: pin1,
       for: token.cardInstanceID

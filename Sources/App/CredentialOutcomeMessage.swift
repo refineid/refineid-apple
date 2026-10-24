@@ -19,36 +19,59 @@ internal enum CredentialOutcomeMessage {
         localized: "You have \(remaining.attemptsRemaining) attempts remaining.")
   }
 
-  internal static func lowAttemptRefusal() -> String {
-    String(localized: "The operation was not sent.")
-      + "\n"
-      + String(
-        localized: "RefineID does not use either of the last two attempts.")
+  /// A retry-floor refusal: the credential that was not presented and
+  /// the way back.
+  ///
+  /// A PIN at one or two attempts, or blocked, is reset with the PUK,
+  /// which the floor judges on its own counter. `remaining` is the exact
+  /// count when the card supplied it.
+  internal static func floorRefusal(
+    role: CredentialRole,
+    verdict: RetryFloorVerdict,
+    remaining: RetryCount?
+  ) -> String {
+    switch verdict {
+    case .refuseBlocked:
+      return blocked(role)
+
+    case .refuseLowAttempts:
+      guard role != .puk else { return otherSoftwareRecovery() }
+      let name = shortName(role)
+      let detail =
+        switch remaining?.attemptsRemaining {
+        case .some(1):
+          String(localized: "Only 1 attempt remains for \(name).")
+
+        case .some(let count):
+          String(localized: "Only \(count) attempts remain for \(name).")
+
+        case .none:
+          String(localized: "RefineID does not use either of the last two attempts.")
+        }
+      return String(localized: "Operation refused")
+        + "\n"
+        + detail
+        + "\n"
+        + resetWithPuk(role)
+
+    case .refuseUnreadable, .proceed:
+      return String(localized: "The operation was not sent.")
+    }
   }
 
-  /// A retry-floor refusal when the card supplied the exact counter.
-  ///
-  /// Keeping the count here lets every credential flow use the same wording
-  /// and the same two-line visual hierarchy instead of calling it a vague
-  /// safety failure.
-  internal static func lowAttemptRefusal(
-    credentialName: String,
-    remaining: RetryCount
-  ) -> String {
-    let detail =
-      if remaining.attemptsRemaining == 1 {
-        String(localized: "Only 1 attempt remains for \(credentialName).")
-      } else {
-        String(
-          localized:
-            "Only \(remaining.attemptsRemaining) attempts remain for \(credentialName).")
-      }
-    return String(localized: "Operation refused")
-      + "\n"
-      + detail
-      + "\n"
-      + String(
-        localized: "Use another software or reset \(credentialName).")
+  /// A blocked credential and the way back: the PUK for a PIN, the
+  /// issuer for the PUK.
+  internal static func blocked(_ role: CredentialRole) -> String {
+    switch role {
+    case .pin1:
+      String(localized: "PIN 1 is blocked") + "." + "\n" + resetWithPuk(role)
+
+    case .pin2:
+      String(localized: "PIN 2 is blocked") + "." + "\n" + resetWithPuk(role)
+
+    case .puk:
+      unrecoverableCard()
+    }
   }
 
   /// Which credentials have spent attempts, and the way back to the
@@ -71,17 +94,39 @@ internal enum CredentialOutcomeMessage {
   internal static func recoveryGuidance(for role: CredentialRole) -> String {
     switch role {
     case .pin1:
-      String(localized: "PIN 1 requires recovery")
-        + "\n"
-        + String(localized: "Reset PIN 1 with your PUK.")
+      String(localized: "PIN 1 requires recovery") + "\n" + resetWithPuk(role)
 
     case .pin2:
-      String(localized: "PIN 2 requires recovery")
-        + "\n"
-        + String(localized: "Reset PIN 2 with your PUK.")
+      String(localized: "PIN 2 requires recovery") + "\n" + resetWithPuk(role)
 
     case .puk:
       preconditionFailure("PUK is the recovery credential, not a reset target")
+    }
+  }
+
+  private static func resetWithPuk(_ role: CredentialRole) -> String {
+    switch role {
+    case .pin1:
+      String(localized: "Reset PIN 1 with your PUK.")
+
+    case .pin2:
+      String(localized: "Reset PIN 2 with your PUK.")
+
+    case .puk:
+      preconditionFailure("PUK is the recovery credential, not a reset target")
+    }
+  }
+
+  private static func shortName(_ role: CredentialRole) -> String {
+    switch role {
+    case .pin1:
+      "PIN 1"
+
+    case .pin2:
+      "PIN 2"
+
+    case .puk:
+      "PUK"
     }
   }
 

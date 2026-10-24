@@ -84,8 +84,9 @@
         String(localized: "PIN 1 could not be verified safely.")
 
       case Failure.pin1LowAttempts(let remaining):
-        CredentialOutcomeMessage.lowAttemptRefusal(
-          credentialName: "PIN 1",
+        CredentialOutcomeMessage.floorRefusal(
+          role: .pin1,
+          verdict: .refuseLowAttempts,
           remaining: remaining)
 
       case Failure.certificateUnreadable:
