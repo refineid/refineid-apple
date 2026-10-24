@@ -6651,7 +6651,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Autentisering"
+            "value": "Identifiering"
           }
         }
       }
@@ -6667,7 +6667,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ ber dig att autentisera dig."
+            "value": "%@ ber dig att identifiera dig."
           }
         }
       }

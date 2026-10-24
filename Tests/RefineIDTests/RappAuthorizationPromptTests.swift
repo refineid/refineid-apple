@@ -52,9 +52,9 @@ internal final class RappAuthorizationPromptTests: XCTestCase {
     let json = try JSONSerialization.jsonObject(with: try Data(contentsOf: catalog))
     let strings = try XCTUnwrap((json as? [String: Any])?["strings"] as? [String: Any])
     let expected: [String: [String: String]] = [
-      "Authentication": ["fi": "Tunnistautuminen", "sv": "Autentisering"],
+      "Authentication": ["fi": "Tunnistautuminen", "sv": "Identifiering"],
       "%@ asks you to authenticate.": [
-        "fi": "%@ pyytää tunnistautumaan.", "sv": "%@ ber dig att autentisera dig.",
+        "fi": "%@ pyytää tunnistautumaan.", "sv": "%@ ber dig att identifiera dig.",
       ],
       "Signature": ["fi": "Allekirjoitus", "sv": "Underskrift"],
       "%@ asks you to sign %@.": [
