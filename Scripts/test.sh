@@ -25,6 +25,22 @@ fail() {
   exit 1
 }
 
+# Gate builds go into this checkout's own build directory, which leaves
+# with the worktree. Every app bundle the gate built is unregistered from
+# Launch Services on exit: a registered build product carrying the app's
+# bundle identifier competes with /Applications/RefineID.app for the
+# app's privacy permissions.
+derived_data="build/DerivedData"
+lsregister="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+
+unregister_gate_builds() {
+  local products="${derived_data}/Build/Products"
+  [[ -d "${products}" && -x "${lsregister}" ]] || return 0
+  find "${products}" -maxdepth 2 -name '*.app' -type d -print0 \
+    | xargs -0 -n 1 "${lsregister}" -u 2>/dev/null || true
+}
+trap unregister_gate_builds EXIT
+
 case "${mode}" in
   commit)
     if ! git diff --cached --quiet -- Scripts/QualityReceipt.py Scripts/TestQualityReceipt.py; then
@@ -65,11 +81,11 @@ case "${mode}" in
       || fail "PKCS11Bridge package tests failed."
 
     step "5. Verifying iOS compilation"
-    xcodebuild -scheme RefineID -destination 'generic/platform=iOS' -quiet build CODE_SIGNING_ALLOWED=NO \
+    xcodebuild -derivedDataPath "${derived_data}" -scheme RefineID -destination 'generic/platform=iOS' -quiet build CODE_SIGNING_ALLOWED=NO \
       || fail "iOS build failed. Check for platform-conditional compilation issues."
 
     step "6. Running unit test suite (RefineIDTests on macOS)"
-    xcodebuild test -scheme RefineID -destination 'platform=macOS' -only-testing:RefineIDTests -quiet \
+    xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -destination 'platform=macOS' -only-testing:RefineIDTests -quiet \
       || fail "Unit tests failed."
 
     Scripts/QualityReceipt.py verify-head "${checked_head}" "${checked_tree}" \
@@ -80,7 +96,7 @@ case "${mode}" in
 
   nfc-signing)
     step "Testing retained NFC field lifecycle and PACE"
-    xcodebuild test -scheme RefineID -destination 'platform=macOS' \
+    xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -destination 'platform=macOS' \
       -only-testing:CardCoreTests/HeldCardSessionTests \
       -only-testing:CardCoreTests/PaceEstablishmentTests \
       -only-testing:CardCoreTests/CommandApduTests \
@@ -96,7 +112,7 @@ case "${mode}" in
   macos-mvp)
     step "Checking the macOS MVP user interface"
     result_path="build/macos-mvp-ui-$(date -u +%Y%m%dT%H%M%SZ).xcresult"
-    xcodebuild test -scheme RefineID -destination 'platform=macOS' \
+    xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -destination 'platform=macOS' \
       -only-testing:RefineIDUITests/MacMvpUITests \
       -resultBundlePath "${result_path}" -quiet \
       || fail "macOS MVP UI checks failed."
@@ -107,11 +123,11 @@ case "${mode}" in
     "$0" pr
 
     step "2. Running isolated CardCore crypto & protocol tests"
-    xcodebuild test -scheme RefineID -destination 'platform=macOS' -only-testing:CardCoreTests -skip-testing:CardCoreTests/RappIntegrationTests -quiet \
+    xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -destination 'platform=macOS' -only-testing:CardCoreTests -skip-testing:CardCoreTests/RappIntegrationTests -quiet \
       || fail "CardCore tests failed."
 
     step "3. Running isolated RAPP integration tests"
-    xcodebuild test -scheme RefineID -destination 'platform=macOS' -only-testing:CardCoreTests/RappIntegrationTests -quiet \
+    xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -destination 'platform=macOS' -only-testing:CardCoreTests/RappIntegrationTests -quiet \
       || fail "RAPP integration tests failed."
 
     printf '\nAutomated release regression suites passed.\n'

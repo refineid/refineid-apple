@@ -60,6 +60,12 @@
   only with zero trailers. Never commit or push with `--no-verify`, never
   disable or work around a gate to land a change, and never leave hooks
   uninstalled. Fix findings instead of dodging them.
+- Agents build into temporary or worktree-local derived-data paths
+  (`Scripts/test.sh` uses `build/DerivedData` and unregisters its app
+  bundles on exit), and `install-macos` purges every stale Launch Services
+  registration of the app's bundle identifiers
+  (`purge-stale-registrations` does it alone); after every install macOS
+  local-network privacy follows only `/Applications/RefineID.app`.
 - `RefineIDTests` run in `RefineIDTestHost`, the app's sources under their
   own bundle identifier, so a test run never shares privacy permissions,
   keychain or single-instance identity with the installed app.

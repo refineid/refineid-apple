@@ -28,10 +28,11 @@ colliding and keeps the main checkout pristine for integration.
    `Scripts/apple-app-store-connect-release-manager.swift`.
 5. Run `Scripts/agent-housekeeping.sh` and act on what it reports.
 
-Swift Package Manager's package download cache and Xcode DerivedData live
-outside the checkout (`~/Library/Caches/org.swift.swiftpm` and DerivedData).
-Package downloads can be reused between worktrees. Keep Xcode's writable
-DerivedData separate between concurrent worktrees.
+Swift Package Manager's package download cache lives outside the checkout
+(`~/Library/Caches/org.swift.swiftpm`), and package downloads can be reused
+between worktrees. `Scripts/test.sh` builds into the checkout's own
+`build/DerivedData`, so each worktree keeps its writable DerivedData to
+itself and the builds leave with the worktree.
 
 Successful local lint receipts live outside worktrees in
 `~/Library/Caches/RefineID/QualityReceipts`. They match the full Git tree and
