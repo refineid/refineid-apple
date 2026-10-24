@@ -309,28 +309,6 @@
         }
       }
     },
-    "%@: %lld of %lld attempts left.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@: %2$lld of %3$lld attempts left."
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@: %2$lld/%3$lld yritystä jäljellä."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@: %2$lld av %3$lld försök kvar."
-          }
-        }
-      }
-    },
     "%lld documents": {
       "localizations": {
         "fi": {
@@ -391,28 +369,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "%u försök kvar - få"
-          }
-        }
-      }
-    },
-    "A correct entry restores the full count.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A correct entry restores the full count."
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Oikea koodi palauttaa kaikki yritykset."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rätt kod återställer alla försök."
           }
         }
       }
