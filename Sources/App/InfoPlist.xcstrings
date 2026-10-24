@@ -67,6 +67,60 @@
         }
       }
     },
+    "NFCReaderUsageDescription" : {
+      "comment" : "Purpose of reading the identity card by holding it to the iPhone. The English source is the NFCReaderUsageDescription value in Config/RefineID-iOS-Info.plist.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RefineID lukee henkilökorttiasi tunnistautumista, asiakirjojen allekirjoittamista, kortin käyttöönottoa ja PIN-koodien hallintaa varten."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RefineID läser ditt id-kort för inloggning, dokumentsignering, aktivering av kortet och hantering av PIN-koder."
+          }
+        }
+      }
+    },
+    "NSBluetoothAlwaysUsageDescription" : {
+      "comment" : "Bluetooth permission prompt, shown when the holder turns Remote Access on. The English source is the NSBluetoothAlwaysUsageDescription value in the app Info.plist.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RefineID yhdistää puhelimen ja tietokoneen Bluetoothilla, kun kortin etäkäyttö on päällä."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RefineID ansluter telefonen och datorn via Bluetooth när fjärråtkomst till kortet är på."
+          }
+        }
+      }
+    },
+    "NSCameraUsageDescription" : {
+      "comment" : "Camera permission prompt, shown when the holder chooses to scan the card access number. The English source is the NSCameraUsageDescription value in Config/RefineID-iOS-Info.plist.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RefineID lukee korttiin painetun pääsykoodin, jotta sinun ei tarvitse kirjoittaa sitä."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RefineID läser åtkomstkoden som är tryckt på ditt kort så att du inte behöver skriva in den."
+          }
+        }
+      }
+    },
     "NSHumanReadableCopyright" : {
       "comment" : "Copyright (human-readable)",
       "extractionState" : "extracted_with_value",
@@ -91,20 +145,20 @@
         }
       }
     },
-    "RefineID uses the local network to connect your devices securely for identity-card operations." : {
-      "comment" : "Local-network privacy prompt for the encrypted RAPP connection between the card-holder device and the requesting device.",
+    "NSLocalNetworkUsageDescription" : {
+      "comment" : "Local-network permission prompt, shown when the holder turns Remote Access on. The English source is the NSLocalNetworkUsageDescription value in the app Info.plist.",
       "extractionState" : "manual",
       "localizations" : {
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "RefineID käyttää lähiverkkoa laitteidesi turvalliseen yhdistämiseen henkilökorttitoimintoja varten."
+            "value" : "RefineID yhdistää puhelimen ja tietokoneen lähiverkossa, kun kortin etäkäyttö on päällä."
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "RefineID använder det lokala nätverket för att ansluta dina enheter säkert för identitetskortsfunktioner."
+            "value" : "RefineID ansluter telefonen och datorn via det lokala nätverket när fjärråtkomst till kortet är på."
           }
         }
       }

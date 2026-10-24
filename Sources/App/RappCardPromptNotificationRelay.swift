@@ -34,16 +34,16 @@
       super.init()
     }
 
+    /// Listens for the extension's card prompts.
+    ///
+    /// Asks macOS for nothing; permission is asked once a pairing succeeds
+    /// (``RemoteAccessPermissions/requestNotificationsIfUndecided()``).
     internal func start() {
       #if DEBUG
         guard !TestCredentialEnvironment.isTestMode else { return }
       #endif
       // The host RefineID application is the sole consumer of UserNotifications in this bundle.
-      let center = UNUserNotificationCenter.current()
-      center.delegate = self
-      center.requestAuthorization(options: [.alert]) { _, _ in
-        // Authorization requested for user notifications.
-      }
+      UNUserNotificationCenter.current().delegate = self
 
       distributedNeededObserver = DistributedNotificationCenter.default().addObserver(
         forName: Notification.Name(Self.cardNeededDarwinNotification),

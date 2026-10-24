@@ -140,6 +140,7 @@ extension RappPairingModel {
       selectedPairID = pair.pairID
       refresh()
       serveNewPairing()
+      Task { await RemoteAccessPermissions.requestNotificationsIfUndecided() }
       #if os(iOS)
         if isOffering {
           createOffer()

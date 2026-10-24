@@ -39,7 +39,7 @@
 		<string>_refineid-stream._udp</string>
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>RefineID uses the local network to connect your devices securely for identity-card operations.</string>
+	<string>RefineID connects your phone and computer over the local network while Remote Access is on.</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -128,7 +128,7 @@
 		</dict>
 	</array>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>RefineID uses Bluetooth to connect your devices securely for identity-card operations.</string>
+	<string>RefineID connects your phone and computer over Bluetooth while Remote Access is on.</string>
 	<key>RefineIDBuildSource</key>
 	<string>$(REFINEID_BUILD_SOURCE)</string>
 </dict>

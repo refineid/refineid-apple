@@ -41,11 +41,11 @@
 		<string>_refineid-stream._udp</string>
 	</array>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>RefineID uses Bluetooth to connect your devices securely for identity-card operations.</string>
+	<string>RefineID connects your phone and computer over Bluetooth while Remote Access is on.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>RefineID reads the access number printed on your card so you do not have to type it.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>RefineID uses the local network to connect your devices securely for identity-card operations.</string>
+	<string>RefineID connects your phone and computer over the local network while Remote Access is on.</string>
 	<!-- The phone serves its paired computers over Bluetooth from the
 	     background: the system wakes the app for each write a connected
 	     computer makes and relaunches it for them after it ended the

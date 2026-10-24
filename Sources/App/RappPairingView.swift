@@ -137,7 +137,6 @@ internal struct RappPairingView: View {
           if case .idle = model.phase {
             model.createOffer()
           }
-          await RemoteAccessPermissions.requestNotificationsIfUndecided()
 
         case .denied:
           remoteAccessEnabled = false
