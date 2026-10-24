@@ -106,10 +106,7 @@ internal enum ReaderSignature {
   ) throws -> Data {
     let operations = CardOperations(channel: channel)
     try operations.selectFineidApplication()
-    let (serial, pin1Outcome) = try Self.probePin1AndReadSerial(operations)
-    if !Pin1Retention.permitsHolding(after: pin1Outcome) {
-      token.acceptedPin1.clear(serial: serial)
-    }
+    let (serial, pin1Outcome) = try Self.probePin1AndReadSerial(operations, token: token)
 
     let raw: Data
     // A card already verified in this session signs without another VERIFY
@@ -216,11 +213,19 @@ internal enum ReaderSignature {
   /// PIN2 is used for qualified signatures and PUK for recovery. Reading
   /// either during authentication adds APDUs and unrelated failure modes
   /// without protecting PIN1.
+  ///
+  /// The probe first decides holding (``Pin1Retention``): one that forbids
+  /// it drops the token's accepted PIN at once, before any verdict. The
+  /// token serves one card, so the drop needs no serial.
   private static func probePin1AndReadSerial(
-    _ operations: CardOperations
+    _ operations: CardOperations,
+    token: Token
   ) throws -> (serial: TokenSerial, outcome: RetryProbeOutcome) {
     TokenLog.info("sign: PIN1 retry-floor probe")
     let outcome = try operations.probeRetryCounter(role: .pin1)
+    if !Pin1Retention.permitsHolding(after: outcome) {
+      token.acceptedPin1.clearAll()
+    }
     let verdict = RetryFloor.evaluate(probeOutcome: outcome)
     guard verdict == .proceed else {
       TokenLog.error(

@@ -22,36 +22,32 @@ internal struct FieldSignature {
     self.accessNumber = accessNumber
   }
 
-  /// Refuses before VERIFY PIN1 unless the PIN1 counter permits it, and
-  /// hands back the probe for the holding decision.
-  private static func requireRetryFloor(_ operations: CardOperations) throws -> RetryProbeOutcome {
+  /// Probes the PIN1 counter and admits the PIN, or refuses before VERIFY.
+  ///
+  /// The probe first decides holding (``Pin1Retention``): one that forbids
+  /// it drops the accepted memory at once, before any verdict. The retry
+  /// floor then refuses a counter it cannot spend. Last, a value reused
+  /// from the dropped memory is not sent: the holder is asked instead.
+  /// Returns whether PIN 1 may be held after this probe.
+  private func admit(
+    _ operations: CardOperations,
+    origin: AuthorizedPin1.Origin
+  ) throws -> Bool {
     let probe = try operations.probeRetryCounter(role: .pin1)
+    let mayHold = Pin1Retention.permitsHolding(after: probe)
+    if !mayHold {
+      VolatileAcceptedPin1.shared.clear(for: token.cardInstanceID)
+    }
     let verdict = RetryFloor.evaluate(probeOutcome: probe)
     guard verdict == .proceed else {
       TokenLog.error("sign: PIN1 retry floor refuses (\(verdict))")
       throw TokenError.signRefused
     }
-    return probe
-  }
-
-  /// Whether PIN 1 may be held after this probe.
-  ///
-  /// The rule is ``Pin1Retention``. A probe that forbids holding drops the
-  /// accepted memory, and a value reused from that memory is not sent: the
-  /// holder is asked instead.
-  private func holdPermitted(
-    after probe: RetryProbeOutcome,
-    origin: AuthorizedPin1.Origin
-  ) throws -> Bool {
-    if Pin1Retention.permitsHolding(after: probe) {
-      return true
-    }
-    VolatileAcceptedPin1.shared.clear(for: token.cardInstanceID)
-    if origin == .acceptedMemory {
+    if !mayHold, origin == .acceptedMemory {
       TokenLog.info("sign: PIN1 counter not pristine; reused PIN1 dropped, asking the holder")
       throw TokenError.authenticationRequired
     }
-    return false
+    return mayHold
   }
 
   /// Establishes the contactless channel and signs `request` in it.
@@ -113,7 +109,7 @@ internal struct FieldSignature {
     if let fingerprint, CredentialMemory.rejectedPins.isKnownRejected(fingerprint) {
       throw TokenError.pinAlreadyRejected
     }
-    let mayHold = try holdPermitted(after: Self.requireRetryFloor(operations), origin: origin)
+    let mayHold = try admit(operations, origin: origin)
     let pendingAcceptance: VolatileAcceptedPin1.PendingAcceptance? =
       mayHold
       ? VolatileAcceptedPin1.shared.prepareAcceptance(of: pin1, for: token.cardInstanceID)
