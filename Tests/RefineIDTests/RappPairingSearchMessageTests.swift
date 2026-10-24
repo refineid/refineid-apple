@@ -51,9 +51,8 @@ internal final class RappPairingSearchMessageTests: XCTestCase {
 
   internal func testAPhoneFoundButUnreachedIsNotCalledMissing() {
     let missing = String(localized: "No phone in pairing mode was found")
-    XCTAssertEqual(
-      RappPairingModel.failure(for: Reason.unreachable)?.message,
-      String(localized: "A phone in pairing mode was found but could not be reached"))
+    XCTAssertEqual(RappPairingModel.failure(for: Reason.unreachable), .unreachable)
+    XCTAssertNotEqual(RappPairingModel.Failure.unreachable.message, missing)
     XCTAssertEqual(RappPairingModel.failure(for: Reason.localNetworkDenied), .localNetworkDenied)
     let denied = RappPairingModel.Failure.localNetworkDenied.message
     XCTAssertNotEqual(denied, missing)
@@ -64,6 +63,23 @@ internal final class RappPairingSearchMessageTests: XCTestCase {
           macOS is blocking RefineID from the local network. Allow it in \
           System Settings › Privacy & Security › Local Network.
           """))
+  }
+
+  internal func testAnUnreachedPhoneSaysWhatToCheck() {
+    XCTAssertEqual(
+      RappPairingModel.Failure.unreachable.message,
+      String(
+        localized: """
+          Could not connect to the phone. Check that the phone and this Mac \
+          are on the same network and that RefineID is allowed to use the \
+          local network.
+          """))
+  }
+
+  internal func testOnlyNetworkFailuresOfferTheSettings() {
+    XCTAssertTrue(RappPairingModel.Failure.localNetworkDenied.opensNetworkSettings)
+    XCTAssertTrue(RappPairingModel.Failure.unreachable.opensNetworkSettings)
+    XCTAssertFalse(RappPairingModel.Failure.reported(Self.notAccepted).opensNetworkSettings)
   }
 
   internal func testALocalCloseShowsNothing() {

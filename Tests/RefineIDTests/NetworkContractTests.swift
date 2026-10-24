@@ -62,13 +62,18 @@ internal struct NetworkContractTests {
   /// service builds; the probes are debug-only; the detector runs a
   /// link-local Bonjour self-check; the Mac's permission watch browses
   /// only once the holder turns remote use on, and reads no record
-  /// (hierarchy specification §5.2, STPA CC-96).
+  /// (hierarchy specification §5.2, STPA CC-96). The local-network probe
+  /// opens UDP connections, which send nothing, to the addresses of the
+  /// service the stream dialer is dialling, and the verdict only reads
+  /// their states.
   @Test
   internal func trafficCapableApiSetIsListed() throws {
     let actual = try Self.files(
       containingAny: ["URLSession", "NWConnection", "NWListener", "NWBrowser"]
     )
     let expected: Set<String> = [
+      "CardCore/Sources/CardCore/LocalNetworkProbe.swift",
+      "CardCore/Sources/CardCore/LocalNetworkVerdict.swift",
       "CardCore/Sources/CardCore/StreamRelayBrowser.swift",
       "CardCore/Sources/CardCore/StreamRelayListener.swift",
       "CardCore/Sources/CardCore/StreamRelayPresence.swift",

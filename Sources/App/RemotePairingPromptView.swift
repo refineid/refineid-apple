@@ -80,8 +80,8 @@
             .accessibilityLabel(Text(String(localized: "Connecting to the phone")))
         }
       }
-      if model.phase == .failed(.localNetworkDenied) {
-        LocalNetworkDeniedNotice()
+      if case .failed(let failure) = model.phase, failure.opensNetworkSettings {
+        LocalNetworkNotice(message: failure.message)
       } else if let failure {
         Text(failure)
           .foregroundStyle(.red)

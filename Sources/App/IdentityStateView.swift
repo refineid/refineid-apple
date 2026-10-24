@@ -203,7 +203,7 @@
         RemotePairingPromptView()
 
       case .localNetworkDenied:
-        LocalNetworkDeniedNotice()
+        LocalNetworkNotice(message: LocalNetworkSettings.deniedMessage)
       }
     }
 

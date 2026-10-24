@@ -3,7 +3,6 @@
 import Foundation
 
 #if canImport(Network)
-  import dnssd
   import Network
 
   /// A single TCP dialer for the `fi.refineid.stream` transport profile.
@@ -43,8 +42,9 @@ import Foundation
     private var isReady = false
     private var isFinished = false
     private var service: NWEndpoint?
-    /// Whether the platform denied any dial the local network.
-    private var sawLocalNetworkDenial = false
+    /// Asks whether the addresses behind `service` may be reached; the
+    /// service dial itself never says (see ``LocalNetworkProbe``).
+    private var localNetworkProbe: LocalNetworkProbe?
 
     /// Builds a dialer over the listener's address literals.
     ///
@@ -131,14 +131,10 @@ import Foundation
     /// Dials the next endpoint, or ends the session once none is left.
     ///
     /// A denial of the local network is the app's, not the endpoint's: no
-    /// further dial would open, so the session ends as soon as one dial
-    /// saw it.
+    /// further dial would open, so the session ends as soon as a dial or
+    /// the probe sees it.
     private func dialNext() {
       guard !isFinished else { return }
-      guard !sawLocalNetworkDenial else {
-        finishUnopened()
-        return
-      }
       let dialed: NWConnection
       if let service {
         guard nextEndpointIndex < Self.serviceAttempts else {
@@ -147,6 +143,7 @@ import Foundation
         }
         nextEndpointIndex += 1
         dialed = NWConnection(to: service, using: .tcp)
+        probeLocalNetwork(behind: service)
       } else {
         guard nextEndpointIndex < endpoints.count else {
           finishUnopened()
@@ -181,7 +178,6 @@ import Foundation
     private func waitOut(attempt: Int, connection: NWConnection) {
       queue.asyncAfter(deadline: .now() + Self.attemptSeconds) { [weak self] in
         guard let self, attempt == generation, !isFinished, !isReady else { return }
-        noteLocalNetworkDenial(on: connection, error: nil)
         connection.cancel()
         dialNext()
       }
@@ -200,6 +196,8 @@ import Foundation
           return
         }
         isReady = true
+        localNetworkProbe?.cancel()
+        localNetworkProbe = nil
         connection.send(
           content: framedPreamble,
           completion: .contentProcessed { [weak self] error in
@@ -210,13 +208,8 @@ import Foundation
         onEvent(.connected)
         receiveLengthPrefix(attempt: attempt, connection: connection)
 
-      case .waiting(let error):
-        // The dial's own deadline decides when to move on.
-        noteLocalNetworkDenial(on: connection, error: error)
-
-      case .failed(let error):
-        noteLocalNetworkDenial(on: connection, error: error)
-        handleDialFailed(isReady: isReady, connection: connection)
+      case .waiting(let error), .failed(let error):
+        handleTrouble(state, error: error, connection: connection)
 
       case .cancelled:
         finish(.cancelled)
@@ -229,22 +222,9 @@ import Foundation
       }
     }
 
-    /// Records whether the platform refuses this dial the local network:
-    /// its path is unsatisfied for that reason, or name resolution waits on
-    /// `kDNSServiceErr_PolicyDenied` (Apple TN3179, "Understanding local
-    /// network privacy").
-    private func noteLocalNetworkDenial(on connection: NWConnection, error: NWError?) {
-      if connection.currentPath?.unsatisfiedReason == .localNetworkDenied {
-        sawLocalNetworkDenial = true
-      }
-      if case .dns(let code)? = error, Int(code) == kDNSServiceErr_PolicyDenied {
-        sawLocalNetworkDenial = true
-      }
-    }
-
     /// Ends a session none of whose dials opened.
     private func finishUnopened() {
-      finish(sawLocalNetworkDenial ? .localNetworkDenied : .unreachable)
+      finish(.unreachable)
     }
 
     private func handleDialFailed(isReady: Bool, connection: NWConnection) {
@@ -311,10 +291,43 @@ import Foundation
       }
     }
 
+    /// Starts the session's one probe of the addresses behind `service`.
+    private func probeLocalNetwork(behind service: NWEndpoint) {
+      guard localNetworkProbe == nil else { return }
+      let probe = LocalNetworkProbe(service: service, queue: queue) { [weak self] verdict in
+        guard let self, verdict == .denied else { return }
+        endDenied()
+      }
+      localNetworkProbe = probe
+      probe.start()
+    }
+
+    /// Ends a dial that is not ready and that the platform refuses the
+    /// local network; otherwise a failed dial moves on, and a waiting one is
+    /// given until its deadline.
+    private func handleTrouble(
+      _ state: NWConnection.State, error: NWError, connection: NWConnection
+    ) {
+      if !isReady, LocalNetworkVerdict.of(connection, in: state, error: error) == .denied {
+        endDenied()
+      } else if case .failed = state {
+        handleDialFailed(isReady: isReady, connection: connection)
+      }
+    }
+
+    /// Ends a session that has not opened once the platform refuses it
+    /// the local network: no further dial would open.
+    private func endDenied() {
+      guard !isFinished, !isReady else { return }
+      finish(.localNetworkDenied)
+    }
+
     private func finish(_ error: StreamRelayTransportError) {
       guard !isFinished else { return }
       isFinished = true
       generation += 1
+      localNetworkProbe?.cancel()
+      localNetworkProbe = nil
       connection?.cancel()
       connection = nil
       onEvent(.closed(error))

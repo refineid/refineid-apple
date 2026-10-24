@@ -39,6 +39,27 @@ internal enum LocalNetworkSettings {
     #endif
   }
 
+  /// What the app says when a phone it found cannot be reached: on the
+  /// Mac the usual causes are the local-network permission and a phone on
+  /// another network, so it names both.
+  internal static var unreachableMessage: String {
+    #if os(macOS)
+      String(
+        localized: """
+          Could not connect to the phone. Check that the phone and this Mac \
+          are on the same network and that RefineID is allowed to use the \
+          local network.
+          """)
+    #else
+      String(
+        localized: """
+          Could not connect to the phone. Check that the phone and this \
+          device are on the same network and that RefineID is allowed to \
+          use the local network.
+          """)
+    #endif
+  }
+
   /// Opens the settings where the holder allows the local network: on the
   /// Mac the Privacy & Security pane, elsewhere this app's own settings,
   /// which carry its Local Network switch.

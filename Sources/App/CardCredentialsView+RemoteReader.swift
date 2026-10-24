@@ -76,14 +76,14 @@ import SwiftUI
           PhoneCardRequestLine(request: request)
         }
         if case .failed(let failure) = pairingModel.phase {
-          if failure == .localNetworkDenied {
-            LocalNetworkDeniedNotice()
+          if failure.opensNetworkSettings {
+            LocalNetworkNotice(message: failure.message)
           } else {
             Text(failure.message)
               .foregroundStyle(.secondary)
           }
         } else if PersistentTokenRegistry.shared.localNetworkDenied {
-          LocalNetworkDeniedNotice()
+          LocalNetworkNotice(message: LocalNetworkSettings.deniedMessage)
         }
         if remoteModel.phase == .failed {
           Text(remoteModel.failureText ?? String(localized: "The remote card could not be read."))
