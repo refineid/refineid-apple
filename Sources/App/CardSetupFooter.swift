@@ -103,7 +103,7 @@ internal struct CardSetupFooter: View {
           .background(.bar)
         }
       #endif
-      #if os(iOS) && (DEBUG || TESTFLIGHT)
+      #if DEBUG && os(iOS)
         NavigationLink {
           CardTimingView()
         } label: {

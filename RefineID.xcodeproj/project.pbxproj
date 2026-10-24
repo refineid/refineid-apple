@@ -805,7 +805,6 @@
 				RUN_CLANG_STATIC_ANALYZER = YES;
 				SDKROOT = macosx;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "TESTFLIGHT $(inherited)";
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_SUPPRESS_WARNINGS = NO;
@@ -943,6 +942,10 @@
 					DiagnosticsClipboard.swift,
 					DiagnosticsSnapshot.swift,
 					DiagnosticsView.swift,
+					CardTimingProbe.swift,
+					CardTimingView.swift,
+					PaceTimingCommand.swift,
+					PaceTimingValues.swift,
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config/RefineID-iOS-Info.plist";
