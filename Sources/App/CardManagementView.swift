@@ -126,9 +126,10 @@ internal struct CardManagementView: View {
         .frame(minWidth: windowWidth)
       #else
         .navigationTitle(
-          awaitsActivation ? "RefineID" : "Personal Identification Numbers"
+          awaitsActivation
+            ? Text(verbatim: "") : Text("Personal Identification Numbers")
         )
-        .navigationBarTitleDisplayMode(awaitsActivation ? .large : .inline)
+        .navigationBarTitleDisplayMode(.inline)
       #endif
       #if os(macOS)
         .safeAreaInset(edge: .bottom, spacing: 0) {
