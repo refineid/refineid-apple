@@ -53,6 +53,24 @@ PACE. Core NFC is also unavailable to extensions and allows one reader
 session in the system, so it would be a second NFC stack beside the slot
 the token extension signs through.
 
+## The PIN prompt
+
+A paired computer's request that needs a PIN the phone does not hold
+shows one system alert. Its title names the act and its one sentence
+names the computer by its display name, as given:
+
+- **Authentication.** Title "Authentication", "%@ asks you to
+  authenticate.", a "PIN 1" field.
+- **Signature.** Title "Signature", "%@ asks you to sign %@." with the
+  document name, a "PIN 2" field. A batch says "%@ asks you to sign the
+  documents %@." with its names as a list in signing order, and a request
+  without a document name "%@ asks you to sign.".
+
+The buttons are "Cancel" and "OK". When the card refused the PIN entered
+last, the card's notice stands above the sentence. The time-sensitive
+notification that comes with the prompt carries the same title and
+sentence.
+
 ## A computer that withdraws or forgets the phone
 
 A paired computer that a card in its own reader suspends, or that quits,

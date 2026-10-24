@@ -15,16 +15,16 @@
     /// One signature names its document and a batch its whole list. An
     /// authentication names only the computer, never the requester's
     /// context (§11 item 1).
-    private static func promptContext(for operation: RappOperationDriver.Operation) -> String? {
+    private static func promptDocuments(for operation: RappOperationDriver.Operation) -> [String] {
       switch operation.kind {
       case .batchSignDocuments:
-        return operation.documentNames.joined(separator: "\n")
+        return operation.documentNames
 
       case .signDocument:
-        return operation.displayContext
+        return operation.displayContext.map { [$0] } ?? []
 
       default:
-        return nil
+        return []
       }
     }
 
@@ -93,7 +93,7 @@
         requestID: requestID(for: operationID),
         requester: requesterName,
         action: action,
-        displayContext: Self.promptContext(for: operation),
+        documentNames: Self.promptDocuments(for: operation),
         notice: notice
       )
       // A warm near field's system sheet would cover the prompt: the field

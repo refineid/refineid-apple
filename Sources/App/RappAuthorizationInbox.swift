@@ -110,18 +110,8 @@
       guard SupportedCardTransports.offersNearField else { return }
       let center = UNUserNotificationCenter.current()
       let content = UNMutableNotificationContent()
-      content.title = "RefineID"
-      switch request.action {
-      case .browserAuthentication:
-        content.body = String(
-          localized: "Sign-in requested by \(request.requester). Tap to approve & present card."
-        )
-      case .documentSignature:
-        content.body = String(
-          localized:
-            "Document signature requested by \(request.requester). Tap to approve & present card."
-        )
-      }
+      content.title = request.title
+      content.body = request.message
       content.sound = .default
       // The paired computer is waiting now; a Focus may still silence
       // it, since the holder can turn Time Sensitive off per Focus.
