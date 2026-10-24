@@ -52,6 +52,12 @@ extension RappPairingView {
       Section {
         LocalNetworkNotice(message: failure.message)
       }
+    case .failed(.locked(let until)):
+      Section {
+        TimelineView(.periodic(from: .now, by: PairingLockCountdown.tick)) { context in
+          failedCard(reason: PairingLockCountdown.message(until: until, at: context.date))
+        }
+      }
     case .failed(let failure):
       Section {
         failedCard(reason: failure.message)
