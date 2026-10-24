@@ -84,14 +84,10 @@ internal enum QualifiedSignature {
     do {
       try operations.verifyPin2(pin2.consumeForSingleTransmission())
     } catch CardOperationError.pinRejected {
-      token.endInstanceAfterPinRejection(
-        serial: serial,
-        fingerprint: fingerprint)
+      token.forgetPinAfterRefusal(fingerprint: fingerprint)
       throw TokenError.pinRejected
     } catch CardOperationError.pinBlocked {
-      token.endInstanceAfterPinRejection(
-        serial: serial,
-        fingerprint: fingerprint)
+      token.forgetPinAfterRefusal(fingerprint: fingerprint)
       throw TokenError.pinRejected
     } catch CardOperationError.credentialInvalidated {
       // A never-activated signature slot: not a wrong PIN, not a card

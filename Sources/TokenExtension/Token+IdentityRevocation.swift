@@ -4,21 +4,21 @@ import CardCore
 
 /// What a confirmed refusal by the card ends.
 extension Token {
-  /// Ends this token instance after the card refused a PIN the holder
-  /// typed.
+  /// Forgets a PIN the card refused, and keeps the token.
   ///
-  /// The PIN memory goes and the refused value is remembered so it is never
-  /// sent again; the stored identity stays, because a PIN is never stored
-  /// and the card the phone holds has not left it (RAPP v26.10.22 §8.4 item
-  /// 1, §11 item 2). Transport loss, PACE failure, malformed signatures and
-  /// TLS errors do not come here; only the card's VERIFY response does.
-  internal func endInstanceAfterPinRejection(
-    serial: TokenSerial,
-    fingerprint: PinFingerprint
-  ) {
-    revokeCurrentInstance()
+  /// The refused value is remembered so it is never sent again, and every
+  /// held PIN of this token goes; the token itself stays live, so the
+  /// system's next prompt reaches a card that can still answer, and the
+  /// retry floor decides from the counter whether an attempt may be sent
+  /// at all. The stored identity stays, because a PIN is never stored and
+  /// the card has not left (RAPP v26.10.22 section 8.4 item 1, section 11
+  /// item 2). Transport loss, PACE failure, malformed signatures and TLS
+  /// errors do not come here; only the card's VERIFY response does.
+  internal func forgetPinAfterRefusal(fingerprint: PinFingerprint) {
     CredentialMemory.rejectedPins.recordRejection(fingerprint)
-    acceptedPin1.clear(serial: serial)
+    acceptedPin1.clearAll()
+    VolatileAcceptedPin1.shared.clear(for: cardInstanceID)
+    TransientCandidatePin1.shared.clear(for: cardInstanceID)
   }
 
   /// Revokes the complete automatic identity after PACE proves that the

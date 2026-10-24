@@ -117,12 +117,11 @@ internal struct FieldSignature {
     do {
       try operations.verifyPin1(pin1.consumeForSingleTransmission())
     } catch CardOperationError.pinRejected, CardOperationError.pinBlocked {
-      TransientCandidatePin1.shared.clear(for: token.cardInstanceID)
-      VolatileAcceptedPin1.shared.clear(for: token.cardInstanceID)
-      if let serial = token.primedSerial, let fingerprint {
-        token.endInstanceAfterPinRejection(
-          serial: serial,
-          fingerprint: fingerprint)
+      if let fingerprint {
+        token.forgetPinAfterRefusal(fingerprint: fingerprint)
+      } else {
+        TransientCandidatePin1.shared.clear(for: token.cardInstanceID)
+        VolatileAcceptedPin1.shared.clear(for: token.cardInstanceID)
       }
       throw TokenError.pinRejected
     } catch {

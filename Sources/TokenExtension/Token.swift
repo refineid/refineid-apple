@@ -82,8 +82,9 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
 
   /// Stable public identity of the physical card represented by this token.
   ///
-  /// This is also the revocation boundary: a confirmed CAN, PIN1, or PIN2
-  /// rejection bankrupts this live token and its stored registration.
+  /// This is also the revocation boundary: a PACE failure that proves the
+  /// stored card access number cannot open this card ends this live token
+  /// and its stored registration. A refused PIN forgets the PIN only.
   internal let cardInstanceID: CardInstanceIdentifier
 
   /// The underlying smart card instance provided by CryptoTokenKit.

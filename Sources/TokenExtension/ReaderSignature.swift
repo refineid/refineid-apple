@@ -189,14 +189,10 @@ internal enum ReaderSignature {
     do {
       try operations.verifyPin1(pin1.consumeForSingleTransmission())
     } catch CardOperationError.pinRejected {
-      token.endInstanceAfterPinRejection(
-        serial: serial,
-        fingerprint: fingerprint)
+      token.forgetPinAfterRefusal(fingerprint: fingerprint)
       throw TokenError.pinRejected
     } catch CardOperationError.pinBlocked {
-      token.endInstanceAfterPinRejection(
-        serial: serial,
-        fingerprint: fingerprint)
+      token.forgetPinAfterRefusal(fingerprint: fingerprint)
       throw TokenError.pinRejected
     }
 
