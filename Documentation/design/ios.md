@@ -81,8 +81,8 @@ step that broke. The sheet shows no other sentence while it works.
 | Operation | Name | Steps |
 | --- | --- | --- |
 | First setup | "Read Identity Card" | card found, secure channel, certificate, stored, registered |
-| Browser authentication for a computer | "Authentication" | card found, secure channel, PIN, signature |
-| Signature with PIN 2, local or for a computer | "Signature" | card found, secure channel, PIN, signature |
+| Browser authentication for a computer | "Authentication" | card found, secure channel, certificate, PIN, signature |
+| Signature with PIN 2, local or for a computer | "Signature" | card found, secure channel, certificate, PIN, signature |
 | Certificate read for a computer | "Identity" | card found, secure channel, certificate |
 | Retry counters and activation state | "Card status" | card found, secure channel, certificate |
 | Activation | "Card activation" | card found, secure channel, PIN |

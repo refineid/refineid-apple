@@ -29,6 +29,9 @@ internal struct NearFieldMeterTests {
   /// Seconds left in a security delay the countdown shows.
   private static let countdownSeconds = 30
 
+  /// Longer than one countdown tick.
+  private static let pastOneTick: Duration = .milliseconds(1_500)
+
   /// The row of `markers`, drawn as the meter draws it.
   private static func row(_ markers: [String]) -> String {
     markers.joined(separator: NearFieldMeter.markerGap)
@@ -45,10 +48,9 @@ internal struct NearFieldMeterTests {
       NearFieldOperation.setup.steps == [
         .found, .secureChannel, .certificate, .stored, .registered,
       ])
-    #expect(
-      NearFieldOperation.authentication.steps == [.found, .secureChannel, .credential, .signature])
-    #expect(
-      NearFieldOperation.signature.steps == [.found, .secureChannel, .credential, .signature])
+    for signing in [NearFieldOperation.authentication, .signature] {
+      #expect(signing.steps == [.found, .secureChannel, .certificate, .credential, .signature])
+    }
     #expect(NearFieldOperation.identity.steps == [.found, .secureChannel, .certificate])
     #expect(NearFieldOperation.cardStatus.steps == [.found, .secureChannel, .certificate])
     for credential in [
@@ -78,21 +80,21 @@ internal struct NearFieldMeterTests {
   internal func reachFillsTheRow() {
     var meter = NearFieldMeter(.authentication)
     meter.reach(.secureChannel)
-    #expect(meter.states == [.done, .running, .waiting, .waiting])
+    #expect(meter.states == [.done, .running, .waiting, .waiting, .waiting])
     #expect(
       meter.text
         == Self.message(
           [
             NearFieldMeter.reached, NearFieldMeter.reached,
-            NearFieldMeter.waiting, NearFieldMeter.waiting,
+            NearFieldMeter.waiting, NearFieldMeter.waiting, NearFieldMeter.waiting,
           ],
           .authentication))
     meter.advance()
-    #expect(meter.states == [.done, .done, .running, .waiting])
+    #expect(meter.states == [.done, .done, .running, .waiting, .waiting])
     meter.reach(.found)
-    #expect(meter.states == [.done, .done, .running, .waiting])
+    #expect(meter.states == [.done, .done, .running, .waiting, .waiting])
     meter.reach(.stored)
-    #expect(meter.states == [.done, .done, .running, .waiting])
+    #expect(meter.states == [.done, .done, .running, .waiting, .waiting])
   }
 
   @Test("A finished meter is every ball blue")
@@ -113,16 +115,27 @@ internal struct NearFieldMeterTests {
     var meter = NearFieldMeter(.signature)
     meter.reach(.credential)
     meter.fail(at: .signature)
-    #expect(meter.states == [.done, .done, .done, .failed])
+    #expect(meter.states == [.done, .done, .done, .done, .failed])
     #expect(
       meter.markers
         == Self.row([
-          NearFieldMeter.reached, NearFieldMeter.reached,
+          NearFieldMeter.reached, NearFieldMeter.reached, NearFieldMeter.reached,
           NearFieldMeter.reached, NearFieldMeter.failed,
         ]))
     meter.reach(.signature)
     meter.finish()
-    #expect(meter.states == [.done, .done, .done, .failed])
+    #expect(meter.states == [.done, .done, .done, .done, .failed])
+  }
+
+  @Test("A signing operation that breaks at the certificate leaves the PIN white")
+  internal func signingBrokenBeforeThePin() {
+    for signing in [NearFieldOperation.authentication, .signature] {
+      var meter = NearFieldMeter(signing)
+      meter.reach(.secureChannel)
+      meter.advance()
+      meter.fail(at: .certificate)
+      #expect(meter.states == [.done, .done, .failed, .waiting, .waiting])
+    }
   }
 
   @Test("A failure at no step, or at a step the operation lacks, breaks the running step")
@@ -130,12 +143,12 @@ internal struct NearFieldMeterTests {
     var unnamed = NearFieldMeter(.authentication)
     unnamed.reach(.credential)
     unnamed.fail(at: nil)
-    #expect(unnamed.states == [.done, .done, .failed, .waiting])
+    #expect(unnamed.states == [.done, .done, .done, .failed, .waiting])
 
-    var foreign = NearFieldMeter(.authentication)
+    var foreign = NearFieldMeter(.changePin1)
     foreign.reach(.secureChannel)
     foreign.fail(at: .certificate)
-    #expect(foreign.states == [.done, .failed, .waiting, .waiting])
+    #expect(foreign.states == [.done, .failed, .waiting])
   }
 
   @Test("The recovery countdown follows the balls, and ends as the balls alone")
@@ -146,6 +159,21 @@ internal struct NearFieldMeterTests {
       meter.recoveryText(remainingSeconds: Self.countdownSeconds)
         == meter.markers + NearFieldMeter.textGap + "\(Self.countdownSeconds)s")
     #expect(meter.recoveryText(remainingSeconds: .zero) == meter.markers)
+  }
+
+  @Test("A stopped countdown draws nothing after the next change")
+  internal func stoppedCountdownStaysQuiet() async throws {
+    let drawing = Drawing()
+    let sheet = NearFieldSheet(.setup) { text in drawing.draw(text) }
+    sheet.reach(.secureChannel)
+    sheet.startRecovery()
+    #expect(
+      drawing.lines.last
+        == sheet.current.recoveryText(remainingSeconds: NearFieldSheet.defaultRecoverySeconds))
+    sheet.stopRecovery()
+    sheet.reach(.certificate)
+    try await Task.sleep(for: Self.pastOneTick)
+    #expect(drawing.lines.last == sheet.current.text)
   }
 
   @Test("The sheet redraws the meter on every change, and the sentence after a failure")

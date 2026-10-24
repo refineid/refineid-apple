@@ -10,8 +10,12 @@ import Foundation
 /// card work runs on its own queue and reports from there, so the meter
 /// lives behind a lock.
 ///
-/// `@unchecked Sendable` is the audit: the meter and the timer are touched
-/// only under the lock, and `draw` is itself safe to call from any thread.
+/// Every draw happens under the lock, so a countdown tick cannot land
+/// after a later change and leave a stale message on the sheet.
+///
+/// `@unchecked Sendable` is the audit: the meter, the timer and every
+/// draw happen only under the lock, and `draw` is itself safe to call
+/// from any thread.
 internal final class NearFieldSheet: @unchecked Sendable {
   /// Estimated length of a card's anti-tamper delay, in seconds.
   internal static let defaultRecoverySeconds: Int = 45
@@ -26,6 +30,10 @@ internal final class NearFieldSheet: @unchecked Sendable {
   private var meter: NearFieldMeter
   private var recoveryTimer: DispatchSourceTimer?
   private var recoverySecondsLeft = 0
+
+  /// Which countdown is current; a start or a stop moves it on, so a tick
+  /// of an earlier countdown is recognised and dropped.
+  private var recoveryGeneration = 0
 
   /// The meter drawn now.
   internal var current: NearFieldMeter {
@@ -78,7 +86,7 @@ internal final class NearFieldSheet: @unchecked Sendable {
   /// a meter and a reason together cost the reason.
   internal func fail(at step: NearFieldStep?, saying sentence: String) {
     fail(at: step)
-    draw(sentence)
+    lock.withLock { draw(sentence) }
   }
 
   /// Counts down the estimated length of a card's anti-tamper delay
@@ -88,25 +96,18 @@ internal final class NearFieldSheet: @unchecked Sendable {
     let estimatedSeconds = Self.defaultRecoverySeconds
     let timer = DispatchSource.makeTimerSource(
       queue: DispatchQueue(label: "fi.refineid.nearfield.recovery"))
-    let drawn: String = lock.withLock {
+    timer.schedule(deadline: .now() + Self.recoveryTick, repeating: Self.recoveryTick)
+    let generation: Int = lock.withLock {
       recoveryTimer?.cancel()
       recoveryTimer = timer
+      recoveryGeneration += 1
       recoverySecondsLeft = estimatedSeconds
-      return meter.recoveryText(remainingSeconds: estimatedSeconds)
+      draw(meter.recoveryText(remainingSeconds: estimatedSeconds))
+      return recoveryGeneration
     }
-    timer.schedule(deadline: .now() + Self.recoveryTick, repeating: Self.recoveryTick)
     timer.setEventHandler { [weak self] in
-      guard let self else { return }
-      let text: String? = lock.withLock {
-        recoverySecondsLeft -= 1
-        return recoverySecondsLeft >= 0
-          ? meter.recoveryText(remainingSeconds: recoverySecondsLeft) : nil
-      }
-      if let text {
-        draw(text)
-      }
+      self?.tick(of: generation)
     }
-    draw(drawn)
     timer.resume()
   }
 
@@ -115,15 +116,25 @@ internal final class NearFieldSheet: @unchecked Sendable {
     lock.withLock {
       recoveryTimer?.cancel()
       recoveryTimer = nil
+      recoveryGeneration += 1
+    }
+  }
+
+  /// One second of the countdown `generation`; a tick already queued
+  /// when that countdown stopped or restarted draws nothing.
+  private func tick(of generation: Int) {
+    lock.withLock {
+      guard generation == recoveryGeneration, recoverySecondsLeft > 0 else { return }
+      recoverySecondsLeft -= 1
+      draw(meter.recoveryText(remainingSeconds: recoverySecondsLeft))
     }
   }
 
   private func change(_ body: (inout NearFieldMeter) -> Void) {
-    let drawn: String = lock.withLock {
+    lock.withLock {
       body(&meter)
-      return meter.text
+      draw(meter.text)
     }
-    draw(drawn)
   }
 
   deinit {

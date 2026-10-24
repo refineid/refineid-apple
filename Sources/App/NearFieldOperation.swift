@@ -42,7 +42,7 @@ internal enum NearFieldOperation: Sendable, Equatable, CaseIterable {
       [.found, .secureChannel, .certificate, .stored, .registered]
 
     case .authentication, .signature:
-      [.found, .secureChannel, .credential, .signature]
+      [.found, .secureChannel, .certificate, .credential, .signature]
 
     case .cardStatus, .identity:
       [.found, .secureChannel, .certificate]

@@ -97,7 +97,7 @@
         DispatchQueue.global(qos: .userInitiated).async {
           let answer = try? held.withCardSession { channel -> ConnectionSnapshotResult in
             let result = snapshotFromChannel(
-              channel, cardAccessNumber: cardAccessNumber, atrScheme: atrScheme)
+              channel, cardAccessNumber: cardAccessNumber, atrScheme: atrScheme, sheet: sheet)
             guard case .connected(var snapshot) = result else { return result }
             snapshot.answerToReset = held.answerToReset
             return .connected(snapshot)
@@ -137,7 +137,8 @@
               snapshotFromChannel(
                 channel,
                 cardAccessNumber: cardAccessNumber,
-                atrScheme: candidate.atrScheme
+                atrScheme: candidate.atrScheme,
+                sheet: nil
               )
             }
             switch answer {
@@ -154,15 +155,20 @@
       }
     }
 
+    /// The snapshot read over `channel`; `sheet`, when the phone's own
+    /// antenna holds the card, moves past the secure channel once it is
+    /// open.
     private static func snapshotFromChannel(
       _ channel: SmartCardChannel,
       cardAccessNumber: String?,
-      atrScheme: ActivationScheme?
+      atrScheme: ActivationScheme?,
+      sheet: NearFieldSheet?
     ) -> ConnectionSnapshotResult {
       do {
         let operations = try connectionOperations(
           over: channel,
           cardAccessNumber: cardAccessNumber)
+        sheet?.advance()
         let certificateScheme = classifyScheme(operations)
         guard let scheme = certificateScheme ?? atrScheme else {
           return .failed
@@ -208,7 +214,7 @@
           DispatchQueue.global(qos: .userInitiated).async {
             let report = try? held.withCardSession { channel -> DebugModeReport in
               debugReportFromChannel(
-                channel, cardAccessNumber: cardAccessNumber, atrScheme: atrScheme)
+                channel, cardAccessNumber: cardAccessNumber, atrScheme: atrScheme, sheet: sheet)
             }
             if report?.succeeded == true {
               sheet.finish()
@@ -227,12 +233,14 @@
       private static func debugReportFromChannel(
         _ channel: SmartCardChannel,
         cardAccessNumber: String,
-        atrScheme: ActivationScheme?
+        atrScheme: ActivationScheme?,
+        sheet: NearFieldSheet
       ) -> DebugModeReport {
         do {
           let operations = try connectionOperations(
             over: channel,
             cardAccessNumber: cardAccessNumber)
+          sheet.advance()
           let certificateScheme = classifyScheme(operations)
           let pin1Record = try? operations.readPinChangeRecord(role: .pin1)
           let pin2Record = try? operations.readPinChangeRecord(role: .pin2)

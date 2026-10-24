@@ -39,31 +39,34 @@
       defer { session.end() }
       let sheet = session.meter(.cardStatus)
       let accessNumber = CardCredentialStore.cardAccessNumber()
-      let lines = await Self.onCardQueue {
-        Self.measure(session: session, accessNumber: accessNumber)
+      return await Self.onCardQueue {
+        Self.measure(session: session, sheet: sheet, accessNumber: accessNumber)
       }
-      sheet.finish()
-      return lines
     }
 
-    /// The whole measurement, inside the card's exclusive session.
+    /// The whole measurement, inside the card's exclusive session; the
+    /// sheet finishes only when PACE completed.
     private static func measure(
       session: NearFieldCardSession,
+      sheet: NearFieldSheet,
       accessNumber: CardAccessNumber?
     ) -> [String] {
       do {
         return try session.withCardSession { channel in
           var lines = Self.advertised(channel: channel)
           guard let accessNumber else {
+            sheet.fail(at: .secureChannel)
             lines.append("")
             lines.append("pace: not run, no card access number stored")
             return lines
           }
           lines.append("")
-          lines.append(contentsOf: Self.paceTiming(channel: channel, accessNumber: accessNumber))
+          lines.append(
+            contentsOf: Self.paceTiming(channel: channel, sheet: sheet, accessNumber: accessNumber))
           return lines
         }
       } catch {
+        sheet.fail(at: nil)
         return ["card session failed: \(error)"]
       }
     }
@@ -126,6 +129,7 @@
     /// One PACE run, timed end to end.
     private static func paceTiming(
       channel: some CardChannel,
+      sheet: NearFieldSheet,
       accessNumber: CardAccessNumber
     ) -> [String] {
       // PACE runs from the main file, and the read above left it
@@ -134,8 +138,10 @@
       do {
         _ = try PaceEstablishment(channel: channel).establish(with: accessNumber)
       } catch {
+        sheet.fail(at: .secureChannel)
         return ["pace: failed after \(Self.since(started)) ms: \(error)"]
       }
+      sheet.finish()
       return [
         "pace: \(Self.runningSuite) completed in \(Self.since(started)) ms",
         "pace: per-command timings are in the extension trace above",
