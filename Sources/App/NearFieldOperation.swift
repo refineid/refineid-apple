@@ -52,38 +52,32 @@ internal enum NearFieldOperation: Sendable, Equatable, CaseIterable {
     }
   }
 
-  /// The operation's name, the one line of text the meter carries.
+  /// The operation's name in progressive form, the meter's first line.
   internal var title: String {
     switch self {
     case .activation:
-      String(localized: "Card activation")
+      String(localized: "Activating Card")
 
     case .authentication:
-      String(localized: "Authentication")
+      String(localized: "Authenticating")
 
-    case .cardStatus:
-      String(localized: "Card status")
+    case .cardStatus, .identity, .setup:
+      String(localized: "Reading Identity Card")
 
     case .changePin1:
-      String(localized: "Change PIN 1")
+      String(localized: "Changing PIN 1")
 
     case .changePin2:
-      String(localized: "Change PIN 2")
-
-    case .identity:
-      String(localized: "Identity")
+      String(localized: "Changing PIN 2")
 
     case .resetPin1:
-      String(localized: "Reset PIN 1")
+      String(localized: "Resetting PIN 1")
 
     case .resetPin2:
-      String(localized: "Reset PIN 2")
-
-    case .setup:
-      String(localized: "Read Identity Card")
+      String(localized: "Resetting PIN 2")
 
     case .signature:
-      String(localized: "Signature")
+      String(localized: "Signing")
     }
   }
 }

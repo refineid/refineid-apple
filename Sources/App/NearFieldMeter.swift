@@ -2,15 +2,13 @@
 
 import Foundation
 
-/// The progress meter drawn inside the system NFC sheet: one ball per
-/// step of the operation, then the operation's name.
+/// The progress meter drawn inside the system NFC sheet: the operation's
+/// name on the first line, one ball per step on the second.
 ///
 /// The sheet is where the holder is looking -- the card is against the
 /// phone and the app is behind Apple's own panel -- and the panel takes
-/// no views: its message is the entire drawing surface, one string. The
-/// panel collapses a newline and truncates what will not fit on its line,
-/// so the meter is the whole message and the name is one short word or
-/// two. A failure's sentence replaces the message (``NearFieldSheet``).
+/// no views: its message is the entire drawing surface, one string. A
+/// failure's sentence replaces the message (``NearFieldSheet``).
 ///
 /// The markers are literal glyphs rather than escapes, by a deliberate
 /// exception to this repository's ASCII-only source rule: the sheet is a
@@ -30,8 +28,11 @@ internal struct NearFieldMeter: Equatable, Sendable {
   /// blob.
   internal static let markerGap = " "
 
-  /// Space between the row and what follows it.
+  /// Space between the row and the seconds of a security delay.
   internal static let textGap = "  "
+
+  /// Between the operation's name and the row.
+  internal static let lineBreak = "\n"
 
   /// What the sheet says when an operation for a paired computer ended
   /// without the card's result.
@@ -50,9 +51,9 @@ internal struct NearFieldMeter: Equatable, Sendable {
     states.map(Self.marker).joined(separator: Self.markerGap)
   }
 
-  /// The whole message: the balls, then the operation's name.
+  /// The whole message: the operation's name, then the balls.
   internal var text: String {
-    markers + Self.textGap + operation.title
+    operation.title + Self.lineBreak + markers
   }
 
   /// The first step not yet done; nil when every step is.
@@ -90,11 +91,12 @@ internal struct NearFieldMeter: Equatable, Sendable {
     }
   }
 
-  /// The message during a card's security delay: the balls and the
-  /// seconds left, or the balls alone once none are.
+  /// The message during a card's security delay: the operation's name,
+  /// then the balls and the seconds left, or the whole message once none
+  /// are.
   internal func recoveryText(remainingSeconds: Int) -> String {
-    guard remainingSeconds > 0 else { return markers }
-    return markers + Self.textGap + "\(remainingSeconds)s"
+    guard remainingSeconds > 0 else { return text }
+    return text + Self.textGap + "\(remainingSeconds)s"
   }
 
   /// `step` runs now and every step before it is done.
