@@ -17,7 +17,7 @@ internal struct ReaderInstructionStringsTests {
     "Blocked: %@": "Estetty: %@",
     "Bluetooth is off": "Bluetooth on pois päältä",
     "Bluetooth is not allowed": "Bluetoothia ei ole sallittu",
-    "local network is not allowed": "paikallisverkkoa ei ole sallittu",
+    "local network is not allowed": "lähiverkkoa ei ole sallittu",
   ]
 
   /// The same in Swedish.
