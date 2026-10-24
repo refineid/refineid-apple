@@ -99,10 +99,10 @@
 ## Rules live here, not in an agent's memory
 
 Every rule, decision and finding an agent should remember lives in this
-repository: a working rule in this file, a design rule in
-`Documentation/design/`, a defect in an issue; never only in an agent's
-memory. This file is the table of required readings, not the place where
-they live.
+repository, never only in an agent's memory: a design rule in
+`Documentation/design/`, a defect in an issue, a working rule in this
+file. This file states each rule in a line and points to the reading
+behind it; the readings live in `Documentation/`, not here.
 
 ## Commits and integration
 
