@@ -124,9 +124,13 @@ every other change is a change of colour.
 | Paired phone, its identity offered | "*HOLDER NAME* (via phone)" |
 | Paired phone, its card reader empty | "Insert the card into the phone's card reader." |
 | Remote use on, macOS denies the local network, no phone paired or none offering an identity | "macOS is blocking RefineID from the local network. Allow it in System Settings › Privacy & Security › Local Network." in red, with an "Open Settings" button |
+| Pairing found a phone and could not reach it for another reason | "Could not connect to the phone. Check that the phone and this Mac are on the same network and that RefineID is allowed to use the local network." in red, with an "Open Settings" button |
 
-The local-network denial shows as soon as the switch's browse or one dial
-to a phone is refused, not after a search times out. "Open Settings" opens
+The local-network denial shows as soon as the switch's browse, one dial
+to a phone, or the address check beside a dial is refused, not after a
+search times out. A dial to a phone's published service does not report
+the denial itself, so the dialer also resolves the service and checks its
+addresses. "Open Settings" opens
 System Settings at Privacy & Security; when the app is active again it
 asks afresh and redials, so the line clears itself with no retry control.
 

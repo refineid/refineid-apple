@@ -75,6 +75,38 @@
         }
       }
     },
+    "Could not connect to the phone. Check that the phone and this Mac are on the same network and that RefineID is allowed to use the local network.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Puhelimeen ei saatu yhteyttä. Tarkista, että puhelin ja tämä Mac ovat samassa verkossa ja että RefineID saa käyttää lähiverkkoa."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det gick inte att ansluta till telefonen. Kontrollera att telefonen och den här Macen är anslutna till samma nätverk och att RefineID får använda det lokala nätverket."
+          }
+        }
+      }
+    },
+    "Could not connect to the phone. Check that the phone and this device are on the same network and that RefineID is allowed to use the local network.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Puhelimeen ei saatu yhteyttä. Tarkista, että puhelin ja tämä laite ovat samassa verkossa ja että RefineID saa käyttää lähiverkkoa."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det gick inte att ansluta till telefonen. Kontrollera att telefonen och den här enheten är anslutna till samma nätverk och att RefineID får använda det lokala nätverket."
+          }
+        }
+      }
+    },
     "Fetching validity information…": {
       "localizations": {
         "fi": {
@@ -3241,22 +3273,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Parkopplingen kunde inte startas"
-          }
-        }
-      }
-    },
-    "A phone in pairing mode was found but could not be reached": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Yhdistämistilassa oleva puhelin löytyi, mutta siihen ei saatu yhteyttä"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "En telefon i parkopplingsläge hittades men gick inte att nå"
           }
         }
       }

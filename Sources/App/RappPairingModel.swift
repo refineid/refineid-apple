@@ -27,6 +27,9 @@ internal final class RappPairingModel: ObservableObject {
     /// The platform keeps this app off the local network; the holder
     /// allows it in the settings.
     case localNetworkDenied
+    /// A phone was found and could not be reached; the holder checks the
+    /// network and the permission.
+    case unreachable
     /// Anything else, in the words the user is told.
     case reported(String)
 
@@ -36,8 +39,23 @@ internal final class RappPairingModel: ObservableObject {
       case .localNetworkDenied:
         LocalNetworkSettings.deniedMessage
 
+      case .unreachable:
+        LocalNetworkSettings.unreachableMessage
+
       case .reported(let message):
         message
+      }
+    }
+
+    /// Whether the failure is shown with the way to the local-network
+    /// settings.
+    internal var opensNetworkSettings: Bool {
+      switch self {
+      case .localNetworkDenied, .unreachable:
+        true
+
+      case .reported:
+        false
       }
     }
   }

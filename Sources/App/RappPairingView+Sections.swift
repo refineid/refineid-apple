@@ -48,13 +48,13 @@ extension RappPairingView {
       Section {
         connectingCard
       }
-    case .failed(.localNetworkDenied):
+    case .failed(let failure) where failure.opensNetworkSettings:
       Section {
-        LocalNetworkDeniedNotice()
+        LocalNetworkNotice(message: failure.message)
       }
-    case .failed(.reported(let reason)):
+    case .failed(let failure):
       Section {
-        failedCard(reason: reason)
+        failedCard(reason: failure.message)
       }
     case .idle, .codeEntry, .paired:
       EmptyView()

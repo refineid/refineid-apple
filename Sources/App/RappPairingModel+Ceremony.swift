@@ -32,7 +32,7 @@ extension RappPairingModel {
       .reported(String(localized: "The pairing code was not accepted"))
 
     case .unreachable:
-      .reported(String(localized: "A phone in pairing mode was found but could not be reached"))
+      .unreachable
     }
   }
 
