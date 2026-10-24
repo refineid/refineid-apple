@@ -96,6 +96,14 @@
   verification before handing over to the user. Never claim features work
   without automated verification.
 
+## Rules live here, not in an agent's memory
+
+Every rule, decision and finding an agent should remember lives in this
+repository, never only in an agent's memory: a design rule in
+`Documentation/design/`, a defect in an issue, a working rule in this
+file. This file states each rule in a line and points to the reading
+behind it; the readings live in `Documentation/`, not here.
+
 ## Commits and integration
 
 - Commits are cheap backups. Make small, focused commits often, without
