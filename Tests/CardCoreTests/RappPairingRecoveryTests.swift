@@ -45,7 +45,8 @@ private let misreadPairingCode = "246814"
           transportProfile: Self.transportProfile,
           displayName: "Custodian",
           platform: "iOS",
-          vault: RappDeviceVault(accessGroup: nil)),
+          vault: RappDeviceVault(
+            accessGroup: nil, servicePrefix: "fi.refineid.test.recovery.\(UUID().uuidString)")),
         transport: transport)
     }
 
