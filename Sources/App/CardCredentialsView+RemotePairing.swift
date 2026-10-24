@@ -97,11 +97,7 @@ import SwiftUI
         syncRemoteAccessToggle()
         let access = await RemoteAccessPermissions.localNetworkAccess()
         guard flow == remoteAccessFlowID else { return }
-        switch access {
-        case .allowed:
-          await RemoteAccessPermissions.requestNotificationsIfUndecided()
-
-        case .denied:
+        if access == .denied {
           handleLocalNetworkDenial()
         }
       }

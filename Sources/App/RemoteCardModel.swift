@@ -80,7 +80,12 @@
 
     /// Reads the holder from the remote card's authentication
     /// certificate.
+    ///
+    /// Only a device that follows a phone dials: a phone serves its own
+    /// card, and a requester pairing left in its keychain opens no browse
+    /// and no Bluetooth scan.
     internal func connect() {
+      guard PersistentTokenRegistry.dialsPhones else { return }
       guard phase != .connecting else { return }
       phase = .connecting
       Task.detached(priority: .userInitiated) { [weak self] in
