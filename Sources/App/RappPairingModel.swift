@@ -30,10 +30,13 @@ internal final class RappPairingModel: ObservableObject {
     /// A phone was found and could not be reached; the holder checks the
     /// network and the permission.
     case unreachable
+    /// Too many incorrect codes; a new offer is shown at `until`.
+    case locked(until: Date)
     /// Anything else, in the words the user is told.
     case reported(String)
 
-    /// What the user is told.
+    /// What the user is told now; a shown lockout redraws its own
+    /// countdown (``PairingLockCountdown``).
     internal var message: String {
       switch self {
       case .localNetworkDenied:
@@ -41,6 +44,9 @@ internal final class RappPairingModel: ObservableObject {
 
       case .unreachable:
         LocalNetworkSettings.unreachableMessage
+
+      case .locked(let until):
+        PairingLockCountdown.message(until: until, at: Date())
 
       case .reported(let message):
         message
@@ -54,7 +60,7 @@ internal final class RappPairingModel: ObservableObject {
       case .localNetworkDenied, .unreachable:
         true
 
-      case .reported:
+      case .locked, .reported:
         false
       }
     }
@@ -170,10 +176,9 @@ internal final class RappPairingModel: ObservableObject {
     #if os(iOS)
       RemoteAccessServing.setEnabled(true)
     #endif
-    let wait = RappPairingBackoff.shared.secondsUntilNextOffer()
-    guard wait == 0 else {
-      phase = .failed(.reported(String(localized: "Pairing locked. Try again in \(wait) s.")))
-      scheduleOfferAfterLockout(seconds: wait)
+    if let liftsAt = RappPairingBackoff.shared.nextOfferDate() {
+      phase = .failed(.locked(until: liftsAt))
+      scheduleOfferAfterLockout(liftsAt: liftsAt)
       return
     }
     let code = customCode.map(RappPairingCode.normalize) ?? RappPairingCode.generate()
@@ -202,11 +207,11 @@ internal final class RappPairingModel: ObservableObject {
       vault: vault)
   }
 
-  private func scheduleOfferAfterLockout(seconds: UInt64) {
+  private func scheduleOfferAfterLockout(liftsAt: Date) {
     pairingTimeoutTask?.cancel()
     pairingTimeoutTask = Task { [weak self] in
       do {
-        try await Task.sleep(for: .seconds(seconds))
+        try await Task.sleep(for: .seconds(max(0, liftsAt.timeIntervalSinceNow)))
       } catch {
         return
       }

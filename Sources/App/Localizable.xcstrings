@@ -6013,18 +6013,34 @@
         }
       }
     },
-    "Pairing locked. Try again in %llu s.": {
+    "Pairing locked. Try again in %@.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yhdistäminen on lukittu. Yritä uudelleen %llu s kuluttua."
+            "value": "Yhdistäminen on lukittu. Yritä uudelleen %@ kuluttua."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Parkopplingen är låst. Försök igen om %llu s."
+            "value": "Parkopplingen är låst. Försök igen om %@."
+          }
+        }
+      }
+    },
+    "Pairing locked. Try again in %lld s.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yhdistäminen on lukittu. Yritä uudelleen %lld s kuluttua."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parkopplingen är låst. Försök igen om %lld s."
           }
         }
       }
