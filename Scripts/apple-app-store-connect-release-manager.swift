@@ -26,6 +26,7 @@
 // Usage:
 //   apple-app-store-connect-release-manager.swift install-devices [options]
 //   apple-app-store-connect-release-manager.swift install-macos [--check]
+//   apple-app-store-connect-release-manager.swift purge-stale-registrations [--dry-run]
 //   apple-app-store-connect-release-manager.swift install-ios [<device>]
 //   apple-app-store-connect-release-manager.swift install-nfc-timing [<device>]
 //   apple-app-store-connect-release-manager.swift install-pkcs11 [--check]
@@ -2477,6 +2478,79 @@ private func installReportRegistrations() {
   print(lines.isEmpty ? "  (none registered)" : lines.map { "  \($0)" }.joined(separator: "\n"))
 }
 
+private let installBundleIdentifier = "fi.refineid.ReFineID"
+
+/// Every Launch Services record of the app or one of its extensions whose
+/// bundle lies outside /Applications/RefineID.app, read from
+/// `lsregister -dump`. A record lists `path:` before `identifier:`; the
+/// path carries a trailing ` (0x...)` record reference. Local-network
+/// privacy resolves the app's executable through these records, so a
+/// leftover build product with the same identifier denies the installed
+/// copy its local network access.
+private func installStaleRegistrations() -> [String] {
+  guard releaseFileManager.isExecutableFile(atPath: installLSRegister) else { return [] }
+  let dump = releaseRun(installLSRegister, ["-dump"], capture: true, allowFailure: true)
+  let recordSeparator = "--------"
+  let pathKey = "path:"
+  let identifierKey = "identifier:"
+  let installed = installMacTarget.path
+  var path: String?
+  var stale = Set<String>()
+  for rawLine in dump.stdout.split(separator: "\n", omittingEmptySubsequences: false) {
+    let line = String(rawLine)
+    if line.hasPrefix(recordSeparator) {
+      path = nil
+    } else if line.hasPrefix(pathKey) {
+      var value = line.dropFirst(pathKey.count).trimmingCharacters(in: .whitespaces)
+      if let reference = value.range(of: " (0x", options: .backwards), value.hasSuffix(")") {
+        value = String(value[..<reference.lowerBound])
+      }
+      path = value
+    } else if line.hasPrefix(identifierKey), let recordPath = path {
+      let identifier = line.dropFirst(identifierKey.count).trimmingCharacters(in: .whitespaces)
+      guard
+        identifier == installBundleIdentifier
+          || identifier.hasPrefix(installBundleIdentifier + ".")
+      else { continue }
+      guard recordPath != installed, !recordPath.hasPrefix(installed + "/") else { continue }
+      stale.insert(recordPath)
+    }
+  }
+  return stale.sorted()
+}
+
+/// Unregisters every stale record, then registers the installed copy
+/// again so it is the only one Launch Services resolves. Files are left
+/// where they are.
+private func installPurgeStaleRegistrations(scope: String, dryRun: Bool) {
+  let stale = installStaleRegistrations()
+  if dryRun {
+    for path in stale { installNote(scope, "would unregister: \(path)") }
+    installNote(scope, "would unregister \(stale.count) stale copies")
+    return
+  }
+  for path in stale {
+    releaseRun(installLSRegister, ["-u", path], capture: true, allowFailure: true)
+  }
+  if releaseIsDirectory(installMacTarget) {
+    releaseRun(installLSRegister, ["-f", installMacTarget.path], capture: true, allowFailure: true)
+  }
+  installNote(scope, "unregistered \(stale.count) stale copies")
+}
+
+/// `purge-stale-registrations`: the install step's Launch Services purge
+/// on its own, without building or installing.
+private func installPurgeStaleRegistrationsCommand(_ arguments: [String]) {
+  switch arguments {
+  case []:
+    installPurgeStaleRegistrations(scope: "purge-stale-registrations", dryRun: false)
+  case ["--dry-run"]:
+    installPurgeStaleRegistrations(scope: "purge-stale-registrations", dryRun: true)
+  default:
+    releaseFail("usage: purge-stale-registrations [--dry-run]")
+  }
+}
+
 /// `install-macos`: builds, verifies and installs RefineID into
 /// /Applications, the only place a copy may live, then launches it.
 /// The signature is checked before anything is replaced, so a bad
@@ -2572,6 +2646,7 @@ private func installMacOS(_ arguments: [String], stamp: Bool = true) {
     sleep(3)
     installKillMacApp()
   }
+  installPurgeStaleRegistrations(scope: "install-macos", dryRun: false)
   if cardInserted {
     installRemintInsertedCard()
   }
@@ -2974,6 +3049,9 @@ private func printReleaseManagerUsage() {
           iPad simulator. Run after a feature commit.
       install-macos [--check] [--configuration NAME]
           Build, verify and install into /Applications, removing every stray copy.
+      purge-stale-registrations [--dry-run]
+          Unregister every Launch Services record of the app or its extensions
+          outside /Applications/RefineID.app. --dry-run lists them only.
       install-ios [<device>] [--prime-mock-card]
           Build the optimized diagnostic build for one connected iPhone or iPad.
       install-nfc-timing [<device>]
@@ -3994,6 +4072,8 @@ case ("install-devices", _):
   installDevices(rest)
 case ("install-macos", _):
   installMacOS(rest)
+case ("purge-stale-registrations", _):
+  installPurgeStaleRegistrationsCommand(rest)
 case ("install-ios", _):
   installIOSCommand(rest)
 case ("install-nfc-timing", _):
