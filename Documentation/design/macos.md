@@ -176,7 +176,7 @@ and is not restored. It closes when the card leaves the reader.
 While a code is below the floor, the two keys in the toolbar are red and
 the window's top section says why the card cannot be used and the way
 back: "RefineID does not use PIN 1 with fewer than 3 attempts left." and
-"Reset PIN 1 here with the PUK, or use other software." (the same for PIN
+"Reset PIN 1 with the PUK, or use other software." (the same for PIN
 2). A PUK below the floor keeps the "use other software" text, since the
 PUK cannot be reset here. At four or three tries left nothing is coloured
 and nothing opens: the footer row shows the count.

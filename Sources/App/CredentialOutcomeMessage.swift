@@ -79,12 +79,12 @@ internal enum CredentialOutcomeMessage {
     case .pin1:
       String(localized: "RefineID does not use PIN 1 with fewer than 3 attempts left.")
         + "\n"
-        + String(localized: "Reset PIN 1 here with the PUK, or use other software.")
+        + String(localized: "Reset PIN 1 with the PUK, or use other software.")
 
     case .pin2:
       String(localized: "RefineID does not use PIN 2 with fewer than 3 attempts left.")
         + "\n"
-        + String(localized: "Reset PIN 2 here with the PUK, or use other software.")
+        + String(localized: "Reset PIN 2 with the PUK, or use other software.")
 
     case .puk:
       preconditionFailure("PUK is the recovery credential, not a reset target")

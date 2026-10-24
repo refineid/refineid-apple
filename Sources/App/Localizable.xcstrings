@@ -986,34 +986,34 @@
         }
       }
     },
-    "Reset PIN 1 here with the PUK, or use other software.": {
+    "Reset PIN 1 with the PUK, or use other software.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Palauta PIN 1 tässä PUK-koodilla tai käytä toista ohjelmaa."
+            "value": "Palauta PIN 1 PUK-koodilla tai käytä toista ohjelmistoa."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Återställ PIN 1 här med PUK-koden eller använd ett annat program."
+            "value": "Återställ PIN 1 med PUK-koden eller använd annan programvara."
           }
         }
       }
     },
-    "Reset PIN 2 here with the PUK, or use other software.": {
+    "Reset PIN 2 with the PUK, or use other software.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Palauta PIN 2 tässä PUK-koodilla tai käytä toista ohjelmaa."
+            "value": "Palauta PIN 2 PUK-koodilla tai käytä toista ohjelmistoa."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Återställ PIN 2 här med PUK-koden eller använd ett annat program."
+            "value": "Återställ PIN 2 med PUK-koden eller använd annan programvara."
           }
         }
       }
