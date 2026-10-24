@@ -14,7 +14,8 @@ import Security
 /// serial and PIN1 retry counter before it does anything irreversible.
 /// PIN2 and PUK are unrelated to authentication and stay off this path.
 /// A PIN the card accepts is kept on this token and reused until the
-/// card or reader leaves.
+/// card or reader leaves, while the card's PIN1 counter stays at its
+/// full allowance (``Pin1Retention``).
 ///
 /// A card held against a phone gets none of that: the system ends the
 /// slot about two seconds after the mint, so ``FieldSignature`` asks for
@@ -105,12 +106,12 @@ internal enum ReaderSignature {
   ) throws -> Data {
     let operations = CardOperations(channel: channel)
     try operations.selectFineidApplication()
-    let (serial, pin1Outcome) = try Self.probePin1AndReadSerial(operations)
+    let (serial, pin1Outcome) = try Self.probePin1AndReadSerial(operations, token: token)
 
     let raw: Data
-    // Citing FINEID S1 v4.2 §3.5: when pin1Outcome is verified and this token session
-    // already holds custody of accepted PIN1, redundant VERIFY PIN1 is skipped.
-    // When the holder enters an explicit PIN, it must always be tested against the card.
+    // A card already verified in this session signs without another VERIFY
+    // when this token holds the PIN it accepted (FINEID S1 v4.2 section 3.5).
+    // A PIN the holder typed is always tested against the card.
     if enteredPin == nil,
       pin1Outcome == .verified,
       let cachedPin = token.acceptedPin1.checkout(serial: serial)
@@ -145,6 +146,19 @@ internal enum ReaderSignature {
       )
     }
 
+    let signature = try Self.checkedWireSignature(from: raw, request: request, token: token)
+    Self.rememberOnSuccess(
+      enteredPin: enteredPin, serial: serial, probe: pin1Outcome, token: token)
+    return signature
+  }
+
+  /// The wire form of the card's raw signature, checked against the leaf
+  /// public key before anything is remembered or returned.
+  private static func checkedWireSignature(
+    from raw: Data,
+    request: SignRequest,
+    token: Token
+  ) throws -> Data {
     guard let signature = request.wireSignature(from: raw) else {
       TokenLog.error("sign: raw signature \(raw.count) bytes has wrong shape")
       throw TokenError.signatureMalformed
@@ -154,7 +168,6 @@ internal enum ReaderSignature {
       throw TokenError.signatureMalformed
     }
     TokenLog.info("sign: local verify OK, \(signature.count) wire bytes")
-    Self.rememberOnSuccess(enteredPin: enteredPin, serial: serial, token: token)
     return signature
   }
 
@@ -200,11 +213,19 @@ internal enum ReaderSignature {
   /// PIN2 is used for qualified signatures and PUK for recovery. Reading
   /// either during authentication adds APDUs and unrelated failure modes
   /// without protecting PIN1.
+  ///
+  /// The probe first decides holding (``Pin1Retention``): one that forbids
+  /// it drops the token's accepted PIN at once, before any verdict. The
+  /// token serves one card, so the drop needs no serial.
   private static func probePin1AndReadSerial(
-    _ operations: CardOperations
+    _ operations: CardOperations,
+    token: Token
   ) throws -> (serial: TokenSerial, outcome: RetryProbeOutcome) {
     TokenLog.info("sign: PIN1 retry-floor probe")
     let outcome = try operations.probeRetryCounter(role: .pin1)
+    if !Pin1Retention.permitsHolding(after: outcome) {
+      token.acceptedPin1.clearAll()
+    }
     let verdict = RetryFloor.evaluate(probeOutcome: outcome)
     guard verdict == .proceed else {
       TokenLog.error(
@@ -216,12 +237,15 @@ internal enum ReaderSignature {
     return (serial, outcome)
   }
 
-  /// Remembers a freshly entered PIN only after the card accepted it.
+  /// Remembers a freshly entered PIN only after the card accepted it, and
+  /// only when the probe before it permits holding (``Pin1Retention``).
   private static func rememberOnSuccess(
     enteredPin: String?,
     serial: TokenSerial,
+    probe: RetryProbeOutcome,
     token: Token
   ) {
+    guard Pin1Retention.permitsHolding(after: probe) else { return }
     if let entered = enteredPin, let accepted = Pin1(digits: entered) {
       token.acceptedPin1.store(accepted, serial: serial)
     }

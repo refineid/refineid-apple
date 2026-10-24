@@ -35,7 +35,9 @@ extension TokenSession {
     // Resolve the missing PIN first so CryptoTokenKit can show its secure sheet.
     // The next sign call then requests a fresh field with the entered PIN ready.
     let authorizationStarted = ContinuousClock.now
-    let pin1 = try resolveAuthorizedPin(token: token)
+    let authorized = try resolveAuthorizedPin(token: token)
+    let origin = authorized.origin
+    let pin1 = authorized.pin1
     TokenLog.trace(
       "sign: authorization elapsedMs="
         + TraceTiming.milliseconds(authorizationStarted.duration(to: ContinuousClock.now))
@@ -67,22 +69,22 @@ extension TokenSession {
     }
 
     return try performedInField(
-      token: token, accessNumber: accessNumber, pin1: pin1, request: request
+      token: token, accessNumber: accessNumber, pin1: pin1, origin: origin, request: request
     )
   }
 
-  private func resolveAuthorizedPin(token: Token) throws -> Pin1 {
+  private func resolveAuthorizedPin(token: Token) throws -> AuthorizedPin1 {
     if let accepted = VolatileAcceptedPin1.shared.checkout(for: token.cardInstanceID) {
       TokenLog.trace(
         "sign: session=\(sessionID) token=\(token.tokenID) pin1 source=accepted authorized=true"
       )
-      return accepted
+      return AuthorizedPin1(pin1: accepted, origin: .acceptedMemory)
     }
     if let candidate = TransientCandidatePin1.shared.checkout(for: token.cardInstanceID) {
       TokenLog.trace(
         "sign: session=\(sessionID) token=\(token.tokenID) pin1 source=candidate authorized=true"
       )
-      return candidate
+      return AuthorizedPin1(pin1: candidate, origin: .candidate)
     }
     let entered = collectedPin.flatMap { $0.isEmpty ? nil : $0 }
     collectedPin = nil
@@ -90,7 +92,7 @@ extension TokenSession {
       TokenLog.trace(
         "sign: session=\(sessionID) token=\(token.tokenID) pin1 source=prompt authorized=true"
       )
-      return pin
+      return AuthorizedPin1(pin1: pin, origin: .prompt)
     }
     TokenLog.trace(
       "sign: session=\(sessionID) token=\(token.tokenID) pin1 source=none authorized=false"
@@ -103,6 +105,7 @@ extension TokenSession {
     token: Token,
     accessNumber: CardAccessNumber,
     pin1: consuming Pin1,
+    origin: AuthorizedPin1.Origin,
     request: SignRequest
   ) throws -> Data {
     do {
@@ -110,7 +113,7 @@ extension TokenSession {
         token: token,
         accessNumber: accessNumber
       )
-      return try signature.perform(pin1: pin1, request: request)
+      return try signature.perform(pin1: pin1, origin: origin, request: request)
     } catch {
       throw mapFieldFailure(error, token: token)
     }
