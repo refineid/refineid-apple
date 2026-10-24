@@ -76,8 +76,10 @@
     private static let wifiInterfaceName = "en0"
     private static let quickVerdictSeconds: UInt64 = 10
 
-    private static let logger = Logger(
-      subsystem: "fi.refineid.ReFineID", category: "local-network-access")
+    #if DEBUG
+      private static let logger = Logger(
+        subsystem: "fi.refineid.ReFineID", category: "local-network-access")
+    #endif
 
     // MARK: Static Functions
 
@@ -87,18 +89,30 @@
     /// that stays fully dark reads as denied.
     internal static func currentAccess() async -> Access {
       guard hasWiFiInterface() else {
-        logger.info("local-network probe has no Wi-Fi, assuming allowed")
+        trace("local-network probe has no Wi-Fi, assuming allowed")
         return .allowed
       }
       let verdict = await raceProbes(deadlineSeconds: quickVerdictSeconds)
       let access: Access = verdict == .allowed ? .allowed : .denied
-      logger.info(
-        "local-network access reads \(access == .allowed ? "allowed" : "denied", privacy: .public)"
-      )
+      trace("local-network access reads \(access == .allowed ? "allowed" : "denied")")
       return access
     }
 
     // MARK: Private Helpers
+
+    /// Records probe control flow in development builds only.
+    ///
+    /// A production build writes no diagnostics; the autoclosure keeps
+    /// it from even building the line.
+    private static func trace(_ message: @autoclosure () -> String) {
+      #if DEBUG
+        // Evaluated once into a local: os.Logger's own interpolation
+        // is an escaping autoclosure, and a non-escaping one cannot
+        // be called inside it.
+        let text = message()
+        logger.info("\(text, privacy: .public)")
+      #endif
+    }
 
     /// Whether the Wi-Fi interface holds an IPv4 address.
     private static func hasWiFiInterface() -> Bool {
@@ -137,12 +151,12 @@
     /// networks; its own states carry no verdict.
     private static func advertiseForWindow(seconds: UInt64) async -> ProbeVerdict {
       guard let listener = makeProbeListener() else {
-        logger.info("local-network advertise probe has no listener")
+        trace("local-network advertise probe has no listener")
         try? await Task.sleep(for: .seconds(seconds))
         return .undecided
       }
       listener.stateUpdateHandler = { state in
-        logger.info("local-network advertise probe \(String(describing: state))")
+        trace("local-network advertise probe \(String(describing: state))")
       }
       listener.start(queue: .global(qos: .userInitiated))
       defer { listener.cancel() }
@@ -169,7 +183,7 @@
               handleBrowserState(state, settle: settle)
             }
             browser.browseResultsChangedHandler = { results, _ in
-              logResultComposition(results)
+              trace("local-network browse sees \(resultComposition(results))")
               if !results.isEmpty {
                 settle(.allowed)
               }
@@ -187,8 +201,8 @@
         })
     }
 
-    /// Logs what the browse probe sees without naming foreign peers.
-    private static func logResultComposition(_ results: Set<NWBrowser.Result>) {
+    /// Describes what the browse probe sees without naming foreign peers.
+    private static func resultComposition(_ results: Set<NWBrowser.Result>) -> String {
       var probeCount = 0
       var otherCount = 0
       for result in results {
@@ -202,10 +216,7 @@
           otherCount += 1
         }
       }
-      let composition = "probe \(probeCount) other \(otherCount)"
-      logger.info(
-        "local-network browse sees \(results.count, privacy: .public) \(composition, privacy: .public)"
-      )
+      return "\(results.count) probe \(probeCount) other \(otherCount)"
     }
 
     /// Builds the probe advertiser on the stream service type.
@@ -232,15 +243,15 @@
     ) {
       switch state {
       case .ready:
-        logger.info("local-network browse probe ready")
+        trace("local-network browse probe ready")
       case .failed(let error):
-        logger.info("local-network browse probe failed: \(String(describing: error))")
+        trace("local-network browse probe failed: \(String(describing: error))")
         settle(isPermissionError(error) ? .denied : .allowed)
       case .cancelled:
         settle(.allowed)
       case .waiting(let error):
         if isPermissionError(error) {
-          logger.info("local-network browse probe waiting on permission, reading denied")
+          trace("local-network browse probe waiting on permission, reading denied")
           settle(.denied)
         }
       case .setup:
@@ -253,13 +264,11 @@
     /// Whether the failure is the permission gate rather than the network.
     private static func isPermissionError(_ error: NWError) -> Bool {
       if case .posix(let code) = error {
-        logger.info("local-network probe posix code \(code.rawValue, privacy: .public)")
+        trace("local-network probe posix code \(code.rawValue)")
         return code.rawValue == EPERM
       }
       let reported = error as NSError
-      logger.info(
-        "local-network probe error domain \(reported.domain, privacy: .public) code \(reported.code, privacy: .public)"
-      )
+      trace("local-network probe error domain \(reported.domain) code \(reported.code)")
       return reported.domain == NSPOSIXErrorDomain
         && reported.code == Int(EPERM)
     }
