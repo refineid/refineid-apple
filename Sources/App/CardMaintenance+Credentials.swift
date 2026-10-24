@@ -35,7 +35,8 @@ extension CardMaintenance {
     return await onCard(
       transport: transport,
       cardAccessNumber: cardAccessNumber,
-      message: String(localized: "Hold the card near the top of the iPhone.")
+      operation: .cardStatus,
+      failedStep: Self.failedStep(of:)
     ) { operations in
       snapshot(on: operations)
     }
@@ -56,7 +57,8 @@ extension CardMaintenance {
     return await onCard(
       transport: transport,
       cardAccessNumber: cardAccessNumber,
-      message: ""
+      operation: .cardStatus,
+      failedStep: Self.failedStep(of:)
     ) { operations in
       try? operations.probeCredentials()
     }
@@ -83,14 +85,9 @@ extension CardMaintenance {
         return scheme
       }
     }
-    return await onCard(
-      transport: .reader,
-      cardAccessNumber: nil,
-      message: ""
-    ) { operations in
+    return await onReader { operations in
       classifyScheme(operations)
     }
-    .flatMap(\.self)
   }
 
   internal static func changePin1(
@@ -106,7 +103,7 @@ extension CardMaintenance {
       CredentialFloor(role: .pin1, confirming: .pin1),
       transport: transport,
       cardAccessNumber: cardAccessNumber,
-      message: String(localized: "Hold the card still while PIN 1 is changed.")
+      operation: .changePin1
     ) { operations in
       guard
         let currentPin = Pin1(digits: current),
@@ -139,7 +136,7 @@ extension CardMaintenance {
       CredentialFloor(role: .pin2, confirming: .pin2),
       transport: transport,
       cardAccessNumber: cardAccessNumber,
-      message: String(localized: "Hold the card still while PIN 2 is changed.")
+      operation: .changePin2
     ) { operations in
       guard
         let currentPin = Pin2(digits: current),
@@ -172,7 +169,7 @@ extension CardMaintenance {
       CredentialFloor(role: .puk, confirming: .pin1),
       transport: transport,
       cardAccessNumber: cardAccessNumber,
-      message: String(localized: "Hold the card still while PIN 1 is reset.")
+      operation: .resetPin1
     ) { operations in
       guard let key = Puk(digits: puk), let pin = Pin1(digits: new) else {
         return .invalidEntry
@@ -202,7 +199,7 @@ extension CardMaintenance {
       CredentialFloor(role: .puk, confirming: .pin2),
       transport: transport,
       cardAccessNumber: cardAccessNumber,
-      message: String(localized: "Hold the card still while PIN 2 is reset.")
+      operation: .resetPin2
     ) { operations in
       guard let key = Puk(digits: puk), let pin = Pin2(digits: new) else {
         return .invalidEntry
@@ -223,13 +220,14 @@ extension CardMaintenance {
     _ floor: CredentialFloor,
     transport: Transport,
     cardAccessNumber: String?,
-    message: String,
-    _ operation: @escaping @Sendable (CardOperations) -> Outcome
+    operation: NearFieldOperation,
+    _ mutation: @escaping @Sendable (CardOperations) -> Outcome
   ) async -> MutationReport {
     let result = await onCard(
       transport: transport,
       cardAccessNumber: cardAccessNumber,
-      message: message
+      operation: operation,
+      failedStep: Self.failedStep(of:)
     ) { operations -> MutationReport in
       guard let probe = try? operations.probeRetryCounter(role: floor.role) else {
         return MutationReport(
@@ -244,7 +242,7 @@ extension CardMaintenance {
           snapshot: snapshot(on: operations)
         )
       }
-      let outcome = operation(operations)
+      let outcome = mutation(operations)
       let resultingSnapshot = snapshot(on: operations)
       let confirmedOutcome =
         outcome == .success && !confirmsRestored(floor.confirming, in: resultingSnapshot)
@@ -288,6 +286,24 @@ extension CardMaintenance {
     case .invalidated, .locked, .noInformation, .other, .none:
       false
     }
+  }
+
+  /// Where on the meter a status read broke: at the reads behind the
+  /// secure channel when the counters stayed unread.
+  private static func failedStep(of snapshot: Snapshot) -> NearFieldStep? {
+    snapshot.report == nil ? .certificate : nil
+  }
+
+  /// Where on the meter a counter read broke: at the reads behind the
+  /// secure channel when it read nothing.
+  private static func failedStep(of report: CredentialProbeReport?) -> NearFieldStep? {
+    report == nil ? .certificate : nil
+  }
+
+  /// Where on the meter a PIN change or reset broke: at the credential
+  /// whenever it did not succeed.
+  private static func failedStep(of report: MutationReport) -> NearFieldStep? {
+    report.outcome == .success ? nil : .credential
   }
 
   internal static func snapshot(on operations: CardOperations) -> Snapshot {

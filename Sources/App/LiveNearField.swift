@@ -45,20 +45,6 @@
       return LiveNearField(session: opened)
     }
 
-    /// What the sheet says for `line`.
-    private static func text(_ line: NearFieldSheetLine) -> String {
-      switch line {
-      case .cardFound:
-        String(localized: "Card found. Keep holding.")
-
-      case .cardNotRead:
-        String(localized: "The card could not be read. Hold it still and try again.")
-
-      case .cardRead:
-        String(localized: "Card read successfully.")
-      }
-    }
-
     internal func end() {
       session.end()
     }
@@ -99,8 +85,8 @@
       }
     }
 
-    internal func show(_ line: NearFieldSheetLine) {
-      session.update(message: Self.text(line))
+    internal func show(_ text: String) {
+      session.update(message: text)
     }
   }
 #endif

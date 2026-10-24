@@ -35,7 +35,8 @@ extension CardMaintenance {
     return await onCard(
       transport: transport,
       cardAccessNumber: cardAccessNumber,
-      message: String(localized: "Hold the card still while it is activated.")
+      operation: .activation,
+      failedStep: Self.failedStep(of:)
     ) { operations -> ActivationExecution? in
       guard let activation = runActivation(operations, request: request) else {
         return nil
@@ -58,6 +59,12 @@ extension CardMaintenance {
       )
     }
     .flatMap(\.self)
+  }
+
+  /// Where on the meter an activation broke: at the credential while any
+  /// PIN still needs activating.
+  private static func failedStep(of execution: ActivationExecution?) -> NearFieldStep? {
+    execution?.remaining.any == false ? nil : .credential
   }
 
   private static func runActivation(

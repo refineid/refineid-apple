@@ -35,6 +35,10 @@ internal enum WarmNearFieldFakes {
     internal var isResult: Bool {
       self == .signed
     }
+
+    internal var failedStep: NearFieldStep? {
+      self == .refused ? .signature : nil
+    }
   }
 
   /// A clock in milliseconds that moves only when the test moves it.
@@ -122,7 +126,7 @@ internal enum WarmNearFieldFakes {
     private let openedAtMs: Int64
     private var removed = false
     private var ended = false
-    private var lines: [NearFieldSheetLine] = []
+    private var lines: [String] = []
 
     internal var holdsValidCard: Bool {
       !isMissing
@@ -148,7 +152,7 @@ internal enum WarmNearFieldFakes {
     }
 
     /// What the sheet said, in order.
-    internal var sheetLines: [NearFieldSheetLine] {
+    internal var sheetLines: [String] {
       lock.withLock { lines }
     }
 
@@ -182,8 +186,8 @@ internal enum WarmNearFieldFakes {
       return card
     }
 
-    internal func show(_ line: NearFieldSheetLine) {
-      lock.withLock { lines.append(line) }
+    internal func show(_ text: String) {
+      lock.withLock { lines.append(text) }
     }
   }
 

@@ -261,7 +261,7 @@
       let semaphore = DispatchSemaphore(value: 0)
       let box = Box<Answer?>(nil)
       Task {
-        box.value = await CardMaintenance.onCard(work)
+        box.value = await CardMaintenance.onReader(work)
         semaphore.signal()
       }
       semaphore.wait()

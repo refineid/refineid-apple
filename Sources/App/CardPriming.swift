@@ -46,19 +46,6 @@
   /// `platform/apple/RefineID/Local/SafariIdentityPrime+OneSystemNFC.swift`
   /// and `SafariIdentityPrime+LiveRegistration.swift`.
   internal enum CardPriming {
-    /// Where a running prime reports what it is doing.
-    ///
-    /// Called from the card queue as well as the caller's context, so it
-    /// must be safe to invoke from anywhere.
-    internal typealias Progress = @Sendable (String) -> Void
-
-    /// Reports which setup step a run has reached, and how it went.
-    ///
-    /// Separate from the text progress because the two answer different
-    /// questions: the text says what is happening, the steps say how far
-    /// the hold got and where it broke.
-    internal typealias StepReport = @Sendable (CardPrimingStep, CardPrimingStep.State) -> Void
-
     /// What one priming run achieved.
     internal struct Outcome: Sendable {
       /// Whether the primed identity reached the prime store.
@@ -87,7 +74,8 @@
 
     /// Context needed to read, store, and register a live card hold.
     private struct HoldExecution: Sendable {
-      let sheet: PrimingSheetReporter
+      let session: NearFieldCardSession
+      let sheet: NearFieldSheet
       let lookup: PrimeLookupIdentifier
       let accessNumber: ProvenAccessNumber
       let isRecovery: Bool
@@ -122,20 +110,6 @@
     /// must never land on the cooperative pool or the main thread.
     internal static let cardQueue = DispatchQueue(label: "fi.refineid.priming.card")
 
-    /// What the system sheet says while the holder is finding the spot.
-    ///
-    /// One line, and only the part the holder cannot work out: where to
-    /// put the card. Apple's own title above it already says a scan is
-    /// wanted, and the meter and sound below say the hold is running, so
-    /// a sentence telling them to keep holding is a third voice saying
-    /// what two already said.
-    ///
-    /// Virtual card setup presents the same line, so a
-    /// demonstration is told what a card read is told.
-    internal static var holdMessage: String {
-      String(localized: "Hold the card on the top back of the phone.")
-    }
-
     /// Primes the card the holder is about to present.
     ///
     /// Never throws: a prime is a thing a person is doing, and every way
@@ -153,27 +127,16 @@
     /// needs only the secure channel; PIN 1 is asked for when the card
     /// first signs, where the counter is read in the same session that
     /// spends it, and is held only in memory (RAPP v26.10.22 §11 item 2).
-    internal static func prime(
-      cardAccessNumber: String,
-      progress: @escaping Progress,
-      step: @escaping StepReport
-    ) async -> Outcome {
-      await prime(
-        cardAccessNumber: cardAccessNumber,
-        isRecovery: false,
-        progress: progress,
-        step: step)
+    internal static func prime(cardAccessNumber: String) async -> Outcome {
+      await prime(cardAccessNumber: cardAccessNumber, isRecovery: false)
     }
 
     /// Primes the card, optionally using extended recovery mode for throttled cards.
     internal static func prime(
       cardAccessNumber: String,
-      isRecovery: Bool,
-      progress: @escaping Progress,
-      step: @escaping StepReport
+      isRecovery: Bool
     ) async -> Outcome {
       guard let accessNumber = CardAccessNumber(digits: cardAccessNumber) else {
-        step(.found, .failed)
         return Self.failure(Failure.cardAccessNumberMissing)
       }
       // Marked BEFORE the slot opens: `ctkd` asks the extension for a
@@ -181,30 +144,21 @@
       // would lose the race. The mark makes the extension publish
       // without taking a card session, leaving the card to this flow.
       guard PrimeStore.markRegistrationField() else {
-        step(.found, .failed)
         return Self.failure(Failure.primeNotStored)
       }
       defer { PrimeStore.clearRegistrationField() }
 
-      step(.found, .running)
       let session: NearFieldCardSession
       do {
-        session = try await NearFieldCardSession.open(message: Self.holdMessage)
+        session = try await NearFieldCardSession.open(showing: .setup)
       } catch {
-        step(.found, .failed)
         return Self.failure(error)
       }
       defer { session.end() }
-      // The meter lives on the sheet from here on: the card is against
-      // the phone and Apple's panel is over the app, so this is the only
-      // surface the holder can actually see.
-      let sheet = PrimingSheetReporter(session: session)
-      let report: StepReport = { reached, state in
-        step(reached, state)
-        sheet.report(reached, state)
-      }
-      report(.found, .done)
-      progress(String(localized: "Card found. Keep holding."))
+      // The meter lives on the sheet: the card is against the phone and
+      // Apple's panel is over the app, so this is the only surface the
+      // holder can actually see.
+      let sheet = session.meter(.setup)
 
       // The sound belongs to the panel, and only to the panel. It starts
       // here because the card is now live in a slot the holder is being
@@ -212,11 +166,10 @@
       // tone that outlives the sheet is a tone about nothing.
       await CardPrimingFeedback.startWorking()
       let outcome = await Self.hold(
+        session: session,
         sheet: sheet,
         accessNumber: ProvenAccessNumber(value: accessNumber, digits: cardAccessNumber),
-        isRecovery: isRecovery,
-        progress: progress,
-        step: report)
+        isRecovery: isRecovery)
       await CardPrimingFeedback.report(succeeded: outcome.stored && outcome.registered)
       return outcome
     }
@@ -226,29 +179,25 @@
     /// Split from `prime` so the sound has exactly one place to start
     /// and one place to be answered, both inside the panel's lifetime.
     private static func hold(
-      sheet: PrimingSheetReporter,
+      session: NearFieldCardSession,
+      sheet: NearFieldSheet,
       accessNumber: ProvenAccessNumber,
-      isRecovery: Bool,
-      progress: @escaping Progress,
-      step: @escaping StepReport
+      isRecovery: Bool
     ) async -> Outcome {
       guard
-        let lookup = PrimeLookupIdentifier(answerToReset: sheet.session.answerToReset)
+        let lookup = PrimeLookupIdentifier(answerToReset: session.answerToReset)
       else {
-        step(.secureChannel, .failed)
-        sheet.fail(Self.sheetMessage(for: Failure.unidentifiedCard))
+        sheet.fail(at: .secureChannel, saying: Self.sheetMessage(for: Failure.unidentifiedCard))
         return Self.failure(Failure.unidentifiedCard)
       }
 
       let execution = HoldExecution(
+        session: session,
         sheet: sheet,
         lookup: lookup,
         accessNumber: accessNumber,
         isRecovery: isRecovery)
-      return await Self.readStoreRegister(
-        execution: execution,
-        progress: progress,
-        step: step)
+      return await Self.readStoreRegister(execution: execution)
     }
 
     /// An Outcome that achieved nothing, explained.
@@ -279,27 +228,21 @@
     }
 
     /// Reads the card in this same field, stores the prime, registers.
-    private static func readStoreRegister(
-      execution: HoldExecution,
-      progress: @escaping Progress,
-      step: @escaping StepReport
-    ) async -> Outcome {
-      step(.secureChannel, .running)
+    private static func readStoreRegister(execution: HoldExecution) async -> Outcome {
       let payload: Payload
       do {
         payload = try await Self.onCardQueue {
           try Self.read(
-            from: execution.sheet,
+            from: execution.session,
+            sheet: execution.sheet,
             accessNumber: execution.accessNumber.value,
-            isRecovery: execution.isRecovery,
-            progress: progress,
-            step: step)
+            isRecovery: execution.isRecovery)
         }
       } catch {
         // The sheet is the only thing a holder can see while holding, so
         // it carries the detail rather than a shrug. Nothing here names
         // a PIN, CAN or the holder.
-        execution.sheet.fail(Self.sheetMessage(for: error))
+        execution.sheet.fail(at: nil, saying: Self.sheetMessage(for: error))
         return Self.failure(error)
       }
 
@@ -308,8 +251,7 @@
       guard
         CardCredentialStore.save(cardAccessNumber: execution.accessNumber.digits) == errSecSuccess
       else {
-        step(.stored, .failed)
-        execution.sheet.fail(String(localized: "Could not save card details"))
+        execution.sheet.fail(at: .stored, saying: String(localized: "Could not save card details"))
         return Self.failure(Failure.primeNotStored)
       }
 
@@ -318,7 +260,7 @@
       // field reads. The registration mark written before the slot
       // opened keeps that waiting mint from taking the card session
       // away from this flow.
-      step(.stored, .running)
+      execution.sheet.reach(.stored)
       guard
         let identity = CardCredentialStore.primedIdentity(
           certificate: payload.certificate,
@@ -328,18 +270,11 @@
           signatureCertificate: payload.signatureCertificate),
         PrimeStore.store(identity, forLookup: execution.lookup)
       else {
-        step(.stored, .failed)
-        execution.sheet.fail(String(localized: "Could not save card details"))
+        execution.sheet.fail(at: .stored, saying: String(localized: "Could not save card details"))
         return Self.failure(Failure.primeNotStored)
       }
-      step(.stored, .done)
-      progress(String(localized: "Card details stored on this iPhone."))
 
-      return await Self.finish(
-        payload: payload,
-        sheet: execution.sheet,
-        progress: progress,
-        step: step)
+      return await Self.finish(payload: payload, execution: execution)
     }
 
     /// Registers the live card and reports how the hold ended.
@@ -349,18 +284,17 @@
     /// rather than being called after the hold.
     private static func finish(
       payload: Payload,
-      sheet: PrimingSheetReporter,
-      progress: @escaping Progress,
-      step: StepReport
+      execution: HoldExecution
     ) async -> Outcome {
-      step(.registered, .running)
+      execution.sheet.reach(.registered)
       let registered = await Self.register(
         instance: payload.instance,
-        session: sheet.session,
-        progress: progress)
-      step(.registered, registered ? .done : .failed)
-      if !registered {
-        sheet.fail(String(localized: "Safari setup did not finish"))
+        session: execution.session)
+      if registered {
+        execution.sheet.finish()
+      } else {
+        execution.sheet.fail(
+          at: .registered, saying: String(localized: "Safari setup did not finish"))
       }
       return Outcome(
         stored: true,

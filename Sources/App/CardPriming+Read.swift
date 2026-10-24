@@ -41,32 +41,22 @@
     ///
     /// Runs on the card queue, inside the card's exclusive session.
     internal static func read(
-      from sheet: PrimingSheetReporter,
+      from session: NearFieldCardSession,
+      sheet: NearFieldSheet,
       accessNumber: CardAccessNumber,
-      isRecovery: Bool,
-      progress: Progress,
-      step: StepReport
+      isRecovery: Bool
     ) throws -> Payload {
       let waitBudget: SmartCardChannel.ResponseWait = isRecovery ? .nearFieldRecovery : .nearField
-      return try sheet.session.withCardSession(waits: waitBudget) { channel in
-        progress(String(localized: "Opening a connection to the card."))
-        let keys: PaceSessionKeys
-        do {
-          keys = try Self.establishPace(
-            channel: channel,
-            accessNumber: accessNumber,
-            sheet: sheet,
-            isRecovery: isRecovery)
-        } catch {
-          step(.secureChannel, .failed)
-          throw error
-        }
-        step(.secureChannel, .done)
-        return try Self.readSecuredPayload(
+      return try session.withCardSession(waits: waitBudget) { channel in
+        let keys = try Self.establishPace(
           channel: channel,
-          keys: keys,
-          progress: progress,
-          step: step)
+          accessNumber: accessNumber,
+          sheet: sheet,
+          isRecovery: isRecovery)
+        sheet.reach(.certificate)
+        return try Self.readIdentity(
+          operations: CardOperations(
+            channel: SecureMessagingChannel(wrapping: channel, sessionKeys: keys)))
       }
     }
 
@@ -74,7 +64,7 @@
     private static func establishPace(
       channel: SmartCardChannel,
       accessNumber: CardAccessNumber,
-      sheet: PrimingSheetReporter,
+      sheet: NearFieldSheet,
       isRecovery: Bool
     ) throws -> PaceSessionKeys {
       // PACE runs from the main file. The card was discovered by
@@ -105,29 +95,6 @@
         // from it, so a card that will not agree is a card these
         // digits do not describe. A FINEID card may answer with 6300.
         throw Failure.wrongCardAccessNumber
-      }
-    }
-
-    /// Reads identity certificates and counters behind the established secure channel.
-    private static func readSecuredPayload(
-      channel: SmartCardChannel,
-      keys: PaceSessionKeys,
-      progress: Progress,
-      step: StepReport
-    ) throws -> Payload {
-      step(.certificate, .running)
-      progress(String(localized: "Connection opened."))
-      let operations = CardOperations(
-        channel: SecureMessagingChannel(wrapping: channel, sessionKeys: keys))
-      progress(String(localized: "Reading the certificate from the card."))
-      do {
-        let payload = try Self.readIdentity(operations: operations)
-        step(.certificate, .done)
-        progress(String(localized: "Card identity read."))
-        return payload
-      } catch {
-        step(.certificate, .failed)
-        throw error
       }
     }
 

@@ -91,16 +91,11 @@
       refusal = nil
       credentialReport = nil
       let isRecovery = isRecoveryModeNext
+      // The meter on the system NFC sheet carries progress; the holder
+      // is looking at the card, not at this screen.
       let outcome = await CardPriming.prime(
         cardAccessNumber: cardAccessNumber,
-        isRecovery: isRecovery,
-        progress: { _ in
-          // The meter on the system NFC sheet carries progress; the
-          // holder is looking at the card, not at this screen.
-        },
-        step: { _, _ in
-          // The sheet draws the steps. See `PrimingSheetReporter`.
-        })
+        isRecovery: isRecovery)
       // The sound is started and answered inside the panel's lifetime,
       // in `CardPriming`; nothing here makes a noise after it closed. A
       // hold the holder cancelled never got as far as a sound at all.

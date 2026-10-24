@@ -28,25 +28,22 @@
     /// The domain parameter that suite is pinned to.
     private static let runningParameterID = 16
 
-    /// What the sheet says while the card is being read.
-    private static var holdMessage: String {
-      String(localized: "Hold the card on the top back of the phone.")
-    }
-
     /// Reads the advertised capabilities and times one PACE run.
     internal static func run() async -> [String] {
       let session: NearFieldCardSession
       do {
-        session = try await NearFieldCardSession.open(message: Self.holdMessage)
+        session = try await NearFieldCardSession.open(showing: .cardStatus)
       } catch {
         return ["no field: \(error)"]
       }
       defer { session.end() }
-      session.update(message: String(localized: "Reading card capabilities"))
+      let sheet = session.meter(.cardStatus)
       let accessNumber = CardCredentialStore.cardAccessNumber()
-      return await Self.onCardQueue {
+      let lines = await Self.onCardQueue {
         Self.measure(session: session, accessNumber: accessNumber)
       }
+      sheet.finish()
+      return lines
     }
 
     /// The whole measurement, inside the card's exclusive session.
@@ -62,7 +59,6 @@
             lines.append("pace: not run, no card access number stored")
             return lines
           }
-          session.update(message: String(localized: "Timing the secure channel"))
           lines.append("")
           lines.append(contentsOf: Self.paceTiming(channel: channel, accessNumber: accessNumber))
           return lines

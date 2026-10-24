@@ -44,7 +44,6 @@ internal struct WarmNearFieldTests {
     CardSessionHold.nearFieldSessionLimitSeconds * CardSessionHold.millisecondsPerSecond
 
   private static let cardAccessNumber = "access number"
-  private static let message = "hold the card"
 
   /// What one signature sends: VERIFY PIN 1, then the signature.
   private static let signatureWork: [Fakes.Command] = [.verify, .sign]
@@ -76,7 +75,7 @@ internal struct WarmNearFieldTests {
   }
 
   private static func sign(on core: Core) async -> Fakes.Outcome? {
-    await core.execute(cardAccessNumber: Self.cardAccessNumber, message: Self.message) {
+    await core.execute(cardAccessNumber: Self.cardAccessNumber, operation: .authentication) {
       card, credentials in
       Self.signature(on: card, credentials: credentials)
     }
@@ -254,7 +253,7 @@ internal struct WarmNearFieldTests {
     #expect(reader.card.work() == [.pace, .probe] + signatures)
   }
 
-  @Test("The sheet says the card was found, then whether it was read")
+  @Test("The sheet draws each operation's meter, and a failure's sentence after it")
   internal func sheetFollowsTheOperation() async {
     let reader = Fakes.Reader(
       idleLifeMs: Self.platformIdleLifeMs, fieldLifeMs: Self.platformFieldLifeMs)
@@ -262,6 +261,19 @@ internal struct WarmNearFieldTests {
     #expect(await Self.sign(on: core) == .signed)
     reader.card.goMute()
     #expect(await Self.sign(on: core) == .unanswered)
-    #expect(reader.latest?.sheetLines == [.cardFound, .cardRead, .cardFound, .cardNotRead])
+    var meter = NearFieldMeter(.authentication)
+    meter.reach(.secureChannel)
+    let found = meter.text
+    meter.advance()
+    let working = meter.text
+    var finished = meter
+    finished.finish()
+    var broken = meter
+    broken.fail(at: nil)
+    #expect(
+      reader.latest?.sheetLines == [
+        found, working, finished.text,
+        found, working, broken.text, NearFieldMeter.cardNotRead,
+      ])
   }
 }

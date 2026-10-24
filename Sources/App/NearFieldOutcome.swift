@@ -10,4 +10,8 @@ internal protocol NearFieldOutcome: Sendable {
 
   /// Whether the operation has the card's result.
   var isResult: Bool { get }
+
+  /// The step an operation without the card's result broke at; nil when
+  /// it broke at the step running when it ended.
+  var failedStep: NearFieldStep? { get }
 }

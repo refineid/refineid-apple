@@ -55,17 +55,24 @@ internal enum CardMaintenance {
     }
   }
 
+  /// Runs `work` on the card over `transport`.
+  ///
+  /// Over the phone's own antenna the sheet draws the meter of
+  /// `operation`: the card found, the secure channel, then the
+  /// operation's own steps, finished or broken at the step `failedStep`
+  /// names for the answer (nil when the answer is a success).
   internal static func onCard<Answer: Sendable>(
     transport: Transport,
     cardAccessNumber: String?,
-    message: String,
-    _ operation: @escaping @Sendable (CardOperations) -> Answer
+    operation: NearFieldOperation,
+    failedStep: @escaping @Sendable (Answer) -> NearFieldStep?,
+    _ work: @escaping @Sendable (CardOperations) -> Answer
   ) async -> Answer? {
     switch transport {
     case .reader:
       return await onReader(
         cardAccessNumber: cardAccessNumber,
-        operation
+        work
       )
 
     case .nearField:
@@ -73,11 +80,12 @@ internal enum CardMaintenance {
         guard SupportedCardTransports.offersNearField else { return nil }
         let held: NearFieldCardSession
         do {
-          held = try await NearFieldCardSession.open(message: message)
+          held = try await NearFieldCardSession.open(showing: operation)
         } catch {
           return nil
         }
         defer { held.end() }
+        let sheet = held.meter(operation)
         return await withCheckedContinuation { continuation in
           DispatchQueue.global(qos: .userInitiated).async {
             let answer = try? held.withCardSession { channel -> Answer? in
@@ -89,9 +97,22 @@ internal enum CardMaintenance {
               else {
                 return nil
               }
-              return operation(operations)
+              sheet.advance()
+              return work(operations)
             }
-            continuation.resume(returning: answer.flatMap(\.self))
+            switch answer.flatMap(\.self) {
+            case .some(let answered):
+              if let broken = failedStep(answered) {
+                sheet.fail(at: broken)
+              } else {
+                sheet.finish()
+              }
+              continuation.resume(returning: answered)
+
+            case .none:
+              sheet.fail(at: nil)
+              continuation.resume(returning: nil)
+            }
           }
         }
       #else
@@ -100,16 +121,11 @@ internal enum CardMaintenance {
     }
   }
 
-  /// Reader-only compatibility for signing and SCS callers.
-  internal static func onCard<Answer: Sendable>(
-    _ operation: @escaping @Sendable (CardOperations) -> Answer?
+  /// Runs `work` on the card in an attached reader.
+  internal static func onReader<Answer: Sendable>(
+    _ work: @escaping @Sendable (CardOperations) -> Answer?
   ) async -> Answer? {
-    let nested: Answer?? = await onCard(
-      transport: .reader,
-      cardAccessNumber: nil,
-      message: "",
-      operation
-    )
+    let nested: Answer?? = await onReader(cardAccessNumber: nil, work)
     return nested.flatMap(\.self)
   }
 
