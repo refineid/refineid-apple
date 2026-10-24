@@ -37,7 +37,10 @@ internal enum DisplacedRemoteCardWithdrawal {
   /// Withdraws once per run, off the main actor.
   @MainActor
   internal static func performOnce() {
-    guard !performed, !TestCredentialEnvironment.isTestMode else { return }
+    guard !performed else { return }
+    #if DEBUG
+      guard !TestCredentialEnvironment.isTestMode else { return }
+    #endif
     performed = true
     Task.detached(priority: .utility) {
       let dropped = DriverConfiguredCredentials.dropDisplacedRemoteCardConfigurations()

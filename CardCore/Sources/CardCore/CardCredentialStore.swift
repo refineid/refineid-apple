@@ -209,9 +209,11 @@ public enum CardCredentialStore {
   /// that omitted the data reported success for an item it could not
   /// actually read.
   public static func cardAccessNumberReadStatus() -> OSStatus {
-    if TestCredentialEnvironment.isTestMode {
-      return read(account: cardAccessNumberAccount) != nil ? errSecSuccess : errSecItemNotFound
-    }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        return read(account: cardAccessNumberAccount) != nil ? errSecSuccess : errSecItemNotFound
+      }
+    #endif
     var query = self.query(account: cardAccessNumberAccount)
     query[kSecMatchLimit as String] = kSecMatchLimitOne
     query[kSecReturnData as String] = true

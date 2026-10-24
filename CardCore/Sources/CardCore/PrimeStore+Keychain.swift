@@ -6,14 +6,16 @@ import Security
 extension PrimeStore {
   /// Every decodable prime.
   internal static func storedItems() -> [StoredItem] {
-    if TestCredentialEnvironment.isTestMode {
-      return TestCredentialEnvironment.allPrimes().compactMap { account, data in
-        guard let identity = try? JSONDecoder().decode(PrimedIdentity.self, from: data) else {
-          return nil
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        return TestCredentialEnvironment.allPrimes().compactMap { account, data in
+          guard let identity = try? JSONDecoder().decode(PrimedIdentity.self, from: data) else {
+            return nil
+          }
+          return StoredItem(account: account, identity: identity)
         }
-        return StoredItem(account: account, identity: identity)
       }
-    }
+    #endif
     var search: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service,
@@ -67,10 +69,12 @@ extension PrimeStore {
 
   /// Removes one account without exposing its coordinates to callers.
   internal static func delete(account: String) {
-    if TestCredentialEnvironment.isTestMode {
-      TestCredentialEnvironment.deletePrime(account: account)
-      return
-    }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        TestCredentialEnvironment.deletePrime(account: account)
+        return
+      }
+    #endif
     SecItemDelete(query(account: account) as CFDictionary)
   }
 
@@ -89,10 +93,12 @@ extension PrimeStore {
       )
     else { return false }
     guard let payload = try? JSONEncoder().encode(updated) else { return false }
-    if TestCredentialEnvironment.isTestMode {
-      TestCredentialEnvironment.storePrime(payload, account: item.account)
-      return true
-    }
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        TestCredentialEnvironment.storePrime(payload, account: item.account)
+        return true
+      }
+    #endif
     let coordinates = query(account: item.account)
     let replacement = [kSecValueData as String: payload]
     return SecItemUpdate(coordinates as CFDictionary, replacement as CFDictionary)
