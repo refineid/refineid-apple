@@ -45,7 +45,7 @@
         }
       }
       .alert(
-        promptTitle(for: authorizationInbox.request?.action),
+        authorizationInbox.request?.title ?? "",
         isPresented: Binding(
           get: { authorizationInbox.request != nil },
           set: { shown in
@@ -60,7 +60,7 @@
         alertActions(for: req)
       } message: { req in
         Text(
-          ([req.notice, req.requester, req.displayContext] as [String?])
+          ([req.notice, req.message] as [String?])
             .compactMap(\.self)
             .filter { !$0.isEmpty }
             .joined(separator: "\n"))
@@ -110,17 +110,6 @@
         } else {
           authorizationInbox.deny(req.requestID)
         }
-      }
-    }
-
-    private func promptTitle(for action: RappAuthorizationRequest.Action?) -> String {
-      switch action {
-      case .browserAuthentication:
-        "PIN 1"
-      case .documentSignature:
-        "PIN 2"
-      case nil:
-        ""
       }
     }
 

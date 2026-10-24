@@ -815,22 +815,6 @@
         }
       }
     },
-    "Browser authentication": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Selaintunnistautuminen"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Webbläsarinloggning"
-          }
-        }
-      }
-    },
     "CAN": {
       "localizations": {
         "fi": {
@@ -1837,22 +1821,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "EXEMPEL EVA"
-          }
-        }
-      }
-    },
-    "Deny": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Estä"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Neka"
           }
         }
       }
@@ -6668,6 +6636,116 @@
           "stringUnit": {
             "state": "translated",
             "value": "lokalt nätverk är inte tillåtet"
+          }
+        }
+      }
+    },
+    "Authentication": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tunnistautuminen"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Identifiering"
+          }
+        }
+      }
+    },
+    "%@ asks you to authenticate.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ pyytää tunnistautumaan."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ber dig att identifiera dig."
+          }
+        }
+      }
+    },
+    "Signature": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allekirjoitus"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Underskrift"
+          }
+        }
+      }
+    },
+    "%@ asks you to sign.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ pyytää allekirjoittamaan."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ber dig att underteckna."
+          }
+        }
+      }
+    },
+    "%@ asks you to sign %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ asks you to sign %2$@."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ pyytää allekirjoittamaan asiakirjan %2$@."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ ber dig att underteckna %2$@."
+          }
+        }
+      }
+    },
+    "%@ asks you to sign the documents %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ asks you to sign the documents %2$@."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ pyytää allekirjoittamaan asiakirjat %2$@."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ ber dig att underteckna dokumenten %2$@."
           }
         }
       }
