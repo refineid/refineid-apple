@@ -87,12 +87,6 @@
     /// Single well-known account: one log per device.
     private static let account = "errors"
 
-    /// Suffix of the keychain access group the three binaries share.
-    private static let sharedGroupSuffix = "fi.refineid.ReFineID"
-
-    /// The entitlement naming this binary's keychain access groups.
-    private static let accessGroupsEntitlement = "keychain-access-groups"
-
     /// How a bridged Foundation error describes itself.
     private static let bridgedErrorPrefix = "Error Domain="
 
@@ -326,24 +320,11 @@
         kSecUseDataProtectionKeychain as String: true,
         kSecAttrSynchronizable as String: false,
       ]
-      #if os(macOS)
-        if let group = Self.sharedGroup() {
-          coordinates[kSecAttrAccessGroup as String] = group
-        }
-      #endif
+      if let group = CardCredentialStore.sharedKeychainGroup {
+        coordinates[kSecAttrAccessGroup as String] = group
+      }
       return coordinates
     }
-
-    #if os(macOS)
-      /// The shared keychain group named in this binary's entitlements.
-      private static func sharedGroup() -> String? {
-        guard let task = SecTaskCreateFromSelf(nil) else { return nil }
-        let value = SecTaskCopyValueForEntitlement(
-          task, Self.accessGroupsEntitlement as CFString, nil)
-        let groups = value as? [String] ?? []
-        return groups.first { $0.hasSuffix(Self.sharedGroupSuffix) }
-      }
-    #endif
 
     /// Tells every process that the log changed.
     private static func post() {

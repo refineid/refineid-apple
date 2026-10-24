@@ -40,7 +40,8 @@ internal enum CardStateReset {
       || !TrustRootsCache.shared.allCertificates.isEmpty
   }
 
-  /// Clears registrations, identity configurations, primes, and trace.
+  /// Clears registrations, identity configurations, primes, and, in a
+  /// development build, the extension trace.
   internal static func perform() -> Outcome {
     var lines = ["=== reset RefineID Safari identities ==="]
     let registration = Self.unregisterOurTokens()
@@ -76,15 +77,19 @@ internal enum CardStateReset {
       }
     #endif
 
-    let traceStatus = ExtensionTrace.clear()
-    let traceCleared = traceStatus == errSecSuccess || traceStatus == errSecItemNotFound
-    lines.append(
-      traceCleared
-        ? "RefineID extension trace: cleared"
-        : "RefineID extension trace: clear failed (\(traceStatus))")
-    if !traceCleared {
-      lines.append("Cleanup failure: extension trace (OSStatus=\(traceStatus))")
-    }
+    #if DEBUG
+      let traceStatus = ExtensionTrace.clear()
+      let traceCleared = traceStatus == errSecSuccess || traceStatus == errSecItemNotFound
+      lines.append(
+        traceCleared
+          ? "RefineID extension trace: cleared"
+          : "RefineID extension trace: clear failed (\(traceStatus))")
+      if !traceCleared {
+        lines.append("Cleanup failure: extension trace (OSStatus=\(traceStatus))")
+      }
+    #else
+      let traceCleared = true
+    #endif
     lines.append("Stored CAN: preserved")
     lines.append("=== end ===")
     return Outcome(

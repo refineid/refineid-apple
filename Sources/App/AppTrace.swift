@@ -18,11 +18,6 @@
 /// reads - this is called once per APDU, and ``CardExchangeTrace/line``
 /// would otherwise format a string for every exchange of a shipped
 /// login before discarding it.
-///
-/// ``ExtensionTrace/clear()`` is deliberately not wrapped and is called
-/// unguarded from ``CardStateReset``: never writing is the requirement,
-/// and a shipped build must still be able to delete a buffer some
-/// earlier development build left on the device.
 internal enum AppTrace {
   /// Appends one complete Debug trace line to the shared trace.
   internal static func append(_ line: @autoclosure () -> String) {

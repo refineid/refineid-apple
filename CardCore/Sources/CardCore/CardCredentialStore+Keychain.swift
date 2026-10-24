@@ -10,8 +10,9 @@ extension CardCredentialStore {
   /// The shared group, or nil where no entitlement names one.
   ///
   /// Read from this binary's own entitlements, so no team identifier
-  /// is written in source. Nil keeps the platform's default behavior.
-  internal static var sharedKeychainGroup: String? {
+  /// is written in source. Nil keeps the platform's default behavior,
+  /// which on iOS is the first group the entitlement names.
+  public static var sharedKeychainGroup: String? {
     #if os(macOS)
       guard let task = SecTaskCreateFromSelf(nil) else { return nil }
       var error: Unmanaged<CFError>?

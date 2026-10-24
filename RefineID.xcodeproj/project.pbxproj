@@ -29,6 +29,9 @@
 		BC0000000000000000000009 /* PaceTimingValues.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000A /* PaceTimingValues.swift */; };
 		BC000000000000000000000B /* DevErrorLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000C /* DevErrorLog.swift */; };
 		BC000000000000000000000D /* DevErrorLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000C /* DevErrorLog.swift */; };
+		BC000000000000000000000F /* ExtensionTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000E /* ExtensionTrace.swift */; };
+		BC0000000000000000000010 /* ExtensionTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000E /* ExtensionTrace.swift */; };
+		BC0000000000000000000011 /* ExtensionTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000E /* ExtensionTrace.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -111,6 +114,7 @@
 		BC0000000000000000000008 /* PaceTimingCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Samples/NFCCardTiming/Sources/PaceTimingCommand.swift; sourceTree = SOURCE_ROOT; };
 		BC000000000000000000000A /* PaceTimingValues.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Samples/NFCCardTiming/Sources/Values/PaceTimingValues.swift; sourceTree = SOURCE_ROOT; };
 		BC000000000000000000000C /* DevErrorLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/App/DevErrorLog.swift; sourceTree = SOURCE_ROOT; };
+		BC000000000000000000000E /* ExtensionTrace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/App/ExtensionTrace.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -245,6 +249,7 @@
 				BC0000000000000000000008 /* PaceTimingCommand.swift */,
 				BC000000000000000000000A /* PaceTimingValues.swift */,
 				BC000000000000000000000C /* DevErrorLog.swift */,
+				BC000000000000000000000E /* ExtensionTrace.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -564,6 +569,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BC000000000000000000000B /* DevErrorLog.swift in Sources */,
+				BC000000000000000000000F /* ExtensionTrace.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -578,6 +584,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BC0000000000000000000011 /* ExtensionTrace.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -601,6 +608,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BC000000000000000000000D /* DevErrorLog.swift in Sources */,
+				BC0000000000000000000010 /* ExtensionTrace.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -648,6 +656,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				EXCLUDED_SOURCE_FILE_NAMES = (
 					DevErrorLog.swift,
+					ExtensionTrace.swift,
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config/RappTokenExtension-Info.plist";
@@ -935,6 +944,7 @@
 					DevErrorDisplay.swift,
 					DevErrorList.swift,
 					DevErrorLog.swift,
+					ExtensionTrace.swift,
 					DevErrorModel.swift,
 					DevErrorWindow.swift,
 					"RappConnectionCoordinator.CloseReason+DevError.swift",
@@ -991,6 +1001,7 @@
 					DevErrorDisplay.swift,
 					DevErrorList.swift,
 					DevErrorLog.swift,
+					ExtensionTrace.swift,
 					DevErrorModel.swift,
 					DevErrorWindow.swift,
 					"RappConnectionCoordinator.CloseReason+DevError.swift",
@@ -1075,6 +1086,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				EXCLUDED_SOURCE_FILE_NAMES = (
 					DevErrorLog.swift,
+					ExtensionTrace.swift,
 					"TokenSession+DevErrors.swift",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1112,6 +1124,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				EXCLUDED_SOURCE_FILE_NAMES = (
 					DevErrorLog.swift,
+					ExtensionTrace.swift,
 					"TokenSession+DevErrors.swift",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1216,6 +1229,9 @@
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				EXCLUDED_SOURCE_FILE_NAMES = (
+					ExtensionTrace.swift,
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config/DiscoveryExtension-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "RefineID Card Discovery";
@@ -1249,6 +1265,9 @@
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				EXCLUDED_SOURCE_FILE_NAMES = (
+					ExtensionTrace.swift,
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config/DiscoveryExtension-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "RefineID Card Discovery";
@@ -1577,6 +1596,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				EXCLUDED_SOURCE_FILE_NAMES = (
 					DevErrorLog.swift,
+					ExtensionTrace.swift,
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config/RappTokenExtension-Info.plist";
