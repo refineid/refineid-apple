@@ -954,6 +954,86 @@
         }
       }
     },
+    "RefineID does not use PIN 1 with fewer than 3 attempts left.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RefineID ei käytä PIN 1:tä, kun yrityksiä on alle kolme."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RefineID använder inte PIN 1 när färre än tre försök återstår."
+          }
+        }
+      }
+    },
+    "RefineID does not use PIN 2 with fewer than 3 attempts left.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RefineID ei käytä PIN 2:ta, kun yrityksiä on alle kolme."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RefineID använder inte PIN 2 när färre än tre försök återstår."
+          }
+        }
+      }
+    },
+    "Reset PIN 1 here with the PUK, or use other software.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Palauta PIN 1 tässä PUK-koodilla tai käytä toista ohjelmaa."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Återställ PIN 1 här med PUK-koden eller använd ett annat program."
+          }
+        }
+      }
+    },
+    "Reset PIN 2 here with the PUK, or use other software.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Palauta PIN 2 tässä PUK-koodilla tai käytä toista ohjelmaa."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Återställ PIN 2 här med PUK-koden eller använd ett annat program."
+          }
+        }
+      }
+    },
+    "A PIN code needs a reset": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN-koodi on palautettava"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En PIN-kod måste återställas"
+          }
+        }
+      }
+    },
     "Remove the card from the reader for a moment.": {
       "localizations": {
         "fi": {
@@ -2832,23 +2912,6 @@
         }
       }
     },
-    "PIN 1 requires recovery": {
-      "extractionState": "manual",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PIN 1 on palautettava"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PIN 1 måste återställas"
-          }
-        }
-      }
-    },
     "PIN 2": {
       "localizations": {
         "fi": {
@@ -2895,23 +2958,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "PIN 2 är felaktig."
-          }
-        }
-      }
-    },
-    "PIN 2 requires recovery": {
-      "extractionState": "manual",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PIN 2 on palautettava"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PIN 2 måste återställas"
           }
         }
       }
