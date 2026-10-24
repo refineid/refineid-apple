@@ -246,14 +246,7 @@
           DebugConsole.emit("=== end ===")
           return false
         }
-        let outcome = await CardPriming.prime(
-          cardAccessNumber: storedAccessNumber,
-          progress: { line in
-            DebugConsole.emit("progress: " + line)
-          },
-          step: { step, state in
-            DebugConsole.emit("step: \(step) \(state)")
-          })
+        let outcome = await CardPriming.prime(cardAccessNumber: storedAccessNumber)
         DebugConsole.emit("stored: \(outcome.stored)")
         DebugConsole.emit("registered: \(outcome.registered)")
         DebugConsole.emit("summary: " + outcome.summary)

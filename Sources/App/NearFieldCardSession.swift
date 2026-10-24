@@ -168,13 +168,14 @@
       self.wasPrompted = wasPrompted
     }
 
-    /// Opens the system NFC slot and waits for a live card in it.
+    /// Opens the system NFC slot and waits for a live card in it, the
+    /// sheet showing the meter of `operation` with no step reached.
     ///
-    /// `message` is what the sheet says while the holder is looking for
-    /// the right spot on the phone. The returned session owns the sheet
-    /// until ``end()``.
-    internal static func open(message: String) async throws -> NearFieldCardSession {
-      try await open(message: message, onPromptNeeded: nil)
+    /// The returned session owns the sheet until ``end()``.
+    internal static func open(showing operation: NearFieldOperation) async throws
+      -> NearFieldCardSession
+    {
+      try await open(message: NearFieldSheet.opening(operation), onPromptNeeded: nil)
     }
 
     /// Opens the system NFC slot and waits for a live card in it, invoking
@@ -306,6 +307,14 @@
     /// staler sentence.
     internal func update(message: String) {
       try? session.update(message: message)
+    }
+
+    /// The meter of `operation` on this hold's sheet, with the card found
+    /// and the secure channel running.
+    internal func meter(_ operation: NearFieldOperation) -> NearFieldSheet {
+      let sheet = NearFieldSheet(operation) { [self] text in update(message: text) }
+      sheet.reach(.secureChannel)
+      return sheet
     }
 
     /// Ends the hold and dismisses the system sheet.

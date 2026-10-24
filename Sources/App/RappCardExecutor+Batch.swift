@@ -40,7 +40,8 @@
       recorder: RappBatchSignatureRecorder
     ) async -> BatchOutcome {
       let counter = BatchCounter()
-      let outcome = await withCard(cardAccessNumber: cardAccessNumber) { operations, context in
+      let outcome = await withCard(cardAccessNumber: cardAccessNumber, operation: .signature) {
+        operations, context in
         for digest in request.digests {
           let outcome = executeSign(
             SignParameters(

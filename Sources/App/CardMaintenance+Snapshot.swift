@@ -68,72 +68,6 @@
       }
     }
 
-    /// Runs one RAPP card operation in one exclusive NFC hold after PACE.
-    internal static func onSecureNearFieldCard<Payload: Sendable>(
-      cardAccessNumber: String?,
-      message: String,
-      _ operation: @escaping @Sendable (CardOperations) -> Payload
-    ) async -> CardSessionResult<Payload> {
-      guard let cardAccessNumber else {
-        return .wrongCardAccessNumber
-      }
-      guard SupportedCardTransports.offersNearField else {
-        #if DEBUG
-          print("[near-field] refused: platform offers no antenna")
-          fflush(stdout)
-        #endif
-        return .failed
-      }
-      let held: NearFieldCardSession
-      do {
-        held = try await NearFieldCardSession.open(message: message)
-      } catch {
-        #if DEBUG
-          print("[near-field] open failed: \(String(describing: error))")
-          fflush(stdout)
-        #endif
-        return .failed
-      }
-      defer { held.end() }
-      return await withCheckedContinuation { continuation in
-        DispatchQueue.global(qos: .userInitiated).async {
-          let answer = Self.cardSessionAnswer(held) { channel in
-            do {
-              let operations = try connectionOperations(
-                over: channel,
-                cardAccessNumber: cardAccessNumber
-              )
-              return CardSessionResult.connected(operation(operations))
-            } catch ConnectionFailure.wrongCardAccessNumber {
-              return CardSessionResult<Payload>.wrongCardAccessNumber
-            } catch {
-              #if DEBUG
-                print("[near-field] connect failed: \(String(describing: error))")
-                fflush(stdout)
-              #endif
-              return CardSessionResult<Payload>.failed
-            }
-          }
-          continuation.resume(returning: answer ?? .failed)
-        }
-      }
-    }
-
-    private static func cardSessionAnswer<Payload: Sendable>(
-      _ held: NearFieldCardSession,
-      _ body: (SmartCardChannel) throws -> CardSessionResult<Payload>
-    ) -> CardSessionResult<Payload>? {
-      do {
-        return try held.withCardSession(body)
-      } catch {
-        #if DEBUG
-          print("[near-field] session failed: \(String(describing: error))")
-          fflush(stdout)
-        #endif
-        return nil
-      }
-    }
-
     /// The first wireless connection, classified from the live ATR before
     /// falling back to the certificate.
     ///
@@ -152,21 +86,26 @@
       guard SupportedCardTransports.offersNearField else { return .failed }
       let held: NearFieldCardSession
       do {
-        held = try await NearFieldCardSession.open(
-          message: String(localized: "Hold the card near the top of the iPhone."))
+        held = try await NearFieldCardSession.open(showing: .cardStatus)
       } catch {
         return .failed
       }
       defer { held.end() }
+      let sheet = held.meter(.cardStatus)
       let atrScheme = ActivationScheme.classify(answerToReset: held.answerToReset)
       return await withCheckedContinuation { continuation in
         DispatchQueue.global(qos: .userInitiated).async {
           let answer = try? held.withCardSession { channel -> ConnectionSnapshotResult in
             let result = snapshotFromChannel(
-              channel, cardAccessNumber: cardAccessNumber, atrScheme: atrScheme)
+              channel, cardAccessNumber: cardAccessNumber, atrScheme: atrScheme, sheet: sheet)
             guard case .connected(var snapshot) = result else { return result }
             snapshot.answerToReset = held.answerToReset
             return .connected(snapshot)
+          }
+          if case .connected = answer {
+            sheet.finish()
+          } else {
+            sheet.fail(at: nil)
           }
           continuation.resume(returning: answer ?? .failed)
         }
@@ -198,7 +137,8 @@
               snapshotFromChannel(
                 channel,
                 cardAccessNumber: cardAccessNumber,
-                atrScheme: candidate.atrScheme
+                atrScheme: candidate.atrScheme,
+                sheet: nil
               )
             }
             switch answer {
@@ -215,15 +155,20 @@
       }
     }
 
+    /// The snapshot read over `channel`; `sheet`, when the phone's own
+    /// antenna holds the card, moves past the secure channel once it is
+    /// open.
     private static func snapshotFromChannel(
       _ channel: SmartCardChannel,
       cardAccessNumber: String?,
-      atrScheme: ActivationScheme?
+      atrScheme: ActivationScheme?,
+      sheet: NearFieldSheet?
     ) -> ConnectionSnapshotResult {
       do {
         let operations = try connectionOperations(
           over: channel,
           cardAccessNumber: cardAccessNumber)
+        sheet?.advance()
         let certificateScheme = classifyScheme(operations)
         guard let scheme = certificateScheme ?? atrScheme else {
           return .failed
@@ -256,20 +201,25 @@
         }
         let held: NearFieldCardSession
         do {
-          held = try await NearFieldCardSession.open(
-            message: String(localized: "Hold the card near the top of the iPhone."))
+          held = try await NearFieldCardSession.open(showing: .cardStatus)
         } catch {
           return DebugModeReport(
             lines: ["activation-probe: NFC session did not open"],
             succeeded: false)
         }
         defer { held.end() }
+        let sheet = held.meter(.cardStatus)
         let atrScheme = ActivationScheme.classify(answerToReset: held.answerToReset)
         return await withCheckedContinuation { continuation in
           DispatchQueue.global(qos: .userInitiated).async {
             let report = try? held.withCardSession { channel -> DebugModeReport in
               debugReportFromChannel(
-                channel, cardAccessNumber: cardAccessNumber, atrScheme: atrScheme)
+                channel, cardAccessNumber: cardAccessNumber, atrScheme: atrScheme, sheet: sheet)
+            }
+            if report?.succeeded == true {
+              sheet.finish()
+            } else {
+              sheet.fail(at: nil)
             }
             continuation.resume(
               returning: report.flatMap(\.self)
@@ -283,12 +233,14 @@
       private static func debugReportFromChannel(
         _ channel: SmartCardChannel,
         cardAccessNumber: String,
-        atrScheme: ActivationScheme?
+        atrScheme: ActivationScheme?,
+        sheet: NearFieldSheet
       ) -> DebugModeReport {
         do {
           let operations = try connectionOperations(
             over: channel,
             cardAccessNumber: cardAccessNumber)
+          sheet.advance()
           let certificateScheme = classifyScheme(operations)
           let pin1Record = try? operations.readPinChangeRecord(role: .pin1)
           let pin2Record = try? operations.readPinChangeRecord(role: .pin2)

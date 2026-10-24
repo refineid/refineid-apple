@@ -57,10 +57,8 @@ extension CardMaintenance {
     let result = await onCard(
       transport: transport,
       cardAccessNumber: cardAccessNumber,
-      message: String(
-        localized: "signing.nfcHold",
-        defaultValue: "Hold your identity card near the top of the iPhone.",
-        table: "DocumentSigning")
+      operation: .signature,
+      failedStep: Self.failedStep(of:)
     ) { operations in
       Self.qualifiedInSession(
         operations,
@@ -70,6 +68,24 @@ extension CardMaintenance {
       )
     }
     return result ?? .refused(.noCard)
+  }
+
+  /// Where on the meter a qualified signing session broke; nil when the
+  /// card signed.
+  private static func failedStep(of answer: QualifiedAnswer) -> NearFieldStep? {
+    switch answer {
+    case .signed:
+      nil
+
+    case .signerCertificateMismatch:
+      .certificate
+
+    case .refused(.failed):
+      .signature
+
+    case .refused:
+      .credential
+    }
   }
 
   /// The qualified signature, inside an open session: floor, the

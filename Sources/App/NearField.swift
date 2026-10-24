@@ -36,6 +36,6 @@ internal protocol NearField: AnyObject, Sendable {
   /// when the card did not answer.
   func prepareChannel(cardAccessNumber: String) async -> Channel?
 
-  /// Replaces the line of text on the sheet.
-  func show(_ line: NearFieldSheetLine)
+  /// Replaces the message on the sheet.
+  func show(_ text: String)
 }

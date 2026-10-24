@@ -91,7 +91,10 @@
     private static func sign(
       _ params: SignParameters
     ) async -> Outcome {
-      await withCard(cardAccessNumber: params.cardAccessNumber) { operations, context in
+      await withCard(
+        cardAccessNumber: params.cardAccessNumber,
+        operation: params.qualified ? .signature : .authentication
+      ) { operations, context in
         executeSign(params, with: operations, context: context)
       }
     }

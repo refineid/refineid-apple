@@ -1180,28 +1180,6 @@
         }
       }
     },
-    "signing.nfcHold" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hold your identity card near the top of the iPhone."
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pidä henkilökorttia iPhonen yläosan lähellä."
-          }
-        },
-        "sv" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Håll identitetskortet nära den övre delen av iPhone."
-          }
-        }
-      }
-    },
     "signing.pin2" : {
       "extractionState" : "stale",
       "localizations" : {

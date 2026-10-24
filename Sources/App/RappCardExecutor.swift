@@ -46,6 +46,27 @@
         return false
       }
 
+      /// The step an outcome without the card's result broke at.
+      internal var failedStep: NearFieldStep? {
+        switch self {
+        case .result:
+          nil
+
+        case .rejected(.cardAccessNumber), .refusedBeforeCredentialTransmit(.cardUnavailable):
+          .secureChannel
+
+        case .refusedBeforeCredentialTransmit(.certificateUnavailable),
+          .refusedBeforeCredentialTransmit(.keyOrAlgorithmMismatch):
+          .certificate
+
+        case .rejected(.credential), .refusedBeforeCredentialTransmit:
+          .credential
+
+        case .completionAmbiguous:
+          .signature
+        }
+      }
+
       /// Whether the card answered the operation.
       internal var cardAnswered: Bool {
         switch self {
@@ -66,10 +87,6 @@
       internal let request: SignRequest
     }
 
-    private static var holdMessage: String {
-      String(localized: "Hold your identity card near the top of the iPhone.")
-    }
-
     internal static func readCertificate(
       cardAccessNumber: String?,
       signatureCertificate: Bool
@@ -78,7 +95,8 @@
         signatureCertificate ? .qualifiedSignature : .authentication
       let fallbackSlot: CertificateSlot =
         signatureCertificate ? .secondQualifiedSignature : .secondAuthentication
-      return await withCard(cardAccessNumber: cardAccessNumber) { operations in
+      return await withCard(cardAccessNumber: cardAccessNumber, operation: .identity) {
+        operations in
         if let cert = (try? operations.readCertificate(slot))
           ?? (try? operations.readCertificate(fallbackSlot))
         {
@@ -92,7 +110,7 @@
       cardAccessNumber: String?,
       slot: CertificateSlot
     ) async -> Outcome {
-      await withCard(cardAccessNumber: cardAccessNumber) { operations in
+      await withCard(cardAccessNumber: cardAccessNumber, operation: .identity) { operations in
         if let cert = try? operations.readCertificate(slot) {
           return .result(cert)
         }
@@ -102,16 +120,21 @@
 
     internal static func withCard(
       cardAccessNumber: String?,
-      _ operation: @escaping @Sendable (CardOperations) -> Outcome
+      operation: NearFieldOperation,
+      _ work: @escaping @Sendable (CardOperations) -> Outcome
     ) async -> Outcome {
-      await withCard(cardAccessNumber: cardAccessNumber) { operations, _ in
-        operation(operations)
+      await withCard(cardAccessNumber: cardAccessNumber, operation: operation) { operations, _ in
+        work(operations)
       }
     }
 
+    /// Runs `work` on the card in an attached reader, or else on the
+    /// phone's own antenna with the sheet drawing the meter of
+    /// `operation`.
     internal static func withCard(
       cardAccessNumber: String?,
-      _ operation:
+      operation: NearFieldOperation,
+      _ work:
         @escaping @Sendable (
           CardOperations,
           RappNearFieldSessionHolder.Context?
@@ -119,7 +142,7 @@
     ) async -> Outcome {
       if let readerResult = await RappReaderSessionHolder.shared.execute(
         cardAccessNumber: cardAccessNumber,
-        operation
+        work
       ) {
         switch readerResult {
         case .connected(let outcome):
@@ -138,8 +161,8 @@
       guard
         let result = await RappNearFieldSessionHolder.shared.execute(
           cardAccessNumber: cardAccessNumber,
-          message: holdMessage,
-          operation
+          operation: operation,
+          work
         )
       else {
         return .refusedBeforeCredentialTransmit(.cardUnavailable)

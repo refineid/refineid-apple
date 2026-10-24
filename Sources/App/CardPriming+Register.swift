@@ -15,34 +15,28 @@
     /// Registers the live card so the system can ask for it later.
     internal static func register(
       instance: CardInstanceIdentifier,
-      session: NearFieldCardSession,
-      progress: Progress
+      session: NearFieldCardSession
     ) async -> Bool {
       await MainActor.run { HolderCardServing.availabilityChanged() }
       let manager = TKSmartCardTokenRegistrationManager.default
       let tokenID = await Self.tokenID(for: instance, session: session)
       if manager.registeredSmartCardTokens.contains(tokenID) {
-        progress(String(localized: "Card registered for Safari."))
         return true
       }
-      for attempt in 1...Self.registrationAttemptLimit {
+      for _ in 1...Self.registrationAttemptLimit {
         guard session.holdsValidCard else {
-          progress(String(localized: "The card left before setup finished."))
           return false
         }
         do {
           try manager.registerSmartCard(
             tokenID: tokenID, promptMessage: Self.registrationPrompt)
-          progress(String(localized: "Card registered for Safari."))
           return true
         } catch {
           // CryptoTokenKit may publish while the throwing call unwinds;
           // already registered is also success for this idempotent action.
           if manager.registeredSmartCardTokens.contains(tokenID) {
-            progress(String(localized: "Card registered for Safari."))
             return true
           }
-          progress(String(localized: "Setup attempt \(attempt) did not take."))
         }
       }
       return false

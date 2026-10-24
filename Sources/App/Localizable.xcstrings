@@ -966,22 +966,6 @@
         }
       }
     },
-    "Card details stored on this iPhone.": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kortin tiedot tallennettu tähän iPhoneen."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kortets uppgifter sparade på den här iPhone."
-          }
-        }
-      }
-    },
     "Card detected, not ready - if this lasts, re-insert it": {
       "localizations": {
         "fi": {
@@ -994,70 +978,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kort upptäckt, inte klart - sätt i kortet igen om det fortsätter"
-          }
-        }
-      }
-    },
-    "Card found": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kortti löytyi"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kort hittades"
-          }
-        }
-      }
-    },
-    "Card found. Keep holding.": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kortti löytyi. Pidä se paikallaan."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kortet hittades. Håll kvar det."
-          }
-        }
-      }
-    },
-    "Card identity read.": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kortin varmenne luettu."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kortets certifikat inläst."
-          }
-        }
-      }
-    },
-    "Card read successfully.": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kortti luettu onnistuneesti."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kortet lästes in framgångsrikt."
           }
         }
       }
@@ -1118,22 +1038,6 @@
         }
       }
     },
-    "Card registered for Safari.": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kortti rekisteröity Safariin."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kortet registrerat för Safari."
-          }
-        }
-      }
-    },
     "Card status": {
       "localizations": {
         "fi": {
@@ -1179,22 +1083,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kort"
-          }
-        }
-      }
-    },
-    "Certificate read": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Varmenne luettu"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Certifikatet lästes"
           }
         }
       }
@@ -1595,22 +1483,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ansluten"
-          }
-        }
-      }
-    },
-    "Connection opened.": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Yhteys avattu."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Anslutning öppnad."
           }
         }
       }
@@ -2176,176 +2048,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dölj %@"
-          }
-        }
-      }
-    },
-    "Hold the card near the top of the iPhone.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hold the card near the top of the iPhone."
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pidä korttia iPhonen yläosan lähellä."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Håll kortet nära den övre delen av iPhone."
-          }
-        }
-      }
-    },
-    "Hold the card on the top back of the phone.": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pidä korttia puhelimen yläosan takana."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Håll kortet mot telefonens övre baksida."
-          }
-        }
-      }
-    },
-    "Hold the card still while PIN 1 is changed.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hold the card still while PIN 1 is changed."
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pidä korttia paikallaan, kun perustunnusluku (PIN 1) vaihdetaan."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Håll kortet stilla medan baskoden (PIN 1) byts."
-          }
-        }
-      }
-    },
-    "Hold the card still while PIN 1 is reset.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hold the card still while PIN 1 is reset."
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pidä korttia paikallaan, kun perustunnusluku (PIN 1) palautetaan."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Håll kortet stilla medan baskoden (PIN 1) återställs."
-          }
-        }
-      }
-    },
-    "Hold the card still while PIN 2 is changed.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hold the card still while PIN 2 is changed."
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pidä korttia paikallaan, kun allekirjoitustunnusluku (PIN 2) vaihdetaan."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Håll kortet stilla medan signaturkoden (PIN 2) byts."
-          }
-        }
-      }
-    },
-    "Hold the card still while PIN 2 is reset.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hold the card still while PIN 2 is reset."
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pidä korttia paikallaan, kun allekirjoitustunnusluku (PIN 2) palautetaan."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Håll kortet stilla medan signaturkoden (PIN 2) återställs."
-          }
-        }
-      }
-    },
-    "Hold the card still while activation is checked.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hold the card still while activation is checked."
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pidä korttia paikallaan, kun aktivointi tarkistetaan."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Håll kortet stilla medan aktiveringen kontrolleras."
-          }
-        }
-      }
-    },
-    "Hold the card still while it is activated.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hold the card still while it is activated."
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pidä korttia paikallaan, kun se aktivoidaan."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Håll kortet stilla medan det aktiveras."
           }
         }
       }
@@ -3005,22 +2707,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Enheten får endast de angivna åtkomsträttigheter som stöds"
-          }
-        }
-      }
-    },
-    "Opening a connection to the card.": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avataan yhteys korttiin."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Öppnar anslutning till kortet."
           }
         }
       }
@@ -3890,28 +3576,6 @@
         }
       }
     },
-    "Reading card capabilities": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reading card capabilities"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Luetaan kortin ominaisuuksia"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Läser kortets egenskaper"
-          }
-        }
-      }
-    },
     "Reading information…": {
       "localizations": {
         "fi": {
@@ -3956,38 +3620,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Läser kortet…"
-          }
-        }
-      }
-    },
-    "Reading the certificate from the card.": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Luetaan varmennetta kortilta."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Läser certifikatet från kortet."
-          }
-        }
-      }
-    },
-    "Ready for Safari": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Valmis Safaria varten"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Klar för Safari"
           }
         }
       }
@@ -4401,22 +4033,6 @@
         }
       }
     },
-    "Saved to this iPhone": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tallennettu tähän iPhoneen"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sparat på den här iPhone-enheten"
-          }
-        }
-      }
-    },
     "Scan": {
       "localizations": {
         "fi": {
@@ -4497,22 +4113,6 @@
         }
       }
     },
-    "Secure channel": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Suojattu yhteys"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Skyddad kanal"
-          }
-        }
-      }
-    },
     "Secure pairing established": {
       "localizations": {
         "fi": {
@@ -4574,22 +4174,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Konfigurera ditt kort"
-          }
-        }
-      }
-    },
-    "Setup attempt %lld did not take.": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Määritysyritys %lld ei onnistunut."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Konfigurationsförsök %lld lyckades inte."
           }
         }
       }
@@ -5099,22 +4683,6 @@
         }
       }
     },
-    "The card left before setup finished.": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kortti poistui ennen kuin määritys valmistui."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kortet togs bort innan konfigurationen slutfördes."
-          }
-        }
-      }
-    },
     "The card was not recognized. Try holding it again.": {
       "localizations": {
         "fi": {
@@ -5478,28 +5046,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Den här iPhone öppnade ingen kortläsningssession."
-          }
-        }
-      }
-    },
-    "Timing the secure channel": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Timing the secure channel"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mitataan suojattua yhteyttä"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mäter den säkra anslutningen"
           }
         }
       }

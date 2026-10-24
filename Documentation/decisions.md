@@ -431,8 +431,8 @@ resting under the phone, all RAPP signing operations execute silently and as fas
 as possible without user prompts, sheet modifications, or sound effects ("quiet as unix
 command line on success"). Only if the card is not detected within 500 ms
 (`promptPollThreshold = 5`) does the app provide active feedback: playing the
-`Handoff-EncoreInfinitum` alert tone, updating the sheet to "Card found. Keep holding."
-with the continuous provisioning tone upon arrival, and playing a completion chime on
+`Handoff-EncoreInfinitum` alert tone, drawing the operation's meter on the sheet
+(see `design/ios.md`, "The NFC sheet") with the continuous provisioning tone upon arrival, and playing a completion chime on
 success. In case of an error, failure feedback is always reported. Furthermore, the NFC
 session burst grace period is set to 3.5 seconds to retain the active RF session across
 multi-handshake mTLS bursts.

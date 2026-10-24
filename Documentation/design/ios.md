@@ -71,6 +71,34 @@ last, the card's notice stands above the sentence. The time-sensitive
 notification that comes with the prompt carries the same title and
 sentence.
 
+## The NFC sheet
+
+Every operation on the phone's own antenna draws one meter in the system
+NFC sheet's message: one ball per step, then the operation's name. A ball
+is blue once its step is reached, white while it waits, and red for the
+step that broke. The sheet shows no other sentence while it works.
+
+| Operation | Name | Steps |
+| --- | --- | --- |
+| First setup | "Read Identity Card" | card found, secure channel, certificate, stored, registered |
+| Browser authentication for a computer | "Authentication" | card found, secure channel, certificate, PIN, signature |
+| Signature with PIN 2, local or for a computer | "Signature" | card found, secure channel, certificate, PIN, signature |
+| Certificate read for a computer | "Identity" | card found, secure channel, certificate |
+| Retry counters and activation state | "Card status" | card found, secure channel, certificate |
+| Activation | "Card activation" | card found, secure channel, PIN |
+| PIN change | "Change PIN 1", "Change PIN 2" | card found, secure channel, PIN |
+| PUK reset | "Reset PIN 1", "Reset PIN 2" | card found, secure channel, PIN |
+
+- **Opening.** While the holder looks for the spot, every ball is white.
+- **Errors.** The step that broke turns red; where the operation has an
+  error sentence, the sentence then replaces the meter, since the sheet
+  truncates what does not fit on its line.
+- **Warm field.** Between operations the sheet keeps the last operation's
+  meter, every ball blue, or its error sentence. The next operation draws
+  its own meter.
+- **Security delay.** During a card's anti-tamper delay at setup, the
+  seconds left follow the balls in place of the name.
+
 ## A computer that withdraws or forgets the phone
 
 A paired computer that a card in its own reader suspends, or that quits,

@@ -605,22 +605,6 @@
       "count": 1
     },
     {
-      "file": "Sources/App/CardPrimingStep.swift",
-      "command": "disable",
-      "rules": [
-        "sorted_enum_cases"
-      ],
-      "count": 1
-    },
-    {
-      "file": "Sources/App/CardPrimingStep.swift",
-      "command": "enable",
-      "rules": [
-        "sorted_enum_cases"
-      ],
-      "count": 1
-    },
-    {
       "file": "Sources/App/DemoModeSceneDelegate.swift",
       "command": "disable:next",
       "rules": [

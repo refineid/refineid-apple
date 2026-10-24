@@ -95,6 +95,12 @@
       )
     }
 
+    /// The diagnosis reports its own failures in its lines; the meter
+    /// finishes whenever the card answered.
+    private static func failedStep(of _: [String]) -> NearFieldStep? {
+      nil
+    }
+
     private static func diagnoseActivationClassification(
       transport: CardMaintenance.Transport,
       can: String?
@@ -102,7 +108,8 @@
       let lines = await CardMaintenance.onCard(
         transport: transport,
         cardAccessNumber: can,
-        message: String(localized: "Hold the card still while activation is checked.")
+        operation: .cardStatus,
+        failedStep: Self.failedStep(of:)
       ) { operations -> [String] in
         do {
           let certificate = try operations.readCertificate(.authentication)

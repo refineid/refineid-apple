@@ -54,15 +54,15 @@
       }
     }
 
-    /// Runs `operation` on the warm field, opening one with the sheet
-    /// saying `message` when none is held.
+    /// Runs `work` on the warm field, opening one when none is held; the
+    /// sheet draws the meter of `operation`.
     internal func execute(
       cardAccessNumber: String,
-      message: String,
-      _ operation: @escaping @Sendable (CardOperations, Context) -> RappCardExecutor.Outcome
+      operation: NearFieldOperation,
+      _ work: @escaping @Sendable (CardOperations, Context) -> RappCardExecutor.Outcome
     ) async -> RappCardExecutor.Outcome? {
-      await field.execute(cardAccessNumber: cardAccessNumber, message: message) { held, box in
-        operation(held.operations, Context.live(on: box))
+      await field.execute(cardAccessNumber: cardAccessNumber, operation: operation) { held, box in
+        work(held.operations, Context.live(on: box))
       }
     }
 
