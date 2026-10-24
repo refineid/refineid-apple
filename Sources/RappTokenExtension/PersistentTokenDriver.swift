@@ -20,7 +20,9 @@ internal final class PersistentTokenDriver: TKTokenDriver,
     fileprivate let certificate: SecCertificate
     fileprivate let publicKey: SecKey
     fileprivate let profile: CardKeyProfile
-    fileprivate let pairRecord: RappPairRecord?
+    /// The pairing the identity was offered for; its keys are read from
+    /// the device vault only when this extension dials the phone.
+    fileprivate let pairing: PersistentTokenPairing
 
     fileprivate init(
       tokenDriver: TKTokenDriver,
@@ -39,19 +41,15 @@ internal final class PersistentTokenDriver: TKTokenDriver,
       self.certificate = parsedCertificate
       self.publicKey = parsedPublicKey
       self.profile = resolvedProfile
-      if let configData = configuration.configurationData {
-        self.pairRecord = try? RappPairRecord.decode(from: configData)
-      } else {
-        self.pairRecord = nil
+      guard let named = PersistentTokenPairing(configurationData: configuration.configurationData)
+      else {
+        #if DEBUG
+          DevErrorLog.report(
+            "rapp token: configuration names no pairing", source: .rappTokenExtension)
+        #endif
+        throw TKError(.corruptedData)
       }
-      #if DEBUG
-        NSLog(
-          "[PersistentToken] init instanceID=%{public}@ hasConfigData=%{public}s hasPairRecord=%{public}s",
-          configuration.instanceID,
-          configuration.configurationData != nil ? "true" : "false",
-          self.pairRecord != nil ? "true" : "false"
-        )
-      #endif
+      self.pairing = named
       super.init(tokenDriver: tokenDriver, instanceID: configuration.instanceID)
       delegate = self
     }
@@ -240,7 +238,7 @@ internal final class PersistentTokenDriver: TKTokenDriver,
     private func perform(_ operation: RappRequesterOperation) throws -> RappRequesterResponse {
       #if os(macOS)
         let handoff = RappHeldSessionHandoff.Request(
-          pairID: persistentToken.pairRecord?.metadata().pairId, operation: operation)
+          pairID: persistentToken.pairing.pairID, operation: operation)
         switch RappHeldSessionHandoff.ask(handoff) {
         case .response(let response):
           Self.say("rapp sign carried by the app")
@@ -256,7 +254,7 @@ internal final class PersistentTokenDriver: TKTokenDriver,
       return try RappPersistentRequesterClient(
         displayName: "RefineID Token",
         policy: .offeredIdentity,
-        pair: persistentToken.pairRecord
+        pairing: persistentToken.pairing
       ).perform(operation)
     }
 
