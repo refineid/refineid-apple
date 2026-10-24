@@ -142,8 +142,9 @@ the holder's name is read, the holder's line says "Connecting to the
 phone…". Only the holder's name is in the primary text color; the rest
 of a paired phone's line is secondary.
 
-*phone* is the `display_name` the phone's pairing hello sent. The same
-name labels the pairing in the paired list.
+A paired phone's line names no phone. In "*phone* forgot this
+computer" and in the paired list, the phone is named by the
+`display_name` its pairing hello sent.
 
 A paired phone's line carries no control: the remote-use switch is the
 only control that forgets the phone.

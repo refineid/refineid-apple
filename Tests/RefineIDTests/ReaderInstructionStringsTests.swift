@@ -173,7 +173,7 @@ internal struct ReaderInstructionStringsTests {
       contentsOf: Self.root.appending(path: "Sources/App/PairedPhoneLine.swift"),
       encoding: .utf8
     )
-    #expect(phoneLine.contains("(paired: \\(phone))"))
+    #expect(phoneLine.contains("(via phone)"))
     #expect(phoneLine.contains("Connecting to the phone…"))
     #expect(!phoneLine.contains("Button"), "the switch is the only control that forgets")
     let pinCodes = try String(
