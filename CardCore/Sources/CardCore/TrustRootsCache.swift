@@ -131,23 +131,73 @@ public final class TrustRootsCache: @unchecked Sendable {
     return nil
   }
 
-  /// Registers card-supplied CA certificates when the cache holds no
-  /// issuer for `leafDER`, and answers the match.
-  public func ensureIssuer(
+  /// The issuing certificate for `leafDER`, asking the card only for
+  /// what this cache cannot answer.
+  ///
+  /// A cached issuer answers without `cardIssuer` being called. A root is
+  /// read with `cardRoot` only when no unexpired cached root issued the
+  /// issuing certificate, and is admitted only when it is self-signed, a
+  /// certificate authority within its validity, and the verified issuer of
+  /// that issuing certificate. An admitted root is persisted and is not
+  /// asked for again until it expires.
+  public func issuer(
     for leafDER: Data,
-    cardIssuer: Data?,
-    cardRoot: Data?
+    cardIssuer: () -> Data?,
+    cardRoot: () -> Data?
   ) -> Data? {
+    dropExpired(at: Date())
+    let issuer: Data
     if let cached = der(matching: leafDER) {
-      return cached
+      issuer = cached
+    } else if let read = cardIssuer() {
+      register(read)
+      issuer = read
+    } else {
+      return nil
     }
-    if let cardIssuer {
-      register(cardIssuer)
+    learnRoot(above: issuer, cardRoot: cardRoot)
+    return issuer
+  }
+
+  /// Reads the root above `issuerDER` with `cardRoot` only when no
+  /// unexpired cached root issued it, and admits what was read only when
+  /// it is self-signed, a certificate authority within its validity, and
+  /// the verified issuer of `issuerDER`.
+  public func learnRoot(above issuerDER: Data, cardRoot: () -> Data?) {
+    dropExpired(at: Date())
+    guard
+      !Self.isSelfSigned(issuerDER),
+      der(matching: issuerDER) == nil,
+      let root = cardRoot(),
+      Self.isSelfSigned(root),
+      Self.meetsPersistencePolicy(root),
+      CertificateIssuer.isDirectlyIssued(issuerDER, by: root, at: Date())
+    else {
+      return
     }
-    if rootCertificate == nil, let cardRoot {
-      registerRoot(cardRoot)
+    registerRoot(root)
+  }
+
+  /// Forgets every cached certificate whose validity ended before `now`,
+  /// in memory and in persistent storage.
+  ///
+  /// Expiry is the only thing that retires a cached certificate.
+  internal func dropExpired(at now: Date) {
+    lock.lock()
+    let expired = lockedAllCertificates().filter { der in
+      !Self.isUnexpired(der, at: now)
     }
-    return der(matching: leafDER)
+    for der in expired {
+      if rootCaDER == der { rootCaDER = nil }
+      if intermediateCaDER == der { intermediateCaDER = nil }
+      extraCasDER.removeAll { $0 == der }
+      certsByFingerprint[Data(SHA256.hash(data: der))] = nil
+      certsBySubject = certsBySubject.filter { $0.value != der }
+    }
+    lock.unlock()
+    for der in expired {
+      Self.deletePersistedCertificate(der)
+    }
   }
 
   /// Checks whether a SHA-256 fingerprint matches any cached CA certificate.

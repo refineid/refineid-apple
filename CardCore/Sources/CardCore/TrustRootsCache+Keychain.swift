@@ -53,13 +53,21 @@ extension TrustRootsCache {
     return CertificateFacts(der: der)?.isCertificateAuthority == true
   }
 
+  /// Whether a stored certificate parses and its validity has not ended.
+  ///
+  /// Expiry is the only thing that retires a certificate the persistence
+  /// policy once admitted.
+  internal static func isUnexpired(_ der: Data, at now: Date) -> Bool {
+    guard let window = CertificateValidity.window(inDer: der) else { return false }
+    return now < window.notAfter
+  }
+
   /// Saves a newly registered certificate to persistent storage if it meets the persistence policy.
   internal static func persistCertificate(_ der: Data) {
     guard meetsPersistencePolicy(der) else {
       return
     }
-    let fingerprint = Data(SHA256.hash(data: der))
-    let account = fingerprint.map { String(format: "%02x", $0) }.joined()
+    let account = Self.account(for: der)
 
     #if DEBUG
       if TestCredentialEnvironment.isTestMode {
@@ -78,6 +86,24 @@ extension TrustRootsCache {
     }
   }
 
+  /// The keychain account one certificate is stored under: its SHA-256
+  /// fingerprint in lowercase hexadecimal.
+  internal static func account(for der: Data) -> String {
+    Data(SHA256.hash(data: der)).map { String(format: "%02x", $0) }.joined()
+  }
+
+  /// Deletes one persisted certificate from Keychain or test store.
+  internal static func deletePersistedCertificate(_ der: Data) {
+    let account = Self.account(for: der)
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        TestCredentialEnvironment.deleteTrustedCa(account: account)
+        return
+      }
+    #endif
+    _ = SecItemDelete(query(account: account) as CFDictionary)
+  }
+
   /// Deletes all persistent CA items from Keychain or test store.
   internal static func deletePersistentCas() {
     #if DEBUG
@@ -90,13 +116,14 @@ extension TrustRootsCache {
     _ = SecItemDelete(deleteQuery as CFDictionary)
   }
 
-  /// Loads persisted certificates on startup, purging any expired or invalid ones.
+  /// Loads persisted certificates on startup, purging expired ones.
   internal func loadPersistedCas() {
+    let now = Date()
     #if DEBUG
       if TestCredentialEnvironment.isTestMode {
         let items = TestCredentialEnvironment.allTrustedCas().sorted { $0.account < $1.account }
         for (account, data) in items {
-          if !Self.meetsPersistencePolicy(data) {
+          if !Self.isUnexpired(data, at: now) {
             TestCredentialEnvironment.deleteTrustedCa(account: account)
             continue
           }
@@ -130,7 +157,7 @@ extension TrustRootsCache {
     let sortedItems = mapped.sorted { $0.account < $1.account }
 
     for (account, data) in sortedItems {
-      if !Self.meetsPersistencePolicy(data) {
+      if !Self.isUnexpired(data, at: now) {
         let deleteQuery = Self.query(account: account)
         _ = SecItemDelete(deleteQuery as CFDictionary)
         continue

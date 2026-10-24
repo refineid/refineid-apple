@@ -45,7 +45,7 @@
   /// and `registerVisibleTokens` in the donor
   /// `platform/apple/RefineID/Local/SafariIdentityPrime+OneSystemNFC.swift`
   /// and `SafariIdentityPrime+LiveRegistration.swift`.
-  internal enum CardPriming {
+  extension CardPriming {
     /// What one priming run achieved.
     internal struct Outcome: Sendable {
       /// Whether the primed identity reached the prime store.
@@ -73,12 +73,12 @@
     }
 
     /// Context needed to read, store, and register a live card hold.
-    private struct HoldExecution: Sendable {
-      let session: NearFieldCardSession
-      let sheet: NearFieldSheet
-      let lookup: PrimeLookupIdentifier
-      let accessNumber: ProvenAccessNumber
-      let isRecovery: Bool
+    internal struct HoldExecution: Sendable {
+      internal let session: NearFieldCardSession
+      internal let sheet: NearFieldSheet
+      internal let lookup: PrimeLookupIdentifier
+      internal let accessNumber: ProvenAccessNumber
+      internal let isRecovery: Bool
     }
 
     /// Shown under Apple's own "Ready to Scan" title whenever the system
@@ -119,7 +119,8 @@
     /// One hold does the whole setup: PACE proves the offered access
     /// number, the public certificate is read behind it, and the identity
     /// is stored and registered. Nothing is written to this device until
-    /// that hold has succeeded.
+    /// the card's identity has been read and checked; the reads after the
+    /// store cannot fail the hold.
     ///
     /// Primes the card the holder is about to present.
     ///
@@ -233,10 +234,8 @@
       do {
         payload = try await Self.onCardQueue {
           try Self.read(
-            from: execution.session,
-            sheet: execution.sheet,
-            accessNumber: execution.accessNumber.value,
-            isRecovery: execution.isRecovery)
+            execution,
+            store: { identity in try Self.store(identity, execution: execution) })
         }
       } catch {
         // The sheet is the only thing a holder can see while holding, so
@@ -246,35 +245,38 @@
         return Self.failure(error)
       }
 
-      // The read above opened the secure channel with this number, so it
-      // is proven, and the record built below is stored under it.
-      guard
-        CardCredentialStore.save(cardAccessNumber: execution.accessNumber.digits) == errSecSuccess
-      else {
-        execution.sheet.fail(at: .stored, saying: String(localized: "Could not save card details"))
-        return Self.failure(Failure.primeNotStored)
-      }
+      return await Self.finish(
+        instance: payload.identity.instance,
+        credentialReport: payload.credentialReport,
+        execution: execution)
+    }
 
-      // The exact record is what the extension's mint -- already waiting
-      // in this field -- publishes from, and what every later signing
-      // field reads. The registration mark written before the slot
-      // opened keeps that waiting mint from taking the card session
-      // away from this flow.
-      execution.sheet.reach(.stored)
+    /// Writes the access number and the prime while the card is still in
+    /// the field.
+    ///
+    /// The exact record is what the extension's mint -- already waiting
+    /// in this field -- publishes from, and what every later signing
+    /// field reads. The registration mark written before the slot opened
+    /// keeps that waiting mint from taking the card session away from
+    /// this flow. PACE has already proven the access number. A qualified
+    /// signature certificate cached for the same authentication
+    /// certificate is kept.
+    private static func store(_ identity: Identity, execution: HoldExecution) throws {
+      let known = PrimeStore.read(lookupID: execution.lookup)
+      let signatureCertificate =
+        known?.certDER == identity.certificate ? known?.signatureCertDER : nil
       guard
-        let identity = CardCredentialStore.primedIdentity(
-          certificate: payload.certificate,
-          issuer: payload.issuer,
-          tokenSerial: payload.tokenSerial,
-          activationCheck: payload.activationCheck,
-          signatureCertificate: payload.signatureCertificate),
-        PrimeStore.store(identity, forLookup: execution.lookup)
+        CardCredentialStore.save(cardAccessNumber: execution.accessNumber.digits) == errSecSuccess,
+        let primed = CardCredentialStore.primedIdentity(
+          certificate: identity.certificate,
+          issuer: identity.issuer,
+          tokenSerial: identity.tokenSerial,
+          activationCheck: identity.activationCheck,
+          signatureCertificate: signatureCertificate),
+        PrimeStore.store(primed, forLookup: execution.lookup)
       else {
-        execution.sheet.fail(at: .stored, saying: String(localized: "Could not save card details"))
-        return Self.failure(Failure.primeNotStored)
+        throw Failure.primeNotStored
       }
-
-      return await Self.finish(payload: payload, execution: execution)
     }
 
     /// Registers the live card and reports how the hold ended.
@@ -283,12 +285,13 @@
     /// with the card in the slot, which is why it takes the live session
     /// rather than being called after the hold.
     private static func finish(
-      payload: Payload,
+      instance: CardInstanceIdentifier,
+      credentialReport: CredentialProbeReport?,
       execution: HoldExecution
     ) async -> Outcome {
       execution.sheet.reach(.registered)
       let registered = await Self.register(
-        instance: payload.instance,
+        instance: instance,
         session: execution.session)
       if registered {
         execution.sheet.finish()
@@ -306,7 +309,7 @@
               The card details were stored, but Safari setup did not \
               finish. Try priming the card again.
               """),
-        credentialReport: payload.credentialReport)
+        credentialReport: credentialReport)
     }
   }
 

@@ -33,18 +33,14 @@
 
         #expect(cache.der(matching: leaf.certificate) == nil)
 
-        // One authority doubles as the root here: every generated
-        // signer shares one fixed subject, so a second authority
-        // would overwrite the first in the subject index.
-        let anchor = cache.ensureIssuer(
+        let anchor = cache.issuer(
           for: leaf.certificate,
-          cardIssuer: authority.certificate,
-          cardRoot: authority.certificate
+          cardIssuer: { authority.certificate },
+          cardRoot: { authority.certificate }
         )
 
         #expect(anchor == authority.certificate)
         #expect(cache.der(matching: leaf.certificate) == authority.certificate)
-        #expect(cache.rootCertificate == authority.certificate)
       }
 
       @Test
@@ -64,14 +60,21 @@
         )
         cache.register(authority.certificate)
 
-        let anchor = cache.ensureIssuer(
+        var cardReads = 0
+        let anchor = cache.issuer(
           for: leaf.certificate,
-          cardIssuer: nil,
-          cardRoot: nil
+          cardIssuer: {
+            cardReads += 1
+            return nil
+          },
+          cardRoot: {
+            cardReads += 1
+            return nil
+          }
         )
 
         #expect(anchor == authority.certificate)
-        #expect(cache.rootCertificate == nil)
+        #expect(cardReads == 0)
       }
 
       @Test
