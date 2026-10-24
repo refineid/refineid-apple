@@ -166,9 +166,19 @@ use on.
 ## The PIN codes window
 
 `PinCodesWindow` holds `CardManagementView` for the card in this Mac's
-reader: the attempts left, and changing or resetting PIN 1 and PIN 2. Only
-the toolbar button opens it, while it shows the two keys. It has no
-Window menu item, never opens at launch, and is not restored. It closes when the card leaves the reader.
+reader: the attempts left, and changing or resetting PIN 1 and PIN 2. The
+toolbar button opens it, while it shows the two keys, and it opens by
+itself when the card's reading says a code is below the retry floor. It has
+no Window menu item, never opens at launch on its own, and is not restored.
+It closes when the card leaves the reader.
+
+While a code is below the floor, the two keys in the toolbar are red and
+the window's top section says why the card cannot be used and the way
+back: "RefineID does not use PIN 1 with fewer than 3 attempts left." and
+"Reset PIN 1 here with the PUK, or use other software." (the same for PIN
+2). A PUK below the floor keeps the "use other software" text, since the
+PUK cannot be reset here. At four or three tries left nothing is coloured
+and nothing opens: the footer row shows the count.
 
 The "Attempts left:" row along the foot of the window lists only the
 counters below full. While PIN 1, PIN 2 and the PUK are all full, the
