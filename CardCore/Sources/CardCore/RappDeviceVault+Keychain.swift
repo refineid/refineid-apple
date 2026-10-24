@@ -47,8 +47,11 @@ extension RappDeviceVault {
       kSecUseDataProtectionKeychain as String: KeychainPlatform.usesDataProtection,
       kSecAttrSynchronizable as String: false,
     ]
+    // The file keychain drops an access group, so a grouped item lives in
+    // the data-protection keychain on every platform.
     if let accessGroup {
       query[kSecAttrAccessGroup as String] = accessGroup
+      query[kSecUseDataProtectionKeychain as String] = true
     }
     return query
   }

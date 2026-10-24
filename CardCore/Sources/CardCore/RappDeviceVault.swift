@@ -77,9 +77,17 @@ public final class RappDeviceVault: @unchecked Sendable {
   internal let decoder = PropertyListDecoder()
   internal var inMemoryStore: [String: [String: [String: Any]]] = [:]
 
-  /// Opens the production vault, optionally shared via an access group.
+  /// Opens the production vault in `accessGroup`, else in the keychain
+  /// group the app shares with its token extensions.
+  ///
+  /// The remote-card token extension reads its pairing's keys from this
+  /// group when it dials the phone, so on macOS the vault is in the
+  /// data-protection keychain rather than the file keychain, whose items
+  /// only the app that created them may read.
   public convenience init(accessGroup: String? = nil) {
-    self.init(accessGroup: accessGroup, servicePrefix: Self.serviceNamespace)
+    self.init(
+      accessGroup: accessGroup ?? CardCredentialStore.sharedKeychainGroup,
+      servicePrefix: Self.serviceNamespace)
   }
 
   /// Isolates deterministic integration tests from production and from each

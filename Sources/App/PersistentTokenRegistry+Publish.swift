@@ -81,23 +81,22 @@
     internal static func publishedPairID() -> Data? {
       guard let driver = driverConfiguration else { return nil }
       for configuration in driver.tokenConfigurations.values {
-        guard let bytes = configuration.configurationData,
-          let pair = try? RappPairRecord.decode(from: bytes)
+        guard
+          let pairing = PersistentTokenPairing(
+            configurationData: configuration.configurationData)
         else { continue }
-        return pair.metadata().pairId
+        return pairing.pairID
       }
       return nil
     }
 
-    internal static func activePairConfigurationData() -> Data? {
-      let vault = RappDeviceVault()
-      let pairIDs = (try? vault.activePairIDs()) ?? []
-      guard let pairID = (try? vault.selectedPairID()) ?? pairIDs.first,
-        let pair = try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault)
-      else {
-        return nil
-      }
-      return try? pair.encodedBytes()
+    /// The paired phone's pairing, which an identity published now is
+    /// offered for.
+    ///
+    /// The token configuration names it by its identifier; its keys stay
+    /// in `vault`.
+    internal static func publishedPairing(in vault: RappDeviceVault) -> PersistentTokenPairing? {
+      pairedPhoneID(in: vault).flatMap(PersistentTokenPairing.init(pairID:))
     }
 
     /// Offers `certificateDER` as the borrowed identity and answers what
@@ -125,14 +124,14 @@
           for: certificate,
           profile: profile
         ),
-        let pairBytes = activePairConfigurationData()
+        let pairing = publishedPairing(in: RappDeviceVault())
       else {
         return .notPublished
       }
 
       let instanceID = tokenInstanceID(for: certificateDER)
       if let existing = driver.tokenConfigurations[instanceID],
-        existing.configurationData == pairBytes
+        existing.configurationData == pairing.configurationData
       {
         shared.certificateDER = certificateDER
         if shared.holderLine == nil {
@@ -147,7 +146,7 @@
         driver.removeTokenConfiguration(for: existingID)
       }
       let configuration = driver.addTokenConfiguration(for: instanceID)
-      configuration.configurationData = pairBytes
+      configuration.configurationData = pairing.configurationData
       configuration.keychainItems = [certificateItem, keyItem]
       shared.certificateDER = certificateDER
       shared.holderLine = DistinguishedName.holderLine(fromCertificate: certificateDER)
