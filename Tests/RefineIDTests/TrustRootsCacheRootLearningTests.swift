@@ -82,6 +82,22 @@
       }
 
       @Test
+      internal func expiredRootFromTheCardIsNotAdmitted() throws {
+        let chain = try CardAuthorityChainFixtures.make()
+        let cache = TrustRootsCache()
+        defer { cache.reset() }
+        let rootReads = CardReads()
+
+        cache.learnRoot(above: chain.issuing, cardRoot: { rootReads.answer(chain.expiredRoot) })
+
+        #expect(rootReads.calls == 1)
+        #expect(cache.rootCertificate == nil)
+        #expect(
+          TestCredentialEnvironment.readTrustedCa(
+            account: TrustRootsCache.account(for: chain.expiredRoot)) == nil)
+      }
+
+      @Test
       internal func expiredRootIsDroppedAndTheCardRootLearnedAgain() throws {
         let chain = try CardAuthorityChainFixtures.make()
         let expiredAccount = TrustRootsCache.account(for: chain.expiredRoot)
