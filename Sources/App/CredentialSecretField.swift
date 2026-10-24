@@ -9,8 +9,11 @@ import SwiftUI
 /// standard `TextField` while revealed, so a revealed value supports
 /// selection and copying. The revealed field keeps entries to ASCII
 /// digits within the longest supported secret; the caller's own field
-/// applies its exact bounds. Validation is the final result at the end
-/// of the row.
+/// applies its exact bounds. The reveal button closes every row in one
+/// column; its symbol names the action it offers, and an empty row stays
+/// masked with the button disabled. The validation result sits before
+/// it in a fixed slot, so neither the button nor the field moves when
+/// the result appears.
 internal struct CredentialSecretField<Field: View, Validation: View>: View {
   private let lineLimit = 1
   private let buttonSize = 44.0
@@ -96,19 +99,20 @@ internal struct CredentialSecretField<Field: View, Validation: View>: View {
   internal var body: some View {
     HStack {
       inputGroup
+      validation()
+        .frame(width: indicatorSize, height: indicatorSize)
       Button {
         revealsValue.toggle()
       } label: {
-        Image(systemName: revealsValue ? "eye" : "eye.slash")
+        Image(systemName: revealsValue ? "eye.slash" : "eye")
       }
       .buttonStyle(.plain)
       .frame(width: buttonSize, height: buttonSize)
       .contentShape(Rectangle())
       .padding(negativePadding)
+      .disabled(text.isEmpty)
       .accessibilityLabel(Text(verbatim: revealAccessibilityLabel))
       .accessibilityIdentifier(revealIdentifier)
-      validation()
-        .frame(width: indicatorSize, height: indicatorSize)
     }
     .onValueChange(of: text) { value in
       if value.isEmpty {

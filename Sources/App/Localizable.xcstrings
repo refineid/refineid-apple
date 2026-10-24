@@ -3731,22 +3731,6 @@
         }
       }
     },
-    "RefineID": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "RefineID"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "RefineID"
-          }
-        }
-      }
-    },
     "RefineID Mac": {
       "localizations": {
         "fi": {
