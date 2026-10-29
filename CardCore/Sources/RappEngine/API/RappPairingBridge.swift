@@ -211,8 +211,8 @@ public final class RappPairingBridge: @unchecked Sendable {
   ///
   /// It can when the custodian's offer is live and idle, no attempt holds
   /// it, and the 500 ms spacing has passed. A BLE custodian refuses a step 1
-  /// write it could not admit with the application error (§4.2, "Busy
-  /// Refusal" item 2).
+  /// write it could not admit with ATT error Insufficient Resources (§4.2,
+  /// "Busy Refusal" item 2).
   public func admitsAttempt(nowMonotonicMs: UInt64) -> Bool {
     locked {
       guard role == .proxy, case .offer = phase, attempt.acceptsAnotherAttempt,

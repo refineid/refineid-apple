@@ -19,7 +19,7 @@ import Foundation
   /// indications, reads the bootstrap answer for a pairing, writes the
   /// routing preamble, and then carries frames: each fragment a write with
   /// response, the next only after the response. A CPace step 1 the
-  /// custodian refuses with the application error is followed by one more
+  /// custodian refuses with ATT error Insufficient Resources is followed by one more
   /// read of the bootstrap characteristic, reported before the link closes.
   ///
   /// All state is confined to the central's queue; the delegate callbacks
@@ -157,13 +157,13 @@ import Foundation
     }
 
     /// The custodian answered a write; before routing, a refusal answers
-    /// the preamble, and after it, the application error refuses CPace
+    /// the preamble, and after it, ATT error Insufficient Resources refuses CPace
     /// step 1, which sends the requester back to the bootstrap
     /// characteristic (§4.2, "Busy Refusal" item 2).
     internal func wrote(error: (any Error)?) {
       guard !finished, !rereadingBootstrap else { return }
       if routed, purpose == .pairing,
-        (error as? CBATTError)?.code.rawValue == BleAttValues.applicationError,
+        (error as? CBATTError)?.code == .insufficientResources,
         let peripheral, let bootstrap
       {
         rereadingBootstrap = true

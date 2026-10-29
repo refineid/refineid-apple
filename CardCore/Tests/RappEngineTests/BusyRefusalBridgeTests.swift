@@ -140,6 +140,25 @@ internal struct BusyRefusalBridgeTests {
     #expect(try rappPairingBusyRetryAfterMs(busy) == Self.limiterWait)
   }
 
+  @Test("With an attempt active and a limiter wait, the larger is answered")
+  internal func theLargerWaitIsAnswered() throws {
+    let custodian = try Self.custodian()
+    let first = try Self.requester(of: custodian, code: Self.code, at: Self.start)
+    _ = try Self.admitAttempt(requester: first, custodian: custodian, at: Self.start)
+    let early = Self.start + Self.partOfTheSpacing
+    #expect(
+      try rappPairingBusyRetryAfterMs(
+        try custodian.busyBytes(nowMonotonicMs: early, spacingWaitMs: Self.limiterWait))
+        == Self.window - Self.partOfTheSpacing,
+      "the attempt's time is the larger")
+    let late = Self.start + Self.window - Self.partOfTheSpacing
+    #expect(
+      try rappPairingBusyRetryAfterMs(
+        try custodian.busyBytes(nowMonotonicMs: late, spacingWaitMs: Self.limiterWait))
+        == Self.limiterWait,
+      "the limiter's wait is the larger")
+  }
+
   @Test("Only a live custodian offer answers busy")
   internal func busyNeedsALiveCustodianOffer() throws {
     let custodian = try Self.custodian()

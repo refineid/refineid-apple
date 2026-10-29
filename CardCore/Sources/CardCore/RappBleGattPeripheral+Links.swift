@@ -171,10 +171,11 @@ import Foundation
 
     /// Accepts one complete frame in the phase the link is in.
     ///
-    /// The first frame on a pairing link is CPace step 1; one the custodian
-    /// cannot admit is refused with the application error, and the
-    /// requester reads the bootstrap characteristic again (§4.2, "Busy
-    /// Refusal" item 2).
+    /// The first frame on a pairing link is CPace step 1. One attempt runs
+    /// at a time across every link; a step 1 the custodian cannot admit is
+    /// refused with ATT error Insufficient Resources and changes nothing, so
+    /// the link can read the bootstrap characteristic again and write a later
+    /// step 1 (§4.2, "Busy Refusal" item 2).
     private func deliver(_ message: Data, on central: UUID) -> CBATTError.Code {
       guard var state = links[central] else { return .writeNotPermitted }
       guard state.routed else {
@@ -192,12 +193,11 @@ import Foundation
         return .success
       }
       if state.pairing, !state.attemptAdmitted {
-        guard admitsAttempt(state.link) else {
-          end(state.link, .attemptRefused)
-          return CBATTError.Code(rawValue: BleAttValues.applicationError)
-            ?? .unlikelyError
+        guard attemptHolder == nil, admitsAttempt(state.link) else {
+          return .insufficientResources
         }
         state.attemptAdmitted = true
+        attemptHolder = central
         links[central] = state
       }
       onEvent(.frame(state.link, message))

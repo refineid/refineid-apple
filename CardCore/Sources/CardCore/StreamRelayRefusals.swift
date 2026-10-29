@@ -13,6 +13,10 @@ import Foundation
   /// v26.10.29 §4.2, "Busy Refusal"); the connection being carried sees
   /// none of it. All state is confined to the listener's queue.
   internal final class StreamRelayRefusals: @unchecked Sendable {
+    /// How long a refused dialer is kept from its accept, in milliseconds:
+    /// time to send its first frame and read the answer.
+    internal static let keptMilliseconds = 2_000
+
     private let queue: DispatchQueue
     private let answer: StreamRelayListener.BusyAnswer
     /// Dialers refused and not yet closed.
@@ -31,6 +35,10 @@ import Foundation
       refused[ObjectIdentifier(candidate)] = candidate
       candidate.start(queue: queue)
       readFirstFrame(of: candidate, reader: StreamFrameReader())
+      queue.asyncAfter(deadline: .now() + .milliseconds(Self.keptMilliseconds)) {
+        [weak self] in
+        self?.close(candidate)
+      }
     }
 
     /// Closes every dialer still being refused.
@@ -78,7 +86,8 @@ import Foundation
       readFirstFrame(of: candidate, reader: next)
     }
 
-    /// Sends `reply` as the refused dialer's last frame, then closes it.
+    /// Sends `reply` as the refused dialer's last frame, then closes it once
+    /// the dialer closes its side, or when it is kept no longer.
     private func send(_ reply: Data?, andClose candidate: NWConnection) {
       guard let reply, let encoded = StreamRelayFraming.encode(reply) else {
         close(candidate)
@@ -86,14 +95,31 @@ import Foundation
       }
       candidate.send(
         content: encoded, contentContext: .finalMessage, isComplete: true,
-        completion: .contentProcessed { [weak self] _ in
-          guard let self else { return }
-          queue.async { self.close(candidate) }
+        completion: .contentProcessed { _ in
+          // The dialer's end of stream, or the bound, closes it.
         })
+      awaitEnd(of: candidate)
+    }
+
+    /// Discards what the dialer still sends until it closes its side.
+    private func awaitEnd(of candidate: NWConnection) {
+      candidate.receive(
+        minimumIncompleteLength: 1,
+        maximumLength: StreamRelayFraming.maximumPayloadByteCount
+      ) { [weak self] _, _, isComplete, error in
+        guard let self else { return }
+        queue.async {
+          if isComplete || error != nil {
+            self.close(candidate)
+          } else if self.refused[ObjectIdentifier(candidate)] != nil {
+            self.awaitEnd(of: candidate)
+          }
+        }
+      }
     }
 
     private func close(_ candidate: NWConnection) {
-      refused.removeValue(forKey: ObjectIdentifier(candidate))
+      guard refused.removeValue(forKey: ObjectIdentifier(candidate)) != nil else { return }
       candidate.cancel()
     }
   }

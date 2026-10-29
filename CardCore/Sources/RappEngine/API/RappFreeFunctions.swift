@@ -64,30 +64,6 @@ public func rappPairingBusyRetryAfterMs(_ answer: Data) throws -> UInt64 {
   }
 }
 
-/// The wait a custodian asks for when it refused a BLE CPace step 1 write
-/// with the application error and the requester then read its Bootstrap
-/// Characteristic once more (RAPP v26.10.29 §4.2, "Busy Refusal" item 2):
-/// the wait of a `pairing-busy`, and zero for an offer listing
-/// `transportProfile`.
-///
-/// - Throws: ``RappBindingError/InvalidInput`` when `bootstrap` decodes as
-///   neither.
-public func rappRefusedAttemptRetryAfterMs(
-  bootstrap: Data, transportProfile: String
-) throws -> UInt64 {
-  do {
-    switch try BootstrapAnswer.decode(bootstrap, transportProfile: transportProfile) {
-    case .busy(let busy):
-      return busy.retryAfterMilliseconds
-
-    case .offer:
-      return 0
-    }
-  } catch {
-    throw RappBindingError.InvalidInput
-  }
-}
-
 /// The stream transport's pairing preamble.
 public func rappStreamPairingPreamble() -> Data {
   // The pairing preamble of a registered profile carries no routing, so

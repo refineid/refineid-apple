@@ -201,10 +201,6 @@
       sink: AsyncStream<Step>.Continuation
     ) async -> DebugModeReport {
       let pairingOptions = Self.options(code: code)
-      if let wait = try? rappPairingBusyRetryAfterMs(answer) {
-        return DebugModeReport(
-          lines: [requesterPrefix + ": the custodian is busy for \(wait) ms"], succeeded: false)
-      }
       guard
         let bootstrap = try? RappPairingBridge.bootstrapOffer(
           bootstrap: answer, transportProfile: pairingOptions.transportProfile,

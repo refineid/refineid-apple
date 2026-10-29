@@ -20,6 +20,8 @@ import Foundation
     internal private(set) var listenersStarted = 0
     /// Requesters admitted by their preamble, per listener, in order.
     internal private(set) var arrivals: [Int] = []
+    /// What the ceremony reported, in order.
+    internal private(set) var reported: [RappPairingCoordinator.Event] = []
 
     private let sink: AsyncStream<(Int, StreamRelayEvent)>.Continuation
     private var listener: StreamRelayListener?
@@ -53,8 +55,8 @@ import Foundation
         }
       }
       Task { [weak self] in
-        for await event in ceremony.events where event == .offerRestored {
-          await self?.listenAfresh()
+        for await event in ceremony.events {
+          await self?.record(event)
         }
       }
     }
@@ -77,6 +79,13 @@ import Foundation
       listener?.cancel()
       await custodian.close()
       sink.finish()
+    }
+
+    private func record(_ event: RappPairingCoordinator.Event) async {
+      reported.append(event)
+      if event == .offerRestored {
+        await listenAfresh()
+      }
     }
 
     /// A listener of its own, as the app starts one after a failed attempt.

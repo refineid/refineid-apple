@@ -23,6 +23,9 @@ import Foundation
 
     /// The Bonjour type this publishes and a dialer browses for.
     public static let serviceType = "_refineid-stream._tcp"
+    /// How long a connection sent its last frame waits for the dialer to
+    /// close its side before it is closed anyway, in milliseconds.
+    public static let endingWaitMilliseconds = 1_000
 
     private let onEvent: @Sendable (StreamRelayEvent) -> Void
     private let queue: DispatchQueue
@@ -126,10 +129,13 @@ import Foundation
     }
 
     /// Sends `frame` as the open connection's last and closes that connection
-    /// once it is sent, keeping the listener and its published name.
+    /// once the dialer has read it, keeping the listener and its published
+    /// name.
     ///
-    /// Frames the dialer sends meanwhile are dropped. False when no
-    /// connection is open.
+    /// The connection closes when the dialer closes its side, or after
+    /// ``endingWaitMilliseconds`` if it does not, so a dialer that never
+    /// reads cannot hold the listener. Frames the dialer sends meanwhile are
+    /// dropped. False when no connection is open.
     public func endConnection(answering frame: Data) -> Bool {
       guard let encoded = StreamRelayFraming.encode(frame) else { return false }
       return queue.sync {
@@ -137,13 +143,14 @@ import Foundation
         isEnding = true
         open.send(
           content: encoded, contentContext: .finalMessage, isComplete: true,
-          completion: .contentProcessed { [weak self] _ in
-            guard let self else { return }
-            queue.async {
-              guard self.connection === open else { return }
-              self.handleConnectionClosure(.disconnected)
-            }
+          completion: .contentProcessed { _ in
+            // The dialer's end of stream, or the bound below, closes it.
           })
+        queue.asyncAfter(deadline: .now() + .milliseconds(Self.endingWaitMilliseconds)) {
+          [weak self] in
+          guard let self, connection === open, isEnding else { return }
+          handleConnectionClosure(.disconnected)
+        }
         return true
       }
     }

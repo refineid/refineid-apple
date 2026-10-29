@@ -4,8 +4,8 @@ import Foundation
 
 /// What a requester's `fi.refineid.rapp.ble` link reports to its owner.
 public enum RappBleGattEvent: Sendable, Equatable {
-  /// The custodian refused the CPace step 1 written on the link with the
-  /// application error, and the requester read the bootstrap
+  /// The custodian refused the CPace step 1 written on the link with ATT
+  /// error Insufficient Resources, and the requester read the bootstrap
   /// characteristic once more: a `pairing-busy`, or an offer, which counts
   /// as busy with no wait (§4.2, "Busy Refusal" item 2). The link closes
   /// next.

@@ -185,5 +185,24 @@ import Testing
       #expect(events == [.closed(.notAccepted)], "nothing shown while it waited")
       #expect(dialler.dialled.count == Self.connectionLimit)
     }
+
+    @Test("Discovery ending while a busy phone is waited for leaves the search to finish")
+    internal func discoveryEndsDuringTheWait() async throws {
+      let testID = UUID().uuidString
+      defer { Self.clean(testID, sides: ["right"]) }
+      let right = try await Self.phone(showing: Self.typedCode, testID: testID, side: "right")
+      let busy = try Self.busyLink(wait: Self.busyWait)
+      let dialler = Dialler(["right": [{ busy }, { right.link }]])
+      let search = try Self.search(
+        testID: testID, code: Self.typedCode, dial: { dialler.dial($0) })
+
+      await search.found("right")
+      await search.endDiscovery()
+      let events = await Self.outcome(of: search)
+
+      #expect(Self.pairID(events) != nil, "\(events)")
+      #expect(dialler.dialled.map(\.endpoint) == ["right", "right"])
+      _ = await right.close()
+    }
   }
 #endif

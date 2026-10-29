@@ -5,7 +5,8 @@ import Foundation
 /// Why a `fi.refineid.rapp.ble` link ended.
 public enum RappBleGattFailure: Error, Sendable, Equatable {
   /// The custodian could not admit the CPace step 1 written on the link
-  /// and refused it with the application error (§4.2, "Busy Refusal").
+  /// and refused it with ATT error Insufficient Resources (§4.2, "Busy
+  /// Refusal").
   case attemptRefused
   /// The negotiated ATT MTU is below 512 (§5.2 step 1).
   case attMtuTooSmall

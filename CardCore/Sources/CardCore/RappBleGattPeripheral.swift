@@ -38,8 +38,9 @@ import Foundation
     public typealias Bootstrap = @Sendable () -> Data?
 
     /// Decides on the server's queue whether the CPace step 1 written on a
-    /// pairing link can be admitted; one that cannot is refused with the
-    /// application error (RAPP v26.10.29 §4.2, "Busy Refusal" item 2).
+    /// pairing link can be admitted; one that cannot is refused with ATT
+    /// error Insufficient Resources (RAPP v26.10.29 §4.2, "Busy Refusal"
+    /// item 2).
     public typealias AttemptAdmission = @Sendable (RappBleGattLink) -> Bool
 
     /// One central's link, from its subscription on.
@@ -68,6 +69,8 @@ import Foundation
     internal var channel: CBMutableCharacteristic?
     internal var published = false
     internal var links: [UUID: LinkState] = [:]
+    /// The central whose CPace step 1 was admitted, until its link ends.
+    internal var attemptHolder: UUID?
     internal var finished = false
     private let restoreIdentifier: String?
 
@@ -226,6 +229,9 @@ import Foundation
       state.routed = false
       state.pairing = false
       state.attemptAdmitted = false
+      if attemptHolder == link.central {
+        attemptHolder = nil
+      }
       state.capacity = 0
       state.reassembler.reset()
       state.outbound.removeAll()

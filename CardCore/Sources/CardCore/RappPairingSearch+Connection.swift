@@ -23,6 +23,9 @@
         return
 
       case .exhausted, nil:
+        if discoveryEnded {
+          await end(endedReason)
+        }
         return
       }
       reopening?.cancel()
@@ -141,6 +144,7 @@
         await connectionEnded(.offerAlreadyTried, generation: stepGeneration)
         return
       }
+      triedOrBusy = true
       guard let current = attempt else { return }
       let coordinator: RappPairingCoordinator
       do {
@@ -220,6 +224,7 @@
       retryAfterMilliseconds: UInt64, generation stepGeneration: Int
     ) async {
       guard await closeOpenConnection(generation: stepGeneration) else { return }
+      triedOrBusy = true
       guard
         let next = try? candidates.busy(
           retryAfterMs: retryAfterMilliseconds,

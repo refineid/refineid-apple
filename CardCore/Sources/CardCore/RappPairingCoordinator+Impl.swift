@@ -52,24 +52,7 @@
           try await beginRequesterCpace(now: now)
 
         case .proxy:
-          guard preAuthentication.admit(nowMonotonicMs: now) else {
-            // On BLE the bootstrap answer is read from its characteristic,
-            // never sent as a frame, so a refused BLE link closes unanswered.
-            await refuse(
-              with: servesOfferAsFrame
-                ? try bridge.busyBytes(
-                  nowMonotonicMs: now,
-                  spacingWaitMs: preAuthentication.waitMs(nowMonotonicMs: now)) : nil)
-            return
-          }
-          state = .custodianAwaitingStepOne
-          guard servesOfferAsFrame else { return }
-          let answer = try bridge.bootstrapBytes(nowMonotonicMs: now)
-          guard (try? rappPairingBusyRetryAfterMs(answer)) == nil else {
-            await refuse(with: answer)
-            return
-          }
-          try await transport.send(answer)
+          try await serveBootstrap(now: now)
         }
       } catch {
         await handle(error)
@@ -148,6 +131,11 @@
         try bridge.receiveStored(bytes: frame, nowMonotonicMs: now)
         try await activate(now: now)
 
+      case .offer where role == .proxy:
+        // A frame of a connection the custodian answered busy, already
+        // queued when the refusal began; it changes nothing.
+        return
+
       case .offer, .completed, .closed:
         await fail(.protocolFailure)
       }
@@ -163,10 +151,10 @@
             nowMonotonicMs: now)
         } catch RappBindingError.RateLimited, RappBindingError.WrongPhase {
           // §4.2 "Busy Refusal": busy in place of step 2 on a frame
-          // transport; BLE refuses the step 1 write itself.
-          await refuse(
-            with: servesOfferAsFrame
-              ? try bridge.busyBytes(nowMonotonicMs: now, spacingWaitMs: 0) : nil)
+          // transport. BLE refuses the step 1 write at the peripheral and
+          // keeps every link as it is.
+          guard servesOfferAsFrame else { return }
+          await refuse(with: try bridge.busyBytes(nowMonotonicMs: now, spacingWaitMs: 0))
           return
         }
         try bridge.readCpaceFrame(bytes: frame, nowMonotonicMs: now)
@@ -287,21 +275,6 @@
       continuation.yield(.paired(PairSummary(confirmed.metadata())))
       continuation.finish()
       await transport.close()
-    }
-
-    /// Answers a connection the custodian cannot admit, and ends it.
-    ///
-    /// `busy` goes first when given; the offer stays (§4.2, "Busy Refusal").
-    /// A transport that outlives the connection keeps serving under the same
-    /// published name; one that cannot is closed and reported for replacement.
-    private func refuse(with busy: Data?) async {
-      state = .offer
-      if let busy {
-        if await transport.endConnection(answering: busy) { return }
-        try? await transport.send(busy)
-      }
-      await transport.close()
-      continuation.yield(.offerRestored)
     }
 
     /// Revokes the record stored before the peer confirmed it, leaving

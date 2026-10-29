@@ -28,8 +28,8 @@
     }
 
     /// Whether a CPace step 1 arriving now could be admitted; a BLE
-    /// custodian refuses one that could not with the application error
-    /// (RAPP v26.10.29 §4.2, "Busy Refusal" item 2).
+    /// custodian refuses one that could not with ATT error Insufficient
+    /// Resources (RAPP v26.10.29 §4.2, "Busy Refusal" item 2).
     nonisolated public func admitsAttempt() -> Bool {
       bridge.admitsAttempt(nowMonotonicMs: clock.monotonicMilliseconds())
     }

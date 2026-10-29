@@ -99,10 +99,9 @@ public final class RappPairingCandidates<Endpoint: Equatable & Sendable>: @unche
   /// `retryAfterMs`.
   ///
   /// The wait is the value ``rappPairingBusyRetryAfterMs(_:)`` read from its
-  /// bootstrap or from the frame in place of CPace step 2, or the value
-  /// ``rappRefusedAttemptRetryAfterMs(bootstrap:transportProfile:)`` read
-  /// after a BLE step 1 the custodian refused (RAPP v26.10.29 §4.2, "Busy
-  /// Refusal"). The endpoint is opened again after its wait and after every
+  /// bootstrap or from the frame in place of CPace step 2, or zero when a
+  /// BLE custodian refused step 1 and then served its offer (RAPP v26.10.29
+  /// §4.2, "Busy Refusal"). The endpoint is opened again after its wait and after every
   /// endpoint not yet opened; nothing is shown to the user.
   /// `remoteUseAvailable` is read as in ``closed(remoteUseAvailable:)``.
   ///

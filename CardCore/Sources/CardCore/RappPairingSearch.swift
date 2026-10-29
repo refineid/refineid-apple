@@ -127,6 +127,9 @@
     internal var generation = 0
     /// Whether a custodian's T_B verified.
     internal var codeAccepted = false
+    /// Whether CPace ran with any custodian, or one answered busy: a search
+    /// that ends then reports the code not accepted.
+    internal var triedOrBusy = false
     /// Whether any pairing connection opened.
     internal var anyOpened = false
     /// How the connections that could not be opened failed.
@@ -156,6 +159,13 @@
         return .noneInPairingMode
       }
       return localNetworkDenied ? .localNetworkDenied : .unreachable
+    }
+
+    /// Why a search with nothing left to open ends: the code not accepted
+    /// once any custodian was tried or answered busy, otherwise why none was
+    /// tried.
+    internal var endedReason: CloseReason {
+      triedOrBusy ? .notAccepted : noneTriedReason
     }
 
     // MARK: Lifecycle
@@ -197,7 +207,7 @@
       guard !isEnded, !discoveryEnded else { return }
       discoveryEnded = true
       guard attempt == nil, reopening == nil else { return }
-      await end(noneTriedReason)
+      await end(endedReason)
     }
 
     /// Ends the search at local request, closing any ceremony it runs.

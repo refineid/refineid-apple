@@ -24,7 +24,7 @@ wire version in the Noise prologue refuses a v26.10.22 peer.
   one is answered with `pairing-busy` after its pairing preamble and closed
   (`StreamRelayRefusals`), where it was closed unanswered. Over Bluetooth
   the bootstrap characteristic serves the busy answer, and a CPace step 1
-  the phone cannot admit is refused with the ATT application error.
+  the phone cannot admit is refused with ATT error Insufficient Resources.
 - The Mac asks a busy phone again after the other phones and after its
   wait, within the eight pairing connections of one typed code, and shows
   nothing new while it waits: a phone still busy at the limit counts as
