@@ -69,8 +69,9 @@ import Foundation
     internal var channel: CBMutableCharacteristic?
     internal var published = false
     internal var links: [UUID: LinkState] = [:]
-    /// The central whose CPace step 1 was admitted, until its link ends.
-    internal var attemptHolder: UUID?
+    /// The one attempt across every link, held by the central whose step 1
+    /// was admitted until its link ends or is removed.
+    internal var attemptGate = RappBleAttemptGate()
     internal var finished = false
     private let restoreIdentifier: String?
 
@@ -164,6 +165,7 @@ import Foundation
           end(link, .cancelled)
         }
         links.removeAll()
+        attemptGate.releaseAll()
         if let manager {
           manager.stopAdvertising()
           manager.removeAllServices()
@@ -229,9 +231,7 @@ import Foundation
       state.routed = false
       state.pairing = false
       state.attemptAdmitted = false
-      if attemptHolder == link.central {
-        attemptHolder = nil
-      }
+      attemptGate.release(link.central)
       state.capacity = 0
       state.reassembler.reset()
       state.outbound.removeAll()

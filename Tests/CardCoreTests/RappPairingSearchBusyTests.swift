@@ -204,5 +204,25 @@ import Testing
       #expect(dialler.dialled.map(\.endpoint) == ["right", "right"])
       _ = await right.close()
     }
+
+    @Test("An offer refused before CPace is no try: none in pairing mode")
+    internal func refusedOfferIsNoTry() async throws {
+      let testID = UUID().uuidString
+      defer { Self.clean(testID, sides: []) }
+      let dialler = Dialler([
+        "malformed": [
+          { RappTestPairingLink(servedOffer: Data("not an offer".utf8), dropAfter: nil) }
+        ]
+      ])
+      let search = try Self.search(
+        testID: testID, code: Self.typedCode, dial: { dialler.dial($0) })
+
+      await search.found("malformed")
+      await search.endDiscovery()
+      #expect(
+        await Self.outcome(of: search) == [
+          .declined(.offerRejected), .closed(.noneInPairingMode),
+        ])
+    }
   }
 #endif

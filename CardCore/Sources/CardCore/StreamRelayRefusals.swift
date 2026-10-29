@@ -21,6 +21,9 @@ import Foundation
     private let answer: StreamRelayListener.BusyAnswer
     /// Dialers refused and not yet closed.
     private var refused: [ObjectIdentifier: NWConnection] = [:]
+    /// Each refused dialer's bound: from accept until its answer is sent,
+    /// then the end-of-stream wait.
+    private var bounds: [ObjectIdentifier: DispatchWorkItem] = [:]
 
     /// Refusals on `queue`, answering each dialer with `answer`.
     internal init(queue: DispatchQueue, answer: @escaping StreamRelayListener.BusyAnswer) {
@@ -35,10 +38,7 @@ import Foundation
       refused[ObjectIdentifier(candidate)] = candidate
       candidate.start(queue: queue)
       readFirstFrame(of: candidate, reader: StreamFrameReader())
-      queue.asyncAfter(deadline: .now() + .milliseconds(Self.keptMilliseconds)) {
-        [weak self] in
-        self?.close(candidate)
-      }
+      bound(candidate, milliseconds: Self.keptMilliseconds)
     }
 
     /// Closes every dialer still being refused.
@@ -49,6 +49,10 @@ import Foundation
         candidate.cancel()
       }
       refused.removeAll()
+      for pending in bounds.values {
+        pending.cancel()
+      }
+      bounds.removeAll()
     }
 
     private func readFirstFrame(of candidate: NWConnection, reader: StreamFrameReader) {
@@ -87,7 +91,8 @@ import Foundation
     }
 
     /// Sends `reply` as the refused dialer's last frame, then closes it once
-    /// the dialer closes its side, or when it is kept no longer.
+    /// the dialer closes its side, or after the listener's end-of-stream
+    /// wait, which replaces the bound from accept.
     private func send(_ reply: Data?, andClose candidate: NWConnection) {
       guard let reply, let encoded = StreamRelayFraming.encode(reply) else {
         close(candidate)
@@ -98,6 +103,7 @@ import Foundation
         completion: .contentProcessed { _ in
           // The dialer's end of stream, or the bound, closes it.
         })
+      bound(candidate, milliseconds: StreamRelayListener.endingWaitMilliseconds)
       awaitEnd(of: candidate)
     }
 
@@ -118,8 +124,19 @@ import Foundation
       }
     }
 
+    /// Closes `candidate` after `milliseconds`, replacing its earlier bound.
+    private func bound(_ candidate: NWConnection, milliseconds: Int) {
+      let key = ObjectIdentifier(candidate)
+      bounds[key]?.cancel()
+      let expiry = DispatchWorkItem { [weak self] in self?.close(candidate) }
+      bounds[key] = expiry
+      queue.asyncAfter(deadline: .now() + .milliseconds(milliseconds), execute: expiry)
+    }
+
     private func close(_ candidate: NWConnection) {
-      guard refused.removeValue(forKey: ObjectIdentifier(candidate)) != nil else { return }
+      let key = ObjectIdentifier(candidate)
+      bounds.removeValue(forKey: key)?.cancel()
+      guard refused.removeValue(forKey: key) != nil else { return }
       candidate.cancel()
     }
   }

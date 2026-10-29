@@ -24,6 +24,13 @@ import Testing
     private static let unreadDialerFrame = Data("first frame".utf8)
     /// A synthetic last frame the listener sends.
     private static let lastFrame = Data("last frame".utf8)
+    /// A synthetic busy answer to a second dialer.
+    private static let busyFrame = Data("busy".utf8)
+    /// When a late second dialer sends its first frame, inside the bound
+    /// from accept.
+    private static let lateFirstFrame = Duration.milliseconds(1_500)
+    /// When it reads its answer, past the bound from accept.
+    private static let lateRead = Duration.milliseconds(800)
 
     // MARK: Static Functions
 
@@ -144,6 +151,41 @@ import Testing
       defer { next.cancel() }
       #expect(try await Self.nextFrame(&received) == Self.unreadDialerFrame)
       #expect(listener.isListening)
+    }
+
+    @Test("A second dialer answered late in its window still reads its answer")
+    internal func aLateAnswerIsRead() async throws {
+      let (events, sink) = AsyncStream.makeStream(of: StreamRelayEvent.self)
+      let listener = StreamRelayListener(
+        busyAnswer: { _ in Self.busyFrame }, onEvent: { sink.yield($0) })
+      listener.start(displayName: "RefineID late \(UUID().uuidString.prefix(6))")
+      defer { listener.cancel() }
+      let port = try await Self.port(of: listener)
+      var received = events.makeAsyncIterator()
+      let first = try Self.unreadDialer(port: port)
+      defer { first.cancel() }
+      #expect(try await Self.nextFrame(&received) == Self.unreadDialerFrame)
+
+      let late = NWConnection(
+        host: "127.0.0.1", port: try #require(NWEndpoint.Port(rawValue: port)), using: .tcp)
+      late.start(queue: DispatchQueue(label: "fi.refineid.tests.late-dialer"))
+      defer { late.cancel() }
+      try await Task.sleep(for: Self.lateFirstFrame)
+      late.send(
+        content: StreamRelayFraming.encode(Self.unreadDialerFrame),
+        completion: .contentProcessed { _ in
+          // The listener's refusal answers it.
+        })
+      try await Task.sleep(for: Self.lateRead)
+      let answer: Data? = await withCheckedContinuation { continuation in
+        late.receive(
+          minimumIncompleteLength: 1, maximumLength: StreamRelayFraming.maximumPayloadByteCount
+        ) { data, _, _, _ in
+          continuation.resume(returning: data)
+        }
+      }
+      var reader = StreamFrameReader()
+      #expect(try reader.frames(after: try #require(answer)) == [Self.busyFrame])
     }
   }
 #endif

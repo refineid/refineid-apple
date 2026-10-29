@@ -26,6 +26,7 @@ import Foundation
           end(link, .bluetoothUnavailable)
         }
         links.removeAll()
+        attemptGate.releaseAll()
         published = false
         channel = nil
 
@@ -45,6 +46,7 @@ import Foundation
       else { return }
       channel = restored
       published = true
+      attemptGate.releaseAll()
       for central in restored.subscribedCentrals ?? [] {
         let link = RappBleGattLink(identifier: UUID(), central: central.identifier)
         links[central.identifier] = LinkState(
@@ -73,6 +75,7 @@ import Foundation
       if let previous = links[subscriber.identifier] {
         end(previous.link, .disconnected)
       }
+      attemptGate.release(subscriber.identifier)
       let attMtu = subscriber.maximumUpdateValueLength + RappBleGattLimit.attHeaderSize
       onEvent(.trace(.subscribed(peer: subscriber.identifier, attMtu: attMtu)))
       let link = RappBleGattLink(identifier: UUID(), central: subscriber.identifier)
@@ -91,6 +94,7 @@ import Foundation
       onEvent(.trace(.unsubscribed(peer: subscriber.identifier)))
       end(state.link, .disconnected)
       links.removeValue(forKey: subscriber.identifier)
+      attemptGate.release(subscriber.identifier)
     }
 
     /// Serves the bootstrap answer of the moment: the offer, or
@@ -193,11 +197,11 @@ import Foundation
         return .success
       }
       if state.pairing, !state.attemptAdmitted {
-        guard attemptHolder == nil, admitsAttempt(state.link) else {
+        let link = state.link
+        guard attemptGate.admit(central, when: { admitsAttempt(link) }) else {
           return .insufficientResources
         }
         state.attemptAdmitted = true
-        attemptHolder = central
         links[central] = state
       }
       onEvent(.frame(state.link, message))
