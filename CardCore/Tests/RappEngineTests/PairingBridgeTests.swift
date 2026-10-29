@@ -171,6 +171,7 @@ internal struct PairingBridgeTests {
       try custodian.readCpaceFrame(bytes: stepThree, nowMonotonicMs: now + Self.attemptWindow)
     }
     #expect(custodian.candidateFailed(nowMonotonicMs: now + Self.attemptWindow))
+    try Self.expectOfferConsumed(by: custodian, now: now + Self.attemptWindow)
   }
 
   @Test("An invalid Y_A is refused before any attempt is admitted")
