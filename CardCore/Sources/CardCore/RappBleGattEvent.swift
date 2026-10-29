@@ -4,9 +4,16 @@ import Foundation
 
 /// What a requester's `fi.refineid.rapp.ble` link reports to its owner.
 public enum RappBleGattEvent: Sendable, Equatable {
-  /// The requester read the custodian's offer off the bootstrap
-  /// characteristic; the pairing ceremony starts from it.
-  case bootstrapOffer(Data)
+  /// The custodian refused the CPace step 1 written on the link with the
+  /// application error, and the requester read the bootstrap
+  /// characteristic once more: a `pairing-busy`, or an offer, which counts
+  /// as busy with no wait (§4.2, "Busy Refusal" item 2). The link closes
+  /// next.
+  case attemptRefused(Data)
+  /// The requester read the custodian's bootstrap answer off the bootstrap
+  /// characteristic: its offer, from which the pairing ceremony starts, or
+  /// a `pairing-busy`.
+  case bootstrap(Data)
   /// The link ended and will deliver nothing more.
   case closed(RappBleGattFailure)
   /// Routing finished: the custodian acknowledged the preamble. Protocol

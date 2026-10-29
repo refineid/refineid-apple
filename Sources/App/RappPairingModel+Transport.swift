@@ -14,7 +14,10 @@ extension RappPairingModel {
         }
         try relay.send(frame)
       },
-      closer: { [weak relay] in relay?.cancel() }
+      closer: { [weak relay] in relay?.cancel() },
+      connectionEnder: { [weak relay] frame in
+        relay?.endConnection(answering: frame) ?? false
+      }
     )
   }
 }

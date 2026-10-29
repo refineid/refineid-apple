@@ -6,7 +6,8 @@
 
 import Foundation
 
-/// Structural or policy failure in a pairing offer.
+/// Structural or policy failure in a bootstrap answer: a `pairing-offer` or
+/// a `pairing-busy`.
 internal enum PairingOfferError: Error, Equatable {
   case wrongScheme
   case unsupportedVersion
@@ -18,6 +19,10 @@ internal enum PairingOfferError: Error, Equatable {
   case mandatorySuiteMissing
   case tooManyTransports
   case invalidTransport
+  /// The offer does not list the transport it was received over.
+  case transportNotOffered
+  /// A `pairing-busy` wait outside the schema's range.
+  case retryAfterOutOfRange(UInt64)
   case invalidLifetime
   case deadlineOverflow
   case oversized

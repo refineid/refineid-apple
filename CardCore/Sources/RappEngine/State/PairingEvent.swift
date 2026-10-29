@@ -17,8 +17,13 @@ internal enum PairingEvent: String, CaseIterable, Sendable {
   /// On the requester: the endpoint opened did not take the code, because
   /// its custodian refused it or it served no offer the requester could try.
   case attemptFailed = "attempt_failed"
-  /// Every custodian the requester tried refused the code, and no endpoint
-  /// is left to open.
+  /// On the custodian: a pairing connection it cannot admit, because an
+  /// attempt is active or the 500 ms spacing has not passed.
+  case attemptRefused = "attempt_refused"
+  /// On the requester: the endpoint opened answered `pairing-busy`.
+  case candidateBusy = "candidate_busy"
+  /// Every custodian the requester tried refused the code, or answered busy
+  /// at the connection limit, and no endpoint is left to open.
   case lastCandidateFailed = "last_candidate_failed"
   /// No endpoint served an offer the requester could try, and its search
   /// ended.

@@ -77,6 +77,7 @@ internal struct NetworkContractTests {
       "CardCore/Sources/CardCore/StreamRelayBrowser.swift",
       "CardCore/Sources/CardCore/StreamRelayListener.swift",
       "CardCore/Sources/CardCore/StreamRelayPresence.swift",
+      "CardCore/Sources/CardCore/StreamRelayRefusals.swift",
       "CardCore/Sources/CardCore/StreamRelaySession.swift",
       "CardCore/Sources/CardCore/StreamSessionListener.swift",
       "Sources/App/AuthoritySchemeResolver.swift",

@@ -27,6 +27,23 @@ internal struct PreAuthenticationLimiterTests {
     #expect(limiter.admit(nowMonotonicMs: Self.start + Self.spacing))
   }
 
+  @Test("The wait is read without moving the window")
+  internal func waitIsReadWithoutMovingTheWindow() {
+    let limiter = RappPreAuthenticationLimiter()
+    let partOfTheSpacing: UInt64 = 100
+    #expect(limiter.waitMs(nowMonotonicMs: Self.start) == 0)
+    #expect(limiter.admit(nowMonotonicMs: Self.start))
+    #expect(limiter.waitMs(nowMonotonicMs: Self.start) == Self.spacing)
+    #expect(
+      limiter.waitMs(nowMonotonicMs: Self.start + partOfTheSpacing)
+        == Self.spacing - partOfTheSpacing)
+    #expect(!limiter.admit(nowMonotonicMs: Self.start + partOfTheSpacing))
+    #expect(
+      limiter.waitMs(nowMonotonicMs: Self.start + partOfTheSpacing)
+        == Self.spacing - partOfTheSpacing)
+    #expect(limiter.waitMs(nowMonotonicMs: Self.start + Self.spacing) == 0)
+  }
+
   @Test("A clock reading before the last admission is refused")
   internal func backwardsClockIsRefused() {
     let limiter = RappPreAuthenticationLimiter()

@@ -69,7 +69,7 @@
       let (events, sink) = AsyncStream.makeStream(of: RappBleGattServerEvent.self)
       let server = RappBleGattPeripheral(
         restoreIdentifier: Self.bluetoothRestoreIdentifier,
-        bootstrapOffer: nil,
+        bootstrap: nil,
         admits: { purpose, link in
           Self.admitsBluetooth(purpose, link: link, routing: routing)
         },

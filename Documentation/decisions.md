@@ -17,6 +17,18 @@ wire version in the Noise prologue refuses a v26.10.22 peer.
   wait before a new code, and no message about incorrect codes.
 - Guessing is bounded by one attempt at a time and one admission per
   500 ms over the offer's lifetime.
+- A phone that cannot admit a pairing attempt, because one is active or
+  the 500 ms spacing has not passed, answers `pairing-busy` with its wait
+  (§3.3 item 6, §4.2 "Busy Refusal") and admits nothing. The stream pairing
+  listener still carries one connection; a dialer arriving while it carries
+  one is answered with `pairing-busy` after its pairing preamble and closed
+  (`StreamRelayRefusals`), where it was closed unanswered. Over Bluetooth
+  the bootstrap characteristic serves the busy answer, and a CPace step 1
+  the phone cannot admit is refused with the ATT application error.
+- The Mac asks a busy phone again after the other phones and after its
+  wait, within the eight pairing connections of one typed code, and shows
+  nothing new while it waits: a phone still busy at the limit counts as
+  having refused the code.
 
 The vendored specification, state model, corpus and vectors are the
 v26.10.29 set from the reference repository.

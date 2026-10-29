@@ -260,7 +260,7 @@ import Testing
       defer { Self.clean(testID, sides: ["phone"]) }
       let phone = try await Self.phone(
         showing: Self.otherCode, testID: testID, side: "phone", dropAfter: nil)
-      let copy = RappTestPairingLink(servedOffer: try await phone.offer(), dropAfter: nil)
+      let copy = RappTestPairingLink(servedOffer: try phone.offer(), dropAfter: nil)
       let search = try Self.search(testID: testID, links: ["phone": phone.link, "copy": copy])
 
       await search.found("phone")
@@ -306,7 +306,7 @@ import Testing
       defer { Self.clean(testID, sides: ["mute", "right"]) }
       let mute = try await Self.phone(
         showing: Self.typedCode, testID: testID, side: "mute", dropAfter: nil)
-      let unanswered = RappTestPairingLink(servedOffer: try await mute.offer(), dropAfter: nil)
+      let unanswered = RappTestPairingLink(servedOffer: try mute.offer(), dropAfter: nil)
       let right = try await Self.phone(
         showing: Self.typedCode, testID: testID, side: "right", dropAfter: nil)
       let search = try Self.search(

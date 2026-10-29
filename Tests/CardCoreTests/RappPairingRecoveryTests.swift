@@ -59,7 +59,7 @@ private let misreadPairingCode = "246814"
       let served = await offer.snapshot().frames
       let encodedOffer = try XCTUnwrap(served.first)
       let bridge = try RappPairingBridge.bootstrapOffer(
-        encodedOffer: encodedOffer,
+        bootstrap: encodedOffer,
         transportProfile: Self.transportProfile,
         pairingCode: code,
         startedAtMonotonicMs: RappPlatformClock().monotonicMilliseconds())
@@ -132,13 +132,13 @@ private let misreadPairingCode = "246814"
       let offer = try XCTUnwrap(frames.first)
       XCTAssertNoThrow(
         try RappPairingBridge.bootstrapOffer(
-          encodedOffer: offer, transportProfile: Self.transportProfile,
+          bootstrap: offer, transportProfile: Self.transportProfile,
           pairingCode: fixturePairingCode,
           startedAtMonotonicMs: RappPlatformClock().monotonicMilliseconds()))
       await custodian.close()
     }
 
-    internal func testASecondConnectionWithinTheSpacingIsClosedUnserved() async throws {
+    internal func testASecondConnectionWithinTheSpacingIsAnsweredBusy() async throws {
       let restored = expectation(description: "offer restored after each connection")
       restored.expectedFulfillmentCount = 2
       let first = RecordingTransport()
@@ -153,8 +153,12 @@ private let misreadPairingCode = "246814"
       await custodian.transportConnected()
 
       let refused = await second.snapshot()
-      XCTAssertTrue(refused.frames.isEmpty)
+      XCTAssertEqual(refused.frames.count, 1)
       XCTAssertEqual(refused.closeCount, 1)
+      let busy = try XCTUnwrap(refused.frames.first)
+      let wait = try rappPairingBusyRetryAfterMs(busy)
+      XCTAssertGreaterThan(wait, 0)
+      XCTAssertLessThanOrEqual(wait, RappPreAuthenticationLimiter.minimumSpacingMilliseconds)
       await fulfillment(of: [restored], timeout: 2)
       await custodian.close()
       collector.cancel()

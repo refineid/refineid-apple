@@ -39,7 +39,7 @@ internal struct BootstrapOfferTests {
 
   @Test("The bootstrap offer is the corpus's BLE KC2 offer size with a random identifier")
   internal func offerShape() throws {
-    let encoded = try Self.custodian().encodedOffer()
+    let encoded = try Self.custodian().bootstrapBytes(nowMonotonicMs: 0)
     let pinned = try #require(
       try CorpusFile.conformance(filePath: #filePath).pairingOffer.first { vector in
         vector.transportProfiles == [RappBleGattProfile.name]
@@ -49,7 +49,9 @@ internal struct BootstrapOfferTests {
     #expect(offer.suites == [RappCpaceConstants.kc2Suite])
     #expect(offer.transports.map(\.profile) == [RappBleGattProfile.name])
     #expect(offer.transports.map(\.candidateIdentifier) == [RappBleGattProfile.candidateId])
-    #expect(try Self.custodian().encodedOffer() != encoded, "a fresh identifier per offer")
+    #expect(
+      try Self.custodian().bootstrapBytes(nowMonotonicMs: 0) != encoded,
+      "a fresh identifier per offer")
   }
 
   @Test(
@@ -59,7 +61,8 @@ internal struct BootstrapOfferTests {
     let custodian = try Self.custodian(
       transportProfiles: [RappBleGattProfile.name, StreamProfile.name])
     let requester = try RappPairingBridge.bootstrapOffer(
-      encodedOffer: try custodian.encodedOffer(), transportProfile: transportProfile,
+      bootstrap: try custodian.bootstrapBytes(nowMonotonicMs: 0),
+      transportProfile: transportProfile,
       pairingCode: Self.code, startedAtMonotonicMs: 0)
     let now: UInt64 = 1_000
     let candidate = try #require(rappCandidateIdentifier(transportProfile: transportProfile))
@@ -103,7 +106,8 @@ internal struct BootstrapOfferTests {
   internal func wrongCodeFails() throws {
     let custodian = try Self.custodian()
     let requester = try RappPairingBridge.bootstrapOffer(
-      encodedOffer: try custodian.encodedOffer(), transportProfile: RappBleGattProfile.name,
+      bootstrap: try custodian.bootstrapBytes(nowMonotonicMs: 0),
+      transportProfile: RappBleGattProfile.name,
       pairingCode: "7KX4M8", startedAtMonotonicMs: 0)
     let candidate = RappBleGattProfile.candidateId
     let random = { randomBytes(RappCpaceConstants.wideScalarSize) }
@@ -122,12 +126,13 @@ internal struct BootstrapOfferTests {
     let streamOffer = try Self.custodian(transportProfiles: [rappStreamProfileName()])
     #expect(throws: RappBindingError.InvalidInput) {
       try RappPairingBridge.bootstrapOffer(
-        encodedOffer: try streamOffer.encodedOffer(), transportProfile: RappBleGattProfile.name,
+        bootstrap: try streamOffer.bootstrapBytes(nowMonotonicMs: 0),
+        transportProfile: RappBleGattProfile.name,
         pairingCode: Self.code, startedAtMonotonicMs: 0)
     }
     #expect(throws: RappBindingError.InvalidInput) {
       try RappPairingBridge.bootstrapOffer(
-        encodedOffer: Data([0xA0]), transportProfile: RappBleGattProfile.name,
+        bootstrap: Data([0xA0]), transportProfile: RappBleGattProfile.name,
         pairingCode: Self.code, startedAtMonotonicMs: 0)
     }
     #expect(throws: RappBindingError.InvalidInput) {

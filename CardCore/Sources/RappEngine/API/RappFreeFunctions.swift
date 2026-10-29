@@ -49,6 +49,45 @@ public func rappCredentialProfiles() -> [String] {
   ProfileName.allCases.map(\.rawValue)
 }
 
+/// The wait a custodian's `pairing-busy` asks for, in milliseconds (RAPP
+/// v26.10.29 §4.2, "PairingBusy Schema"): read from the bootstrap answer or
+/// the frame in place of CPace step 2 after a call threw
+/// ``RappBindingError/CustodianBusy``.
+///
+/// - Throws: ``RappBindingError/InvalidInput`` when `answer` is not a valid
+///   `pairing-busy`.
+public func rappPairingBusyRetryAfterMs(_ answer: Data) throws -> UInt64 {
+  do {
+    return try PairingBusy.decode(answer).retryAfterMilliseconds
+  } catch {
+    throw RappBindingError.InvalidInput
+  }
+}
+
+/// The wait a custodian asks for when it refused a BLE CPace step 1 write
+/// with the application error and the requester then read its Bootstrap
+/// Characteristic once more (RAPP v26.10.29 §4.2, "Busy Refusal" item 2):
+/// the wait of a `pairing-busy`, and zero for an offer listing
+/// `transportProfile`.
+///
+/// - Throws: ``RappBindingError/InvalidInput`` when `bootstrap` decodes as
+///   neither.
+public func rappRefusedAttemptRetryAfterMs(
+  bootstrap: Data, transportProfile: String
+) throws -> UInt64 {
+  do {
+    switch try BootstrapAnswer.decode(bootstrap, transportProfile: transportProfile) {
+    case .busy(let busy):
+      return busy.retryAfterMilliseconds
+
+    case .offer:
+      return 0
+    }
+  } catch {
+    throw RappBindingError.InvalidInput
+  }
+}
+
 /// The stream transport's pairing preamble.
 public func rappStreamPairingPreamble() -> Data {
   // The pairing preamble of a registered profile carries no routing, so

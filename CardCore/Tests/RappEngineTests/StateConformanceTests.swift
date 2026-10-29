@@ -8,7 +8,7 @@ import Testing
 @Suite("RAPP state tables against the vendored formal model")
 internal struct StateConformanceTests {
   /// Rule counts the model declares, per component machine.
-  private static let expectedRuleCounts = [("pairing", 33), ("session", 28), ("operation", 25)]
+  private static let expectedRuleCounts = [("pairing", 36), ("session", 28), ("operation", 25)]
 
   /// The model constants the engine holds as numbers, by name.
   private static let engineConstants: [String: UInt64] = [

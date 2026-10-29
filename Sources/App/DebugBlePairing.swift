@@ -18,7 +18,8 @@
   internal enum DebugBlePairing {
     /// What a link reports to the ceremony, on either side.
     private enum LinkStep: Sendable {
-      case bootstrapOffer(Data)
+      case attemptRefused(Data)
+      case bootstrap(Data)
       case closed(RappBleGattFailure)
       case connected
       case frame(Data)
@@ -27,8 +28,11 @@
       /// The requester's link event.
       init?(_ event: RappBleGattEvent) {
         switch event {
-        case .bootstrapOffer(let offer):
-          self = .bootstrapOffer(offer)
+        case .attemptRefused(let answer):
+          self = .attemptRefused(answer)
+
+        case .bootstrap(let answer):
+          self = .bootstrap(answer)
 
         case .closed(let failure):
           self = .closed(failure)
@@ -80,7 +84,7 @@
     private static let custodianPrefix = "ble-offer-remote-reader"
     private static let requesterPrefix = "ble-pair-with-offer"
 
-    /// The custodian half: show a code, serve the offer, wait.
+    /// The custodian half: show a code, serve the bootstrap answer, wait.
     @MainActor
     internal static func offer() async -> DebugModeReport {
       let code = RappPairingCode.generate()
@@ -96,23 +100,23 @@
         },
         closer: { box.value?.cancel() })
       let coordinator: RappPairingCoordinator
-      let offer: Data
       do {
         coordinator = try RappPairingCoordinator.custodian(
           options: options(code: code), transport: transport)
-        offer = try await coordinator.bootstrapOffer()
+        _ = try coordinator.bootstrapAnswer()
       } catch {
         return DebugModeReport(
           lines: [custodianPrefix + ": the offer could not be made"], succeeded: false)
       }
       let link = RappBleGattPeripheral(
         restoreIdentifier: nil,
-        bootstrapOffer: offer,
+        bootstrap: { try? coordinator.bootstrapAnswer() },
         admits: { purpose, link in
           guard purpose == .pairing, routed.value == nil else { return false }
           routed.value = link
           return true
         },
+        admitsAttempt: { link in routed.value == link && coordinator.admitsAttempt() },
         onEvent: { event in
           // The ceremony runs on the one link that routed; another
           // central's link ending is not its end.
@@ -168,9 +172,9 @@
           continue
         }
         switch event {
-        case .bootstrapOffer(let offer):
+        case .bootstrap(let answer):
           return await pair(
-            offer: offer, code: code, transport: transport, steps: steps, sink: sink)
+            bootstrap: answer, code: code, transport: transport, steps: steps, sink: sink)
 
         case .closed(let failure):
           return DebugModeReport(
@@ -180,26 +184,30 @@
         case .trace(let step):
           DebugConsole.emit(requesterPrefix + ": " + step.line)
 
-        case .connected, .frame:
+        case .attemptRefused, .connected, .frame:
           continue
         }
       }
       return DebugModeReport(lines: [requesterPrefix + ": ended"], succeeded: false)
     }
 
-    /// Runs the requester's ceremony from the offer it read.
+    /// Runs the requester's ceremony from the bootstrap answer it read.
     @MainActor
     private static func pair(
-      offer: Data,
+      bootstrap answer: Data,
       code: String,
       transport: any RappFrameTransport,
       steps: AsyncStream<Step>,
       sink: AsyncStream<Step>.Continuation
     ) async -> DebugModeReport {
       let pairingOptions = Self.options(code: code)
+      if let wait = try? rappPairingBusyRetryAfterMs(answer) {
+        return DebugModeReport(
+          lines: [requesterPrefix + ": the custodian is busy for \(wait) ms"], succeeded: false)
+      }
       guard
         let bootstrap = try? RappPairingBridge.bootstrapOffer(
-          encodedOffer: offer, transportProfile: pairingOptions.transportProfile,
+          bootstrap: answer, transportProfile: pairingOptions.transportProfile,
           pairingCode: code, startedAtMonotonicMs: pairingOptions.clock.monotonicMilliseconds()),
         let coordinator = try? RappPairingCoordinator.requester(
           options: pairingOptions, transport: transport, bootstrap: bootstrap)
@@ -275,7 +283,8 @@
           await coordinator.close()
           return DebugModeReport(lines: [prefix + ": timed out"], succeeded: false)
 
-        case .link(.bootstrapOffer), .pairing:
+        case .link(.attemptRefused), .link(.bootstrap), .pairing:
+          // A refused step 1 is reported as the link's close that follows.
           continue
         }
       }

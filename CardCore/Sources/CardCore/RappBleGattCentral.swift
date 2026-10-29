@@ -16,9 +16,11 @@ import Foundation
   /// choice window, never one recently refused. No signal strength gates
   /// the dial; a relay cannot be told apart by it (§4.4). It reads the MTU
   /// before its first write and drops a link below 512, enables
-  /// indications, reads the offer for a pairing, writes the routing
-  /// preamble, and then carries frames: each fragment a write with
-  /// response, the next only after the response.
+  /// indications, reads the bootstrap answer for a pairing, writes the
+  /// routing preamble, and then carries frames: each fragment a write with
+  /// response, the next only after the response. A CPace step 1 the
+  /// custodian refuses with the application error is followed by one more
+  /// read of the bootstrap characteristic, reported before the link closes.
   ///
   /// All state is confined to the central's queue; the delegate callbacks
   /// arrive on it.
@@ -35,6 +37,9 @@ import Foundation
     internal var choosing = false
     internal var capacity = 0
     internal var routed = false
+    /// Whether the custodian refused CPace step 1 and the bootstrap
+    /// characteristic is being read once more.
+    internal var rereadingBootstrap = false
     internal var finished = false
     private var reassembler = RappBleSarReassembler()
     private var outbound: [Data] = []
@@ -124,8 +129,13 @@ import Foundation
         return
       }
       if characteristic.uuid == bootstrap?.uuid, !routed {
-        onEvent(.bootstrapOffer(value))
+        onEvent(.bootstrap(value))
         sendPreamble()
+        return
+      }
+      if characteristic.uuid == bootstrap?.uuid, rereadingBootstrap {
+        onEvent(.attemptRefused(value))
+        finish(.attemptRefused)
         return
       }
       guard characteristic.uuid == channel?.uuid, routed else {
@@ -147,9 +157,20 @@ import Foundation
     }
 
     /// The custodian answered a write; before routing, a refusal answers
-    /// the preamble.
+    /// the preamble, and after it, the application error refuses CPace
+    /// step 1, which sends the requester back to the bootstrap
+    /// characteristic (§4.2, "Busy Refusal" item 2).
     internal func wrote(error: (any Error)?) {
-      guard !finished else { return }
+      guard !finished, !rereadingBootstrap else { return }
+      if routed, purpose == .pairing,
+        (error as? CBATTError)?.code.rawValue == BleAttValues.applicationError,
+        let peripheral, let bootstrap
+      {
+        rereadingBootstrap = true
+        outbound.removeAll()
+        peripheral.readValue(for: bootstrap)
+        return
+      }
       guard error == nil, !outbound.isEmpty else {
         // Before routing only the custodian's own refusal of the write is a
         // refusal; a link that dropped under the write is lost, and the

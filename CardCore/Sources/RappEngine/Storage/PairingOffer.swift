@@ -13,7 +13,8 @@ internal let offerSchemeName = "rapp"
 /// parameter echo.
 internal struct PairingOffer: Sendable {
   private static let fields = [
-    "scheme", "version", "offer_id", "suites", "profiles", "transports", "offer_ttl_ms",
+    BootstrapAnswer.schemeField, BootstrapAnswer.versionField, "offer_id", "suites", "profiles",
+    "transports", "offer_ttl_ms",
   ]
 
   internal let offerIdentifier: Data
@@ -34,6 +35,25 @@ internal struct PairingOffer: Sendable {
     self.profiles = profiles
     self.transports = transports
     try validate()
+  }
+
+  /// An offer from its decoded top-level map.
+  internal init(map: [String: WireValue]) throws {
+    var remaining = map
+    try BootstrapAnswer.takeHeader(&remaining, allowed: Self.fields)
+    let decodedOfferIdentifier = try offerTakeBytes(&remaining, "offer_id")
+    let decodedSuites = try offerTakeTextArray(&remaining, "suites")
+    let decodedProfiles = try offerTakeTextArray(&remaining, "profiles")
+    let decodedTransports = try offerTakeArray(&remaining, "transports").map(Self.candidateFrom)
+    guard try offerTakeUnsigned(&remaining, "offer_ttl_ms") == OfferLimit.offerLifetimeMilliseconds
+    else {
+      throw PairingOfferError.invalidLifetime
+    }
+    try self.init(
+      offerIdentifier: decodedOfferIdentifier,
+      suites: decodedSuites,
+      profiles: decodedProfiles,
+      transports: decodedTransports)
   }
 
   /// A fresh offer naming `transportProfiles`, each with its registered
@@ -61,33 +81,7 @@ internal struct PairingOffer: Sendable {
 
   /// Decodes `encode_deterministic_cbor(pairing-offer)`.
   internal static func decode(_ encoded: Data) throws -> Self {
-    guard encoded.count <= OfferLimit.encodedOfferSize else { throw PairingOfferError.oversized }
-    let value: WireValue
-    do {
-      value = try decodeDeterministicCbor(encoded)
-    } catch let error as WireError {
-      throw PairingOfferError.wire(error)
-    }
-    guard case .map(var map) = value else { throw PairingOfferError.wrongType }
-    guard map.keys.allSatisfy(fields.contains) else { throw PairingOfferError.unknownField }
-    guard try offerTakeText(&map, "scheme") == offerSchemeName else {
-      throw PairingOfferError.wrongScheme
-    }
-    guard case .array(let version) = try offerTakeValue(&map, "version"),
-      WireValue.array(version) == wireVersionValue
-    else { throw PairingOfferError.unsupportedVersion }
-    let decodedOfferIdentifier = try offerTakeBytes(&map, "offer_id")
-    let decodedSuites = try offerTakeTextArray(&map, "suites")
-    let decodedProfiles = try offerTakeTextArray(&map, "profiles")
-    let decodedTransports = try offerTakeArray(&map, "transports").map(candidateFrom)
-    guard try offerTakeUnsigned(&map, "offer_ttl_ms") == OfferLimit.offerLifetimeMilliseconds else {
-      throw PairingOfferError.invalidLifetime
-    }
-    return try Self(
-      offerIdentifier: decodedOfferIdentifier,
-      suites: decodedSuites,
-      profiles: decodedProfiles,
-      transports: decodedTransports)
+    try Self(map: try BootstrapAnswer.decodeMap(encoded))
   }
 
   private static func candidateValue(_ candidate: TransportCandidate) -> WireValue {
@@ -140,8 +134,8 @@ internal struct PairingOffer: Sendable {
   /// `encode_deterministic_cbor(pairing-offer)`.
   internal func encoded() throws -> Data {
     let map: [String: WireValue] = [
-      "scheme": .text(offerSchemeName),
-      "version": wireVersionValue,
+      BootstrapAnswer.schemeField: .text(offerSchemeName),
+      BootstrapAnswer.versionField: wireVersionValue,
       "offer_id": .bytes(offerIdentifier),
       "suites": .array(suites.map(WireValue.text)),
       "profiles": .array(profiles.map(WireValue.text)),

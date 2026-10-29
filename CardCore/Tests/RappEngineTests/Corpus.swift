@@ -12,10 +12,12 @@ internal struct Corpus: Decodable {
     case grantsHash = "grants_hash"
     case identifierDerivation = "identifier_derivation"
     case noiseHandshake = "noise_handshake"
+    case pairingBusy = "pairing_busy"
     case pairingOffer = "pairing_offer"
     case protocolDocumentVersion = "protocol_document_version"
     case rejectedCBOR = "rejected_cbor"
     case rejectedEnvelope = "rejected_envelope"
+    case rejectedPairingBusy = "rejected_pairing_busy"
     case sequenceGuard = "sequence_guard"
     case wireVersion = "wire_version"
   }
@@ -32,5 +34,7 @@ internal struct Corpus: Decodable {
   internal let identifierDerivation: [IdentifierVector]
   internal let noiseHandshake: [NoiseVector]
   internal let pairingOffer: [PairingOfferVector]
+  internal let pairingBusy: [PairingBusyVector]
+  internal let rejectedPairingBusy: [RejectedCBORVector]
   internal let cpaceKc2: [CpaceKc2Vector]
 }

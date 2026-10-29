@@ -73,8 +73,8 @@
       case .trace(let step):
         report(.bluetoothTrace(step))
 
-      case .bootstrapOffer:
-        // A session link never reads the offer.
+      case .attemptRefused, .bootstrap:
+        // A session link never reads the bootstrap characteristic.
         break
       }
     }

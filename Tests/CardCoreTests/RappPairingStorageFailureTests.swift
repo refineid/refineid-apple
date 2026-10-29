@@ -53,7 +53,7 @@ private let fixturePairingCode = "246813"
       await custodian.transportConnected()
       let offer = try await lastFrame(transport, expecting: 1)
       let requester = try RappPairingBridge.bootstrapOffer(
-        encodedOffer: offer, transportProfile: Self.transportProfile,
+        bootstrap: offer, transportProfile: Self.transportProfile,
         pairingCode: fixturePairingCode, startedAtMonotonicMs: now)
       try requester.beginCpace(
         candidateId: try XCTUnwrap(
