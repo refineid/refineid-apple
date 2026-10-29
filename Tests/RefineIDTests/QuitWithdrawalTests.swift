@@ -7,7 +7,7 @@
 
   @testable import RefineIDTestHost
 
-  /// How long quitting waits for the withdrawal close (RAPP v26.10.22 §4.5
+  /// How long quitting waits for the withdrawal close (RAPP v26.10.29 §4.5
   /// item 8).
   ///
   /// Until it has left or the bound has passed, whichever comes first, and

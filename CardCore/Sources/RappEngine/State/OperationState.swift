@@ -5,7 +5,7 @@
 // break the correspondence the bidirectional conformance test protects.
 // swiftlint:disable sorted_enum_cases
 
-/// Operation component state (RAPP v26.10.22 formal state model).
+/// Operation component state (RAPP v26.10.29 formal state model).
 ///
 /// An operation instance exists per operation identifier within one session;
 /// `none` is the absence of one, and also where an operation goes when its

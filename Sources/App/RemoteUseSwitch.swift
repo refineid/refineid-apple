@@ -16,7 +16,7 @@
   /// watches whose Bluetooth manager and first Bonjour browse ask for them
   /// (CC-96), and the registry follows the paired phone or offers the code
   /// entry. The holder's click turning it off forgets every pairing (RAPP
-  /// v26.10.22 §4.6 item 6, CC-100). It also turns off, keeping the
+  /// v26.10.29 §4.6 item 6, CC-100). It also turns off, keeping the
   /// pairings as they are, when the last pairing ends other than by that
   /// click and as the app quits. A card in this Mac's reader suspends it:
   /// the switch keeps its state and its watches stop until the card leaves

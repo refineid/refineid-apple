@@ -8,7 +8,7 @@
   import UIKit
 
   /// The Bluetooth half of the phone relay: the GATT server of
-  /// `fi.refineid.rapp.ble` (RAPP v26.10.22 §5), serving the same pairings
+  /// `fi.refineid.rapp.ble` (RAPP v26.10.29 §5), serving the same pairings
   /// as the stream listener, beside it, and on from the background.
   ///
   /// Each central whose link routes a session preamble gets a session of

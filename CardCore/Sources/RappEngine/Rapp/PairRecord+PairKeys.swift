@@ -8,7 +8,7 @@ extension PairRecord {
   ///
   /// A degenerate agreement has none, and so has a pairing whose storage
   /// was never confirmed: such a pairing routes, announces, and withdraws
-  /// nothing (RAPP v26.10.22 §4.3 item 4).
+  /// nothing (RAPP v26.10.29 §4.3 item 4).
   internal func pairKey(info: Data) -> SymmetricKey? {
     guard storageConfirmed else { return nil }
     return PairKeys.derive(

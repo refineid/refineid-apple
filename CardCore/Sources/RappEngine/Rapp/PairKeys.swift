@@ -4,7 +4,7 @@ import CryptoKit
 import Foundation
 
 /// Keys both endpoints of a pairing derive from its static X25519
-/// agreement (RAPP v26.10.22 §4.3).
+/// agreement (RAPP v26.10.29 §4.3).
 ///
 /// The agreement never crosses the wire, so a value keyed by it names the
 /// pairing only to its two endpoints. Each use takes its own HKDF info

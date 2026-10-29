@@ -5,7 +5,7 @@ import Foundation
 /// What the card holder's pairing listener does with each stream event
 /// until a requester has sent the pairing routing preamble.
 ///
-/// RAPP v26.10.22 §2.2.1: a first frame that is not the expected preamble is
+/// RAPP v26.10.29 §2.2.1: a first frame that is not the expected preamble is
 /// Class 1 invalid input, and the custodian closes that connection without
 /// changing stored state. The offer stays open, so a connection rejected or
 /// lost before the preamble is never reported to the ceremony as its end.

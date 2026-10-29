@@ -6,7 +6,7 @@ import Foundation
   import Network
 
   /// Accepts every connection a custodian's session listener gets and
-  /// carries frames over each one apart (RAPP v26.10.22 §2.2.2): any number
+  /// carries frames over each one apart (RAPP v26.10.29 §2.2.2): any number
   /// at once, one per client session, and an open connection is never a
   /// reason to refuse another.
   ///

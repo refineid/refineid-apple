@@ -11,7 +11,7 @@ public protocol RappPairVault: AnyObject, Sendable {
   func insertDeviceOnly(pairId: Data, record: Data) throws
 
   /// Writes the confirmed pairing over the unconfirmed record stored under
-  /// the same identifier (RAPP v26.10.22 §4.3 item 4), or the same record
+  /// the same identifier (RAPP v26.10.29 §4.3 item 4), or the same record
   /// marked forgotten (§4.6 item 2).
   func replaceDeviceOnly(pairId: Data, record: Data) throws
 

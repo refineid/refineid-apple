@@ -12,7 +12,7 @@ extension Token {
   /// system's next prompt reaches a card that can still answer, and the
   /// retry floor decides from the counter whether an attempt may be sent
   /// at all. The stored identity stays, because a PIN is never stored and
-  /// the card has not left (RAPP v26.10.22 section 8.4 item 1, section 11
+  /// the card has not left (RAPP v26.10.29 section 8.4 item 1, section 11
   /// item 2). Transport loss, PACE failure, malformed signatures and TLS
   /// errors do not come here; only the card's VERIFY response does.
   internal func forgetPinAfterRefusal(fingerprint: PinFingerprint) {

@@ -10,7 +10,7 @@ import Security
 /// card face -- and ``displayedCardAccessNumber()`` returns it for the
 /// manager window. It never enters a log. No PIN is ever stored: PIN 1 is
 /// held only in the memory of the process that asked for it, and PIN 2 is
-/// asked for every signature (RAPP v26.10.22 §11 item 2).
+/// asked for every signature (RAPP v26.10.29 §11 item 2).
 ///
 /// The item is `WhenUnlockedThisDeviceOnly` and non-synchronizable, so it
 /// is never written into a backup, restored onto another device, or sent

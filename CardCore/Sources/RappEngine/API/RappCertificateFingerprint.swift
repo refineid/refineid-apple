@@ -4,7 +4,7 @@ import CryptoKit
 import Foundation
 
 /// The SHA-256 digest of the DER encoding of a card's authentication
-/// certificate (RAPP v26.10.22 §8.4 item 2), naming which card the custodian
+/// certificate (RAPP v26.10.29 §8.4 item 2), naming which card the custodian
 /// serves.
 public struct RappCertificateFingerprint: Hashable, Sendable {
   /// Byte length of a SHA-256 digest (§7.1 `bstr .size 32`).

@@ -106,7 +106,7 @@ public struct SignRequest {
   /// The signature a paired phone returned, in the form Security.framework
   /// and CMS expect, once it verifies against `publicKey`.
   ///
-  /// RAPP v26.10.22 section 9.2 carries the card's raw value (`r || s` for
+  /// RAPP v26.10.29 section 9.2 carries the card's raw value (`r || s` for
   /// ECDSA). A phone built before that rule sends DER, which is accepted
   /// when it verifies as it stands.
   public func verifiedRemoteSignature(_ received: Data, from publicKey: SecKey) -> Data? {

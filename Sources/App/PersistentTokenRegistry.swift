@@ -11,7 +11,7 @@
 
   /// Publishes the paired phone's authentication certificate as a per-user
   /// persistent CryptoTokenKit identity once the phone confirms that card
-  /// (RAPP v26.10.22 §8.4).
+  /// (RAPP v26.10.29 §8.4).
   ///
   /// Private-key operations stay delegated to the phone. The identity is
   /// offered on a certificate whose fingerprint the phone confirmed on a
@@ -21,7 +21,7 @@
   /// phone announces it stopped serving, and when remote use is turned off;
   /// otherwise once no session has reported the card present for
   /// ``RemoteIdentityOffer/grace``. A pairing idle for 30 days expires
-  /// silently (RAPP v26.10.22 §4.6 item 5).
+  /// silently (RAPP v26.10.29 §4.6 item 5).
   @MainActor
   @Observable
   internal final class PersistentTokenRegistry {
@@ -122,7 +122,7 @@
 
     /// Whether a session over Bluetooth is up with the phone.
     ///
-    /// Bluetooth advertisements name no pairing (RAPP v26.10.22 §4.1), so
+    /// Bluetooth advertisements name no pairing (RAPP v26.10.29 §4.1), so
     /// over Bluetooth only an established session says the phone is there.
     internal var holderOverBluetooth = false
 
@@ -137,7 +137,7 @@
     internal var holderCardStatus: RappCardStatus?
 
     /// How to ask for the phone's card, while the open session's last
-    /// `card.status` says the phone holds none (RAPP v26.10.22 §8.4 item
+    /// `card.status` says the phone holds none (RAPP v26.10.29 §8.4 item
     /// 6).
     internal var holderCardRequest: PhoneCardRequest? {
       PhoneCardRequest(holderCardStatus)
@@ -146,7 +146,7 @@
     /// The paired phone's pairing; nil while no usable pairing exists.
     internal private(set) var pairedPhoneID: Data?
 
-    /// The phone that told this computer it forgot it (RAPP v26.10.22 §4.6
+    /// The phone that told this computer it forgot it (RAPP v26.10.29 §4.6
     /// item 4), by name, until a phone is paired again.
     internal var phoneThatForgot: String?
 
@@ -171,7 +171,7 @@
       internal var holderSessionToken: UUID?
 
       /// The pairing whose hint the phone on the network carries; a session
-      /// dials it and no other (RAPP v26.10.22 §4.6 item 2).
+      /// dials it and no other (RAPP v26.10.29 §4.6 item 2).
       internal var pairInSight: Data?
 
       /// Dials the phone again once the wait after a session that ended is
@@ -211,7 +211,7 @@
     #endif
 
     #if os(macOS) && REFINEID_REMOTE_CARD
-      /// The latest click off forgetting every pairing (RAPP v26.10.22 §4.6
+      /// The latest click off forgetting every pairing (RAPP v26.10.29 §4.6
       /// item 6), or one left unfinished tried again; nil once it finished
       /// and the app followed.
       internal var forgetting: Task<Void, Never>?
@@ -277,7 +277,7 @@
     /// device's reader.
     ///
     /// While a click off is forgetting the pairings, following waits until
-    /// they are gone (RAPP v26.10.22 §4.6 item 6).
+    /// they are gone (RAPP v26.10.29 §4.6 item 6).
     internal func start() {
       #if os(macOS) && REFINEID_REMOTE_CARD
         guard forgetting == nil else { return }
@@ -379,7 +379,7 @@
         return
       }
       // Only the card the phone names on this session is offered (RAPP
-      // v26.10.22 §8.4 item 2); a certificate read across a card change
+      // v26.10.29 §8.4 item 2); a certificate read across a card change
       // waits for the phone's next word.
       guard case .present(let named)? = holderCardStatus?.card,
         RappCertificateFingerprint(certificate: fetched) == named

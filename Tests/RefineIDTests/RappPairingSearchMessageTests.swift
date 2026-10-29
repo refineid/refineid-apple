@@ -7,7 +7,7 @@ import XCTest
 
 /// What the requester tells its user when its search ends: the code is
 /// called not accepted only when every phone tried refused it, and a search
-/// that tried none says no phone in pairing mode was found (RAPP v26.10.22
+/// that tried none says no phone in pairing mode was found (RAPP v26.10.29
 /// §4.2, "Trying Each Custodian in Pairing Mode" item 6), unless it found
 /// phones it could not reach.
 internal final class RappPairingSearchMessageTests: XCTestCase {

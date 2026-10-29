@@ -88,7 +88,7 @@ The **RefineID Remote Card Proxy** enables laptops and desktops (Linux, macOS) t
      ========================================
      ```
 3. **Desktop Connection**:
-   * Desktop prompts: *"Enter the pairing code shown on your phone"*. The offer lasts 5 minutes and admits at most 3 attempts.
+   * Desktop prompts: *"Enter the pairing code shown on your phone"*. The offer lasts 5 minutes and admits one attempt at a time, at most one per 500 ms.
 4. **Mutual Authentication (CPace, then `Noise_XXpsk3`)**:
    * CPace (`CPaceRistretto255`) keyed by the code yields the 32-byte pre-shared key (`psk3`).
    * Mobile and Desktop perform a 3-message `Noise_XXpsk3` handshake.

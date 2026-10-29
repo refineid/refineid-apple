@@ -8,7 +8,7 @@
   /// operation is granted, the bound on the synchronous wait, and the
   /// window for finding the custodian at all.
   ///
-  /// Session liveness is the protocol's own (RAPP v26.10.22 §8.3).
+  /// Session liveness is the protocol's own (RAPP v26.10.29 §8.3).
   public struct RappRequesterPolicy: Sendable, Equatable {
     private enum Timing {
       static let interactiveOperationLifetimeMilliseconds: UInt64 = 300_000
@@ -31,7 +31,7 @@
     )
 
     /// The policy for a request a local consumer makes against the
-    /// identity this device offers for the custodian (RAPP v26.10.22 §8.4
+    /// identity this device offers for the custodian (RAPP v26.10.29 §8.4
     /// item 3).
     ///
     /// The identity stays offered between sessions, so a request may find

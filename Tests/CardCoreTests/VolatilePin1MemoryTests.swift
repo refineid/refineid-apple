@@ -7,7 +7,7 @@ import Testing
 
 /// The token extension's PIN 1 memory: a candidate kept across field loss,
 /// promotion to accepted memory only after the card accepted it, and
-/// rejection and cancellation protection (RAPP v26.10.22 §11 item 2).
+/// rejection and cancellation protection (RAPP v26.10.29 §11 item 2).
 @Suite(.serialized)
 internal struct VolatilePin1MemoryTests {
   private static let testInstanceA = makeInstance(serial: "TEST00001")

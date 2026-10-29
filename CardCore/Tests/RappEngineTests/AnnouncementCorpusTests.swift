@@ -7,7 +7,7 @@ import Testing
 @testable import RappEngine
 
 /// Replays the routing and withdrawal corpora byte for byte.
-@Suite("RAPP v26.10.22 routing and withdrawal corpora")
+@Suite("RAPP v26.10.29 routing and withdrawal corpora")
 internal struct AnnouncementCorpusTests {
   private static let accepted = "accepted"
 
@@ -49,7 +49,7 @@ internal struct AnnouncementCorpusTests {
   @Test("Both endpoints derive the vector's keys from the static agreement")
   internal func pairKeys() throws {
     let corpus = try CorpusFile.routing(filePath: #filePath)
-    #expect(corpus.protocolDocumentVersion == "26.10.22")
+    #expect(corpus.protocolDocumentVersion == "26.10.29")
     for vector in corpus.pairKeys {
       let pairID = try Data(hex: vector.pairIDHex)
       for (info, expected) in [
@@ -150,7 +150,7 @@ internal struct AnnouncementCorpusTests {
   @Test("Withdrawal keys, hints and their minute window match")
   internal func withdrawalHints() throws {
     let corpus = try CorpusFile.withdrawal(filePath: #filePath)
-    #expect(corpus.protocolDocumentVersion == "26.10.22")
+    #expect(corpus.protocolDocumentVersion == "26.10.29")
     let keys = try #require(corpus.withdrawalKey.first)
     let key = try Self.withdrawalKey(corpus)
     for vector in corpus.withdrawalHint {

@@ -63,7 +63,7 @@
     }
 
     /// Ends every established session over `pairID` with `pairing_revoked`
-    /// as the pairing is forgotten (RAPP v26.10.22 §4.6 item 1); false when
+    /// as the pairing is forgotten (RAPP v26.10.29 §4.6 item 1); false when
     /// no session over `pairID` is open or no close left, so the pairing is
     /// kept forgotten for its next session.
     internal func closeForRevocation(pairID: Data) async -> Bool {

@@ -6,7 +6,7 @@
   import Security
 
   extension RappCardExecutor {
-    /// The PIN a signature spends (RAPP v26.10.22 §8.2 item 3, §11 item 2).
+    /// The PIN a signature spends (RAPP v26.10.29 §8.2 item 3, §11 item 2).
     internal enum SigningPin: Sendable, Equatable {
       /// PIN 1 the holder typed for this browser authentication.
       case enteredPin1(String)
@@ -116,7 +116,7 @@
 
       // The counter is read once per card session: a session that ended
       // without the card answering opens a new one, and the next use reads
-      // it again (RAPP v26.10.22 §11 item 2).
+      // it again (RAPP v26.10.29 §11 item 2).
       if context?.isRoleProbed(params.role) != true {
         if let refusal = evaluateRetryFloor(operations: operations, pin: params.pin) {
           return .refusedBeforeCredentialTransmit(refusal)
@@ -257,7 +257,7 @@
             expectedSignatureLength: identity.request.expectedSignatureLength
           )
         // Verified locally in its DER form; the wire carries the card's
-        // raw value (RAPP v26.10.22 §9.2).
+        // raw value (RAPP v26.10.29 §9.2).
         guard
           let verifiable = identity.request.wireSignature(from: raw),
           identity.request.isSatisfied(by: verifiable, from: identity.publicKey)

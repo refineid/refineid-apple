@@ -90,7 +90,7 @@ internal final class PairingRelay: @unchecked Sendable {
     /// Reports a stream event the way the ceremony above names it.
     ///
     /// The requester has arrived once its pairing preamble is received
-    /// (RAPP v26.10.22 §2.2.1 routing): anything else first is
+    /// (RAPP v26.10.29 §2.2.1 routing): anything else first is
     /// pre-authentication invalid input that closes that connection, and the
     /// offer keeps listening.
     private func receiveStream(_ event: StreamRelayEvent) {

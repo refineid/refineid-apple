@@ -6,7 +6,7 @@ import Testing
 @testable import RappEngine
 
 /// What the custodian refuses before admitting an operation, and what the
-/// requester makes of it (RAPP v26.10.22 §8.1, §8.2 item 1, §10.3).
+/// requester makes of it (RAPP v26.10.29 §8.1, §8.2 item 1, §10.3).
 @Suite("RAPP refusals between the bridges")
 internal struct BridgeRefusalTests {
   private static let start = OperationFixture.startMilliseconds

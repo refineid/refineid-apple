@@ -1,6 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-/// What an idle-expiry sweep did with one pairing (RAPP v26.10.22 §4.6 item
+/// What an idle-expiry sweep did with one pairing (RAPP v26.10.29 §4.6 item
 /// 5).
 public enum RappSweepOutcome: Equatable, Sendable {
   /// The pairing went 30 days without an established session: it is stored

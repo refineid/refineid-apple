@@ -4,7 +4,7 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.10.22 pre-authentication rate limit (section 3.3)")
+@Suite("RAPP v26.10.29 pre-authentication rate limit (section 3.3)")
 internal struct PreAuthenticationLimiterTests {
   private static let start: UInt64 = 10_000
   private static let spacing = RappPreAuthenticationLimiter.minimumSpacingMilliseconds

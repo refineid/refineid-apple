@@ -6015,54 +6015,6 @@
         }
       }
     },
-    "Pairing locked after three incorrect codes.": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Yhdistäminen lukittiin kolmen väärän koodin jälkeen."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Parkopplingen låstes efter tre felaktiga koder."
-          }
-        }
-      }
-    },
-    "Pairing locked. Try again in %@.": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Yhdistäminen on lukittu. Yritä uudelleen %@ kuluttua."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Parkopplingen är låst. Försök igen om %@."
-          }
-        }
-      }
-    },
-    "Pairing locked. Try again in %lld s.": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Yhdistäminen on lukittu. Yritä uudelleen %lld s kuluttua."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Parkopplingen är låst. Försök igen om %lld s."
-          }
-        }
-      }
-    },
     "The pairing code is invalid": {
       "localizations": {
         "fi": {

@@ -5,7 +5,7 @@
   import os
   import RappEngine
 
-  /// The requester's standing session with the custodian (RAPP v26.10.22
+  /// The requester's standing session with the custodian (RAPP v26.10.29
   /// §8.3, §8.4): dialled over the stream when the custodian is on the
   /// network and over Bluetooth otherwise, held open so the custodian's
   /// `card.status` reaches the requester, and used for the operations the
@@ -211,7 +211,7 @@
 
     /// Runs one operation over the session and answers what it yields.
     ///
-    /// The session carries one operation at a time (RAPP v26.10.22 §8.1
+    /// The session carries one operation at a time (RAPP v26.10.29 §8.1
     /// item 1): one that arrives while another runs waits for it, first come
     /// first served, instead of being refused. The session must be
     /// established.
@@ -292,7 +292,7 @@
     }
 
     /// Ends the session with `pairing_revoked`, as the pairing it runs over
-    /// is forgotten (RAPP v26.10.22 §4.6 item 1).
+    /// is forgotten (RAPP v26.10.29 §4.6 item 1).
     ///
     /// The close frame is sent before the connection goes; the answer says
     /// whether it left.
@@ -304,7 +304,7 @@
     }
 
     /// Ends the session with `service_withdrawn`, as this computer stops
-    /// using remote access (RAPP v26.10.22 §4.5 item 8); the pairing stays.
+    /// using remote access (RAPP v26.10.29 §4.5 item 8); the pairing stays.
     ///
     /// An open session sends the close before the connection goes; one
     /// still being dialled closes without a notice. The answer says whether

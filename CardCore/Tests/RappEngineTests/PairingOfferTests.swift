@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.10.22 pairing offer and deadline (section 4.2)")
+@Suite("RAPP v26.10.29 pairing offer and deadline (section 4.2)")
 internal struct PairingOfferTests {
   /// Milliseconds the deadline fixture starts at.
   private static let deadlineStart: UInt64 = 10_000

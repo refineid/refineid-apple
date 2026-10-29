@@ -10,7 +10,7 @@ import Testing
 
   /// An operation whose deadline passes before the card was commanded is
   /// cancelled, and the custodian's owner hears it is over, so its prompt
-  /// comes down and the card goes to the next operation (RAPP v26.10.22
+  /// comes down and the card goes to the next operation (RAPP v26.10.29
   /// §8.1 item 2, §8.2 item 2).
   @Suite
   internal struct RappOperationExpiryTests {

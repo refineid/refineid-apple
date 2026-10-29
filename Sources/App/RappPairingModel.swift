@@ -30,13 +30,10 @@ internal final class RappPairingModel: ObservableObject {
     /// A phone was found and could not be reached; the holder checks the
     /// network and the permission.
     case unreachable
-    /// Too many incorrect codes; a new offer is shown at `until`.
-    case locked(until: Date)
     /// Anything else, in the words the user is told.
     case reported(String)
 
-    /// What the user is told now; a shown lockout redraws its own
-    /// countdown (``PairingLockCountdown``).
+    /// What the user is told now.
     internal var message: String {
       switch self {
       case .localNetworkDenied:
@@ -44,9 +41,6 @@ internal final class RappPairingModel: ObservableObject {
 
       case .unreachable:
         LocalNetworkSettings.unreachableMessage
-
-      case .locked(let until):
-        PairingLockCountdown.message(until: until, at: Date())
 
       case .reported(let message):
         message
@@ -60,7 +54,7 @@ internal final class RappPairingModel: ObservableObject {
       case .localNetworkDenied, .unreachable:
         true
 
-      case .locked, .reported:
+      case .reported:
         false
       }
     }
@@ -83,7 +77,7 @@ internal final class RappPairingModel: ObservableObject {
 
   /// The transport profile a ceremony runs over in this build.
   ///
-  /// The custodian's offer names it (RAPP v26.10.22 §2.2); the requester
+  /// The custodian's offer names it (RAPP v26.10.29 §2.2); the requester
   /// finds the holder by its published pairing attributes and reads the
   /// offer it serves.
   internal static var ceremonyTransportProfile: String {
@@ -176,11 +170,6 @@ internal final class RappPairingModel: ObservableObject {
     #if os(iOS)
       RemoteAccessServing.setEnabled(true)
     #endif
-    if let liftsAt = RappPairingBackoff.shared.nextOfferDate() {
-      phase = .failed(.locked(until: liftsAt))
-      scheduleOfferAfterLockout(liftsAt: liftsAt)
-      return
-    }
     let code = customCode.map(RappPairingCode.normalize) ?? RappPairingCode.generate()
     let custodianRelay = makeRelay()
     do {
@@ -207,26 +196,12 @@ internal final class RappPairingModel: ObservableObject {
       vault: vault)
   }
 
-  private func scheduleOfferAfterLockout(liftsAt: Date) {
-    pairingTimeoutTask?.cancel()
-    pairingTimeoutTask = Task { [weak self] in
-      do {
-        try await Task.sleep(for: .seconds(max(0, liftsAt.timeIntervalSinceNow)))
-      } catch {
-        return
-      }
-      guard let self, case .failed = phase else { return }
-      createOffer()
-    }
-  }
-
   internal func cancel() {
     resetAttempt()
   }
 
   /// Ends the ceremony the way its role calls for: a phone's own offer
-  /// is followed by the next one, and a lockout shows until it lifts;
-  /// a requester reports `failure`.
+  /// is followed by the next one; a requester reports `failure`.
   internal func ceremonyEnded(_ failure: String) {
     #if os(iOS)
       if isOffering {

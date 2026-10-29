@@ -8,7 +8,7 @@ anyone on the local network learning that a card was inserted or removed,
 and without withdrawing an identity a browser is about to use whenever a
 session drops for a moment.
 
-RAPP v26.10.22 §8.4 settles this with an in-band message and an eventually
+RAPP v26.10.29 §8.4 settles this with an in-band message and an eventually
 consistent offer: the custodian sends `card.status` right after
 `session.ready` on every session and again whenever the card it holds
 changes, and a requester offers the identity of a card a session
@@ -108,7 +108,7 @@ else.
 
 ### 3.3 The status message
 
-`card.status` is an authenticated in-session message (RAPP v26.10.22
+`card.status` is an authenticated in-session message (RAPP v26.10.29
 §7.1):
 
 ```
@@ -181,12 +181,12 @@ identity and names the phone in the identity row.
 ## 5. Verification
 
 - The engine's `card.status` body is replayed byte for byte against
-  `rapp-operation-v26.10.22.json` (`OperationBodyTests`).
+  `rapp-operation-v26.10.29.json` (`OperationBodyTests`).
 - The `pairing_revoked` close of a forgotten pairing, in session and on
   the next session in both directions, is driven end to end
   (`RevocationDriveTests`).
 - The state tables are checked against
-  `rapp-state-machine-v26.10.22.yaml` in both directions
+  `rapp-state-machine-v26.10.29.yaml` in both directions
   (`StateConformanceTests`).
 - `RemoteIdentityOfferTests` pins the offer's lapse at the grace, and that
   absence starts it while a different card withdraws at once.

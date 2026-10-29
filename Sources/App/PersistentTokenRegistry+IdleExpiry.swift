@@ -5,7 +5,7 @@
   import Foundation
   import RappEngine
 
-  /// Idle expiry of the requester's pairings (RAPP v26.10.22 §4.6 item 5):
+  /// Idle expiry of the requester's pairings (RAPP v26.10.29 §4.6 item 5):
   /// a pairing with no established session for 30 days expires silently.
   extension PersistentTokenRegistry {
     /// The pairings a session is established to now.
@@ -18,7 +18,7 @@
       #endif
     }
 
-    /// Sweeps every pairing for idle expiry at launch (RAPP v26.10.22 §4.6
+    /// Sweeps every pairing for idle expiry at launch (RAPP v26.10.29 §4.6
     /// item 5), before anything remote starts, answering whether an active
     /// pairing remains.
     ///
@@ -34,7 +34,7 @@
     }
 
     /// Records the session to `pairID` in its pairing's stored record, as
-    /// it is established and as it ends (RAPP v26.10.22 §4.6 item 5).
+    /// it is established and as it ends (RAPP v26.10.29 §4.6 item 5).
     internal static func recordSession(pairID: Data) {
       let recorded = RappPairIdleExpiry.recordSession(
         pairID: pairID, in: RappDeviceVault(),
@@ -57,7 +57,7 @@
     }
 
     /// Sweeps every pairing for idle expiry while the app runs (RAPP
-    /// v26.10.22 §4.6 item 5).
+    /// v26.10.29 §4.6 item 5).
     ///
     /// A pairing the open session runs over is recorded instead. One that
     /// expired leaves silently: its identity is withdrawn, the row follows

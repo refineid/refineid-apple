@@ -3,7 +3,7 @@
 import Foundation
 
 /// What a requester does after a pairing connection closed without its
-/// custodian taking the code (RAPP v26.10.22 §4.2, "Trying Each Custodian in
+/// custodian taking the code (RAPP v26.10.29 §4.2, "Trying Each Custodian in
 /// Pairing Mode").
 public enum RappNextCandidate: Equatable, Sendable {
   /// Remote use stopped being available: the requester's remote use is off,

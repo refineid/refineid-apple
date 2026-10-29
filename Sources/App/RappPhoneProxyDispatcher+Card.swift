@@ -122,7 +122,7 @@
     }
 
     /// Runs the one approved card command; a PIN the card refused is asked
-    /// for again on the phone while the retry floor allows (RAPP v26.10.22
+    /// for again on the phone while the retry floor allows (RAPP v26.10.29
     /// §10.2), and the requester learns only the outcome.
     internal func executeCardCommand(
       operationID: RappOperationIdentifier,
@@ -222,7 +222,7 @@
 
     /// Holds a typed PIN 1 once the card accepted it, or when no card came
     /// to take it, and forgets a held one the counter no longer confirms
-    /// (RAPP v26.10.22 §11 item 2).
+    /// (RAPP v26.10.29 §11 item 2).
     ///
     /// A PIN typed for a card that never arrived reached no card, so the
     /// retry that follows uses it instead of asking again; the counter is

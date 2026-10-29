@@ -7,7 +7,7 @@
   import RappEngine
   import Testing
 
-  /// The confirmed record written over an unconfirmed one (RAPP v26.10.22
+  /// The confirmed record written over an unconfirmed one (RAPP v26.10.29
   /// §4.3 item 4) is stored exactly as the first write stored it.
   @Suite("Replacing a stored pairing")
   internal struct RappDeviceVaultReplaceTests {

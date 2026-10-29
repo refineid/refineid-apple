@@ -3,7 +3,7 @@
 import Foundation
 
 /// Cuts the bytes one stream connection received into its length-prefixed
-/// frames (RAPP v26.10.22 §2.2.2).
+/// frames (RAPP v26.10.29 §2.2.2).
 internal struct StreamFrameReader: Sendable {
   /// Bytes received and not yet part of a whole frame.
   private var pending = Data()

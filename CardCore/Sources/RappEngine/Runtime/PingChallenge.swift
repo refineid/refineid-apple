@@ -23,7 +23,7 @@ internal struct PingChallenge: Equatable, CustomStringConvertible {
   }
 
   /// The challenge a received `liveness.ping` carries or a `liveness.pong`
-  /// echoes, the body's only field (RAPP v26.10.22 §7.1, §8.3); nil for any
+  /// echoes, the body's only field (RAPP v26.10.29 §7.1, §8.3); nil for any
   /// other body.
   internal init?(body: [String: WireValue]) {
     var fields = body

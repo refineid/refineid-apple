@@ -2,15 +2,14 @@
 
 import Foundation
 
-/// The pairing ceremony of RAPP v26.10.22, from a random offer to a stored
+/// The pairing ceremony of RAPP v26.10.29, from a random offer to a stored
 /// pairing.
 ///
 /// The custodian creates the offer, shows the code and answers; the
 /// requester reads the offer through the transport's bootstrap, types the
 /// code and initiates both CPace and Noise_XXpsk3. One bridge runs one
 /// ceremony.
-/// A completed, cancelled or exhausted bridge is spent and refuses further
-/// calls.
+/// A completed or cancelled bridge is spent and refuses further calls.
 public final class RappPairingBridge: @unchecked Sendable {
   /// Where the ceremony has reached.
   internal enum Phase {
@@ -22,12 +21,11 @@ public final class RappPairingBridge: @unchecked Sendable {
     case handshaking(PairingHandshake, deadline: UInt64)
     case confirming(PairingConfirmation, deadline: UInt64)
     /// The record is built and the storage exchange runs over the still
-    /// open channel (RAPP v26.10.22 §4.3 item 4), under the confirmation
+    /// open channel (RAPP v26.10.29 §4.3 item 4), under the confirmation
     /// deadline.
     case storage(PairingStorage, record: PairRecord, deadline: UInt64)
     case finished
     case cancelled
-    case exhausted
   }
 
   internal let lock = NSLock()
@@ -39,7 +37,7 @@ public final class RappPairingBridge: @unchecked Sendable {
   internal var context = Data()
   internal let deadline: PairingOfferDeadline
   internal let localKeys: PairKeyMaterial
-  internal var ledger = CpaceAttemptLedger()
+  internal var attempt = CpaceAttemptSlot()
   internal var candidateIdentifier = ""
   internal var phase = Phase.offer
 
@@ -62,7 +60,7 @@ public final class RappPairingBridge: @unchecked Sendable {
   }
 
   /// Builds the custodian's offer, served over `transportProfiles`
-  /// (RAPP v26.10.22 §4.2).
+  /// (RAPP v26.10.29 §4.2).
   ///
   /// The offer identifier is fresh randomness the caller draws, never
   /// derived from the code; the requester learns it through the
@@ -93,7 +91,7 @@ public final class RappPairingBridge: @unchecked Sendable {
   }
 
   /// Builds the requester's side from the offer the custodian served over
-  /// the connection's transport (RAPP v26.10.22 §4.2 step 3).
+  /// the connection's transport (RAPP v26.10.29 §4.2 step 3).
   ///
   /// The offer must name the KC2 suite and carry an entry for
   /// `transportProfile`; anything else ends the flow before CPace, without
@@ -152,11 +150,6 @@ public final class RappPairingBridge: @unchecked Sendable {
     } catch {
       throw RappBindingError.InvalidInput
     }
-  }
-
-  /// Whether three failed attempts destroyed the offer.
-  public func attemptsExhausted() -> Bool {
-    locked { ledger.isExhausted }
   }
 
   /// The offer a requester read, while CPace has not begun on it.

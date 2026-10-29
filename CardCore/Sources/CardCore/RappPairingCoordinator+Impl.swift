@@ -5,7 +5,7 @@
   import RappEngine
 
   extension RappPairingCoordinator {
-    /// Watchdog windows matching the engine's deadlines (RAPP v26.10.22 §3.3).
+    /// Watchdog windows matching the engine's deadlines (RAPP v26.10.29 §3.3).
     private enum Window {
       static let attemptMilliseconds: UInt64 = 5_000
       static let handshakeMilliseconds: UInt64 = 10_000
@@ -37,7 +37,7 @@
     /// A custodian serves its offer as the first frame on a frame
     /// transport; a requester, which already read the offer, sends CPace
     /// step 1. At most one connection per 500 ms reaches the offer (RAPP
-    /// v26.10.22 §3.3 item 8).
+    /// v26.10.29 §3.3 item 6).
     public func transportConnected() async {
       guard state == .offer else {
         await fail(.protocolFailure)
@@ -172,7 +172,7 @@
     }
 
     /// The requester's first CPace message; step 2 is due within the
-    /// attempt deadline (RAPP v26.10.22 §3.3 item 3).
+    /// attempt deadline (RAPP v26.10.29 §3.3 item 3).
     private func beginRequesterCpace(now: UInt64) async throws {
       try bridge.beginCpace(
         candidateId: candidateID, randomBytes64: try entropy.cpaceRandom(), nowMonotonicMs: now)
@@ -228,7 +228,7 @@
 
     /// Stores the unconfirmed record, then tells the peer.
     ///
-    /// The storage exchange is RAPP v26.10.22 §4.3 item 4; the
+    /// The storage exchange is RAPP v26.10.29 §4.3 item 4; the
     /// confirmation deadline keeps running.
     private func store(now: UInt64) async throws {
       let record = try bridge.buildPairRecord(
@@ -277,9 +277,6 @@
       case RappBindingError.OfferExpired:
         await fail(.offerExpired)
 
-      case RappBindingError.AttemptsExhausted:
-        await fail(.attemptsExhausted)
-
       case RappBindingError.StorageUnconfirmed:
         await fail(.storageUnconfirmed)
 
@@ -288,8 +285,8 @@
       }
     }
 
-    /// Ends the connected attempt; a custodian with attempts left keeps its
-    /// offer and waits for the next connection.
+    /// Ends the connected attempt; a custodian keeps its offer while it
+    /// lives and waits for the next connection (RAPP v26.10.29 §3.3 item 4).
     private func abandonCandidate(_ reason: CloseReason) async {
       guard state != .completed, state != .closed else { return }
       // A record stored for this attempt is not the next attempt's.
@@ -301,7 +298,7 @@
         continuation.yield(.offerRestored)
         return
       }
-      await fail(bridge.attemptsExhausted() ? .attemptsExhausted : reason)
+      await fail(reason)
     }
 
     internal func fail(_ reason: CloseReason) async {

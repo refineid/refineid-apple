@@ -3,7 +3,7 @@
 import Foundation
 
 /// Whether a contact card reader is connected to the custodian (RAPP
-/// v26.10.22 §8.4 item 1).
+/// v26.10.29 §8.4 item 1).
 public enum RappCardReader: Equatable, Sendable {
   /// No contact card reader is connected, as on a custodian that reads
   /// cards only over NFC.

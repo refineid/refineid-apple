@@ -10,7 +10,7 @@ import Testing
 
 /// A requester finds a session-mode holder by its rotating hint alone and
 /// opens with fresh routing the holder resolves to its pairing (RAPP
-/// v26.10.22 §2.2.1 and the discovery hierarchy §4.3).
+/// v26.10.29 §2.2.1 and the discovery hierarchy §4.3).
 @Suite(.serialized)
 internal struct StreamSessionLoopbackTests {
   private static let attempts = 100

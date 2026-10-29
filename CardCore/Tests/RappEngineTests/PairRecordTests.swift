@@ -9,7 +9,7 @@ import Testing
 internal struct PairRecordTests {
   /// When the fixture is forgotten, in milliseconds since the Unix epoch.
   private let forgottenAtMilliseconds: UInt64 = 1_700_000_000_000
-  /// Days a forgotten record keeps its key (RAPP v26.10.22 §4.6 item 3).
+  /// Days a forgotten record keeps its key (RAPP v26.10.29 §4.6 item 3).
   private let revocationNoticeDays: UInt64 = 30
   private let millisecondsPerDay: UInt64 = 86_400_000
   /// The smallest step of the millisecond clock.

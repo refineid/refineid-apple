@@ -6,7 +6,7 @@
   import Foundation
   import RappEngine
 
-  /// The PIN an operation needs, taken on the phone (RAPP v26.10.22 §8.2
+  /// The PIN an operation needs, taken on the phone (RAPP v26.10.29 §8.2
   /// item 3): from memory for a browser authentication whose PIN 1 the phone
   /// holds, else from a prompt, which is the holder's consent.
   extension RappPhoneProxyDispatcher {

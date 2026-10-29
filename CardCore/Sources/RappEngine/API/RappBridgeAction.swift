@@ -6,7 +6,7 @@ import Foundation
 // so the source reads in the order the caller meets them.
 // swiftlint:disable sorted_enum_cases
 
-/// The bounded step the caller performs next (RAPP v26.10.22 §8).
+/// The bounded step the caller performs next (RAPP v26.10.29 §8).
 ///
 /// Every outcome is data. The engine decides what must happen and the caller
 /// performs it, so nothing here touches a card, a transport, or a screen. A

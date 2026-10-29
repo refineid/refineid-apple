@@ -7,7 +7,7 @@ import os
 ///
 /// Remembers the verified PIN1 bound to a physical card across token and session
 /// recreation during the lifetime of the token extension process (RAPP
-/// v26.10.22 §11 item 2). Survives normal NFC field expiry and slot state drops,
+/// v26.10.29 §11 item 2). Survives normal NFC field expiry and slot state drops,
 /// so that subsequent Safari client-certificate authentication requests do not
 /// re-prompt the holder.
 ///

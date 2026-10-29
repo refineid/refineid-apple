@@ -116,11 +116,6 @@ extension RappPairingModel {
       // An unused code lapses with its offer after five minutes; the next one follows.
       createOffer()
 
-    case .attemptsExhausted:
-      // The next offer shows the lockout and the code once it lifts.
-      RappPairingBackoff.shared.recordLockout()
-      ceremonyEnded(String(localized: "Pairing locked after three incorrect codes."))
-
     case .attemptTimedOut, .localRequest, .persistenceFailure, .protocolFailure,
       .storageUnconfirmed, .transportFailure:
       ceremonyEnded(String(localized: "Pairing ended before it was completed"))
@@ -145,7 +140,6 @@ extension RappPairingModel {
       try vault.selectPair(pairID: pair.pairID)
       RappPairNames.remember(reviewedPeerName, pairID: pair.pairID)
       supersedeOlderPairings(with: pair.pairID)
-      RappPairingBackoff.shared.recordSuccess()
       selectedPairID = pair.pairID
       refresh()
       serveNewPairing()

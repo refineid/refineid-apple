@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The finite post-PAKE deadlines of RAPP v26.10.22 §3.3 item 7.
+/// The finite post-PAKE deadlines of RAPP v26.10.29 §3.3 item 7.
 ///
 /// Once CPace hands off, the ceremony is no longer bound by the offer's
 /// lifetime but by these monotonic windows.

@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-/// The idle-expiry sweep behind the public interface (RAPP v26.10.22 §4.6
+/// The idle-expiry sweep behind the public interface (RAPP v26.10.29 §4.6
 /// item 5): the vault stores the change first.
 @Suite("RAPP pairing idle expiry through the vault")
 internal struct RappPairRecordSweepTests {

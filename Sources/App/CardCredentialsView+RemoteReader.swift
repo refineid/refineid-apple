@@ -71,7 +71,7 @@ import SwiftUI
       Section {
         remoteIdentityRow
         // The paired phone holds no card: ask for it the way its reader
-        // allows (RAPP v26.10.22 §8.4 item 6).
+        // allows (RAPP v26.10.29 §8.4 item 6).
         if let request = PersistentTokenRegistry.shared.holderCardRequest {
           PhoneCardRequestLine(request: request)
         }

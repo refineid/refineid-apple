@@ -236,7 +236,7 @@ internal final class PersistentTokenDriver: TKTokenDriver,
     /// carries it on that session. Only when no app holds the handoff port
     /// does this extension dial the phone itself. The identity stays offered
     /// between sessions: with none open the request dials and waits for the
-    /// phone within its own wait (RAPP v26.10.22 §8.4 item 3).
+    /// phone within its own wait (RAPP v26.10.29 §8.4 item 3).
     private func perform(_ operation: RappRequesterOperation) throws -> RappRequesterResponse {
       #if os(macOS)
         let handoff = RappHeldSessionHandoff.Request(

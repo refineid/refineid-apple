@@ -12,7 +12,7 @@ private let fixturePairingCode = "246813"
   import RappEngine
 
   /// A custodian that stored its record and then hears nonsense instead of
-  /// the peer's `pairing.stored` revokes the record (RAPP v26.10.22 §4.3
+  /// the peer's `pairing.stored` revokes the record (RAPP v26.10.29 §4.3
   /// item 4).
   internal final class RappPairingStorageFailureTests: XCTestCase {
     private actor RecordingTransport: RappFrameTransport {

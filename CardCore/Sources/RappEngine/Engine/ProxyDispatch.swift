@@ -15,7 +15,7 @@ internal enum ProxyDispatch: Equatable {
   /// Execute the read; no private key, no PIN.
   case executeSafeRead(operationIdentifier: RappOperationIdentifier, read: AuthorizedSafeRead)
   /// Take the operation's turn on the card in arrival order and perform the
-  /// reads that precede the PIN (RAPP v26.10.22 §8.2 item 2).
+  /// reads that precede the PIN (RAPP v26.10.29 §8.2 item 2).
   case inspectPrerequisites(operationIdentifier: RappOperationIdentifier)
   /// Not an operation message; the operation layer is unaffected.
   case notOperation(TypedMessage)

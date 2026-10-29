@@ -4,7 +4,7 @@
   import Foundation
   import RappEngine
 
-  /// Idle expiry of the pairings this device stores (RAPP v26.10.22 §4.6
+  /// Idle expiry of the pairings this device stores (RAPP v26.10.29 §4.6
   /// item 5).
   ///
   /// A pairing that has had no established session for 30 days expires on

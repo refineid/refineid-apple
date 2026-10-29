@@ -36,7 +36,7 @@
     // MARK: Static Properties
 
     /// How long an open connection has to serve the custodian's offer,
-    /// which a custodian sends as its first frame (RAPP v26.10.22 §4.2,
+    /// which a custodian sends as its first frame (RAPP v26.10.29 §4.2,
     /// Bootstrap Read Flow item 2).
     public static let offerReadMilliseconds: UInt64 = 5_000
 

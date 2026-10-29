@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The `read_identity` answer a requester received (RAPP v26.10.22 §9.1),
+/// The `read_identity` answer a requester received (RAPP v26.10.29 §9.1),
 /// within the bounds its schema states: built only from a ``CardIdentity``,
 /// whose initializer checked them, at least one certificate included.
 public struct RappCardIdentity: Equatable, Sendable {

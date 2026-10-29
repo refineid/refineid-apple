@@ -105,7 +105,7 @@ extension VirtualIDCard {
 
   /// Registers the card's token on the device over the connection whose
   /// access number the card proved; no PIN is asked for or stored (RAPP
-  /// v26.10.22 §11 item 2).
+  /// v26.10.29 §11 item 2).
   public func register() -> RegistrationResult {
     if let failure = operationFailure() {
       return .transportFailure(failure)

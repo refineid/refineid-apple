@@ -12,7 +12,7 @@
     /// A reader card suspends remote use while it is present (hierarchy
     /// specification §5.2, CC-102):
     /// - This computer withdraws: an open session with the phone closes
-    ///   with `service_withdrawn` (RAPP v26.10.22 §4.5 item 8), the phone's
+    ///   with `service_withdrawn` (RAPP v26.10.29 §4.5 item 8), the phone's
     ///   identity and any displaced configurations leave, and nothing
     ///   browses, scans or dials.
     /// - The switch and the pairings stay as they are; its watches stop.
@@ -48,7 +48,7 @@
     /// Nothing is written unless the phone's open session says a card is
     /// present, and an identity is offered only for the card that session
     /// names: one published for another card is withdrawn, to be read
-    /// afresh (RAPP v26.10.22 §8.4 items 2 and 3).
+    /// afresh (RAPP v26.10.29 §8.4 items 2 and 3).
     internal func ensurePublished() {
       guard Self.followsPhone else {
         Self.withdrawPublishedIdentity()

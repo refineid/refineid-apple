@@ -4,7 +4,7 @@
   import Foundation
   import RappEngine
 
-  /// Drives one RAPP v26.10.22 pairing ceremony over one transport.
+  /// Drives one RAPP v26.10.29 pairing ceremony over one transport.
   ///
   /// The custodian creates a random offer, shows a pairing code and waits;
   /// the requester's side starts from the offer one connection served
@@ -80,13 +80,11 @@
       case protocolFailure
       case persistenceFailure
       case offerExpired
-      /// Three wrong codes destroyed the custodian's offer.
-      case attemptsExhausted
       /// No CPace step 2 arrived within the attempt deadline of the
-      /// requester's step 1 (RAPP v26.10.22 §3.3 item 3).
+      /// requester's step 1 (RAPP v26.10.29 §3.3 item 3).
       case attemptTimedOut
       /// The peer never confirmed storing the pairing; the record this
-      /// endpoint stored is revoked (RAPP v26.10.22 §4.3 item 4).
+      /// endpoint stored is revoked (RAPP v26.10.29 §4.3 item 4).
       case storageUnconfirmed
     }
 
@@ -96,7 +94,7 @@
       /// connection; the transport must be replaced before it can answer.
       case offerRestored
       /// The custodian's T_B verified: it holds the code the requester's
-      /// user typed (RAPP v26.10.22 §6.1.3 step 3).
+      /// user typed (RAPP v26.10.29 §6.1.3 step 3).
       case keyConfirmed
       /// The peer's authenticated introduction, for naming the pairing.
       case peerIntroduced(Peer)
@@ -115,7 +113,7 @@
       case awaitingPeerHello
       case awaitingPeerConfirmation
       /// The record is stored and `pairing.stored` sent; the peer's is
-      /// awaited (RAPP v26.10.22 §4.3 item 4).
+      /// awaited (RAPP v26.10.29 §4.3 item 4).
       case awaitingPeerStored
       case completed
       case closed
@@ -131,7 +129,7 @@
     internal let bridge: RappPairingBridge
     internal let vault: RappDeviceVault
     internal var transport: any RappFrameTransport
-    /// The transport profile this ceremony runs over (RAPP v26.10.22 §2.2).
+    /// The transport profile this ceremony runs over (RAPP v26.10.29 §2.2).
     internal let transportProfile: String
     internal let candidateID: String
     internal let profiles: [String]

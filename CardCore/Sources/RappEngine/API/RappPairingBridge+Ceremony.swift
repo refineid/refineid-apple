@@ -128,7 +128,7 @@ extension RappPairingBridge {
   }
 
   /// Builds the pairing this ceremony agreed, unconfirmed, for the caller
-  /// to store before it sends `pairing.stored` (RAPP v26.10.22 §4.3 item
+  /// to store before it sends `pairing.stored` (RAPP v26.10.29 §4.3 item
   /// 4).
   ///
   /// The storage exchange that follows runs under the same deadline as the
@@ -216,10 +216,7 @@ extension RappPairingBridge {
 
   /// Abandons the ceremony and spends the bridge.
   public func cancelPairing() {
-    locked {
-      if case .exhausted = phase { return }
-      phase = .cancelled
-    }
+    locked { phase = .cancelled }
   }
 
   private func requireBefore(_ limit: UInt64, nowMilliseconds: UInt64) throws {

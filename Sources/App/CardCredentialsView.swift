@@ -7,7 +7,7 @@ import SwiftUI
 /// card for Safari.
 ///
 /// No PIN is entered here: PIN 1 is asked for when the card first signs
-/// and is held only in memory (RAPP v26.10.22 §11 item 2).
+/// and is held only in memory (RAPP v26.10.29 §11 item 2).
 ///
 /// This is the screen that matters, so it is the one the app opens on.
 /// Development builds keep technical state behind the Diagnostics row.

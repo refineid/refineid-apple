@@ -34,8 +34,10 @@ private let misreadPairingCode = "246814"
     private static let transportProfile = rappStreamProfileName()
     private static let profiles = rappCredentialProfiles()
     private static let cpaceRandomByteCount = 64
-    /// Longer than the custodian's pre-authentication spacing (§3.3.8).
+    /// Longer than the custodian's pre-authentication spacing (§3.3 item 6).
     private static let reconnectSpacingNanoseconds: UInt64 = 600_000_000
+    /// More misread codes than any per-offer count would admit.
+    private static let misreadAttempts = 4
 
     private func makeCustodian(transport: RecordingTransport) throws -> RappPairingCoordinator {
       try RappPairingCoordinator.custodian(
@@ -158,15 +160,14 @@ private let misreadPairingCode = "246814"
       collector.cancel()
     }
 
-    internal func testThreeMisreadCodesLockTheOffer() async throws {
+    internal func testMisreadCodesKeepTheOffer() async throws {
       let restored = expectation(description: "offer restored after each failed attempt")
-      restored.expectedFulfillmentCount = 2
-      let closed = expectation(description: "offer locked")
+      restored.expectedFulfillmentCount = Self.misreadAttempts
       let firstTransport = RecordingTransport()
       let custodian = try makeCustodian(transport: firstTransport)
-      let collector = collect(custodian, restored: restored, closed: closed)
+      let collector = collect(custodian, restored: restored)
 
-      for attempt in 1...3 {
+      for attempt in 1...Self.misreadAttempts {
         var transport = firstTransport
         if attempt > 1 {
           try await Task.sleep(nanoseconds: Self.reconnectSpacingNanoseconds)
@@ -183,9 +184,10 @@ private let misreadPairingCode = "246814"
         await custodian.transportClosed()
       }
 
-      await fulfillment(of: [restored, closed], timeout: 2)
+      await fulfillment(of: [restored], timeout: 2)
+      await custodian.close()
       let reason = await collector.value
-      XCTAssertEqual(reason, .attemptsExhausted)
+      XCTAssertEqual(reason, .localRequest)
     }
   }
 #endif

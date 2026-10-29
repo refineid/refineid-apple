@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-/// The idle-expiry sweep of one stored pairing (RAPP v26.10.22 §4.6 item 5).
+/// The idle-expiry sweep of one stored pairing (RAPP v26.10.29 §4.6 item 5).
 @Suite("RAPP pairing idle expiry")
 internal struct PairRecordSweepTests {
   /// Why a test store refused a write.

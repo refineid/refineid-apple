@@ -3,7 +3,7 @@
 import Foundation
 
 /// The transport profiles an offer may name and the exact entry each one
-/// carries (RAPP v26.10.22 §2.2, §4.2).
+/// carries (RAPP v26.10.29 §2.2, §4.2).
 internal enum TransportRegistry {
   /// The stream profile's registered candidate identifier (§2.2).
   internal static let streamCandidateIdentifier = "stream"

@@ -8,7 +8,7 @@ import Foundation
 #endif
 
 /// How a requester finds the custodians in pairing mode and opens pairing
-/// connections to them (RAPP v26.10.22 §4.2, "Trying Each Custodian in
+/// connections to them (RAPP v26.10.29 §4.2, "Trying Each Custodian in
 /// Pairing Mode").
 internal enum PairingCandidateLink {
   #if !REFINEID_STREAM_TRANSPORT

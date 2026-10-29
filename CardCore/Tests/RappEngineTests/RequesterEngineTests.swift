@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-/// What the requester makes of the custodian's messages (RAPP v26.10.22
+/// What the requester makes of the custodian's messages (RAPP v26.10.29
 /// §8.1, §10.1).
 @Suite("RAPP requester operation engine")
 internal struct RequesterEngineTests {

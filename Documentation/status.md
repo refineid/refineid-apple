@@ -588,7 +588,7 @@ a delete that skips the authentication interface and the add that follows
 fails as a duplicate. The gate can return once the flow it must not block
 is proven.
 
-No PIN is stored on any device (RAPP v26.10.22 section 11 item 2). Safari's
+No PIN is stored on any device (RAPP v26.10.29 section 11 item 2). Safari's
 first contactless request after the card is added asks PIN1 on the system
 sheet; the token extension holds the PIN in zeroizing memory for that card
 across the field renewal and later requests, until the card is removed or

@@ -20,7 +20,7 @@
       internal var coordinator: RappConnectionCoordinator?
       /// The pairing the session runs over, once it is chosen.
       internal var pairID: Data?
-      /// Whether the session was established (RAPP v26.10.22 §4.6 item 5).
+      /// Whether the session was established (RAPP v26.10.29 §4.6 item 5).
       internal var established = false
       internal var response: RappRequesterResponse?
       internal var error: RappRequesterClientError?
@@ -109,7 +109,7 @@
       // is not on this network is not slow, it is absent, and waiting the
       // full operation lifetime to say so leaves the holder watching a
       // spinner; a consumer's request against an offered identity instead
-      // waits for the custodian as long as the request may (RAPP v26.10.22
+      // waits for the custodian as long as the request may (RAPP v26.10.29
       // §8.4 item 3). The first wait consumes the signal, so an answer that
       // arrives inside the discovery window must not be waited for a second
       // time: nothing would ever signal again and a settled request would

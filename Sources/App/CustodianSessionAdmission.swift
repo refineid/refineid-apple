@@ -5,7 +5,7 @@ import Foundation
 import RappEngine
 
 /// Which session a dial's first frame opens on the custodian (RAPP
-/// v26.10.22 §2.2.1, §8.3).
+/// v26.10.29 §2.2.1, §8.3).
 ///
 /// Every dial whose session preamble routes to a pairing this custodian
 /// serves opens a session of its own, however many are open already, under

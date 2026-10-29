@@ -6,7 +6,7 @@ import SwiftUI
 /// What the credential screen knows and what it is allowed to do.
 ///
 /// Nothing here ever holds a secret longer than the moment it is written,
-/// and no PIN is ever stored (RAPP v26.10.22 §11 item 2). The card access
+/// and no PIN is ever stored (RAPP v26.10.29 §11 item 2). The card access
 /// number is the one value read back: it is printed on the card face and
 /// is the holder's to see.
 @MainActor

@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// Sizes RAPP v26.10.22 §3.3 and §4.2 fix for a pairing offer.
+/// Sizes RAPP v26.10.29 §3.3 and §4.2 fix for a pairing offer.
 internal enum OfferLimit {
   internal static let offerIdentifierSize = 32
   internal static let transportCandidates = 8

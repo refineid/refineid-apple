@@ -11,7 +11,7 @@ import Foundation
 /// the app opened in the foreground needs no new field, so a command on it
 /// runs while its system sheet keeps the app inactive. A card in a reader
 /// needs no screen. A PIN prompt posts its own notification and is not
-/// decided here: entering the PIN is the consent (RAPP v26.10.22 §8.2
+/// decided here: entering the PIN is the consent (RAPP v26.10.29 §8.2
 /// item 3).
 internal enum HolderAttention: Equatable, Sendable {
   /// The card can be commanded now.

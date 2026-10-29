@@ -3,7 +3,7 @@
 import Foundation
 
 /// Domain separators, sizes and profile literals for the CPaceRistretto255
-/// KC2 profile (draft-irtf-cfrg-cpace-21, RAPP v26.10.22 §6.1).
+/// KC2 profile (draft-irtf-cfrg-cpace-21, RAPP v26.10.29 §6.1).
 internal enum RappCpaceConstants {
   internal static let pointSize = 32
   internal static let offerIdSize = 32

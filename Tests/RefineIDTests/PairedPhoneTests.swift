@@ -10,7 +10,7 @@
 
   @testable import RefineIDTestHost
 
-  /// The phone the identity row names (RAPP v26.10.22 §4.6).
+  /// The phone the identity row names (RAPP v26.10.29 §4.6).
   @Suite(.serialized)
   @MainActor
   internal struct PairedPhoneTests {

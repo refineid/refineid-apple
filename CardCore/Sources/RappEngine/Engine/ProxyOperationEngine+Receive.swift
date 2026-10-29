@@ -4,7 +4,7 @@ import Foundation
 
 extension ProxyOperationEngine {
   /// The `card.status` message the custodian sends after `session.ready`
-  /// and on every change (RAPP v26.10.22 §8.4).
+  /// and on every change (RAPP v26.10.29 §8.4).
   internal static func reportCardStatus(_ status: RappCardStatus) -> TypedMessage {
     .cardStatus(status)
   }

@@ -8,7 +8,7 @@ import Testing
 
 /// The custodian tells every open session its card and its card reader
 /// once right after `session.ready` and again on every change, a reader
-/// attached or detached included (RAPP v26.10.22 §8.4 item 1, STPA CC-61
+/// attached or detached included (RAPP v26.10.29 §8.4 item 1, STPA CC-61
 /// and CC-81).
 @Suite
 internal struct CardStatusReportsTests {

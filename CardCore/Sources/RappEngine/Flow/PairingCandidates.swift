@@ -3,7 +3,7 @@
 import Foundation
 
 /// The custodians in pairing mode a requester tries with one typed code
-/// (RAPP v26.10.22 §4.2, "Trying Each Custodian in Pairing Mode").
+/// (RAPP v26.10.29 §4.2, "Trying Each Custodian in Pairing Mode").
 ///
 /// Nothing a custodian advertises tells which one shows the typed code, so
 /// the requester tries them in turn. A candidate is an endpoint discovery

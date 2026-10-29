@@ -10,7 +10,7 @@ import Testing
 
 /// Every dial whose preamble routes to a pairing served here opens a
 /// session of its own, however many are open, and only what routing
-/// refuses is refused (RAPP v26.10.22 §2.2.1, §8.3, STPA CC-58).
+/// refuses is refused (RAPP v26.10.29 §2.2.1, §8.3, STPA CC-58).
 @Suite
 internal struct CustodianSessionAdmissionTests {
   /// Both ends of one pairing.

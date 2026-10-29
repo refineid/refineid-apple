@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.10.22 pairing bridge: CPace KC2, attempt accounting, ceremony")
+@Suite("RAPP v26.10.29 pairing bridge: CPace KC2, attempt admission, ceremony")
 internal struct PairingBridgeTests {
   private static let code = "7KX4M9"
   private static let wrongCode = "7KX4M8"
@@ -14,7 +14,9 @@ internal struct PairingBridgeTests {
     "fi.refineid.card-status", "fi.refineid.authentication",
     "fi.refineid.document-signing",
   ]
-  private static let attemptWindow = CpaceAttemptLedger.attemptWindowMilliseconds
+  private static let attemptWindow = CpaceAttemptSlot.attemptWindowMilliseconds
+  /// More failed attempts than any per-offer count would admit.
+  private static let repeatedAttempts = 8
 
   /// The custodian's offer over the stream transport.
   private static func custodian(code: String) throws -> RappPairingBridge {
@@ -45,6 +47,14 @@ internal struct PairingBridgeTests {
     try requester.readCpaceFrame(
       bytes: try custodian.writeCpaceFrame(nowMonotonicMs: now), nowMonotonicMs: now)
     return try requester.writeCpaceFrame(nowMonotonicMs: now)
+  }
+
+  /// The right code still consumes the offer.
+  private static func expectOfferConsumed(by custodian: RappPairingBridge, now: UInt64) throws {
+    let requester = try requester(of: custodian, code: code)
+    let stepThree = try cpaceToStepThree(requester: requester, custodian: custodian, now: now)
+    try custodian.readCpaceFrame(bytes: stepThree, nowMonotonicMs: now)
+    #expect(custodian.candidateFailed(nowMonotonicMs: now) == false)
   }
 
   @Test("Requester and custodian agree on one pairing from the served offer and the code")
@@ -98,11 +108,11 @@ internal struct PairingBridgeTests {
     #expect(custodian.candidateFailed(nowMonotonicMs: now) == false)
   }
 
-  @Test("Three wrong codes destroy the custodian's offer")
-  internal func threeWrongCodesExhaustTheOffer() throws {
+  @Test("Wrong codes never end the custodian's offer")
+  internal func wrongCodesKeepTheOffer() throws {
     let custodian = try Self.custodian(code: Self.code)
     let now: UInt64 = 1_000
-    for attempt in 1...CpaceAttemptLedger.maximumAttempts {
+    for _ in 1...Self.repeatedAttempts {
       let requester = try Self.requester(of: custodian, code: Self.wrongCode)
       try requester.beginCpace(
         candidateId: Self.candidate, randomBytes64: Self.random(), nowMonotonicMs: now)
@@ -115,35 +125,42 @@ internal struct PairingBridgeTests {
           bytes: try custodian.writeCpaceFrame(nowMonotonicMs: now), nowMonotonicMs: now)
       }
       // The requester saw the tag fail and dropped the link without sending T_A.
-      let restored = custodian.candidateFailed(nowMonotonicMs: now)
-      #expect(restored == (attempt < CpaceAttemptLedger.maximumAttempts))
+      #expect(custodian.candidateFailed(nowMonotonicMs: now))
     }
-    #expect(custodian.attemptsExhausted())
-    #expect(throws: RappBindingError.WrongPhase) {
-      try custodian.beginCpace(
-        candidateId: Self.candidate, randomBytes64: Self.random(), nowMonotonicMs: now)
-    }
+    try Self.expectOfferConsumed(by: custodian, now: now)
   }
 
-  @Test("A forged T_A spends the attempt; the third ends the offer")
-  internal func forgedTagsExhaustTheOffer() throws {
+  @Test("A forged T_A frees the slot and keeps the offer")
+  internal func forgedTagKeepsTheOffer() throws {
     let custodian = try Self.custodian(code: Self.code)
     let now: UInt64 = 1_000
-    for attempt in 1...CpaceAttemptLedger.maximumAttempts {
+    for _ in 1...Self.repeatedAttempts {
       let requester = try Self.requester(of: custodian, code: Self.code)
       var stepThree = try Self.cpaceToStepThree(
         requester: requester, custodian: custodian, now: now)
       stepThree[stepThree.startIndex] ^= 1
-      let expected: RappBindingError =
-        attempt < CpaceAttemptLedger.maximumAttempts ? .ProtocolFailure : .AttemptsExhausted
-      #expect(throws: expected) {
+      #expect(throws: RappBindingError.ProtocolFailure) {
         try custodian.readCpaceFrame(bytes: stepThree, nowMonotonicMs: now)
       }
     }
-    #expect(custodian.attemptsExhausted())
+    try Self.expectOfferConsumed(by: custodian, now: now)
   }
 
-  @Test("T_A after the five-second window is refused and spends the attempt")
+  @Test("One attempt at a time: a second start waits for the first to end")
+  internal func singleFlight() throws {
+    let custodian = try Self.custodian(code: Self.code)
+    let requester = try Self.requester(of: custodian, code: Self.code)
+    let now: UInt64 = 1_000
+    _ = try Self.cpaceToStepThree(requester: requester, custodian: custodian, now: now)
+    #expect(throws: RappBindingError.WrongPhase) {
+      try custodian.beginCpace(
+        candidateId: Self.candidate, randomBytes64: Self.random(), nowMonotonicMs: now)
+    }
+    #expect(custodian.candidateFailed(nowMonotonicMs: now))
+    try Self.expectOfferConsumed(by: custodian, now: now)
+  }
+
+  @Test("T_A after the five-second window is refused and frees the slot")
   internal func lateConfirmationIsRefused() throws {
     let custodian = try Self.custodian(code: Self.code)
     let requester = try Self.requester(of: custodian, code: Self.code)
@@ -153,7 +170,6 @@ internal struct PairingBridgeTests {
     #expect(throws: RappBindingError.ProtocolFailure) {
       try custodian.readCpaceFrame(bytes: stepThree, nowMonotonicMs: now + Self.attemptWindow)
     }
-    #expect(!custodian.attemptsExhausted())
     #expect(custodian.candidateFailed(nowMonotonicMs: now + Self.attemptWindow))
   }
 
@@ -161,7 +177,7 @@ internal struct PairingBridgeTests {
   internal func invalidStepOneSpendsNoAttempt() throws {
     let custodian = try Self.custodian(code: Self.code)
     let now: UInt64 = 1_000
-    for _ in 0...CpaceAttemptLedger.maximumAttempts {
+    for _ in 1...Self.repeatedAttempts {
       try custodian.beginCpace(
         candidateId: Self.candidate, randomBytes64: Self.random(), nowMonotonicMs: now)
       #expect(throws: RappBindingError.ProtocolFailure) {
@@ -169,7 +185,7 @@ internal struct PairingBridgeTests {
           bytes: Data(count: RappCpaceConstants.step1Size), nowMonotonicMs: now)
       }
     }
-    #expect(!custodian.attemptsExhausted())
+    try Self.expectOfferConsumed(by: custodian, now: now)
   }
 
   @Test("After CPace consumed the offer, a failure ends the ceremony")

@@ -3,7 +3,7 @@
 import Foundation
 
 /// Sweeps the stored pairings for idle expiry while the app runs (RAPP
-/// v26.10.22 §4.6 item 5): at least once a day, besides the sweep at launch.
+/// v26.10.29 §4.6 item 5): at least once a day, besides the sweep at launch.
 @MainActor
 internal final class PairingIdleSweep {
   private static let secondsPerHour: Int64 = 3_600

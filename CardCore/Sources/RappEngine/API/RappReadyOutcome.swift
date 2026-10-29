@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// What the requester read as the custodian's first message (RAPP v26.10.22
+/// What the requester read as the custodian's first message (RAPP v26.10.29
 /// §7.1 item 5).
 public enum RappReadyOutcome: Equatable, Sendable {
   /// The frame failed authenticated decryption; the session is over and

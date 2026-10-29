@@ -6,7 +6,7 @@
   import RappEngine
 
   /// The standing session with the phone whose word the offered identity
-  /// rests on (RAPP v26.10.22 §8.3, §8.4), over the stream while Bonjour
+  /// rests on (RAPP v26.10.29 §8.3, §8.4), over the stream while Bonjour
   /// shows the phone and over Bluetooth otherwise (RAPP transport
   /// hierarchy §3).
   extension PersistentTokenRegistry {
@@ -54,7 +54,7 @@
     ///
     /// It is the one whose hint the phone in sight carries, which for a
     /// pairing this computer forgot delivers its `pairing_revoked` close to
-    /// that phone and no other (RAPP v26.10.22 §4.6 item 2); with none in
+    /// that phone and no other (RAPP v26.10.29 §4.6 item 2); with none in
     /// sight, the chosen usable pairing, else the newest. A forgotten pairing
     /// is dialed only when its phone is in sight, and not once its 30 days
     /// ran out (§4.6 item 3).
@@ -151,7 +151,7 @@
 
     /// Clears what the registry knows of the session it let go; a session
     /// that was established is recorded in its pairing as it ends (RAPP
-    /// v26.10.22 §4.6 item 5).
+    /// v26.10.29 §4.6 item 5).
     internal func forgetHeldSession() {
       if sessionSlot.isEstablished, let pairID = holderSession?.pairID {
         Self.recordSession(pairID: pairID)
@@ -218,7 +218,7 @@
     /// Acts on what the phone's `card.status` did to the offer: the card
     /// offered is published again, another card's identity is withdrawn at
     /// once and the certificate read afresh, and absence leaves the offer
-    /// to its grace (RAPP v26.10.22 §8.4 items 2 and 3).
+    /// to its grace (RAPP v26.10.29 §8.4 items 2 and 3).
     private func respond(to response: RemoteIdentityOffer.Response) {
       switch response {
       case .absent:

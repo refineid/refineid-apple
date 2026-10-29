@@ -9,10 +9,10 @@ extension RappPairingBridge {
   /// the random bytes until Y_A arrives.
   ///
   /// - Throws: ``RappBindingError/OfferExpired`` past the offer deadline,
-  ///   ``RappBindingError/AttemptsExhausted`` once the custodian may admit no
-  ///   further attempt, ``RappBindingError/WrongPhase`` outside the offer
-  ///   phase, and ``RappBindingError/InvalidInput`` for an unknown candidate
-  ///   or unusable random bytes.
+  ///   ``RappBindingError/WrongPhase`` outside the offer phase or while
+  ///   another attempt holds the custodian's slot, and
+  ///   ``RappBindingError/InvalidInput`` for an unknown candidate or unusable
+  ///   random bytes.
   public func beginCpace(
     candidateId: String,
     randomBytes64: Data,
@@ -38,10 +38,8 @@ extension RappPairingBridge {
         }
 
       case .proxy:
-        guard ledger.acceptsAnotherAttempt else {
-          phase = .exhausted
-          throw RappBindingError.AttemptsExhausted
-        }
+        // §3.3 item 6: one guess at a time.
+        guard attempt.acceptsAnotherAttempt else { throw RappBindingError.WrongPhase }
         guard randomBytes64.count == RappCpaceConstants.wideScalarSize else {
           throw RappBindingError.InvalidInput
         }
@@ -51,7 +49,7 @@ extension RappPairingBridge {
   }
 
   /// The KC2 context for the one offer entry naming `candidateId`, bound to
-  /// its transport profile and candidate (RAPP v26.10.22 §6.1.1).
+  /// its transport profile and candidate (RAPP v26.10.29 §6.1.1).
   private func boundContext(candidateId: String) throws -> Data {
     let entries = offer.transports.filter { $0.candidateIdentifier == candidateId }
     guard entries.count == 1, let entry = entries.first,
@@ -87,7 +85,7 @@ extension RappPairingBridge {
         return stepThree
 
       case .custodianAwaitingStepThree(let responder):
-        guard ledger.attemptIsLive(nowMilliseconds: nowMonotonicMs) else {
+        guard attempt.attemptIsLive(nowMilliseconds: nowMonotonicMs) else {
           throw failCustodianAttempt()
         }
         return responder.stepTwo
@@ -101,9 +99,8 @@ extension RappPairingBridge {
   /// Consumes one CPace message from the peer.
   ///
   /// - Throws: ``RappBindingError/ProtocolFailure`` when the message or a
-  ///   confirmation tag does not verify, ``RappBindingError/AttemptsExhausted``
-  ///   when that failure was the custodian's last attempt,
-  ///   ``RappBindingError/OfferExpired`` past the deadline, and
+  ///   confirmation tag does not verify, ``RappBindingError/OfferExpired``
+  ///   past the deadline, and
   ///   ``RappBindingError/WrongPhase`` when no CPace message is expected.
   public func readCpaceFrame(bytes: Data, nowMonotonicMs: UInt64) throws {
     try locked {
@@ -115,7 +112,7 @@ extension RappPairingBridge {
         try admitStepOne(bytes, randomBytes: randomBytes, nowMilliseconds: nowMonotonicMs)
 
       case .custodianAwaitingStepThree(let responder):
-        guard ledger.attemptIsLive(nowMilliseconds: nowMonotonicMs) else {
+        guard attempt.attemptIsLive(nowMilliseconds: nowMonotonicMs) else {
           throw failCustodianAttempt()
         }
         let presharedKey: Data
@@ -124,7 +121,7 @@ extension RappPairingBridge {
         } catch {
           throw failCustodianAttempt()
         }
-        ledger.consume()
+        attempt.consume()
         try beginHandshake(presharedKey: presharedKey, nowMilliseconds: nowMonotonicMs)
 
       default:
@@ -135,15 +132,15 @@ extension RappPairingBridge {
 
   /// Abandons the connected candidate after a disconnect or timeout.
   ///
-  /// The custodian spends an admitted attempt and restores the offer while
-  /// attempts and lifetime remain. A requester attempt, and any attempt past
-  /// the CPace handoff, ends the ceremony.
+  /// The custodian ends an admitted attempt and restores the offer while its
+  /// lifetime remains. A requester attempt, and any attempt past the CPace
+  /// handoff, ends the ceremony.
   ///
   /// - Returns: whether the offer may serve another connection.
   public func candidateFailed(nowMonotonicMs: UInt64) -> Bool {
     locked {
       switch phase {
-      case .finished, .cancelled, .exhausted:
+      case .finished, .cancelled:
         return false
 
       case .handshaking, .confirming, .storage, .requesterAwaitingStepTwo,
@@ -156,7 +153,7 @@ extension RappPairingBridge {
           phase = .cancelled
           return false
         }
-        ledger.failActiveAttempt()
+        attempt.endActiveAttempt()
         return restoreCustodianOffer(nowMilliseconds: nowMonotonicMs)
       }
     }
@@ -180,7 +177,7 @@ extension RappPairingBridge {
     }
   }
 
-  /// Validates Y_A, reserves an attempt, then answers with Y_B and T_B.
+  /// Validates Y_A, admits the attempt, then answers with Y_B and T_B.
   private func admitStepOne(_ stepOne: Data, randomBytes: Data, nowMilliseconds: UInt64) throws {
     let responder: CpaceKc2Responder
     do {
@@ -194,35 +191,24 @@ extension RappPairingBridge {
       phase = .offer
       throw RappBindingError.ProtocolFailure
     }
-    guard ledger.admit(nowMilliseconds: nowMilliseconds, offerExpiresAt: deadline.expiresAt)
+    // §3.3 item 2: the attempt is admitted before Y_B and T_B leave.
+    guard attempt.admit(nowMilliseconds: nowMilliseconds, offerExpiresAt: deadline.expiresAt)
     else {
-      if ledger.isExhausted || !ledger.acceptsAnotherAttempt {
-        phase = .exhausted
-        throw RappBindingError.AttemptsExhausted
-      }
       phase = .cancelled
       throw RappBindingError.OfferExpired
     }
     phase = .custodianAwaitingStepThree(responder)
   }
 
-  /// Spends the active attempt and names the outcome.
+  /// Ends the active attempt (§3.3 item 4); the offer stays as it was.
   private func failCustodianAttempt() -> RappBindingError {
-    ledger.failActiveAttempt()
-    if ledger.isExhausted {
-      phase = .exhausted
-      return .AttemptsExhausted
-    }
+    attempt.endActiveAttempt()
     phase = .offer
     return .ProtocolFailure
   }
 
   private func restoreCustodianOffer(nowMilliseconds: UInt64) -> Bool {
-    if ledger.isExhausted {
-      phase = .exhausted
-      return false
-    }
-    guard ledger.acceptsAnotherAttempt, deadline.isLive(nowMilliseconds: nowMilliseconds) else {
+    guard deadline.isLive(nowMilliseconds: nowMilliseconds) else {
       phase = .cancelled
       return false
     }

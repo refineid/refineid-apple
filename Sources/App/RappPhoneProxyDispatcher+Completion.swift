@@ -81,7 +81,7 @@
 
     /// Asks the holder for the PIN again when the card refused the one
     /// entered and the retry floor still allows a verification (RAPP
-    /// v26.10.22 §10.2), telling the holder the attempts left; or, when a
+    /// v26.10.29 §10.2), telling the holder the attempts left; or, when a
     /// held PIN 1 could not be spent, asks as on a first prompt.
     internal func askAgainAfterRefusedPin(
       _ outcome: RappNfcCardExecutor.Outcome,

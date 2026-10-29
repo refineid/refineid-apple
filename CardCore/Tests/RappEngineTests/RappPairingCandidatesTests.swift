@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.10.22 a requester's tries of one code over real pairing bridges")
+@Suite("RAPP v26.10.29 a requester's tries of one code over real pairing bridges")
 internal struct RappPairingCandidatesTests {
   /// The code the right phone shows and the user types.
   private static let typedCode = "7KX4M9"
