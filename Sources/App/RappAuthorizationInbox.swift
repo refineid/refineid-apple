@@ -10,7 +10,7 @@
   /// Main-actor rendezvous between the authenticated proxy and SwiftUI.
   ///
   /// There is no automatic approval, timeout, or queue: only the operation
-  /// holding the card asks (RAPP v26.10.22 §8.2 item 2), and a second
+  /// holding the card asks (RAPP v26.10.29 §8.2 item 2), and a second
   /// request is denied while one is visible. Expiry and disconnect arrive
   /// from the RAPP state machine and explicitly cancel the matching
   /// request, also one cancelled on its way to the screen. Every request
@@ -141,7 +141,7 @@
     }
 
     /// Tells the holder something about a request that ended without a
-    /// prompt, such as a retry-floor refusal (RAPP v26.10.22 §10.2).
+    /// prompt, such as a retry-floor refusal (RAPP v26.10.29 §10.2).
     internal func inform(_ message: String) {
       let content = UNMutableNotificationContent()
       content.title = "RefineID"

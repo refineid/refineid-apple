@@ -7,7 +7,7 @@ import Foundation
   import RappEngine
 
   /// The requester end of `fi.refineid.rapp.ble`: the GATT central
-  /// (RAPP v26.10.22 §5.2).
+  /// (RAPP v26.10.29 §5.2).
   ///
   /// It scans for the RAPP service UUID, which also finds a custodian whose
   /// app advertises from the background (iOS moves the UUID to an overflow

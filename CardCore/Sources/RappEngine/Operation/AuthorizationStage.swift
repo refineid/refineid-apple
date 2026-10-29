@@ -11,7 +11,7 @@ internal enum AuthorizationStage: Equatable {
   /// Admitted; the reads that precede the PIN have not completed.
   case requested
   /// The custodian takes the PIN: it prompts for one it does not hold, and
-  /// entering it is the holder's consent (RAPP v26.10.22 §8.2 item 3); only
+  /// entering it is the holder's consent (RAPP v26.10.29 §8.2 item 3); only
   /// an action that needs a PIN comes here.
   case awaitingConsent
   /// A registered read is running.

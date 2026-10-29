@@ -7,7 +7,7 @@ import Testing
 internal struct RappSessionConformanceCorpusTests {
   // MARK: Static Properties
 
-  private static let supportedWireVersion: [UInt16] = [26, 10, 22]
+  private static let supportedWireVersion: [UInt16] = [26, 10, 29]
   /// The wire versions the corpus pins, accepted and refused.
   private static let wireVersionVectorCount = 13
 
@@ -22,7 +22,7 @@ internal struct RappSessionConformanceCorpusTests {
       repository
       .appendingPathComponent("Documentation")
       .appendingPathComponent("rapp-conformance")
-      .appendingPathComponent("rapp-v26.10.22.json")
+      .appendingPathComponent("rapp-v26.10.29.json")
     let decoder = JSONDecoder()
     decoder.keyDecodingStrategy = .convertFromSnakeCase
     return try decoder.decode(

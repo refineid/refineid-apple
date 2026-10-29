@@ -5,6 +5,22 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-10-29 The Apple apps speak RAPP v26.10.29
+
+Every pairing and session on iPhone, iPad and Mac runs RAPP v26.10.29; the
+wire version in the Noise prologue refuses a v26.10.22 peer.
+
+- The phone keeps no count of failed pairing attempts (§3.3). A wrong code,
+  a disconnect or a timeout frees the one attempt slot and leaves the offer
+  and its code on screen as they were. Only the offer's five-minute
+  lifetime, a verified code or the holder ends it. There is no lockout, no
+  wait before a new code, and no message about incorrect codes.
+- Guessing is bounded by one attempt at a time and one admission per
+  500 ms over the offer's lifetime.
+
+The vendored specification, state model, corpus and vectors are the
+v26.10.29 set from the reference repository.
+
 ## 2026-10-22 The phone serves every computer at once
 
 The iPhone serves every routed connection as a session of its own, on the

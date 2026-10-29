@@ -73,7 +73,7 @@
 
     /// Primes the card for later system-driven logins with the access
     /// number alone; PIN 1 is asked for when the card first signs (RAPP
-    /// v26.10.22 §11 item 2).
+    /// v26.10.29 §11 item 2).
     ///
     /// The access number is supplied rather than read from storage, because
     /// a first setup has not stored one yet: this hold is what proves it.

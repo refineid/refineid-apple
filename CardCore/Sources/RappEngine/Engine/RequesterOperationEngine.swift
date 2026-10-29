@@ -6,7 +6,7 @@ import Foundation
 /// identifier used once.
 ///
 /// Nothing outlives the session; a requester that did not receive a result
-/// starts a new operation (RAPP v26.10.22 §8.1 item 3).
+/// starts a new operation (RAPP v26.10.29 §8.1 item 3).
 internal struct RequesterOperationEngine {
   private var live: OperationRequest?
 

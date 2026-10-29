@@ -6,7 +6,7 @@ import Foundation
 extension RappNoiseAndEnvelopeCorpusSupport {
   // MARK: Functions
 
-  /// The first rule of RAPP v26.10.22 §7.1 and §7.2 a decoded `liveness.ping`
+  /// The first rule of RAPP v26.10.29 §7.1 and §7.2 a decoded `liveness.ping`
   /// envelope breaks, named as the engine names it; nil when it keeps them all.
   internal static func validateEnvelope(_ value: CBORValue) -> String? {
     guard case .map(let envelope) = value else { return "WrongType { field: \"envelope\" }" }

@@ -120,14 +120,14 @@
     }
 
     /// Tells the requester which card this custodian holds and whether a
-    /// contact card reader is connected to it (RAPP v26.10.22 §8.4).
+    /// contact card reader is connected to it (RAPP v26.10.29 §8.4).
     public func reportCardStatus(_ status: RappCardStatus) async throws {
       let driver = try operationDriver()
       await handleOperation(await driver.reportCardStatus(status))
     }
 
     /// Reports progress on an active operation, such as a PIN prompt being
-    /// on screen (RAPP v26.10.22 §8.2 item 3).
+    /// on screen (RAPP v26.10.29 §8.2 item 3).
     public func reportProgress(operationID: RappOperationIdentifier, event: ProgressEvent)
       async throws
     {
@@ -172,7 +172,7 @@
       answered(operationID)
     }
 
-    /// The retry floor refused before any verification (RAPP v26.10.22
+    /// The retry floor refused before any verification (RAPP v26.10.29
     /// §10.2).
     public func retryFloor(operationID: RappOperationIdentifier) async throws {
       let driver = try operationDriver()
@@ -208,7 +208,7 @@
       answered(operationID)
     }
 
-    /// Completes an identity read (RAPP v26.10.22 §9.1).
+    /// Completes an identity read (RAPP v26.10.29 §9.1).
     public func completeIdentity(
       operationID: RappOperationIdentifier,
       identity: RappOperationDriver.Identity

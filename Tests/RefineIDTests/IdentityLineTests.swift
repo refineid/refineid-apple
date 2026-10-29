@@ -265,7 +265,7 @@ internal struct IdentityLineTests {
 
   /// The phone's reader is named only for no card beside an attached
   /// reader; no card and no reader asks for the card on the phone, and a
-  /// present card or no word asks for nothing (RAPP v26.10.22 §8.4 item 6).
+  /// present card or no word asks for nothing (RAPP v26.10.29 §8.4 item 6).
   @Test
   internal func phoneCardRequestFollowsCardAndReader() throws {
     let present = try #require(Self.cardInReader)

@@ -73,7 +73,7 @@ internal enum ReaderSignature {
   /// memory, or none -- in which case the system is asked to prompt.
   ///
   /// Accepted-PIN memory is bound to the full card serial and lives only
-  /// on this token, never in storage (RAPP v26.10.22 §11 item 2); a miss
+  /// on this token, never in storage (RAPP v26.10.29 §11 item 2); a miss
   /// asks the holder again.
   private static func pin(
     entered: String?,

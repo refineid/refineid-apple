@@ -109,7 +109,7 @@
       }
 
       /// Forgets every pairing as the holder turns remote use off (RAPP
-      /// v26.10.22 §4.6 item 6, CC-100).
+      /// v26.10.29 §4.6 item 6, CC-100).
       ///
       /// The click is stored in `store` first, with the pairings `vault`
       /// holds (``RemoteUseForgetting``). The phone's identity leaves at
@@ -211,7 +211,7 @@
     #endif
 
     /// This computer's withdrawal, as a card in its reader suspends remote
-    /// use, as it quits, or as remote use stops (RAPP v26.10.22 §4.5 item
+    /// use, as it quits, or as remote use stops (RAPP v26.10.29 §4.5 item
     /// 8, CC-98, CC-102).
     ///
     /// An open session closes with `service_withdrawn` and a dial under way
@@ -238,7 +238,7 @@
     }
 
     #if REFINEID_STREAM_TRANSPORT
-      /// Ends the session as this computer withdraws (RAPP v26.10.22 §4.5
+      /// Ends the session as this computer withdraws (RAPP v26.10.29 §4.5
       /// item 8), answering whether its close left; nil when no session
       /// is open or being dialled.
       ///
@@ -251,7 +251,7 @@
       }
 
       /// Ends the session as the holder forgets every pairing (RAPP
-      /// v26.10.22 §4.6 item 6), answering whether its close left; nil
+      /// v26.10.29 §4.6 item 6), answering whether its close left; nil
       /// when no session is open or being dialled.
       ///
       /// An open session closes with `pairing_revoked`; a dial under way
@@ -261,7 +261,7 @@
       }
 
       /// Ends the open session with `pairing_revoked` when it runs over
-      /// `pairID`, as the pairing is forgotten (RAPP v26.10.22 §4.6 item 1);
+      /// `pairID`, as the pairing is forgotten (RAPP v26.10.29 §4.6 item 1);
       /// false when no session over `pairID` is open or the close did not
       /// leave, so the pairing is kept forgotten for its next session.
       internal func closeSessionForRevocation(pairID: Data) async -> Bool {

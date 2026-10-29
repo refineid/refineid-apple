@@ -7,7 +7,7 @@
   import RappEngine
   import Testing
 
-  /// Idle expiry over the device's vault (RAPP v26.10.22 §4.6 item 5): a
+  /// Idle expiry over the device's vault (RAPP v26.10.29 §4.6 item 5): a
   /// pairing with no established session for 30 days is stored forgotten,
   /// and a pairing in session is recorded instead.
   @Suite("Pairing idle expiry")

@@ -84,7 +84,7 @@
     /// The requester side over `transport`, from the bridge built on the
     /// offer that connection served through its bootstrap: the custodian's
     /// first stream frame or the BLE bootstrap characteristic (RAPP
-    /// v26.10.22 §4.2, Bootstrap Read Flow).
+    /// v26.10.29 §4.2, Bootstrap Read Flow).
     ///
     /// `bootstrap` is the requester's ``RappPairingBridge`` over that offer,
     /// built with the typed code; CPace begins once the transport is

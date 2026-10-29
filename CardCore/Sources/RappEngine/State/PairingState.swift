@@ -5,7 +5,7 @@
 // break the correspondence the bidirectional conformance test protects.
 // swiftlint:disable sorted_enum_cases
 
-/// Pairing component state (RAPP v26.10.22 formal state model).
+/// Pairing component state (RAPP v26.10.29 formal state model).
 ///
 /// A pairing instance exists per stored or in-progress peer relationship;
 /// `unpaired` is the absence of one. Raw values are the formal model's names.

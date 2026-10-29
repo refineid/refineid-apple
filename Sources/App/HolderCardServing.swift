@@ -10,7 +10,7 @@
   ///
   /// Serving does not wait for a card: while Remote Access is on and a
   /// computer is paired, the phone stays reachable and tells the computer
-  /// which card it holds, none included (RAPP v26.10.22 §8.4 item 1), so
+  /// which card it holds, none included (RAPP v26.10.29 §8.4 item 1), so
   /// the computer can ask for the card instead of pairing again. A reader
   /// card that leaves takes the CryptoTokenKit identities offering it and
   /// a held PIN 1 with it; the pairing and the session stay.
@@ -42,7 +42,7 @@
         return
       }
       // A connected requester hears about the change at once (RAPP
-      // v26.10.22 §8.4 item 1), whichever way it went.
+      // v26.10.29 §8.4 item 1), whichever way it went.
       PhonePersistentTokenRelay.shared.cardAvailabilityChanged()
       if !PhonePersistentTokenRelay.shared.isServing {
         PhonePersistentTokenRelay.shared.start()
@@ -55,7 +55,7 @@
     }
 
     /// A contact card reader was attached or detached: every requester
-    /// hears it (RAPP v26.10.22 §8.4 item 1, CC-81).
+    /// hears it (RAPP v26.10.29 §8.4 item 1, CC-81).
     ///
     /// The card that left with a detached reader was reported as it left.
     internal static func readerAttachmentChanged() {

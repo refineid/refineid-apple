@@ -120,7 +120,7 @@ extension FlowDriveTests {
   }
 
   /// Only the custodian sends `session.ready`, once, and only the requester
-  /// reads it (RAPP v26.10.22 §7.1 item 5).
+  /// reads it (RAPP v26.10.29 §7.1 item 5).
   internal func readyIsTheCustodiansAlone(_ peers: PairedPeers) {
     do {
       var (requesterAuthentication, proxyAuthentication) = try authentications(peers)
@@ -147,7 +147,7 @@ extension FlowDriveTests {
   /// A ready with the expected parameters verifies, a close in its place
   /// ends the session with its reason, and anything else - including a
   /// ready with other parameters - closes it with a sealed
-  /// `protocol_violation` close (RAPP v26.10.22 §7.1 item 5). None of them
+  /// `protocol_violation` close (RAPP v26.10.29 §7.1 item 5). None of them
   /// touches the pairing.
   internal func unexpectedFirstMessageClosesTheSession(_ peers: PairedPeers) {
     do {
@@ -207,7 +207,7 @@ extension FlowDriveTests {
 
   /// A session bound to a different transport than the peer's fails.
   internal func parameterEchoMismatch(_ peers: PairedPeers) {
-    // Each side binds the transport its connection uses (RAPP v26.10.22
+    // Each side binds the transport its connection uses (RAPP v26.10.29
     // §4.3 item 5), so peers disagreeing about it cannot finish the
     // handshake.
     do {

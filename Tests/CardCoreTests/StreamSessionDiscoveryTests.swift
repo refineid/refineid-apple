@@ -8,7 +8,7 @@ import XCTest
 
 /// Proves that session discovery publishes nothing stable, that rotating
 /// hints and withdrawals name only their own pairing, and that a dial is
-/// routed only by routing its pairing's keys produce (RAPP v26.10.22
+/// routed only by routing its pairing's keys produce (RAPP v26.10.29
 /// §2.2.1, §4.3 and §4.5).
 internal final class StreamSessionDiscoveryTests: XCTestCase {
   /// The two halves of one pairing, plus the requester half of another.

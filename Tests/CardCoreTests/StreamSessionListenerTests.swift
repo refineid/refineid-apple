@@ -8,7 +8,7 @@ import Testing
 
 /// The custodian's session listener carries any number of connections at
 /// once, each apart, and an open one is never a reason to refuse another
-/// (RAPP v26.10.22 §2.2.2); a dialer that never presents a frame is closed.
+/// (RAPP v26.10.29 §2.2.2); a dialer that never presents a frame is closed.
 @Suite(.serialized)
 internal struct StreamSessionListenerTests {
   /// What the listener reported, by connection.

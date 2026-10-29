@@ -3,7 +3,7 @@
 import Foundation
 
 /// The custodians in pairing mode a requester tries with one typed code
-/// (RAPP v26.10.22 §4.2, "Trying Each Custodian in Pairing Mode").
+/// (RAPP v26.10.29 §4.2, "Trying Each Custodian in Pairing Mode").
 ///
 /// The platform creates one per submitted code, reports every endpoint
 /// discovery finds in pairing mode by its own name for it (a service

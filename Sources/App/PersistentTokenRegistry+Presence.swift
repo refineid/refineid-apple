@@ -18,7 +18,7 @@
     ///
     /// Bonjour browse results drop a live name for a moment without the
     /// holder having left. An open session and the offered identity do not
-    /// follow the advertisement (RAPP v26.10.22 §4.5 item 6, §8.4 item 3).
+    /// follow the advertisement (RAPP v26.10.29 §4.5 item 6, §8.4 item 3).
     private static let advertisementLossHoldSeconds = 30
 
     private static var advertisementLossHold: Duration {
@@ -28,7 +28,7 @@
     /// Every stored pairing in the vault, a forgotten one too.
     ///
     /// A forgotten pairing's hint brings the session that delivers its close
-    /// (RAPP v26.10.22 §4.6 item 2). Forgotten pairings come first, so a
+    /// (RAPP v26.10.29 §4.6 item 2). Forgotten pairings come first, so a
     /// phone that carries the hint of one and of a newer pairing hears the
     /// close before the newer pairing is used. A forgotten record whose 30
     /// days ran out is destroyed first (§4.6 item 3).
@@ -119,7 +119,7 @@
     /// Browses for a holder in session mode whose hints name a pairing.
     ///
     /// The holder's record says it is on the network and worth dialing;
-    /// whether a card can answer is what its session says (RAPP v26.10.22
+    /// whether a card can answer is what its session says (RAPP v26.10.29
     /// §8.4). Losing the record stops the dialing; the identity follows the
     /// session's word and its grace. The pairing stays so the next card can
     /// use it. Nothing browses while remote use is off.
@@ -194,7 +194,7 @@
       startWatchingPresence()
     }
 
-    /// The holder closed a session with `pairing_revoked` (RAPP v26.10.22
+    /// The holder closed a session with `pairing_revoked` (RAPP v26.10.29
     /// §4.6 item 4).
     ///
     /// This computer forgets the pairing too, the borrowed identity leaves
@@ -228,7 +228,7 @@
     }
 
     /// The token extension's own session heard `pairing_revoked` (RAPP
-    /// v26.10.22 §4.6 item 4): the pairing its identity was published for
+    /// v26.10.29 §4.6 item 4): the pairing its identity was published for
     /// ends here too, and the identity leaves at once, as on this process's
     /// own session.
     internal func holderRevokedElsewhere() {
@@ -237,7 +237,7 @@
     }
 
     /// This computer's close for a pairing it forgot reached the phone
-    /// (RAPP v26.10.22 §4.6 items 2 and 3): the record and its key go now.
+    /// (RAPP v26.10.29 §4.6 items 2 and 3): the record and its key go now.
     internal func revocationNoticeDelivered(pairID: Data) {
       try? RappPairRevocation.revoke(
         pairID: pairID, in: RappDeviceVault(), clock: RappPlatformClock())

@@ -3,7 +3,7 @@
 import Foundation
 
 /// The custodian's word on the card it holds and on its card reader (RAPP
-/// v26.10.22 §7.1, §8.4): the body of `card.status`.
+/// v26.10.29 §7.1, §8.4): the body of `card.status`.
 public struct RappCardStatus: Equatable, Sendable {
   /// An absent card carries this many zero bytes (§8.4 item 2).
   private static var absentFingerprint: Data { Data(count: RappCertificateFingerprint.byteCount) }

@@ -108,7 +108,7 @@ works.
 ## A computer that withdraws or forgets the phone
 
 A paired computer that a card in its own reader suspends, or that quits,
-closes its session with `service_withdrawn` (RAPP v26.10.22 §4.5 items 8
+closes its session with `service_withdrawn` (RAPP v26.10.29 §4.5 items 8
 and 9). The phone ends that session without a close of its own. The
 session's operation ends with it, and its PIN prompt and its summons go.
 The pairing stays, nothing stored changes, and no error is shown or
@@ -128,7 +128,7 @@ computer that withdraws stops counting there as its session ends.
 ## Idle expiry
 
 A pairing that has had no established session for 30 days expires (RAPP
-v26.10.22 §4.6 item 5). The phone records each session as it is
+v26.10.29 §4.6 item 5). The phone records each session as it is
 established and as it ends, and checks every pairing at launch and every
 hour while the app runs; a computer with a session open never expires.
 An expired computer leaves "Paired computers" silently: nothing is sent,

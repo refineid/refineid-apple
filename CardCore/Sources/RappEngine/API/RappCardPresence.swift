@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The card the custodian holds (RAPP v26.10.22 §8.4 items 1 and 2).
+/// The card the custodian holds (RAPP v26.10.29 §8.4 items 1 and 2).
 public enum RappCardPresence: Equatable, Sendable {
   /// The custodian holds no card.
   case absent

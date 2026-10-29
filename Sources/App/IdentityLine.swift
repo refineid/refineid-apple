@@ -94,7 +94,7 @@
     /// wins.
     ///
     /// The phone's word that its card reader is empty outranks an identity
-    /// still offered in its grace (RAPP v26.10.22 §8.4 item 3). A phone
+    /// still offered in its grace (RAPP v26.10.29 §8.4 item 3). A phone
     /// without a card reader that reports no card leaves the identity it
     /// offers standing.
     private static func pairedLead(_ facts: RequesterFacts) -> PairedLead {

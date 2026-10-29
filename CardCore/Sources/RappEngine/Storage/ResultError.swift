@@ -7,7 +7,7 @@
 import Foundation
 
 /// The registered error names of an `error` message and of the `error`
-/// field of `operation.result` (RAPP v26.10.22 §10.3).
+/// field of `operation.result` (RAPP v26.10.29 §10.3).
 internal enum ResultError: String, Equatable, CaseIterable {
   case busy = "busy"
   case duplicateOperation = "duplicate_operation"

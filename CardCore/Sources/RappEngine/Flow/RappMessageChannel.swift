@@ -37,7 +37,7 @@ internal struct RappMessageChannel {
   /// skipped frame, so a decrypted envelope naming another session or a
   /// sequence off its nonce position can only be a peer that seals
   /// nonconforming envelopes - an authenticated protocol violation that
-  /// closes the session (RAPP v26.10.22 §7.2).
+  /// closes the session (RAPP v26.10.29 §7.2).
   internal mutating func open(_ frame: Data) throws -> Envelope {
     var decoded: Envelope?
     var guardCopy = sequence

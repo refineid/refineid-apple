@@ -3,7 +3,7 @@
 import RappEngine
 
 /// How a requester asks its user for the paired phone's card (RAPP
-/// v26.10.22 §8.4 item 6, STPA CC-82).
+/// v26.10.29 §8.4 item 6, STPA CC-82).
 ///
 /// The phone's card reader is named only while the phone reports no card
 /// and a reader attached; otherwise the card is to be presented to the

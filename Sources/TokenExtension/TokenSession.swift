@@ -36,7 +36,7 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
 
   /// PIN2 collected by a qualified `beginAuth`, consumed by the next
   /// qualified `sign` whatever its outcome: PIN 2 is asked for every
-  /// signature and kept no longer (RAPP v26.10.22 §11 item 2).
+  /// signature and kept no longer (RAPP v26.10.29 §11 item 2).
   internal var collectedPin2: String?
 
   /// Ephemeral session identifier for logging correlation.

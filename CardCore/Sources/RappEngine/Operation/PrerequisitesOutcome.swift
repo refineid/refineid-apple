@@ -3,7 +3,7 @@
 import Foundation
 
 /// What follows once an operation has the card and its prerequisite reads
-/// are done (RAPP v26.10.22 §8.2 items 3 and 6).
+/// are done (RAPP v26.10.29 §8.2 items 3 and 6).
 internal enum PrerequisitesOutcome: Equatable {
   /// Take the PIN, prompting the holder when it is not held.
   case awaitConsent

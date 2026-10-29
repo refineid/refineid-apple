@@ -4,7 +4,7 @@ import Testing
 
 @testable import RappEngine
 
-/// Invariants of the RAPP v26.10.22 formal model, read off the tables the
+/// Invariants of the RAPP v26.10.29 formal model, read off the tables the
 /// engine carries.
 @Suite("RAPP state invariants")
 internal struct StateInvariantTests {

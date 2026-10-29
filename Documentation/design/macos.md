@@ -43,7 +43,7 @@ reads it as a toggle.
   pairing prompt shows, beside a card reader or not, and the Mac browses
   for phones in pairing mode only while a code is tried. With a pairing,
   the phone's line returns.
-- **Turning off.** The click forgets every pairing (RAPP v26.10.22 §4.6
+- **Turning off.** The click forgets every pairing (RAPP v26.10.29 §4.6
   item 6). The Mac stores the click first, with the pairings it holds
   (`RemoteUseForgetting`). An open session closes with `pairing_revoked`,
   and the Mac waits at most 1 second for that close to leave; then those
@@ -141,7 +141,7 @@ is read, which takes a second or two.
 A paired phone's line takes the first of these that holds:
 
 1. The phone reports no card in the card reader attached to it (RAPP
-   v26.10.22 §8.4 item 6): "Insert the card into the phone's card
+   v26.10.29 §8.4 item 6): "Insert the card into the phone's card
    reader.", even while its identity is still offered in its grace.
 2. The phone's identity is offered: the holder's line. A phone without a
    card reader reporting no card leaves it standing.
@@ -209,7 +209,7 @@ the Mac neither holds nor dials its session with the paired phone
 (hierarchy specification §5.2):
 
 - `CardPresence` reports the card to `PersistentTokenRegistry`. The
-  registry withdraws (RAPP v26.10.22 §4.5 item 8): it closes the session
+  registry withdraws (RAPP v26.10.29 §4.5 item 8): it closes the session
   with `service_withdrawn`, withdraws the phone's published identity, and
   stops browsing for the phone.
 - `RequesterTransportPolicy` leaves nothing to dial, so no dial, redial or

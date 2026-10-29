@@ -27,7 +27,7 @@
   /// waits; a requester dials with a session preamble whose fresh routing
   /// only this holder can resolve to a pairing. Every connection whose
   /// preamble routes opens a session of its own, beside any already open
-  /// (RAPP v26.10.22 §2.2.2). The holder never dials.
+  /// (RAPP v26.10.29 §2.2.2). The holder never dials.
   @MainActor
   extension PhonePersistentTokenRelay {
     /// How long the stream transport pauses before it listens again after
@@ -53,7 +53,7 @@
     /// hints (transport hierarchy §4.3).
     ///
     /// A pairing this holder forgot keeps its hint until its close reaches the
-    /// requester (RAPP v26.10.22 §4.6 item 2).
+    /// requester (RAPP v26.10.29 §4.6 item 2).
     private func sessionRecord(_ contexts: [PhoneStreamPairContext]) -> [String: String] {
       let now = Date()
       return StreamRendezvousName.sessionRecord(
@@ -118,7 +118,7 @@
 
     /// Announces that this holder stopped serving, then stops serving.
     ///
-    /// RAPP v26.10.22 §4.5: every open session closes with
+    /// RAPP v26.10.29 §4.5: every open session closes with
     /// `service_withdrawn` on whichever transport carries it, no
     /// connection is accepted, Bluetooth stops advertising, and the stream
     /// listener publishes the withdrawn record for a few seconds before it

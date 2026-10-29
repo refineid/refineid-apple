@@ -11,7 +11,7 @@
   @testable import RefineIDTestHost
 
   /// The holder's click off is kept until its pairings and its phones'
-  /// same-account records are gone (RAPP v26.10.22 §4.6 item 6, CC-100).
+  /// same-account records are gone (RAPP v26.10.29 §4.6 item 6, CC-100).
   @Suite(.serialized)
   internal struct RemoteUseForgettingTests {
     /// The defaults suite these tests keep the holder's click in.

@@ -6,7 +6,7 @@
   import RappEngine
   import UIKit
 
-  /// The custodian's word on its card (RAPP v26.10.22 §8.4).
+  /// The custodian's word on its card (RAPP v26.10.29 §8.4).
   @MainActor
   extension PhonePersistentTokenRelay {
     /// What this phone knows of the reader card it serves.

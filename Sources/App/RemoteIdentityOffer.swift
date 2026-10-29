@@ -4,7 +4,7 @@ import Foundation
 import RappEngine
 
 /// When the identity a phone confirmed stops being offered to local
-/// consumers (RAPP v26.10.22 §8.4 item 3).
+/// consumers (RAPP v26.10.29 §8.4 item 3).
 ///
 /// A session whose `card.status` names the card present keeps the offer.
 /// Once no session is open, or the phone reports absence, the offer lapses

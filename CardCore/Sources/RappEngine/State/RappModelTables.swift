@@ -1,6 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-/// The transition tables of the formal RAPP state model (RAPP v26.10.22),
+/// The transition tables of the formal RAPP state model (RAPP v26.10.29),
 /// transcribed in model order so a rule here and a rule there can be compared
 /// line for line.
 internal enum RappModelTables {
@@ -8,7 +8,7 @@ internal enum RappModelTables {
   internal static let pairing = pairingCeremony + pairingLifetime
 
   /// Pairing component rules from the offer to both endpoints storing the
-  /// pairing (RAPP v26.10.22 §3, §4.3).
+  /// pairing (RAPP v26.10.29 §3, §4.3).
   private static let pairingCeremony: [RappRule<PairingState, PairingEvent>] = [
     RappRule(
       from: .unpaired,
@@ -30,7 +30,7 @@ internal enum RappModelTables {
       event: .attemptStarted,
       role: .custodian,
       destination: .exchanging,
-      actions: [.reserveAttempt]
+      actions: [.admitAttempt]
     ),
     RappRule(
       from: .unpaired,
@@ -45,14 +45,7 @@ internal enum RappModelTables {
       event: .attemptFailed,
       role: .custodian,
       destination: .offering,
-      actions: [.countFailedAttempt]
-    ),
-    RappRule(
-      from: .exchanging,
-      event: .lastAttemptFailed,
-      role: .custodian,
-      destination: .unpaired,
-      actions: [.destroyOffer, .hidePairingCode, .startPairingBackoff, .showAttemptsExhausted]
+      actions: [.endFailedAttempt]
     ),
     RappRule(
       from: .exchanging,

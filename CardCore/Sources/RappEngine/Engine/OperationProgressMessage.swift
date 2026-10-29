@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// One `operation.progress` (RAPP v26.10.22 §7.1).
+/// One `operation.progress` (RAPP v26.10.29 §7.1).
 internal struct OperationProgressMessage: Equatable {
   internal let operationIdentifier: RappOperationIdentifier
   internal let event: ProgressEvent

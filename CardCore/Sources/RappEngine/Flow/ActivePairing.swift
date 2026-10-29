@@ -4,7 +4,7 @@ import Foundation
 
 /// Proof that both endpoints stored the pairing and confirmed it.
 ///
-/// Each told the other (RAPP v26.10.22 §4.3 item 4); only
+/// Each told the other (RAPP v26.10.29 §4.3 item 4); only
 /// ``PairingStorage/intoActive()`` makes one.
 internal struct ActivePairing: Equatable {
   internal let pairIdentifier: Data

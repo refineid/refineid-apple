@@ -7,7 +7,7 @@ import Foundation
   import RappEngine
 
   /// The custodian end of `fi.refineid.rapp.ble`: the GATT server
-  /// (RAPP v26.10.22 §5.1, §5.2).
+  /// (RAPP v26.10.29 §5.1, §5.2).
   ///
   /// One peripheral manager publishes the RAPP service once and advertises
   /// only its UUID and a generic name for as long as the server runs. Each

@@ -8,7 +8,7 @@ import Testing
 #if canImport(RappEngine)
   import RappEngine
 
-  /// A requester's withdrawal over two real coordinators (RAPP v26.10.22
+  /// A requester's withdrawal over two real coordinators (RAPP v26.10.29
   /// §4.5 items 8 and 9).
   extension RappIntegrationTests {
     // MARK: Static Functions

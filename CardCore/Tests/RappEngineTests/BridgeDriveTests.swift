@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-/// Operations end to end between the two operation bridges (RAPP v26.10.22
+/// Operations end to end between the two operation bridges (RAPP v26.10.29
 /// §8, §9).
 @Suite("RAPP operations between the bridges")
 internal struct BridgeDriveTests {

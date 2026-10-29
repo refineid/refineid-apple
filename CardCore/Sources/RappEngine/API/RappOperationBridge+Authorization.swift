@@ -8,7 +8,7 @@ extension RappOperationBridge {
   /// The operation has the card and its prerequisite reads are done.
   ///
   /// An action that needs a PIN gives `awaitUserApproval`; a read asks the
-  /// holder nothing and gives `executeSafeRead` (RAPP v26.10.22 §8.2 items 3
+  /// holder nothing and gives `executeSafeRead` (RAPP v26.10.29 §8.2 items 3
   /// and 6). An operation past its deadline is cancelled instead, with
   /// the result to send. `nowMs` is the continuous clock.
   public func prerequisitesComplete(operationId: RappOperationIdentifier, nowMs: UInt64) throws

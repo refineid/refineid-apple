@@ -23,14 +23,14 @@ internal enum CardOperation: Equatable {
   case signDocument(
     documentName: String, keyProfile: CardKeyProfile, algorithm: SignatureAlgorithm, digest: Data)
 
-  /// Signs one or more documents under one PIN 2 entry (RAPP v26.10.22
+  /// Signs one or more documents under one PIN 2 entry (RAPP v26.10.29
   /// §9.3); names and digests pair up by position.
   case batchSignDocuments(
     documentNames: [String], keyProfile: CardKeyProfile, algorithm: SignatureAlgorithm,
     digests: [Data])
 
   /// Whether this action commands a private key behind a PIN, which the
-  /// custodian takes before the card command (RAPP v26.10.22 §8.2 items 3
+  /// custodian takes before the card command (RAPP v26.10.29 §8.2 items 3
   /// and 6).
   internal var isConsequential: Bool {
     switch self {

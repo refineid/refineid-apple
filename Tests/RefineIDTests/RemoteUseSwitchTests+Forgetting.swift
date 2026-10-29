@@ -17,7 +17,7 @@
     static let looks = 200
   }
 
-  /// The holder's click off forgets every pairing (RAPP v26.10.22 §4.6 item
+  /// The holder's click off forgets every pairing (RAPP v26.10.29 §4.6 item
   /// 6, CC-100), durably and before a quit lets the app go; a stop
   /// withdraws and keeps them (§4.5 item 8).
   extension RemoteUseSwitchTests {

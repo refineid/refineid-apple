@@ -10,7 +10,7 @@
     /// else the newest usable one; nil while no pairing is usable.
     ///
     /// A forgotten pairing serves nothing and stays only to deliver its
-    /// close (RAPP v26.10.22 §4.6 item 2), so it pairs no phone.
+    /// close (RAPP v26.10.29 §4.6 item 2), so it pairs no phone.
     internal static func pairedPhoneID(in vault: RappDeviceVault) -> Data? {
       let usable = ((try? vault.activePairIDs()) ?? [])
         .compactMap { try? RappPairRecord.loadFromVault(pairId: $0, vault: vault).metadata() }

@@ -8,7 +8,7 @@ import Security
 /// Every public mutation maps to one Keychain add or update. Removing a pair
 /// deletes the Keychain item so the same devices can pair again. Nothing of
 /// an operation is stored: it lives and ends with its session (RAPP
-/// v26.10.22 §8.1 item 3).
+/// v26.10.29 §8.1 item 3).
 public final class RappDeviceVault: @unchecked Sendable {
   /// Storage failures surfaced by vault operations.
   public enum Failure: Error, Equatable, Sendable, LocalizedError, CustomStringConvertible {
@@ -143,7 +143,7 @@ public final class RappDeviceVault: @unchecked Sendable {
   }
 
   /// Writes the confirmed pairing, or the forgotten one, over the record
-  /// stored under the same identifier (RAPP v26.10.22 §4.3 item 4, §4.6
+  /// stored under the same identifier (RAPP v26.10.29 §4.3 item 4, §4.6
   /// item 2).
   public func replacePair(pairID: Data, record: Data) throws {
     try synchronized {

@@ -4,7 +4,7 @@
 // tables read line for line against the document.
 // swiftlint:disable sorted_enum_cases
 
-/// The role a transition rule applies to (RAPP v26.10.22 formal state model,
+/// The role a transition rule applies to (RAPP v26.10.29 formal state model,
 /// `semantics.roles`).
 internal enum RuleRole: String, CaseIterable, Sendable {
   case requester = "requester"

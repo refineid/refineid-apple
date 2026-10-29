@@ -15,7 +15,7 @@
 
   /// Owns the phone side of RAPP: every session the paired computers open,
   /// and the one queue their operations take the card through (RAPP
-  /// v26.10.22 §8.2 item 2, §8.3).
+  /// v26.10.29 §8.2 item 2, §8.3).
   ///
   /// Each routed connection is a session of its own, on the stream
   /// listener, the Bluetooth server, or, in a build without the stream, the
@@ -253,7 +253,7 @@
       }
     }
 
-    /// Sweeps every pairing for idle expiry (RAPP v26.10.22 §4.6 item 5): a
+    /// Sweeps every pairing for idle expiry (RAPP v26.10.29 §4.6 item 5): a
     /// computer a session is established with is recorded, and one with
     /// none for 30 days expires silently and leaves the paired computers.
     internal func sweepIdlePairings() {
@@ -275,7 +275,7 @@
 
     /// Destroys the pairing `pairID` when the session's close ended it: the
     /// requester revoked it, or this phone delivered the close of a pairing
-    /// its holder forgot (RAPP v26.10.22 §4.6 items 2 to 4).
+    /// its holder forgot (RAPP v26.10.29 §4.6 items 2 to 4).
     private func endPairingIfOver(_ reason: RappConnectionCoordinator.CloseReason, pairID: Data) {
       guard reason.peerRevokedPairing || reason == .handshake(.revocationNoticeDelivered) else {
         return

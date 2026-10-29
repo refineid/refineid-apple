@@ -22,7 +22,7 @@
     }
 
     /// Advances liveness with fresh challenge bytes: a ping after 5 seconds
-    /// of silence, the session's end after 30 (RAPP v26.10.22 §8.3).
+    /// of silence, the session's end after 30 (RAPP v26.10.29 §8.3).
     public func pollLiveness() -> [Command] {
       guard !closed else { return [] }
       do {

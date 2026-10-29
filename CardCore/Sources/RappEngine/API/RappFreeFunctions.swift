@@ -15,7 +15,7 @@ public func rappRandomByteCounts() -> RappRandomByteCounts {
     livenessChallenge: UInt64(PingChallenge.byteCount))
 }
 
-/// How long every pairing offer lives, in milliseconds (RAPP v26.10.22 §3.3
+/// How long every pairing offer lives, in milliseconds (RAPP v26.10.29 §3.3
 /// item 7).
 public func rappOfferTtlMs() -> UInt64 {
   OfferLimit.offerLifetimeMilliseconds
@@ -23,7 +23,7 @@ public func rappOfferTtlMs() -> UInt64 {
 
 /// How long a requester keeps offering a certificate the custodian
 /// confirmed, in milliseconds, while no session is open or the custodian
-/// reports absence and no report of the card present arrives (RAPP v26.10.22
+/// reports absence and no report of the card present arrives (RAPP v26.10.29
 /// §8.4 item 3).
 public func rappIdentityOfferGraceMs() -> UInt64 {
   IdentityOfferGrace.milliseconds
@@ -31,20 +31,20 @@ public func rappIdentityOfferGraceMs() -> UInt64 {
 
 /// How long a requester that quits waits for its `service_withdrawn` closes
 /// to leave before it exits, and one whose holder turned remote use off
-/// waits for its `pairing_revoked` closes, in milliseconds (RAPP v26.10.22
+/// waits for its `pairing_revoked` closes, in milliseconds (RAPP v26.10.29
 /// §4.5 item 8, §4.6 item 6).
 public func rappQuitWithdrawalBoundMs() -> UInt64 {
   QuitWithdrawalBound.milliseconds
 }
 
 /// How long a pairing lives without an established session before it
-/// expires, in milliseconds (RAPP v26.10.22 §4.6 item 5).
+/// expires, in milliseconds (RAPP v26.10.29 §4.6 item 5).
 public func rappPairingIdleExpiryMs() -> UInt64 {
   PairRecord.pairingIdleExpiryMilliseconds
 }
 
 /// The credential profiles the registry admits, in the order it registers
-/// them (RAPP v26.10.22 §9).
+/// them (RAPP v26.10.29 §9).
 public func rappCredentialProfiles() -> [String] {
   ProfileName.allCases.map(\.rawValue)
 }
@@ -63,7 +63,7 @@ public func rappStreamProfileName() -> String {
 
 /// The candidate identifier registered for a transport profile.
 ///
-/// The offer entry of `transportProfile` carries it (RAPP v26.10.22 §2.2);
+/// The offer entry of `transportProfile` carries it (RAPP v26.10.29 §2.2);
 /// an unregistered profile has none.
 public func rappCandidateIdentifier(transportProfile: String) -> String? {
   TransportRegistry.entry(for: transportProfile)?.candidateIdentifier

@@ -7,7 +7,7 @@
 
   /// One authenticated RAPP session the phone serves: one stream
   /// connection, one Bluetooth link, or the nearby connection (RAPP
-  /// v26.10.22 §8.3).
+  /// v26.10.29 §8.3).
   ///
   /// Every session runs apart from the others: its own coordinator and
   /// dispatcher, its own ordered frame delivery, liveness, close and

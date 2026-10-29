@@ -4,7 +4,7 @@
   import Foundation
   import RappEngine
 
-  /// Ending a pairing the way RAPP v26.10.22 §4.6 requires.
+  /// Ending a pairing the way RAPP v26.10.29 §4.6 requires.
   ///
   /// With a session open the endpoint closes it with `pairing_revoked` and
   /// revokes at once. Without one the record is marked forgotten: it serves

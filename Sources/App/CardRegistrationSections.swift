@@ -136,7 +136,7 @@
     /// One hold does the whole thing: the access number is proved by PACE
     /// inside it, and it is not written to this device until that hold has
     /// produced a registered identity. PIN 1 is asked for when the card
-    /// first signs, never here (RAPP v26.10.22 §11 item 2).
+    /// first signs, never here (RAPP v26.10.29 §11 item 2).
     @MainActor
     internal static func registerIdentity(
       cardAccessNumber: String,

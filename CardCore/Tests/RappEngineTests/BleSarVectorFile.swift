@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The vendored RAPP v26.10.22 §5.3 SAR vectors.
+/// The vendored RAPP v26.10.29 §5.3 SAR vectors.
 internal struct BleSarVectorFile: Decodable {
   internal struct CapacityVector: Decodable {
     internal let negotiatedAttMtu: Int
@@ -32,7 +32,7 @@ internal struct BleSarVectorFile: Decodable {
     internal let atFragment: Int?
   }
 
-  private static let fileName = "rapp-ble-sar-v26.10.22.json"
+  private static let fileName = "rapp-ble-sar-v26.10.29.json"
   /// Test sources sit four directories below the repository root.
   private static let depthBelowRepositoryRoot = 4
 

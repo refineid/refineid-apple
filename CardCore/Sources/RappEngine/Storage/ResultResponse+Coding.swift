@@ -3,7 +3,7 @@
 import Foundation
 
 extension ResultResponse {
-  /// The `response` map one card answer becomes (RAPP v26.10.22 §9).
+  /// The `response` map one card answer becomes (RAPP v26.10.29 §9).
   ///
   /// The response names no variant: the requester reads it against the
   /// operation it asked for.

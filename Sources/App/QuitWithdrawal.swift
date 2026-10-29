@@ -6,7 +6,7 @@
   import RappEngine
 
   /// Quitting while remote use is on: this computer's withdrawal (RAPP
-  /// v26.10.22 §4.5 item 8, hierarchy specification §5.2).
+  /// v26.10.29 §4.5 item 8, hierarchy specification §5.2).
   ///
   /// An open session closes with `service_withdrawn`, remote use stops
   /// with every pairing kept, and the quit waits for that close to leave,

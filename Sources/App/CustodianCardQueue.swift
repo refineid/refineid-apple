@@ -3,7 +3,7 @@
 import Foundation
 
 /// Hands the card to one operation at a time, across every session the
-/// custodian holds (RAPP v26.10.22 §8.2 item 2, STPA CC-59).
+/// custodian holds (RAPP v26.10.29 §8.2 item 2, STPA CC-59).
 ///
 /// Operations take the card in the order they joined. One that joins while
 /// another holds the card waits; the holder leaves once its operation is

@@ -6,7 +6,7 @@ import Foundation
 /// Which advertisers the requester's Bluetooth dials prefer and avoid
 /// (STPA CC-53).
 ///
-/// A RAPP advertisement names no pairing (RAPP v26.10.22 §4.1), so the
+/// A RAPP advertisement names no pairing (RAPP v26.10.29 §4.1), so the
 /// requester learns which advertiser is its phone only from a routed
 /// preamble. It dials the one that routed last first; one that refused is
 /// not dialed again within the window, so a room of other people's phones

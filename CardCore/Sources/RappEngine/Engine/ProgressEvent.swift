@@ -7,7 +7,7 @@
 import Foundation
 
 /// A change of a pending operation's state the custodian reports (RAPP
-/// v26.10.22 §7.1, §8.2).
+/// v26.10.29 §7.1, §8.2).
 public enum ProgressEvent: String, Sendable, Equatable, CaseIterable {
   /// Another session's operation holds the card (§8.2 item 2).
   case queued = "queued"

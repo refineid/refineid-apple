@@ -30,7 +30,7 @@ extension RappPairingModel {
   }
 
   /// Tries the typed code on every custodian found in pairing mode, one at
-  /// a time, until one takes it (RAPP v26.10.22 §4.2, "Trying Each
+  /// a time, until one takes it (RAPP v26.10.29 §4.2, "Trying Each
   /// Custodian in Pairing Mode").
   internal func acceptPairingCode(_ rawCode: String) {
     resetAttempt()

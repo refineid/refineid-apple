@@ -17,7 +17,6 @@ internal enum PairingEvent: String, CaseIterable, Sendable {
   /// On the requester: the endpoint opened did not take the code, because
   /// its custodian refused it or it served no offer the requester could try.
   case attemptFailed = "attempt_failed"
-  case lastAttemptFailed = "last_attempt_failed"
   /// Every custodian the requester tried refused the code, and no endpoint
   /// is left to open.
   case lastCandidateFailed = "last_candidate_failed"
