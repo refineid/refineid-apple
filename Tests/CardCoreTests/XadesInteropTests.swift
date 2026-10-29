@@ -142,14 +142,36 @@ internal struct XadesInteropTests {
   }
 
   /// The arguments telling `xmlsec1` which attribute the
-  /// same-document reference resolves against.
+  /// same-document reference resolves against, which reference URI
+  /// types it dereferences, and which container entry each data
+  /// object reference names.
   ///
-  /// Nothing in the document declares it, because a container carries
-  /// no DTD or schema, so every verifier of this format is told the
-  /// same thing out of band.
-  private static func verifyArguments(trustedPem: String) -> [String] {
-    [
+  /// Nothing in the document declares the attribute, because a
+  /// container carries no DTD or schema, so every verifier of this
+  /// format is told the same thing out of band.
+  ///
+  /// The data object references are relative URIs, percent-encoded,
+  /// resolved against the container root (ETSI EN 319 162-1, clause
+  /// A.6). `xmlsec1` classes every URI that is neither empty, `#...`
+  /// nor `file://...` as remote and by default dereferences only the
+  /// empty and same-document classes, so the remote class is enabled.
+  /// It opens a scheme-less URI as a file name without decoding it, so
+  /// each reference URI is mapped to its entry's name, as a container
+  /// reader resolves it.
+  private static func verifyArguments(
+    trustedPem: String,
+    objects: [AsicContainer.DataObject]
+  ) -> [String] {
+    let entries = objects.flatMap { object in
+      [
+        "--url-map:\(XadesSignature.percentEncodePath(object.name))",
+        object.name,
+      ]
+    }
+    return [
       "--verify", "--verbose", "--trusted-pem", trustedPem,
+      "--enabled-reference-uris", "empty,same-doc,remote",
+    ] + entries + [
       "--id-attr:Id",
       "http://uri.etsi.org/01903/v1.3.2#:SignedProperties",
       "META-INF/signatures0.xml",
@@ -208,7 +230,7 @@ internal struct XadesInteropTests {
     )
     let verified = try Self.run(
       "xmlsec1",
-      Self.verifyArguments(trustedPem: "../cert.pem"),
+      Self.verifyArguments(trustedPem: "../cert.pem", objects: objects),
       in: extracted
     )
     #expect(
@@ -231,7 +253,7 @@ internal struct XadesInteropTests {
     )
     let tampered = try Self.run(
       "xmlsec1",
-      Self.verifyArguments(trustedPem: "../cert.pem"),
+      Self.verifyArguments(trustedPem: "../cert.pem", objects: objects),
       in: extracted,
       expectSuccess: false
     )
