@@ -9,7 +9,8 @@ import Foundation
 /// Class 1 invalid input, and the custodian closes that connection without
 /// changing stored state. The offer stays open, so a connection rejected or
 /// lost before the preamble is never reported to the ceremony as its end.
-/// Once a requester has arrived, every event belongs to the ceremony.
+/// Once a requester has arrived, every event belongs to the ceremony until
+/// its connection closes; the next connection is admitted afresh.
 public struct StreamPairingAdmission: Sendable {
   // MARK: Nested Types
 
@@ -44,6 +45,11 @@ public struct StreamPairingAdmission: Sendable {
   public mutating func admit(_ event: StreamRelayEvent) -> Action {
     if hasArrived {
       if case .connected = event { return .ignore }
+      if case .closed = event {
+        // The listener keeps listening after a connection it answered
+        // busy, so the next requester's preamble arrives afresh.
+        hasArrived = false
+      }
       return .forward
     }
     switch event {

@@ -17,15 +17,26 @@ import Foundation
   /// The transport carries opaque frames and never decodes protocol or card
   /// data; peer authentication belongs to the session above it.
   public final class StreamRelayListener: @unchecked Sendable {
+    /// The answer to a dialer arriving while a connection is open, from its
+    /// first frame; nil closes it unanswered.
+    public typealias BusyAnswer = @Sendable (Data) -> Data?
+
     /// The Bonjour type this publishes and a dialer browses for.
     public static let serviceType = "_refineid-stream._tcp"
+    /// How long a connection sent its last frame waits for the dialer to
+    /// close its side before it is closed anyway, in milliseconds.
+    public static let endingWaitMilliseconds = 1_000
 
     private let onEvent: @Sendable (StreamRelayEvent) -> Void
-    private let queue = DispatchQueue(label: "fi.refineid.stream-listener")
+    private let queue: DispatchQueue
+    /// Answers the dialers that arrive while a connection is open.
+    private let refusals: StreamRelayRefusals?
     private var listener: NWListener?
     private var connection: NWConnection?
     private var reader = StreamFrameReader()
     private var isFinished = false
+    /// Whether the open connection was sent its last frame and is closing.
+    private var isEnding = false
     private var lastState = "not started"
     private var publishedName: String?
 
@@ -51,10 +62,19 @@ import Foundation
       queue.sync { listener != nil && !isFinished }
     }
 
-    /// Listens under `displayName`, reporting to one owner; a dialer
-    /// arriving while a connection is open is refused.
+    /// Listens under `displayName`, reporting to one owner.
+    ///
+    /// A dialer arriving while a connection is open is refused: answered
+    /// with what `busyAnswer` makes of its first frame and closed, or closed
+    /// unanswered.
     @preconcurrency
-    public init(onEvent: @escaping @Sendable (StreamRelayEvent) -> Void) {
+    public init(
+      busyAnswer: BusyAnswer? = nil,
+      onEvent: @escaping @Sendable (StreamRelayEvent) -> Void
+    ) {
+      let made = DispatchQueue(label: "fi.refineid.stream-listener")
+      queue = made
+      refusals = busyAnswer.map { StreamRelayRefusals(queue: made, answer: $0) }
       self.onEvent = onEvent
     }
 
@@ -106,6 +126,33 @@ import Foundation
         completion: .contentProcessed { _ in
           // A send that failed is reported by the connection's own state.
         })
+    }
+
+    /// Sends `frame` as the open connection's last and closes that connection
+    /// once the dialer has read it, keeping the listener and its published
+    /// name.
+    ///
+    /// The connection closes when the dialer closes its side, or after
+    /// ``endingWaitMilliseconds`` if it does not, so a dialer that never
+    /// reads cannot hold the listener. Frames the dialer sends meanwhile are
+    /// dropped. False when no connection is open.
+    public func endConnection(answering frame: Data) -> Bool {
+      guard let encoded = StreamRelayFraming.encode(frame) else { return false }
+      return queue.sync {
+        guard let open = connection, !isEnding else { return false }
+        isEnding = true
+        open.send(
+          content: encoded, contentContext: .finalMessage, isComplete: true,
+          completion: .contentProcessed { _ in
+            // The dialer's end of stream, or the bound below, closes it.
+          })
+        queue.asyncAfter(deadline: .now() + .milliseconds(Self.endingWaitMilliseconds)) {
+          [weak self] in
+          guard let self, connection === open, isEnding else { return }
+          handleConnectionClosure(.disconnected)
+        }
+        return true
+      }
     }
 
     /// Disconnects the active connection and reports .closed, but keeps the
@@ -163,8 +210,16 @@ import Foundation
     private func accept(_ candidate: NWConnection) {
       queue.async { [weak self] in
         guard let self else { return }
-        guard !isFinished, connection == nil else {
+        guard !isFinished else {
           candidate.cancel()
+          return
+        }
+        guard connection == nil else {
+          if let refusals {
+            refusals.refuse(candidate)
+          } else {
+            candidate.cancel()
+          }
           return
         }
         adopt(candidate)
@@ -214,7 +269,7 @@ import Foundation
               handleConnectionClosure(.malformedFrame)
               return
             }
-            for frame in frames {
+            for frame in frames where !isEnding {
               onEvent(.frame(frame))
             }
           }
@@ -240,6 +295,7 @@ import Foundation
       #endif
       guard let open = connection else { return }
       connection = nil
+      isEnding = false
       reader = StreamFrameReader()
       open.cancel()
       onEvent(.closed(error))
@@ -255,6 +311,7 @@ import Foundation
       let open = connection
       connection = nil
       open?.cancel()
+      refusals?.cancelAll()
       let activeListener = listener
       listener = nil
       activeListener?.cancel()

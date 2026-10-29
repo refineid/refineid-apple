@@ -116,8 +116,8 @@ extension RappPairingModel {
       // An unused code lapses with its offer after five minutes; the next one follows.
       createOffer()
 
-    case .attemptTimedOut, .localRequest, .persistenceFailure, .protocolFailure,
-      .storageUnconfirmed, .transportFailure:
+    case .attemptTimedOut, .custodianBusy, .localRequest, .persistenceFailure,
+      .protocolFailure, .storageUnconfirmed, .transportFailure:
       ceremonyEnded(String(localized: "Pairing ended before it was completed"))
     }
   }
@@ -164,6 +164,7 @@ extension RappPairingModel {
   private func restoreCustodianOffer(coordinator: RappPairingCoordinator) {
     relay?.cancel()
     let replacement = makeRelay()
+    replacement.busyAnswer = { coordinator.busyAnswer() }
     let replacementTransport = makeTransport(relay: replacement)
     relay = replacement
     Task { @MainActor [weak self] in

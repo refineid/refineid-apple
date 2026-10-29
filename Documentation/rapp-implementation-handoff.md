@@ -22,10 +22,12 @@ artifact in this repository.
   against it in both directions, and the engine's constants against its
   constants.
 - Conformance corpus: `Documentation/rapp-conformance/rapp-v26.10.29.json`
-  (`SHA-256 e37f9c744daf81705445dfdf349ed4f5d29cff2fe77919adf0d099da2a1ec44c`),
+  (`SHA-256 6e0ace388cbe3a5c0e915c5ff7ebdb07de1f6687532d497cdc0cd28f65ca25ee`),
   copied unchanged from the reference repository. Its `cpace_kc2`,
-  `noise_handshake`, `pairing_offer`, and `discovery_hint` sections are
-  replayed byte for byte on both the BLE and stream profiles.
+  `noise_handshake`, `pairing_offer`, `pairing_busy`, and `discovery_hint`
+  sections are replayed byte for byte on both the BLE and stream profiles,
+  and every `rejected_pairing_busy` encoding is refused for its stated
+  reason.
 - Vectors covering what the corpus does not reach, all v26.10.29 and copied
   unchanged from the reference repository: `rapp-operation-v26.10.29.json`
   (operation bodies, the batch signing bodies, the storage confirmation,
@@ -67,6 +69,12 @@ Important invariants already represented in the implementation are:
   confirmed by fingerprint, also between sessions, and withdraws it after
   120 seconds without a present report, or at once on a forget, a
   revocation or a different card (§8.4 item 3).
+- A phone that cannot admit a pairing attempt, because another attempt is
+  active or the 500 ms spacing has not passed, answers `pairing-busy` with
+  its wait and evaluates nothing of the code. The Mac asks that phone again
+  after the other phones and after the wait, within the eight pairing
+  connections of one typed code, and shows nothing while it waits (§3.3
+  item 6, §4.2).
 - A session carries one live operation; a second is refused `busy`, a reused
   identifier `duplicate_operation`, and the card serves operations in the
   order they arrived (§8.1, §8.2).

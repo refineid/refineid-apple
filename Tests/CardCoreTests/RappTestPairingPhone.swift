@@ -52,8 +52,8 @@ import Foundation
     // MARK: Functions
 
     /// The offer this phone serves.
-    internal func offer() async throws -> Data {
-      try await custodian.bootstrapOffer()
+    internal func offer() throws -> Data {
+      try custodian.bootstrapAnswer()
     }
 
     /// Ends the phone's ceremony and hands back what it reported.

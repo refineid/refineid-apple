@@ -17,6 +17,8 @@ internal struct WireCorpusTests {
     #expect(corpus.protocolDocumentVersion == "26.10.29")
     #expect(corpus.noiseHandshake.count == 4)
     #expect(corpus.pairingOffer.count == 3)
+    #expect(corpus.pairingBusy.count == 3)
+    #expect(corpus.rejectedPairingBusy.count == 5)
     #expect(corpus.cpaceKc2.count == 2)
   }
 

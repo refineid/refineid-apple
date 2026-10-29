@@ -26,6 +26,7 @@ import Foundation
           end(link, .bluetoothUnavailable)
         }
         links.removeAll()
+        attemptGate.releaseAll()
         published = false
         channel = nil
 
@@ -45,6 +46,7 @@ import Foundation
       else { return }
       channel = restored
       published = true
+      attemptGate.releaseAll()
       for central in restored.subscribedCentrals ?? [] {
         let link = RappBleGattLink(identifier: UUID(), central: central.identifier)
         links[central.identifier] = LinkState(
@@ -73,6 +75,7 @@ import Foundation
       if let previous = links[subscriber.identifier] {
         end(previous.link, .disconnected)
       }
+      attemptGate.release(subscriber.identifier)
       let attMtu = subscriber.maximumUpdateValueLength + RappBleGattLimit.attHeaderSize
       onEvent(.trace(.subscribed(peer: subscriber.identifier, attMtu: attMtu)))
       let link = RappBleGattLink(identifier: UUID(), central: subscriber.identifier)
@@ -91,20 +94,24 @@ import Foundation
       onEvent(.trace(.unsubscribed(peer: subscriber.identifier)))
       end(state.link, .disconnected)
       links.removeValue(forKey: subscriber.identifier)
+      attemptGate.release(subscriber.identifier)
     }
 
+    /// Serves the bootstrap answer of the moment: the offer, or
+    /// `pairing-busy` while an attempt cannot be admitted (§4.2, Bootstrap
+    /// Read Flow item 1).
     internal func read(_ request: CBATTRequest) {
       guard request.characteristic.uuid == CBUUID(string: RappBleGattProfile.bootstrapUUIDString),
-        let bootstrapOffer
+        let answer = bootstrapAnswer?()
       else {
         manager?.respond(to: request, withResult: .readNotPermitted)
         return
       }
-      guard request.offset <= bootstrapOffer.count else {
+      guard request.offset <= answer.count else {
         manager?.respond(to: request, withResult: .invalidOffset)
         return
       }
-      request.value = bootstrapOffer.subdata(in: request.offset..<bootstrapOffer.count)
+      request.value = answer.subdata(in: request.offset..<answer.count)
       manager?.respond(to: request, withResult: .success)
     }
 
@@ -130,8 +137,9 @@ import Foundation
           manager?.respond(to: first, withResult: .writeNotPermitted)
           return
         }
-        guard receive(value, from: central) else {
-          manager?.respond(to: first, withResult: .writeNotPermitted)
+        let result = receive(value, from: central)
+        guard result == .success else {
+          manager?.respond(to: first, withResult: result)
           return
         }
       }
@@ -144,9 +152,10 @@ import Foundation
       }
     }
 
-    /// Takes one fragment; false when it ended the link.
-    private func receive(_ fragment: Data, from central: UUID) -> Bool {
-      guard var state = links[central] else { return false }
+    /// Takes one fragment; the write's answer, other than success when it
+    /// ended the link.
+    private func receive(_ fragment: Data, from central: UUID) -> CBATTError.Code {
+      guard var state = links[central] else { return .writeNotPermitted }
       let now = RappPlatformClock().monotonicMilliseconds()
       let message: Data?
       do {
@@ -154,34 +163,49 @@ import Foundation
           fragment, capacity: state.capacity, nowMilliseconds: now)
       } catch {
         end(state.link, .reassemblyFailed)
-        return false
+        return .writeNotPermitted
       }
       links[central] = state
       guard let message else {
         armTimer(for: state.link)
-        return true
+        return .success
       }
       return deliver(message, on: central)
     }
 
     /// Accepts one complete frame in the phase the link is in.
-    private func deliver(_ message: Data, on central: UUID) -> Bool {
-      guard var state = links[central] else { return false }
+    ///
+    /// The first frame on a pairing link is CPace step 1. One attempt runs
+    /// at a time across every link; a step 1 the custodian cannot admit is
+    /// refused with ATT error Insufficient Resources and changes nothing, so
+    /// the link can read the bootstrap characteristic again and write a later
+    /// step 1 (§4.2, "Busy Refusal" item 2).
+    private func deliver(_ message: Data, on central: UUID) -> CBATTError.Code {
+      guard var state = links[central] else { return .writeNotPermitted }
       guard state.routed else {
         guard let purpose = RappBleRoutingPurpose(preamble: message),
           admits(purpose, state.link)
         else {
           onEvent(.trace(.preambleRefused(peer: central)))
           end(state.link, .routingRefused)
-          return false
+          return .writeNotPermitted
         }
         state.routed = true
+        state.pairing = purpose == .pairing
         links[central] = state
         onEvent(.routed(state.link))
-        return true
+        return .success
+      }
+      if state.pairing, !state.attemptAdmitted {
+        let link = state.link
+        guard attemptGate.admit(central, when: { admitsAttempt(link) }) else {
+          return .insufficientResources
+        }
+        state.attemptAdmitted = true
+        links[central] = state
       }
       onEvent(.frame(state.link, message))
-      return true
+      return .success
     }
 
     private func armTimer(for link: RappBleGattLink) {

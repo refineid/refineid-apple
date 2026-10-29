@@ -28,6 +28,13 @@ internal struct CpaceAttemptSlot {
     return true
   }
 
+  /// Milliseconds from `nowMilliseconds` until the active attempt's
+  /// deadline; zero when no attempt is active or its deadline has passed.
+  internal func activeAttemptWaitMilliseconds(nowMilliseconds: UInt64) -> UInt64 {
+    guard let activeDeadline, activeDeadline > nowMilliseconds else { return 0 }
+    return activeDeadline - nowMilliseconds
+  }
+
   /// Whether the active attempt may still complete.
   internal func attemptIsLive(nowMilliseconds: UInt64) -> Bool {
     guard let activeDeadline else { return false }

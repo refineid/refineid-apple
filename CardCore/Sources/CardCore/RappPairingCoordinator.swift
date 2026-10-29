@@ -83,6 +83,10 @@
       /// No CPace step 2 arrived within the attempt deadline of the
       /// requester's step 1 (RAPP v26.10.29 §3.3 item 3).
       case attemptTimedOut
+      /// The custodian answered `pairing-busy` in place of CPace step 2: it
+      /// could not admit the attempt, and asks to be tried again no sooner
+      /// than the wait (RAPP v26.10.29 §4.2, "Busy Refusal").
+      case custodianBusy(retryAfterMilliseconds: UInt64)
       /// The peer never confirmed storing the pairing; the record this
       /// endpoint stored is revoked (RAPP v26.10.29 §4.3 item 4).
       case storageUnconfirmed
@@ -90,8 +94,9 @@
 
     /// One externally visible pairing event.
     public enum Event: Sendable, Equatable {
-      /// A custodian attempt failed and the same offer awaits a new
-      /// connection; the transport must be replaced before it can answer.
+      /// A custodian attempt failed, or a connection it could not admit was
+      /// answered busy, and the same offer awaits a new connection; the
+      /// transport must be replaced before it can answer.
       case offerRestored
       /// The custodian's T_B verified: it holds the code the requester's
       /// user typed (RAPP v26.10.29 §6.1.3 step 3).

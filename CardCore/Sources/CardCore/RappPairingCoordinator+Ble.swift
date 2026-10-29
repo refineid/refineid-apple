@@ -11,10 +11,27 @@
       transportProfile != RappBleGattProfile.name
     }
 
-    /// The offer the custodian serves through its transport's bootstrap: the
-    /// BLE characteristic, or the first stream frame (RAPP v26.10.29 §4.2).
-    public func bootstrapOffer() throws -> Data {
-      try bridge.encodedOffer()
+    /// The custodian's bootstrap answer now, for the BLE characteristic: the
+    /// offer while it can admit an attempt, `pairing-busy` while it cannot
+    /// (RAPP v26.10.29 §4.2, Bootstrap Read Flow item 1).
+    nonisolated public func bootstrapAnswer() throws -> Data {
+      try bridge.bootstrapBytes(nowMonotonicMs: clock.monotonicMilliseconds())
+    }
+
+    /// The `pairing-busy` for a pairing connection the custodian cannot
+    /// carry beside the one it serves, or nil once its offer is spent
+    /// (RAPP v26.10.29 §4.2, "Busy Refusal").
+    nonisolated public func busyAnswer() -> Data? {
+      let now = clock.monotonicMilliseconds()
+      return try? bridge.busyBytes(
+        nowMonotonicMs: now, spacingWaitMs: preAuthentication.waitMs(nowMonotonicMs: now))
+    }
+
+    /// Whether a CPace step 1 arriving now could be admitted; a BLE
+    /// custodian refuses one that could not with ATT error Insufficient
+    /// Resources (RAPP v26.10.29 §4.2, "Busy Refusal" item 2).
+    nonisolated public func admitsAttempt() -> Bool {
+      bridge.admitsAttempt(nowMonotonicMs: clock.monotonicMilliseconds())
     }
   }
 #endif

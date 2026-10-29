@@ -8,9 +8,15 @@ extension RappPairingBridge {
   /// The requester samples its scalar and prepares Y_A; the custodian keeps
   /// the random bytes until Y_A arrives.
   ///
+  /// The custodian calls it when CPace step 1 arrives; a refusal is
+  /// answered with ``busyBytes(nowMonotonicMs:spacingWaitMs:)`` in place of
+  /// step 2 (§4.2, "Busy Refusal").
+  ///
   /// - Throws: ``RappBindingError/OfferExpired`` past the offer deadline,
   ///   ``RappBindingError/WrongPhase`` outside the offer phase or while
-  ///   another attempt holds the custodian's slot, and
+  ///   another attempt holds the custodian's slot,
+  ///   ``RappBindingError/RateLimited`` within 500 ms of the custodian's
+  ///   previous CPace start, and
   ///   ``RappBindingError/InvalidInput`` for an unknown candidate or unusable
   ///   random bytes.
   public func beginCpace(
@@ -42,6 +48,11 @@ extension RappPairingBridge {
         guard attempt.acceptsAnotherAttempt else { throw RappBindingError.WrongPhase }
         guard randomBytes64.count == RappCpaceConstants.wideScalarSize else {
           throw RappBindingError.InvalidInput
+        }
+        // §3.3 item 6: one CPace start per 500 ms, which also spaces
+        // repeated invalid Y_A submissions.
+        guard preAuthentication.admit(nowMonotonicMs: nowMonotonicMs) else {
+          throw RappBindingError.RateLimited
         }
         phase = .custodianAwaitingStepOne(randomBytes: randomBytes64)
       }
@@ -98,7 +109,10 @@ extension RappPairingBridge {
 
   /// Consumes one CPace message from the peer.
   ///
-  /// - Throws: ``RappBindingError/ProtocolFailure`` when the message or a
+  /// - Throws: ``RappBindingError/CustodianBusy`` when a requester receives
+  ///   a `pairing-busy` in place of step 2 (§4.2, "Busy Refusal"), keeping
+  ///   the offer with no CPace on it;
+  ///   ``RappBindingError/ProtocolFailure`` when the message or a
   ///   confirmation tag does not verify, ``RappBindingError/OfferExpired``
   ///   past the deadline, and
   ///   ``RappBindingError/WrongPhase`` when no CPace message is expected.
@@ -106,6 +120,10 @@ extension RappPairingBridge {
     try locked {
       switch phase {
       case .requesterAwaitingStepTwo(let initiator):
+        if (try? PairingBusy.decode(bytes)) != nil {
+          phase = .offer
+          throw RappBindingError.CustodianBusy
+        }
         try confirmStepTwo(bytes, initiator: initiator, nowMilliseconds: nowMonotonicMs)
 
       case .custodianAwaitingStepOne(let randomBytes):

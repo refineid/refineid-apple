@@ -6,14 +6,20 @@ import Foundation
 /// custodian taking the code (RAPP v26.10.29 §4.2, "Trying Each Custodian in
 /// Pairing Mode").
 internal enum NextCandidate: Equatable, Sendable {
-  /// No custodian has been tried and no endpoint is left to open: wait for
-  /// discovery to find another, or report that none in pairing mode was
-  /// found.
+  /// The custodian answered busy and is kept for another opening: open the
+  /// next endpoint (``PairingCandidates/nextEndpoint(nowMilliseconds:)``),
+  /// which hands this one out again once its wait has passed.
+  case deferred
+  /// No custodian has been tried, none answered busy, and no endpoint is
+  /// left to open: wait for discovery to find another, or report that none
+  /// in pairing mode was found.
   case noneTried
-  /// Every custodian tried refused the code: report it as not accepted,
-  /// naming none of them.
+  /// Every custodian tried refused the code, a custodian that answered busy
+  /// counting as one that refused it: report it as not accepted, naming
+  /// none of them.
   case notAccepted
-  /// Open the next endpoint (``PairingCandidates/nextEndpoint()``).
+  /// Open the next endpoint
+  /// (``PairingCandidates/nextEndpoint(nowMilliseconds:)``).
   case tryNext
 
   /// The pairing-machine event of this outcome on the requester, with the
@@ -32,6 +38,9 @@ internal enum NextCandidate: Equatable, Sendable {
       return (.searchInterrupted, .noneSatisfied)
     }
     return switch self {
+    case .deferred:
+      (.candidateBusy, RappGuards(satisfied: [.untriedPairingCandidate]))
+
     case .notAccepted:
       (.lastCandidateFailed, .noneSatisfied)
 

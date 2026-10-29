@@ -14,10 +14,14 @@
   /// reads the offer it serves and runs CPace on each `offer_id` at most
   /// once. A refusal, a close, a missing offer, or a CPace step 2 that does
   /// not arrive within the attempt deadline moves on to the next endpoint. A
-  /// verified T_B ends the search, and the ceremony continues with that
-  /// custodian alone. The code is reported as not accepted only once every
-  /// custodian tried refused it, and no report names a custodian (STPA
-  /// CC-83, CC-84). A search that tried none tells a custodian it found but
+  /// custodian that answers `pairing-busy`, at bootstrap or in place of step
+  /// 2, is not tried: it is opened again after the other endpoints and no
+  /// sooner than its wait, quietly, within the connection limit (STPA
+  /// CC-108). A verified T_B ends the search, and the ceremony continues
+  /// with that custodian alone. The code is reported as not accepted only
+  /// once every custodian tried refused it, a custodian still busy at the
+  /// limit counting as one that refused it, and no report names a custodian
+  /// (STPA CC-83, CC-84). A search that tried none tells a custodian it found but
   /// could not reach, and the platform denying the local network, from
   /// finding none in pairing mode; a denial ends it at once. No endpoint is opened while the
   /// requester's remote use is unavailable, off or suspended by a card in
@@ -123,12 +127,18 @@
     internal var generation = 0
     /// Whether a custodian's T_B verified.
     internal var codeAccepted = false
+    /// Whether CPace ran with any custodian, or one answered busy: a search
+    /// that ends then reports the code not accepted.
+    internal var triedOrBusy = false
     /// Whether any pairing connection opened.
     internal var anyOpened = false
     /// How the connections that could not be opened failed.
     internal var openFailures: Set<RappPairingConnection.OpenFailure> = []
     internal var discoveryEnded = false
     internal var isEnded = false
+    /// Waits for the earliest busy custodian's wait to pass, while only
+    /// busy custodians are left to open.
+    internal var reopening: Task<Void, Never>?
 
     // MARK: Computed Properties
 
@@ -149,6 +159,13 @@
         return .noneInPairingMode
       }
       return localNetworkDenied ? .localNetworkDenied : .unreachable
+    }
+
+    /// Why a search with nothing left to open ends: the code not accepted
+    /// once any custodian was tried or answered busy, otherwise why none was
+    /// tried.
+    internal var endedReason: CloseReason {
+      triedOrBusy ? .notAccepted : noneTriedReason
     }
 
     // MARK: Lifecycle
@@ -189,8 +206,8 @@
     public func endDiscovery() async {
       guard !isEnded, !discoveryEnded else { return }
       discoveryEnded = true
-      guard attempt == nil else { return }
-      await end(noneTriedReason)
+      guard attempt == nil, reopening == nil else { return }
+      await end(endedReason)
     }
 
     /// Ends the search at local request, closing any ceremony it runs.
@@ -208,6 +225,8 @@
     internal func end(_ reason: CloseReason) async {
       guard !isEnded else { return }
       isEnded = true
+      reopening?.cancel()
+      reopening = nil
       let current = attempt
       attempt = nil
       continuation.yield(.closed(reason))
@@ -222,6 +241,8 @@
     internal func finishPaired(_ summary: RappPairingCoordinator.PairSummary) {
       guard !isEnded else { return }
       isEnded = true
+      reopening?.cancel()
+      reopening = nil
       if let current = attempt {
         stop(current)
       }
@@ -239,6 +260,7 @@
     }
 
     deinit {
+      reopening?.cancel()
       continuation.finish()
     }
   }

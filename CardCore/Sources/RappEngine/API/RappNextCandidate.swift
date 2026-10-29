@@ -6,6 +6,10 @@ import Foundation
 /// custodian taking the code (RAPP v26.10.29 §4.2, "Trying Each Custodian in
 /// Pairing Mode").
 public enum RappNextCandidate: Equatable, Sendable {
+  /// The custodian answered busy and is kept for another opening: open the
+  /// next endpoint with ``RappPairingCandidates/nextEndpoint(nowMonotonicMs:)``,
+  /// showing nothing.
+  case deferred
   /// Remote use stopped being available: the requester's remote use is off,
   /// or a card is in a reader attached to it. The search ends and closes
   /// its connection; nothing is reported, and the code entry is offered
@@ -15,10 +19,12 @@ public enum RappNextCandidate: Equatable, Sendable {
   /// discovery to find another, or report that none in pairing mode was
   /// found.
   case noneTried
-  /// Every custodian tried refused the code: report it as not accepted,
-  /// naming none of them.
+  /// Every custodian tried refused the code, a custodian still busy at the
+  /// connection limit counting as one that refused it: report it as not
+  /// accepted, naming none of them.
   case notAccepted
-  /// Open the next endpoint with ``RappPairingCandidates/nextEndpoint()``.
+  /// Open the next endpoint with
+  /// ``RappPairingCandidates/nextEndpoint(nowMonotonicMs:)``.
   case tryNext
 
   /// The requester's next step after `next`, with `remoteUseAvailable`
@@ -34,6 +40,9 @@ public enum RappNextCandidate: Equatable, Sendable {
 
     case .attemptFailed:
       self = .tryNext
+
+    case .candidateBusy:
+      self = .deferred
 
     default:
       self = .noneTried

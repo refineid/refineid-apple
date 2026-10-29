@@ -22,6 +22,8 @@ internal enum RappAction: String, CaseIterable, Sendable {
   case tryNextCandidate = "try_next_candidate"
   case admitAttempt = "admit_attempt"
   case endFailedAttempt = "end_failed_attempt"
+  case answerBusy = "answer_busy"
+  case deferCandidate = "defer_candidate"
   case showWrongCode = "show_wrong_code"
   case showNoneInPairingMode = "show_none_in_pairing_mode"
   case consumeOffer = "consume_offer"

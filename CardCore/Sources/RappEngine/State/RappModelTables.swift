@@ -48,6 +48,30 @@ internal enum RappModelTables {
       actions: [.endFailedAttempt]
     ),
     RappRule(
+      from: .offering,
+      event: .attemptRefused,
+      role: .custodian,
+      destination: .offering,
+      actions: [.answerBusy]
+    ),
+    RappRule(
+      from: .exchanging,
+      event: .attemptRefused,
+      role: .custodian,
+      destination: .exchanging,
+      actions: [.answerBusy]
+    ),
+    RappRule(
+      from: .exchanging,
+      event: .candidateBusy,
+      role: .requester,
+      condition: .untriedPairingCandidate,
+      destination: .exchanging,
+      actions: [
+        .closeCandidate, .deferCandidate, .tryNextCandidate, .readOffer, .beginCpaceInitiator,
+      ]
+    ),
+    RappRule(
       from: .exchanging,
       event: .attemptFailed,
       role: .requester,

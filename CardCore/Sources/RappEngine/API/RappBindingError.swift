@@ -30,6 +30,15 @@ public enum RappBindingError: Error, Equatable, Hashable, LocalizedError, Sendab
   /// v26.10.29 §4.3 item 4): the deadline passed, or a stored record is
   /// unconfirmed. The caller revokes the record it stored.
   case StorageUnconfirmed
+  /// A pre-authentication attempt came within 500 ms of the previous one
+  /// (RAPP v26.10.29 §3.3 item 6); the caller refuses it and changes
+  /// nothing.
+  case RateLimited
+  /// The custodian answered `pairing-busy` (RAPP v26.10.29 §4.2, "Busy
+  /// Refusal"): it cannot admit an attempt now. The answer's wait is read
+  /// with ``rappPairingBusyRetryAfterMs(_:)`` and reported to
+  /// ``RappPairingCandidates/busy(retryAfterMs:nowMonotonicMs:remoteUseAvailable:)``.
+  case CustodianBusy
 
   /// The case name, for a caller that logs or displays the failure.
   public var errorDescription: String? {

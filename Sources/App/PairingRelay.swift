@@ -22,6 +22,9 @@ import Foundation
 /// from the code would let the network search for it.
 internal final class PairingRelay: @unchecked Sendable {
   private let onEvent: @Sendable (PersistentRelayEvent) -> Void
+  /// The `pairing-busy` for a requester arriving while another one is
+  /// served (RAPP v26.10.29 §4.2, "Busy Refusal"); set before ``start()``.
+  internal var busyAnswer: (@Sendable () -> Data?)?
 
   #if REFINEID_STREAM_TRANSPORT
     private var listener: StreamRelayListener?
@@ -52,9 +55,11 @@ internal final class PairingRelay: @unchecked Sendable {
       // Only a phone holds the card and listens; a Mac is always the
       // requester and never accepts a connection (decisions 2026-10-10).
       #if os(iOS)
-        let made = StreamRelayListener { [weak self] event in
-          self?.receiveStream(event)
-        }
+        let made = StreamRelayListener(
+          busyAnswer: { [busyAnswer] first in
+            first == rappStreamPairingPreamble() ? busyAnswer?() : nil
+          },
+          onEvent: { [weak self] event in self?.receiveStream(event) })
         listener = made
         made.start(
           displayName: StreamRendezvousName.ephemeralName(),
@@ -74,6 +79,17 @@ internal final class PairingRelay: @unchecked Sendable {
       try listener.send(frame)
     #else
       try session.send(frame)
+    #endif
+  }
+
+  /// Sends `frame` as the requester's last and ends its connection, keeping
+  /// the listener and its published name for the next requester; false
+  /// when the channel cannot.
+  internal func endConnection(answering frame: Data) -> Bool {
+    #if REFINEID_STREAM_TRANSPORT
+      listener?.endConnection(answering: frame) ?? false
+    #else
+      false
     #endif
   }
 
@@ -107,6 +123,10 @@ internal final class PairingRelay: @unchecked Sendable {
         listener?.disconnect()
 
       case .forward:
+        if case .closed = event {
+          // The next requester on this listener arrives afresh.
+          reportedArrival = false
+        }
         onEvent(PersistentRelayEvent(event))
       }
     }

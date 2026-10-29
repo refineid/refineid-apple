@@ -32,36 +32,27 @@
     }
 
     /// Starts the ceremony once the candidate's connection is open and its
-    /// pairing preamble has been exchanged.
+    /// pairing preamble has been read.
     ///
-    /// A custodian serves its offer as the first frame on a frame
-    /// transport; a requester, which already read the offer, sends CPace
-    /// step 1. At most one connection per 500 ms reaches the offer (RAPP
-    /// v26.10.29 §3.3 item 6).
+    /// A custodian serves its bootstrap answer as the first frame on a
+    /// frame transport; a requester, which already read the offer, sends
+    /// CPace step 1. At most one connection per 500 ms reaches the offer
+    /// (RAPP v26.10.29 §3.3 item 6); a connection refused by that spacing,
+    /// or one served a `pairing-busy`, is answered busy and closed (§4.2,
+    /// "Busy Refusal").
     public func transportConnected() async {
       guard state == .offer else {
         await fail(.protocolFailure)
         return
       }
       do {
+        let now = clock.monotonicMilliseconds()
         switch role {
         case .requester:
-          try await beginRequesterCpace(now: clock.monotonicMilliseconds())
+          try await beginRequesterCpace(now: now)
 
         case .proxy:
-          guard preAuthentication.admit(nowMonotonicMs: clock.monotonicMilliseconds()) else {
-            await transport.close()
-            continuation.yield(.offerRestored)
-            return
-          }
-          try bridge.beginCpace(
-            candidateId: candidateID,
-            randomBytes64: try entropy.cpaceRandom(),
-            nowMonotonicMs: clock.monotonicMilliseconds())
-          state = .custodianAwaitingStepOne
-          if servesOfferAsFrame {
-            try await transport.send(try bridge.encodedOffer())
-          }
+          try await serveBootstrap(now: now)
         }
       } catch {
         await handle(error)
@@ -102,7 +93,12 @@
       let now = clock.monotonicMilliseconds()
       switch state {
       case .requesterAwaitingStepTwo:
-        try bridge.readCpaceFrame(bytes: frame, nowMonotonicMs: now)
+        do {
+          try bridge.readCpaceFrame(bytes: frame, nowMonotonicMs: now)
+        } catch RappBindingError.CustodianBusy {
+          await fail(.custodianBusy(retryAfterMilliseconds: try rappPairingBusyRetryAfterMs(frame)))
+          return
+        }
         continuation.yield(.keyConfirmed)
         let stepThree = try bridge.writeCpaceFrame(nowMonotonicMs: now)
         let handshakeOne = try bridge.writeHandshakeFrame(nowMonotonicMs: now)
@@ -135,6 +131,11 @@
         try bridge.receiveStored(bytes: frame, nowMonotonicMs: now)
         try await activate(now: now)
 
+      case .offer where role == .proxy:
+        // A frame of a connection the custodian answered busy, already
+        // queued when the refusal began; it changes nothing.
+        return
+
       case .offer, .completed, .closed:
         await fail(.protocolFailure)
       }
@@ -144,6 +145,18 @@
     private func receiveCustodianFrame(_ frame: Data, now: UInt64) async throws {
       switch state {
       case .custodianAwaitingStepOne:
+        do {
+          try bridge.beginCpace(
+            candidateId: candidateID, randomBytes64: try entropy.cpaceRandom(),
+            nowMonotonicMs: now)
+        } catch RappBindingError.RateLimited, RappBindingError.WrongPhase {
+          // §4.2 "Busy Refusal": busy in place of step 2 on a frame
+          // transport. BLE refuses the step 1 write at the peripheral and
+          // keeps every link as it is.
+          guard servesOfferAsFrame else { return }
+          await refuse(with: try bridge.busyBytes(nowMonotonicMs: now, spacingWaitMs: 0))
+          return
+        }
         try bridge.readCpaceFrame(bytes: frame, nowMonotonicMs: now)
         let stepTwo = try bridge.writeCpaceFrame(nowMonotonicMs: now)
         state = .custodianAwaitingStepThree

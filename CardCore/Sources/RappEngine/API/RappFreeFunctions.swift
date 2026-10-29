@@ -49,6 +49,21 @@ public func rappCredentialProfiles() -> [String] {
   ProfileName.allCases.map(\.rawValue)
 }
 
+/// The wait a custodian's `pairing-busy` asks for, in milliseconds (RAPP
+/// v26.10.29 §4.2, "PairingBusy Schema"): read from the bootstrap answer or
+/// the frame in place of CPace step 2 after a call threw
+/// ``RappBindingError/CustodianBusy``.
+///
+/// - Throws: ``RappBindingError/InvalidInput`` when `answer` is not a valid
+///   `pairing-busy`.
+public func rappPairingBusyRetryAfterMs(_ answer: Data) throws -> UInt64 {
+  do {
+    return try PairingBusy.decode(answer).retryAfterMilliseconds
+  } catch {
+    throw RappBindingError.InvalidInput
+  }
+}
+
 /// The stream transport's pairing preamble.
 public func rappStreamPairingPreamble() -> Data {
   // The pairing preamble of a registered profile carries no routing, so

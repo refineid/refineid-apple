@@ -24,9 +24,9 @@ internal struct PairingCandidatesTests {
       transportProfiles: [streamProfile, RappBleGattProfile.name])
   }
 
-  /// Opens the next endpoint, which the test expects to exist.
+  /// Opens the next endpoint, which the test expects to be due.
   private static func open(_ ledger: inout PairingCandidates<String>) throws -> String {
-    try #require(try ledger.nextEndpoint())
+    try PairingCandidatesBusyTests.open(&ledger, at: PairingCandidatesBusyTests.now)
   }
 
   @Test("A refusal moves on to the custodian that shows the code")
@@ -40,7 +40,9 @@ internal struct PairingCandidatesTests {
     #expect(try Self.open(&ledger) == "iphone")
     try ledger.beginTry(try Self.offer(Self.secondCustodian))
     try ledger.accepted()
-    #expect(throws: CandidateError.settled) { _ = try ledger.nextEndpoint() }
+    #expect(throws: CandidateError.settled) {
+      _ = try ledger.nextEndpoint(nowMilliseconds: PairingCandidatesBusyTests.now)
+    }
   }
 
   @Test("The code is refused only after every custodian refused it")
@@ -55,7 +57,9 @@ internal struct PairingCandidatesTests {
     try ledger.beginTry(try Self.offer(Self.secondCustodian))
     #expect(try ledger.closed() == .notAccepted)
     ledger.found("late")
-    #expect(throws: CandidateError.settled) { _ = try ledger.nextEndpoint() }
+    #expect(throws: CandidateError.settled) {
+      _ = try ledger.nextEndpoint(nowMilliseconds: PairingCandidatesBusyTests.now)
+    }
   }
 
   @Test("An endpoint found during a try is tried too")
@@ -91,9 +95,13 @@ internal struct PairingCandidatesTests {
     ledger.found("first")
     ledger.found("second")
     _ = try Self.open(&ledger)
-    #expect(throws: CandidateError.connectionOpen) { _ = try ledger.nextEndpoint() }
+    #expect(throws: CandidateError.connectionOpen) {
+      _ = try ledger.nextEndpoint(nowMilliseconds: PairingCandidatesBusyTests.now)
+    }
     try ledger.beginTry(try Self.offer(Self.firstCustodian))
-    #expect(throws: CandidateError.connectionOpen) { _ = try ledger.nextEndpoint() }
+    #expect(throws: CandidateError.connectionOpen) {
+      _ = try ledger.nextEndpoint(nowMilliseconds: PairingCandidatesBusyTests.now)
+    }
     #expect(throws: CandidateError.noConnection) {
       try ledger.beginTry(try Self.offer(Self.secondCustodian))
     }
@@ -123,7 +131,7 @@ internal struct PairingCandidatesTests {
     ledger.found("session-mode phone")
     _ = try Self.open(&ledger)
     #expect(try ledger.closed() == .noneTried)
-    #expect(try ledger.nextEndpoint() == nil)
+    #expect(try ledger.nextEndpoint(nowMilliseconds: PairingCandidatesBusyTests.now) == .exhausted)
     ledger.found("pairing phone")
     #expect(try Self.open(&ledger) == "pairing phone")
     try ledger.beginTry(try Self.offer(Self.firstCustodian))
@@ -149,7 +157,9 @@ internal struct PairingCandidatesTests {
     try ledger.beginTry(try Self.offer(Self.firstCustodian))
     try ledger.accepted()
     #expect(throws: CandidateError.settled) { _ = try ledger.closed() }
-    #expect(throws: CandidateError.settled) { _ = try ledger.nextEndpoint() }
+    #expect(throws: CandidateError.settled) {
+      _ = try ledger.nextEndpoint(nowMilliseconds: PairingCandidatesBusyTests.now)
+    }
   }
 
   @Test("The outcomes drive the requester's pairing machine")

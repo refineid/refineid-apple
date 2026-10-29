@@ -176,6 +176,7 @@ internal final class RappPairingModel: ObservableObject {
       let newCoordinator = try RappPairingCoordinator.custodian(
         options: options(code: code), transport: makeTransport(relay: custodianRelay))
       pairingCode = code
+      custodianRelay.busyAnswer = { newCoordinator.busyAnswer() }
       install(coordinator: newCoordinator, relay: custodianRelay)
       phase = .offer(code)
       Task { await newCoordinator.start() }

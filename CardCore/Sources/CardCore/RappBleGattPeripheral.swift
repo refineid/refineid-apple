@@ -32,6 +32,17 @@ import Foundation
     /// proceed.
     public typealias Admission = @Sendable (RappBleRoutingPurpose, RappBleGattLink) -> Bool
 
+    /// The bootstrap answer served on a read now: the offer while the
+    /// custodian can admit an attempt, `pairing-busy` while it cannot; nil
+    /// when it serves none.
+    public typealias Bootstrap = @Sendable () -> Data?
+
+    /// Decides on the server's queue whether the CPace step 1 written on a
+    /// pairing link can be admitted; one that cannot is refused with ATT
+    /// error Insufficient Resources (RAPP v26.10.29 §4.2, "Busy Refusal"
+    /// item 2).
+    public typealias AttemptAdmission = @Sendable (RappBleGattLink) -> Bool
+
     /// One central's link, from its subscription on.
     internal struct LinkState {
       internal let link: RappBleGattLink
@@ -39,37 +50,49 @@ import Foundation
       /// The fragment payload capacity; zero once the link is closed.
       internal var capacity: Int
       internal var routed = false
+      /// Whether the link was routed for pairing.
+      internal var pairing = false
+      /// Whether the link's CPace step 1 was admitted.
+      internal var attemptAdmitted = false
       internal var open = true
       internal var reassembler = RappBleSarReassembler()
       internal var outbound: [Data] = []
       internal var sendCompletion: CheckedContinuation<Void, any Error>?
     }
 
-    internal let bootstrapOffer: Data?
+    internal let bootstrapAnswer: Bootstrap?
     internal let admits: Admission
+    internal let admitsAttempt: AttemptAdmission
     internal let onEvent: @Sendable (RappBleGattServerEvent) -> Void
     internal let queue = DispatchQueue(label: "fi.refineid.rapp-ble-peripheral")
     internal var manager: CBPeripheralManager?
     internal var channel: CBMutableCharacteristic?
     internal var published = false
     internal var links: [UUID: LinkState] = [:]
+    /// The one attempt across every link, held by the central whose step 1
+    /// was admitted until its link ends or is removed.
+    internal var attemptGate = RappBleAttemptGate()
     internal var finished = false
     private let restoreIdentifier: String?
 
-    /// A custodian serving `bootstrapOffer` (for pairing; nil when only
-    /// stored pairings may reconnect) and admitting the preambles `admits`
-    /// accepts. `restoreIdentifier` names the server to iOS state
-    /// restoration; nil for a server that must not outlive its process.
+    /// A custodian serving what `bootstrap` answers at each read (for
+    /// pairing; nil when only stored pairings may reconnect), admitting the
+    /// preambles `admits` accepts and the CPace step 1 writes
+    /// `admitsAttempt` accepts. `restoreIdentifier` names the server to iOS
+    /// state restoration; nil for a server that must not outlive its
+    /// process.
     @preconcurrency
     public init(
       restoreIdentifier: String?,
-      bootstrapOffer: Data?,
+      bootstrap: Bootstrap?,
       admits: @escaping Admission,
+      admitsAttempt: @escaping AttemptAdmission = { _ in true },
       onEvent: @escaping @Sendable (RappBleGattServerEvent) -> Void
     ) {
       self.restoreIdentifier = restoreIdentifier
-      self.bootstrapOffer = bootstrapOffer
+      self.bootstrapAnswer = bootstrap
       self.admits = admits
+      self.admitsAttempt = admitsAttempt
       self.onEvent = onEvent
       super.init()
     }
@@ -142,6 +165,7 @@ import Foundation
           end(link, .cancelled)
         }
         links.removeAll()
+        attemptGate.releaseAll()
         if let manager {
           manager.stopAdvertising()
           manager.removeAllServices()
@@ -205,6 +229,9 @@ import Foundation
       guard var state = links[link.central], state.link == link, state.open else { return }
       state.open = false
       state.routed = false
+      state.pairing = false
+      state.attemptAdmitted = false
+      attemptGate.release(link.central)
       state.capacity = 0
       state.reassembler.reset()
       state.outbound.removeAll()
