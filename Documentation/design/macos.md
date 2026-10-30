@@ -47,18 +47,16 @@ reads it as a toggle.
   item 6). The Mac stores the click first, with the pairings it holds
   (`RemoteUseForgetting`). An open session closes with `pairing_revoked`,
   and the Mac waits at most 1 second for that close to leave; then those
-  pairings are destroyed with their keys, each name goes once its key is
-  gone, and the same-account records of exactly those pairings' phones
-  leave the account's directory: a phone paired only with another
-  computer stays. What the keychain or the directory does not let go
-  stays under the stored click, which turning on again and the next
-  launch finish first; while they cannot, remote use stays off. A second
-  click off while the first is still forgetting runs after it, and a
-  quit waits for both. A connection still being made closes without a
-  notice. A phone with no session open is told nothing and forgets this
-  computer by its own idle expiry. The phone's identity is withdrawn at
-  once, without its grace, and scanning stops. The click asks for no
-  confirmation. Turning remote use on again asks for a new pairing code.
+  pairings are destroyed with their keys, and each name goes once its key
+  is gone. What the keychain does not let go stays under the stored
+  click, which turning on again and the next launch finish first; while
+  they cannot, remote use stays off. A second click off while the first
+  is still forgetting runs after it, and a quit waits for both. A
+  connection still being made closes without a notice. A phone with no
+  session open is told nothing and forgets this computer by its own idle
+  expiry. The phone's identity is withdrawn at once, without its grace,
+  and scanning stops. The click asks for no confirmation. Turning remote
+  use on again asks for a new pairing code.
 - **The last pairing ends.** When the phone forgets this computer
   (`pairing_revoked`) or the pairing expires after 30 days without a
   session, remote use turns off.

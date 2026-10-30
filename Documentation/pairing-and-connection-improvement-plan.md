@@ -75,10 +75,3 @@ devices (iPhone).
 - `SafariCardLoginUITests.swift` includes pre-flight validation
   (`ensureCryptoTokenIdentityReady`) to verify active CryptoTokenKit publishing
   prior to driving browser flows.
-
-## 6. Automatic Same-AppleID Pairing (Noise IK)
-
-For devices sharing the same Apple ID account, see the full specification in
-[`Documentation/same-apple-id-automatic-pairing.md`](same-apple-id-automatic-pairing.md).
-It details zero-interaction key distribution via private iCloud sync and direct
-pre-authenticated Noise IK handshakes.

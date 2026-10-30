@@ -27,12 +27,12 @@ internal final class StreamSessionDiscoveryTests: XCTestCase {
     let custodianKey = Curve25519.KeyAgreement.PrivateKey()
     let requesterKey = Curve25519.KeyAgreement.PrivateKey()
     return Pairing(
-      custodian: try RappSameAccountPairBuilder.makePairRecord(
+      custodian: try PairRecordFixture.makePairRecord(
         localStaticPrivate: custodianKey.rawRepresentation,
         localStaticPublic: custodianKey.publicKey.rawRepresentation,
         localRole: .proxy,
         remotePublicKey: requesterKey.publicKey.rawRepresentation),
-      requester: try RappSameAccountPairBuilder.makePairRecord(
+      requester: try PairRecordFixture.makePairRecord(
         localStaticPrivate: requesterKey.rawRepresentation,
         localStaticPublic: requesterKey.publicKey.rawRepresentation,
         localRole: .requester,

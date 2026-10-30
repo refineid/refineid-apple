@@ -67,7 +67,6 @@ extension RefineIDApp {
         RappCardPromptNotificationRelay.shared.start()
         HeldSessionHandoffPort.start()
       #endif
-      RappAutoPairingService.shared.start()
 
       activationObserver = NotificationCenter.default.addObserver(
         forName: becameActive, object: nil, queue: .main
@@ -78,7 +77,7 @@ extension RefineIDApp {
       }
 
       pairingsChangeObserver = NotificationCenter.default.addObserver(
-        forName: RappAutoPairingService.pairingsDidChangeNotification,
+        forName: RappPairingModel.pairingsDidChangeNotification,
         object: nil,
         queue: .main
       ) { _ in
@@ -113,8 +112,7 @@ extension RefineIDApp {
     /// app runs.
     ///
     /// On the Mac, a click off that did not finish forgetting is finished
-    /// first, its pairings and its phones' same-account records, and remote
-    /// use stays off while it cannot be (CC-100). Remote use is then
+    /// first, and remote use stays off while it cannot be (CC-100). Remote use is then
     /// restored on only while a pairing remains, once the readers have been
     /// looked at or ``readerScanBound`` has passed: a card in this Mac's
     /// reader starts it suspended (CC-102). Off, it asks macOS for nothing,
@@ -130,8 +128,7 @@ extension RefineIDApp {
         // An earlier run's click off is finished as any forgetting is, so a
         // click off or a quit meanwhile follows it.
         let finishing = PersistentTokenRegistry.shared.finishForgetting(
-          after: nil, in: RappDeviceVault(), store: store,
-          directory: RappAutoPairingService.shared)
+          after: nil, in: RappDeviceVault(), store: store)
         Task { @MainActor in
           await finishing.value
           let pairingRemains =

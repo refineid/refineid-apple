@@ -9,7 +9,7 @@
   ///
   /// Priority Order:
   /// 1. Physical Reader: If a reader is connected with a card present.
-  /// 2. Remote RAPP Card: If no physical card is detected, fallback to an auto-paired same-account iPhone.
+  /// 2. Remote RAPP Card: If no physical card is detected, fallback to the paired phone.
   public enum CardSourceArbitrator {
     // MARK: Types
 

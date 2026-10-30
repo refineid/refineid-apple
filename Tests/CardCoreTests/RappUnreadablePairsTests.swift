@@ -21,7 +21,7 @@
       defer { _ = try? vault.deleteServiceNamespace("fi.refineid.test.unreadable") }
       let local = Curve25519.KeyAgreement.PrivateKey()
       let remote = Curve25519.KeyAgreement.PrivateKey()
-      let readable = try RappSameAccountPairBuilder.makePairRecord(
+      let readable = try PairRecordFixture.makePairRecord(
         localStaticPrivate: local.rawRepresentation,
         localStaticPublic: local.publicKey.rawRepresentation,
         localRole: .requester,

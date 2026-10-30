@@ -81,7 +81,7 @@
 
     private init() {
       pairingsObserver = NotificationCenter.default.addObserver(
-        forName: RappAutoPairingService.pairingsDidChangeNotification,
+        forName: RappPairingModel.pairingsDidChangeNotification,
         object: nil,
         queue: .main
       ) { [weak self] _ in

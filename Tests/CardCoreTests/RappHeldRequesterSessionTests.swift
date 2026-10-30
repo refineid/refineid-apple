@@ -28,7 +28,7 @@
     private static func requester() throws -> RappPairRecord {
       let local = Curve25519.KeyAgreement.PrivateKey()
       let remote = Curve25519.KeyAgreement.PrivateKey()
-      return try RappSameAccountPairBuilder.makePairRecord(
+      return try PairRecordFixture.makePairRecord(
         localStaticPrivate: local.rawRepresentation,
         localStaticPublic: local.publicKey.rawRepresentation,
         localRole: .requester,
