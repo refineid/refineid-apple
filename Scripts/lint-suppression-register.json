@@ -25,22 +25,6 @@
       "count": 1
     },
     {
-      "file": "CardCore/Sources/CardCore/PersistentRelaySession.swift",
-      "command": "disable",
-      "rules": [
-        "discouraged_optional_collection"
-      ],
-      "count": 1
-    },
-    {
-      "file": "CardCore/Sources/CardCore/PersistentRelaySession.swift",
-      "command": "enable",
-      "rules": [
-        "discouraged_optional_collection"
-      ],
-      "count": 1
-    },
-    {
       "file": "CardCore/Sources/CardCore/RappBleGattCentral+Delegate.swift",
       "command": "disable",
       "rules": [

@@ -65,15 +65,12 @@ extension DocumentSigner {
 
   /// Fetches the qualified signature certificate from the paired phone
   /// with retries, leaving the phone a moment before the next request.
-  internal static func fetchRemoteSignatureCertificate(
-    displayName: String
-  ) async throws -> Data {
+  internal static func fetchRemoteSignatureCertificate() async throws -> Data {
     var certificate: Data?
     var certificateError: Error?
     for attempt in 1...RemoteSigningPolicy.maximumCertificateAttempts {
       do {
-        let certificateResponse = try await Self.askPhone(
-          .readSignatureCertificate, displayName: displayName)
+        let certificateResponse = try await Self.askPhone(.readSignatureCertificate)
         if case .signatureCertificate(let cert) = certificateResponse {
           certificate = cert
           break
@@ -97,19 +94,12 @@ extension DocumentSigner {
     return certificate
   }
 
-  /// Runs `operation` on the paired phone: on this computer's one session
-  /// with it where the build holds one, so signing never opens a second
-  /// session beside it; else on a session of its own.
+  /// Runs `operation` on the paired phone over this computer's one session
+  /// with it, so signing never opens a second session beside it.
   private static func askPhone(
-    _ operation: RappRequesterOperation, displayName: String
+    _ operation: RappRequesterOperation
   ) async throws -> RappRequesterResponse {
-    #if REFINEID_STREAM_TRANSPORT
-      return try await PersistentTokenRegistry.shared.perform(operation)
-    #else
-      return try await Task.detached(priority: .userInitiated) {
-        try RappPersistentRequesterClient(displayName: displayName).perform(operation)
-      }.value
-    #endif
+    try await PersistentTokenRegistry.shared.perform(operation)
   }
 
   /// Performs one remote qualified-signature operation.
@@ -154,7 +144,6 @@ extension DocumentSigner {
     certificate: Data,
     content: (Data) -> Data
   ) async throws -> CardMaintenance.QualifiedProduct {
-    let displayName = ProcessInfo.processInfo.hostName
     guard
       let securityCertificate = SecCertificateCreateWithData(
         nil, certificate as CFData
@@ -175,7 +164,6 @@ extension DocumentSigner {
     }
 
     let signature = try await Self.executeRemoteDocumentSigning(
-      displayName: displayName,
       documentName: documentName,
       keyProfile: RappOperationDriver.KeyProfile(profile),
       algorithm: remoteAlgorithm,
@@ -195,7 +183,6 @@ extension DocumentSigner {
   /// Sends the document signing request to the paired phone, retrying transparently
   /// when the transport connection drops or the peer was not found before authorization.
   private static func executeRemoteDocumentSigning(
-    displayName: String,
     documentName: String,
     keyProfile: RappOperationDriver.KeyProfile,
     algorithm: RappOperationDriver.SignatureAlgorithm,
@@ -211,8 +198,7 @@ extension DocumentSigner {
             keyProfile: keyProfile,
             algorithm: algorithm,
             digest: digest
-          ),
-          displayName: displayName)
+          ))
         if case .signature(let signature) = signatureResponse {
           trace("remote signing succeeded: \(signature.count) bytes")
           return signature
@@ -254,11 +240,7 @@ extension DocumentSigner {
       return true
 
     case .peerNotFound:
-      #if REFINEID_STREAM_TRANSPORT
-        return false
-      #else
-        return true
-      #endif
+      return false
 
     case .noActivePair, .noSelectedPair, .terminal, .timedOut,
       .unexpectedResult:

@@ -184,9 +184,8 @@
     private static func runPairingMode(_ mode: DebugLaunchMode) async {
       switch mode {
       case .browseProbe:
-        // The type is fixed to what the relay browses, so the probe answers
-        // for the path that is failing rather than one that is not used.
-        let report = await DebugBrowseProbe.run(type: "_refineid-rly._tcp")
+        // The type is fixed to what the stream transport browses.
+        let report = await DebugBrowseProbe.run(type: StreamRelayListener.serviceType)
         DebugConsole.emit(report.lines)
         DebugConsole.finish(succeeded: report.succeeded)
 

@@ -37,7 +37,7 @@
     /// A phone whose pairing this computer forgot is in sight only to hear
     /// that close, and serves nothing here.
     private var holderInSight: Bool {
-      #if REFINEID_REMOTE_CARD && REFINEID_STREAM_TRANSPORT
+      #if REFINEID_REMOTE_CARD
         remoteRegistry.pairedPhoneID != nil && remoteRegistry.holderInSight
       #else
         false

@@ -65,27 +65,25 @@
         }
       }
 
-      #if REFINEID_STREAM_TRANSPORT
-        distributedWithdrawnObserver = DistributedNotificationCenter.default().addObserver(
-          forName: Notification.Name(
-            RappServiceNotificationNames.serviceWithdrawnDarwinNotification),
-          object: nil,
-          queue: .main
-        ) { _ in
-          MainActor.assumeIsolated {
-            PersistentTokenRegistry.shared.holderWithdrew()
-          }
+      distributedWithdrawnObserver = DistributedNotificationCenter.default().addObserver(
+        forName: Notification.Name(
+          RappServiceNotificationNames.serviceWithdrawnDarwinNotification),
+        object: nil,
+        queue: .main
+      ) { _ in
+        MainActor.assumeIsolated {
+          PersistentTokenRegistry.shared.holderWithdrew()
         }
-        distributedRevokedObserver = DistributedNotificationCenter.default().addObserver(
-          forName: Notification.Name(RappServiceNotificationNames.pairingRevokedDarwinNotification),
-          object: nil,
-          queue: .main
-        ) { _ in
-          MainActor.assumeIsolated {
-            PersistentTokenRegistry.shared.holderRevokedElsewhere()
-          }
+      }
+      distributedRevokedObserver = DistributedNotificationCenter.default().addObserver(
+        forName: Notification.Name(RappServiceNotificationNames.pairingRevokedDarwinNotification),
+        object: nil,
+        queue: .main
+      ) { _ in
+        MainActor.assumeIsolated {
+          PersistentTokenRegistry.shared.holderRevokedElsewhere()
         }
-      #endif
+      }
     }
 
     private func schedulePromptNotification() {

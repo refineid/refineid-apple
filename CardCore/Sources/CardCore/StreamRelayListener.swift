@@ -8,11 +8,8 @@ import Foundation
 
   /// Accepts one `fi.refineid.stream` connection and carries frames over it.
   ///
-  /// The card holder listens and the requester dials, which is the opposite
-  /// of the nearby transport and is why this exists: peer discovery there
-  /// depends on a mechanism two system generations no longer agree on, while
-  /// a published service and a dialled port are carried by the plain name
-  /// service both of them still speak.
+  /// The card holder listens and the requester dials, over a published
+  /// service and a dialled port carried by the plain name service.
   ///
   /// The transport carries opaque frames and never decodes protocol or card
   /// data; peer authentication belongs to the session above it.

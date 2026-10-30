@@ -97,9 +97,7 @@
       let response: RappRequesterResponse?
       var failure: String?
       do {
-        response = try RappPersistentRequesterClient(
-          displayName: String(localized: "RefineID iPad")
-        ).perform(.readAuthenticationCertificate)
+        response = try RappPersistentRequesterClient().perform(.readAuthenticationCertificate)
       } catch let error as RappRequesterClientError {
         response = nil
         failure = remoteFailureText(for: error)

@@ -5,14 +5,9 @@
 
   /// The transport one session the phone serves runs over.
   internal enum ServedTransport: Hashable {
-    #if REFINEID_STREAM_TRANSPORT
-      /// One central's Bluetooth link.
-      case bluetooth(RappBleGattLink)
-      /// One connection on the session listener.
-      case stream(StreamSessionConnection)
-    #else
-      /// The nearby connection.
-      case nearby
-    #endif
+    /// One central's Bluetooth link.
+    case bluetooth(RappBleGattLink)
+    /// One connection on the session listener.
+    case stream(StreamSessionConnection)
   }
 #endif

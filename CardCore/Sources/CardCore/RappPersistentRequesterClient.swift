@@ -1,6 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-#if canImport(MultipeerConnectivity) && canImport(RappEngine)
+#if canImport(RappEngine)
   import Foundation
   import Network
   import os
@@ -28,7 +28,6 @@
 
     // MARK: Properties
 
-    private let displayName: String
     internal let policy: RappRequesterPolicy
     internal let explicitPair: RappPairRecord?
     internal let vault: RappDeviceVault
@@ -41,17 +40,8 @@
       capacity: OrderedDelivery.relayFrameCapacity)
     internal var operation: RappRequesterOperation?
 
-    #if REFINEID_STREAM_TRANSPORT
-      internal var browser: StreamRelayBrowser?
-      internal var dialer: StreamRelaySession?
-    #else
-      internal lazy var relay = PersistentRelaySession(
-        role: .host,
-        displayName: displayName
-      ) { [weak self] event in
-        self?.receive(event)
-      }
-    #endif
+    internal var browser: StreamRelayBrowser?
+    internal var dialer: StreamRelaySession?
 
     internal lazy var transport = RappClosureFrameTransport(
       sender: { [weak self] frame in
@@ -66,12 +56,10 @@
     /// Builds a one-shot client that connects over the persistent relay
     /// and resolves its pair from the vault or explicit pair record.
     public init(
-      displayName: String,
       policy: RappRequesterPolicy = .interactive,
       pair: RappPairRecord? = nil,
       vault: RappDeviceVault = RappDeviceVault()
     ) {
-      self.displayName = displayName
       self.policy = policy
       self.explicitPair = pair
       self.vault = vault

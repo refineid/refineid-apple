@@ -33,10 +33,7 @@
 	</dict>
 	<key>NSBonjourServices</key>
 	<array>
-		<string>_refineid-rly._tcp</string>
-		<string>_refineid-rly._udp</string>
 		<string>_refineid-stream._tcp</string>
-		<string>_refineid-stream._udp</string>
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>RefineID connects your phone and computer over the local network while Remote Access is on.</string>

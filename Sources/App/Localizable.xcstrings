@@ -3467,22 +3467,6 @@
         }
       }
     },
-    "RefineID Mac": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "RefineID Mac"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "RefineID Mac"
-          }
-        }
-      }
-    },
     "RefineID does not use either of the last two attempts.": {
       "extractionState": "manual",
       "localizations": {
@@ -3496,44 +3480,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "RefineID använder inte något av de två sista försöken."
-          }
-        }
-      }
-    },
-    "RefineID iPad": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "RefineID iPad"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "RefineID iPad"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "RefineID iPad"
-          }
-        }
-      }
-    },
-    "RefineID iPhone": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "RefineID iPhone"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "RefineID iPhone"
           }
         }
       }

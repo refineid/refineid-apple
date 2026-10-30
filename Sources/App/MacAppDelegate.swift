@@ -35,7 +35,7 @@
     internal func applicationShouldTerminate(_ sender: NSApplication)
       -> NSApplication.TerminateReply
     {
-      #if REFINEID_REMOTE_CARD && REFINEID_STREAM_TRANSPORT
+      #if REFINEID_REMOTE_CARD
         guard
           let pending = QuitWithdrawal.begin(
             remoteUse: .shared, registry: .shared)

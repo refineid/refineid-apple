@@ -23,14 +23,7 @@
 
       let started = Date()
       do {
-        #if os(macOS)
-          let clientDisplayName = String(localized: "RefineID Mac")
-        #else
-          let clientDisplayName = String(localized: "RefineID iPad")
-        #endif
-        let response = try RappPersistentRequesterClient(
-          displayName: clientDisplayName
-        ).perform(.readAuthenticationCertificate)
+        let response = try RappPersistentRequesterClient().perform(.readAuthenticationCertificate)
         guard case .authenticationCertificate(let der) = response else {
           lines.append("FAIL: answered something other than a certificate")
           return DebugModeReport(lines: lines, succeeded: false)

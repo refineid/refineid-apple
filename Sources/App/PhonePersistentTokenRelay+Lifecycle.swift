@@ -10,11 +10,7 @@
     // MARK: Computed Properties
 
     internal var isServing: Bool {
-      #if REFINEID_STREAM_TRANSPORT
-        return sessionListener != nil || bluetoothServer != nil
-      #else
-        return relay != nil
-      #endif
+      sessionListener != nil || bluetoothServer != nil
     }
 
     // MARK: Functions
@@ -29,27 +25,16 @@
     /// Paired computers learn it at once instead of waiting out a lost
     /// advertisement. The pairing remains.
     internal func withdrawAndStopServing() {
-      #if REFINEID_STREAM_TRANSPORT
-        withdrawService { [weak self] in self?.tearDownTransport() }
-      #else
-        tearDownTransport()
-      #endif
+      withdrawService { [weak self] in self?.tearDownTransport() }
     }
 
     /// Drops the listener, the Bluetooth server and every open session,
     /// leaving the reconnect policy as the caller set it.
     internal func tearDownTransport() {
-      #if REFINEID_STREAM_TRANSPORT
-        stopListening()
-        sessionListening.withdrawal?.cancel()
-        sessionListening.withdrawal = nil
-        stopBluetoothServing()
-      #else
-        relay?.cancel()
-        relay = nil
-        nearbyConnectionID = nil
-        preCoordinatorFrames.removeAll(keepingCapacity: false)
-      #endif
+      stopListening()
+      sessionListening.withdrawal?.cancel()
+      sessionListening.withdrawal = nil
+      stopBluetoothServing()
       for session in sessions.values {
         session.close()
       }

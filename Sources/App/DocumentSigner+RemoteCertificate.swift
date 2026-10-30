@@ -62,9 +62,8 @@ extension DocumentSigner {
   /// The paired phone's signature certificate, read once per pairing.
   internal static func remoteSignatureCertificate() async throws -> Data {
     let pairID = try? RappDeviceVault().selectedPairID()
-    let displayName = ProcessInfo.processInfo.hostName
     return try await Self.remoteCertificates.certificate(for: pairID) {
-      try await Self.fetchRemoteSignatureCertificate(displayName: displayName)
+      try await Self.fetchRemoteSignatureCertificate()
     }
   }
 }

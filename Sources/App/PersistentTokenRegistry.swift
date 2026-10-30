@@ -54,15 +54,6 @@
       #endif
     }
 
-    /// Whether a presence browser reports the holder in this build.
-    internal static var browsesForPresence: Bool {
-      #if REFINEID_STREAM_TRANSPORT
-        true
-      #else
-        false
-      #endif
-    }
-
     // MARK: Static Computed Properties
 
     internal static var driverConfiguration: TKTokenDriver.Configuration? {
@@ -84,15 +75,6 @@
     /// only field that names the PIN 1 identity in DVV's wording.
     internal static var authenticationLabel: String {
       CredentialLabels.name(for: .pin1)
-    }
-
-    /// What this device calls itself to the phone.
-    internal static var displayName: String {
-      #if os(macOS)
-        String(localized: "RefineID Mac")
-      #else
-        String(localized: "RefineID iPad")
-      #endif
     }
 
     // MARK: Properties
@@ -155,60 +137,57 @@
     /// active again and tries afresh.
     internal var localNetworkDenied = false
 
-    #if REFINEID_STREAM_TRANSPORT
-      internal var presence: StreamRelayPresence?
+    internal var presence: StreamRelayPresence?
 
-      /// Marks the holder gone from the network after Bonjour has
-      /// omitted it for ``advertisementLossHold``.
-      internal var advertisementLossTask: Task<Void, Never>?
-      internal var pairingsObservers: [any NSObjectProtocol] = []
+    /// Marks the holder gone from the network after Bonjour has
+    /// omitted it for ``advertisementLossHold``.
+    internal var advertisementLossTask: Task<Void, Never>?
+    internal var pairingsObservers: [any NSObjectProtocol] = []
 
-      /// The standing session with the phone, while one is open.
-      internal var holderSession: RappHeldRequesterSession?
+    /// The standing session with the phone, while one is open.
+    internal var holderSession: RappHeldRequesterSession?
 
-      /// Names the open session, so a report from one this registry
-      /// already let go is not taken for the current one's.
-      internal var holderSessionToken: UUID?
+    /// Names the open session, so a report from one this registry
+    /// already let go is not taken for the current one's.
+    internal var holderSessionToken: UUID?
 
-      /// The pairing whose hint the phone on the network carries; a session
-      /// dials it and no other (RAPP v26.10.29 §4.6 item 2).
-      internal var pairInSight: Data?
+    /// The pairing whose hint the phone on the network carries; a session
+    /// dials it and no other (RAPP v26.10.29 §4.6 item 2).
+    internal var pairInSight: Data?
 
-      /// Dials the phone again once the wait after a session that ended is
-      /// over.
-      internal var redialTask: Task<Void, Never>?
+    /// Dials the phone again once the wait after a session that ended is
+    /// over.
+    internal var redialTask: Task<Void, Never>?
 
-      /// Whether the phone still confirms the offered card (§8.4 item 3).
-      internal var identityOffer = RemoteIdentityOffer(unconfirmedSince: .now)
+    /// Whether the phone still confirms the offered card (§8.4 item 3).
+    internal var identityOffer = RemoteIdentityOffer(unconfirmedSince: .now)
 
-      /// Withdraws the identity once ``identityOffer`` has lapsed.
-      internal var offerLapseTask: Task<Void, Never>?
+    /// Withdraws the identity once ``identityOffer`` has lapsed.
+    internal var offerLapseTask: Task<Void, Never>?
 
-      /// The one session this computer holds with the phone: whether it is
-      /// being dialled or is up, over which transport, and when the next
-      /// dial may go.
-      internal var sessionSlot = RequesterSessionSlot()
+    /// The one session this computer holds with the phone: whether it is
+    /// being dialled or is up, over which transport, and when the next
+    /// dial may go.
+    internal var sessionSlot = RequesterSessionSlot()
 
-      /// Whether Bonjour lists the phone's record this moment, without the
-      /// hold ``holderIsAdvertising`` applies to a vanished one: a record
-      /// gone for good sends the next dial over Bluetooth at once.
-      internal var holderRecordListed = false
+    /// Whether Bonjour lists the phone's record this moment, without the
+    /// hold ``holderIsAdvertising`` applies to a vanished one: a record
+    /// gone for good sends the next dial over Bluetooth at once.
+    internal var holderRecordListed = false
 
-      /// Whether a stream dial failed since the phone last appeared on
-      /// Bonjour (CC-72).
-      internal var streamFailedInSight = false
+    /// Whether a stream dial failed since the phone last appeared on
+    /// Bonjour (CC-72).
+    internal var streamFailedInSight = false
 
-      /// Whether Bluetooth may be dialed: not found off or refused to this
-      /// app since the pairing or the phone's presence last changed.
-      internal var bluetoothUsable = PersistentTokenRegistry.dialsOverBluetooth
+    /// Whether Bluetooth may be dialed: not found off or refused to this
+    /// app since the pairing or the phone's presence last changed.
+    internal var bluetoothUsable = PersistentTokenRegistry.dialsOverBluetooth
 
-      /// Which advertisers Bluetooth dials prefer and avoid (CC-53).
-      internal var bluetoothPeers = RequesterBluetoothPeers()
+    /// Which advertisers Bluetooth dials prefer and avoid (CC-53).
+    internal var bluetoothPeers = RequesterBluetoothPeers()
 
-      /// Dials once Bonjour has had its chance to show the phone.
-      internal var settleDialTask: Task<Void, Never>?
-
-    #endif
+    /// Dials once Bonjour has had its chance to show the phone.
+    internal var settleDialTask: Task<Void, Never>?
 
     #if os(macOS) && REFINEID_REMOTE_CARD
       /// The latest click off forgetting every pairing (RAPP v26.10.29 §4.6
@@ -302,13 +281,9 @@
       Self.withdrawPublishedIdentity()
       fetchBackoff.reset()
       continuousFailureSince = nil
-      #if REFINEID_STREAM_TRANSPORT
-        bluetoothUsable = Self.dialsOverBluetooth
-        installPairingObservers()
-        startWatchingPresence()
-      #else
-        readCertificateOnce()
-      #endif
+      bluetoothUsable = Self.dialsOverBluetooth
+      installPairingObservers()
+      startWatchingPresence()
     }
 
     /// Follows the phone after a pairing, replacing any identity a
@@ -325,42 +300,11 @@
       }
       fetchBackoff.reset()
       continuousFailureSince = nil
-      #if REFINEID_STREAM_TRANSPORT
-        bluetoothUsable = Self.dialsOverBluetooth
-        bluetoothPeers = RequesterBluetoothPeers()
-        closeHolderSession()
-        restartWatchingPresence()
-      #else
-        readCertificateOnce()
-      #endif
+      bluetoothUsable = Self.dialsOverBluetooth
+      bluetoothPeers = RequesterBluetoothPeers()
+      closeHolderSession()
+      restartWatchingPresence()
     }
-
-    #if !REFINEID_STREAM_TRANSPORT
-      /// Reads the certificate once over the nearby relay, which carries
-      /// no standing session.
-      private func readCertificateOnce() {
-        guard !isRunning else { return }
-        let hasPairs = (try? RappDeviceVault().activePairIDs().isEmpty == false) ?? false
-        guard hasPairs else { return }
-        beginRead()
-        Task.detached(priority: .userInitiated) {
-          let fetched: Data?
-          do {
-            let response = try RappPersistentRequesterClient(
-              displayName: Self.displayName
-            ).perform(.readAuthenticationCertificate)
-            if case .authenticationCertificate(let certificate) = response {
-              fetched = certificate
-            } else {
-              fetched = nil
-            }
-          } catch {
-            fetched = nil
-          }
-          await Self.shared.finishRead(fetched)
-        }
-      }
-    #endif
 
     /// Marks a certificate read as in flight.
     internal func beginRead() {
@@ -373,9 +317,7 @@
       defer { isRunning = false }
       guard let fetched else {
         fetchBackoff.recordFailure(at: .now)
-        #if REFINEID_STREAM_TRANSPORT
-          retryReadAfterFailure()
-        #endif
+        retryReadAfterFailure()
         return
       }
       // Only the card the phone names on this session is offered (RAPP

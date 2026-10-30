@@ -137,8 +137,8 @@ decide which transition and output are legal.
 
 ## Stream transport
 
-`fi.refineid.stream` (RAPP v26.10.29 §2.2.2) lets a non-Apple requester
-participate without MultipeerConnectivity. The underlay is plain TCP. Every
+`fi.refineid.stream` (RAPP v26.10.29 §2.2.2) carries RAPP between Apple
+and non-Apple peers alike. The underlay is plain TCP. Every
 frame is a 2-byte big-endian length prefix plus payload; a zero length is
 malformed and the prefix bounds every allocation. The phone listens and the
 requester dials (discovery hierarchy). The requester's first frame is the
@@ -217,7 +217,7 @@ The iOS application embeds the reader token extension, the discovery
 extension, and the RAPP persistent-token extension (2026-08-17; the
 extension was macOS-only before the iOS requester role existed). The
 containing applications declare the local-network usage text and
-`_refineid-rly._tcp` Bonjour service; the RAPP extension's Info.plist
+`_refineid-stream._tcp` Bonjour service; the RAPP extension's Info.plist
 carries the same declarations for its own iOS process. macOS publishes
 the delegated identity at launch through `PersistentTokenRegistry`; iOS
 publishes it from the explicit remote connect, which already holds the
@@ -286,8 +286,7 @@ The following was measured before this handoff:
   completed a Safari suomi.fi client-certificate login whose signature
   the phone executed against the physical card. Simulator ctkd loaded
   the extension, simulator Safari offered the persistent token, and the
-  extension ran its MultipeerConnectivity requester transport from the
-  extension process. Treat as integration evidence, not release
+  extension ran its requester transport from the extension process. Treat as integration evidence, not release
   qualification; the recorded physical matrix remains open.
 
 The Virtual ID Card uses the real UI and operation orchestration while

@@ -18,8 +18,7 @@
   /// v26.10.29 §8.2 item 2, §8.3).
   ///
   /// Each routed connection is a session of its own, on the stream
-  /// listener, the Bluetooth server, or, in a build without the stream, the
-  /// nearby relay; an open session is never a reason to refuse, hold or
+  /// listener or the Bluetooth server; an open session is never a reason to refuse, hold or
   /// displace another (STPA CC-58). The transports are opaque frame
   /// carriers; all identity, sequencing, operation, and fail-stop decisions
   /// belong to RAPP.
@@ -44,36 +43,26 @@
     internal var cardReports = CardStatusReports<UUID>()
     /// Sweeps the pairings for idle expiry while the app runs.
     internal let idleSweep = PairingIdleSweep()
-    #if REFINEID_STREAM_TRANSPORT
-      /// The session listener, while the phone serves the stream.
-      internal var sessionListener: StreamSessionListener?
-      /// Takes the listener's events on the main actor, in order.
-      internal var sessionListenerEvents: Task<Void, Never>?
-      internal var sessionListening = SessionListening()
-      /// The GATT server, while the phone serves over Bluetooth.
-      internal var bluetoothServer: RappBleGattPeripheral?
-      /// Takes the server's events on the main actor, in order.
-      internal var bluetoothEvents: Task<Void, Never>?
-      /// The pairings and replay memory the server's queue routes links
-      /// with, and the pairing each admitted link routed to.
-      nonisolated internal let bluetoothRouting = OSAllocatedUnfairLock(
-        initialState: BluetoothRouting())
-      /// Whether the server advertises now.
-      internal var bluetoothAdvertising = false
-      /// Whether the stream listener stays down while the app is in the
-      /// background (CC-68).
-      internal var streamSuspended = false
-      /// Observes the app entering and leaving the background.
-      internal var lifecycleObservers: [any NSObjectProtocol] = []
-    #else
-      /// The nearby relay, while the phone serves it.
-      internal var relay: PersistentRelaySession?
-      /// Names the nearby connection, so a report from an earlier one is
-      /// dropped.
-      internal var nearbyConnectionID: UUID?
-      /// Frames the nearby connection delivered before its session started.
-      internal var preCoordinatorFrames: [Data] = []
-    #endif
+    /// The session listener, while the phone serves the stream.
+    internal var sessionListener: StreamSessionListener?
+    /// Takes the listener's events on the main actor, in order.
+    internal var sessionListenerEvents: Task<Void, Never>?
+    internal var sessionListening = SessionListening()
+    /// The GATT server, while the phone serves over Bluetooth.
+    internal var bluetoothServer: RappBleGattPeripheral?
+    /// Takes the server's events on the main actor, in order.
+    internal var bluetoothEvents: Task<Void, Never>?
+    /// The pairings and replay memory the server's queue routes links
+    /// with, and the pairing each admitted link routed to.
+    nonisolated internal let bluetoothRouting = OSAllocatedUnfairLock(
+      initialState: BluetoothRouting())
+    /// Whether the server advertises now.
+    internal var bluetoothAdvertising = false
+    /// Whether the stream listener stays down while the app is in the
+    /// background (CC-68).
+    internal var streamSuspended = false
+    /// Observes the app entering and leaving the background.
+    internal var lifecycleObservers: [any NSObjectProtocol] = []
     @Published internal var isActivelyConnected = false {
       didSet { connectionIndicator.update(active: isActivelyConnected) }
     }
@@ -105,9 +94,7 @@
           Self.shared.prepareReaderCard()
         }
       }
-      #if REFINEID_STREAM_TRANSPORT
-        observeLifecycle()
-      #endif
+      observeLifecycle()
     }
 
     // MARK: Functions
@@ -119,16 +106,12 @@
       // A proxy without an antenna is not a proxy: only near-field
       // devices advertise as the card holder.
       guard SupportedCardTransports.offersNearField else { return }
-      #if REFINEID_STREAM_TRANSPORT
-        guard hasUsablePair() else { return }
-        let contexts = PhoneStreamPairContext.resolveAll(vault: vault)
-        guard !contexts.isEmpty else { return }
-        startBluetoothServing(contexts)
-        guard !streamSuspended else { return }
-        startListening(contexts)
-      #else
-        startNearby()
-      #endif
+      guard hasUsablePair() else { return }
+      let contexts = PhoneStreamPairContext.resolveAll(vault: vault)
+      guard !contexts.isEmpty else { return }
+      startBluetoothServing(contexts)
+      guard !streamSuspended else { return }
+      startListening(contexts)
     }
 
     /// Opens the session a routed connection carries, over `pair`.
@@ -188,9 +171,7 @@
         prepareReaderCard()
 
       case .operationOver:
-        #if REFINEID_STREAM_TRANSPORT
-          suspendStreamWhenIdle()
-        #endif
+        suspendStreamWhenIdle()
 
       case .frameOverrun:
         #if DEBUG
@@ -231,25 +212,18 @@
         tearDownTransport()
         return
       }
-      #if REFINEID_STREAM_TRANSPORT
-        suspendStreamWhenIdle()
-      #endif
+      suspendStreamWhenIdle()
     }
 
-    /// Ends the connection under `session`: its stream connection, its
-    /// Bluetooth link, or the nearby relay.
+    /// Ends the connection under `session`: its stream connection or its
+    /// Bluetooth link.
     internal func dropTransport(of session: ServedSession) {
       switch session.transport {
-      #if REFINEID_STREAM_TRANSPORT
-        case .stream(let connection):
-          sessionListener?.disconnect(connection)
+      case .stream(let connection):
+        sessionListener?.disconnect(connection)
 
-        case .bluetooth(let link):
-          bluetoothServer?.close(link)
-      #else
-        case .nearby:
-          relay?.cancel()
-      #endif
+      case .bluetooth(let link):
+        bluetoothServer?.close(link)
       }
     }
 

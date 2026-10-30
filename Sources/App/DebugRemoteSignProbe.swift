@@ -33,15 +33,11 @@
       let started = Date()
       do {
         #if os(macOS)
-          let clientDisplayName = String(localized: "RefineID Mac")
           let displayContext = "macOS CryptoTokenKit"
         #else
-          let clientDisplayName = String(localized: "RefineID iPad")
           let displayContext = "iOS CryptoTokenKit"
         #endif
-        let response = try RappPersistentRequesterClient(
-          displayName: clientDisplayName
-        ).perform(
+        let response = try RappPersistentRequesterClient().perform(
           .browserAuthentication(
             displayContext: displayContext,
             keyProfile: .ecdsaP384,

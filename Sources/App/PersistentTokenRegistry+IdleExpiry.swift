@@ -10,12 +10,8 @@
   extension PersistentTokenRegistry {
     /// The pairings a session is established to now.
     private var establishedPairings: Set<Data> {
-      #if REFINEID_STREAM_TRANSPORT
-        guard sessionSlot.isEstablished, let pairID = holderSession?.pairID else { return [] }
-        return [pairID]
-      #else
-        return []
-      #endif
+      guard sessionSlot.isEstablished, let pairID = holderSession?.pairID else { return [] }
+      return [pairID]
     }
 
     /// Sweeps every pairing for idle expiry at launch (RAPP v26.10.29 §4.6
@@ -78,17 +74,13 @@
       if let published = Self.publishedPairID(), pairIDs.contains(published) {
         Self.withdrawPublishedIdentity()
       }
-      #if REFINEID_STREAM_TRANSPORT
-        // A dial still under way over an expired pairing ends; one
-        // established would have kept it.
-        if let dialing = holderSession?.pairID, pairIDs.contains(dialing) {
-          closeHolderSession()
-        }
-      #endif
+      // A dial still under way over an expired pairing ends; one
+      // established would have kept it.
+      if let dialing = holderSession?.pairID, pairIDs.contains(dialing) {
+        closeHolderSession()
+      }
       refreshPairing()
-      #if REFINEID_STREAM_TRANSPORT
-        restartWatchingPresence()
-      #endif
+      restartWatchingPresence()
       #if os(macOS) && REFINEID_REMOTE_CARD
         remoteUseFollowsThePairings(.shared, in: RappDeviceVault())
       #endif

@@ -65,9 +65,7 @@ extension RefineIDApp {
       startFromThePairings()
       #if os(macOS)
         RappCardPromptNotificationRelay.shared.start()
-        #if REFINEID_STREAM_TRANSPORT
-          HeldSessionHandoffPort.start()
-        #endif
+        HeldSessionHandoffPort.start()
       #endif
       RappAutoPairingService.shared.start()
 
@@ -107,9 +105,7 @@ extension RefineIDApp {
       #if os(macOS)
         RemoteUseSwitch.shared.recheckLocalNetwork()
       #endif
-      #if REFINEID_STREAM_TRANSPORT
-        PersistentTokenRegistry.shared.retryAfterLocalNetworkDenial()
-      #endif
+      PersistentTokenRegistry.shared.retryAfterLocalNetworkDenial()
     }
 
     /// Sweeps the pairings for idle expiry (RAPP v26.10.29 §4.6 item 5),
