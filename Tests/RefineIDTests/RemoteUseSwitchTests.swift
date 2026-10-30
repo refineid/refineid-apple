@@ -108,9 +108,13 @@
       #expect(rig.localNetwork.starts == 0)
       #expect(rig.moves.value.isEmpty)
 
-      // The app's own switch holds no Bluetooth manager and runs no browse.
+      // The app's own switch, launched the same way, holds no Bluetooth
+      // manager and runs no browse.
       let shared = RemoteUseSwitch.shared
+      shared.holdUntilLaunched()
+      shared.start(pairingRemains: false, suspended: false)
       #expect(!shared.isOn)
+      #expect(!PersistentTokenRegistry.remoteUseOn)
       #expect(!shared.bluetoothWatch.isWatching)
       #expect(!shared.localNetworkWatch.isWatching)
     }
