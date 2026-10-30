@@ -140,7 +140,7 @@
         .ctkSignProbe, .listenProbe, .managementProbe,
         .offerRemoteReader, .openSafari, .pairWithOffer, .prime, .remoteIdentityProbe,
         .remoteSignProbe:
-        // CoreNFC, MultipeerConnectivity, and CTK system sheets need a live window / scene.
+        // CoreNFC and CTK system sheets need a live window / scene.
         true
       }
     }

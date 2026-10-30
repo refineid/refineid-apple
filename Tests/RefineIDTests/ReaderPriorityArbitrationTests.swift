@@ -111,36 +111,34 @@
       #expect(PersistentTokenRegistry.shared.certificateDER == nil)
     }
 
-    #if REFINEID_STREAM_TRANSPORT
-      /// A card in this Mac's reader leaves the phone undialled and its
-      /// session unheld; once it leaves, the phone may be dialled again.
-      @Test
-      internal func readerCardLeavesThePhoneSessionUnheld() async {
-        let initialPresence = CardPresence.shared.isReaderCardPresent
-        let registry = PersistentTokenRegistry.shared
-        let initialBluetooth = registry.bluetoothUsable
-        RemoteAccessGate.setEnabled(true)
-        defer {
-          RemoteAccessGate.setEnabled(false)
-          registry.remoteUseChanged(.stopped)
-          CardPresence.shared.setReaderCardPresentForTesting(initialPresence)
-          registry.bluetoothUsable = initialBluetooth
-        }
-        registry.bluetoothUsable = true
-
-        CardPresence.shared.setReaderCardPresentForTesting(true)
-        #expect(registry.transportPolicy.nextDial == nil)
-        registry.openHolderSession()
-        #expect(registry.holderSession == nil)
-        #expect(!registry.holderInSight)
-        let handoff = RappHeldSessionHandoff.Request(
-          pairID: nil, operation: .readAuthenticationCertificate)
-        #expect(await registry.carry(handoff) == .failed(.peerNotFound))
-
-        CardPresence.shared.setReaderCardPresentForTesting(false)
-        #expect(registry.transportPolicy.nextDial == .bluetooth)
+    /// A card in this Mac's reader leaves the phone undialled and its
+    /// session unheld; once it leaves, the phone may be dialled again.
+    @Test
+    internal func readerCardLeavesThePhoneSessionUnheld() async {
+      let initialPresence = CardPresence.shared.isReaderCardPresent
+      let registry = PersistentTokenRegistry.shared
+      let initialBluetooth = registry.bluetoothUsable
+      RemoteAccessGate.setEnabled(true)
+      defer {
+        RemoteAccessGate.setEnabled(false)
+        registry.remoteUseChanged(.stopped)
+        CardPresence.shared.setReaderCardPresentForTesting(initialPresence)
+        registry.bluetoothUsable = initialBluetooth
       }
-    #endif
+      registry.bluetoothUsable = true
+
+      CardPresence.shared.setReaderCardPresentForTesting(true)
+      #expect(registry.transportPolicy.nextDial == nil)
+      registry.openHolderSession()
+      #expect(registry.holderSession == nil)
+      #expect(!registry.holderInSight)
+      let handoff = RappHeldSessionHandoff.Request(
+        pairID: nil, operation: .readAuthenticationCertificate)
+      #expect(await registry.carry(handoff) == .failed(.peerNotFound))
+
+      CardPresence.shared.setReaderCardPresentForTesting(false)
+      #expect(registry.transportPolicy.nextDial == .bluetooth)
+    }
 
     @Test
     internal func displacedRemoteCardConfigurationIDsIdentification() {

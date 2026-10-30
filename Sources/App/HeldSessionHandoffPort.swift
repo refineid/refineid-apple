@@ -1,6 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-#if os(macOS) && REFINEID_REMOTE_CARD && REFINEID_STREAM_TRANSPORT
+#if os(macOS) && REFINEID_REMOTE_CARD
   import CardCore
   import Foundation
   import os

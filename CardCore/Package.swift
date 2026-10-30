@@ -43,9 +43,6 @@ private let package = Package(
         "PcscCardReset",
         "RappEngine",
       ],
-      swiftSettings: [
-        .define("REFINEID_STREAM_TRANSPORT")
-      ],
       linkerSettings: [
         .linkedFramework("Security")
       ]),

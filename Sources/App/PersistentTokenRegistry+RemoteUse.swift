@@ -32,38 +32,32 @@
 
     /// Whether a session with the phone is up: dialled and established.
     internal var holderSessionOpen: Bool {
-      #if REFINEID_STREAM_TRANSPORT
-        sessionSlot.isEstablished
-      #else
-        false
-      #endif
+      sessionSlot.isEstablished
     }
 
     #if os(macOS) && REFINEID_REMOTE_CARD
-      #if REFINEID_STREAM_TRANSPORT
-        /// Waits for `closes`, at most `limit`, answering whether the close
-        /// left in time.
-        nonisolated private static func settled(
-          _ closes: Task<Bool, Never>, atMost limit: Duration
-        ) async -> Bool {
-          let pending = OSAllocatedUnfairLock<CheckedContinuation<Bool, Never>?>(initialState: nil)
-          return await withCheckedContinuation { continuation in
-            pending.withLock { $0 = continuation }
-            let finish: @Sendable (Bool) -> Void = { left in
-              let waiting = pending.withLock { waiting in
-                defer { waiting = nil }
-                return waiting
-              }
-              waiting?.resume(returning: left)
+      /// Waits for `closes`, at most `limit`, answering whether the close
+      /// left in time.
+      nonisolated private static func settled(
+        _ closes: Task<Bool, Never>, atMost limit: Duration
+      ) async -> Bool {
+        let pending = OSAllocatedUnfairLock<CheckedContinuation<Bool, Never>?>(initialState: nil)
+        return await withCheckedContinuation { continuation in
+          pending.withLock { $0 = continuation }
+          let finish: @Sendable (Bool) -> Void = { left in
+            let waiting = pending.withLock { waiting in
+              defer { waiting = nil }
+              return waiting
             }
-            Task.detached { finish(await closes.value) }
-            Task.detached {
-              try? await Task.sleep(for: limit)
-              finish(false)
-            }
+            waiting?.resume(returning: left)
+          }
+          Task.detached { finish(await closes.value) }
+          Task.detached {
+            try? await Task.sleep(for: limit)
+            finish(false)
           }
         }
-      #endif
+      }
 
     #endif
 
@@ -128,11 +122,7 @@
         RemoteUseForgetting.request(
           at: RappPlatformClock().wallMilliseconds(), listing: vault, in: store)
         phoneThatForgot = nil
-        #if REFINEID_STREAM_TRANSPORT
-          let closes = revokeHolderSession()
-        #else
-          let closes: Task<Bool, Never>? = nil
-        #endif
+        let closes = revokeHolderSession()
         withdraw()
         finishForgetting(after: closes, in: vault, store: store, directory: directory)
       }
@@ -161,11 +151,9 @@
           if let earlier {
             _ = await earlier.value
           }
-          #if REFINEID_STREAM_TRANSPORT
-            if let closes {
-              _ = await Self.settled(closes, atMost: QuitWithdrawal.bound)
-            }
-          #endif
+          if let closes {
+            _ = await Self.settled(closes, atMost: QuitWithdrawal.bound)
+          }
           return await RemoteUseForgetting.finish(
             in: vault, store: store, clock: clock, directory: directory)
         }
@@ -219,97 +207,93 @@
     /// leaves at once rather than after its grace, and what discovery
     /// learned is forgotten. The pairings stay.
     internal func withdraw() {
-      #if REFINEID_STREAM_TRANSPORT
-        withdrawHolderSession()
-        stopWatchingPresence()
-        offerLapseTask?.cancel()
-        offerLapseTask = nil
-        identityOffer = RemoteIdentityOffer(unconfirmedSince: .now)
-        holderRecordListed = false
-        pairInSight = nil
-        streamFailedInSight = false
-        sessionSlot = RequesterSessionSlot()
-        bluetoothPeers = RequesterBluetoothPeers()
-        bluetoothUsable = Self.dialsOverBluetooth
-        continuousFailureSince = nil
-      #endif
+      withdrawHolderSession()
+      stopWatchingPresence()
+      offerLapseTask?.cancel()
+      offerLapseTask = nil
+      identityOffer = RemoteIdentityOffer(unconfirmedSince: .now)
+      holderRecordListed = false
+      pairInSight = nil
+      streamFailedInSight = false
+      sessionSlot = RequesterSessionSlot()
+      bluetoothPeers = RequesterBluetoothPeers()
+      bluetoothUsable = Self.dialsOverBluetooth
+      continuousFailureSince = nil
       localNetworkDenied = false
       Self.withdrawPublishedIdentity()
     }
 
-    #if REFINEID_STREAM_TRANSPORT
-      /// Ends the session as this computer withdraws (RAPP v26.10.29 §4.5
-      /// item 8), answering whether its close left; nil when no session
-      /// is open or being dialled.
-      ///
-      /// An open session closes with `service_withdrawn`, a dial under
-      /// way ends without a notice, and no dial is left waiting. The
-      /// pairing stays.
-      @discardableResult
-      internal func withdrawHolderSession() -> Task<Bool, Never>? {
-        endHolderSession { session in await session.closeServiceWithdrawn() }
-      }
+    /// Ends the session as this computer withdraws (RAPP v26.10.29 §4.5
+    /// item 8), answering whether its close left; nil when no session
+    /// is open or being dialled.
+    ///
+    /// An open session closes with `service_withdrawn`, a dial under
+    /// way ends without a notice, and no dial is left waiting. The
+    /// pairing stays.
+    @discardableResult
+    internal func withdrawHolderSession() -> Task<Bool, Never>? {
+      endHolderSession { session in await session.closeServiceWithdrawn() }
+    }
 
-      /// Ends the session as the holder forgets every pairing (RAPP
-      /// v26.10.29 §4.6 item 6), answering whether its close left; nil
-      /// when no session is open or being dialled.
-      ///
-      /// An open session closes with `pairing_revoked`; a dial under way
-      /// ends without a notice.
-      internal func revokeHolderSession() -> Task<Bool, Never>? {
-        endHolderSession { session in await session.closePairingRevoked() }
-      }
+    /// Ends the session as the holder forgets every pairing (RAPP
+    /// v26.10.29 §4.6 item 6), answering whether its close left; nil
+    /// when no session is open or being dialled.
+    ///
+    /// An open session closes with `pairing_revoked`; a dial under way
+    /// ends without a notice.
+    internal func revokeHolderSession() -> Task<Bool, Never>? {
+      endHolderSession { session in await session.closePairingRevoked() }
+    }
 
-      /// Ends the open session with `pairing_revoked` when it runs over
-      /// `pairID`, as the pairing is forgotten (RAPP v26.10.29 §4.6 item 1);
-      /// false when no session over `pairID` is open or the close did not
-      /// leave, so the pairing is kept forgotten for its next session.
-      internal func closeSessionForRevocation(pairID: Data) async -> Bool {
-        guard let session = holderSession, session.pairID == pairID else { return false }
-        redialTask?.cancel()
-        redialTask = nil
-        holderCardStatus = nil
-        forgetHeldSession()
-        let told = await session.closePairingRevoked()
-        Self.withdrawPublishedIdentity()
+    /// Ends the open session with `pairing_revoked` when it runs over
+    /// `pairID`, as the pairing is forgotten (RAPP v26.10.29 §4.6 item 1);
+    /// false when no session over `pairID` is open or the close did not
+    /// leave, so the pairing is kept forgotten for its next session.
+    internal func closeSessionForRevocation(pairID: Data) async -> Bool {
+      guard let session = holderSession, session.pairID == pairID else { return false }
+      redialTask?.cancel()
+      redialTask = nil
+      holderCardStatus = nil
+      forgetHeldSession()
+      let told = await session.closePairingRevoked()
+      Self.withdrawPublishedIdentity()
+      return told
+    }
+
+    /// The app is active again, perhaps back from the settings where the
+    /// holder allowed the local network: a denial seen earlier is
+    /// forgotten and the paired phone dialled afresh at once, so a denial
+    /// that stands is seen again on that dial.
+    internal func retryAfterLocalNetworkDenial() {
+      guard localNetworkDenied else { return }
+      localNetworkDenied = false
+      guard Self.followsPhone, pairedPhoneID != nil else { return }
+      continuousFailureSince = nil
+      openHolderSession()
+    }
+
+    /// Lets go of the session and closes it with `close`, answering
+    /// whether its close left.
+    private func endHolderSession(
+      _ close: @escaping @Sendable (RappHeldRequesterSession) async -> Bool
+    ) -> Task<Bool, Never>? {
+      redialTask?.cancel()
+      redialTask = nil
+      settleDialTask?.cancel()
+      settleDialTask = nil
+      holderCardStatus = nil
+      guard let session = holderSession else { return nil }
+      let established = sessionSlot.isEstablished
+      forgetHeldSession()
+      return Task.detached {
+        let told = await close(session)
+        #if DEBUG
+          if established, !told {
+            DevErrorLog.report("phone session: closing notice did not leave", source: .app)
+          }
+        #endif
         return told
       }
-
-      /// The app is active again, perhaps back from the settings where the
-      /// holder allowed the local network: a denial seen earlier is
-      /// forgotten and the paired phone dialled afresh at once, so a denial
-      /// that stands is seen again on that dial.
-      internal func retryAfterLocalNetworkDenial() {
-        guard localNetworkDenied else { return }
-        localNetworkDenied = false
-        guard Self.followsPhone, pairedPhoneID != nil else { return }
-        continuousFailureSince = nil
-        openHolderSession()
-      }
-
-      /// Lets go of the session and closes it with `close`, answering
-      /// whether its close left.
-      private func endHolderSession(
-        _ close: @escaping @Sendable (RappHeldRequesterSession) async -> Bool
-      ) -> Task<Bool, Never>? {
-        redialTask?.cancel()
-        redialTask = nil
-        settleDialTask?.cancel()
-        settleDialTask = nil
-        holderCardStatus = nil
-        guard let session = holderSession else { return nil }
-        let established = sessionSlot.isEstablished
-        forgetHeldSession()
-        return Task.detached {
-          let told = await close(session)
-          #if DEBUG
-            if established, !told {
-              DevErrorLog.report("phone session: closing notice did not leave", source: .app)
-            }
-          #endif
-          return told
-        }
-      }
-    #endif
+    }
   }
 #endif

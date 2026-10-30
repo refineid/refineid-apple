@@ -34,9 +34,7 @@ extension RappPairingModel {
     #endif
     #if os(macOS) || os(iOS)
       PersistentTokenRegistry.withdrawPublishedIdentity()
-      #if REFINEID_STREAM_TRANSPORT
-        PersistentTokenRegistry.shared.stopWatchingPresence()
-      #endif
+      PersistentTokenRegistry.shared.stopWatchingPresence()
     #endif
     // Sweeping the keychain namespace takes time; the list is already
     // empty in memory, so the wipe leaves the main thread.
@@ -54,7 +52,7 @@ extension RappPairingModel {
     #if os(iOS) && REFINEID_LOCAL_CARD
       closed = await PhonePersistentTokenRelay.shared.closeForRevocation(pairID: pairID) || closed
     #endif
-    #if (os(macOS) || os(iOS)) && REFINEID_STREAM_TRANSPORT
+    #if os(macOS) || os(iOS)
       closed =
         await PersistentTokenRegistry.shared.closeSessionForRevocation(pairID: pairID) || closed
     #endif
@@ -123,9 +121,7 @@ extension RappPairingModel {
       if !usable || wasOffered {
         PersistentTokenRegistry.withdrawPublishedIdentity()
       }
-      #if REFINEID_STREAM_TRANSPORT
-        PersistentTokenRegistry.shared.restartWatchingPresence()
-      #endif
+      PersistentTokenRegistry.shared.restartWatchingPresence()
     #endif
     NotificationCenter.default.post(name: Self.pairingsDidChangeNotification, object: nil)
   }
@@ -152,9 +148,7 @@ extension RappPairingModel {
     phase = .idle
     #if os(macOS) || os(iOS)
       PersistentTokenRegistry.withdrawPublishedIdentity()
-      #if REFINEID_STREAM_TRANSPORT
-        PersistentTokenRegistry.shared.stopWatchingPresence()
-      #endif
+      PersistentTokenRegistry.shared.stopWatchingPresence()
     #endif
     RappAutoPairingService.shared.reconcile()
   }

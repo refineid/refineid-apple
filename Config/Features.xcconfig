@@ -57,30 +57,9 @@ REFINEID_ACTIVATION_FEATURE = FEATURE_CARD_ACTIVATION
 REFINEID_ACTIVATION_FEATURE[config=TestFlight] = FEATURE_CARD_ACTIVATION
 REFINEID_ACTIVATION_FEATURE[config=Release] = FEATURE_CARD_ACTIVATION
 
-// REFINEID_STREAM_TRANSPORT
-//     Carries the relay over a published service and a dialled port
-//     instead of the nearby peer framework. The requester publishes and
-//     listens; the card holder finds it and dials. Measured need: between
-//     a device on one system generation and a device on another, the
-//     nearby framework receives the service record and never hands the
-//     app its peer, while a direct connection to the same port succeeds.
-//     Both peers must carry it.
-//
-//     Half of it lives in the CardCore package, which does not inherit
-//     these conditions: a build that sets the line below alone pairs over
-//     the stream and then answers a browser over the nearby framework. A
-//     build for a device sets the whole condition list instead, keeping
-//     what the configuration already carries:
-//
-//   xcodebuild ... \
-//     SWIFT_ACTIVE_COMPILATION_CONDITIONS="DEBUG REFINEID_LOCAL_CARD REFINEID_STREAM_TRANSPORT"
-//
-//   xcodebuild ... REFINEID_STREAM_TRANSPORT_FEATURE=REFINEID_STREAM_TRANSPORT
-REFINEID_STREAM_TRANSPORT_FEATURE = REFINEID_STREAM_TRANSPORT
-
 // A developer's own flags, out of the repository: the file is
 // optional, ignored by git, and an assignment there replaces the
 // default above on that machine only.
 #include? "LocalFeatures.xcconfig"
 
-SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) $(REFINEID_FEATURES) $(REFINEID_IOS_FLOOR_FEATURE) $(REFINEID_LOCAL_CARD_FEATURE) $(REFINEID_REMOTE_CARD_FEATURE) $(REFINEID_ACTIVATION_FEATURE) $(REFINEID_STREAM_TRANSPORT_FEATURE)
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) $(REFINEID_FEATURES) $(REFINEID_IOS_FLOOR_FEATURE) $(REFINEID_LOCAL_CARD_FEATURE) $(REFINEID_REMOTE_CARD_FEATURE) $(REFINEID_ACTIVATION_FEATURE)

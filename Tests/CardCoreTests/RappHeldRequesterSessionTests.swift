@@ -1,6 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-#if canImport(RappEngine) && REFINEID_STREAM_TRANSPORT
+#if canImport(RappEngine)
   @testable import CardCore
   import CryptoKit
   import Foundation

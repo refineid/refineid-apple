@@ -1589,11 +1589,6 @@ registry, and the error vocabulary. Two choices remain local:
    validity dates as issuance and expiration; the phone reads no separate
    card file for them.
 
-The Apple-peer transport (`apple-peer-v1`, candidate `apple-peer-v1.nearby`,
-empty parameters) is an Apple-local registry entry for the
-MultipeerConnectivity build; it carries the offer as the custodian's first
-frame, as the stream profile does.
-
 ## 2026-10-09 - Session discovery publishes nothing token-derived
 
 Stored pairings no longer meet under a name derived from the rendezvous

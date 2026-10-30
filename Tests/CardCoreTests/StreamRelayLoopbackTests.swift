@@ -6,8 +6,7 @@ import Testing
 
 @testable import CardCore
 
-/// The transport that replaces peer discovery with a published service and
-/// a dialled port.
+/// The stream transport: a published service and a dialled port.
 @Suite(.serialized)
 internal struct StreamRelayLoopbackTests {
   // MARK: Static Properties
@@ -30,7 +29,7 @@ internal struct StreamRelayLoopbackTests {
   /// A dialer finds the listener by browsing and carries a frame to it.
   ///
   /// This is the pair the devices use: the requester publishes and the
-  /// holder finds it, with no peer framework between them.
+  /// holder finds it.
   @Test
   internal func aBrowserFindsTheListenerAndTheDialerReachesIt() async throws {
     let name = "RefineID test \(UUID().uuidString.prefix(6))"
@@ -69,9 +68,6 @@ internal struct StreamRelayLoopbackTests {
   }
 
   /// A dialer reaches a listener and each carries a frame to the other.
-  ///
-  /// This is the whole of what the nearby transport stopped doing between
-  /// two devices: accept a connection and carry bytes both ways.
   @Test
   internal func aDialerReachesAListenerAndBothCarryFrames() async throws {
     let fromDialer = Data("to the holder".utf8)

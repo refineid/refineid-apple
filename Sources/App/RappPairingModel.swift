@@ -75,19 +75,6 @@ internal final class RappPairingModel: ObservableObject {
     DeviceModel.description
   }
 
-  /// The transport profile a ceremony runs over in this build.
-  ///
-  /// The custodian's offer names it (RAPP v26.10.29 §2.2); the requester
-  /// finds the holder by its published pairing attributes and reads the
-  /// offer it serves.
-  internal static var ceremonyTransportProfile: String {
-    #if REFINEID_STREAM_TRANSPORT
-      rappStreamProfileName()
-    #else
-      RappApplePeerProfile.name
-    #endif
-  }
-
   @Published internal var phase = Phase.idle
   @Published internal var pairs: [RappPairingCoordinator.PairSummary] = []
   /// A `--pretend-paired` launch starts the row paired; revoking clears it.
@@ -191,7 +178,7 @@ internal final class RappPairingModel: ObservableObject {
     RappPairingCoordinator.Options(
       code: code,
       profiles: rappCredentialProfiles(),
-      transportProfile: Self.ceremonyTransportProfile,
+      transportProfile: rappStreamProfileName(),
       displayName: Self.localDisplayName,
       platform: Self.localPlatform,
       vault: vault)
@@ -217,7 +204,7 @@ internal final class RappPairingModel: ObservableObject {
   internal func makeRelay() -> PairingRelay {
     let generation = UUID()
     relayGeneration = generation
-    return PairingRelay(displayName: String(localized: "RefineID iPhone")) { [weak self] event in
+    return PairingRelay { [weak self] event in
       Task { @MainActor in self?.receive(event, generation: generation) }
     }
   }
@@ -310,9 +297,7 @@ internal final class RappPairingModel: ObservableObject {
   internal func serveNewPairing() {
     #if REFINEID_LOCAL_CARD && os(iOS)
       PhonePersistentTokenRelay.shared.start()
-      #if REFINEID_STREAM_TRANSPORT
-        PhonePersistentTokenRelay.shared.refreshSessionRecord()
-      #endif
+      PhonePersistentTokenRelay.shared.refreshSessionRecord()
     #endif
   }
 }

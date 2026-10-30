@@ -254,7 +254,6 @@ internal final class PersistentTokenDriver: TKTokenDriver,
         }
       #endif
       return try RappPersistentRequesterClient(
-        displayName: "RefineID Token",
         policy: .offeredIdentity,
         pair: persistentToken.pairRecord
       ).perform(operation)

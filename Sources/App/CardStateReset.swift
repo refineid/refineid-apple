@@ -71,9 +71,7 @@ internal enum CardStateReset {
     #if os(macOS) || os(iOS)
       Task { @MainActor in
         PersistentTokenRegistry.withdrawPublishedIdentity()
-        #if REFINEID_STREAM_TRANSPORT
-          PersistentTokenRegistry.shared.stopWatchingPresence()
-        #endif
+        PersistentTokenRegistry.shared.stopWatchingPresence()
       }
     #endif
 
