@@ -27,6 +27,17 @@
         }
       }
 
+      /// Where the PIN comes from, for the counter check before it is sent.
+      internal var spending: PinAdmission.Spending {
+        switch self {
+        case .heldPin1:
+          .heldPin1
+
+        case .enteredPin1, .pin2:
+          .entered
+        }
+      }
+
       /// The digits the card is sent.
       internal var digits: String {
         switch self {
@@ -140,12 +151,7 @@
     }
 
     /// Why the card's counter forbids spending `pin`, or nil when it
-    /// allows it.
-    ///
-    /// Beyond the retry floor, a held PIN 1 is spent only while the counter
-    /// shows no refusal since the card accepted it: a counter below its
-    /// pristine allowance means a refusal happened, so the held value is
-    /// not sent and the holder is asked instead.
+    /// allows it (``PinAdmission``).
     private static func evaluateRetryFloor(
       operations: CardOperations,
       pin: SigningPin
@@ -157,27 +163,21 @@
       } catch {
         return .retryFloor(role, .refuseUnreadable)
       }
-      switch probe {
-      case .locked:
-        return .credentialBlocked(role)
-
-      case .invalidated:
-        return .credentialInvalidated(role)
-
-      case .remaining(let count):
-        let verdict = RetryFloor.evaluate(probeOutcome: probe)
-        guard verdict == .proceed else { return .retryFloor(role, verdict) }
-        if case .heldPin1 = pin, !count.isPristine {
-          return .heldPin1Unconfirmed
-        }
+      switch PinAdmission(probe: probe, spending: pin.spending) {
+      case .proceed:
         return nil
 
-      case .verified:
-        let verdict = RetryFloor.evaluate(probeOutcome: probe)
-        return verdict == .proceed ? nil : .retryFloor(role, verdict)
+      case .credentialBlocked:
+        return .credentialBlocked(role)
 
-      case .noInformation, .other:
-        return .retryFloor(role, .refuseUnreadable)
+      case .credentialInvalidated:
+        return .credentialInvalidated(role)
+
+      case .retryFloor(let verdict):
+        return .retryFloor(role, verdict)
+
+      case .heldPin1Unconfirmed:
+        return .heldPin1Unconfirmed
       }
     }
 
