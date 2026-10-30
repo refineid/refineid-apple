@@ -95,6 +95,10 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
   /// Ephemeral identifier for diagnostic logging without printing card serials.
   internal let tokenID = "tok-" + UUID().uuidString.prefix(tokenIDPrefixLength)
 
+  /// Owner of the PIN 1 this token commits to ``Pin1Memory``; teardown
+  /// drops only a value this token committed.
+  internal let pin1Owner = Pin1Memory.Owner()
+
   /// The card session taken at the mint and kept open for the signature.
   ///
   /// Empty on the contact path, which opens a session per operation.
@@ -172,6 +176,7 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
     primedSmartCard smartCard: TKSmartCard,
     aid: Data?,
     tokenDriver: TKSmartCardTokenDriver,
+    chipSerial: ChipSerial,
     instanceID: TokenInstanceID,
     primed: PrimedIdentity,
     shouldHoldSession: Bool,
@@ -182,7 +187,7 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
     // out by the `createToken` outcome that follows. Each refusal is
     // named, because they all leave the same error at the boundary and
     // the difference between them is the diagnosis.
-    let material = try Self.validated(primed: primed, instanceID: instanceID)
+    let material = try Self.validated(primed: primed, chipSerial: chipSerial)
     self.keyProfile = material.profile
     self.leafPublicKey = material.publicKey
     self.signKeyProfile = nil
@@ -239,7 +244,7 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
   deinit {
     TokenLog.info("Token.deinit: id=\(tokenID)")
     if !interface.keepsPin1BeyondToken {
-      Pin1Memory.shared.clear(serial: chipSerial)
+      Pin1Memory.shared.clear(serial: chipSerial, ownedBy: pin1Owner)
     }
     heldSession.release(reason: .tokenDestroyed)
     // Last chance to get the trace out of a process ctkd is dropping: a

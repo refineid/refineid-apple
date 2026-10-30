@@ -35,14 +35,25 @@
         .accessibilityIdentifier("virtualCardElectronicIdentifier")
         TextField(
           virtualCardLocalized(
-            "identity.tokenSerial",
-            defaultValue: "Token serial"),
-          text: $draft.card.tokenSerial,
+            "identity.chipSerial",
+            defaultValue: "Chip serial"),
+          text: chipSerialText,
           axis: .vertical
         )
         .virtualCardEditorField()
-        .accessibilityIdentifier("virtualCardTokenSerial")
+        .accessibilityIdentifier("virtualCardChipSerial")
       }
+    }
+
+    /// The chip serial as editable text; only a valid serial is kept.
+    private var chipSerialText: Binding<String> {
+      Binding(
+        get: { draft.card.chipSerial.value },
+        set: { text in
+          if let serial = ChipSerial(value: text) {
+            draft.card.chipSerial = serial
+          }
+        })
     }
   }
 

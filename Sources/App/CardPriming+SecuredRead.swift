@@ -27,7 +27,7 @@
       internal let issuer: Data?
 
       /// Chip serial retained for exact reconstruction.
-      internal let tokenSerial: String
+      internal let chipSerial: ChipSerial
 
       /// Proof that the live card did not report a factory activation state.
       internal let activationCheck: PrimedIdentity.ActivationCheck
@@ -99,7 +99,7 @@
         instance: instance,
         certificate: certificate,
         issuer: issuer,
-        tokenSerial: serial.value,
+        chipSerial: serial,
         activationCheck: activationCheck)
     }
 

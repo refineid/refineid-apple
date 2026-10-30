@@ -21,16 +21,27 @@ import os
 public final class Pin1Memory: Sendable {
   // MARK: Nested Types
 
+  /// The token that committed an accepted value; each token has its own.
+  public struct Owner: Equatable, Sendable {
+    private let identity = UUID()
+
+    /// A new owner, distinct from every other.
+    public init() {
+      // The identity is the fresh UUID.
+    }
+  }
+
   /// A copy of a PIN taken before VERIFY consumes it, held as accepted
   /// only when committed after the card verified it.
   public struct Acceptance: Sendable {
     fileprivate let serial: ChipSerial
     fileprivate let digits: ZeroizingDigitStore
+    fileprivate let owner: Owner
   }
 
   private enum State: Equatable {
     case candidate(operationID: UUID)
-    case accepted
+    case accepted(owner: Owner)
   }
 
   private struct Entry {
@@ -39,6 +50,11 @@ public final class Pin1Memory: Sendable {
 
     var isCandidate: Bool {
       if case .candidate = state { return true }
+      return false
+    }
+
+    var isAccepted: Bool {
+      if case .accepted = state { return true }
       return false
     }
   }
@@ -136,7 +152,7 @@ public final class Pin1Memory: Sendable {
   /// A copy of the PIN this card accepted, or nil when none is held.
   public func checkoutAccepted(serial: ChipSerial) -> Pin1? {
     let copy: ZeroizingDigitStore? = entries.withLock { entries in
-      guard let entry = entries[serial], entry.state == .accepted else { return nil }
+      guard let entry = entries[serial], entry.isAccepted else { return nil }
       return ZeroizingDigitStore(bytes: entry.digits.bytes)
     }
     guard let copy else { return nil }
@@ -150,7 +166,7 @@ public final class Pin1Memory: Sendable {
   public func retain(after probe: RetryProbeOutcome, serial: ChipSerial) -> Bool {
     guard Pin1Retention.permitsHolding(after: probe) else {
       entries.withLock { entries in
-        if entries[serial]?.state == .accepted {
+        if entries[serial]?.isAccepted == true {
           entries[serial] = nil
         }
       }
@@ -159,22 +175,24 @@ public final class Pin1Memory: Sendable {
     return true
   }
 
-  /// Copies `pin` for acceptance after VERIFY, or nil when the probe
-  /// before it forbids holding (``Pin1Retention``).
+  /// Copies `pin` for acceptance by `owner` after VERIFY, or nil when the
+  /// probe before it forbids holding (``Pin1Retention``).
   public func acceptance(
     of pin: borrowing Pin1,
     serial: ChipSerial,
-    after probe: RetryProbeOutcome
+    after probe: RetryProbeOutcome,
+    owner: Owner
   ) -> Acceptance? {
     guard Pin1Retention.permitsHolding(after: probe) else { return nil }
-    return Acceptance(serial: serial, digits: pin.cachedCopy())
+    return Acceptance(serial: serial, digits: pin.cachedCopy(), owner: owner)
   }
 
   /// Holds the value as accepted once the card verified it, replacing a
   /// candidate for the same card.
   public func commit(_ acceptance: Acceptance) {
     entries.withLock { entries in
-      entries[acceptance.serial] = Entry(digits: acceptance.digits, state: .accepted)
+      entries[acceptance.serial] = Entry(
+        digits: acceptance.digits, state: .accepted(owner: acceptance.owner))
     }
   }
 
@@ -182,6 +200,15 @@ public final class Pin1Memory: Sendable {
   public func clear(serial: ChipSerial) {
     entries.withLock { entries in
       entries[serial] = nil
+    }
+  }
+
+  /// Drops this card's accepted value when `owner` committed it.
+  public func clear(serial: ChipSerial, ownedBy owner: Owner) {
+    entries.withLock { entries in
+      if entries[serial]?.state == .accepted(owner: owner) {
+        entries[serial] = nil
+      }
     }
   }
 

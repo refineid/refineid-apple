@@ -270,7 +270,7 @@
         let primed = CardCredentialStore.primedIdentity(
           certificate: identity.certificate,
           issuer: identity.issuer,
-          tokenSerial: identity.tokenSerial,
+          chipSerial: identity.chipSerial,
           activationCheck: identity.activationCheck,
           signatureCertificate: signatureCertificate),
         PrimeStore.store(primed, forLookup: execution.lookup)

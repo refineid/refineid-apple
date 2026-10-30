@@ -120,7 +120,7 @@ public enum MockCardCertificate {
   public static func primeSyntheticIdentity(
     can: String = "123456",
     holderName: String = "DOE JANE 12345678N",
-    tokenSerial: String = "XA1234567",
+    chipSerial: ChipSerial? = ChipSerial(value: "XA1234567"),
     certificate: Data? = nil
   ) -> Bool {
     do {
@@ -130,7 +130,7 @@ public enum MockCardCertificate {
           can: can,
           certificate: certDER,
           issuer: nil,
-          tokenSerial: tokenSerial,
+          chipSerial: chipSerial,
           activationCheck: .passed
         ),
         let lookupID = PrimeLookupIdentifier(answerToReset: defaultAtr)

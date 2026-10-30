@@ -101,7 +101,7 @@ extension PrimeStore {
         can: item.identity.can,
         certificate: item.identity.certDER,
         issuer: item.identity.issuerDER,
-        tokenSerial: item.identity.tokenSerial,
+        chipSerial: item.identity.chipSerial,
         activationCheck: item.identity.activationCheck,
         signatureCertificate: der
       )

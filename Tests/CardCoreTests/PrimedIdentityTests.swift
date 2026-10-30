@@ -15,8 +15,11 @@ internal struct PrimedIdentityTests {
   /// A different DER-shaped byte string, standing in for the issuer.
   private static let sampleIssuerHexDigits = "308200010A0B0C0D"
 
-  /// An unmistakably synthetic PKCS#15 token serial.
-  private static let sampleSerial = "SYNTHETIC-PRIME-SERIAL"
+  /// An unmistakably synthetic chip serial.
+  private static let sampleSerialText = "SYNTHETIC-PRIME-SERIAL"
+
+  /// Coding key of the stored chip serial.
+  private static let chipSerialKey = "chipSerial"
 
   /// Marker carried only by a prime whose live activation check passed.
   private static let activationCheck = PrimedIdentity.ActivationCheck.passed
@@ -26,11 +29,11 @@ internal struct PrimedIdentityTests {
     let certificate = WireHex.data(Self.sampleCertificateHexDigits)
     #expect(
       PrimedIdentity(
-        can: "12345", certificate: certificate, issuer: nil, tokenSerial: nil,
+        can: "12345", certificate: certificate, issuer: nil, chipSerial: nil,
         activationCheck: Self.activationCheck) == nil)
     #expect(
       PrimedIdentity(
-        can: "12345a", certificate: certificate, issuer: nil, tokenSerial: nil,
+        can: "12345a", certificate: certificate, issuer: nil, chipSerial: nil,
         activationCheck: Self.activationCheck) == nil)
   }
 
@@ -38,17 +41,28 @@ internal struct PrimedIdentityTests {
   internal func refusesAnEmptyCertificate() {
     #expect(
       PrimedIdentity(
-        can: Self.sampleCan, certificate: Data(), issuer: nil, tokenSerial: nil,
+        can: Self.sampleCan, certificate: Data(), issuer: nil, chipSerial: nil,
         activationCheck: Self.activationCheck) == nil)
   }
 
   @Test
-  internal func refusesAnImplausibleSerial() {
-    let certificate = WireHex.data(Self.sampleCertificateHexDigits)
-    #expect(
+  internal func refusesToDecodeAMalformedStoredSerial() throws {
+    let serial = try #require(ChipSerial(value: Self.sampleSerialText))
+    let identity = try #require(
       PrimedIdentity(
-        can: Self.sampleCan, certificate: certificate, issuer: nil, tokenSerial: "",
-        activationCheck: Self.activationCheck) == nil)
+        can: Self.sampleCan,
+        certificate: WireHex.data(Self.sampleCertificateHexDigits),
+        issuer: nil,
+        chipSerial: serial,
+        activationCheck: Self.activationCheck))
+    let payload = try JSONEncoder().encode(identity)
+    var object = try #require(
+      JSONSerialization.jsonObject(with: payload) as? [String: Any])
+    object[Self.chipSerialKey] = "not a serial"
+    let tampered = try JSONSerialization.data(withJSONObject: object)
+    #expect(throws: DecodingError.self) {
+      try JSONDecoder().decode(PrimedIdentity.self, from: tampered)
+    }
   }
 
   @Test
@@ -56,24 +70,26 @@ internal struct PrimedIdentityTests {
     let certificate = WireHex.data(Self.sampleCertificateHexDigits)
     let identity = try #require(
       PrimedIdentity(
-        can: Self.sampleCan, certificate: certificate, issuer: nil, tokenSerial: nil,
+        can: Self.sampleCan, certificate: certificate, issuer: nil, chipSerial: nil,
         activationCheck: Self.activationCheck))
     #expect(identity.issuerDER == nil)
-    #expect(identity.tokenSerial == nil)
+    #expect(identity.chipSerial == nil)
   }
 
   @Test
   internal func codingRoundTripPreservesEveryField() throws {
+    let serial = try #require(ChipSerial(value: Self.sampleSerialText))
     let identity = try #require(
       PrimedIdentity(
         can: Self.sampleCan,
         certificate: WireHex.data(Self.sampleCertificateHexDigits),
         issuer: WireHex.data(Self.sampleIssuerHexDigits),
-        tokenSerial: Self.sampleSerial,
+        chipSerial: serial,
         activationCheck: Self.activationCheck))
     let payload = try JSONEncoder().encode(identity)
     let decoded = try JSONDecoder().decode(PrimedIdentity.self, from: payload)
     #expect(decoded == identity)
+    #expect(decoded.chipSerial == serial)
     #expect(decoded.activationCheck == .passed)
   }
 
@@ -84,25 +100,26 @@ internal struct PrimedIdentityTests {
         can: Self.sampleCan,
         certificate: WireHex.data(Self.sampleCertificateHexDigits),
         issuer: nil,
-        tokenSerial: nil,
+        chipSerial: nil,
         activationCheck: Self.activationCheck))
     let payload = try JSONEncoder().encode(identity)
     let decoded = try JSONDecoder().decode(PrimedIdentity.self, from: payload)
     #expect(decoded == identity)
     #expect(decoded.issuerDER == nil)
-    #expect(decoded.tokenSerial == nil)
+    #expect(decoded.chipSerial == nil)
     #expect(decoded.signatureCertDER == nil)
   }
 
   @Test
   internal func codingRoundTripPreservesSignatureCertificate() throws {
     let signatureCert = WireHex.data("308200010E0F1011")
+    let serial = try #require(ChipSerial(value: Self.sampleSerialText))
     let identity = try #require(
       PrimedIdentity(
         can: Self.sampleCan,
         certificate: WireHex.data(Self.sampleCertificateHexDigits),
         issuer: WireHex.data(Self.sampleIssuerHexDigits),
-        tokenSerial: Self.sampleSerial,
+        chipSerial: serial,
         activationCheck: Self.activationCheck,
         signatureCertificate: signatureCert))
     let payload = try JSONEncoder().encode(identity)

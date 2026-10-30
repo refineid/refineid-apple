@@ -176,7 +176,7 @@ public enum PrimeStore {
           can: stored.can,
           certificate: stored.certDER,
           issuer: stored.issuerDER,
-          tokenSerial: stored.tokenSerial,
+          chipSerial: stored.chipSerial,
           activationCheck: stored.activationCheck,
           signatureCertificate: stored.signatureCertDER)
       }
@@ -195,7 +195,7 @@ public enum PrimeStore {
       can: stored.can,
       certificate: stored.certDER,
       issuer: stored.issuerDER,
-      tokenSerial: stored.tokenSerial,
+      chipSerial: stored.chipSerial,
       activationCheck: stored.activationCheck,
       signatureCertificate: stored.signatureCertDER)
   }
@@ -213,7 +213,7 @@ public enum PrimeStore {
   /// because both cards expose the same ATR.
   public static func contains(serial: ChipSerial) -> Bool {
     storedItems().contains { item in
-      Self.chipSerial(of: item.identity) == serial
+      item.identity.chipSerial == serial
     }
   }
 
@@ -223,14 +223,9 @@ public enum PrimeStore {
   /// interfaces or card generations. The chip serial is the stable
   /// revocation boundary, so all matching records go together.
   public static func forget(serial: ChipSerial) {
-    for item in storedItems() where Self.chipSerial(of: item.identity) == serial {
+    for item in storedItems() where item.identity.chipSerial == serial {
       delete(account: item.account)
     }
-  }
-
-  /// The chip serial a stored prime read, when it read a valid one.
-  private static func chipSerial(of identity: PrimedIdentity) -> ChipSerial? {
-    identity.tokenSerial.flatMap { ChipSerial(value: $0) }
   }
 
   /// Removes every primed identity this device holds.
@@ -285,7 +280,7 @@ public enum PrimeStore {
           hasCardAccessNumber: !item.identity.can.isEmpty,
           certificateBytes: item.identity.certDER.count,
           issuerBytes: item.identity.issuerDER?.count ?? 0,
-          hasChipSerial: item.identity.tokenSerial != nil)
+          hasChipSerial: item.identity.chipSerial != nil)
       }
   }
 

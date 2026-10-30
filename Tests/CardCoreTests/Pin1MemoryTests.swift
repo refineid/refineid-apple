@@ -50,11 +50,12 @@ internal struct Pin1MemoryTests {
   private func accept(
     _ digits: String,
     _ serial: ChipSerial,
-    in memory: Pin1Memory
+    in memory: Pin1Memory,
+    owner: Pin1Memory.Owner = Pin1Memory.Owner()
   ) {
     guard
       let acceptance = memory.acceptance(
-        of: Self.pin(digits), serial: serial, after: .verified)
+        of: Self.pin(digits), serial: serial, after: .verified, owner: owner)
     else {
       Issue.record("a verified probe permits holding")
       return
@@ -93,7 +94,10 @@ internal struct Pin1MemoryTests {
       Issue.record("expected the staged candidate")
       return
     }
-    guard let acceptance = memory.acceptance(of: candidate, serial: card, after: .verified)
+    let owner = Pin1Memory.Owner()
+    guard
+      let acceptance = memory.acceptance(
+        of: candidate, serial: card, after: .verified, owner: owner)
     else {
       Issue.record("a verified probe permits holding")
       return
@@ -211,7 +215,10 @@ internal struct Pin1MemoryTests {
     #expect(!memory.retain(after: spent, serial: card))
     let dropped = present(memory.checkoutAccepted(serial: card))
     #expect(!dropped)
-    #expect(memory.acceptance(of: Self.pin(Self.digits), serial: card, after: spent) == nil)
+    #expect(
+      memory.acceptance(
+        of: Self.pin(Self.digits), serial: card, after: spent, owner: Pin1Memory.Owner())
+        == nil)
   }
 
   @Test
@@ -239,9 +246,36 @@ internal struct Pin1MemoryTests {
     let memory = Pin1Memory()
     let card = Self.serial("SYNTHETIC-A")
     let acceptance = memory.acceptance(
-      of: Self.pin(Self.digits), serial: card, after: .verified)
+      of: Self.pin(Self.digits), serial: card, after: .verified, owner: Pin1Memory.Owner())
     #expect(acceptance != nil)
     #expect(!memory.holdsValue(serial: card))
+  }
+
+  @Test
+  internal func anOlderOwnersTeardownKeepsANewerOwnersAcceptedValue() {
+    let memory = Pin1Memory()
+    let card = Self.serial("SYNTHETIC-A")
+    let older = Pin1Memory.Owner()
+    let newer = Pin1Memory.Owner()
+    accept(Self.digits, card, in: memory, owner: older)
+    accept(Self.otherDigits, card, in: memory, owner: newer)
+    memory.clear(serial: card, ownedBy: older)
+    guard let reused = memory.checkoutAccepted(serial: card) else {
+      Issue.record("expected the newer owner's accepted PIN")
+      return
+    }
+    #expect(reused.fingerprint(boundTo: card) == Self.fingerprint(Self.otherDigits, card))
+    memory.clear(serial: card, ownedBy: newer)
+    #expect(!memory.holdsValue(serial: card))
+  }
+
+  @Test
+  internal func anOwnersTeardownKeepsACandidate() {
+    let memory = Pin1Memory()
+    let card = Self.serial("SYNTHETIC-A")
+    memory.stageCandidate(digits: Self.digits, serial: card, operationID: UUID())
+    memory.clear(serial: card, ownedBy: Pin1Memory.Owner())
+    #expect(memory.holdsValue(serial: card))
   }
 
   @Test

@@ -71,7 +71,7 @@ extension Token {
   /// Validates every piece of a stored contactless identity.
   internal static func validated(
     primed: PrimedIdentity,
-    instanceID: TokenInstanceID
+    chipSerial: ChipSerial
   ) throws -> PrimedTokenMaterial {
     guard let accessNumber = CardAccessNumber(digits: primed.can) else {
       TokenLog.trace("Token.init(primed): stored card access number is not usable")
@@ -82,12 +82,8 @@ extension Token {
       throw TokenError.certificateUnreadable
     }
     let (profile, publicKey) = try Self.validatedSigningKey(in: leaf)
-    guard
-      let serialText = primed.tokenSerial,
-      let storedSerial = ChipSerial(value: serialText),
-      TokenInstanceID(chipSerial: storedSerial) == instanceID
-    else {
-      TokenLog.trace("Token.init(primed): stored serial does not name this token")
+    guard primed.chipSerial == chipSerial else {
+      TokenLog.trace("Token.init(primed): stored serial is not this card's")
       throw TokenError.primeMissing
     }
     return PrimedTokenMaterial(
@@ -95,7 +91,7 @@ extension Token {
       leaf: leaf,
       profile: profile,
       publicKey: publicKey,
-      serial: storedSerial
+      serial: chipSerial
     )
   }
 

@@ -1,6 +1,7 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 import CardCore
+import Foundation
 import Testing
 
 @Suite
@@ -38,5 +39,22 @@ internal struct ChipSerialTests {
     let first = try #require(ChipSerial(value: "9990000001"))
     let second = try #require(ChipSerial(value: "9990000002"))
     #expect(first != second)
+  }
+
+  @Test
+  internal func codingRoundTripsAsItsValue() throws {
+    let serial = try #require(ChipSerial(value: "9990000001"))
+    let payload = try JSONEncoder().encode([serial])
+    let decoded = try JSONDecoder().decode([ChipSerial].self, from: payload)
+    #expect(decoded == [serial])
+    #expect(payload == Data(#"["9990000001"]"#.utf8))
+  }
+
+  @Test
+  internal func refusesToDecodeAMalformedValue() {
+    let payload = Data(#"["ABC 123"]"#.utf8)
+    #expect(throws: DecodingError.self) {
+      try JSONDecoder().decode([ChipSerial].self, from: payload)
+    }
   }
 }

@@ -1197,25 +1197,25 @@
         }
       }
     },
-    "identity.tokenSerial" : {
+    "identity.chipSerial" : {
       "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Token serial"
+            "value" : "Chip serial"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tunnisteen sarjanumero"
+            "value" : "Sirun sarjanumero"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tokenserienummer"
+            "value" : "Chipets serienummer"
           }
         }
       }

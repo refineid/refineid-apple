@@ -105,7 +105,8 @@ internal enum ReaderSignature {
   ) throws -> Data {
     let operations = CardOperations(channel: channel)
     try operations.selectFineidApplication()
-    let (serial, pin1Outcome) = try Self.probePin1AndReadSerial(operations, token: token)
+    let serial = token.chipSerial
+    let pin1Outcome = try Self.probePin1OfTokenCard(operations, token: token)
 
     let raw: Data
     // A card already verified in this session signs without another VERIFY
@@ -146,7 +147,7 @@ internal enum ReaderSignature {
     }
 
     let signature = try Self.checkedWireSignature(from: raw, request: request, token: token)
-    Self.rememberOnSuccess(enteredPin: enteredPin, serial: serial, probe: pin1Outcome)
+    Self.rememberOnSuccess(enteredPin: enteredPin, token: token, probe: pin1Outcome)
     return signature
   }
 
@@ -202,19 +203,25 @@ internal enum ReaderSignature {
     )
   }
 
-  /// Reads only the retry state of the credential this operation spends.
+  /// Confirms the card is the one the token was created for, then reads
+  /// only the retry state of the credential this operation spends.
   ///
-  /// PIN2 is used for qualified signatures and PUK for recovery. Reading
-  /// either during authentication adds APDUs and unrelated failure modes
-  /// without protecting PIN1.
+  /// A card reporting another chip serial is a different card and is
+  /// refused before any PIN-bearing command. PIN2 is used for qualified
+  /// signatures and PUK for recovery. Reading either during authentication
+  /// adds APDUs and unrelated failure modes without protecting PIN1.
   ///
   /// The probe first decides holding (``Pin1Memory/retain(after:serial:)``):
   /// one that forbids it drops the accepted PIN of the token's card at
   /// once, before any verdict.
-  private static func probePin1AndReadSerial(
+  private static func probePin1OfTokenCard(
     _ operations: CardOperations,
     token: Token
-  ) throws -> (serial: ChipSerial, outcome: RetryProbeOutcome) {
+  ) throws -> RetryProbeOutcome {
+    guard try operations.readChipSerial() == token.chipSerial else {
+      TokenLog.error("sign: card in the slot is not the token's card")
+      throw TokenError.signRefused
+    }
     TokenLog.info("sign: PIN1 retry-floor probe")
     let outcome = try operations.probeRetryCounter(role: .pin1)
     Pin1Memory.shared.retain(after: outcome, serial: token.chipSerial)
@@ -225,22 +232,22 @@ internal enum ReaderSignature {
       )
       throw TokenError.signRefused
     }
-    let serial = try operations.readChipSerial()
-    return (serial, outcome)
+    return outcome
   }
 
   /// Remembers a freshly entered PIN only after the card accepted it, and
   /// only when the probe before it permits holding
-  /// (``Pin1Memory/acceptance(of:serial:after:)``).
+  /// (``Pin1Memory/acceptance(of:serial:after:owner:)``).
   private static func rememberOnSuccess(
     enteredPin: String?,
-    serial: ChipSerial,
+    token: Token,
     probe: RetryProbeOutcome
   ) {
     guard
       let entered = enteredPin,
       let accepted = Pin1(digits: entered),
-      let acceptance = Pin1Memory.shared.acceptance(of: accepted, serial: serial, after: probe)
+      let acceptance = Pin1Memory.shared.acceptance(
+        of: accepted, serial: token.chipSerial, after: probe, owner: token.pin1Owner)
     else {
       return
     }

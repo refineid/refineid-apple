@@ -35,7 +35,7 @@ internal enum TokenError: Error {
   case signatureMalformed
 
   /// Signing was refused: the retry floor, a blocked PIN, unreadable
-  /// state, or a rejected signing command. Surfaces as an authentication
+  /// state, a card other than the token's, or a rejected signing command. Surfaces as an authentication
   /// failure, so the system asks again; the returning sheet is the
   /// holder's sign that nothing was accepted.
   case signRefused

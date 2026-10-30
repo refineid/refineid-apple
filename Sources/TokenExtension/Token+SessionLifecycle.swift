@@ -60,7 +60,7 @@ extension Token {
   internal func observeSlotState(of smartCard: TKSmartCard) {
     slotStateObservation = smartCard.slot.observe(\.state, options: [.new]) {
       [
-        held = heldSession, serial = chipSerial,
+        held = heldSession, serial = chipSerial, owner = pin1Owner,
         keepsPin1 = interface.keepsPin1BeyondToken, id = tokenID
       ] observed, change in
       let state = change.newValue ?? observed.state
@@ -73,7 +73,7 @@ extension Token {
       guard state == .missing || state == .empty else { return }
       held.release(reason: state == .missing ? .slotMissing : .cardRemoved)
       if !keepsPin1 {
-        Pin1Memory.shared.clear(serial: serial)
+        Pin1Memory.shared.clear(serial: serial, ownedBy: owner)
       }
     }
   }

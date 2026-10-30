@@ -104,7 +104,8 @@ internal struct FieldSignature {
       throw TokenError.pinAlreadyRejected
     }
     let probe = try admit(operations, origin: origin)
-    let acceptance = Pin1Memory.shared.acceptance(of: pin1, serial: serial, after: probe)
+    let acceptance = Pin1Memory.shared.acceptance(
+      of: pin1, serial: serial, after: probe, owner: token.pin1Owner)
     do {
       try operations.verifyPin1(pin1.consumeForSingleTransmission())
     } catch CardOperationError.pinRejected {

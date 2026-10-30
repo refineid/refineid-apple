@@ -14,7 +14,7 @@
     @Suite(.serialized)
     internal struct CardPrimingSecuredReadTests {
       /// A synthetic current-card serial: letters, nine printed characters.
-      private static let tokenSerial = "XA1234567"
+      private static let chipSerial = "XA1234567"
 
       /// TokenInfo version.
       private static let tokenInfoVersion = 0
@@ -33,7 +33,7 @@
             .tokenInfo,
             DerEncoder.sequence([
               DerEncoder.integer(Self.tokenInfoVersion),
-              DerEncoder.octetString(Data(Self.tokenSerial.utf8)),
+              DerEncoder.octetString(Data(Self.chipSerial.utf8)),
             ])
           ),
         ])
