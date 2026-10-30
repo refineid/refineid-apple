@@ -244,6 +244,18 @@ or a mix, is signed into one ASiC-E container. Several PDFs are each signed
 into a chosen folder. PIN 2 for a local card is typed in the window. PIN 2
 for a paired phone's card is asked on the phone and never reaches the Mac.
 
+## Web signing (SCS)
+
+The Signature Creation Service is a loopback HTTPS server that web pages
+sign through. It is planned and stays in the code behind `FEATURE_SCS`,
+which no build configuration sets until it ships. It is not dead code:
+cleanups keep the server, its card backend, its transaction manager, its
+opt-in and their tests.
+
+When it ships it is a setting the holder turns on. The server starts only
+after that opt-in, so the certificate trust prompt it needs appears when
+the holder turns it on, never at launch.
+
 ## Development builds
 
 Every failure path reports to `DevErrorLog`. The Errors window is a

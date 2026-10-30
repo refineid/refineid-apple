@@ -312,10 +312,10 @@ internal struct RefineIDApp: App {
     // restarting the app blocked before it had a window to say so in.
     // It happens off the launch path now, from the status screen.
     //
-    // A build with the local signing server starts it at launch.
+    // The local signing server restores only a stored holder opt-in.
     #if os(macOS)
       #if FEATURE_SCS
-        ScsServer.shared.start()
+        ScsService.shared.restore()
       #endif
 
       // The offered access number lives for the app run: the status

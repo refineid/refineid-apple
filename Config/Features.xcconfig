@@ -19,9 +19,9 @@
 //       no stamp UI is offered.
 //
 //   FEATURE_SCS
-//       The loopback HTTPS signing service on macOS, started at launch.
-//       Set by no configuration; a local build that sets it also needs a
-//       network-server entitlement.
+//       The loopback HTTPS signing service on macOS, started only after
+//       the holder opts in. Set by no configuration until SCS ships; a
+//       local build that sets it also needs a network-server entitlement.
 //
 // macOS ships local card authentication, management and document signing,
 // and the remote card over RAPP as a requester that only dials out
