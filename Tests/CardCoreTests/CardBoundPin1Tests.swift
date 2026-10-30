@@ -16,9 +16,16 @@ internal struct CardBoundPin1Tests {
   private static let pinDigits = "1234"
   private static let otherPinDigits = "5678"
 
-  private static func holding(for card: Card) -> CardBoundPin1<Card> {
+  private static func entry(_ digits: String) throws -> Pin1Entry {
+    try #require(Pin1Entry(digits: digits))
+  }
+
+  private static func holding(
+    _ pin1: Pin1Entry,
+    for card: Card
+  ) -> CardBoundPin1<Card> {
     var held = CardBoundPin1<Card>()
-    held.hold(Self.pinDigits, card: card)
+    held.hold(pin1, card: card)
     return held
   }
 
@@ -29,69 +36,71 @@ internal struct CardBoundPin1Tests {
   }
 
   @Test
-  internal func servesTheValueToItsCard() {
-    var held = Self.holding(for: .first)
-    #expect(held.current(card: .first) == Self.pinDigits)
+  internal func servesTheValueToItsCard() throws {
+    let pin1 = try Self.entry(Self.pinDigits)
+    var held = Self.holding(pin1, for: .first)
+    #expect(held.current(card: .first) === pin1)
     // Serving does not spend it.
-    #expect(held.current(card: .first) == Self.pinDigits)
+    #expect(held.current(card: .first) === pin1)
   }
 
   @Test
-  internal func anotherCardAskingForgetsIt() {
-    var held = Self.holding(for: .first)
+  internal func anotherCardAskingForgetsIt() throws {
+    let pin1 = try Self.entry(Self.pinDigits)
+    var held = Self.holding(pin1, for: .first)
     #expect(held.current(card: .second) == nil)
     #expect(held.current(card: .first) == nil)
   }
 
   @Test
-  internal func noCardAskingForgetsIt() {
-    var held = Self.holding(for: .first)
+  internal func noCardAskingForgetsIt() throws {
+    let pin1 = try Self.entry(Self.pinDigits)
+    var held = Self.holding(pin1, for: .first)
     #expect(held.current(card: nil) == nil)
     #expect(held.current(card: .first) == nil)
   }
 
   @Test
-  internal func theSameCardStayingKeepsIt() {
-    var held = Self.holding(for: .first)
+  internal func theSameCardStayingKeepsIt() throws {
+    let pin1 = try Self.entry(Self.pinDigits)
+    var held = Self.holding(pin1, for: .first)
     held.keep(onlyFor: .first)
-    #expect(held.current(card: .first) == Self.pinDigits)
+    #expect(held.current(card: .first) === pin1)
   }
 
   @Test
-  internal func anotherCardArrivingForgetsIt() {
-    var held = Self.holding(for: .first)
+  internal func anotherCardArrivingForgetsIt() throws {
+    let pin1 = try Self.entry(Self.pinDigits)
+    var held = Self.holding(pin1, for: .first)
     held.keep(onlyFor: .second)
     #expect(held.current(card: .first) == nil)
   }
 
   @Test
-  internal func theCardLeavingForgetsIt() {
-    var held = Self.holding(for: .first)
+  internal func theCardLeavingForgetsIt() throws {
+    let pin1 = try Self.entry(Self.pinDigits)
+    var held = Self.holding(pin1, for: .first)
     held.keep(onlyFor: nil)
     #expect(held.current(card: .first) == nil)
   }
 
   @Test
-  internal func clearingForgetsIt() {
+  internal func clearingForgetsIt() throws {
     // The card refusing the value and the holder forgetting everything
     // both clear it.
-    var held = Self.holding(for: .first)
+    let pin1 = try Self.entry(Self.pinDigits)
+    var held = Self.holding(pin1, for: .first)
     held.clear()
     #expect(held.current(card: .first) == nil)
   }
 
   @Test
-  internal func anEmptyValueForgetsIt() {
-    var held = Self.holding(for: .first)
-    held.hold("", card: .first)
-    #expect(held.current(card: .first) == nil)
-  }
-
-  @Test
-  internal func aNewValueReplacesTheOldOne() {
-    var held = Self.holding(for: .first)
-    held.hold(Self.otherPinDigits, card: .second)
-    #expect(held.current(card: .second) == Self.otherPinDigits)
+  internal func aNewValueReplacesTheOldOne() throws {
+    let pin1 = try Self.entry(Self.pinDigits)
+    var held = Self.holding(pin1, for: .first)
+    let other = try Self.entry(Self.otherPinDigits)
+    held.hold(other, card: .second)
+    #expect(held.current(card: .second) === other)
     #expect(held.current(card: .first) == nil)
   }
 }

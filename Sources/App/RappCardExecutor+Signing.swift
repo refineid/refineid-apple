@@ -7,14 +7,17 @@
 
   extension RappCardExecutor {
     /// The PIN a signature spends (RAPP v26.10.29 §8.2 item 3, §11 item 2).
-    internal enum SigningPin: Sendable, Equatable {
+    ///
+    /// Each case carries the holder's zeroizing entry; every card command
+    /// is sent a single-use PIN the entry issues for it.
+    internal enum SigningPin: Sendable {
       /// PIN 1 the holder typed for this browser authentication.
-      case enteredPin1(String)
+      case enteredPin1(Pin1Entry)
       /// PIN 1 held from an earlier operation the card accepted; spent only
       /// while the card's PIN 1 counter shows no refusal since.
-      case heldPin1(String)
+      case heldPin1(Pin1Entry)
       /// PIN 2 the holder typed for this signature or batch.
-      case pin2(String)
+      case pin2(Pin2Entry)
 
       /// The credential the card checks it as.
       internal var role: CredentialRole {
@@ -35,14 +38,6 @@
 
         case .enteredPin1, .pin2:
           .entered
-        }
-      }
-
-      /// The digits the card is sent.
-      internal var digits: String {
-        switch self {
-        case .enteredPin1(let digits), .heldPin1(let digits), .pin2(let digits):
-          digits
         }
       }
     }
@@ -83,7 +78,7 @@
 
     internal static func signDocument(
       cardAccessNumber: String?,
-      pin2: String,
+      pin2: Pin2Entry,
       keyProfile: RappOperationDriver.KeyProfile,
       algorithm: RappOperationDriver.SignatureAlgorithm,
       digest: Data
@@ -187,11 +182,11 @@
       context: RappNearFieldSessionHolder.Context?
     ) -> Outcome? {
       switch pin {
-      case .enteredPin1(let digits), .heldPin1(let digits):
-        verifyRolePin1(digits, operations: operations, context: context)
+      case .enteredPin1(let entry), .heldPin1(let entry):
+        verifyRolePin1(entry, operations: operations, context: context)
 
-      case .pin2(let digits):
-        verifyRolePin2(digits, operations: operations, context: context)
+      case .pin2(let entry):
+        verifyRolePin2(entry, operations: operations, context: context)
       }
     }
 
@@ -201,39 +196,35 @@
     /// a held channel: a PSO sent without a fresh VERIFY is refused with
     /// security status not satisfied.
     private static func verifyRolePin1(
-      _ rawDigits: String,
+      _ entry: Pin1Entry,
       operations: CardOperations,
       context: RappNearFieldSessionHolder.Context?
     ) -> Outcome? {
-      guard let pin = Pin1(digits: rawDigits) else {
+      let fingerprint = entry.sessionFingerprint()
+      if let context, context.isNegativePin(fingerprint) {
         return .refusedBeforeCredentialTransmit(.invalidCredential(.pin1))
       }
-      if let context, context.isNegativePin(rawDigits) {
-        return .refusedBeforeCredentialTransmit(.invalidCredential(.pin1))
-      }
-      let outcome = verifyPin1(pin, with: operations)
+      let outcome = verifyPin1(entry.issue(), with: operations)
       if outcome == nil {
         OperationPhaseTrace.mark("credential-verified")
       } else if case .rejected = outcome {
-        context?.recordNegativePin(rawDigits, .pin1)
+        context?.recordNegativePin(fingerprint, .pin1)
       }
       return outcome
     }
 
     private static func verifyRolePin2(
-      _ documentPin2: String,
+      _ entry: Pin2Entry,
       operations: CardOperations,
       context: RappNearFieldSessionHolder.Context?
     ) -> Outcome? {
-      guard let pin = Pin2(digits: documentPin2) else {
+      let fingerprint = entry.sessionFingerprint()
+      if let context, context.isNegativePin(fingerprint) {
         return .refusedBeforeCredentialTransmit(.invalidCredential(.pin2))
       }
-      if let context, context.isNegativePin(documentPin2) {
-        return .refusedBeforeCredentialTransmit(.invalidCredential(.pin2))
-      }
-      let outcome = verifyPin2(pin, with: operations)
+      let outcome = verifyPin2(entry.issue(), with: operations)
       if case .rejected = outcome {
-        context?.recordNegativePin(documentPin2, .pin2)
+        context?.recordNegativePin(fingerprint, .pin2)
       }
       return outcome
     }

@@ -24,7 +24,7 @@
     internal var pin1ByOperation: [RappOperationIdentifier: RappCardExecutor.SigningPin] = [:]
     /// PIN 2 the holder typed for each signature or batch, until the card
     /// command spends it; never kept beyond it (RAPP v26.10.29 §11 item 2).
-    internal var pin2ByOperation: [RappOperationIdentifier: String] = [:]
+    internal var pin2ByOperation: [RappOperationIdentifier: Pin2Entry] = [:]
     internal var lastReadAuthCertDER: Data?
     /// The prompt each operation shows the holder, by operation.
     internal var requestIDs: [RappOperationIdentifier: String] = [:]

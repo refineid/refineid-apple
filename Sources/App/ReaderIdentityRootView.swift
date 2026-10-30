@@ -93,20 +93,24 @@
       .accessibilityIdentifier("rappDeny")
     }
 
+    /// Turns the text field's value into a zeroizing PIN entry and clears
+    /// the field; no `String` of the digits outlives this call.
     private func submitPin(for req: RappAuthorizationRequest) {
-      let pin = enteredPin
-      enteredPin = ""
       switch req.action {
       case .browserAuthentication:
-        if Pin1(digits: pin) != nil {
-          authorizationInbox.approveBrowserAuthentication(req.requestID, pin1: pin)
+        let entry = Pin1Entry(digits: enteredPin)
+        enteredPin = ""
+        if let entry {
+          authorizationInbox.approveBrowserAuthentication(req.requestID, pin1: entry)
         } else {
           authorizationInbox.deny(req.requestID)
         }
 
       case .documentSignature:
-        if Pin2(digits: pin) != nil {
-          authorizationInbox.approveDocumentSignature(req.requestID, pin2: pin)
+        let entry = Pin2Entry(digits: enteredPin)
+        enteredPin = ""
+        if let entry {
+          authorizationInbox.approveDocumentSignature(req.requestID, pin2: entry)
         } else {
           authorizationInbox.deny(req.requestID)
         }

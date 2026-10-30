@@ -18,9 +18,9 @@
   internal actor RappNearFieldSessionHolder {
     internal struct Context: Sendable {
       internal let isRoleProbed: @Sendable (CredentialRole) -> Bool
-      internal let isNegativePin: @Sendable (String) -> Bool
+      internal let isNegativePin: @Sendable (PinFingerprint) -> Bool
       internal let markRoleProbed: @Sendable (CredentialRole) -> Void
-      internal let recordNegativePin: @Sendable (String, CredentialRole) -> Void
+      internal let recordNegativePin: @Sendable (PinFingerprint, CredentialRole) -> Void
     }
 
     internal static let shared = RappNearFieldSessionHolder()

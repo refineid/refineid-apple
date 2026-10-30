@@ -1,9 +1,11 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 #if os(iOS) || os(macOS)
-  internal enum RappAuthorizationDecision: Sendable, Equatable, CustomReflectable {
-    case approvedBrowserAuthentication(pin1: Pin1AuthorizationDigits)
-    case approvedDocumentSignature(pin2: Pin2AuthorizationDigits)
+  import CardCore
+
+  internal enum RappAuthorizationDecision: Sendable, CustomReflectable {
+    case approvedBrowserAuthentication(pin1: Pin1Entry)
+    case approvedDocumentSignature(pin2: Pin2Entry)
     case denied
 
     /// High-level name of the decision suitable for tracing without logging credentials.
