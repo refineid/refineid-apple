@@ -7,9 +7,9 @@ This document defines the tiered testing, formatting, and release quality gates 
 | Tier | When | Gate / Tool | Scope & Objectives |
 | --- | --- | --- | --- |
 | **1. Commit** | Every local commit | `Scripts/test.sh commit` (`pre-commit`) | Checks staged whitespace, exercises the quality receipt gate when its files change, and runs lint against the exact staged Git tree. |
-| **2. Push / PR** | Every local push / PR update | `Scripts/test.sh pr` (`pre-push`) | Requires a clean checkout and checks local gate behavior, lint, CardCore and PKCS11Bridge Swift packages, iOS compilation, and `RefineIDTests`. |
+| **2. Push / PR** | Every local push / PR update | `Scripts/test.sh pr` (`pre-push`) | Requires a clean checkout and checks local gate behavior, lint, CardCore and PKCS11Bridge Swift packages, iOS compilation, `RefineIDTests`, and `CardCoreTests` with `RappIntegrationTests` in its own invocation. |
 | **3. TestFlight** | Staging candidate builds | `Scripts/apple-app-store-connect-release-manager.swift candidate` | Verifies archive export, provisioning profiles, entitlements, and diagnostic exclusions. Real-device smoke tests on iPhone (NFC card priming) and Mac (USB CCID reader). |
-| **4. App Store** | Public release production | `Scripts/test.sh full` + `inspect-archive` | Runs the PR floor, CardCore tests, and isolated RAPP integration tests. macOS UI and device compliance checks remain separate gates. |
+| **4. App Store** | Public release production | `Scripts/test.sh pr` + `inspect-archive` | Runs the PR floor. macOS UI and device compliance checks remain separate gates. |
 
 ---
 
@@ -29,8 +29,9 @@ This document defines the tiered testing, formatting, and release quality gates 
   2. **Lint Gate**: `Scripts/QualityReceipt.py lint-head` runs `Scripts/lint.sh` against the clean `HEAD` tree. The receipt includes the tree and the selected toolchain. GitHub build and test verification is manual-only; it is not repeated on pushes or pull requests.
   3. **Package Tests**: Runs `swift test --package-path CardCore` and `swift test --package-path PKCS11Bridge`.
   4. **Multi-Platform Build**: Verifies iOS compilation using the generic iOS destination.
-  5. **Targeted Unit Tests**: Executes `RefineIDTests` via `xcodebuild test -scheme RefineID -destination 'platform=macOS' -only-testing:RefineIDTests`.
-  6. **Checkout Integrity**: Requires every updated push ref to name `HEAD`, rejects dirty trees, and rechecks the commit after all steps.
+  5. **App Unit Tests**: Executes `RefineIDTests` via `xcodebuild test -scheme RefineID -destination 'platform=macOS' -only-testing:RefineIDTests`.
+  6. **Core Tests**: Executes `CardCoreTests` without `RappIntegrationTests`, then `CardCoreTests/RappIntegrationTests` alone, each in its own `xcodebuild test` invocation on macOS. A combined invocation can stall while Xcode finalizes its test record.
+  7. **Checkout Integrity**: Requires every updated push ref to name `HEAD`, rejects dirty trees, and rechecks the commit after all steps.
 
 ## 3. TestFlight Tier (Staging on Physical Hardware)
 
@@ -44,9 +45,9 @@ This document defines the tiered testing, formatting, and release quality gates 
 
 ## 4. App Store Public Release Tier (Exhaustive Assurance)
 
-- **CLI**: `Scripts/test.sh full` and `Scripts/apple-app-store-connect-release-manager.swift inspect-archive`.
+- **CLI**: `Scripts/test.sh pr` and `Scripts/apple-app-store-connect-release-manager.swift inspect-archive`.
 - **Focus**:
-  - Package tests, the core Xcode test target, and the targeted app unit tests. The RAPP loopback suite runs in an isolated invocation.
+  - The PR tier: package tests, the iOS build, `RefineIDTests`, and `CardCoreTests` with the RAPP loopback suite in its own invocation.
   - macOS UI checks run through `Scripts/test.sh macos-mvp`; device checks run through the documented hardware workflow.
   - Strict hardware protocol testing:
     - PACE establishment with CAN, anti-tamper penalty delay recovery (`FIA_AFL.1/PACE`).
