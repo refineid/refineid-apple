@@ -16,7 +16,7 @@ artifact in this repository.
 
 - Specification: `Documentation/protocol/rapp-v26.10.29.md`, with the
   transport and discovery hierarchy it cites in
-  `Documentation/rapp-transport-and-discovery-hierarchy.md`.
+  `Documentation/protocol/rapp-transport-and-discovery-hierarchy.md`.
 - Formal state model: `Documentation/protocol/rapp-state-machine-v26.10.29.yaml`;
   the pairing, session and operation tables transcribe it and are checked
   against it in both directions, and the engine's constants against its
