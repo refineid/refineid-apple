@@ -4,29 +4,24 @@ import CardCore
 import Foundation
 import Security
 
-/// Asks the configured authorities for a timestamp.
+/// Asks the qualified time-stamp authority for a timestamp.
 ///
-/// The list's order is the order asked, and the first authority
-/// to answer with a token that binds to the digest wins. A sole
-/// authority is retried after temporary failures. With several,
-/// refusal is a reason to try the next, never a reason to accept less.
-///
-/// The authority itself is trusted as configured: whoever names an
-/// authority answers for its standing. Every token is
-/// still cryptographically verified against the request digest and
-/// nonce, and against the certificate chain the token itself carries.
+/// The authority is retried after temporary failures. It is trusted
+/// as named: every token is still cryptographically verified against
+/// the request digest and nonce, and against the certificate chain the
+/// token itself carries.
 internal enum TimestampClient {
   /// Why no token could be obtained.
   internal enum Failure: Error, Equatable {
-    /// Every configured authority declined or failed.
-    case noAuthorityAnswered([String])
-
-    /// The list has no authority to ask.
-    case noAuthorityConfigured
+    /// The authority declined or failed.
+    case authorityDidNotAnswer(String)
 
     /// Secure random bytes for the request could not be made.
     case randomUnavailable
   }
+
+  /// The qualified RFC 3161 time-stamp service every signature asks.
+  internal static let authority = "http://timestamp.sectigo.com/qualified"
 
   /// The content type RFC 3161 defines for a request.
   private static let requestContentType = "application/timestamp-query"
@@ -43,34 +38,19 @@ internal enum TimestampClient {
   /// Exponent at which the one-second progression reaches its cap.
   private static let maximumRetryExponent = 6
 
-  /// One token over `digest`, from the first authority that answers.
+  /// One token over `digest` from the authority.
   internal static func token(
     over digest: Data
   ) async throws -> TimestampTokenVerifier.VerifiedToken {
-    let authorities = TimestampAuthorityStore.load()
-    guard !authorities.isEmpty else {
-      throw Failure.noAuthorityConfigured
-    }
-    if authorities.count == 1, let authority = authorities.first {
-      do {
-        return try await Self.withTransientRetry {
-          try await Self.token(over: digest, from: authority)
-        }
-      } catch is CancellationError {
-        throw CancellationError()
-      } catch {
-        throw Failure.noAuthorityAnswered(["\(authority): \(error)"])
+    do {
+      return try await Self.withTransientRetry {
+        try await Self.token(over: digest, from: Self.authority)
       }
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch {
+      throw Failure.authorityDidNotAnswer("\(error)")
     }
-    var declined: [String] = []
-    for authority in authorities {
-      do {
-        return try await Self.token(over: digest, from: authority)
-      } catch {
-        declined.append("\(authority): \(error)")
-      }
-    }
-    throw Failure.noAuthorityAnswered(declined)
   }
 
   /// A compact token over `digest`, without the authority's
@@ -80,30 +60,15 @@ internal enum TimestampClient {
   /// signature, certificate profile and chain as an archival token
   /// are verified. Only then is the unsigned CertificateSet removed.
   internal static func compactToken(over digest: Data) async throws -> Data {
-    let authorities = TimestampAuthorityStore.load()
-    guard !authorities.isEmpty else {
-      throw Failure.noAuthorityConfigured
-    }
-    if authorities.count == 1, let authority = authorities.first {
-      do {
-        return try await Self.withTransientRetry {
-          try await Self.compactToken(over: digest, from: authority)
-        }
-      } catch is CancellationError {
-        throw CancellationError()
-      } catch {
-        throw Failure.noAuthorityAnswered(["\(authority): \(error)"])
+    do {
+      return try await Self.withTransientRetry {
+        try await Self.compactToken(over: digest, from: Self.authority)
       }
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch {
+      throw Failure.authorityDidNotAnswer("\(error)")
     }
-    var declined: [String] = []
-    for authority in authorities {
-      do {
-        return try await Self.compactToken(over: digest, from: authority)
-      } catch {
-        declined.append("\(authority): \(error)")
-      }
-    }
-    throw Failure.noAuthorityAnswered(declined)
   }
 
   /// The compact exchange still asks the authority for its certificate.
@@ -134,12 +99,10 @@ internal enum TimestampClient {
   ) async throws -> TimestampTokenVerifier.VerifiedToken {
     let nonce = try Self.randomBytes()
     let request = RfcTimestamp.request(digest: digest, nonceBytes: nonce)
-    let credentials = TimestampAuthorityStore.credentials(for: authority)
     let response = try await SigningNetwork.post(
       request,
       to: authority,
       contentType: Self.requestContentType,
-      credentials: credentials,
       endpoint: .authority
     )
     let token = try RfcTimestamp.token(
@@ -158,7 +121,6 @@ internal enum TimestampClient {
       Self.compactRequest(digest: digest, nonceBytes: nonce),
       to: authority,
       contentType: Self.requestContentType,
-      credentials: TimestampAuthorityStore.credentials(for: authority),
       endpoint: .authority
     )
     let token = try RfcTimestamp.token(
@@ -167,7 +129,7 @@ internal enum TimestampClient {
     return try Self.verifiedCompactEncoding(token)
   }
 
-  /// Repeats a sole authority after temporary failures until it answers.
+  /// Repeats the authority after temporary failures until it answers.
   private static func withTransientRetry<T>(
     operation: () async throws -> T
   ) async throws -> T {

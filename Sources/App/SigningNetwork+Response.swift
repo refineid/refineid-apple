@@ -44,13 +44,11 @@ extension SigningNetwork {
     internal init(
       initial: URLRequest,
       endpoint: Endpoint,
-      carriesCredentials: Bool,
       limit: Int
     ) {
       redirects = RedirectGate(
         initial: initial,
-        endpoint: endpoint,
-        carriesCredentials: carriesCredentials
+        endpoint: endpoint
       )
       body = BoundedResponseBody(limit: limit)
     }

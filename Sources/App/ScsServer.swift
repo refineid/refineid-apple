@@ -18,6 +18,9 @@
   internal final class ScsServer: @unchecked Sendable {
     private static let readChunkLength = 65_536
 
+    /// The app's one listener.
+    internal static let shared = ScsServer()
+
     internal static var isFeatureEnabled: Bool {
       #if FEATURE_SCS
         true

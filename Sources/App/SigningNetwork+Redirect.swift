@@ -16,8 +16,6 @@ extension SigningNetwork {
   {
     private let initial: URLRequest
     private let endpoint: Endpoint
-    private let carriesCredentials: Bool
-    private let authorization: String?
     private let lock = NSLock()
     private var redirectsFollowed = 0
     private var rejection: Failure?
@@ -32,13 +30,10 @@ extension SigningNetwork {
     /// Remembers the invariant that applies to this one exchange.
     internal init(
       initial: URLRequest,
-      endpoint: Endpoint,
-      carriesCredentials: Bool
+      endpoint: Endpoint
     ) {
       self.initial = initial
       self.endpoint = endpoint
-      self.carriesCredentials = carriesCredentials
-      self.authorization = initial.value(forHTTPHeaderField: "Authorization")
     }
 
     /// Allows only the policy-approved replacement request.
@@ -72,7 +67,6 @@ extension SigningNetwork {
           from: initialUrl,
           to: target,
           endpoint: endpoint,
-          carriesCredentials: carriesCredentials,
           redirectsFollowed: redirectsFollowed
         ) == .follow
       else {
@@ -96,10 +90,6 @@ extension SigningNetwork {
           originalTarget: target
         )
       }
-      approved.setValue(nil, forHTTPHeaderField: "Authorization")
-      if carriesCredentials {
-        approved.setValue(authorization, forHTTPHeaderField: "Authorization")
-      }
       return approved
     }
 
@@ -113,7 +103,7 @@ extension SigningNetwork {
   /// Canonical-host plus media/CDN hops allowed for public material.
   private static let maximumCertificateMaterialRedirects = 2
 
-  /// Configured authorities remain limited to one tightly constrained hop.
+  /// The time-stamp authority is limited to one tightly constrained hop.
   private static let maximumAuthorityRedirects = 1
 
   /// The default port for an HTTP URL.
@@ -131,7 +121,6 @@ extension SigningNetwork {
     from initial: URL,
     to target: URL,
     endpoint: Endpoint,
-    carriesCredentials: Bool,
     redirectsFollowed: Int
   ) -> RedirectDecision {
     guard
@@ -141,13 +130,6 @@ extension SigningNetwork {
     if endpoint == .certificateMaterial {
       guard Self.certificateMaterialUrlIsAllowed(target)
       else { return .refuse }
-    }
-    if carriesCredentials {
-      guard
-        target.scheme?.lowercased() == "https",
-        Self.origin(of: initial) == Self.origin(of: target)
-      else { return .refuse }
-      return .follow
     }
     guard endpoint == .authority else { return .follow }
     return Self.authorityRedirectIsAllowed(from: initial, to: target)
@@ -161,9 +143,9 @@ extension SigningNetwork {
       : Self.maximumAuthorityRedirects
   }
 
-  /// A configured authority may change paths on its own origin.
+  /// The time-stamp authority may change paths on its own origin.
   ///
-  /// It may also upgrade its own HTTP name to HTTPS. It may not turn one trusted setting into a
+  /// It may also upgrade its own HTTP name to HTTPS. It may not turn the authority into a
   /// cross-host POST relay or downgrade a protected request.
   private static func authorityRedirectIsAllowed(
     from initial: URL,

@@ -7,7 +7,7 @@
 // flag plus the matching project packaging and archive inspection policy.
 //
 //   FEATURE_CONTACTLESS
-//       Contactless card reading on macOS: the CAN entry and its toggle.
+//       Contactless card reading on macOS: the CAN entry.
 //       The app and local token extension share the access number through
 //       their app-group container. On iPhone, built-in NFC is required
 //       and is not gated by this flag.
@@ -19,25 +19,17 @@
 //       no stamp UI is offered.
 //
 //   FEATURE_SCS
-//       The loopback HTTPS signing service, which startup restores from a
-//       saved opt-in; no UI sets the opt-in. When excluded, startup cannot
-//       enable it. Local testing of an enabled service also requires a
+//       The loopback HTTPS signing service on macOS, started at launch.
+//       Set by no configuration; a local build that sets it also needs a
 //       network-server entitlement.
-//
-//   FEATURE_TIMESTAMP_CONFIG
-//       Reads the RFC 3161 time-stamp authority list from preferences in
-//       place of the hardcoded qualified Sectigo server
-//       (http://timestamp.sectigo.com/qualified); no UI writes the list.
-//       Out of the first App Store release by decision
-//       (Documentation/decisions.md, 2026-09-26).
 //
 // macOS ships local card authentication, management and document signing,
 // and the remote card over RAPP as a requester that only dials out
-// (Documentation/decisions.md, 2026-10-10). SCS stays out of macOS in
-// every build configuration. iOS keeps its remote-card support.
+// (Documentation/decisions.md, 2026-10-10). Every signature is
+// time-stamped by the qualified Sectigo server
+// (http://timestamp.sectigo.com/qualified).
 
-REFINEID_FEATURES = FEATURE_CONTACTLESS FEATURE_SCS
-REFINEID_FEATURES[sdk=macosx*] = FEATURE_CONTACTLESS
+REFINEID_FEATURES = FEATURE_CONTACTLESS
 
 // The local card: this build talks to a card the device itself holds,
 // over its own antenna. On by default, because every shipping iPhone

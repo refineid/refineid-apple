@@ -107,7 +107,6 @@ internal enum ValidationMaterialCollector {
         body,
         to: address,
         contentType: contentType,
-        credentials: nil,
         endpoint: .certificateMaterial
       )
     }
