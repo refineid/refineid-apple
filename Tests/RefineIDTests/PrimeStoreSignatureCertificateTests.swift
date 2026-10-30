@@ -25,12 +25,13 @@
 
     private static func primeCard(certificate: Data) throws {
       PrimeStore.forgetAll()
+      let serial = try #require(ChipSerial(value: Self.chipSerialText))
       let identity = try #require(
         PrimedIdentity(
           can: Self.primedAccessNumber,
           certificate: certificate,
           issuer: nil,
-          chipSerial: ChipSerial(value: Self.chipSerialText),
+          chipSerial: serial,
           activationCheck: .passed))
       let lookup = try #require(PrimeLookupIdentifier(answerToReset: Self.answerToReset))
       #expect(PrimeStore.store(identity, forLookup: lookup))

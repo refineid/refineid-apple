@@ -6,13 +6,17 @@ import Security
 extension PrimeStore {
   /// Every decodable prime.
   internal static func storedItems() -> [StoredItem] {
+    storedRecords().compactMap { record in
+      record.identity.map { StoredItem(account: record.account, identity: $0) }
+    }
+  }
+
+  /// Every prime record whose bytes could be read, decodable or not.
+  internal static func storedRecords() -> [StoredRecord] {
     #if DEBUG
       if TestCredentialEnvironment.isTestMode {
-        return TestCredentialEnvironment.allPrimes().compactMap { account, data in
-          guard let identity = try? JSONDecoder().decode(PrimedIdentity.self, from: data) else {
-            return nil
-          }
-          return StoredItem(account: account, identity: identity)
+        return TestCredentialEnvironment.allPrimes().map { account, data in
+          StoredRecord(account: account, identity: identity(decoding: data))
         }
       }
     #endif
@@ -33,19 +37,14 @@ extension PrimeStore {
     else {
       return []
     }
-    return found.compactMap { (attributes: [String: Any]) -> StoredItem? in
-      guard let account = attributes[kSecAttrAccount as String] as? String else {
+    return found.compactMap { (attributes: [String: Any]) -> StoredRecord? in
+      guard
+        let account = attributes[kSecAttrAccount as String] as? String,
+        let data = attributes[kSecValueData as String] as? Data ?? readData(account: account)
+      else {
         return nil
       }
-      if let data = attributes[kSecValueData as String] as? Data,
-        let identity = try? JSONDecoder().decode(PrimedIdentity.self, from: data)
-      {
-        return StoredItem(account: account, identity: identity)
-      }
-      if let identity = read(account: account) {
-        return StoredItem(account: account, identity: identity)
-      }
-      return nil
+      return StoredRecord(account: account, identity: identity(decoding: data))
     }
   }
 

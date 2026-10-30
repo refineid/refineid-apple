@@ -19,4 +19,7 @@ internal struct PrimedTokenMaterial {
 
   /// Chip serial used for security bindings.
   internal let serial: ChipSerial
+
+  /// The CryptoTokenKit instance ID derived from ``serial``.
+  internal let instanceID: TokenInstanceID
 }

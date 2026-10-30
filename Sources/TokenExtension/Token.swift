@@ -177,7 +177,6 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
     aid: Data?,
     tokenDriver: TKSmartCardTokenDriver,
     chipSerial: ChipSerial,
-    instanceID: TokenInstanceID,
     primed: PrimedIdentity,
     shouldHoldSession: Bool,
     isPendingSign: Bool
@@ -195,12 +194,12 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
     self.sealedAccessNumber = material.accessNumber
     self.interface = .fieldWithDeadline
     self.chipSerial = material.serial
-    self.instanceID = instanceID
+    self.instanceID = material.instanceID
     self.smartCard = smartCard
     super.init(
       smartCard: smartCard,
       aid: aid,
-      instanceID: instanceID.value,
+      instanceID: material.instanceID.value,
       tokenDriver: tokenDriver
     )
     delegate = self

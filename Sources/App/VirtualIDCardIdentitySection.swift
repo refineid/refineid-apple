@@ -37,23 +37,12 @@
           virtualCardLocalized(
             "identity.chipSerial",
             defaultValue: "Chip serial"),
-          text: chipSerialText,
+          text: $draft.card.chipSerialText,
           axis: .vertical
         )
         .virtualCardEditorField()
         .accessibilityIdentifier("virtualCardChipSerial")
       }
-    }
-
-    /// The chip serial as editable text; only a valid serial is kept.
-    private var chipSerialText: Binding<String> {
-      Binding(
-        get: { draft.card.chipSerial.value },
-        set: { text in
-          if let serial = ChipSerial(value: text) {
-            draft.card.chipSerial = serial
-          }
-        })
     }
   }
 

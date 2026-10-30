@@ -49,8 +49,8 @@ public struct PrimedIdentity: Codable, Equatable, Sendable {
   /// The DER issuing-CA certificate, when the prime read one.
   public let issuerDER: Data?
 
-  /// The card's chip serial, when the prime read one.
-  public let chipSerial: ChipSerial?
+  /// The card's chip serial.
+  public let chipSerial: ChipSerial
 
   /// Proof that no known citizen-card activation state blocked this prime.
   public let activationCheck: ActivationCheck
@@ -70,7 +70,7 @@ public struct PrimedIdentity: Codable, Equatable, Sendable {
     can: String,
     certificate: Data,
     issuer: Data?,
-    chipSerial: ChipSerial?,
+    chipSerial: ChipSerial,
     activationCheck: ActivationCheck,
     signatureCertificate: Data? = nil
   ) {

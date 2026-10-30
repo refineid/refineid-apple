@@ -72,12 +72,18 @@ extension VirtualIDCard {
     public var holderName: String
     /// The identifier that names the holder in electronic services.
     public var electronicClientIdentifier: String
-    /// The serial the chip reports.
-    public var chipSerial: ChipSerial
+    /// The serial the chip reports, as the editor holds it.
+    public var chipSerialText: String
     /// The condition of the authentication certificate.
     public var authenticationCertificate: CertificateState
     /// The condition of the qualified signature certificate.
     public var signatureCertificate: CertificateState
+
+    /// The serial the chip reports, or nil when the text is not a chip
+    /// serial.
+    public var chipSerial: ChipSerial? {
+      ChipSerial(value: chipSerialText)
+    }
 
     /// Creates a fully specified card state.
     public init(
@@ -92,7 +98,7 @@ extension VirtualIDCard {
       puk: CredentialState,
       holderName: String,
       electronicClientIdentifier: String,
-      chipSerial: ChipSerial,
+      chipSerialText: String,
       authenticationCertificate: CertificateState,
       signatureCertificate: CertificateState
     ) {
@@ -107,7 +113,7 @@ extension VirtualIDCard {
       self.puk = puk
       self.holderName = holderName
       self.electronicClientIdentifier = electronicClientIdentifier
-      self.chipSerial = chipSerial
+      self.chipSerialText = chipSerialText
       self.authenticationCertificate = authenticationCertificate
       self.signatureCertificate = signatureCertificate
     }

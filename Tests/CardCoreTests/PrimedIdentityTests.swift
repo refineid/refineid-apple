@@ -18,6 +18,14 @@ internal struct PrimedIdentityTests {
   /// An unmistakably synthetic chip serial.
   private static let sampleSerialText = "SYNTHETIC-PRIME-SERIAL"
 
+  /// The synthetic chip serial as its domain type.
+  private static let sampleSerial: ChipSerial = {
+    guard let serial = ChipSerial(value: sampleSerialText) else {
+      fatalError("test serial must be valid")
+    }
+    return serial
+  }()
+
   /// Coding key of the stored chip serial.
   private static let chipSerialKey = "chipSerial"
 
@@ -29,11 +37,11 @@ internal struct PrimedIdentityTests {
     let certificate = WireHex.data(Self.sampleCertificateHexDigits)
     #expect(
       PrimedIdentity(
-        can: "12345", certificate: certificate, issuer: nil, chipSerial: nil,
+        can: "12345", certificate: certificate, issuer: nil, chipSerial: Self.sampleSerial,
         activationCheck: Self.activationCheck) == nil)
     #expect(
       PrimedIdentity(
-        can: "12345a", certificate: certificate, issuer: nil, chipSerial: nil,
+        can: "12345a", certificate: certificate, issuer: nil, chipSerial: Self.sampleSerial,
         activationCheck: Self.activationCheck) == nil)
   }
 
@@ -41,7 +49,7 @@ internal struct PrimedIdentityTests {
   internal func refusesAnEmptyCertificate() {
     #expect(
       PrimedIdentity(
-        can: Self.sampleCan, certificate: Data(), issuer: nil, chipSerial: nil,
+        can: Self.sampleCan, certificate: Data(), issuer: nil, chipSerial: Self.sampleSerial,
         activationCheck: Self.activationCheck) == nil)
   }
 
@@ -66,14 +74,32 @@ internal struct PrimedIdentityTests {
   }
 
   @Test
-  internal func acceptsAPrimeWithoutIssuerOrSerial() throws {
+  internal func refusesToDecodeARecordWithoutASerial() throws {
+    let identity = try #require(
+      PrimedIdentity(
+        can: Self.sampleCan,
+        certificate: WireHex.data(Self.sampleCertificateHexDigits),
+        issuer: nil,
+        chipSerial: Self.sampleSerial,
+        activationCheck: Self.activationCheck))
+    let payload = try JSONEncoder().encode(identity)
+    var object = try #require(
+      JSONSerialization.jsonObject(with: payload) as? [String: Any])
+    object[Self.chipSerialKey] = nil
+    let stripped = try JSONSerialization.data(withJSONObject: object)
+    #expect(throws: DecodingError.self) {
+      try JSONDecoder().decode(PrimedIdentity.self, from: stripped)
+    }
+  }
+
+  @Test
+  internal func acceptsAPrimeWithoutIssuer() throws {
     let certificate = WireHex.data(Self.sampleCertificateHexDigits)
     let identity = try #require(
       PrimedIdentity(
-        can: Self.sampleCan, certificate: certificate, issuer: nil, chipSerial: nil,
+        can: Self.sampleCan, certificate: certificate, issuer: nil, chipSerial: Self.sampleSerial,
         activationCheck: Self.activationCheck))
     #expect(identity.issuerDER == nil)
-    #expect(identity.chipSerial == nil)
   }
 
   @Test
@@ -100,13 +126,12 @@ internal struct PrimedIdentityTests {
         can: Self.sampleCan,
         certificate: WireHex.data(Self.sampleCertificateHexDigits),
         issuer: nil,
-        chipSerial: nil,
+        chipSerial: Self.sampleSerial,
         activationCheck: Self.activationCheck))
     let payload = try JSONEncoder().encode(identity)
     let decoded = try JSONDecoder().decode(PrimedIdentity.self, from: payload)
     #expect(decoded == identity)
     #expect(decoded.issuerDER == nil)
-    #expect(decoded.chipSerial == nil)
     #expect(decoded.signatureCertDER == nil)
   }
 

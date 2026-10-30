@@ -36,6 +36,13 @@ public enum PrimeStore {
     internal let identity: PrimedIdentity
   }
 
+  /// One keychain record whose bytes were read, with its identity when
+  /// they decode into a valid prime.
+  internal struct StoredRecord {
+    internal let account: String
+    internal let identity: PrimedIdentity?
+  }
+
   /// The dated marker naming the app's own registration field.
   private struct RegistrationFieldMark: Codable {
     let markedAt: Date
@@ -165,30 +172,30 @@ public enum PrimeStore {
 
   /// Decodes and validates one record by keychain account.
   internal static func read(account: String) -> PrimedIdentity? {
+    readData(account: account).flatMap(identity(decoding:))
+  }
+
+  /// The stored bytes of one record, or nil when there are none or the
+  /// keychain refuses the read.
+  internal static func readData(account: String) -> Data? {
     #if DEBUG
       if TestCredentialEnvironment.isTestMode {
-        guard let data = TestCredentialEnvironment.readPrime(account: account),
-          let stored = try? JSONDecoder().decode(PrimedIdentity.self, from: data)
-        else {
-          return nil
-        }
-        return PrimedIdentity(
-          can: stored.can,
-          certificate: stored.certDER,
-          issuer: stored.issuerDER,
-          chipSerial: stored.chipSerial,
-          activationCheck: stored.activationCheck,
-          signatureCertificate: stored.signatureCertDER)
+        return TestCredentialEnvironment.readPrime(account: account)
       }
     #endif
     var query = self.query(account: account)
     query[kSecReturnData as String] = true
     query[kSecMatchLimit as String] = kSecMatchLimitOne
     var item: CFTypeRef?
-    guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
-      let data = item as? Data,
-      let stored = try? JSONDecoder().decode(PrimedIdentity.self, from: data)
-    else {
+    guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess else {
+      return nil
+    }
+    return item as? Data
+  }
+
+  /// Decodes stored bytes and re-validates them through the initializer.
+  internal static func identity(decoding data: Data) -> PrimedIdentity? {
+    guard let stored = try? JSONDecoder().decode(PrimedIdentity.self, from: data) else {
       return nil
     }
     return PrimedIdentity(
@@ -217,14 +224,17 @@ public enum PrimeStore {
     }
   }
 
-  /// Removes every prime belonging to one physical card.
+  /// Removes every prime belonging to one physical card, and every
+  /// record that does not decode into a prime.
   ///
   /// A physical card can acquire more than one ATR lookup record across
   /// interfaces or card generations. The chip serial is the stable
-  /// revocation boundary, so all matching records go together.
+  /// revocation boundary, so all matching records go together. A record
+  /// that does not decode names no card and nothing reads it.
   public static func forget(serial: ChipSerial) {
-    for item in storedItems() where item.identity.chipSerial == serial {
-      delete(account: item.account)
+    for record in storedRecords()
+    where record.identity == nil || record.identity?.chipSerial == serial {
+      delete(account: record.account)
     }
   }
 
@@ -279,8 +289,7 @@ public enum PrimeStore {
           instance: item.account,
           hasCardAccessNumber: !item.identity.can.isEmpty,
           certificateBytes: item.identity.certDER.count,
-          issuerBytes: item.identity.issuerDER?.count ?? 0,
-          hasChipSerial: item.identity.chipSerial != nil)
+          issuerBytes: item.identity.issuerDER?.count ?? 0)
       }
   }
 

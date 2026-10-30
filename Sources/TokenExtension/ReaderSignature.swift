@@ -206,14 +206,15 @@ internal enum ReaderSignature {
   /// Confirms the card is the one the token was created for, then reads
   /// only the retry state of the credential this operation spends.
   ///
-  /// A card reporting another chip serial is a different card and is
-  /// refused before any PIN-bearing command. PIN2 is used for qualified
-  /// signatures and PUK for recovery. Reading either during authentication
-  /// adds APDUs and unrelated failure modes without protecting PIN1.
-  ///
-  /// The probe first decides holding (``Pin1Memory/retain(after:serial:)``):
-  /// one that forbids it drops the accepted PIN of the token's card at
-  /// once, before any verdict.
+  /// The order is: the chip serial check, the PIN1 probe, the holding
+  /// decision, the retry-floor verdict. A card reporting another chip
+  /// serial is a different card and is refused before the probe and any
+  /// PIN-bearing command. The probe then decides holding
+  /// (``Pin1Memory/retain(after:serial:)``): one that forbids it drops the
+  /// accepted PIN of the token's card before the floor's verdict. PIN2 is
+  /// used for qualified signatures and PUK for recovery; reading either
+  /// during authentication adds APDUs and unrelated failure modes without
+  /// protecting PIN1.
   private static func probePin1OfTokenCard(
     _ operations: CardOperations,
     token: Token

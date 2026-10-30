@@ -17,15 +17,6 @@ extension VirtualIDCard {
     case pukRecoveryRefusedReader = "puk-recovery-refused-reader"
     case absent = "absent"
 
-    /// The chip serial every scenario card reports; an invalid constant is
-    /// a programmer error caught at first use.
-    private static let chipSerial: ChipSerial = {
-      guard let serial = ChipSerial(value: "XA1234567") else {
-        preconditionFailure("invalid scenario chip serial")
-      }
-      return serial
-    }()
-
     /// Whether the scenario connects over the near-field transport.
     public var usesNearField: Bool {
       switch self {
@@ -71,7 +62,7 @@ extension VirtualIDCard {
           attemptsRemaining: RetryCount.pristineAllowance),
         holderName: "DOE JANE",
         electronicClientIdentifier: "12345678N",
-        chipSerial: Self.chipSerial,
+        chipSerialText: "XA1234567",
         authenticationCertificate: .valid,
         signatureCertificate: .valid)
       var device = DeviceState()

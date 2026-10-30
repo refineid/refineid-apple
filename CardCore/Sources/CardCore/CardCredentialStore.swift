@@ -234,7 +234,7 @@ public enum CardCredentialStore {
   public static func primedIdentity(
     certificate: Data,
     issuer: Data?,
-    chipSerial: ChipSerial?,
+    chipSerial: ChipSerial,
     activationCheck: PrimedIdentity.ActivationCheck,
     signatureCertificate: Data? = nil
   ) -> PrimedIdentity? {

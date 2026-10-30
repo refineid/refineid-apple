@@ -83,7 +83,11 @@ extension Token {
     }
     let (profile, publicKey) = try Self.validatedSigningKey(in: leaf)
     guard primed.chipSerial == chipSerial else {
-      TokenLog.trace("Token.init(primed): stored serial is not this card's")
+      TokenLog.trace("Token.init(primed): stored chip serial is not this card's")
+      throw TokenError.primeMissing
+    }
+    guard let instanceID = TokenInstanceID(chipSerial: chipSerial) else {
+      TokenLog.trace("Token.init(primed): chip serial has no supported printed form")
       throw TokenError.primeMissing
     }
     return PrimedTokenMaterial(
@@ -91,7 +95,8 @@ extension Token {
       leaf: leaf,
       profile: profile,
       publicKey: publicKey,
-      serial: chipSerial
+      serial: chipSerial,
+      instanceID: instanceID
     )
   }
 

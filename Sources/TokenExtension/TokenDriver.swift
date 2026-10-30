@@ -212,13 +212,7 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
       )
       throw TokenError.primeMissing
     }
-    guard
-      let serial = match.identity.chipSerial,
-      let instanceID = TokenInstanceID(chipSerial: serial)
-    else {
-      TokenLog.error("mintFromPrime: prime has no supported printed serial")
-      throw TokenError.primeMissing
-    }
+    let serial = match.identity.chipSerial
     // Recorded rather than written: this is inside the two seconds the
     // system gives the mint, and the line is written out by whichever
     // `createToken` outcome line follows it.
@@ -242,7 +236,6 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
       aid: aid,
       tokenDriver: tokenDriver,
       chipSerial: serial,
-      instanceID: instanceID,
       primed: match.identity,
       shouldHoldSession: needsSigningField,
       isPendingSign: isPendingSign
