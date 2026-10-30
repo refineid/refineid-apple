@@ -62,7 +62,8 @@ resume work or clean up. In particular:
 ## Finishing a task
 
 1. Run `Scripts/test.sh pr` in the clean worktree. This includes lint, Swift
-   package tests for CardCore and PKCS11Bridge, the iOS build, and RefineIDTests.
+   package tests for CardCore and PKCS11Bridge, the iOS build, RefineIDTests,
+   and CardCoreTests.
 2. Commit on the task branch (subject and body only; strictly no AI attribution trailers)
    and push.
 3. Open one pull request for the branch.

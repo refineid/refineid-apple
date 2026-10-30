@@ -4,11 +4,10 @@
 # Tiered test and quality gate runner for RefineID.
 #
 # Usage:
-#   Scripts/test.sh           # default: runs PR tier (lint, package tests, iOS build, targeted unit tests)
+#   Scripts/test.sh           # default: runs PR tier (lint, package tests, iOS build, app and core unit tests)
 #   Scripts/test.sh commit    # fast pre-commit tier (whitespace check + lint)
-#   Scripts/test.sh pr        # PR / pre-push tier (lint, package tests, iOS build, RefineIDTests)
+#   Scripts/test.sh pr        # PR / pre-push tier (lint, package tests, iOS build, RefineIDTests, CardCoreTests)
 #   Scripts/test.sh nfc-signing # retained-field lifecycle and PACE regression tests
-#   Scripts/test.sh full      # release regression tier (PR checks plus core and isolated RAPP tests)
 #   Scripts/test.sh macos-mvp # localized local-card UI checks
 
 set -euo pipefail
@@ -88,10 +87,20 @@ case "${mode}" in
     xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -destination 'platform=macOS' -only-testing:RefineIDTests -quiet \
       || fail "Unit tests failed."
 
+    # RappIntegrationTests runs in its own invocation: a combined run can
+    # stall while Xcode finalizes its test record.
+    step "7. Running core test suite (CardCoreTests on macOS, without RAPP integration)"
+    xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -destination 'platform=macOS' -only-testing:CardCoreTests -skip-testing:CardCoreTests/RappIntegrationTests -quiet \
+      || fail "CardCore tests failed."
+
+    step "8. Running RAPP integration tests (CardCoreTests/RappIntegrationTests on macOS)"
+    xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -destination 'platform=macOS' -only-testing:CardCoreTests/RappIntegrationTests -quiet \
+      || fail "RAPP integration tests failed."
+
     Scripts/QualityReceipt.py verify-head "${checked_head}" "${checked_tree}" \
       || fail "The checked-out commit changed during push checks."
 
-    printf '\nPR gate passed: Lint, package tests, iOS compilation, and app unit tests pass.\n'
+    printf '\nPR gate passed: gate tests, lint, CardCore and PKCS11Bridge package tests, iOS build, RefineIDTests, CardCoreTests, and RappIntegrationTests.\n'
     ;;
 
   nfc-signing)
@@ -118,23 +127,8 @@ case "${mode}" in
       || fail "macOS MVP UI checks failed."
     ;;
 
-  full|release)
-    step "1. Running PR gate checks"
-    "$0" pr
-
-    step "2. Running isolated CardCore crypto & protocol tests"
-    xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -destination 'platform=macOS' -only-testing:CardCoreTests -skip-testing:CardCoreTests/RappIntegrationTests -quiet \
-      || fail "CardCore tests failed."
-
-    step "3. Running isolated RAPP integration tests"
-    xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -destination 'platform=macOS' -only-testing:CardCoreTests/RappIntegrationTests -quiet \
-      || fail "RAPP integration tests failed."
-
-    printf '\nAutomated release regression suites passed.\n'
-    ;;
-
   *)
-    printf 'Usage: %s [commit|pr|full|nfc-signing|macos-mvp]\n' "$0" >&2
+    printf 'Usage: %s [commit|pr|nfc-signing|macos-mvp]\n' "$0" >&2
     exit 2
     ;;
 esac
