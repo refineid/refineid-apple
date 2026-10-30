@@ -10,13 +10,6 @@
 
   @testable import RefineIDTestHost
 
-  /// How often a test looks again while it waits, and how many times.
-  private enum Patience {
-    static let pollMilliseconds: Int64 = 10
-    static let poll = Duration.milliseconds(pollMilliseconds)
-    static let looks = 200
-  }
-
   /// The holder's click off forgets every pairing (RAPP v26.10.29 §4.6 item
   /// 6, CC-100), durably and before a quit lets the app go; a stop
   /// withdraws and keeps them (§4.5 item 8).
@@ -41,7 +34,7 @@
     ) throws -> RappPairRecord {
       let local = Curve25519.KeyAgreement.PrivateKey()
       let remote = Curve25519.KeyAgreement.PrivateKey()
-      let pairing = try RappSameAccountPairBuilder.makePairRecord(
+      let pairing = try PairRecordFixture.makePairRecord(
         localStaticPrivate: local.rawRepresentation,
         localStaticPublic: local.publicKey.rawRepresentation,
         localRole: .requester,
@@ -49,13 +42,6 @@
         createdAtMilliseconds: createdAt)
       try vault.insertPair(pairID: pairing.metadata().pairId, record: try pairing.encodedBytes())
       return pairing
-    }
-
-    /// Waits a while for `condition`.
-    private static func wait(until condition: () -> Bool) async throws {
-      for _ in 0..<Patience.looks where !condition() {
-        try await Task.sleep(for: Patience.poll)
-      }
     }
 
     /// Gives `registry` a session over `pairing` as remote use had it: up
@@ -83,7 +69,6 @@
       let registry = PersistentTokenRegistry.shared
       let vault = RappDeviceVault()
       let store = Self.scratchStore()
-      let directory = RecordingSameAccountDirectory(reachable: true)
       defer { Self.clearScratchStore() }
       let pairing = try Self.storedPairing(in: vault)
       let other = try Self.storedPairing(in: vault)
@@ -97,7 +82,7 @@
       registry.phoneThatForgot = Self.phone
       Self.holdOpenSession(over: pairing, in: registry)
 
-      registry.forgetEveryPairing(in: vault, store: store, directory: directory)
+      registry.forgetEveryPairing(in: vault, store: store)
 
       // The click is kept before anything else, and everything remote
       // stops at once.
@@ -120,33 +105,8 @@
       #expect(try vault.activePairIDs().isEmpty)
       #expect(try vault.loadPair(pairID: other.metadata().pairId) == nil)
       #expect(RappPairNames.name(forPairID: pairID) == nil)
-      #expect(directory.removals.count == 1, "the phones leave the account's directory")
       #expect(registry.pairedPhoneID == nil)
       #expect(PersistentTokenRegistry.pairedPhoneID(in: vault) == nil)
-    }
-
-    @Test("A click off the directory could not take is kept, and turning on finishes it first")
-    internal func unreachableDirectoryKeepsTheClick() async throws {
-      let registry = PersistentTokenRegistry.shared
-      let vault = RappDeviceVault()
-      let store = Self.scratchStore()
-      defer { Self.clearScratchStore() }
-      let directory = RecordingSameAccountDirectory(reachable: false)
-      _ = try Self.storedPairing(in: vault)
-      defer { registry.refreshPairing(in: vault) }
-
-      registry.forgetEveryPairing(in: vault, store: store, directory: directory)
-      await registry.forgetting?.value
-      #expect(try vault.activePairIDs().isEmpty)
-      #expect(
-        RemoteUseForgetting.pending(in: store) != nil,
-        "a same-account record that could re-pair keeps the click")
-
-      directory.setReachable(true)
-      registry.turnedOn(in: vault, store: store, directory: directory)
-      await registry.forgetting?.value
-      #expect(directory.removals.count == 2, "turning on tries the directory again first")
-      #expect(RemoteUseForgetting.pending(in: store) == nil)
     }
 
     @Test("With no session open, the click off destroys every pairing at once and tells nobody")
@@ -154,20 +114,18 @@
       let registry = PersistentTokenRegistry.shared
       let vault = RappDeviceVault()
       let store = Self.scratchStore()
-      let directory = RecordingSameAccountDirectory(reachable: true)
       defer { Self.clearScratchStore() }
       _ = try Self.storedPairing(in: vault)
       registry.refreshPairing(in: vault)
       defer { registry.refreshPairing(in: vault) }
 
-      registry.forgetEveryPairing(in: vault, store: store, directory: directory)
+      registry.forgetEveryPairing(in: vault, store: store)
       await registry.forgetting?.value
 
       #expect(registry.forgetting == nil)
       #expect(registry.pairingDestruction == nil)
       #expect(RemoteUseForgetting.pending(in: store) == nil)
       #expect(try vault.activePairIDs().isEmpty)
-      #expect(directory.removals.count == 1, "the phones leave the account's directory")
       #expect(registry.pairedPhoneID == nil)
     }
 
@@ -176,14 +134,13 @@
       let registry = PersistentTokenRegistry.shared
       let vault = RappDeviceVault()
       let store = Self.scratchStore()
-      let directory = RecordingSameAccountDirectory(reachable: true)
       defer { Self.clearScratchStore() }
       let pairing = try Self.storedPairing(in: vault)
       defer { registry.refreshPairing(in: vault) }
       Self.holdOpenSession(over: pairing, in: registry)
       let off = Self.rig().remoteUse
 
-      registry.forgetEveryPairing(in: vault, store: store, directory: directory)
+      registry.forgetEveryPairing(in: vault, store: store)
       let pending = try #require(
         QuitWithdrawal.begin(remoteUse: off, registry: registry),
         "remote use is off, yet the quit waits for the forgetting")
@@ -204,32 +161,23 @@
       let vault = RappDeviceVault()
       let store = Self.scratchStore()
       defer { Self.clearScratchStore() }
-      let directory = RecordingSameAccountDirectory(reachable: true)
-      directory.hold()
-      let first = try Self.storedPairing(in: vault)
+      _ = try Self.storedPairing(in: vault)
       defer { registry.refreshPairing(in: vault) }
 
-      registry.forgetEveryPairing(in: vault, store: store, directory: directory)
+      registry.forgetEveryPairing(in: vault, store: store)
       let firstDestruction = try #require(registry.pairingDestruction)
-      try await Self.wait { directory.waiting == 1 }
 
       // Remote use on again, a phone paired again, and turned off again
-      // while the first click off still waits on the directory.
-      let second = try Self.storedPairing(in: vault)
-      registry.forgetEveryPairing(in: vault, store: store, directory: directory)
+      // while the first click off may still be destroying.
+      _ = try Self.storedPairing(in: vault)
+      registry.forgetEveryPairing(in: vault, store: store)
       let secondDestruction = try #require(registry.pairingDestruction)
       let pending = try #require(
         QuitWithdrawal.begin(remoteUse: Self.rig().remoteUse, registry: registry))
-      #expect(directory.removals.count == 1, "the second waits for the first")
 
-      directory.release()
       let quitWaitedFor = try #require(pending.forgetting)
       _ = await quitWaitedFor.value
       #expect(try vault.activePairIDs().isEmpty, "the quit let go once both were destroyed")
-      #expect(directory.removals.count == 2)
-      #expect(
-        directory.removals.last == [first.metadata().pairId, second.metadata().pairId],
-        "the second click covers both")
       _ = await firstDestruction.value
       _ = await secondDestruction.value
       await registry.forgetting?.value

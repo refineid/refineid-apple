@@ -245,7 +245,7 @@ public final class RappDeviceVault: @unchecked Sendable {
     }
   }
 
-  /// Deletes the pair record so same-account auto-pairing can recreate it.
+  /// Deletes the pair record.
   public func revokePair(pairID: Data, revokedAtMilliseconds _: UInt64) throws {
     try synchronized {
       try requireIdentifier(pairID, size: IdentifierSize.pair)

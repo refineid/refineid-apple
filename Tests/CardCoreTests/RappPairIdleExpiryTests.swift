@@ -36,7 +36,7 @@
     private static func storedPairing(in vault: RappDeviceVault) throws -> Data {
       let local = Curve25519.KeyAgreement.PrivateKey()
       let remote = Curve25519.KeyAgreement.PrivateKey()
-      let pairing = try RappSameAccountPairBuilder.makePairRecord(
+      let pairing = try PairRecordFixture.makePairRecord(
         localStaticPrivate: local.rawRepresentation,
         localStaticPublic: local.publicKey.rawRepresentation,
         localRole: .requester,

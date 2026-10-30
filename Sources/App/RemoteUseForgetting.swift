@@ -8,28 +8,24 @@
   import RappEngine
 
   /// The holder's click turning remote use off, kept until every pairing it
-  /// forgets is destroyed and the account's directory pairs none of their
-  /// phones again (RAPP v26.10.29 §4.6 item 6, STPA CC-100).
+  /// forgets is destroyed (RAPP v26.10.29 §4.6 item 6, STPA CC-100).
   ///
   /// The click is stored with its wall-clock time and the pairings it
   /// forgets before anything else happens. Those pairings are then
   /// destroyed with their keys, and each name goes once its key is gone; a
-  /// pairing made after the click stays. The same-account records of
-  /// exactly those pairings' phones leave the account's directory, so a
-  /// phone paired only with another computer stays. What the vault or the
-  /// directory does not let go stays under the stored click, which turning
-  /// remote use on and the next launch finish first, so no launch restores
-  /// remote use on after the holder turned it off. A click is cleared only
-  /// by the attempt that finished it, never one stored after it.
+  /// pairing made after the click stays. What the vault does not let go
+  /// stays under the stored click, which turning remote use on and the
+  /// next launch finish first, so no launch restores remote use on after
+  /// the holder turned it off. A click is cleared only by the attempt that
+  /// finished it, never one stored after it.
   internal enum RemoteUseForgetting {
     /// What one attempt to finish the forgetting did.
     internal struct Outcome: Equatable, Sendable {
       /// The pairings destroyed.
       internal var destroyed: [Data] = []
 
-      /// How many pairings, or listings of them, the vault refused, and the
-      /// directory if it still holds a phone; each is tried again by the
-      /// next attempt.
+      /// How many pairings, or listings of them, the vault refused; each is
+      /// tried again by the next attempt.
       internal var failures = 0
     }
 
@@ -106,19 +102,15 @@
       }
     }
 
-    /// Destroys the pairings the pending click forgets, removes their
-    /// phones from `directory`, and clears that click once both are done;
-    /// nothing without a click.
+    /// Destroys the pairings the pending click forgets and clears that
+    /// click once they are gone; nothing without a click.
     ///
     /// Runs on any thread: quitting waits on it while the main thread
     /// answers the quit. A click stored while it ran stays for the next
     /// attempt.
     internal static func finish(
-      in vault: RappDeviceVault,
-      store: Store,
-      clock: RappPlatformClock,
-      directory: any SameAccountDirectory
-    ) async -> Outcome {
+      in vault: RappDeviceVault, store: Store, clock: RappPlatformClock
+    ) -> Outcome {
       guard var request = pending(in: store) else { return Outcome() }
       if request.needsListing {
         let listed: [Data]
@@ -135,10 +127,7 @@
         }
         request = updated
       }
-      var outcome = destroy(request.pairIDs, in: vault, clock: clock)
-      if await !directory.removeDevices(pairedThrough: Set(request.pairIDs)) {
-        outcome.failures += 1
-      }
+      let outcome = destroy(request.pairIDs, in: vault, clock: clock)
       if outcome.failures == 0 {
         clear(request, in: store)
       }
@@ -150,8 +139,7 @@
       #if DEBUG
         if outcome.failures > 0 {
           DevErrorLog.report(
-            "remote use off: \(outcome.failures) pairing(s) or the account's directory not "
-              + "settled, kept for the next try",
+            "remote use off: \(outcome.failures) pairing(s) not settled, kept for the next try",
             source: .app)
         }
       #endif

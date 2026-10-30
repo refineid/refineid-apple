@@ -26,6 +26,5 @@ manager. Retain release evidence regardless of the build provider.
 
 The [release plan](Documentation/release-plan.md#release-evidence-reconciliation)
 records established release evidence. The
-[RAPP handoff](Documentation/rapp-implementation-handoff.md) and
-[same-Apple-ID pairing design](Documentation/same-apple-id-automatic-pairing.md)
-retain protocol architecture and verification details.
+[RAPP handoff](Documentation/rapp-implementation-handoff.md) retains protocol
+architecture and verification details.

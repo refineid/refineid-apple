@@ -89,7 +89,6 @@ extension CardCredentialsView {
       .onAppear {
         syncRemoteAccessToggle()
         pairingModel.refresh()
-        RappAutoPairingService.shared.reconcile()
       }
       .onReceive(pairingModel.$phase) { _ in
         syncRemoteAccessToggle()

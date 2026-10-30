@@ -20,12 +20,12 @@ internal struct StreamSessionLoopbackTests {
     let custodianKey = Curve25519.KeyAgreement.PrivateKey()
     let requesterKey = Curve25519.KeyAgreement.PrivateKey()
     return (
-      try RappSameAccountPairBuilder.makePairRecord(
+      try PairRecordFixture.makePairRecord(
         localStaticPrivate: custodianKey.rawRepresentation,
         localStaticPublic: custodianKey.publicKey.rawRepresentation,
         localRole: .proxy,
         remotePublicKey: requesterKey.publicKey.rawRepresentation),
-      try RappSameAccountPairBuilder.makePairRecord(
+      try PairRecordFixture.makePairRecord(
         localStaticPrivate: requesterKey.rawRepresentation,
         localStaticPublic: requesterKey.publicKey.rawRepresentation,
         localRole: .requester,

@@ -73,8 +73,6 @@
     }
 
     /// Destroys the pair record and its key now.
-    ///
-    /// Same-account auto-pairing may recreate it.
     public func revoke(pairID: Data) throws {
       try RappPairRevocation.revoke(pairID: pairID, in: vault, clock: clock)
     }

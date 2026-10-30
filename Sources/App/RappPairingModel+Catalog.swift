@@ -10,13 +10,12 @@ private let clock = RappPlatformClock()
 
 extension RappPairingModel {
   /// Posted when the set of active pairings changes.
-  internal static let pairingsDidChangeNotification =
-    RappAutoPairingService.pairingsDidChangeNotification
+  internal static let pairingsDidChangeNotification = Notification.Name(
+    "fi.refineid.pairingsDidChange")
 
   /// Deletes every stored pairing and forgets their display names.
   ///
-  /// Same-account auto-pairing recreates complementary peers on the next
-  /// reconcile. The pairing is gone here even if a peer never receives a
+  /// The pairing is gone here even if a peer never receives a
   /// close frame: the vault is the record this device honours, and the
   /// namespace it lives in is wiped.
   internal static func revokeEveryStoredPair() {
@@ -150,6 +149,5 @@ extension RappPairingModel {
       PersistentTokenRegistry.withdrawPublishedIdentity()
       PersistentTokenRegistry.shared.stopWatchingPresence()
     #endif
-    RappAutoPairingService.shared.reconcile()
   }
 }

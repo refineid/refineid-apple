@@ -25,12 +25,12 @@ internal struct CustodianSessionAdmissionTests {
   private static func pairing(custodianKey: Curve25519.KeyAgreement.PrivateKey) throws -> Pairing {
     let computerKey = Curve25519.KeyAgreement.PrivateKey()
     return Pairing(
-      custodian: try RappSameAccountPairBuilder.makePairRecord(
+      custodian: try PairRecordFixture.makePairRecord(
         localStaticPrivate: custodianKey.rawRepresentation,
         localStaticPublic: custodianKey.publicKey.rawRepresentation,
         localRole: .proxy,
         remotePublicKey: computerKey.publicKey.rawRepresentation),
-      requester: try RappSameAccountPairBuilder.makePairRecord(
+      requester: try PairRecordFixture.makePairRecord(
         localStaticPrivate: computerKey.rawRepresentation,
         localStaticPublic: computerKey.publicKey.rawRepresentation,
         localRole: .requester,
