@@ -66,6 +66,9 @@
   registration of the app's bundle identifiers
   (`purge-stale-registrations` does it alone); after every install macOS
   local-network privacy follows only `/Applications/RefineID.app`.
+- UI tests live in their own test plan, `RefineIDUITests.xctestplan`, and
+  run only off the workstation's screen; the default plan and the hook
+  gates run none. Each tier's scope is in `Documentation/testing-strategy.md`.
 - `RefineIDTests` run in `RefineIDTestHost`, the app's sources under their
   own bundle identifier, so a test run never shares privacy permissions,
   keychain or single-instance identity with the installed app.

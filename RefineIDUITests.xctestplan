@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "5E1F7A0C-2B8D-4C61-9A3E-7D4B6C8F0E21",
+      "name" : "Default",
+      "options" : {
+        "preferredScreenCaptureFormat" : "screenRecording",
+        "uiTestingScreenshotsLifetime" : "keepAlways",
+        "userAttachmentLifetime" : "keepAlways"
+      }
+    }
+  ],
+  "defaultOptions" : {},
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:RefineID.xcodeproj",
+        "identifier" : "4D0000000000000000000005",
+        "name" : "RefineIDUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

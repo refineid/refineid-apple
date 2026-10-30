@@ -203,14 +203,18 @@ outcomes from being mistaken for a real card result.
 
 ## Xcode Cloud
 
-The shared RefineID scheme already selects RefineID.xctestplan, which contains
-CardCoreTests, RefineIDTests, and RefineIDUITests. A Cloud workflow can therefore
-run the framework without hardware:
+The shared RefineID scheme holds two test plans: RefineID.xctestplan, the
+default, with CardCoreTests and RefineIDTests, and RefineIDUITests.xctestplan
+with RefineIDUITests. A Cloud workflow can therefore run the framework without
+hardware:
 
 1. Add a Test action for iOS Simulator and the RefineID scheme.
-2. Use Scheme Settings so the checked-in test plan controls targets.
-3. Run CardCore and one representative iPhone simulator on every pull request.
-4. Run the wider simulator/device and accessibility matrix on a schedule.
+2. Use Scheme Settings, and select the checked-in test plan named for each
+   workflow below.
+3. On every pull request, run RefineID.xctestplan, and run
+   RefineIDUITests.xctestplan on one representative iPhone simulator.
+4. On a schedule, run RefineIDUITests.xctestplan across the wider
+   simulator/device and accessibility matrix.
 5. Keep physical-card verification as a separately initiated device run.
 
 Apple documents that Xcode Cloud test actions can use a scheme's settings and
@@ -222,7 +226,7 @@ pull requests, tags, or schedules:
 - https://developer.apple.com/documentation/xcode/xcode-cloud-workflow-reference
 
 The Cloud workflow itself is configured initially in Xcode or App Store Connect;
-the repository supplies the shared scheme, test plan, deterministic scenarios,
+the repository supplies the shared scheme, test plans, deterministic scenarios,
 and tests it executes.
 
 ## Local physical-device execution

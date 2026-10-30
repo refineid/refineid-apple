@@ -108,6 +108,7 @@ run_uitest_login() {
   xcodebuild test \
     -project "$REPO_ROOT/RefineID.xcodeproj" \
     -scheme "RefineID" \
+    -testPlan "RefineIDUITests" \
     -destination "platform=iOS Simulator,id=$IPAD_UDID" \
     -only-testing:"RefineIDUITests/SafariCardLoginUITests/$test_method" \
     CODE_SIGNING_ALLOWED=NO \
