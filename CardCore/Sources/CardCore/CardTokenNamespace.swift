@@ -40,7 +40,7 @@ public enum CardTokenNamespace {
     .map { $0 + identifierSeparator }
 
   /// The full CryptoTokenKit token identifier for one physical card.
-  public static func tokenIdentifier(for instance: CardInstanceIdentifier) -> String {
+  public static func tokenIdentifier(for instance: TokenInstanceID) -> String {
     tokenPrefix + instance.value
   }
 

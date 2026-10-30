@@ -98,27 +98,27 @@ internal struct CardOperationsTests {
   }
 
   @Test
-  internal func readTokenSerialParsesTheTokenInfoFile() throws {
+  internal func readChipSerialParsesTheTokenInfoFile() throws {
     // TokenInfo: SEQUENCE { INTEGER 0, OCTET STRING 6 serial bytes }.
     let tokenInfo = "300B020100040612AB34CD56EF"
     let channel = ScriptedChannel([
       ("00A4020C025032", "9000"),
       ("00B0000080", tokenInfo + "9000"),
     ])
-    let serial = try CardOperations(channel: channel).readTokenSerial()
+    let serial = try CardOperations(channel: channel).readChipSerial()
     #expect(serial.value == "12AB34CD56EF")
     #expect(channel.isExhausted)
   }
 
   @Test
-  internal func readTokenSerialDecodesPrintableAscii() throws {
+  internal func readChipSerialDecodesPrintableAscii() throws {
     // A synthetic current-card shape stored as ASCII in the OCTET STRING.
     let tokenInfo = "3016020100041144454D4F30303031414231323334353637"
     let channel = ScriptedChannel([
       ("00A4020C025032", "9000"),
       ("00B0000080", tokenInfo + "9000"),
     ])
-    let serial = try CardOperations(channel: channel).readTokenSerial()
+    let serial = try CardOperations(channel: channel).readChipSerial()
     #expect(serial.value == "DEMO0001AB1234567")
     #expect(channel.isExhausted)
   }
@@ -130,7 +130,7 @@ internal struct CardOperationsTests {
       ("00B0000080", "AABB9000"),
     ])
     #expect(throws: CardOperationError.tokenInfoMalformed) {
-      _ = try CardOperations(channel: channel).readTokenSerial()
+      _ = try CardOperations(channel: channel).readChipSerial()
     }
   }
 

@@ -25,4 +25,14 @@ internal enum CardInterface: Sendable {
 
   /// On a reader's antenna, in a field that is not going anywhere.
   case steadyField
+
+  /// Whether PIN 1 held for the card outlives the token.
+  ///
+  /// The phone's field ends seconds after each mint and the system mints
+  /// a new token for the next field, so the held value stays with the
+  /// card. A reader keeps its token while the card stays, so the value
+  /// leaves with the token.
+  internal var keepsPin1BeyondToken: Bool {
+    self == .fieldWithDeadline
+  }
 }

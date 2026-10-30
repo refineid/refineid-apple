@@ -30,6 +30,6 @@ internal struct ReaderTokenMaterial {
   /// Public qualified key used to verify every qualified signature.
   internal let signPublicKey: SecKey?
 
-  /// Stable token identity derived from the printed card serial.
-  internal let instanceID: CardInstanceIdentifier
+  /// CryptoTokenKit instance ID derived from the printed serial.
+  internal let instanceID: TokenInstanceID
 }

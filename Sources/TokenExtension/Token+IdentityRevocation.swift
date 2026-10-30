@@ -12,16 +12,13 @@ extension Token {
   /// token's sign callback.
   internal func revokeAutomaticIdentityAfterCanRejection() {
     revokeCurrentInstance()
-    if let serial = primedSerial {
-      acceptedPin1.clear(serial: serial)
-    }
     let representsStoredIdentity: Bool =
       switch interface {
       case .fieldWithDeadline:
         true
 
       case .contact, .steadyField:
-        PrimeStore.contains(instanceID: cardInstanceID)
+        PrimeStore.contains(serial: chipSerial)
       }
     guard representsStoredIdentity else {
       TokenLog.notice(
@@ -30,9 +27,9 @@ extension Token {
       return
     }
     CardCredentialStore.forgetCardAccessNumber()
-    PrimeStore.forget(instanceID: cardInstanceID)
+    PrimeStore.forget(serial: chipSerial)
     PrimeStore.clearRegistrationField()
-    TokenRegistrationRevoker.revoke(cardInstanceID, reason: .canRejection)
+    TokenRegistrationRevoker.revoke(instanceID, reason: .canRejection)
     TokenLog.error(
       "\(TokenRegistrationRevoker.Reason.canRejection.logPrefix); automatic identity revoked")
   }

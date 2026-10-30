@@ -17,14 +17,6 @@ extension Token {
   /// errors do not come here; only the card's VERIFY response does.
   internal func forgetPinAfterRefusal(fingerprint: PinFingerprint) {
     CredentialMemory.rejectedPins.recordRejection(fingerprint)
-    forgetHeldPins()
-  }
-
-  /// Forgets every PIN this token holds: the reader path's accepted
-  /// memory, the field path's accepted memory and its typed candidate.
-  internal func forgetHeldPins() {
-    acceptedPin1.clearAll()
-    VolatileAcceptedPin1.shared.clear(for: cardInstanceID)
-    TransientCandidatePin1.shared.clear(for: cardInstanceID)
+    Pin1Memory.shared.clear(serial: chipSerial)
   }
 }

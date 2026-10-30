@@ -12,7 +12,7 @@
 /// store is shared) and mutated only in `deinit` (no concurrent access at
 /// that point); every owner is either a noncopyable value with unique
 /// ownership (`Pin1`, `Pin1Transmission`) or holds it behind a mutex
-/// (`AcceptedPin1Memory`), so it is never mutated while shared.
+/// (`Pin1Memory`), so it is never mutated while shared.
 internal final class ZeroizingDigitStore: @unchecked Sendable {
   /// The raw digit bytes.
   ///

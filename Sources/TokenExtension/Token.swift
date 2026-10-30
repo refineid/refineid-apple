@@ -71,22 +71,23 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
   /// How this card is reached, which decides what a signature may spend.
   internal let interface: CardInterface
 
-  /// The card's token serial as the prime read it, contactless tokens
-  /// only.
+  /// The card's chip serial, which PIN 1 memory and rejected-PIN memory bind to.
   ///
+  /// Read from the card on a reader, taken from the prime on the phone's
+  /// antenna.
   /// Cached for the same reason as the certificate: it is public, it
   /// cannot change, and re-reading it costs more than the field has left
   /// - that read was measured dying part way through, which is a login
   /// lost for nothing.
-  internal let primedSerial: TokenSerial?
+  internal let chipSerial: ChipSerial
 
-  /// Stable public identity of the physical card represented by this token.
+  /// The CryptoTokenKit instance ID `ctkd` knows this token by.
   ///
-  /// This is also the revocation boundary: a PACE failure that proves the
-  /// stored card access number cannot open this card ends this live token
-  /// and its stored registration. A refused or blocked PIN forgets the
-  /// PINs this token holds and nothing else.
-  internal let cardInstanceID: CardInstanceIdentifier
+  /// A name, not an identity: it keys no secret. A PACE failure that
+  /// proves the stored card access number cannot open this card ends this
+  /// live token and its registration under this name. A refused or blocked
+  /// PIN forgets the PIN 1 held for the card and nothing else.
+  internal let instanceID: TokenInstanceID
 
   /// The underlying smart card instance provided by CryptoTokenKit.
   internal let smartCard: TKSmartCard
@@ -98,9 +99,6 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
   ///
   /// Empty on the contact path, which opens a session per operation.
   internal let heldSession = HeldCardSession(diagnostic: { TokenLog.trace($0) })
-
-  /// PIN1 this card accepted, kept only while this token is live.
-  internal let acceptedPin1 = AcceptedPin1Memory()
 
   /// Releases the held session when the card leaves the slot.
   internal var slotStateObservation: NSKeyValueObservation?
@@ -135,8 +133,8 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
     // interfaces answered: this initializer does card I/O, which the
     // phone's path cannot afford at all.
     self.interface = material.accessNumber == nil ? .contact : .steadyField
-    self.primedSerial = nil
-    self.cardInstanceID = material.instanceID
+    self.chipSerial = material.identity.chipSerial
+    self.instanceID = material.instanceID
     self.smartCard = smartCard
     super.init(
       smartCard: smartCard,
@@ -174,7 +172,7 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
     primedSmartCard smartCard: TKSmartCard,
     aid: Data?,
     tokenDriver: TKSmartCardTokenDriver,
-    instanceID: CardInstanceIdentifier,
+    instanceID: TokenInstanceID,
     primed: PrimedIdentity,
     shouldHoldSession: Bool,
     isPendingSign: Bool
@@ -191,8 +189,8 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
     self.signLeafPublicKey = nil
     self.sealedAccessNumber = material.accessNumber
     self.interface = .fieldWithDeadline
-    self.primedSerial = material.serial
-    self.cardInstanceID = instanceID
+    self.chipSerial = material.serial
+    self.instanceID = instanceID
     self.smartCard = smartCard
     super.init(
       smartCard: smartCard,
@@ -211,7 +209,7 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
         leafDER: primed.certDER,
         issuerDER: primed.issuerDER,
         signLeafDER: nil,
-        tokenSerial: material.serial
+        chipSerial: material.serial
       ),
       leaf: material.leaf,
       profile: material.profile,
@@ -227,9 +225,7 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
     revocationLock.lock()
     revoked = true
     revocationLock.unlock()
-    acceptedPin1.clearAll()
-    VolatileAcceptedPin1.shared.clear(for: cardInstanceID)
-    TransientCandidatePin1.shared.clear(for: cardInstanceID)
+    Pin1Memory.shared.clear(serial: chipSerial)
     heldSession.release(reason: .revoked)
   }
 
@@ -242,7 +238,9 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
   /// about 2.5 seconds of the holder's time for nothing.
   deinit {
     TokenLog.info("Token.deinit: id=\(tokenID)")
-    acceptedPin1.clearAll()
+    if !interface.keepsPin1BeyondToken {
+      Pin1Memory.shared.clear(serial: chipSerial)
+    }
     heldSession.release(reason: .tokenDestroyed)
     // Last chance to get the trace out of a process ctkd is dropping: a
     // token going away is often the only sign of what ended a login, and

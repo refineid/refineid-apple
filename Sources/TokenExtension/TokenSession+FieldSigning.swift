@@ -74,13 +74,13 @@ extension TokenSession {
   }
 
   private func resolveAuthorizedPin(token: Token) throws -> AuthorizedPin1 {
-    if let accepted = VolatileAcceptedPin1.shared.checkout(for: token.cardInstanceID) {
+    if let accepted = Pin1Memory.shared.checkoutAccepted(serial: token.chipSerial) {
       TokenLog.trace(
         "sign: session=\(sessionID) token=\(token.tokenID) pin1 source=accepted authorized=true"
       )
       return AuthorizedPin1(pin1: accepted, origin: .acceptedMemory)
     }
-    if let candidate = TransientCandidatePin1.shared.checkout(for: token.cardInstanceID) {
+    if let candidate = Pin1Memory.shared.checkoutCandidate(serial: token.chipSerial) {
       TokenLog.trace(
         "sign: session=\(sessionID) token=\(token.tokenID) pin1 source=candidate authorized=true"
       )

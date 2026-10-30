@@ -129,8 +129,10 @@ comments:
 - Card model/profile and contact/contactless transport.
 - APDU target identifiers: AID, SFI, FID, key reference.
 - Protocol status: status words and retry counters.
-- Token serial: the complete long hardware serial, a distinct type from
-  any display string (the short visual serial is never an identity).
+- Chip serial (`ChipSerial`): the complete serial the chip reports, a
+  distinct type from the printed serial (`PrintedSerial`, never an
+  identity) and from the CryptoTokenKit token instance ID
+  (`TokenInstanceID`, a name for `ctkd` that keys no secret).
 - Time role: signing time, validation time, certificate validity time.
 
 When a review asks "can X be confused with Y?", the target answer is

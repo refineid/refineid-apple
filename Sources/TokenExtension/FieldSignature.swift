@@ -24,20 +24,17 @@ internal struct FieldSignature {
 
   /// Probes the PIN1 counter and admits the PIN, or refuses before VERIFY.
   ///
-  /// The probe first decides holding (``Pin1Retention``): one that forbids
-  /// it drops the accepted memory at once, before any verdict. The retry
-  /// floor then refuses a counter it cannot spend. Last, a value reused
-  /// from the dropped memory is not sent: the holder is asked instead.
-  /// Returns whether PIN 1 may be held after this probe.
+  /// The probe first decides holding (``Pin1Memory/retain(after:serial:)``):
+  /// one that forbids it drops the accepted value at once, before any
+  /// verdict. The retry floor then refuses a counter it cannot spend. Last,
+  /// a value reused from the dropped memory is not sent: the holder is
+  /// asked instead. Returns the probe.
   private func admit(
     _ operations: CardOperations,
     origin: AuthorizedPin1.Origin
-  ) throws -> Bool {
+  ) throws -> RetryProbeOutcome {
     let probe = try operations.probeRetryCounter(role: .pin1)
-    let mayHold = Pin1Retention.permitsHolding(after: probe)
-    if !mayHold {
-      VolatileAcceptedPin1.shared.clear(for: token.cardInstanceID)
-    }
+    let mayHold = Pin1Memory.shared.retain(after: probe, serial: token.chipSerial)
     let verdict = RetryFloor.evaluate(probeOutcome: probe)
     guard verdict == .proceed else {
       TokenLog.error("sign: PIN1 retry floor refuses (\(verdict))")
@@ -47,17 +44,7 @@ internal struct FieldSignature {
       TokenLog.info("sign: PIN1 counter not pristine; reused PIN1 dropped, asking the holder")
       throw TokenError.authenticationRequired
     }
-    return mayHold
-  }
-
-  /// Forgets the refused PIN when its fingerprint is known, and every
-  /// held PIN either way.
-  private func forget(_ fingerprint: PinFingerprint?) {
-    if let fingerprint {
-      token.forgetPinAfterRefusal(fingerprint: fingerprint)
-    } else {
-      token.forgetHeldPins()
-    }
+    return probe
   }
 
   /// Establishes the contactless channel and signs `request` in it.
@@ -92,16 +79,17 @@ internal struct FieldSignature {
   /// the PACE channel.
   ///
   /// Nothing here reads what the prime already knows. The authentication
-  /// certificate and the token serial are public, unchanging and stored
+  /// certificate and the chip serial are public, unchanging and stored
   /// by the prime; re-reading either costs more than the field has left,
   /// and that read was measured dying part way through - not re-reading
   /// them is what turned an intermittent signature into a reliable one.
   /// The certificate is present as the token's cached leaf public key,
   /// which checks the signature below; the serial is present as the
-  /// cached serial the rejected-PIN memory binds to.
+  /// token's chip serial, which PIN 1 memory and the rejected-PIN memory
+  /// bind to.
   ///
   /// A probe that does not permit holding (``Pin1Retention``) drops the
-  /// accepted memory; a value reused from it is then not sent, and the
+  /// accepted value; a value reused from it is then not sent, and the
   /// holder is asked instead.
   private func sign(
     in channel: SecureMessagingChannel,
@@ -110,39 +98,34 @@ internal struct FieldSignature {
     request: SignRequest
   ) throws -> Data {
     let operations = CardOperations(channel: channel)
-    let fingerprint: PinFingerprint?
-    if let serial = token.primedSerial {
-      fingerprint = pin1.fingerprint(boundTo: serial)
-    } else {
-      fingerprint = nil
-    }
-    if let fingerprint, CredentialMemory.rejectedPins.isKnownRejected(fingerprint) {
+    let serial = token.chipSerial
+    let fingerprint = pin1.fingerprint(boundTo: serial)
+    if CredentialMemory.rejectedPins.isKnownRejected(fingerprint) {
       throw TokenError.pinAlreadyRejected
     }
-    let mayHold = try admit(operations, origin: origin)
-    let pendingAcceptance: VolatileAcceptedPin1.PendingAcceptance? =
-      mayHold
-      ? VolatileAcceptedPin1.shared.prepareAcceptance(of: pin1, for: token.cardInstanceID)
-      : nil
+    let probe = try admit(operations, origin: origin)
+    let acceptance = Pin1Memory.shared.acceptance(of: pin1, serial: serial, after: probe)
     do {
       try operations.verifyPin1(pin1.consumeForSingleTransmission())
     } catch CardOperationError.pinRejected {
-      forget(fingerprint)
+      token.forgetPinAfterRefusal(fingerprint: fingerprint)
       throw TokenError.pinRejected
     } catch CardOperationError.pinBlocked {
-      forget(fingerprint)
+      token.forgetPinAfterRefusal(fingerprint: fingerprint)
       throw TokenError.signRefused
     } catch {
-      // Ambiguous transport/communication failure during or after VERIFY transmission:
-      // clear unverified candidate store, but preserve previously accepted memory.
-      if !VolatileAcceptedPin1.shared.hasPin(for: token.cardInstanceID) {
-        TransientCandidatePin1.shared.clear(for: token.cardInstanceID)
-      }
+      // Ambiguous transport or communication failure during or after
+      // VERIFY: an unverified candidate is dropped, an accepted value kept.
+      Pin1Memory.shared.clearCandidate(serial: serial)
       throw error
     }
-    // VERIFY succeeded on the physical card: promote to accepted memory and clear candidate.
-    TransientCandidatePin1.shared.clear(for: token.cardInstanceID)
-    pendingAcceptance?.commit()
+    // The card verified the PIN: it is held as accepted when the probe
+    // permits holding, and otherwise the candidate is dropped.
+    if let acceptance {
+      Pin1Memory.shared.commit(acceptance)
+    } else {
+      Pin1Memory.shared.clearCandidate(serial: serial)
+    }
     let raw = try operations.computeAuthenticationSignature(
       overDigest: request.digest,
       algorithm: request.algorithm,

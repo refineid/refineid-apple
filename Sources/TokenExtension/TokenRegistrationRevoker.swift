@@ -28,7 +28,7 @@ internal enum TokenRegistrationRevoker {
 
   /// Queues best-effort removal of the exact token registration.
   internal static func revoke(
-    _ instanceID: CardInstanceIdentifier,
+    _ instanceID: TokenInstanceID,
     reason: Reason
   ) {
     #if os(iOS)

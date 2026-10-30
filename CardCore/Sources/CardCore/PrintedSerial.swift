@@ -4,11 +4,10 @@ import Foundation
 
 /// The serial printed on the plastic card.
 ///
-/// This is intentionally distinct from ``TokenSerial``. The complete
-/// PKCS#15 serial remains the security binding for PIN caches and rejected
-/// credentials; the printed form is the stable, human-auditable name used
-/// for the CryptoTokenKit token.
-public struct PrintedCardSerial: Equatable, Hashable, Sendable {
+/// This is distinct from ``ChipSerial``. The chip serial is the security
+/// binding for PIN memory and rejected credentials; the printed form is the
+/// human-auditable part of the CryptoTokenKit ``TokenInstanceID``.
+public struct PrintedSerial: Equatable, Hashable, Sendable {
   /// Both supported FINEID generations print nine serial characters.
   private static let length = 9
 
@@ -29,11 +28,11 @@ public struct PrintedCardSerial: Equatable, Hashable, Sendable {
   /// Applies the generation-specific conversion used by the Rust core.
   ///
   /// Current cards carry letters and print the last nine characters of
-  /// their complete PKCS#15 serial. Legacy cards carry a twenty-digit
+  /// their chip serial. Legacy cards carry a twenty-digit
   /// rendering and print characters 10 through 18. Unknown shapes are
   /// refused so a plausible-looking but false card name is never published.
-  public init?(tokenSerial: TokenSerial) {
-    let full = tokenSerial.value
+  public init?(chipSerial: ChipSerial) {
+    let full = chipSerial.value
     if full.utf8.contains(where: { byte in
       Self.asciiUppercase.contains(byte) || Self.asciiLowercase.contains(byte)
     }), full.utf8.count >= Self.length {

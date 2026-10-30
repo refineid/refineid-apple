@@ -152,7 +152,7 @@ extension Token {
       try operations.selectFineidApplication()
       let identity = try Self.certificates(read: operations)
       CardCredentialStore.rememberCan(
-        digits: candidate.digits, tokenSerial: identity.tokenSerial)
+        digits: candidate.digits, chipSerial: identity.chipSerial)
       return .minted(identity, candidate.number)
     } catch let failure as PaceEstablishment.Failure {
       TokenLog.error(
@@ -186,9 +186,9 @@ extension Token {
     TokenLog.info("readIdentity: reading leaf EF.4331")
     let leaf = try operations.readCertificate(.authentication)
     try Self.requireActivatedCitizenCard(leaf, operations: operations)
-    TokenLog.info("readIdentity: leaf \(leaf.count) bytes; reading token serial")
-    let serial = try operations.readTokenSerial()
-    TokenLog.info("readIdentity: token serial read; resolving issuer")
+    TokenLog.info("readIdentity: leaf \(leaf.count) bytes; reading chip serial")
+    let serial = try operations.readChipSerial()
+    TokenLog.info("readIdentity: chip serial read; resolving issuer")
     let issuer = TrustRootsCache.shared.issuer(
       for: leaf,
       cardIssuer: { try? operations.readCertificate(.issuing) },
@@ -209,7 +209,7 @@ extension Token {
       leafDER: leaf,
       issuerDER: issuer,
       signLeafDER: signLeaf,
-      tokenSerial: serial
+      chipSerial: serial
     )
   }
 

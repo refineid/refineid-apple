@@ -214,10 +214,10 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
     }
     guard
       let serialText = match.identity.tokenSerial,
-      let serial = TokenSerial(value: serialText),
-      let instanceID = CardInstanceIdentifier(tokenSerial: serial)
+      let serial = ChipSerial(value: serialText),
+      let instanceID = TokenInstanceID(chipSerial: serial)
     else {
-      TokenLog.error("mintFromPrime: prime has no supported printed card serial")
+      TokenLog.error("mintFromPrime: prime has no supported printed serial")
       throw TokenError.primeMissing
     }
     // Recorded rather than written: this is inside the two seconds the
@@ -231,7 +231,7 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
     )
     let isPendingSign = PendingSigningState.shared.isPendingSign
     let needsSigningField = resolveSigningNeed(
-      instanceID: instanceID,
+      serial: serial,
       isRegistrationField: match.isRegistrationField,
       isPendingSign: isPendingSign
     )
@@ -250,7 +250,7 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
   }
 
   private func resolveSigningNeed(
-    instanceID: CardInstanceIdentifier,
+    serial: ChipSerial,
     isRegistrationField: Bool,
     isPendingSign: Bool
   ) -> Bool {
@@ -258,8 +258,7 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
     // card, or a signature waits for the next field; a registration field
     // stays the app's.
     let pinAvailable =
-      TransientCandidatePin1.shared.hasPending(for: instanceID)
-      || VolatileAcceptedPin1.shared.hasPin(for: instanceID)
+      Pin1Memory.shared.holdsValue(serial: serial)
     return isPendingSign || (!isRegistrationField && pinAvailable)
   }
 }

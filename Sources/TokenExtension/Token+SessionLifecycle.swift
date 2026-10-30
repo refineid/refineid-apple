@@ -1,5 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
+import CardCore
 import CryptoTokenKit
 
 /// Creates signing sessions and retains a time-limited contactless card field.
@@ -50,13 +51,18 @@ extension Token {
     }
   }
 
-  /// Releases the held session and the cached PIN1 when the card is gone.
+  /// Releases the held session when the card is gone, and the PIN 1 held
+  /// for the card unless it outlives the token
+  /// (``CardInterface/keepsPin1BeyondToken``).
   ///
   /// A missing or empty slot invalidates the hold. Transitional slot states leave an
   /// active operation intact until the slot confirms disappearance.
   internal func observeSlotState(of smartCard: TKSmartCard) {
     slotStateObservation = smartCard.slot.observe(\.state, options: [.new]) {
-      [held = heldSession, pin1 = acceptedPin1, id = tokenID] observed, change in
+      [
+        held = heldSession, serial = chipSerial,
+        keepsPin1 = interface.keepsPin1BeyondToken, id = tokenID
+      ] observed, change in
       let state = change.newValue ?? observed.state
       TokenLog.trace("slotState: token=\(id) state=\(state)")
       if let channel = held.current as? SmartCardChannel {
@@ -66,7 +72,9 @@ extension Token {
       }
       guard state == .missing || state == .empty else { return }
       held.release(reason: state == .missing ? .slotMissing : .cardRemoved)
-      pin1.clearAll()
+      if !keepsPin1 {
+        Pin1Memory.shared.clear(serial: serial)
+      }
     }
   }
 }

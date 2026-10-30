@@ -5,7 +5,7 @@ import Foundation
 /// What the prime store holds for one card, said without saying any of it.
 ///
 /// A primed record carries the card access number, the authentication
-/// certificate, its issuer and the token serial. A diagnostics screen
+/// certificate, its issuer and the chip serial. A diagnostics screen
 /// needs to know whether each of those arrived, and nothing more: a
 /// missing issuer and a missing certificate are different faults, and
 /// telling them apart is the entire value. So this reports presence and
@@ -29,6 +29,6 @@ public struct PrimePresence: Equatable, Sendable {
   /// offered none.
   public let issuerBytes: Int
 
-  /// Whether the record carries the token serial the prime read.
-  public let hasTokenSerial: Bool
+  /// Whether the record carries the chip serial the prime read.
+  public let hasChipSerial: Bool
 }

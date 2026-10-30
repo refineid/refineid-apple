@@ -20,9 +20,9 @@ internal struct PublishedIdentity {
   /// published from live reader mints only.
   internal let signLeafDER: Data?
 
-  /// Complete PKCS#15 token serial read from the same card session.
+  /// Chip serial read from the same card session.
   ///
   /// The public token identifier is derived from its printed form; the
   /// complete value remains the card-bound security identity.
-  internal let tokenSerial: TokenSerial
+  internal let chipSerial: ChipSerial
 }

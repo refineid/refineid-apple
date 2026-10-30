@@ -17,8 +17,8 @@
     /// The identity a first prime stores: everything the token
     /// extension's mint and a later signature need from the card.
     internal struct Identity: Sendable {
-      /// Public CTK identity name derived from the printed card serial.
-      internal let instance: CardInstanceIdentifier
+      /// CryptoTokenKit instance ID derived from the printed serial.
+      internal let instance: TokenInstanceID
 
       /// Authentication certificate DER.
       internal let certificate: Data
@@ -26,7 +26,7 @@
       /// Issuing certificate DER when the cache or the card supplied it.
       internal let issuer: Data?
 
-      /// Full PKCS#15 serial retained for exact reconstruction.
+      /// Chip serial retained for exact reconstruction.
       internal let tokenSerial: String
 
       /// Proof that the live card did not report a factory activation state.
@@ -83,8 +83,8 @@
         certificate: certificate,
         operations: operations
       )
-      let serial = try operations.readTokenSerial()
-      guard let instance = CardInstanceIdentifier(tokenSerial: serial) else {
+      let serial = try operations.readChipSerial()
+      guard let instance = TokenInstanceID(chipSerial: serial) else {
         throw Failure.unidentifiedCard
       }
       guard SecCertificateCreateWithData(nil, certificate as CFData) != nil else {

@@ -34,8 +34,8 @@ extension Token {
       throw TokenError.certificateUnreadable
     }
     let (profile, publicKey) = try Self.validatedSigningKey(in: leaf)
-    guard let instanceID = CardInstanceIdentifier(tokenSerial: identity.tokenSerial) else {
-      TokenLog.error("Token.init: token serial has no supported printed-card form")
+    guard let instanceID = TokenInstanceID(chipSerial: identity.chipSerial) else {
+      TokenLog.error("Token.init: chip serial has no supported printed form")
       throw TokenError.unsupportedKeyProfile
     }
     let sign = Self.validatedQualifiedMaterial(fromDER: identity.signLeafDER)
@@ -71,7 +71,7 @@ extension Token {
   /// Validates every piece of a stored contactless identity.
   internal static func validated(
     primed: PrimedIdentity,
-    instanceID: CardInstanceIdentifier
+    instanceID: TokenInstanceID
   ) throws -> PrimedTokenMaterial {
     guard let accessNumber = CardAccessNumber(digits: primed.can) else {
       TokenLog.trace("Token.init(primed): stored card access number is not usable")
@@ -84,8 +84,8 @@ extension Token {
     let (profile, publicKey) = try Self.validatedSigningKey(in: leaf)
     guard
       let serialText = primed.tokenSerial,
-      let storedSerial = TokenSerial(value: serialText),
-      CardInstanceIdentifier(tokenSerial: storedSerial) == instanceID
+      let storedSerial = ChipSerial(value: serialText),
+      TokenInstanceID(chipSerial: storedSerial) == instanceID
     else {
       TokenLog.trace("Token.init(primed): stored serial does not name this token")
       throw TokenError.primeMissing

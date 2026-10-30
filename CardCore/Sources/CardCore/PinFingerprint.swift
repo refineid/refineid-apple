@@ -39,7 +39,7 @@ public struct PinFingerprint: Equatable, Hashable, Sendable {
   /// Internal: only credential types construct fingerprints of themselves.
   internal static func compute(
     digits: ZeroizingDigitStore,
-    serial: TokenSerial,
+    serial: ChipSerial,
     role: CredentialRole
   ) -> Self {
     var material: [UInt8] = []

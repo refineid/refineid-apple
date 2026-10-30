@@ -41,7 +41,7 @@ internal struct PukTests {
   internal func fingerprintDiffersFromPin1WithTheSameDigits() throws {
     // Domain separation: the same digits under the PIN1 and PUK roles
     // must never collide in the rejected-PIN memory.
-    let serial = try #require(TokenSerial(value: "9990000001"))
+    let serial = try #require(ChipSerial(value: "9990000001"))
     guard
       let pin1 = Pin1(digits: "12345678"),
       let puk = Puk(digits: "12345678")

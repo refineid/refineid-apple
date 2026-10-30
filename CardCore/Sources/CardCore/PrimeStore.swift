@@ -208,37 +208,29 @@ public enum PrimeStore {
   /// Whether a stored prime belongs to this physical card.
   ///
   /// The lookup key is derived from an ATR and therefore names a card
-  /// family, not a physical card. Revocation starts with the public card
+  /// family, not a physical card. Revocation starts with the card's chip
   /// serial instead, so it cannot remove another card's prime merely
   /// because both cards expose the same ATR.
-  public static func contains(instanceID: CardInstanceIdentifier) -> Bool {
+  public static func contains(serial: ChipSerial) -> Bool {
     storedItems().contains { item in
-      guard
-        let serialText = item.identity.tokenSerial,
-        let serial = TokenSerial(value: serialText)
-      else {
-        return false
-      }
-      return CardInstanceIdentifier(tokenSerial: serial) == instanceID
+      Self.chipSerial(of: item.identity) == serial
     }
   }
 
   /// Removes every prime belonging to one physical card.
   ///
   /// A physical card can acquire more than one ATR lookup record across
-  /// interfaces or card generations. The printed-card instance identifier
-  /// is the stable revocation boundary, so all matching records go together.
-  public static func forget(instanceID: CardInstanceIdentifier) {
-    for item in storedItems() {
-      guard
-        let serialText = item.identity.tokenSerial,
-        let serial = TokenSerial(value: serialText),
-        CardInstanceIdentifier(tokenSerial: serial) == instanceID
-      else {
-        continue
-      }
+  /// interfaces or card generations. The chip serial is the stable
+  /// revocation boundary, so all matching records go together.
+  public static func forget(serial: ChipSerial) {
+    for item in storedItems() where Self.chipSerial(of: item.identity) == serial {
       delete(account: item.account)
     }
+  }
+
+  /// The chip serial a stored prime read, when it read a valid one.
+  private static func chipSerial(of identity: PrimedIdentity) -> ChipSerial? {
+    identity.tokenSerial.flatMap { ChipSerial(value: $0) }
   }
 
   /// Removes every primed identity this device holds.
@@ -293,7 +285,7 @@ public enum PrimeStore {
           hasCardAccessNumber: !item.identity.can.isEmpty,
           certificateBytes: item.identity.certDER.count,
           issuerBytes: item.identity.issuerDER?.count ?? 0,
-          hasTokenSerial: item.identity.tokenSerial != nil)
+          hasChipSerial: item.identity.tokenSerial != nil)
       }
   }
 

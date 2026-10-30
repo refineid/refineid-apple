@@ -118,7 +118,7 @@ internal enum QualifiedSignature {
   /// spends: PIN2, and nothing else.
   private static func probePin2AndReadSerial(
     _ operations: CardOperations
-  ) throws -> TokenSerial {
+  ) throws -> ChipSerial {
     TokenLog.info("sign: PIN2 retry-floor probe")
     let outcome = try operations.probeRetryCounter(role: .pin2)
     let verdict = RetryFloor.evaluate(probeOutcome: outcome)
@@ -126,6 +126,6 @@ internal enum QualifiedSignature {
       TokenLog.error("sign: PIN2 retry floor refuses (\(verdict)); pin2=\(outcome)")
       throw TokenError.signRefused
     }
-    return try operations.readTokenSerial()
+    return try operations.readChipSerial()
   }
 }

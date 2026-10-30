@@ -285,7 +285,7 @@
     /// with the card in the slot, which is why it takes the live session
     /// rather than being called after the hold.
     private static func finish(
-      instance: CardInstanceIdentifier,
+      instance: TokenInstanceID,
       credentialReport: CredentialProbeReport?,
       execution: HoldExecution
     ) async -> Outcome {

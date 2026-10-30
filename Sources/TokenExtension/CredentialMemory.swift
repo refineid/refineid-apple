@@ -7,8 +7,8 @@ import CardCore
 /// A PIN the card rejected must not be resent for the extension's
 /// lifetime, and token sessions come and go across card reinserts, so
 /// this state lives at process scope (release plan section 4.3). It
-/// holds only non-reversible fingerprints, never a PIN. Accepted PIN1
-/// is not here: it lives on the token and leaves with the card.
+/// holds only non-reversible fingerprints, never a PIN, each bound to the
+/// card's ``ChipSerial``. PIN 1 itself is held in ``Pin1Memory``.
 internal enum CredentialMemory {
   internal static let rejectedPins = RejectedPinMemory()
 }

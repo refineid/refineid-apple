@@ -5,7 +5,7 @@ import Foundation
 import Testing
 
 @Suite
-internal struct CardInstanceIdentifierTests {
+internal struct TokenInstanceIDTests {
   /// Synthetic bytes that are deliberately not an answer from a card.
   private static let syntheticLookupBytes = "0102030405060708090A0B0C0D0E0F10"
 
@@ -27,33 +27,33 @@ internal struct CardInstanceIdentifierTests {
 
   @Test
   internal func currentCardUsesThePrintedFinalNineCharacters() throws {
-    let serial = try #require(TokenSerial(value: "SYNTHETICTEST00001"))
-    let printed = try #require(PrintedCardSerial(tokenSerial: serial))
-    let instance = try #require(CardInstanceIdentifier(tokenSerial: serial))
+    let serial = try #require(ChipSerial(value: "SYNTHETICTEST00001"))
+    let printed = try #require(PrintedSerial(chipSerial: serial))
+    let instance = try #require(TokenInstanceID(chipSerial: serial))
     #expect(printed.value == "TEST00001")
     #expect(instance.value == "refineid-card-test00001")
   }
 
   @Test
   internal func legacyCardUsesTheDocumentedMiddleWindow() throws {
-    let serial = try #require(TokenSerial(value: "00000000001111111111"))
-    let printed = try #require(PrintedCardSerial(tokenSerial: serial))
-    let instance = try #require(CardInstanceIdentifier(tokenSerial: serial))
+    let serial = try #require(ChipSerial(value: "00000000001111111111"))
+    let printed = try #require(PrintedSerial(chipSerial: serial))
+    let instance = try #require(TokenInstanceID(chipSerial: serial))
     #expect(printed.value == "111111111")
     #expect(instance.value == "refineid-card-111111111")
   }
 
   @Test
   internal func exactNineCharacterCurrentSerialIsAccepted() throws {
-    let serial = try #require(TokenSerial(value: "TEST00001"))
-    #expect(PrintedCardSerial(tokenSerial: serial)?.value == "TEST00001")
-    #expect(CardInstanceIdentifier(tokenSerial: serial)?.value == "refineid-card-test00001")
+    let serial = try #require(ChipSerial(value: "TEST00001"))
+    #expect(PrintedSerial(chipSerial: serial)?.value == "TEST00001")
+    #expect(TokenInstanceID(chipSerial: serial)?.value == "refineid-card-test00001")
   }
 
   @Test
   internal func tokenNamespaceBuildsAndRecognizesTheFullIdentifier() throws {
-    let serial = try #require(TokenSerial(value: "TEST00001"))
-    let instance = try #require(CardInstanceIdentifier(tokenSerial: serial))
+    let serial = try #require(ChipSerial(value: "TEST00001"))
+    let instance = try #require(TokenInstanceID(chipSerial: serial))
     let tokenIdentifier = CardTokenNamespace.tokenIdentifier(for: instance)
     let neighboringDriver = "fi.refineid.ReFineID.token2:" + instance.value
     #expect(tokenIdentifier == "fi.refineid.ReFineID.token:refineid-card-test00001")
@@ -95,14 +95,14 @@ internal struct CardInstanceIdentifierTests {
 
   @Test
   internal func unknownShapesAreNotPublishedAsCardNames() throws {
-    let short = try #require(TokenSerial(value: "SHORT"))
-    let decimalWrongLength = try #require(TokenSerial(value: "0000000000"))
-    let punctuatedTail = try #require(TokenSerial(value: "SYNTHETIC-TEST-01"))
-    #expect(PrintedCardSerial(tokenSerial: short) == nil)
-    #expect(CardInstanceIdentifier(tokenSerial: short) == nil)
-    #expect(PrintedCardSerial(tokenSerial: decimalWrongLength) == nil)
-    #expect(CardInstanceIdentifier(tokenSerial: decimalWrongLength) == nil)
-    #expect(PrintedCardSerial(tokenSerial: punctuatedTail) == nil)
-    #expect(CardInstanceIdentifier(tokenSerial: punctuatedTail) == nil)
+    let short = try #require(ChipSerial(value: "SHORT"))
+    let decimalWrongLength = try #require(ChipSerial(value: "0000000000"))
+    let punctuatedTail = try #require(ChipSerial(value: "SYNTHETIC-TEST-01"))
+    #expect(PrintedSerial(chipSerial: short) == nil)
+    #expect(TokenInstanceID(chipSerial: short) == nil)
+    #expect(PrintedSerial(chipSerial: decimalWrongLength) == nil)
+    #expect(TokenInstanceID(chipSerial: decimalWrongLength) == nil)
+    #expect(PrintedSerial(chipSerial: punctuatedTail) == nil)
+    #expect(TokenInstanceID(chipSerial: punctuatedTail) == nil)
   }
 }

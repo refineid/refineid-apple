@@ -53,8 +53,7 @@ internal enum CardStateReset {
     PrimeStore.forgetAll()
     lines.append("RefineID prime store: cleared")
 
-    VolatileAcceptedPin1.shared.clearAll()
-    TransientCandidatePin1.shared.clearAll()
+    Pin1Memory.shared.clearAll()
     #if os(iOS) && REFINEID_LOCAL_CARD
       Task { @MainActor in HeldPin1.shared.clear() }
     #endif

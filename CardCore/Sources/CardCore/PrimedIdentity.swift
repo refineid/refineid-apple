@@ -49,7 +49,7 @@ public struct PrimedIdentity: Codable, Equatable, Sendable {
   /// The DER issuing-CA certificate, when the prime read one.
   public let issuerDER: Data?
 
-  /// The card's PKCS#15 token serial, when the prime read one.
+  /// The card's chip serial, when the prime read one.
   public let tokenSerial: String?
 
   /// Proof that no known citizen-card activation state blocked this prime.
@@ -76,7 +76,7 @@ public struct PrimedIdentity: Codable, Equatable, Sendable {
   ) {
     guard CardAccessNumber(digits: can) != nil else { return nil }
     guard !certificate.isEmpty else { return nil }
-    if let tokenSerial, TokenSerial(value: tokenSerial) == nil { return nil }
+    if let tokenSerial, ChipSerial(value: tokenSerial) == nil { return nil }
     self.can = can
     self.certDER = certificate
     self.issuerDER = issuer

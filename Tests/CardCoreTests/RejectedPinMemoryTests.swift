@@ -8,7 +8,7 @@ internal struct RejectedPinMemoryTests {
   @Test
   internal func rememberedRejectionIsFound() throws {
     let memory = RejectedPinMemory()
-    let serial = try #require(TokenSerial(value: "9990000001"))
+    let serial = try #require(ChipSerial(value: "9990000001"))
     guard let pin = Pin1(digits: "123456") else {
       Issue.record("valid PIN failed to construct")
       return
@@ -23,8 +23,8 @@ internal struct RejectedPinMemoryTests {
   @Test
   internal func rejectionOnOneCardDoesNotBlockAnother() throws {
     let memory = RejectedPinMemory()
-    let cardA = try #require(TokenSerial(value: "9990000001"))
-    let cardB = try #require(TokenSerial(value: "9990000002"))
+    let cardA = try #require(ChipSerial(value: "9990000001"))
+    let cardB = try #require(ChipSerial(value: "9990000002"))
     guard let pin = Pin1(digits: "123456") else {
       Issue.record("valid PIN failed to construct")
       return
@@ -37,7 +37,7 @@ internal struct RejectedPinMemoryTests {
   @Test
   internal func differentPinOnSameCardIsUnaffected() throws {
     let memory = RejectedPinMemory()
-    let serial = try #require(TokenSerial(value: "9990000001"))
+    let serial = try #require(ChipSerial(value: "9990000001"))
     guard
       let wrongPin = Pin1(digits: "111111"),
       let otherPin = Pin1(digits: "222222")
@@ -56,7 +56,7 @@ internal struct RejectedPinMemoryTests {
     // wrong PIN. The new entry is a fresh Pin1 value, but its fingerprint
     // matches the recorded rejection, so no second attempt is burned.
     let memory = RejectedPinMemory()
-    let serial = try #require(TokenSerial(value: "9990000001"))
+    let serial = try #require(ChipSerial(value: "9990000001"))
     guard
       let firstEntry = Pin1(digits: "123456"),
       let reentered = Pin1(digits: "123456")
@@ -72,7 +72,7 @@ internal struct RejectedPinMemoryTests {
   @Test
   internal func concurrentRecordingIsSafe() async throws {
     let memory = RejectedPinMemory()
-    let serial = try #require(TokenSerial(value: "9990000001"))
+    let serial = try #require(ChipSerial(value: "9990000001"))
     let workerCount = 64
 
     await withTaskGroup(of: Void.self) { group in
