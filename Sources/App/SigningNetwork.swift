@@ -17,9 +17,6 @@ internal enum SigningNetwork {
     /// The service answered with an error status.
     case httpStatus(Int)
 
-    /// Basic credentials would cross an unauthenticated connection.
-    case insecureCredentials
-
     /// One exchange tried to follow too many redirects.
     case redirectLimitExceeded
 
@@ -55,7 +52,7 @@ internal enum SigningNetwork {
   internal static let successStatuses = 200..<300
 
   /// HTTP statuses for which repeating an unchanged authority request may
-  /// recover without changing credentials, policy, or payload.
+  /// recover without changing policy or payload.
   private static let requestTimeoutStatus = 408
   private static let tooEarlyStatus = 425
   private static let tooManyRequestsStatus = 429
@@ -128,7 +125,7 @@ internal enum SigningNetwork {
 
   /// Whether an unchanged timestamp-authority request may succeed later.
   ///
-  /// Certificate, TLS, redirect, request, response-shape and credential
+  /// Certificate, TLS, redirect, request and response-shape
   /// failures are deliberately absent: waiting cannot repair them.
   internal static func isTransientAuthorityFailure(_ error: Error) -> Bool {
     if case Failure.httpStatus(let status) = error {
@@ -140,56 +137,41 @@ internal enum SigningNetwork {
   }
 
   /// POSTs a DER request and answers the DER response.
-  ///
-  /// `credentials`, when present, become an HTTP Basic header - the
-  /// only shape commercial authorities ask for.
   internal static func post(
     _ body: Data,
     to address: String,
     contentType: String,
-    credentials: (username: String, password: String)?,
     endpoint: Endpoint
   ) async throws -> Data {
     let request = try Self.postRequest(
       body,
       to: address,
       contentType: contentType,
-      credentials: credentials,
       endpoint: endpoint
     )
     let protected = try Self.protectedRequest(of: request, for: endpoint)
     return try await Self.perform(
       protected,
       limit: Self.maximumResponseBytes,
-      endpoint: endpoint,
-      carriesCredentials: credentials != nil
+      endpoint: endpoint
     )
   }
 
   /// Builds one timestamp or OCSP request without sending it.
   ///
-  /// Kept as a direct test boundary for the scheme and credential
-  /// rules that must hold before URLSession sees the request.
+  /// Kept as a direct test boundary for the scheme rules that must hold
+  /// before URLSession sees the request.
   internal static func postRequest(
     _ body: Data,
     to address: String,
     contentType: String,
-    credentials: (username: String, password: String)?,
     endpoint: Endpoint
   ) throws -> URLRequest {
     let url = try Self.httpUrl(address, for: endpoint)
-    if credentials != nil, url.scheme?.lowercased() != "https" {
-      throw Failure.insecureCredentials
-    }
     var request = URLRequest(url: url, timeoutInterval: Self.timeout)
     request.httpMethod = "POST"
     request.setValue(contentType, forHTTPHeaderField: "Content-Type")
     request.httpBody = body
-    if let credentials {
-      let pair = "\(credentials.username):\(credentials.password)"
-      let encoded = Data(pair.utf8).base64EncodedString()
-      request.setValue("Basic \(encoded)", forHTTPHeaderField: "Authorization")
-    }
     return request
   }
 
@@ -213,8 +195,7 @@ internal enum SigningNetwork {
     return try await Self.perform(
       protected,
       limit: maximumBytes,
-      endpoint: endpoint,
-      carriesCredentials: false
+      endpoint: endpoint
     )
   }
 
@@ -241,15 +222,13 @@ internal enum SigningNetwork {
   private static func perform(
     _ request: URLRequest,
     limit: Int,
-    endpoint: Endpoint,
-    carriesCredentials: Bool
+    endpoint: Endpoint
   ) async throws -> Data {
     let attempt: @Sendable (Bool) async throws -> Data = { validating in
       try await Self.perform(
         request,
         limit: limit,
         endpoint: endpoint,
-        carriesCredentials: carriesCredentials,
         validating: validating
       )
     }
@@ -272,7 +251,6 @@ internal enum SigningNetwork {
     _ request: URLRequest,
     limit: Int,
     endpoint: Endpoint,
-    carriesCredentials: Bool,
     validating: Bool
   ) async throws -> Data {
     let configuration = Self.validatedSessionConfiguration(
@@ -287,7 +265,6 @@ internal enum SigningNetwork {
     let collector = BoundedResponseCollector(
       initial: request,
       endpoint: endpoint,
-      carriesCredentials: carriesCredentials,
       limit: limit
     )
     let session = URLSession(

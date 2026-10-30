@@ -80,7 +80,6 @@ internal struct NetworkContractTests {
       "CardCore/Sources/CardCore/StreamRelayRefusals.swift",
       "CardCore/Sources/CardCore/StreamRelaySession.swift",
       "CardCore/Sources/CardCore/StreamSessionListener.swift",
-      "Sources/App/AuthoritySchemeResolver.swift",
       "Sources/App/DebugBrowseProbe.swift",
       "Sources/App/DebugLocalNetworkProbe.swift",
       "Sources/App/LocalNetworkAccessDetector.swift",

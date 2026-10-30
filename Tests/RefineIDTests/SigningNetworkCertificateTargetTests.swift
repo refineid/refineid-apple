@@ -42,7 +42,6 @@ internal struct SigningNetworkCertificateTargetTests {
           Data(),
           to: address,
           contentType: "application/ocsp-request",
-          credentials: nil,
           endpoint: .certificateMaterial
         )
       }
@@ -61,7 +60,6 @@ internal struct SigningNetworkCertificateTargetTests {
         Data(),
         to: address,
         contentType: "application/ocsp-request",
-        credentials: nil,
         endpoint: .certificateMaterial
       )
       #expect(request.url?.absoluteString == address)
@@ -76,7 +74,6 @@ internal struct SigningNetworkCertificateTargetTests {
       Data(),
       to: "http://ocsp.example/status",
       contentType: "application/ocsp-request",
-      credentials: nil,
       endpoint: .certificateMaterial
     )
 

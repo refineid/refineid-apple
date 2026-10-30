@@ -44,12 +44,6 @@
     @State private var accessNumber = ""
     @State private var format = SignatureFormat.pades
 
-    #if FEATURE_CONTACTLESS
-      /// Whether the holder has enabled contactless card reading.
-      @AppStorage(AppSettings.contactlessEnabled)
-      private var contactlessEnabled = true
-    #endif
-
     /// The signing state, readable by the split-out outcome section.
     internal var signingModel: SignDocumentModel { signing }
 
@@ -72,8 +66,7 @@
     /// number.
     private var awaitingAccessNumber: Bool {
       #if FEATURE_CONTACTLESS
-        contactlessEnabled
-          && availability == .cardWithoutIdentity
+        availability == .cardWithoutIdentity
           && cardPresence.isContactlessCardPresent
       #else
         false

@@ -5,7 +5,7 @@ import Foundation
 extension SigningNetwork {
   /// Why the caller is contacting one endpoint.
   ///
-  /// Timestamp authorities are configured by the user. Certificate
+  /// The time-stamp authority is named by the app. Certificate
   /// material addresses are copied from an untrusted certificate and
   /// therefore must resolve only to public addresses.
   internal enum Endpoint: Sendable {

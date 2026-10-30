@@ -97,37 +97,20 @@ internal struct SigningNetworkTests {
           Data(),
           to: address,
           contentType: "application/timestamp-query",
-          credentials: nil,
           endpoint: .authority
         )
       }
     }
   }
 
-  /// HTTP Basic credentials must never be exposed on a plain HTTP authority,
-  /// even when that address was entered in Settings.
-  @Test
-  internal func credentialsRequireHttps() {
-    #expect(throws: SigningNetwork.Failure.insecureCredentials) {
-      _ = try SigningNetwork.postRequest(
-        Data(),
-        to: "http://timestamp.example",
-        contentType: "application/timestamp-query",
-        credentials: ("account", "secret"),
-        endpoint: .authority
-      )
-    }
-  }
-
   /// A public authority may use the plain HTTP endpoint published in its
-  /// trusted-list service information; only credentials are barred.
+  /// trusted-list service information.
   @Test
   internal func publicHttpRequestIsSupported() throws {
     let request = try SigningNetwork.postRequest(
       Data("request".utf8),
       to: "http://timestamp.example/path",
       contentType: "application/timestamp-query",
-      credentials: nil,
       endpoint: .authority
     )
 
@@ -136,84 +119,28 @@ internal struct SigningNetworkTests {
     #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
   }
 
-  /// HTTPS carries the exact body, type, and Basic authorization value that
-  /// the caller supplied.
+  /// HTTPS carries the exact body and type the caller supplied.
   @Test
-  internal func httpsRequestCarriesCredentials() throws {
+  internal func httpsRequestCarriesBodyAndType() throws {
     let body = Data("request".utf8)
     let request = try SigningNetwork.postRequest(
       body,
       to: "https://timestamp.example/path",
       contentType: "application/timestamp-query",
-      credentials: ("account", "secret"),
       endpoint: .authority
     )
 
     #expect(request.url?.absoluteString == "https://timestamp.example/path")
     #expect(request.httpMethod == "POST")
     #expect(request.httpBody == body)
-    let expectedAuthorization =
-      "Basic " + Data("account:secret".utf8).base64EncodedString()
     #expect(
-      request.value(forHTTPHeaderField: "Authorization")
-        == expectedAuthorization
+      request.value(forHTTPHeaderField: "Content-Type")
+        == "application/timestamp-query"
     )
   }
 
-  /// Authenticated timestamp requests can move only within their original
-  /// HTTPS origin, which prevents an HTTPS-to-HTTP or cross-origin leak.
-  @Test
-  internal func credentialedRedirectsStayOnTheirHttpsOrigin() {
-    guard
-      let initial = URL(string: "https://tsa.example/request"),
-      let sameOrigin = URL(string: "https://tsa.example:443/moved"),
-      let insecure = URL(string: "http://tsa.example/moved"),
-      let otherOrigin = URL(string: "https://other.example/moved")
-    else {
-      Issue.record("Test URL did not parse")
-      return
-    }
-
-    #expect(
-      SigningNetwork.redirectDecision(
-        from: initial,
-        to: sameOrigin,
-        endpoint: .authority,
-        carriesCredentials: true,
-        redirectsFollowed: 0
-      ) == .follow
-    )
-    #expect(
-      SigningNetwork.redirectDecision(
-        from: initial,
-        to: insecure,
-        endpoint: .authority,
-        carriesCredentials: true,
-        redirectsFollowed: 0
-      ) == .refuse
-    )
-    #expect(
-      SigningNetwork.redirectDecision(
-        from: initial,
-        to: otherOrigin,
-        endpoint: .authority,
-        carriesCredentials: true,
-        redirectsFollowed: 0
-      ) == .refuse
-    )
-    #expect(
-      SigningNetwork.redirectDecision(
-        from: initial,
-        to: sameOrigin,
-        endpoint: .authority,
-        carriesCredentials: true,
-        redirectsFollowed: 1
-      ) == .refuse
-    )
-  }
-
-  /// A credential-free timestamp request may follow a path move or an HTTPS
-  /// upgrade on the configured authority, but never a downgrade or another
+  /// A timestamp request may follow a path move or an HTTPS
+  /// upgrade on its authority, but never a downgrade or another
   /// host.
   @Test
   internal func authorityRedirectsCannotBecomeCrossHostPostRelays() {
@@ -235,7 +162,6 @@ internal struct SigningNetworkTests {
           from: plain,
           to: target,
           endpoint: .authority,
-          carriesCredentials: false,
           redirectsFollowed: 0
         ) == .follow
       )
@@ -246,7 +172,6 @@ internal struct SigningNetworkTests {
           from: protected,
           to: target,
           endpoint: .authority,
-          carriesCredentials: false,
           redirectsFollowed: 0
         ) == .refuse
       )

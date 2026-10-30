@@ -32,7 +32,6 @@ internal struct SigningNetworkRedirectTests {
           from: initial,
           to: target,
           endpoint: .certificateMaterial,
-          carriesCredentials: false,
           redirectsFollowed: 0
         ) == expected
       )
@@ -42,7 +41,6 @@ internal struct SigningNetworkRedirectTests {
         from: initial,
         to: httpsHostname,
         endpoint: .certificateMaterial,
-        carriesCredentials: false,
         redirectsFollowed: 1
       ) == .follow
     )
@@ -51,7 +49,6 @@ internal struct SigningNetworkRedirectTests {
         from: initial,
         to: httpsHostname,
         endpoint: .certificateMaterial,
-        carriesCredentials: false,
         redirectsFollowed: 2
       ) == .refuse
     )
