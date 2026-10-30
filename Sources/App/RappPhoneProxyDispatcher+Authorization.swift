@@ -152,14 +152,14 @@
       switch decision {
       case .approvedBrowserAuthentication(let pin1):
         guard operation.kind == .browserAuthenticate else { return false }
-        pin1ByOperation[operationID] = .enteredPin1(pin1.digits)
+        pin1ByOperation[operationID] = .enteredPin1(pin1)
         return true
 
       case .approvedDocumentSignature(let pin2):
         guard operation.kind == .signDocument || operation.kind == .batchSignDocuments else {
           return false
         }
-        pin2ByOperation[operationID] = pin2.digits
+        pin2ByOperation[operationID] = pin2
         return true
 
       case .denied:

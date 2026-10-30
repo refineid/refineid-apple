@@ -235,11 +235,11 @@
       after outcome: RappCardExecutor.Outcome
     ) async {
       switch (pin1, outcome) {
-      case (.enteredPin1(let digits), .result),
-        (.enteredPin1(let digits), .refusedBeforeCredentialTransmit(.cardUnavailable)):
+      case (.enteredPin1(let entry), .result),
+        (.enteredPin1(let entry), .refusedBeforeCredentialTransmit(.cardUnavailable)):
         await MainActor.run {
           guard let card = PhonePersistentTokenRelay.shared.servedCardFingerprint else { return }
-          HeldPin1.shared.hold(digits, card: card)
+          HeldPin1.shared.hold(entry, card: card)
         }
 
       case (.heldPin1, .refusedBeforeCredentialTransmit(.heldPin1Unconfirmed)):

@@ -1,33 +1,27 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 import CardCore
-import CryptoKit
-import Foundation
 
 /// What one held card session already knows about its credentials: the
 /// verified PIN 1 the card still holds, the roles whose counters were
-/// probed, and the digits the card refused.
+/// probed, and the fingerprints of the PINs the card refused.
 ///
 /// Lives exactly as long as the session: a new session starts empty, so
 /// nothing learned about one card is held against another.
 internal struct CredentialSessionState: Equatable {
   internal private(set) var probedRoles = Set<CredentialRole>()
-  private var negativePinFingerprints = Set<Data>()
-
-  private static func fingerprint(_ digits: String) -> Data {
-    Data(SHA256.hash(data: Data(digits.utf8)))
-  }
+  private var negativePinFingerprints = Set<PinFingerprint>()
 
   internal mutating func markProbed(_ role: CredentialRole) {
     probedRoles.insert(role)
   }
 
-  /// The card refused `digits` for `role`: the digits are never sent
-  /// again in this session, and the role's counter is probed again before
-  /// its next verification, since the refusal spent an attempt (RAPP
-  /// v26.10.29 §10.2).
-  internal mutating func recordNegativePin(_ digits: String, role: CredentialRole) {
-    negativePinFingerprints.insert(Self.fingerprint(digits))
+  /// The card refused the PIN with `fingerprint` for `role`: that PIN is
+  /// never sent again in this session, and the role's counter is probed
+  /// again before its next verification, since the refusal spent an
+  /// attempt (RAPP v26.10.29 §10.2).
+  internal mutating func recordNegativePin(_ fingerprint: PinFingerprint, role: CredentialRole) {
+    negativePinFingerprints.insert(fingerprint)
     probedRoles.remove(role)
   }
 
@@ -37,7 +31,7 @@ internal struct CredentialSessionState: Equatable {
     negativePinFingerprints.removeAll()
   }
 
-  internal func isNegativePin(_ digits: String) -> Bool {
-    negativePinFingerprints.contains(Self.fingerprint(digits))
+  internal func isNegativePin(_ fingerprint: PinFingerprint) -> Bool {
+    negativePinFingerprints.contains(fingerprint)
   }
 }

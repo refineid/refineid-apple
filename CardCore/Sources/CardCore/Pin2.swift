@@ -4,9 +4,9 @@
 ///
 /// PIN2 authorises the qualified-signature key and nothing else. PIN1
 /// and PIN2 are distinct, non-interchangeable types; this type can never
-/// satisfy a PIN1 parameter. Unlike PIN1 it has no cache path at all:
-/// there is no accepted-PIN2 memory and no reconstruction after
-/// consumption, so every qualified signature costs a fresh entry
+/// satisfy a PIN1 parameter. Unlike PIN1 it has no accepted-PIN memory:
+/// only the `Pin2Entry` of one signature or batch reissues it, so every
+/// qualified operation costs a fresh entry
 /// (Documentation/typing-discipline.md).
 ///
 /// The type is deliberately not `CustomStringConvertible`, not `Codable`,
@@ -35,6 +35,14 @@ public struct Pin2: ~Copyable {
       return nil
     }
     self.store = digitStore
+  }
+
+  /// Rebuilds a PIN2 that owns `store`, for a `Pin2Entry` to issue.
+  ///
+  /// The entry's bytes were validated as PIN2 when it was made, so this
+  /// reconstruction is total.
+  internal init(owning store: ZeroizingDigitStore) {
+    self.store = store
   }
 
   /// Non-reversible fingerprint of this PIN bound to one card and the

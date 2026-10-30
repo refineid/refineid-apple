@@ -9,10 +9,10 @@
     internal static func live(on box: CredentialSessionBox) -> Self {
       Self(
         isRoleProbed: { role in box.read().probedRoles.contains(role) },
-        isNegativePin: { digits in box.read().isNegativePin(digits) },
+        isNegativePin: { fingerprint in box.read().isNegativePin(fingerprint) },
         markRoleProbed: { role in box.mutate { $0.markProbed(role) } },
-        recordNegativePin: { digits, role in
-          box.mutate { $0.recordNegativePin(digits, role: role) }
+        recordNegativePin: { fingerprint, role in
+          box.mutate { $0.recordNegativePin(fingerprint, role: role) }
         }
       )
     }

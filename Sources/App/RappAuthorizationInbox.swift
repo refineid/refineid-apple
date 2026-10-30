@@ -64,18 +64,16 @@
 
     internal func approveBrowserAuthentication(
       _ requestID: String,
-      pin1: String
+      pin1: Pin1Entry
     ) {
-      guard let pin1Digits = Pin1AuthorizationDigits(digits: pin1) else { return }
-      complete(requestID, with: .approvedBrowserAuthentication(pin1: pin1Digits))
+      complete(requestID, with: .approvedBrowserAuthentication(pin1: pin1))
     }
 
     internal func approveDocumentSignature(
       _ requestID: String,
-      pin2: String
+      pin2: Pin2Entry
     ) {
-      guard let pin2Digits = Pin2AuthorizationDigits(digits: pin2) else { return }
-      complete(requestID, with: .approvedDocumentSignature(pin2: pin2Digits))
+      complete(requestID, with: .approvedDocumentSignature(pin2: pin2))
     }
 
     internal func deny(_ requestID: String) {

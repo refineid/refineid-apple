@@ -35,7 +35,7 @@
     /// through `recorder` before the next document.
     internal static func signDocuments(
       cardAccessNumber: String?,
-      pin2: String,
+      pin2: Pin2Entry,
       request: BatchRequest,
       recorder: RappBatchSignatureRecorder
     ) async -> BatchOutcome {

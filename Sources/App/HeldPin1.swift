@@ -14,7 +14,8 @@
   /// reader or the holder removes it from the phone, when another card
   /// takes its place, when the card refuses it, and when the holder
   /// forgets the card's setup. While it is held, a browser authentication
-  /// runs with no prompt.
+  /// runs with no prompt. The digits live only in the entry's zeroizing
+  /// store.
   @MainActor
   internal enum HeldPin1 {
     internal static var shared = CardBoundPin1<RappCertificateFingerprint>()

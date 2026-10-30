@@ -34,18 +34,25 @@ public struct PinFingerprint: Equatable, Hashable, Sendable {
 
   private let digest: [UInt8]
 
-  /// Computes the fingerprint over salt, role, full serial, and digits.
+  /// Computes the fingerprint over salt, role, full serial, and digits;
+  /// with no serial, the fingerprint is bound to no card.
+  ///
+  /// A serial is never empty and starts with a printable byte, so the
+  /// separator that follows the role in a card-free fingerprint cannot
+  /// collide with a card-bound one's material.
   ///
   /// Internal: only credential types construct fingerprints of themselves.
   internal static func compute(
     digits: ZeroizingDigitStore,
-    serial: ChipSerial,
+    serial: ChipSerial?,
     role: CredentialRole
   ) -> Self {
     var material: [UInt8] = []
     material.append(contentsOf: Self.processSalt)
     material.append(Self.roleTag(role))
-    material.append(contentsOf: Array(serial.value.utf8))
+    if let serial {
+      material.append(contentsOf: Array(serial.value.utf8))
+    }
     material.append(Self.fieldSeparator)
     material.append(contentsOf: digits.bytes)
     defer {
