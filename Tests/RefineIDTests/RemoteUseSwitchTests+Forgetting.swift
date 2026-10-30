@@ -14,6 +14,14 @@
   /// 6, CC-100), durably and before a quit lets the app go; a stop
   /// withdraws and keeps them (§4.5 item 8).
   extension RemoteUseSwitchTests {
+    /// How long, in milliseconds, a destruction free to run is given to
+    /// destroy what the vault holds.
+    private static let unchainedDestructionMarginMilliseconds: Int64 = 200
+
+    /// ``unchainedDestructionMarginMilliseconds`` as a duration.
+    private static let unchainedDestructionMargin = Duration.milliseconds(
+      unchainedDestructionMarginMilliseconds)
+
     /// The defaults suite these tests keep the holder's click in.
     private static let storeName = "fi.refineid.tests.remote-use-forgetting"
 
@@ -161,25 +169,45 @@
       let vault = RappDeviceVault()
       let store = Self.scratchStore()
       defer { Self.clearScratchStore() }
-      _ = try Self.storedPairing(in: vault)
+      let first = try Self.storedPairing(in: vault)
       defer { registry.refreshPairing(in: vault) }
 
-      registry.forgetEveryPairing(in: vault, store: store)
+      // The first click off waits on a session close the test holds.
+      let (closeLeft, leave) = AsyncStream<Bool>.makeStream()
+      let heldClose = Task<Bool, Never> {
+        for await left in closeLeft {
+          return left
+        }
+        return false
+      }
+      RemoteUseForgetting.request(
+        at: RappPlatformClock().wallMilliseconds(), listing: vault, in: store)
+      registry.finishForgetting(after: heldClose, in: vault, store: store)
       let firstDestruction = try #require(registry.pairingDestruction)
 
       // Remote use on again, a phone paired again, and turned off again
-      // while the first click off may still be destroying.
-      _ = try Self.storedPairing(in: vault)
+      // while the first click off still waits on its close.
+      let second = try Self.storedPairing(in: vault)
       registry.forgetEveryPairing(in: vault, store: store)
       let secondDestruction = try #require(registry.pairingDestruction)
       let pending = try #require(
         QuitWithdrawal.begin(remoteUse: Self.rig().remoteUse, registry: registry))
 
+      // A second destruction that did not wait would have destroyed both
+      // pairings by now.
+      try await Task.sleep(for: Self.unchainedDestructionMargin)
+      let both = Set([first.metadata().pairId, second.metadata().pairId])
+      #expect(Set(try vault.activePairIDs()) == both, "the second waits for the first")
+
+      leave.yield(true)
+      leave.finish()
       let quitWaitedFor = try #require(pending.forgetting)
       _ = await quitWaitedFor.value
       #expect(try vault.activePairIDs().isEmpty, "the quit let go once both were destroyed")
-      _ = await firstDestruction.value
-      _ = await secondDestruction.value
+      let destroyed =
+        (await firstDestruction.value).destroyed + (await secondDestruction.value).destroyed
+      #expect(destroyed.count == both.count, "each pairing is destroyed once")
+      #expect(Set(destroyed) == both, "the stored clicks cover both")
       await registry.forgetting?.value
       #expect(registry.forgetting == nil)
       #expect(registry.pairingDestruction == nil)
