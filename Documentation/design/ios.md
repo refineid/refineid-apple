@@ -14,6 +14,14 @@ The main screen's "Identity" section shows the holder as one row: the
 - **Card in an attached reader.** Each card in the reader has the same row,
   with no button: the name comes from the card in the reader.
 
+Removing the identity unregisters the card's token, so the system's token
+list no longer holds it and Safari is not offered the card. It also deletes
+the stored certificates the token is built from and revokes the phone's
+pairings. The card access number stays stored, so setting the card up again
+needs only a tap. The token extension may keep PIN 1 in memory until
+iOS ends the extension, which the app cannot do. With no token registered,
+that memory serves nothing.
+
 The app does not read, store or show the holder's photo.
 
 ## The card in the phone's near field
