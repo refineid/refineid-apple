@@ -18,7 +18,7 @@ This document defines the tiered testing, formatting, and release quality gates 
 - **Script**: `Scripts/test.sh commit` (automatically driven by `Scripts/githooks/pre-commit`).
 - **Formatting Tool**: Run `Scripts/format.sh` (or `Scripts/format.sh --staged`) to format modified Swift files in-place using `swift-format`.
 - **Whitespace Check**: `git diff --cached --check` prevents committing trailing whitespace, spaces before tabs, or spurious carriage returns.
-- **Lint Snapshot**: `Scripts/QualityReceipt.py lint-index` materializes Git blobs from the staged tree and runs `Scripts/lint.sh` in that snapshot. A successful local receipt can skip the same lint run at push when the tree and toolchain still match. Receipts are a local speed optimization, never proof accepted by GitHub.
+- **Lint Snapshot**: `Scripts/QualityReceipt.py lint-index` materializes Git blobs from the staged tree and runs `Scripts/lint.sh` (swift-format, SwiftLint, `swiftc -typecheck` of every Swift script under `Scripts/`, and the suppression register) in that snapshot. A successful local receipt can skip the same lint run at push when the tree and toolchain still match. Receipts are a local speed optimization, never proof accepted by GitHub.
 - **Rule**: Diffs must remain focused and minimal. Zero noise diffs or accidental whitespace reformats across unrelated lines.
 
 ## 2. Push & PR Tier (Functional Verification)

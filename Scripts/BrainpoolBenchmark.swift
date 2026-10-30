@@ -4,11 +4,16 @@ import Foundation
 
 /// A small command-line benchmark for the hot arithmetic used by PACE.
 ///
-/// Compile this file in the same module as CardCore so internal fixed-width
-/// constants remain available:
+/// Compile this file in one module with the CardCore sources it uses so
+/// internal fixed-width constants remain available:
 ///
 ///     swiftc -O -whole-module-optimization \
-///       CardCore/Sources/CardCore/**/*.swift \
+///       CardCore/Sources/CardCore/Crypto/U384.swift \
+///       CardCore/Sources/CardCore/Crypto/FieldP384.swift \
+///       CardCore/Sources/CardCore/Crypto/BrainpoolPoint.swift \
+///       CardCore/Sources/CardCore/Crypto/BrainpoolP384r1.swift \
+///       CardCore/Sources/CardCore/Values/BrainpoolP384r1Values.swift \
+///       CardCore/Sources/CardCore/Values/Sec1Values.swift \
 ///       Scripts/BrainpoolBenchmark.swift \
 ///       -o /tmp/refineid-brainpool-benchmark
 ///

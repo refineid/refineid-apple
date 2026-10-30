@@ -16,6 +16,8 @@
 # Gate:
 # - swift-format owns layout
 # - SwiftLint owns defects (strict, carve register, baseline)
+# - swiftc typechecks the standalone scripts under Scripts/, which no
+#   scheme or package compiles
 # - typing-discipline custom rules live in .swiftlint.yml
 # - suppression comments must match Scripts/lint-suppression-register.json
 #   exactly (add or drop one only by editing that register)
@@ -67,6 +69,51 @@ format_log=$(
 swiftlint_log=$(
   swiftlint lint --quiet --baseline .swiftlint-baseline.json 2>&1
 ) || fail "swiftlint" "${swiftlint_log}"
+
+# A script that `swift` runs is typechecked alone. A script compiled
+# into the CardCore module is typechecked with the CardCore sources it
+# uses. Every Swift file under Scripts/ must appear in one call.
+macos_sdk=$(xcrun --show-sdk-path --sdk macosx)
+typechecked_scripts=()
+
+typecheck() {
+  local name=$1
+  shift
+  local path
+  for path in "$@"; do
+    case "${path}" in
+      Scripts/*) typechecked_scripts+=("${path}") ;;
+    esac
+  done
+  local log
+  log=$(swiftc -typecheck -sdk "${macos_sdk}" "$@" 2>&1) || fail "typecheck ${name}" "${log}"
+}
+
+typecheck "release manager" Scripts/apple-app-store-connect-release-manager.swift
+typecheck "store screenshots" Scripts/generate-store-screenshots.swift
+typecheck "card logins" Scripts/test-card-logins.swift
+typecheck "icon" Scripts/generate-icon.swift
+typecheck "stamp samples" \
+  CardCore/Sources/CardCore/PdfStampRenderer.swift \
+  CardCore/Sources/CardCore/StampMark.swift \
+  CardCore/Sources/CardCore/Values/PdfValues.swift \
+  Scripts/RenderStampSamples.swift
+typecheck "brainpool benchmark" \
+  CardCore/Sources/CardCore/Crypto/U384.swift \
+  CardCore/Sources/CardCore/Crypto/FieldP384.swift \
+  CardCore/Sources/CardCore/Crypto/BrainpoolPoint.swift \
+  CardCore/Sources/CardCore/Crypto/BrainpoolP384r1.swift \
+  CardCore/Sources/CardCore/Values/BrainpoolP384r1Values.swift \
+  CardCore/Sources/CardCore/Values/Sec1Values.swift \
+  Scripts/BrainpoolBenchmark.swift
+
+untypechecked=$(
+  comm -23 <(find Scripts -name '*.swift' | sort) \
+    <(printf '%s\n' "${typechecked_scripts[@]}" | sort)
+)
+if [[ -n ${untypechecked} ]]; then
+  fail "typecheck" "not typechecked (add a typecheck call to Scripts/lint.sh):"$'\n'"${untypechecked}"
+fi
 
 register_path="Scripts/lint-suppression-register.json"
 if [ "${mode}" = "check" ] && [ ! -f "${register_path}" ]; then
