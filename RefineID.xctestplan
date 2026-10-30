@@ -27,14 +27,6 @@
         "identifier" : "4D0000000000000000000003",
         "name" : "CardCoreTests"
       }
-    },
-    {
-      "enabled" : false,
-      "target" : {
-        "containerPath" : "container:RefineID.xcodeproj",
-        "identifier" : "4D0000000000000000000005",
-        "name" : "RefineIDUITests"
-      }
     }
   ],
   "version" : 1
