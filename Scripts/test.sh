@@ -112,7 +112,7 @@ case "${mode}" in
   macos-mvp)
     step "Checking the macOS MVP user interface"
     result_path="build/macos-mvp-ui-$(date -u +%Y%m%dT%H%M%SZ).xcresult"
-    xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -destination 'platform=macOS' \
+    xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -testPlan RefineIDUITests -destination 'platform=macOS' \
       -only-testing:RefineIDUITests/MacMvpUITests \
       -resultBundlePath "${result_path}" -quiet \
       || fail "macOS MVP UI checks failed."

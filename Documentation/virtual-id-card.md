@@ -203,9 +203,10 @@ outcomes from being mistaken for a real card result.
 
 ## Xcode Cloud
 
-The shared RefineID scheme already selects RefineID.xctestplan, which contains
-CardCoreTests, RefineIDTests, and RefineIDUITests. A Cloud workflow can therefore
-run the framework without hardware:
+The shared RefineID scheme holds two test plans: RefineID.xctestplan, the
+default, with CardCoreTests and RefineIDTests, and RefineIDUITests.xctestplan
+with RefineIDUITests. A Cloud workflow can therefore run the framework without
+hardware:
 
 1. Add a Test action for iOS Simulator and the RefineID scheme.
 2. Use Scheme Settings so the checked-in test plan controls targets.

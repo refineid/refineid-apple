@@ -76,7 +76,7 @@ printf '==> Tart VM online at %s. Running UI tests...\n' "${VM_IP}"
 tart exec "${VM_NAME}" /bin/bash -lc "
   set -euo pipefail
   cd '${VM_RUNNER_DIR}'
-  xcodebuild test -scheme RefineID -destination 'platform=macOS' -only-testing:RefineIDUITests
+  xcodebuild test -scheme RefineID -testPlan RefineIDUITests -destination 'platform=macOS'
 "
 
 printf '\n==> Headless UI tests in Tart VM completed successfully!\n'

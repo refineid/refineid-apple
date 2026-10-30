@@ -56,7 +56,9 @@ This document defines the tiered testing, formatting, and release quality gates 
 
 ## 5. Headless & Background UI Testing
 
-- **Fast-Loop Headless Testing (Default)**: In `RefineID.xctestplan`, `RefineIDUITests` is disabled by default. Running tests via `xcodebuild test -scheme RefineID` or pressing ⌘U in Xcode executes 100% in-memory unit and integration tests (over 610 tests across CardCore and RefineID) without opening windows, stealing focus, or interrupting workstation tasks.
+- **Fast-Loop Headless Testing (Default)**: `RefineID.xctestplan`, the scheme's default test plan, holds `CardCoreTests` and `RefineIDTests` only. Running tests via `xcodebuild test -scheme RefineID` or pressing ⌘U in Xcode executes in-memory unit and integration tests without opening windows, stealing focus, or interrupting workstation tasks.
+- **UI test plan**: `RefineIDUITests.xctestplan` holds `RefineIDUITests`. A UI test runs only through it, by name with `xcodebuild test -scheme RefineID -testPlan RefineIDUITests -destination 'platform=macOS' -only-testing:RefineIDUITests/<class>/<method>`, through `Scripts/test.sh macos-mvp`, or in a VM through `Scripts/test-ui-tart.sh`. UI tests open windows and take the keyboard and mouse: run them only off the workstation's screen.
+- **Gate scope**: the pre-commit hook runs `Scripts/test.sh commit` (lint, no tests) and the pre-push hook runs `Scripts/test.sh pr` (lint, CardCore and PKCS11Bridge package tests, the iOS build, `RefineIDTests` on macOS). Neither runs a UI test.
 - **Isolated Headless UI Tests with Tart**: When full end-to-end `RefineIDUITests` must be verified locally without screen-stealing, run them inside a headless macOS virtual machine using Tart:
   ```bash
   Scripts/test-ui-tart.sh [VM_NAME]
