@@ -34,7 +34,11 @@
       let instantText = formatter.string(from: instant)
         .replacingOccurrences(of: ":", with: "-")
         .replacingOccurrences(of: "+00-00", with: "Z")
-      return " - " + String(localized: "signed at \(instantText)")
+      let word = String(
+        localized: "output.signed",
+        defaultValue: "signed",
+        table: "DocumentSigning")
+      return " - \(word) \(instantText)"
     }
 
     /// The name a signed document should be offered under: the
