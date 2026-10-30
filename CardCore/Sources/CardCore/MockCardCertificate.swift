@@ -34,6 +34,15 @@ public enum MockCardCertificate {
     defaultAtrByte1, defaultAtrByte2, defaultAtrByte2, defaultAtrByte3, defaultAtrByte3,
   ])
 
+  /// The chip serial a synthetic identity reports by default; an invalid
+  /// constant is a programmer error caught at first use.
+  public static let syntheticChipSerial: ChipSerial = {
+    guard let serial = ChipSerial(value: "XA1234567") else {
+      preconditionFailure("invalid synthetic chip serial")
+    }
+    return serial
+  }()
+
   // MARK: Static Functions
 
   /// Generates a valid self-signed P-256 ECDSA X.509 certificate DER.
@@ -120,7 +129,7 @@ public enum MockCardCertificate {
   public static func primeSyntheticIdentity(
     can: String = "123456",
     holderName: String = "DOE JANE 12345678N",
-    tokenSerial: String = "XA1234567",
+    chipSerial: ChipSerial = syntheticChipSerial,
     certificate: Data? = nil
   ) -> Bool {
     do {
@@ -130,7 +139,7 @@ public enum MockCardCertificate {
           can: can,
           certificate: certDER,
           issuer: nil,
-          tokenSerial: tokenSerial,
+          chipSerial: chipSerial,
           activationCheck: .passed
         ),
         let lookupID = PrimeLookupIdentifier(answerToReset: defaultAtr)

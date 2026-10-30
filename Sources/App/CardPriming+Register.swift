@@ -14,7 +14,7 @@
   extension CardPriming {
     /// Registers the live card so the system can ask for it later.
     internal static func register(
-      instance: CardInstanceIdentifier,
+      instance: TokenInstanceID,
       session: NearFieldCardSession
     ) async -> Bool {
       await MainActor.run { HolderCardServing.availabilityChanged() }
@@ -51,7 +51,7 @@
     /// is the same string the system uses, so it registers the same
     /// token; it just cannot be confirmed first.
     internal static func tokenID(
-      for instance: CardInstanceIdentifier,
+      for instance: TokenInstanceID,
       session: NearFieldCardSession
     ) async -> String {
       let watcher = TKTokenWatcher()

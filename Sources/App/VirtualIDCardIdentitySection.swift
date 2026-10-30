@@ -35,13 +35,13 @@
         .accessibilityIdentifier("virtualCardElectronicIdentifier")
         TextField(
           virtualCardLocalized(
-            "identity.tokenSerial",
-            defaultValue: "Token serial"),
-          text: $draft.card.tokenSerial,
+            "identity.chipSerial",
+            defaultValue: "Chip serial"),
+          text: $draft.card.chipSerialText,
           axis: .vertical
         )
         .virtualCardEditorField()
-        .accessibilityIdentifier("virtualCardTokenSerial")
+        .accessibilityIdentifier("virtualCardChipSerial")
       }
     }
   }

@@ -29,7 +29,7 @@ public enum TokenInfoFile {
 
   /// Parses the serial, or nil when the outer SEQUENCE, the leading
   /// INTEGER, or the serial octet string is missing or malformed.
-  public static func serial(fromContent content: Data) -> TokenSerial? {
+  public static func serial(fromContent content: Data) -> ChipSerial? {
     guard
       let outer = try? DerTlvRecord.sequence(in: content),
       let sequence = outer.first,
@@ -42,7 +42,7 @@ public enum TokenInfoFile {
     else {
       return nil
     }
-    return TokenSerial(value: renderSerial(fields[1].value))
+    return ChipSerial(value: renderSerial(fields[1].value))
   }
 
   /// What the card calls itself: its manufacturer and its label, as far

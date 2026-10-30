@@ -62,7 +62,7 @@ extension VirtualIDCard {
           attemptsRemaining: RetryCount.pristineAllowance),
         holderName: "DOE JANE",
         electronicClientIdentifier: "12345678N",
-        tokenSerial: "XA1234567",
+        chipSerialText: "XA1234567",
         authenticationCertificate: .valid,
         signatureCertificate: .valid)
       var device = DeviceState()

@@ -17,6 +17,9 @@ internal struct PrimedTokenMaterial {
   /// Public authentication key used to verify every card signature.
   internal let publicKey: SecKey
 
-  /// Complete PKCS#15 token serial used for security bindings.
-  internal let serial: TokenSerial
+  /// Chip serial used for security bindings.
+  internal let serial: ChipSerial
+
+  /// The CryptoTokenKit instance ID derived from ``serial``.
+  internal let instanceID: TokenInstanceID
 }

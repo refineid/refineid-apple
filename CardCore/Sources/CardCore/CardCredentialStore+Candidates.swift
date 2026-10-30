@@ -38,12 +38,12 @@ extension CardCredentialStore {
     !cardAccessNumberCandidates().isEmpty
   }
 
-  /// Remembers working digits for the card with this token serial.
+  /// Remembers working digits for the card with this chip serial.
   ///
   /// Called by the driver after a number mints: the serial is known
   /// only once PACE has run, so the library grows one card at a time.
-  public static func rememberCan(digits: String, tokenSerial: TokenSerial) {
-    guard let printed = PrintedCardSerial(tokenSerial: tokenSerial) else { return }
+  public static func rememberCan(digits: String, chipSerial: ChipSerial) {
+    guard let printed = PrintedSerial(chipSerial: chipSerial) else { return }
     CardCanOffer.remember(digits: digits, printedSerial: printed.value)
   }
 }

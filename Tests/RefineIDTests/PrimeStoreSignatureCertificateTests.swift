@@ -18,19 +18,20 @@
     private static let otherAccessNumber = "654321"
 
     /// A synthetic current-card serial.
-    private static let tokenSerial = "XA1234567"
+    private static let chipSerialText = "XA1234567"
 
     /// Synthetic answer-to-reset text naming the primed card's lookup.
     private static let answerToReset = Data("synthetic answer to reset".utf8)
 
     private static func primeCard(certificate: Data) throws {
       PrimeStore.forgetAll()
+      let serial = try #require(ChipSerial(value: Self.chipSerialText))
       let identity = try #require(
         PrimedIdentity(
           can: Self.primedAccessNumber,
           certificate: certificate,
           issuer: nil,
-          tokenSerial: Self.tokenSerial,
+          chipSerial: serial,
           activationCheck: .passed))
       let lookup = try #require(PrimeLookupIdentifier(answerToReset: Self.answerToReset))
       #expect(PrimeStore.store(identity, forLookup: lookup))

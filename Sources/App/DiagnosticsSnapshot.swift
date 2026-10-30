@@ -161,7 +161,6 @@ internal struct DiagnosticsSnapshot: Sendable {
         + "  can=" + Self.yesNo(prime.hasCardAccessNumber)
         + " leaf=\(prime.certificateBytes)B"
         + " issuer=\(prime.issuerBytes)B"
-        + " serial=" + Self.yesNo(prime.hasTokenSerial)
     }
     return Section(
       title: "Prime store (\(primes.count))",

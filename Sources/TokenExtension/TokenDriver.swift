@@ -212,14 +212,7 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
       )
       throw TokenError.primeMissing
     }
-    guard
-      let serialText = match.identity.tokenSerial,
-      let serial = TokenSerial(value: serialText),
-      let instanceID = CardInstanceIdentifier(tokenSerial: serial)
-    else {
-      TokenLog.error("mintFromPrime: prime has no supported printed card serial")
-      throw TokenError.primeMissing
-    }
+    let serial = match.identity.chipSerial
     // Recorded rather than written: this is inside the two seconds the
     // system gives the mint, and the line is written out by whichever
     // `createToken` outcome line follows it.
@@ -231,7 +224,7 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
     )
     let isPendingSign = PendingSigningState.shared.isPendingSign
     let needsSigningField = resolveSigningNeed(
-      instanceID: instanceID,
+      serial: serial,
       isRegistrationField: match.isRegistrationField,
       isPendingSign: isPendingSign
     )
@@ -242,7 +235,7 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
       primedSmartCard: smartCard,
       aid: aid,
       tokenDriver: tokenDriver,
-      instanceID: instanceID,
+      chipSerial: serial,
       primed: match.identity,
       shouldHoldSession: needsSigningField,
       isPendingSign: isPendingSign
@@ -250,7 +243,7 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
   }
 
   private func resolveSigningNeed(
-    instanceID: CardInstanceIdentifier,
+    serial: ChipSerial,
     isRegistrationField: Bool,
     isPendingSign: Bool
   ) -> Bool {
@@ -258,8 +251,7 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
     // card, or a signature waits for the next field; a registration field
     // stays the app's.
     let pinAvailable =
-      TransientCandidatePin1.shared.hasPending(for: instanceID)
-      || VolatileAcceptedPin1.shared.hasPin(for: instanceID)
+      Pin1Memory.shared.holdsValue(serial: serial)
     return isPendingSign || (!isRegistrationField && pinAvailable)
   }
 }

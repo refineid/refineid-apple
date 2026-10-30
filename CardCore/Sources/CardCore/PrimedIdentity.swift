@@ -49,8 +49,8 @@ public struct PrimedIdentity: Codable, Equatable, Sendable {
   /// The DER issuing-CA certificate, when the prime read one.
   public let issuerDER: Data?
 
-  /// The card's PKCS#15 token serial, when the prime read one.
-  public let tokenSerial: String?
+  /// The card's chip serial.
+  public let chipSerial: ChipSerial
 
   /// Proof that no known citizen-card activation state blocked this prime.
   public let activationCheck: ActivationCheck
@@ -60,8 +60,8 @@ public struct PrimedIdentity: Codable, Equatable, Sendable {
 
   /// Refuses anything that could not have come from a real prime.
   ///
-  /// The card access number must be six digits, the certificate must
-  /// carry bytes, and a serial, if present, must be a plausible one.
+  /// The card access number must be six digits and the certificate must
+  /// carry bytes.
   /// This is the only way to construct the record, so every reader has
   /// evidence the check happened -- including the reader that decoded it
   /// from the keychain, which reconstructs it through this initializer
@@ -70,17 +70,16 @@ public struct PrimedIdentity: Codable, Equatable, Sendable {
     can: String,
     certificate: Data,
     issuer: Data?,
-    tokenSerial: String?,
+    chipSerial: ChipSerial,
     activationCheck: ActivationCheck,
     signatureCertificate: Data? = nil
   ) {
     guard CardAccessNumber(digits: can) != nil else { return nil }
     guard !certificate.isEmpty else { return nil }
-    if let tokenSerial, TokenSerial(value: tokenSerial) == nil { return nil }
     self.can = can
     self.certDER = certificate
     self.issuerDER = issuer
-    self.tokenSerial = tokenSerial
+    self.chipSerial = chipSerial
     self.activationCheck = activationCheck
     self.signatureCertDER = signatureCertificate
   }

@@ -42,7 +42,7 @@ public struct Pin2: ~Copyable {
   ///
   /// Reading the fingerprint does not consume the value: it is not a
   /// transmission.
-  public borrowing func fingerprint(boundTo serial: TokenSerial) -> PinFingerprint {
+  public borrowing func fingerprint(boundTo serial: ChipSerial) -> PinFingerprint {
     PinFingerprint.compute(digits: store, serial: serial, role: .pin2)
   }
 

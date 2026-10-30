@@ -37,7 +37,7 @@ internal struct Pin1Tests {
 
   @Test
   internal func fingerprintIsStableForSamePinAndCard() throws {
-    let serial = try #require(TokenSerial(value: "9990000001"))
+    let serial = try #require(ChipSerial(value: "9990000001"))
     guard
       let first = Pin1(digits: "123456"),
       let second = Pin1(digits: "123456")
@@ -52,8 +52,8 @@ internal struct Pin1Tests {
 
   @Test
   internal func fingerprintSeparatesCardsAndPins() throws {
-    let cardA = try #require(TokenSerial(value: "9990000001"))
-    let cardB = try #require(TokenSerial(value: "9990000002"))
+    let cardA = try #require(ChipSerial(value: "9990000001"))
+    let cardB = try #require(ChipSerial(value: "9990000002"))
     guard
       let pin = Pin1(digits: "123456"),
       let otherPin = Pin1(digits: "654321")

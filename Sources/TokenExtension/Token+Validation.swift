@@ -34,8 +34,8 @@ extension Token {
       throw TokenError.certificateUnreadable
     }
     let (profile, publicKey) = try Self.validatedSigningKey(in: leaf)
-    guard let instanceID = CardInstanceIdentifier(tokenSerial: identity.tokenSerial) else {
-      TokenLog.error("Token.init: token serial has no supported printed-card form")
+    guard let instanceID = TokenInstanceID(chipSerial: identity.chipSerial) else {
+      TokenLog.error("Token.init: chip serial has no supported printed form")
       throw TokenError.unsupportedKeyProfile
     }
     let sign = Self.validatedQualifiedMaterial(fromDER: identity.signLeafDER)
@@ -71,7 +71,7 @@ extension Token {
   /// Validates every piece of a stored contactless identity.
   internal static func validated(
     primed: PrimedIdentity,
-    instanceID: CardInstanceIdentifier
+    chipSerial: ChipSerial
   ) throws -> PrimedTokenMaterial {
     guard let accessNumber = CardAccessNumber(digits: primed.can) else {
       TokenLog.trace("Token.init(primed): stored card access number is not usable")
@@ -82,12 +82,12 @@ extension Token {
       throw TokenError.certificateUnreadable
     }
     let (profile, publicKey) = try Self.validatedSigningKey(in: leaf)
-    guard
-      let serialText = primed.tokenSerial,
-      let storedSerial = TokenSerial(value: serialText),
-      CardInstanceIdentifier(tokenSerial: storedSerial) == instanceID
-    else {
-      TokenLog.trace("Token.init(primed): stored serial does not name this token")
+    guard primed.chipSerial == chipSerial else {
+      TokenLog.trace("Token.init(primed): stored chip serial is not this card's")
+      throw TokenError.primeMissing
+    }
+    guard let instanceID = TokenInstanceID(chipSerial: chipSerial) else {
+      TokenLog.trace("Token.init(primed): chip serial has no supported printed form")
       throw TokenError.primeMissing
     }
     return PrimedTokenMaterial(
@@ -95,7 +95,8 @@ extension Token {
       leaf: leaf,
       profile: profile,
       publicKey: publicKey,
-      serial: storedSerial
+      serial: chipSerial,
+      instanceID: instanceID
     )
   }
 

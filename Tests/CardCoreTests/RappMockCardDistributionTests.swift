@@ -81,7 +81,7 @@ import Testing
       PrimeStore.forgetAll()
       let holderName = "DOE JANE 12345678N"
       let can = "123456"
-      let tokenSerial = "XA1234567"
+      let chipSerial = try #require(ChipSerial(value: "XA1234567"))
 
       let certDER = try MockCardCertificate.makeCertificate(commonName: holderName)
       guard let cert = SecCertificateCreateWithData(nil, certDER as CFData) else {
@@ -94,7 +94,7 @@ import Testing
       let primed = MockCardCertificate.primeSyntheticIdentity(
         can: can,
         holderName: holderName,
-        tokenSerial: tokenSerial,
+        chipSerial: chipSerial,
         certificate: certDER
       )
       #expect(primed)

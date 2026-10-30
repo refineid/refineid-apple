@@ -114,42 +114,9 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
     operation: TKTokenOperation
   ) -> TKTokenAuthOperation {
     let correlationID = "pin-" + UUID().uuidString.prefix(Self.idPrefixLength)
-    let instanceID = cardToken.cardInstanceID
-    let hasAccepted = VolatileAcceptedPin1.shared.hasPin(for: instanceID)
-    let hasPending = TransientCandidatePin1.shared.hasPending(for: instanceID)
-    if hasAccepted || hasPending {
-      TokenLog.info(
-        "beginAuth: op=\(operation.rawValue) correlation=\(correlationID) "
-          + "session=\(sessionID) - satisfied from memory"
-      )
-      return TKTokenAuthOperation()
-    }
     if cardToken.interface == .fieldWithDeadline {
-      TokenLog.notice(
-        "beginAuth: op=\(operation.rawValue) correlation=\(correlationID) "
-          + "session=\(sessionID) - presenting PIN sheet"
-      )
-      // Cancel activity timeout while presenting native PIN sheet so the live
-      // session is retained for the signature that follows.
-      cardToken.heldSession.cancelActivityTimeout()
-      let operationID = UUID()
-      return Pin1AuthOperation(
-        correlationID: correlationID,
-        operationID: operationID,
-        capture: { pin in
-          let staged = TransientCandidatePin1.shared.stage(
-            digits: pin,
-            for: instanceID,
-            operationID: operationID,
-            correlationID: correlationID
-          )
-          TokenLog.notice("pinAuth: staged candidate correlation=\(correlationID) staged=\(staged)")
-        },
-        onCancel: { cancelledOpID in
-          TransientCandidatePin1.shared.cancel(operationID: cancelledOpID)
-          TokenLog.notice("pinAuth: cancelled candidate correlation=\(correlationID)")
-        }
-      )
+      return beginFieldPin1Auth(
+        cardToken: cardToken, operation: operation, correlationID: correlationID)
     }
 
     TokenLog.notice(
@@ -158,6 +125,48 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
     return Pin1AuthOperation(correlationID: correlationID) { [weak self] pin in
       self?.collectedPin = pin
     }
+  }
+
+  /// The phone's field: a value held for the card satisfies the request;
+  /// otherwise the sheet stages what the holder types as the card's
+  /// candidate, because the field is not open yet to verify it.
+  private func beginFieldPin1Auth(
+    cardToken: Token,
+    operation: TKTokenOperation,
+    correlationID: String
+  ) -> TKTokenAuthOperation {
+    let serial = cardToken.chipSerial
+    if Pin1Memory.shared.holdsValue(serial: serial) {
+      TokenLog.info(
+        "beginAuth: op=\(operation.rawValue) correlation=\(correlationID) "
+          + "session=\(sessionID) - satisfied from memory"
+      )
+      return TKTokenAuthOperation()
+    }
+    TokenLog.notice(
+      "beginAuth: op=\(operation.rawValue) correlation=\(correlationID) "
+        + "session=\(sessionID) - presenting PIN sheet"
+    )
+    // Cancel activity timeout while presenting native PIN sheet so the live
+    // session is retained for the signature that follows.
+    cardToken.heldSession.cancelActivityTimeout()
+    let operationID = UUID()
+    return Pin1AuthOperation(
+      correlationID: correlationID,
+      operationID: operationID,
+      capture: { pin in
+        let staged = Pin1Memory.shared.stageCandidate(
+          digits: pin,
+          serial: serial,
+          operationID: operationID
+        )
+        TokenLog.notice("pinAuth: staged candidate correlation=\(correlationID) staged=\(staged)")
+      },
+      onCancel: { cancelledOpID in
+        Pin1Memory.shared.cancelCandidate(operationID: cancelledOpID)
+        TokenLog.notice("pinAuth: cancelled candidate correlation=\(correlationID)")
+      }
+    )
   }
 
   internal func tokenSession(
