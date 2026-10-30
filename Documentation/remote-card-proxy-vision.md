@@ -69,7 +69,7 @@ The **RefineID Remote Card Proxy** enables laptops and desktops (Linux, macOS) t
 
 ### 3.1 Pairing Flow & Discovery Hierarchy
 
-> **Normative Reference**: See [RAPP Transport & Discovery Hierarchy](rapp-transport-and-discovery-hierarchy.md) for the active 3-tier transport specification and security architecture.
+> **Normative Reference**: See [RAPP Transport & Discovery Hierarchy](protocol/rapp-transport-and-discovery-hierarchy.md) for the active 3-tier transport specification and security architecture.
 
 1. **Initiation**: User runs `refineid pair` (CLI) or clicks **"Pair New Mobile"** in the RefineID Desktop GUI.
 2. **Discovery & Sovereign Custodian Model**:
