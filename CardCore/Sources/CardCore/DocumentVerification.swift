@@ -113,6 +113,9 @@ public enum DocumentVerification {
 
   /// The generation time of one verified document timestamp whose
   /// imprint matches the byte ranges it covers.
+  ///
+  /// The imprint is taken under the token's own messageImprint hash
+  /// algorithm (RFC 3161 section 2.4.2), SHA-256 or SHA-384.
   private static func documentTimestamp(
     of signature: PdfSignatureReader.FoundSignature
   ) -> Date? {
@@ -120,7 +123,10 @@ public enum DocumentVerification {
       let verified = try? TimestampTokenVerifier.verify(signature.cms),
       let contents = try? RfcTimestamp.contents(in: signature.cms),
       let binding = try? RfcTimestamp.binding(in: contents.tstInfo),
-      binding.digest == signature.byteRangeDigest
+      let algorithm = DocumentDigestAlgorithm(
+        algorithmIdentifier: binding.algorithm
+      ),
+      binding.digest == signature.byteRangeDigest(algorithm)
     else {
       return nil
     }
@@ -140,13 +146,15 @@ public enum DocumentVerification {
       throw Failure.unsupportedProfile
     }
 
-    let documentIntact = read.messageDigest == signature.byteRangeDigest
+    let documentIntact =
+      read.messageDigest == signature.byteRangeDigest(read.algorithms.digest)
     let signatureValid =
       (try? QualifiedDocumentCms.validate(
         signedAttributesSet: read.signedAttributesSet,
         signatureValue: read.signatureValue,
         signerProfile: signer.profile,
-        signerCertificate: read.signerCertificate
+        signerCertificate: read.signerCertificate,
+        algorithms: read.algorithms
       )) != nil
 
     let timestamps = verifiedTimestamps(
@@ -212,18 +220,24 @@ public enum DocumentVerification {
 
   /// The generation times of the tokens that verify and imprint the
   /// signature value; a failing token contributes nothing.
+  ///
+  /// Each imprint is taken under the token's own messageImprint hash
+  /// algorithm (RFC 3161 section 2.4.2), SHA-256 or SHA-384.
   private static func verifiedTimestamps(
     of tokens: [Data],
     signatureValue: Data
   ) -> [Date] {
-    let expected = try? QualifiedDocumentCms.signatureTimestampDigest(
-      signatureValue: signatureValue)
-    guard let expected else { return [] }
-    return tokens.compactMap { token in
+    tokens.compactMap { token in
       guard
         let verified = try? TimestampTokenVerifier.verify(token),
         let contents = try? RfcTimestamp.contents(in: token),
         let binding = try? RfcTimestamp.binding(in: contents.tstInfo),
+        let algorithm = DocumentDigestAlgorithm(
+          algorithmIdentifier: binding.algorithm
+        ),
+        let expected = try? QualifiedDocumentCms.signatureTimestampDigest(
+          signatureValue: signatureValue, digestAlgorithm: algorithm
+        ),
         binding.digest == expected
       else {
         return nil

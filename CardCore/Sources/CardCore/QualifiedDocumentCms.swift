@@ -1,6 +1,5 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-import CryptoKit
 import Foundation
 
 /// The CMS SignedData of one PAdES qualified signature (RFC 5652,
@@ -23,6 +22,26 @@ public enum QualifiedDocumentCms {
     let timestampTokens: [Data]
   }
 
+  /// The SignerInfo digest and signature algorithms of one signature.
+  public struct SignerAlgorithms: Equatable, Sendable {
+    /// Digests the byte ranges, the signer certificate and the signed
+    /// attributes.
+    public let digest: DocumentDigestAlgorithm
+
+    /// Must fit both the digest and the signer's key.
+    public let signature: DocumentSignatureAlgorithm
+
+    /// The algorithms this suite signs with for one card key.
+    internal static func signing(_ profile: CardKeyProfile) -> Self {
+      Self(
+        digest: QualifiedDocumentCms.signingDigestAlgorithm,
+        signature: .signing(
+          profile, digest: QualifiedDocumentCms.signingDigestAlgorithm
+        )
+      )
+    }
+  }
+
   /// A failure to assemble the structure.
   public enum AssemblyError: Error, Equatable {
     /// The certificate's public key does not match the selected card profile.
@@ -39,11 +58,27 @@ public enum QualifiedDocumentCms {
     case signedAttributesMalformed
   }
 
+  /// The digest algorithm this suite signs with.
+  public static let signingDigestAlgorithm = DocumentDigestAlgorithm.sha384
+
   /// The signed attributes in their SET form: what the card digests
   /// and signs (SHA-384 of exactly these bytes).
   public static func signedAttributes(
     byteRangeDigest: Data,
     signerCertificate: Data
+  ) -> Data {
+    Self.signedAttributes(
+      byteRangeDigest: byteRangeDigest,
+      signerCertificate: signerCertificate,
+      digestAlgorithm: Self.signingDigestAlgorithm
+    )
+  }
+
+  /// The canonical three-attribute set for one digest algorithm.
+  internal static func signedAttributes(
+    byteRangeDigest: Data,
+    signerCertificate: Data,
+    digestAlgorithm: DocumentDigestAlgorithm
   ) -> Data {
     let contentType = attribute(
       SignOids.contentType,
@@ -53,13 +88,7 @@ public enum QualifiedDocumentCms {
       SignOids.messageDigest,
       value: DerEncoder.octetString(byteRangeDigest)
     )
-    let certificateHash = Data(SHA384.hash(data: signerCertificate))
-    // ESSCertIDv2 carries its hash algorithm explicitly because the
-    // DER DEFAULT is SHA-256 and this is not (RFC 5035).
-    let essCertId = DerEncoder.sequence([
-      sha384AlgorithmIdentifier(),
-      DerEncoder.octetString(certificateHash),
-    ])
+    let essCertId = digestAlgorithm.essCertIdV2(certificate: signerCertificate)
     let signingCertificate = attribute(
       SignOids.signingCertificateV2,
       value: DerEncoder.sequence([DerEncoder.sequence([essCertId])])
@@ -67,17 +96,29 @@ public enum QualifiedDocumentCms {
     return DerEncoder.setOf([contentType, messageDigest, signingCertificate])
   }
 
-  /// The RFC 3161 message imprint for a CMS signature-time-stamp attribute.
+  /// The SHA-384 RFC 3161 message imprint this suite requests for a CMS
+  /// signature-time-stamp attribute.
+  public static func signatureTimestampDigest(
+    signatureValue: Data
+  ) throws -> Data {
+    try Self.signatureTimestampDigest(
+      signatureValue: signatureValue, digestAlgorithm: .sha384
+    )
+  }
+
+  /// The RFC 3161 message imprint for a CMS signature-time-stamp attribute
+  /// under one digest algorithm.
   ///
   /// The timestamp covers exactly the contents of SignerInfo.signature, not
   /// the OCTET STRING tag and length that carry those contents in CMS.
-  public static func signatureTimestampDigest(
-    signatureValue: Data
+  internal static func signatureTimestampDigest(
+    signatureValue: Data,
+    digestAlgorithm: DocumentDigestAlgorithm
   ) throws -> Data {
     guard !signatureValue.isEmpty else {
       throw AssemblyError.signatureMalformed
     }
-    return Data(SHA384.hash(data: signatureValue))
+    return digestAlgorithm.hash(signatureValue)
   }
 
   /// The complete ContentInfo, ready for the document's hole.
@@ -141,20 +182,22 @@ public enum QualifiedDocumentCms {
     let signerCertificate = input.signerCertificate
     let timestampTokens = input.timestampTokens
     let identity = try issuerAndSerial(of: signerCertificate)
+    let algorithms = SignerAlgorithms.signing(signerProfile)
     try Self.validate(
       signedAttributesSet: signedAttributesSet,
       signatureValue: signatureValue,
       signerProfile: signerProfile,
-      signerCertificate: signerCertificate
+      signerCertificate: signerCertificate,
+      algorithms: algorithms
     )
     var signerInfo: [Data] = [
       DerEncoder.integer(SignOids.signerInfoVersion),
       identity,
-      sha384AlgorithmIdentifier(),
+      algorithms.digest.algorithmIdentifier,
       DerEncoder.retagged(
         signedAttributesSet, to: DerValues.tagContext0Constructed
       ),
-      signatureAlgorithmIdentifier(signerProfile),
+      algorithms.signature.algorithmIdentifier,
       DerEncoder.octetString(signatureValue),
     ]
     if let timestamps = Self.timestampAttributes(timestampTokens) {
@@ -162,7 +205,7 @@ public enum QualifiedDocumentCms {
     }
     var parts: [Data] = [
       DerEncoder.integer(SignOids.cmsVersion),
-      DerEncoder.tlv(DerValues.tagSet, sha384AlgorithmIdentifier()),
+      DerEncoder.tlv(DerValues.tagSet, algorithms.digest.algorithmIdentifier),
       DerEncoder.sequence([DerEncoder.objectIdentifier(SignOids.data)]),
     ]
     if carryingCertificate {
@@ -204,31 +247,6 @@ public enum QualifiedDocumentCms {
       DerEncoder.objectIdentifier(oid),
       DerEncoder.tlv(DerValues.tagSet, value),
     ])
-  }
-
-  /// SHA-384 with absent parameters (RFC 5754).
-  private static func sha384AlgorithmIdentifier() -> Data {
-    DerEncoder.sequence([DerEncoder.objectIdentifier(SignOids.sha384)])
-  }
-
-  /// The SignerInfo signature algorithm and its profile-required parameters.
-  private static func signatureAlgorithmIdentifier(
-    _ profile: CardKeyProfile
-  ) -> Data {
-    switch profile {
-    case .ecdsaP256, .ecdsaP384:
-      // RFC 5758 section 3.2: ECDSA parameters are absent.
-      DerEncoder.sequence([
-        DerEncoder.objectIdentifier(SignOids.ecdsaWithSha384)
-      ])
-
-    case .rsa2048, .rsa3072:
-      // RFC 5754 section 3.2: RSA parameters are NULL.
-      DerEncoder.sequence([
-        DerEncoder.objectIdentifier(SignOids.sha384WithRsa),
-        DerEncoder.null(),
-      ])
-    }
   }
 
   /// IssuerAndSerialNumber from the certificate, byte-identical.

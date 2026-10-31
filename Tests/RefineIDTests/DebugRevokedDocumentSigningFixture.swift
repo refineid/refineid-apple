@@ -199,7 +199,7 @@
         )
       )
       let attributes = QualifiedDocumentCms.signedAttributes(
-        byteRangeDigest: placeholder.digest,
+        byteRangeDigest: placeholder.digest(QualifiedDocumentCms.signingDigestAlgorithm),
         signerCertificate: card.certificate
       )
       return CardStage(

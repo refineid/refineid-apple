@@ -193,7 +193,7 @@ internal enum DocumentSigner {
     } catch let error as PdfSigningError {
       throw Failure.document(error)
     }
-    let digest = prepared.digest
+    let digest = prepared.digest(QualifiedDocumentCms.signingDigestAlgorithm)
     if await MainActor.run(body: { Self.usesRappSigning }) {
       return try await Self.remoteCardMaterial(
         prepared: prepared,
@@ -261,7 +261,7 @@ internal enum DocumentSigner {
       throw Failure.document(error)
     }
     do {
-      let token = try await TimestampClient.token(over: prepared.digest)
+      let token = try await TimestampClient.token(over: prepared.digest(.sha384))
       return try prepared.filled(with: token.token)
     } catch let error as PdfSigningError {
       throw Failure.document(error)
