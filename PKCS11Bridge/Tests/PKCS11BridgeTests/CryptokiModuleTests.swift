@@ -2,6 +2,7 @@
 
 import CCryptoki
 import Foundation
+import LocalAuthentication
 import Testing
 
 @testable import PKCS11Bridge
@@ -180,5 +181,53 @@ internal struct CryptokiModuleTests {
     #expect(sessionsLeft == 0)
     #expect(!stillLoggedIn)
     ModuleRegistry.shared.withLock { $0.tokens = [] }
+  }
+
+  @Test
+  internal func logoutInvalidatesTheAuthenticationContext() {
+    #expect(C_Initialize(nil) == CKR_OK)
+    let context = LAContext()
+    installLoggedInToken(context: context)
+
+    #expect(C_Logout(7) == CKR_OK)
+
+    #expect(isInvalidated(context))
+    ModuleRegistry.shared.withLock { $0.tokens = [] }
+    #expect(C_Finalize(nil) == CKR_OK)
+  }
+
+  @Test
+  internal func finalizeInvalidatesTheAuthenticationContext() {
+    #expect(C_Initialize(nil) == CKR_OK)
+    let context = LAContext()
+    installLoggedInToken(context: context)
+
+    #expect(C_Finalize(nil) == CKR_OK)
+
+    #expect(isInvalidated(context))
+    ModuleRegistry.shared.withLock { $0.tokens = [] }
+  }
+
+  /// Registers one logged-in token on slot 1 and a session 7 bound to it.
+  private func installLoggedInToken(context: LAContext) {
+    ModuleRegistry.shared.withLock { registry in
+      registry.tokens = [
+        ModuleRegistry.TokenRecord(
+          slotID: 1,
+          tokenID: "context-test",
+          label: "Context Test",
+          objects: [],
+          loggedIn: true,
+          authenticationContext: context)
+      ]
+      registry.sessions[7] = ModuleRegistry.SessionRecord(slotID: 1, flags: 0)
+    }
+  }
+
+  /// Whether LocalAuthentication reports the context as invalidated.
+  private func isInvalidated(_ context: LAContext) -> Bool {
+    var error: NSError?
+    let usable = context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error)
+    return !usable && error?.code == LAError.invalidContext.rawValue
   }
 }

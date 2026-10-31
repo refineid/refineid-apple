@@ -77,7 +77,8 @@ internal enum SessionEntryPoints {
   }
 
   /// C_Login: with a nil PIN the protected authentication path applies;
-  /// a supplied PIN is stored in an LAContext for key operations.
+  /// a supplied PIN is stored in an LAContext for key operations, and
+  /// the bridge's own copy is zeroed before returning.
   internal static func login(
     handle: CK_SESSION_HANDLE,
     userType: CK_USER_TYPE,
@@ -93,7 +94,8 @@ internal enum SessionEntryPoints {
       return registry.withToken(slotID: session.slotID) { token in
         guard !token.loggedIn else { return CKR_USER_ALREADY_LOGGED_IN }
         if let pin, pinLength > 0 {
-          let credential = Data(bytes: pin, count: Int(pinLength))
+          var credential = Data(bytes: pin, count: Int(pinLength))
+          defer { credential.resetBytes(in: 0..<credential.count) }
           let context = LAContext()
           guard context.setCredential(credential, type: .smartCardPIN) else {
             return CKR_PIN_INCORRECT
@@ -106,7 +108,7 @@ internal enum SessionEntryPoints {
     }
   }
 
-  /// C_Logout.
+  /// C_Logout: invalidates the LAContext holding a supplied PIN.
   internal static func logout(handle: CK_SESSION_HANDLE) -> CK_RV {
     guard CryptokiEntryPoints.isLive else { return CKR_CRYPTOKI_NOT_INITIALIZED }
     return ModuleRegistry.shared.withLock { registry in
@@ -116,6 +118,7 @@ internal enum SessionEntryPoints {
       return registry.withToken(slotID: session.slotID) { token in
         guard token.loggedIn else { return CKR_USER_NOT_LOGGED_IN }
         token.loggedIn = false
+        token.authenticationContext?.invalidate()
         token.authenticationContext = nil
         return CKR_OK
       }

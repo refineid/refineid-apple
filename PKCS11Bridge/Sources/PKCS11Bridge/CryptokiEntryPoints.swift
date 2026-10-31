@@ -69,6 +69,7 @@ internal enum CryptokiEntryPoints {
       registry.sessions.removeAll()
       for index in registry.tokens.indices {
         registry.tokens[index].loggedIn = false
+        registry.tokens[index].authenticationContext?.invalidate()
         registry.tokens[index].authenticationContext = nil
       }
     }
