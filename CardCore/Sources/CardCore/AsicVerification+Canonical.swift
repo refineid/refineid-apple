@@ -31,11 +31,13 @@ extension AsicVerification {
         out += #" Type="\#(XadesSignature.escapeAttribute(type))""#
       }
       out += #" URI="\#(XadesSignature.escapeAttribute(ref.uri))">"# + "\n"
-      if ref.uri.hasPrefix("#") || ref.type == XadesSignature.signedPropertiesType {
+      if !ref.transforms.isEmpty {
         out += "<ds:Transforms>\n"
-        out +=
-          #"<ds:Transform Algorithm="\#(XadesSignature.canonicalizationExclusive)"></ds:Transform>"#
-          + "\n"
+        for transform in ref.transforms {
+          out +=
+            #"<ds:Transform Algorithm="\#(XadesSignature.escapeAttribute(transform))"></ds:Transform>"#
+            + "\n"
+        }
         out += "</ds:Transforms>\n"
       }
       out += #"<ds:DigestMethod Algorithm="\#(ref.digestMethod)"></ds:DigestMethod>"# + "\n"
@@ -47,16 +49,24 @@ extension AsicVerification {
     return out
   }
 
+  /// Verifies the signature time-stamps and answers the earliest
+  /// time among them.
+  ///
+  /// Each token must be authentic and imprint the canonicalised
+  /// `ds:SignatureValue` element (EN 319 132-1 clause 5.3). Valid only
+  /// when there is at least one and every one passes. Archive and
+  /// data object time-stamps are not signature time-stamps
+  /// (EN 319 132-1 clauses 5.5.2 and 5.2.8) and take no part.
   internal static func verifyTimestamps(
     parsed: ParsedSignature
   ) -> (valid: Bool, timestampedAt: Date?) {
-    guard !parsed.timestampTokens.isEmpty else {
+    guard !parsed.signatureTimestampTokens.isEmpty else {
       return (false, nil)
     }
 
     var verifiedDates: [Date] = []
 
-    for token in parsed.timestampTokens {
+    for token in parsed.signatureTimestampTokens {
       guard let verified = try? TimestampTokenVerifier.verify(token),
         let contents = try? RfcTimestamp.contents(in: token),
         let binding = try? RfcTimestamp.binding(in: contents.tstInfo)
@@ -69,7 +79,8 @@ extension AsicVerification {
       }
     }
 
-    let allValid = !verifiedDates.isEmpty && verifiedDates.count == parsed.timestampTokens.count
+    let allValid =
+      !verifiedDates.isEmpty && verifiedDates.count == parsed.signatureTimestampTokens.count
     return (allValid, verifiedDates.min())
   }
 
