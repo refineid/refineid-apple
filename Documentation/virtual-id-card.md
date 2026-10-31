@@ -18,8 +18,8 @@ and outcome views consume the resulting production types.
 Virtual mode is opt-in for one process. The App Store build enters it through:
 - iOS: the Demonstration Home Screen quick action.
 - macOS: the Demo Mode toggle in the View menu (Option-Command-D). While the
-  mode is on, Edit Virtual Card (Option-Command-E) sits beside it. Nothing in
-  the window itself enters the mode.
+  mode is on, Edit Virtual Card... (Option-Command-E) sits below it. Nothing
+  in the window itself enters the mode.
 - Debug UI tests: `--virtual-card <scenario>`.
 
 The physical path remains the default. While virtual mode is active:
@@ -198,14 +198,14 @@ Entering the mode starts `DemoMode.defaultScenario`: a factory-fresh card when
 activation ships, an activated card when it is gated out; on an iPhone the
 card is on NFC, elsewhere it sits in a fictional contact reader. A red floating
 Virtual ID Card control opens the editor, as a full-screen cover on iOS and as
-a sheet on macOS, where the View menu's Edit Virtual Card opens it too.
+a sheet on macOS, where the View menu's Edit Virtual Card... opens it too.
 Reviewers can select named states, edit all UI-relevant card and device
 values, choose one deterministic fault, and apply it. A pending
 document-signing request supplies a fictional local PDF so reviewers can
 exercise the complete signing UI without the Files picker. The permanent DEMO
 MODE footer prevents fictional identity data or signing outcomes from being
-mistaken for a real card result. The mode has no stored flag: turning it off
-in the View menu or quitting the process ends it.
+mistaken for a real card result. The mode has no stored flag: quitting the
+process ends it, and on macOS so does turning it off in the View menu.
 
 ## Xcode Cloud
 

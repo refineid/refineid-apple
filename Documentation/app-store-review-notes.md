@@ -33,21 +33,23 @@ fictional PDF. The demonstration starts from the scenario the build
 offers: with card activation shipping (`FEATURE_CARD_ACTIVATION` on in
 TestFlight and Release, `Config/Features.xcconfig`), the card arrives
 factory fresh so the activation form is the first thing a reviewer
-walks; with activation gated out, it arrives already activated.
+walks through; with activation gated out, it arrives already
+activated.
 `Documentation/virtual-id-card.md` owns the design; the iOS notes walk
 a reviewer through it, fictional numbers included, so no step depends
 on guessing a value.
 
-The macOS notes walk the same Virtual ID Card the Mac way. The mode is
-a toggle in the View menu, Demo Mode (Option-Command-D), with Edit
-Virtual Card (Option-Command-E) beside it while the mode is on; there
-is no button in the window and no Help menu
-(`Documentation/design/macos.md`). While it runs, the window shows the
-red DEMO MODE bar at its foot and a red floating Virtual ID Card button
-that opens the editor as a sheet. The Mac card sits in a fictional
-contact reader, so no card access number is asked; the notes give the
-activation PIN and PUK for the factory-fresh start and the PIN 1 and
-PIN 2 of the activated states. A reviewer can exercise activation,
+The macOS notes walk through the same Virtual ID Card the Mac way.
+The mode is a toggle in the View menu, Demo Mode (Option-Command-D),
+with Edit Virtual Card... (Option-Command-E) below it while the mode
+is on. Nothing in the window enters the mode, and the app has no Help
+menu (`Documentation/design/macos.md`). While it runs, the window
+shows the red DEMO MODE bar at its foot and a red floating Virtual ID
+Card button that opens the editor as a sheet. The Mac card sits in a
+fictional contact reader, so no card access number is asked for; the
+notes give the activation PIN for the factory-fresh start, example
+PIN 1 and PIN 2 values with their digit counts, and the PIN 1, PIN 2
+and PUK of the activated states. A reviewer can exercise activation,
 PIN changes and resets, retry floor refusal, and qualified signing of
 a dropped or supplied PDF with fictional credentials and no hardware.
 
