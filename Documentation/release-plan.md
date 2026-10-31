@@ -59,7 +59,7 @@ Remote-card user story:
 - A native Swift CryptoTokenKit smart-card token extension embedded in the app.
 - Contactless card reading on a reader's contactless antenna.
 - Card activation for factory-fresh cards.
-- Virtual ID Card demonstration mode accessible from the no-card empty state, enabling App Reviewers to exercise all card management and signing flows without physical hardware.
+- Virtual ID Card demonstration mode, entered from the View menu, enabling App Reviewers to exercise all card management and signing flows without physical hardware.
 - Supported-card, reader, extension, and application version status.
 - Display of PIN1, PIN2, and PUK attempts remaining.
 - Publication of the card's PIN1 authentication identity to macOS for browser/TLS use.

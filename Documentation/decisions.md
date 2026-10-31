@@ -1555,8 +1555,8 @@ phone acting as a contactless card reader revealed two timing interactions:
    and Windows.
 3. **Virtual ID Card for macOS App Review**: To ensure compliance with App Review
    Guideline 2.1(a) without physical hardware, Virtual ID Card demo mode is
-   ported to macOS, surfaced via an explicit "Explore with a Virtual Demo Card"
-   action in `StatusView` when no card is present.
+   ported to macOS, surfaced as the Demo Mode toggle in the View menu so
+   nothing in the product window enters it.
 4. **SCS Loopback Server is Opt-In**: The 127.0.0.1 loopback signing server is
    disabled by default. It starts only when explicitly enabled by the user in
    Settings, preventing unprompted `SecTrustSettingsSetTrustSettings` trust
