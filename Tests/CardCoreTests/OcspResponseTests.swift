@@ -62,7 +62,7 @@ internal struct OcspResponseTests {
   )
 
   /// A direct-issuer response, signed with the test CA's RSA key.
-  private static let responseWithNextUpdate = Fixture.data(
+  internal static let responseWithNextUpdate = Fixture.data(
     "MIICCAoBAKCCAgEwggH9BgkrBgEFBQcwAQEEggHuMIIB6jCB06EiMCAxHjAcBgNVBAMMFVJlRmluZUlEIE9DU1AgVGVzdCBD"
       + "QRgPMjAyNjA4MDQwNzU5NTRaMHcwdTBNMAkGBSsOAwIaBQAEFG8TmqI0pqWu0NCE1/B/fc+Dv+jtBBQuSpLyyHTWWWb59yJ3"
       + "a/OCz1uzygIUHY+6mluHtmm73OeBXU4tJv6yneaAABgPMjAyNjA4MDQwNzU5NTRaoBEYDzIwMjYwOTAzMDc1OTU0WqEjMCEw"
@@ -89,7 +89,7 @@ internal struct OcspResponseTests {
   internal static let nonce = WireHex.data("B47141E1A153505EE36AA58524ED050A")
 
   /// One second after the generated response's thisUpdate time.
-  private static let currentTime = Date(timeIntervalSince1970: 1_785_830_395)
+  internal static let currentTime = Date(timeIntervalSince1970: 1_785_830_395)
 
   /// Seven days, allowed skew, and one second after thisUpdate.
   private static let staleTime = Date(timeIntervalSince1970: 1_786_435_495)

@@ -68,7 +68,8 @@ extension AsicVerificationTests {
         of: document, from: Self.signedPropertiesOpen, through: Self.signedPropertiesClose))
 
     let report = try Self.report(Self.container(document: document))
-    #expect(report.signatureValid)
+    // Without SignedProperties no SigningCertificateV2 binds the signer.
+    #expect(!report.signatureValid)
     #expect(!report.documentIntact)
     #expect(!report.coversWholeDocument)
   }
@@ -88,7 +89,7 @@ extension AsicVerificationTests {
   }
 
   @Test
-  internal func unknownSignedPropertiesDigestMethodIsNotIntact() throws {
+  internal func unknownSignedPropertiesDigestMethodIsUnsupported() throws {
     let document = try Self.resigned(profile: .ecdsaP384) { info in
       var edited = info
       let reference = try #require(edited.range(of: Self.signedPropertiesUri))
@@ -100,9 +101,9 @@ extension AsicVerificationTests {
       return edited
     }
 
-    let report = try Self.report(Self.container(document: document))
-    #expect(report.signatureValid)
-    #expect(!report.documentIntact)
+    let report = try AsicVerification.verify(container: Self.container(document: document))
+    #expect(report.signatures.count == 1)
+    #expect(report.judged.isEmpty)
   }
 
   @Test

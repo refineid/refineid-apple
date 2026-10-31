@@ -7,7 +7,7 @@ extension OcspResponse {
   internal static func basicResponse(
     from response: Data,
     expected: ExpectedCertId,
-    nonce: Data
+    nonce: Data?
   ) throws -> BasicResponse {
     let outer = try Self.onlyElement(in: response, tag: DerValues.tagSequence)
     var reader = DerReader(response, within: outer)
@@ -57,7 +57,7 @@ extension OcspResponse {
   internal static func parseBasic(
     _ encoded: Data,
     expected: ExpectedCertId,
-    nonce: Data
+    nonce: Data?
   ) throws -> BasicResponse {
     let outer = try Self.onlyElement(in: encoded, tag: DerValues.tagSequence)
     var reader = DerReader(encoded, within: outer)

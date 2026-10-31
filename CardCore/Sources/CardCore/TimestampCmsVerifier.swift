@@ -21,9 +21,12 @@ internal enum TimestampCmsVerifier {
   }
 
   /// Authenticates the sole signer and exact encapsulated content.
+  ///
+  /// `additionalCertificates` join the token's own as path candidates.
   internal static func authenticate(
     token: Data,
-    expectedContent: Data
+    expectedContent: Data,
+    additionalCertificates: [Data]
   ) throws -> Authenticated {
     let layout = try Self.layout(in: token)
     guard layout.content == expectedContent else {
@@ -48,7 +51,11 @@ internal enum TimestampCmsVerifier {
       signer.identifier, in: token, embedded: embedded
     )
     try Self.verifySignature(signer, in: token, with: signerCertificate)
-    return try Self.trust(signerData: signerData, embedded: embedded)
+    return try Self.trust(
+      signerData: signerData,
+      embedded: embedded,
+      additional: additionalCertificates
+    )
   }
 
   /// Finds the embedded certificate the signer identifier names.
@@ -92,12 +99,15 @@ internal enum TimestampCmsVerifier {
 
   /// Builds the timestamp policy trust with the signer first.
   private static func trust(
-    signerData: Data, embedded: [Data]
+    signerData: Data, embedded: [Data], additional: [Data]
   ) throws -> Authenticated {
     let certificates = [signerData] + embedded.filter { $0 != signerData }
     let parsed = certificates.compactMap { certificate in
       SecCertificateCreateWithData(nil, certificate as CFData)
     }
+    // Additional candidates the platform does not parse are left out.
+    let candidates = additional.filter { candidate in !certificates.contains(candidate) }
+      .compactMap { candidate in SecCertificateCreateWithData(nil, candidate as CFData) }
     guard
       parsed.count == certificates.count,
       let policy = SecPolicyCreateWithProperties(
@@ -109,7 +119,7 @@ internal enum TimestampCmsVerifier {
     var created: SecTrust?
     guard
       SecTrustCreateWithCertificates(
-        parsed as CFArray, policy, &created
+        (parsed + candidates) as CFArray, policy, &created
       ) == errSecSuccess,
       let trust = created
     else {

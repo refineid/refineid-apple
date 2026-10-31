@@ -153,7 +153,8 @@ extension CertificateRevocationListFixtures {
       fields.append(Self.generalizedTime(options.nextUpdate))
     }
     if options.listsTargetSerial {
-      fields.append(Self.revokedCertificates(options.entryExtensions))
+      fields.append(
+        Self.revokedCertificates(options.entryExtensions, serial: options.revokedSerial))
     }
     if !options.crlExtensions.isEmpty {
       fields.append(
@@ -282,9 +283,9 @@ extension CertificateRevocationListFixtures {
   }
 
   /// One revoked target entry, with optional entry extensions.
-  private static func revokedCertificates(_ extensions: [Data]) -> Data {
+  private static func revokedCertificates(_ extensions: [Data], serial: Data) -> Data {
     var fields = [
-      DerEncoder.unsignedInteger(Self.targetSerial),
+      DerEncoder.unsignedInteger(serial),
       Self.generalizedTime(Self.revocationDate),
     ]
     if !extensions.isEmpty {

@@ -20,7 +20,7 @@ extension OcspResponse {
     _ encoded: Data,
     element: DerReader.Element,
     expected: ExpectedCertId,
-    nonce: Data
+    nonce: Data?
   ) throws -> ResponseData {
     var reader = DerReader(encoded, within: element)
     let header = try Self.responseDataHeader(in: encoded, reader: &reader)
@@ -100,7 +100,7 @@ extension OcspResponse {
   private static func checkTrailingResponseData(
     in encoded: Data,
     reader: inout DerReader,
-    expectedNonce: Data
+    expectedNonce: Data?
   ) throws {
     if let extensions = reader.next() {
       guard extensions.tag == DerValues.tagContext1Constructed else {
@@ -200,10 +200,10 @@ extension OcspResponse {
         from: &reader,
         tag: DerValues.tagGeneralizedTime
       )
-      _ = try Self.generalizedTime(in: encoded, element: revocationTime)
-      try Self.optionalRevocationReason(in: encoded, reader: &reader)
+      let revokedAt = try Self.generalizedTime(in: encoded, element: revocationTime)
+      let reason = try Self.optionalRevocationReason(in: encoded, reader: &reader)
       guard reader.isAtEnd else { throw ValidationFailure.malformed }
-      return .revoked
+      return .revoked(revokedAt: revokedAt, reason: reason)
 
     case DerValues.tagContext2Primitive:
       guard element.content.isEmpty else { throw ValidationFailure.malformed }
@@ -218,8 +218,8 @@ extension OcspResponse {
   private static func optionalRevocationReason(
     in encoded: Data,
     reader: inout DerReader
-  ) throws {
-    guard let reason = reader.next() else { return }
+  ) throws -> RevocationReason? {
+    guard let reason = reader.next() else { return nil }
     guard reason.tag == DerValues.tagContext0Constructed else {
       throw ValidationFailure.malformed
     }
@@ -231,6 +231,8 @@ extension OcspResponse {
     guard enumerated.content.count == 1, reasonReader.isAtEnd else {
       throw ValidationFailure.malformed
     }
+    return reasonReader.integerValue(of: enumerated)
+      .map(RevocationReason.init(code:)) ?? .unrecognized
   }
 
   /// Checks CertID against every hash and serial component we requested.
@@ -241,7 +243,10 @@ extension OcspResponse {
   ) throws -> Bool {
     var reader = DerReader(encoded, within: certId)
     let algorithm = try Self.requiredElement(from: &reader, tag: DerValues.tagSequence)
-    guard try Self.isSha1Algorithm(in: encoded, element: algorithm) else {
+    guard
+      let hashAlgorithm = try Self.certIdHashAlgorithm(in: encoded, element: algorithm),
+      let hashes = expected.hashes(underAlgorithm: hashAlgorithm)
+    else {
       return false
     }
     let nameHash = try Self.requiredElement(
@@ -254,9 +259,21 @@ extension OcspResponse {
     )
     let serial = try Self.requiredElement(from: &reader, tag: DerValues.tagInteger)
     guard reader.isAtEnd else { throw ValidationFailure.malformed }
-    return reader.contentData(of: nameHash) == expected.issuerNameHash
-      && reader.contentData(of: keyHash) == expected.issuerKeyHash
-      && reader.contentData(of: serial) == expected.serialNumber
+    guard
+      let answered = Self.magnitude(reader.contentData(of: serial)),
+      let requested = Self.magnitude(expected.serialNumber)
+    else {
+      return false
+    }
+    return reader.contentData(of: nameHash) == hashes.name
+      && reader.contentData(of: keyHash) == hashes.key
+      && answered == requested
+  }
+
+  /// A serial INTEGER's value without its sign-padding octets, so two
+  /// encodings of one serial compare equal.
+  private static func magnitude(_ content: Data) -> Data? {
+    try? CertificateRevocationList.unsignedIntegerContent(content)
   }
 
   /// Checks the default or explicit OCSP version is v1.
@@ -298,28 +315,26 @@ extension OcspResponse {
     }
   }
 
-  /// Checks the SHA-1 AlgorithmIdentifier that RFC 6960's CertID requires.
-  internal static func isSha1Algorithm(
+  /// The encoded OBJECT IDENTIFIER of a CertID hashAlgorithm whose
+  /// parameters are absent or NULL, nil for any other shape.
+  internal static func certIdHashAlgorithm(
     in encoded: Data,
     element: DerReader.Element
-  ) throws -> Bool {
+  ) throws -> Data? {
     var reader = DerReader(encoded, within: element)
     let oid = try Self.requiredElement(
       from: &reader,
       tag: DerValues.tagObjectIdentifier
     )
-    guard reader.data(of: oid) == DerEncoder.objectIdentifier(SignOids.sha1) else {
-      return false
-    }
     if let parameters = reader.next() {
       guard
         parameters.tag == DerValues.tagNull,
         parameters.content.isEmpty,
         reader.isAtEnd
       else {
-        return false
+        return nil
       }
     }
-    return reader.isAtEnd
+    return reader.isAtEnd ? reader.data(of: oid) : nil
   }
 }

@@ -86,26 +86,48 @@ extension QualifiedDocumentCmsTests {
     #expect(report.signatureValid)
   }
 
-  /// A signature algorithm naming another digest or another key type is
-  /// refused, even over a correct signature.
-  @Test(arguments: [
-    Self.ecdsaIdentifier(SignOids.ecdsaWithSha384),
-    DocumentSignatureAlgorithm.rsaPkcs1(.sha256).algorithmIdentifier,
-  ])
-  internal func disagreeingSignatureAlgorithmIsRefused(
-    _ signatureAlgorithm: Data
-  ) throws {
+  /// A signature algorithm naming another key type is not valid, even
+  /// over a correct signature.
+  @Test
+  internal func signatureAlgorithmForAnotherKeyIsNotValid() throws {
     let report = try Self.foreignReport(
       ForeignForm(
         profile: .ecdsaP256,
         digest: .sha256,
         signerDigest: Self.digestIdentifier(SignOids.sha256),
-        signatureAlgorithm: signatureAlgorithm
+        signatureAlgorithm: DocumentSignatureAlgorithm.rsaPkcs1(.sha256).algorithmIdentifier
       )
     )
 
     #expect(report.documentIntact)
     #expect(!report.signatureValid)
+  }
+
+  /// A signature algorithm naming another digest than the SignerInfo
+  /// makes the signature unsupported (RFC 5754 section 3).
+  @Test
+  internal func signatureAlgorithmNamingAnotherDigestIsUnsupported() throws {
+    let identity = try Self.identity(.ecdsaP256)
+    let placeholder = try Self.placeholder()
+    let attributes = Self.foreignSignedAttributes(
+      .sha256,
+      byteRangeDigest: placeholder.digest(.sha256),
+      certificate: identity.certificate
+    )
+    let cms = try Self.contentInfo(
+      ForeignCms(
+        identity: identity,
+        signerDigest: Self.digestIdentifier(SignOids.sha256),
+        signatureDigest: .sha256,
+        signatureAlgorithm: Self.ecdsaIdentifier(SignOids.ecdsaWithSha384)
+      ),
+      attributes: attributes
+    )
+    let report = try DocumentVerification.verify(document: placeholder.filled(with: cms))
+
+    #expect(report.signatures.count == 1)
+    #expect(report.judged.isEmpty)
+    #expect(!report.isValid)
   }
 
   /// The agreeing ECDSA identifier and id-ecPublicKey both verify.
@@ -158,7 +180,8 @@ extension QualifiedDocumentCmsTests {
     #expect(DocumentSignatureAlgorithm(algorithmIdentifier: encoded) == nil)
   }
 
-  /// An unsupported signature algorithm is refused when read.
+  /// A signature algorithm naming SHA-512 over a SHA-256 SignerInfo is
+  /// unsupported.
   @Test
   internal func unsupportedSignatureAlgorithmIsRefused() throws {
     let identity = try Self.identity(.rsa2048)
@@ -180,10 +203,9 @@ extension QualifiedDocumentCmsTests {
       attributes: attributes
     )
 
-    #expect(
-      throws: QualifiedDocumentCms.ReadFailure.unsupportedSignatureAlgorithm
-    ) {
-      _ = try QualifiedDocumentCms.read(cms)
-    }
+    let report = try DocumentVerification.verify(document: placeholder.filled(with: cms))
+    #expect(report.signatures.count == 1)
+    #expect(report.judged.isEmpty)
+    #expect(!report.isValid)
   }
 }

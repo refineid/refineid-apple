@@ -84,7 +84,8 @@ internal struct PdfDocumentIndex {
   }
 
   /// The integer array value of a trailer key, empty when the key is
-  /// absent or its value is not an array of integers.
+  /// absent or its value is not an array of unsigned decimal integers
+  /// that each fit in `Int`.
   internal static func integerArray(
     named key: String,
     in dictionary: String
@@ -97,7 +98,9 @@ internal struct PdfDocumentIndex {
     let body = rest[rest.index(after: rest.startIndex)..<close]
     var values: [Int] = []
     for token in body.split(whereSeparator: \.isWhitespace) {
-      guard let value = Int(token) else { return [] }
+      guard token.allSatisfy({ $0.isASCII && $0.isNumber }), let value = Int(token) else {
+        return []
+      }
       values.append(value)
     }
     return values

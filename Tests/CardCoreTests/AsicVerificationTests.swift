@@ -145,8 +145,21 @@ internal struct AsicVerificationTests {
     _ container: Data
   ) throws -> DocumentVerification.SignatureReport {
     let report = try AsicVerification.verify(container: container)
-    try #require(report.signatures.count == 1)
-    return report.signatures[0]
+    try #require(report.judged.count == 1)
+    return report.judged[0]
+  }
+
+  /// A container holding `entries`, its `mimetype` entry first and
+  /// stored as EN 319 162-1 clause A.1 requires.
+  internal static func reassembled(_ entries: [String: Data]) throws -> Data {
+    var writer = AsicContainer.ZipWriter()
+    if let mimetype = entries[AsicContainer.mimetypeEntryName] {
+      writer.add(name: AsicContainer.mimetypeEntryName, content: mimetype)
+    }
+    for name in entries.keys.sorted() where name != AsicContainer.mimetypeEntryName {
+      writer.add(name: name, content: entries[name] ?? Data())
+    }
+    return try #require(writer.finish())
   }
 
   @Test
@@ -167,11 +180,11 @@ internal struct AsicVerificationTests {
     let report = try AsicVerification.verify(container: container)
 
     #expect(report.signatures.count == 1)
-    let sig = report.signatures[0]
+    let sig = report.judged[0]
     #expect(sig.documentIntact)
     #expect(sig.signatureValid)
     #expect(sig.coversWholeDocument)
-    #expect(sig.signerName.contains("RefineID Document CMS Test"))
+    #expect(sig.signerCommonName == QualifiedDocumentCmsTests.identityCommonName)
   }
 
   @Test
@@ -180,7 +193,7 @@ internal struct AsicVerificationTests {
     let report = try AsicVerification.verify(container: container)
 
     #expect(report.signatures.count == 1)
-    let sig = report.signatures[0]
+    let sig = report.judged[0]
     #expect(sig.documentIntact)
     #expect(sig.signatureValid)
     #expect(sig.coversWholeDocument)
@@ -192,7 +205,7 @@ internal struct AsicVerificationTests {
     let report = try DocumentVerification.verify(document: container)
 
     #expect(report.signatures.count == 1)
-    let sig = report.signatures[0]
+    let sig = report.judged[0]
     #expect(sig.documentIntact)
     #expect(sig.signatureValid)
   }
@@ -205,16 +218,11 @@ internal struct AsicVerificationTests {
     // Modify carried file bytes
     entries["test.txt"] = Data("Tampered content that does not match the digest!".utf8)
 
-    // Reassemble ZIP archive with tampered file
-    var writer = AsicContainer.ZipWriter()
-    for (name, data) in entries {
-      writer.add(name: name, content: data)
-    }
-    let tamperedContainer = try #require(writer.finish())
+    let tamperedContainer = try Self.reassembled(entries)
 
     let report = try AsicVerification.verify(container: tamperedContainer)
     #expect(report.signatures.count == 1)
-    #expect(!report.signatures[0].documentIntact)
+    #expect(!report.judged[0].documentIntact)
   }
 
   @Test
@@ -236,15 +244,12 @@ internal struct AsicVerificationTests {
     }
     entries[Self.signatureFileName] = Data(xmlString.utf8)
 
-    var writer = AsicContainer.ZipWriter()
-    for (name, data) in entries {
-      writer.add(name: name, content: data)
-    }
-    let tamperedContainer = try #require(writer.finish())
+    let tamperedContainer = try Self.reassembled(entries)
 
-    #expect(throws: Error.self) {
-      try AsicVerification.verify(container: tamperedContainer)
-    }
+    let report = try AsicVerification.verify(container: tamperedContainer)
+    #expect(report.judged.isEmpty)
+    #expect(!report.signatures.isEmpty)
+    #expect(!report.isValid)
   }
 
   @Test

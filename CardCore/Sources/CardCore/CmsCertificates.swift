@@ -14,6 +14,18 @@ public enum CmsCertificates {
     let contentType: Data
     let signedData: DerReader.Element
     let certificates: DerReader.Element?
+    let revocationInformation: DerReader.Element?
+  }
+
+  /// The revocation evidence carried in SignedData's `crls [1]` field
+  /// (RFC 5652 section 10.2.1).
+  public struct RevocationInformation: Equatable, Sendable {
+    /// Each CertificateList choice, as written.
+    public let revocationLists: [Data]
+
+    /// Each `id-ri-ocsp-response` other choice's OCSPResponse
+    /// (RFC 5940 section 4.1).
+    public let ocspResponses: [Data]
   }
 
   /// Every certificate in the token's `certificates [0]` field, in the
@@ -32,6 +44,46 @@ public enum CmsCertificates {
       certificates.append(list.data(of: element))
     }
     return list.isAtEnd ? certificates : []
+  }
+
+  /// The CRLs and OCSP responses in SignedData's RevocationInfoChoices,
+  /// empty when the field is absent or unreadable.
+  ///
+  /// Other formats than RFC 5940 OCSP responses are skipped.
+  public static func revocationInformation(in token: Data) -> RevocationInformation {
+    let empty = RevocationInformation(revocationLists: [], ocspResponses: [])
+    guard
+      let layout = Self.layout(in: token),
+      let choices = layout.revocationInformation
+    else { return empty }
+    var list = DerReader(token, within: choices)
+    var revocationLists: [Data] = []
+    var ocspResponses: [Data] = []
+    while let element = list.next() {
+      switch element.tag {
+      case DerValues.tagSequence:
+        revocationLists.append(list.data(of: element))
+
+      case DerValues.tagContext1Constructed:
+        var other = DerReader(token, within: element)
+        guard
+          let format = other.next(),
+          other.data(of: format)
+            == DerEncoder.objectIdentifier(SignOids.otherRevocationInfoOcspResponse),
+          let response = other.next(),
+          response.tag == DerValues.tagSequence,
+          other.isAtEnd
+        else { continue }
+        ocspResponses.append(other.data(of: response))
+
+      default:
+        continue
+      }
+    }
+    guard list.isAtEnd else { return empty }
+    return RevocationInformation(
+      revocationLists: revocationLists, ocspResponses: ocspResponses
+    )
   }
 
   /// Removes only SignedData's optional CertificateSet.
@@ -86,15 +138,20 @@ public enum CmsCertificates {
     } else {
       certificates = nil
     }
+    let revocationInformation: DerReader.Element?
     if candidate.tag == DerValues.tagContext1Constructed {
+      revocationInformation = candidate
       guard let following = reader.next() else { return nil }
       candidate = following
+    } else {
+      revocationInformation = nil
     }
     guard candidate.tag == DerValues.tagSet, reader.isAtEnd else { return nil }
     return Layout(
       contentType: content.contentType,
       signedData: content.element,
-      certificates: certificates
+      certificates: certificates,
+      revocationInformation: revocationInformation
     )
   }
 

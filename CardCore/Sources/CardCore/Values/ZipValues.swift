@@ -98,6 +98,19 @@ internal enum ZipValues {
   /// Byte offset of extra field length in local file header.
   internal static let localExtraLengthOffset = 28
 
+  /// Byte offset of the first local file header in an archive.
+  internal static let firstEntryOffset = 0
+
+  /// Largest number of bytes the reader accepts for one entry, and for
+  /// all entries together, compressed or not.
+  ///
+  /// Checked against the declared sizes before any allocation; the same
+  /// bound refineid-core's container reader applies.
+  internal static let maximumEntryByteCount = 512 << 20
+
   /// Negative window bits for zlib raw DEFLATE decompressor (RFC 1951).
   internal static let zlibRawDeflateWindowBits: Int32 = -15
+
+  /// The extra-field length of a local header carrying no extra field.
+  internal static let emptyExtraFieldLength = 0
 }

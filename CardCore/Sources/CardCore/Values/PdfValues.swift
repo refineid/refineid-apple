@@ -146,6 +146,10 @@ internal enum PdfValues {
   /// what a hostile document can make this reader allocate.
   internal static let inflatedStreamLimit = 67_108_864
 
+  /// The most bytes of a PDF the signature reader maps, bounding what
+  /// a hostile document can make the verifier read.
+  internal static let maximumVerifiedDocumentByteCount = 536_870_912
+
   /// Characters in `<<` and `>>`.
   internal static let dictionaryMarkerLength: Int = 2
 
