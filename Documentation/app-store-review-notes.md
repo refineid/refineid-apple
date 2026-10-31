@@ -29,20 +29,27 @@ only, on 2026-08-13, and grew into the Virtual ID Card: an explicit,
 fictional identity card whose state a reviewer edits through a
 floating editor, driving the production screens through PIN changes
 and resets, retry refusal, fault injection, and qualified signing of a
-fictional PDF. Since activation was gated out of the shipping
-configurations (Documentation/decisions.md, 2026-08-21), the
-demonstration card arrives already activated, and a factory-fresh
-state chosen in the editor shows the version's activation refusal
-rather than the form. `Documentation/virtual-id-card.md` owns the
-design; the iOS notes walk a reviewer through it, fictional numbers
-included, so no step depends on guessing a value.
+fictional PDF. The demonstration starts from the scenario the build
+offers: with card activation shipping (`FEATURE_CARD_ACTIVATION` on in
+TestFlight and Release, `Config/Features.xcconfig`), the card arrives
+factory fresh so the activation form is the first thing a reviewer
+walks; with activation gated out, it arrives already activated.
+`Documentation/virtual-id-card.md` owns the design; the iOS notes walk
+a reviewer through it, fictional numbers included, so no step depends
+on guessing a value.
 
-The macOS notes provide an explicit walkthrough of the Virtual ID Card, matching
-the iOS submission pattern. When no physical smart-card reader or card is
-attached, the main window offers an "Explore with a Virtual Demo Card" action.
-This allows App Reviewers to exercise the complete card lifecycle: status
-display, PIN changes and resets, retry floor refusal, and qualified document
-signing of sample PDFs with fictional credentials without physical hardware.
+The macOS notes walk the same Virtual ID Card the Mac way. The mode is
+a toggle in the View menu, Demo Mode (Option-Command-D), with Edit
+Virtual Card (Option-Command-E) beside it while the mode is on; there
+is no button in the window and no Help menu
+(`Documentation/design/macos.md`). While it runs, the window shows the
+red DEMO MODE bar at its foot and a red floating Virtual ID Card button
+that opens the editor as a sheet. The Mac card sits in a fictional
+contact reader, so no card access number is asked; the notes give the
+activation PIN and PUK for the factory-fresh start and the PIN 1 and
+PIN 2 of the activated states. A reviewer can exercise activation,
+PIN changes and resets, retry floor refusal, and qualified signing of
+a dropped or supplied PDF with fictional credentials and no hardware.
 
 The macOS notes describe local authentication, activation, PIN management,
 and document signing, and the remote card: pairing with a phone that holds
