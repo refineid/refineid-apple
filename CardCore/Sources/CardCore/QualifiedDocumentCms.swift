@@ -22,6 +22,26 @@ public enum QualifiedDocumentCms {
     let timestampTokens: [Data]
   }
 
+  /// The SignerInfo digest and signature algorithms of one signature.
+  public struct SignerAlgorithms: Equatable, Sendable {
+    /// Digests the byte ranges, the signer certificate and the signed
+    /// attributes.
+    public let digest: DocumentDigestAlgorithm
+
+    /// Must fit both the digest and the signer's key.
+    public let signature: DocumentSignatureAlgorithm
+
+    /// The algorithms this suite signs with for one card key.
+    internal static func signing(_ profile: CardKeyProfile) -> Self {
+      Self(
+        digest: QualifiedDocumentCms.signingDigestAlgorithm,
+        signature: .signing(
+          profile, digest: QualifiedDocumentCms.signingDigestAlgorithm
+        )
+      )
+    }
+  }
+
   /// A failure to assemble the structure.
   public enum AssemblyError: Error, Equatable {
     /// The certificate's public key does not match the selected card profile.
@@ -162,21 +182,22 @@ public enum QualifiedDocumentCms {
     let signerCertificate = input.signerCertificate
     let timestampTokens = input.timestampTokens
     let identity = try issuerAndSerial(of: signerCertificate)
+    let algorithms = SignerAlgorithms.signing(signerProfile)
     try Self.validate(
       signedAttributesSet: signedAttributesSet,
       signatureValue: signatureValue,
       signerProfile: signerProfile,
       signerCertificate: signerCertificate,
-      digestAlgorithm: Self.signingDigestAlgorithm
+      algorithms: algorithms
     )
     var signerInfo: [Data] = [
       DerEncoder.integer(SignOids.signerInfoVersion),
       identity,
-      Self.signingDigestAlgorithm.algorithmIdentifier,
+      algorithms.digest.algorithmIdentifier,
       DerEncoder.retagged(
         signedAttributesSet, to: DerValues.tagContext0Constructed
       ),
-      signatureAlgorithmIdentifier(signerProfile),
+      algorithms.signature.algorithmIdentifier,
       DerEncoder.octetString(signatureValue),
     ]
     if let timestamps = Self.timestampAttributes(timestampTokens) {
@@ -184,9 +205,7 @@ public enum QualifiedDocumentCms {
     }
     var parts: [Data] = [
       DerEncoder.integer(SignOids.cmsVersion),
-      DerEncoder.tlv(
-        DerValues.tagSet, Self.signingDigestAlgorithm.algorithmIdentifier
-      ),
+      DerEncoder.tlv(DerValues.tagSet, algorithms.digest.algorithmIdentifier),
       DerEncoder.sequence([DerEncoder.objectIdentifier(SignOids.data)]),
     ]
     if carryingCertificate {
@@ -228,26 +247,6 @@ public enum QualifiedDocumentCms {
       DerEncoder.objectIdentifier(oid),
       DerEncoder.tlv(DerValues.tagSet, value),
     ])
-  }
-
-  /// The SignerInfo signature algorithm and its profile-required parameters.
-  private static func signatureAlgorithmIdentifier(
-    _ profile: CardKeyProfile
-  ) -> Data {
-    switch profile {
-    case .ecdsaP256, .ecdsaP384:
-      // RFC 5758 section 3.2: ECDSA parameters are absent.
-      DerEncoder.sequence([
-        DerEncoder.objectIdentifier(SignOids.ecdsaWithSha384)
-      ])
-
-    case .rsa2048, .rsa3072:
-      // RFC 5754 section 3.2: RSA parameters are NULL.
-      DerEncoder.sequence([
-        DerEncoder.objectIdentifier(SignOids.sha384WithRsa),
-        DerEncoder.null(),
-      ])
-    }
   }
 
   /// IssuerAndSerialNumber from the certificate, byte-identical.

@@ -1,5 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
+import CryptoKit
 import Foundation
 import Testing
 
@@ -13,23 +14,24 @@ extension QualifiedDocumentCmsTests {
 
   /// The report of a SHA-256 RSA signature with one timestamp token.
   ///
-  /// The token's imprint digests what `imprintOf` makes of the
-  /// signature value.
+  /// The token's messageImprint names `imprintAlgorithm` and carries
+  /// what `imprint` makes of the signature value.
   private static func timestampedReport(
-    algorithm: DocumentDigestAlgorithm,
-    imprintOf: (Data) -> Data
+    imprintAlgorithm: Data,
+    imprint: (Data) -> Data
   ) throws -> DocumentVerification.SignatureReport {
     let identity = try Self.identity(.rsa2048)
     let authority = try TimestampAuthorityFixture.make()
     let placeholder = try Self.placeholder()
-    let attributes = Self.sha256SignedAttributes(
+    let attributes = Self.foreignSignedAttributes(
+      .sha256,
       byteRangeDigest: placeholder.digest(.sha256),
       certificate: identity.certificate
     )
     let cms = try Self.contentInfo(
       ForeignCms(
         identity: identity,
-        signerDigest: SignOids.sha256,
+        signerDigest: Self.digestIdentifier(SignOids.sha256),
         signatureDigest: .sha256,
         signatureAlgorithm: Self.sha256WithRsa
       ),
@@ -37,7 +39,7 @@ extension QualifiedDocumentCmsTests {
     ) { signature in
       [
         try authority.token(
-          imprint: algorithm.hash(imprintOf(signature)), algorithm: algorithm
+          imprint: imprint(signature), algorithm: imprintAlgorithm
         )
       ]
     }
@@ -50,7 +52,9 @@ extension QualifiedDocumentCmsTests {
   internal func signatureTimestampVerifiesUnderItsImprintAlgorithm(
     _ algorithm: DocumentDigestAlgorithm
   ) throws {
-    let report = try Self.timestampedReport(algorithm: algorithm) { $0 }
+    let report = try Self.timestampedReport(
+      imprintAlgorithm: algorithm.algorithmIdentifier
+    ) { algorithm.hash($0) }
 
     #expect(report.documentIntact)
     #expect(report.signatureValid)
@@ -63,9 +67,33 @@ extension QualifiedDocumentCmsTests {
   internal func signatureTimestampOverOtherBytesIsInvalid(
     _ algorithm: DocumentDigestAlgorithm
   ) throws {
-    let report = try Self.timestampedReport(algorithm: algorithm) { _ in
-      Self.unrelatedBytes
-    }
+    let report = try Self.timestampedReport(
+      imprintAlgorithm: algorithm.algorithmIdentifier
+    ) { _ in algorithm.hash(Self.unrelatedBytes) }
+
+    #expect(report.signatureValid)
+    #expect(!report.timestampsValid)
+    #expect(report.timestampedAt == nil)
+  }
+
+  /// A SHA-512 imprint over the signature value is not accepted.
+  @Test
+  internal func signatureTimestampWithSha512ImprintIsInvalid() throws {
+    let report = try Self.timestampedReport(
+      imprintAlgorithm: Self.digestIdentifier(SignOids.sha512)
+    ) { Data(SHA512.hash(data: $0)) }
+
+    #expect(report.signatureValid)
+    #expect(!report.timestampsValid)
+    #expect(report.timestampedAt == nil)
+  }
+
+  /// A SHA-256 imprint of SHA-384 length is not accepted.
+  @Test
+  internal func signatureTimestampWithWrongLengthImprintIsInvalid() throws {
+    let report = try Self.timestampedReport(
+      imprintAlgorithm: DocumentDigestAlgorithm.sha256.algorithmIdentifier
+    ) { Data(SHA384.hash(data: $0)) }
 
     #expect(report.signatureValid)
     #expect(!report.timestampsValid)
@@ -81,14 +109,15 @@ extension QualifiedDocumentCmsTests {
     let identity = try Self.identity(.rsa2048)
     let authority = try TimestampAuthorityFixture.make()
     let placeholder = try Self.placeholder()
-    let attributes = Self.sha256SignedAttributes(
+    let attributes = Self.foreignSignedAttributes(
+      .sha256,
       byteRangeDigest: placeholder.digest(.sha256),
       certificate: identity.certificate
     )
     let cms = try Self.contentInfo(
       ForeignCms(
         identity: identity,
-        signerDigest: SignOids.sha256,
+        signerDigest: Self.digestIdentifier(SignOids.sha256),
         signatureDigest: .sha256,
         signatureAlgorithm: Self.sha256WithRsa
       ),
@@ -101,12 +130,14 @@ extension QualifiedDocumentCmsTests {
 
     let matching = try revision.filled(
       with: authority.token(
-        imprint: revision.digest(algorithm), algorithm: algorithm
+        imprint: revision.digest(algorithm),
+        algorithm: algorithm.algorithmIdentifier
       )
     )
     let unrelated = try revision.filled(
       with: authority.token(
-        imprint: algorithm.hash(Self.unrelatedBytes), algorithm: algorithm
+        imprint: algorithm.hash(Self.unrelatedBytes),
+        algorithm: algorithm.algorithmIdentifier
       )
     )
 

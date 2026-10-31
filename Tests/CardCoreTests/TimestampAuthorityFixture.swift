@@ -112,16 +112,13 @@ internal struct TimestampAuthorityFixture {
     return Self(certificate: encoded, key: generated)
   }
 
-  /// The TSTInfo binding `imprint` under `algorithm`.
-  private static func tstInfo(
-    imprint: Data,
-    algorithm: DocumentDigestAlgorithm
-  ) -> Data {
+  /// The TSTInfo binding `imprint` under the hash `algorithm` names.
+  private static func tstInfo(imprint: Data, algorithm: Data) -> Data {
     DerEncoder.sequence([
       DerEncoder.integer(SignOids.tstInfoVersion),
       DerEncoder.objectIdentifier(Self.testPolicyOid),
       DerEncoder.sequence([
-        algorithm.algorithmIdentifier, DerEncoder.octetString(imprint),
+        algorithm, DerEncoder.octetString(imprint),
       ]),
       DerEncoder.integer(Self.timestampSerial),
       Self.generalizedTime(Self.generationTime),
@@ -213,12 +210,9 @@ internal struct TimestampAuthorityFixture {
     DerEncoder.tlv(DerValues.tagBitString, Data([0]) + value)
   }
 
-  /// One RFC 3161 TimeStampToken whose messageImprint names
-  /// `algorithm` and carries `imprint`.
-  internal func token(
-    imprint: Data,
-    algorithm: DocumentDigestAlgorithm
-  ) throws -> Data {
+  /// One RFC 3161 TimeStampToken whose messageImprint names the
+  /// AlgorithmIdentifier `algorithm` and carries `imprint`.
+  internal func token(imprint: Data, algorithm: Data) throws -> Data {
     let tstInfo = Self.tstInfo(imprint: imprint, algorithm: algorithm)
     let attributes = Self.signedAttributes(
       tstInfo: tstInfo, certificate: certificate

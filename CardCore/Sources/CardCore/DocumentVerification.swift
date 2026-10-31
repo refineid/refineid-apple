@@ -147,14 +147,14 @@ public enum DocumentVerification {
     }
 
     let documentIntact =
-      read.messageDigest == signature.byteRangeDigest(read.digestAlgorithm)
+      read.messageDigest == signature.byteRangeDigest(read.algorithms.digest)
     let signatureValid =
       (try? QualifiedDocumentCms.validate(
         signedAttributesSet: read.signedAttributesSet,
         signatureValue: read.signatureValue,
         signerProfile: signer.profile,
         signerCertificate: read.signerCertificate,
-        digestAlgorithm: read.digestAlgorithm
+        algorithms: read.algorithms
       )) != nil
 
     let timestamps = verifiedTimestamps(

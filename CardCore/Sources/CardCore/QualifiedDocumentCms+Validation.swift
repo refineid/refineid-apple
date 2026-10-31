@@ -7,21 +7,25 @@ import Security
 extension QualifiedDocumentCms {
   /// Refuses malformed values and certificate/profile mismatches.
   ///
-  /// `digestAlgorithm` is the SignerInfo digest algorithm: it digests the
-  /// byte ranges, the signer certificate and the signed attributes.
+  /// A signature algorithm that does not fit the digest algorithm and
+  /// the signer's key is refused as malformed.
   internal static func validate(
     signedAttributesSet: Data,
     signatureValue: Data,
     signerProfile: CardKeyProfile,
     signerCertificate: Data,
-    digestAlgorithm: DocumentDigestAlgorithm
+    algorithms: SignerAlgorithms
   ) throws {
+    let digestAlgorithm = algorithms.digest
     try Self.validateSignedAttributes(
       signedAttributesSet,
       signerCertificate: signerCertificate,
       digestAlgorithm: digestAlgorithm
     )
-    guard Self.hasValidShape(signatureValue, profile: signerProfile) else {
+    guard
+      Self.hasValidShape(signatureValue, profile: signerProfile),
+      algorithms.signature.agrees(with: signerProfile, digest: digestAlgorithm)
+    else {
       throw AssemblyError.signatureMalformed
     }
     guard

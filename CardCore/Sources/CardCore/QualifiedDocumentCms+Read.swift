@@ -11,9 +11,8 @@ extension QualifiedDocumentCms {
     /// The SignerInfo's signature value contents.
     public let signatureValue: Data
 
-    /// The SignerInfo digest algorithm, which digests the byte ranges,
-    /// the signer certificate and the signed attributes.
-    public let digestAlgorithm: DocumentDigestAlgorithm
+    /// The SignerInfo digest and signature algorithms.
+    public let algorithms: SignerAlgorithms
 
     /// The embedded certificate the ESS signing-certificate attribute
     /// binds as the signer.
@@ -38,6 +37,7 @@ extension QualifiedDocumentCms {
     case malformedSignerInfo
     case missingMessageDigest
     case unsupportedDigestAlgorithm
+    case unsupportedSignatureAlgorithm
     case signerCertificateUnbound
   }
 
@@ -155,7 +155,9 @@ extension QualifiedDocumentCms {
         encoded: encoded
       )
     }
-    let algorithm = try Self.supported(digestAlgorithm, encoded: encoded)
+    let algorithms = try Self.supported(
+      digest: digestAlgorithm, signature: signatureAlgorithm, encoded: encoded
+    )
     let attributesRaw = encoded.subdata(in: signedAttributes.raw)
     var retagged = attributesRaw
     retagged[retagged.startIndex] = DerValues.tagSet
@@ -172,7 +174,7 @@ extension QualifiedDocumentCms {
     return ReadSignature(
       signedAttributesSet: retagged,
       signatureValue: DerReader(encoded).contentData(of: signature),
-      digestAlgorithm: algorithm,
+      algorithms: algorithms,
       signerCertificate: signer,
       embeddedCertificates: embedded,
       messageDigest: digest,
@@ -180,19 +182,28 @@ extension QualifiedDocumentCms {
     )
   }
 
-  /// The SignerInfo digest algorithm, refused unless SHA-256 or SHA-384.
+  /// The SignerInfo algorithms, refused unless the digest is SHA-256 or
+  /// SHA-384 and the signature algorithm is one this verifier reads.
   private static func supported(
-    _ digestAlgorithm: DerReader.Element,
+    digest: DerReader.Element,
+    signature: DerReader.Element,
     encoded: Data
-  ) throws -> DocumentDigestAlgorithm {
+  ) throws -> SignerAlgorithms {
     guard
-      let algorithm = DocumentDigestAlgorithm(
-        algorithmIdentifier: encoded.subdata(in: digestAlgorithm.raw)
+      let digestAlgorithm = DocumentDigestAlgorithm(
+        algorithmIdentifier: encoded.subdata(in: digest.raw)
       )
     else {
       throw ReadFailure.unsupportedDigestAlgorithm
     }
-    return algorithm
+    guard
+      let signatureAlgorithm = DocumentSignatureAlgorithm(
+        algorithmIdentifier: encoded.subdata(in: signature.raw)
+      )
+    else {
+      throw ReadFailure.unsupportedSignatureAlgorithm
+    }
+    return SignerAlgorithms(digest: digestAlgorithm, signature: signatureAlgorithm)
   }
 
   /// The embedded certificate the ESS attribute binds as the signer.

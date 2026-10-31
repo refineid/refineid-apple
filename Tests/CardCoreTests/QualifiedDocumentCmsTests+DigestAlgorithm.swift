@@ -14,7 +14,7 @@ extension QualifiedDocumentCmsTests {
   /// generator writes.
   internal struct ForeignCms {
     internal let identity: Identity
-    internal let signerDigest: String
+    internal let signerDigest: Data
     internal let signatureDigest: DocumentDigestAlgorithm
     internal let signatureAlgorithm: Data
   }
@@ -60,15 +60,33 @@ extension QualifiedDocumentCmsTests {
     ])
   }
 
-  /// The three signed attributes with an ESSCertIDv2 whose hash
-  /// algorithm is left to its SHA-256 DER default (RFC 5035 section 4).
-  internal static func sha256SignedAttributes(
+  /// A digest AlgorithmIdentifier with absent parameters.
+  internal static func digestIdentifier(_ oid: String) -> Data {
+    DerEncoder.sequence([DerEncoder.objectIdentifier(oid)])
+  }
+
+  /// The three signed attributes another generator writes.
+  ///
+  /// The ESSCertIDv2 leaves a SHA-256 hash algorithm to its DER default
+  /// and names SHA-384 explicitly (RFC 5035 section 4).
+  internal static func foreignSignedAttributes(
+    _ digest: DocumentDigestAlgorithm,
     byteRangeDigest: Data,
     certificate: Data
   ) -> Data {
-    let essCertId = DerEncoder.sequence([
-      DerEncoder.octetString(Data(SHA256.hash(data: certificate)))
-    ])
+    let essCertId: Data
+    switch digest {
+    case .sha256:
+      essCertId = DerEncoder.sequence([
+        DerEncoder.octetString(Data(SHA256.hash(data: certificate)))
+      ])
+
+    case .sha384:
+      essCertId = DerEncoder.sequence([
+        Self.digestIdentifier(SignOids.sha384),
+        DerEncoder.octetString(Data(SHA384.hash(data: certificate))),
+      ])
+    }
     return DerEncoder.setOf([
       Self.attribute(
         SignOids.contentType, value: DerEncoder.objectIdentifier(SignOids.data)
@@ -103,9 +121,7 @@ extension QualifiedDocumentCmsTests {
       identity: fields.identity,
       digestAlgorithm: fields.signatureDigest
     )
-    let digestIdentifier = DerEncoder.sequence([
-      DerEncoder.objectIdentifier(fields.signerDigest)
-    ])
+    let digestIdentifier = fields.signerDigest
     let issuerAndSerial = DerEncoder.sequence([
       CertificateRevocationListFixtures.name(Self.identityCommonName),
       DerEncoder.unsignedInteger(CertificateRevocationListFixtures.targetSerial),
@@ -183,14 +199,15 @@ extension QualifiedDocumentCmsTests {
   internal func sha256RsaSignatureVerifies(_ profile: CardKeyProfile) throws {
     let identity = try Self.identity(profile)
     let placeholder = try Self.placeholder()
-    let attributes = Self.sha256SignedAttributes(
+    let attributes = Self.foreignSignedAttributes(
+      .sha256,
       byteRangeDigest: placeholder.digest(.sha256),
       certificate: identity.certificate
     )
     let cms = try Self.contentInfo(
       ForeignCms(
         identity: identity,
-        signerDigest: SignOids.sha256,
+        signerDigest: Self.digestIdentifier(SignOids.sha256),
         signatureDigest: .sha256,
         signatureAlgorithm: Self.sha256WithRsa
       ),
@@ -207,14 +224,15 @@ extension QualifiedDocumentCmsTests {
   internal func sha256EcdsaSignatureVerifies(_ profile: CardKeyProfile) throws {
     let identity = try Self.identity(profile)
     let placeholder = try Self.placeholder()
-    let attributes = Self.sha256SignedAttributes(
+    let attributes = Self.foreignSignedAttributes(
+      .sha256,
       byteRangeDigest: placeholder.digest(.sha256),
       certificate: identity.certificate
     )
     let cms = try Self.contentInfo(
       ForeignCms(
         identity: identity,
-        signerDigest: SignOids.sha256,
+        signerDigest: Self.digestIdentifier(SignOids.sha256),
         signatureDigest: .sha256,
         signatureAlgorithm: DerEncoder.sequence([
           DerEncoder.objectIdentifier(SignOids.ecdsaWithSha256)
@@ -234,14 +252,15 @@ extension QualifiedDocumentCmsTests {
   internal func otherDigestAlgorithmsAreUnsupported(_ oid: String) throws {
     let identity = try Self.identity(.rsa2048)
     let placeholder = try Self.placeholder()
-    let attributes = Self.sha256SignedAttributes(
+    let attributes = Self.foreignSignedAttributes(
+      .sha256,
       byteRangeDigest: placeholder.digest(.sha256),
       certificate: identity.certificate
     )
     let cms = try Self.contentInfo(
       ForeignCms(
         identity: identity,
-        signerDigest: oid,
+        signerDigest: Self.digestIdentifier(oid),
         signatureDigest: .sha256,
         signatureAlgorithm: Self.sha256WithRsa
       ),
@@ -265,14 +284,15 @@ extension QualifiedDocumentCmsTests {
   internal func digestAlgorithmAndMessageDigestMustAgree() throws {
     let identity = try Self.identity(.rsa2048)
     let placeholder = try Self.placeholder()
-    let attributes = Self.sha256SignedAttributes(
+    let attributes = Self.foreignSignedAttributes(
+      .sha256,
       byteRangeDigest: placeholder.digest(.sha256),
       certificate: identity.certificate
     )
     let cms = try Self.contentInfo(
       ForeignCms(
         identity: identity,
-        signerDigest: SignOids.sha384,
+        signerDigest: Self.digestIdentifier(SignOids.sha384),
         signatureDigest: .sha384,
         signatureAlgorithm: DerEncoder.sequence([
           DerEncoder.objectIdentifier(SignOids.sha384WithRsa), DerEncoder.null(),
@@ -299,18 +319,19 @@ extension QualifiedDocumentCmsTests {
         signerCertificate: identity.certificate,
         digestAlgorithm: .sha256
       )
-        == Self.sha256SignedAttributes(
-          byteRangeDigest: sha256Digest, certificate: identity.certificate
+        == Self.foreignSignedAttributes(
+          .sha256, byteRangeDigest: sha256Digest, certificate: identity.certificate
         )
     )
-    let sha384 = QualifiedDocumentCms.signedAttributes(
-      byteRangeDigest: placeholder.digest(.sha384),
-      signerCertificate: identity.certificate
-    )
+    let sha384Digest = placeholder.digest(.sha384)
     #expect(
-      sha384.contains(
-        DerEncoder.sequence([DerEncoder.objectIdentifier(SignOids.sha384)])
+      QualifiedDocumentCms.signedAttributes(
+        byteRangeDigest: sha384Digest,
+        signerCertificate: identity.certificate
       )
+        == Self.foreignSignedAttributes(
+          .sha384, byteRangeDigest: sha384Digest, certificate: identity.certificate
+        )
     )
   }
 }
