@@ -93,6 +93,7 @@ typecheck "release manager" Scripts/apple-app-store-connect-release-manager.swif
 typecheck "store screenshots" Scripts/generate-store-screenshots.swift
 typecheck "card logins" Scripts/test-card-logins.swift
 typecheck "icon" Scripts/generate-icon.swift
+typecheck "slack icon" Scripts/generate-slack-icon.swift
 typecheck "stamp samples" \
   CardCore/Sources/CardCore/PdfStampRenderer.swift \
   CardCore/Sources/CardCore/StampMark.swift \

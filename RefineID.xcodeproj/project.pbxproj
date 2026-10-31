@@ -18,26 +18,26 @@
 		6D000000000000000000000A /* RefineIDDiscoveryExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2D000000000000000000000A /* RefineIDDiscoveryExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		6D000000000000000000000B /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2D0000000000000000000008 /* PrivacyInfo.xcprivacy */; };
 		6D000000000000000000000C /* CardCore in Frameworks */ = {isa = PBXBuildFile; productRef = AD0000000000000000000005 /* CardCore */; };
+		BC0000000000000000000001 /* Sources/TokenExtension/SmartCardTransmit.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000002 /* Sources/TokenExtension/SmartCardTransmit.swift */; };
+		BC0000000000000000000003 /* Samples/NFCCardTiming/Sources/CardTimingProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000004 /* Samples/NFCCardTiming/Sources/CardTimingProbe.swift */; };
+		BC0000000000000000000005 /* Samples/NFCCardTiming/Sources/CardTimingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000006 /* Samples/NFCCardTiming/Sources/CardTimingView.swift */; };
+		BC0000000000000000000007 /* Samples/NFCCardTiming/Sources/PaceTimingCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000008 /* Samples/NFCCardTiming/Sources/PaceTimingCommand.swift */; };
+		BC0000000000000000000009 /* Samples/NFCCardTiming/Sources/Values/PaceTimingValues.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000A /* Samples/NFCCardTiming/Sources/Values/PaceTimingValues.swift */; };
+		BC000000000000000000000B /* Sources/App/DevErrorLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000C /* Sources/App/DevErrorLog.swift */; };
+		BC000000000000000000000D /* Sources/App/DevErrorLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000C /* Sources/App/DevErrorLog.swift */; };
+		BC000000000000000000000F /* Sources/App/ExtensionTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000E /* Sources/App/ExtensionTrace.swift */; };
+		BC0000000000000000000010 /* Sources/App/ExtensionTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000E /* Sources/App/ExtensionTrace.swift */; };
+		BC0000000000000000000011 /* Sources/App/ExtensionTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000E /* Sources/App/ExtensionTrace.swift */; };
 		BD0000000000000000000008 /* CardCore in Frameworks */ = {isa = PBXBuildFile; productRef = AD0000000000000000000006 /* CardCore */; };
+		CE0000000000000000000002 /* CardCore in Frameworks */ = {isa = PBXBuildFile; productRef = CE0000000000000000000003 /* CardCore */; };
+		CE0000000000000000000004 /* Samples/NFCCardTiming/Sources/CardTimingProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000004 /* Samples/NFCCardTiming/Sources/CardTimingProbe.swift */; };
+		CE0000000000000000000005 /* Samples/NFCCardTiming/Sources/CardTimingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000006 /* Samples/NFCCardTiming/Sources/CardTimingView.swift */; };
+		CE0000000000000000000006 /* Samples/NFCCardTiming/Sources/PaceTimingCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000008 /* Samples/NFCCardTiming/Sources/PaceTimingCommand.swift */; };
+		CE0000000000000000000007 /* Samples/NFCCardTiming/Sources/Values/PaceTimingValues.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000A /* Samples/NFCCardTiming/Sources/Values/PaceTimingValues.swift */; };
+		CE0000000000000000000008 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2D0000000000000000000008 /* PrivacyInfo.xcprivacy */; };
 		D8D396B5E12DA372E43BD5D3 /* RefineIDRappTokenExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5ADED64532B13872419C7B30 /* RefineIDRappTokenExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DC4E6B27DAEFC74447BC438F /* CardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7298DA08AF9815CC40D89601 /* CardCore */; };
 		FE9FF60F2BD451120817294F /* CryptoTokenKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2D0000000000000000000003 /* CryptoTokenKit.framework */; };
-		BC0000000000000000000001 /* SmartCardTransmit.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000002 /* SmartCardTransmit.swift */; };
-		BC0000000000000000000003 /* CardTimingProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000004 /* CardTimingProbe.swift */; };
-		BC0000000000000000000005 /* CardTimingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000006 /* CardTimingView.swift */; };
-		BC0000000000000000000007 /* PaceTimingCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000008 /* PaceTimingCommand.swift */; };
-		BC0000000000000000000009 /* PaceTimingValues.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000A /* PaceTimingValues.swift */; };
-		BC000000000000000000000B /* DevErrorLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000C /* DevErrorLog.swift */; };
-		BC000000000000000000000D /* DevErrorLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000C /* DevErrorLog.swift */; };
-		BC000000000000000000000F /* ExtensionTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000E /* ExtensionTrace.swift */; };
-		BC0000000000000000000010 /* ExtensionTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000E /* ExtensionTrace.swift */; };
-		BC0000000000000000000011 /* ExtensionTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000E /* ExtensionTrace.swift */; };
-		CE0000000000000000000002 /* CardCore in Frameworks */ = {isa = PBXBuildFile; productRef = CE0000000000000000000003 /* CardCore */; };
-		CE0000000000000000000004 /* CardTimingProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000004 /* CardTimingProbe.swift */; };
-		CE0000000000000000000005 /* CardTimingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000006 /* CardTimingView.swift */; };
-		CE0000000000000000000006 /* PaceTimingCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000008 /* PaceTimingCommand.swift */; };
-		CE0000000000000000000007 /* PaceTimingValues.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000A /* PaceTimingValues.swift */; };
-		CE0000000000000000000008 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2D0000000000000000000008 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -113,15 +113,15 @@
 		2D0000000000000000000014 /* RefineID-iOS-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "RefineID-iOS-Info.plist"; sourceTree = "<group>"; };
 		3D00000000000000000000AB /* RefineID-iOS-Store-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "RefineID-iOS-Store-Info.plist"; sourceTree = "<group>"; };
 		5ADED64532B13872419C7B30 /* RefineIDRappTokenExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RefineIDRappTokenExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		CE0000000000000000000001 /* RefineIDTestHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RefineIDTestHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BC0000000000000000000002 /* Sources/TokenExtension/SmartCardTransmit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/TokenExtension/SmartCardTransmit.swift; sourceTree = SOURCE_ROOT; };
+		BC0000000000000000000004 /* Samples/NFCCardTiming/Sources/CardTimingProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Samples/NFCCardTiming/Sources/CardTimingProbe.swift; sourceTree = SOURCE_ROOT; };
+		BC0000000000000000000006 /* Samples/NFCCardTiming/Sources/CardTimingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Samples/NFCCardTiming/Sources/CardTimingView.swift; sourceTree = SOURCE_ROOT; };
+		BC0000000000000000000008 /* Samples/NFCCardTiming/Sources/PaceTimingCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Samples/NFCCardTiming/Sources/PaceTimingCommand.swift; sourceTree = SOURCE_ROOT; };
+		BC000000000000000000000A /* Samples/NFCCardTiming/Sources/Values/PaceTimingValues.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Samples/NFCCardTiming/Sources/Values/PaceTimingValues.swift; sourceTree = SOURCE_ROOT; };
+		BC000000000000000000000C /* Sources/App/DevErrorLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/App/DevErrorLog.swift; sourceTree = SOURCE_ROOT; };
+		BC000000000000000000000E /* Sources/App/ExtensionTrace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/App/ExtensionTrace.swift; sourceTree = SOURCE_ROOT; };
 		BD0000000000000000000001 /* RefineIDTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RefineIDTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		BC0000000000000000000002 /* SmartCardTransmit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/TokenExtension/SmartCardTransmit.swift; sourceTree = SOURCE_ROOT; };
-		BC0000000000000000000004 /* CardTimingProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Samples/NFCCardTiming/Sources/CardTimingProbe.swift; sourceTree = SOURCE_ROOT; };
-		BC0000000000000000000006 /* CardTimingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Samples/NFCCardTiming/Sources/CardTimingView.swift; sourceTree = SOURCE_ROOT; };
-		BC0000000000000000000008 /* PaceTimingCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Samples/NFCCardTiming/Sources/PaceTimingCommand.swift; sourceTree = SOURCE_ROOT; };
-		BC000000000000000000000A /* PaceTimingValues.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Samples/NFCCardTiming/Sources/Values/PaceTimingValues.swift; sourceTree = SOURCE_ROOT; };
-		BC000000000000000000000C /* DevErrorLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/App/DevErrorLog.swift; sourceTree = SOURCE_ROOT; };
-		BC000000000000000000000E /* ExtensionTrace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/App/ExtensionTrace.swift; sourceTree = SOURCE_ROOT; };
+		CE0000000000000000000001 /* RefineIDTestHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RefineIDTestHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -205,20 +205,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CE0000000000000000000010 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE0000000000000000000002 /* CardCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		FD93ABA1B3B75DAD162B882D /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				DC4E6B27DAEFC74447BC438F /* CardCore in Frameworks */,
 				FE9FF60F2BD451120817294F /* CryptoTokenKit.framework in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		CE0000000000000000000010 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				CE0000000000000000000002 /* CardCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -259,13 +259,13 @@
 				3D0000000000000000000002 /* TokenExtension */,
 				3D0000000000000000000004 /* DiscoveryExtension */,
 				721332542F5154E8E8C01D4B /* RappTokenExtension */,
-				BC0000000000000000000002 /* SmartCardTransmit.swift */,
-				BC0000000000000000000004 /* CardTimingProbe.swift */,
-				BC0000000000000000000006 /* CardTimingView.swift */,
-				BC0000000000000000000008 /* PaceTimingCommand.swift */,
-				BC000000000000000000000A /* PaceTimingValues.swift */,
-				BC000000000000000000000C /* DevErrorLog.swift */,
-				BC000000000000000000000E /* ExtensionTrace.swift */,
+				BC0000000000000000000002 /* Sources/TokenExtension/SmartCardTransmit.swift */,
+				BC0000000000000000000004 /* Samples/NFCCardTiming/Sources/CardTimingProbe.swift */,
+				BC0000000000000000000006 /* Samples/NFCCardTiming/Sources/CardTimingView.swift */,
+				BC0000000000000000000008 /* Samples/NFCCardTiming/Sources/PaceTimingCommand.swift */,
+				BC000000000000000000000A /* Samples/NFCCardTiming/Sources/Values/PaceTimingValues.swift */,
+				BC000000000000000000000C /* Sources/App/DevErrorLog.swift */,
+				BC000000000000000000000E /* Sources/App/ExtensionTrace.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -608,10 +608,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BC0000000000000000000003 /* CardTimingProbe.swift in Sources */,
-				BC0000000000000000000005 /* CardTimingView.swift in Sources */,
-				BC0000000000000000000007 /* PaceTimingCommand.swift in Sources */,
-				BC0000000000000000000009 /* PaceTimingValues.swift in Sources */,
+				BC0000000000000000000003 /* Samples/NFCCardTiming/Sources/CardTimingProbe.swift in Sources */,
+				BC0000000000000000000005 /* Samples/NFCCardTiming/Sources/CardTimingView.swift in Sources */,
+				BC0000000000000000000007 /* Samples/NFCCardTiming/Sources/PaceTimingCommand.swift in Sources */,
+				BC0000000000000000000009 /* Samples/NFCCardTiming/Sources/Values/PaceTimingValues.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -619,8 +619,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BC000000000000000000000B /* DevErrorLog.swift in Sources */,
-				BC000000000000000000000F /* ExtensionTrace.swift in Sources */,
+				BC000000000000000000000B /* Sources/App/DevErrorLog.swift in Sources */,
+				BC000000000000000000000F /* Sources/App/ExtensionTrace.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -635,7 +635,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BC0000000000000000000011 /* ExtensionTrace.swift in Sources */,
+				BC0000000000000000000011 /* Sources/App/ExtensionTrace.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -650,7 +650,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BC0000000000000000000001 /* SmartCardTransmit.swift in Sources */,
+				BC0000000000000000000001 /* Sources/TokenExtension/SmartCardTransmit.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -658,8 +658,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BC000000000000000000000D /* DevErrorLog.swift in Sources */,
-				BC0000000000000000000010 /* ExtensionTrace.swift in Sources */,
+				BC000000000000000000000D /* Sources/App/DevErrorLog.swift in Sources */,
+				BC0000000000000000000010 /* Sources/App/ExtensionTrace.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -667,10 +667,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CE0000000000000000000004 /* CardTimingProbe.swift in Sources */,
-				CE0000000000000000000005 /* CardTimingView.swift in Sources */,
-				CE0000000000000000000006 /* PaceTimingCommand.swift in Sources */,
-				CE0000000000000000000007 /* PaceTimingValues.swift in Sources */,
+				CE0000000000000000000004 /* Samples/NFCCardTiming/Sources/CardTimingProbe.swift in Sources */,
+				CE0000000000000000000005 /* Samples/NFCCardTiming/Sources/CardTimingView.swift in Sources */,
+				CE0000000000000000000006 /* Samples/NFCCardTiming/Sources/PaceTimingCommand.swift in Sources */,
+				CE0000000000000000000007 /* Samples/NFCCardTiming/Sources/Values/PaceTimingValues.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1291,9 +1291,7 @@
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-				EXCLUDED_SOURCE_FILE_NAMES = (
-					ExtensionTrace.swift,
-				);
+				EXCLUDED_SOURCE_FILE_NAMES = ExtensionTrace.swift;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config/DiscoveryExtension-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "RefineID Card Discovery";
@@ -1327,9 +1325,7 @@
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-				EXCLUDED_SOURCE_FILE_NAMES = (
-					ExtensionTrace.swift,
-				);
+				EXCLUDED_SOURCE_FILE_NAMES = ExtensionTrace.swift;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config/DiscoveryExtension-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "RefineID Card Discovery";
@@ -1740,45 +1736,11 @@
 			};
 			name = Release;
 		};
-		DC12509A50C90C9EF4EDCA1C /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = "Config/RappTokenExtension-iOS.entitlements";
-				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Config/RappTokenExtension.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				DEAD_CODE_STRIPPING = YES;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Config/RappTokenExtension-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "RefineID Token";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright 2026 Petri Koistinen";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../../Frameworks",
-				);
-				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path/../../../../Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = "fi.refineid.ReFineID.rapp-token";
-				PRODUCT_MODULE_NAME = RefineIDRappTokenExtension;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				REGISTER_APP_GROUPS = YES;
-				SDKROOT = auto;
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
-				SWIFT_EMIT_LOC_STRINGS = YES;
-			};
-			name = Debug;
-		};
 		CE0000000000000000000031 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = "Config/RefineIDTestHost.entitlements";
+				CODE_SIGN_ENTITLEMENTS = Config/RefineIDTestHost.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -1807,7 +1769,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = "Config/RefineIDTestHost.entitlements";
+				CODE_SIGN_ENTITLEMENTS = Config/RefineIDTestHost.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -1837,7 +1799,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = "Config/RefineIDTestHost.entitlements";
+				CODE_SIGN_ENTITLEMENTS = Config/RefineIDTestHost.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -1884,7 +1846,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = "Config/RefineIDTestHost.entitlements";
+				CODE_SIGN_ENTITLEMENTS = Config/RefineIDTestHost.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -1926,6 +1888,40 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 			};
 			name = Release;
+		};
+		DC12509A50C90C9EF4EDCA1C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "Config/RappTokenExtension-iOS.entitlements";
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Config/RappTokenExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/RappTokenExtension-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "RefineID Token";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright 2026 Petri Koistinen";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "fi.refineid.ReFineID.rapp-token";
+				PRODUCT_MODULE_NAME = RefineIDRappTokenExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Debug;
 		};
 /* End XCBuildConfiguration section */
 
