@@ -123,6 +123,7 @@
       }
       .onDisappear { activation.stop() }
       .acknowledgesFailure(of: signing)
+      .asksAboutUnsaved(for: signing)
       .announcesOutcome(signing.notice)
       .announcesOutcome(activation.management.failure)
       .announcesOutcome(activation.management.notice)
@@ -277,45 +278,52 @@
       _ = accept(panel.urls)
     }
 
-    /// Asks where the signature goes, then signs.
+    /// Signs, then asks where the signature goes.
     ///
-    /// The panel runs here, from the button, and not inside the signing
-    /// task: a modal panel raised from an async function blocks the
-    /// main actor SwiftUI draws on, and a panel that never appears
-    /// looks exactly like a button that does nothing.
+    /// The panel opens once the signature is finished in memory, so
+    /// the name it proposes carries the best signature time.
     private func sign() {
       guard canSign, let source = signing.pending else { return }
       // Several documents take one container between them, so they ask
       // for one file. Several PDFs each keep their own signature
-      // inside themselves, so those still ask for a folder.
-      let several = signing.queued.count > 1
+      // inside themselves, so those ask for a folder.
+      let documents = signing.queued
+      let several = documents.count > 1
       let separately = several && format == .pades
-      let folder =
-        separately
-        ? SignedOutput.chooseFolder(startingAt: source.deletingLastPathComponent())
-        : nil
-      let destination =
-        separately ? nil : SignedOutput.chooseFile(for: signing.queued, format: format)
-      guard separately ? folder != nil : destination != nil else { return }
       let entry = Self.isEntryComplete(pin2) ? pin2 : ""
       if asksLocalPin2, entry.isEmpty { return }
       pin2 = ""
       let number = accessNumber
       let chosenFormat = format
+      #if DEBUG
+        // An unattended destination never asks, so one that is an
+        // original is refused before the card is touched.
+        if !separately, let unattended = SignedOutput.unattendedDestination(),
+          SignDocumentModel.isOriginal(unattended, among: documents)
+        {
+          signing.report(String(localized: "The signed document cannot replace the original."))
+          return
+        }
+      #endif
+      let file: SignDocumentModel.DestinationChoice = { signed, typedName in
+        await SignedOutput.chooseFile(
+          for: documents, format: chosenFormat, signed: signed, typedName: typedName
+        )
+      }
       signing.beginAction()
       Task {
-        if let folder {
+        if separately {
           await signing.signAll(
-            pin2: entry, accessNumber: number, format: chosenFormat, intoDirectory: folder
-          )
-        } else if let destination {
-          if several {
-            await signing.signTogether(pin2: entry, to: destination)
-          } else {
-            await signing.sign(
-              pin2: entry, accessNumber: number, format: chosenFormat, to: destination
-            )
+            pin2: entry, accessNumber: number, format: chosenFormat
+          ) {
+            await SignedOutput.chooseFolder(startingAt: source.deletingLastPathComponent())
           }
+        } else if several {
+          await signing.signTogether(pin2: entry, destination: file)
+        } else {
+          await signing.sign(
+            pin2: entry, accessNumber: number, format: chosenFormat, destination: file
+          )
         }
         if signing.lastActionSignedSomething {
           signing.clearQueue()

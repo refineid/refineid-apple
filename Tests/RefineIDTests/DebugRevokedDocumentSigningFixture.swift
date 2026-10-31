@@ -217,7 +217,11 @@
       )
       let nonce = Data("debug timestamp nonce".utf8)
       let authority = try DebugTimestampAuthority.make()
-      let timestamp = try authority.response(imprint: imprint, nonce: nonce)
+      let timestamp = try authority.response(
+        imprint: imprint,
+        nonce: nonce,
+        generationTime: DebugTimestampAuthority.generationTime
+      )
       let token = try RfcTimestamp.token(
         fromResponse: timestamp.response,
         digest: imprint,

@@ -155,36 +155,13 @@
         return
       }
       do {
-        let data: Data
-        if format == .pades, let input = inputs.first {
-          let product = try await DocumentSigner.sign(
-            input.data,
-            named: input.name,
-            reason: nil,
-            location: nil,
-            access: DocumentSigner.SigningAccess(
-              pin2: enteredPIN2,
-              transport: transport,
-              cardAccessNumber: cardAccessNumber
-            )
-          )
-          data = product.bytes
-        } else {
-          let objects = inputs.map { input in
-            AsicSigner.dataObject(input.data, named: input.name)
-          }
-          data = try await AsicSigner.sign(
-            objects,
-            pin2: enteredPIN2,
-            transport: transport,
-            cardAccessNumber: cardAccessNumber)
-        }
+        let signed = try await signedDocument(pin2: enteredPIN2)
         output = Output(
-          document: ExportDocument(data: data),
+          document: ExportDocument(data: signed.bytes),
           name: SignedDocumentName.suggested(
             sourceNames: inputs.map(\.name),
             format: format,
-            at: Date()),
+            at: signed.bestSignatureTime),
           contentType: format == .pades
             ? .pdf
             : (UTType(filenameExtension: "asice") ?? .zip))
@@ -192,6 +169,35 @@
       } catch {
         showFailure(DocumentSigningMessage.message(for: error))
       }
+    }
+
+    /// Signs the imported documents in memory.
+    private func signedDocument(pin2: String?) async throws -> SignedDocument {
+      if format == .pades, let input = inputs.first {
+        let product = try await DocumentSigner.sign(
+          input.data,
+          named: input.name,
+          reason: nil,
+          location: nil,
+          access: DocumentSigner.SigningAccess(
+            pin2: pin2,
+            transport: transport,
+            cardAccessNumber: cardAccessNumber
+          )
+        )
+        return SignedDocument(
+          bytes: product.bytes, signatureTimestampTime: product.signatureTimestampTime)
+      }
+      let objects = inputs.map { input in
+        AsicSigner.dataObject(input.data, named: input.name)
+      }
+      let product = try await AsicSigner.sign(
+        objects,
+        pin2: pin2,
+        transport: transport,
+        cardAccessNumber: cardAccessNumber)
+      return SignedDocument(
+        bytes: product.bytes, signatureTimestampTime: product.signatureTimestampTime)
     }
 
     private func signWithVirtualCard(pin2: String) async {

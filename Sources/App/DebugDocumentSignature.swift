@@ -95,7 +95,7 @@
             )
           )
           let destination = SignDocumentModel.destination(
-            for: source, at: Date(), format: .pades
+            for: source, at: product.signatureTimestampTime, format: .pades
           )
           try product.bytes.write(to: destination, options: .atomic)
           box.record(

@@ -24,9 +24,8 @@
     internal func signPdf(
       _ source: URL,
       pin2: String,
-      accessNumber: String,
-      to destination: URL
-    ) async throws {
+      accessNumber: String
+    ) async throws -> SignedDocument {
       // The card is read for the mark here, where the holder has
       // asked for a signature - not while they were still typing the
       // number that unlocks it.
@@ -59,12 +58,14 @@
           )
         )
       }
-      try result.bytes.write(to: destination, options: .atomic)
       #if DEBUG
         if result.completion == .revokedSignerTest {
           setNotice(DebugRevokedDocumentSigning.warning)
         }
       #endif
+      return SignedDocument(
+        bytes: result.bytes, signatureTimestampTime: result.signatureTimestampTime
+      )
     }
   }
 

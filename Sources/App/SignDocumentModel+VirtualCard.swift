@@ -5,29 +5,27 @@
   import Foundation
 
   extension SignDocumentModel {
-    /// Authorizes and writes a simulated signature with the virtual ID card.
+    /// Authorizes a simulated signature with the virtual ID card.
+    ///
+    /// The simulated signature carries no timestamp, so it is named by
+    /// the clock.
     internal func signWithVirtualCard(
       pin2: String,
       from source: URL,
-      to destination: URL,
       appearance: Int
-    ) async {
+    ) async -> SignedDocument? {
       let result = await DemoMode.shared.authorizeQualifiedSignature(pin2: pin2)
-      guard appearance == cardAppearance else { return }
+      guard appearance == cardAppearance else { return nil }
       switch result {
       case .success:
-        do {
-          let sourceData =
-            (try? Data(contentsOf: source))
-            ?? Data("%PDF-1.4\n% Virtual demonstration document\n%%EOF".utf8)
-          try sourceData.write(to: destination, options: .atomic)
-          complete(with: destination)
-        } catch {
-          fail(message: error.localizedDescription)
-        }
+        let sourceData =
+          (try? Data(contentsOf: source))
+          ?? Data("%PDF-1.4\n% Virtual demonstration document\n%%EOF".utf8)
+        return SignedDocument(untimestamped: sourceData, clock: Date())
 
       case .invalidEntry:
         fail(message: String(localized: "PIN 2 must contain 6 to 12 digits."))
+        return nil
 
       case .blocked:
         fail(
@@ -35,6 +33,7 @@
             localized: "PIN 2 is blocked. Reset it in PIN settings."
           )
         )
+        return nil
 
       case .rejected(let remaining):
         fail(
@@ -45,6 +44,7 @@
               Int(remaining)
             )
         )
+        return nil
 
       case .refusedLowAttempts(let remaining):
         fail(
@@ -55,6 +55,7 @@
               Int(remaining)
             )
         )
+        return nil
 
       case .certificateUnavailable:
         fail(
@@ -62,9 +63,11 @@
             localized: "The signature certificate is unavailable."
           )
         )
+        return nil
 
       case .transportFailure:
         fail(message: String(localized: "The card connection was lost."))
+        return nil
       }
     }
   }

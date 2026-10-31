@@ -11,6 +11,17 @@ extension DocumentSigner {
 
     /// The evidence level present in those bytes.
     internal let completion: Completion
+
+    /// The generation time of the signature's own timestamp; a
+    /// document timestamp over the finished file never sets it.
+    internal let signatureTimestampTime: Date
+
+    /// Bytes built on `signature`, which carries their signature timestamp.
+    internal init(bytes: Data, completion: Completion, signature: TimestampedSignature) {
+      self.bytes = bytes
+      self.completion = completion
+      self.signatureTimestampTime = signature.signatureTimestampTime
+    }
   }
 
   /// What evidence was completed after the card signature.

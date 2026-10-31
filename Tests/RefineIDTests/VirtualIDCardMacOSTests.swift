@@ -177,24 +177,39 @@
       signing.accept(sourceURL)
       #expect(signing.pending == sourceURL)
 
-      // Wrong PIN 2
+      // Wrong PIN 2: nothing is signed, so no destination is asked.
+      var asked: [SignedDocument] = []
       await signing.sign(
         pin2: "000000",
         accessNumber: "",
-        format: .pades,
-        to: destURL
-      )
+        format: .pades
+      ) { signed, _ in
+        asked.append(signed)
+        return SignDocumentModel.PlaceAnswer(destination: destURL, typedName: nil)
+      }
+      #expect(asked.isEmpty)
       #expect(signing.failure != nil)
       #expect(signing.signed == nil)
       #expect(demo.state.card.pin2.attemptsRemaining == 4)
 
-      // Correct PIN 2 ("123456" default in activatedReader)
+      // Correct PIN 2 ("123456" default in activatedReader): the
+      // destination is asked once, after the signature exists.
+      let before = Date()
       await signing.sign(
         pin2: "123456",
         accessNumber: "",
-        format: .pades,
-        to: destURL
-      )
+        format: .pades
+      ) { signed, _ in
+        asked.append(signed)
+        #expect(!FileManager.default.fileExists(atPath: destURL.path))
+        return SignDocumentModel.PlaceAnswer(destination: destURL, typedName: nil)
+      }
+      let named = try #require(asked.first)
+      #expect(asked.count == 1)
+      #expect(named.bytes == fakeData)
+      // The simulated signature carries no timestamp: the clock names it.
+      #expect(named.bestSignatureTime >= before)
+      #expect(named.bestSignatureTime <= Date())
       #expect(signing.failure == nil)
       #expect(signing.signed == destURL)
       #expect(FileManager.default.fileExists(atPath: destURL.path) == true)
