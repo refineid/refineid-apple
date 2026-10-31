@@ -4,44 +4,54 @@
 
   import SwiftUI
 
-  /// The trailing value of one verification fact row: optional text,
-  /// then the indicator, whose space is kept when the row shows none,
-  /// so every row's indicator sits in the same trailing column.
-  internal struct VerifyDocumentRowValue: View {
+  /// What one verification fact row shows: an optional value text,
+  /// optional secondary text after it, and the indicator.
+  internal struct VerifyDocumentRowValue {
     /// What the indicator column shows.
     internal enum Indicator {
-      /// No indicator; its space is kept.
+      /// No indicator; the column keeps its space.
       case hidden
+
+      /// The fact is being established.
+      case progress
 
       /// The fact holds.
       case holds
 
       /// The fact fails.
       case fails
+
+      /// Width of the trailing indicator column at the default text size.
+      internal static let columnWidth: CGFloat = 28
     }
 
     internal var text: String?
     internal var secondaryText: String?
-    internal var progress = false
     internal var indicator = Indicator.hidden
 
-    internal var body: some View {
-      HStack {
-        if progress {
-          ProgressView()
-        }
-        if let text {
-          Text(text)
-            .multilineTextAlignment(.trailing)
-        }
-        if let secondaryText {
-          Text(secondaryText)
-            .foregroundStyle(.secondary)
-        }
-        CredentialValidationIndicator(
-          valid: indicator == .holds,
-          isEmpty: indicator == .hidden
-        )
+    /// The value line as VoiceOver reads it: the text and the
+    /// secondary text separated by a pause.
+    internal var accessibilityLine: String {
+      [text, secondaryText].compactMap(\.self).joined(separator: ", ")
+    }
+
+    /// The value line: the text, then the secondary text in the
+    /// secondary style, or nil when the row has neither.
+    internal var line: AttributedString? {
+      var secondary = secondaryText.map { AttributedString($0) }
+      secondary?.foregroundColor = .secondary
+      switch (text.map { AttributedString($0) }, secondary) {
+      case (let primary?, let secondary?):
+        return primary + AttributedString(" ") + secondary
+
+      case (let primary?, nil):
+        return primary
+
+      case (nil, let secondary?):
+        return secondary
+
+      case (nil, nil):
+        return nil
       }
     }
   }

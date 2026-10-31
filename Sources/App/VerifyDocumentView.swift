@@ -39,8 +39,8 @@
               .frame(maxWidth: .infinity)
           }
 
-        case .report(let rows, let documentTimestamps):
-          reportSections(rows, documentTimestamps: documentTimestamps)
+        case .report(let rows, _):
+          reportSections(rows)
 
         case .failed(let message):
           Section {
@@ -71,13 +71,10 @@
 
     private var unsupportedSection: some View {
       Section {
-        LabeledContent {
-          VerifyDocumentRowValue(
-            text: text("verify.errorUnsupported", "The signature profile is not supported."),
-            indicator: .fails
-          )
-        } label: {
+        VerifyDocumentRow(indicator: .fails) {
           PersonRowLabel(configured: false)
+        } value: {
+          Text(text("verify.errorUnsupported", "The signature profile is not supported."))
         }
       } header: {
         sectionHeader
@@ -92,18 +89,14 @@
 
     @ViewBuilder
     private func reportSections(
-      _ rows: [VerifyDocumentModel.SignatureRow],
-      documentTimestamps: [TimestampState]
+      _ rows: [VerifyDocumentModel.SignatureRow]
     ) -> some View {
       Section {
-        LabeledContent(text("signing.document", "Document")) {
+        VerifyDocumentRow(indicator: nil) {
+          Text(text("signing.document", "Document"))
+        } value: {
           Text(model.documentName)
-            .multilineTextAlignment(.trailing)
-        }
-        ForEach(Array(documentTimestamps.enumerated()), id: \.offset) { stamp in
-          factRow(text("verify.documentTimestamp", "Document timestamp")) {
-            timestampValue(stamp.element)
-          }
+            .fixedSize(horizontal: false, vertical: true)
         }
       }
       ForEach(rows, id: \.rowIndex) { row in
@@ -129,23 +122,21 @@
       checking: Bool
     ) -> some View {
       Section {
-        LabeledContent {
+        VerifyDocumentRow(indicator: nil) {
+          PersonRowLabel(configured: report.isValid)
+        } value: {
           Text(holder(of: report))
             .textSelection(.enabled)
-            .multilineTextAlignment(.trailing)
             .accessibilityIdentifier("verifySigner")
-        } label: {
-          PersonRowLabel(configured: report.isValid)
         }
         factRow(text("verify.intact", "Document intact"), holds: report.documentIntact)
         factRow(text("verify.signature", "Signature"), holds: report.signatureValid)
         factRow(text("verify.chain", "Certificate chain"), holds: report.chainVerified)
-        factRow(text("verify.timestamp", "Timestamp")) {
-          timestampValue(of: report)
-        }
-        factRow(text("verify.revocation", "Revocation")) {
+        factRow(text("verify.timestamp", "Timestamp"), timestampValue(of: report))
+        factRow(
+          text("verify.revocation", "Revocation"),
           revocationValue(report.revocation, checking: checking)
-        }
+        )
       } header: {
         sectionHeader
       }
@@ -160,29 +151,33 @@
       DisplayedSignerName.text(of: report.signerCommonName)
     }
 
-    /// One fact row: its name, then the value and the indicator at the
-    /// trailing end, the indicator column the same on every row.
+    /// One fact row: its name, the value line under it when there is
+    /// one, and the indicator column.
     private func factRow(
       _ name: String,
-      value: () -> VerifyDocumentRowValue
+      _ value: VerifyDocumentRowValue
     ) -> some View {
-      LabeledContent(name) {
-        value()
+      VerifyDocumentRow(indicator: value.indicator) {
+        Text(name)
+      } value: {
+        if let line = value.line {
+          Text(line)
+            .accessibilityLabel(Text(verbatim: value.accessibilityLine))
+        }
       }
     }
 
     private func factRow(_ name: String, holds: Bool) -> some View {
-      factRow(name) {
-        VerifyDocumentRowValue(indicator: holds ? .holds : .fails)
-      }
+      factRow(name, VerifyDocumentRowValue(indicator: holds ? .holds : .fails))
     }
 
     private func formatted(_ date: Date) -> String {
       date.formatted(date: .abbreviated, time: .shortened)
     }
 
-    /// The timestamp row of one signature: the proven time, a claimed
-    /// time marked unproven, a failed token, or none.
+    /// The timestamp row of one signature: the best signature time,
+    /// which is the earliest anchored time, a claimed time marked
+    /// unproven, a failed token, or none.
     private func timestampValue(
       of report: DocumentVerification.SignatureReport
     ) -> VerifyDocumentRowValue {
@@ -198,19 +193,6 @@
       return VerifyDocumentRowValue(secondaryText: text("verify.timestampNone", "None"))
     }
 
-    private func timestampValue(_ state: TimestampState) -> VerifyDocumentRowValue {
-      switch state {
-      case .anchored(let proven):
-        VerifyDocumentRowValue(text: formatted(proven), indicator: .holds)
-
-      case .claimed(let claimed):
-        unprovenValue(claimed)
-
-      case .invalid, .unsupported:
-        VerifyDocumentRowValue(indicator: .fails)
-      }
-    }
-
     private func unprovenValue(_ claimed: Date) -> VerifyDocumentRowValue {
       VerifyDocumentRowValue(
         text: formatted(claimed),
@@ -223,11 +205,11 @@
       checking: Bool
     ) -> VerifyDocumentRowValue {
       if checking {
-        return VerifyDocumentRowValue(progress: true)
+        return VerifyDocumentRowValue(indicator: .progress)
       }
       switch revocation {
-      case .good(let evidenceTime):
-        return VerifyDocumentRowValue(text: formatted(evidenceTime), indicator: .holds)
+      case .good:
+        return VerifyDocumentRowValue(indicator: .holds)
 
       case .revoked:
         return VerifyDocumentRowValue(text: text("verify.revoked", "Revoked"), indicator: .fails)

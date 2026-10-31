@@ -1386,29 +1386,6 @@
         }
       }
     },
-    "verify.documentTimestamp" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Document timestamp"
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Asiakirjan aikaleima"
-          }
-        },
-        "sv" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dokumentets tidsstämpel"
-          }
-        }
-      }
-    },
     "verify.errorNoSignatures" : {
       "extractionState" : "stale",
       "localizations" : {
