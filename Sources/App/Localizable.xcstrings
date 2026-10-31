@@ -1560,7 +1560,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Etäluettavat (NFC) kortit"
+            "value": "Lähiluettavat (NFC) kortit"
           }
         },
         "sv": {
@@ -2718,7 +2718,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pois päältä kortti luetaan vain lukijaan asetettuna. Päällä etäluettavalle lukijalle esitetty kortti avataan korttiin painetulla numerolla."
+            "value": "Pois päältä kortti luetaan vain lukijaan asetettuna. Päällä lähilukijalle esitetty kortti avataan korttiin painetulla numerolla."
           }
         },
         "sv": {
