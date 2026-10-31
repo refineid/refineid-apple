@@ -25,9 +25,13 @@ extension DocumentSigner {
     /// The exact PAdES-B-T bytes, before DSS or a document timestamp.
     internal let bytes: Data
 
+    /// The earliest generation time among the signature timestamps.
+    internal let signatureTimestampTime: Date
+
     /// Only the validating assembly boundary may create this stage.
-    private init(bytes: Data) {
+    private init(bytes: Data, signatureTimestampTime: Date) {
       self.bytes = bytes
+      self.signatureTimestampTime = signatureTimestampTime
     }
 
     /// Validates and embeds the card CMS plus its signature timestamps.
@@ -35,7 +39,7 @@ extension DocumentSigner {
       _ input: TimestampedSignatureInput,
       timestampTokens: [TimestampTokenVerifier.VerifiedToken]
     ) throws -> Self {
-      guard !timestampTokens.isEmpty else {
+      guard let earliest = timestampTokens.map(\.generatedAt).min() else {
         throw TimestampedSignatureFailure.timestampMissing
       }
       let cms = try QualifiedDocumentCms.assemble(
@@ -45,7 +49,10 @@ extension DocumentSigner {
         signerCertificate: input.signerCertificate,
         timestampTokens: timestampTokens.map(\.token)
       )
-      return Self(bytes: try input.placeholder.filled(with: cms))
+      return Self(
+        bytes: try input.placeholder.filled(with: cms),
+        signatureTimestampTime: earliest
+      )
     }
   }
 }

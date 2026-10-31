@@ -60,7 +60,7 @@ internal struct SignDocumentShapeTests {
     let instant = try #require(
       ISO8601DateFormatter().date(from: "2026-08-12T14:30:12Z")
     )
-    let suffix = SignDocumentModel.signedNameSuffix(at: instant)
+    let suffix = SignedDocumentName.suffix(at: instant)
     // The instant keeps the engineering form in every language: a name
     // mailed abroad still sorts and reads the same.
     #expect(suffix.contains("2026-08-12T14-30-12Z"))

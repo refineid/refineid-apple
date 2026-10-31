@@ -242,6 +242,35 @@ or a mix, is signed into one ASiC-E container. Several PDFs are each signed
 into a chosen folder. PIN 2 for a local card is typed in the window. PIN 2
 for a paired phone's card is asked on the phone and never reaches the Mac.
 
+Signing comes first and the save panel after. The holder presses Sign,
+the card or the phone signs, and the signed file is built in memory; only
+then does the save panel open, as a sheet on the window, with the prompt
+Save and the final name in the field. A pile of PDFs asks for its folder
+once, after every document is signed.
+
+The signed file stays in memory until it is written or the holder forgets
+it. Cancelling the panel raises one alert, "The signed file has not been
+saved." ("The signed files have not been saved." for a pile), with no
+message: "Save the file" ("Save the files") is the default and opens the
+panel again with the name last typed, and "Forget the signature" ("Forget
+the signatures") drops it. Dismissing the alert without an answer counts
+as the default. A place that is one of the originals, matched through
+symbolic links and in either letter case, shows "The signed document
+cannot replace the original." and the panel opens again; so does a write
+that fails, with its error. In a pile, a file already in the chosen folder
+is never overwritten: that document is reported as not saved and the
+rest are written.
+
+A signed file is named by its best signature time
+(ETSI EN 319 102-1 clause 5.5): the generation time of
+the signature timestamp taken while signing, never a document timestamp
+taken later. A signature with no timestamp, such as the virtual card's,
+is named by the clock. The name is the original's stem, or "portfolio"
+for a container over several files, then " - ", the word "signed" in the
+app's language, a space, and that instant in UTC with colons replaced by
+hyphens. A container name the holder types keeps the suffix when it is
+still there and gets it appended when typing replaced it.
+
 ## Web signing (SCS)
 
 The Signature Creation Service is a loopback HTTPS server that web pages

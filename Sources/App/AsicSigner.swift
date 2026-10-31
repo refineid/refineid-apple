@@ -36,6 +36,15 @@ internal enum AsicSigner {
     case unusableName
   }
 
+  /// One finished container.
+  internal struct Product: Sendable {
+    /// The container bytes.
+    internal let bytes: Data
+
+    /// The generation time of the XAdES signature timestamp.
+    internal let signatureTimestampTime: Date
+  }
+
   #if DEBUG
     private static let logger = Logger(
       subsystem: "fi.refineid.ReFineID", category: "asic-signer"
@@ -69,7 +78,7 @@ internal enum AsicSigner {
     pin2: String?,
     transport: CardMaintenance.Transport,
     cardAccessNumber: String?
-  ) async throws -> Data {
+  ) async throws -> Product {
     // Asked before the card is touched. A set that cannot be carried
     // is refused while a refusal is still free; discovering it after
     // signing would have spent a PIN attempt on nothing.
@@ -114,7 +123,7 @@ internal enum AsicSigner {
   /// boundary.
   private static func signRemotely(
     _ objects: [AsicContainer.DataObject]
-  ) async throws -> Data {
+  ) async throws -> Product {
     let signedAt = Date()
     let documentName = objects.count == 1 ? objects[0].name : "ASiC-E container"
     #if DEBUG
@@ -146,7 +155,7 @@ internal enum AsicSigner {
     from product: CardMaintenance.QualifiedProduct,
     objects: [AsicContainer.DataObject],
     signedAt: Date
-  ) async throws -> Data {
+  ) async throws -> Product {
     // The plan is rebuilt from the certificate the card answered
     // with; the card must have signed exactly these octets. A
     // mismatch means the deterministic rebuild does not describe
@@ -196,7 +205,7 @@ internal enum AsicSigner {
     else {
       throw Failure.container
     }
-    return archive
+    return Product(bytes: archive, signatureTimestampTime: token.generatedAt)
   }
 
   /// The canonical `SignedInfo` octets for the card to sign, built

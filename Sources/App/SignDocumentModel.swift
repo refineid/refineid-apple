@@ -9,8 +9,8 @@
   /// State for signing one document: the file chosen, the PIN2 entry,
   /// and what happened.
   ///
-  /// The signed file lands beside the original, named for the instant
-  /// it was signed, so signing twice never overwrites and the order is
+  /// The signed file is offered beside the original, named for its best
+  /// signature time, so signing twice never overwrites and the order is
   /// readable from the directory listing.
   @MainActor
   @Observable
@@ -45,6 +45,16 @@
     internal var unacknowledgedFailure: String? {
       signingPile ? nil : failure
     }
+
+    /// The finished signature a cancelled save panel left unwritten,
+    /// while the holder is asked what becomes of it.
+    internal var unsaved: UnsavedSignature?
+
+    /// Resumes the signature waiting on `unsaved`.
+    @ObservationIgnored internal var unsavedAnswer: CheckedContinuation<Bool, Never>?
+
+    /// Resumes the signature waiting on its failure alert.
+    @ObservationIgnored internal var acknowledgement: CheckedContinuation<Void, Never>?
 
     /// Where the signed file landed.
     internal private(set) var signed: URL?
@@ -139,6 +149,7 @@
       pending = url
       DocumentSigner.prepareRemoteSigning()
       failure = nil
+      releaseAcknowledgement()
       signed = nil
       stampState = nil
       stampFailure = nil
@@ -236,6 +247,7 @@
       queued = []
       batchOutcomes = []
       failure = nil
+      releaseAcknowledgement()
       signed = nil
       stampState = nil
       stampFailure = nil
@@ -248,8 +260,15 @@
     /// SignDocumentModel+Batch.swift runs the same lifecycle.
     internal func beginSigning() -> Int {
       working = true
+      return beginDocument()
+    }
+
+    /// Starts the signature of one document within an attempt and
+    /// captures its card appearance.
+    internal func beginDocument() -> Int {
       phase = DocumentSigner.usesRappSigning ? .phone : .card
       failure = nil
+      releaseAcknowledgement()
       signed = nil
       notice = nil
       return cardAppearance
@@ -277,58 +296,7 @@
     /// Dismisses the failure once the holder has read it.
     internal func acknowledgeFailure() {
       failure = nil
-    }
-
-    /// Signs the pending document into `destination`.
-    ///
-    /// Where it goes is decided by the caller, before this is called
-    /// and before the card is touched: the sandbox the App Store
-    /// requires hands this app a dropped file and not the folder
-    /// around it, so the write has to be granted through a save panel,
-    /// and a panel raised after signing could be cancelled with a PIN2
-    /// signature already spent.
-    internal func sign(
-      pin2: String,
-      accessNumber: String,
-      format: SignatureFormat,
-      to destination: URL
-    ) async {
-      guard let source = pending, !working else { return }
-      // Replacing the original is refused rather than confirmed. It
-      // destroys the only unsigned copy, and the signature is taken
-      // over bytes already read into memory - so the file that
-      // vanished would be the one the signature attests.
-      guard destination.standardizedFileURL != source.standardizedFileURL else {
-        failure = String(
-          localized: "The signed document cannot replace the original."
-        )
-        return
-      }
-      let appearance = beginSigning()
-      defer { endSigning() }
-      if DemoMode.shared.isActive {
-        await signWithVirtualCard(
-          pin2: pin2,
-          from: source,
-          to: destination,
-          appearance: appearance
-        )
-        return
-      }
-      do {
-        switch format {
-        case .asice:
-          try await signContainer([source], pin2: pin2, to: destination)
-
-        case .pades:
-          try await signPdf(
-            source, pin2: pin2, accessNumber: accessNumber, to: destination
-          )
-        }
-        complete(with: destination)
-      } catch {
-        report(error, from: appearance)
-      }
+      releaseAcknowledgement()
     }
 
     /// Records a completed write and releases the card identity state.
@@ -353,12 +321,13 @@
     internal func cardRemoved() {
       cardAppearance &+= 1
       failure = nil
+      releaseAcknowledgement()
       stampState = nil
       stampFailure = nil
     }
 
     /// Shows the step a signature has reached, while one is in flight.
-    internal func show(_ step: DocumentSigningPhase) {
+    internal func show(_ step: DocumentSigningPhase?) {
       guard working else { return }
       phase = step
     }

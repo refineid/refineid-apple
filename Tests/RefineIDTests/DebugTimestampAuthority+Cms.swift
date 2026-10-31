@@ -10,7 +10,11 @@
   /// RFC 3161 CMS construction for the generated test authority.
   extension DebugTimestampAuthority {
     /// The signed TSTInfo bound to the card signature value.
-    private static func tstInfo(imprint: Data, nonce: Data) -> Data {
+    private static func tstInfo(
+      imprint: Data,
+      nonce: Data,
+      generationTime: String
+    ) -> Data {
       DerEncoder.sequence([
         DerEncoder.integer(SignOids.tstInfoVersion),
         DerEncoder.objectIdentifier(Self.testPolicyOid),
@@ -23,7 +27,7 @@
         DerEncoder.integer(Self.timestampSerial),
         DerEncoder.tlv(
           DerValues.tagGeneralizedTime,
-          Data(Self.generationTime.utf8)
+          Data(generationTime.utf8)
         ),
         DerEncoder.unsignedInteger(nonce),
       ])
@@ -110,9 +114,14 @@
     /// Builds an RFC 3161 token and its TimeStampResp wrapper.
     internal func response(
       imprint: Data,
-      nonce: Data
+      nonce: Data,
+      generationTime: String
     ) throws -> (token: Data, response: Data) {
-      let information = Self.tstInfo(imprint: imprint, nonce: nonce)
+      let information = Self.tstInfo(
+        imprint: imprint,
+        nonce: nonce,
+        generationTime: generationTime
+      )
       let attributes = Self.signedAttributes(
         tstInfo: information,
         certificate: certificate

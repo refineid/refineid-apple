@@ -172,7 +172,7 @@ internal enum DocumentSigner {
     #if DEBUG
       Self.phaseTrace("archived")
     #endif
-    return Product(bytes: archived, completion: .archival)
+    return Product(bytes: archived, completion: .archival, signature: timestamped)
   }
 
   /// Reads the qualified certificate, verifies PIN2 and signs, in

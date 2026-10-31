@@ -142,3 +142,9 @@ hour while the app runs; a computer with a session open never expires.
 An expired computer leaves "Paired computers" silently: nothing is sent,
 shown or reported. If that computer opens a session within the next 30
 days, the phone tells it with `pairing_revoked`.
+
+## Document signing
+
+The signed file is offered for export after signing, named the way the
+Mac names it: by the signature timestamp's generation time, as described
+in [macos.md](macos.md#document-signing).

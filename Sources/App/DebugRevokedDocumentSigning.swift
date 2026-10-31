@@ -55,7 +55,8 @@
       }
       return DocumentSigner.Product(
         bytes: timestamped.bytes,
-        completion: .revokedSignerTest
+        completion: .revokedSignerTest,
+        signature: timestamped
       )
     }
   }
