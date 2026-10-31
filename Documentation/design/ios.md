@@ -148,3 +148,29 @@ days, the phone tells it with `pairing_revoked`.
 The signed file is offered for export after signing, named the way the
 Mac names it: by the signature timestamp's generation time, as described
 in [macos.md](macos.md#document-signing).
+
+## Verify
+
+The Verify screen reports a chosen signed document in cards: the
+"Document" card, then one "Signature" card per signature.
+
+- **Rows.** Every row has one shape: the label on the first line and the
+  value, when there is one, under it, both leading-aligned and wrapping as
+  needed. A row with a mark keeps it alone in a trailing column, level
+  with the label's first line, so every mark sits at the same trailing
+  edge.
+- **Document.** The card shows one row, "Document", with the file name
+  under it and no mark.
+- **Signature.** The person row (the `person` symbol, "Person" and the
+  signer's name under it), then "Document intact", "Signature" and
+  "Certificate chain", each with its mark.
+- **Timestamp.** One time per signature: the best signature time, the
+  earliest anchored time (a document timestamp that proves the signature
+  counts), with the mark. A claimed time alone shows "Unproven" after it,
+  a failed token the failing mark, and no timestamp "None".
+- **Revocation.** The state without a time: the mark alone when good,
+  "Revoked" with the failing mark, "Not checked" when no answer came, and
+  a spinner in the mark column while the check runs.
+- **Unsupported.** A signature whose profile is not supported shows the
+  person row's symbol and label, "The signature profile is not
+  supported." under it and the failing mark.
