@@ -86,30 +86,38 @@ extension CertificateRevocationList {
     }
   }
 
-  /// Rejects entry-level certificateIssuer and unsupported critical semantics.
+  /// Rejects entry-level certificateIssuer and unsupported critical
+  /// semantics, and answers the entry's reasonCode.
   internal static func parseEntryExtensions(
     _ encoded: Data,
     sequence: DerReader.Element
-  ) throws {
+  ) throws -> RevocationReason? {
+    var reason: RevocationReason?
     for extensionValue in try Self.extensions(in: encoded, sequence: sequence) {
-      try Self.validateEntryExtension(extensionValue)
+      if let entryReason = try Self.validateEntryExtension(extensionValue) {
+        reason = entryReason
+      }
     }
+    return reason
   }
 
-  /// Applies the supported semantics for one CRL-entry extension.
+  /// Applies the supported semantics for one CRL-entry extension and
+  /// answers the reason a reasonCode names.
   private static func validateEntryExtension(
     _ extensionValue: ExtensionValue
-  ) throws {
+  ) throws -> RevocationReason? {
     switch extensionValue.identifier {
     case DerEncoder.objectIdentifier(Self.certificateIssuerOid):
       throw ValidationFailure.indirectUnsupported
 
     case DerEncoder.objectIdentifier(Self.reasonCodeOid):
-      _ = try Self.onlyElement(
+      let code = try Self.onlyElement(
         in: extensionValue.value,
         tag: DerValues.tagEnumerated
       )
       try Self.rejectCritical(extensionValue)
+      return DerReader(extensionValue.value).integerValue(of: code)
+        .map(RevocationReason.init(code:)) ?? .unrecognized
 
     case DerEncoder.objectIdentifier(Self.invalidityDateOid):
       let date = try Self.onlyElement(
@@ -118,9 +126,11 @@ extension CertificateRevocationList {
       )
       _ = try Self.time(in: extensionValue.value, element: date)
       try Self.rejectCritical(extensionValue)
+      return nil
 
     default:
       try Self.rejectCritical(extensionValue)
+      return nil
     }
   }
 

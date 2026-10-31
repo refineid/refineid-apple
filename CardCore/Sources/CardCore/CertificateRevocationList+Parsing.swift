@@ -46,17 +46,14 @@ extension CertificateRevocationList {
     guard fields.signatureAlgorithm == outerAlgorithmData else {
       throw ValidationFailure.malformed
     }
-    guard let nextUpdate = fields.nextUpdate else {
-      throw ValidationFailure.nextUpdateMissing
-    }
     return ParsedList(
       signedData: reader.data(of: tbs),
       signatureAlgorithm: outerAlgorithmData,
       signature: signatureContent.dropFirst(),
       issuerName: fields.issuerName,
       thisUpdate: fields.thisUpdate,
-      nextUpdate: nextUpdate,
-      targetIsRevoked: fields.targetIsRevoked
+      nextUpdate: fields.nextUpdate,
+      targetRevocation: fields.targetRevocation
     )
   }
 
@@ -75,7 +72,7 @@ extension CertificateRevocationList {
         issuerName: header.issuerName,
         thisUpdate: header.thisUpdate,
         nextUpdate: nil,
-        targetIsRevoked: false
+        targetRevocation: nil
       )
     }
     guard Self.isTimeTag(following.tag) else {
@@ -83,10 +80,10 @@ extension CertificateRevocationList {
     }
     let nextUpdate = try Self.time(in: encoded, element: following)
 
-    var targetIsRevoked = false
+    var targetRevocation: RevokedEntry?
     var trailing = try Self.nextElement(from: &reader, in: encoded)
     if let revoked = trailing, revoked.tag == DerValues.tagSequence {
-      targetIsRevoked = try Self.parseRevokedCertificates(
+      targetRevocation = try Self.parseRevokedCertificates(
         encoded,
         element: revoked,
         targetSerial: targetSerial,
@@ -109,7 +106,7 @@ extension CertificateRevocationList {
       issuerName: header.issuerName,
       thisUpdate: header.thisUpdate,
       nextUpdate: nextUpdate,
-      targetIsRevoked: targetIsRevoked
+      targetRevocation: targetRevocation
     )
   }
 
@@ -154,9 +151,9 @@ extension CertificateRevocationList {
     element: DerReader.Element,
     targetSerial: Data,
     isVersionTwo: Bool
-  ) throws -> Bool {
+  ) throws -> RevokedEntry? {
     var reader = DerReader(encoded, within: element)
-    var targetIsRevoked = false
+    var targetRevocation: RevokedEntry?
     while let entry = try Self.nextElement(from: &reader, in: encoded) {
       guard entry.tag == DerValues.tagSequence else {
         throw ValidationFailure.malformed
@@ -171,18 +168,23 @@ extension CertificateRevocationList {
         entryReader.contentData(of: serial)
       )
       let revocationDate = try Self.requiredElement(from: &entryReader, in: encoded)
-      _ = try Self.time(in: encoded, element: revocationDate)
+      let revokedAt = try Self.time(in: encoded, element: revocationDate)
+      var reason: RevocationReason?
       if let extensions = try Self.nextElement(from: &entryReader, in: encoded) {
         guard extensions.tag == DerValues.tagSequence, isVersionTwo else {
           throw ValidationFailure.malformed
         }
-        try Self.parseEntryExtensions(encoded, sequence: extensions)
+        reason = try Self.parseEntryExtensions(encoded, sequence: extensions)
       }
       guard entryReader.isAtEnd else { throw ValidationFailure.malformed }
-      targetIsRevoked = targetIsRevoked || serialMagnitude == targetSerial
+      // removeFromCRL belongs only to delta CRLs (RFC 5280 section
+      // 5.3.1); in a complete list such an entry revokes nothing.
+      if serialMagnitude == targetSerial, targetRevocation == nil, reason != .removeFromCrl {
+        targetRevocation = RevokedEntry(revokedAt: revokedAt, reason: reason)
+      }
     }
     guard reader.isAtEnd else { throw ValidationFailure.malformed }
-    return targetIsRevoked
+    return targetRevocation
   }
 
   /// Validates positive DER INTEGER content and removes sign padding.

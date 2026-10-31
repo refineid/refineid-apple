@@ -72,10 +72,12 @@ public enum TimestampTokenVerifier {
   ///
   /// The trusted certificates are exclusive anchors. Passing an
   /// empty array fails closed; it never falls back to the system
-  /// root store.
+  /// root store. `additionalCertificates` join the token's own
+  /// certificates as path candidates and never become anchors.
   public static func verify(
     _ token: Data,
-    trustedCertificates: [Data]
+    trustedCertificates: [Data],
+    additionalCertificates: [Data] = []
   ) throws -> VerifiedToken {
     let contents: RfcTimestamp.TokenContents
     do {
@@ -85,7 +87,9 @@ public enum TimestampTokenVerifier {
     }
 
     let authenticated = try TimestampCmsVerifier.authenticate(
-      token: token, expectedContent: contents.tstInfo
+      token: token,
+      expectedContent: contents.tstInfo,
+      additionalCertificates: additionalCertificates
     )
     try Self.verifyCertificateBinding(
       token: token, certificate: authenticated.signerCertificate

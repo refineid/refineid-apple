@@ -170,3 +170,87 @@ extension OcspResponse {
     }
   }
 }
+
+extension OcspResponse {
+  /// The status one authenticated OCSP response embedded as evidence
+  /// gives one certificate.
+  internal enum EvidenceStatus {
+    /// Good at `thisUpdate`.
+    case good
+
+    /// Revoked at `revokedAt`, for `reason` when one is named.
+    case revoked(revokedAt: Date, reason: RevocationReason?)
+  }
+
+  /// What one authenticated OCSP response says about one certificate,
+  /// before any time window is applied.
+  internal struct Evidence {
+    /// The responder's producedAt.
+    internal let producedAt: Date
+
+    /// The single response's thisUpdate.
+    internal let thisUpdate: Date
+
+    /// The single response's nextUpdate, when present.
+    internal let nextUpdate: Date?
+
+    /// The answered status.
+    internal let status: EvidenceStatus
+  }
+
+  /// Authenticates `response` as evidence for `certificate` under
+  /// `issuer`, whose relationship the caller's certificate path
+  /// already proved.
+  ///
+  /// The CertID, the responder's identity and authority at producedAt,
+  /// and its signature are checked as for a live answer; no nonce is
+  /// expected, and no time window is applied here. An unknown status
+  /// speaks for nothing and throws.
+  internal static func evidence(
+    response: Data,
+    certificate: Data,
+    issuerCertificate: Data
+  ) throws -> Evidence {
+    let target = try ParsedCertificate(der: certificate)
+    let issuer = try ParsedCertificate(der: issuerCertificate)
+    guard Self.issuer(of: target.certificate) == Self.subject(of: issuer.certificate) else {
+      throw ValidationFailure.issuerMismatch
+    }
+    let expected = ExpectedCertId(target: target.facts, issuer: issuer.facts)
+    let basic = try Self.basicResponse(from: response, expected: expected, nonce: nil)
+    let algorithm = try Self.signatureAlgorithm(
+      in: basic.encoded,
+      element: basic.signatureAlgorithm
+    )
+    let responders = try Self.authorizedResponders(in: basic, issuer: issuer)
+    guard
+      responders.contains(where: { signer in
+        Self.signatureIsValid(
+          basic.signature,
+          over: basic.responseData.raw,
+          with: signer.certificate,
+          algorithm: algorithm
+        )
+      })
+    else {
+      throw ValidationFailure.signatureInvalid
+    }
+    let status: EvidenceStatus
+    switch basic.responseData.status {
+    case .good:
+      status = .good
+
+    case .revoked(let revokedAt, let reason):
+      status = .revoked(revokedAt: revokedAt, reason: reason)
+
+    case .unknown:
+      throw ValidationFailure.unknown
+    }
+    return Evidence(
+      producedAt: basic.responseData.producedAt,
+      thisUpdate: basic.responseData.thisUpdate,
+      nextUpdate: basic.responseData.nextUpdate,
+      status: status
+    )
+  }
+}

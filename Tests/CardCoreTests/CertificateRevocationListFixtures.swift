@@ -193,6 +193,9 @@ internal enum CertificateRevocationListFixtures {
 
     /// The fixed GeneralizedTime used for thisUpdate.
     internal var thisUpdate: String
+
+    /// The serial a revoking list lists.
+    internal var revokedSerial = CertificateRevocationListFixtures.targetSerial
   }
 
   /// Fields that differ between generated issuer and target certificates.

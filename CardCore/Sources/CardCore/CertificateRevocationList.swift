@@ -99,11 +99,21 @@ public enum CertificateRevocationList {
     /// The start of the advertised validity interval.
     internal let thisUpdate: Date
 
-    /// The end of the advertised validity interval.
-    internal let nextUpdate: Date
+    /// The end of the advertised validity interval, when the list
+    /// states one (RFC 5280 section 5.1.2.5).
+    internal let nextUpdate: Date?
 
-    /// Whether the target serial occurs in the revoked-certificates sequence.
-    internal let targetIsRevoked: Bool
+    /// The target serial's revoked entry, when the list carries one.
+    internal let targetRevocation: RevokedEntry?
+  }
+
+  /// One revoked entry for the requested serial.
+  internal struct RevokedEntry {
+    /// The entry's revocationDate.
+    internal let revokedAt: Date
+
+    /// The entry's reasonCode extension, when present and known.
+    internal let reason: RevocationReason?
   }
 
   /// Fields extracted from the signed TBSCertList before authentication.
@@ -120,8 +130,8 @@ public enum CertificateRevocationList {
     /// The end of the advertised validity interval when present.
     internal let nextUpdate: Date?
 
-    /// Whether the requested certificate occurs in the list.
-    internal let targetIsRevoked: Bool
+    /// The requested certificate's revoked entry, when present.
+    internal let targetRevocation: RevokedEntry?
   }
 
   /// Required fields at the beginning of a TBSCertList.
@@ -196,6 +206,9 @@ public enum CertificateRevocationList {
     }
 
     let parsed = try Self.parse(encoded, targetSerial: target.serialNumber)
+    guard let nextUpdate = parsed.nextUpdate else {
+      throw ValidationFailure.nextUpdateMissing
+    }
     guard parsed.issuerName == issuer.subjectName else {
       throw ValidationFailure.issuerMismatch
     }
@@ -210,7 +223,7 @@ public enum CertificateRevocationList {
     else {
       throw ValidationFailure.signatureInvalid
     }
-    try Self.checkTimes(parsed, against: currentTime)
+    try Self.checkTimes(parsed, nextUpdate: nextUpdate, against: currentTime)
     guard
       CertificateIssuer.isDirectlyIssued(
         certificate,
@@ -220,13 +233,13 @@ public enum CertificateRevocationList {
     else {
       throw ValidationFailure.issuerMismatch
     }
-    guard !parsed.targetIsRevoked else {
+    guard parsed.targetRevocation == nil else {
       throw ValidationFailure.revoked
     }
     return Validity(
       encoded: encoded,
       thisUpdate: parsed.thisUpdate,
-      nextUpdate: parsed.nextUpdate
+      nextUpdate: nextUpdate
     )
   }
 }

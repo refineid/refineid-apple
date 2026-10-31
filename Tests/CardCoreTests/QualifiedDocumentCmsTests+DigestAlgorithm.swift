@@ -19,6 +19,9 @@ extension QualifiedDocumentCmsTests {
     internal let signatureAlgorithm: Data
   }
 
+  /// id-md5 (RFC 1321; RFC 3279 section 2.2.2).
+  private static let md5Oid = "1.2.840.113549.2.5"
+
   /// The low bit of a byte, flipped to corrupt a signature value.
   private static let corruptingBit: UInt8 = 1
 
@@ -49,7 +52,7 @@ extension QualifiedDocumentCmsTests {
     let document = try placeholder.filled(with: cms)
     let report = try DocumentVerification.verify(document: document)
     #expect(report.signatures.count == 1)
-    return try #require(report.signatures.first)
+    return try #require(report.judged.first)
   }
 
   /// One attribute: its OID and one value in a SET.
@@ -246,9 +249,9 @@ extension QualifiedDocumentCmsTests {
     #expect(report.signatureValid)
   }
 
-  /// A SignerInfo digest algorithm other than SHA-256 or SHA-384 is
-  /// refused as unsupported.
-  @Test(arguments: [SignOids.sha1, SignOids.sha512])
+  /// An MD5 or SHA-1 SignerInfo digest algorithm makes the signature
+  /// unsupported.
+  @Test(arguments: [SignOids.sha1, Self.md5Oid])
   internal func otherDigestAlgorithmsAreUnsupported(_ oid: String) throws {
     let identity = try Self.identity(.rsa2048)
     let placeholder = try Self.placeholder()
@@ -267,15 +270,11 @@ extension QualifiedDocumentCmsTests {
       attributes: attributes
     )
 
-    #expect(
-      throws: QualifiedDocumentCms.ReadFailure.unsupportedDigestAlgorithm
-    ) {
-      _ = try QualifiedDocumentCms.read(cms)
-    }
     let document = try placeholder.filled(with: cms)
-    #expect(throws: DocumentVerification.Failure.unsupportedProfile) {
-      _ = try DocumentVerification.verify(document: document)
-    }
+    let report = try DocumentVerification.verify(document: document)
+    #expect(report.judged.isEmpty)
+    #expect(report.signatures.count == 1)
+    #expect(!report.isValid)
   }
 
   /// A SHA-384 SignerInfo over a SHA-256 message digest is neither

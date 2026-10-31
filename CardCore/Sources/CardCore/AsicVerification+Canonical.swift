@@ -6,13 +6,10 @@ import Security
 
 /// Canonical XML reconstruction and timestamp validation for ASiC-E verification.
 extension AsicVerification {
-  private static let sha256ByteCount = 32
-  private static let sha384ByteCount = 48
-  private static let sha512ByteCount = 64
-
   internal static func canonicalizeSignedInfo(parsed: ParsedSignature) -> String? {
     guard let c14nMethod = parsed.canonicalizationMethod,
-      let sigMethod = parsed.signatureMethod
+      let sigMethod = parsed.signatureMethod,
+      case .complete(let references) = parsed.references
     else {
       return nil
     }
@@ -22,7 +19,7 @@ extension AsicVerification {
       #"<ds:CanonicalizationMethod Algorithm="\#(c14nMethod)"></ds:CanonicalizationMethod>"# + "\n"
     out += #"<ds:SignatureMethod Algorithm="\#(sigMethod)"></ds:SignatureMethod>"# + "\n"
 
-    for ref in parsed.references {
+    for ref in references {
       out += "<ds:Reference"
       if let identifier = ref.identifier {
         out += #" Id="\#(XadesSignature.escapeAttribute(identifier))""#
@@ -40,7 +37,7 @@ extension AsicVerification {
         }
         out += "</ds:Transforms>\n"
       }
-      out += #"<ds:DigestMethod Algorithm="\#(ref.digestMethod)"></ds:DigestMethod>"# + "\n"
+      out += #"<ds:DigestMethod Algorithm="\#(ref.digestMethod.uri)"></ds:DigestMethod>"# + "\n"
       out += "<ds:DigestValue>\(ref.digestValue.base64EncodedString())</ds:DigestValue>\n"
       out += "</ds:Reference>\n"
     }
@@ -49,66 +46,17 @@ extension AsicVerification {
     return out
   }
 
-  /// Verifies the signature time-stamps and answers the earliest
-  /// time among them.
-  ///
-  /// Each token must be authentic and imprint the canonicalised
-  /// `ds:SignatureValue` element (EN 319 132-1 clause 5.3). Valid only
-  /// when there is at least one and every one passes. Archive and
-  /// data object time-stamps are not signature time-stamps
-  /// (EN 319 132-1 clauses 5.5.2 and 5.2.8) and take no part.
-  internal static func verifyTimestamps(
-    parsed: ParsedSignature
-  ) -> (valid: Bool, timestampedAt: Date?) {
-    guard !parsed.signatureTimestampTokens.isEmpty else {
-      return (false, nil)
-    }
-
-    var verifiedDates: [Date] = []
-
-    for token in parsed.signatureTimestampTokens {
-      guard let verified = try? TimestampTokenVerifier.verify(token),
-        let contents = try? RfcTimestamp.contents(in: token),
-        let binding = try? RfcTimestamp.binding(in: contents.tstInfo)
-      else {
-        continue
-      }
-
-      if matchesSignatureValue(parsed: parsed, expectedDigest: binding.digest) {
-        verifiedDates.append(verified.generatedAt)
-      }
-    }
-
-    let allValid =
-      !verifiedDates.isEmpty && verifiedDates.count == parsed.signatureTimestampTokens.count
-    return (allValid, verifiedDates.min())
-  }
-
-  private static func matchesSignatureValue(
+  /// Whether `imprint` is the digest of this signature's
+  /// `ds:SignatureValue` under `digest`, the hash the token's TSTInfo
+  /// names (RFC 3161 section 2.4.2).
+  internal static func matchesSignatureValue(
     parsed: ParsedSignature,
-    expectedDigest: Data
+    digest: CmsSignerVerification.Digest,
+    imprint: Data
   ) -> Bool {
-    let hashAlgorithm: String
-    switch expectedDigest.count {
-    case sha256ByteCount:
-      hashAlgorithm = "sha256"
-    case sha384ByteCount:
-      hashAlgorithm = "sha384"
-    case sha512ByteCount:
-      hashAlgorithm = "sha512"
-    default:
-      hashAlgorithm = "sha384"
+    signatureValueCandidates(parsed: parsed).contains { candidate in
+      digest.hash(Data(candidate.utf8)) == imprint
     }
-
-    let candidates = signatureValueCandidates(parsed: parsed)
-    for candidate in candidates {
-      if let candDigest = digest(of: Data(candidate.utf8), algorithm: hashAlgorithm),
-        candDigest == expectedDigest
-      {
-        return true
-      }
-    }
-    return false
   }
 
   private static func signatureValueCandidates(parsed: ParsedSignature) -> [String] {

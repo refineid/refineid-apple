@@ -11,8 +11,9 @@
   /// A generated timestamping-only identity that mints RFC 3161 tokens
   /// over any SHA-384 imprint, at a chosen generation time.
   ///
-  /// The certificate is self-signed and embedded in each token, so
-  /// `TimestampTokenVerifier.verify(_:)` anchors on it.
+  /// The certificate is self-signed and embedded in each token; a
+  /// verifier anchors the token only when given the certificate as a
+  /// time-stamping anchor.
   internal struct SyntheticTimestampAuthority {
     /// The test identity could not be constructed.
     internal enum Failure: Error {
@@ -45,12 +46,20 @@
       DerEncoder.sequence([DerEncoder.objectIdentifier(SignOids.ecdsaWithSha256)])
     }
 
-    private let certificate: Data
+    /// The authority's self-signed certificate.
+    internal let certificate: Data
     private let key: SecKey
     private let name: Data
 
     /// Creates a fresh P-256 key and its timestamping-only certificate.
     internal init() throws {
+      try self.init(carriesTimestampingUsage: true)
+    }
+
+    /// Creates a fresh P-256 key and its certificate, with the critical
+    /// time-stamping extended key usage only when
+    /// `carriesTimestampingUsage`.
+    internal init(carriesTimestampingUsage: Bool) throws {
       let attributes: [CFString: Any] = [
         kSecAttrKeyType: kSecAttrKeyTypeECSECPrimeRandom,
         kSecAttrKeySizeInBits: Self.p256KeySize,
@@ -67,7 +76,8 @@
       let encodedName = DerEncoder.sequence([DerEncoder.setOf([attribute])])
       key = generated
       name = encodedName
-      certificate = try Self.certificate(key: generated, name: encodedName)
+      certificate = try Self.certificate(
+        key: generated, name: encodedName, carriesTimestampingUsage: carriesTimestampingUsage)
     }
 
     /// The instant a GeneralizedTime string names, in UTC.
@@ -95,7 +105,11 @@
       return signature as Data
     }
 
-    private static func certificate(key: SecKey, name: Data) throws -> Data {
+    private static func certificate(
+      key: SecKey,
+      name: Data,
+      carriesTimestampingUsage: Bool
+    ) throws -> Data {
       guard let publicKey = SecKeyCopyPublicKey(key) else { throw Failure.key }
       var error: Unmanaged<CFError>?
       guard let point = SecKeyCopyExternalRepresentation(publicKey, &error) as Data? else {
@@ -110,14 +124,17 @@
         Self.bitString(point),
       ])
       let signatureUsage = UInt8(1) << UInt8(Self.digitalSignatureBitOffset)
-      let extensions = [
+      var extensions = [
         Self.criticalExtension(SignOids.basicConstraints, DerEncoder.sequence([])),
         Self.criticalExtension(
           SignOids.keyUsage, DerEncoder.tlv(DerValues.tagBitString, Data([0, signatureUsage]))),
-        Self.criticalExtension(
-          SignOids.extendedKeyUsage,
-          DerEncoder.sequence([DerEncoder.objectIdentifier(SignOids.timestampingKeyPurpose)])),
       ]
+      if carriesTimestampingUsage {
+        extensions.append(
+          Self.criticalExtension(
+            SignOids.extendedKeyUsage,
+            DerEncoder.sequence([DerEncoder.objectIdentifier(SignOids.timestampingKeyPurpose)])))
+      }
       let tbs = DerEncoder.sequence([
         DerEncoder.tlv(
           DerValues.tagContext0Constructed, DerEncoder.integer(Self.x509VersionThree)),

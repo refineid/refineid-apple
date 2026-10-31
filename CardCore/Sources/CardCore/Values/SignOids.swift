@@ -152,4 +152,11 @@ internal enum SignOids {
 
   /// id-kp-timeStamping (RFC 5280).
   internal static let timestampingKeyPurpose = "1.3.6.1.5.5.7.3.8"
+
+  /// id-ri-ocsp-response, an OCSPResponse carried as
+  /// OtherRevocationInfoFormat (RFC 5940 section 4.1).
+  internal static let otherRevocationInfoOcspResponse = "1.3.6.1.5.5.7.16.2"
+
+  /// id-signingTime (RFC 5652 section 11.3).
+  internal static let signingTime = "1.2.840.113549.1.9.5"
 }

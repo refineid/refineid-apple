@@ -3,11 +3,12 @@
 import Foundation
 
 extension OcspResponse {
-  /// Checks response extensions and the nonce when the responder echoes it.
+  /// Checks response extensions and, when a nonce was sent, that an
+  /// echoed nonce equals it.
   internal static func checkResponseExtensions(
     in encoded: Data,
     wrapper: DerReader.Element,
-    expectedNonce: Data
+    expectedNonce: Data?
   ) throws {
     var echoedNonce: Data?
     var seenOids: Set<Data> = []
@@ -26,7 +27,7 @@ extension OcspResponse {
         throw ValidationFailure.unsupportedCriticalExtension
       }
     }
-    if let echoedNonce, echoedNonce != expectedNonce {
+    if let expectedNonce, let echoedNonce, echoedNonce != expectedNonce {
       throw ValidationFailure.nonceMismatch
     }
   }

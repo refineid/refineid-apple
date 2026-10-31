@@ -58,8 +58,8 @@ extension QualifiedDocumentCmsTests {
 
     #expect(report.documentIntact)
     #expect(report.signatureValid)
-    #expect(report.timestampsValid)
-    #expect(report.timestampedAt != nil)
+    #expect(report.claimedTime != nil)
+    #expect(!report.hasInvalidTimestamp)
   }
 
   /// A signature timestamp over other bytes does not verify.
@@ -72,20 +72,18 @@ extension QualifiedDocumentCmsTests {
     ) { _ in algorithm.hash(Self.unrelatedBytes) }
 
     #expect(report.signatureValid)
-    #expect(!report.timestampsValid)
-    #expect(report.timestampedAt == nil)
+    #expect(report.timestamps == [.invalid])
   }
 
-  /// A SHA-512 imprint over the signature value is not accepted.
+  /// A SHA-512 imprint over the signature value verifies.
   @Test
-  internal func signatureTimestampWithSha512ImprintIsInvalid() throws {
+  internal func signatureTimestampWithSha512ImprintVerifies() throws {
     let report = try Self.timestampedReport(
       imprintAlgorithm: Self.digestIdentifier(SignOids.sha512)
     ) { Data(SHA512.hash(data: $0)) }
 
     #expect(report.signatureValid)
-    #expect(!report.timestampsValid)
-    #expect(report.timestampedAt == nil)
+    #expect(report.claimedTime != nil)
   }
 
   /// A SHA-256 imprint of SHA-384 length is not accepted.
@@ -96,8 +94,7 @@ extension QualifiedDocumentCmsTests {
     ) { Data(SHA384.hash(data: $0)) }
 
     #expect(report.signatureValid)
-    #expect(!report.timestampsValid)
-    #expect(report.timestampedAt == nil)
+    #expect(report.timestamps == [.invalid])
   }
 
   /// A document timestamp verifies against the byte ranges digested
@@ -142,8 +139,9 @@ extension QualifiedDocumentCmsTests {
     )
 
     let verified = try DocumentVerification.verify(document: matching)
-    #expect(verified.documentTimestampedAt.count == 1)
+    #expect(verified.documentTimestamps.count == 1)
+    #expect(verified.documentTimestamps.first?.claimedTime != nil)
     let refused = try DocumentVerification.verify(document: unrelated)
-    #expect(refused.documentTimestampedAt.isEmpty)
+    #expect(refused.documentTimestamps == [.invalid])
   }
 }

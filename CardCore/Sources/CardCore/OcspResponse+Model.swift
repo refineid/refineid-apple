@@ -28,8 +28,9 @@ extension OcspResponse {
     /// The certificate was good at `thisUpdate`.
     case good
 
-    /// The certificate was revoked.
-    case revoked
+    /// The certificate was revoked at `revokedAt`, for `reason` when
+    /// the responder names a known one.
+    case revoked(revokedAt: Date, reason: RevocationReason?)
 
     /// The responder cannot determine the certificate status.
     case unknown
@@ -37,20 +38,39 @@ extension OcspResponse {
 
   /// The values that must exactly match the CertID in the answer.
   internal struct ExpectedCertId {
-    /// SHA-1 over the target certificate's encoded issuer Name.
-    internal let issuerNameHash: Data
+    /// The target certificate's encoded issuer Name.
+    internal let issuerName: Data
 
-    /// SHA-1 over the issuer certificate's subjectPublicKey bits.
-    internal let issuerKeyHash: Data
+    /// The issuer certificate's subjectPublicKey bits.
+    internal let issuerKey: Data
 
     /// The target certificate's serial INTEGER value octets.
     internal let serialNumber: Data
 
     /// Builds the expected RFC 6960 certificate identifier.
     internal init(target: CertificateFacts, issuer: CertificateFacts) {
-      issuerNameHash = Data(Insecure.SHA1.hash(data: target.issuerName))
-      issuerKeyHash = Data(Insecure.SHA1.hash(data: issuer.publicKeyBits))
+      issuerName = target.issuerName
+      issuerKey = issuer.publicKeyBits
       serialNumber = target.serialNumber
+    }
+
+    /// The issuer Name and key hashes under the CertID hash algorithm
+    /// `oid`: SHA-1 or SHA-256 (RFC 6960 section 4.1.1), nil for any
+    /// other.
+    internal func hashes(underAlgorithm oid: Data) -> (name: Data, key: Data)? {
+      switch oid {
+      case DerEncoder.objectIdentifier(SignOids.sha1):
+        (
+          Data(Insecure.SHA1.hash(data: issuerName)),
+          Data(Insecure.SHA1.hash(data: issuerKey))
+        )
+
+      case DerEncoder.objectIdentifier(SignOids.sha256):
+        (Data(SHA256.hash(data: issuerName)), Data(SHA256.hash(data: issuerKey)))
+
+      default:
+        nil
+      }
     }
   }
 

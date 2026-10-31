@@ -86,8 +86,10 @@
       let report = try Self.report(Self.container(document: document))
       #expect(report.documentIntact)
       #expect(report.signatureValid)
-      #expect(report.timestampsValid)
-      #expect(report.timestampedAt == SyntheticTimestampAuthority.instant(Self.signatureStampTime))
+      #expect(
+        report.timestamps == [
+          .claimed(try #require(SyntheticTimestampAuthority.instant(Self.signatureStampTime)))
+        ])
     }
 
     @Test
@@ -102,8 +104,7 @@
 
       let report = try Self.report(Self.container(document: document))
       #expect(report.documentIntact)
-      #expect(!report.timestampsValid)
-      #expect(report.timestampedAt == nil)
+      #expect(report.timestamps == [.invalid])
     }
 
     @Test
@@ -125,8 +126,7 @@
       let report = try Self.report(Self.container(document: document))
       #expect(report.documentIntact)
       #expect(report.signatureValid)
-      #expect(!report.timestampsValid)
-      #expect(report.timestampedAt == nil)
+      #expect(report.timestamps.isEmpty)
     }
 
     @Test
@@ -144,8 +144,7 @@
         in: signed.document)
 
       let report = try Self.report(Self.container(document: document))
-      #expect(!report.timestampsValid)
-      #expect(report.timestampedAt == nil)
+      #expect(report.timestamps.isEmpty)
     }
 
     @Test
@@ -160,8 +159,10 @@
       let report = try Self.report(Self.container(document: document))
       #expect(report.documentIntact)
       #expect(report.signatureValid)
-      #expect(report.timestampsValid)
-      #expect(report.timestampedAt == SyntheticTimestampAuthority.instant(Self.signatureStampTime))
+      #expect(
+        report.timestamps == [
+          .claimed(try #require(SyntheticTimestampAuthority.instant(Self.signatureStampTime)))
+        ])
     }
 
     @Test
@@ -174,8 +175,10 @@
         in: stamped.document)
 
       let report = try Self.report(Self.container(document: document))
-      #expect(report.timestampsValid)
-      #expect(report.timestampedAt == SyntheticTimestampAuthority.instant(Self.signatureStampTime))
+      #expect(
+        report.timestamps == [
+          .claimed(try #require(SyntheticTimestampAuthority.instant(Self.signatureStampTime)))
+        ])
     }
   }
 

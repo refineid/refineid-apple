@@ -39,8 +39,8 @@
               .frame(maxWidth: .infinity)
           }
 
-        case .report(let rows, let documentTimestampedAt):
-          reportSections(rows, documentTimestampedAt: documentTimestampedAt)
+        case .report(let rows, let documentTimestamps):
+          reportSections(rows, documentTimestamps: documentTimestamps)
 
         case .failed(let message):
           Section {
@@ -69,27 +69,51 @@
       }
     }
 
+    private var unsupportedSection: some View {
+      Section {
+        LabeledContent {
+          VerifyDocumentRowValue(
+            text: text("verify.errorUnsupported", "The signature profile is not supported."),
+            indicator: .fails
+          )
+        } label: {
+          PersonRowLabel(configured: false)
+        }
+      } header: {
+        sectionHeader
+      }
+    }
+
+    private var sectionHeader: some View {
+      Text(text("verify.signature", "Signature"))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .listRowInsets(EdgeInsets())
+    }
+
     @ViewBuilder
     private func reportSections(
       _ rows: [VerifyDocumentModel.SignatureRow],
-      documentTimestampedAt: [Date]
+      documentTimestamps: [TimestampState]
     ) -> some View {
       Section {
         LabeledContent(text("signing.document", "Document")) {
           Text(model.documentName)
             .multilineTextAlignment(.trailing)
         }
-        ForEach(documentTimestampedAt, id: \.self) { stamped in
-          LabeledContent(text("verify.documentTimestamp", "Document timestamp")) {
-            HStack {
-              Text(stamped.formatted(date: .abbreviated, time: .shortened))
-              CredentialValidationIndicator(valid: true)
-            }
+        ForEach(Array(documentTimestamps.enumerated()), id: \.offset) { stamp in
+          factRow(text("verify.documentTimestamp", "Document timestamp")) {
+            timestampValue(stamp.element)
           }
         }
       }
       ForEach(rows, id: \.rowIndex) { row in
-        signatureSection(row)
+        switch row.entry {
+        case .judged(let report):
+          signatureSection(report, checking: row.checking)
+
+        case .unsupported:
+          unsupportedSection
+        }
       }
       Section {
         Button(text("verify.another", "Verify another document")) {
@@ -101,94 +125,115 @@
     }
 
     private func signatureSection(
-      _ row: VerifyDocumentModel.SignatureRow
+      _ report: DocumentVerification.SignatureReport,
+      checking: Bool
     ) -> some View {
       Section {
         LabeledContent {
-          Text(holder(of: row.report))
+          Text(holder(of: report))
             .textSelection(.enabled)
             .multilineTextAlignment(.trailing)
             .accessibilityIdentifier("verifySigner")
         } label: {
-          PersonRowLabel(configured: row.report.isValid)
+          PersonRowLabel(configured: report.isValid)
         }
-        factRow(
-          text("verify.intact", "Document intact"),
-          holds: row.report.documentIntact
-        )
-        factRow(
-          text("verify.signature", "Signature"),
-          holds: row.report.signatureValid
-        )
-        factRow(
-          text("verify.chain", "Certificate chain"),
-          holds: row.report.chainVerified
-        )
-        timestampRow(row.report)
-        revocationRow(row.revocation)
+        factRow(text("verify.intact", "Document intact"), holds: report.documentIntact)
+        factRow(text("verify.signature", "Signature"), holds: report.signatureValid)
+        factRow(text("verify.chain", "Certificate chain"), holds: report.chainVerified)
+        factRow(text("verify.timestamp", "Timestamp")) {
+          timestampValue(of: report)
+        }
+        factRow(text("verify.revocation", "Revocation")) {
+          revocationValue(report.revocation, checking: checking)
+        }
       } header: {
-        Text(text("verify.signature", "Signature"))
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .listRowInsets(EdgeInsets())
+        sectionHeader
       }
     }
 
+    /// The signer's commonName as carried, with control and
+    /// bidirectional-formatting characters left out so they cannot
+    /// reorder or hide what is shown.
     private func holder(
       of report: DocumentVerification.SignatureReport
     ) -> String {
-      report.signerIdentifier.isEmpty
-        ? report.signerName
-        : "\(report.signerName) \(report.signerIdentifier)"
+      DisplayedSignerName.text(of: report.signerCommonName)
+    }
+
+    /// One fact row: its name, then the value and the indicator at the
+    /// trailing end, the indicator column the same on every row.
+    private func factRow(
+      _ name: String,
+      value: () -> VerifyDocumentRowValue
+    ) -> some View {
+      LabeledContent(name) {
+        value()
+      }
     }
 
     private func factRow(_ name: String, holds: Bool) -> some View {
-      LabeledContent(name) {
-        CredentialValidationIndicator(valid: holds)
+      factRow(name) {
+        VerifyDocumentRowValue(indicator: holds ? .holds : .fails)
       }
     }
 
-    private func timestampRow(
-      _ report: DocumentVerification.SignatureReport
-    ) -> some View {
-      LabeledContent(text("verify.timestamp", "Timestamp")) {
-        HStack {
-          if let timestampedAt = report.timestampedAt {
-            Text(
-              timestampedAt.formatted(
-                date: .abbreviated, time: .shortened)
-            )
-          }
-          CredentialValidationIndicator(valid: report.timestampsValid)
-        }
+    private func formatted(_ date: Date) -> String {
+      date.formatted(date: .abbreviated, time: .shortened)
+    }
+
+    /// The timestamp row of one signature: the proven time, a claimed
+    /// time marked unproven, a failed token, or none.
+    private func timestampValue(
+      of report: DocumentVerification.SignatureReport
+    ) -> VerifyDocumentRowValue {
+      if let proven = report.proofOfExistence {
+        return VerifyDocumentRowValue(text: formatted(proven), indicator: .holds)
+      }
+      if let claimed = report.claimedTime {
+        return unprovenValue(claimed)
+      }
+      if report.hasInvalidTimestamp {
+        return VerifyDocumentRowValue(indicator: .fails)
+      }
+      return VerifyDocumentRowValue(secondaryText: text("verify.timestampNone", "None"))
+    }
+
+    private func timestampValue(_ state: TimestampState) -> VerifyDocumentRowValue {
+      switch state {
+      case .anchored(let proven):
+        VerifyDocumentRowValue(text: formatted(proven), indicator: .holds)
+
+      case .claimed(let claimed):
+        unprovenValue(claimed)
+
+      case .invalid, .unsupported:
+        VerifyDocumentRowValue(indicator: .fails)
       }
     }
 
-    private func revocationRow(
-      _ revocation: VerifyDocumentModel.Revocation
-    ) -> some View {
-      LabeledContent(text("verify.revocation", "Revocation")) {
-        switch revocation {
-        case .checking:
-          ProgressView()
+    private func unprovenValue(_ claimed: Date) -> VerifyDocumentRowValue {
+      VerifyDocumentRowValue(
+        text: formatted(claimed),
+        secondaryText: text("verify.timestampUnproven", "Unproven")
+      )
+    }
 
-        case .good(let checkedAt):
-          HStack {
-            Text(
-              checkedAt.formatted(date: .omitted, time: .shortened)
-            )
-            CredentialValidationIndicator(valid: true)
-          }
+    private func revocationValue(
+      _ revocation: RevocationState,
+      checking: Bool
+    ) -> VerifyDocumentRowValue {
+      if checking {
+        return VerifyDocumentRowValue(progress: true)
+      }
+      switch revocation {
+      case .good(let evidenceTime):
+        return VerifyDocumentRowValue(text: formatted(evidenceTime), indicator: .holds)
 
-        case .revoked:
-          HStack {
-            Text(text("verify.revoked", "Revoked"))
-            CredentialValidationIndicator(valid: false)
-          }
+      case .revoked:
+        return VerifyDocumentRowValue(text: text("verify.revoked", "Revoked"), indicator: .fails)
 
-        case .unavailable:
-          Text(text("verify.notChecked", "Not checked"))
-            .foregroundStyle(.secondary)
-        }
+      case .unavailable:
+        return VerifyDocumentRowValue(secondaryText: text("verify.notChecked", "Not checked"))
       }
     }
 

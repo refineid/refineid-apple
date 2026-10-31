@@ -248,14 +248,15 @@ extension CertificateRevocationList {
   /// Rejects future or expired lists at the caller's verification time.
   internal static func checkTimes(
     _ list: ParsedList,
+    nextUpdate: Date,
     against currentTime: Date
   ) throws {
     guard list.thisUpdate <= currentTime else {
       throw ValidationFailure.listFromFuture
     }
     guard
-      list.nextUpdate > list.thisUpdate,
-      list.nextUpdate > currentTime
+      nextUpdate > list.thisUpdate,
+      nextUpdate > currentTime
     else {
       throw ValidationFailure.listExpired
     }
