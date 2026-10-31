@@ -10,6 +10,8 @@ public enum AsicVerification {
     internal let identifier: String?
     internal let uri: String
     internal let type: String?
+    /// The `Algorithm` of each `ds:Transform`, in document order.
+    internal let transforms: [String]
     internal let digestMethod: String
     internal let digestValue: Data
   }
@@ -19,6 +21,9 @@ public enum AsicVerification {
     internal var signatureMethod: String?
     internal var canonicalizationMethod: String?
     internal var references: [ParsedReference] = []
+    /// False when a `ds:Reference` in `ds:SignedInfo` lacked its URI,
+    /// digest method or digest value.
+    internal var allReferencesRead = true
     internal var signedInfoRawXml: String?
     internal var signatureValueId: String?
     internal var signatureValueBytes: Data?
@@ -26,8 +31,13 @@ public enum AsicVerification {
     internal var signerCertificateDer: Data?
     internal var signedPropertiesId: String?
     internal var signedPropertiesRawXml: String?
-    internal var timestampTokens: [Data] = []
+    /// Tokens from `xades:SignatureTimeStamp` elements only.
+    internal var signatureTimestampTokens: [Data] = []
   }
+
+  /// Prefix of a same-document reference URI, a fragment identifier
+  /// (W3C XML-Signature 1.1 section 4.4.3.2).
+  internal static let sameDocumentUriPrefix = "#"
 
   private static let bdocMimeType = "application/vnd.bdoc-1.0"
 
@@ -173,17 +183,31 @@ public enum AsicVerification {
     )
   }
 
+  /// Recomputes every reference in `ds:SignedInfo`
+  /// (W3C XML-Signature 1.1 section 3.2.1).
+  ///
+  /// Fails closed: a reference this verifier cannot recompute counts
+  /// as a mismatch, never as a match. A data object reference must
+  /// name a carried file and declare no transform; the one
+  /// same-document reference must cover the signature's own
+  /// `xades:SignedProperties` (EN 319 132-1 clause 4.4.2). Every file
+  /// outside `META-INF/` must be referenced (EN 319 162-1
+  /// clause 4.4.3.2).
   private static func checkDocumentIntegrity(
     parsed: ParsedSignature,
     entries: [String: Data],
     carriedFileNames: Set<String>
   ) -> (documentIntact: Bool, coversWholeDocument: Bool) {
     var referencedFiles: Set<String> = []
-    var allDigestsMatch = true
+    var allDigestsMatch = parsed.allReferencesRead
+    var signedPropertiesCovered = false
 
     for ref in parsed.references {
-      if ref.uri.hasPrefix("#") || ref.type == XadesSignature.signedPropertiesType {
-        if !isSignedPropertiesValid(parsed: parsed, ref: ref) {
+      if ref.uri.hasPrefix(sameDocumentUriPrefix) || ref.type == XadesSignature.signedPropertiesType
+      {
+        if !signedPropertiesCovered, isSignedPropertiesValid(parsed: parsed, ref: ref) {
+          signedPropertiesCovered = true
+        } else {
           allDigestsMatch = false
         }
         continue
@@ -192,7 +216,8 @@ public enum AsicVerification {
       let entryName = ref.uri.removingPercentEncoding ?? ref.uri
       referencedFiles.insert(entryName)
 
-      guard let fileContent = entries[entryName],
+      guard ref.transforms.isEmpty,
+        let fileContent = entries[entryName],
         let calculatedDigest = digest(of: fileContent, algorithm: ref.digestMethod),
         calculatedDigest == ref.digestValue
       else {
@@ -203,20 +228,34 @@ public enum AsicVerification {
 
     let allCarriedFilesCovered =
       carriedFileNames.isSubset(of: referencedFiles) && !carriedFileNames.isEmpty
-    let documentIntact = allDigestsMatch && allCarriedFilesCovered
+    let documentIntact = allDigestsMatch && signedPropertiesCovered && allCarriedFilesCovered
     return (documentIntact, allCarriedFilesCovered && documentIntact)
   }
 
+  /// Whether `ref` covers this signature's `xades:SignedProperties`
+  /// and its digest matches.
+  ///
+  /// The reference must carry the SignedProperties `Type`, name the
+  /// element's `Id`, and declare exclusive canonicalisation as its
+  /// one transform, the form `XadesSignature` writes. The element is
+  /// digested as it stands in the document, which equals its
+  /// exclusive canonical form only when it was written in that form;
+  /// any other spelling digests differently and fails. A missing
+  /// element or an unsupported digest method fails too.
   private static func isSignedPropertiesValid(
     parsed: ParsedSignature,
     ref: ParsedReference
   ) -> Bool {
-    guard let propertiesRaw = parsed.signedPropertiesRawXml,
-      let expectedDigest = digest(of: Data(propertiesRaw.utf8), algorithm: ref.digestMethod)
+    guard ref.type == XadesSignature.signedPropertiesType,
+      ref.transforms == [XadesSignature.canonicalizationExclusive],
+      let propertiesId = parsed.signedPropertiesId,
+      ref.uri == sameDocumentUriPrefix + propertiesId,
+      let propertiesRaw = parsed.signedPropertiesRawXml,
+      let computedDigest = digest(of: Data(propertiesRaw.utf8), algorithm: ref.digestMethod)
     else {
-      return true
+      return false
     }
-    return expectedDigest == ref.digestValue
+    return computedDigest == ref.digestValue
   }
 
   private static func chainIssuer(

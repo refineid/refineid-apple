@@ -9,7 +9,21 @@ import Testing
 
 @Suite
 internal struct AsicVerificationTests {
-  private static let signedAt = Date(timeIntervalSince1970: 1_785_849_296)
+  /// A signature document our own writer produced.
+  internal struct SignedDocument {
+    /// `META-INF/signatures0.xml` as text.
+    internal let document: String
+
+    /// The raw signature value inside it.
+    internal let xmlSignature: Data
+
+    /// The signer.
+    internal let identity: QualifiedDocumentCmsTests.Identity
+  }
+
+  internal static let signedAt = Date(timeIntervalSince1970: 1_785_849_296)
+
+  internal static let signatureFileName = "META-INF/signatures0.xml"
 
   private static let emptyMaterial = PdfValidationStore.Material(
     certificates: [],
@@ -17,7 +31,7 @@ internal struct AsicVerificationTests {
     revocationLists: []
   )
 
-  private static func sampleObjects() -> [AsicContainer.DataObject] {
+  internal static func sampleObjects() -> [AsicContainer.DataObject] {
     [
       AsicContainer.DataObject(
         name: "test.txt",
@@ -33,9 +47,26 @@ internal struct AsicVerificationTests {
   }
 
   private static func signedContainer(
-    profile: CardKeyProfile,
-    objects: [AsicContainer.DataObject] = sampleObjects()
+    profile: CardKeyProfile
   ) throws -> (container: Data, identity: QualifiedDocumentCmsTests.Identity) {
+    let signed = try Self.signedDocument(profile: profile)
+    return (try Self.container(document: signed.document), signed.identity)
+  }
+
+  /// Our writer's signature over `sampleObjects()`, at baseline B.
+  internal static func signedDocument(profile: CardKeyProfile) throws -> SignedDocument {
+    try Self.signedDocument(profile: profile) { _ in [] }
+  }
+
+  /// Our writer's signature over `sampleObjects()`.
+  ///
+  /// `timestampTokens(xmlSignature)` supplies the tokens the writer
+  /// embeds as `xades:SignatureTimeStamp`.
+  internal static func signedDocument(
+    profile: CardKeyProfile,
+    timestampTokens: (Data) throws -> [Data]
+  ) throws -> SignedDocument {
+    let objects = Self.sampleObjects()
     let identity = try QualifiedDocumentCmsTests.identity(profile)
     let plan = try #require(
       XadesSignature.plan(
@@ -45,20 +76,28 @@ internal struct AsicVerificationTests {
         signedAt: Self.signedAt
       )
     )
-
-    let signatureXml = try signXml(plan: plan, identity: identity, profile: profile)
-    let container = try #require(
-      AsicContainer.container(objects: objects, signatureXml: signatureXml)
+    let signature = try Self.xmlSignature(
+      over: plan.signedInfo, identity: identity, profile: profile)
+    let document = plan.document(
+      xmlSignature: signature,
+      timestampTokens: try timestampTokens(signature),
+      material: Self.emptyMaterial
     )
-    return (container, identity)
+    return SignedDocument(
+      document: try #require(String(data: document, encoding: .utf8)),
+      xmlSignature: signature,
+      identity: identity
+    )
   }
 
-  private static func signXml(
-    plan: XadesSignature.Plan,
+  /// The XML-form signature over `signedInfo`: raw `r || s` for
+  /// ECDSA, the PKCS #1 block for RSA.
+  internal static func xmlSignature(
+    over signedInfo: Data,
     identity: QualifiedDocumentCmsTests.Identity,
     profile: CardKeyProfile
   ) throws -> Data {
-    let signedInfoDigest = Data(SHA384.hash(data: plan.signedInfo))
+    let signedInfoDigest = Data(SHA384.hash(data: signedInfo))
     let algorithm: SecKeyAlgorithm =
       profile == .ecdsaP384
       ? .ecdsaSignatureDigestX962SHA384
@@ -74,31 +113,40 @@ internal struct AsicVerificationTests {
       ) as Data?
     )
 
-    let xmlSignature: Data
     switch profile {
     case .ecdsaP384:
-      xmlSignature = try #require(
+      return try #require(
         EcdsaSignature.rawConcatenation(
           fromDer: derSignature,
           coordinateOctets: 48
         )
       )
     case .ecdsaP256:
-      xmlSignature = try #require(
+      return try #require(
         EcdsaSignature.rawConcatenation(
           fromDer: derSignature,
           coordinateOctets: 32
         )
       )
     case .rsa2048, .rsa3072:
-      xmlSignature = derSignature
+      return derSignature
     }
+  }
 
-    return plan.document(
-      xmlSignature: xmlSignature,
-      timestampTokens: [],
-      material: Self.emptyMaterial
-    )
+  /// A container carrying `sampleObjects()` and the signature
+  /// document as given, edited or not.
+  internal static func container(document: String) throws -> Data {
+    try #require(
+      AsicContainer.container(objects: Self.sampleObjects(), signatureXml: Data(document.utf8)))
+  }
+
+  /// The single signature report for a container.
+  internal static func report(
+    _ container: Data
+  ) throws -> DocumentVerification.SignatureReport {
+    let report = try AsicVerification.verify(container: container)
+    try #require(report.signatures.count == 1)
+    return report.signatures[0]
   }
 
   @Test
@@ -174,7 +222,7 @@ internal struct AsicVerificationTests {
     let (container, _) = try Self.signedContainer(profile: .ecdsaP384)
     var entries = ZipReader.read(archive: container)
 
-    guard let xmlData = entries["META-INF/signatures0.xml"],
+    guard let xmlData = entries[Self.signatureFileName],
       var xmlString = String(data: xmlData, encoding: .utf8)
     else {
       Issue.record("Failed to read signatures0.xml")
@@ -186,7 +234,7 @@ internal struct AsicVerificationTests {
       let afterTag = xmlString.index(after: sigValRange.lowerBound)
       xmlString.insert("X", at: afterTag)
     }
-    entries["META-INF/signatures0.xml"] = Data(xmlString.utf8)
+    entries[Self.signatureFileName] = Data(xmlString.utf8)
 
     var writer = AsicContainer.ZipWriter()
     for (name, data) in entries {

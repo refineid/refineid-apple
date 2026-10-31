@@ -3,7 +3,41 @@
 import Foundation
 
 /// SAX parser for XAdES signature elements within META-INF signature files.
+///
+/// Each element is read by its local name and, where the same local
+/// name occurs in more than one place, by its enclosing element: a
+/// `ds:Reference` counts only inside `ds:SignedInfo`, and an
+/// `EncapsulatedTimeStamp` counts only inside a `SignatureTimeStamp`.
 internal final class XadesXmlParser: NSObject, XMLParserDelegate {
+  /// Local names of the XML-DSig and XAdES elements read here.
+  private enum Element {
+    static let signature = "Signature"
+    static let signedInfo = "SignedInfo"
+    static let canonicalizationMethod = "CanonicalizationMethod"
+    static let signatureMethod = "SignatureMethod"
+    static let reference = "Reference"
+    static let transforms = "Transforms"
+    static let transform = "Transform"
+    static let digestMethod = "DigestMethod"
+    static let digestValue = "DigestValue"
+    static let signatureValue = "SignatureValue"
+    static let keyInfo = "KeyInfo"
+    static let x509Certificate = "X509Certificate"
+    static let qualifyingProperties = "QualifyingProperties"
+    static let signedProperties = "SignedProperties"
+    static let unsignedSignatureProperties = "UnsignedSignatureProperties"
+    static let signatureTimeStamp = "SignatureTimeStamp"
+    static let encapsulatedTimeStamp = "EncapsulatedTimeStamp"
+  }
+
+  /// Attribute names read from those elements.
+  private enum Attribute {
+    static let algorithm = "Algorithm"
+    static let identifier = "Id"
+    static let uri = "URI"
+    static let type = "Type"
+  }
+
   private let xmlString: String
   private var signatures: [AsicVerification.ParsedSignature] = []
   private var currentSignature: AsicVerification.ParsedSignature?
@@ -14,8 +48,16 @@ internal final class XadesXmlParser: NSObject, XMLParserDelegate {
   private var currentRefIdentifier: String?
   private var currentRefUri: String?
   private var currentRefType: String?
+  private var currentRefTransforms: [String] = []
   private var currentRefDigestMethod: String?
   private var currentRefDigestValue: Data?
+
+  /// The element enclosing the one being handled, which is the top
+  /// of the stack.
+  private var parent: String? { elementStack.dropLast().last }
+
+  /// The element enclosing `parent`.
+  private var grandparent: String? { elementStack.dropLast().dropLast().last }
 
   internal init(xmlString: String) {
     self.xmlString = xmlString
@@ -48,29 +90,47 @@ internal final class XadesXmlParser: NSObject, XMLParserDelegate {
     elementName: String,
     attributeDict: [String: String]
   ) {
-    if localName == "Signature" {
+    switch localName {
+    case Element.signature:
       currentSignature = AsicVerification.ParsedSignature()
-    } else if localName == "SignedInfo" {
+
+    case Element.signedInfo:
       currentSignature?.signedInfoRawXml = extractElementSlice(tag: elementName, in: xmlString)
-    } else if localName == "CanonicalizationMethod" {
-      currentSignature?.canonicalizationMethod = attributeDict["Algorithm"]
-    } else if localName == "SignatureMethod" {
-      currentSignature?.signatureMethod = attributeDict["Algorithm"]
-    } else if localName == "Reference" {
-      currentRefIdentifier = attributeDict["Id"]
-      currentRefUri = attributeDict["URI"]
-      currentRefType = attributeDict["Type"]
+
+    case Element.canonicalizationMethod where parent == Element.signedInfo:
+      currentSignature?.canonicalizationMethod = attributeDict[Attribute.algorithm]
+
+    case Element.signatureMethod where parent == Element.signedInfo:
+      currentSignature?.signatureMethod = attributeDict[Attribute.algorithm]
+
+    case Element.reference where parent == Element.signedInfo:
+      currentRefIdentifier = attributeDict[Attribute.identifier]
+      currentRefUri = attributeDict[Attribute.uri]
+      currentRefType = attributeDict[Attribute.type]
+      currentRefTransforms = []
       currentRefDigestMethod = nil
       currentRefDigestValue = nil
-    } else if localName == "DigestMethod" {
-      currentRefDigestMethod = attributeDict["Algorithm"]
-    } else if localName == "SignatureValue" {
-      currentSignature?.signatureValueId = attributeDict["Id"]
+
+    case Element.transform
+    where parent == Element.transforms && grandparent == Element.reference:
+      // An absent Algorithm is kept as an empty name, so the reference
+      // still carries a transform the verifier cannot apply.
+      currentRefTransforms.append(attributeDict[Attribute.algorithm] ?? "")
+
+    case Element.digestMethod where parent == Element.reference:
+      currentRefDigestMethod = attributeDict[Attribute.algorithm]
+
+    case Element.signatureValue:
+      currentSignature?.signatureValueId = attributeDict[Attribute.identifier]
       currentSignature?.signatureValueRawXml = extractElementSlice(tag: elementName, in: xmlString)
-    } else if localName == "SignedProperties" {
-      currentSignature?.signedPropertiesId = attributeDict["Id"]
+
+    case Element.signedProperties where parent == Element.qualifyingProperties:
+      currentSignature?.signedPropertiesId = attributeDict[Attribute.identifier]
       currentSignature?.signedPropertiesRawXml = extractElementSlice(
         tag: elementName, in: xmlString)
+
+    default:
+      break
     }
   }
 
@@ -96,33 +156,51 @@ internal final class XadesXmlParser: NSObject, XMLParserDelegate {
   }
 
   private func handleEndElement(localName: String, trimmed: String) {
-    if localName == "DigestValue" {
+    switch localName {
+    case Element.digestValue where parent == Element.reference:
       currentRefDigestValue = Data(base64Encoded: trimmed)
-    } else if localName == "Reference" {
+
+    case Element.reference where parent == Element.signedInfo:
       appendCurrentReference()
-    } else if localName == "SignatureValue" {
+
+    case Element.signatureValue:
       currentSignature?.signatureValueBytes = Data(base64Encoded: trimmed)
-    } else if localName == "X509Certificate" {
-      if currentSignature?.signerCertificateDer == nil, elementStack.contains("KeyInfo") {
+
+    case Element.x509Certificate:
+      if currentSignature?.signerCertificateDer == nil, elementStack.contains(Element.keyInfo) {
         currentSignature?.signerCertificateDer = Data(base64Encoded: trimmed)
       }
-    } else if localName == "EncapsulatedTimeStamp" {
+
+    // Only a SignatureTimeStamp time-stamps ds:SignatureValue
+    // (EN 319 132-1 clause 5.3). Archive time-stamps (clause 5.5.2)
+    // and data object time-stamps (clause 5.2.8) imprint other input
+    // and are not read.
+    case Element.encapsulatedTimeStamp
+    where parent == Element.signatureTimeStamp
+      && grandparent == Element.unsignedSignatureProperties:
       if let token = Data(base64Encoded: trimmed) {
-        currentSignature?.timestampTokens.append(token)
+        currentSignature?.signatureTimestampTokens.append(token)
       }
-    } else if localName == "Signature" {
+
+    case Element.signature:
       if let finished = currentSignature {
         signatures.append(finished)
       }
       currentSignature = nil
+
+    default:
+      break
     }
   }
 
+  /// Adds the reference just closed, or marks the signature as
+  /// carrying one that cannot be checked.
   private func appendCurrentReference() {
     guard let uri = currentRefUri,
       let digestMethod = currentRefDigestMethod,
       let digestValue = currentRefDigestValue
     else {
+      currentSignature?.allReferencesRead = false
       return
     }
     currentSignature?.references.append(
@@ -130,6 +208,7 @@ internal final class XadesXmlParser: NSObject, XMLParserDelegate {
         identifier: currentRefIdentifier,
         uri: uri,
         type: currentRefType,
+        transforms: currentRefTransforms,
         digestMethod: digestMethod,
         digestValue: digestValue
       )
