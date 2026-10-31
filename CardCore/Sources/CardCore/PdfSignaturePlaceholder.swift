@@ -1,6 +1,5 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-import CryptoKit
 import Foundation
 
 /// A prepared PDF revision with a reserved, fixed-size hole for one
@@ -12,7 +11,7 @@ import Foundation
 /// offsets, and only then is anything digested - because the digest
 /// covers the file with the hole in it. Writing into the hole never
 /// changes a length, so the digest stays true.
-public struct PdfSignaturePlaceholder {
+public struct PdfSignaturePlaceholder: Sendable {
   /// The document with the hole, byte ranges already patched.
   public let document: Data
 
@@ -31,10 +30,10 @@ public struct PdfSignaturePlaceholder {
     document.prefix(contentsOpen) + document.suffix(from: secondSpanStart)
   }
 
-  /// The SHA-384 digest of those spans - what the card signs, and
-  /// what a document timestamp is taken over.
-  public var digest: Data {
-    Data(SHA384.hash(data: signedOctets))
+  /// The digest of those spans - what the card signs, and what a
+  /// document timestamp is taken over.
+  public func digest(_ algorithm: DocumentDigestAlgorithm) -> Data {
+    algorithm.hash(signedOctets)
   }
 
   /// Writes `der` into the hole, hex-encoded uppercase, leaving the

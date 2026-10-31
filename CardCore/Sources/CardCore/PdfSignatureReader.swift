@@ -1,6 +1,5 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-import CryptoKit
 import Foundation
 
 /// Locates the signatures of an existing PDF (ISO 32000-1 section 12.8).
@@ -18,12 +17,17 @@ public enum PdfSignatureReader {
     /// The declared /SubFilter name, empty when absent.
     public let subFilter: String
 
-    /// SHA-384 over the two declared byte-range spans.
-    public let byteRangeDigest: Data
+    /// The two declared byte-range spans.
+    internal let signedSpans: PdfSignaturePlaceholder
 
     /// Whether the spans cover the entire file, which the final
     /// signature of a document always does.
     public let coversWholeDocument: Bool
+
+    /// The digest of the two declared byte-range spans.
+    public func byteRangeDigest(_ algorithm: DocumentDigestAlgorithm) -> Data {
+      signedSpans.digest(algorithm)
+    }
   }
 
   /// Why a located signature could not be read.
@@ -90,7 +94,7 @@ public enum PdfSignatureReader {
     return FoundSignature(
       cms: try contents(inHole: holeStart..<holeEnd, of: document),
       subFilter: subFilter,
-      byteRangeDigest: placeholder.digest,
+      signedSpans: placeholder,
       coversWholeDocument: holeEnd + tailLength == document.count
     )
   }

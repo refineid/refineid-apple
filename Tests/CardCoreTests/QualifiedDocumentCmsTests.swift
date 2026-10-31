@@ -29,6 +29,9 @@ internal struct QualifiedDocumentCmsTests {
     let signature: Data
   }
 
+  /// The common name, and issuer name, of every self-signed identity.
+  internal static let identityCommonName = "RefineID Document CMS Test"
+
   /// A fixed certificate with the fields IssuerAndSerialNumber needs.
   private static let certificate = Self.decode(
     """
@@ -62,7 +65,11 @@ internal struct QualifiedDocumentCmsTests {
     let keyType: CFString
     let kind: CertificateRevocationListFixtures.SignatureKind
     switch profile {
-    case .ecdsaP256, .ecdsaP384:
+    case .ecdsaP256:
+      keyType = kSecAttrKeyTypeECSECPrimeRandom
+      kind = .ecdsaSha256
+
+    case .ecdsaP384:
       keyType = kSecAttrKeyTypeECSECPrimeRandom
       kind = .ecdsaSha384
 
@@ -78,7 +85,7 @@ internal struct QualifiedDocumentCmsTests {
     let privateKey = try #require(
       SecKeyCreateRandomKey(attributes as CFDictionary, &error)
     )
-    let commonName = "RefineID Document CMS Test"
+    let commonName = Self.identityCommonName
     let name = CertificateRevocationListFixtures.name(commonName)
     let encodedCertificate = try CertificateRevocationListFixtures.certificate(
       description: .init(
@@ -99,16 +106,43 @@ internal struct QualifiedDocumentCmsTests {
     )
   }
 
-  /// Signs the SHA-384 digest of CMS signed attributes like the card does.
+  /// Signs the signing-digest of CMS signed attributes like the card does.
   internal static func signature(
     over attributes: Data,
     identity: Identity
   ) throws -> Data {
-    let algorithm: SecKeyAlgorithm =
-      identity.profile == .ecdsaP384
-      ? .ecdsaSignatureDigestX962SHA384
-      : .rsaSignatureDigestPKCS1v15SHA384
-    let digest = Data(SHA384.hash(data: attributes))
+    try Self.signature(
+      over: attributes,
+      identity: identity,
+      digestAlgorithm: QualifiedDocumentCms.signingDigestAlgorithm
+    )
+  }
+
+  /// Signs one digest of CMS signed attributes like the card does.
+  internal static func signature(
+    over attributes: Data,
+    identity: Identity,
+    digestAlgorithm: DocumentDigestAlgorithm
+  ) throws -> Data {
+    let algorithm: SecKeyAlgorithm
+    let digest: Data
+    switch (identity.profile, digestAlgorithm) {
+    case (.ecdsaP256, .sha256), (.ecdsaP384, .sha256):
+      algorithm = .ecdsaSignatureDigestX962SHA256
+      digest = Data(SHA256.hash(data: attributes))
+
+    case (.ecdsaP256, .sha384), (.ecdsaP384, .sha384):
+      algorithm = .ecdsaSignatureDigestX962SHA384
+      digest = Data(SHA384.hash(data: attributes))
+
+    case (.rsa2048, .sha256), (.rsa3072, .sha256):
+      algorithm = .rsaSignatureDigestPKCS1v15SHA256
+      digest = Data(SHA256.hash(data: attributes))
+
+    case (.rsa2048, .sha384), (.rsa3072, .sha384):
+      algorithm = .rsaSignatureDigestPKCS1v15SHA384
+      digest = Data(SHA384.hash(data: attributes))
+    }
     var error: Unmanaged<CFError>?
     return try #require(
       SecKeyCreateSignature(

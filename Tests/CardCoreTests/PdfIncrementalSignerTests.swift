@@ -11,7 +11,7 @@ import Testing
 internal struct PdfIncrementalSignerTests {
   /// The smallest structurally complete PDF: catalog, page tree, one
   /// page, a classic cross-reference table and a trailer.
-  private static var minimalPdf: Data {
+  internal static var minimalPdf: Data {
     Self.pdf(catalog: "<< /Type /Catalog /Pages 2 0 R >>")
   }
 
@@ -146,7 +146,7 @@ internal struct PdfIncrementalSignerTests {
         )
       )
     )
-    let before = prepared.digest
+    let before = prepared.digest(QualifiedDocumentCms.signingDigestAlgorithm)
     let filled = try prepared.filled(with: WireHex.data("30030101FF"))
     #expect(filled.count == prepared.document.count)
     #expect(Self.text(filled).contains("30030101FF"))

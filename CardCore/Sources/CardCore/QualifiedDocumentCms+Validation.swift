@@ -1,20 +1,25 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-import CryptoKit
 import Foundation
 import Security
 
 /// Strict validation at the public qualified-CMS assembly boundary.
 extension QualifiedDocumentCms {
   /// Refuses malformed values and certificate/profile mismatches.
+  ///
+  /// `digestAlgorithm` is the SignerInfo digest algorithm: it digests the
+  /// byte ranges, the signer certificate and the signed attributes.
   internal static func validate(
     signedAttributesSet: Data,
     signatureValue: Data,
     signerProfile: CardKeyProfile,
-    signerCertificate: Data
+    signerCertificate: Data,
+    digestAlgorithm: DocumentDigestAlgorithm
   ) throws {
     try Self.validateSignedAttributes(
-      signedAttributesSet, signerCertificate: signerCertificate
+      signedAttributesSet,
+      signerCertificate: signerCertificate,
+      digestAlgorithm: digestAlgorithm
     )
     guard Self.hasValidShape(signatureValue, profile: signerProfile) else {
       throw AssemblyError.signatureMalformed
@@ -34,35 +39,41 @@ extension QualifiedDocumentCms {
       signatureValue,
       over: signedAttributesSet,
       with: certificate,
-      profile: signerProfile
+      profile: signerProfile,
+      digestAlgorithm: digestAlgorithm
     )
   }
 
   /// Requires the exact canonical three-attribute PAdES form.
   private static func validateSignedAttributes(
     _ attributes: Data,
-    signerCertificate: Data
+    signerCertificate: Data,
+    digestAlgorithm: DocumentDigestAlgorithm
   ) throws {
     guard
       let byteRangeDigest = Self.byteRangeDigest(
-        fromSignedAttributes: attributes
+        fromSignedAttributes: attributes,
+        digestAlgorithm: digestAlgorithm
       ),
       attributes
         == Self.signedAttributes(
           byteRangeDigest: byteRangeDigest,
-          signerCertificate: signerCertificate
+          signerCertificate: signerCertificate,
+          digestAlgorithm: digestAlgorithm
         )
     else {
       throw AssemblyError.signedAttributesMalformed
     }
   }
 
-  /// Extracts the one SHA-384 PDF digest from a complete message-digest.
+  /// Extracts the one PDF digest from a complete message-digest.
   ///
+  /// The digest must have the length of `digestAlgorithm`.
   /// The caller rebuilds all three attributes and compares the complete SET,
-  /// so only our canonical PAdES form survives.
+  /// so only the canonical PAdES form survives.
   private static func byteRangeDigest(
-    fromSignedAttributes attributes: Data
+    fromSignedAttributes attributes: Data,
+    digestAlgorithm: DocumentDigestAlgorithm
   ) -> Data? {
     var outer = DerReader(attributes)
     guard
@@ -76,7 +87,9 @@ extension QualifiedDocumentCms {
       guard attribute.tag == DerValues.tagSequence else { return nil }
       guard
         let candidate = Self.messageDigest(
-          in: attribute, encodedAttributes: attributes
+          in: attribute,
+          encodedAttributes: attributes,
+          digestAlgorithm: digestAlgorithm
         )
       else {
         continue
@@ -91,7 +104,8 @@ extension QualifiedDocumentCms {
   /// The digest carried by one message-digest attribute, if this is one.
   private static func messageDigest(
     in attribute: DerReader.Element,
-    encodedAttributes: Data
+    encodedAttributes: Data,
+    digestAlgorithm: DocumentDigestAlgorithm
   ) -> Data? {
     var parts = DerReader(encodedAttributes, within: attribute)
     guard
@@ -113,7 +127,7 @@ extension QualifiedDocumentCms {
       return nil
     }
     let digest = valueReader.contentData(of: value)
-    return digest.count == SHA384.byteCount ? digest : nil
+    return digest.count == digestAlgorithm.byteCount ? digest : nil
   }
 
   /// Whether the signature has the exact profile-required wire shape.
@@ -179,16 +193,14 @@ extension QualifiedDocumentCms {
     _ signature: Data,
     over attributes: Data,
     with certificate: SecCertificate,
-    profile: CardKeyProfile
+    profile: CardKeyProfile,
+    digestAlgorithm: DocumentDigestAlgorithm
   ) throws {
     guard let publicKey = SecCertificateCopyKey(certificate) else {
       throw AssemblyError.certificateUnparseable
     }
-    let algorithm: SecKeyAlgorithm =
-      profile == .ecdsaP384
-      ? .ecdsaSignatureDigestX962SHA384
-      : .rsaSignatureDigestPKCS1v15SHA384
-    let digest = Data(SHA384.hash(data: attributes))
+    let algorithm = digestAlgorithm.verificationAlgorithm(for: profile)
+    let digest = digestAlgorithm.hash(attributes)
     var error: Unmanaged<CFError>?
     guard
       SecKeyVerifySignature(

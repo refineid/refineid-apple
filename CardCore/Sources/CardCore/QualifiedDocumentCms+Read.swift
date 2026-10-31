@@ -11,6 +11,10 @@ extension QualifiedDocumentCms {
     /// The SignerInfo's signature value contents.
     public let signatureValue: Data
 
+    /// The SignerInfo digest algorithm, which digests the byte ranges,
+    /// the signer certificate and the signed attributes.
+    public let digestAlgorithm: DocumentDigestAlgorithm
+
     /// The embedded certificate the ESS signing-certificate attribute
     /// binds as the signer.
     public let signerCertificate: Data
@@ -33,6 +37,7 @@ extension QualifiedDocumentCms {
     case malformedSignedData
     case malformedSignerInfo
     case missingMessageDigest
+    case unsupportedDigestAlgorithm
     case signerCertificateUnbound
   }
 
@@ -150,6 +155,7 @@ extension QualifiedDocumentCms {
         encoded: encoded
       )
     }
+    let algorithm = try Self.supported(digestAlgorithm, encoded: encoded)
     let attributesRaw = encoded.subdata(in: signedAttributes.raw)
     var retagged = attributesRaw
     retagged[retagged.startIndex] = DerValues.tagSet
@@ -166,11 +172,27 @@ extension QualifiedDocumentCms {
     return ReadSignature(
       signedAttributesSet: retagged,
       signatureValue: DerReader(encoded).contentData(of: signature),
+      digestAlgorithm: algorithm,
       signerCertificate: signer,
       embeddedCertificates: embedded,
       messageDigest: digest,
       timestampTokens: timestampTokens
     )
+  }
+
+  /// The SignerInfo digest algorithm, refused unless SHA-256 or SHA-384.
+  private static func supported(
+    _ digestAlgorithm: DerReader.Element,
+    encoded: Data
+  ) throws -> DocumentDigestAlgorithm {
+    guard
+      let algorithm = DocumentDigestAlgorithm(
+        algorithmIdentifier: encoded.subdata(in: digestAlgorithm.raw)
+      )
+    else {
+      throw ReadFailure.unsupportedDigestAlgorithm
+    }
+    return algorithm
   }
 
   /// The embedded certificate the ESS attribute binds as the signer.
