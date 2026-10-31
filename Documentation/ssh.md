@@ -95,6 +95,30 @@ unless started with `-P`, which is why the module lives in
 `/usr/local/lib`. It checks the resolved path, so a symlink from an
 allowed directory to a module outside one is refused.
 
+## Hosts named by Bonjour
+
+macOS resolves `<host>.local` through multicast DNS only when the name
+is written with the suffix. A `local` search domain does not extend
+this to bare names: the resolver appends the suffix and then sends the
+qualified name over unicast DNS, which has no answer. The
+`AlwaysAppendSearchDomains` preference changes nothing, since appending
+was never the problem.
+
+ssh can add the suffix itself, and a name it qualifies is resolved like
+a typed one:
+
+```
+CanonicalizeHostname yes
+CanonicalDomains local
+CanonicalizeFallbackLocal yes
+```
+
+With these at the top of `~/.ssh/config`, `ssh <host>` reaches any
+machine on the same link that answers for its `.local` name, with no
+address in the file. Screen
+Sharing takes `vnc://<host>.local:5900`, and a host that announces
+`_rfb._tcp` appears under Network in the Finder.
+
 ## Troubleshooting
 
 - **`ssh-keygen -D` lists nothing**: check the reader, and that
