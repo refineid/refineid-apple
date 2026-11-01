@@ -42,6 +42,12 @@ extension CardActivationSection {
     model.activationNeeds.pin2
   }
 
+  /// Whether the card waits for neither PIN, so the code is the only
+  /// group on screen.
+  internal var asksNoPin: Bool {
+    !asksPin1 && !asksPin2
+  }
+
   /// The fields on screen, in the order Return walks them.
   internal var shownFields: [Field] {
     [.entry]

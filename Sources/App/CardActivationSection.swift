@@ -47,20 +47,36 @@ internal struct CardActivationSection: View {
 
   internal var body: some View {
     Group {
-      Section("Card activation") {
+      // The button is the last group's footer on the Mac, where a row
+      // of its own would draw a box around it.
+      Section {
         activationEntryRow
+      } header: {
+        Text("Activation PIN")
+      } footer: {
+        if asksNoPin { macButton }
       }
       if asksPin1 {
         Section {
           pin1Rows
+        } header: {
+          Text("PIN 1")
+        } footer: {
+          if !asksPin2 { macButton }
         }
       }
       if asksPin2 {
         Section {
           pin2Rows
+        } header: {
+          Text("PIN 2")
+        } footer: {
+          macButton
         }
       }
-      activationButton
+      #if os(iOS)
+        activationButton
+      #endif
     }
     .task {
       // This form never placed focus at all, so its first field had
@@ -79,36 +95,29 @@ internal struct CardActivationSection: View {
     )
   }
 
+  /// The button where the Mac shows it: in a group's footer.
+  @ViewBuilder private var macButton: some View {
+    #if os(macOS)
+      activationButton
+    #endif
+  }
+
   private var activationButton: some View {
-    Button {
+    CardActivationButton(
+      enabled: isComplete
+        && model.canContactCard
+        && model.allowsActivationOperation
+        && !model.cardOperationInProgress
+    ) {
       focus = nil
       pending = .activate
-    } label: {
-      Text("Activate Card")
-        #if os(iOS)
-          .frame(maxWidth: .infinity)
-        #endif
     }
-    .buttonStyle(.borderedProminent)
-    #if os(iOS)
-      .controlSize(.large)
-      .listRowInsets(EdgeInsets())
-      .listRowBackground(Color.clear)
-    #else
-      .frame(maxWidth: .infinity)
-      .listRowBackground(Color.clear)
-    #endif
-    .keyboardShortcut(.defaultAction)
-    .disabled(
-      !isComplete
-        || !model.canContactCard
-        || !model.allowsActivationOperation
-        || model.cardOperationInProgress
-    )
-    .accessibilityIdentifier("managementActivate")
   }
 
   /// The activation code: its own group, above one group per PIN.
+  ///
+  /// Each group is headed by its code, so the fields still say what
+  /// they hold once the entries have replaced their placeholders.
   private var activationEntryRow: some View {
     CredentialSecretField(
       name: String(localized: "Activation PIN"),
