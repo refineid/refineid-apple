@@ -12,7 +12,7 @@ internal struct CardActivationHeader: View {
   internal var body: some View {
     VStack(alignment: .leading, spacing: Self.titleSpacing) {
       Text("Identity card activation")
-        .font(.largeTitle.bold())
+        .font(.title.bold())
         .foregroundStyle(.primary)
         .accessibilityAddTraits(.isHeader)
       Text("Activation PIN")
