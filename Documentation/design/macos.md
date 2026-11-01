@@ -125,6 +125,13 @@ every other change is a change of colour.
 | Remote use on, macOS denies the local network, no phone paired or none offering an identity | "macOS is blocking RefineID from the local network. Allow it in System Settings › Privacy & Security › Local Network." in red, with an "Open Settings" button |
 | Pairing found a phone and could not reach it for another reason | "Could not connect to the phone. Check that the phone and this Mac are on the same network and that RefineID is allowed to use the local network." in red, with an "Open Settings" button |
 
+*HOLDER NAME* is the authentication certificate's common name without
+its identifier. When the subject names an organisation, as an
+organisation card's does, the organisation follows verbatim after a
+comma: "Juutilainen Denis, Testiorganisaatio Oy". The holder name a phone
+sends over RAPP is the name alone; the computer reads the organisation
+from the certificate.
+
 The local-network denial shows as soon as the switch's browse, one dial
 to a phone, or the address check beside a dial is refused, not after a
 search times out. A dial to a phone's published service does not report

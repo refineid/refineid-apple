@@ -60,6 +60,11 @@ internal enum SignOids {
   /// holder's electronic transaction identifier.
   internal static let serialNumber = "2.5.4.5"
 
+  /// id-at-organizationName (RFC 5280 appendix A), which an
+  /// organisation card's certificate carries and a citizen
+  /// certificate does not.
+  internal static let organizationName = "2.5.4.10"
+
   /// id-at-givenName.
   internal static let givenName = "2.5.4.42"
 

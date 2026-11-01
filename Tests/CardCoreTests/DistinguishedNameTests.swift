@@ -208,6 +208,44 @@ internal struct DistinguishedNameTests {
   }
 
   @Test
+  internal func anOrganisationCardNamesTheOrganisationAfterTheHolder() throws {
+    let organisation = try MockCardCertificate.makeCertificate(
+      commonName: "Juutilainen Denis 99905322A",
+      organizationName: "Testiorganisaatio Oy"
+    )
+    #expect(
+      DistinguishedName.holderLine(fromCertificate: organisation)
+        == "Juutilainen Denis, Testiorganisaatio Oy"
+    )
+
+    let facts = try #require(CertificateFacts(der: organisation))
+    #expect(DistinguishedName.holderName(inName: facts.subjectName) == "Juutilainen Denis")
+    #expect(
+      DistinguishedName.organizationName(inName: facts.subjectName) == "Testiorganisaatio Oy"
+    )
+  }
+
+  @Test
+  internal func aCitizenCardShowsTheHolderAlone() throws {
+    let citizen = try MockCardCertificate.makeCertificate(
+      commonName: "MEIKÄLÄINEN MATTI 12345678A"
+    )
+    #expect(DistinguishedName.holderLine(fromCertificate: citizen) == "MEIKÄLÄINEN MATTI")
+
+    let facts = try #require(CertificateFacts(der: citizen))
+    #expect(DistinguishedName.organizationName(inName: facts.subjectName) == nil)
+  }
+
+  @Test
+  internal func anEmptyOrganisationIsNotShown() throws {
+    let unnamed = try MockCardCertificate.makeCertificate(
+      commonName: "Juutilainen Denis 99905322A",
+      organizationName: ""
+    )
+    #expect(DistinguishedName.holderLine(fromCertificate: unnamed) == "Juutilainen Denis")
+  }
+
+  @Test
   internal func somethingThatIsNotANameAnswersNothing() {
     #expect(DistinguishedName.commonName(inName: Data()) == nil)
     #expect(DistinguishedName.commonName(inName: Data([0x02, 0x01, 0x05])) == nil)

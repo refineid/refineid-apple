@@ -320,7 +320,7 @@
       coordinator: RappConnectionCoordinator
     ) async {
       guard let facts = CertificateFacts(der: der),
-        let name = DistinguishedName.holderLine(inName: facts.subjectName),
+        let name = DistinguishedName.holderName(inName: facts.subjectName),
         let identity = RappOperationDriver.Identity(
           authenticationCertificate: der,
           holderName: name,
