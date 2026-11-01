@@ -131,25 +131,41 @@ internal struct OrganizationCredentialTests {
   }
 
   @Test
-  internal func overlongCredentialIsRefusedBeforeAnyCommand() {
-    // Nine typed digits can never match on a card that stores at most
-    // eight and compares at the typed length (S4-2 v4.0 §4.3): the
-    // flow refuses locally, after resolution but before VERIFY, so no
-    // retry is spent.
-    let channel = ScriptedChannel(Self.resolution)
+  internal func twelveDigitPin1IsSentUnpadded() throws {
+    // The organization card takes PIN 1 at 4-12 digits, like the
+    // citizen card; the block is the twelve typed digits, Lc twelve.
+    let channel = ScriptedChannel(
+      Self.resolution + [("002000030C313233343536373839303132", "9000")]
+    )
     let operations = CardOperations(channel: channel)
-    guard let pin = Pin1(digits: "123456789") else {
+    guard let pin = Pin1(digits: "123456789012") else {
       Issue.record("valid PIN failed to construct")
       return
     }
-    do {
-      try operations.verifyPin1(pin.consumeForSingleTransmission())
-      Issue.record("expected credentialLengthUnsupported")
-    } catch let error as CardOperationError {
-      #expect(error == .credentialLengthUnsupported)
-    } catch {
-      Issue.record("unexpected error type")
-    }
+    try operations.verifyPin1(pin.consumeForSingleTransmission())
     #expect(channel.isExhausted)
+  }
+
+  @Test
+  internal func twelveDigitPin2IsSentUnpadded() throws {
+    // PIN 2 at 6-12 digits, under the PIN SIG reference.
+    let channel = ScriptedChannel(
+      Self.resolution + [("002000040C313233343536373839303132", "9000")]
+    )
+    let operations = CardOperations(channel: channel)
+    guard let pin = Pin2(digits: "123456789012") else {
+      Issue.record("valid PIN failed to construct")
+      return
+    }
+    try operations.verifyPin2(pin.consumeForSingleTransmission())
+    #expect(channel.isExhausted)
+  }
+
+  @Test
+  internal func thirteenDigitPinIsRefusedBeforeAnyCommand() {
+    // Thirteen digits never become a PIN, so no command can carry them.
+    let thirteen = String(repeating: "1", count: Pin1.maximumDigitCount + 1)
+    #expect(Pin1Entry(digits: thirteen) == nil)
+    #expect(Pin2Entry(digits: thirteen) == nil)
   }
 }

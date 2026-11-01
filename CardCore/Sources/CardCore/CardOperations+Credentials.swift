@@ -16,23 +16,6 @@ import Foundation
 /// session) and only then consumes the credential into its one command,
 /// so a resolution probe can never cost a typed entry.
 extension CardOperations {
-  /// Refuses a credential the resolved card cannot store, before any
-  /// APDU: the organization card compares at the typed length and caps
-  /// it at eight characters (S4-2 v4.0 §4.3), so a longer entry could
-  /// only fail on the wire - and spend a retry doing it.
-  private static func checkTypedLength(
-    of store: ZeroizingDigitStore,
-    under references: CredentialReferenceSet
-  ) throws {
-    guard
-      references == .organization,
-      store.bytes.count > FineidValues.organizationPinMaximumLength
-    else {
-      return
-    }
-    throw CardOperationError.credentialLengthUnsupported
-  }
-
   /// Verifies PIN1, consuming the one-shot credential.
   ///
   /// Sends VERIFY with the numbering's credential block (the
@@ -43,7 +26,6 @@ extension CardOperations {
   /// floor.
   public func verifyPin1(_ transmission: consuming Pin1Transmission) throws {
     let references = try resolveCredentialReferences()
-    try Self.checkTypedLength(of: transmission.store, under: references)
     let command = CredentialBearingCommand.verifyPin1(
       transmission,
       references: references
@@ -81,7 +63,6 @@ extension CardOperations {
   /// cleared the retry floor.
   public func verifyPin2(_ transmission: consuming Pin2Transmission) throws {
     let references = try resolveCredentialReferences()
-    try Self.checkTypedLength(of: transmission.store, under: references)
     let command = CredentialBearingCommand.verifyPin2(
       transmission,
       references: references
@@ -126,8 +107,6 @@ extension CardOperations {
     new: consuming Pin1Transmission
   ) throws {
     let references = try resolveCredentialReferences()
-    try Self.checkTypedLength(of: current.store, under: references)
-    try Self.checkTypedLength(of: new.store, under: references)
     try performCredentialUpdate(
       CredentialBearingCommand.changePin1(
         current: current,
@@ -147,8 +126,6 @@ extension CardOperations {
     new: consuming Pin2Transmission
   ) throws {
     let references = try resolveCredentialReferences()
-    try Self.checkTypedLength(of: current.store, under: references)
-    try Self.checkTypedLength(of: new.store, under: references)
     try performCredentialUpdate(
       CredentialBearingCommand.changePin2(
         current: current,
@@ -176,8 +153,6 @@ extension CardOperations {
     new: consuming Pin1Transmission
   ) throws {
     let references = try resolveCredentialReferences()
-    try Self.checkTypedLength(of: puk.store, under: references)
-    try Self.checkTypedLength(of: new.store, under: references)
     switch references {
     case .citizen:
       try performCredentialUpdate(
@@ -211,8 +186,6 @@ extension CardOperations {
     new: consuming Pin2Transmission
   ) throws {
     let references = try resolveCredentialReferences()
-    try Self.checkTypedLength(of: puk.store, under: references)
-    try Self.checkTypedLength(of: new.store, under: references)
     switch references {
     case .citizen:
       try performCredentialUpdate(

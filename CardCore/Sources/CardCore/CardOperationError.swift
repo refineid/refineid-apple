@@ -11,13 +11,6 @@ public enum CardOperationError: Error, Equatable, Sendable {
   /// activated.
   case credentialInvalidated
 
-  /// The typed credential is longer than this card can store: the
-  /// organization card caps every credential at eight characters
-  /// (FINEID S4-2 v4.0 §4.3) and compares at the typed length, so a
-  /// longer entry can never match. Refused locally - before any APDU -
-  /// so no retry is spent learning it.
-  case credentialLengthUnsupported
-
   /// A credential change or unblock was refused with a status word
   /// outside the modelled outcomes.
   case credentialUpdateFailed(StatusWord)
