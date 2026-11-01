@@ -52,13 +52,15 @@ internal struct CardActivationSection: View {
       Section {
         activationEntryRow
       } header: {
-        Text("Card activation")
+        Text("Activation PIN")
       } footer: {
         if asksNoPin { macButton }
       }
       if asksPin1 {
         Section {
           pin1Rows
+        } header: {
+          Text("PIN 1")
         } footer: {
           if !asksPin2 { macButton }
         }
@@ -66,6 +68,8 @@ internal struct CardActivationSection: View {
       if asksPin2 {
         Section {
           pin2Rows
+        } header: {
+          Text("PIN 2")
         } footer: {
           macButton
         }
@@ -111,6 +115,9 @@ internal struct CardActivationSection: View {
   }
 
   /// The activation code: its own group, above one group per PIN.
+  ///
+  /// Each group is headed by its code, so the fields still say what
+  /// they hold once the entries have replaced their placeholders.
   private var activationEntryRow: some View {
     CredentialSecretField(
       name: String(localized: "Activation PIN"),
