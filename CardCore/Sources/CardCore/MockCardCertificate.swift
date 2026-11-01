@@ -10,6 +10,7 @@ public enum MockCardCertificate {
   // MARK: Static Properties
 
   private static let commonNameOid = "2.5.4.3"
+  private static let organizationNameOid = "2.5.4.10"
   private static let basicConstraintsOid = "2.5.29.19"
   private static let keyUsageOid = "2.5.29.15"
   private static let ecdsaSha256Oid = "1.2.840.10045.4.3.2"
@@ -46,8 +47,12 @@ public enum MockCardCertificate {
   // MARK: Static Functions
 
   /// Generates a valid self-signed P-256 ECDSA X.509 certificate DER.
+  ///
+  /// The subject names the organisation when one is given, as an
+  /// organisation card's certificate does.
   public static func makeCertificate(
     commonName: String = "DOE JANE 12345678N",
+    organizationName: String? = nil,
     serialNumber: Int = defaultSerialNumber
   ) throws -> Data {
     let privateKey = P256.Signing.PrivateKey()
@@ -55,7 +60,7 @@ public enum MockCardCertificate {
     let sigAlg = DerEncoder.sequence([DerEncoder.objectIdentifier(ecdsaSha256Oid)])
     let tbsCertificate = buildTbsCertificate(
       publicKeyBytes: publicKeyBytes,
-      commonName: commonName,
+      subject: subjectName(commonName: commonName, organizationName: organizationName),
       serialNumber: serialNumber,
       sigAlg: sigAlg
     )
@@ -68,22 +73,31 @@ public enum MockCardCertificate {
     ])
   }
 
+  /// A Name of one relative name per attribute: the organisation when
+  /// given, then the common name.
+  private static func subjectName(commonName: String, organizationName: String?) -> Data {
+    let organization = organizationName.map { relativeName(oid: organizationNameOid, $0) }
+    let common = relativeName(oid: commonNameOid, commonName)
+    return DerEncoder.sequence([organization, common].compactMap(\.self))
+  }
+
+  private static func relativeName(oid: String, _ value: String) -> Data {
+    DerEncoder.setOf([
+      DerEncoder.sequence([
+        DerEncoder.objectIdentifier(oid),
+        DerEncoder.tlv(tagUtf8String, Data(value.utf8)),
+      ])
+    ])
+  }
+
   private static func buildTbsCertificate(
     publicKeyBytes: Data,
-    commonName: String,
+    subject name: Data,
     serialNumber: Int,
     sigAlg: Data
   ) -> Data {
     let version = DerEncoder.tlv(tagContextSpecific0, DerEncoder.integer(x509V3Version))
     let serial = DerEncoder.integer(serialNumber)
-    let name = DerEncoder.sequence([
-      DerEncoder.setOf([
-        DerEncoder.sequence([
-          DerEncoder.objectIdentifier(commonNameOid),
-          DerEncoder.tlv(tagUtf8String, Data(commonName.utf8)),
-        ])
-      ])
-    ])
     let validity = DerEncoder.sequence([
       DerEncoder.tlv(tagGeneralizedTime, Data("20250101000000Z".utf8)),
       DerEncoder.tlv(tagGeneralizedTime, Data("20350101000000Z".utf8)),

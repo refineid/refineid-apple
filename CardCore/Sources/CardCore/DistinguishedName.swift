@@ -22,6 +22,9 @@ public enum DistinguishedName {
   private static let minimumIdentifierLength = 6
   private static let maximumIdentifierLength = 12
 
+  /// What joins the holder's name to the organisation on the holder line.
+  private static let organizationSeparator = ", "
+
   /// The holder as a person reads it: given name, then surname, each
   /// capitalised, or nil when the name states neither.
   ///
@@ -96,10 +99,38 @@ public enum DistinguishedName {
     Self.attribute(SignOids.serialNumber, inName: name)
   }
 
-  /// The person line a window shows and the holder name sent to a paired
-  /// computer: the certificate's common name stripped of any trailing
-  /// identifier, or raw surname followed by given names as stated.
+  /// The person line a window shows.
+  ///
+  /// The holder's name, followed by the organisation when the subject
+  /// names one, as an organisation card's certificate does. A citizen
+  /// certificate names none and shows the name alone.
   public static func holderLine(inName name: Data) -> String? {
+    guard let holder = Self.holderName(inName: name) else { return nil }
+    guard let organization = Self.organizationName(inName: name) else {
+      return holder
+    }
+    return holder + Self.organizationSeparator + organization
+  }
+
+  /// The organisation the subject names, verbatim, or nil when it names
+  /// none.
+  public static func organizationName(inName name: Data) -> String? {
+    guard
+      let organization = Self.attribute(SignOids.organizationName, inName: name),
+      !organization.isEmpty
+    else {
+      return nil
+    }
+    return organization
+  }
+
+  /// The holder name sent to a paired computer.
+  ///
+  /// The certificate's common name stripped of any trailing identifier,
+  /// or raw surname followed by given names as stated. The organisation
+  /// stays out; a computer reads it from the certificates sent beside
+  /// the name.
+  public static func holderName(inName name: Data) -> String? {
     if let common = Self.commonName(inName: name) {
       return Self.cleanedCommonName(common)
     }
