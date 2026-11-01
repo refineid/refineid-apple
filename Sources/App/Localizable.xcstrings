@@ -1327,18 +1327,18 @@
         }
       }
     },
-    "Change both PINs?": {
+    "Change both PINs": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vaihdetaanko molemmat tunnusluvut?"
+            "value": "Vaihda molemmat tunnusluvut"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ska båda PIN-koderna bytas?"
+            "value": "Byt båda PIN-koderna"
           }
         }
       }

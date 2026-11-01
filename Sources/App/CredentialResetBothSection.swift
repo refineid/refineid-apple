@@ -154,7 +154,7 @@ internal struct CredentialResetBothSection: View {
 
   private var resetButton: some View {
     CardFormButton(
-      title: "Reset",
+      title: "Change",
       identifier: "managementResetBoth",
       enabled: isComplete
         && model.canContactCard

@@ -84,7 +84,7 @@ internal struct CredentialOperationConfirmation: ViewModifier {
         String(localized: "Confirm \(Self.name(of: role)) reset?")
 
       case .unblockBoth:
-        String(localized: "Change both PINs?")
+        String(localized: "Change both PINs")
 
       case .activate:
         String(localized: "Confirm card activation?")
