@@ -14,6 +14,7 @@ internal struct StatusWordTests {
     #expect(WireHex.statusWord("6982") == .securityNotSatisfied)
     #expect(WireHex.statusWord("6983") == .authenticationBlocked)
     #expect(WireHex.statusWord("6984") == .referenceDataInvalidated)
+    #expect(WireHex.statusWord("6985") == .conditionsNotSatisfied)
     #expect(WireHex.statusWord("6988") == .smDataObjectsIncorrect)
     #expect(WireHex.statusWord("6A82") == .fileNotFound)
     #expect(WireHex.statusWord("6A88") == .referenceDataNotFound)

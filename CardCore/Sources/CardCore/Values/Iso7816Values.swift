@@ -176,6 +176,9 @@ internal enum Iso7816Values {
   /// SW `0x6982`: security status not satisfied.
   internal static let swSecurityNotSatisfied: UInt16 = 0x6982
 
+  /// SW `0x6985`: conditions of use not satisfied (ISO/IEC 7816-4).
+  internal static let swConditionsNotSatisfied: UInt16 = 0x6985
+
   /// SW `0x6983`: authentication method blocked (counter exhausted).
   internal static let swAuthenticationBlocked: UInt16 = 0x6983
 

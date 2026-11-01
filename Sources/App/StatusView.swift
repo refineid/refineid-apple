@@ -61,18 +61,6 @@
         && !signing.readingStamp
     }
 
-    /// Whether an unready card is provably on a contactless
-    /// interface, which is the one state that asks for an access
-    /// number.
-    private var awaitingAccessNumber: Bool {
-      #if FEATURE_CONTACTLESS
-        availability == .cardWithoutIdentity
-          && cardPresence.isContactlessCardPresent
-      #else
-        false
-      #endif
-    }
-
     internal var body: some View {
       VStack(alignment: .leading, spacing: Self.spacing) {
         statusForm
@@ -117,9 +105,13 @@
       .onChange(of: offeringNumber || awaitingAccessNumber) { _, _ in
         observeActivation()
       }
-      .onChange(of: cardPresence.isContactlessCardPresent) { _, _ in
+      .onChange(of: cardPresence.isContactlessCardPresent) { _, present in
         refreshStoredNumber()
+        if !present {
+          forgetCardAsked()
+        }
       }
+      .task(id: watchesCardAsk) { await watchCardAsk() }
       .onChange(of: activation.defersRemoval) { wasDeferred, isDeferred in
         guard wasDeferred, !isDeferred, availability == .noCard else { return }
         react(to: .noCard)
@@ -145,6 +137,8 @@
     @ViewBuilder private var formBody: some View {
       if offeringNumber || awaitingAccessNumber {
         SealedCardSection(offering: $offeringNumber, tryingStored: hasStoredNumber)
+      } else if asksForCardSlot {
+        cardSlotSection
       } else if activation.awaitsActivation {
         activationSection
       } else if activation.isReading {
