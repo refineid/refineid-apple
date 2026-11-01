@@ -87,10 +87,14 @@ internal struct CredentialSecretField<Field: View, Validation: View>: View {
       .labelsHidden()
       .frame(maxWidth: .infinity, alignment: .leading)
       .overlay(alignment: .leading) {
+        // Drawn for the eye only: the field already carries the name
+        // as its accessibility label, so VoiceOver must not read it
+        // twice.
         if text.isEmpty {
           Text(name)
           .foregroundStyle(.secondary)
           .allowsHitTesting(false)
+          .accessibilityHidden(true)
         }
       }
     #endif
