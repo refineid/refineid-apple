@@ -97,6 +97,8 @@ public final class HeldCardSession: @unchecked Sendable {
   internal var ended = false
 
   internal var generation: UInt64 = 0
+  /// How long a signer waits for preparation before giving up.
+  internal let preparationWait: TimeInterval
   private let diagnostic: (@Sendable (String) -> Void)?
   /// Ephemeral identifier joining lifecycle events to the owning token and transport.
   public let diagnosticIdentifier = UUID().uuidString
@@ -131,8 +133,17 @@ public final class HeldCardSession: @unchecked Sendable {
   ///
   /// Diagnostics run synchronously and must not call back into the session.
   @preconcurrency
-  public init(diagnostic: (@Sendable (String) -> Void)? = nil) {
+  public convenience init(diagnostic: (@Sendable (String) -> Void)? = nil) {
+    self.init(diagnostic: diagnostic, preparationWait: Self.preparationWaitSeconds)
+  }
+
+  /// Creates a held session whose signers wait `preparationWait` seconds for PACE.
+  internal init(
+    diagnostic: (@Sendable (String) -> Void)?,
+    preparationWait: TimeInterval
+  ) {
     self.diagnostic = diagnostic
+    self.preparationWait = preparationWait
   }
 
   // MARK: Functions

@@ -86,6 +86,14 @@ internal struct HeldCardSessionTests {
   // MARK: Static Properties
 
   internal static let validCanString = "123456"
+
+  /// Upper bound on any wait for an event the test has made certain to
+  /// happen; it only stops a broken session from hanging the run.
+  internal static let hangGuardSeconds: TimeInterval = 60
+
+  /// How long a test session's signer waits for PACE: longer than every hang
+  /// guard, so a signer that returns within one was woken, not timed out.
+  internal static let signerPatienceSeconds: TimeInterval = 600
   private static let nonceHex = "00112233445566778899AABBCCDDEEFF"
   private static let firstBlockHex = "0102030405060708090A0B0C0D0E0F10"
   private static let secondBlockHex = "1A2B3C4D5E6F708192A3B4C5D6E7F809"
@@ -93,6 +101,29 @@ internal struct HeldCardSessionTests {
   private static let fourthBlockHex = "3D4E5F60718293A4B5C6D7E8F90A1B2C"
 
   // MARK: Static Functions
+
+  /// The deadline for one guarded wait that starts now.
+  internal static func hangGuard() -> DispatchTime {
+    .now() + hangGuardSeconds
+  }
+
+  /// A held session whose signers wait out any scheduling delay of PACE.
+  internal static func makeHeldSession(
+    diagnostic: (@Sendable (String) -> Void)?
+  ) -> HeldCardSession {
+    HeldCardSession(diagnostic: diagnostic, preparationWait: signerPatienceSeconds)
+  }
+
+  /// A held session without diagnostics whose signers wait out PACE.
+  internal static func makeHeldSession() -> HeldCardSession {
+    makeHeldSession(diagnostic: nil)
+  }
+
+  /// Runs `body` on a thread of its own, which starts whatever the
+  /// dispatch pools are busy with.
+  internal static func onOwnThread(_ body: @escaping @Sendable () -> Void) {
+    Thread(block: body).start()
+  }
 
   private static func scalar(_ hex: String) throws -> U384 {
     guard let value = U384(bigEndianBytes: WireHex.data(hex)) else {
@@ -122,7 +153,7 @@ internal struct HeldCardSessionTests {
 
     let card = try Self.makeSyntheticCard()
     let testChannel = TestHeldCardChannel(card: card)
-    let heldSession = HeldCardSession()
+    let heldSession = Self.makeHeldSession()
 
     let paceStartedSemaphore = DispatchSemaphore(value: 0)
     let paceResumeSemaphore = DispatchSemaphore(value: 0)
@@ -136,7 +167,7 @@ internal struct HeldCardSessionTests {
     heldSession.startPACE(with: can)
 
     // Wait until PACE worker has started and is actively in transmit holding operationLock.
-    let started = paceStartedSemaphore.wait(timeout: .now() + 5)
+    let started = paceStartedSemaphore.wait(timeout: Self.hangGuard())
     try #require(started == .success, "PACE worker did not start within timeout")
 
     // The activity timeout fires while PACE is actively in flight.
@@ -167,13 +198,13 @@ internal struct HeldCardSessionTests {
 
     let card = try Self.makeSyntheticCard()
     let testChannel = TestHeldCardChannel(card: card)
-    let heldSession = HeldCardSession()
+    let heldSession = Self.makeHeldSession()
 
     heldSession.retain(testChannel)
     heldSession.startPACE(with: can)
 
     // Wait until PACE preparation finishes.
-    let ready = heldSession.waitForPreparation(timeout: 5)
+    let ready = heldSession.waitForPreparation(timeout: Self.hangGuardSeconds)
     try #require(ready, "PACE preparation did not finish within timeout")
 
     // Channel is prepared, but unclaimed by any signer.
@@ -199,7 +230,7 @@ internal struct HeldCardSessionTests {
   internal func testUnusedDiscoveryFieldIsReleasedWhenTimeoutFires() throws {
     let card = try Self.makeSyntheticCard()
     let testChannel = TestHeldCardChannel(card: card)
-    let heldSession = HeldCardSession()
+    let heldSession = Self.makeHeldSession()
 
     heldSession.retain(testChannel)
     #expect(!testChannel.isSessionEnded)
@@ -223,7 +254,7 @@ internal struct HeldCardSessionTests {
 
     let card = try Self.makeSyntheticCard()
     let testChannel = TestHeldCardChannel(card: card)
-    let heldSession = HeldCardSession()
+    let heldSession = Self.makeHeldSession()
 
     heldSession.retain(testChannel)
     heldSession.startPACE(with: can)

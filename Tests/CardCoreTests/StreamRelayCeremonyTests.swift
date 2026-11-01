@@ -27,18 +27,6 @@ private let fixturePairingCode = "246813"
 
     // MARK: Static Functions
 
-    /// Waits until the channel reports the peer has arrived.
-    ///
-    /// A ceremony started before that speaks into a channel with no peer on
-    /// it, and its first message is lost.
-    private static func awaitConnected(_ relay: StreamRelayFrameRelay) async throws {
-      for _ in 0..<attempts {
-        if await relay.connected { return }
-        try await Task.sleep(for: pause)
-      }
-      throw StreamRelayTestFailure.noFrame
-    }
-
     /// Waits for the listener to bind a port that can actually be dialled.
     private static func boundPort(of listener: StreamRelayListener) async throws -> UInt16 {
       for _ in 0..<attempts {
@@ -122,8 +110,10 @@ private let fixturePairingCode = "246813"
 
     /// Runs both sides of the ceremony and answers with what each kept.
     ///
-    /// A stall here says nothing on its own, so what each side of the
-    /// channel carried is reported with the failure.
+    /// The holder serves its offer when the requester's preamble arrives
+    /// and is given every frame after it in the order the channel carried
+    /// them. A stall here says nothing on its own, so what the holder's side
+    /// of the channel carried is reported with the failure.
     private static func pairBothSides(
       requester: RappPairingSearch<String>,
       address: String,
@@ -134,12 +124,19 @@ private let fixturePairingCode = "246813"
       requester: RappPairingCoordinator.PairSummary,
       proxy: RappPairingCoordinator.PairSummary
     ) {
+      let delivery = Task {
+        await inbound.serve(
+          StreamRelayFrameRelay.Receiver(
+            arrived: { await proxy.transportConnected() },
+            frame: { frame in await proxy.receive(frame) }))
+      }
+      defer {
+        inbound.finish()
+        delivery.cancel()
+      }
       async let requesterSummary = awaitPair(requester)
       async let proxySummary = awaitPair(proxy)
       await requester.found(address)
-      try await awaitConnected(inbound)
-      // The custodian serves its offer once the requester's preamble arrived.
-      await proxy.transportConnected()
       do {
         return try await (requester: requesterSummary, proxy: proxySummary)
       } catch {
@@ -166,9 +163,7 @@ private let fixturePairingCode = "246813"
       defer { vaults.clean() }
 
       let inbound = StreamRelayFrameRelay()
-      let listener = StreamRelayListener { event in
-        Task { await inbound.deliver(event) }
-      }
+      let listener = StreamRelayListener { event in inbound.report(event) }
       listener.start(displayName: "RefineID ceremony \(testID.prefix(6))")
       defer { listener.cancel() }
       let port = try await Self.boundPort(of: listener)
@@ -176,8 +171,6 @@ private let fixturePairingCode = "246813"
       let requester = try Self.makeRequester(vault: vaults.requester)
       defer { Task { await requester.close() } }
       let proxy = try Self.makeProxy(vault: vaults.proxy, listener: listener)
-
-      await inbound.install { frame in await proxy.receive(frame) }
 
       let made = try await Self.pairBothSides(
         requester: requester,

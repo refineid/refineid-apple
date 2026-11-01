@@ -57,7 +57,7 @@ extension HeldCardSession {
       }
     }
 
-    let deadline = Date().addingTimeInterval(Self.preparationWaitSeconds)
+    let deadline = Date().addingTimeInterval(preparationWait)
     let finalState = try claimPreparedChannel(deadline: deadline, generation: preparingGeneration)
 
     switch finalState {
