@@ -61,6 +61,7 @@ internal struct CardActivationSection: View {
           pin1Rows
         } header: {
           Text("Basic PIN 1")
+            .accessibilityAddTraits(.isHeader)
         } footer: {
           if !asksPin2 { macButton }
         }
@@ -70,6 +71,7 @@ internal struct CardActivationSection: View {
           pin2Rows
         } header: {
           Text("Signature PIN 2")
+            .accessibilityAddTraits(.isHeader)
         } footer: {
           macButton
         }

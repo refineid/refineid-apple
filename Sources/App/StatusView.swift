@@ -81,6 +81,9 @@
         }
       }
       .padding(Self.padding)
+      // The activation form is the whole window and opens with its own
+      // title, which sits closer to the top than a status row would.
+      .padding(.top, activation.awaitsActivation ? -Self.padding : 0)
       .frame(minWidth: minimumWidth, alignment: .leading)
       #if REFINEID_REMOTE_CARD
         .toolbar {
