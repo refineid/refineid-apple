@@ -14,6 +14,12 @@ public enum StatusWord: Equatable, Sendable {
   /// `6300`: verification failed without a retry counter.
   case authenticationFailed
 
+  /// `6985`: conditions of use not satisfied.
+  ///
+  /// An organisation card on the contactless interface answers this to
+  /// every read until a secure channel opened with a PIN is in place.
+  case conditionsNotSatisfied
+
   /// `6282`: end of file reached before the requested Le bytes; the
   /// returned payload up to the boundary is still valid.
   case endOfFile
@@ -74,6 +80,7 @@ public enum StatusWord: Equatable, Sendable {
     Iso7816Values.swAuthenticationFailed: .authenticationFailed,
     Iso7816Values.swWrongLength: .wrongLength,
     Iso7816Values.swSecurityNotSatisfied: .securityNotSatisfied,
+    Iso7816Values.swConditionsNotSatisfied: .conditionsNotSatisfied,
     Iso7816Values.swAuthenticationBlocked: .authenticationBlocked,
     Iso7816Values.swReferenceDataInvalidated: .referenceDataInvalidated,
     Iso7816Values.swSmDataObjectsIncorrect: .smDataObjectsIncorrect,
@@ -90,6 +97,9 @@ public enum StatusWord: Equatable, Sendable {
 
     case .authenticationFailed:
       Iso7816Values.swAuthenticationFailed
+
+    case .conditionsNotSatisfied:
+      Iso7816Values.swConditionsNotSatisfied
 
     case .endOfFile:
       Iso7816Values.swEndOfFile

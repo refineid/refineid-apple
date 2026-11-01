@@ -3477,6 +3477,22 @@
         }
       }
     },
+    "Put the card in the reader's card slot.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aseta kortti lukijan korttipaikkaan."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sätt in kortet i läsarens kortplats."
+          }
+        }
+      }
+    },
     "Put the card back.": {
       "localizations": {
         "fi": {

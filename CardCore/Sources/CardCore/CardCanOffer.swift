@@ -41,6 +41,9 @@ public enum CardCanOffer {
   /// The marker the driver leaves when the card refused the offer.
   internal static let refusalAccount = "refineid-offer-refused"
 
+  /// What the driver last learnt the card on the antenna needs.
+  internal static let askedAccount = "refineid-card-asks"
+
   /// How many stored numbers one unseal tries at most.
   internal static let maximumCandidates = 5
 
@@ -57,9 +60,10 @@ public enum CardCanOffer {
     CardCredentialStore.readShared(account: offerAccount)
   }
 
-  /// Withdraws the offer, marker included.
+  /// Withdraws the offer, markers included.
   public static func withdraw() {
     clearRefusal()
+    clearAsked()
     CardCredentialStore.deleteShared(account: offerAccount)
     // Migration: builds before the data-protection opt-in wrote these
     // ungrouped, where no grouped query can see them.
@@ -80,6 +84,21 @@ public enum CardCanOffer {
   /// Clears the refusal, for an offer that succeeded after all.
   internal static func clearRefusal() {
     CardCredentialStore.deleteShared(account: refusalAccount)
+  }
+
+  /// Records what the card on the antenna needs.
+  internal static func record(ask: CardDriverAsk) {
+    _ = CardCredentialStore.writeShared(ask.rawValue, account: askedAccount)
+  }
+
+  /// What the card on the antenna needs, when the driver learnt it.
+  internal static func recordedAsk() -> CardDriverAsk? {
+    CardCredentialStore.readShared(account: askedAccount).flatMap(CardDriverAsk.init(rawValue:))
+  }
+
+  /// Clears the ask, for a card that left the antenna.
+  internal static func clearAsked() {
+    CardCredentialStore.deleteShared(account: askedAccount)
   }
 
   /// Forgets the offer and every stored number, keeping the refusal

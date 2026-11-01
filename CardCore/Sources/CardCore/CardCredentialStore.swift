@@ -157,6 +157,30 @@ public enum CardCredentialStore {
     #endif
   }
 
+  /// Records what the card on the antenna needs, where the window can
+  /// see - the driver has no window of its own to say so in.
+  public static func recordCardAsk(_ ask: CardDriverAsk) {
+    #if os(macOS)
+      CardCanOffer.record(ask: ask)
+    #endif
+  }
+
+  /// What the card on the antenna needs, when the driver learnt it.
+  public static func cardAsk() -> CardDriverAsk? {
+    #if os(macOS)
+      return CardCanOffer.recordedAsk()
+    #else
+      return nil
+    #endif
+  }
+
+  /// Clears the ask, for a card that left the antenna.
+  public static func clearCardAsk() {
+    #if os(macOS)
+      CardCanOffer.clearAsked()
+    #endif
+  }
+
   /// Clears a recorded refusal, for the offer that succeeded.
   public static func clearOfferedNumberRefusal() {
     #if os(macOS)

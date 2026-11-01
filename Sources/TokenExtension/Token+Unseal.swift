@@ -46,9 +46,18 @@ extension Token {
         try CardOperations(channel: channel).selectFineidApplication()
       } catch CardOperationError.selectRejected(.securityNotSatisfied) {
         TokenLog.info("readIdentity: application is sealed; unsealing")
+        CardCredentialStore.recordCardAsk(.cardAccessNumber)
         return try Self.unsealed(over: channel, answerToReset: answerToReset)
       }
-      return (try Self.certificates(read: CardOperations(channel: channel)), nil)
+      do {
+        return (try Self.certificates(read: CardOperations(channel: channel)), nil)
+      } catch CardOperationError.selectRejected(.conditionsNotSatisfied) {
+        // Selected but unreadable: an organisation card on the
+        // antenna, which opens only with a PIN over a secure channel.
+        TokenLog.info("readIdentity: card refuses reads on this interface; asks for the card slot")
+        CardCredentialStore.recordCardAsk(.cardSlot)
+        throw CardOperationError.selectRejected(.conditionsNotSatisfied)
+      }
     }
   }
 
