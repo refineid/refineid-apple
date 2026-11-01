@@ -397,19 +397,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Operation refused"
+            "value" : "Operation refused."
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Toiminto estettiin"
+            "value" : "Toiminto estettiin."
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Åtgärden nekades"
+            "value" : "Åtgärden nekades."
           }
         }
       }

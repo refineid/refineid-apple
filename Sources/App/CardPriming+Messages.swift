@@ -16,13 +16,13 @@
     /// result after the panel closes.
     internal static func sheetMessage(for error: any Error) -> String {
       if case Failure.pin1LowAttempts = error {
-        return String(localized: "Operation refused")
+        return String(localized: "Operation refused.")
       }
       if case Failure.secureChannelTimedOut = error {
-        return String(localized: "Connection timed out")
+        return String(localized: "Connection timed out.")
       }
       if case Failure.primeNotStored = error {
-        return String(localized: "Could not save card details")
+        return String(localized: "Could not save card details.")
       }
       if let failure = error as? CardOperationError {
         switch failure {
@@ -30,7 +30,7 @@
           return CredentialOutcomeMessage.incorrect(credentialName: "PIN 1")
 
         case .pinBlocked:
-          return String(localized: "PIN 1 is blocked")
+          return String(localized: "PIN 1 is blocked.")
 
         default:
           break
@@ -61,7 +61,7 @@
           remaining: remaining)
 
       case .pinBlocked:
-        return String(localized: "PIN 1 is blocked") + "."
+        return String(localized: "PIN 1 is blocked.")
 
       default:
         return String(localized: "The card could not be read. Hold it still and try again.")

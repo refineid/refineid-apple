@@ -48,7 +48,7 @@ internal enum CredentialOutcomeMessage {
         case .none:
           String(localized: "RefineID does not use either of the last two attempts.")
         }
-      return String(localized: "Operation refused")
+      return String(localized: "Operation refused.")
         + "\n"
         + detail
         + "\n"
@@ -64,10 +64,10 @@ internal enum CredentialOutcomeMessage {
   internal static func blocked(_ role: CredentialRole) -> String {
     switch role {
     case .pin1:
-      String(localized: "PIN 1 is blocked") + "." + "\n" + resetWithPuk(role)
+      String(localized: "PIN 1 is blocked.") + "\n" + resetWithPuk(role)
 
     case .pin2:
-      String(localized: "PIN 2 is blocked") + "." + "\n" + resetWithPuk(role)
+      String(localized: "PIN 2 is blocked.") + "\n" + resetWithPuk(role)
 
     case .puk:
       unrecoverableCard()
@@ -118,14 +118,14 @@ internal enum CredentialOutcomeMessage {
   }
 
   internal static func otherSoftwareRecovery() -> String {
-    String(localized: "Use other software to recover the card")
+    String(localized: "Use other software to recover the card.")
       + "\n"
       + String(
         localized: "RefineID will not use either of the final two PUK attempts.")
   }
 
   internal static func unrecoverableCard() -> String {
-    String(localized: "The PUK is blocked")
+    String(localized: "The PUK is blocked.")
       + "\n"
       + String(localized: "This card cannot be recovered with software.")
   }

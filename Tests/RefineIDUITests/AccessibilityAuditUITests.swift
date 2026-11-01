@@ -194,7 +194,7 @@
       field.typeText("7k x4!")
       XCTAssertEqual(field.value as? String, "7KX4", "the field kept characters no code holds")
       field.typeText("\r")
-      let refusal = app.windows["status"].staticTexts["The pairing code is invalid"]
+      let refusal = app.windows["status"].staticTexts["The pairing code is invalid."]
       XCTAssertTrue(
         refusal.waitForExistence(timeout: UITestApp.appearTimeout),
         "Return did not refuse an incomplete code"

@@ -59,18 +59,18 @@
         }
       }
     },
-    "Continue on your phone": {
+    "Continue on your phone.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Jatka puhelimessa"
+            "value": "Jatka puhelimessa."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fortsätt på telefonen"
+            "value": "Fortsätt på telefonen."
           }
         }
       }
@@ -1700,18 +1700,34 @@
         }
       }
     },
-    "Could not save card details": {
+    "Connection timed out.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kortin tietoja ei voitu tallentaa"
+            "value": "Yhteys aikakatkaistiin."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kortets uppgifter kunde inte sparas"
+            "value": "Anslutningen överskred tidsgränsen."
+          }
+        }
+      }
+    },
+    "Could not save card details.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kortin tietoja ei voitu tallentaa."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kortets uppgifter kunde inte sparas."
           }
         }
       }
@@ -2007,18 +2023,18 @@
         }
       }
     },
-    "Drop documents here to sign them": {
+    "Drop documents here to sign them.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pudota dokumentit tähän allekirjoitettavaksi"
+            "value": "Pudota dokumentit tähän allekirjoitettavaksi."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Släpp dokument här för att underteckna dem"
+            "value": "Släpp dokument här för att underteckna dem."
           }
         }
       }
@@ -2827,19 +2843,19 @@
         }
       }
     },
-    "Operation refused": {
+    "Operation refused.": {
       "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Toimintoa ei suoritettu"
+            "value": "Toimintoa ei suoritettu."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Åtgärden avvisades"
+            "value": "Åtgärden avvisades."
           }
         }
       }
@@ -2920,41 +2936,19 @@
         }
       }
     },
-    "PIN 1 is blocked": {
+    "PIN 1 is blocked.": {
       "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 on lukittu"
+            "value": "PIN 1 on lukittu."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 är spärrad"
-          }
-        }
-      }
-    },
-    "PIN 1 is blocked.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PIN 1 is blocked."
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Perustunnusluku (PIN 1) on lukittu."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Grundkoden (PIN 1) är spärrad."
+            "value": "PIN 1 är spärrad."
           }
         }
       }
@@ -2992,19 +2986,19 @@
         }
       }
     },
-    "PIN 2 is blocked": {
+    "PIN 2 is blocked.": {
       "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 2 on lukittu"
+            "value": "PIN 2 on lukittu."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 2 är spärrad"
+            "value": "PIN 2 är spärrad."
           }
         }
       }
@@ -3327,34 +3321,34 @@
         }
       }
     },
-    "Pairing could not be started": {
+    "Pairing could not be started.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yhdistämistä ei voitu aloittaa"
+            "value": "Yhdistämistä ei voitu aloittaa."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Parkopplingen kunde inte startas"
+            "value": "Parkopplingen kunde inte startas."
           }
         }
       }
     },
-    "Pairing ended before it was completed": {
+    "Pairing ended before it was completed.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yhdistäminen päättyi kesken"
+            "value": "Yhdistäminen päättyi kesken."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Parkopplingen avslutades innan den var klar"
+            "value": "Parkopplingen avslutades innan den var klar."
           }
         }
       }
@@ -3483,18 +3477,18 @@
         }
       }
     },
-    "Put the card back": {
+    "Put the card back.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laita kortti takaisin"
+            "value": "Laita kortti takaisin."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lägg tillbaka kortet"
+            "value": "Lägg tillbaka kortet."
           }
         }
       }
@@ -4150,18 +4144,18 @@
         }
       }
     },
-    "Safari setup did not finish": {
+    "Safari setup did not finish.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Safari-määritys jäi kesken"
+            "value": "Safari-määritys jäi kesken."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Safari-konfigurationen slutfördes inte"
+            "value": "Safari-konfigurationen slutfördes inte."
           }
         }
       }
@@ -4600,18 +4594,18 @@
         }
       }
     },
-    "Take the card off the reader": {
+    "Take the card off the reader.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ota kortti lukijasta"
+            "value": "Ota kortti lukijasta."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ta kortet från läsaren"
+            "value": "Ta kortet från läsaren."
           }
         }
       }
@@ -4697,19 +4691,19 @@
         }
       }
     },
-    "The PUK is blocked": {
+    "The PUK is blocked.": {
       "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "PUK on lukittu"
+            "value": "PUK on lukittu."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "PUK-koden är spärrad"
+            "value": "PUK-koden är spärrad."
           }
         }
       }
@@ -5007,18 +5001,18 @@
         }
       }
     },
-    "The paired device could not be selected": {
+    "The paired device could not be selected.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yhdistettyä laitetta ei voitu valita"
+            "value": "Yhdistettyä laitetta ei voitu valita."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Den parkopplade enheten kunde inte väljas"
+            "value": "Den parkopplade enheten kunde inte väljas."
           }
         }
       }
@@ -5119,18 +5113,18 @@
         }
       }
     },
-    "The system is ready": {
+    "The system is ready.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Järjestelmä on käyttövalmis"
+            "value": "Järjestelmä on käyttövalmis."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Systemet är klart"
+            "value": "Systemet är klart."
           }
         }
       }
@@ -5399,19 +5393,19 @@
         }
       }
     },
-    "Use other software to recover the card": {
+    "Use other software to recover the card.": {
       "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Palauta kortti toisella ohjelmistolla"
+            "value": "Palauta kortti toisella ohjelmistolla."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Återställ kortet med annan programvara"
+            "value": "Återställ kortet med annan programvara."
           }
         }
       }
@@ -5804,18 +5798,18 @@
         }
       }
     },
-    "Notifications are off": {
+    "Notifications are off.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ilmoitukset ovat pois päältä"
+            "value": "Ilmoitukset ovat pois päältä."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Notiser är avstängda"
+            "value": "Notiser är avstängda."
           }
         }
       }
@@ -5971,50 +5965,50 @@
         }
       }
     },
-    "No phone in pairing mode was found": {
+    "No phone in pairing mode was found.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yhdistämistilassa olevaa puhelinta ei löytynyt"
+            "value": "Yhdistämistilassa olevaa puhelinta ei löytynyt."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ingen telefon i parkopplingsläge hittades"
+            "value": "Ingen telefon i parkopplingsläge hittades."
           }
         }
       }
     },
-    "The pairing code is invalid": {
+    "The pairing code is invalid.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yhdistämiskoodi ei kelpaa"
+            "value": "Yhdistämiskoodi ei kelpaa."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Koden är ogiltig"
+            "value": "Koden är ogiltig."
           }
         }
       }
     },
-    "The pairing code was not accepted": {
+    "The pairing code was not accepted.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yhdistämiskoodia ei hyväksytty"
+            "value": "Yhdistämiskoodia ei hyväksytty."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Koden godtogs inte"
+            "value": "Koden godtogs inte."
           }
         }
       }
@@ -6099,41 +6093,41 @@
         }
       }
     },
-    "The device did not give its name": {
+    "The device did not give its name.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laite ei kertonut nimeään"
+            "value": "Laite ei kertonut nimeään."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enheten uppgav inte sitt namn"
+            "value": "Enheten uppgav inte sitt namn."
           }
         }
       }
     },
-    "%@ forgot this computer": {
+    "%@ forgot this computer.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ forgot this computer"
+            "value": "%@ forgot this computer."
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ unohti tämän tietokoneen"
+            "value": "%@ unohti tämän tietokoneen."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ glömde den här datorn"
+            "value": "%@ glömde den här datorn."
           }
         }
       }

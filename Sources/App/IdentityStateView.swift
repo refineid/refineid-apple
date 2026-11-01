@@ -196,7 +196,7 @@
         PairedPhoneLine(lead: lead, holder: holder ?? borrowedHolderLine)
 
       case .phoneForgot(let phone):
-        Text("\(phone) forgot this computer")
+        Text("\(phone) forgot this computer.")
           .foregroundStyle(.secondary)
 
       case .pairPhone:

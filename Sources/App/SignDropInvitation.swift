@@ -23,7 +23,7 @@
             targeted ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary)
           )
           .accessibilityHidden(true)
-        Text("Drop documents here to sign them")
+        Text("Drop documents here to sign them.")
           .foregroundStyle(.secondary)
         Button("Choose…", action: choose)
           .buttonStyle(.link)

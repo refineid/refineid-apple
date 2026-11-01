@@ -113,11 +113,11 @@
     @ViewBuilder private var instruction: some View {
       switch step {
       case .liftCard:
-        Text("Take the card off the reader")
+        Text("Take the card off the reader.")
           .foregroundStyle(.secondary)
 
       case .layCard:
-        Text("Put the card back")
+        Text("Put the card back.")
           .foregroundStyle(.secondary)
 
       case .verdict, nil:

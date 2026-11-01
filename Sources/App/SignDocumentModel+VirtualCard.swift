@@ -48,7 +48,7 @@
 
       case .refusedLowAttempts(let remaining):
         fail(
-          message: String(localized: "Operation refused")
+          message: String(localized: "Operation refused.")
             + "\n"
             + String(
               format: String(localized: "You have %d attempts remaining."),

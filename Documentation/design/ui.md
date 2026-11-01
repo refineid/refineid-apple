@@ -27,6 +27,10 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
 - **The eye shows the state.** A secret field's eye is closed while the
   digits are hidden, which is how every field starts, and open while they
   show. Clicking it opens or closes it.
+- **Sentences end with a period.** An instruction or message shown as a
+  full sentence ends with a period in every language, for example "Take
+  the card off the reader.". Buttons, menu items, titles, headers, field
+  labels, row values and accessibility labels do not.
 - **Six-box code entry.** A pairing code and a card access number are typed
   into the six-box field (`CodeBoxesField`), never into a plain text field.
   The field has a VoiceOver label.
