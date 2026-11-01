@@ -212,6 +212,18 @@
       managementRefresh = nil
     }
 
+    /// Has the system read the just-activated card again, so its
+    /// identity replaces the activation token without the holder
+    /// reinserting the card.
+    internal func cardActivated() {
+      let slots = activationTokenIDs.compactMap(ActivationTokenIdentity.slotName(tokenID:))
+      Task.detached(priority: .utility) {
+        for slot in slots {
+          _ = SlotCardReset.resetCard(slotNamed: slot)
+        }
+      }
+    }
+
     internal func stop() {
       stopManagementRefresh()
       state = .idle

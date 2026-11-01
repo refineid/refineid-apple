@@ -27,6 +27,26 @@
       )
     #endif
 
+    /// Resets the card in one named slot, and answers whether the reset
+    /// went through.
+    ///
+    /// For a card whose state the app just changed and no longer uses:
+    /// the system reads it again and publishes what it now is.
+    public static func resetCard(slotNamed name: String) -> Bool {
+      guard
+        let manager = TKSmartCardSlotManager.default,
+        let slot = manager.slotNamed(name),
+        slot.state == .validCard
+      else { return false }
+      let status = CardCoreResetCard(name)
+      #if DEBUG
+        Self.log.error(
+          "reset \(name, privacy: .public): status \(String(format: "0x%08X", status), privacy: .public)"
+        )
+      #endif
+      return status == 0
+    }
+
     /// Resets every present card on a contactless interface, and
     /// answers whether at least one reset went through.
     ///
