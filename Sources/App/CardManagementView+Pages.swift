@@ -10,7 +10,7 @@ extension CardManagementView {
     for recovery: CredentialRetryHealth.Recovery?
   ) -> ManagementTask {
     switch recovery {
-    case .resetPin1:
+    case .resetPin1, .resetBothPins:
       .resetPin1
 
     case .resetPin2:
@@ -41,6 +41,15 @@ extension CardManagementView {
         Section {
           CredentialOutcomeText(
             message: CredentialOutcomeMessage.recoveryGuidance(for: .pin2),
+            tone: .notice)
+        }
+
+      case .resetBothPins:
+        Section {
+          CredentialOutcomeText(
+            message: CredentialOutcomeMessage.recoveryGuidance(for: .pin1)
+              + "\n"
+              + CredentialOutcomeMessage.recoveryGuidance(for: .pin2),
             tone: .notice)
         }
 

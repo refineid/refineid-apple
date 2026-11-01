@@ -1327,6 +1327,22 @@
         }
       }
     },
+    "Change both PINs?": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vaihdetaanko molemmat tunnusluvut?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ska båda PIN-koderna bytas?"
+          }
+        }
+      }
+    },
     "Change or Reset PINs": {
       "localizations": {
         "fi": {

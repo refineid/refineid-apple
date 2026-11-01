@@ -66,11 +66,14 @@ internal final class CredentialRetryHealth: ObservableObject {
 
   /// The only useful destination while the key is critical.
   ///
-  /// PIN 1 wins when both PINs need recovery. A low PUK removes every
-  /// operation because both reset commands spend that counter.
+  /// Both PINs blocked take one form that resets them with one PUK
+  /// entry; otherwise PIN 1 wins when both PINs need recovery. A low PUK
+  /// removes every operation because both reset commands spend that
+  /// counter.
   internal enum Recovery: Equatable {
     case resetPin1
     case resetPin2
+    case resetBothPins
     case useOtherSoftware
     case unrecoverable
   }
@@ -110,6 +113,27 @@ internal final class CredentialRetryHealth: ObservableObject {
     case .invalidated, .noInformation, .other, .verified:
       nil
     }
+  }
+
+  /// The destination for one accepted set of counters, or nil while no
+  /// counter is at or below the low-attempt ceiling.
+  internal static func recovery(pin1: UInt8, pin2: UInt8, puk: UInt8) -> Recovery? {
+    if puk == RetryThreshold.zeroAttempts {
+      return .unrecoverable
+    }
+    if puk <= RetryThreshold.lowAttempts {
+      return .useOtherSoftware
+    }
+    if pin1 == RetryThreshold.zeroAttempts, pin2 == RetryThreshold.zeroAttempts {
+      return .resetBothPins
+    }
+    if pin1 <= RetryThreshold.lowAttempts {
+      return .resetPin1
+    }
+    if pin2 <= RetryThreshold.lowAttempts {
+      return .resetPin2
+    }
+    return nil
   }
 
   // MARK: Functions
@@ -174,24 +198,12 @@ internal final class CredentialRetryHealth: ObservableObject {
       return
     }
     self.report = report
+    recovery = Self.recovery(pin1: pin1, pin2: pin2, puk: puk)
     if attempts.contains(where: { $0 <= RetryThreshold.lowAttempts }) {
-      if puk == RetryThreshold.zeroAttempts {
-        recovery = .unrecoverable
-      } else if puk <= RetryThreshold.lowAttempts {
-        recovery = .useOtherSoftware
-      } else if pin1 <= RetryThreshold.lowAttempts {
-        recovery = .resetPin1
-      } else if pin2 <= RetryThreshold.lowAttempts {
-        recovery = .resetPin2
-      } else {
-        recovery = nil
-      }
       level = .critical
     } else if attempts.allSatisfy({ $0 == RetryCount.pristineAllowance }) {
-      recovery = nil
       level = .pristine
     } else {
-      recovery = nil
       level = .warning
     }
   }

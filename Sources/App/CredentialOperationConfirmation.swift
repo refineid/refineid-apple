@@ -31,6 +31,10 @@ internal struct CredentialOperationConfirmation: ViewModifier {
     /// the PUK.
     case unblock(CredentialRole)
 
+    /// Reset PIN 1 and PIN 2 together, which the card grants only after
+    /// checking the PUK, once for each.
+    case unblockBoth
+
     /// Set both PINs from the issuance letter, which a card accepts
     /// once.
     case activate
@@ -46,7 +50,7 @@ internal struct CredentialOperationConfirmation: ViewModifier {
       case .change(let role):
         role
 
-      case .unblock:
+      case .unblock, .unblockBoth:
         .puk
 
       case .activate:
@@ -78,6 +82,9 @@ internal struct CredentialOperationConfirmation: ViewModifier {
 
       case .unblock(let role):
         String(localized: "Confirm \(Self.name(of: role)) reset?")
+
+      case .unblockBoth:
+        String(localized: "Change both PINs?")
 
       case .activate:
         String(localized: "Confirm card activation?")
@@ -114,7 +121,7 @@ internal struct CredentialOperationConfirmation: ViewModifier {
           """
       )
 
-    case .unblock:
+    case .unblock, .unblockBoth:
       return String(
         localized: """
           A wrong \(spent) spends one attempt. \(remaining) attempts remain. \
