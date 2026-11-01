@@ -6,82 +6,64 @@
   import Foundation
   import UserNotifications
 
-  /// Relays transient ID card prompts from the authenticated requester client to macOS UserNotifications.
+  /// Relays the notices this process's requester sessions post
+  /// (``RappRequesterNotices``) to macOS UserNotifications and to the
+  /// published identity.
   ///
   /// When an authentication or signing request is waiting for the card on the phone,
   /// this relay displays a temporary banner. As soon as the card is detected or the
   /// operation completes/cancels, the delivered notification is immediately removed so
-  /// it does not clutter the Notification Center history.
+  /// it does not clutter the Notification Center history. A session that ended with
+  /// the custodian's withdrawal or the pairing's revocation takes the identity down.
   @MainActor
   internal final class RappCardPromptNotificationRelay: NSObject, UNUserNotificationCenterDelegate {
     internal static let shared = RappCardPromptNotificationRelay()
 
-    internal static let notificationIdentifier =
-      RappCardPromptNotificationNames.userNotificationRequestIdentifier
-    internal static let cardNeededDarwinNotification =
-      RappCardPromptNotificationNames.cardNeededDarwinNotification
-    internal static let cardDismissDarwinNotification =
-      RappCardPromptNotificationNames.cardDismissDarwinNotification
+    /// UserNotification request identifier of the transient card prompt banner.
+    internal static let notificationIdentifier = "fi.refineid.card.prompt.banner"
     private static let promptGracePeriodSeconds: TimeInterval = 1.5
 
-    private var distributedNeededObserver: (any NSObjectProtocol)?
-    private var distributedDismissObserver: (any NSObjectProtocol)?
-    private var distributedWithdrawnObserver: (any NSObjectProtocol)?
-    private var distributedRevokedObserver: (any NSObjectProtocol)?
+    private var observers: [any NSObjectProtocol] = []
     private var pendingPresentWorkItem: DispatchWorkItem?
 
     override private init() {
       super.init()
     }
 
-    /// Listens for the extension's card prompts.
+    /// Listens for the requester sessions' notices.
     ///
     /// Asks macOS for nothing; permission is asked once a pairing succeeds
     /// (``RemoteAccessPermissions/requestNotificationsIfUndecided()``).
     internal func start() {
+      guard observers.isEmpty else { return }
       #if DEBUG
         guard !TestCredentialEnvironment.isTestMode else { return }
       #endif
       // The host RefineID application is the sole consumer of UserNotifications in this bundle.
       UNUserNotificationCenter.current().delegate = self
 
-      distributedNeededObserver = DistributedNotificationCenter.default().addObserver(
-        forName: Notification.Name(Self.cardNeededDarwinNotification),
-        object: nil,
-        queue: .main
-      ) { [weak self] _ in
-        MainActor.assumeIsolated {
-          self?.schedulePromptNotification()
-        }
-      }
-
-      distributedDismissObserver = DistributedNotificationCenter.default().addObserver(
-        forName: Notification.Name(Self.cardDismissDarwinNotification),
-        object: nil,
-        queue: .main
-      ) { [weak self] _ in
-        MainActor.assumeIsolated {
-          self?.dismissPromptNotification()
-        }
-      }
-
-      distributedWithdrawnObserver = DistributedNotificationCenter.default().addObserver(
-        forName: Notification.Name(
-          RappServiceNotificationNames.serviceWithdrawnDarwinNotification),
-        object: nil,
-        queue: .main
-      ) { _ in
-        MainActor.assumeIsolated {
+      observers = [
+        observe(RappRequesterNotices.cardNeeded) { $0.schedulePromptNotification() },
+        observe(RappRequesterNotices.cardWaitEnded) { $0.dismissPromptNotification() },
+        observe(RappRequesterNotices.serviceWithdrawn) { _ in
           PersistentTokenRegistry.shared.holderWithdrew()
-        }
-      }
-      distributedRevokedObserver = DistributedNotificationCenter.default().addObserver(
-        forName: Notification.Name(RappServiceNotificationNames.pairingRevokedDarwinNotification),
-        object: nil,
-        queue: .main
-      ) { _ in
+        },
+        observe(RappRequesterNotices.pairingRevoked) { _ in
+          guard let pairID = PersistentTokenRegistry.publishedPairID() else { return }
+          PersistentTokenRegistry.shared.holderRevoked(pairID: pairID)
+        },
+      ]
+    }
+
+    private func observe(
+      _ name: Notification.Name,
+      _ handle: @escaping @MainActor (RappCardPromptNotificationRelay) -> Void
+    ) -> any NSObjectProtocol {
+      NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) {
+        [weak self] _ in
         MainActor.assumeIsolated {
-          PersistentTokenRegistry.shared.holderRevokedElsewhere()
+          guard let self else { return }
+          handle(self)
         }
       }
     }

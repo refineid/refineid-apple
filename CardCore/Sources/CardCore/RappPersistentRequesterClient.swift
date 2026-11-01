@@ -29,7 +29,7 @@
     // MARK: Properties
 
     internal let policy: RappRequesterPolicy
-    internal let explicitPair: RappPairRecord?
+    internal let explicitPairing: PersistentTokenPairing?
     internal let vault: RappDeviceVault
     internal let state = OSAllocatedUnfairLock(initialState: State())
     private let completed = DispatchSemaphore(value: 0)
@@ -54,14 +54,15 @@
     )
 
     /// Builds a one-shot client that connects over the persistent relay
-    /// and resolves its pair from the vault or explicit pair record.
+    /// and loads its pair from the vault: the one `pairing` names, or the
+    /// selected one.
     public init(
       policy: RappRequesterPolicy = .interactive,
-      pair: RappPairRecord? = nil,
+      pairing: PersistentTokenPairing? = nil,
       vault: RappDeviceVault = RappDeviceVault()
     ) {
       self.policy = policy
-      self.explicitPair = pair
+      self.explicitPairing = pairing
       self.vault = vault
     }
 
@@ -176,8 +177,8 @@
     /// the one they made to use. Refusing here asked for a fresh code the
     /// holder had already scanned.
     internal func resolvedPairID() async throws -> Data? {
-      if let explicitPair {
-        return explicitPair.metadata().pairId
+      if let explicitPairing {
+        return explicitPairing.pairID
       }
       let pairIDs = try vault.activePairIDs()
       guard !pairIDs.isEmpty else { return nil }
@@ -195,11 +196,8 @@
       return nil
     }
 
-    /// The pair record this request runs over, either explicit or loaded from vault.
+    /// The pair record this request runs over, loaded from the vault.
     internal func resolvedPair() async throws -> RappPairRecord? {
-      if let explicitPair {
-        return explicitPair
-      }
       guard let pairID = try await resolvedPairID() else { return nil }
       return try RappPairRecord.loadFromVault(pairId: pairID, vault: vault)
     }

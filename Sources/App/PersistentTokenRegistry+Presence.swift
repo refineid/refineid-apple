@@ -227,15 +227,6 @@
         name: RappPairingModel.pairingsDidChangeNotification, object: nil)
     }
 
-    /// The token extension's own session heard `pairing_revoked` (RAPP
-    /// v26.10.29 §4.6 item 4): the pairing its identity was published for
-    /// ends here too, and the identity leaves at once, as on this process's
-    /// own session.
-    internal func holderRevokedElsewhere() {
-      guard let pairID = Self.publishedPairID() else { return }
-      holderRevoked(pairID: pairID)
-    }
-
     /// This computer's close for a pairing it forgot reached the phone
     /// (RAPP v26.10.29 §4.6 items 2 and 3): the record and its key go now.
     internal func revocationNoticeDelivered(pairID: Data) {
