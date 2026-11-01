@@ -19,6 +19,13 @@ public enum ActivationTokenIdentity {
     return instancePrefix + encoded
   }
 
+  /// The reader slot an activation token stands for, or nil when the
+  /// identifier is not one.
+  public static func slotName(tokenID: String) -> String? {
+    guard let range = tokenID.range(of: ":" + instancePrefix) else { return nil }
+    return String(tokenID[range.upperBound...]).removingPercentEncoding
+  }
+
   /// Returns whether a CryptoTokenKit identifier represents activation state.
   public static func recognizes(tokenID: String) -> Bool {
     tokenID.contains(":" + instancePrefix)

@@ -83,7 +83,10 @@
     @ViewBuilder internal var activationSection: some View {
       let activation = ActivationWatch.shared
       if activation.management.activation != nil, let lengths = activation.management.pinLengths {
-        CardActivationSection(model: activation.management, lengths: lengths) { model.refresh() }
+        CardActivationSection(model: activation.management, lengths: lengths) {
+          activation.cardActivated()
+          model.refresh()
+        }
       } else {
         readingSection
       }
