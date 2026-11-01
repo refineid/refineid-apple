@@ -146,8 +146,7 @@
       if offeringNumber || awaitingAccessNumber {
         SealedCardSection(offering: $offeringNumber, tryingStored: hasStoredNumber)
       } else if activation.awaitsActivation {
-        CardActivationSection(model: activation.management) { model.refresh() }
-        CardOutcomeSection(model: activation.management)
+        activationSection
       } else if activation.isReading {
         readingSection
       } else if shouldShowPairingPrompt {

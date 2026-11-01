@@ -207,9 +207,11 @@ internal struct CardManagementView: View {
             readerCardIsPresent: readerCardIsPresent,
             usesProvidedCardAccessNumber: usesProvidedCardAccessNumber
           )
-          CardActivationSection(
-            model: model,
-            onActivated: activationCompleted)
+          // Drawn only once the card is classified, so the title and
+          // digit count are final from the first frame.
+          if model.activation != nil {
+            CardActivationSection(model: model, onActivated: activationCompleted)
+          }
           CardOutcomeSection(model: model)
         }
         .formStyle(.grouped)
