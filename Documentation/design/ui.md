@@ -36,8 +36,9 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   word is not "PIN", the number follows in brackets: "Uusi
   perustunnusluku (PIN 1)", "Ny grundkod (PIN 1)".
   The activation form, titled "Identity card activation", has three
-  groups, headed "Activation PIN", "PIN 1" and "PIN 2", so a filled
-  field still says what it holds.
+  groups, headed "Activation PIN", "Basic PIN 1" and "Signature PIN 2"
+  (Finnish "Perustunnusluku (PIN 1)"), so a filled field still says what
+  it holds.
 - **Development builds show errors.** Every failure path reports to
   `DevErrorLog`: the Errors window on the Mac, the error pill and the
   Diagnostics screen on iPhone and iPad. TestFlight and Release builds

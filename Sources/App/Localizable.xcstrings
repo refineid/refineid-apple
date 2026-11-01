@@ -6381,6 +6381,38 @@
           }
         }
       }
+    },
+    "Basic PIN 1": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perustunnusluku (PIN 1)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grundkod (PIN 1)"
+          }
+        }
+      }
+    },
+    "Signature PIN 2": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allekirjoitustunnusluku (PIN 2)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signaturkod (PIN 2)"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
