@@ -5,6 +5,10 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
 - **Result and errors only.** The happy path shows the result, such as the
   holder's name or a signed document, and the errors. It shows no transient
   status on the way.
+- **Decide before drawing.** A view that depends on what the card is (its
+  kind, activation scheme or counters) appears only once that is known. It
+  never draws a default and corrects itself afterwards; until the answer is
+  in, the screen keeps the state it was already showing.
 - **No explainer text.** No caption restates what is already visible: a name
   stands without a "Person" caption before it. Controls carry no standards
   acronyms. A control's accessibility label names it for VoiceOver; a line of
