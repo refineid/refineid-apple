@@ -43,10 +43,10 @@ internal struct CredentialChangeSection: View {
     internal var everydayName: String {
       switch self {
       case .pin1:
-        String(localized: "basic code")
+        String(localized: "basic PIN")
 
       case .pin2:
-        String(localized: "signature code")
+        String(localized: "signature PIN")
       }
     }
 
@@ -54,10 +54,10 @@ internal struct CredentialChangeSection: View {
     internal var everydayNameRepeated: String {
       switch self {
       case .pin1:
-        String(localized: "Basic code again")
+        String(localized: "Repeat PIN 1")
 
       case .pin2:
-        String(localized: "Signature code again")
+        String(localized: "Repeat PIN 2")
       }
     }
 

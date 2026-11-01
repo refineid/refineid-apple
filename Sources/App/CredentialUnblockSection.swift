@@ -45,15 +45,15 @@ internal struct CredentialUnblockSection: View {
   /// suffix; repeating it in every field made the labels truncate.
   private var everydayTargetName: String {
     target == .pin2
-      ? String(localized: "signature code")
-      : String(localized: "basic code")
+      ? String(localized: "signature PIN")
+      : String(localized: "basic PIN")
   }
 
   /// The repeat field's whole label.
   private var everydayTargetNameRepeated: String {
     target == .pin2
-      ? String(localized: "Signature code again")
-      : String(localized: "Basic code again")
+      ? String(localized: "Repeat PIN 2")
+      : String(localized: "Repeat PIN 1")
   }
   @State private var puk = ""
   @State private var new = ""
