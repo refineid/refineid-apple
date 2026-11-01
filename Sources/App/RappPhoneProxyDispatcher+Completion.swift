@@ -143,7 +143,7 @@
         await coordinator.close()
 
       case .rejected(.cardAccessNumber):
-        CardCredentialStore.forgetCardAccessNumber()
+        CardCredentialStore.forgetEveryCardAccessNumber()
         try? await coordinator.operationFailed(operationID: operationID)
 
       case .rejected(.credential(let role, let remaining)):
@@ -208,7 +208,7 @@
     private func applyRejectedCredential(_ rejection: RappCardExecutor.Rejection) async {
       switch rejection {
       case .cardAccessNumber:
-        CardCredentialStore.forgetCardAccessNumber()
+        CardCredentialStore.forgetEveryCardAccessNumber()
 
       case .credential(.pin1, _):
         await MainActor.run { HeldPin1.shared.clear() }

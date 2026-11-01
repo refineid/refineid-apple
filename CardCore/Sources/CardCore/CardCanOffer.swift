@@ -11,9 +11,8 @@ import Security
 ///
 /// One active offer plus a per-card library. The driver reads only these
 /// slots; the app decides what the offer holds. A card answers with no
-/// individual identifier before PACE, so the driver tries every stored
-/// number until one mints -- a wrong CAN spends no retry counter, only
-/// time, which is why the candidate count stays bounded.
+/// individual identifier before PACE, so the driver tries the first
+/// number, and a card that refuses it wipes the offer and the library.
 public enum CardCanOffer {
   /// One validated candidate: the digits to spend and their parsed form.
   public struct Candidate {
@@ -81,6 +80,15 @@ public enum CardCanOffer {
   /// Clears the refusal, for an offer that succeeded after all.
   internal static func clearRefusal() {
     CardCredentialStore.deleteShared(account: refusalAccount)
+  }
+
+  /// Forgets the offer and every stored number, keeping the refusal
+  /// marker so the window that offered can still see the verdict.
+  public static func forgetEveryNumber() {
+    CardCredentialStore.deleteShared(account: offerAccount)
+    for account in libraryAccounts() {
+      CardCredentialStore.deleteShared(account: account)
+    }
   }
 
   /// Forgets the stored number for the card with this printed serial.

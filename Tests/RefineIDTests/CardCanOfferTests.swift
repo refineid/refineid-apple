@@ -69,6 +69,22 @@
     }
 
     @Test
+    internal func refusalWipesEveryNumberButKeepsTheMarker() {
+      defer { Self.cleanup(serials: ["AA0000001", "BB0000002"]) }
+      #expect(CardCredentialStore.save(cardAccessNumber: "111111") == errSecSuccess)
+      #expect(CardCanOffer.publish(digits: "222222"))
+      CardCanOffer.remember(digits: "222222", printedSerial: "AA0000001")
+      CardCanOffer.remember(digits: "333333", printedSerial: "BB0000002")
+      CardCanOffer.recordRefusal()
+
+      CardCredentialStore.forgetEveryCardAccessNumber()
+
+      #expect(!CardCredentialStore.hasStoredNumbers())
+      #expect(CardCanOffer.storedSerials().isEmpty)
+      #expect(CardCanOffer.refusalRecorded())
+    }
+
+    @Test
     internal func refusalMarkerRoundTrip() {
       defer { Self.cleanup() }
       #expect(!CardCanOffer.refusalRecorded())

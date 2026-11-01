@@ -26,7 +26,7 @@ extension Token {
           + "no stored automatic identity belonged to this token")
       return
     }
-    CardCredentialStore.forgetCardAccessNumber()
+    CardCredentialStore.forgetEveryCardAccessNumber()
     PrimeStore.forget(serial: chipSerial)
     PrimeStore.clearRegistrationField()
     TokenRegistrationRevoker.revoke(instanceID, reason: .canRejection)

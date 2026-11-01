@@ -225,10 +225,10 @@ internal enum CardMaintenance {
       do {
         keys = try PaceEstablishment(channel: channel).establish(with: offered)
       } catch PaceEstablishment.Failure.authenticationTokenMismatch {
-        CardCredentialStore.forgetCardAccessNumber()
+        CardCredentialStore.forgetEveryCardAccessNumber()
         return nil
       } catch PaceEstablishment.Failure.cardRejected(.authenticationFailed) {
-        CardCredentialStore.forgetCardAccessNumber()
+        CardCredentialStore.forgetEveryCardAccessNumber()
         return nil
       } catch {
         return nil
