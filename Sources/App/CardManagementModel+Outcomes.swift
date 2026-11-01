@@ -5,18 +5,18 @@ import SwiftUI
 
 extension CardManagementModel {
   internal func describe(_ activation: CardMaintenance.ActivationReport) -> Bool {
-    let entry = activationEntryName(activation.scheme)
+    let entry = PresentedCredential(activation: activation.scheme)
     switch (activation.pin1, activation.pin2) {
     case (.success, .success):
-      notice = "Card activated: PIN 1 and PIN 2 are set"
+      notice = String(localized: "Card activated: PIN 1 and PIN 2 are set.")
       return true
 
     case (.alreadyActivated, .success):
-      notice = "Card activated: PIN 2 is set; PIN 1 already was"
+      notice = String(localized: "Card activated: PIN 2 is set; PIN 1 already was.")
       return true
 
     case (.success, .alreadyActivated), (.success, nil):
-      notice = "Card activated: PIN 1 is set; PIN 2 already was"
+      notice = String(localized: "Card activated: PIN 1 is set; PIN 2 already was.")
       return true
 
     case (.success, .some(let second)):
@@ -24,7 +24,7 @@ extension CardManagementModel {
         for: second, presenting: entry,
         spending: activationSpends(activation.scheme, writing: .pin2)
       )
-      .map { "PIN 1 was set, but PIN 2 was not: \($0)" }
+      .map { String(localized: "PIN 1 was set, but PIN 2 was not: \($0)") }
       return false
 
     case (.alreadyActivated, .some(let second)):
@@ -32,11 +32,11 @@ extension CardManagementModel {
         for: second, presenting: entry,
         spending: activationSpends(activation.scheme, writing: .pin2)
       )
-      .map { "PIN 2 was not set: \($0)" }
+      .map { String(localized: "PIN 2 was not set: \($0)") }
       return false
 
     case (.alreadyActivated, nil):
-      failure = "This card is already activated."
+      failure = String(localized: "This card is already activated.")
       return false
 
     case (let first, _):
@@ -62,18 +62,8 @@ extension CardManagementModel {
     }
   }
 
-  internal func activationEntryName(_ scheme: ActivationScheme) -> String {
-    switch scheme {
-    case .activationCodeIsPuk:
-      "activation code"
-
-    case .presetActivationPin:
-      "activation PIN"
-    }
-  }
-
   internal func perform(
-    presenting: String,
+    presenting: PresentedCredential,
     spending role: CredentialRole,
     accepted: String,
     _ operation: () async -> CardMaintenance.MutationReport
@@ -102,7 +92,7 @@ extension CardManagementModel {
   /// visible. A confirmed operation must never disappear as a silent no-op.
   internal func beginCardOperation() -> Bool {
     if cardOperationInProgress {
-      failure = "Another card operation is still in progress. Try again."
+      failure = String(localized: "Another card operation is still in progress. Try again.")
       return false
     }
     guard canContactCard else {
@@ -114,7 +104,7 @@ extension CardManagementModel {
 
   internal func message(
     for outcome: CardMaintenance.Outcome,
-    presenting: String,
+    presenting: PresentedCredential,
     spending role: CredentialRole
   ) -> String? {
     switch outcome {
@@ -122,7 +112,7 @@ extension CardManagementModel {
       nil
 
     case .invalidEntry:
-      "The entry does not fit the credential's digit rules."
+      String(localized: "The entry does not fit the credential's digit rules.")
 
     case .noCard:
       unreadableCardMessage
@@ -131,24 +121,22 @@ extension CardManagementModel {
       CredentialOutcomeMessage.blocked(role)
 
     case .floorRefused(.refuseUnreadable):
-      "The \(presenting) retry counter could not be read; nothing was sent."
+      String(localized: "The \(presenting.name) retry counter could not be read; nothing was sent.")
 
     case .floorRefused(let verdict):
       CredentialOutcomeMessage.floorRefusal(role: role, verdict: verdict, remaining: nil)
 
     case .rejected(let remaining):
-      CredentialOutcomeMessage.rejection(
-        credentialName: presenting,
-        remaining: remaining)
+      CredentialOutcomeMessage.rejection(presenting, remaining: remaining)
 
     case .invalidated:
-      "The credential slot is invalidated."
+      String(localized: "The credential slot is invalidated.")
 
     case .alreadyActivated:
-      "This card looks activated already."
+      String(localized: "This card looks activated already.")
 
     case .failed:
-      "The card operation did not complete."
+      String(localized: "The card operation did not complete.")
     }
   }
 }

@@ -63,8 +63,10 @@ internal final class CardManagementModel: ObservableObject {
 
   internal var unreadableCardMessage: String {
     transport == .nearField
-      ? "The card could not be read over NFC. Check its card access number and try again."
-      : "No readable card. Connect a reader and insert the card."
+      ? String(
+        localized:
+          "The card could not be read over NFC. Check its card access number and try again.")
+      : String(localized: "No readable card. Connect a reader and insert the card.")
   }
 
   internal init(
@@ -162,7 +164,9 @@ internal final class CardManagementModel: ObservableObject {
   }
 
   internal func changePin1(current: String, new: String) async -> Bool {
-    await perform(presenting: "PIN 1", spending: .pin1, accepted: "PIN 1 changed") {
+    await perform(
+      presenting: .pin1, spending: .pin1, accepted: String(localized: "PIN 1 changed.")
+    ) {
       await CardMaintenance.changePin1(
         current: current,
         new: new,
@@ -173,7 +177,9 @@ internal final class CardManagementModel: ObservableObject {
   }
 
   internal func changePin2(current: String, new: String) async -> Bool {
-    await perform(presenting: "PIN 2", spending: .pin2, accepted: "PIN 2 changed") {
+    await perform(
+      presenting: .pin2, spending: .pin2, accepted: String(localized: "PIN 2 changed.")
+    ) {
       await CardMaintenance.changePin2(
         current: current,
         new: new,
@@ -186,9 +192,9 @@ internal final class CardManagementModel: ObservableObject {
   internal func unblock(target: CredentialRole, puk: String, new: String) async -> Bool {
     let accepted =
       target == .pin2
-      ? "PIN 2 reset"
-      : "PIN 1 reset"
-    return await perform(presenting: "PUK", spending: .puk, accepted: accepted) {
+      ? String(localized: "PIN 2 reset.")
+      : String(localized: "PIN 1 reset.")
+    return await perform(presenting: .puk, spending: .puk, accepted: accepted) {
       if target == .pin2 {
         return await CardMaintenance.unblockPin2(
           puk: puk,
@@ -213,7 +219,7 @@ internal final class CardManagementModel: ObservableObject {
   ) async -> Bool {
     guard beginCardOperation() else { return false }
     guard let scheme = activation?.scheme else {
-      failure = "The card could not be classified for activation."
+      failure = String(localized: "The card could not be classified for activation.")
       return false
     }
     working = true
@@ -232,7 +238,7 @@ internal final class CardManagementModel: ObservableObject {
     )
     working = false
     guard let execution else {
-      failure = "The card could not be classified for activation."
+      failure = String(localized: "The card could not be classified for activation.")
       return false
     }
     _ = describe(execution.activation)

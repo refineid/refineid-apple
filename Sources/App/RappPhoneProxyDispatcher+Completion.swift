@@ -114,11 +114,11 @@
       where role != .puk && remaining.attemptsRemaining >= RetryFloor.minimumAttemptsToProceed:
         .afterRefusal(
           CredentialOutcomeMessage.rejection(
-            credentialName: CredentialLabels.name(for: role), remaining: remaining))
+            PresentedCredential(role), remaining: remaining))
 
       case .refusedBeforeCredentialTransmit(.invalidCredential(let role)) where role != .puk:
         .afterRefusal(
-          CredentialOutcomeMessage.incorrect(credentialName: CredentialLabels.name(for: role)))
+          CredentialOutcomeMessage.incorrect(PresentedCredential(role)))
 
       case .refusedBeforeCredentialTransmit(.heldPin1Unconfirmed):
         .afresh
