@@ -104,7 +104,9 @@ internal struct CredentialSecretField<Field: View, Validation: View>: View {
       Button {
         revealsValue.toggle()
       } label: {
-        Image(systemName: revealsValue ? "eye.slash" : "eye")
+        // The eye is the field's state: closed while the digits are
+        // hidden, open while they show.
+        Image(systemName: revealsValue ? "eye" : "eye.slash")
       }
       .buttonStyle(.plain)
       .frame(width: buttonSize, height: buttonSize)

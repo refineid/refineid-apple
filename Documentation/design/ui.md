@@ -20,6 +20,9 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   tooltip, an accessibility value or a different symbol. On iPhone and
   iPad, a removal button takes the platform's destructive red, as iOS
   lists do: it is a control, not a state.
+- **The eye shows the state.** A secret field's eye is closed while the
+  digits are hidden, which is how every field starts, and open while they
+  show. Clicking it opens or closes it.
 - **Six-box code entry.** A pairing code and a card access number are typed
   into the six-box field (`CodeBoxesField`), never into a plain text field.
   The field has a VoiceOver label.
@@ -33,8 +36,9 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   word is not "PIN", the number follows in brackets: "Uusi
   perustunnusluku (PIN 1)", "Ny grundkod (PIN 1)".
   The activation form, titled "Identity card activation", has three
-  groups, headed "Activation PIN", "PIN 1" and "PIN 2", so a filled
-  field still says what it holds.
+  groups, headed "Activation PIN", "Basic PIN 1" and "Signature PIN 2"
+  (Finnish "Perustunnusluku (PIN 1)"), so a filled field still says what
+  it holds.
 - **Development builds show errors.** Every failure path reports to
   `DevErrorLog`: the Errors window on the Mac, the error pill and the
   Diagnostics screen on iPhone and iPad. TestFlight and Release builds

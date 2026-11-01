@@ -60,7 +60,7 @@ internal struct CardActivationSection: View {
         Section {
           pin1Rows
         } header: {
-          Text("PIN 1")
+          Text("Basic PIN 1")
         } footer: {
           if !asksPin2 { macButton }
         }
@@ -69,7 +69,7 @@ internal struct CardActivationSection: View {
         Section {
           pin2Rows
         } header: {
-          Text("PIN 2")
+          Text("Signature PIN 2")
         } footer: {
           macButton
         }
