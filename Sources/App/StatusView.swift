@@ -137,6 +137,8 @@
         formBody
       }
       .formStyle(.grouped)
+      // A form is a scroll view; one that fits its window stays still.
+      .scrollBounceBehavior(.basedOnSize)
       .fixedSize(horizontal: false, vertical: true)
     }
 
