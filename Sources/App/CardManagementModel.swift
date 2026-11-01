@@ -53,7 +53,7 @@ internal final class CardManagementModel: ObservableObject {
       || cardAccessNumber.count == CardAccessNumber.digitCount
   }
 
-  private var offeredCardAccessNumber: String? {
+  internal var offeredCardAccessNumber: String? {
     transport == .nearField ? cardAccessNumber : nil
   }
 

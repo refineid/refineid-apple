@@ -40,6 +40,12 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   groups, headed "Activation PIN", "Basic PIN 1" and "Signature PIN 2"
   (Finnish "Perustunnusluku (PIN 1)"), so a filled field still says what
   it holds.
+- **Both PINs blocked.** When PIN 1 and PIN 2 are both blocked and the
+  PUK is above the retry floor, card management offers one form in place
+  of "Reset PIN 1" and "Reset PIN 2": groups headed "PUK", "Basic PIN 1"
+  and "Signature PIN 2", laid out as the activation form, and a "Reset"
+  button. It resets PIN 1, then PIN 2 only if PIN 1 was reset, with the
+  one PUK entry, on any card that does not await activation.
 - **Development builds show errors.** Every failure path reports to
   `DevErrorLog`: the Errors window on the Mac, the error pill and the
   Diagnostics screen on iPhone and iPad. TestFlight and Release builds

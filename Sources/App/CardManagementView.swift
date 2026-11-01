@@ -101,6 +101,14 @@ internal struct CardManagementView: View {
     activationRequired || model.offersActivation
   }
 
+  /// Both PINs blocked take the one form that resets them together.
+  private var offersBothPinsReset: Bool {
+    #if os(macOS)
+      guard readerCardIsPresent else { return false }
+    #endif
+    return retryHealth.recovery == .resetBothPins
+  }
+
   /// A critical card is a recovery workflow, never a PIN-change workflow.
   private var availableTasks: [ManagementTask] {
     #if os(macOS)
@@ -110,7 +118,7 @@ internal struct CardManagementView: View {
     case .resetPin1, .resetPin2:
       [.resetPin1, .resetPin2]
 
-    case .useOtherSoftware, .unrecoverable:
+    case .resetBothPins, .useOtherSoftware, .unrecoverable:
       []
 
     case nil:
@@ -224,6 +232,9 @@ internal struct CardManagementView: View {
           readerCardIsPresent: readerCardIsPresent,
           usesProvidedCardAccessNumber: usesProvidedCardAccessNumber
         )
+        if offersBothPinsReset, model.notice == nil {
+          CredentialResetBothSection(model: model)
+        }
         let tasks = availableTasks
         if !tasks.isEmpty {
           taskSelector(tasks: tasks, selection: $task)
@@ -310,7 +321,7 @@ internal struct CardManagementView: View {
       case .resetPin2:
         .resetPin2
 
-      case .useOtherSoftware, .unrecoverable, nil:
+      case .resetBothPins, .useOtherSoftware, .unrecoverable, nil:
         nil
       }
     if let recoveryTask {

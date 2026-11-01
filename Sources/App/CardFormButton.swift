@@ -2,15 +2,17 @@
 
 import SwiftUI
 
-/// The activation form's one action: full width and large on iPhone and
-/// iPad, centred under the last group on the Mac.
-internal struct CardActivationButton: View {
+/// A card form's one action: full width and large on iPhone and iPad,
+/// centred under the last group on the Mac.
+internal struct CardFormButton: View {
+  internal let title: LocalizedStringKey
+  internal let identifier: String
   internal let enabled: Bool
   internal let action: () -> Void
 
   internal var body: some View {
     Button(action: action) {
-      Text("Activate Card")
+      Text(title)
         #if os(iOS)
           .frame(maxWidth: .infinity)
         #endif
@@ -25,6 +27,6 @@ internal struct CardActivationButton: View {
     #endif
     .keyboardShortcut(.defaultAction)
     .disabled(!enabled)
-    .accessibilityIdentifier("managementActivate")
+    .accessibilityIdentifier(identifier)
   }
 }

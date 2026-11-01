@@ -105,7 +105,9 @@ internal struct CardActivationSection: View {
   }
 
   private var activationButton: some View {
-    CardActivationButton(
+    CardFormButton(
+      title: "Activate Card",
+      identifier: "managementActivate",
       enabled: isComplete
         && model.canContactCard
         && model.allowsActivationOperation
