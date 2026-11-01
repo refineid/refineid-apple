@@ -32,6 +32,8 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   and the field that repeats it is "Repeat PIN 1". Where the language's
   word is not "PIN", the number follows in brackets: "Uusi
   perustunnusluku (PIN 1)", "Ny grundkod (PIN 1)".
+  The activation form has three groups: the activation code, PIN 1's
+  pair and PIN 2's pair.
 - **Development builds show errors.** Every failure path reports to
   `DevErrorLog`: the Errors window on the Mac, the error pill and the
   Diagnostics screen on iPhone and iPad. TestFlight and Release builds

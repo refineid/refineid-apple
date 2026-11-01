@@ -25,46 +25,40 @@ internal struct CardActivationSection: View {
     return entry.count == scheme.activationEntryDigitCount
   }
 
-  private var pin1IsValid: Bool {
-    (Pin1.minimumDigitCount...Pin1.maximumDigitCount).contains(newPin1.count)
+  private var pin1Entries: NewPinEntries {
+    NewPinEntries(
+      new: newPin1, repeated: newPin1Repeated,
+      bounds: Pin1.minimumDigitCount...Pin1.maximumDigitCount)
   }
 
-  private var repeatedPin1IsValid: Bool {
-    pin1IsValid && newPin1Repeated == newPin1
+  private var pin2Entries: NewPinEntries {
+    NewPinEntries(
+      new: newPin2, repeated: newPin2Repeated,
+      bounds: Pin2.minimumDigitCount...Pin2.maximumDigitCount)
   }
 
-  private var pin1EntriesDiffer: Bool {
-    pin1IsValid
-      && (Pin1.minimumDigitCount...Pin1.maximumDigitCount).contains(newPin1Repeated.count)
-      && newPin1Repeated != newPin1
-  }
-
-  private var pin2IsValid: Bool {
-    (Pin2.minimumDigitCount...Pin2.maximumDigitCount).contains(newPin2.count)
-  }
-
-  private var repeatedPin2IsValid: Bool {
-    pin2IsValid && newPin2Repeated == newPin2
-  }
-
-  private var pin2EntriesDiffer: Bool {
-    pin2IsValid
-      && (Pin2.minimumDigitCount...Pin2.maximumDigitCount).contains(newPin2Repeated.count)
-      && newPin2Repeated != newPin2
-  }
-
-  /// Ready only when the activation PIN has the exact length selected
-  /// by the card ATR and every requested new PIN is valid and repeated.
+  /// Ready only when the activation PIN has the exact length the card's
+  /// scheme takes and every requested new PIN is valid and repeated.
   private var isComplete: Bool {
     activationEntryIsValid
-      && (!asksPin1 || pin1IsValid && repeatedPin1IsValid)
-      && (!asksPin2 || pin2IsValid && repeatedPin2IsValid)
+      && (!asksPin1 || pin1Entries.isValid && pin1Entries.repeatedIsValid)
+      && (!asksPin2 || pin2Entries.isValid && pin2Entries.repeatedIsValid)
   }
 
   internal var body: some View {
     Group {
       Section("Card activation") {
-        entryRows
+        activationEntryRow
+      }
+      if asksPin1 {
+        Section {
+          pin1Rows
+        }
+      }
+      if asksPin2 {
+        Section {
+          pin2Rows
+        }
       }
       activationButton
     }
@@ -114,10 +108,8 @@ internal struct CardActivationSection: View {
     .accessibilityIdentifier("managementActivate")
   }
 
-  /// The secret fields, only for what the card still waits for: an
-  /// interrupted activation left one PIN set, and asking for a new
-  /// value it will not take invites a retry spent on nothing.
-  @ViewBuilder private var entryRows: some View {
+  /// The activation code: its own group, above one group per PIN.
+  private var activationEntryRow: some View {
     CredentialSecretField(
       name: String(localized: "Activation PIN"),
       text: $entry,
@@ -141,104 +133,111 @@ internal struct CardActivationSection: View {
           isEmpty: entry.isEmpty)
       }
     )
-    if asksPin1 {
-      CredentialSecretField(
-        name: CredentialLabels.newPinField(for: .pin1),
-        text: $newPin1,
-        revealIdentifier: "managementActivationPin1Reveal",
-        field: {
-          SecureField(CredentialLabels.newPinField(for: .pin1), text: $newPin1)
-            .textContentType(.oneTimeCode)
-            #if os(iOS)
-              .keyboardType(.numberPad)
-            #endif
-            .onValueChange(of: newPin1) { typed in
-              newPin1 = LimitedDigits.pin1(typed)
-            }
-            .focused($focus, equals: .pin1)
-            .onSubmit { advance(from: .pin1) }
-            .accessibilityIdentifier("managementActivationPin1")
-        },
-        validation: {
-          CredentialValidationIndicator(
-            valid: pin1IsValid,
-            isEmpty: newPin1.isEmpty)
-        }
-      )
-      CredentialSecretField(
-        name: CredentialLabels.repeatPinField(for: .pin1),
-        text: $newPin1Repeated,
-        revealIdentifier: "managementActivationPin1RepeatReveal",
-        field: {
-          SecureField(CredentialLabels.repeatPinField(for: .pin1), text: $newPin1Repeated)
-            .textContentType(.oneTimeCode)
-            #if os(iOS)
-              .keyboardType(.numberPad)
-            #endif
-            .onValueChange(of: newPin1Repeated) { typed in
-              newPin1Repeated = LimitedDigits.pin1(typed)
-            }
-            .focused($focus, equals: .pin1Repeat)
-            .onSubmit { advance(from: .pin1Repeat) }
-            .accessibilityIdentifier("managementActivationPin1Repeat")
-        },
-        validation: {
-          CredentialValidationIndicator(
-            valid: repeatedPin1IsValid,
-            entriesDiffer: pin1EntriesDiffer,
-            isEmpty: newPin1Repeated.isEmpty)
-        }
-      )
-    }
-    if asksPin2 {
-      CredentialSecretField(
-        name: CredentialLabels.newPinField(for: .pin2),
-        text: $newPin2,
-        revealIdentifier: "managementActivationPin2Reveal",
-        field: {
-          SecureField(CredentialLabels.newPinField(for: .pin2), text: $newPin2)
-            .textContentType(.oneTimeCode)
-            #if os(iOS)
-              .keyboardType(.numberPad)
-            #endif
-            .onValueChange(of: newPin2) { typed in
-              newPin2 = LimitedDigits.pin2(typed)
-            }
-            .focused($focus, equals: .pin2)
-            .onSubmit { advance(from: .pin2) }
-            .accessibilityIdentifier("managementActivationPin2")
-        },
-        validation: {
-          CredentialValidationIndicator(
-            valid: pin2IsValid,
-            isEmpty: newPin2.isEmpty)
-        }
-      )
-      CredentialSecretField(
-        name: CredentialLabels.repeatPinField(for: .pin2),
-        text: $newPin2Repeated,
-        revealIdentifier: "managementActivationPin2RepeatReveal",
-        field: {
-          SecureField(CredentialLabels.repeatPinField(for: .pin2), text: $newPin2Repeated)
-            .textContentType(.oneTimeCode)
-            #if os(iOS)
-              .keyboardType(.numberPad)
-            #endif
-            .onValueChange(of: newPin2Repeated) { typed in
-              newPin2Repeated = LimitedDigits.pin2(typed)
-            }
-            .focused($focus, equals: .pin2Repeat)
-            .onSubmit { advance(from: .pin2Repeat) }
-            .accessibilityIdentifier("managementActivationPin2Repeat")
-        },
-        validation: {
-          CredentialValidationIndicator(
-            valid: repeatedPin2IsValid,
-            entriesDiffer: pin2EntriesDiffer,
-            isEmpty: newPin2Repeated.isEmpty)
-        }
-      )
-    }
+  }
+
+  /// PIN 1's new value and its repeat, shown only while the card still
+  /// waits for it: an interrupted activation left one PIN set, and
+  /// asking for a value the card will not take invites a retry spent
+  /// on nothing.
+  @ViewBuilder private var pin1Rows: some View {
+    CredentialSecretField(
+      name: CredentialLabels.newPinField(for: .pin1),
+      text: $newPin1,
+      revealIdentifier: "managementActivationPin1Reveal",
+      field: {
+        SecureField(CredentialLabels.newPinField(for: .pin1), text: $newPin1)
+          .textContentType(.oneTimeCode)
+          #if os(iOS)
+            .keyboardType(.numberPad)
+          #endif
+          .onValueChange(of: newPin1) { typed in
+            newPin1 = LimitedDigits.pin1(typed)
+          }
+          .focused($focus, equals: .pin1)
+          .onSubmit { advance(from: .pin1) }
+          .accessibilityIdentifier("managementActivationPin1")
+      },
+      validation: {
+        CredentialValidationIndicator(
+          valid: pin1Entries.isValid,
+          isEmpty: newPin1.isEmpty)
+      }
+    )
+    CredentialSecretField(
+      name: CredentialLabels.repeatPinField(for: .pin1),
+      text: $newPin1Repeated,
+      revealIdentifier: "managementActivationPin1RepeatReveal",
+      field: {
+        SecureField(CredentialLabels.repeatPinField(for: .pin1), text: $newPin1Repeated)
+          .textContentType(.oneTimeCode)
+          #if os(iOS)
+            .keyboardType(.numberPad)
+          #endif
+          .onValueChange(of: newPin1Repeated) { typed in
+            newPin1Repeated = LimitedDigits.pin1(typed)
+          }
+          .focused($focus, equals: .pin1Repeat)
+          .onSubmit { advance(from: .pin1Repeat) }
+          .accessibilityIdentifier("managementActivationPin1Repeat")
+      },
+      validation: {
+        CredentialValidationIndicator(
+          valid: pin1Entries.repeatedIsValid,
+          entriesDiffer: pin1Entries.differ,
+          isEmpty: newPin1Repeated.isEmpty)
+      }
+    )
+  }
+
+  /// PIN 2's new value and its repeat, under the same rule as PIN 1.
+  @ViewBuilder private var pin2Rows: some View {
+    CredentialSecretField(
+      name: CredentialLabels.newPinField(for: .pin2),
+      text: $newPin2,
+      revealIdentifier: "managementActivationPin2Reveal",
+      field: {
+        SecureField(CredentialLabels.newPinField(for: .pin2), text: $newPin2)
+          .textContentType(.oneTimeCode)
+          #if os(iOS)
+            .keyboardType(.numberPad)
+          #endif
+          .onValueChange(of: newPin2) { typed in
+            newPin2 = LimitedDigits.pin2(typed)
+          }
+          .focused($focus, equals: .pin2)
+          .onSubmit { advance(from: .pin2) }
+          .accessibilityIdentifier("managementActivationPin2")
+      },
+      validation: {
+        CredentialValidationIndicator(
+          valid: pin2Entries.isValid,
+          isEmpty: newPin2.isEmpty)
+      }
+    )
+    CredentialSecretField(
+      name: CredentialLabels.repeatPinField(for: .pin2),
+      text: $newPin2Repeated,
+      revealIdentifier: "managementActivationPin2RepeatReveal",
+      field: {
+        SecureField(CredentialLabels.repeatPinField(for: .pin2), text: $newPin2Repeated)
+          .textContentType(.oneTimeCode)
+          #if os(iOS)
+            .keyboardType(.numberPad)
+          #endif
+          .onValueChange(of: newPin2Repeated) { typed in
+            newPin2Repeated = LimitedDigits.pin2(typed)
+          }
+          .focused($focus, equals: .pin2Repeat)
+          .onSubmit { advance(from: .pin2Repeat) }
+          .accessibilityIdentifier("managementActivationPin2Repeat")
+      },
+      validation: {
+        CredentialValidationIndicator(
+          valid: pin2Entries.repeatedIsValid,
+          entriesDiffer: pin2Entries.differ,
+          isEmpty: newPin2Repeated.isEmpty)
+      }
+    )
   }
 
   /// Return advances through the fields that are shown; on the last
