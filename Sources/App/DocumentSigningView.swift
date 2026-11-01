@@ -228,7 +228,7 @@
 
       case .refusedLowAttempts(let remaining):
         showFailure(
-          text("error.operationRefused", "Operation refused")
+          text("error.operationRefused", "Operation refused.")
             + "\n"
             + String(
               format: text(

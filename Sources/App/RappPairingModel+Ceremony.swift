@@ -17,7 +17,7 @@ extension RappPairingModel {
   ) -> Failure? {
     switch reason {
     case .ceremonyEnded:
-      .reported(String(localized: "Pairing ended before it was completed"))
+      .reported(String(localized: "Pairing ended before it was completed."))
 
     case .interrupted, .localRequest:
       nil
@@ -26,10 +26,10 @@ extension RappPairingModel {
       .localNetworkDenied
 
     case .noneInPairingMode:
-      .reported(String(localized: "No phone in pairing mode was found"))
+      .reported(String(localized: "No phone in pairing mode was found."))
 
     case .notAccepted:
-      .reported(String(localized: "The pairing code was not accepted"))
+      .reported(String(localized: "The pairing code was not accepted."))
 
     case .unreachable:
       .unreachable
@@ -104,7 +104,7 @@ extension RappPairingModel {
   private func introduce(_ peer: RappPairingCoordinator.Peer) {
     let name = peer.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !name.isEmpty else {
-      ceremonyEnded(String(localized: "The device did not give its name"))
+      ceremonyEnded(String(localized: "The device did not give its name."))
       return
     }
     reviewedPeerName = name
@@ -118,7 +118,7 @@ extension RappPairingModel {
 
     case .attemptTimedOut, .custodianBusy, .localRequest, .persistenceFailure,
       .protocolFailure, .storageUnconfirmed, .transportFailure:
-      ceremonyEnded(String(localized: "Pairing ended before it was completed"))
+      ceremonyEnded(String(localized: "Pairing ended before it was completed."))
     }
   }
 
@@ -133,7 +133,7 @@ extension RappPairingModel {
       if (try? vault.selectedPairID()) == pair.pairID {
         try? vault.clearSelectedPair()
       }
-      ceremonyEnded(String(localized: "The device did not give its name"))
+      ceremonyEnded(String(localized: "The device did not give its name."))
       return
     }
     do {
@@ -156,7 +156,7 @@ extension RappPairingModel {
         PersistentTokenRegistry.shared.startAfterPairing()
       #endif
     } catch {
-      ceremonyEnded(String(localized: "The paired device could not be selected"))
+      ceremonyEnded(String(localized: "The paired device could not be selected."))
     }
   }
 
@@ -173,7 +173,7 @@ extension RappPairingModel {
         self.coordinator === coordinator,
         !isFinished
       else {
-        self?.fail(.reported(String(localized: "Pairing could not be started")))
+        self?.fail(.reported(String(localized: "Pairing could not be started.")))
         return
       }
       replacement.start()

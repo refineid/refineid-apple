@@ -297,13 +297,13 @@
         execution.sheet.finish()
       } else {
         execution.sheet.fail(
-          at: .registered, saying: String(localized: "Safari setup did not finish"))
+          at: .registered, saying: String(localized: "Safari setup did not finish."))
       }
       return Outcome(
         stored: true,
         registered: registered,
         summary: registered
-          ? String(localized: "The system is ready")
+          ? String(localized: "The system is ready.")
           : String(
             localized: """
               The card details were stored, but Safari setup did not \

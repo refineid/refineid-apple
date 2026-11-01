@@ -24,7 +24,7 @@ internal enum DocumentSigningPhase: Equatable, Sendable {
       String(localized: "Signing document…")
 
     case .phone:
-      String(localized: "Continue on your phone")
+      String(localized: "Continue on your phone.")
 
     case .timestamp:
       String(localized: "Timestamping…")

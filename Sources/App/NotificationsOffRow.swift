@@ -11,7 +11,7 @@
       Group {
         if state.isDeclined {
           HStack {
-            Text(String(localized: "Notifications are off"))
+            Text(String(localized: "Notifications are off."))
               .foregroundStyle(.secondary)
             Spacer()
             Button(String(localized: "Open Settings")) {

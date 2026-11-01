@@ -13,7 +13,7 @@ import XCTest
 internal final class RappPairingSearchMessageTests: XCTestCase {
   private typealias Reason = RappPairingSearch<PairingEndpoint>.CloseReason
 
-  private static let notAccepted = String(localized: "The pairing code was not accepted")
+  private static let notAccepted = String(localized: "The pairing code was not accepted.")
 
   private static func assertTranslations(of key: String, finnish: String, swedish: String) throws {
     let catalog = URL(fileURLWithPath: #filePath)
@@ -46,11 +46,11 @@ internal final class RappPairingSearchMessageTests: XCTestCase {
   internal func testASearchThatTriedNoPhoneSaysNoneWasFound() {
     XCTAssertEqual(
       RappPairingModel.failure(for: Reason.noneInPairingMode)?.message,
-      String(localized: "No phone in pairing mode was found"))
+      String(localized: "No phone in pairing mode was found."))
   }
 
   internal func testAPhoneFoundButUnreachedIsNotCalledMissing() {
-    let missing = String(localized: "No phone in pairing mode was found")
+    let missing = String(localized: "No phone in pairing mode was found.")
     XCTAssertEqual(RappPairingModel.failure(for: Reason.unreachable), .unreachable)
     XCTAssertNotEqual(RappPairingModel.Failure.unreachable.message, missing)
     XCTAssertEqual(RappPairingModel.failure(for: Reason.localNetworkDenied), .localNetworkDenied)
@@ -89,14 +89,14 @@ internal final class RappPairingSearchMessageTests: XCTestCase {
   internal func testAFailureAfterTheCodeWasTakenEndsThePairing() {
     XCTAssertEqual(
       RappPairingModel.failure(for: Reason.ceremonyEnded(.attemptTimedOut))?.message,
-      String(localized: "Pairing ended before it was completed"))
+      String(localized: "Pairing ended before it was completed."))
   }
 
   internal func testNoneFoundIsSaidInEveryLanguage() throws {
     try Self.assertTranslations(
-      of: "No phone in pairing mode was found",
-      finnish: "Yhdistämistilassa olevaa puhelinta ei löytynyt",
-      swedish: "Ingen telefon i parkopplingsläge hittades")
+      of: "No phone in pairing mode was found.",
+      finnish: "Yhdistämistilassa olevaa puhelinta ei löytynyt.",
+      swedish: "Ingen telefon i parkopplingsläge hittades.")
   }
 
   internal func testLocalNetworkDenialIsSaidInEveryLanguage() throws {

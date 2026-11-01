@@ -115,7 +115,7 @@ every other change is a change of colour.
 | Remote use off, no reader here | "Connect a card reader." |
 | Remote use off, empty reader here | "Insert the card into the reader." |
 | Remote use on, no card here, no phone paired | "Open RefineID remote access on your phone and enter the pairing code:" and the six-box code entry |
-| Remote use turned on again after the phone forgot this computer | "*phone* forgot this computer" above the pairing prompt |
+| Remote use turned on again after the phone forgot this computer | "*phone* forgot this computer." above the pairing prompt |
 | Card in this Mac's reader, name not read yet | "Reading information…" |
 | Card in this Mac's reader | *HOLDER NAME* |
 | Card in this Mac's reader, no token for it after a while | "Remove the card from the reader for a moment." in orange |
