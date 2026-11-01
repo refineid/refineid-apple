@@ -11,6 +11,13 @@ extension CardMaintenance {
     internal let pin2: Outcome?
   }
 
+  /// What the activation form needs from a card in a reader before it
+  /// is drawn.
+  internal struct ReaderActivation: Equatable, Sendable {
+    internal let activation: ActivationClassification
+    internal let pinLengths: CardPinLengths
+  }
+
   internal struct ActivationExecution: Equatable, Sendable {
     internal let activation: ActivationReport
     internal let remaining: ActivationNeeds
@@ -38,7 +45,10 @@ extension CardMaintenance {
       operation: .activation,
       failedStep: Self.failedStep(of:)
     ) { operations -> ActivationExecution? in
-      guard let activation = runActivation(operations, request: request) else {
+      guard
+        let lengths = try? operations.readCardPinLengths(),
+        let activation = runActivation(operations, request: request, lengths: lengths)
+      else {
         return nil
       }
       // Mutation is complete before any state inspection begins. A successful
@@ -69,7 +79,8 @@ extension CardMaintenance {
 
   private static func runActivation(
     _ operations: CardOperations,
-    request: ActivationRequest
+    request: ActivationRequest,
+    lengths: CardPinLengths
   ) -> ActivationReport? {
     let scheme = request.scheme
     let needs = request.needs
@@ -95,7 +106,8 @@ extension CardMaintenance {
         operations,
         scheme: scheme,
         entry: request.entry,
-        newPin1: fresh
+        newPin1: fresh,
+        lengths: lengths
       )
       guard first == .success else {
         return ActivationReport(scheme: scheme, pin1: first, pin2: nil)
@@ -108,7 +120,8 @@ extension CardMaintenance {
         operations,
         scheme: scheme,
         entry: request.entry,
-        newPin2: fresh
+        newPin2: fresh,
+        lengths: lengths
       )
     }
     return ActivationReport(scheme: scheme, pin1: first, pin2: second)
@@ -118,7 +131,8 @@ extension CardMaintenance {
     _ operations: CardOperations,
     scheme: ActivationScheme,
     entry: String,
-    newPin1: String
+    newPin1: String,
+    lengths: CardPinLengths
   ) -> Outcome {
     switch scheme {
     case .activationCodeIsPuk:
@@ -131,7 +145,8 @@ extension CardMaintenance {
       do {
         try operations.unblockPin1(
           puk: code.consumeForSingleTransmission(),
-          new: pin.consumeForSingleTransmission()
+          new: pin.consumeForSingleTransmission(),
+          lengths: lengths
         )
         return .success
       } catch {
@@ -148,7 +163,8 @@ extension CardMaintenance {
       do {
         try operations.changePin1(
           current: preset.consumeForSingleTransmission(),
-          new: pin.consumeForSingleTransmission()
+          new: pin.consumeForSingleTransmission(),
+          lengths: lengths
         )
         return .success
       } catch {
@@ -161,7 +177,8 @@ extension CardMaintenance {
     _ operations: CardOperations,
     scheme: ActivationScheme,
     entry: String,
-    newPin2: String
+    newPin2: String,
+    lengths: CardPinLengths
   ) -> Outcome {
     switch scheme {
     case .activationCodeIsPuk:
@@ -174,7 +191,8 @@ extension CardMaintenance {
       do {
         try operations.unblockPin2(
           puk: code.consumeForSingleTransmission(),
-          new: pin.consumeForSingleTransmission()
+          new: pin.consumeForSingleTransmission(),
+          lengths: lengths
         )
         return .success
       } catch {
@@ -191,7 +209,8 @@ extension CardMaintenance {
       do {
         try operations.changePin2(
           current: preset.consumeForSingleTransmission(),
-          new: pin.consumeForSingleTransmission()
+          new: pin.consumeForSingleTransmission(),
+          lengths: lengths
         )
         return .success
       } catch {

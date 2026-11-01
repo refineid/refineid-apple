@@ -11,10 +11,12 @@ import Foundation
 /// cleared the retry floor for whichever credential the command
 /// presents.
 ///
-/// Every flow resolves the card's reference numbering first
+/// Every flow knows the card's reference numbering before it consumes
+/// the credential into its one command: VERIFY resolves it
 /// (`resolveCredentialReferences()`, counter-safe, remembered for the
-/// session) and only then consumes the credential into its one command,
-/// so a resolution probe can never cost a typed entry.
+/// session), and the change and unblock flows take it from the
+/// `CardPinLengths` read in the same session, so a resolution probe can
+/// never cost a typed entry.
 extension CardOperations {
   /// Verifies PIN1, consuming the one-shot credential.
   ///
@@ -101,12 +103,17 @@ extension CardOperations {
   /// On success the retry counter is at its maximum and the verified
   /// flag is cleared - the new PIN is set but not presented. A wrong
   /// current PIN throws `pinRejected` and costs one attempt; the caller
-  /// must already have cleared the retry floor for PIN1.
+  /// must already have cleared the retry floor for PIN1. An entry whose
+  /// length `lengths` does not accept throws `pinLengthRefused` before
+  /// any command; the card is addressed under `lengths`' numbering.
   public func changePin1(
     current: consuming Pin1Transmission,
-    new: consuming Pin1Transmission
+    new: consuming Pin1Transmission,
+    lengths: CardPinLengths
   ) throws {
-    let references = try resolveCredentialReferences()
+    try lengths.check(.pin1, digitCount: current.store.bytes.count)
+    try lengths.check(.pin1, digitCount: new.store.bytes.count)
+    let references = lengths.numbering
     try performCredentialUpdate(
       CredentialBearingCommand.changePin1(
         current: current,
@@ -123,9 +130,12 @@ extension CardOperations {
   /// floor the caller must have cleared is PIN2's.
   public func changePin2(
     current: consuming Pin2Transmission,
-    new: consuming Pin2Transmission
+    new: consuming Pin2Transmission,
+    lengths: CardPinLengths
   ) throws {
-    let references = try resolveCredentialReferences()
+    try lengths.check(.pin2, digitCount: current.store.bytes.count)
+    try lengths.check(.pin2, digitCount: new.store.bytes.count)
+    let references = lengths.numbering
     try performCredentialUpdate(
       CredentialBearingCommand.changePin2(
         current: current,
@@ -147,12 +157,18 @@ extension CardOperations {
   /// `pinRejected` carrying the code's own remaining count, and
   /// exhausting it is terminal for the card - the caller must have
   /// cleared the retry floor for the unblocking credential, not the
-  /// target PIN. On success the new PIN is set but not presented.
+  /// target PIN. On success the new PIN is set but not presented. An
+  /// entry whose length `lengths` does not accept throws
+  /// `pinLengthRefused` before any command; the card is addressed under
+  /// `lengths`' numbering.
   public func unblockPin1(
     puk: consuming PukTransmission,
-    new: consuming Pin1Transmission
+    new: consuming Pin1Transmission,
+    lengths: CardPinLengths
   ) throws {
-    let references = try resolveCredentialReferences()
+    try lengths.check(.puk, digitCount: puk.store.bytes.count)
+    try lengths.check(.pin1, digitCount: new.store.bytes.count)
+    let references = lengths.numbering
     switch references {
     case .citizen:
       try performCredentialUpdate(
@@ -183,9 +199,12 @@ extension CardOperations {
   /// Same semantics as `unblockPin1`, against the PIN2 slot.
   public func unblockPin2(
     puk: consuming PukTransmission,
-    new: consuming Pin2Transmission
+    new: consuming Pin2Transmission,
+    lengths: CardPinLengths
   ) throws {
-    let references = try resolveCredentialReferences()
+    try lengths.check(.puk, digitCount: puk.store.bytes.count)
+    try lengths.check(.pin2, digitCount: new.store.bytes.count)
+    let references = lengths.numbering
     switch references {
     case .citizen:
       try performCredentialUpdate(

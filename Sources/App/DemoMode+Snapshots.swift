@@ -5,6 +5,12 @@
   import CardCore
 
   extension DemoMode {
+    // MARK: Static Properties
+
+    /// The virtual card lists no lengths, so every credential takes its
+    /// FINEID bounds.
+    internal static let pinLengths = CardPinLengths.notListed(numbering: .citizen)
+
     // MARK: Static Functions
 
     internal static func maintenanceSnapshot(
@@ -21,7 +27,8 @@
         activationNeeds: CardActivationNeeds(
           pin1: snapshot.card.pin1.isFactoryValue,
           pin2: snapshot.card.pin2.isFactoryValue),
-        activation: .citizen(snapshot.card.activationScheme))
+        activation: .citizen(snapshot.card.activationScheme),
+        pinLengths: pinLengths)
     }
 
     internal static func report(

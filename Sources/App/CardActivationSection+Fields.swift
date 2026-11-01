@@ -1,15 +1,16 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 extension CardActivationSection {
-  /// One new PIN and its repeat, judged against the PIN's digit bounds.
+  /// One new PIN and its repeat, judged against the lengths the card
+  /// accepts for the PIN.
   internal struct NewPinEntries {
     internal let new: String
     internal let repeated: String
-    internal let bounds: ClosedRange<Int>
+    internal let limits: PinEntryLimits
 
     /// The new PIN has an accepted length.
     internal var isValid: Bool {
-      bounds.contains(new.count)
+      limits.accepts(new)
     }
 
     /// The repeat matches a valid new PIN.
@@ -19,7 +20,7 @@ extension CardActivationSection {
 
     /// Both entries have an accepted length but differ.
     internal var differ: Bool {
-      isValid && bounds.contains(repeated.count) && repeated != new
+      isValid && limits.accepts(repeated) && repeated != new
     }
   }
 

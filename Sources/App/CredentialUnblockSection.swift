@@ -27,6 +27,9 @@ internal struct CredentialUnblockSection: View {
   /// shown rather than inside it.
   internal let target: CredentialRole
 
+  /// The PIN and PUK lengths of the card in session.
+  internal let lengths: CardPinLengths
+
   /// The on-screen name of that credential, so the button and the
   /// fields say which one they mean.
   private var targetName: String {
@@ -45,20 +48,23 @@ internal struct CredentialUnblockSection: View {
   @State private var pending: CredentialOperationConfirmation.Operation?
   @FocusState private var focus: Field?
 
-  /// The entry bounds of the targeted PIN.
-  private var targetBounds: ClosedRange<Int> {
-    target == .pin2
-      ? Pin2.minimumDigitCount...Pin2.maximumDigitCount
-      : Pin1.minimumDigitCount...Pin1.maximumDigitCount
+  /// The lengths the card accepts for the targeted PIN.
+  private var targetLimits: PinEntryLimits {
+    PinEntryLimits(lengths, role: target)
+  }
+
+  /// The lengths the card accepts for the PUK.
+  private var pukLimits: PinEntryLimits {
+    PinEntryLimits(lengths, role: .puk)
   }
 
   /// Ready when the PUK and both new entries can possibly be right.
   private var pukIsValid: Bool {
-    (Puk.minimumDigitCount...Puk.maximumDigitCount).contains(puk.count)
+    pukLimits.accepts(puk)
   }
 
   private var newIsValid: Bool {
-    targetBounds.contains(new.count)
+    targetLimits.accepts(new)
   }
 
   private var repeatedIsValid: Bool {
@@ -66,7 +72,7 @@ internal struct CredentialUnblockSection: View {
   }
 
   private var entriesDiffer: Bool {
-    newIsValid && targetBounds.contains(repeated.count) && repeated != new
+    newIsValid && targetLimits.accepts(repeated) && repeated != new
   }
 
   private var isComplete: Bool {
@@ -154,7 +160,7 @@ internal struct CredentialUnblockSection: View {
             .keyboardType(.numberPad)
           #endif
           .onValueChange(of: puk) { typed in
-            puk = LimitedDigits.puk(typed)
+            puk = pukLimits.limited(typed)
           }
           .focused($focus, equals: .puk)
           .onSubmit { advance(from: .puk) }
@@ -177,7 +183,7 @@ internal struct CredentialUnblockSection: View {
             .keyboardType(.numberPad)
           #endif
           .onValueChange(of: new) { typed in
-            new = LimitedDigits.pin(typed)
+            new = targetLimits.limited(typed)
           }
           .focused($focus, equals: .new)
           .onSubmit { advance(from: .new) }
@@ -200,7 +206,7 @@ internal struct CredentialUnblockSection: View {
             .keyboardType(.numberPad)
           #endif
           .onValueChange(of: repeated) { typed in
-            repeated = LimitedDigits.pin(typed)
+            repeated = targetLimits.limited(typed)
           }
           .focused($focus, equals: .repeated)
           .onSubmit { advance(from: .repeated) }

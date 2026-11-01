@@ -66,7 +66,8 @@
       activationRequired: false,
       cardAccessNumber: nil,
       activation: nil,
-      activationNeeds: nil)
+      activationNeeds: nil,
+      pinLengths: nil)
 
     internal var awaitsActivation: Bool {
       state == .awaitsActivation

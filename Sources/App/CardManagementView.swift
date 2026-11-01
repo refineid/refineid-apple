@@ -207,10 +207,11 @@ internal struct CardManagementView: View {
             readerCardIsPresent: readerCardIsPresent,
             usesProvidedCardAccessNumber: usesProvidedCardAccessNumber
           )
-          // Drawn only once the card is classified, so the title and
-          // digit count are final from the first frame.
-          if model.activation != nil {
-            CardActivationSection(model: model, onActivated: activationCompleted)
+          // Drawn only once the card is classified and its PIN lengths
+          // are read, so the title and digit counts are final from the
+          // first frame.
+          if model.activation != nil, let lengths = model.pinLengths {
+            CardActivationSection(model: model, lengths: lengths, onActivated: activationCompleted)
           }
           CardOutcomeSection(model: model)
         }
@@ -234,15 +235,12 @@ internal struct CardManagementView: View {
           readerCardIsPresent: readerCardIsPresent,
           usesProvidedCardAccessNumber: usesProvidedCardAccessNumber
         )
-        if offersBothPinsReset, model.notice == nil {
-          CredentialResetBothSection(model: model)
-        }
-        let tasks = availableTasks
-        if !tasks.isEmpty {
-          taskSelector(tasks: tasks, selection: $task)
-          if model.notice == nil, tasks.contains(task) {
-            page(for: task, model: model)
-          }
+        // The forms wait for the card's PIN lengths, so their limits
+        // are final from the first frame.
+        if let lengths = model.pinLengths {
+          managementForms(
+            model: model, lengths: lengths, offersBothPinsReset: offersBothPinsReset,
+            tasks: availableTasks, selection: $task)
         }
         CardOutcomeSection(model: model)
       }
@@ -263,6 +261,7 @@ internal struct CardManagementView: View {
     cardAccessNumber: String?,
     activation: ActivationClassification?,
     activationNeeds: CardActivationNeeds?,
+    pinLengths: CardPinLengths?,
     onActivationSucceeded: (() -> Void)?
   ) {
     startsWithReaderCard = readerCardIsPresent
@@ -280,7 +279,8 @@ internal struct CardManagementView: View {
       activationRequired: activationRequired,
       cardAccessNumber: cardAccessNumber,
       activation: activation,
-      activationNeeds: activationNeeds
+      activationNeeds: activationNeeds,
+      pinLengths: pinLengths
     )
     _model = StateObject(wrappedValue: initialModel)
     _task = State(
@@ -301,6 +301,7 @@ internal struct CardManagementView: View {
       cardAccessNumber: cardAccessNumber,
       activation: nil,
       activationNeeds: nil,
+      pinLengths: nil,
       onActivationSucceeded: nil
     )
   }

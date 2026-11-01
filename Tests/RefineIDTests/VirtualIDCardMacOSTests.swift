@@ -244,10 +244,13 @@
         activationRequired: false,
         cardAccessNumber: nil,
         activation: nil,
-        activationNeeds: nil
+        activationNeeds: nil,
+        pinLengths: nil
       )
+      #expect(management.pinLengths == nil)
       await management.refresh()
       #expect(management.report != nil)
+      #expect(management.pinLengths == DemoMode.pinLengths)
       if let report = management.report {
         guard let five = RetryCount(attemptsRemaining: 5) else {
           Issue.record("RetryCount failed to initialize")

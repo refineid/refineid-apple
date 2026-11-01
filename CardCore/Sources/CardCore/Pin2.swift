@@ -12,17 +12,22 @@
 /// The type is deliberately not `CustomStringConvertible`, not `Codable`,
 /// and not copyable; its digits live in a zeroizing store.
 public struct Pin2: ~Copyable {
-  /// Shortest PIN2 the supported cards accept (FINEID S4-1).
-  public static let minimumDigitCount: Int = 6
+  /// Shortest PIN2 the type carries.
+  ///
+  /// The shortest length a FINEID card may list for it. The card in
+  /// session decides its own range (`CardPinLengths`); signing sends
+  /// any 4-12-digit PIN2 and the card answers.
+  public static let minimumDigitCount: Int = 4
 
-  /// Longest PIN2 the supported cards accept.
+  /// Longest PIN2 the type carries: the 12-digit stored length the
+  /// commands carry.
   public static let maximumDigitCount: Int = 12
 
   private let store: ZeroizingDigitStore
 
   /// Validates and takes ownership of the entered digits.
   ///
-  /// Refuses any input that is not 6-12 ASCII digits; there is no other
+  /// Refuses any input that is not 4-12 ASCII digits; there is no other
   /// way to construct a `Pin2`.
   public init?(digits: String) {
     guard

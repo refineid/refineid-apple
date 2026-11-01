@@ -8,16 +8,16 @@ import Testing
 /// through `CardOperations` over a scripted channel: accept, count
 /// down, blocked, invalidated, and the residual case.
 ///
-/// Every flow leads with the counter-safe reference-numbering probe
-/// (S1 v4.2 §3.5.1.1); a recognised citizen answer resolves the
-/// session in one exchange.
+/// A change or unblock is addressed under the numbering its
+/// `CardPinLengths` was mapped by; a VERIFY leads with the counter-safe
+/// reference-numbering probe (S1 v4.2 §3.5.1.1), and a recognised
+/// citizen answer resolves the session in one exchange.
 @Suite
 internal struct CredentialUpdateClassificationTests {
   @Test
   internal func changeSucceedsOnSuccessStatus() throws {
     let channel = ScriptedChannel([
-      ("0020001100", "63C5"),
-      ("0024001118313233340000000000000000343332310000000000000000", "9000"),
+      ("0024001118313233340000000000000000343332310000000000000000", "9000")
     ])
     let operations = CardOperations(channel: channel)
     guard
@@ -29,7 +29,8 @@ internal struct CredentialUpdateClassificationTests {
     }
     try operations.changePin1(
       current: current.consumeForSingleTransmission(),
-      new: new.consumeForSingleTransmission()
+      new: new.consumeForSingleTransmission(),
+      lengths: .notListed(numbering: .citizen)
     )
     #expect(channel.isExhausted)
   }
@@ -37,8 +38,7 @@ internal struct CredentialUpdateClassificationTests {
   @Test
   internal func changeRejectionCarriesTheRetryCounter() throws {
     let channel = ScriptedChannel([
-      ("0020001100", "63C5"),
-      ("0024001118313233340000000000000000343332310000000000000000", "63C2"),
+      ("0024001118313233340000000000000000343332310000000000000000", "63C2")
     ])
     let operations = CardOperations(channel: channel)
     let two = try #require(RetryCount(attemptsRemaining: 2))
@@ -52,7 +52,8 @@ internal struct CredentialUpdateClassificationTests {
     do {
       try operations.changePin1(
         current: current.consumeForSingleTransmission(),
-        new: new.consumeForSingleTransmission()
+        new: new.consumeForSingleTransmission(),
+        lengths: .notListed(numbering: .citizen)
       )
       Issue.record("expected pinRejected")
     } catch let error as CardOperationError {
@@ -66,8 +67,7 @@ internal struct CredentialUpdateClassificationTests {
   @Test
   internal func unblockAgainstABlockedPukThrowsBlocked() {
     let channel = ScriptedChannel([
-      ("0020001100", "63C5"),
-      ("002C001118313233343536373800000000343332310000000000000000", "6983"),
+      ("002C001118313233343536373800000000343332310000000000000000", "6983")
     ])
     let operations = CardOperations(channel: channel)
     guard
@@ -80,7 +80,8 @@ internal struct CredentialUpdateClassificationTests {
     do {
       try operations.unblockPin1(
         puk: puk.consumeForSingleTransmission(),
-        new: new.consumeForSingleTransmission()
+        new: new.consumeForSingleTransmission(),
+        lengths: .notListed(numbering: .citizen)
       )
       Issue.record("expected pinBlocked")
     } catch let error as CardOperationError {
@@ -94,8 +95,7 @@ internal struct CredentialUpdateClassificationTests {
   @Test
   internal func unblockAgainstAnInvalidatedSlotThrowsInvalidated() {
     let channel = ScriptedChannel([
-      ("0020001100", "63C5"),
-      ("002C001118313233343536373800000000343332310000000000000000", "6984"),
+      ("002C001118313233343536373800000000343332310000000000000000", "6984")
     ])
     let operations = CardOperations(channel: channel)
     guard
@@ -108,7 +108,8 @@ internal struct CredentialUpdateClassificationTests {
     do {
       try operations.unblockPin1(
         puk: puk.consumeForSingleTransmission(),
-        new: new.consumeForSingleTransmission()
+        new: new.consumeForSingleTransmission(),
+        lengths: .notListed(numbering: .citizen)
       )
       Issue.record("expected credentialInvalidated")
     } catch let error as CardOperationError {
@@ -122,8 +123,7 @@ internal struct CredentialUpdateClassificationTests {
   @Test
   internal func changeResidualStatusMapsToUpdateFailed() {
     let channel = ScriptedChannel([
-      ("0020001100", "63C5"),
-      ("0024008218313233343536000000000000363534333231000000000000", "6700"),
+      ("0024008218313233343536000000000000363534333231000000000000", "6700")
     ])
     let operations = CardOperations(channel: channel)
     guard
@@ -136,7 +136,8 @@ internal struct CredentialUpdateClassificationTests {
     do {
       try operations.changePin2(
         current: current.consumeForSingleTransmission(),
-        new: new.consumeForSingleTransmission()
+        new: new.consumeForSingleTransmission(),
+        lengths: .notListed(numbering: .citizen)
       )
       Issue.record("expected credentialUpdateFailed")
     } catch let error as CardOperationError {

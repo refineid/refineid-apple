@@ -24,4 +24,26 @@ internal enum Pkcs15Values {
   internal static let octetStringTag: UInt8 = 0x04
   internal static let integerTag: UInt8 = 0x02
   internal static let utf8StringTag: UInt8 = 0x0C
+
+  /// `pwdReference [0]` of `PasswordAttributes`, an implicitly tagged
+  /// INTEGER (ISO/IEC 7816-15).
+  internal static let passwordReferenceTag: UInt8 = 0x80
+
+  /// The `pwdReference` value when the card omits it (`DEFAULT 0`).
+  internal static let passwordReferenceDefault: UInt8 = 0x00
+
+  /// `pwdType` `ascii-numeric(1)`: one byte per digit, as FINEID cards
+  /// list their PINs and the PUK.
+  internal static let passwordTypeAsciiNumeric: UInt8 = 0x01
+
+  /// `pwdType` `utf8(2)`: a digit is one byte, so the lengths count
+  /// digits as for `ascii-numeric`.
+  internal static let passwordTypeUtf8: UInt8 = 0x02
+
+  /// The end-of-contents octet (ITU-T X.690 §8.1.5).
+  ///
+  /// No PKCS#15 object starts with it, so at an object boundary it
+  /// begins the file's zero padding; as a leading INTEGER octet it is
+  /// the sign octet.
+  internal static let endOfContentsOctet: UInt8 = 0x00
 }

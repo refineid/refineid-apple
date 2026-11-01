@@ -209,9 +209,9 @@
       }
     }
 
-    internal func readerActivation() -> ActivationClassification? {
+    internal func readerActivation() -> CardMaintenance.ReaderActivation? {
       guard isReaderCardPresent else { return nil }
-      return activation
+      return CardMaintenance.ReaderActivation(activation: activation, pinLengths: Self.pinLengths)
     }
 
     internal func changePIN1(

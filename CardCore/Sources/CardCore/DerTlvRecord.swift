@@ -41,41 +41,49 @@ public struct DerTlvRecord: Equatable, Sendable {
     var records: [Self] = []
     var index = 0
     while index < bytes.count {
-      let recordTag = bytes[index]
-      index += 1
-      guard index < bytes.count else { throw Malformed() }
-      let lengthByte = bytes[index]
-      index += 1
-      var length = Int(lengthByte)
-      if lengthByte & Iso7816Values.derLongFormMask != 0 {
-        let lengthByteCount = Int(lengthByte & Iso7816Values.derLengthCountMask)
-        guard
-          lengthByteCount >= 1,
-          lengthByteCount <= Self.maximumLengthByteCount,
-          index + lengthByteCount <= bytes.count
-        else {
-          throw Malformed()
-        }
-        length = 0
-        for _ in 0..<lengthByteCount {
-          length = length << Iso7816Values.byteShift | Int(bytes[index])
-          index += 1
-        }
-      }
+      let parsed = try record(in: bytes, at: index)
+      records.append(parsed.record)
+      index = parsed.end
+    }
+    return records
+  }
+
+  /// Parses the one record that starts at `start`, answering it and the
+  /// index just past it; throws when it is malformed or overruns `bytes`.
+  internal static func record(
+    in bytes: [UInt8],
+    at start: Int
+  ) throws -> (record: Self, end: Int) {
+    var index = start
+    guard index < bytes.count else { throw Malformed() }
+    let recordTag = bytes[index]
+    index += 1
+    guard index < bytes.count else { throw Malformed() }
+    let lengthByte = bytes[index]
+    index += 1
+    var length = Int(lengthByte)
+    if lengthByte & Iso7816Values.derLongFormMask != 0 {
+      let lengthByteCount = Int(lengthByte & Iso7816Values.derLengthCountMask)
       guard
-        length <= BinaryReadAssembler.maximumTotalLength,
-        index + length <= bytes.count
+        lengthByteCount >= 1,
+        lengthByteCount <= Self.maximumLengthByteCount,
+        index + lengthByteCount <= bytes.count
       else {
         throw Malformed()
       }
-      records.append(
-        Self(
-          tag: recordTag,
-          value: Data(bytes[index..<index + length])
-        )
-      )
-      index += length
+      length = 0
+      for _ in 0..<lengthByteCount {
+        length = length << Iso7816Values.byteShift | Int(bytes[index])
+        index += 1
+      }
     }
-    return records
+    guard
+      length <= BinaryReadAssembler.maximumTotalLength,
+      index + length <= bytes.count
+    else {
+      throw Malformed()
+    }
+    let record = Self(tag: recordTag, value: Data(bytes[index..<index + length]))
+    return (record, index + length)
   }
 }

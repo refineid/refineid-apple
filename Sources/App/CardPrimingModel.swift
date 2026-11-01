@@ -176,7 +176,8 @@
       lastRunResult = .failed
       refusal = .activationRequired(
         activation: DemoMode.shared.activation,
-        needs: DemoMode.shared.activationNeeds)
+        needs: DemoMode.shared.activationNeeds,
+        pinLengths: DemoMode.pinLengths)
       failure = String(localized: "Activate this card first, then try setup again.")
       return false
     }

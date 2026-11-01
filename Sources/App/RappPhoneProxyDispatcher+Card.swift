@@ -260,7 +260,8 @@
       }
       let accessNumber = resolvedCardAccessNumber(isReader: false)
       switch await CardMaintenance.connectionSnapshot(
-        cardAccessNumber: accessNumber
+        cardAccessNumber: accessNumber,
+        readsPinLengths: false
       ) {
       case .connected(let snapshot):
         do {

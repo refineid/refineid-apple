@@ -58,22 +58,23 @@ internal struct CredentialResetBothSection: View {
       }
     }
 
-    /// The typed text kept to the field's digits and bounds.
-    func limited(_ typed: String) -> String {
+    /// The credential the field holds.
+    var role: CredentialRole {
       switch self {
       case .puk:
-        LimitedDigits.puk(typed)
+        .puk
 
       case .pin1, .pin1Repeat:
-        LimitedDigits.pin1(typed)
+        .pin1
 
       case .pin2, .pin2Repeat:
-        LimitedDigits.pin2(typed)
+        .pin2
       }
     }
   }
 
   internal let model: CardManagementModel
+  internal let lengths: CardPinLengths
 
   @State private var puk = ""
   @State private var newPin1 = ""
@@ -84,19 +85,19 @@ internal struct CredentialResetBothSection: View {
   @FocusState private var focus: Field?
 
   private var pukIsValid: Bool {
-    (Puk.minimumDigitCount...Puk.maximumDigitCount).contains(puk.count)
+    PinEntryLimits(lengths, role: .puk).accepts(puk)
   }
 
   private var pin1Entries: CardActivationSection.NewPinEntries {
     CardActivationSection.NewPinEntries(
       new: newPin1, repeated: newPin1Repeated,
-      bounds: Pin1.minimumDigitCount...Pin1.maximumDigitCount)
+      limits: PinEntryLimits(lengths, role: .pin1))
   }
 
   private var pin2Entries: CardActivationSection.NewPinEntries {
     CardActivationSection.NewPinEntries(
       new: newPin2, repeated: newPin2Repeated,
-      bounds: Pin2.minimumDigitCount...Pin2.maximumDigitCount)
+      limits: PinEntryLimits(lengths, role: .pin2))
   }
 
   private var isComplete: Bool {
@@ -210,7 +211,7 @@ internal struct CredentialResetBothSection: View {
             .keyboardType(.numberPad)
           #endif
           .onValueChange(of: text.wrappedValue) { typed in
-            text.wrappedValue = field.limited(typed)
+            text.wrappedValue = PinEntryLimits(lengths, role: field.role).limited(typed)
           }
           .focused($focus, equals: field)
           .onSubmit { advance(from: field) }

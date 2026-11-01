@@ -122,6 +122,7 @@ extension CardCredentialsView {
         model.invalidateCardStatus()
         activation = nil
         activationNeeds = nil
+        activationPinLengths = nil
         if !entered.isEmpty {
           model.clearFailure()
         }
@@ -139,6 +140,7 @@ extension CardCredentialsView {
         cardAccessNumberEntry = ""
         activation = nil
         activationNeeds = nil
+        activationPinLengths = nil
         model.invalidateCardStatus()
         isCardAccessNumberFieldFocused = true
       }
@@ -187,13 +189,14 @@ extension CardCredentialsView {
         #if DEBUG
           let _: Void = DebugConsole.emit("navigation-destination: activation")
         #endif
-        if let activation, let activationNeeds {
+        if let activation, let activationNeeds, let activationPinLengths {
           CardManagementView(
             readerCardIsPresent: false,
             activationRequired: true,
             cardAccessNumber: cardAccessNumberEntry,
             activation: activation,
             activationNeeds: activationNeeds,
+            pinLengths: activationPinLengths,
             onActivationSucceeded: activationSucceeded
           )
           .id(CardSetupStateMachine.Destination.activation)
@@ -220,7 +223,11 @@ extension CardCredentialsView {
         CardManagementView(
           readerCardIsPresent: hasReaderIdentity,
           activationRequired: false,
-          cardAccessNumber: hasReaderIdentity ? nil : managementCardAccessNumber
+          cardAccessNumber: hasReaderIdentity ? nil : managementCardAccessNumber,
+          activation: nil,
+          activationNeeds: nil,
+          pinLengths: hasReaderIdentity ? nil : model.pinLengths,
+          onActivationSucceeded: nil
         )
         .id(CardSetupStateMachine.Destination.pinManagement)
 

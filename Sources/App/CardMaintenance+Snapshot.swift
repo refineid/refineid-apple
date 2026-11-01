@@ -71,15 +71,21 @@
     /// The first wireless connection, classified for activation by the
     /// card's reference numbering and authentication certificate.
     ///
-    /// Unknown state is a failed connection, never evidence that the card is activated.
+    /// With `readsPinLengths`, which only card management asks for, the
+    /// snapshot also carries the PIN lengths the card accepts, and a card
+    /// whose lengths cannot be read is a failed connection. Unknown state
+    /// is a failed connection, never evidence that the card is activated.
     internal static func connectionSnapshot(
-      cardAccessNumber: String?
+      cardAccessNumber: String?,
+      readsPinLengths: Bool
     ) async -> ConnectionSnapshotResult {
       if await DemoMode.shared.isActive, let cardAccessNumber {
         return await DemoMode.shared.connectionSnapshot(
           cardAccessNumber: cardAccessNumber)
       }
-      if let readerResult = await readerConnectionSnapshot(cardAccessNumber: cardAccessNumber) {
+      if let readerResult = await readerConnectionSnapshot(
+        cardAccessNumber: cardAccessNumber, readsPinLengths: readsPinLengths)
+      {
         return readerResult
       }
       guard let cardAccessNumber else { return .failed }
@@ -96,7 +102,8 @@
         DispatchQueue.global(qos: .userInitiated).async {
           let answer = try? held.withCardSession { channel -> ConnectionSnapshotResult in
             let result = snapshotFromChannel(
-              channel, cardAccessNumber: cardAccessNumber, sheet: sheet)
+              channel, cardAccessNumber: cardAccessNumber, readsPinLengths: readsPinLengths,
+              sheet: sheet)
             guard case .connected(var snapshot) = result else { return result }
             snapshot.answerToReset = held.answerToReset
             return .connected(snapshot)
@@ -112,7 +119,8 @@
     }
 
     private static func readerConnectionSnapshot(
-      cardAccessNumber: String?
+      cardAccessNumber: String?,
+      readsPinLengths: Bool
     ) async -> ConnectionSnapshotResult? {
       guard let manager = TKSmartCardSlotManager.default else { return nil }
       await RappReaderSessionHolder.shared.yield()
@@ -131,6 +139,7 @@
               snapshotFromChannel(
                 channel,
                 cardAccessNumber: cardAccessNumber,
+                readsPinLengths: readsPinLengths,
                 sheet: nil
               )
             }
@@ -154,6 +163,7 @@
     private static func snapshotFromChannel(
       _ channel: SmartCardChannel,
       cardAccessNumber: String?,
+      readsPinLengths: Bool,
       sheet: NearFieldSheet?
     ) -> ConnectionSnapshotResult {
       do {
@@ -166,11 +176,17 @@
         }
         let needs = operations.activationNeeds(scheme: activation.scheme)
         let report = try? operations.probeCredentials()
+        var pinLengths: CardPinLengths?
+        if readsPinLengths {
+          guard let read = try? operations.readCardPinLengths() else { return .failed }
+          pinLengths = read
+        }
         return .connected(
           Snapshot(
             report: report,
             activationNeeds: needs,
-            activation: activation))
+            activation: activation,
+            pinLengths: pinLengths))
       } catch ConnectionFailure.wrongCardAccessNumber {
         return .wrongCardAccessNumber
       } catch {
@@ -270,7 +286,8 @@
 #else
   extension CardMaintenance {
     internal static func connectionSnapshot(
-      cardAccessNumber _: String
+      cardAccessNumber _: String,
+      readsPinLengths _: Bool
     ) async -> ConnectionSnapshotResult {
       await withCheckedContinuation { continuation in
         continuation.resume(returning: .failed)

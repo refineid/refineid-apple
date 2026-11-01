@@ -10,6 +10,7 @@ import SwiftUI
 /// before anything is spent.
 internal struct CardActivationSection: View {
   internal let model: CardManagementModel
+  internal let lengths: CardPinLengths
   internal let onActivated: () -> Void
 
   @State private var entry = ""
@@ -28,21 +29,20 @@ internal struct CardActivationSection: View {
   private var pin1Entries: NewPinEntries {
     NewPinEntries(
       new: newPin1, repeated: newPin1Repeated,
-      bounds: Pin1.minimumDigitCount...Pin1.maximumDigitCount)
+      limits: PinEntryLimits(lengths, role: .pin1))
   }
 
   private var pin2Entries: NewPinEntries {
     NewPinEntries(
       new: newPin2, repeated: newPin2Repeated,
-      bounds: Pin2.minimumDigitCount...Pin2.maximumDigitCount)
+      limits: PinEntryLimits(lengths, role: .pin2))
   }
 
   /// Ready only when the activation PIN has the exact length the card's
   /// scheme takes and every requested new PIN is valid and repeated.
   private var isComplete: Bool {
-    activationEntryIsValid
-      && (!asksPin1 || pin1Entries.isValid && pin1Entries.repeatedIsValid)
-      && (!asksPin2 || pin2Entries.isValid && pin2Entries.repeatedIsValid)
+    activationEntryIsValid && (!asksPin1 || pin1Entries.repeatedIsValid)
+      && (!asksPin2 || pin2Entries.repeatedIsValid)
   }
 
   internal var body: some View {
@@ -164,7 +164,7 @@ internal struct CardActivationSection: View {
             .keyboardType(.numberPad)
           #endif
           .onValueChange(of: newPin1) { typed in
-            newPin1 = LimitedDigits.pin1(typed)
+            newPin1 = pin1Entries.limits.limited(typed)
           }
           .focused($focus, equals: .pin1)
           .onSubmit { advance(from: .pin1) }
@@ -187,7 +187,7 @@ internal struct CardActivationSection: View {
             .keyboardType(.numberPad)
           #endif
           .onValueChange(of: newPin1Repeated) { typed in
-            newPin1Repeated = LimitedDigits.pin1(typed)
+            newPin1Repeated = pin1Entries.limits.limited(typed)
           }
           .focused($focus, equals: .pin1Repeat)
           .onSubmit { advance(from: .pin1Repeat) }
@@ -215,7 +215,7 @@ internal struct CardActivationSection: View {
             .keyboardType(.numberPad)
           #endif
           .onValueChange(of: newPin2) { typed in
-            newPin2 = LimitedDigits.pin2(typed)
+            newPin2 = pin2Entries.limits.limited(typed)
           }
           .focused($focus, equals: .pin2)
           .onSubmit { advance(from: .pin2) }
@@ -238,7 +238,7 @@ internal struct CardActivationSection: View {
             .keyboardType(.numberPad)
           #endif
           .onValueChange(of: newPin2Repeated) { typed in
-            newPin2Repeated = LimitedDigits.pin2(typed)
+            newPin2Repeated = pin2Entries.limits.limited(typed)
           }
           .focused($focus, equals: .pin2Repeat)
           .onSubmit { advance(from: .pin2Repeat) }

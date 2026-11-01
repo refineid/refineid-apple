@@ -253,6 +253,9 @@ internal enum CardMaintenance {
     case CardOperationError.credentialInvalidated:
       .invalidated
 
+    case CardOperationError.pinLengthRefused:
+      .invalidEntry
+
     default:
       .failed
     }

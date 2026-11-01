@@ -9,6 +9,9 @@ extension CardMaintenance {
     internal let report: CredentialProbeReport?
     internal let activationNeeds: ActivationNeeds?
     internal let activation: ActivationClassification?
+    /// The PIN and PUK lengths the card accepts, read where PINs are set;
+    /// nil when this read did not reach them.
+    internal let pinLengths: CardPinLengths?
     /// The card's answer to reset where the transport exposes it.
     internal var answerToReset = Data()
   }
@@ -38,7 +41,7 @@ extension CardMaintenance {
       operation: .cardStatus,
       failedStep: Self.failedStep(of:)
     ) { operations in
-      snapshot(on: operations)
+      snapshot(on: operations, pinLengths: try? operations.readCardPinLengths())
     }
   }
 
@@ -65,14 +68,21 @@ extension CardMaintenance {
     .flatMap(\.self)
   }
 
-  /// The activation classification of the card in a reader,
-  /// counter-safe: the numbering probe changes no retry counter.
-  internal static func readerActivation() async -> ActivationClassification? {
+  /// The activation classification of the card in a reader and the
+  /// PIN lengths it accepts, counter-safe: the numbering probe and the
+  /// directory read change no retry counter.
+  internal static func readerActivation() async -> ReaderActivation? {
     if await DemoMode.shared.isActive {
       return await DemoMode.shared.readerActivation()
     }
     return await onReader { operations in
-      operations.activationClassification()
+      guard
+        let activation = operations.activationClassification(),
+        let pinLengths = try? operations.readCardPinLengths()
+      else {
+        return nil
+      }
+      return ReaderActivation(activation: activation, pinLengths: pinLengths)
     }
   }
 
@@ -90,7 +100,7 @@ extension CardMaintenance {
       transport: transport,
       cardAccessNumber: cardAccessNumber,
       operation: .changePin1
-    ) { operations in
+    ) { operations, lengths in
       guard
         let currentPin = Pin1(digits: current),
         let newPin = Pin1(digits: new)
@@ -100,7 +110,8 @@ extension CardMaintenance {
       do {
         try operations.changePin1(
           current: currentPin.consumeForSingleTransmission(),
-          new: newPin.consumeForSingleTransmission()
+          new: newPin.consumeForSingleTransmission(),
+          lengths: lengths
         )
         return .success
       } catch {
@@ -123,7 +134,7 @@ extension CardMaintenance {
       transport: transport,
       cardAccessNumber: cardAccessNumber,
       operation: .changePin2
-    ) { operations in
+    ) { operations, lengths in
       guard
         let currentPin = Pin2(digits: current),
         let newPin = Pin2(digits: new)
@@ -133,7 +144,8 @@ extension CardMaintenance {
       do {
         try operations.changePin2(
           current: currentPin.consumeForSingleTransmission(),
-          new: newPin.consumeForSingleTransmission()
+          new: newPin.consumeForSingleTransmission(),
+          lengths: lengths
         )
         return .success
       } catch {
@@ -156,14 +168,15 @@ extension CardMaintenance {
       transport: transport,
       cardAccessNumber: cardAccessNumber,
       operation: .resetPin1
-    ) { operations in
+    ) { operations, lengths in
       guard let key = Puk(digits: puk), let pin = Pin1(digits: new) else {
         return .invalidEntry
       }
       do {
         try operations.unblockPin1(
           puk: key.consumeForSingleTransmission(),
-          new: pin.consumeForSingleTransmission()
+          new: pin.consumeForSingleTransmission(),
+          lengths: lengths
         )
         return .success
       } catch {
@@ -186,14 +199,15 @@ extension CardMaintenance {
       transport: transport,
       cardAccessNumber: cardAccessNumber,
       operation: .resetPin2
-    ) { operations in
+    ) { operations, lengths in
       guard let key = Puk(digits: puk), let pin = Pin2(digits: new) else {
         return .invalidEntry
       }
       do {
         try operations.unblockPin2(
           puk: key.consumeForSingleTransmission(),
-          new: pin.consumeForSingleTransmission()
+          new: pin.consumeForSingleTransmission(),
+          lengths: lengths
         )
         return .success
       } catch {
@@ -207,7 +221,7 @@ extension CardMaintenance {
     transport: Transport,
     cardAccessNumber: String?,
     operation: NearFieldOperation,
-    _ mutation: @escaping @Sendable (CardOperations) -> Outcome
+    _ mutation: @escaping @Sendable (CardOperations, CardPinLengths) -> Outcome
   ) async -> MutationReport {
     let result = await onCard(
       transport: transport,
@@ -215,21 +229,24 @@ extension CardMaintenance {
       operation: operation,
       failedStep: Self.failedStep(of:)
     ) { operations -> MutationReport in
+      guard let lengths = try? operations.readCardPinLengths() else {
+        return MutationReport(outcome: .failed, snapshot: snapshot(on: operations, pinLengths: nil))
+      }
       guard let probe = try? operations.probeRetryCounter(role: floor.role) else {
         return MutationReport(
           outcome: .floorRefused(.refuseUnreadable),
-          snapshot: snapshot(on: operations)
+          snapshot: snapshot(on: operations, pinLengths: lengths)
         )
       }
       let verdict = RetryFloor.evaluate(probeOutcome: probe)
       guard verdict == .proceed else {
         return MutationReport(
           outcome: .floorRefused(verdict),
-          snapshot: snapshot(on: operations)
+          snapshot: snapshot(on: operations, pinLengths: lengths)
         )
       }
-      let outcome = mutation(operations)
-      let resultingSnapshot = snapshot(on: operations)
+      let outcome = mutation(operations, lengths)
+      let resultingSnapshot = snapshot(on: operations, pinLengths: lengths)
       let confirmedOutcome =
         outcome == .success && !confirmsRestored(floor.confirming, in: resultingSnapshot)
         ? .failed
@@ -292,12 +309,18 @@ extension CardMaintenance {
     report.outcome == .success ? nil : .credential
   }
 
-  internal static func snapshot(on operations: CardOperations) -> Snapshot {
+  /// The card's state over `operations`, carrying the `pinLengths` this
+  /// session read.
+  internal static func snapshot(
+    on operations: CardOperations,
+    pinLengths: CardPinLengths?
+  ) -> Snapshot {
     let activation = operations.activationClassification()
     let needs = activation.map { classified in
       operations.activationNeeds(scheme: classified.scheme)
     }
     let report = try? operations.probeCredentials()
-    return Snapshot(report: report, activationNeeds: needs, activation: activation)
+    return Snapshot(
+      report: report, activationNeeds: needs, activation: activation, pinLengths: pinLengths)
   }
 }
