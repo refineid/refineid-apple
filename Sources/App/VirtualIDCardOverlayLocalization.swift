@@ -49,7 +49,7 @@
       case .activationCodeIsPuk:
         localizedText(
           "activationScheme.activationCodeIsPuk",
-          defaultValue: "Activation code is PUK")
+          defaultValue: "Activation PIN is PUK")
 
       case .presetActivationPin:
         localizedText(

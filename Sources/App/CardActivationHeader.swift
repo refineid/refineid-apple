@@ -3,7 +3,7 @@
 import SwiftUI
 
 /// The activation form's title above its first group's header, the
-/// activation code.
+/// activation PIN.
 internal struct CardActivationHeader: View {
   /// The gap between the title and the group's header, wide enough that
   /// the title reads as the window's and not the group's.

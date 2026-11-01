@@ -63,7 +63,7 @@ extension VirtualIDCard {
 
   /// The entry and new PINs offered to activate factory credentials.
   public struct ActivationRequest: Equatable, Sendable {
-    /// The activation code offered to the card.
+    /// The activation PIN offered to the card.
     public let entry: String
     /// The new PIN 1 to set, when PIN 1 needs activation.
     public let newPIN1: String?

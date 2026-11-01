@@ -47,8 +47,8 @@ extension CardManagementModel {
     }
   }
 
-  /// The credential an activation write presents: the activation code
-  /// is the PUK; an activation PIN is the PIN it replaces.
+  /// The credential an activation write presents: the activation PIN
+  /// is the PUK in the §4.6.1 scheme and the preset PIN in §4.6.2.
   private func activationSpends(
     _ scheme: ActivationScheme,
     writing role: CredentialRole

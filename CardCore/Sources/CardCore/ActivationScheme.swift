@@ -6,7 +6,7 @@ import Security
 /// How a card is activated (FINEID S4-1 §4.6).
 ///
 /// Under §4.6.1 the card ships with its PINs blocked; the eight-digit
-/// activation code in the issuance letter is the PUK, and activation
+/// activation PIN in the issuance letter is the PUK, and activation
 /// is RESET RETRY COUNTER against each PIN. Under §4.6.2 the card
 /// ships with both PINs set to one seven-digit activation PIN, and
 /// activation is CHANGE REFERENCE DATA against each. The scheme decides
@@ -19,13 +19,13 @@ import Security
 /// Neither the chip generation nor the certificate key family tells
 /// the schemes apart.
 public enum ActivationScheme: CaseIterable, Hashable, Sendable {
-  /// §4.6.1: PINs ship blocked, the activation code is the PUK.
+  /// §4.6.1: PINs ship blocked, the activation PIN is the PUK.
   case activationCodeIsPuk
 
   /// §4.6.2: PINs ship set to the activation PIN.
   case presetActivationPin
 
-  /// Digits in the §4.6.1 activation code from the issuance letter.
+  /// Digits in the §4.6.1 activation PIN from the issuance letter.
   public static let activationCodeDigitCount: Int = 8
 
   /// Digits in the §4.6.2 preset activation PIN.

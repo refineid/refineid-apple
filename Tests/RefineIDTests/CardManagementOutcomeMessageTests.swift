@@ -62,7 +62,7 @@ internal final class CardManagementOutcomeMessageTests: XCTestCase {
   internal func testAnUnreadableCounterNamesTheEntry() {
     let message = Self.model().message(
       for: .floorRefused(.refuseUnreadable), presenting: .activationCode, spending: .puk)
-    let name = String(localized: "activation code")
+    let name = String(localized: "activation PIN")
     XCTAssertEqual(
       message,
       String(localized: "The \(name) retry counter could not be read; nothing was sent."))
@@ -76,8 +76,6 @@ internal final class CardManagementOutcomeMessageTests: XCTestCase {
   }
 
   internal func testActivationEntryNamesAreSaidInEveryLanguage() throws {
-    try Self.assertTranslations(
-      of: "activation code", finnish: "aktivointikoodi", swedish: "aktiveringskod")
     try Self.assertTranslations(
       of: "activation PIN", finnish: "aktivointitunnusluku", swedish: "aktiveringskod")
   }

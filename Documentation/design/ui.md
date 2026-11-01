@@ -48,6 +48,12 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   groups, headed "Activation PIN", "Basic PIN 1" and "Signature PIN 2"
   (Finnish "Perustunnusluku (PIN 1)"), so a filled field still says what
   it holds.
+- **Activation PIN.** The credential in DVV's activation letter takes
+  DVV's official name from the letters: "Activation PIN", Finnish
+  *aktivointitunnusluku*, Swedish *aktiveringskod* (definite
+  *aktiveringskoden*). The one name covers both activation schemes,
+  the one where the letter's code is the PUK and the one where both
+  PINs ship preset to it; "activation code" is not used.
 - **Both PINs blocked.** When PIN 1 and PIN 2 are both blocked and the
   PUK is above the retry floor, card management offers one form in place
   of "Reset PIN 1" and "Reset PIN 2": groups headed "PUK", "Basic PIN 1"

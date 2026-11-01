@@ -5,7 +5,7 @@
 /// The PUK is not a PIN: it never authorises an operation on the user's
 /// behalf. It resets a blocked PIN's retry counter while setting a new
 /// value (RESET RETRY COUNTER, FINEID S1 v4.2 §3.5.4). The eight-digit
-/// activation code of the S4-1 §4.6.1 scheme is presented through this
+/// activation PIN of the S4-1 §4.6.1 scheme is presented through this
 /// type too: under that scheme it is the PUK.
 ///
 /// The PUK spends its own retry counter. A wrong entry counts down, and

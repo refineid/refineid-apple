@@ -118,7 +118,7 @@ internal struct CardActivationSection: View {
     }
   }
 
-  /// The activation code: its own group, above one group per PIN.
+  /// The activation PIN: its own group, above one group per PIN.
   ///
   /// Each group is headed by its code, so the fields still say what
   /// they hold once the entries have replaced their placeholders.

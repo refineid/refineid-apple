@@ -141,10 +141,7 @@ internal enum CredentialOutcomeMessage {
     case .puk:
       String(localized: "PUK is incorrect.")
 
-    case .activationCode:
-      String(localized: "Activation code is incorrect.")
-
-    case .activationPin:
+    case .activationCode, .activationPin:
       String(localized: "Activation PIN is incorrect.")
     }
   }

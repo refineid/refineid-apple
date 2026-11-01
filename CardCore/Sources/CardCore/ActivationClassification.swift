@@ -7,7 +7,7 @@ import Foundation
 ///
 /// The card's credential reference numbering decides first: a card on
 /// the FINEID S4-2 v4.0 §4.2 organization numbering is activated by the
-/// §4.6.1 procedure, the activation code being its PUK, whatever its
+/// §4.6.1 procedure, the activation PIN being its PUK, whatever its
 /// certificates say. A card on the citizen numbering takes its scheme
 /// from its authentication certificate's validity start.
 public enum ActivationClassification: Hashable, Sendable {
