@@ -40,15 +40,6 @@ internal enum FineidValues {
   /// many bytes (S4-1 v3.1).
   internal static let pinStoredLength: Int = 12
 
-  /// Longest credential the organization card stores: eight characters
-  /// for PIN AUTH, PIN SIG, and PIN PUK alike (FINEID S4-2 v4.0 §4.3).
-  ///
-  /// The organization card compares a credential at its typed length -
-  /// its EF.AOD publishes no padding attribute, and FINEID S1 v3.0
-  /// §3.5.1.1 requires the entered length to equal the stored one - so
-  /// nothing longer can ever be a valid credential there.
-  internal static let organizationPinMaximumLength: Int = 8
-
   /// The padding byte for the PIN block.
   ///
   /// FINEID cards reject any non-zero padding.
