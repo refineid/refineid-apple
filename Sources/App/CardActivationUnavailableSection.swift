@@ -21,7 +21,7 @@
         Text("Activate the card first, then return here to take it into use.")
           .foregroundStyle(.secondary)
       } header: {
-        Text("Card activation")
+        Text("Identity card activation")
       }
     }
   }
