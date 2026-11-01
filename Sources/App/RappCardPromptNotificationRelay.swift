@@ -35,6 +35,7 @@
     /// Asks macOS for nothing; permission is asked once a pairing succeeds
     /// (``RemoteAccessPermissions/requestNotificationsIfUndecided()``).
     internal func start() {
+      guard observers.isEmpty else { return }
       #if DEBUG
         guard !TestCredentialEnvironment.isTestMode else { return }
       #endif

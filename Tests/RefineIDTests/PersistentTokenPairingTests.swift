@@ -8,7 +8,7 @@
   import RappEngine
   import Testing
 
-  @testable import RefineID
+  @testable import RefineIDTestHost
 
   /// What the published identity's token configuration carries: the
   /// pairing's identifier, never its keys.
