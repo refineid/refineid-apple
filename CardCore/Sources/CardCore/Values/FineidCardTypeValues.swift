@@ -126,31 +126,4 @@ internal enum FineidCardTypeValues {
 
   /// Thales MultiApp v5's generation byte.
   private static let fifthGeneration: UInt8 = 0x05
-
-  /// Maps a MultiApp ATR generation to the activation procedure it uses.
-  ///
-  /// MultiApp v5 implements FINEID S4-1 v4.0 and ships with the
-  /// seven-digit activation PIN. The preceding v3 and v4 generations
-  /// use the legacy eight-digit activation code. An unfamiliar ATR is
-  /// never rounded to either procedure.
-  internal static func activationScheme(
-    forHistoricalBytes historicalBytes: [UInt8]
-  ) -> ActivationScheme? {
-    guard
-      historicalBytes.starts(with: multiAppCapabilities),
-      historicalBytes.count > multiAppCapabilities.count
-    else {
-      return nil
-    }
-    switch historicalBytes[multiAppCapabilities.count] {
-    case fifthGeneration:
-      return .presetActivationPin
-
-    case thirdGeneration, fourthGeneration:
-      return .activationCodeIsPuk
-
-    default:
-      return nil
-    }
-  }
 }

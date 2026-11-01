@@ -92,12 +92,11 @@
       }
       defer { held.end() }
       let sheet = held.meter(.cardStatus)
-      let atrScheme = ActivationScheme.classify(answerToReset: held.answerToReset)
       return await withCheckedContinuation { continuation in
         DispatchQueue.global(qos: .userInitiated).async {
           let answer = try? held.withCardSession { channel -> ConnectionSnapshotResult in
             let result = snapshotFromChannel(
-              channel, cardAccessNumber: cardAccessNumber, atrScheme: atrScheme, sheet: sheet)
+              channel, cardAccessNumber: cardAccessNumber, sheet: sheet)
             guard case .connected(var snapshot) = result else { return result }
             snapshot.answerToReset = held.answerToReset
             return .connected(snapshot)
@@ -121,23 +120,17 @@
         CardTransport.transport(forSlotNamed: candidate.name) == .reader
       }
       guard !occupied.isEmpty else { return nil }
-      let occupiedCards: [(card: UncheckedCard, atrScheme: ActivationScheme?)] = occupied.compactMap
-      { candidate in
-        guard let card = candidate.slot.makeSmartCard() else { return nil }
-        let atrScheme = candidate.slot.atr.flatMap { atr in
-          ActivationScheme.classify(answerToReset: atr.bytes)
-        }
-        return (UncheckedCard(card), atrScheme)
+      let occupiedCards: [UncheckedCard] = occupied.compactMap { candidate in
+        candidate.slot.makeSmartCard().map(UncheckedCard.init)
       }
       guard !occupiedCards.isEmpty else { return nil }
       return await withCheckedContinuation { continuation in
         DispatchQueue.global(qos: .userInitiated).async {
           for candidate in occupiedCards {
-            let answer = try? SmartCardChannel(candidate.card.card).withSession { channel in
+            let answer = try? SmartCardChannel(candidate.card).withSession { channel in
               snapshotFromChannel(
                 channel,
                 cardAccessNumber: cardAccessNumber,
-                atrScheme: candidate.atrScheme,
                 sheet: nil
               )
             }
@@ -161,7 +154,6 @@
     private static func snapshotFromChannel(
       _ channel: SmartCardChannel,
       cardAccessNumber: String?,
-      atrScheme: ActivationScheme?,
       sheet: NearFieldSheet?
     ) -> ConnectionSnapshotResult {
       do {
@@ -169,8 +161,7 @@
           over: channel,
           cardAccessNumber: cardAccessNumber)
         sheet?.advance()
-        let certificateScheme = classifyScheme(operations)
-        guard let scheme = certificateScheme ?? atrScheme else {
+        guard let scheme = classifyScheme(operations) else {
           return .failed
         }
         let needs = operations.activationNeeds(scheme: scheme)
@@ -209,12 +200,11 @@
         }
         defer { held.end() }
         let sheet = held.meter(.cardStatus)
-        let atrScheme = ActivationScheme.classify(answerToReset: held.answerToReset)
         return await withCheckedContinuation { continuation in
           DispatchQueue.global(qos: .userInitiated).async {
             let report = try? held.withCardSession { channel -> DebugModeReport in
               debugReportFromChannel(
-                channel, cardAccessNumber: cardAccessNumber, atrScheme: atrScheme, sheet: sheet)
+                channel, cardAccessNumber: cardAccessNumber, sheet: sheet)
             }
             if report?.succeeded == true {
               sheet.finish()
@@ -233,7 +223,6 @@
       private static func debugReportFromChannel(
         _ channel: SmartCardChannel,
         cardAccessNumber: String,
-        atrScheme: ActivationScheme?,
         sheet: NearFieldSheet
       ) -> DebugModeReport {
         do {
@@ -246,7 +235,7 @@
           let pin2Record = try? operations.readPinChangeRecord(role: .pin2)
           let pin1Probe = try? operations.probeRetryCounter(role: .pin1)
           let pin2Probe = try? operations.probeRetryCounter(role: .pin2)
-          let selectedScheme = certificateScheme ?? atrScheme
+          let selectedScheme = certificateScheme
           let pin1Readiness = selectedScheme.map { scheme in
             ActivationPreflight.evaluate(
               scheme: scheme,
@@ -261,7 +250,6 @@
           }
           return DebugModeReport(
             lines: [
-              "activation-probe: ATR scheme \(String(describing: atrScheme))",
               "activation-probe: certificate scheme \(String(describing: certificateScheme))",
               "activation-probe: PIN1 changed \(String(describing: pin1Record))",
               "activation-probe: PIN2 changed \(String(describing: pin2Record))",

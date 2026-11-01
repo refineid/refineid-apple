@@ -14,13 +14,17 @@ import Security
 /// REFERENCE DATA against each (§4.6.2). The scheme decides which
 /// digit count the card accepts - the wrong one burns a retry - so an
 /// unclassifiable card refuses activation rather than guessing.
+///
+/// Neither the chip generation nor the certificate key family tells
+/// the schemes apart: a card on the activation-code scheme can be a
+/// fifth-generation chip carrying ECC certificates.
 public enum ActivationScheme: Equatable, Sendable {
-  /// §4.6.1, issued before 13 January 2026: RSA citizen certificates,
-  /// PINs ship blocked, the activation code is the PUK.
+  /// §4.6.1, issued before 13 January 2026: PINs ship blocked, the
+  /// activation code is the PUK.
   case activationCodeIsPuk
 
-  /// §4.6.2, issued from 13 January 2026: ECC citizen certificates,
-  /// PINs ship set to the single-use activation PIN.
+  /// §4.6.2, issued from 13 January 2026: PINs ship set to the
+  /// single-use activation PIN.
   case presetActivationPin
 
   /// The cutover DVV publishes, as the UTC epoch instant of its
@@ -30,24 +34,12 @@ public enum ActivationScheme: Equatable, Sendable {
   /// comparison is calendar-exact.
   private static let cutoverEpochSeconds: TimeInterval = 1_768_262_400
 
-  /// Common-name generation markers DVV's issuing CAs carry.
-  private static let issuerGenerationMarkers = ["G3", "G4", "G5"]
-
   /// Common-name marker of DVV's organisational issuing CAs
   /// ("DVV Organisational Certificates - G4R").
   ///
   /// Refused outright: S4-1 §4.6 covers citizen cards alone, and an
-  /// organization card's activation is its issuer's own process. The
-  /// marker-and-suffix match below would otherwise classify it as a
-  /// citizen card by accident and lend it a digit count nobody
-  /// verified - the exact guess this classifier exists to refuse.
+  /// organization card's activation is its issuer's own process.
   private static let organisationalIssuerMarker = "Organisational"
-
-  /// Common-name suffix of DVV's RSA issuing CAs.
-  private static let issuerRsaSuffix = "R"
-
-  /// Common-name suffix of DVV's ECC issuing CAs.
-  private static let issuerEccSuffix = "E"
 
   /// The exact digit count the card accepts for the activation entry.
   ///
@@ -64,17 +56,6 @@ public enum ActivationScheme: Equatable, Sendable {
     }
   }
 
-  /// Classifies the activation procedure directly from a reader ATR.
-  ///
-  /// This is available before an exclusive card session starts, so a
-  /// form can validate the activation PIN without first probing retry
-  /// counters or reading a certificate from the card.
-  public static func classify(answerToReset: Data) -> Self? {
-    guard let parsed = AnswerToReset(bytes: answerToReset) else { return nil }
-    return FineidCardTypeValues.activationScheme(
-      forHistoricalBytes: parsed.historicalBytes)
-  }
-
   /// Classifies by the authentication certificate's notBefore date.
   ///
   /// The authoritative classifier: DVV names the cutover date itself,
@@ -88,10 +69,9 @@ public enum ActivationScheme: Equatable, Sendable {
 
   /// Classifies a citizen card from its authentication certificate.
   ///
-  /// The validity start is the authoritative generation boundary. The
-  /// issuer common name excludes organizational cards before that date is
-  /// applied, and remains the fallback if the platform cannot expose the
-  /// validity start.
+  /// The validity start is the only generation boundary DVV publishes.
+  /// An organizational issuer, or a certificate whose validity start
+  /// cannot be read, answers nil and the caller refuses activation.
   public static func classify(authenticationCertificateDER der: Data) -> Self? {
     guard
       let certificate = SecCertificateCreateWithData(nil, der as CFData),
@@ -103,34 +83,7 @@ public enum ActivationScheme: Equatable, Sendable {
     if issuer?.contains(Self.organisationalIssuerMarker) == true {
       return nil
     }
-    if let issued = CertificateValidity.window(of: certificate)?.notBefore {
-      return Self.classify(issuedOn: issued)
-    }
-    return issuer.flatMap(Self.classify(issuerCommonName:))
-  }
-
-  /// Classifies by the issuer common name, or nil to refuse.
-  ///
-  /// Fallback and cross-check for when the notBefore could not be
-  /// read: DVV's issuing CAs end their common names with a generation
-  /// marker and a key-family letter. The correlation is empirical, not
-  /// protocol-guaranteed, so anything unfamiliar answers nil and the
-  /// caller refuses to make activation decisions from it.
-  public static func classify(issuerCommonName: String) -> Self? {
-    guard !issuerCommonName.contains(Self.organisationalIssuerMarker) else {
-      return nil
-    }
-    guard
-      Self.issuerGenerationMarkers.contains(where: issuerCommonName.contains)
-    else {
-      return nil
-    }
-    if issuerCommonName.hasSuffix(Self.issuerRsaSuffix) {
-      return .activationCodeIsPuk
-    }
-    if issuerCommonName.hasSuffix(Self.issuerEccSuffix) {
-      return .presetActivationPin
-    }
-    return nil
+    return CertificateValidity.window(of: certificate)
+      .map { Self.classify(issuedOn: $0.notBefore) }
   }
 }
