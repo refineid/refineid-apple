@@ -75,10 +75,20 @@ internal struct CredentialUnblockSection: View {
 
   internal var body: some View {
     Group {
-      Section {
-        entryRows
-      }
-      resetButton
+      // The button is the group's footer on the Mac, where a row of its
+      // own would draw a box around it.
+      #if os(macOS)
+        Section {
+          entryRows
+        } footer: {
+          resetButton
+        }
+      #else
+        Section {
+          entryRows
+        }
+        resetButton
+      #endif
     }
     .task {
       // See InitialFieldFocus: the window must settle first, or the

@@ -121,10 +121,20 @@ internal struct CredentialChangeSection: View {
 
   internal var body: some View {
     Group {
-      Section {
-        entryRows
-      }
-      changeButton
+      // The button is the group's footer on the Mac, where a row of its
+      // own would draw a box around it.
+      #if os(macOS)
+        Section {
+          entryRows
+        } footer: {
+          changeButton
+        }
+      #else
+        Section {
+          entryRows
+        }
+        changeButton
+      #endif
     }
     // Focus is placed after the window has settled, not as the form
     // appears. Measured: assigning it in `onAppear`, and declaring it
