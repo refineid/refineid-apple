@@ -70,7 +70,8 @@ extension Token {
   ) throws -> (identity: PublishedIdentity, accessNumber: CardAccessNumber?) {
     // Every stored number, active offer first: a card answers with no
     // individual identifier before PACE, so one number cannot be
-    // selected for it. A wrong CAN spends no retry counter, only time.
+    // selected for it: the first is tried, and a refusal wipes them
+    // all.
     let candidates = CardCredentialStore.cardAccessNumberCandidates()
     guard !candidates.isEmpty else {
       // The status separates the two faults that look identical here:
@@ -93,36 +94,29 @@ extension Token {
       CardCredentialStore.recordOfferedNumberRefusal()
       throw TokenError.unsealAlreadyRefused
     }
-    var lastFailure: any Error = TokenError.primeMissing
-    for (index, candidate) in fresh.enumerated() {
-      switch Self.paceAttempt(
-        candidate: candidate, index: index, total: fresh.count, channel: channel)
-      {
-      case .minted(let identity, let accessNumber):
-        return (identity, accessNumber)
+    // One try: the first CAN the card refuses wipes them all.
+    guard let candidate = fresh.first else { throw TokenError.unsealAlreadyRefused }
+    switch Self.paceAttempt(candidate: candidate, index: 0, total: 1, channel: channel) {
+    case .minted(let identity, let accessNumber):
+      return (identity, accessNumber)
 
-      case .refused(let failure):
-        lastFailure = failure
+    case .refused(let failure):
+      // The card would not open with this CAN: every CAN in memory
+      // goes, and the holder types the one printed on the card.
+      CardCredentialStore.forgetEveryCardAccessNumber()
+      CardCredentialStore.recordOfferedNumberRefusal()
+      TokenLog.error("readIdentity: card refused the CAN; every CAN in memory forgotten")
+      throw failure
 
-      case .transportDead(let error):
-        // A transport death is not a refusal of this number: the card
-        // stopped answering, and trying more numbers at a mute card
-        // only spends the reader. Latch and report.
-        RefusedUnseal.shared.record(
-          fingerprint: CardCredentialStore.fingerprint(canDigits: candidate.digits),
-          answerToReset: answerToReset)
-        TokenLog.error("readIdentity: transport failed (\(error)); latched against immediate retry")
-        throw error
-      }
-    }
-    if let first = fresh.first {
+    case .transportDead(let error):
+      // A transport death is not a refusal of this number: the card
+      // stopped answering. Latch and report; nothing is forgotten.
       RefusedUnseal.shared.record(
-        fingerprint: CardCredentialStore.fingerprint(canDigits: first.digits),
+        fingerprint: CardCredentialStore.fingerprint(canDigits: candidate.digits),
         answerToReset: answerToReset)
+      TokenLog.error("readIdentity: transport failed (\(error)); latched against immediate retry")
+      throw error
     }
-    CardCredentialStore.recordOfferedNumberRefusal()
-    TokenLog.error("readIdentity: every number refused; latched against immediate retry")
-    throw lastFailure
   }
 
   /// Runs PACE for one candidate and reads through it on success.

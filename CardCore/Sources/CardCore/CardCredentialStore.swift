@@ -250,6 +250,23 @@ public enum CardCredentialStore {
       signatureCertificate: signatureCertificate)
   }
 
+  /// Removes every card access number this process can reach: the
+  /// app's own copy, the offer and the per-card library.
+  ///
+  /// What a refused CAN costs: the card answers with no identifier
+  /// before PACE, so every CAN in memory goes and the holder types the
+  /// one printed on the card. The refusal marker stays for the window
+  /// that is waiting for the verdict.
+  public static func forgetEveryCardAccessNumber() {
+    delete(account: cardAccessNumberAccount)
+    #if os(macOS)
+      CardCanOffer.forgetEveryNumber()
+    #endif
+    NotificationCenter.default.post(
+      name: cardAccessNumberDidInvalidate,
+      object: nil)
+  }
+
   /// Removes the card access number, from the driver's copy as well.
   public static func forgetCardAccessNumber() {
     delete(account: cardAccessNumberAccount)

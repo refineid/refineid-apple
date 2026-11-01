@@ -6,8 +6,8 @@ extension CardCredentialStore {
   /// Every stored number to try, active offer first.
   ///
   /// A card answers with no individual identifier before PACE, so one
-  /// stored number cannot be selected for it: the driver tries each in
-  /// turn until one mints.
+  /// stored number cannot be selected for it: the driver tries the
+  /// first, and a refusal wipes them all.
   public static func cardAccessNumberCandidates() -> [CardCanOffer.Candidate] {
     #if os(macOS)
       var strings: [String] = []

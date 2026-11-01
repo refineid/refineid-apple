@@ -220,7 +220,7 @@
     /// Whether a stored number exists to try before asking for one.
     ///
     /// Refreshed whenever the card set changes: the entry must only
-    /// appear when nothing is stored or the stored numbers just failed.
+    /// appear when nothing is stored or the CAN in memory just failed.
     private func refreshStoredNumber() {
       #if FEATURE_CONTACTLESS
         hasStoredNumber = CardCredentialStore.hasStoredNumbers()

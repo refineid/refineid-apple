@@ -93,11 +93,15 @@
       }
     }
 
-    /// The line while a remembered number is tried: no boxes, so no
+    /// The line while the CAN in memory is tried: no boxes, so no
     /// typing disturbs the attempt.
+    ///
+    /// The driver wipes every CAN in memory when the card refuses one;
+    /// the watch wipes the app's own copy too and brings the boxes.
     private var trying: some View {
-      Text("Trying the remembered number. Hold the card still.")
+      Text("Trying the CAN in memory.")
         .foregroundStyle(.secondary)
+        .task { await watchStoredRefusal() }
     }
 
     /// The step the flow is on, forward only.
@@ -156,9 +160,9 @@
       }
     }
 
-    /// Entry appears only when nothing is stored or the stored
-    /// numbers just failed; otherwise the remembered number is
-    /// tried first and typing would disturb the attempt.
+    /// Entry appears only when nothing is stored or the CAN in memory
+    /// just failed; otherwise the CAN in memory is tried first and
+    /// typing would disturb the attempt.
     nonisolated internal static func display(
       offering: Bool,
       refused: Bool,
@@ -181,6 +185,24 @@
         step = .layCard
       } else if step == .layCard, cardPresent {
         step = .verdict
+      }
+    }
+
+    /// Waits for the card to refuse the CAN in memory, then forgets
+    /// every CAN and asks for one.
+    private func watchStoredRefusal() async {
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .milliseconds(Self.refusalPollMilliseconds))
+        let wasRefused = await Task.detached(priority: .utility) {
+          CardCredentialStore.offeredNumberWasRefused()
+        }.value
+        if wasRefused {
+          await Task.detached(priority: .utility) {
+            CardCredentialStore.forgetEveryCardAccessNumber()
+          }.value
+          refusedOnce = true
+          return
+        }
       }
     }
 

@@ -275,7 +275,7 @@
           DevErrorLog.report(
             "operation answered operationFailed: card access number rejected", source: .app)
         #endif
-        CardCredentialStore.forgetCardAccessNumber()
+        CardCredentialStore.forgetEveryCardAccessNumber()
         try? await coordinator.operationFailed(operationID: operationID)
 
       case .failed:

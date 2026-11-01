@@ -5200,6 +5200,22 @@
         }
       }
     },
+    "Trying the CAN in memory.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kokeillaan muistissa olevaa CAN-numeroa."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provar CAN-numret i minnet."
+          }
+        }
+      }
+    },
     "USB-C reader connected with ID card.": {
       "localizations": {
         "fi": {
