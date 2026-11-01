@@ -52,7 +52,7 @@ internal struct CardActivationSection: View {
       Section {
         activationEntryRow
       } header: {
-        Text("Activation PIN")
+        CardActivationHeader()
       } footer: {
         if asksNoPin { macButton }
       }

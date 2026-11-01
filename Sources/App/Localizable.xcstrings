@@ -986,18 +986,18 @@
         }
       }
     },
-    "Card activation": {
+    "Identity card activation": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kortin käyttöönotto"
+            "value": "Henkilökortin aktivointi"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kortaktivering"
+            "value": "Aktivering av identitetskortet"
           }
         }
       }
