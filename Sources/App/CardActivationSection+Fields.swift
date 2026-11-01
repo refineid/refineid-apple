@@ -1,6 +1,28 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 extension CardActivationSection {
+  /// One new PIN and its repeat, judged against the PIN's digit bounds.
+  internal struct NewPinEntries {
+    internal let new: String
+    internal let repeated: String
+    internal let bounds: ClosedRange<Int>
+
+    /// The new PIN has an accepted length.
+    internal var isValid: Bool {
+      bounds.contains(new.count)
+    }
+
+    /// The repeat matches a valid new PIN.
+    internal var repeatedIsValid: Bool {
+      isValid && repeated == new
+    }
+
+    /// Both entries have an accepted length but differ.
+    internal var differ: Bool {
+      isValid && bounds.contains(repeated.count) && repeated != new
+    }
+  }
+
   /// The keyboard path through the section.
   internal enum Field {
     case entry
