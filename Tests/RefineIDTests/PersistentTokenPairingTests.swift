@@ -23,7 +23,7 @@
       local: Curve25519.KeyAgreement.PrivateKey,
       remote: Curve25519.KeyAgreement.PrivateKey
     ) throws -> RappPairRecord {
-      try RappSameAccountPairBuilder.makePairRecord(
+      try PairRecordFixture.makePairRecord(
         localStaticPrivate: local.rawRepresentation,
         localStaticPublic: local.publicKey.rawRepresentation,
         localRole: .requester,

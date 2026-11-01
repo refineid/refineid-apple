@@ -20,7 +20,7 @@
     private static func makeRecord() throws -> RappPairRecord {
       let local = Curve25519.KeyAgreement.PrivateKey()
       let remote = Curve25519.KeyAgreement.PrivateKey()
-      return try RappSameAccountPairBuilder.makePairRecord(
+      return try PairRecordFixture.makePairRecord(
         localStaticPrivate: local.rawRepresentation,
         localStaticPublic: local.publicKey.rawRepresentation,
         localRole: .requester,
@@ -35,8 +35,7 @@
       let pairID = record.metadata().pairId
       try vault.insertPair(pairID: pairID, record: try record.encodedBytes())
       let pairing = try #require(PersistentTokenPairing(pairID: pairID))
-      let client = RappPersistentRequesterClient(
-        displayName: "Requester", pairing: pairing, vault: vault)
+      let client = RappPersistentRequesterClient(pairing: pairing, vault: vault)
 
       let resolved = try #require(try await client.resolvedPair())
       #expect(try resolved.encodedBytes() == record.encodedBytes())
@@ -51,8 +50,7 @@
       try vault.insertPair(pairID: pairID, record: try record.encodedBytes())
       try vault.revokePair(pairID: pairID, revokedAtMilliseconds: 0)
       let pairing = try #require(PersistentTokenPairing(pairID: pairID))
-      let client = RappPersistentRequesterClient(
-        displayName: "Requester", pairing: pairing, vault: vault)
+      let client = RappPersistentRequesterClient(pairing: pairing, vault: vault)
 
       await #expect(throws: RappBindingError.PairNotFound) {
         _ = try await client.resolvedPair()
