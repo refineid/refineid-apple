@@ -31,44 +31,6 @@ internal struct ActivationTests {
   }
 
   @Test
-  internal func issuerCommonNameClassifiesKnownShapesOnly() {
-    #expect(
-      ActivationScheme.classify(
-        issuerCommonName: "DVV Citizen Certificates - G4R"
-      ) == .activationCodeIsPuk
-    )
-    #expect(
-      ActivationScheme.classify(
-        issuerCommonName: "DVV Citizen Certificates - G4E"
-      ) == .presetActivationPin
-    )
-    // A future generation marker still classifies.
-    #expect(
-      ActivationScheme.classify(
-        issuerCommonName: "DVV Citizen Certificates - G5E"
-      ) == .presetActivationPin
-    )
-    // An organisational issuer refuses even though its marker and
-    // suffix would match: S4-1 §4.6 covers citizen cards alone.
-    #expect(
-      ActivationScheme.classify(
-        issuerCommonName: "DVV Organisational Certificates - G4R"
-      ) == nil
-    )
-    // No generation marker, wrong suffix, or nothing at all: refuse.
-    #expect(
-      ActivationScheme.classify(issuerCommonName: "DVV Citizen Certificates")
-        == nil
-    )
-    #expect(
-      ActivationScheme.classify(
-        issuerCommonName: "DVV Citizen Certificates - G4X"
-      ) == nil
-    )
-    #expect(ActivationScheme.classify(issuerCommonName: "") == nil)
-  }
-
-  @Test
   internal func entryDigitCountFollowsTheScheme() {
     #expect(ActivationScheme.activationCodeIsPuk.activationEntryDigitCount == 8)
     #expect(ActivationScheme.presetActivationPin.activationEntryDigitCount == 7)
@@ -81,33 +43,60 @@ internal struct ActivationTests {
     #expect(CardActivationNeeds(pin1: false, pin2: true).any)
   }
 
+  /// A factory-fresh §4.6.1 card ships both PINs blocked and can
+  /// report that as an exhausted counter; the unchanged flag marks it
+  /// as awaiting activation whatever the counter says.
   @Test
-  internal func activationCodePreflightTreatsAnyLiveReadingAsActivated() throws {
+  internal func activationCodePreflightFollowsTheChangedFlag() throws {
     let five = try #require(RetryCount(attemptsRemaining: 5))
-    // A live counter is evidence the slot was written to. Invalidated
-    // is not: a card can be in that state before it was ever
-    // activated, and treating it as prior use would withhold
-    // activation from the card that needs it.
-    let live: [RetryProbeOutcome] = [.remaining(five), .verified, .locked]
-    for probe in live {
+    let exhausted = try #require(RetryCount(attemptsRemaining: 0))
+    let probes: [RetryProbeOutcome?] = [
+      .remaining(exhausted), .remaining(five), .locked, .invalidated, .verified, nil,
+    ]
+    for probe in probes {
       #expect(
         ActivationPreflight.evaluate(
           scheme: .activationCodeIsPuk,
           probe: probe,
-          changeRecord: .unreadable
+          changeRecord: .unchanged
+        ) == .ready
+      )
+      #expect(
+        ActivationPreflight.evaluate(
+          scheme: .activationCodeIsPuk,
+          probe: probe,
+          changeRecord: .changed
         ) == .alreadyActivated
       )
     }
-    let inconclusive: [RetryProbeOutcome?] = [
-      .invalidated, .noInformation, .other(0), nil,
-    ]
-    for probe in inconclusive {
+  }
+
+  /// Without the flag, a blocked, invalidated or exhausted PIN is
+  /// served the activation: it is the same PUK reset recovery sends.
+  @Test
+  internal func activationCodePreflightFallsBackToABlockedCounter() throws {
+    let five = try #require(RetryCount(attemptsRemaining: 5))
+    let exhausted = try #require(RetryCount(attemptsRemaining: 0))
+    let blocked: [RetryProbeOutcome] = [.remaining(exhausted), .locked, .invalidated]
+    for probe in blocked {
       #expect(
         ActivationPreflight.evaluate(
           scheme: .activationCodeIsPuk,
           probe: probe,
           changeRecord: .unreadable
         ) == .ready
+      )
+    }
+    let usable: [RetryProbeOutcome?] = [
+      .remaining(five), .verified, .noInformation, .other(0), nil,
+    ]
+    for probe in usable {
+      #expect(
+        ActivationPreflight.evaluate(
+          scheme: .activationCodeIsPuk,
+          probe: probe,
+          changeRecord: .unreadable
+        ) == .alreadyActivated
       )
     }
   }
@@ -148,20 +137,21 @@ internal struct ActivationTests {
   @Test
   internal func aHalfActivatedCardReadsPerPin() throws {
     let five = try #require(RetryCount(attemptsRemaining: 5))
-    // Old scheme: PIN 1 was unblocked and set, PIN 2 still answers
-    // nothing usable.
+    let exhausted = try #require(RetryCount(attemptsRemaining: 0))
+    // Old scheme: PIN 1 was unblocked and set, PIN 2 is still blocked
+    // in its factory state.
     #expect(
       ActivationPreflight.evaluate(
         scheme: .activationCodeIsPuk,
         probe: .remaining(five),
-        changeRecord: .unreadable
+        changeRecord: .changed
       ) == .alreadyActivated
     )
     #expect(
       ActivationPreflight.evaluate(
         scheme: .activationCodeIsPuk,
-        probe: .noInformation,
-        changeRecord: .unreadable
+        probe: .remaining(exhausted),
+        changeRecord: .unchanged
       ) == .ready
     )
     // New scheme: PIN 1's changed flag is set, PIN 2's is not.

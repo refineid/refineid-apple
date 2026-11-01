@@ -67,23 +67,12 @@ extension CardMaintenance {
 
   /// Determines the activation generation without probing credentials.
   ///
-  /// A reader ATR normally answers immediately and is sufficient for
-  /// every MultiApp generation. The certificate fallback covers a
-  /// documented card whose ATR is not in the generation table, still
-  /// without reading any retry counter.
+  /// The activation scheme of the card in a reader, from its
+  /// authentication certificate's issue date, without reading any
+  /// retry counter.
   internal static func readerActivationScheme() async -> ActivationScheme? {
     if await DemoMode.shared.isActive {
       return await DemoMode.shared.readerActivationScheme()
-    }
-    guard let manager = TKSmartCardSlotManager.default else { return nil }
-    let occupied = await CardSlotSearch.allOccupied(in: manager).filter { candidate in
-      CardTransport.transport(forSlotNamed: candidate.name) == .reader
-    }
-    for candidate in occupied {
-      guard let answerToReset = candidate.slot.atr?.bytes else { continue }
-      if let scheme = ActivationScheme.classify(answerToReset: answerToReset) {
-        return scheme
-      }
     }
     return await onReader { operations in
       classifyScheme(operations)

@@ -107,7 +107,7 @@ internal final class CardManagementModel: ObservableObject {
   /// Reads only the card generation needed to validate an activation PIN.
   ///
   /// No retry counter is queried and the form remains interactive while
-  /// the ATR or certificate classification completes.
+  /// the certificate classification completes.
   internal func detectActivationScheme() async {
     guard activationRequired || offersActivation, transport == .reader else { return }
     let detected = await CardMaintenance.readerActivationScheme()

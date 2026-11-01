@@ -8,41 +8,51 @@ public enum ActivationPreflight {
   /// individually and an interrupted activation leaves one PIN set
   /// and the other in its factory state. A card is awaiting
   /// activation while any of its PINs is; the set one is skipped, not
-  /// set again - under §4.6.2 the activation PIN stops being a PIN's
-  /// current value the moment that PIN is changed, and presenting it
-  /// again would spend a retry on a value that cannot match.
+  /// set again.
   ///
-  /// Under the activation-code scheme (§4.6.1) both PINs ship blocked
-  /// and the factory state answers the probe with nothing usable, so a
-  /// live counter reading - remaining attempts, verified, or locked -
-  /// means the slot has been written to since manufacture. Locked
-  /// counts because it is activated-then-exhausted, not factory-fresh.
+  /// The changed flag is the authority under both schemes: activation
+  /// sets it, so `unchanged` is the factory state and `changed` means
+  /// the holder has set the PIN. Under the activation-code scheme
+  /// (§4.6.1) the factory PINs are blocked, which the card reports as
+  /// a blocked or invalidated method or as an exhausted counter; a
+  /// blocked PIN whose flag reads `changed` was activated and then
+  /// used up, and belongs to PUK recovery.
   ///
-  /// An invalidated slot does NOT count. That is a state a card can be
-  /// in before it was ever activated, and reading it as prior use
-  /// would withhold activation from exactly the card that needs it.
-  ///
-  /// Under the preset-PIN scheme (§4.6.2) the PIN ships set to the
-  /// activation PIN, so a healthy counter is the expected fresh state
-  /// and proves nothing. The changed-since-manufacture record is the
-  /// authoritative signal; only `changed` blocks the flow, an
-  /// unreadable record does not.
+  /// When the flag cannot be read, §4.6.1 falls back to the counter:
+  /// a blocked, invalidated or exhausted PIN is served the activation,
+  /// which is the same RESET RETRY COUNTER under the PUK that recovery
+  /// sends. Under the preset-PIN scheme (§4.6.2) a healthy counter is
+  /// the expected fresh state and proves nothing, so only `changed`
+  /// blocks the flow there.
   public static func evaluate(
     scheme: ActivationScheme,
     probe: RetryProbeOutcome?,
     changeRecord: PinChangeRecord
   ) -> ActivationReadiness {
+    switch changeRecord {
+    case .changed:
+      return .alreadyActivated
+
+    case .unchanged:
+      return .ready
+
+    case .unreadable:
+      break
+    }
     switch scheme {
     case .presetActivationPin:
-      return changeRecord == .changed ? .alreadyActivated : .ready
+      return .ready
 
     case .activationCodeIsPuk:
       switch probe {
-      case .remaining, .verified, .locked:
-        return .alreadyActivated
-
-      case .invalidated, .noInformation, .other, .none:
+      case .locked, .invalidated:
         return .ready
+
+      case .remaining(let count):
+        return count.isBlocked ? .ready : .alreadyActivated
+
+      case .verified, .noInformation, .other, .none:
+        return .alreadyActivated
       }
     }
   }
