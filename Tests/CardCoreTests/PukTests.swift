@@ -20,13 +20,21 @@ internal struct PukTests {
   }
 
   @Test
-  internal func acceptsBothFieldLengths() {
-    // Eight digits is the ordinary PUK; seven-digit activation PUKs
-    // exist in the field.
-    let sevenDigits = String(repeating: "7", count: Puk.minimumDigitCount)
-    let eightDigits = String(repeating: "7", count: Puk.maximumDigitCount)
-    #expect(canConstruct(sevenDigits))
-    #expect(canConstruct(eightDigits))
+  internal func acceptsTheShortestAndTheLongest() {
+    let shortest = String(repeating: "7", count: Puk.minimumDigitCount)
+    let longest = String(repeating: "7", count: Puk.maximumDigitCount)
+    #expect(canConstruct(shortest))
+    #expect(canConstruct(longest))
+  }
+
+  /// The §4.6.2 preset activation PIN is a PIN value, not a PUK.
+  @Test
+  internal func refusesThePresetActivationPinLength() {
+    let preset = String(
+      repeating: "7",
+      count: ActivationScheme.presetActivationPinDigitCount
+    )
+    #expect(!canConstruct(preset))
   }
 
   @Test

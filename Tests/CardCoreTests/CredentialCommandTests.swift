@@ -157,11 +157,10 @@ internal struct CredentialCommandTests {
   }
 
   @Test
-  internal func unblockPin1PadsASevenDigitPukToTwelve() {
-    // A seven-digit activation PUK pads to the same stored length as
-    // everything else (S1 v4.2 §3.5.4).
+  internal func unblockPin1SendsATwelveDigitPukUnpadded() {
+    // A PUK at the stored length fills its block (S1 v4.2 §3.5.4).
     guard
-      let puk = Puk(digits: "4907123"),
+      let puk = Puk(digits: "490712345678"),
       let new = Pin1(digits: "4907")
     else {
       Issue.record("valid credential failed to construct")
@@ -175,7 +174,7 @@ internal struct CredentialCommandTests {
     #expect(
       command.intoTransportPayload()
         == WireHex.data(
-          "002C001118343930373132330000000000343930370000000000000000")
+          "002C001118343930373132333435363738343930370000000000000000")
     )
   }
 

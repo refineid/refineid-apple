@@ -11,7 +11,7 @@
   /// that carries it serves systems older than the card slot the flow needs.
   internal enum CardSetupRefusal: Equatable, Sendable {
     /// The card has not been given its first holder codes yet.
-    case activationRequired(scheme: ActivationScheme, needs: CardActivationNeeds)
+    case activationRequired(activation: ActivationClassification, needs: CardActivationNeeds)
 
     /// PACE timed out at step 2/5 (likely card anti-tamper penalty delay).
     case secureChannelTimedOut

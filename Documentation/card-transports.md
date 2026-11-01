@@ -78,7 +78,8 @@ device (see `Documentation/ios-native-nfc-safari.md`):
 
 1. **Prime, once per card, in one field.** The app opens an NFC slot,
    runs PACE with the CAN, reads the authentication certificate (`EF.4331`)
-   and card serial, checks activation state with memoized retry probes, stores
+   and card serial, checks activation state with counter-safe probes (the
+   reference numbering, the PIN changed flag and the retry counters), stores
    them plus the CAN in a keychain item shared with the extension as soon as
    they are read, so the extension's mint overlaps the rest of the hold, and
    registers the token -- all inside the same hold. The qualified signature

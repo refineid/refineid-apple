@@ -32,8 +32,12 @@ internal struct ActivationTests {
 
   @Test
   internal func entryDigitCountFollowsTheScheme() {
-    #expect(ActivationScheme.activationCodeIsPuk.activationEntryDigitCount == 8)
-    #expect(ActivationScheme.presetActivationPin.activationEntryDigitCount == 7)
+    #expect(
+      ActivationScheme.activationCodeIsPuk.activationEntryDigitCount
+        == ActivationScheme.activationCodeDigitCount)
+    #expect(
+      ActivationScheme.presetActivationPin.activationEntryDigitCount
+        == ActivationScheme.presetActivationPinDigitCount)
   }
 
   @Test
@@ -120,13 +124,24 @@ internal struct ActivationTests {
         changeRecord: .unchanged
       ) == .ready
     )
-    #expect(
-      ActivationPreflight.evaluate(
-        scheme: .presetActivationPin,
-        probe: .locked,
-        changeRecord: .unreadable
-      ) == .ready
-    )
+  }
+
+  /// Under §4.6.2 a fresh and an activated PIN both answer a usable
+  /// counter, so without the flag nothing is decided and nothing is
+  /// offered, whatever the counter says.
+  @Test
+  internal func presetPinPreflightWithoutTheFlagDecidesNothing() throws {
+    let five = try #require(RetryCount(attemptsRemaining: 5))
+    let probes: [RetryProbeOutcome?] = [.remaining(five), .locked, .verified, nil]
+    for probe in probes {
+      #expect(
+        ActivationPreflight.evaluate(
+          scheme: .presetActivationPin,
+          probe: probe,
+          changeRecord: .unreadable
+        ) == .undecided
+      )
+    }
   }
 
   /// An interrupted activation leaves one PIN set and one waiting,
@@ -138,7 +153,7 @@ internal struct ActivationTests {
   internal func aHalfActivatedCardReadsPerPin() throws {
     let five = try #require(RetryCount(attemptsRemaining: 5))
     let exhausted = try #require(RetryCount(attemptsRemaining: 0))
-    // Old scheme: PIN 1 was unblocked and set, PIN 2 is still blocked
+    // §4.6.1: PIN 1 was unblocked and set, PIN 2 is still blocked
     // in its factory state.
     #expect(
       ActivationPreflight.evaluate(
@@ -154,7 +169,7 @@ internal struct ActivationTests {
         changeRecord: .unchanged
       ) == .ready
     )
-    // New scheme: PIN 1's changed flag is set, PIN 2's is not.
+    // §4.6.2: PIN 1's changed flag is set, PIN 2's is not.
     #expect(
       ActivationPreflight.evaluate(
         scheme: .presetActivationPin,

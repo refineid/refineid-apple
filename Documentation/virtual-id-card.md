@@ -41,7 +41,7 @@ Card state and device state are separate.
 Card state contains:
 
 - Transport, reader connection, and card presence.
-- Card generation and activation method.
+- Activation scheme (FINEID S4-1 §4.6.1 or §4.6.2).
 - CAN and activation entry.
 - PIN 1, PIN 2, and PUK values and independent retry counters.
 - Independent PIN 1 and PIN 2 factory flags.

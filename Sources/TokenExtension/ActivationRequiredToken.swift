@@ -6,8 +6,8 @@ import Foundation
 
 /// A system-visible state event, not an identity.
 ///
-/// The extension has already read the card and proved that it is a
-/// supported citizen card with factory credentials. Returning an empty
+/// The extension has already read the card and proved that a PIN on
+/// it awaits activation. Returning an empty
 /// token lets CryptoTokenKit serialize that answer with its own card
 /// session and lets the app observe it without racing the extension.
 internal final class ActivationRequiredToken: TKSmartCardToken, TKTokenDelegate {

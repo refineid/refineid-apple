@@ -48,7 +48,7 @@ extension VirtualIDCard {
         transport: .nearField,
         readerConnected: false,
         cardPresent: true,
-        generation: .presetActivationPIN,
+        activationScheme: .presetActivationPin,
         cardAccessNumber: accessNumber,
         activationEntry: activationPIN,
         pin1: CredentialState(
@@ -79,7 +79,7 @@ extension VirtualIDCard {
           isFactoryValue: true)
 
       case .legacyFactoryFreshNearField:
-        card.generation = .activationCodeIsPuk
+        card.activationScheme = .activationCodeIsPuk
         card.activationEntry = defaultPUK
         card.pin1 = CredentialState(
           value: defaultPIN1,

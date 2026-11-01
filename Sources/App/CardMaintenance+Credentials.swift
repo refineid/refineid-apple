@@ -8,7 +8,7 @@ extension CardMaintenance {
   internal struct Snapshot: Equatable, Sendable {
     internal let report: CredentialProbeReport?
     internal let activationNeeds: ActivationNeeds?
-    internal let activationScheme: ActivationScheme?
+    internal let activation: ActivationClassification?
     /// The card's answer to reset where the transport exposes it.
     internal var answerToReset = Data()
   }
@@ -65,17 +65,14 @@ extension CardMaintenance {
     .flatMap(\.self)
   }
 
-  /// Determines the activation generation without probing credentials.
-  ///
-  /// The activation scheme of the card in a reader, from its
-  /// authentication certificate's issue date, without reading any
-  /// retry counter.
-  internal static func readerActivationScheme() async -> ActivationScheme? {
+  /// The activation classification of the card in a reader,
+  /// counter-safe: the numbering probe changes no retry counter.
+  internal static func readerActivation() async -> ActivationClassification? {
     if await DemoMode.shared.isActive {
-      return await DemoMode.shared.readerActivationScheme()
+      return await DemoMode.shared.readerActivation()
     }
     return await onReader { operations in
-      classifyScheme(operations)
+      operations.activationClassification()
     }
   }
 
@@ -296,11 +293,11 @@ extension CardMaintenance {
   }
 
   internal static func snapshot(on operations: CardOperations) -> Snapshot {
-    let scheme = classifyScheme(operations)
-    let needs = scheme.map { activationScheme in
-      operations.activationNeeds(scheme: activationScheme)
+    let activation = operations.activationClassification()
+    let needs = activation.map { classified in
+      operations.activationNeeds(scheme: classified.scheme)
     }
     let report = try? operations.probeCredentials()
-    return Snapshot(report: report, activationNeeds: needs, activationScheme: scheme)
+    return Snapshot(report: report, activationNeeds: needs, activation: activation)
   }
 }

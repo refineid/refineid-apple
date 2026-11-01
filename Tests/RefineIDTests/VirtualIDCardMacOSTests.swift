@@ -136,7 +136,7 @@
           entry: "1234567",
           newPin1: "1234",
           newPin2: "123456",
-          scheme: demo.activationScheme,
+          scheme: demo.activation.scheme,
           needs: demo.activationNeeds
         ),
         transport: .reader,
@@ -243,7 +243,7 @@
         transport: .reader,
         activationRequired: false,
         cardAccessNumber: nil,
-        activationScheme: nil,
+        activation: nil,
         activationNeeds: nil
       )
       await management.refresh()

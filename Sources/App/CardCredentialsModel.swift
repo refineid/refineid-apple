@@ -16,7 +16,7 @@ internal final class CardCredentialsModel: ObservableObject {
   internal enum ConnectionResult: Sendable {
     case activated
     case activationRequired(
-      scheme: ActivationScheme,
+      activation: ActivationClassification,
       needs: CardActivationNeeds)
     case wrongCardAccessNumber
     case failed
@@ -76,15 +76,15 @@ internal final class CardCredentialsModel: ObservableObject {
       failure = String(localized: "The identity card could not be read. Try again.")
       return .failed
     }
-    if let scheme = snapshot.activationScheme,
+    if let activation = snapshot.activation,
       let needs = snapshot.activationNeeds,
       needs.any
     {
       CredentialRetryHealth.shared.update(snapshot.report)
       hasVerifiedCardStatus = true
-      return .activationRequired(scheme: scheme, needs: needs)
+      return .activationRequired(activation: activation, needs: needs)
     }
-    if snapshot.activationScheme != nil, snapshot.activationNeeds != nil {
+    if snapshot.activation != nil, snapshot.activationNeeds != nil {
       CredentialRetryHealth.shared.update(snapshot.report)
       guard CredentialRetryHealth.shared.level != nil else {
         failure = String(localized: "The identity card could not be read. Try again.")

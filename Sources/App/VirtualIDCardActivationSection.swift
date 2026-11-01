@@ -5,7 +5,7 @@
   import CardCore
   import SwiftUI
 
-  /// The virtual card activation generation, entry, and factory-state toggles.
+  /// The virtual card activation scheme, entry, and factory-state toggles.
   internal struct VirtualIDCardActivationSection: View {
     @Binding internal var draft: VirtualIDCard.Snapshot
 
@@ -13,21 +13,21 @@
       Section(
         virtualCardLocalized("section.activation", defaultValue: "Activation")
       ) {
-        activationGenerationPicker
+        activationSchemePicker
         activationEntryField
         activationFactoryToggles
       }
     }
 
-    @ViewBuilder private var activationGenerationPicker: some View {
+    @ViewBuilder private var activationSchemePicker: some View {
       Picker(
         virtualCardLocalized(
-          "activation.generation",
-          defaultValue: "Generation"),
-        selection: $draft.card.generation
+          "activation.scheme",
+          defaultValue: "Activation scheme"),
+        selection: $draft.card.activationScheme
       ) {
-        ForEach(VirtualIDCard.Generation.allCases, id: \.self) { generation in
-          Text(generation.localizedName).tag(generation)
+        ForEach(ActivationScheme.allCases, id: \.self) { scheme in
+          Text(scheme.localizedName).tag(scheme)
         }
       }
       .pickerStyle(.menu)

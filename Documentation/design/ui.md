@@ -35,7 +35,8 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   and the field that repeats it is "Repeat PIN 1". Where the language's
   word is not "PIN", the number follows in brackets: "Uusi
   perustunnusluku (PIN 1)", "Ny grundkod (PIN 1)".
-  The activation form, titled "Identity card activation", has three
+  The activation form, titled "Identity card activation" ("Organisation
+  card activation" for an organization card), has three
   groups, headed "Activation PIN", "Basic PIN 1" and "Signature PIN 2"
   (Finnish "Perustunnusluku (PIN 1)"), so a filled field still says what
   it holds.

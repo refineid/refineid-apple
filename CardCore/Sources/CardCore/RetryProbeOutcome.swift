@@ -9,8 +9,9 @@ public enum RetryProbeOutcome: Equatable, Sendable {
   /// `6984`: the referenced credential data is invalidated.
   case invalidated
 
-  /// `6983`: the credential is blocked; issuer recovery is the only
-  /// path.
+  /// `6983`: the credential is blocked. A blocked PIN is reset with
+  /// the PUK; under S4-1 §4.6.1 a factory PIN is blocked until
+  /// activation.
   case locked
 
   /// The card answered without a usable counter (`6300`, or an

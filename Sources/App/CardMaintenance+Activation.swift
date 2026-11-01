@@ -215,13 +215,4 @@ extension CardMaintenance {
     let verdict = RetryFloor.evaluate(probeOutcome: probe)
     return verdict == .proceed ? nil : .floorRefused(verdict)
   }
-
-  internal static func classifyScheme(
-    _ operations: CardOperations
-  ) -> ActivationScheme? {
-    guard let der = try? operations.readCertificate(.authentication) else {
-      return nil
-    }
-    return ActivationScheme.classify(authenticationCertificateDER: der)
-  }
 }

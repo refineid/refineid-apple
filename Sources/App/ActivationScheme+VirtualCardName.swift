@@ -4,9 +4,9 @@
 
   import CardCore
 
-  extension VirtualIDCard.Generation {
+  extension ActivationScheme {
     internal var localizedName: String {
-      VirtualIDCardOverlayLocalization.generationName(self)
+      VirtualIDCardOverlayLocalization.activationSchemeName(self)
     }
   }
 

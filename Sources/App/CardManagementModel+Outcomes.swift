@@ -142,7 +142,7 @@ extension CardManagementModel {
         remaining: remaining)
 
     case .invalidated:
-      "The credential slot is invalidated; only the issuer can recover it."
+      "The credential slot is invalidated."
 
     case .alreadyActivated:
       "This card looks activated already."

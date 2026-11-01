@@ -65,7 +65,7 @@
       transport: nil,
       activationRequired: false,
       cardAccessNumber: nil,
-      activationScheme: nil,
+      activation: nil,
       activationNeeds: nil)
 
     internal var awaitsActivation: Bool {

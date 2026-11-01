@@ -114,13 +114,13 @@
         do {
           let certificate = try operations.readCertificate(.authentication)
           let facts = CertificateFacts(der: certificate)
-          let scheme = ActivationScheme.classify(
-            authenticationCertificateDER: certificate
+          let activation = operations.activationClassification(
+            authenticationCertificate: certificate
           )
           return [
             "activation certificate read: \(certificate.count) bytes",
             "activation certificate DER parse: \(facts == nil ? "failed" : "succeeded")",
-            "activation scheme parse: \(scheme == nil ? "failed" : "succeeded")",
+            "activation classification: \(activation.map { String(describing: $0) } ?? "none")",
           ]
         } catch {
           return ["activation certificate read: failed (\(type(of: error)))"]

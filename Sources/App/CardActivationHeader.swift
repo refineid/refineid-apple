@@ -9,14 +9,23 @@ internal struct CardActivationHeader: View {
   /// the title reads as the window's and not the group's.
   private static let titleSpacing: CGFloat = 28
 
+  /// Whether the card is on the organization reference numbering.
+  internal let isOrganizationCard: Bool
+
   internal var body: some View {
     VStack(alignment: .leading, spacing: Self.titleSpacing) {
-      Text("Identity card activation")
+      title
         .font(.title.bold())
         .foregroundStyle(.primary)
         .accessibilityAddTraits(.isHeader)
       Text("Activation PIN")
         .accessibilityAddTraits(.isHeader)
     }
+  }
+
+  private var title: Text {
+    isOrganizationCard
+      ? Text("Organisation card activation")
+      : Text("Identity card activation")
   }
 }

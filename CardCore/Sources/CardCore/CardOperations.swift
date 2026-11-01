@@ -264,10 +264,10 @@ public struct CardOperations {
   /// Reads a PIN's changed-since-manufacture record, counter-safe
   /// (the GET DATA PIN-container form, S1 v4.2 §3.15.3).
   ///
-  /// The record is the activation signal for a card issued from
-  /// 13 January 2026. Any refusal answers `unreadable` rather than
-  /// throwing: the record is advisory, and no decision may turn an
-  /// unreadable record into permission.
+  /// The record decides whether a PIN awaits activation under both
+  /// S4-1 §4.6 schemes. Any refusal answers `unreadable` rather than
+  /// throwing: no decision may turn an unreadable record into
+  /// permission.
   public func readPinChangeRecord(role: CredentialRole) throws -> PinChangeRecord {
     let response = try transmit(.readCredentialAttributes(role: role))
     guard response.statusWord == .success else {

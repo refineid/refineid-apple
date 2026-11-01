@@ -164,7 +164,7 @@ internal struct CardManagementView: View {
             // retry-floor checks inside the exclusive card session.
             if awaitsActivation {
               #if FEATURE_CARD_ACTIVATION
-                await model.detectActivationScheme()
+                await model.detectActivation()
               #endif
               // Gated, the destination is a refusal that asks the card
               // for nothing, so nothing is probed either.
@@ -248,7 +248,7 @@ internal struct CardManagementView: View {
     readerCardIsPresent: Bool,
     activationRequired: Bool,
     cardAccessNumber: String?,
-    activationScheme: ActivationScheme?,
+    activation: ActivationClassification?,
     activationNeeds: CardActivationNeeds?,
     onActivationSucceeded: (() -> Void)?
   ) {
@@ -266,7 +266,7 @@ internal struct CardManagementView: View {
         : (providesCardAccessNumber ? .nearField : nil),
       activationRequired: activationRequired,
       cardAccessNumber: cardAccessNumber,
-      activationScheme: activationScheme,
+      activation: activation,
       activationNeeds: activationNeeds
     )
     _model = StateObject(wrappedValue: initialModel)
@@ -286,7 +286,7 @@ internal struct CardManagementView: View {
       readerCardIsPresent: readerCardIsPresent,
       activationRequired: activationRequired,
       cardAccessNumber: cardAccessNumber,
-      activationScheme: nil,
+      activation: nil,
       activationNeeds: nil,
       onActivationSucceeded: nil
     )

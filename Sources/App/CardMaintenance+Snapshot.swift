@@ -68,8 +68,8 @@
       }
     }
 
-    /// The first wireless connection, classified from the live ATR before
-    /// falling back to the certificate.
+    /// The first wireless connection, classified for activation by the
+    /// card's reference numbering and authentication certificate.
     ///
     /// Unknown state is a failed connection, never evidence that the card is activated.
     internal static func connectionSnapshot(
@@ -161,16 +161,16 @@
           over: channel,
           cardAccessNumber: cardAccessNumber)
         sheet?.advance()
-        guard let scheme = classifyScheme(operations) else {
+        guard let activation = operations.activationClassification() else {
           return .failed
         }
-        let needs = operations.activationNeeds(scheme: scheme)
+        let needs = operations.activationNeeds(scheme: activation.scheme)
         let report = try? operations.probeCredentials()
         return .connected(
           Snapshot(
             report: report,
             activationNeeds: needs,
-            activationScheme: scheme))
+            activation: activation))
       } catch ConnectionFailure.wrongCardAccessNumber {
         return .wrongCardAccessNumber
       } catch {
@@ -230,12 +230,12 @@
             over: channel,
             cardAccessNumber: cardAccessNumber)
           sheet.advance()
-          let certificateScheme = classifyScheme(operations)
+          let activation = operations.activationClassification()
           let pin1Record = try? operations.readPinChangeRecord(role: .pin1)
           let pin2Record = try? operations.readPinChangeRecord(role: .pin2)
           let pin1Probe = try? operations.probeRetryCounter(role: .pin1)
           let pin2Probe = try? operations.probeRetryCounter(role: .pin2)
-          let selectedScheme = certificateScheme
+          let selectedScheme = activation?.scheme
           let pin1Readiness = selectedScheme.map { scheme in
             ActivationPreflight.evaluate(
               scheme: scheme,
@@ -250,7 +250,7 @@
           }
           return DebugModeReport(
             lines: [
-              "activation-probe: certificate scheme \(String(describing: certificateScheme))",
+              "activation-probe: classification \(String(describing: activation))",
               "activation-probe: PIN1 changed \(String(describing: pin1Record))",
               "activation-probe: PIN2 changed \(String(describing: pin2Record))",
               "activation-probe: PIN1 probe \(String(describing: pin1Probe))",

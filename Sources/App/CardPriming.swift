@@ -220,8 +220,8 @@
       case .secureChannelTimedOut:
         .secureChannelTimedOut
 
-      case .activationRequired(let scheme, let needs):
-        .activationRequired(scheme: scheme, needs: needs)
+      case .activationRequired(let activation, let needs):
+        .activationRequired(activation: activation, needs: needs)
 
       default:
         nil

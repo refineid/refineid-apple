@@ -22,8 +22,8 @@ public enum ActivationPreflight {
   /// a blocked, invalidated or exhausted PIN is served the activation,
   /// which is the same RESET RETRY COUNTER under the PUK that recovery
   /// sends. Under the preset-PIN scheme (§4.6.2) a healthy counter is
-  /// the expected fresh state and proves nothing, so only `changed`
-  /// blocks the flow there.
+  /// the expected state of both a fresh and an activated PIN, so
+  /// without the flag there is no activation decision.
   public static func evaluate(
     scheme: ActivationScheme,
     probe: RetryProbeOutcome?,
@@ -41,7 +41,7 @@ public enum ActivationPreflight {
     }
     switch scheme {
     case .presetActivationPin:
-      return .ready
+      return .undecided
 
     case .activationCodeIsPuk:
       switch probe {

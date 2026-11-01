@@ -34,7 +34,7 @@ extension CardCredentialsView {
     guard isCardAccessNumberEntryComplete, !model.isConnecting else { return }
     guard transition(.startManagementClassification) else { return }
     let entered = cardAccessNumberEntry
-    activationScheme = nil
+    activation = nil
     activationNeeds = nil
     isCardAccessNumberFieldFocused = false
     Task {
@@ -67,8 +67,8 @@ extension CardCredentialsView {
     case .activated:
       handleActivated(entered: entered, purpose: purpose)
 
-    case .activationRequired(let scheme, let needs):
-      handleActivationRequired(scheme: scheme, needs: needs)
+    case .activationRequired(let activation, let needs):
+      handleActivationRequired(activation: activation, needs: needs)
 
     case .wrongCardAccessNumber:
       handleWrongCardAccessNumber()
@@ -93,10 +93,10 @@ extension CardCredentialsView {
   }
 
   private func handleActivationRequired(
-    scheme: ActivationScheme,
+    activation: ActivationClassification,
     needs: CardActivationNeeds
   ) {
-    activationScheme = scheme
+    self.activation = activation
     activationNeeds = needs
     transition(.classificationActivationRequired)
   }
@@ -112,7 +112,7 @@ extension CardCredentialsView {
 
   /// Activation succeeded on the card; only now is its CAN persistent.
   internal func activationSucceeded() {
-    activationScheme = nil
+    activation = nil
     activationNeeds = nil
     if isDemonstration {
       showStoredCardAccessNumber()
@@ -191,7 +191,7 @@ extension CardCredentialsView {
       return
     }
     let entered = cardAccessNumberEntry
-    activationScheme = nil
+    activation = nil
     activationNeeds = nil
     isCardAccessNumberFieldFocused = false
     model.clearFailure()
@@ -236,8 +236,8 @@ extension CardCredentialsView {
           transition(.classificationWrongCardAccessNumber)
         }
 
-      case .activationRequired(let scheme, let needs):
-        activationScheme = scheme
+      case .activationRequired(let activation, let needs):
+        self.activation = activation
         activationNeeds = needs
         transition(.classificationActivationRequired)
 
