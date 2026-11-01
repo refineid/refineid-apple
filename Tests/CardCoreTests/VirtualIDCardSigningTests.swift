@@ -19,7 +19,7 @@ internal final class VirtualIDCardSigningTests: XCTestCase {
   }
 
   internal func testInvalidSignatureEntriesNeverReachTheCard() async {
-    let invalid = ["", "12345", "1234567890123", "12a456"]
+    let invalid = ["", "123", "1234567890123", "12a456"]
     for entry in invalid {
       var state = VirtualIDCard.Scenario.registeredNearField.snapshot
       state.card.pin2.attemptsRemaining = 4

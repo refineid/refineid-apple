@@ -110,24 +110,46 @@ extension CardManagementView {
     #endif
   }
 
+  /// The both-PINs reset when it is offered, then the task selector and
+  /// the chosen task's form.
+  @ViewBuilder
+  internal func managementForms(
+    model: CardManagementModel,
+    lengths: CardPinLengths,
+    offersBothPinsReset: Bool,
+    tasks: [ManagementTask],
+    selection: Binding<ManagementTask>
+  ) -> some View {
+    if offersBothPinsReset, model.notice == nil {
+      CredentialResetBothSection(model: model, lengths: lengths)
+    }
+    if !tasks.isEmpty {
+      taskSelector(tasks: tasks, selection: selection)
+      if model.notice == nil, tasks.contains(selection.wrappedValue) {
+        page(for: selection.wrappedValue, model: model, lengths: lengths)
+      }
+    }
+  }
+
   /// The form one tab shows.
   @ViewBuilder
   internal func page(
     for task: ManagementTask,
-    model: CardManagementModel
+    model: CardManagementModel,
+    lengths: CardPinLengths
   ) -> some View {
     switch task {
     case .changePin1:
-      CredentialChangeSection(model: model, credential: .pin1)
+      CredentialChangeSection(model: model, credential: .pin1, lengths: lengths)
 
     case .changePin2:
-      CredentialChangeSection(model: model, credential: .pin2)
+      CredentialChangeSection(model: model, credential: .pin2, lengths: lengths)
 
     case .resetPin1:
-      CredentialUnblockSection(model: model, target: .pin1)
+      CredentialUnblockSection(model: model, target: .pin1, lengths: lengths)
 
     case .resetPin2:
-      CredentialUnblockSection(model: model, target: .pin2)
+      CredentialUnblockSection(model: model, target: .pin2, lengths: lengths)
     }
   }
 }

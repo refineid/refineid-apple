@@ -26,6 +26,10 @@ public enum CardOperationError: Error, Equatable, Sendable {
   /// The presented credential was refused because it is blocked.
   case pinBlocked
 
+  /// An entry's length is outside what the card in session accepts for
+  /// `role`; nothing carrying it was sent.
+  case pinLengthRefused(CredentialRole)
+
   /// The presented credential was rejected; `remaining` attempts are
   /// left before it locks.
   case pinRejected(remaining: RetryCount)

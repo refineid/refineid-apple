@@ -11,7 +11,7 @@ import Testing
 /// specification §4.1.6-4.1.7).
 @Suite
 internal struct OrganizationCredentialTests {
-  /// The probe pair every unresolved flow leads with on an
+  /// The probe pair every unresolved VERIFY leads with on an
   /// organization card (S1 v4.2 §3.5.1.1, counter-safe).
   private static let resolution: [(String, String)] = [
     ("0020001100", "6A88"),
@@ -35,7 +35,7 @@ internal struct OrganizationCredentialTests {
   @Test
   internal func changePin1SendsBothBlocksBare() throws {
     let channel = ScriptedChannel(
-      Self.resolution + [("00240003083132333434333231", "9000")]
+      [("00240003083132333434333231", "9000")]
     )
     let operations = CardOperations(channel: channel)
     guard
@@ -47,7 +47,8 @@ internal struct OrganizationCredentialTests {
     }
     try operations.changePin1(
       current: current.consumeForSingleTransmission(),
-      new: new.consumeForSingleTransmission()
+      new: new.consumeForSingleTransmission(),
+      lengths: .notListed(numbering: .organization)
     )
     #expect(channel.isExhausted)
   }
@@ -57,7 +58,7 @@ internal struct OrganizationCredentialTests {
     // VERIFY of the unblock credential as its own object, then RESET
     // RETRY COUNTER with P1 02 carrying only the new PIN.
     let channel = ScriptedChannel(
-      Self.resolution + [
+      [
         ("00200012083132333435363738", "9000"),
         ("002C02030434333231", "9000"),
       ]
@@ -72,7 +73,8 @@ internal struct OrganizationCredentialTests {
     }
     try operations.unblockPin1(
       puk: puk.consumeForSingleTransmission(),
-      new: new.consumeForSingleTransmission()
+      new: new.consumeForSingleTransmission(),
+      lengths: .notListed(numbering: .organization)
     )
     #expect(channel.isExhausted)
   }
@@ -82,7 +84,7 @@ internal struct OrganizationCredentialTests {
     // A refused code ends the flow before the reset: the exhausted
     // script proves no second command went out.
     let channel = ScriptedChannel(
-      Self.resolution + [("00200012083132333435363738", "63C2")]
+      [("00200012083132333435363738", "63C2")]
     )
     let operations = CardOperations(channel: channel)
     let two = try #require(RetryCount(attemptsRemaining: 2))
@@ -96,7 +98,8 @@ internal struct OrganizationCredentialTests {
     do {
       try operations.unblockPin1(
         puk: puk.consumeForSingleTransmission(),
-        new: new.consumeForSingleTransmission()
+        new: new.consumeForSingleTransmission(),
+        lengths: .notListed(numbering: .organization)
       )
       Issue.record("expected pinRejected")
     } catch let error as CardOperationError {
@@ -110,7 +113,7 @@ internal struct OrganizationCredentialTests {
   @Test
   internal func unblockPin2TargetsThePinSigObject() throws {
     let channel = ScriptedChannel(
-      Self.resolution + [
+      [
         ("00200012083132333435363738", "9000"),
         ("002C020406363534333231", "9000"),
       ]
@@ -125,7 +128,8 @@ internal struct OrganizationCredentialTests {
     }
     try operations.unblockPin2(
       puk: puk.consumeForSingleTransmission(),
-      new: new.consumeForSingleTransmission()
+      new: new.consumeForSingleTransmission(),
+      lengths: .notListed(numbering: .organization)
     )
     #expect(channel.isExhausted)
   }
@@ -148,7 +152,7 @@ internal struct OrganizationCredentialTests {
 
   @Test
   internal func twelveDigitPin2IsSentUnpadded() throws {
-    // PIN 2 at 6-12 digits, under the PIN SIG reference.
+    // PIN 2 at 4-12 digits, under the PIN SIG reference.
     let channel = ScriptedChannel(
       Self.resolution + [("002000040C313233343536373839303132", "9000")]
     )

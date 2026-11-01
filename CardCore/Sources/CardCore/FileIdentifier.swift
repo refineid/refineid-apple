@@ -11,6 +11,12 @@ public struct FileIdentifier: Equatable, Sendable {
   /// full hardware serial.
   public static let tokenInfo = Self(value: FineidValues.fileIdTokenInfo)
 
+  /// EF.AOD: the PKCS#15 authentication object directory, source of the
+  /// card's PIN and PUK lengths.
+  public static let authenticationObjectDirectory = Self(
+    value: FineidValues.fileIdAuthenticationObjectDirectory
+  )
+
   /// The ISO 7816-4 main file (MF, FID 3F00).
   public static let mainFile = Self(value: FineidValues.fileIdMainFile)
 

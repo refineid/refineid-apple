@@ -36,6 +36,7 @@ extension CardCredentialsView {
     let entered = cardAccessNumberEntry
     activation = nil
     activationNeeds = nil
+    activationPinLengths = nil
     isCardAccessNumberFieldFocused = false
     Task {
       await processClassification(entered: entered, purpose: purpose)
@@ -67,8 +68,8 @@ extension CardCredentialsView {
     case .activated:
       handleActivated(entered: entered, purpose: purpose)
 
-    case .activationRequired(let activation, let needs):
-      handleActivationRequired(activation: activation, needs: needs)
+    case .activationRequired(let activation, let needs, let pinLengths):
+      handleActivationRequired(activation: activation, needs: needs, pinLengths: pinLengths)
 
     case .wrongCardAccessNumber:
       handleWrongCardAccessNumber()
@@ -94,10 +95,12 @@ extension CardCredentialsView {
 
   private func handleActivationRequired(
     activation: ActivationClassification,
-    needs: CardActivationNeeds
+    needs: CardActivationNeeds,
+    pinLengths: CardPinLengths
   ) {
     self.activation = activation
     activationNeeds = needs
+    activationPinLengths = pinLengths
     transition(.classificationActivationRequired)
   }
 
@@ -114,6 +117,7 @@ extension CardCredentialsView {
   internal func activationSucceeded() {
     activation = nil
     activationNeeds = nil
+    activationPinLengths = nil
     if isDemonstration {
       showStoredCardAccessNumber()
       transition(.activationSucceeded)
@@ -193,6 +197,7 @@ extension CardCredentialsView {
     let entered = cardAccessNumberEntry
     activation = nil
     activationNeeds = nil
+    activationPinLengths = nil
     isCardAccessNumberFieldFocused = false
     model.clearFailure()
     model.invalidateCardStatus()
@@ -236,9 +241,10 @@ extension CardCredentialsView {
           transition(.classificationWrongCardAccessNumber)
         }
 
-      case .activationRequired(let activation, let needs):
+      case .activationRequired(let activation, let needs, let pinLengths):
         self.activation = activation
         activationNeeds = needs
+        activationPinLengths = pinLengths
         transition(.classificationActivationRequired)
 
       case .secureChannelTimedOut, nil:

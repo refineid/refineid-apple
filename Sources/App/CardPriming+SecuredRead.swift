@@ -113,8 +113,10 @@
 
     /// Accepts only a card with no PIN awaiting activation.
     ///
-    /// A card without an activation decision passes. The reads do not
-    /// change credential counters.
+    /// A card without an activation decision passes. A card awaiting
+    /// activation leaves with the PIN lengths it accepts, for the
+    /// activation form it routes to. The reads do not change credential
+    /// counters.
     private static func activationCheck(
       certificate: Data,
       operations: CardOperations
@@ -127,7 +129,10 @@
       }
       let needs = operations.activationNeeds(scheme: activation.scheme)
       guard !needs.any else {
-        throw Failure.activationRequired(activation: activation, needs: needs)
+        throw Failure.activationRequired(
+          activation: activation,
+          needs: needs,
+          pinLengths: try operations.readCardPinLengths())
       }
       return .passed
     }

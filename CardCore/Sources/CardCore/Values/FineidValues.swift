@@ -52,6 +52,18 @@ internal enum FineidValues {
   /// hardware serial).
   internal static let fileIdTokenInfo: UInt16 = 0x5032
 
+  /// EF.AOD: the PKCS#15 authentication object directory under the eID
+  /// application (FINEID S4-1 v4.2 §8.1.5; FINEID S4-2 v4.0 §4.6.10,
+  /// §4.7.10).
+  internal static let fileIdAuthenticationObjectDirectory: UInt16 = 0x4401
+
+  /// The ISO/IEC 7816-4 reference qualifier bit marking a specific
+  /// (local) reference.
+  ///
+  /// FINEID S1 v4.2 §3.15.3 Table 19 sets it on local PINs. A card may
+  /// list a reference in EF.AOD with or without it.
+  internal static let specificReferenceBit: UInt8 = 0x80
+
   /// The ISO 7816-4 main file (MF, FID 3F00), selected before reaching
   /// MF-level EFs.
   internal static let fileIdMainFile: UInt16 = 0x3F00

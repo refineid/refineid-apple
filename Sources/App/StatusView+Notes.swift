@@ -77,13 +77,13 @@
       !DocumentSigner.usesRappSigning
     }
 
-    /// The activation form, drawn only once the card is classified so its
-    /// title and digit count are final from the first frame; until then the
-    /// window keeps reading the card.
+    /// The activation form, drawn only once the card is classified and its
+    /// PIN lengths are read so its title and digit counts are final from
+    /// the first frame; until then the window keeps reading the card.
     @ViewBuilder internal var activationSection: some View {
       let activation = ActivationWatch.shared
-      if activation.management.activation != nil {
-        CardActivationSection(model: activation.management) { model.refresh() }
+      if activation.management.activation != nil, let lengths = activation.management.pinLengths {
+        CardActivationSection(model: activation.management, lengths: lengths) { model.refresh() }
       } else {
         readingSection
       }

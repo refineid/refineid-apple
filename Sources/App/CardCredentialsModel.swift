@@ -17,7 +17,8 @@ internal final class CardCredentialsModel: ObservableObject {
     case activated
     case activationRequired(
       activation: ActivationClassification,
-      needs: CardActivationNeeds)
+      needs: CardActivationNeeds,
+      pinLengths: CardPinLengths)
     case wrongCardAccessNumber
     case failed
   }
@@ -45,6 +46,10 @@ internal final class CardCredentialsModel: ObservableObject {
   /// activated card, obtained a complete credential retry report.
   @Published internal private(set) var hasVerifiedCardStatus = false
 
+  /// The PIN lengths the classified card accepts, kept with its verified
+  /// status for the PIN forms that open on it.
+  @Published internal private(set) var pinLengths: CardPinLengths?
+
   // MARK: Functions
 
   /// Establishes PACE with an entered CAN and classifies the live card.
@@ -57,10 +62,11 @@ internal final class CardCredentialsModel: ObservableObject {
     isConnecting = true
     failure = nil
     hasVerifiedCardStatus = false
+    pinLengths = nil
     CredentialRetryHealth.shared.clear()
     defer { isConnecting = false }
     let result = await CardMaintenance.connectionSnapshot(
-      cardAccessNumber: cardAccessNumber)
+      cardAccessNumber: cardAccessNumber, readsPinLengths: true)
     let snapshot: CardMaintenance.Snapshot
     switch result {
     case .connected(let connected):
@@ -78,19 +84,24 @@ internal final class CardCredentialsModel: ObservableObject {
     }
     if let activation = snapshot.activation,
       let needs = snapshot.activationNeeds,
+      let lengths = snapshot.pinLengths,
       needs.any
     {
       CredentialRetryHealth.shared.update(snapshot.report)
       hasVerifiedCardStatus = true
-      return .activationRequired(activation: activation, needs: needs)
+      pinLengths = lengths
+      return .activationRequired(activation: activation, needs: needs, pinLengths: lengths)
     }
-    if snapshot.activation != nil, snapshot.activationNeeds != nil {
+    if snapshot.activation != nil, snapshot.activationNeeds != nil,
+      let lengths = snapshot.pinLengths
+    {
       CredentialRetryHealth.shared.update(snapshot.report)
       guard CredentialRetryHealth.shared.level != nil else {
         failure = String(localized: "The identity card could not be read. Try again.")
         return .failed
       }
       hasVerifiedCardStatus = true
+      pinLengths = lengths
       return .activated
     }
     failure = String(localized: "The identity card could not be classified. Try again.")
@@ -105,6 +116,7 @@ internal final class CardCredentialsModel: ObservableObject {
   /// Invalidates a live classification when the CAN it belongs to changes.
   internal func invalidateCardStatus() {
     hasVerifiedCardStatus = false
+    pinLengths = nil
     CredentialRetryHealth.shared.clear()
   }
 

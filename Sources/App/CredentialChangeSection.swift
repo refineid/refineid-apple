@@ -46,17 +46,6 @@ internal struct CredentialChangeSection: View {
         String(localized: "signature PIN")
       }
     }
-
-    /// The entry bounds of this PIN.
-    internal var digitBounds: ClosedRange<Int> {
-      switch self {
-      case .pin1:
-        Pin1.minimumDigitCount...Pin1.maximumDigitCount
-
-      case .pin2:
-        Pin2.minimumDigitCount...Pin2.maximumDigitCount
-      }
-    }
   }
 
   /// The keyboard path through the section.
@@ -68,6 +57,9 @@ internal struct CredentialChangeSection: View {
 
   internal let model: CardManagementModel
   internal let credential: Credential
+
+  /// The PIN and PUK lengths of the card in session.
+  internal let lengths: CardPinLengths
 
   @State private var current = ""
   @State private var new = ""
@@ -86,14 +78,19 @@ internal struct CredentialChangeSection: View {
     }
   }
 
-  /// Ready when every entry is inside its bounds and the new value
-  /// is typed identically twice.
+  /// The lengths the card accepts for this PIN.
+  private var limits: PinEntryLimits {
+    PinEntryLimits(lengths, role: role)
+  }
+
+  /// Ready when every entry is inside the card's lengths and the new
+  /// value is typed identically twice.
   private var currentIsValid: Bool {
-    credential.digitBounds.contains(current.count)
+    limits.accepts(current)
   }
 
   private var newIsValid: Bool {
-    credential.digitBounds.contains(new.count)
+    limits.accepts(new)
   }
 
   private var repeatedIsValid: Bool {
@@ -102,7 +99,7 @@ internal struct CredentialChangeSection: View {
 
   private var entriesDiffer: Bool {
     newIsValid
-      && credential.digitBounds.contains(repeated.count)
+      && limits.accepts(repeated)
       && repeated != new
   }
 
@@ -215,7 +212,7 @@ internal struct CredentialChangeSection: View {
             .keyboardType(.numberPad)
           #endif
           .onValueChange(of: current) { typed in
-            current = LimitedDigits.pin(typed)
+            current = limits.limited(typed)
           }
           .focused($focus, equals: .current)
           .onSubmit { advance(from: .current) }
@@ -240,7 +237,7 @@ internal struct CredentialChangeSection: View {
             .keyboardType(.numberPad)
           #endif
           .onValueChange(of: new) { typed in
-            new = LimitedDigits.pin(typed)
+            new = limits.limited(typed)
           }
           .focused($focus, equals: .new)
           .onSubmit { advance(from: .new) }
@@ -265,7 +262,7 @@ internal struct CredentialChangeSection: View {
             .keyboardType(.numberPad)
           #endif
           .onValueChange(of: repeated) { typed in
-            repeated = LimitedDigits.pin(typed)
+            repeated = limits.limited(typed)
           }
           .focused($focus, equals: .repeated)
           .onSubmit { advance(from: .repeated) }

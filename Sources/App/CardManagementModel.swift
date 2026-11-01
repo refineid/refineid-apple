@@ -13,6 +13,9 @@ internal final class CardManagementModel: ObservableObject {
     pin2: true
   )
   @Published internal private(set) var activation: ActivationClassification?
+  /// The PIN and PUK lengths of the card the forms act on; the forms are
+  /// drawn only once these are known.
+  @Published internal private(set) var pinLengths: CardPinLengths?
   @Published internal private(set) var offersActivation = false
   @Published internal var working = false
   @Published internal var failure: String?
@@ -36,6 +39,7 @@ internal final class CardManagementModel: ObservableObject {
       #endif
       activeRefreshIdentifier = nil
       report = nil
+      pinLengths = nil
       if !activationRequired {
         activation = nil
         offersActivation = false
@@ -68,11 +72,13 @@ internal final class CardManagementModel: ObservableObject {
     activationRequired: Bool,
     cardAccessNumber: String?,
     activation: ActivationClassification?,
-    activationNeeds: CardActivationNeeds?
+    activationNeeds: CardActivationNeeds?,
+    pinLengths: CardPinLengths?
   ) {
     self.activationRequired = activationRequired
     self.transport = transport ?? CardMaintenance.preferredTransport
     self.activation = activation
+    self.pinLengths = pinLengths
     if let activationNeeds {
       self.activationNeeds = activationNeeds
       offersActivation = activationRequired && activationNeeds.any
@@ -99,21 +105,22 @@ internal final class CardManagementModel: ObservableObject {
     if !activationRequired {
       activation = nil
       offersActivation = false
+      pinLengths = nil
     }
     failure = nil
     notice = nil
   }
 
-  /// Reads only the activation classification needed to validate an
-  /// activation entry.
+  /// Reads only the activation classification and the PIN lengths the
+  /// activation form needs.
   ///
-  /// No retry counter changes and the form remains interactive while
-  /// the classification completes.
+  /// No retry counter changes; the form is drawn once both are in.
   internal func detectActivation() async {
     guard activationRequired || offersActivation, transport == .reader else { return }
     let detected = await CardMaintenance.readerActivation()
     guard activationRequired || offersActivation, transport == .reader else { return }
-    activation = detected
+    activation = detected?.activation
+    pinLengths = detected?.pinLengths
   }
 
   internal func refresh() async {
@@ -240,6 +247,9 @@ internal final class CardManagementModel: ObservableObject {
   ) {
     report = snapshot.report
     activation = snapshot.activation
+    if let lengths = snapshot.pinLengths {
+      pinLengths = lengths
+    }
     if let needs = snapshot.activationNeeds {
       activationNeeds = needs
       offersActivation = needs.any

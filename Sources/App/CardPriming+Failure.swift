@@ -11,7 +11,10 @@
       ///
       /// Carries what the live card reported, so the caller can open the
       /// activation route it names without reading the card again.
-      case activationRequired(activation: ActivationClassification, needs: CardActivationNeeds)
+      case activationRequired(
+        activation: ActivationClassification,
+        needs: CardActivationNeeds,
+        pinLengths: CardPinLengths)
 
       /// No card access number is stored, so PACE cannot be run.
       case cardAccessNumberMissing
