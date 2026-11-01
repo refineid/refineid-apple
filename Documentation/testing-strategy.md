@@ -42,6 +42,14 @@ This document defines the tiered testing, formatting, and release quality gates 
   - Physical smoke testing on real hardware:
     - iPhone NFC antenna positioning and live countdown sheet.
     - Mac USB smart card reader arbitration and `ctkd` token minting.
+  - DVV test cards chain to DVV TEST Root CA G3 RSA or ECC, which macOS
+    does not trust, and Safari offers a card identity only when its chain
+    reaches a trusted root. `Scripts/trust-dvv-test-roots.sh` downloads the
+    test roots and the G5R/G5E issuing CAs from DVV, checks each against the
+    SHA-256 on DVV's test CA page, and adds them to the System keychain.
+    On an iPhone, the roots are installed as a profile from
+    `http://proxy.fineid.fi/ca/dvvtest3rc.crt` (and `dvvtest3ec.crt`) and
+    given full trust in Certificate Trust Settings.
 
 ## 4. App Store Public Release Tier (Exhaustive Assurance)
 
