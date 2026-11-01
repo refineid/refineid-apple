@@ -36,7 +36,7 @@ internal struct ScsPinPromptTests {
         digestLine: "Tiiviste (SHA256): \(printedDigest)")
     case "sv":
       ExpectedLabels(
-        basic: "Ange Bas (PIN 1)", signature: "Ange Signaturkoden (PIN 2)",
+        basic: "Ange Grund (PIN 1)", signature: "Ange Signatur (PIN 2)",
         sign: "Signera", cancel: "Avbryt",
         digestLine: "Digest (SHA256): \(printedDigest)")
     default:
