@@ -39,9 +39,19 @@ internal enum LimitedDigits {
     Self.digits(text, maximumCount: Pin1.maximumDigitCount)
   }
 
-  /// A PUK or activation entry: ASCII digits up to the PUK maximum.
+  /// A PUK: ASCII digits up to the PUK maximum.
   internal static func puk(_ text: String) -> String {
     Self.digits(text, maximumCount: Puk.maximumDigitCount)
+  }
+
+  /// An activation entry: ASCII digits up to the scheme's exact count,
+  /// or the activation code's, the longer one, while the scheme is not
+  /// yet known.
+  internal static func activationEntry(_ text: String, scheme: ActivationScheme?) -> String {
+    Self.digits(
+      text,
+      maximumCount: scheme?.activationEntryDigitCount
+        ?? ActivationScheme.activationCodeDigitCount)
   }
 
   /// Keeps only ASCII digits, in order, up to `maximumCount`.

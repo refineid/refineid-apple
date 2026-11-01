@@ -116,25 +116,25 @@
         }
       }
     },
-    "activation.generation" : {
+    "activation.scheme" : {
       "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generation"
+            "value" : "Activation scheme"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Korttisukupolvi"
+            "value" : "Aktivointitapa"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kortgeneration"
+            "value" : "Aktiveringssätt"
           }
         }
       }
@@ -1105,7 +1105,7 @@
         }
       }
     },
-    "generation.activationCodeIsPuk" : {
+    "activationScheme.activationCodeIsPuk" : {
       "extractionState" : "stale",
       "localizations" : {
         "en" : {
@@ -1128,7 +1128,7 @@
         }
       }
     },
-    "generation.presetActivationPIN" : {
+    "activationScheme.presetActivationPin" : {
       "extractionState" : "stale",
       "localizations" : {
         "en" : {

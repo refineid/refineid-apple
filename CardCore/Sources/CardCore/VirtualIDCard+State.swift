@@ -9,15 +9,6 @@ extension VirtualIDCard {
     case reader = "reader"
   }
 
-  /// The card generation, which decides what the activation entry is.
-  ///
-  /// Legacy cards accept their PUK as the activation code; current cards
-  /// ship a preset activation PIN.
-  public enum Generation: String, CaseIterable, Sendable {
-    case activationCodeIsPuk = "activationCodeIsPuk"
-    case presetActivationPIN = "presetActivationPIN"
-  }
-
   /// The condition of one on-card certificate as reads report it.
   public enum CertificateState: String, CaseIterable, Sendable {
     case valid = "valid"
@@ -56,8 +47,9 @@ extension VirtualIDCard {
     public var readerConnected: Bool
     /// True while the card is present on its transport.
     public var cardPresent: Bool
-    /// The activation scheme generation of this card.
-    public var generation: Generation
+    /// The activation scheme of this card, which decides what the
+    /// activation entry is.
+    public var activationScheme: ActivationScheme
     /// The six-digit CAN printed on the card.
     public var cardAccessNumber: String
     /// The entry the card accepts when activating factory credentials.
@@ -90,7 +82,7 @@ extension VirtualIDCard {
       transport: Transport,
       readerConnected: Bool,
       cardPresent: Bool,
-      generation: Generation,
+      activationScheme: ActivationScheme,
       cardAccessNumber: String,
       activationEntry: String,
       pin1: CredentialState,
@@ -105,7 +97,7 @@ extension VirtualIDCard {
       self.transport = transport
       self.readerConnected = readerConnected
       self.cardPresent = cardPresent
-      self.generation = generation
+      self.activationScheme = activationScheme
       self.cardAccessNumber = cardAccessNumber
       self.activationEntry = activationEntry
       self.pin1 = pin1

@@ -5,26 +5,26 @@
 /// The PUK is not a PIN: it never authorises an operation on the user's
 /// behalf. It resets a blocked PIN's retry counter while setting a new
 /// value (RESET RETRY COUNTER, FINEID S1 v4.2 §3.5.4). The eight-digit
-/// activation code printed in a pre-2026 issuance letter is presented
-/// through this type too: on those cards it is the PUK.
+/// activation code of the S4-1 §4.6.1 scheme is presented through this
+/// type too: under that scheme it is the PUK.
 ///
 /// The PUK spends its own retry counter. A wrong entry counts down, and
 /// exhausting it is terminal for the card - only the issuer can recover
 /// it - so callers hold the retry floor against the PUK's counter, not
 /// the target PIN's. No cache path exists.
 public struct Puk: ~Copyable {
-  /// Shortest PUK on the supported cards: seven-digit activation PUKs
-  /// exist in the field.
-  public static let minimumDigitCount: Int = 7
+  /// Shortest PUK (FINEID S4-1 v4.2 §4.1 PIN/PUK policy, EF.AOD
+  /// `minLength`).
+  public static let minimumDigitCount: Int = 8
 
-  /// Longest PUK on the supported cards.
-  public static let maximumDigitCount: Int = 8
+  /// Longest PUK: the stored length (FINEID S4-1 v4.2 §4.1).
+  public static let maximumDigitCount: Int = 12
 
   private let store: ZeroizingDigitStore
 
   /// Validates and takes ownership of the entered digits.
   ///
-  /// Refuses any input that is not 7-8 ASCII digits; there is no other
+  /// Refuses any input that is not 8-12 ASCII digits; there is no other
   /// way to construct a `Puk`.
   public init?(digits: String) {
     guard

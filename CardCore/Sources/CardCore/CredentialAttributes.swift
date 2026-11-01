@@ -76,11 +76,11 @@ public enum CredentialAttributes {
 
   /// Extracts the changed-since-manufacture record.
   ///
-  /// This flag is how a card issued from 13 January 2026 reports
-  /// activation (S4-1 §4.6.2): its PINs ship set to a single-use
-  /// activation PIN, and the first change is the activation. An
-  /// absent object or unknown flag value answers `unreadable`, never
-  /// a guess (Documentation/typing-discipline.md).
+  /// The flag says whether a PIN awaits activation under both S4-1
+  /// §4.6 schemes: activation sets it, by RESET RETRY COUNTER (§4.6.1)
+  /// or CHANGE REFERENCE DATA (§4.6.2). An absent object or unknown
+  /// flag value answers `unreadable`, never a guess
+  /// (Documentation/typing-discipline.md).
   public static func pinChangeRecord(fromResponseBody body: Data) -> PinChangeRecord {
     let bytes = Array(body)
     guard bytes.count >= Self.changedWindowLength else { return .unreadable }

@@ -780,22 +780,6 @@
         }
       }
     },
-    "Allow reactivation": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Salli uudelleenaktivointi"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tillåt omaktivering"
-          }
-        }
-      }
-    },
     "Allow this device": {
       "localizations": {
         "fi": {
@@ -998,6 +982,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aktivering av identitetskortet"
+          }
+        }
+      }
+    },
+    "Organisation card activation": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Organisaatiokortin aktivointi"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktivering av organisationskortet"
           }
         }
       }

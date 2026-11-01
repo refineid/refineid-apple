@@ -12,7 +12,7 @@ internal final class CardManagementModel: ObservableObject {
     pin1: true,
     pin2: true
   )
-  @Published internal private(set) var activationScheme: ActivationScheme?
+  @Published internal private(set) var activation: ActivationClassification?
   @Published internal private(set) var offersActivation = false
   @Published internal var working = false
   @Published internal var failure: String?
@@ -37,7 +37,7 @@ internal final class CardManagementModel: ObservableObject {
       activeRefreshIdentifier = nil
       report = nil
       if !activationRequired {
-        activationScheme = nil
+        activation = nil
         offersActivation = false
       }
       failure = nil
@@ -67,12 +67,12 @@ internal final class CardManagementModel: ObservableObject {
     transport: CardMaintenance.Transport?,
     activationRequired: Bool,
     cardAccessNumber: String?,
-    activationScheme: ActivationScheme?,
+    activation: ActivationClassification?,
     activationNeeds: CardActivationNeeds?
   ) {
     self.activationRequired = activationRequired
     self.transport = transport ?? CardMaintenance.preferredTransport
-    self.activationScheme = activationScheme
+    self.activation = activation
     if let activationNeeds {
       self.activationNeeds = activationNeeds
       offersActivation = activationRequired && activationNeeds.any
@@ -97,22 +97,23 @@ internal final class CardManagementModel: ObservableObject {
     activeRefreshIdentifier = nil
     report = nil
     if !activationRequired {
-      activationScheme = nil
+      activation = nil
       offersActivation = false
     }
     failure = nil
     notice = nil
   }
 
-  /// Reads only the card generation needed to validate an activation PIN.
+  /// Reads only the activation classification needed to validate an
+  /// activation entry.
   ///
-  /// No retry counter is queried and the form remains interactive while
-  /// the certificate classification completes.
-  internal func detectActivationScheme() async {
+  /// No retry counter changes and the form remains interactive while
+  /// the classification completes.
+  internal func detectActivation() async {
     guard activationRequired || offersActivation, transport == .reader else { return }
-    let detected = await CardMaintenance.readerActivationScheme()
+    let detected = await CardMaintenance.readerActivation()
     guard activationRequired || offersActivation, transport == .reader else { return }
-    activationScheme = detected
+    activation = detected
   }
 
   internal func refresh() async {
@@ -204,7 +205,7 @@ internal final class CardManagementModel: ObservableObject {
     newPin2: String?
   ) async -> Bool {
     guard beginCardOperation() else { return false }
-    guard let scheme = activationScheme else {
+    guard let scheme = activation?.scheme else {
       failure = "The card could not be classified for activation."
       return false
     }
@@ -238,7 +239,7 @@ internal final class CardManagementModel: ObservableObject {
     preservingOutcome: Bool
   ) {
     report = snapshot.report
-    activationScheme = snapshot.activationScheme
+    activation = snapshot.activation
     if let needs = snapshot.activationNeeds {
       activationNeeds = needs
       offersActivation = needs.any

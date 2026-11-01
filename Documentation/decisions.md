@@ -623,15 +623,6 @@ not. Gating it also removes the local-network and Bonjour declarations
 from the shipped app, and the RAPP token extension from the shipped
 topology: less shipped, less to review.
 
-Activation is compile-gated out as well. Activation writes to the
-card and consumes one-shot codes, so it cannot be tested repeatedly
-the way priming and signing were. An unactivated card still routes to
-the activation destination; in a shipping build that destination
-explains that this version cannot activate a card, rather than being a
-dead end. PIN management stays: it operates on an activated card, and
-a wrong entry there spends a retry the holder chose to risk, which is
-inherent to cards rather than to this app.
-
 The floor is iOS 26.0 and macOS 26.0 in every configuration. The
 iPad-requester path still exists as a Debug/Profile family, but it
 runs on iPadOS 26, not iOS 16.
@@ -813,10 +804,8 @@ signing is this entry and the hardware matrix items in TASKS.md.
 
 The shape: CardCore carries the credential commands (VERIFY for both
 PINs, CHANGE REFERENCE DATA, RESET RETRY COUNTER) as consume-once
-noncopyable values, the qualified key joins MSE:SET behind an explicit
-key parameter, and activation classifies the card by its own
-certificate - issuance date authoritative, issuer name fallback,
-refusal over guessing. The management window drives all of it behind
+noncopyable values, and the qualified key joins MSE:SET behind an explicit
+key parameter. The management window drives all of it behind
 the same side-effect-free retry floor as authentication, with no
 expert override. The CryptoTokenKit extension publishes the qualified
 identity from live reader mints only, under its own constraint, with

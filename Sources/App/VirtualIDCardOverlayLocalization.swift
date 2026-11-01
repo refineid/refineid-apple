@@ -44,16 +44,16 @@
       return localizedText(entry.key, defaultValue: entry.defaultValue)
     }
 
-    internal static func generationName(_ generation: VirtualIDCard.Generation) -> String {
-      switch generation {
+    internal static func activationSchemeName(_ scheme: ActivationScheme) -> String {
+      switch scheme {
       case .activationCodeIsPuk:
         localizedText(
-          "generation.activationCodeIsPuk",
+          "activationScheme.activationCodeIsPuk",
           defaultValue: "Activation code is PUK")
 
-      case .presetActivationPIN:
+      case .presetActivationPin:
         localizedText(
-          "generation.presetActivationPIN",
+          "activationScheme.presetActivationPin",
           defaultValue: "Separate activation PIN")
       }
     }

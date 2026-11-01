@@ -6,7 +6,7 @@ extension VirtualIDCard {
   /// Activates factory PINs using the card's activation entry.
   ///
   /// PIN 1 is activated first and PIN 2 only after PIN 1 succeeds; on
-  /// legacy cards the PUK's retry counter guards the entry.
+  /// the activation-code scheme the PUK's retry counter guards the entry.
   public func activate(_ request: ActivationRequest) -> ActivationResult {
     let needsPIN1 = current.card.pin1.isFactoryValue
     let needsPIN2 = current.card.pin2.isFactoryValue

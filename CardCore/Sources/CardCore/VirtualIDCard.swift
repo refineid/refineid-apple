@@ -15,13 +15,7 @@ public actor VirtualIDCard {
   }
 
   internal var activationEntryDigitCount: Int {
-    switch current.card.generation {
-    case .activationCodeIsPuk:
-      Puk.maximumDigitCount
-
-    case .presetActivationPIN:
-      Puk.minimumDigitCount
-    }
+    current.card.activationScheme.activationEntryDigitCount
   }
 
   /// Creates a card preset to the given scenario.

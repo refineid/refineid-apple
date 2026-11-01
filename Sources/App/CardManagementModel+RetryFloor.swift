@@ -14,7 +14,7 @@ extension CardManagementModel {
   /// PINs show; under the activation-PIN scheme it is every PIN still
   /// awaiting its factory-state write.
   internal var allowsActivationOperation: Bool {
-    switch activationScheme {
+    switch activation?.scheme {
     case .activationCodeIsPuk:
       return allowsCredentialOperation(spending: .puk)
 

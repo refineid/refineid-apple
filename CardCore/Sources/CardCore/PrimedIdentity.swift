@@ -52,7 +52,7 @@ public struct PrimedIdentity: Codable, Equatable, Sendable {
   /// The card's chip serial.
   public let chipSerial: ChipSerial
 
-  /// Proof that no known citizen-card activation state blocked this prime.
+  /// Proof that no PIN awaiting activation blocked this prime.
   public let activationCheck: ActivationCheck
 
   /// The DER signature certificate read from the card, when cached.

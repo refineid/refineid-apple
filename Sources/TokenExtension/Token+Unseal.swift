@@ -185,7 +185,7 @@ extension Token {
   ) throws -> PublishedIdentity {
     TokenLog.info("readIdentity: reading leaf EF.4331")
     let leaf = try operations.readCertificate(.authentication)
-    try Self.requireActivatedCitizenCard(leaf, operations: operations)
+    try Self.requireActivatedCard(leaf, operations: operations)
     TokenLog.info("readIdentity: leaf \(leaf.count) bytes; reading chip serial")
     let serial = try operations.readChipSerial()
     TokenLog.info("readIdentity: chip serial read; resolving issuer")
@@ -213,21 +213,21 @@ extension Token {
     )
   }
 
-  /// Refuses token publication while a known citizen card is factory-fresh.
+  /// Refuses token publication while any PIN awaits activation.
   ///
-  /// Both probes are counter-safe. Unknown schemes, including organization
-  /// cards whose activation is issuer-managed, retain their existing path.
-  private static func requireActivatedCitizenCard(
+  /// Every probe is counter-safe. A card without an activation decision
+  /// publishes.
+  private static func requireActivatedCard(
     _ authenticationCertificate: Data,
     operations: CardOperations
   ) throws {
     guard
-      let scheme = ActivationScheme.classify(
-        authenticationCertificateDER: authenticationCertificate)
+      let activation = operations.activationClassification(
+        authenticationCertificate: authenticationCertificate)
     else {
       return
     }
-    let needs = operations.activationNeeds(scheme: scheme)
+    let needs = operations.activationNeeds(scheme: activation.scheme)
     guard !needs.any else {
       TokenLog.notice(
         "readIdentity: activation required pin1=\(needs.pin1) pin2=\(needs.pin2)"

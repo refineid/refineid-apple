@@ -21,7 +21,7 @@ internal struct CardActivationSection: View {
   @FocusState private var focus: Field?
 
   private var activationEntryIsValid: Bool {
-    guard let scheme = model.activationScheme else { return false }
+    guard let scheme = model.activation?.scheme else { return false }
     return entry.count == scheme.activationEntryDigitCount
   }
 
@@ -52,7 +52,7 @@ internal struct CardActivationSection: View {
       Section {
         activationEntryRow
       } header: {
-        CardActivationHeader()
+        CardActivationHeader(isOrganizationCard: model.activation == .organization)
       } footer: {
         if asksNoPin { macButton }
       }
@@ -132,7 +132,7 @@ internal struct CardActivationSection: View {
             .keyboardType(.numberPad)
           #endif
           .onValueChange(of: entry) { typed in
-            entry = LimitedDigits.puk(typed)
+            entry = LimitedDigits.activationEntry(typed, scheme: model.activation?.scheme)
           }
           .focused($focus, equals: .entry)
           .onSubmit { advance(from: .entry) }

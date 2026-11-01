@@ -175,7 +175,7 @@
       guard DemoMode.shared.activationNeeds.any else { return true }
       lastRunResult = .failed
       refusal = .activationRequired(
-        scheme: DemoMode.shared.activationScheme,
+        activation: DemoMode.shared.activation,
         needs: DemoMode.shared.activationNeeds)
       failure = String(localized: "Activate this card first, then try setup again.")
       return false

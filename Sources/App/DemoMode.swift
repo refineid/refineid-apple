@@ -94,8 +94,8 @@
         pin2: state.card.pin2.isFactoryValue)
     }
 
-    internal var activationScheme: ActivationScheme {
-      Self.scheme(for: state.card.generation)
+    internal var activation: ActivationClassification {
+      .citizen(state.card.activationScheme)
     }
 
     // MARK: Functions
@@ -209,9 +209,9 @@
       }
     }
 
-    internal func readerActivationScheme() -> ActivationScheme? {
+    internal func readerActivation() -> ActivationClassification? {
       guard isReaderCardPresent else { return nil }
-      return activationScheme
+      return activation
     }
 
     internal func changePIN1(
@@ -253,7 +253,7 @@
       let latest = await synchronizeFromCard()
       return CardMaintenance.ActivationExecution(
         activation: CardMaintenance.ActivationReport(
-          scheme: Self.scheme(for: latest.card.generation),
+          scheme: latest.card.activationScheme,
           pin1: Self.outcome(from: result.pin1),
           pin2: result.pin2.map(Self.outcome(from:))),
         remaining: CardActivationNeeds(

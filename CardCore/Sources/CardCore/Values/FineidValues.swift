@@ -237,8 +237,8 @@ internal enum FineidValues {
   internal static let unblockingUnlimited: UInt8 = 0xA5
 
   /// PIN-changed DO tag, high byte (`DF 2F`, S1 v4.2 §3.15.3): whether
-  /// the PIN has been changed since manufacture, which is how a card
-  /// issued from 13 January 2026 reports activation (S4-1 §4.6.2).
+  /// the PIN has been changed since manufacture, which says whether it
+  /// awaits activation under both S4-1 §4.6 schemes.
   internal static let pinChangedTagHigh: UInt8 = 0xDF
 
   /// PIN-changed DO tag, low byte.

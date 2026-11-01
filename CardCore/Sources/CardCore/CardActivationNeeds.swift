@@ -1,6 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-/// Which citizen-card PINs still carry their factory activation state.
+/// Which PINs still await activation (FINEID S4-1 §4.6).
 public struct CardActivationNeeds: Equatable, Sendable {
   /// Whether PIN1 still awaits its first holder value.
   public let pin1: Bool

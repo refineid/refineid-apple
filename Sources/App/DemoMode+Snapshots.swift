@@ -7,18 +7,6 @@
   extension DemoMode {
     // MARK: Static Functions
 
-    internal static func scheme(
-      for generation: VirtualIDCard.Generation
-    ) -> ActivationScheme {
-      switch generation {
-      case .activationCodeIsPuk:
-        .activationCodeIsPuk
-
-      case .presetActivationPIN:
-        .presetActivationPin
-      }
-    }
-
     internal static func maintenanceSnapshot(
       from snapshot: VirtualIDCard.Snapshot,
       retryReport: VirtualIDCard.RetryReport?,
@@ -33,7 +21,7 @@
         activationNeeds: CardActivationNeeds(
           pin1: snapshot.card.pin1.isFactoryValue,
           pin2: snapshot.card.pin2.isFactoryValue),
-        activationScheme: Self.scheme(for: snapshot.card.generation))
+        activation: .citizen(snapshot.card.activationScheme))
     }
 
     internal static func report(

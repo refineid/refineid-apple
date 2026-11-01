@@ -111,23 +111,23 @@
         cardRoot: { try? operations.readCertificate(.root) })
     }
 
-    /// Accepts only a card with no known factory activation state.
+    /// Accepts only a card with no PIN awaiting activation.
     ///
-    /// Unknown schemes retain their existing issuer-managed path. The reads
-    /// used for known citizen cards do not change credential counters.
+    /// A card without an activation decision passes. The reads do not
+    /// change credential counters.
     private static func activationCheck(
       certificate: Data,
       operations: CardOperations
     ) throws -> PrimedIdentity.ActivationCheck {
       guard
-        let scheme = ActivationScheme.classify(
-          authenticationCertificateDER: certificate)
+        let activation = operations.activationClassification(
+          authenticationCertificate: certificate)
       else {
         return .passed
       }
-      let needs = operations.activationNeeds(scheme: scheme)
+      let needs = operations.activationNeeds(scheme: activation.scheme)
       guard !needs.any else {
-        throw Failure.activationRequired(scheme: scheme, needs: needs)
+        throw Failure.activationRequired(activation: activation, needs: needs)
       }
       return .passed
     }

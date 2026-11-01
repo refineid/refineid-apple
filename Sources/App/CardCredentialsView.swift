@@ -78,7 +78,7 @@ internal struct CardCredentialsView: View {
   @State internal var scannerTorchEnabled = false
   @State internal var registrationReset = false
   @State internal var isRegistered = false
-  @State internal var activationScheme: ActivationScheme?
+  @State internal var activation: ActivationClassification?
   @State internal var activationNeeds: CardActivationNeeds?
   @State internal var flowState = CardSetupStateMachine.initialState
   @FocusState internal var isCardAccessNumberFieldFocused: Bool

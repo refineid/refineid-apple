@@ -120,7 +120,7 @@ extension CardCredentialsView {
       }
       .onValueChange(of: cardAccessNumberEntry) { entered in
         model.invalidateCardStatus()
-        activationScheme = nil
+        activation = nil
         activationNeeds = nil
         if !entered.isEmpty {
           model.clearFailure()
@@ -137,7 +137,7 @@ extension CardCredentialsView {
       ) { _ in
         model.refresh()
         cardAccessNumberEntry = ""
-        activationScheme = nil
+        activation = nil
         activationNeeds = nil
         model.invalidateCardStatus()
         isCardAccessNumberFieldFocused = true
@@ -187,12 +187,12 @@ extension CardCredentialsView {
         #if DEBUG
           let _: Void = DebugConsole.emit("navigation-destination: activation")
         #endif
-        if let activationScheme, let activationNeeds {
+        if let activation, let activationNeeds {
           CardManagementView(
             readerCardIsPresent: false,
             activationRequired: true,
             cardAccessNumber: cardAccessNumberEntry,
-            activationScheme: activationScheme,
+            activation: activation,
             activationNeeds: activationNeeds,
             onActivationSucceeded: activationSucceeded
           )

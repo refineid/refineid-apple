@@ -116,7 +116,7 @@ extension VirtualIDCard {
       return .transportFailure(fault)
     }
     let checkedRole: CredentialRole =
-      current.card.generation == .activationCodeIsPuk ? .puk : role
+      current.card.activationScheme == .activationCodeIsPuk ? .puk : role
     var checked = credential(for: checkedRole)
     if let refusal = retryRefusal(checked.attemptsRemaining) {
       return refusal
