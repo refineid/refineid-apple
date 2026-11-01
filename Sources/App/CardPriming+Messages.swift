@@ -27,7 +27,7 @@
       if let failure = error as? CardOperationError {
         switch failure {
         case .pinRejected:
-          return CredentialOutcomeMessage.incorrect(credentialName: "PIN 1")
+          return CredentialOutcomeMessage.incorrect(.pin1)
 
         case .pinBlocked:
           return String(localized: "PIN 1 is blocked.")
@@ -57,7 +57,7 @@
       switch failure {
       case .pinRejected(let remaining):
         return CredentialOutcomeMessage.rejection(
-          credentialName: "PIN 1",
+          .pin1,
           remaining: remaining)
 
       case .pinBlocked:

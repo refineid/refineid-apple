@@ -22,7 +22,7 @@ extension CardManagementModel {
     )
     guard first.outcome == .success else {
       working = false
-      failure = message(for: first.outcome, presenting: "PUK", spending: .puk)
+      failure = message(for: first.outcome, presenting: .puk, spending: .puk)
       if let snapshot = first.snapshot {
         apply(snapshot, preservingOutcome: true)
       }
@@ -36,10 +36,10 @@ extension CardManagementModel {
     )
     working = false
     if second.outcome == .success {
-      notice = "PIN 1 and PIN 2 reset"
+      notice = String(localized: "PIN 1 and PIN 2 reset.")
     } else {
-      failure = message(for: second.outcome, presenting: "PUK", spending: .puk)
-        .map { "PIN 1 was reset, but PIN 2 was not: \($0)" }
+      failure = message(for: second.outcome, presenting: .puk, spending: .puk)
+        .map { String(localized: "PIN 1 was reset, but PIN 2 was not: \($0)") }
     }
     if let snapshot = second.snapshot ?? first.snapshot {
       apply(snapshot, preservingOutcome: true)

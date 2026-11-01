@@ -135,7 +135,7 @@ internal enum DocumentSigningMessage {
     switch outcome {
     case .rejected(let remaining):
       CredentialOutcomeMessage.rejection(
-        credentialName: "PIN 2", remaining: remaining)
+        .pin2, remaining: remaining)
 
     case .pinBlocked:
       CredentialOutcomeMessage.blocked(.pin2)

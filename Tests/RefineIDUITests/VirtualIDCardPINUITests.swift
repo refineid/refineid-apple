@@ -30,7 +30,7 @@
             ("managementChangePIN1Repeat", "9876"),
           ],
           action: UITestIdentifiers.managementChangePin1,
-          outcome: "PIN 1 changed"))
+          outcome: "PIN 1 changed."))
     }
 
     internal func testChangePIN2RunsThroughGUI() {
@@ -43,7 +43,7 @@
             ("managementChangePIN2Repeat", "987654"),
           ],
           action: UITestIdentifiers.managementChangePin2,
-          outcome: "PIN 2 changed"))
+          outcome: "PIN 2 changed."))
     }
 
     internal func testResetPIN1RunsThroughGUI() {
@@ -56,7 +56,7 @@
             ("managementResetPIN1Repeat", "9876"),
           ],
           action: UITestIdentifiers.managementResetPin1,
-          outcome: "PIN 1 reset"))
+          outcome: "PIN 1 reset."))
     }
 
     internal func testResetPIN2RunsThroughGUI() {
@@ -69,7 +69,7 @@
             ("managementResetPIN2Repeat", "987654"),
           ],
           action: UITestIdentifiers.managementResetPin2,
-          outcome: "PIN 2 reset"))
+          outcome: "PIN 2 reset."))
     }
 
     internal func testRetryCounterEditedInGUISelectsRecovery() {

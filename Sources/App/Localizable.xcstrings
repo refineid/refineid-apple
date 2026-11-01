@@ -59,6 +59,138 @@
         }
       }
     },
+    "activation code": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "activation code"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aktivointikoodi"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aktiveringskod"
+          }
+        }
+      }
+    },
+    "activation PIN": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "activation PIN"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aktivointitunnusluku"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aktiveringskod"
+          }
+        }
+      }
+    },
+    "Another card operation is still in progress. Try again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Another card operation is still in progress. Try again."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toinen korttitoiminto on vielä kesken. Yritä uudelleen."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En annan kortåtgärd pågår fortfarande. Försök igen."
+          }
+        }
+      }
+    },
+    "Card activated: PIN 1 and PIN 2 are set.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Card activated: PIN 1 and PIN 2 are set."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kortti aktivoitu: PIN 1 ja PIN 2 on asetettu."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kortet aktiverat: PIN 1 och PIN 2 har angetts."
+          }
+        }
+      }
+    },
+    "Card activated: PIN 1 is set; PIN 2 already was.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Card activated: PIN 1 is set; PIN 2 already was."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kortti aktivoitu: PIN 1 on asetettu, PIN 2 oli jo asetettu."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kortet aktiverat: PIN 1 har angetts, PIN 2 var redan angiven."
+          }
+        }
+      }
+    },
+    "Card activated: PIN 2 is set; PIN 1 already was.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Card activated: PIN 2 is set; PIN 1 already was."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kortti aktivoitu: PIN 2 on asetettu, PIN 1 oli jo asetettu."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kortet aktiverat: PIN 2 har angetts, PIN 1 var redan angiven."
+          }
+        }
+      }
+    },
     "Continue on your phone.": {
       "localizations": {
         "fi": {
@@ -157,6 +289,204 @@
         }
       }
     },
+    "No readable card. Connect a reader and insert the card.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No readable card. Connect a reader and insert the card."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ei luettavaa korttia. Liitä kortinlukija ja aseta kortti siihen."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inget läsbart kort. Anslut en kortläsare och sätt i kortet."
+          }
+        }
+      }
+    },
+    "PIN 1 and PIN 2 reset.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 1 and PIN 2 reset."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 1 ja PIN 2 palautettu."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 1 och PIN 2 har återställts."
+          }
+        }
+      }
+    },
+    "PIN 1 changed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 1 changed."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 1 vaihdettu."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 1 har bytts."
+          }
+        }
+      }
+    },
+    "PIN 1 reset.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 1 reset."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 1 palautettu."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 1 har återställts."
+          }
+        }
+      }
+    },
+    "PIN 1 was reset, but PIN 2 was not: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 1 was reset, but PIN 2 was not: %@"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 1 palautettiin, mutta PIN 2:ta ei: %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 1 återställdes, men inte PIN 2: %@"
+          }
+        }
+      }
+    },
+    "PIN 1 was set, but PIN 2 was not: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 1 was set, but PIN 2 was not: %@"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 1 asetettiin, mutta PIN 2:ta ei: %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 1 angavs, men inte PIN 2: %@"
+          }
+        }
+      }
+    },
+    "PIN 2 changed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 2 changed."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 2 vaihdettu."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 2 har bytts."
+          }
+        }
+      }
+    },
+    "PIN 2 reset.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 2 reset."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 2 palautettu."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 2 har återställts."
+          }
+        }
+      }
+    },
+    "PIN 2 was not set: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 2 was not set: %@"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 2:ta ei asetettu: %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN 2 angavs inte: %@"
+          }
+        }
+      }
+    },
     "Save the file": {
       "extractionState": "manual",
       "localizations": {
@@ -191,6 +521,138 @@
         }
       }
     },
+    "The %@ retry counter could not be read; nothing was sent.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The %@ retry counter could not be read; nothing was sent."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jäljellä olevien yritysten määrää ei voitu lukea (%@), joten mitään ei lähetetty."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antalet återstående försök kunde inte läsas (%@), så inget skickades."
+          }
+        }
+      }
+    },
+    "The card could not be classified for activation.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The card could not be classified for activation."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Korttia ei voitu tunnistaa aktivointia varten."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kortet kunde inte identifieras för aktivering."
+          }
+        }
+      }
+    },
+    "The card could not be read over NFC. Check its card access number and try again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The card could not be read over NFC. Check its card access number and try again."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Korttia ei voitu lukea NFC:llä. Tarkista kortin käyttönumero ja yritä uudelleen."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kortet kunde inte läsas via NFC. Kontrollera kortets åtkomstnummer och försök igen."
+          }
+        }
+      }
+    },
+    "The card operation did not complete.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The card operation did not complete."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Korttitoiminto ei valmistunut."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kortåtgärden slutfördes inte."
+          }
+        }
+      }
+    },
+    "The credential slot is invalidated.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The credential slot is invalidated."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tunnusluku on mitätöity."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Koden är ogiltigförklarad."
+          }
+        }
+      }
+    },
+    "The entry does not fit the credential's digit rules.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The entry does not fit the credential's digit rules."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tunnusluvussa on väärä määrä numeroita."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Koden har fel antal siffror."
+          }
+        }
+      }
+    },
     "The signed file has not been saved.": {
       "extractionState": "manual",
       "localizations": {
@@ -221,6 +683,50 @@
           "stringUnit": {
             "state": "translated",
             "value": "De signerade filerna har inte sparats."
+          }
+        }
+      }
+    },
+    "This card is already activated.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This card is already activated."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tämä kortti on jo aktivoitu."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det här kortet är redan aktiverat."
+          }
+        }
+      }
+    },
+    "This card looks activated already.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This card looks activated already."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kortti näyttää olevan jo aktivoitu."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kortet verkar redan vara aktiverat."
           }
         }
       }

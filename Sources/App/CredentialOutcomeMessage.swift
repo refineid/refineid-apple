@@ -10,10 +10,10 @@ import SwiftUI
 /// authentication, and signing do not invent separate rejection messages.
 internal enum CredentialOutcomeMessage {
   internal static func rejection(
-    credentialName: String,
+    _ credential: PresentedCredential,
     remaining: RetryCount
   ) -> String {
-    incorrect(credentialName: credentialName)
+    incorrect(credential)
       + "\n"
       + String(
         localized: "You have \(remaining.attemptsRemaining) attempts remaining.")
@@ -130,25 +130,22 @@ internal enum CredentialOutcomeMessage {
       + String(localized: "This card cannot be recovered with software.")
   }
 
-  internal static func incorrect(credentialName: String) -> String {
-    switch credentialName {
-    case "PIN 1":
+  internal static func incorrect(_ credential: PresentedCredential) -> String {
+    switch credential {
+    case .pin1:
       String(localized: "PIN 1 is incorrect.")
 
-    case "PIN 2":
+    case .pin2:
       String(localized: "PIN 2 is incorrect.")
 
-    case "PUK":
+    case .puk:
       String(localized: "PUK is incorrect.")
 
-    case "activation code":
+    case .activationCode:
       String(localized: "Activation code is incorrect.")
 
-    case "activation PIN":
+    case .activationPin:
       String(localized: "Activation PIN is incorrect.")
-
-    default:
-      "\(credentialName) is incorrect."
     }
   }
 }
