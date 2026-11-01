@@ -20,7 +20,8 @@ shows:
 3. The signing controls and the outcome of the last action.
 
 A card waiting to be taken into use replaces these with the activation
-form. A contactless card that needs its access number replaces them with
+form, and the window has no toolbar button while it does: activation is
+the one thing to do with the card, in this window only. A contactless card that needs its access number replaces them with
 the six-box access number entry.
 
 ## Remote use
@@ -169,7 +170,8 @@ toolbar button opens it, while it shows the two keys, and it opens by
 itself, once per insertion, when the card's reading says a code is below
 the retry floor; a card already in the reader at launch counts as inserted
 then. It has no Window menu item, opens at launch only for such a card,
-and is not restored. It closes when the card leaves the reader.
+and is not restored. It closes when the card leaves the reader, and
+when the card turns out to await activation.
 
 While a code is below the floor, the two keys in the toolbar are red and
 the window's top section says why the card cannot be used and the way

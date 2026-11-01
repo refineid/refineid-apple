@@ -84,8 +84,11 @@
       .frame(minWidth: minimumWidth, alignment: .leading)
       #if REFINEID_REMOTE_CARD
         .toolbar {
-          ToolbarItem(placement: .primaryAction) {
-            RemoteUseButton()
+          // A card awaiting activation is set up here and nowhere else.
+          if !activation.awaitsActivation {
+            ToolbarItem(placement: .primaryAction) {
+              RemoteUseButton()
+            }
           }
         }
       #endif
