@@ -146,7 +146,8 @@
           // The same order the signature uses: main file first,
           // because the card refuses MSE:Set AT anywhere else.
           try? CardOperations(channel: channel).selectMainFile()
-          _ = try PaceEstablishment(channel: channel).establish(with: accessNumber)
+          _ = try PaceEstablishment(channel: channel).establish(
+            with: PacePassword(cardAccessNumber: accessNumber))
         }
       } catch {
         lines.append(

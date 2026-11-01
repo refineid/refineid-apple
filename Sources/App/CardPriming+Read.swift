@@ -61,7 +61,9 @@
         sheet.stopRecovery()
       }
       do {
-        return try PaceEstablishment(channel: channel).establish(with: accessNumber)
+        return try PaceEstablishment(channel: channel).establish(
+          with: PacePassword(cardAccessNumber: accessNumber)
+        ).keys
       } catch SmartCardChannel.TransportError.responseTimedOut {
         throw Failure.secureChannelTimedOut
       } catch PaceEstablishment.Failure.authenticationTokenMismatch,

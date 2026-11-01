@@ -117,9 +117,9 @@
     /// application, and hands the secure-messaged operations to
     /// `work`.
     ///
-    /// PACE runs from the main file: an MSE:Set AT from inside an
-    /// application context is answered 6985, so the main file is
-    /// made current on the plain channel first.
+    /// PACE runs from the main file, where its read of EF.CardAccess
+    /// leaves the card: an MSE:Set AT from inside an application
+    /// context is answered 6985.
     private static func onTravelDocument<Answer: Sendable>(
       accessNumber: CardAccessNumber,
       _ work: @escaping @Sendable (CardOperations) -> Answer?
@@ -135,11 +135,10 @@
         DispatchQueue.global(qos: .userInitiated).async {
           let answer = try? SmartCardChannel(carried.card).withSession {
             channel -> Answer? in
-            try? CardOperations(channel: channel).selectMainFile()
             guard
               let keys = try? PaceEstablishment(channel: channel).establish(
-                with: accessNumber
-              )
+                with: PacePassword(cardAccessNumber: accessNumber)
+              ).keys
             else {
               return nil
             }

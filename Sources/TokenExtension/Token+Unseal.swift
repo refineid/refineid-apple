@@ -25,40 +25,101 @@ extension Token {
   /// reader publishes its contact, contactless and SAM interfaces under
   /// one name that differs only by a trailing index, and nothing in the
   /// name says which index is the antenna. What does distinguish them is
-  /// the card's own answer -- a contactless FINEID card refuses SELECT of
-  /// the PKCS#15 application with `6982` until PACE has run, and a
-  /// contact one simply selects it -- so the answer is the
-  /// classification, and it costs one command to get.
+  /// the card's own answer. A contactless citizen card refuses SELECT of
+  /// the PKCS#15 application with `6982` until PACE with its card access
+  /// number has run. A contactless organization card answers `6985`, to
+  /// the select or to the reads after it, until PACE with a PIN has run
+  /// (FINEID S1 v4.0, organizational cards, section 2.1); it publishes
+  /// the identity its contact read left in ``OrganizationPrimeStore``,
+  /// and asks for the card slot when there is none. A contact card simply
+  /// answers, and an organization card read there leaves that prime.
   ///
-  /// Only that one status word takes the second path. Any other failure
-  /// is reported as itself, because a card that is missing, mute or
-  /// something else entirely is not a card that wants a card access
-  /// number, and running PACE at it would replace a legible fault with a
-  /// wrong one.
+  /// Only those two status words take another path. Any other failure is
+  /// reported as itself, because a card that is missing, mute or
+  /// something else entirely is not a card that wants a password, and
+  /// running PACE at it would replace a legible fault with a wrong one.
   internal static func readIdentity(
     from smartCard: TKSmartCard
-  ) throws -> (identity: PublishedIdentity, accessNumber: CardAccessNumber?) {
+  ) throws -> (identity: PublishedIdentity, unsealing: CardUnsealing) {
     TokenLog.info("readIdentity: opening session")
     let answerToReset = smartCard.slot.atr?.bytes
-    return try SmartCardChannel(smartCard, waits: .reader).withSession { channel in
+    return try SmartCardChannel(smartCard, waits: .readerMint).withSession { channel in
       do {
         TokenLog.info("readIdentity: selecting application")
         try CardOperations(channel: channel).selectFineidApplication()
       } catch CardOperationError.selectRejected(.securityNotSatisfied) {
         TokenLog.info("readIdentity: application is sealed; unsealing")
         CardCredentialStore.recordCardAsk(.cardAccessNumber)
-        return try Self.unsealed(over: channel, answerToReset: answerToReset)
-      }
-      do {
-        return (try Self.certificates(read: CardOperations(channel: channel)), nil)
+        let (identity, accessNumber) = try Self.unsealed(
+          over: channel, answerToReset: answerToReset)
+        return (identity, .cardAccessNumber(accessNumber))
       } catch CardOperationError.selectRejected(.conditionsNotSatisfied) {
-        // Selected but unreadable: an organisation card on the
-        // antenna, which opens only with a PIN over a secure channel.
-        TokenLog.info("readIdentity: card refuses reads on this interface; asks for the card slot")
-        CardCredentialStore.recordCardAsk(.cardSlot)
-        throw CardOperationError.selectRejected(.conditionsNotSatisfied)
+        return try Self.organizationIdentity(answerToReset: answerToReset)
       }
+      let operations = CardOperations(channel: channel)
+      let identity: PublishedIdentity
+      do {
+        identity = try Self.certificates(read: operations)
+      } catch let failure where CardOperationError.refusesBeforePace(failure) {
+        return try Self.organizationIdentity(answerToReset: answerToReset)
+      }
+      Self.primeOrganizationCard(identity, operations: operations, answerToReset: answerToReset)
+      return (identity, .plain)
     }
+  }
+
+  /// The identity of an organization card on the antenna, from the prime
+  /// its contact read left; without one, the card slot is asked for.
+  private static func organizationIdentity(
+    answerToReset: Data?
+  ) throws -> (identity: PublishedIdentity, unsealing: CardUnsealing) {
+    guard
+      let answerToReset,
+      let prime = OrganizationPrimeStore.read(answerToReset: answerToReset)
+    else {
+      TokenLog.info("readIdentity: card refuses reads on this interface; asks for the card slot")
+      CardCredentialStore.recordCardAsk(.cardSlot)
+      throw CardOperationError.selectRejected(.conditionsNotSatisfied)
+    }
+    TokenLog.info("readIdentity: organization card on the antenna; publishing its prime")
+    CardCredentialStore.clearCardAsk()
+    let identity = PublishedIdentity(
+      leafDER: prime.certificateDER,
+      issuerDER: prime.issuerDER,
+      signLeafDER: prime.signatureCertificateDER,
+      chipSerial: prime.chipSerial
+    )
+    return (identity, .organizationPin)
+  }
+
+  /// Keeps an organization card's identity, read in a contact slot, for
+  /// the card's arrival on an antenna.
+  ///
+  /// The numbering decides: the organization card answers its own
+  /// security-data-object references (FINEID S4-2 v4.0 section 4.2). The
+  /// probe is counter-safe and usually already answered by the activation
+  /// check. Best effort: a prime that is not written leaves the antenna
+  /// asking for the card slot, as before.
+  private static func primeOrganizationCard(
+    _ identity: PublishedIdentity,
+    operations: CardOperations,
+    answerToReset: Data?
+  ) {
+    guard
+      let answerToReset,
+      !AnswerToReset.indicatesContactlessInterface(bytes: answerToReset),
+      (try? operations.resolveCredentialReferences()) == .organization,
+      let prime = OrganizationPrime(
+        certificate: identity.leafDER,
+        issuer: identity.issuerDER,
+        signatureCertificate: identity.signLeafDER,
+        chipSerial: identity.chipSerial
+      )
+    else {
+      return
+    }
+    let stored = OrganizationPrimeStore.store(prime, answerToReset: answerToReset)
+    TokenLog.info("readIdentity: organization card primed for the antenna stored=\(stored)")
   }
 
   /// Runs PACE over an already-open channel and reads through it.
@@ -76,7 +137,7 @@ extension Token {
   private static func unsealed(
     over channel: SmartCardChannel,
     answerToReset: Data?
-  ) throws -> (identity: PublishedIdentity, accessNumber: CardAccessNumber?) {
+  ) throws -> (identity: PublishedIdentity, accessNumber: CardAccessNumber) {
     // Every stored number, active offer first: a card answers with no
     // individual identifier before PACE, so one number cannot be
     // selected for it: the first is tried, and a refusal wipes them
@@ -139,12 +200,12 @@ extension Token {
     channel: SmartCardChannel
   ) -> PaceAttempt {
     let started = ContinuousClock.now
-    // PACE has to start at main-file level: the card refuses
-    // MSE:Set AT with 6985 anywhere else. Best effort: PACE is the
-    // step whose failure should be the one reported.
-    try? CardOperations(channel: channel).selectMainFile()
+    // PACE starts at main-file level, where its read of EF.CardAccess
+    // leaves the card: the card refuses MSE:Set AT with 6985 anywhere
+    // else.
     do {
-      let keys = try PaceEstablishment(channel: channel).establish(with: candidate.number)
+      let keys = try PaceEstablishment(channel: channel)
+        .establish(with: PacePassword(cardAccessNumber: candidate.number)).keys
       RefusedUnseal.shared.clear()
       CardCredentialStore.clearOfferedNumberRefusal()
       let secure = SecureMessagingChannel(wrapping: channel, sessionKeys: keys)

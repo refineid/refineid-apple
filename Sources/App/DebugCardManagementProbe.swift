@@ -107,7 +107,7 @@
     ) async {
       let lines = await CardMaintenance.onCard(
         transport: transport,
-        cardAccessNumber: can,
+        opener: .cardAccessNumber(can),
         operation: .cardStatus,
         failedStep: Self.failedStep(of:)
       ) { operations -> [String] in

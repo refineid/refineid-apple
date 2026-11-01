@@ -83,3 +83,36 @@ gate's change detection both have to look at the dylib, not the
 executable. The extension's file log lives in its container under
 `tmp/refineid-token-extension.log` in development builds; release
 builds write no diagnostics.
+
+## Organization cards
+
+An organization card (FINEID S4-2) has no card access number. On the
+antenna it answers `6985` to everything but EF.CardAccess until PACE
+has run with PIN 1 or PIN 2 as the password (FINEID S1 v4.0,
+organizational cards, section 2.1), so nothing identifies the card or
+yields its certificates before the holder types a PIN.
+
+- **Contact first.** A contact read of an organization card leaves its
+  certificates and chip serial in `OrganizationPrimeStore`, keyed by the
+  historical bytes of the answer to reset, which the card carries
+  unchanged on both interfaces (card-types.md). The newest contact read
+  of a card model replaces the one before it.
+- **On the antenna.** The driver publishes the identity from that prime
+  with no card I/O and no PIN. Without one, the window keeps "Put the
+  card in the reader's card slot."
+- **Signing.** The PIN is settled first, from the system PIN sheet or
+  the PIN 1 the card accepted before. PACE then runs with it over the
+  suite EF.CardAccess names (generic mapping, P-384 preferred). MSE:Set
+  AT answers the PIN's state, and the retry floor decides on it before
+  the first GENERAL AUTHENTICATE, because the card takes a try there and
+  returns it only when the handshake completes. A completed PACE counts
+  as the PIN verified: the key signs with no VERIFY, and no VERIFY
+  status probe is sent in the channel, which the card refuses there
+  (`6988`). PIN 1 signs with the authentication key after the chip
+  serial matches the prime's; PIN 2 signs in DF.ESIGN under the
+  organization qualified key reference, the digest inline in one
+  PSO:CDS, and the signature is verified against the prime's
+  certificate before it is returned.
+- **Documents.** The window's document signing finds the card on the
+  antenna by its `6985` and opens it with the PIN 2 typed for the
+  signature, the same way.

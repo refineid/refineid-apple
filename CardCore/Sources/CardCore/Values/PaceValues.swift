@@ -4,9 +4,10 @@ import Foundation
 
 /// The dedicated home for PACE and secure-messaging wire values.
 ///
-/// PACE is the FINEID card's contactless door: the CAN is turned into a
-/// shared secret over brainpoolP384r1, and the result is the AES-256
-/// session that carries every later APDU. Section references are to ICAO
+/// PACE is the FINEID card's contactless door: a password -- the CAN on a
+/// citizen card, PIN 1 or PIN 2 on an organization card -- is turned into
+/// a shared secret over the curve the card publishes, and the result is
+/// the AES-256 session that carries every later APDU. Section references are to ICAO
 /// Doc 9303 part 11 (the PACE protocol and its GENERAL AUTHENTICATE data
 /// objects) and ISO/IEC 7816-4 (the class byte, the secure-messaging data
 /// objects, and padding method 2). Generic 7816-4 values live in
@@ -34,7 +35,25 @@ internal enum PaceValues {
   /// the mutual-authentication token input.
   /// It is assembled from the individually named arc bytes below rather
   /// than written as a hex literal, so every byte carries its meaning.
-  internal static let protocolOidBody: [UInt8] = [
+  internal static let protocolOidBody: [UInt8] =
+    paceOidPrefix + [
+      oidArcEcdhGenericMapping,
+      oidArcAesCbcCmac256,
+    ]
+
+  /// The `id-PACE-ECDH-IM-AES-CBC-CMAC-256` object identifier body.
+  ///
+  /// `0.4.0.127.0.7.2.2.4.4.4` (BSI TR-03110-3 appendix A.1.1.1): the
+  /// integrated-mapping suite the organization cards list beside the
+  /// generic one. It is recognised in EF.CardAccess and never run.
+  internal static let integratedMappingOidBody: [UInt8] =
+    paceOidPrefix + [
+      oidArcEcdhIntegratedMapping,
+      oidArcAesCbcCmac256,
+    ]
+
+  /// The arcs every PACE identifier opens with, `0.4.0.127.0.7.2.2.4`.
+  private static let paceOidPrefix: [UInt8] = [
     oidArcItuTIdentifiedOrganization,
     oidArcEtsi,
     oidArcReserved,
@@ -43,8 +62,6 @@ internal enum PaceValues {
     oidArcProtocols,
     oidArcSmartcard,
     oidArcIdPace,
-    oidArcEcdhGenericMapping,
-    oidArcAesCbcCmac256,
   ]
 
   /// OID byte 1: arcs `itu-t(0) identified-organization(4)`, packed into
@@ -77,6 +94,10 @@ internal enum PaceValues {
   /// OID byte 9: arc `id-PACE-ECDH-GM(2)`, selecting ECDH key agreement
   /// with generic mapping.
   private static let oidArcEcdhGenericMapping: UInt8 = 0x02
+
+  /// OID byte 9: arc `id-PACE-ECDH-IM(4)`, selecting ECDH key agreement
+  /// with integrated mapping.
+  private static let oidArcEcdhIntegratedMapping: UInt8 = 0x04
 
   /// OID byte 10: arc `id-PACE-ECDH-GM-AES-CBC-CMAC-256(4)`, fixing the
   /// cipher at AES-256 in CBC mode with an AES-CMAC checksum.
@@ -136,15 +157,38 @@ internal enum PaceValues {
   /// object (ICAO 9303-11 section 9.2.1 Table: 1 = MRZ, 2 = CAN,
   /// 3 = PIN, 4 = PUK).
   ///
-  /// RefineID only ever authenticates with the CAN, the six digits
-  /// printed on the card.
+  /// The citizen cards open with the CAN, the six digits printed on the
+  /// card. The organization cards open with PIN 1 or PIN 2 instead, under
+  /// their own security-data-object references, which are the same
+  /// numbers as the PIN and PUK references here (FINEID S4-2 v4.0
+  /// sections 4.2 and 6; `FineidValues.organizationPin1Reference`).
   internal static let passwordReferenceCan: UInt8 = 0x02
 
-  /// Domain parameter reference for brainpoolP384r1, sent in the
-  /// MSE:Set AT `84` data object (ICAO 9303-11 section 9.2.1; the
-  /// standardized domain parameter table of BSI TR-03110-3 assigns
-  /// 13 = brainpoolP256r1, 16 = brainpoolP384r1).
+  /// The `PACEInfo` version this build runs; version 1 is deprecated
+  /// (BSI TR-03110-3 appendix A.1.1.1).
+  internal static let paceInfoVersion: UInt8 = 2
+
+  /// Standardized domain parameter 12, NIST P-256, as `PACEInfo` lists it
+  /// and the MSE:Set AT `84` data object names it (BSI TR-03110-3 table 4).
+  internal static let domainParameterReferenceNistP256: UInt8 = 0x0C
+
+  /// Standardized domain parameter 15, NIST P-384 (BSI TR-03110-3 table 4).
+  internal static let domainParameterReferenceNistP384: UInt8 = 0x0F
+
+  /// Standardized domain parameter 16, brainpoolP384r1 (BSI TR-03110-3
+  /// table 4).
   internal static let domainParameterReferenceBrainpoolP384r1: UInt8 = 0x10
+
+  /// The longest encrypted nonce accepted, in AES blocks.
+  ///
+  /// The chip chooses the nonce length as a multiple of the block size (ICAO 9303-11
+  /// section 4.4.3.3); the citizen cards send one block and the
+  /// organization card two. Four blocks bound what is buffered.
+  internal static let nonceMaximumBlockCount: Int = 4
+
+  /// MSE:Set AT warning `6283`: the PIN password is deactivated
+  /// (BSI TR-03110-3 section B.14.1).
+  internal static let swPasswordDeactivated: UInt16 = 0x6283
 
   /// GENERAL AUTHENTICATE instruction byte (ISO 7816-4 section 11.5.4;
   /// ICAO 9303-11 section 9.2).

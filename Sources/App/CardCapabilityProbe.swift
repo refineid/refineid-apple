@@ -136,7 +136,8 @@
       // current, so the handshake starts where it must.
       let started = ContinuousClock.now
       do {
-        _ = try PaceEstablishment(channel: channel).establish(with: accessNumber)
+        _ = try PaceEstablishment(channel: channel).establish(
+          with: PacePassword(cardAccessNumber: accessNumber))
       } catch {
         sheet.fail(at: .secureChannel)
         return ["pace: failed after \(Self.since(started)) ms: \(error)"]

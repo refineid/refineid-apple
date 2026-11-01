@@ -265,13 +265,13 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
     case .contact, .steadyField:
       return try signThroughReader(
         token: cardToken,
-        unsealingWith: cardToken.sealedAccessNumber,
+        unsealingWith: cardToken.unsealing,
         dataToSign: dataToSign,
         algorithm: algorithm
       )
 
     case .fieldWithDeadline:
-      guard let accessNumber = cardToken.sealedAccessNumber else {
+      guard let accessNumber = cardToken.unsealing.accessNumber else {
         // Unreachable: this token is only ever minted from a prime, and a
         // prime without a usable number is refused there.
         throw TKError(.authenticationNeeded)
@@ -294,7 +294,7 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
   /// as long as the work does.
   private func signThroughReader(
     token: Token,
-    unsealingWith accessNumber: CardAccessNumber?,
+    unsealingWith unsealing: CardUnsealing,
     dataToSign: Data,
     algorithm: TKTokenKeyAlgorithm
   ) throws -> Data {
@@ -322,7 +322,7 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
       let signature = try SmartCardChannel(smartCard, waits: .reader).withSession { channel in
         try ReaderSignature.perform(
           in: channel,
-          unsealingWith: accessNumber,
+          unsealingWith: unsealing,
           enteredPin: entered,
           request: request,
           token: token

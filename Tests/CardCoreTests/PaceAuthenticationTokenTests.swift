@@ -54,7 +54,8 @@ internal struct PaceAuthenticationTokenTests {
   @Test
   internal func tokenMatchesTheReferenceEncoding() throws {
     let token = try PaceDataObject.authenticationTokenInput(
-      for: BrainpoolP384r1.generator
+      for: BrainpoolP384r1.generator,
+      suite: PaceInfo(mapping: .generic, domain: .brainpoolP384r1)
     )
     let bytes = Array(token)
 
@@ -73,7 +74,8 @@ internal struct PaceAuthenticationTokenTests {
   @Test
   internal func theOidBodySitsWhereTheCardExpectsIt() throws {
     let token = try PaceDataObject.authenticationTokenInput(
-      for: BrainpoolP384r1.generator
+      for: BrainpoolP384r1.generator,
+      suite: PaceInfo(mapping: .generic, domain: .brainpoolP384r1)
     )
     let bytes = Array(token)
     #expect(Array(bytes[5..<15]) == PaceValues.protocolOidBody)

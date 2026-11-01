@@ -37,7 +37,7 @@ extension CardMaintenance {
     }
     return await onCard(
       transport: transport,
-      cardAccessNumber: cardAccessNumber,
+      opener: .cardAccessNumber(cardAccessNumber),
       operation: .cardStatus,
       failedStep: Self.failedStep(of:)
     ) { operations in
@@ -59,7 +59,7 @@ extension CardMaintenance {
     }
     return await onCard(
       transport: transport,
-      cardAccessNumber: cardAccessNumber,
+      opener: .cardAccessNumber(cardAccessNumber),
       operation: .cardStatus,
       failedStep: Self.failedStep(of:)
     ) { operations in
@@ -225,7 +225,7 @@ extension CardMaintenance {
   ) async -> MutationReport {
     let result = await onCard(
       transport: transport,
-      cardAccessNumber: cardAccessNumber,
+      opener: .cardAccessNumber(cardAccessNumber),
       operation: operation,
       failedStep: Self.failedStep(of:)
     ) { operations -> MutationReport in

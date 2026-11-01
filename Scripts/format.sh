@@ -16,7 +16,7 @@ format_paths=(
   CardCore/Sources/CardCore CardCore/Sources/RappEngine
   CardCore/Tests CardCore/Package.swift
   PKCS11Bridge/Sources PKCS11Bridge/Tests PKCS11Bridge/Package.swift
-  Scripts/BrainpoolBenchmark.swift
+  Scripts/PaceCurveBenchmark.swift
 )
 
 if [ "${1:-}" = "--staged" ]; then

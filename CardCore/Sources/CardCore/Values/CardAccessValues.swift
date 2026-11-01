@@ -110,6 +110,18 @@ internal enum CardAccessValues {
   /// (ITU-T X.690 section 8.3).
   internal static let integerTag: UInt8 = 0x02
 
+  /// The sign bit of the first content octet of a DER INTEGER
+  /// (ITU-T X.690 section 8.3.3).
+  internal static let integerSignBit: UInt8 = 0x80
+
+  /// The leading octet a DER INTEGER carries only to clear the sign bit of
+  /// the octet after it (ITU-T X.690 section 8.3.2).
+  internal static let integerPadOctet: UInt8 = 0x00
+
+  /// The leading octet a DER INTEGER carries only to set the sign bit of
+  /// the octet after it (ITU-T X.690 section 8.3.2).
+  internal static let integerSignExtensionOctet: UInt8 = 0xFF
+
   /// The `0.4.0.127.0.7.2.2` prefix every BSI smart-card protocol
   /// identifier opens with, in DER content bytes.
   ///

@@ -73,7 +73,7 @@ internal struct BrainpoolP384r1Tests {
   internal func orderTimesGeneratorIsThePointAtInfinity() {
     let product = BrainpoolP384r1.multiplyGenerator(by: BrainpoolP384r1.order)
     #expect(product.isInfinity)
-    #expect(product == BrainpoolPoint.infinity)
+    #expect(product == CurvePoint<BrainpoolP384r1>.infinity)
   }
 
   @Test
@@ -120,29 +120,29 @@ internal struct BrainpoolP384r1Tests {
   internal func uncompressedEncodingRoundTrips() throws {
     let point = BrainpoolP384r1.multiplyGenerator(by: U384(Self.firstScalar))
     let encoded = try #require(point.encodeUncompressed())
-    #expect(encoded.count == BrainpoolPoint.uncompressedByteCount)
-    #expect(BrainpoolPoint.decodeUncompressed(encoded) == point)
+    #expect(encoded.count == CurvePoint<BrainpoolP384r1>.uncompressedByteCount)
+    #expect(CurvePoint<BrainpoolP384r1>.decodeUncompressed(encoded) == point)
   }
 
   @Test
   internal func infinityHasNoUncompressedEncoding() {
-    #expect(BrainpoolPoint.infinity.encodeUncompressed() == nil)
-    #expect(BrainpoolPoint.infinity.isOnCurve())
+    #expect(CurvePoint<BrainpoolP384r1>.infinity.encodeUncompressed() == nil)
+    #expect(CurvePoint<BrainpoolP384r1>.infinity.isOnCurve())
   }
 
   @Test
   internal func decodingRejectsAWrongLength() throws {
     let encoded = try #require(BrainpoolP384r1.generator.encodeUncompressed())
-    #expect(BrainpoolPoint.decodeUncompressed(encoded.dropLast()) == nil)
-    #expect(BrainpoolPoint.decodeUncompressed(encoded + Data([0x00])) == nil)
-    #expect(BrainpoolPoint.decodeUncompressed(Data()) == nil)
+    #expect(CurvePoint<BrainpoolP384r1>.decodeUncompressed(encoded.dropLast()) == nil)
+    #expect(CurvePoint<BrainpoolP384r1>.decodeUncompressed(encoded + Data([0x00])) == nil)
+    #expect(CurvePoint<BrainpoolP384r1>.decodeUncompressed(Data()) == nil)
   }
 
   @Test
   internal func decodingRejectsANonUncompressedTag() throws {
     var encoded = Array(try #require(BrainpoolP384r1.generator.encodeUncompressed()))
     encoded[0] = 0x02
-    #expect(BrainpoolPoint.decodeUncompressed(Data(encoded)) == nil)
+    #expect(CurvePoint<BrainpoolP384r1>.decodeUncompressed(Data(encoded)) == nil)
   }
 
   @Test
@@ -150,7 +150,7 @@ internal struct BrainpoolP384r1Tests {
     var encoded = Array(try #require(BrainpoolP384r1.generator.encodeUncompressed()))
     let last = encoded.count - 1
     encoded[last] ^= 0x01
-    #expect(BrainpoolPoint.decodeUncompressed(Data(encoded)) == nil)
+    #expect(CurvePoint<BrainpoolP384r1>.decodeUncompressed(Data(encoded)) == nil)
   }
 
   @Test

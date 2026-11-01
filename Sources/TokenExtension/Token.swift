@@ -51,22 +51,23 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
   /// the signature never spends its field re-reading EF.4331 to get it.
   internal let leafPublicKey: SecKey
 
-  /// The card access number this card must be unsealed with; nil when the
-  /// card answered in the clear.
+  /// What this card must be unsealed with before it answers.
   ///
-  /// Never logged. Its presence, not the slot it arrived on, is what
-  /// tells the session which card it is holding: with one, every verb
-  /// travels inside a PACE channel; without one, the card is spoken to
-  /// directly.
+  /// Never logged. This, not the slot the card arrived on, is what tells
+  /// the session which card it is holding: with a card access number or
+  /// a PIN, every verb travels inside a PACE channel; with neither, the
+  /// card is spoken to directly.
   ///
   /// A contactless card is sealed whichever antenna reaches it -- the
-  /// phone's own or the one in a desk reader -- so this is set on both,
-  /// and the two differ only in where the number came from. The phone
-  /// takes it from the prime, because the system ends that slot about two
-  /// seconds after the mint and there is no room to read anything. A
-  /// reader holds its field indefinitely, so there the card is unsealed
-  /// and read on the spot, and no prime is needed at all.
-  internal let sealedAccessNumber: CardAccessNumber?
+  /// phone's own or the one in a desk reader. The phone takes the card
+  /// access number from the prime, because the system ends that slot
+  /// about two seconds after the mint and there is no room to read
+  /// anything. A reader holds its field indefinitely, so there a citizen
+  /// card is unsealed and read on the spot. An organization card there
+  /// opens only with the PIN a signature spends, so its identity comes
+  /// from the prime its contact read left, and each signature opens its
+  /// own channel with that PIN.
+  internal let unsealing: CardUnsealing
 
   /// How this card is reached, which decides what a signature may spend.
   internal let interface: CardInterface
@@ -132,11 +133,15 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
     self.leafPublicKey = material.publicKey
     self.signKeyProfile = material.signProfile
     self.signLeafPublicKey = material.signPublicKey
-    self.sealedAccessNumber = material.accessNumber
+    self.unsealing = material.unsealing
     // A card read here was read through a reader, whichever of its
     // interfaces answered: this initializer does card I/O, which the
     // phone's path cannot afford at all.
-    self.interface = material.accessNumber == nil ? .contact : .steadyField
+    if case .plain = material.unsealing {
+      self.interface = .contact
+    } else {
+      self.interface = .steadyField
+    }
     self.chipSerial = material.identity.chipSerial
     self.instanceID = material.instanceID
     self.smartCard = smartCard
@@ -191,7 +196,7 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
     self.leafPublicKey = material.publicKey
     self.signKeyProfile = nil
     self.signLeafPublicKey = nil
-    self.sealedAccessNumber = material.accessNumber
+    self.unsealing = .cardAccessNumber(material.accessNumber)
     self.interface = .fieldWithDeadline
     self.chipSerial = material.serial
     self.instanceID = material.instanceID

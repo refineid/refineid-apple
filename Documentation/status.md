@@ -393,14 +393,22 @@ The benchmark is reproducible from the repository:
 
     swiftc -O -whole-module-optimization \
       CardCore/Sources/CardCore/Crypto/U384.swift \
-      CardCore/Sources/CardCore/Crypto/FieldP384.swift \
-      CardCore/Sources/CardCore/Crypto/BrainpoolPoint.swift \
+      CardCore/Sources/CardCore/Crypto/MontgomeryDomain.swift \
+      CardCore/Sources/CardCore/Crypto/CurveFieldElement.swift \
+      CardCore/Sources/CardCore/Crypto/CurvePoint.swift \
+      CardCore/Sources/CardCore/Crypto/CurveDomainParameters.swift \
+      CardCore/Sources/CardCore/Crypto/PaceCurve.swift \
+      CardCore/Sources/CardCore/Crypto/JacobianPoint.swift \
       CardCore/Sources/CardCore/Crypto/BrainpoolP384r1.swift \
+      CardCore/Sources/CardCore/Crypto/NistP384.swift \
+      CardCore/Sources/CardCore/Crypto/NistP256.swift \
       CardCore/Sources/CardCore/Values/BrainpoolP384r1Values.swift \
+      CardCore/Sources/CardCore/Values/NistP256Values.swift \
+      CardCore/Sources/CardCore/Values/NistP384Values.swift \
       CardCore/Sources/CardCore/Values/Sec1Values.swift \
-      Scripts/BrainpoolBenchmark.swift \
-      -o /tmp/refineid-brainpool-benchmark
-    /tmp/refineid-brainpool-benchmark
+      Scripts/PaceCurveBenchmark.swift \
+      -o /tmp/refineid-pace-curve-benchmark
+    /tmp/refineid-pace-curve-benchmark
 
 The shared Xcode scheme now launches with the `Profile` configuration:
 `-O`, whole-module compilation, debug symbols and the DEBUG diagnostics.

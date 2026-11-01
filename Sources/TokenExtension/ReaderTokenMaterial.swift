@@ -8,8 +8,9 @@ internal struct ReaderTokenMaterial {
   /// Certificates and complete card serial read in one card session.
   internal let identity: PublishedIdentity
 
-  /// CAN used when the reader reached the card over contactless.
-  internal let accessNumber: CardAccessNumber?
+  /// What opens the card: nothing in a contact slot, the CAN or the
+  /// operation's PIN on the reader's antenna.
+  internal let unsealing: CardUnsealing
 
   /// Parsed authentication certificate.
   internal let leaf: SecCertificate

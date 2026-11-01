@@ -61,19 +61,19 @@ internal enum CardMaintenance {
   /// `operation`: the card found, the secure channel, then the
   /// operation's own steps, finished or broken at the step `failedStep`
   /// names for the answer (nil when the answer is a success).
+  ///
+  /// `opener` names what opens a sealed card: the card access number, and
+  /// for an organization card the PIN the operation spends.
   internal static func onCard<Answer: Sendable>(
     transport: Transport,
-    cardAccessNumber: String?,
+    opener: CardOpener<Answer>,
     operation: NearFieldOperation,
     failedStep: @escaping @Sendable (Answer) -> NearFieldStep?,
     _ work: @escaping @Sendable (CardOperations) -> Answer
   ) async -> Answer? {
     switch transport {
     case .reader:
-      return await onReader(
-        cardAccessNumber: cardAccessNumber,
-        work
-      )
+      return await onReader(opener: opener, work)
 
     case .nearField:
       #if REFINEID_LOCAL_CARD && os(iOS)
@@ -89,16 +89,11 @@ internal enum CardMaintenance {
         return await withCheckedContinuation { continuation in
           DispatchQueue.global(qos: .userInitiated).async {
             let answer = try? held.withCardSession { channel -> Answer? in
-              guard
-                let operations = selectedOperations(
-                  over: channel,
-                  cardAccessNumber: cardAccessNumber
-                )
-              else {
-                return nil
+              answer(openedOperations(over: channel, opener: opener), refused: opener.refused) {
+                operations in
+                sheet.advance()
+                return work(operations)
               }
-              sheet.advance()
-              return work(operations)
             }
             switch answer.flatMap(\.self) {
             case .some(let answered):
@@ -125,7 +120,7 @@ internal enum CardMaintenance {
   internal static func onReader<Answer: Sendable>(
     _ work: @escaping @Sendable (CardOperations) -> Answer?
   ) async -> Answer? {
-    let nested: Answer?? = await onReader(cardAccessNumber: nil, work)
+    let nested: Answer?? = await onReader(opener: .cardAccessNumber(nil), work)
     return nested.flatMap(\.self)
   }
 
@@ -146,10 +141,10 @@ internal enum CardMaintenance {
       else {
         throw ConnectionFailure.wrongCardAccessNumber
       }
-      try? operations.selectMainFile()
       let keys: PaceSessionKeys
       do {
-        keys = try PaceEstablishment(channel: channel).establish(with: offered)
+        keys = try PaceEstablishment(channel: channel)
+          .establish(with: PacePassword(cardAccessNumber: offered)).keys
       } catch PaceEstablishment.Failure.authenticationTokenMismatch {
         throw ConnectionFailure.wrongCardAccessNumber
       } catch PaceEstablishment.Failure.cardRejected(.authenticationFailed) {
@@ -170,7 +165,7 @@ internal enum CardMaintenance {
   }
 
   private static func onReader<Answer: Sendable>(
-    cardAccessNumber: String?,
+    opener: CardOpener<Answer>,
     _ operation: @escaping @Sendable (CardOperations) -> Answer
   ) async -> Answer? {
     guard let manager = TKSmartCardSlotManager.default else { return nil }
@@ -186,15 +181,8 @@ internal enum CardMaintenance {
         for candidate in cards {
           let answer = try? SmartCardChannel(candidate.card).withSession {
             channel -> Answer? in
-            guard
-              let operations = selectedOperations(
-                over: channel,
-                cardAccessNumber: cardAccessNumber
-              )
-            else {
-              return nil
-            }
-            return operation(operations)
+            answer(
+              openedOperations(over: channel, opener: opener), refused: opener.refused, operation)
           }
           if let value = answer.flatMap(\.self) {
             continuation.resume(returning: value)
@@ -210,36 +198,11 @@ internal enum CardMaintenance {
     over channel: SmartCardChannel,
     cardAccessNumber: String?
   ) -> CardOperations? {
-    let operations = CardOperations(channel: channel)
-    do {
-      try operations.selectFineidApplication()
-      return operations
-    } catch {
-      let offered =
-        cardAccessNumber.flatMap(CardAccessNumber.init(digits:))
-        ?? CardCredentialStore.cardAccessNumber()
-        ?? PrimeStore.storedIdentities().first.flatMap { CardAccessNumber(digits: $0.can) }
-      guard let offered else { return nil }
-      try? operations.selectMainFile()
-      let keys: PaceSessionKeys
-      do {
-        keys = try PaceEstablishment(channel: channel).establish(with: offered)
-      } catch PaceEstablishment.Failure.authenticationTokenMismatch {
-        CardCredentialStore.forgetEveryCardAccessNumber()
-        return nil
-      } catch PaceEstablishment.Failure.cardRejected(.authenticationFailed) {
-        CardCredentialStore.forgetEveryCardAccessNumber()
-        return nil
-      } catch {
-        return nil
-      }
-      let secure = SecureMessagingChannel(wrapping: channel, sessionKeys: keys)
-      let secureOperations = CardOperations(channel: secure)
-      guard (try? secureOperations.selectFineidApplication()) != nil else {
-        return nil
-      }
-      return secureOperations
+    let opener = CardOpener<Never>.cardAccessNumber(cardAccessNumber)
+    guard case .opened(let operations) = openedOperations(over: channel, opener: opener) else {
+      return nil
     }
+    return operations
   }
 
   internal static func outcome(of error: Error) -> Outcome {

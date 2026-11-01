@@ -23,25 +23,25 @@ internal enum PaceCommand {
     count: ExpectedResponseLength.maximum
   )
 
-  /// MSE:Set AT naming the PACE suite, the CAN as the password, and
-  /// brainpoolP384r1 as the domain parameters.
+  /// MSE:Set AT naming the PACE suite, the password and the domain
+  /// parameters (BSI TR-03110-3 section B.14.1).
   ///
   /// Nil only if the assembled template does not fit a short-form data
   /// field, which the fixed contents make impossible; the failable shape
   /// exists so no encoder result is force unwrapped.
-  internal static func securityEnvironment() -> Data? {
+  internal static func securityEnvironment(suite: PaceInfo, passwordReference: UInt8) -> Data? {
     guard
       let mechanism = DerTlvRecord.encoded(
         tag: PaceValues.cryptographicMechanismReferenceTag,
-        value: Data(PaceValues.protocolOidBody)
+        value: Data(suite.protocolOidBody)
       ),
       let password = DerTlvRecord.encoded(
         tag: PaceValues.passwordReferenceTag,
-        value: Data([PaceValues.passwordReferenceCan])
+        value: Data([passwordReference])
       ),
       let domain = DerTlvRecord.encoded(
         tag: PaceValues.domainParameterReferenceTag,
-        value: Data([PaceValues.domainParameterReferenceBrainpoolP384r1])
+        value: Data([suite.domain.parameterID])
       )
     else {
       return nil

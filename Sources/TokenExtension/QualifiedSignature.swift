@@ -22,7 +22,7 @@ internal enum QualifiedSignature {
   /// The sealed channel and the access number that unseals it.
   internal struct ChannelAccess {
     internal let channel: SmartCardChannel
-    internal let accessNumber: CardAccessNumber?
+    internal let unsealing: CardUnsealing
   }
 
   /// Unseals the channel if the card asks for it, then signs in it.
@@ -33,9 +33,18 @@ internal enum QualifiedSignature {
     signPublicKey: SecKey,
     token: Token
   ) throws -> Data {
+    if case .organizationPin = access.unsealing {
+      return try OrganizationSignature.qualified(
+        on: access.channel,
+        enteredPin: enteredPin,
+        request: request,
+        signPublicKey: signPublicKey,
+        token: token
+      )
+    }
     do {
       return try performSign(
-        channel: try ReaderSignature.unsealed(access.channel, with: access.accessNumber),
+        channel: try ReaderSignature.unsealed(access.channel, with: access.unsealing.accessNumber),
         enteredPin: enteredPin,
         request: request,
         signPublicKey: signPublicKey,

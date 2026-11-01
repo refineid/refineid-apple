@@ -51,6 +51,7 @@ internal enum CardStateReset {
     lines.append("RefineID identity configurations removed: \(dropped)")
 
     PrimeStore.forgetAll()
+    OrganizationPrimeStore.forgetAll()
     lines.append("RefineID prime store: cleared")
 
     Pin1Memory.shared.clearAll()

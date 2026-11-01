@@ -25,7 +25,7 @@ extension Token {
     from smartCard: TKSmartCard
   ) throws -> ReaderTokenMaterial {
     TokenLog.info("Token.init: reading identity")
-    let (identity, accessNumber) = try Self.readIdentity(from: smartCard)
+    let (identity, unsealing) = try Self.readIdentity(from: smartCard)
     TokenLog.info(
       "Token.init: leaf=\(identity.leafDER.count) issuer=\(identity.issuerDER?.count ?? -1)"
     )
@@ -41,7 +41,7 @@ extension Token {
     let sign = Self.validatedQualifiedMaterial(fromDER: identity.signLeafDER)
     return ReaderTokenMaterial(
       identity: identity,
-      accessNumber: accessNumber,
+      unsealing: unsealing,
       leaf: leaf,
       profile: profile,
       publicKey: publicKey,
