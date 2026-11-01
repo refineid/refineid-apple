@@ -35,7 +35,7 @@ internal enum LimitedDigits {
   }
 
   /// An activation entry: ASCII digits up to the scheme's exact count,
-  /// or the activation code's, the longer one, while the scheme is not
+  /// or the §4.6.1 activation PIN's, the longer one, while the scheme is not
   /// yet known.
   internal static func activationEntry(_ text: String, scheme: ActivationScheme?) -> String {
     Self.digits(

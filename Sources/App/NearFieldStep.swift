@@ -10,7 +10,7 @@ internal enum NearFieldStep: Sendable, Hashable {
   /// A certificate was read off the card.
   case certificate
 
-  /// The card accepted a PIN, a PUK or an activation code.
+  /// The card accepted a PIN, a PUK or an activation PIN.
   case credential
 
   /// The card is in the field.

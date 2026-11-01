@@ -59,28 +59,6 @@
         }
       }
     },
-    "activation code": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "activation code"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "aktivointikoodi"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "aktiveringskod"
-          }
-        }
-      }
-    },
     "activation PIN": {
       "localizations": {
         "en": {
@@ -1194,23 +1172,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aktivointitunnusluku on väärä."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aktiveringskoden är felaktig."
-          }
-        }
-      }
-    },
-    "Activation code is incorrect.": {
-      "extractionState": "manual",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aktivointikoodi on väärä."
           }
         },
         "sv": {

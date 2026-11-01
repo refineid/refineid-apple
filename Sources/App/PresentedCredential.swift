@@ -24,10 +24,7 @@ internal enum PresentedCredential: Equatable, Sendable {
     case .puk:
       String(localized: "PUK")
 
-    case .activationCode:
-      String(localized: "activation code")
-
-    case .activationPin:
+    case .activationCode, .activationPin:
       String(localized: "activation PIN")
     }
   }

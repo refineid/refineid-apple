@@ -1111,7 +1111,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Activation code is PUK"
+            "value" : "Activation PIN is PUK"
           }
         },
         "fi" : {
