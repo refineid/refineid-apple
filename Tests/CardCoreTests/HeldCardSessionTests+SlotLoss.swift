@@ -7,6 +7,10 @@ import Testing
 
 extension HeldCardSessionTests {
   /// Slot loss wakes the signer before a blocked transport completes.
+  ///
+  /// The first PACE command stays blocked until the end of the test's
+  /// checks, so the release returning and the signer finishing before then
+  /// prove that neither waits for the transport.
   @Test(arguments: [true, false])
   internal func testSlotLossDuringPACEWakesSignerAndDefersCleanup(startEarly: Bool) throws {
     let can = try #require(CardAccessNumber(digits: Self.validCanString))
@@ -17,7 +21,7 @@ extension HeldCardSessionTests {
     let signerFinished = DispatchSemaphore(value: 0)
     let released = DispatchSemaphore(value: 0)
     let cleaned = DispatchSemaphore(value: 0)
-    let held = HeldCardSession(diagnostic: { event in
+    let held = Self.makeHeldSession(diagnostic: { event in
       if event.contains("waiting preparation") { signerWaiting.signal() }
     })
     channel.onFirstTransmit = {
@@ -28,25 +32,26 @@ extension HeldCardSessionTests {
     held.retain(channel)
     if startEarly { held.startPACE(with: can) }
     defer { resumeTransmit.signal() }
-    DispatchQueue.global().async {
+    Self.onOwnThread {
       #expect(throws: CardOperationError.sessionUnavailable) {
         try held.preparedChannel(accessNumber: can)
       }
       signerFinished.signal()
     }
-    try #require(signerWaiting.wait(timeout: .now() + 5) == .success)
-    try #require(transmitStarted.wait(timeout: .now() + 5) == .success)
-    DispatchQueue.global().async {
+    try #require(signerWaiting.wait(timeout: Self.hangGuard()) == .success)
+    try #require(transmitStarted.wait(timeout: Self.hangGuard()) == .success)
+    try #require(signerFinished.wait(timeout: .now()) == .timedOut)
+    Self.onOwnThread {
       held.release(reason: .slotMissing)
       released.signal()
     }
-    #expect(released.wait(timeout: .now() + 1) == .success)
-    #expect(signerFinished.wait(timeout: .now() + 1) == .success)
+    #expect(released.wait(timeout: Self.hangGuard()) == .success)
+    #expect(signerFinished.wait(timeout: Self.hangGuard()) == .success)
     #expect(!held.isAvailable)
     #expect(channel.sessionEndCount == 0)
     held.release(reason: .slotMissing)
     resumeTransmit.signal()
-    #expect(cleaned.wait(timeout: .now() + 5) == .success)
+    #expect(cleaned.wait(timeout: Self.hangGuard()) == .success)
     #expect(channel.sessionEndCount == 1)
     #expect(!held.isAvailable)
   }
@@ -61,7 +66,7 @@ extension HeldCardSessionTests {
     let resume = DispatchSemaphore(value: 0)
     let discarded = DispatchSemaphore(value: 0)
     let cleaned = DispatchSemaphore(value: 0)
-    let held = HeldCardSession(diagnostic: { event in
+    let held = Self.makeHeldSession(diagnostic: { event in
       if event.contains("PACE discarded") { discarded.signal() }
     })
     old.onFirstTransmit = {
@@ -72,14 +77,14 @@ extension HeldCardSessionTests {
     held.retain(old)
     held.startPACE(with: can)
     defer { resume.signal() }
-    try #require(started.wait(timeout: .now() + 5) == .success)
-    DispatchQueue.global().async {
+    try #require(started.wait(timeout: Self.hangGuard()) == .success)
+    Self.onOwnThread {
       held.release(reason: .slotMissing)
       held.retain(replacement)
       resume.signal()
     }
-    try #require(discarded.wait(timeout: .now() + 5) == .success)
-    #expect(cleaned.wait(timeout: .now() + 5) == .success)
+    try #require(discarded.wait(timeout: Self.hangGuard()) == .success)
+    #expect(cleaned.wait(timeout: Self.hangGuard()) == .success)
     held.condition.lock()
     if case .idle = held.preparation {
       // The replacement remains unprepared until it is claimed.
@@ -105,7 +110,7 @@ extension HeldCardSessionTests {
   internal func testStaleActivityTimerCannotReleaseReplacement() throws {
     let old = TestHeldCardChannel(card: try Self.makeSyntheticCard())
     let replacement = TestHeldCardChannel(card: try Self.makeSyntheticCard())
-    let held = HeldCardSession()
+    let held = Self.makeHeldSession()
     held.retain(old)
     let oldGeneration = held.generation
     held.release(reason: .slotMissing)
@@ -126,7 +131,7 @@ extension HeldCardSessionTests {
     let channel = TestHeldCardChannel(card: try Self.makeSyntheticCard())
     let cleaned = DispatchSemaphore(value: 0)
     channel.onEnd = { cleaned.signal() }
-    let held = HeldCardSession()
+    let held = Self.makeHeldSession()
     held.retain(channel)
     do {
       let lease = try held.preparedChannel(accessNumber: can)
@@ -138,7 +143,7 @@ extension HeldCardSessionTests {
       }
       _ = lease
     }
-    #expect(cleaned.wait(timeout: .now() + 5) == .success)
+    #expect(cleaned.wait(timeout: Self.hangGuard()) == .success)
     #expect(channel.sessionEndCount == 1)
   }
 
