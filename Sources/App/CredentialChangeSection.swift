@@ -37,9 +37,6 @@ internal struct CredentialChangeSection: View {
     }
 
     /// The full everyday name, written to sit inside a longer label.
-    ///
-    /// The task title above the form already carries the (PIN n)
-    /// suffix; repeating it in every field made the labels truncate.
     internal var everydayName: String {
       switch self {
       case .pin1:
@@ -47,17 +44,6 @@ internal struct CredentialChangeSection: View {
 
       case .pin2:
         String(localized: "signature PIN")
-      }
-    }
-
-    /// The repeat field's whole label.
-    internal var everydayNameRepeated: String {
-      switch self {
-      case .pin1:
-        String(localized: "Repeat PIN 1")
-
-      case .pin2:
-        String(localized: "Repeat PIN 2")
       }
     }
 
@@ -233,12 +219,12 @@ internal struct CredentialChangeSection: View {
       }
     )
     CredentialSecretField(
-      name: String(localized: "New \(credential.everydayName)"),
+      name: CredentialLabels.newPinField(for: role),
       text: $new,
       revealIdentifier: "managementChange\(credential.identifierName)NewReveal",
       fieldIdentifier: "managementChange\(credential.identifierName)New",
       field: {
-        SecureField("New \(credential.everydayName)", text: $new)
+        SecureField(CredentialLabels.newPinField(for: role), text: $new)
           .textContentType(.oneTimeCode)
           #if os(iOS)
             .keyboardType(.numberPad)
@@ -258,12 +244,12 @@ internal struct CredentialChangeSection: View {
       }
     )
     CredentialSecretField(
-      name: credential.everydayNameRepeated,
+      name: CredentialLabels.repeatPinField(for: role),
       text: $repeated,
       revealIdentifier: "managementChange\(credential.identifierName)RepeatReveal",
       fieldIdentifier: "managementChange\(credential.identifierName)Repeat",
       field: {
-        SecureField(credential.everydayNameRepeated, text: $repeated)
+        SecureField(CredentialLabels.repeatPinField(for: role), text: $repeated)
           .textContentType(.oneTimeCode)
           #if os(iOS)
             .keyboardType(.numberPad)

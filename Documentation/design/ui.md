@@ -27,10 +27,11 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   *yhdistämiskoodi*. *Paritus*, *pariliitos* and *laitepari* are not used.
 - **PIN names.** The codes take DVV's names: the basic PIN (*perus*,
   *grund*) is PIN 1 and the signature PIN (*allekirjoitus*, *signatur*)
-  is PIN 2. The number is always written with a space, "PIN 1". A field
-  for a new code names it in full, "New basic PIN (PIN 1)", unless the
-  form's title already does; then the field drops the "(PIN 1)". The
-  field that repeats it is "Repeat PIN 1" in every form.
+  is PIN 2. The number is always written with a space, "PIN 1". In every
+  form, the field for a new code names it in full, "New basic PIN 1",
+  and the field that repeats it is "Repeat PIN 1". Where the language's
+  word is not "PIN", the number follows in brackets: "Uusi
+  perustunnusluku (PIN 1)", "Ny grundkod (PIN 1)".
 - **Development builds show errors.** Every failure path reports to
   `DevErrorLog`: the Errors window on the Mac, the error pill and the
   Diagnostics screen on iPhone and iPad. TestFlight and Release builds

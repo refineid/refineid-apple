@@ -143,11 +143,11 @@ internal struct CardActivationSection: View {
     )
     if asksPin1 {
       CredentialSecretField(
-        name: String(localized: "New basic PIN (PIN 1)"),
+        name: CredentialLabels.newPinField(for: .pin1),
         text: $newPin1,
         revealIdentifier: "managementActivationPin1Reveal",
         field: {
-          SecureField("New basic PIN (PIN 1)", text: $newPin1)
+          SecureField(CredentialLabels.newPinField(for: .pin1), text: $newPin1)
             .textContentType(.oneTimeCode)
             #if os(iOS)
               .keyboardType(.numberPad)
@@ -166,11 +166,11 @@ internal struct CardActivationSection: View {
         }
       )
       CredentialSecretField(
-        name: String(localized: "Repeat PIN 1"),
+        name: CredentialLabels.repeatPinField(for: .pin1),
         text: $newPin1Repeated,
         revealIdentifier: "managementActivationPin1RepeatReveal",
         field: {
-          SecureField("Repeat PIN 1", text: $newPin1Repeated)
+          SecureField(CredentialLabels.repeatPinField(for: .pin1), text: $newPin1Repeated)
             .textContentType(.oneTimeCode)
             #if os(iOS)
               .keyboardType(.numberPad)
@@ -192,11 +192,11 @@ internal struct CardActivationSection: View {
     }
     if asksPin2 {
       CredentialSecretField(
-        name: String(localized: "New signature PIN (PIN 2)"),
+        name: CredentialLabels.newPinField(for: .pin2),
         text: $newPin2,
         revealIdentifier: "managementActivationPin2Reveal",
         field: {
-          SecureField("New signature PIN (PIN 2)", text: $newPin2)
+          SecureField(CredentialLabels.newPinField(for: .pin2), text: $newPin2)
             .textContentType(.oneTimeCode)
             #if os(iOS)
               .keyboardType(.numberPad)
@@ -215,11 +215,11 @@ internal struct CardActivationSection: View {
         }
       )
       CredentialSecretField(
-        name: String(localized: "Repeat PIN 2"),
+        name: CredentialLabels.repeatPinField(for: .pin2),
         text: $newPin2Repeated,
         revealIdentifier: "managementActivationPin2RepeatReveal",
         field: {
-          SecureField("Repeat PIN 2", text: $newPin2Repeated)
+          SecureField(CredentialLabels.repeatPinField(for: .pin2), text: $newPin2Repeated)
             .textContentType(.oneTimeCode)
             #if os(iOS)
               .keyboardType(.numberPad)

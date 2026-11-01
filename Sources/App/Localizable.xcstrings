@@ -2550,39 +2550,7 @@
         }
       }
     },
-    "New %@": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Uusi %@"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ny %@"
-          }
-        }
-      }
-    },
-    "New %@ again": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Uusi %@ uudelleen"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ny %@ igen"
-          }
-        }
-      }
-    },
-    "New basic PIN (PIN 1)": {
+    "New basic PIN 1": {
       "localizations": {
         "fi": {
           "stringUnit": {
@@ -2614,7 +2582,7 @@
         }
       }
     },
-    "New signature PIN (PIN 2)": {
+    "New signature PIN 2": {
       "localizations": {
         "fi": {
           "stringUnit": {

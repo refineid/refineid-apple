@@ -20,6 +20,31 @@ internal enum CredentialLabels {
     }
   }
 
+  /// The label of the field that takes a new PIN: its full name and
+  /// number.
+  internal static func newPinField(for role: CredentialRole) -> String {
+    switch role {
+    case .pin1:
+      String(localized: "New basic PIN 1")
+    case .pin2:
+      String(localized: "New signature PIN 2")
+    case .puk:
+      name(for: role)
+    }
+  }
+
+  /// The label of the field that repeats a new PIN.
+  internal static func repeatPinField(for role: CredentialRole) -> String {
+    switch role {
+    case .pin1:
+      String(localized: "Repeat PIN 1")
+    case .pin2:
+      String(localized: "Repeat PIN 2")
+    case .puk:
+      name(for: role)
+    }
+  }
+
   internal static func entryPrompt(for role: CredentialRole, bundle: Bundle) -> String {
     let name = name(for: role, bundle: bundle)
     return String(localized: "Enter \(name)", bundle: bundle)
