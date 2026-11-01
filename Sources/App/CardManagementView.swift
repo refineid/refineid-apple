@@ -123,6 +123,8 @@ internal struct CardManagementView: View {
   internal var body: some View {
     taskSection
       #if os(macOS)
+        // A form is a scroll view; one that fits its window stays still.
+        .scrollBounceBehavior(.basedOnSize)
         .frame(minWidth: windowWidth)
       #else
         .navigationTitle(
