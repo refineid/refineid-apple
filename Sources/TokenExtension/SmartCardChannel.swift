@@ -153,6 +153,9 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
   /// The session wait budget the constructing transport chose.
   private let sessionWaitBudget: DispatchTimeInterval
 
+  /// How a protected maximum-response signature travels on this transport.
+  private let signatureRoute: SmartCardTransmit.SignatureRoute
+
   /// Whether the card this channel speaks to has left its slot.
   private var cardHasLeft: Bool {
     !smartCard.isValid || smartCard.slot.state == .missing || smartCard.slot.state == .empty
@@ -164,14 +167,17 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
     case .nearField:
       self.responseBudget = .seconds(Self.nearFieldResponseSeconds)
       self.sessionWaitBudget = .seconds(Self.nearFieldSessionWaitSeconds)
+      self.signatureRoute = .structured
 
     case .reader:
       self.responseBudget = .seconds(Self.readerResponseSeconds)
       self.sessionWaitBudget = .seconds(Self.readerSessionWaitSeconds)
+      self.signatureRoute = .raw
 
     case .readerMint:
       self.responseBudget = .seconds(Self.readerResponseSeconds)
       self.sessionWaitBudget = .seconds(Self.readerMintSessionWaitSeconds)
+      self.signatureRoute = .raw
     }
   }
 
@@ -243,7 +249,8 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
     return response
   }
 
-  /// Keeps protected RSA response continuation inside one CTK operation.
+  /// Keeps protected RSA response continuation inside one CTK operation
+  /// on the phone's own antenna (``SmartCardTransmit``).
   private func startTransmit(
     _ payload: Data,
     reply: Box<Data?>,
@@ -251,11 +258,12 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
     semaphore: DispatchSemaphore,
     exchangeProgress: CardExchangeProgress
   ) {
-    if CommandApdu.structuredProtectedSignature(payload) != nil {
+    if signatureRoute == .structured, CommandApdu.structuredProtectedSignature(payload) != nil {
       TokenLog.trace("apdu: mode=ctkContinuation channel=\(channelID)")
     }
     SmartCardTransmit.start(
       payload,
+      route: signatureRoute,
       transmit: { request, completion in
         smartCard.transmit(request) { response, error in
           completion(response, error)

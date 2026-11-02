@@ -24,6 +24,7 @@ internal struct SmartCardTransmitTests {
     var sends = 0
     SmartCardTransmit.start(
       Self.protectedRsa,
+      route: .structured,
       transmit: { _, _ in
         Issue.record("Raw signature transmission exposes a separate GET RESPONSE")
       },
@@ -56,6 +57,7 @@ internal struct SmartCardTransmitTests {
     let returned = Mutex<Data?>(nil)
     SmartCardTransmit.start(
       payload,
+      route: .structured,
       transmit: { command, completion in
         #expect(command == payload)
         completion(expected, nil)
@@ -73,6 +75,7 @@ internal struct SmartCardTransmitTests {
     let completed = Mutex(false)
     SmartCardTransmit.start(
       Self.protectedRsa,
+      route: .structured,
       transmit: { _, _ in Issue.record("Unexpected raw transmission") },
       send: { _, completion in
         completion(nil, StatusWord.success.encoded, TransportFailure.disconnected)
@@ -83,5 +86,29 @@ internal struct SmartCardTransmitTests {
         #expect(error is TransportFailure)
       })
     #expect(completed.withLock { $0 })
+  }
+
+  @Test("A reader sends a modulus-wide protected signature byte for byte")
+  internal func readerSignatureStaysRaw() throws {
+    let body = Data(repeating: 0xA5, count: Self.rsaSignatureBytes) + Data([0x90, 0x00])
+    let returned = Mutex<Data?>(nil)
+    var transmits = 0
+    SmartCardTransmit.start(
+      Self.protectedRsa,
+      route: .raw,
+      transmit: { command, completion in
+        transmits += 1
+        #expect(command == Self.protectedRsa)
+        completion(body, nil)
+      },
+      send: { _, _ in
+        Issue.record("A reader signature must not go through the structured send")
+      },
+      reply: { response, error in
+        #expect(error == nil)
+        returned.withLock { $0 = response }
+      })
+    #expect(transmits == 1)
+    #expect(try #require(returned.withLock { $0 }) == body)
   }
 }
