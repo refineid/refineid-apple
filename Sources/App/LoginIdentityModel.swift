@@ -142,6 +142,12 @@
       }
     }
 
+    /// The reader slot the token `tokenID` was minted for, or nil when it
+    /// has none, as the paired phone's has not.
+    internal func slotName(ofTokenID tokenID: String) -> String? {
+      watcher.tokenInfo(forTokenID: tokenID)?.slotName
+    }
+
     /// Re-reads what is published and keeps watching what is there.
     ///
     /// The model's own watcher is the source: it is connected and

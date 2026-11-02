@@ -57,6 +57,9 @@
     /// being attached or removed.
     @ObservedObject private var cardPresence = CardPresence.shared
 
+    /// The cards in this Mac's readers and the one the holder chose.
+    private let selection = CardSelection.shared
+
     /// Who the card says they are, read when a card is ready.
     ///
     /// Held here rather than in the model because it is worth nothing
@@ -171,8 +174,12 @@
         // one is in the reader before spending a PIN on it. Until the
         // name is read the line names no one - a claim without the
         // name behind it is not worth showing.
-        if let holder {
-          Text(holder)
+        // With two or more cards the lines are the choice of the card
+        // to use.
+        if selection.cards.count > 1 {
+          CardChoiceList(selection: selection)
+        } else if let line = selection.cards.first?.holderLine ?? holder {
+          Text(line)
             .textSelection(.enabled)
             .frame(maxWidth: .infinity, alignment: .leading)
         } else {
@@ -218,22 +225,28 @@
       switch availability {
       case .ready:
         if DemoMode.shared.isActive {
+          selection.show([])
           holder = DemoMode.shared.state.card.cardPresent ? DemoMode.shared.holderName : nil
           return
+        }
+        let tokenIDs = Array(model.ownedTokenIDs)
+        await selection.reload(tokenIDs: tokenIDs) { tokenID in
+          model.slotName(ofTokenID: tokenID)
         }
         if let borrowed = borrowedHolderLine {
           holder = borrowed
           return
         }
-        let tokenIDs = Array(model.ownedTokenIDs)
+        guard selection.cards.isEmpty else {
+          holder = selection.cards.first?.holderLine
+          return
+        }
         holder = await Task.detached(priority: .utility) {
           PublishedIdentityName.current(tokenIDs: tokenIDs)
         }.value
 
-      case .cardWithoutIdentity:
-        holder = nil
-
-      case .noCard:
+      case .cardWithoutIdentity, .noCard:
+        selection.show([])
         holder = nil
       }
     }

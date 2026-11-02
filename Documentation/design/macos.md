@@ -93,7 +93,8 @@ The button's symbol shows the state:
 
 While a card is in this Mac's reader the button opens the PIN codes window
 instead, under the name "PIN Codes", and the two keys tell the holder
-the card is here. When the card leaves, the button is the switch again,
+the card is here. With two or more cards it opens the window for the
+chosen card, and is disabled while none is chosen. When the card leaves, the button is the switch again,
 as it was before the card came.
 
 An open session shows as connected even while something else is blocked.
@@ -144,6 +145,39 @@ A card inserted into this Mac's reader shows "Reading information…" in the
 secondary text color until its token is published and the holder's name
 is read, which takes a second or two.
 
+### Two or more cards
+
+Each card in this Mac's readers whose identity is published has its own
+identity line, its holder's line, ordered by that line in Finnish
+collation (å, ä and ö after z, as in Swedish); equal lines keep the order
+of their reader slots. The order follows the names alone, so it does not
+move as cards come and go. The lines show once every card's name is read;
+until then the window keeps "Reading information…".
+
+With one card the line is as above and needs no choice. With two or more,
+the lines are radio buttons (`CardChoiceList`) and none is chosen: the
+holder clicks the card to use. VoiceOver reads each as a radio button
+named by its holder's line, with its selection. Until a card is chosen,
+the PIN 2 field and the access number field take no input, Sign is
+disabled, and the toolbar's PIN codes button is disabled. While a document
+is being signed or the card read for the stamp, the choice stays as it is.
+
+The chosen card is where every card operation of the window goes
+(`CardSelection`, `ReaderTarget`): document signing, the stamp's card
+read, the attempts read behind the toolbar's keys, and the PIN codes
+window's changes and resets. No other reader's card is tried. A card
+awaiting activation is the one the activation form acts on, whatever is
+chosen; two cards awaiting activation leave the form nothing to act on.
+Choosing another card drops the PIN 2 typed and the stamp read for the
+card before, and closes the PIN codes window.
+
+When the chosen card leaves, the choice goes with it, and nothing falls
+back to the other card. When one card remains, it is the card used, as
+with one card; a second card coming back asks for a choice again. A
+different card put into the chosen card's reader is not chosen.
+
+Safari lists every published identity, whatever is chosen here.
+
 A paired phone's line takes the first of these that holds:
 
 1. The phone reports no card in the card reader attached to it (RAPP
@@ -172,13 +206,14 @@ use on.
 ## The PIN codes window
 
 `PinCodesWindow` holds `CardManagementView` for the card in this Mac's
-reader: the attempts left, and changing or resetting PIN 1 and PIN 2. The
+reader, the chosen one when there are several: the attempts left, and changing or resetting PIN 1 and PIN 2. The
 toolbar button opens it, while it shows the two keys, and it opens by
 itself, once per insertion, when the card's reading says a code is below
 the retry floor; a card already in the reader at launch counts as inserted
 then. It has no Window menu item, opens at launch only for such a card,
-and is not restored. It closes when the card leaves the reader, and
-when the card turns out to await activation.
+and is not restored. It closes when the card leaves the reader, when
+another card or none is chosen, and when the card turns out to await
+activation.
 
 While a code is below the floor, the two keys in the toolbar are red and
 the window's top section says why the card cannot be used and the way

@@ -26,6 +26,7 @@
     @ObservedObject private var cardPresence = CardPresence.shared
     @ObservedObject private var demoMode = DemoMode.shared
     @ObservedObject private var retryHealth = CredentialRetryHealth.shared
+    private let selection = CardSelection.shared
     /// Whether the PIN codes window has opened by itself for the card now
     /// in the reader; it opens once per insertion, so a window the holder
     /// closed stays closed through later readings of the same card.
@@ -77,6 +78,8 @@
           .foregroundStyle(symbolStyle)
           .replacingSymbol()
       }
+      // The PIN codes belong to one card; with several, to the one chosen.
+      .disabled(readerCardIsPresent && selection.awaitsChoice)
       .help(readerCardIsPresent ? Text("PIN Codes") : Text(state.help))
       .accessibilityLabel(readerCardIsPresent ? Text("PIN Codes") : Text(RemoteUseState.label))
       .accessibilityValue(symbolValue)
@@ -84,6 +87,12 @@
         if needsReset, !openedForCard {
           openedForCard = true
           openWindow(id: PinCodesWindow.windowID)
+        }
+      }
+      .onValueChange(of: selection.target) { _ in
+        // The keys show the attempts of the card now used.
+        if readerCardIsPresent {
+          retryHealth.refreshFromReader()
         }
       }
       .onValueChange(of: readerCardIsPresent) { present in
