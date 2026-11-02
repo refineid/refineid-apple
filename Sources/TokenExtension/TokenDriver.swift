@@ -251,6 +251,10 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
       throw TokenError.primeMissing
     }
     guard let match = Self.awaitPrime(lookupID: lookupID, answerToReset: answerToReset) else {
+      #if DEBUG
+        DevErrorLog.report(
+          "field mint: no personal or organization prime for this card", source: .tokenExtension)
+      #endif
       TokenLog.error(
         "mintFromPrime: prime MISS for \(lookupID.value), "
           + "\(PrimeStore.storedCount()) prime(s) stored"

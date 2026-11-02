@@ -10,7 +10,8 @@ import Security
 /// model before PACE, and PACE needs the PIN, so the record is found by
 /// the model alone: the historical bytes of the answer to reset, which an
 /// organization card carries unchanged on both interfaces (Documentation/
-/// card-types.md). The newest contact read of a model replaces the one
+/// card-types.md), or, on the phone's own antenna, whose answer carries
+/// none, the whole answer. The newest read of a model replaces the one
 /// before it. The card that then opens PACE proves its chip serial over
 /// the secure channel, and a different card is refused before it signs.
 ///
@@ -23,48 +24,59 @@ public enum OrganizationPrimeStore {
   /// The keychain service the records live under.
   internal static let service = "fi.refineid.organization-prime"
 
-  /// The namespace of a record's account.
+  /// The namespace of a record's account keyed by historical bytes.
   private static let accountPrefix = "refineid-organization-prime-historical-sha256-"
+
+  /// The namespace of a record's account keyed by the whole answer to
+  /// reset, for an interface whose answer carries no historical bytes.
+  private static let wholeAnswerAccountPrefix = "refineid-organization-prime-atr-sha256-"
 
   /// Formats one digest byte as two lowercase hexadecimal digits.
   private static let byteHexFormat = "%02x"
 
-  /// The account for the card model an answer to reset names, or nil when
-  /// it does not parse or carries no historical bytes.
+  /// The account for the card model an answer to reset names, or nil for
+  /// an empty one.
+  ///
+  /// The historical bytes name the model where the answer carries them. The
+  /// answer the phone's own antenna reports for an organization card
+  /// carries none (observed on hardware), so there the whole answer, which
+  /// the phone reports the same at every arrival, names it instead.
   private static func account(answerToReset: Data) -> String? {
-    guard
-      let parsed = AnswerToReset(bytes: answerToReset),
-      !parsed.historicalBytes.isEmpty
-    else {
-      return nil
+    guard !answerToReset.isEmpty else { return nil }
+    if let parsed = AnswerToReset(bytes: answerToReset), !parsed.historicalBytes.isEmpty {
+      return Self.accountPrefix + Self.digest(Data(parsed.historicalBytes))
     }
-    let digest = SHA256.hash(data: Data(parsed.historicalBytes))
+    return Self.wholeAnswerAccountPrefix + Self.digest(answerToReset)
+  }
+
+  /// SHA-256 of `bytes` as lowercase hexadecimal.
+  private static func digest(_ bytes: Data) -> String {
+    SHA256.hash(data: bytes)
       .map { byte in String(format: Self.byteHexFormat, byte) }
       .joined()
-    return Self.accountPrefix + digest
   }
 
   /// Keeps `prime` for the card model `answerToReset` names.
   ///
-  /// It replaces the one before it. False when the keychain refuses the
-  /// write.
+  /// It replaces the one before it. Answers the keychain's status:
+  /// `errSecParam` when the answer to reset is empty or the record does
+  /// not encode.
   @discardableResult
-  public static func store(_ prime: OrganizationPrime, answerToReset: Data) -> Bool {
+  public static func store(_ prime: OrganizationPrime, answerToReset: Data) -> OSStatus {
     guard
       let account = account(answerToReset: answerToReset),
       let payload = try? JSONEncoder().encode(prime)
     else {
-      return false
+      return errSecParam
     }
     let coordinates = query(account: account)
     let replacement = [kSecValueData as String: payload]
     let updated = SecItemUpdate(coordinates as CFDictionary, replacement as CFDictionary)
-    if updated == errSecSuccess { return true }
-    guard updated == errSecItemNotFound else { return false }
+    guard updated == errSecItemNotFound else { return updated }
     var insertion = coordinates
     insertion[kSecValueData as String] = payload
     insertion[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-    return SecItemAdd(insertion as CFDictionary, nil) == errSecSuccess
+    return SecItemAdd(insertion as CFDictionary, nil)
   }
 
   /// The prime for the card model `answerToReset` names, or nil.

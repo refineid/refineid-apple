@@ -119,7 +119,8 @@ extension Token {
       return
     }
     let stored = OrganizationPrimeStore.store(prime, answerToReset: answerToReset)
-    TokenLog.info("readIdentity: organization card primed for the antenna stored=\(stored)")
+    TokenLog.info(
+      "readIdentity: organization card primed for the antenna status=\(stored)")
   }
 
   /// Runs PACE over an already-open channel and reads through it.

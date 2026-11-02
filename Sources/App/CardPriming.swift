@@ -169,6 +169,9 @@
       // without taking a card session, leaving the card to this flow.
       let marked = PrimeStore.markRegistrationField()
       guard marked == errSecSuccess else {
+        #if DEBUG
+          DevErrorLog.report("setup: registration mark not stored, status \(marked)", source: .app)
+        #endif
         return Self.failure(Self.storeFailure(marked))
       }
       defer { PrimeStore.clearRegistrationField() }
@@ -177,6 +180,9 @@
       do {
         session = try await NearFieldCardSession.open(showing: .setup)
       } catch {
+        #if DEBUG
+          DevErrorLog.report("setup: no card session: \(error)", source: .app)
+        #endif
         return Self.failure(error)
       }
       defer { session.end() }
@@ -269,6 +275,12 @@
             })
         }
       } catch {
+        #if DEBUG
+          DevErrorLog.report(
+            "setup: hold failed (\(execution.foundKind.value.map { "\($0)" } ?? "no answer")): "
+              + "\(error)",
+            source: .app)
+        #endif
         // The sheet is the only thing a holder can see while holding, so
         // it carries the detail rather than a shrug. Nothing here names
         // a PIN, CAN or the holder.
@@ -338,6 +350,9 @@
       if registered {
         execution.sheet.finish()
       } else {
+        #if DEBUG
+          DevErrorLog.report("setup: the card was not registered for the system", source: .app)
+        #endif
         execution.sheet.fail(
           at: .registered, saying: String(localized: "Safari setup did not finish."))
       }
