@@ -62,7 +62,9 @@ extension CardMaintenance {
     }
     let result = await onCard(
       transport: transport,
-      cardAccessNumber: cardAccessNumber,
+      opener: .pin(.pin2(pin2), cardAccessNumber: cardAccessNumber) { outcome in
+        .refused(outcome)
+      },
       operation: .signature,
       failedStep: Self.failedStep(of:)
     ) { operations in
@@ -101,6 +103,12 @@ extension CardMaintenance {
 
   /// The qualified signature, inside an open session: floor, the
   /// certificate, PIN2, then the one signature it authorises.
+  ///
+  /// A channel PIN 2 opened (an organization card on an antenna) has
+  /// already passed the floor and counts as PIN 2 verified, so it is
+  /// neither probed nor verified again; the card then signs in DF.ESIGN,
+  /// selected afresh after the certificate read (FINEID S4-2 v4.0
+  /// section 4.6.21).
   private static func qualifiedInSession(
     _ operations: CardOperations,
     pin2: String,
@@ -108,12 +116,9 @@ extension CardMaintenance {
     expectedCertificate: Data?,
     builder: (Data) -> Data
   ) -> QualifiedAnswer {
-    guard let probe = try? operations.probeRetryCounter(role: .pin2) else {
-      return .refused(.floorRefused(.refuseUnreadable))
-    }
-    let verdict = RetryFloor.evaluate(probeOutcome: probe)
-    guard verdict == .proceed else {
-      return .refused(.floorRefused(verdict))
+    let openedByPin2 = operations.channelPin == .pin2
+    if !openedByPin2, let refusal = Self.floorRefusal(operations) {
+      return refusal
     }
     guard let identity = Self.qualifiedIdentity(cachedCertificate, operations) else {
       return .refused(.failed)
@@ -126,13 +131,8 @@ extension CardMaintenance {
     else {
       return .signerCertificateMismatch
     }
-    guard let credential = Pin2(digits: pin2) else {
-      return .refused(.invalidEntry)
-    }
-    do {
-      try operations.verifyPin2(credential.consumeForSingleTransmission())
-    } catch {
-      return .refused(outcome(of: error))
+    if let refusal = Self.authorization(operations, pin2: pin2, openedByPin2: openedByPin2) {
+      return refusal
     }
     let content = builder(identity.certificate)
     let digest = Data(SHA384.hash(data: content))
@@ -156,6 +156,43 @@ extension CardMaintenance {
         profile: identity.profile
       )
     )
+  }
+
+  /// The retry floor's refusal of PIN 2.
+  ///
+  /// Read with the counter-safe probe; nil when PIN 2 may be presented.
+  private static func floorRefusal(_ operations: CardOperations) -> QualifiedAnswer? {
+    guard let probe = try? operations.probeRetryCounter(role: .pin2) else {
+      return .refused(.floorRefused(.refuseUnreadable))
+    }
+    let verdict = RetryFloor.evaluate(probeOutcome: probe)
+    guard verdict == .proceed else {
+      return .refused(.floorRefused(verdict))
+    }
+    return nil
+  }
+
+  /// Authorizes the one signature.
+  ///
+  /// VERIFY PIN 2, or, in a channel PIN 2 opened, the signature directory
+  /// made current. Nil when the card may sign.
+  private static func authorization(
+    _ operations: CardOperations,
+    pin2: String,
+    openedByPin2: Bool
+  ) -> QualifiedAnswer? {
+    if openedByPin2 {
+      return (try? operations.selectEsignDirectory()) == nil ? .refused(.failed) : nil
+    }
+    guard let credential = Pin2(digits: pin2) else {
+      return .refused(.invalidEntry)
+    }
+    do {
+      try operations.verifyPin2(credential.consumeForSingleTransmission())
+    } catch {
+      return .refused(outcome(of: error))
+    }
+    return nil
   }
 
   /// Whether the card certificate is the exact one a visible stamp states.

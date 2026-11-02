@@ -42,7 +42,7 @@ extension Token {
     TokenLog.trace(
       "field: token=\(tokenID) hold=\(heldSession.diagnosticIdentifier) channel=\(channel.channelID) "
         + "pendingSign=\(isPendingSign)")
-    if isPendingSign, let accessNumber = sealedAccessNumber {
+    if isPendingSign, let accessNumber = unsealing.accessNumber {
       heldSession.startPACE(with: accessNumber)
     }
     if !isPendingSign {

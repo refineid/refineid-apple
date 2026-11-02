@@ -41,7 +41,7 @@ extension CardMaintenance {
     }
     return await onCard(
       transport: transport,
-      cardAccessNumber: cardAccessNumber,
+      opener: .cardAccessNumber(cardAccessNumber),
       operation: .activation,
       failedStep: Self.failedStep(of:)
     ) { operations -> ActivationExecution? in

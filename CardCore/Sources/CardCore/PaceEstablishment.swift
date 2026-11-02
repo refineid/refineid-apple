@@ -2,33 +2,59 @@
 
 import Foundation
 
-/// PACE-ECDH-GM-AES-CBC-CMAC-256 over brainpoolP384r1 with the CAN: the
-/// FINEID card's contactless door.
+/// `id-PACE-ECDH-GM-AES-CBC-CMAC-256` (BSI TR-03110-3 section A.5, ICAO
+/// Doc 9303 Part 11 section 4.4) with a ``PacePassword``, over the
+/// standardized domain parameter the card's EF.CardAccess lists: the FINEID
+/// card's contactless door.
 ///
-/// MSE:Set AT names the suite, the password (the CAN) and the curve; four
-/// GENERAL AUTHENTICATE rounds then run the protocol. Round one returns a
-/// nonce encrypted under a key derived from the CAN, so only a terminal that
-/// knows the CAN learns `s`. Round two exchanges ephemeral public points and
-/// the generic mapping turns them into a fresh generator `G' = s*G + H`,
-/// where `H` is the ordinary ECDH point of that exchange. Round three is a
-/// second ephemeral exchange, this time on `G'`, whose shared point's
-/// x-coordinate is the PACE shared secret. Round four exchanges
-/// authentication tokens: each side MACs the point the other sent, so
-/// neither uses the session until it has evidence the other derived the same
-/// keys. Only the last round clears the command-chaining bit.
+/// A run first reads EF.CardAccess and takes the generic-mapping suite over
+/// the most preferred listed domain (``CardAccess/genericMappingSuite``).
+/// MSE:Set AT then names the suite, the password and the curve; four
+/// GENERAL AUTHENTICATE rounds run the protocol. Round one returns a nonce
+/// encrypted under a key derived from the password, so only a terminal
+/// that knows the password learns `s`. Round two exchanges ephemeral public
+/// points and the generic mapping turns them into a fresh generator
+/// `G' = s*G + H`, where `H` is the ordinary ECDH point of that exchange.
+/// Round three is a second ephemeral exchange, this time on `G'`, whose
+/// shared point's x-coordinate is the PACE shared secret. Round four
+/// exchanges authentication tokens: each side MACs the point the other
+/// sent, so neither uses the session until it has evidence the other
+/// derived the same keys. Only the last round clears the command-chaining
+/// bit.
 ///
-/// What comes out is `PaceSessionKeys`. Turning that into a channel is
-/// `SecureMessagingChannel`'s job, and it is the only thing the keys are
-/// good for.
+/// A failed run with the card access number consumes no counter, so a
+/// wrong CAN is a recoverable user error. A PIN is different: the
+/// organization card takes one of the PIN's tries at the first GENERAL
+/// AUTHENTICATE and gives it back only when the handshake completes, so a
+/// handshake abandoned after that command costs a try (observed on
+/// hardware, refineid-core `doc/reference/pace.md`). MSE:Set AT answers
+/// with the PIN's state before any try is spent (BSI TR-03110-3 section
+/// B.14.1), and the retry floor decides on that answer before the first
+/// GENERAL AUTHENTICATE is sent.
 ///
-/// Failing PACE consumes no retry counter -- the CAN has none -- so a wrong
-/// CAN is a recoverable user error, unlike a wrong PIN.
+/// What comes out is ``Established``: the session keys, and for a PIN the
+/// state MSE:Set AT reported. Turning the keys into a channel is
+/// `SecureMessagingChannel`'s job, and it is the only thing they are good
+/// for.
 ///
 /// Provenance: lifted from the RefineID iOS browser donor
-/// `Sources/RefineIDBrowserKit/Card/Pace.swift`, which was in turn ported
-/// byte-exact from the Rust reference implementation and proven against a
-/// live card.
+/// `Sources/RefineIDBrowserKit/Card/Pace.swift`; the password, the suite
+/// choice, the nonce length and the retry floor follow the refineid-core
+/// `crates/pace` handshake.
 public struct PaceEstablishment {
+  /// What a completed run yields.
+  public struct Established: Sendable {
+    /// The secure-messaging session keys.
+    public let keys: PaceSessionKeys
+
+    /// The PIN's state as MSE:Set AT reported it before the handshake.
+    ///
+    /// Nil for the card access number. The handshake completed, so the
+    /// card returned the try it took; this is the reading the retry floor
+    /// and PIN 1 retention decide on.
+    public let pinState: RetryProbeOutcome?
+  }
+
   /// Why a PACE run was abandoned.
   ///
   /// Every case is terminal for the attempt: no round can be retried on the
@@ -42,25 +68,49 @@ public struct PaceEstablishment {
     /// The card answered a PACE command with something other than success.
     case cardRejected(StatusWord)
 
+    /// EF.CardAccess could not be selected or read.
+    case cardAccessUnreadable
+
+    /// EF.CardAccess did not parse.
+    case cardAccessMalformed(CardAccess.Failure)
+
+    /// EF.CardAccess lists no generic-mapping AES-256 suite over a domain
+    /// parameter this build runs; nothing was sent after the read.
+    case noSupportedSuite
+
+    /// The retry floor refused the PIN on MSE:Set AT's answer; nothing was
+    /// sent after it. The reading the floor judged is carried.
+    case retryFloorRefused(RetryFloorVerdict, RetryProbeOutcome)
+
+    /// The card reports the PIN password deactivated (BSI TR-03110-3
+    /// section B.14.1); nothing was sent after MSE:Set AT.
+    case passwordDeactivated
+
+    /// The card refused the handshake with a PIN password and reports the
+    /// tries left (BSI TR-03110-3 section B.14.2): a wrong PIN.
+    case wrongPin(remaining: RetryCount)
+
     /// A response was not the dynamic authentication data the round
     /// expects, or a command could not be encoded within the short form.
     case malformedResponse
+
+    /// The card answered with the terminal's own ephemeral public point
+    /// (ICAO Doc 9303 Part 11 section 4.4.1, step 4 d).
+    case reflectedPoint
 
     /// A point the protocol requires to be finite was the point at
     /// infinity, so it has neither an encoding nor an x-coordinate.
     case unusablePoint
   }
 
-  /// The PACE nonce length: one AES block (ICAO 9303-11 section 9.7.3).
-  private static let nonceLength: Int = AesCbc.blockSize
-
   /// The transport this run drives.
-  private let channel: any CardChannel
+  internal let channel: any CardChannel
 
-  private let diagnostic: (@Sendable (String) -> Void)?
+  /// Where the phases of a run are reported, in development builds.
+  internal let diagnostic: (@Sendable (String) -> Void)?
 
   /// Where the two ephemeral private scalars come from.
-  private let scalarSource: PaceEphemeralScalarSource
+  internal let scalarSource: PaceEphemeralScalarSource
 
   /// A run over `channel` using the platform CSPRNG for its scalars.
   @preconcurrency
@@ -81,213 +131,101 @@ public struct PaceEstablishment {
     self.diagnostic = nil
   }
 
-  /// The mapped generator `G' = s*G + H` of the generic mapping.
+  /// Runs PACE with `password` over the suite EF.CardAccess names.
   ///
-  /// The nonce becomes a scalar by zero-extending its 16 big-endian bytes
-  /// to the 384-bit width, with no reduction modulo the group order: that
-  /// is what ICAO 9303-11 section 9.7.3 prescribes and what the card does.
-  private static func mappedGenerator(
-    nonce: Data,
-    cardMappingPoint: BrainpoolPoint,
-    mappingScalar: U384
-  ) throws -> BrainpoolPoint {
-    guard let nonceScalar = U384(bigEndianBytes: nonce) else {
-      throw Failure.malformedResponse
+  /// The card must accept commands at master-file level, where the read
+  /// of EF.CardAccess leaves it; a FINEID card refuses MSE:Set AT from an
+  /// application context.
+  public func establish(with password: borrowing PacePassword) throws -> Established {
+    let cardAccess = try readCardAccess()
+    guard let suite = cardAccess.genericMappingSuite else {
+      throw Failure.noSupportedSuite
     }
-    let shared = BrainpoolP384r1.multiply(cardMappingPoint, by: mappingScalar)
-    return BrainpoolP384r1.multiplyGenerator(by: nonceScalar).adding(shared)
+    return try establish(with: password, suite: suite)
   }
 
-  /// The session keys derived from the agreed point.
-  ///
-  /// Only the x-coordinate enters the derivation, per ICAO 9303-11
-  /// section 9.7.4; the point at infinity has none, which is a protocol
-  /// failure rather than a zero secret.
-  private static func sessionKeys(sharedSecret: BrainpoolPoint) throws -> PaceSessionKeys {
-    guard let horizontal = sharedSecret.affineX else {
-      throw Failure.unusablePoint
+  /// Runs PACE with `password` over `suite`.
+  public func establish(
+    with password: borrowing PacePassword,
+    suite: PaceInfo
+  ) throws -> Established {
+    switch suite.domain {
+    case .nistP384:
+      try run(NistP384.self, suite: suite, password: password)
+
+    case .brainpoolP384r1:
+      try run(BrainpoolP384r1.self, suite: suite, password: password)
+
+    case .nistP256:
+      try run(NistP256.self, suite: suite, password: password)
     }
-    let secret = horizontal.bigEndianBytes()
-    guard
-      let keys = PaceSessionKeys(
-        encryptionKey: PaceKeyDerivation.derivedKey(from: secret, for: .encryption),
-        macKey: PaceKeyDerivation.derivedKey(from: secret, for: .mac)
-      )
-    else {
-      throw Failure.malformedResponse
-    }
-    return keys
   }
 
-  /// Runs PACE with `accessNumber` and returns the session keys.
+  /// EF.CardAccess, its unreadability told apart from a dead link.
   ///
-  /// The CAN is used for exactly one thing, in one place: deriving the key
-  /// that deciphers the nonce. It is not retained past that point.
-  public func establish(with accessNumber: CardAccessNumber) throws -> PaceSessionKeys {
+  /// A transport failure passes through as itself, because a card that
+  /// stopped answering is not a card without a suite.
+  private func readCardAccess() throws -> CardAccess {
+    do {
+      return try CardOperations(channel: channel).readCardAccess()
+    } catch let failure as CardAccess.Failure {
+      throw Failure.cardAccessMalformed(failure)
+    } catch CardOperationError.sessionUnavailable {
+      throw CardOperationError.sessionUnavailable
+    } catch CardOperationError.exchangeUnanswered {
+      throw CardOperationError.exchangeUnanswered
+    } catch let failure as CardOperationError {
+      diagnostic?("PACE EF.CardAccess unreadable: \(failure)")
+      throw Failure.cardAccessUnreadable
+    }
+  }
+
+  /// The whole handshake over `Curve`.
+  private func run<Curve: PaceCurve>(
+    _: Curve.Type,
+    suite: PaceInfo,
+    password: borrowing PacePassword
+  ) throws -> Established {
     let started = ContinuousClock.now
-    guard let environment = PaceCommand.securityEnvironment() else {
-      throw Failure.malformedResponse
-    }
-    _ = try transmit(environment)
-
-    let nonce = try recoverNonce(with: accessNumber)
+    let pinState = try setAuthenticationTemplate(suite: suite, password: password)
+    let nonce = try recoverNonce(with: password)
     reportPhase("nonce", since: started)
 
-    let mappingScalar = scalarSource.nextScalar()
-    let cardMappingPoint = try exchangeMappingData(mappingScalar: mappingScalar)
-    let mappedGenerator = try Self.mappedGenerator(
-      nonce: nonce,
-      cardMappingPoint: cardMappingPoint,
-      mappingScalar: mappingScalar
+    let mappingScalar = nextScalar(Curve.self)
+    let terminalMappingPoint = Curve.multiplyGenerator(by: mappingScalar)
+    let cardMappingPoint: CurvePoint<Curve> = try exchange(
+      terminalMappingPoint,
+      terminalTag: PaceValues.mappingDataTerminalTag,
+      cardTag: PaceValues.mappingDataCardTag,
+      password: password
     )
-
+    let mappedGenerator = Curve.multiplyGenerator(
+      by: U384.reduced(bigEndian: nonce, modulo: Curve.order)
+    )
+    .adding(Curve.multiply(cardMappingPoint, by: mappingScalar))
     reportPhase("mapping", since: started)
-    let agreementScalar = scalarSource.nextScalar()
-    let terminalPublicKey = BrainpoolP384r1.multiply(mappedGenerator, by: agreementScalar)
-    let cardPublicKey = try exchangeEphemeralKeys(terminalPublicKey: terminalPublicKey)
-    let keys = try Self.sessionKeys(
-      sharedSecret: BrainpoolP384r1.multiply(cardPublicKey, by: agreementScalar)
-    )
 
+    let agreementScalar = nextScalar(Curve.self)
+    let terminalPublicKey = Curve.multiply(mappedGenerator, by: agreementScalar)
+    let cardPublicKey: CurvePoint<Curve> = try exchange(
+      terminalPublicKey,
+      terminalTag: PaceValues.ephemeralPublicKeyTerminalTag,
+      cardTag: PaceValues.ephemeralPublicKeyCardTag,
+      password: password
+    )
+    let keys = try Self.sessionKeys(
+      sharedSecret: Curve.multiply(cardPublicKey, by: agreementScalar)
+    )
     reportPhase("agreement", since: started)
+
     try confirm(
       keys: keys,
+      suite: suite,
       terminalPublicKey: terminalPublicKey,
-      cardPublicKey: cardPublicKey
+      cardPublicKey: cardPublicKey,
+      password: password
     )
     reportPhase("confirmation", since: started)
-    return keys
-  }
-
-  private func reportPhase(_ phase: String, since started: ContinuousClock.Instant) {
-    let elapsed = TraceTiming.milliseconds(started.duration(to: ContinuousClock.now))
-    diagnostic?("PACE phase=\(phase) elapsedMs=\(elapsed)")
-  }
-
-  /// Round one: fetch the encrypted nonce and decipher it with the key the
-  /// CAN derives.
-  ///
-  /// The nonce is exactly one block and travels unpadded, so the recovered
-  /// buffer is used whole. A wrong CAN yields a wrong nonce here and
-  /// surfaces three rounds later as a token mismatch, which is by design:
-  /// the card must not learn early that the guess was wrong.
-  private func recoverNonce(with accessNumber: CardAccessNumber) throws -> Data {
-    guard let template = PaceDataObject.emptyDynamicAuthenticationData() else {
-      throw Failure.malformedResponse
-    }
-    let response = try generalAuthenticate(
-      template: template,
-      classByte: Iso7816Values.classCommandChaining
-    )
-    let encryptedNonce = try PaceDataObject.value(
-      in: response,
-      contextTag: PaceValues.encryptedNonceTag
-    )
-    guard encryptedNonce.count == Self.nonceLength else {
-      throw Failure.malformedResponse
-    }
-    return try AesCbc.decrypt(
-      key: accessNumber.derivedPasswordKey(),
-      initializationVector: Data(repeating: 0, count: AesCbc.blockSize),
-      ciphertext: encryptedNonce
-    )
-  }
-
-  /// Round two: send the terminal's mapping point, receive the card's.
-  private func exchangeMappingData(mappingScalar: U384) throws -> BrainpoolPoint {
-    let terminalPoint = BrainpoolP384r1.multiplyGenerator(by: mappingScalar)
-    let response = try roundTrip(
-      contextTag: PaceValues.mappingDataTerminalTag,
-      value: try PaceDataObject.encodedPoint(terminalPoint),
-      classByte: Iso7816Values.classCommandChaining
-    )
-    return try PaceDataObject.point(
-      in: response,
-      contextTag: PaceValues.mappingDataCardTag
-    )
-  }
-
-  /// Round three: send the terminal's ephemeral public key on the mapped
-  /// generator, receive the card's.
-  private func exchangeEphemeralKeys(
-    terminalPublicKey: BrainpoolPoint
-  ) throws -> BrainpoolPoint {
-    let response = try roundTrip(
-      contextTag: PaceValues.ephemeralPublicKeyTerminalTag,
-      value: try PaceDataObject.encodedPoint(terminalPublicKey),
-      classByte: Iso7816Values.classCommandChaining
-    )
-    return try PaceDataObject.point(
-      in: response,
-      contextTag: PaceValues.ephemeralPublicKeyCardTag
-    )
-  }
-
-  /// Round four: exchange authentication tokens and check the card's.
-  ///
-  /// Each side MACs the point the OTHER sent, so a matching token is
-  /// evidence that the card derived the same Kmac -- and therefore the same
-  /// Kenc -- from the same shared secret. This is the round that clears the
-  /// chaining bit, which is how the card knows PACE is complete.
-  private func confirm(
-    keys: PaceSessionKeys,
-    terminalPublicKey: BrainpoolPoint,
-    cardPublicKey: BrainpoolPoint
-  ) throws {
-    let terminalToken = try AesCmac.secureMessagingTag(
-      key: keys.macKey,
-      message: try PaceDataObject.authenticationTokenInput(for: cardPublicKey)
-    )
-    let response = try roundTrip(
-      contextTag: PaceValues.authenticationTokenTerminalTag,
-      value: terminalToken,
-      classByte: Iso7816Values.classInterindustry
-    )
-    let cardToken = try PaceDataObject.value(
-      in: response,
-      contextTag: PaceValues.authenticationTokenCardTag
-    )
-    let expected = try AesCmac.secureMessagingTag(
-      key: keys.macKey,
-      message: try PaceDataObject.authenticationTokenInput(for: terminalPublicKey)
-    )
-    guard ConstantTimeComparison.equal(expected, cardToken) else {
-      throw Failure.authenticationTokenMismatch
-    }
-  }
-
-  /// One GENERAL AUTHENTICATE carrying a single context data object.
-  private func roundTrip(contextTag: UInt8, value: Data, classByte: UInt8) throws -> Data {
-    guard
-      let template = PaceDataObject.dynamicAuthenticationData(
-        contextTag: contextTag,
-        value: value
-      )
-    else {
-      throw Failure.malformedResponse
-    }
-    return try generalAuthenticate(template: template, classByte: classByte)
-  }
-
-  /// Sends one GENERAL AUTHENTICATE and returns its payload.
-  private func generalAuthenticate(template: Data, classByte: UInt8) throws -> Data {
-    guard
-      let command = PaceCommand.generalAuthenticate(
-        template: template,
-        classByte: classByte
-      )
-    else {
-      throw Failure.malformedResponse
-    }
-    return try transmit(command)
-  }
-
-  /// Transmits one command, follows any `61xx`, and insists on success.
-  private func transmit(_ command: Data) throws -> Data {
-    let response = try ContinuedResponse.transmitting(command, over: channel)
-    guard response.statusWord == .success else {
-      throw Failure.cardRejected(response.statusWord)
-    }
-    return response.payload
+    return Established(keys: keys, pinState: pinState)
   }
 }

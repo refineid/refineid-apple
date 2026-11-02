@@ -24,9 +24,31 @@ public struct CardOperations {
   /// and feed the same memory.
   internal let referenceMemo = CredentialReferenceMemo()
 
+  /// The PIN this session's PACE channel was opened with, nil for a plain
+  /// channel or one opened with the card access number.
+  ///
+  /// An organization card counts a completed PACE with a PIN as that PIN
+  /// verified (FINEID S1 v4.0, organizational cards, section 2.1): the key
+  /// it gates signs with no VERIFY, and the empty VERIFY status probe is
+  /// refused inside such a channel (`6988`, observed on hardware), so
+  /// nothing on it probes or verifies the PIN again.
+  public let channelPin: CredentialRole?
+
   /// Wraps one exclusive session's transport.
   public init(channel: any CardChannel) {
     self.channel = channel
+    self.channelPin = nil
+  }
+
+  /// Wraps a secure channel PACE opened with an organization card's PIN.
+  ///
+  /// The PIN opened the channel under the organization numbering's
+  /// security-data-object reference (FINEID S4-2 v4.0 section 6), which
+  /// resolves the numbering for the session without a probe.
+  public init(channel: any CardChannel, openedWith pin: CredentialRole) {
+    self.channel = channel
+    self.channelPin = pin
+    referenceMemo.resolved = .organization
   }
 
   /// Selects the FINEID eID application; the card's DF becomes current.
@@ -171,17 +193,28 @@ public struct CardOperations {
   ///
   /// Runs on the plain channel from the main file, before any secure
   /// channel exists -- the file is readable unauthenticated because a
-  /// terminal needs it to know how to open one. Nothing in the login
-  /// path calls this; it answers whether a cheaper suite than the fixed
-  /// one is on offer.
+  /// terminal needs it to know how to open one. This is the diagnostic
+  /// report of every entry; the handshake reads ``readCardAccess()``.
   ///
   /// Empty when the file carries nothing this build can read, which is
   /// not a card failure: a card is free to advertise protocols nobody
-  /// here parses, and the fixed suite is what runs either way. An
-  /// absent file throws at selection, like any other missing EF.
+  /// here parses. An absent file throws at selection, like any other
+  /// missing EF.
   public func readCardAccessInfo() throws -> [CardAccessFile.SecurityInfo] {
     try selectMainFile()
     return CardAccessFile.parse(try readSelectedFile(.cardAccess))
+  }
+
+  /// Reads and parses EF.CardAccess from the main file.
+  ///
+  /// It runs on the plain channel, before any secure channel exists: the
+  /// file is readable unauthenticated because a terminal needs it to know
+  /// how to open one (BSI TR-03110-3 table 2). Every PACE run reads it first and takes its
+  /// suite from it, and leaves the card at the main file, where PACE
+  /// starts.
+  public func readCardAccess() throws -> CardAccess {
+    try? selectMainFile()
+    return try CardAccess.parse(try readSelectedFile(.cardAccess))
   }
 
   /// Selects the main file, trying the proven wire variants in order

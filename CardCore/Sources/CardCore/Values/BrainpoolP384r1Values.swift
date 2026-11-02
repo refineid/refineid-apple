@@ -132,4 +132,7 @@ internal enum BrainpoolP384r1Values {
   /// coincide, so a point that is on the curve and not at infinity is
   /// automatically in the subgroup.
   internal static let cofactor: UInt64 = 1
+
+  /// The width of one coordinate and of one scalar: 384 bits.
+  internal static let coordinateByteCount: Int = 48
 }

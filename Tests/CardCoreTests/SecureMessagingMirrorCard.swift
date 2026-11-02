@@ -75,6 +75,9 @@ internal final class SecureMessagingMirrorCard: CardChannel {
   /// Whether responses are protected honestly.
   private let fault: Fault
 
+  /// The bytes one response may carry, status word included.
+  private let responseBudget: Int
+
   /// The remaining scripted inner responses, as plaintext and status word.
   private var scripted: [(payload: Data, statusWord: Data)]
 
@@ -115,16 +118,36 @@ internal final class SecureMessagingMirrorCard: CardChannel {
   /// than inferring it from the fact that nothing failed.
   internal private(set) var commandCounters: [Data] = []
 
-  internal init(
+  internal convenience init(
     encryptionKey: Data,
     macKey: Data,
     responses: [(payload: Data, statusWord: Data)],
     fault: Fault
   ) {
+    self.init(
+      encryptionKey: encryptionKey,
+      macKey: macKey,
+      responses: responses,
+      fault: fault,
+      responseBudget: Self.outerBudget
+    )
+  }
+
+  /// A card whose one response may carry `responseBudget` bytes, status
+  /// word included: a reader's T=1 frame carries a whole protected RSA-3072
+  /// signature, which no short-form response can.
+  internal init(
+    encryptionKey: Data,
+    macKey: Data,
+    responses: [(payload: Data, statusWord: Data)],
+    fault: Fault,
+    responseBudget: Int
+  ) {
     self.encryptionKey = encryptionKey
     self.macKey = macKey
     self.fault = fault
     self.scripted = responses
+    self.responseBudget = responseBudget
     self.sendSequenceCounter = Data(repeating: 0, count: AesCbc.blockSize)
   }
 
@@ -233,7 +256,7 @@ internal final class SecureMessagingMirrorCard: CardChannel {
     var payload = response.payload
     var body = try protectedBody(payload: payload, statusWord: response.statusWord)
     while !payload.isEmpty,
-      body.count + ResponseApdu.statusWordLength > Self.outerBudget
+      body.count + ResponseApdu.statusWordLength > responseBudget
     {
       payload = Data(payload.dropLast())
       body = try protectedBody(payload: payload, statusWord: response.statusWord)

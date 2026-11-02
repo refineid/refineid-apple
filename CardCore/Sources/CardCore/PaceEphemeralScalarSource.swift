@@ -20,52 +20,57 @@ import Foundation
 /// `PACE.randomScalar` of the RefineID iOS browser donor
 /// `Sources/RefineIDBrowserKit/Card/Pace.swift`.
 public struct PaceEphemeralScalarSource {
+  /// The range one scalar is drawn from: `[1, order)`, in `byteCount`
+  /// bytes, the width of the curve's scalars.
+  internal struct Range {
+    internal let order: U384
+    internal let byteCount: Int
+  }
+
   /// The shipping source: rejection sampling over the platform CSPRNG.
   ///
   /// Computed rather than stored because the type wraps a closure and is
   /// therefore not `Sendable`; a fresh value costs nothing and keeps the
   /// module free of shared mutable state.
   public static var secureRandom: Self {
-    Self(producing: Self.randomScalar)
+    Self(drawing: Self.randomScalar(in:))
   }
 
   /// The underlying generator.
-  private let produce: () -> U384
+  private let produce: (Range) -> U384
 
-  /// Wraps a generator of scalars in `[1, n)`.
+  /// Wraps a generator of scalars in `[1, n)` of the curve the run uses.
   ///
   /// The caller owns the guarantee that values are in range and
   /// unpredictable; `secureRandom` is the only implementation that has it.
   public init(producing: @escaping () -> U384) {
-    self.produce = producing
+    self.produce = { _ in producing() }
+  }
+
+  private init(drawing: @escaping (Range) -> U384) {
+    self.produce = drawing
   }
 
   /// A uniform scalar in `[1, n)` from the platform CSPRNG.
   ///
   /// `SystemRandomNumberGenerator` is the platform cryptographic random
-  /// source on Apple platforms. Candidates at or above the group order, and
-  /// the zero candidate, are discarded rather than reduced, so the result
-  /// is uniform on the interval; the rejection probability is negligible
-  /// because the brainpoolP384r1 order is just below `2^384`.
-  private static func randomScalar() -> U384 {
+  /// source on Apple platforms. A candidate is the scalar width in random
+  /// bytes; candidates at or above the group order, and the zero
+  /// candidate, are discarded rather than reduced, so the result is
+  /// uniform on the interval.
+  private static func randomScalar(in range: Range) -> U384 {
     var generator = SystemRandomNumberGenerator()
     while true {
-      let candidate = U384(
-        limb0: generator.next(),
-        limb1: generator.next(),
-        limb2: generator.next(),
-        limb3: generator.next(),
-        limb4: generator.next(),
-        limb5: generator.next()
-      )
-      if !candidate.isZero, candidate < BrainpoolP384r1.order {
+      let bytes = Data(
+        (0..<range.byteCount).map { _ in UInt8.random(in: .min ... .max, using: &generator) })
+      if let candidate = U384(bigEndianBytes: bytes), !candidate.isZero, candidate < range.order {
         return candidate
       }
     }
   }
 
-  /// The next ephemeral scalar.
-  internal func nextScalar() -> U384 {
-    produce()
+  /// The next ephemeral scalar for a curve of order `order`.
+  internal func nextScalar(below order: U384, byteCount: Int) -> U384 {
+    produce(Range(order: order, byteCount: byteCount))
   }
 }

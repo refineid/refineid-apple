@@ -52,12 +52,15 @@ internal enum PaceDataObject {
 
   /// The card's point from one context data object.
   ///
-  /// `BrainpoolPoint`'s decoder is the gate: a non-canonical coordinate or
-  /// an off-curve pair never becomes a point, so the protocol flow never
-  /// has to re-check what the card sent.
-  internal static func point(in payload: Data, contextTag: UInt8) throws -> BrainpoolPoint {
+  /// `CurvePoint`'s decoder is the gate: a non-canonical coordinate or an
+  /// off-curve pair never becomes a point, so the protocol flow never has
+  /// to re-check what the card sent.
+  internal static func point<Curve: PaceCurve>(
+    in payload: Data,
+    contextTag: UInt8
+  ) throws -> CurvePoint<Curve> {
     let encoded = try Self.value(in: payload, contextTag: contextTag)
-    guard let decoded = BrainpoolPoint.decodeUncompressed(encoded) else {
+    guard let decoded = CurvePoint<Curve>.decodeUncompressed(encoded) else {
       throw PaceEstablishment.Failure.malformedResponse
     }
     return decoded
@@ -65,7 +68,7 @@ internal enum PaceDataObject {
 
   /// The SEC1 uncompressed encoding of a point the protocol requires to be
   /// finite.
-  internal static func encodedPoint(_ point: BrainpoolPoint) throws -> Data {
+  internal static func encodedPoint<Curve: PaceCurve>(_ point: CurvePoint<Curve>) throws -> Data {
     guard let encoded = point.encodeUncompressed() else {
       throw PaceEstablishment.Failure.unusablePoint
     }
@@ -78,11 +81,14 @@ internal enum PaceDataObject {
   /// The two-byte tag `7F49` is emitted by encoding the template under its
   /// second byte and prefixing the first, which yields exactly
   /// `7F 49 <len> <value>` and needs no second encoder.
-  internal static func authenticationTokenInput(for point: BrainpoolPoint) throws -> Data {
+  internal static func authenticationTokenInput<Curve: PaceCurve>(
+    for point: CurvePoint<Curve>,
+    suite: PaceInfo
+  ) throws -> Data {
     guard
       let identifier = DerTlvRecord.encoded(
         tag: PaceValues.objectIdentifierTag,
-        value: Data(PaceValues.protocolOidBody)
+        value: Data(suite.protocolOidBody)
       ),
       let publicKey = DerTlvRecord.encoded(
         tag: PaceValues.publicKeyTemplatePointTag,

@@ -75,4 +75,49 @@ internal struct OrganizationSigningTests {
     #expect(raw == WireHex.data(signature))
     #expect(channel.isExhausted)
   }
+
+  @Test
+  internal func aPin2ChannelSignsInEsignWithNoProbeAndNoVerify() throws {
+    // PACE with PIN 2 counts as PIN 2 verified and resolves the
+    // organization numbering, so the chain is DF.ESIGN by name from the
+    // main file, MSE:SET under the local qualified key reference 82, and
+    // one PSO:CDS with the digest inline -- no VERIFY of either form,
+    // which the card refuses inside such a channel.
+    let digest = String(repeating: "CD", count: 32)
+    let signature = String(repeating: "33", count: 256)
+    let channel = ScriptedChannel([
+      ("00A4000C023F00", "9000"),
+      ("00A4040C06452E5349474E", "9000"),
+      ("002241B606800142840182", "9000"),
+      ("002A9E9A20" + digest + "00", signature + "9000"),
+    ])
+    let operations = CardOperations(channel: channel, openedWith: .pin2)
+    try operations.selectEsignDirectory()
+    let raw = try operations.computeQualifiedSignature(
+      overDigest: WireHex.data(digest),
+      algorithm: SigningAlgorithm(hash: .sha256, scheme: .rsaPkcs1),
+      expectedSignatureLength: nil
+    )
+    #expect(raw == WireHex.data(signature))
+    #expect(channel.isExhausted)
+    #expect(operations.channelPin == .pin2)
+  }
+
+  @Test
+  internal func aPin1ChannelSignsWithTheDigestInlineAndNoVerify() throws {
+    let digest = String(repeating: "AB", count: 32)
+    let signature = String(repeating: "44", count: 256)
+    let channel = ScriptedChannel([
+      ("002241B606800142840101", "9000"),
+      ("002A9E9A20" + digest + "00", signature + "9000"),
+    ])
+    let operations = CardOperations(channel: channel, openedWith: .pin1)
+    let raw = try operations.computeAuthenticationSignature(
+      overDigest: WireHex.data(digest),
+      algorithm: SigningAlgorithm(hash: .sha256, scheme: .rsaPkcs1),
+      expectedSignatureLength: nil
+    )
+    #expect(raw == WireHex.data(signature))
+    #expect(channel.isExhausted)
+  }
 }

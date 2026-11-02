@@ -56,7 +56,7 @@ format_paths=(
   CardCore/Sources/CardCore CardCore/Sources/RappEngine
   CardCore/Tests CardCore/Package.swift
   PKCS11Bridge/Sources PKCS11Bridge/Tests PKCS11Bridge/Package.swift
-  Scripts/BrainpoolBenchmark.swift
+  Scripts/PaceCurveBenchmark.swift
 )
 
 format_log=$(
@@ -99,14 +99,22 @@ typecheck "stamp samples" \
   CardCore/Sources/CardCore/StampMark.swift \
   CardCore/Sources/CardCore/Values/PdfValues.swift \
   Scripts/RenderStampSamples.swift
-typecheck "brainpool benchmark" \
+typecheck "PACE curve benchmark" \
   CardCore/Sources/CardCore/Crypto/U384.swift \
-  CardCore/Sources/CardCore/Crypto/FieldP384.swift \
-  CardCore/Sources/CardCore/Crypto/BrainpoolPoint.swift \
+  CardCore/Sources/CardCore/Crypto/MontgomeryDomain.swift \
+  CardCore/Sources/CardCore/Crypto/CurveFieldElement.swift \
+  CardCore/Sources/CardCore/Crypto/CurvePoint.swift \
+  CardCore/Sources/CardCore/Crypto/CurveDomainParameters.swift \
+  CardCore/Sources/CardCore/Crypto/PaceCurve.swift \
+  CardCore/Sources/CardCore/Crypto/JacobianPoint.swift \
   CardCore/Sources/CardCore/Crypto/BrainpoolP384r1.swift \
+  CardCore/Sources/CardCore/Crypto/NistP384.swift \
+  CardCore/Sources/CardCore/Crypto/NistP256.swift \
   CardCore/Sources/CardCore/Values/BrainpoolP384r1Values.swift \
+  CardCore/Sources/CardCore/Values/NistP256Values.swift \
+  CardCore/Sources/CardCore/Values/NistP384Values.swift \
   CardCore/Sources/CardCore/Values/Sec1Values.swift \
-  Scripts/BrainpoolBenchmark.swift
+  Scripts/PaceCurveBenchmark.swift
 
 untypechecked=$(
   comm -23 <(find Scripts -name '*.swift' | sort) \

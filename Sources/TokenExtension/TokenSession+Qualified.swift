@@ -48,7 +48,7 @@ extension TokenSession {
         try QualifiedSignature.perform(
           on: QualifiedSignature.ChannelAccess(
             channel: channel,
-            accessNumber: token.sealedAccessNumber
+            unsealing: token.unsealing
           ),
           enteredPin: entered,
           request: request,

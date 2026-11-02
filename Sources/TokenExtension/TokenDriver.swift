@@ -74,11 +74,17 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
   /// died on the link rather than on the card's answer.
   ///
   /// A refused command is the card speaking and is reported as itself.
-  /// A session that could not be opened, an exchange left unanswered, or
-  /// a link that dropped part way, is not: the system asks for a token exactly once per
-  /// insertion, so a lost attempt leaves no identity published and the
-  /// holder with a card that does nothing until they pull it out and
-  /// push it back in. One short retry turns that into a slower mint.
+  /// A session the system refused to open, an exchange left unanswered,
+  /// or a link that dropped part way, is not: the system asks for a token
+  /// exactly once per insertion, so a lost attempt leaves no identity
+  /// published and the holder with a card that does nothing until they
+  /// pull it out and push it back in. One short retry turns that into a
+  /// slower mint.
+  ///
+  /// A wait for a session that another client kept, or that ended because
+  /// the card left, earns no retry: while this mint waits, the system
+  /// mints no other card for this driver, so a second wait would hold up
+  /// every card inserted meanwhile for nothing.
   private static func readerToken(
     smartCard: TKSmartCard,
     aid: Data?,
@@ -86,7 +92,7 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
   ) throws -> TKSmartCardToken {
     do {
       return try readerTokenOnce(smartCard: smartCard, aid: aid, tokenDriver: tokenDriver)
-    } catch let failure where isTransport(failure) {
+    } catch let failure where isTransport(failure) && smartCard.isValid {
       TokenLog.info("createToken: transport failed (\(failure)); one retry")
       Thread.sleep(forTimeInterval: retryInterval)
       return try readerTokenOnce(smartCard: smartCard, aid: aid, tokenDriver: tokenDriver)
@@ -117,7 +123,6 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
 
   /// Whether a failure is the link rather than the card's answer.
   private static func isTransport(_ failure: any Error) -> Bool {
-    if case CardOperationError.sessionUnavailable = failure { return true }
     if case CardOperationError.exchangeUnanswered = failure { return true }
     let error = failure as NSError
     guard error.domain == TKErrorDomain else { return false }

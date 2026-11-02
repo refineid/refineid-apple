@@ -121,13 +121,12 @@ extension HeldCardSession {
     channel: any CardChannel,
     accessNumber: CardAccessNumber
   ) throws -> SecureMessagingChannel {
-    try? CardOperations(channel: channel).selectMainFile()
     let keys = try PaceEstablishment(
       channel: channel,
       diagnostic: { [self] event in
         recordLifecycle(event)
       }
-    ).establish(with: accessNumber)
+    ).establish(with: PacePassword(cardAccessNumber: accessNumber)).keys
     let secure = SecureMessagingChannel(wrapping: channel, sessionKeys: keys)
     try CardOperations(channel: secure).selectFineidApplication()
     return secure

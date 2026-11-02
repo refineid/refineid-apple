@@ -9,12 +9,13 @@ import Foundation
 /// until the card has told it which variants and domain parameters it
 /// supports (ICAO 9303-11 section 9.2.11).
 ///
-/// RefineID runs a fixed suite rather than negotiating one, so nothing
-/// in the login path reads this file. It is read to answer a question
-/// the fixed suite cannot: whether the card would accept a cheaper one.
-/// Generic mapping costs the card a Diffie-Hellman that integrated
-/// mapping does not, and a smaller curve costs it less again -- both
-/// were measured dominating an NFC login.
+/// This is the diagnostic reading: every entry, named as far as the bytes
+/// allow, for a report. The handshake takes its suite from ``CardAccess``
+/// instead, which keeps only what it runs. It is read here to answer a
+/// question the handshake does not ask: whether the card would accept a
+/// cheaper suite. Generic mapping costs the card a Diffie-Hellman that
+/// integrated mapping does not, and a smaller curve costs it less again --
+/// both were measured dominating an NFC login.
 ///
 /// Nothing here is trusted: an entry is reported only when its bytes
 /// parse, and an unrecognized protocol is reported by its dotted

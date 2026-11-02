@@ -13,7 +13,7 @@ internal struct HeldCardSessionTests {
 
   /// A fake held channel wrapping `SyntheticPaceCard` with synchronization hooks.
   internal final class TestHeldCardChannel: HeldCardChannel, @unchecked Sendable {
-    private let card: SyntheticPaceCard
+    private let card: SyntheticPaceCard<BrainpoolP384r1>
     private let lock = NSLock()
     private var ssc: UInt64 = 2
 
@@ -33,7 +33,7 @@ internal struct HeldCardSessionTests {
       card.readChunkLength
     }
 
-    internal init(card: SyntheticPaceCard) {
+    internal init(card: SyntheticPaceCard<BrainpoolP384r1>) {
       self.card = card
     }
 
@@ -50,7 +50,9 @@ internal struct HeldCardSessionTests {
       // Check for secure-messaging CLA (0x0C).
       if payload[0] == 0x0C {
         // Protected SELECT FINEID application: answer with protected 9000.
-        guard let keys = card.sessionKeys else { throw SyntheticPaceCard.Rejected() }
+        guard let keys = card.sessionKeys else {
+          throw SyntheticPaceCard<BrainpoolP384r1>.Rejected()
+        }
         lock.lock()
         let counter = ssc
         ssc += 2
@@ -95,6 +97,9 @@ internal struct HeldCardSessionTests {
   /// guard, so a signer that returns within one was woken, not timed out.
   internal static let signerPatienceSeconds: TimeInterval = 600
   private static let nonceHex = "00112233445566778899AABBCCDDEEFF"
+
+  /// The MSE:Set AT password reference of the card access number.
+  private static let canReference: UInt8 = 0x02
   private static let firstBlockHex = "0102030405060708090A0B0C0D0E0F10"
   private static let secondBlockHex = "1A2B3C4D5E6F708192A3B4C5D6E7F809"
   private static let thirdBlockHex = "2C3D4E5F60718293A4B5C6D7E8F90A1B"
@@ -127,17 +132,21 @@ internal struct HeldCardSessionTests {
 
   private static func scalar(_ hex: String) throws -> U384 {
     guard let value = U384(bigEndianBytes: WireHex.data(hex)) else {
-      throw SyntheticPaceCard.Rejected()
+      throw SyntheticPaceCard<BrainpoolP384r1>.Rejected()
     }
     return value
   }
 
-  internal static func makeSyntheticCard() throws -> SyntheticPaceCard {
+  internal static func makeSyntheticCard() throws -> SyntheticPaceCard<BrainpoolP384r1> {
     SyntheticPaceCard(
-      accessNumberDigits: validCanString,
-      nonce: WireHex.data(nonceHex),
-      mappingScalar: try scalar(thirdBlockHex + fourthBlockHex + firstBlockHex),
-      agreementScalar: try scalar(fourthBlockHex + firstBlockHex + secondBlockHex)
+      SyntheticPaceCard<BrainpoolP384r1>.Configuration(
+        passwordDigits: validCanString,
+        passwordReference: canReference,
+        domainParameter: CardAccessFixture.brainpoolP384,
+        nonce: WireHex.data(nonceHex),
+        mappingScalar: try scalar(thirdBlockHex + fourthBlockHex + firstBlockHex),
+        agreementScalar: try scalar(fourthBlockHex + firstBlockHex + secondBlockHex),
+        cardAccess: CardAccessFixture.citizenCard)
     )
   }
 

@@ -89,19 +89,31 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
   internal enum ResponseWait {
     case nearField
     case reader
+
+    /// A reader card read for a token mint.
+    ///
+    /// The mint holds the system's token creation for every card this
+    /// driver serves, so its wait for another holder of the card is the
+    /// short one: a card that another client keeps is refused after it,
+    /// and the next card inserted anywhere is minted.
+    case readerMint
   }
 
   /// How long to wait for whoever else has the card.
   ///
-  /// The wait used to be unbounded, and an unbounded wait is how one
-  /// stuck process takes the card away from everything else: the app
-  /// froze rather than saying the card was busy. Eight seconds is far
-  /// longer than any operation here -- a handshake is about a second, a
-  /// signature about the same -- so a legitimate queue still clears,
-  /// while a holder that is never letting go becomes an error instead of
-  /// a hang.
+  /// A bounded wait is how one stuck process is kept from taking the card
+  /// away from everything else. The mint's bound is far longer than any
+  /// operation here -- a handshake is about a second, a signature about
+  /// the same -- so a legitimate queue still clears, while a holder that
+  /// is never letting go becomes an error instead of a hang. A signature
+  /// waits longer, for a card the holder is using elsewhere at that
+  /// moment. Every wait ends as soon as the card leaves the slot.
   private static let nearFieldSessionWaitSeconds: Int = 10
+  private static let readerMintSessionWaitSeconds: Int = 8
   private static let readerSessionWaitSeconds: Int = 60
+
+  /// How often a session wait looks whether the card is still there.
+  private static let departureCheckMilliseconds: Int = 250
 
   /// Maximum time allowed for an individual APDU response on near-field.
   ///
@@ -141,17 +153,51 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
   /// The session wait budget the constructing transport chose.
   private let sessionWaitBudget: DispatchTimeInterval
 
+  /// How a protected maximum-response signature travels on this transport.
+  private let signatureRoute: SmartCardTransmit.SignatureRoute
+
+  /// Whether the card this channel speaks to has left its slot.
+  private var cardHasLeft: Bool {
+    !smartCard.isValid || smartCard.slot.state == .missing || smartCard.slot.state == .empty
+  }
+
   internal init(_ smartCard: TKSmartCard, waits: ResponseWait) {
     self.smartCard = smartCard
     switch waits {
     case .nearField:
       self.responseBudget = .seconds(Self.nearFieldResponseSeconds)
       self.sessionWaitBudget = .seconds(Self.nearFieldSessionWaitSeconds)
+      self.signatureRoute = .structured
 
     case .reader:
       self.responseBudget = .seconds(Self.readerResponseSeconds)
       self.sessionWaitBudget = .seconds(Self.readerSessionWaitSeconds)
+      self.signatureRoute = .raw
+
+    case .readerMint:
+      self.responseBudget = .seconds(Self.readerResponseSeconds)
+      self.sessionWaitBudget = .seconds(Self.readerMintSessionWaitSeconds)
+      self.signatureRoute = .raw
     }
+  }
+
+  /// Waits for the session callback until the budget runs out or the
+  /// card leaves the slot, whichever comes first; true when the callback
+  /// fired.
+  private func awaitSession(_ semaphore: DispatchSemaphore) -> Bool {
+    let deadline = DispatchTime.now() + sessionWaitBudget
+    while DispatchTime.now() < deadline {
+      let slice = min(
+        deadline, DispatchTime.now() + .milliseconds(Self.departureCheckMilliseconds))
+      if semaphore.wait(timeout: slice) == .success {
+        return true
+      }
+      if cardHasLeft {
+        TokenLog.trace("session: card left the slot while waiting")
+        return false
+      }
+    }
+    return false
   }
 
   /// Sends one APDU, and records what it was and what it cost.
@@ -203,7 +249,8 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
     return response
   }
 
-  /// Keeps protected RSA response continuation inside one CTK operation.
+  /// Keeps protected RSA response continuation inside one CTK operation
+  /// on the phone's own antenna (``SmartCardTransmit``).
   private func startTransmit(
     _ payload: Data,
     reply: Box<Data?>,
@@ -211,11 +258,12 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
     semaphore: DispatchSemaphore,
     exchangeProgress: CardExchangeProgress
   ) {
-    if CommandApdu.structuredProtectedSignature(payload) != nil {
+    if signatureRoute == .structured, CommandApdu.structuredProtectedSignature(payload) != nil {
       TokenLog.trace("apdu: mode=ctkContinuation channel=\(channelID)")
     }
     SmartCardTransmit.start(
       payload,
+      route: signatureRoute,
       transmit: { request, completion in
         smartCard.transmit(request) { response, error in
           completion(response, error)
@@ -282,7 +330,7 @@ internal struct SmartCardChannel: CardChannel, @unchecked Sendable, HeldCardChan
         wait.releaseIfAbandoned(opened: opened)
         semaphore.signal()
       }
-      guard semaphore.wait(timeout: .now() + sessionWaitBudget) == .success else {
+      guard awaitSession(semaphore) else {
         wait.giveUp()
         TokenLog.trace(
           "session: gave up waiting after "

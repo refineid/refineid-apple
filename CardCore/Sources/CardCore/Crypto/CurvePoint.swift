@@ -2,26 +2,26 @@
 
 import Foundation
 
-/// A point on the brainpoolP384r1 curve in affine coordinates.
+/// A point on a ``PaceCurve`` in affine coordinates.
 ///
 /// Either the point at infinity, or a pair of canonical coordinates both
 /// below the field prime and satisfying `y^2 = x^3 + A*x + B`. The public
-/// initializer is the gate: a pair of arbitrary 384-bit integers cannot
-/// become a point without passing the curve equation, so nothing downstream
-/// has to re-check what it was handed.
+/// initializer is the gate: a pair of arbitrary integers cannot become a
+/// point without passing the curve equation, so nothing downstream has to
+/// re-check what it was handed.
 ///
-/// Provenance: lifted from the RefineID iOS browser donor
-/// `Sources/RefineIDBrowserKit/Crypto/BrainpoolP384.swift`.
-public struct BrainpoolPoint: Equatable, Sendable {
+/// Provenance: generalised from the brainpoolP384r1 point of the RefineID
+/// iOS browser donor `Sources/RefineIDBrowserKit/Crypto/BrainpoolP384.swift`.
+public struct CurvePoint<Curve: PaceCurve>: Equatable, Sendable {
   /// The point at infinity, the additive identity of the curve group.
-  public static let infinity = Self(affine: nil)
+  public static var infinity: Self { Self(affine: nil) }
 
-  /// The number of coordinates an uncompressed encoding carries.
-  private static let uncompressedCoordinateCount = 2
-
-  /// The length of the SEC1 uncompressed encoding, `04 || X || Y`.
-  public static let uncompressedByteCount =
-    U384.byteCount * uncompressedCoordinateCount + 1
+  /// The length of the SEC1 uncompressed encoding, `04 || X || Y`
+  /// (SEC 1 v2 section 2.3.3).
+  public static var uncompressedByteCount: Int {
+    Curve.parameters.coordinateByteCount * Sec1Values.uncompressedCoordinateCount
+      + Sec1Values.pointTagLength
+  }
 
   /// The affine coordinates, or nil for the point at infinity.
   private let affine: (affineX: U384, affineY: U384)?
@@ -47,7 +47,8 @@ public struct BrainpoolPoint: Equatable, Sendable {
   /// Rejects a coordinate at or above the field prime, which is a
   /// non-canonical encoding, and any pair that is off the curve.
   public init?(affineX: U384, affineY: U384) {
-    guard affineX < BrainpoolP384r1.prime, affineY < BrainpoolP384r1.prime else {
+    let prime = Curve.parameters.prime
+    guard affineX < prime, affineY < prime else {
       return nil
     }
     let candidate = Self(onCurveX: affineX, onCurveY: affineY)
@@ -80,20 +81,30 @@ public struct BrainpoolPoint: Equatable, Sendable {
 
   /// The point carried by a SEC1 uncompressed encoding `04 || X || Y`, or nil
   /// when the input is the wrong length, carries another point form, uses a
-  /// non-canonical coordinate, or is off the curve.
+  /// non-canonical coordinate, or is off the curve (SEC 1 v2 section 2.3.4).
   public static func decodeUncompressed(_ encoded: Data) -> Self? {
+    let width = Curve.parameters.coordinateByteCount
     guard encoded.count == Self.uncompressedByteCount,
       encoded.first == Sec1Values.uncompressedPointTag
     else {
       return nil
     }
     let coordinates = Data(encoded.dropFirst())
-    guard let horizontal = U384(bigEndianBytes: Data(coordinates.prefix(U384.byteCount))),
-      let vertical = U384(bigEndianBytes: Data(coordinates.dropFirst(U384.byteCount)))
+    guard let horizontal = U384(bigEndianBytes: Data(coordinates.prefix(width))),
+      let vertical = U384(bigEndianBytes: Data(coordinates.dropFirst(width)))
     else {
       return nil
     }
     return Self(affineX: horizontal, affineY: vertical)
+  }
+
+  /// A coordinate in the curve's field width, big-endian
+  /// (SEC 1 v2 section 2.3.5).
+  ///
+  /// The ECDH shared secret of a key agreement is the x-coordinate in
+  /// exactly this form.
+  public static func fieldBytes(_ coordinate: U384) -> Data {
+    Data(coordinate.bigEndianBytes().suffix(Curve.parameters.coordinateByteCount))
   }
 
   /// True when the point satisfies `y^2 = x^3 + A*x + B` over GF(p).
@@ -102,12 +113,12 @@ public struct BrainpoolPoint: Equatable, Sendable {
   /// true.
   public func isOnCurve() -> Bool {
     guard let point = affine else { return true }
-    let horizontal = FieldP384(point.affineX)
-    let vertical = FieldP384(point.affineY)
+    let horizontal = CurveFieldElement<Curve>(point.affineX)
+    let vertical = CurveFieldElement<Curve>(point.affineY)
     let left = vertical.squared()
     let cubed = horizontal.squared().multiplied(by: horizontal)
-    let linear = BrainpoolP384r1.coefficientA.multiplied(by: horizontal)
-    let right = cubed.adding(linear).adding(BrainpoolP384r1.coefficientB)
+    let linear = Curve.coefficientA.multiplied(by: horizontal)
+    let right = cubed.adding(linear).adding(Curve.coefficientB)
     return left == right
   }
 
@@ -115,7 +126,9 @@ public struct BrainpoolPoint: Equatable, Sendable {
   public func negated() -> Self {
     guard let point = affine else { return .infinity }
     return Self(
-      onCurveX: point.affineX, onCurveY: FieldP384(point.affineY).negated().value())
+      onCurveX: point.affineX,
+      onCurveY: CurveFieldElement<Curve>(point.affineY).negated().value()
+    )
   }
 
   /// This point added to itself, by the affine tangent formula.
@@ -124,13 +137,13 @@ public struct BrainpoolPoint: Equatable, Sendable {
   /// at infinity; that shows up here as a zero denominator.
   public func doubled() -> Self {
     guard let point = affine else { return .infinity }
-    let horizontal = FieldP384(point.affineX)
-    let vertical = FieldP384(point.affineY)
+    let horizontal = CurveFieldElement<Curve>(point.affineX)
+    let vertical = CurveFieldElement<Curve>(point.affineY)
     guard let inverseDenominator = vertical.adding(vertical).inverted() else {
       return .infinity
     }
-    let tangentNumerator = horizontal.squared().multiplied(by: FieldP384.three)
-    let slope = tangentNumerator.adding(BrainpoolP384r1.coefficientA)
+    let tangentNumerator = horizontal.squared().multiplied(by: .three)
+    let slope = tangentNumerator.adding(Curve.coefficientA)
       .multiplied(by: inverseDenominator)
     let doubledX = slope.squared().subtracting(horizontal).subtracting(horizontal)
     let doubledY = slope.multiplied(by: horizontal.subtracting(doubledX)).subtracting(vertical)
@@ -147,10 +160,10 @@ public struct BrainpoolPoint: Equatable, Sendable {
     guard left.affineX != right.affineX else {
       return left.affineY == right.affineY ? doubled() : .infinity
     }
-    let leftX = FieldP384(left.affineX)
-    let leftY = FieldP384(left.affineY)
-    let rightX = FieldP384(right.affineX)
-    let rightY = FieldP384(right.affineY)
+    let leftX = CurveFieldElement<Curve>(left.affineX)
+    let leftY = CurveFieldElement<Curve>(left.affineY)
+    let rightX = CurveFieldElement<Curve>(right.affineX)
+    let rightY = CurveFieldElement<Curve>(right.affineY)
     guard let inverseDenominator = rightX.subtracting(leftX).inverted() else {
       return .infinity
     }
@@ -165,8 +178,8 @@ public struct BrainpoolPoint: Equatable, Sendable {
   public func encodeUncompressed() -> Data? {
     guard let point = affine else { return nil }
     var encoded = Data([Sec1Values.uncompressedPointTag])
-    encoded.append(point.affineX.bigEndianBytes())
-    encoded.append(point.affineY.bigEndianBytes())
+    encoded.append(Self.fieldBytes(point.affineX))
+    encoded.append(Self.fieldBytes(point.affineY))
     return encoded
   }
 }

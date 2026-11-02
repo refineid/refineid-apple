@@ -144,6 +144,12 @@ internal struct SmartCardChannel: CardChannel {
   private let smartCard: TKSmartCard
   private let responseBudget: DispatchTimeInterval
 
+  /// The answer to reset of the slot's card, which tells the contactless
+  /// interface apart without card I/O (``AnswerToReset``).
+  internal var answerToReset: Data? {
+    smartCard.slot.atr?.bytes
+  }
+
   internal init(_ smartCard: TKSmartCard, waits: ResponseWait) {
     self.smartCard = smartCard
     switch waits {

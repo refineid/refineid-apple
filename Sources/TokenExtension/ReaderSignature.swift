@@ -23,16 +23,24 @@ import Security
 /// already given.
 internal enum ReaderSignature {
   /// Unseals the channel if the card asks for it, then signs in it.
+  ///
+  /// An organization card on the antenna takes its own path: PIN 1 opens
+  /// its channel, so the PIN is settled before the card is touched
+  /// (``OrganizationSignature``).
   internal static func perform(
     in channel: SmartCardChannel,
-    unsealingWith accessNumber: CardAccessNumber?,
+    unsealingWith unsealing: CardUnsealing,
     enteredPin: String?,
     request: SignRequest,
     token: Token
   ) throws -> Data {
+    if case .organizationPin = unsealing {
+      return try OrganizationSignature.authenticate(
+        on: channel, enteredPin: enteredPin, request: request, token: token)
+    }
     do {
       return try performSign(
-        channel: try unsealed(channel, with: accessNumber),
+        channel: try unsealed(channel, with: unsealing.accessNumber),
         enteredPin: enteredPin,
         request: request,
         token: token
@@ -49,19 +57,18 @@ internal enum ReaderSignature {
   /// The channel to work in: the plain one for a contact card, or a
   /// secure-messaging one for a card on an antenna.
   ///
-  /// PACE has to start at main-file level -- the card refuses MSE:Set
-  /// AT with 6985 anywhere else -- and the select is best effort, as
-  /// everywhere else this runs: PACE is the step whose failure is worth
-  /// reporting. Internal, not private: ``QualifiedSignature`` unseals
-  /// the same way.
+  /// PACE starts at main-file level, where its read of EF.CardAccess
+  /// leaves the card: the card refuses MSE:Set AT with 6985 anywhere
+  /// else. Internal, not private: ``QualifiedSignature`` unseals the same
+  /// way.
   internal static func unsealed(
     _ channel: SmartCardChannel,
     with accessNumber: CardAccessNumber?
   ) throws -> any CardChannel {
     guard let accessNumber else { return channel }
     let started = ContinuousClock.now
-    try? CardOperations(channel: channel).selectMainFile()
-    let keys = try PaceEstablishment(channel: channel).establish(with: accessNumber)
+    let keys = try PaceEstablishment(channel: channel)
+      .establish(with: PacePassword(cardAccessNumber: accessNumber)).keys
     TokenLog.info(
       "sign: PACE ok ms="
         + TraceTiming.milliseconds(started.duration(to: ContinuousClock.now))
@@ -75,7 +82,7 @@ internal enum ReaderSignature {
   /// Accepted-PIN memory is bound to the chip serial and lives only in
   /// process memory, never in storage (RAPP v26.10.29 §11 item 2); a miss
   /// asks the holder again.
-  private static func pin(
+  internal static func pin(
     entered: String?,
     serial: ChipSerial
   ) throws -> Pin1 {
@@ -153,7 +160,7 @@ internal enum ReaderSignature {
 
   /// The wire form of the card's raw signature, checked against the leaf
   /// public key before anything is remembered or returned.
-  private static func checkedWireSignature(
+  internal static func checkedWireSignature(
     from raw: Data,
     request: SignRequest,
     token: Token
@@ -239,7 +246,7 @@ internal enum ReaderSignature {
   /// Remembers a freshly entered PIN only after the card accepted it, and
   /// only when the probe before it permits holding
   /// (``Pin1Memory/acceptance(of:serial:after:owner:)``).
-  private static func rememberOnSuccess(
+  internal static func rememberOnSuccess(
     enteredPin: String?,
     token: Token,
     probe: RetryProbeOutcome
