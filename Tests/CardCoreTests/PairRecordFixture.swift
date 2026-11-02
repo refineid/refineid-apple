@@ -17,6 +17,10 @@
       ProfileName.documentSigning,
     ]
     private static let millisecondsPerSecond: Double = 1_000.0
+    /// The name a requester's record gives its phone.
+    internal static let phoneName = "iOS - example-phone"
+    /// The name a custodian's record gives its computer.
+    internal static let computerName = "macOS - example-host"
 
     /// A record for the peer `remotePublicKey`, created now.
     internal static func makePairRecord(
@@ -42,6 +46,36 @@
       remotePublicKey: Data,
       createdAtMilliseconds: UInt64
     ) throws -> RappPairRecord {
+      try makePairRecord(
+        local: (localStaticPrivate, localStaticPublic), localRole: localRole,
+        remotePublicKey: remotePublicKey, createdAtMilliseconds: createdAtMilliseconds,
+        storageConfirmed: true)
+    }
+
+    /// A record for the peer `remotePublicKey` whose storage the peer never
+    /// confirmed.
+    internal static func makeUnconfirmedPairRecord(
+      localStaticPrivate: Data,
+      localStaticPublic: Data,
+      localRole: RappEndpointRole,
+      remotePublicKey: Data
+    ) throws -> RappPairRecord {
+      try makePairRecord(
+        local: (localStaticPrivate, localStaticPublic), localRole: localRole,
+        remotePublicKey: remotePublicKey,
+        createdAtMilliseconds: UInt64(Date().timeIntervalSince1970 * Self.millisecondsPerSecond),
+        storageConfirmed: false)
+    }
+
+    private static func makePairRecord(
+      local: (staticPrivate: Data, staticPublic: Data),
+      localRole: RappEndpointRole,
+      remotePublicKey: Data,
+      createdAtMilliseconds: UInt64,
+      storageConfirmed: Bool
+    ) throws -> RappPairRecord {
+      let localStaticPrivate = local.staticPrivate
+      let localStaticPublic = local.staticPublic
       let ordered = [localStaticPublic, remotePublicKey].sorted { first, second in
         first.lexicographicallyPrecedes(second)
       }
@@ -60,7 +94,8 @@
           parameters: [:]
         ),
         createdAtMilliseconds: createdAtMilliseconds,
-        storageConfirmed: true
+        peerDisplayName: localRole == .requester ? Self.phoneName : Self.computerName,
+        storageConfirmed: storageConfirmed
       )
       return RappPairRecord(record: record)
     }

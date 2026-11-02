@@ -89,18 +89,19 @@
     /// taking the card through `cardQueue` and reporting to `report`.
     internal init(
       transport: ServedTransport,
-      pairID: Data,
+      pair: RappPairMetadata,
       coordinator: RappConnectionCoordinator,
       cardQueue: CustodianCardQueue<Turn>,
       report: @escaping (ServedSession, Report) -> Void
     ) {
       self.transport = transport
-      self.pairID = pairID
+      pairID = pair.pairId
       self.coordinator = coordinator
       self.cardQueue = cardQueue
       self.report = report
       dispatcher = RappPhoneProxyDispatcher(
-        inbox: RappAuthorizationInbox.shared, pairID: pairID, session: identifier)
+        inbox: RappAuthorizationInbox.shared, pairID: pair.pairId,
+        requesterName: pair.peerDisplayName, session: identifier)
     }
 
     // MARK: Functions

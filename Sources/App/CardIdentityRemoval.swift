@@ -51,7 +51,6 @@ internal enum CardIdentityRemoval {
       }
     }
     try? vault.clearSelectedPair()
-    RappPairNames.forgetAll()
     return await Task.detached(priority: .userInitiated) {
       do {
         _ = try RappDeviceVault().deleteServiceNamespace()

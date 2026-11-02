@@ -149,7 +149,7 @@ internal struct PairingConfirmation {
   internal consuming func intoStorage(
     createdAtMilliseconds: UInt64
   ) throws -> (record: PairRecord, storage: PairingStorage) {
-    guard localHelloSent, peerHello != nil else { throw PairingError.helloIncomplete }
+    guard localHelloSent, let peerHello else { throw PairingError.helloIncomplete }
     guard localConfirmationSent, peerConfirmationReceived else {
       throw PairingError.confirmationIncomplete
     }
@@ -175,6 +175,7 @@ internal struct PairingConfirmation {
           candidateIdentifier: candidate.candidateIdentifier,
           parameters: candidate.parameters),
         createdAtMilliseconds: createdAtMilliseconds,
+        peerDisplayName: peerHello.displayName,
         storageConfirmed: false)
     } catch let error as PairRecordError {
       throw PairingError.pairRecord(error)

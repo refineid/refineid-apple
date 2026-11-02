@@ -104,7 +104,8 @@ internal struct RevocationDriveTests {
         localStaticPublic: confirmed.localStaticPublic,
         remoteStaticPublic: confirmed.remoteStaticPublic, grantsHash: confirmed.grantsHash,
         profiles: confirmed.profiles, transport: confirmed.transport,
-        createdAtMilliseconds: confirmed.createdAtMilliseconds, storageConfirmed: false))
+        createdAtMilliseconds: confirmed.createdAtMilliseconds,
+        peerDisplayName: confirmed.peerDisplayName, storageConfirmed: false))
     try unconfirmed.persistDeviceOnly(vault: vault)
     #expect(try unconfirmed.forget(vault: vault, forgottenAtMs: Self.forgottenAt) == .destroyed)
     #expect(vault.wasRevoked(confirmed.pairIdentifier))

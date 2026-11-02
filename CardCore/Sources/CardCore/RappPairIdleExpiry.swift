@@ -54,7 +54,6 @@
         if (try? vault.selectedPairID()) == pairID {
           try? vault.clearSelectedPair()
         }
-        RappPairNames.forget(pairID: pairID)
         sweep.expired.append(pairID)
       }
       return sweep

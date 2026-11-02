@@ -118,11 +118,7 @@ internal struct RappPairingView: View {
       turnRemoteAccessOn()
     } else {
       remoteAccessEnabled = false
-      #if os(iOS)
-        RemoteAccessServing.setEnabled(false)
-      #endif
-      model.revokeAll()
-      model.resetAttempt()
+      model.stopRemoteAccess()
     }
   }
 

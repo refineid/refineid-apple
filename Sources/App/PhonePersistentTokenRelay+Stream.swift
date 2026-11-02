@@ -142,6 +142,9 @@
           await group.next()
           group.cancelAll()
         }
+        // Serving that started again meanwhile keeps its advertisement
+        // and its session record.
+        guard !Task.isCancelled else { return }
         self?.stopBluetoothServing()
         if let listener, let instance {
           let now = Date()

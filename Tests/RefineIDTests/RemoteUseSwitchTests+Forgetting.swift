@@ -81,9 +81,7 @@
       let pairing = try Self.storedPairing(in: vault)
       let other = try Self.storedPairing(in: vault)
       let pairID = pairing.metadata().pairId
-      RappPairNames.remember(Self.phone, pairID: pairID)
       defer {
-        RappPairNames.forget(pairID: pairID)
         registry.refreshPairing(in: vault)
       }
       registry.refreshPairing(in: vault)
@@ -112,7 +110,7 @@
       #expect(RemoteUseForgetting.pending(in: store) == nil)
       #expect(try vault.activePairIDs().isEmpty)
       #expect(try vault.loadPair(pairID: other.metadata().pairId) == nil)
-      #expect(RappPairNames.name(forPairID: pairID) == nil)
+      #expect(try vault.loadPair(pairID: pairID) == nil, "the name goes with the key")
       #expect(registry.pairedPhoneID == nil)
       #expect(PersistentTokenRegistry.pairedPhoneID(in: vault) == nil)
     }
@@ -220,9 +218,7 @@
       let vault = RappDeviceVault()
       let pairing = try Self.storedPairing(in: vault)
       let pairID = pairing.metadata().pairId
-      RappPairNames.remember(Self.phone, pairID: pairID)
       defer {
-        RappPairNames.forget(pairID: pairID)
         try? vault.revokePair(pairID: pairID, revokedAtMilliseconds: Self.revocationTime)
         registry.refreshPairing(in: vault)
       }

@@ -13,36 +13,6 @@ extension RappPairingModel {
   internal static let pairingsDidChangeNotification = Notification.Name(
     "fi.refineid.pairingsDidChange")
 
-  /// Deletes every stored pairing and forgets their display names.
-  ///
-  /// The pairing is gone here even if a peer never receives a
-  /// close frame: the vault is the record this device honours, and the
-  /// namespace it lives in is wiped.
-  internal static func revokeEveryStoredPair() {
-    let vault = RappDeviceVault()
-    let pairIDs = (try? vault.activePairIDs()) ?? []
-    for pairID in pairIDs {
-      guard (try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: clock)) != nil
-      else { continue }
-      RappPairNames.forget(pairID: pairID)
-    }
-    try? vault.clearSelectedPair()
-    RappPairNames.forgetAll()
-    #if os(iOS)
-      RemoteAccessServing.setEnabled(false)
-    #endif
-    #if os(macOS) || os(iOS)
-      PersistentTokenRegistry.withdrawPublishedIdentity()
-      PersistentTokenRegistry.shared.stopWatchingPresence()
-    #endif
-    // Sweeping the keychain namespace takes time; the list is already
-    // empty in memory, so the wipe leaves the main thread.
-    Task.detached(priority: .userInitiated) {
-      _ = try? vault.deleteServiceNamespace(RappDeviceVault.serviceNamespace)
-    }
-    NotificationCenter.default.post(name: pairingsDidChangeNotification, object: nil)
-  }
-
   /// Ends the session the pairing `pairID` carries with `pairing_revoked`;
   /// false when none is open or the close did not leave (RAPP v26.10.29
   /// §4.6 items 1 and 2).
@@ -107,7 +77,6 @@ extension RappPairingModel {
       refresh()
       return
     }
-    RappPairNames.forget(pairID: pairID)
     if selectedPairID == pairID {
       try? vault.clearSelectedPair()
     }
@@ -132,22 +101,16 @@ extension RappPairingModel {
       try RappPairRecord.loadFromVault(pairId: pairID, vault: vault), in: vault, clock: clock)
   }
 
-  internal func revokeAll() {
-    #if DEBUG
-      // A revoked pretend pairing stays revoked.
-      pretendPaired = false
-    #endif
-    // Revoking every pair disables serving too; see revokeEveryStoredPair.
-    #if REFINEID_LOCAL_CARD && os(iOS)
-      PhonePersistentTokenRelay.shared.stopServing()
-    #endif
-    Self.revokeEveryStoredPair()
-    pairs = []
-    selectedPairID = nil
-    phase = .idle
-    #if os(macOS) || os(iOS)
-      PersistentTokenRegistry.withdrawPublishedIdentity()
-      PersistentTokenRegistry.shared.stopWatchingPresence()
+  /// Turns remote access off: this phone withdraws (RAPP v26.10.29 §4.5).
+  ///
+  /// Every open session closes with `service_withdrawn` before its
+  /// transport goes, the stream listener announces the withdrawal, and the
+  /// pairings stay, so turning remote access on again serves the paired
+  /// computers at once. An attempt to pair ends.
+  internal func stopRemoteAccess() {
+    resetAttempt()
+    #if os(iOS)
+      RemoteAccessServing.setEnabled(false)
     #endif
   }
 }

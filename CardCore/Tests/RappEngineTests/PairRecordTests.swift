@@ -132,6 +132,7 @@ internal struct PairRecordTests {
         profiles: [.cardStatus],
         transport: PairTransportBinding(profile: "p", candidateIdentifier: "c"),
         createdAtMilliseconds: 0,
+        peerDisplayName: fixturePeerDisplayName,
         storageConfirmed: true)
     }
   }
@@ -149,7 +150,37 @@ internal struct PairRecordTests {
         profiles: [],
         transport: PairTransportBinding(profile: "p", candidateIdentifier: "c"),
         createdAtMilliseconds: 0,
+        peerDisplayName: fixturePeerDisplayName,
         storageConfirmed: true)
     }
+  }
+
+  @Test("A blank peer name is rejected, so no stored pairing is nameless")
+  internal func blankPeerNameIsRejected() {
+    #expect(throws: (any Error).self) {
+      _ = try PairRecord(
+        pairIdentifier: filler(0x11, PairRecordSize.pairIdentifier),
+        role: .proxy,
+        localStaticPrivate: filler(0x33, PairRecordSize.staticKey),
+        localStaticPublic: filler(0x44, PairRecordSize.staticKey),
+        remoteStaticPublic: filler(0x55, PairRecordSize.staticKey),
+        grantsHash: filler(0x66, PairRecordSize.grantsHash),
+        profiles: [.cardStatus],
+        transport: PairTransportBinding(profile: "p", candidateIdentifier: "c"),
+        createdAtMilliseconds: 0,
+        peerDisplayName: " \n",
+        storageConfirmed: true)
+    }
+  }
+
+  @Test("A stored record without a peer name does not decode")
+  internal func recordWithoutPeerNameDoesNotDecode() throws {
+    guard case .map(var map) = expectedPairRecordValue() else {
+      Issue.record("the fixture is a map")
+      return
+    }
+    map.removeValue(forKey: "peer_display_name")
+    let bytes = try WireValue.map(map).encoded()
+    #expect(throws: (any Error).self) { _ = try PairRecord.decode(bytes) }
   }
 }

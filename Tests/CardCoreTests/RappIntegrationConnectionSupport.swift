@@ -12,6 +12,13 @@ private let fixturePairingCode = "246813"
 #if canImport(RappEngine)
   import RappEngine
   internal enum RappIntegrationConnectionSupport {
+    // MARK: Static Properties
+
+    /// The name the fixture's phone introduces itself with.
+    internal static let phoneName = "iOS - example-phone"
+    /// The name the fixture's computer introduces itself with.
+    internal static let computerName = "macOS - example-host"
+
     // MARK: Static Functions
     internal static func makePairedFixture() async throws -> RappIntegrationFixtures.PairingFixture
     {
@@ -23,7 +30,7 @@ private let fixturePairingCode = "246813"
         servicePrefix: requesterPrefix
       )
       let proxy = try await RappTestPairingPhone.showing(
-        fixturePairingCode, name: "Authorizer iPhone", servicePrefix: proxyPrefix,
+        fixturePairingCode, name: phoneName, servicePrefix: proxyPrefix,
         dropAfter: nil)
       let link = proxy.link
       let search = try RappPairingSearch<String>(
@@ -31,7 +38,7 @@ private let fixturePairingCode = "246813"
           code: fixturePairingCode,
           profiles: RappIntegrationFixtures.profiles,
           transportProfile: RappIntegrationFixtures.transportProfile,
-          displayName: "Requester Mac",
+          displayName: computerName,
           platform: "macOS",
           vault: requesterVault),
         remoteUseAvailable: { true },

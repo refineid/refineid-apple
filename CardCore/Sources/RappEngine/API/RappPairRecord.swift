@@ -72,6 +72,7 @@ public final class RappPairRecord: @unchecked Sendable {
       transportProfile: record.transport.profile,
       candidateId: record.transport.candidateIdentifier,
       createdAtMs: record.createdAtMilliseconds,
+      peerDisplayName: record.peerDisplayName,
       storageConfirmed: record.storageConfirmed,
       forgottenAtMs: record.forgottenAtMilliseconds,
       lastSessionAtMs: record.lastSessionAtMilliseconds)

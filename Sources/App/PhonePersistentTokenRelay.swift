@@ -109,6 +109,9 @@
       guard hasUsablePair() else { return }
       let contexts = PhoneStreamPairContext.resolveAll(vault: vault)
       guard !contexts.isEmpty else { return }
+      // Serving again ends a withdrawal still being announced.
+      sessionListening.withdrawal?.cancel()
+      sessionListening.withdrawal = nil
       startBluetoothServing(contexts)
       guard !streamSuspended else { return }
       startListening(contexts)
@@ -141,7 +144,7 @@
         return nil
       }
       let session = ServedSession(
-        transport: transport, pairID: pair.metadata().pairId, coordinator: coordinator,
+        transport: transport, pair: pair.metadata(), coordinator: coordinator,
         cardQueue: cardQueue
       ) { [weak self] session, report in
         self?.sessionReported(session, report)
@@ -255,7 +258,6 @@
         return
       }
       try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: RappPlatformClock())
-      RappPairNames.forget(pairID: pairID)
       NotificationCenter.default.post(
         name: RappPairingModel.pairingsDidChangeNotification, object: nil)
     }

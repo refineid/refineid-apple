@@ -52,10 +52,11 @@ internal struct FlowDriveTests {
       profiles: peers.proxy.profiles,
       transport: peers.proxy.transport,
       createdAtMilliseconds: peers.proxy.createdAtMilliseconds,
+      peerDisplayName: peers.requester.peerDisplayName,
       storageConfirmed: true)
     check(
       (try mirrored.encoded()) == (try peers.requester.encoded()),
-      "the records match byte for byte outside role and key ownership")
+      "the records match byte for byte outside role, key ownership and peer name")
   }
 
   /// The pairing ceremony both endpoints complete.

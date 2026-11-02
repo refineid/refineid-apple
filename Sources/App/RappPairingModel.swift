@@ -9,6 +9,7 @@ import SwiftUI
   import UIKit
 #elseif os(macOS)
   import AppKit
+  import SystemConfiguration
 #endif
 
 @MainActor
@@ -60,12 +61,22 @@ internal final class RappPairingModel: ObservableObject {
     }
   }
 
-  /// The in-protocol name this device introduces itself with.
+  /// The in-protocol name this device introduces itself with: its
+  /// operating system and its name, as every peer is shown
+  /// (``PeerDisplayName``).
   internal static var localDisplayName: String {
     #if os(macOS)
-      Host.current().localizedName ?? String(localized: "Mac")
+      PeerDisplayName(
+        system: PeerDisplayName.macSystem,
+        host: SCDynamicStoreCopyLocalHostName(nil) as String?
+          ?? Host.current().localizedName ?? String(localized: "Mac")
+      ).text
     #else
-      UIDevice.current.name
+      PeerDisplayName(
+        system: UIDevice.current.userInterfaceIdiom == .pad
+          ? PeerDisplayName.iPadSystem : PeerDisplayName.iPhoneSystem,
+        host: UIDevice.current.name
+      ).text
     #endif
   }
 
@@ -100,7 +111,6 @@ internal final class RappPairingModel: ObservableObject {
   internal var stopDiscovery: (@Sendable () -> Void)?
   internal var eventTask: Task<Void, Never>?
   internal var pairingTimeoutTask: Task<Void, Never>?
-  internal var reviewedPeerName: String?
 
   /// Ceremony events enter the coordinator in arrival order through
   /// this bounded chain; reset between attempts.
@@ -268,7 +278,6 @@ internal final class RappPairingModel: ObservableObject {
 
   internal func finishAttempt() {
     isOffering = false
-    reviewedPeerName = nil
     relay = nil
     relayGeneration = nil
     coordinator = nil

@@ -215,5 +215,20 @@ import Testing
       #expect(try fixture.requesterVault.loadPair(pairID: fixture.requesterSummary.pairID) != nil)
       #expect(try fixture.proxyVault.loadPair(pairID: fixture.proxySummary.pairID) != nil)
     }
+
+    /// Each side stores the name its peer introduced itself with inside the
+    /// pairing record, so the pairing and its name are one.
+    @Test
+    internal func eachStoredPairingNamesItsPeer() async throws {
+      let fixture = try await RappIntegrationConnectionSupport.makePairedFixture()
+      defer { RappIntegrationConnectionSupport.deleteKeychainServices(for: fixture) }
+
+      #expect(
+        fixture.requesterSummary.peerDisplayName == RappIntegrationConnectionSupport.phoneName)
+      #expect(
+        fixture.proxySummary.peerDisplayName == RappIntegrationConnectionSupport.computerName)
+      let listed = try await RappPairCatalog(vault: fixture.proxyVault).activePairs()
+      #expect(listed.map(\.peerDisplayName) == [RappIntegrationConnectionSupport.computerName])
+    }
   }
 #endif

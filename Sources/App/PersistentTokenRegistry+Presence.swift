@@ -202,12 +202,12 @@
     /// use turns off when that was the last pairing (CC-101).
     internal func holderRevoked(pairID: Data) {
       let vault = RappDeviceVault()
-      let name = RappPairNames.name(forPairID: pairID)
+      let name = (try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault))?.metadata()
+        .peerDisplayName
       if holderSession?.pairID == pairID {
         closeHolderSession()
       }
       try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: RappPlatformClock())
-      RappPairNames.forget(pairID: pairID)
       if (try? vault.selectedPairID()) == pairID {
         try? vault.clearSelectedPair()
       }
@@ -247,9 +247,11 @@
         name: RappPairingModel.pairingsDidChangeNotification, object: nil)
     }
 
-    /// The holder announced that it stopped serving: the borrowed identity
-    /// leaves at once, without the hold an unannounced loss gets, and no
-    /// request goes out until the holder advertises a session again.
+    /// The holder announced that it stopped serving, in a withdrawn record
+    /// or in its session's `service_withdrawn` close (RAPP v26.10.29 §4.5
+    /// item 6): the borrowed identity leaves at once, without the hold an
+    /// unannounced loss gets, and no stream dial goes out until the
+    /// holder's session record is seen again.
     internal func holderWithdrew() {
       advertisementLossTask?.cancel()
       advertisementLossTask = nil
@@ -291,6 +293,12 @@
           streamFailedInSight = false
           bluetoothUsable = Self.dialsOverBluetooth
           sessionSlot.startOver()
+          // The announcement is dialled at once: a Bluetooth dial still
+          // scanning for the phone gives way to the stream.
+          if sessionSlot.state == .dialing(.bluetooth) {
+            holderSession?.close()
+            forgetHeldSession()
+          }
         }
         advertisementLossTask?.cancel()
         advertisementLossTask = nil

@@ -177,7 +177,6 @@
           outcome.failures += 1
           continue
         }
-        RappPairNames.forget(pairID: pairID)
         outcome.destroyed.append(pairID)
       }
       return outcome

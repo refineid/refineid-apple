@@ -108,7 +108,6 @@ internal enum CardStateReset {
     for pairID in pairIDs {
       guard (try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: clock)) != nil
       else { continue }
-      RappPairNames.forget(pairID: pairID)
       revoked += 1
     }
     try? vault.clearSelectedPair()
