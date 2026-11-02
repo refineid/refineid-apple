@@ -78,6 +78,19 @@ internal struct OrganizationCardOpeningTests {
   }
 
   @Test
+  internal func pin1ReachesPaceAlthoughTheCardRefusesTheMainFileBeforePace() throws {
+    // The card ends the session on a select of the main file by name, as
+    // the phone's platform does; the opening must go from the refused
+    // select by file identifier straight to EF.CardAccess.
+    let card = try Self.card(pin: .pin1, afterPace: [Self.selected])
+    #expect(ContactlessCardKind.of(CardOperations(channel: card)) == .organization)
+    let opened = try OrganizationCardOpening.pin1(over: card, try Self.pin1(), spending: .entered)
+    #expect(!card.tornDown)
+    #expect(card.secureCard != nil)
+    #expect(opened.operations.channelPin == .pin1)
+  }
+
+  @Test
   internal func pin2OpensTheChannelAndLeavesTheCardAtTheMainFile() throws {
     let card = try Self.card(pin: .pin2)
     let opened = try OrganizationCardOpening.pin2(over: card, try Self.pin2())

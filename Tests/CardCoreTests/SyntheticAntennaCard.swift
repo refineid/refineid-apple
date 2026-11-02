@@ -12,12 +12,31 @@ import Foundation
 ///
 /// A personal card refuses with security status not satisfied, an
 /// organization card with conditions of use not satisfied (FINEID S1 v4.0,
-/// organizational cards, section 2.1).
+/// organizational cards, section 2.1). An organization card before PACE
+/// also refuses the main file by file identifier with `6985`, and answers
+/// the main file by name with nothing usable, after which the phone's
+/// platform ends the session (observed on hardware): this card then
+/// fails every command.
 internal final class SyntheticAntennaCard<Curve: PaceCurve>: CardChannel {
+  /// Thrown for every command once the session has ended.
+  internal struct SessionEnded: Error, Equatable {}
+
   private let pace: SyntheticPaceCard<Curve>
   private let refusal: StatusWord
   private let afterPace: [(payload: Data, statusWord: Data)]
   private var secure: SecureMessagingMirrorCard?
+
+  /// Whether the session was ended by a select of the main file by name.
+  internal private(set) var tornDown = false
+
+  /// The main file by file identifier and by name, as the terminal sends
+  /// them.
+  private let mainFileById = CommandApdu.selectFile(
+    .mainFile, selectionP1: Iso7816Values.selectByFileIdP1
+  ).encoded
+  private let mainFileByName = CommandApdu.selectFile(
+    .mainFile, selectionP1: Iso7816Values.selectByAidP1
+  ).encoded
 
   /// The plain command of the application select, as the terminal sends it.
   private let applicationSelect = CommandApdu.selectApplication(.fineidApplication).encoded
@@ -48,12 +67,22 @@ internal final class SyntheticAntennaCard<Curve: PaceCurve>: CardChannel {
   }
 
   internal func transmit(_ payload: Data) throws -> Data {
+    guard !tornDown else { throw SessionEnded() }
     if let secure {
       return try secure.transmit(payload)
     }
     plainCommands.append(payload)
     if payload == applicationSelect {
       return Self.octets(refusal)
+    }
+    if refusal == .conditionsNotSatisfied {
+      if payload == mainFileById {
+        return Self.octets(.conditionsNotSatisfied)
+      }
+      if payload == mainFileByName {
+        tornDown = true
+        throw SessionEnded()
+      }
     }
     let answer = try pace.transmit(payload)
     if pace.generalAuthenticateCount == SyntheticPaceCardValues.paceRounds,

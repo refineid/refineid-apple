@@ -217,22 +217,6 @@ public struct CardOperations {
     return try CardAccess.parse(try readSelectedFile(.cardAccess))
   }
 
-  /// Selects the main file, trying the proven wire variants in order
-  /// (select-by-file-id, then select-by-name) since card generations
-  /// differ.
-  ///
-  /// Public because PACE runs from the main file and nothing else can
-  /// put the card there. A contactless card is discovered by selecting
-  /// the eMRTD application, and MSE:Set AT from an applet context is
-  /// answered `6985`, so the contactless caller makes the main file
-  /// current before the first PACE command.
-  public func selectMainFile() throws {
-    try selectFirstThatSucceeds([
-      .selectFile(.mainFile, selectionP1: Iso7816Values.selectByFileIdP1),
-      .selectFile(.mainFile, selectionP1: Iso7816Values.selectByAidP1),
-    ])
-  }
-
   /// Selects the EF then reads exactly its single DER object.
   ///
   /// The certificate slots hold one DER object. Reading to the
@@ -270,7 +254,7 @@ public struct CardOperations {
 
   /// Transmits each command until one answers success; throws
   /// `selectRejected` with the last status if none do.
-  private func selectFirstThatSucceeds(_ commands: [CommandApdu]) throws {
+  internal func selectFirstThatSucceeds(_ commands: [CommandApdu]) throws {
     var lastStatus = StatusWord.other(0)
     for command in commands {
       let response = try transmit(command)
