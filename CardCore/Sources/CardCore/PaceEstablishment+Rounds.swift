@@ -83,11 +83,23 @@ extension PaceEstablishment {
     default:
       throw Failure.cardRejected(response.statusWord)
     }
+    try admit(state, spending: password.spending)
+    return state
+  }
+
+  /// The retry floor on MSE:Set AT's answer, and for a held PIN 1 its
+  /// admission (``PinAdmission``).
+  private func admit(
+    _ state: RetryProbeOutcome,
+    spending: PinAdmission.Spending
+  ) throws {
     let verdict = RetryFloor.evaluate(probeOutcome: state)
     guard verdict == .proceed else {
       throw Failure.retryFloorRefused(verdict, state)
     }
-    return state
+    if case .heldPin1Unconfirmed = PinAdmission(probe: state, spending: spending) {
+      throw Failure.heldPinUnconfirmed(state)
+    }
   }
 
   /// Round one: fetch the encrypted nonce and decipher it with the key the

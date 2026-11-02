@@ -187,6 +187,28 @@ public final class Pin1Memory: Sendable {
     return Acceptance(serial: serial, digits: pin.cachedCopy(), owner: owner)
   }
 
+  /// Copies `pin` for acceptance by `owner` before a PIN-opened channel
+  /// consumes it; the state that decides holding is known only once the
+  /// card has answered (``commit(_:after:)``).
+  public func acceptance(
+    of pin: borrowing Pin1,
+    serial: ChipSerial,
+    owner: Owner
+  ) -> Acceptance {
+    Acceptance(serial: serial, digits: pin.cachedCopy(), owner: owner)
+  }
+
+  /// Holds the value as accepted once the card accepted it, when `probe`
+  /// permits holding (``Pin1Retention``); otherwise drops this card's
+  /// candidate.
+  public func commit(_ acceptance: Acceptance, after probe: RetryProbeOutcome) {
+    guard Pin1Retention.permitsHolding(after: probe) else {
+      clearCandidate(serial: acceptance.serial)
+      return
+    }
+    commit(acceptance)
+  }
+
   /// Holds the value as accepted once the card verified it, replacing a
   /// candidate for the same card.
   public func commit(_ acceptance: Acceptance) {
