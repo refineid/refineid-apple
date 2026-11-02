@@ -126,6 +126,11 @@ extension CardCredentialsView {
         if !entered.isEmpty {
           model.clearFailure()
         }
+        #if REFINEID_LOCAL_CARD && os(iOS)
+          // Emptied after an organization card's hold, the field held
+          // its PIN 1, not the stored access number.
+          guard primingModel.cardKind != .organization else { return }
+        #endif
         guard entered.isEmpty,
           !isDemonstration,
           model.contents.hasCardAccessNumber

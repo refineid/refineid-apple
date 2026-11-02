@@ -21,8 +21,8 @@ shows:
 
 A card waiting to be taken into use replaces these with the activation
 form, and the window has no toolbar button while it does: activation is
-the one thing to do with the card, in this window only. A contactless card that needs its access number replaces them with
-the six-box access number entry.
+the one thing to do with the card, in this window only. A contactless personal card that needs its access number replaces them
+with the six-box access number entry.
 
 ## Remote use
 

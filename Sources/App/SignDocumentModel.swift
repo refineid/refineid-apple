@@ -163,8 +163,8 @@
 
     /// Reads the stamp identity and any handwritten signature off the card.
     ///
-    /// Only a complete access number is taken to the card. A number
-    /// is six digits, so anything shorter is not a wrong number, it
+    /// Only a complete access number is taken to the card. A personal
+    /// card's number is six digits, so anything shorter is not a wrong number, it
     /// is a number still being typed - reading it would refuse the
     /// holder's own card and say so while they were mid-entry.
     internal func readStamp(accessNumber digits: String) async {

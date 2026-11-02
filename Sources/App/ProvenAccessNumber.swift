@@ -1,6 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-#if REFINEID_LOCAL_CARD && os(iOS)
+#if REFINEID_LOCAL_CARD
 
   import CardCore
 

@@ -58,6 +58,13 @@ internal struct PaceEstablishmentTests {
   /// The tries an untouched organization PIN has.
   private static let initialTries: UInt8 = 5
 
+  /// A fictitious PIN the synthetic organization card expects, for other
+  /// suites.
+  internal static let organizationPinDigits = pinDigits
+
+  /// MSE:Set AT's answer with four tries left, for other suites.
+  internal static let fourTriesLeftStatusHex = fourTriesLeftHex
+
   /// The longest nonce the handshake accepts, in AES blocks.
   private static let longestNonceBlocks = 4
 
@@ -133,6 +140,19 @@ internal struct PaceEstablishmentTests {
       NistP384.self,
       password: Self.pinDigits,
       reference: Self.pin1Reference,
+      domain: Self.nistP384Parameter
+    )
+  }
+
+  /// The organization card over P-384 expecting the PIN of `role`, for
+  /// other suites.
+  internal static func organizationCardConfiguration(
+    pin role: CredentialRole
+  ) throws -> SyntheticPaceCard<NistP384>.Configuration {
+    try Self.configuration(
+      NistP384.self,
+      password: Self.pinDigits,
+      reference: role == .pin2 ? Self.pin2Reference : Self.pin1Reference,
       domain: Self.nistP384Parameter
     )
   }

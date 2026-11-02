@@ -82,12 +82,12 @@ extension CardMaintenance {
   /// The card's own answer decides. A citizen card on an antenna refuses
   /// the application with `6982` until PACE with its card access number.
   /// An organization card on an antenna answers `6985` until PACE with a
-  /// PIN, to the select or to the reads after it, so on the contactless
-  /// interface a select that succeeds is followed by one read to tell;
+  /// PIN, to the select or to the reads after it, so when the operation
+  /// spends a PIN a select that succeeds is followed by one read to tell;
   /// without a PIN offered, such a card stays closed, since no card
   /// access number opens it.
   internal static func openedOperations<Answer>(
-    over channel: SmartCardChannel,
+    over channel: any CardChannel,
     opener: CardOpener<Answer>
   ) -> Opening {
     let cardAccessNumber = opener.cardAccessNumber
@@ -95,11 +95,12 @@ extension CardMaintenance {
     let operations = CardOperations(channel: channel)
     do {
       try operations.selectFineidApplication()
-      guard
-        let channelPin,
-        let answerToReset = channel.answerToReset,
-        AnswerToReset.indicatesContactlessInterface(bytes: answerToReset)
-      else {
+      // The card's answer tells, not its answer to reset: the phone's own
+      // antenna reports an organization card's answer without the prefix
+      // a reader synthesizes for a contactless card (observed on
+      // hardware). A card in the clear answers the read; one that waits
+      // for PACE with a PIN answers 6985.
+      guard let channelPin else {
         return .opened(operations)
       }
       do {
@@ -144,7 +145,7 @@ extension CardMaintenance {
 
   /// PACE with the card access number ``offeredAccessNumber(_:)`` names.
   private static func canOpenedOperations(
-    over channel: SmartCardChannel,
+    over channel: any CardChannel,
     cardAccessNumber: String?
   ) -> Opening {
     guard let offered = offeredAccessNumber(cardAccessNumber) else { return .unavailable }
@@ -172,7 +173,7 @@ extension CardMaintenance {
   /// PACE with the operation's PIN, the retry floor applied to the state
   /// MSE:Set AT reports before any try is spent.
   private static func pinOpenedOperations(
-    over channel: SmartCardChannel,
+    over channel: any CardChannel,
     pin: ChannelPin
   ) -> Opening {
     let role: CredentialRole

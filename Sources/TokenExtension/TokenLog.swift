@@ -34,7 +34,7 @@
 /// scope that consumes a noncopyable value makes Swift 6.3.3 report a
 /// copy of a noncopyable value at the `consume`, and call it a compiler
 /// bug. Take what the line needs into a copyable local first -
-/// ``TokenSession/signInField(token:accessNumber:dataToSign:algorithm:)``
+/// ``TokenSession/signInField(token:dataToSign:algorithm:)``
 /// is the one place that has had to.
 internal enum TokenLog {
   #if DEBUG

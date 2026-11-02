@@ -5,8 +5,12 @@ import Security
 
 /// Validated material needed to mint one contactless token.
 internal struct PrimedTokenMaterial {
-  /// CAN that opens the card's PACE channel.
-  internal let accessNumber: CardAccessNumber
+  /// What opens the card's PACE channel: a personal card's access
+  /// number, or an organization card's PIN, which each signature spends.
+  internal let unsealing: CardUnsealing
+
+  /// The identity the token publishes, as the prime recorded it.
+  internal let identity: PublishedIdentity
 
   /// Parsed authentication certificate.
   internal let leaf: SecCertificate

@@ -56,12 +56,16 @@
 
     /// Runs `work` on the warm field, opening one when none is held; the
     /// sheet draws the meter of `operation`.
+    ///
+    /// A personal card's channel is prepared once with `opening`'s card
+    /// access number; an organization card's stays plain, and `work` runs
+    /// PACE with the PIN it spends.
     internal func execute(
-      cardAccessNumber: String,
+      opening: NearFieldOpening,
       operation: NearFieldOperation,
       _ work: @escaping @Sendable (CardOperations, Context) -> RappCardExecutor.Outcome
     ) async -> RappCardExecutor.Outcome? {
-      await field.execute(cardAccessNumber: cardAccessNumber, operation: operation) { held, box in
+      await field.execute(opening: opening, operation: operation) { held, box in
         work(held.operations, Context.live(on: box))
       }
     }

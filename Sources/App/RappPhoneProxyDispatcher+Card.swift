@@ -36,10 +36,10 @@
     ) -> Data? {
       switch kind {
       case .readAuthenticationCertificate:
-        return lastReadAuthCertDER ?? PrimeStore.storedIdentities().first?.certDER
+        return lastReadAuthCertDER ?? PhoneCardPrime.current?.authenticationCertificate
 
       case .readSignatureCertificate:
-        return PrimeStore.storedIdentities().first?.signatureCertDER
+        return PhoneCardPrime.current?.signatureCertificate
 
       default:
         return nil
@@ -294,7 +294,7 @@
       operationID: RappOperationIdentifier,
       coordinator: RappConnectionCoordinator
     ) async {
-      if let der = lastReadAuthCertDER ?? PrimeStore.storedIdentities().first?.certDER {
+      if let der = lastReadAuthCertDER ?? PhoneCardPrime.current?.authenticationCertificate {
         await completeIdentity(der, operationID: operationID, coordinator: coordinator)
         return
       }

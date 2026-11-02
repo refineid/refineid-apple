@@ -45,6 +45,22 @@
       return LiveNearField(session: opened)
     }
 
+    /// The operations a fresh channel offers: PACE with the card access
+    /// number done and the application selected, or, for an organization
+    /// card, the plain channel each operation runs its own PACE on.
+    private static func operations(
+      over channel: SmartCardChannel,
+      opening: NearFieldOpening
+    ) -> CardOperations? {
+      switch opening {
+      case .cardAccessNumber(let digits):
+        CardMaintenance.selectedOperations(over: channel, cardAccessNumber: digits)
+
+      case .organizationCard:
+        CardOperations(channel: channel)
+      }
+    }
+
     internal func end() {
       session.end()
     }
@@ -53,14 +69,24 @@
       channel.session.end()
     }
 
+    /// An organization card on its plain channel answers the select with
+    /// `6985`, which is the card answering: only a link that gives no
+    /// answer fails the keep-alive.
     internal func keepAlive(_ channel: RappHeldCardChannel) async -> Bool {
       await Task.detached(priority: .utility) {
-        (try? channel.operations.selectFineidApplication()) != nil
+        do {
+          try channel.operations.selectFineidApplication()
+          return true
+        } catch  where CardOperationError.refusesBeforePace(error) {
+          return true
+        } catch {
+          return false
+        }
       }
       .value
     }
 
-    internal func prepareChannel(cardAccessNumber: String) async -> RappHeldCardChannel? {
+    internal func prepareChannel(_ opening: NearFieldOpening) async -> RappHeldCardChannel? {
       await withCheckedContinuation { continuation in
         DispatchQueue.global(qos: .userInitiated).async { [session] in
           guard let open = try? session.openCardSession() else {
@@ -68,12 +94,7 @@
             return
           }
           OperationPhaseTrace.mark("slot-session-begun")
-          guard
-            let operations = CardMaintenance.selectedOperations(
-              over: open.channel,
-              cardAccessNumber: cardAccessNumber
-            )
-          else {
+          guard let operations = Self.operations(over: open.channel, opening: opening) else {
             open.end()
             continuation.resume(returning: nil)
             return

@@ -181,7 +181,7 @@ internal enum WarmNearFieldFakes {
       !isMissing && channel.send(.keepAlive)
     }
 
-    internal func prepareChannel(cardAccessNumber _: String) -> Card? {
+    internal func prepareChannel(_: NearFieldOpening) -> Card? {
       guard !isMissing, card.send(.pace) else { return nil }
       return card
     }

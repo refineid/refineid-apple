@@ -42,7 +42,7 @@
       guard UIApplication.shared.isProtectedDataAvailable else {
         return primedFingerprintWhileLocked
       }
-      let primed = (PrimeStore.storedIdentities().first?.certDER)
+      let primed = (PhoneCardPrime.current?.authenticationCertificate)
         .flatMap(RappCertificateFingerprint.init(certificate:))
       if primedFingerprintWhileLocked != primed {
         primedFingerprintWhileLocked = primed

@@ -30,9 +30,12 @@ stale.
 A FINEID card seals its PKCS#15 application on the contactless
 interface: every read is refused with `SW=6982` ("security status not
 satisfied") until **PACE** has run. PACE is a password-authenticated key
-agreement -- here over brainpoolP384r1, keyed by the six-digit **CAN**
-printed on the card -- that both proves proximity and establishes a
-secure-messaging channel for all later APDUs.
+agreement -- on a personal card over brainpoolP384r1, keyed by the
+six-digit **CAN** printed on the card -- that both proves proximity and
+establishes a secure-messaging channel for all later APDUs. An
+organization card has no printed CAN: it answers `SW=6985` until PACE
+with PIN 1 or PIN 2 as the password (FINEID S1 v4.0, organizational
+cards, section 2.1).
 
 So the contactless flow has one extra step and one extra secret compared
 to contact:

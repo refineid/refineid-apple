@@ -5,34 +5,63 @@
   import CardCore
   import Foundation
 
-  /// The card I/O of a first prime: PACE and the reads, inside the one
-  /// field's exclusive card session.
+  /// The card I/O of a first prime: the card's kind, PACE and the reads,
+  /// inside the one field's exclusive card session.
   extension CardPriming {
+    /// Stores a personal card's identity with the access number its PACE
+    /// proved.
+    internal typealias StorePersonalIdentity = (Identity, ProvenAccessNumber) throws -> Void
+
     /// Reads everything the later signature must not have to read.
     ///
-    /// Runs on the card queue, inside the card's exclusive session.
-    /// `store` receives the identity as soon as it is read and checked, so
-    /// the token extension's mint, already waiting in this field, finds
-    /// the prime while the hold reads the counters and any root.
+    /// Runs on the card queue, inside the card's exclusive session. The
+    /// card's first answer names its kind before any password is sent
+    /// (``ContactlessCardKind``), and only then does the entry become a
+    /// password: a personal card's access number, which must be the six
+    /// printed digits -- any other entry ends the hold as a wrong access
+    /// number with no PACE run -- or an organization card's PIN 1.
+    /// `store` receives a personal card's identity as soon as it is read
+    /// and checked, so the token extension's mint, already waiting in this
+    /// field, finds the prime while the hold reads the counters and any
+    /// root.
     internal static func read(
       _ execution: HoldExecution,
-      store: StoreIdentity
-    ) throws -> Payload {
+      store: @escaping StorePersonalIdentity
+    ) throws -> HoldRead {
       let sheet = execution.sheet
-      let accessNumber = execution.accessNumber.value
       let isRecovery = execution.isRecovery
       let waitBudget: SmartCardChannel.ResponseWait = isRecovery ? .nearFieldRecovery : .nearField
       return try execution.session.withCardSession(waits: waitBudget) { channel in
-        let keys = try Self.establishPace(
-          channel: channel,
-          accessNumber: accessNumber,
-          sheet: sheet,
-          isRecovery: isRecovery)
-        return try Self.readSecuredPayload(
-          operations: CardOperations(
-            channel: SecureMessagingChannel(wrapping: channel, sessionKeys: keys)),
-          sheet: sheet,
-          store: store)
+        let kind = ContactlessCardKind.of(CardOperations(channel: channel))
+        execution.foundKind.record(kind)
+        switch kind {
+        case .personal:
+          guard let proven = execution.entry.personalAccessNumber() else {
+            throw Failure.wrongCardAccessNumber
+          }
+          let keys = try Self.establishPace(
+            channel: channel,
+            accessNumber: proven.value,
+            sheet: sheet,
+            isRecovery: isRecovery)
+          let payload = try Self.readSecuredPayload(
+            operations: CardOperations(
+              channel: SecureMessagingChannel(wrapping: channel, sessionKeys: keys)),
+            sheet: sheet,
+            store: { identity in try store(identity, proven) })
+          return HoldRead(
+            instance: payload.identity.instance,
+            credentialReport: payload.credentialReport)
+
+        case .organization:
+          guard let pin1 = execution.entry.organizationPin1() else {
+            throw Failure.pin1Unavailable
+          }
+          return try Self.readOrganization(
+            channel: channel,
+            pin1: pin1,
+            execution: execution)
+        }
       }
     }
 
@@ -44,9 +73,9 @@
       isRecovery: Bool
     ) throws -> PaceSessionKeys {
       // PACE runs from the main file. The card was discovered by
-      // selecting the eMRTD application, and MSE:Set AT from an applet
-      // context is answered 6985, so the main file is made current on
-      // the plain channel before the first PACE command.
+      // selecting an application, and MSE:Set AT from an applet context
+      // is answered 6985, so the main file is made current on the plain
+      // channel before the first PACE command.
       //
       // Best effort on purpose: card generations differ in which SELECT
       // variant they acknowledge, and one that refuses both may still be

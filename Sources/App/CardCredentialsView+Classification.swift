@@ -178,13 +178,24 @@ extension CardCredentialsView {
   }
 
   /// Sets the identity up in one hold.
+  ///
+  /// The entry is four to twelve digits; the card on the antenna decides
+  /// on the tap whether they are its access number or its PIN 1.
   internal func connectIdentityCard() {
-    guard isCardAccessNumberEntryComplete else {
+    #if os(iOS)
+      let ready = canReadIdentityCard
+    #else
+      let ready = isCardAccessNumberEntryComplete
+    #endif
+    guard ready else {
       #if DEBUG
-        DebugConsole.emit("connectIdentityCard: guard failed, access number incomplete")
+        DebugConsole.emit("connectIdentityCard: guard failed, entry incomplete")
       #endif
       return
     }
+    #if REFINEID_LOCAL_CARD && os(iOS)
+      guard let entry = takeSetupEntry() else { return }
+    #endif
     if flowState != .home {
       flowState = .home
     }
@@ -194,7 +205,6 @@ extension CardCredentialsView {
       #endif
       return
     }
-    let entered = cardAccessNumberEntry
     activation = nil
     activationNeeds = nil
     activationPinLengths = nil
@@ -204,7 +214,7 @@ extension CardCredentialsView {
     Task { @MainActor in
       #if REFINEID_LOCAL_CARD && os(iOS)
         let succeeded = await CardRegistrationSections.registerIdentity(
-          cardAccessNumber: entered,
+          entry: entry,
           model: primingModel,
           commit: IdentityCommitments(storeCardAccessNumber: storeProvenCardAccessNumber) {
             isRegistered = true
@@ -221,6 +231,11 @@ extension CardCredentialsView {
   internal func finishIdentitySetup(succeeded: Bool) {
     #if REFINEID_LOCAL_CARD && os(iOS)
       retryHealth.update(primingModel.credentialReport)
+      if primingModel.cardKind == .organization {
+        // The entry was the organization card's PIN 1: it leaves the
+        // field as soon as the hold that spent it has ended.
+        cardAccessNumberEntry = ""
+      }
       guard !succeeded else {
         if retryHealth.recovery != nil {
           transition(.classificationRecoveryRequired)
@@ -252,6 +267,15 @@ extension CardCredentialsView {
       }
     #endif
   }
+
+  #if REFINEID_LOCAL_CARD && os(iOS)
+    /// The setup entry as typed, still unclassified: the hold decides
+    /// whether it is a personal card's access number or an organization
+    /// card's PIN 1.
+    private func takeSetupEntry() -> CardPriming.SetupEntry? {
+      CardPriming.SetupEntry(digits: cardAccessNumberEntry)
+    }
+  #endif
 
   /// A live reader identity opens management directly: its card is already present.
   internal func openCardManagement() {
