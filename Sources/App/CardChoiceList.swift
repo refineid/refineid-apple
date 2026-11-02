@@ -17,13 +17,20 @@
         HStack {
           Text(verbatim: card.holderLine)
             .frame(maxWidth: .infinity, alignment: .leading)
-          if selection.chosen == card.tokenID {
-            Image(systemName: "checkmark.circle.fill")
-              .foregroundStyle(.tint)
-              .accessibilityLabel(Text("Selected"))
-          } else {
+          // The button keeps its footprint on the chosen line too, so no
+          // line changes size when the choice moves.
+          let isChosen = selection.chosen == card.tokenID
+          ZStack(alignment: .trailing) {
             Button("Select") { selection.choose(card.tokenID) }
               .accessibilityLabel(Text("Select \(card.holderLine)"))
+              .opacity(isChosen ? 0 : 1)
+              .disabled(isChosen)
+              .accessibilityHidden(isChosen)
+            if isChosen {
+              Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.tint)
+                .accessibilityLabel(Text("Selected"))
+            }
           }
         }
       }
