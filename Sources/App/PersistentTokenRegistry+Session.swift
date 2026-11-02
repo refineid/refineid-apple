@@ -297,7 +297,7 @@
       switch end {
       case .pairingRevoked:
         if let ended {
-          holderRevoked(pairID: ended.pairID)
+          holderRevoked(pairID: ended.pairID, in: RappDeviceVault())
         }
         return
 

@@ -198,10 +198,9 @@
     /// §4.6 item 4).
     ///
     /// This computer forgets the pairing too, the borrowed identity leaves
-    /// at once, and the row names the phone that did it. On the Mac remote
-    /// use turns off when that was the last pairing (CC-101).
-    internal func holderRevoked(pairID: Data) {
-      let vault = RappDeviceVault()
+    /// at once, and the row names the phone that did it above the pairing
+    /// prompt. Remote use stays on: only the holder turns it off.
+    internal func holderRevoked(pairID: Data, in vault: RappDeviceVault) {
       let name = (try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault))?.metadata()
         .peerDisplayName
       if holderSession?.pairID == pairID {
@@ -215,13 +214,10 @@
       advertisementLossTask = nil
       holderIsAdvertising = false
       Self.withdrawPublishedIdentity()
-      refreshPairing()
+      refreshPairing(in: vault)
       if let name {
         phoneThatForgot = name
       }
-      #if os(macOS) && REFINEID_REMOTE_CARD
-        remoteUseFollowsThePairings(.shared, in: vault)
-      #endif
       restartWatchingPresence()
       NotificationCenter.default.post(
         name: RappPairingModel.pairingsDidChangeNotification, object: nil)
@@ -233,7 +229,7 @@
     /// own session.
     internal func holderRevokedElsewhere() {
       guard let pairID = Self.publishedPairID() else { return }
-      holderRevoked(pairID: pairID)
+      holderRevoked(pairID: pairID, in: RappDeviceVault())
     }
 
     /// This computer's close for a pairing it forgot reached the phone

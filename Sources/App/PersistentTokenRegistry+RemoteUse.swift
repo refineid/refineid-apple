@@ -172,16 +172,6 @@
         NotificationCenter.default.post(
           name: RappPairingModel.pairingsDidChangeNotification, object: nil)
       }
-
-      /// Turns `remoteUse` off once the last pairing in `vault` has ended
-      /// other than by the holder's click: the phone revoked it, or it
-      /// expired (CC-101).
-      internal func remoteUseFollowsThePairings(
-        _ remoteUse: RemoteUseSwitch, in vault: RappDeviceVault
-      ) {
-        guard remoteUse.isOn, !RappPairIdleExpiry.holdsActivePairing(vault) else { return }
-        remoteUse.stop()
-      }
     #endif
 
     /// This computer's withdrawal, as a card in its reader suspends remote
