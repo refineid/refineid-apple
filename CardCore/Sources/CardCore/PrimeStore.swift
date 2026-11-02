@@ -60,6 +60,12 @@ public enum PrimeStore {
   /// Tolerates a small wall-clock adjustment between app and extension.
   private static let allowedFutureSkew: TimeInterval = 5
 
+  /// Whether the app's registration hold is running right now, for a
+  /// mint that publishes from a prime outside this store.
+  public static var isRegistrationFieldMarked: Bool {
+    registrationFieldMarked()
+  }
+
   /// Stores the primed identity for one card, replacing any previous one.
   ///
   /// Returns the keychain's own status, so a caller can tell the holder

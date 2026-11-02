@@ -35,6 +35,7 @@ internal enum CardStateReset {
     let credentials = CardCredentialStore.contents()
     return credentials.hasCardAccessNumber
       || PrimeStore.storedCount() > 0
+      || !OrganizationPrimeStore.storedPrimes().isEmpty
       || DriverConfiguredCredentials.identityTokenConfigurationCount() > 0
       || !Self.registeredOurTokenIDs().isEmpty
       || !TrustRootsCache.shared.allCertificates.isEmpty

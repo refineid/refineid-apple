@@ -28,7 +28,7 @@
       guard SupportedCardTransports.offersNearField else { return }
       guard !DemoMode.shared.isActive else { return }
       let holdsCard =
-        PrimeStore.storedCount() > 0 || CardPresence.shared.isReaderCardPresent
+        PhoneCardPrime.isStored || CardPresence.shared.isReaderCardPresent
       if !didMeasure {
         if !holdsCard {
           guard CardPresence.shared.hasCompletedInitialScan else { return }

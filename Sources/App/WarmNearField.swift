@@ -59,6 +59,10 @@ internal actor WarmNearField<Field: NearField> {
   /// The channel prepared in ``field``.
   private var channel: Field.Channel?
 
+  /// What ``channel`` was prepared with; a channel is reused only for the
+  /// same opening.
+  private var channelOpening: NearFieldOpening?
+
   /// Counts the fields opened, so a look meant for an ended field touches
   /// no later one.
   private var generation = 0
@@ -102,8 +106,8 @@ internal actor WarmNearField<Field: NearField> {
   }
 
   /// Runs `work` on the field's channel, opening a field and preparing
-  /// its channel with `cardAccessNumber` first when none is held; the
-  /// sheet draws the meter of `operation`.
+  /// its channel as `opening` names first when none is held; the sheet
+  /// draws the meter of `operation`.
   ///
   /// Between operations the sheet keeps the meter of the last one: all
   /// steps done, or the failure's sentence.
@@ -111,12 +115,12 @@ internal actor WarmNearField<Field: NearField> {
   /// Nil when no field opened, the channel could not be prepared, or the
   /// field aged before the operation could start.
   internal func execute<Outcome: NearFieldOutcome>(
-    cardAccessNumber: String,
+    opening: NearFieldOpening,
     operation: NearFieldOperation,
     _ work: @escaping @Sendable (Field.Channel, CredentialSessionBox) -> Outcome
   ) async -> Outcome? {
     await chain.run {
-      await self.run(cardAccessNumber: cardAccessNumber, operation: operation, work)
+      await self.run(opening: opening, operation: operation, work)
     }
   }
 
@@ -145,7 +149,7 @@ internal actor WarmNearField<Field: NearField> {
   }
 
   private func run<Outcome: NearFieldOutcome>(
-    cardAccessNumber: String,
+    opening: NearFieldOpening,
     operation: NearFieldOperation,
     _ work: @escaping @Sendable (Field.Channel, CredentialSessionBox) -> Outcome
   ) async -> Outcome? {
@@ -160,7 +164,7 @@ internal actor WarmNearField<Field: NearField> {
     let sheet = NearFieldSheet(operation) { text in current.show(text) }
     sheet.reach(.secureChannel)
     report(.operationStarted)
-    let outcome = await perform(work, in: current, cardAccessNumber: cardAccessNumber, sheet: sheet)
+    let outcome = await perform(work, in: current, opening: opening, sheet: sheet)
     let succeeded = outcome?.isResult == true
     if succeeded {
       sheet.finish()
@@ -206,11 +210,11 @@ internal actor WarmNearField<Field: NearField> {
   private func perform<Outcome: NearFieldOutcome>(
     _ work: @escaping @Sendable (Field.Channel, CredentialSessionBox) -> Outcome,
     in current: Field,
-    cardAccessNumber: String,
+    opening: NearFieldOpening,
     sheet: NearFieldSheet
   ) async -> Outcome? {
     guard
-      let prepared = await preparedChannel(in: current, cardAccessNumber: cardAccessNumber)
+      let prepared = await preparedChannel(in: current, opening: opening)
     else {
       sheet.fail(at: .secureChannel)
       release(.channelUnprepared)
@@ -230,23 +234,26 @@ internal actor WarmNearField<Field: NearField> {
     return outcome
   }
 
-  /// The channel held in `current` when the hold lets it be reused;
-  /// otherwise a fresh one, opened and prepared with PACE.
+  /// The channel held in `current` when the hold lets it be reused and it
+  /// was prepared with `opening`; otherwise a fresh one, opened and
+  /// prepared as `opening` names.
   private func preparedChannel(
     in current: Field,
-    cardAccessNumber: String
+    opening: NearFieldOpening
   ) async -> Field.Channel? {
-    if let channel, hold.reusesChannel { return channel }
+    if let channel, hold.reusesChannel, channelOpening == opening { return channel }
     if let channel {
       current.endChannel(channel)
     }
     channel = nil
-    guard let prepared = await current.prepareChannel(cardAccessNumber: cardAccessNumber) else {
+    channelOpening = nil
+    guard let prepared = await current.prepareChannel(opening) else {
       return nil
     }
     hold.channelPrepared()
     credentials.mutate { $0.sessionEnded() }
     channel = prepared
+    channelOpening = opening
     lastExchangeMs = clock()
     return prepared
   }
@@ -311,6 +318,7 @@ internal actor WarmNearField<Field: NearField> {
       current.endChannel(channel)
     }
     channel = nil
+    channelOpening = nil
     let slotState = current.stateName
     current.end()
     field = nil

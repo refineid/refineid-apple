@@ -40,24 +40,48 @@
       recorder: RappBatchSignatureRecorder
     ) async -> BatchOutcome {
       let counter = BatchCounter()
-      let outcome = await withCard(cardAccessNumber: cardAccessNumber, operation: .signature) {
-        operations, context in
-        for digest in request.digests {
-          let outcome = executeSign(
-            SignParameters(
-              cardAccessNumber: cardAccessNumber,
-              pin: .pin2(pin2),
-              keyProfile: request.keyProfile,
-              algorithm: request.algorithm,
-              digest: digest),
-            with: operations, context: context)
-          guard case .result(let signature) = outcome else { return outcome }
-          guard recorder.record(signature) else { return .completionAmbiguous }
-          counter.increment()
-        }
-        return .result(Data())
+      let parameters = request.digests.map { digest in
+        SignParameters(
+          cardAccessNumber: cardAccessNumber,
+          pin: .pin2(pin2),
+          keyProfile: request.keyProfile,
+          algorithm: request.algorithm,
+          digest: digest)
       }
+      // An organization card's PIN 2 opens one channel for one signature,
+      // so each document runs its own PACE with the same entry.
+      let outcome = await withCard(
+        cardAccessNumber: cardAccessNumber,
+        operation: .signature,
+        organization: { plain, context in
+          signEach(parameters, counter: counter, recorder: recorder) { params in
+            executeOrganizationSign(params, on: plain, context: context)
+          }
+        },
+        personal: { operations, context in
+          signEach(parameters, counter: counter, recorder: recorder) { params in
+            executeSign(params, with: operations, context: context)
+          }
+        }
+      )
       return BatchOutcome(signed: counter.signed, outcome: outcome)
+    }
+
+    /// Signs each document in order, journaling every signature before
+    /// the next; the first outcome without a signature ends the batch.
+    private static func signEach(
+      _ parameters: [SignParameters],
+      counter: BatchCounter,
+      recorder: RappBatchSignatureRecorder,
+      _ signOne: (SignParameters) -> Outcome
+    ) -> Outcome {
+      for params in parameters {
+        let outcome = signOne(params)
+        guard case .result(let signature) = outcome else { return outcome }
+        guard recorder.record(signature) else { return .completionAmbiguous }
+        counter.increment()
+      }
+      return .result(Data())
     }
   }
 #endif

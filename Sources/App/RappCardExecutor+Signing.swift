@@ -99,10 +99,14 @@
     ) async -> Outcome {
       await withCard(
         cardAccessNumber: params.cardAccessNumber,
-        operation: params.qualified ? .signature : .authentication
-      ) { operations, context in
-        executeSign(params, with: operations, context: context)
-      }
+        operation: params.qualified ? .signature : .authentication,
+        organization: { plain, context in
+          executeOrganizationSign(params, on: plain, context: context)
+        },
+        personal: { operations, context in
+          executeSign(params, with: operations, context: context)
+        }
+      )
     }
 
     internal static func executeSign(
@@ -229,7 +233,7 @@
       return outcome
     }
 
-    private static func computeAndVerifySignature(
+    internal static func computeAndVerifySignature(
       operations: CardOperations,
       identity: Identity,
       qualified: Bool
@@ -304,13 +308,33 @@
       }
     }
 
-    private static func identity(
+    /// The certificate an organization card's prime holds for `slot`.
+    private static func organizationCertificate(
+      _ prime: OrganizationPrime,
+      slot: CertificateSlot
+    ) -> Data? {
+      switch slot {
+      case .authentication:
+        prime.certificateDER
+
+      case .qualifiedSignature:
+        prime.signatureCertificateDER
+
+      default:
+        nil
+      }
+    }
+
+    internal static func identity(
       params: SignParameters,
       operations: CardOperations,
       allowCache: Bool
     ) -> Identity? {
       let cachedCertData: Data? = {
         guard allowCache else { return nil }
+        if case .organization(let prime)? = PhoneCardPrime.current {
+          return organizationCertificate(prime, slot: params.slot)
+        }
         let stored = PrimeStore.storedIdentities().first
         switch params.slot {
         case .authentication:

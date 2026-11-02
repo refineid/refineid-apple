@@ -9,8 +9,8 @@
   /// printed digit.
   ///
   /// Shown only when the slot's answer proves the card is on the
-  /// antenna, so it needs no explaining - the card face says CAN over
-  /// six digits, and the row shows CAN beside six boxes. The sixth
+  /// antenna, so it needs no explaining - a personal card's face says
+  /// CAN over six digits, and the row shows CAN beside six boxes. The sixth
   /// digit submits on its own: the driver tries a number once, and a
   /// refused number is latched by fingerprint and never re-tried by
   /// itself, so the automatic try spends exactly one of the card's

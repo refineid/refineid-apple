@@ -4,6 +4,9 @@ import CardCore
 import SwiftUI
 
 extension CardCredentialsView {
+  /// How far the setup entry's label may shrink to fit its row.
+  private static let setupEntryMinimumScale = 0.6
+
   #if os(iOS)
     private var verifyRow: some View {
       NavigationLink(value: Route.verifyDocuments) {
@@ -172,28 +175,7 @@ extension CardCredentialsView {
 
   @ViewBuilder internal var cardAccessNumberRow: some View {
     #if os(iOS)
-      HStack {
-        PersonRowLabel.cardIcon(
-          systemName: "person.text.rectangle",
-          lit: isCardAccessNumberEntryComplete
-        )
-        TextField(
-          "Card Access Number (CAN)",
-          text: $cardAccessNumberEntry
-        )
-        .font(.body)
-        .keyboardType(.numberPad)
-        .textContentType(nil)
-        .focused($isCardAccessNumberFieldFocused)
-        .accessibilityIdentifier("cardAccessNumberField")
-        .onValueChange(of: cardAccessNumberEntry) { typed in
-          cardAccessNumberEntry = LimitedDigits.cardAccessNumber(typed)
-        }
-        #if REFINEID_LOCAL_CARD && os(iOS)
-          canScanButton
-        #endif
-      }
-      .buttonStyle(.borderless)
+      setupEntryRow
     #else
       TextField(
         "Card Access Number (CAN)",
@@ -209,6 +191,51 @@ extension CardCredentialsView {
       }
     #endif
   }
+
+  #if os(iOS)
+    /// The setup entry "Card Access Number (CAN)": four to twelve digits,
+    /// hidden behind the eye, then the camera that reads a personal card's
+    /// six printed digits.
+    ///
+    /// What the digits are is decided on the tap, by the card on the
+    /// antenna: a personal card's six-digit access number, or an
+    /// organization card's PIN 1. Until then the entry is a secret, so it
+    /// is hidden like every PIN, and a scan leaves it hidden too.
+    private var setupEntryRow: some View {
+      HStack {
+        PersonRowLabel.cardIcon(
+          systemName: "person.text.rectangle",
+          lit: isSetupEntryComplete
+        )
+        CredentialSecretField(
+          name: String(localized: "Card Access Number (CAN)"),
+          text: $cardAccessNumberEntry,
+          revealIdentifier: "cardAccessNumberReveal"
+        ) {
+          SecureField(
+            String(localized: "Card Access Number (CAN)"),
+            text: $cardAccessNumberEntry
+          )
+          .font(.body)
+          .keyboardType(.numberPad)
+          .textContentType(.oneTimeCode)
+          .focused($isCardAccessNumberFieldFocused)
+          .accessibilityIdentifier("cardAccessNumberField")
+          .onValueChange(of: cardAccessNumberEntry) { typed in
+            cardAccessNumberEntry = LimitedDigits.pin(typed)
+          }
+        }
+        // The label shrinks to fit beside the eye and the camera rather
+        // than being cut off.
+        .lineLimit(1)
+        .minimumScaleFactor(Self.setupEntryMinimumScale)
+        #if REFINEID_LOCAL_CARD && os(iOS)
+          canScanButton
+        #endif
+      }
+      .buttonStyle(.borderless)
+    }
+  #endif
 
   #if REFINEID_LOCAL_CARD && os(iOS)
     @ViewBuilder private var canScanButton: some View {

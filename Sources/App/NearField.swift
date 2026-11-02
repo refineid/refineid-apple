@@ -8,6 +8,12 @@ import Foundation
 ///
 /// ``WarmNearField`` decides when a field opens, is reused and ends; this
 /// is what it asks of the platform.
+///
+/// What a field's channel is prepared with comes from the prime: a
+/// personal card's PACE runs once with its card access number, and every
+/// operation reuses that channel; an organization card's channel stays
+/// plain, because its PACE password is the PIN each operation spends, so
+/// each operation runs its own PACE on it.
 internal protocol NearField: AnyObject, Sendable {
   /// The card's exclusive session with PACE done and the application
   /// selected.
@@ -32,9 +38,9 @@ internal protocol NearField: AnyObject, Sendable {
   /// Sends one harmless command on `channel`; true when the card answered.
   func keepAlive(_ channel: Channel) async -> Bool
 
-  /// Opens the card session and runs PACE with `cardAccessNumber`; nil
-  /// when the card did not answer.
-  func prepareChannel(cardAccessNumber: String) async -> Channel?
+  /// Opens the card session and prepares it as `opening` names; nil when
+  /// the card did not answer.
+  func prepareChannel(_ opening: NearFieldOpening) async -> Channel?
 
   /// Replaces the message on the sheet.
   func show(_ text: String)

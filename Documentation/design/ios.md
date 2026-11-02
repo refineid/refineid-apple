@@ -61,6 +61,42 @@ PACE. Core NFC is also unavailable to extensions and allows one reader
 session in the system, so it would be a second NFC stack beside the slot
 the token extension signs through.
 
+## Setting a card up
+
+The setup entry is labelled "Card Access Number (CAN)" for every card:
+one hidden field of four to twelve digits, then the eye that shows them,
+then the camera that reads a personal card's six printed digits. A scan
+leaves the field hidden. "Read Identity Card" reads the card on the
+phone's antenna in one hold, and the card decides on that tap what the
+digits are.
+
+- **Which card.** The card's first answer, before any password, names
+  its kind: `6985` an organization card, any other answer a personal
+  card.
+- **Personal card.** The entry must be the six digits printed on the
+  card. Any other length ends the hold as an incorrect card access
+  number, with no PACE run and nothing sent. Six digits run PACE, and
+  the number is stored once PACE proves it.
+- **Organization card.** The card has no printed number: it opens only
+  with PACE and PIN 1 or PIN 2 as the password (FINEID S1 v4.0,
+  organizational cards, section 2.1), so the entry is its PIN 1. PACE
+  with PIN 1 opens the channel the certificates are read through, and
+  the organization prime (certificates and chip serial only) is stored
+  under the card model's historical bytes. PIN 1 is spent on that one
+  handshake and is neither stored nor held; the field is emptied when
+  the hold ends, and the digits never become a card access number.
+- **Wrong PIN 1.** The card's refusal is shown as for any PIN 1, with
+  the tries left, and the retry floor decides on the state MSE:Set AT
+  reports before the card takes a try.
+
+An organization card set up this way signs on the phone's antenna the
+way the Mac's reader does: every operation opens its own PACE channel
+with the PIN it spends, PIN 1 for an authentication, PIN 2 for a
+qualified signature, with no VERIFY. A paired computer's operation does
+the same on the warm field's plain channel; the certificates come from
+the prime. PIN management is not offered for an organization card on
+the phone.
+
 ## The activation screen
 
 Activation is left only through the bar's back button. The system back

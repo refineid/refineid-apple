@@ -51,6 +51,9 @@
     /// asking for the card again.
     @Published internal private(set) var refusal: CardSetupRefusal?
 
+    /// The kind of card the last hold found, when a card answered.
+    @Published internal private(set) var cardKind: ContactlessCardKind?
+
     /// The credential counters the last hold read.
     @Published internal private(set) var credentialReport: CredentialProbeReport?
 
@@ -71,16 +74,17 @@
       allowsNearField = SupportedCardTransports.offersNearField
     }
 
-    /// Primes the card for later system-driven logins with the access
-    /// number alone; PIN 1 is asked for when the card first signs (RAPP
-    /// v26.10.29 §11 item 2).
+    /// Primes the card on the antenna from what the setup entry holds.
     ///
-    /// The access number is supplied rather than read from storage, because
-    /// a first setup has not stored one yet: this hold is what proves it.
-    internal func prime(cardAccessNumber: String) async {
+    /// The card's first answer decides whether the entry is a personal
+    /// card's access number or an organization card's PIN 1. A personal
+    /// card's setup sends no PIN: PIN 1 is asked for when it first signs
+    /// (RAPP v26.10.29 §11 item 2).
+    internal func prime(entry: CardPriming.SetupEntry) async {
       guard !isRunning else { return }
       if DemoMode.shared.isActive {
-        await primeVirtualCard(cardAccessNumber: cardAccessNumber)
+        guard let proven = entry.personalAccessNumber() else { return }
+        await primeVirtualCard(cardAccessNumber: proven.digits)
         return
       }
       refresh()
@@ -89,17 +93,17 @@
       lastRunResult = .notRun
       failure = nil
       refusal = nil
+      cardKind = nil
       credentialReport = nil
       let isRecovery = isRecoveryModeNext
       // The meter on the system NFC sheet carries progress; the holder
       // is looking at the card, not at this screen.
-      let outcome = await CardPriming.prime(
-        cardAccessNumber: cardAccessNumber,
-        isRecovery: isRecovery)
+      let outcome = await CardPriming.prime(entry: entry, isRecovery: isRecovery)
       // The sound is started and answered inside the panel's lifetime,
       // in `CardPriming`; nothing here makes a noise after it closed. A
       // hold the holder cancelled never got as far as a sound at all.
       refusal = outcome.refusal
+      cardKind = outcome.cardKind
       credentialReport = outcome.credentialReport
       if outcome.cancelled {
         lastRunResult = .notRun

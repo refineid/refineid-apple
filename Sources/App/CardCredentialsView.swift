@@ -6,8 +6,11 @@ import SwiftUI
 /// Setting the card up: the access number and the hold that registers the
 /// card for Safari.
 ///
-/// No PIN is entered here: PIN 1 is asked for when the card first signs
-/// and is held only in memory (RAPP v26.10.29 §11 item 2).
+/// A personal card's setup takes no PIN: PIN 1 is asked for when the
+/// card first signs and is held only in memory (RAPP v26.10.29 §11 item
+/// 2). An organization card has no printed access number, and its entry
+/// under the same label is its PIN 1, which opens the setup hold's PACE
+/// and is spent there.
 ///
 /// This is the screen that matters, so it is the one the app opens on.
 /// Development builds keep technical state behind the Diagnostics row.
@@ -74,6 +77,7 @@ internal struct CardCredentialsView: View {
     @ObservedObject internal var demoMode = DemoMode.shared
   #endif
   @State internal var cardAccessNumberEntry = ""
+
   @State internal var isScanning = false
   @State internal var scannerTorchEnabled = false
   @State internal var registrationReset = false
@@ -124,15 +128,23 @@ internal struct CardCredentialsView: View {
   /// The complete visible CAN handed to signing and PIN management.
   ///
   /// These routes can establish and verify their own card session, so they
-  /// become available at six digits without requiring an earlier NFC read.
+  /// become available at a personal card's six digits without requiring
+  /// an earlier NFC read.
   internal var managementCardAccessNumber: String? {
     isCardAccessNumberEntryComplete ? cardAccessNumberEntry : nil
   }
 
   /// The point at which operations using the printed card number can be
-  /// offered.
+  /// offered: a personal card's six digits.
   internal var isCardAccessNumberEntryComplete: Bool {
     cardAccessNumberEntry.count == CardAccessNumber.digitCount
+  }
+
+  /// Whether the setup entry can be read: four to twelve digits, an
+  /// organization card's PIN 1 or, checked on the tap, a personal card's
+  /// six.
+  internal var isSetupEntryComplete: Bool {
+    (Pin1.minimumDigitCount...Pin1.maximumDigitCount).contains(cardAccessNumberEntry.count)
   }
 
   /// Disclosure follows a validated connection, never digit count alone.
@@ -170,7 +182,11 @@ internal struct CardCredentialsView: View {
       }
     #endif
     guard isRegistered else { return nil }
-    return PrimeStore.primedHolderNames().first
+    #if REFINEID_LOCAL_CARD && os(iOS)
+      return PhoneCardPrime.holderName
+    #else
+      return PrimeStore.primedHolderNames().first
+    #endif
   }
 
   /// Whether there is a complete, displayable identity.
@@ -259,7 +275,7 @@ internal struct CardCredentialsView: View {
     /// Whether Read Identity Card can start the NFC hold that primes the card.
     internal var canReadIdentityCard: Bool {
       guard
-        isCardAccessNumberEntryComplete,
+        isSetupEntryComplete,
         !model.isConnecting
       else { return false }
       #if REFINEID_LOCAL_CARD

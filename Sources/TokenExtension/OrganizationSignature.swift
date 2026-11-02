@@ -139,7 +139,7 @@ internal enum OrganizationSignature {
   ///
   /// A floor refusal, a deactivated PIN and a blocked one refuse the
   /// signature; a wrong PIN asks again. Every other failure is passed on.
-  private static func refusal(_ failure: PaceEstablishment.Failure, pin role: CredentialRole)
+  internal static func refusal(_ failure: PaceEstablishment.Failure, pin role: CredentialRole)
     -> any Error
   {
     switch failure {

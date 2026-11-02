@@ -67,6 +67,9 @@
       /// What the card said, when it said something the caller can route on.
       internal var refusal: CardSetupRefusal?
 
+      /// The kind of card the hold found, when a card answered.
+      internal var cardKind: ContactlessCardKind?
+
       /// The credential counters this hold read, for the health display and
       /// the recovery route.
       internal var credentialReport: CredentialProbeReport?
@@ -77,8 +80,22 @@
       internal let session: NearFieldCardSession
       internal let sheet: NearFieldSheet
       internal let lookup: PrimeLookupIdentifier
-      internal let accessNumber: ProvenAccessNumber
+
+      /// What the holder typed, still unclassified.
+      internal let entry: SetupEntry
+
+      /// Where the card's first answer is recorded.
+      internal let foundKind: FoundKind
       internal let isRecovery: Bool
+    }
+
+    /// What the reads of one hold leave for its registration.
+    internal struct HoldRead: Sendable {
+      /// The token instance the identity was stored under.
+      internal let instance: TokenInstanceID
+
+      /// The credential counters the hold read, when it read them.
+      internal let credentialReport: CredentialProbeReport?
     }
 
     /// Shown under Apple's own "Ready to Scan" title whenever the system
@@ -129,23 +146,32 @@
     /// first signs, where the counter is read in the same session that
     /// spends it, and is held only in memory (RAPP v26.10.29 §11 item 2).
     internal static func prime(cardAccessNumber: String) async -> Outcome {
-      await prime(cardAccessNumber: cardAccessNumber, isRecovery: false)
-    }
-
-    /// Primes the card, optionally using extended recovery mode for throttled cards.
-    internal static func prime(
-      cardAccessNumber: String,
-      isRecovery: Bool
-    ) async -> Outcome {
-      guard let accessNumber = CardAccessNumber(digits: cardAccessNumber) else {
+      guard let entry = SetupEntry(digits: cardAccessNumber) else {
         return Self.failure(Failure.cardAccessNumberMissing)
       }
+      return await prime(entry: entry, isRecovery: false)
+    }
+
+    /// Primes the card on the antenna from what the setup entry holds,
+    /// optionally using extended recovery mode for throttled cards.
+    ///
+    /// The card's first answer decides what the entry is before any
+    /// password is sent (``ContactlessCardKind``): a personal card's
+    /// access number, which must be six digits, or an organization card's
+    /// PIN 1.
+    internal static func prime(
+      entry: SetupEntry,
+      isRecovery: Bool
+    ) async -> Outcome {
       // Marked BEFORE the slot opens: `ctkd` asks the extension for a
       // token the moment the card arrives, and a mark written after that
       // would lose the race. The mark makes the extension publish
       // without taking a card session, leaving the card to this flow.
       let marked = PrimeStore.markRegistrationField()
       guard marked == errSecSuccess else {
+        #if DEBUG
+          DevErrorLog.report("setup: registration mark not stored, status \(marked)", source: .app)
+        #endif
         return Self.failure(Self.storeFailure(marked))
       }
       defer { PrimeStore.clearRegistrationField() }
@@ -154,6 +180,9 @@
       do {
         session = try await NearFieldCardSession.open(showing: .setup)
       } catch {
+        #if DEBUG
+          DevErrorLog.report("setup: no card session: \(error)", source: .app)
+        #endif
         return Self.failure(error)
       }
       defer { session.end() }
@@ -167,11 +196,14 @@
       // shown, and it is answered below while that panel is still up: a
       // tone that outlives the sheet is a tone about nothing.
       await CardPrimingFeedback.startWorking()
-      let outcome = await Self.hold(
+      let foundKind = FoundKind()
+      var outcome = await Self.hold(
         session: session,
         sheet: sheet,
-        accessNumber: ProvenAccessNumber(value: accessNumber, digits: cardAccessNumber),
+        entry: entry,
+        foundKind: foundKind,
         isRecovery: isRecovery)
+      outcome.cardKind = foundKind.value
       await CardPrimingFeedback.report(succeeded: outcome.stored && outcome.registered)
       return outcome
     }
@@ -183,7 +215,8 @@
     private static func hold(
       session: NearFieldCardSession,
       sheet: NearFieldSheet,
-      accessNumber: ProvenAccessNumber,
+      entry: SetupEntry,
+      foundKind: FoundKind,
       isRecovery: Bool
     ) async -> Outcome {
       guard
@@ -197,7 +230,8 @@
         session: session,
         sheet: sheet,
         lookup: lookup,
-        accessNumber: accessNumber,
+        entry: entry,
+        foundKind: foundKind,
         isRecovery: isRecovery)
       return await Self.readStoreRegister(execution: execution)
     }
@@ -231,14 +265,22 @@
 
     /// Reads the card in this same field, stores the prime, registers.
     private static func readStoreRegister(execution: HoldExecution) async -> Outcome {
-      let payload: Payload
+      let read: HoldRead
       do {
-        payload = try await Self.onCardQueue {
+        read = try await Self.onCardQueue {
           try Self.read(
             execution,
-            store: { identity in try Self.store(identity, execution: execution) })
+            store: { identity, accessNumber in
+              try Self.store(identity, accessNumber: accessNumber, execution: execution)
+            })
         }
       } catch {
+        #if DEBUG
+          DevErrorLog.report(
+            "setup: hold failed (\(execution.foundKind.value.map { "\($0)" } ?? "no answer")): "
+              + "\(error)",
+            source: .app)
+        #endif
         // The sheet is the only thing a holder can see while holding, so
         // it carries the detail rather than a shrug. Nothing here names
         // a PIN, CAN or the holder.
@@ -247,8 +289,8 @@
       }
 
       return await Self.finish(
-        instance: payload.identity.instance,
-        credentialReport: payload.credentialReport,
+        instance: read.instance,
+        credentialReport: read.credentialReport,
         execution: execution)
     }
 
@@ -262,11 +304,15 @@
     /// this flow. PACE has already proven the access number. A qualified
     /// signature certificate cached for the same authentication
     /// certificate is kept.
-    private static func store(_ identity: Identity, execution: HoldExecution) throws {
+    private static func store(
+      _ identity: Identity,
+      accessNumber: ProvenAccessNumber,
+      execution: HoldExecution
+    ) throws {
       let known = PrimeStore.read(lookupID: execution.lookup)
       let signatureCertificate =
         known?.certDER == identity.certificate ? known?.signatureCertDER : nil
-      let saved = CardCredentialStore.save(cardAccessNumber: execution.accessNumber.digits)
+      let saved = CardCredentialStore.save(cardAccessNumber: accessNumber.digits)
       guard saved == errSecSuccess else { throw Self.storeFailure(saved) }
       guard
         let primed = CardCredentialStore.primedIdentity(
@@ -304,6 +350,9 @@
       if registered {
         execution.sheet.finish()
       } else {
+        #if DEBUG
+          DevErrorLog.report("setup: the card was not registered for the system", source: .app)
+        #endif
         execution.sheet.fail(
           at: .registered, saying: String(localized: "Safari setup did not finish."))
       }
