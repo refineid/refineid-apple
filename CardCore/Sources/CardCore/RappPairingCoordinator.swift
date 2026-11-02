@@ -79,6 +79,8 @@
       case transportFailure
       case protocolFailure
       case persistenceFailure
+      /// This device's storage refused the pairing for lack of space.
+      case outOfSpace
       case offerExpired
       /// No CPace step 2 arrived within the attempt deadline of the
       /// requester's step 1 (RAPP v26.10.29 §3.3 item 3).

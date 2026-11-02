@@ -246,10 +246,11 @@
     private func store(now: UInt64) async throws {
       let record = try bridge.buildPairRecord(
         createdAtMs: clock.wallMilliseconds(), nowMonotonicMs: now)
+      let witness = RappVaultWriteWitness(vault: vault)
       do {
-        try record.persistDeviceOnly(vault: vault)
+        try record.persistDeviceOnly(vault: witness)
       } catch {
-        await fail(.persistenceFailure)
+        await fail(witness.closeReason)
         return
       }
       storedPairID = record.metadata().pairId
@@ -263,10 +264,11 @@
     /// exchanged, storing the confirmed record over the unconfirmed one.
     private func activate(now: UInt64) async throws {
       guard let confirmed = try bridge.activatePairing(nowMonotonicMs: now) else { return }
+      let witness = RappVaultWriteWitness(vault: vault)
       do {
-        try confirmed.replaceDeviceOnly(vault: vault)
+        try confirmed.replaceDeviceOnly(vault: witness)
       } catch {
-        await fail(.persistenceFailure)
+        await fail(witness.closeReason)
         return
       }
       storedPairID = nil

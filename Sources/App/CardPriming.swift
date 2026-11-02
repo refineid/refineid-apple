@@ -144,8 +144,9 @@
       // token the moment the card arrives, and a mark written after that
       // would lose the race. The mark makes the extension publish
       // without taking a card session, leaving the card to this flow.
-      guard PrimeStore.markRegistrationField() else {
-        return Self.failure(Failure.primeNotStored)
+      let marked = PrimeStore.markRegistrationField()
+      guard marked == errSecSuccess else {
+        return Self.failure(Self.storeFailure(marked))
       }
       defer { PrimeStore.clearRegistrationField() }
 
@@ -265,18 +266,25 @@
       let known = PrimeStore.read(lookupID: execution.lookup)
       let signatureCertificate =
         known?.certDER == identity.certificate ? known?.signatureCertDER : nil
+      let saved = CardCredentialStore.save(cardAccessNumber: execution.accessNumber.digits)
+      guard saved == errSecSuccess else { throw Self.storeFailure(saved) }
       guard
-        CardCredentialStore.save(cardAccessNumber: execution.accessNumber.digits) == errSecSuccess,
         let primed = CardCredentialStore.primedIdentity(
           certificate: identity.certificate,
           issuer: identity.issuer,
           chipSerial: identity.chipSerial,
           activationCheck: identity.activationCheck,
-          signatureCertificate: signatureCertificate),
-        PrimeStore.store(primed, forLookup: execution.lookup)
+          signatureCertificate: signatureCertificate)
       else {
         throw Failure.primeNotStored
       }
+      let stored = PrimeStore.store(primed, forLookup: execution.lookup)
+      guard stored == errSecSuccess else { throw Self.storeFailure(stored) }
+    }
+
+    /// Why a keychain write that answered `status` left nothing stored.
+    private static func storeFailure(_ status: OSStatus) -> any Error {
+      StorageFailure.isOutOfSpace(status) ? StorageFailure.outOfSpace : Failure.primeNotStored
     }
 
     /// Registers the live card and reports how the hold ended.

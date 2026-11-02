@@ -15,6 +15,9 @@
     /// room for one short line, while the app retains the fuller sanitized
     /// result after the panel closes.
     internal static func sheetMessage(for error: any Error) -> String {
+      if StorageFailure.isOutOfSpace(error) {
+        return DiskFullMessage.text
+      }
       if case Failure.pin1LowAttempts = error {
         return String(localized: "Operation refused.")
       }
@@ -40,6 +43,9 @@
     }
 
     internal static func summary(for error: any Error) -> String {
+      if StorageFailure.isOutOfSpace(error) {
+        return DiskFullMessage.text
+      }
       if let failure = error as? Failure {
         return Self.summary(for: failure)
       }
