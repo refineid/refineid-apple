@@ -103,10 +103,13 @@
       // commits. Everything after the tap is Apple's NFC sheet.
       Button {
         Task { @MainActor in
-          guard let accessNumber = cardAccessNumber() else { return }
+          guard
+            let accessNumber = cardAccessNumber(),
+            let entry = CardPriming.SetupEntry(digits: accessNumber)
+          else { return }
           onRegistrationStarted()
           let succeeded = await Self.registerIdentity(
-            entry: .cardAccessNumber(accessNumber),
+            entry: entry,
             model: model,
             commit: IdentityCommitments(storeCardAccessNumber: storeCardAccessNumber) {
               isRegistered = true
@@ -148,10 +151,11 @@
     ) async -> Bool {
       await model.prime(entry: entry)
       guard case .succeeded = model.lastRunResult else { return false }
-      if case .cardAccessNumber(let cardAccessNumber) = entry,
-        !commit.storeCardAccessNumber(cardAccessNumber)
-      {
-        return false
+      if model.cardKind != .organization {
+        guard
+          let proven = entry.personalAccessNumber(),
+          commit.storeCardAccessNumber(proven.digits)
+        else { return false }
       }
       commit.markRegistered()
       return true

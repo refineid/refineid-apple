@@ -16,8 +16,10 @@
     ///
     /// Runs on the card queue, inside the card's exclusive session. The
     /// card's first answer names its kind before any password is sent
-    /// (``ContactlessCardKind``); a hold whose entry is for the other kind,
-    /// or that has none, ends there with ``Failure/cardKind(_:)``.
+    /// (``ContactlessCardKind``), and only then does the entry become a
+    /// password: a personal card's access number, which must be the six
+    /// printed digits -- any other entry ends the hold as a wrong access
+    /// number with no PACE run -- or an organization card's PIN 1.
     /// `store` receives a personal card's identity as soon as it is read
     /// and checked, so the token extension's mint, already waiting in this
     /// field, finds the prime while the hold reads the counters and any
@@ -31,11 +33,12 @@
       let waitBudget: SmartCardChannel.ResponseWait = isRecovery ? .nearFieldRecovery : .nearField
       return try execution.session.withCardSession(waits: waitBudget) { channel in
         let kind = ContactlessCardKind.of(CardOperations(channel: channel))
-        guard let password = execution.password, password.kind == kind else {
-          throw Failure.cardKind(kind)
-        }
-        switch password {
-        case .cardAccessNumber(let proven):
+        execution.foundKind.record(kind)
+        switch kind {
+        case .personal:
+          guard let proven = execution.entry.personalAccessNumber() else {
+            throw Failure.wrongCardAccessNumber
+          }
           let keys = try Self.establishPace(
             channel: channel,
             accessNumber: proven.value,
@@ -50,7 +53,10 @@
             instance: payload.identity.instance,
             credentialReport: payload.credentialReport)
 
-        case .organizationPin1(let pin1):
+        case .organization:
+          guard let pin1 = execution.entry.organizationPin1() else {
+            throw Failure.pin1Unavailable
+          }
           return try Self.readOrganization(
             channel: channel,
             pin1: pin1,

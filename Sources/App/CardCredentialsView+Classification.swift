@@ -179,8 +179,8 @@ extension CardCredentialsView {
 
   /// Sets the identity up in one hold.
   ///
-  /// An empty entry starts a hold too: it sends the card nothing and
-  /// learns which entry the card on the antenna takes.
+  /// The entry is four to twelve digits; the card on the antenna decides
+  /// on the tap whether they are its access number or its PIN 1.
   internal func connectIdentityCard() {
     #if os(iOS)
       let ready = canReadIdentityCard
@@ -193,6 +193,9 @@ extension CardCredentialsView {
       #endif
       return
     }
+    #if REFINEID_LOCAL_CARD && os(iOS)
+      guard let entry = takeSetupEntry() else { return }
+    #endif
     if flowState != .home {
       flowState = .home
     }
@@ -202,9 +205,6 @@ extension CardCredentialsView {
       #endif
       return
     }
-    #if REFINEID_LOCAL_CARD && os(iOS)
-      let entry = takeSetupEntry()
-    #endif
     activation = nil
     activationNeeds = nil
     activationPinLengths = nil
@@ -231,6 +231,11 @@ extension CardCredentialsView {
   internal func finishIdentitySetup(succeeded: Bool) {
     #if REFINEID_LOCAL_CARD && os(iOS)
       retryHealth.update(primingModel.credentialReport)
+      if primingModel.cardKind == .organization {
+        // The entry was the organization card's PIN 1: it leaves the
+        // field as soon as the hold that spent it has ended.
+        cardAccessNumberEntry = ""
+      }
       guard !succeeded else {
         if retryHealth.recovery != nil {
           transition(.classificationRecoveryRequired)
@@ -241,11 +246,6 @@ extension CardCredentialsView {
         return
       }
       switch primingModel.refusal {
-      case .cardKind(let kind):
-        antennaCardKind = kind
-        isCardAccessNumberFieldFocused = true
-        transition(.classificationFailed)
-
       case .wrongCardAccessNumber:
         Task { @MainActor in
           if !isDemonstration, hasIdentity {
@@ -269,23 +269,11 @@ extension CardCredentialsView {
   }
 
   #if REFINEID_LOCAL_CARD && os(iOS)
-    /// What the setup entry holds, for the card kind on the antenna.
-    ///
-    /// An organization card's entry is its PIN 1: it leaves the field as
-    /// a ``Pin1Entry`` and the field is emptied at once, so the digits
-    /// stay only in that entry's zeroizing store and are spent on one
-    /// handshake.
-    private func takeSetupEntry() -> CardPriming.SetupEntry {
-      switch antennaCardKind {
-      case .personal:
-        return isCardAccessNumberEntryComplete
-          ? .cardAccessNumber(cardAccessNumberEntry) : .empty
-
-      case .organization:
-        let typed = organizationPinEntry
-        organizationPinEntry = ""
-        return Pin1Entry(digits: typed).map(CardPriming.SetupEntry.organizationPin1) ?? .empty
-      }
+    /// The setup entry as typed, still unclassified: the hold decides
+    /// whether it is a personal card's access number or an organization
+    /// card's PIN 1.
+    private func takeSetupEntry() -> CardPriming.SetupEntry? {
+      CardPriming.SetupEntry(digits: cardAccessNumberEntry)
     }
   #endif
 

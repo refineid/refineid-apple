@@ -19,10 +19,6 @@
       /// No card access number is stored, so PACE cannot be run.
       case cardAccessNumberMissing
 
-      /// The card on the antenna takes the other kind of entry than the
-      /// one offered, or none was offered; nothing was sent to it.
-      case cardKind(ContactlessCardKind)
-
       /// The certificate came off the card but is not a certificate.
       case certificateUnreadable
 

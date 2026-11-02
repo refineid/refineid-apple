@@ -52,6 +52,12 @@ internal final class CardCredentialsModel: ObservableObject {
 
   // MARK: Functions
 
+  /// What the holder is told when storing the number answered `status`:
+  /// the full-disk sentence for a full disk, nothing otherwise.
+  nonisolated internal static func saveFailure(_ status: OSStatus) -> String? {
+    StorageFailure.isOutOfSpace(status) ? DiskFullMessage.text : nil
+  }
+
   /// Establishes PACE with an entered CAN and classifies the live card.
   ///
   /// Nothing is persisted and no credential-changing command is sent.
@@ -142,9 +148,11 @@ internal final class CardCredentialsModel: ObservableObject {
   @discardableResult
   internal func saveCardAccessNumber(_ digits: String) -> Bool {
     failure = nil
-    guard CardCredentialStore.save(cardAccessNumber: digits) == errSecSuccess else {
+    let status = CardCredentialStore.save(cardAccessNumber: digits)
+    guard status == errSecSuccess else {
       CardCredentialStore.forgetCardAccessNumber()
       refresh()
+      failure = Self.saveFailure(status)
       return false
     }
     refresh()

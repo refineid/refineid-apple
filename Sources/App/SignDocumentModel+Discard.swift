@@ -104,7 +104,8 @@
         do {
           try finished.bytes.write(to: destination, options: .atomic)
         } catch {
-          await failAndWait(error.localizedDescription)
+          await failAndWait(
+            DiskFullMessage.message(for: error, otherwise: error.localizedDescription))
           continue
         }
         complete(with: destination)

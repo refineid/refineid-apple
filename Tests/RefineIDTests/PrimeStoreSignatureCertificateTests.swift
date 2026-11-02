@@ -3,6 +3,7 @@
 #if os(macOS)
 
   import Foundation
+  import Security
   import Testing
 
   @testable import CardCore
@@ -34,7 +35,7 @@
           chipSerial: serial,
           activationCheck: .passed))
       let lookup = try #require(PrimeLookupIdentifier(answerToReset: Self.answerToReset))
-      #expect(PrimeStore.store(identity, forLookup: lookup))
+      #expect(PrimeStore.store(identity, forLookup: lookup) == errSecSuccess)
     }
 
     @Test

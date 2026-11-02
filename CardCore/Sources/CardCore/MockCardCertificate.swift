@@ -161,7 +161,7 @@ public enum MockCardCertificate {
         return false
       }
       CardCredentialStore.save(cardAccessNumber: can)
-      return PrimeStore.store(identity, forLookup: lookupID)
+      return PrimeStore.store(identity, forLookup: lookupID) == errSecSuccess
     } catch {
       return false
     }

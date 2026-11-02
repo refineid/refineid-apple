@@ -31,14 +31,17 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   full sentence ends with a period in every language, for example "Take
   the card off the reader.". Buttons, menu items, titles, headers, field
   labels, row values and accessibility labels do not.
-- **Six-box code entry.** A pairing code and a personal card's card access
-  number are typed into the six-box field (`CodeBoxesField`), never into a
-  plain text field. The field has a VoiceOver label.
-- **An organization card's access number.** An organization card opens
-  with PIN 1 or PIN 2 in place of a printed number, so its entry keeps the
-  label "Card Access Number (CAN)" and takes four to twelve digits in a
-  secret field with the eye. The value is a PIN: it follows PIN custody
-  and is never stored or shown as a card access number.
+- **Six-box code entry.** A pairing code, and on the Mac a personal
+  card's card access number, are typed into the six-box field
+  (`CodeBoxesField`), never into a plain text field. The field has a
+  VoiceOver label.
+- **The iPhone's card access number entry.** The setup entry "Card
+  Access Number (CAN)" is one hidden field of four to twelve digits with
+  the eye, then the camera. The card on the antenna decides on the tap
+  what the digits are: a personal card's access number, which must be
+  six digits, or an organization card's PIN 1. Until then the value is a
+  secret; an organization card's never becomes a card access number and
+  is never stored or shown as one.
 - **Finnish vocabulary.** Pairing is *yhdistäminen*, and its code is the
   *yhdistämiskoodi*. *Paritus*, *pariliitos* and *laitepari* are not used.
 - **PIN names.** The codes take DVV's names: the basic PIN (*perus*,

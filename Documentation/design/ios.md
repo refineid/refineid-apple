@@ -63,29 +63,28 @@ the token extension signs through.
 
 ## Setting a card up
 
-The setup entry is labelled "Card Access Number (CAN)" for every card,
-and "Read Identity Card" reads the card on the phone's antenna in one
-hold. What the entry takes depends on the card, and the screen shows
-the entry only for the card it last found there, a personal card's
-until a hold says otherwise.
+The setup entry is labelled "Card Access Number (CAN)" for every card:
+one hidden field of four to twelve digits, then the eye that shows them,
+then the camera that reads a personal card's six printed digits. A scan
+leaves the field hidden. "Read Identity Card" reads the card on the
+phone's antenna in one hold, and the card decides on that tap what the
+digits are.
 
-- **Personal card.** The six digits printed on the card. PACE runs with
-  them, and the number is stored once PACE proves it.
+- **Which card.** The card's first answer, before any password, names
+  its kind: `6985` an organization card, any other answer a personal
+  card.
+- **Personal card.** The entry must be the six digits printed on the
+  card. Any other length ends the hold as an incorrect card access
+  number, with no PACE run and nothing sent. Six digits run PACE, and
+  the number is stored once PACE proves it.
 - **Organization card.** The card has no printed number: it opens only
   with PACE and PIN 1 or PIN 2 as the password (FINEID S1 v4.0,
-  organizational cards, section 2.1), so its entry is PIN 1, four to
-  twelve digits in a secret field with the eye. PACE with PIN 1 opens
-  the channel the certificates are read through, and the organization
-  prime (certificates and chip serial only) is stored under the card
-  model's historical bytes. PIN 1 is spent on that one handshake and is
-  neither stored, held nor shown; it never reaches a card access number
-  store.
-- **Which card.** The card's first answer, before any password, names
-  its kind: `6982` a personal card, `6985` an organization card. A hold
-  whose entry is empty, or is for the other kind, sends the card
-  nothing more: the sheet closes on the card found, no sound of failure
-  plays and no message is shown, and the screen shows the entry that
-  card takes. The next hold runs PACE.
+  organizational cards, section 2.1), so the entry is its PIN 1. PACE
+  with PIN 1 opens the channel the certificates are read through, and
+  the organization prime (certificates and chip serial only) is stored
+  under the card model's historical bytes. PIN 1 is spent on that one
+  handshake and is neither stored nor held; the field is emptied when
+  the hold ends, and the digits never become a card access number.
 - **Wrong PIN 1.** The card's refusal is shown as for any PIN 1, with
   the tries left, and the retry floor decides on the state MSE:Set AT
   reports before the card takes a try.

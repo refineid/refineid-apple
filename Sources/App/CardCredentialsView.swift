@@ -78,16 +78,6 @@ internal struct CardCredentialsView: View {
   #endif
   @State internal var cardAccessNumberEntry = ""
 
-  /// The kind of card the setup entry is for, as the last hold on the
-  /// antenna found it; a personal card's until a hold says otherwise.
-  @State internal var antennaCardKind = ContactlessCardKind.personal
-
-  /// An organization card's setup entry: its PIN 1.
-  ///
-  /// It stands under the same "Card Access Number (CAN)" label, is held
-  /// only until the hold that spends it starts, and is never written
-  /// anywhere.
-  @State internal var organizationPinEntry = ""
   @State internal var isScanning = false
   @State internal var scannerTorchEnabled = false
   @State internal var registrationReset = false
@@ -150,29 +140,11 @@ internal struct CardCredentialsView: View {
     cardAccessNumberEntry.count == CardAccessNumber.digitCount
   }
 
-  /// Whether the setup entry for the card on the antenna is complete: a
-  /// personal card's six digits, or an organization card's PIN 1 of four
-  /// to twelve.
+  /// Whether the setup entry can be read: four to twelve digits, an
+  /// organization card's PIN 1 or, checked on the tap, a personal card's
+  /// six.
   internal var isSetupEntryComplete: Bool {
-    switch antennaCardKind {
-    case .personal:
-      isCardAccessNumberEntryComplete
-
-    case .organization:
-      (Pin1.minimumDigitCount...Pin1.maximumDigitCount).contains(organizationPinEntry.count)
-    }
-  }
-
-  /// Whether the setup entry for the card on the antenna is empty, so a
-  /// hold only learns which card is there.
-  internal var isSetupEntryEmpty: Bool {
-    switch antennaCardKind {
-    case .personal:
-      cardAccessNumberEntry.isEmpty
-
-    case .organization:
-      organizationPinEntry.isEmpty
-    }
+    (Pin1.minimumDigitCount...Pin1.maximumDigitCount).contains(cardAccessNumberEntry.count)
   }
 
   /// Disclosure follows a validated connection, never digit count alone.
@@ -301,12 +273,9 @@ internal struct CardCredentialsView: View {
     }
 
     /// Whether Read Identity Card can start the NFC hold that primes the card.
-    ///
-    /// An empty entry reads too: that hold sends nothing and only learns
-    /// which card is on the antenna, so the screen can show its entry.
     internal var canReadIdentityCard: Bool {
       guard
-        isSetupEntryComplete || isSetupEntryEmpty,
+        isSetupEntryComplete,
         !model.isConnecting
       else { return false }
       #if REFINEID_LOCAL_CARD

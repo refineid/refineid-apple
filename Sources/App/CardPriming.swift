@@ -67,46 +67,12 @@
       /// What the card said, when it said something the caller can route on.
       internal var refusal: CardSetupRefusal?
 
+      /// The kind of card the hold found, when a card answered.
+      internal var cardKind: ContactlessCardKind?
+
       /// The credential counters this hold read, for the health display and
       /// the recovery route.
       internal var credentialReport: CredentialProbeReport?
-    }
-
-    /// What the holder typed into the setup entry.
-    ///
-    /// The entry is labelled "Card Access Number (CAN)" for both kinds of
-    /// card. On a personal card it is the six printed digits; on an
-    /// organization card it is PIN 1, which opens that card's PACE, so it
-    /// is typed as a PIN and never meets a card access number store.
-    internal enum SetupEntry: Sendable {
-      /// A personal card's printed card access number.
-      case cardAccessNumber(String)
-
-      /// An organization card's PIN 1.
-      case organizationPin1(Pin1Entry)
-
-      /// Nothing typed: the hold learns which card is on the antenna.
-      case empty
-    }
-
-    /// What opens the card in a hold, once the entry is checked.
-    internal enum HoldPassword: Sendable {
-      /// A personal card's card access number.
-      case cardAccessNumber(ProvenAccessNumber)
-
-      /// An organization card's PIN 1.
-      case organizationPin1(Pin1Entry)
-
-      /// The kind of card this password opens.
-      internal var kind: ContactlessCardKind {
-        switch self {
-        case .cardAccessNumber:
-          .personal
-
-        case .organizationPin1:
-          .organization
-        }
-      }
     }
 
     /// Context needed to read, store, and register a live card hold.
@@ -115,8 +81,11 @@
       internal let sheet: NearFieldSheet
       internal let lookup: PrimeLookupIdentifier
 
-      /// Nil when the hold only learns which card is on the antenna.
-      internal let password: HoldPassword?
+      /// What the holder typed, still unclassified.
+      internal let entry: SetupEntry
+
+      /// Where the card's first answer is recorded.
+      internal let foundKind: FoundKind
       internal let isRecovery: Bool
     }
 
@@ -177,40 +146,30 @@
     /// first signs, where the counter is read in the same session that
     /// spends it, and is held only in memory (RAPP v26.10.29 §11 item 2).
     internal static func prime(cardAccessNumber: String) async -> Outcome {
-      await prime(entry: .cardAccessNumber(cardAccessNumber), isRecovery: false)
+      guard let entry = SetupEntry(digits: cardAccessNumber) else {
+        return Self.failure(Failure.cardAccessNumberMissing)
+      }
+      return await prime(entry: entry, isRecovery: false)
     }
 
     /// Primes the card on the antenna from what the setup entry holds,
     /// optionally using extended recovery mode for throttled cards.
     ///
-    /// The card's first answer decides before any password is sent
-    /// (``ContactlessCardKind``): an entry for the other kind of card, or
-    /// none, ends the hold with ``CardSetupRefusal/cardKind(_:)`` and
-    /// nothing sent, so the screen can show the entry this card takes.
+    /// The card's first answer decides what the entry is before any
+    /// password is sent (``ContactlessCardKind``): a personal card's
+    /// access number, which must be six digits, or an organization card's
+    /// PIN 1.
     internal static func prime(
       entry: SetupEntry,
       isRecovery: Bool
     ) async -> Outcome {
-      let password: HoldPassword?
-      switch entry {
-      case .cardAccessNumber(let digits):
-        guard let accessNumber = CardAccessNumber(digits: digits) else {
-          return Self.failure(Failure.cardAccessNumberMissing)
-        }
-        password = .cardAccessNumber(ProvenAccessNumber(value: accessNumber, digits: digits))
-
-      case .organizationPin1(let pin1):
-        password = .organizationPin1(pin1)
-
-      case .empty:
-        password = nil
-      }
       // Marked BEFORE the slot opens: `ctkd` asks the extension for a
       // token the moment the card arrives, and a mark written after that
       // would lose the race. The mark makes the extension publish
       // without taking a card session, leaving the card to this flow.
-      guard PrimeStore.markRegistrationField() else {
-        return Self.failure(Failure.primeNotStored)
+      let marked = PrimeStore.markRegistrationField()
+      guard marked == errSecSuccess else {
+        return Self.failure(Self.storeFailure(marked))
       }
       defer { PrimeStore.clearRegistrationField() }
 
@@ -231,17 +190,15 @@
       // shown, and it is answered below while that panel is still up: a
       // tone that outlives the sheet is a tone about nothing.
       await CardPrimingFeedback.startWorking()
-      let outcome = await Self.hold(
+      let foundKind = FoundKind()
+      var outcome = await Self.hold(
         session: session,
         sheet: sheet,
-        password: password,
+        entry: entry,
+        foundKind: foundKind,
         isRecovery: isRecovery)
-      if case .cardKind = outcome.refusal {
-        // The hold only learned which card this is: nothing failed.
-        await CardPrimingFeedback.stopWorking()
-      } else {
-        await CardPrimingFeedback.report(succeeded: outcome.stored && outcome.registered)
-      }
+      outcome.cardKind = foundKind.value
+      await CardPrimingFeedback.report(succeeded: outcome.stored && outcome.registered)
       return outcome
     }
 
@@ -252,7 +209,8 @@
     private static func hold(
       session: NearFieldCardSession,
       sheet: NearFieldSheet,
-      password: HoldPassword?,
+      entry: SetupEntry,
+      foundKind: FoundKind,
       isRecovery: Bool
     ) async -> Outcome {
       guard
@@ -266,7 +224,8 @@
         session: session,
         sheet: sheet,
         lookup: lookup,
-        password: password,
+        entry: entry,
+        foundKind: foundKind,
         isRecovery: isRecovery)
       return await Self.readStoreRegister(execution: execution)
     }
@@ -293,9 +252,6 @@
       case .activationRequired(let activation, let needs, let pinLengths):
         .activationRequired(activation: activation, needs: needs, pinLengths: pinLengths)
 
-      case .cardKind(let kind):
-        .cardKind(kind)
-
       default:
         nil
       }
@@ -312,10 +268,6 @@
               try Self.store(identity, accessNumber: accessNumber, execution: execution)
             })
         }
-      } catch Failure.cardKind(let kind) {
-        // Nothing failed and nothing was sent: the sheet closes on the
-        // card found, and the screen shows the entry this card takes.
-        return Self.failure(Failure.cardKind(kind))
       } catch {
         // The sheet is the only thing a holder can see while holding, so
         // it carries the detail rather than a shrug. Nothing here names
@@ -348,18 +300,25 @@
       let known = PrimeStore.read(lookupID: execution.lookup)
       let signatureCertificate =
         known?.certDER == identity.certificate ? known?.signatureCertDER : nil
+      let saved = CardCredentialStore.save(cardAccessNumber: accessNumber.digits)
+      guard saved == errSecSuccess else { throw Self.storeFailure(saved) }
       guard
-        CardCredentialStore.save(cardAccessNumber: accessNumber.digits) == errSecSuccess,
         let primed = CardCredentialStore.primedIdentity(
           certificate: identity.certificate,
           issuer: identity.issuer,
           chipSerial: identity.chipSerial,
           activationCheck: identity.activationCheck,
-          signatureCertificate: signatureCertificate),
-        PrimeStore.store(primed, forLookup: execution.lookup)
+          signatureCertificate: signatureCertificate)
       else {
         throw Failure.primeNotStored
       }
+      let stored = PrimeStore.store(primed, forLookup: execution.lookup)
+      guard stored == errSecSuccess else { throw Self.storeFailure(stored) }
+    }
+
+    /// Why a keychain write that answered `status` left nothing stored.
+    private static func storeFailure(_ status: OSStatus) -> any Error {
+      StorageFailure.isOutOfSpace(status) ? StorageFailure.outOfSpace : Failure.primeNotStored
     }
 
     /// Registers the live card and reports how the hold ended.

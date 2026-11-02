@@ -68,26 +68,25 @@ public enum PrimeStore {
 
   /// Stores the primed identity for one card, replacing any previous one.
   ///
-  /// Returns false when the keychain refuses the write, so a caller can
-  /// tell the holder that priming did not stick rather than leaving them
-  /// to discover it at the next login.
+  /// Returns the keychain's own status, so a caller can tell the holder
+  /// that priming did not stick, and why, rather than leaving them to
+  /// discover it at the next login.
   @discardableResult
   public static func store(
     _ identity: PrimedIdentity,
     forLookup lookupID: PrimeLookupIdentifier
-  ) -> Bool {
-    guard let payload = try? JSONEncoder().encode(identity) else { return false }
+  ) -> OSStatus {
+    guard let payload = try? JSONEncoder().encode(identity) else { return errSecParam }
     #if DEBUG
       if TestCredentialEnvironment.isTestMode {
         TestCredentialEnvironment.storePrime(payload, account: lookupID.value)
-        return true
+        return errSecSuccess
       }
     #endif
     let coordinates = query(account: lookupID.value)
     let replacement = [kSecValueData as String: payload]
     let updated = SecItemUpdate(coordinates as CFDictionary, replacement as CFDictionary)
-    if updated == errSecSuccess { return true }
-    guard updated == errSecItemNotFound else { return false }
+    guard updated == errSecItemNotFound else { return updated }
 
     var insertion = coordinates
     insertion[kSecValueData as String] = payload
@@ -95,12 +94,8 @@ public enum PrimeStore {
       insertion[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
     }
     let addStatus = SecItemAdd(insertion as CFDictionary, nil)
-    if addStatus == errSecSuccess { return true }
-    if addStatus == errSecDuplicateItem {
-      return SecItemUpdate(coordinates as CFDictionary, replacement as CFDictionary)
-        == errSecSuccess
-    }
-    return false
+    guard addStatus == errSecDuplicateItem else { return addStatus }
+    return SecItemUpdate(coordinates as CFDictionary, replacement as CFDictionary)
   }
 
   /// Marks the next NFC field as the app's own registration hold.
@@ -109,13 +104,14 @@ public enum PrimeStore {
   /// for a token the moment the card arrives, so anything written after
   /// that races the mint. While the mark is fresh the extension
   /// publishes metadata without taking a card session, leaving the card
-  /// to the app for PACE, the reads, and `registerSmartCard`.
+  /// to the app for PACE, the reads, and `registerSmartCard`. Returns the
+  /// keychain's own status.
   @discardableResult
-  public static func markRegistrationField() -> Bool {
+  public static func markRegistrationField() -> OSStatus {
     guard
       let payload = try? JSONEncoder().encode(RegistrationFieldMark(markedAt: Date()))
     else {
-      return false
+      return errSecParam
     }
     var attributes = query(account: Self.registrationMarkAccount)
     attributes[kSecValueData as String] = payload
@@ -123,7 +119,7 @@ public enum PrimeStore {
       attributes[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
     }
     delete(account: Self.registrationMarkAccount)
-    return SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess
+    return SecItemAdd(attributes as CFDictionary, nil)
   }
 
   /// Removes the registration mark when the hold ends, however it ends.

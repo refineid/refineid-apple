@@ -172,13 +172,7 @@ extension CardCredentialsView {
 
   @ViewBuilder internal var cardAccessNumberRow: some View {
     #if os(iOS)
-      switch antennaCardKind {
-      case .personal:
-        personalCardAccessNumberRow
-
-      case .organization:
-        organizationCardAccessNumberRow
-      }
+      setupEntryRow
     #else
       TextField(
         "Card Access Number (CAN)",
@@ -196,38 +190,15 @@ extension CardCredentialsView {
   }
 
   #if os(iOS)
-    /// A personal card's entry: the six digits printed on the card.
-    private var personalCardAccessNumberRow: some View {
-      HStack {
-        PersonRowLabel.cardIcon(
-          systemName: "person.text.rectangle",
-          lit: isCardAccessNumberEntryComplete
-        )
-        TextField(
-          "Card Access Number (CAN)",
-          text: $cardAccessNumberEntry
-        )
-        .font(.body)
-        .keyboardType(.numberPad)
-        .textContentType(nil)
-        .focused($isCardAccessNumberFieldFocused)
-        .accessibilityIdentifier("cardAccessNumberField")
-        .onValueChange(of: cardAccessNumberEntry) { typed in
-          cardAccessNumberEntry = LimitedDigits.cardAccessNumber(typed)
-        }
-        #if REFINEID_LOCAL_CARD && os(iOS)
-          canScanButton
-        #endif
-      }
-      .buttonStyle(.borderless)
-    }
-
-    /// An organization card's entry, under the same label: its PIN 1,
-    /// four to twelve digits, hidden behind the eye like every PIN.
+    /// The setup entry "Card Access Number (CAN)": four to twelve digits,
+    /// hidden behind the eye, then the camera that reads a personal card's
+    /// six printed digits.
     ///
-    /// No card access number rule applies to it: it is bound to its own
-    /// state, never to the card access number's, and is not scanned.
-    private var organizationCardAccessNumberRow: some View {
+    /// What the digits are is decided on the tap, by the card on the
+    /// antenna: a personal card's six-digit access number, or an
+    /// organization card's PIN 1. Until then the entry is a secret, so it
+    /// is hidden like every PIN, and a scan leaves it hidden too.
+    private var setupEntryRow: some View {
       HStack {
         PersonRowLabel.cardIcon(
           systemName: "person.text.rectangle",
@@ -235,23 +206,27 @@ extension CardCredentialsView {
         )
         CredentialSecretField(
           name: String(localized: "Card Access Number (CAN)"),
-          text: $organizationPinEntry,
-          revealIdentifier: "organizationCardAccessNumberReveal"
+          text: $cardAccessNumberEntry,
+          revealIdentifier: "cardAccessNumberReveal"
         ) {
           SecureField(
             String(localized: "Card Access Number (CAN)"),
-            text: $organizationPinEntry
+            text: $cardAccessNumberEntry
           )
           .font(.body)
           .keyboardType(.numberPad)
           .textContentType(.oneTimeCode)
           .focused($isCardAccessNumberFieldFocused)
           .accessibilityIdentifier("cardAccessNumberField")
-          .onValueChange(of: organizationPinEntry) { typed in
-            organizationPinEntry = LimitedDigits.pin(typed)
+          .onValueChange(of: cardAccessNumberEntry) { typed in
+            cardAccessNumberEntry = LimitedDigits.pin(typed)
           }
         }
+        #if REFINEID_LOCAL_CARD && os(iOS)
+          canScanButton
+        #endif
       }
+      .buttonStyle(.borderless)
     }
   #endif
 
