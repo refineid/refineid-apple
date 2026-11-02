@@ -202,7 +202,7 @@
             failures[source] = error.localizedDescription
           } catch {
             retry.append(source)
-            lastError = error.localizedDescription
+            lastError = DiskFullMessage.message(for: error, otherwise: error.localizedDescription)
           }
         }
         unwritten = retry

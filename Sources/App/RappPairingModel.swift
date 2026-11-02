@@ -169,7 +169,10 @@ internal final class RappPairingModel: ObservableObject {
       Task { await newCoordinator.start() }
       custodianRelay.start()
     } catch {
-      fail(.reported(String(localized: "Pairing could not be started.")))
+      fail(
+        .reported(
+          DiskFullMessage.message(
+            for: error, otherwise: String(localized: "Pairing could not be started."))))
     }
   }
 

@@ -12,6 +12,9 @@ internal enum DocumentSigningMessage {
   }
 
   internal static func message(for error: Error) -> String {
+    if StorageFailure.isOutOfSpace(error) {
+      return DiskFullMessage.text
+    }
     if let signerFailure = error as? DocumentSigner.Failure {
       return documentSignerMessage(signerFailure)
     }

@@ -106,7 +106,8 @@
         }
       } catch {
         response = nil
-        failure = String(localized: "The remote card could not be read.")
+        failure = DiskFullMessage.message(
+          for: error, otherwise: String(localized: "The remote card could not be read."))
       }
       await MainActor.run {
         setFailureText(failure)

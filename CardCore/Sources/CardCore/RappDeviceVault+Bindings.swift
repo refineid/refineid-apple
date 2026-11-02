@@ -50,7 +50,7 @@
     }
   }
 
-  private func rappVaultError(_ error: any Error) -> RappVaultError {
+  internal func rappVaultError(_ error: any Error) -> RappVaultError {
     guard let failure = error as? RappDeviceVault.Failure else {
       return .Unavailable
     }

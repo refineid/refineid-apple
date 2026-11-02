@@ -6640,6 +6640,22 @@
         }
       }
     },
+    "The disk is full. Free some space and try again.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Levy on täynnä. Vapauta tilaa ja yritä uudelleen."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disken är full. Frigör utrymme och försök igen."
+          }
+        }
+      }
+    },
     "%@ forgot this computer.": {
       "extractionState": "manual",
       "localizations": {

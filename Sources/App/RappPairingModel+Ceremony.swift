@@ -16,6 +16,9 @@ extension RappPairingModel {
     for reason: RappPairingSearch<PairingEndpoint>.CloseReason
   ) -> Failure? {
     switch reason {
+    case .ceremonyEnded(.outOfSpace):
+      .reported(DiskFullMessage.text)
+
     case .ceremonyEnded:
       .reported(String(localized: "Pairing ended before it was completed."))
 
@@ -116,6 +119,10 @@ extension RappPairingModel {
       // An unused code lapses with its offer after five minutes; the next one follows.
       createOffer()
 
+    case .outOfSpace:
+      // A next offer could not be stored either.
+      fail(.reported(DiskFullMessage.text))
+
     case .attemptTimedOut, .custodianBusy, .localRequest, .persistenceFailure,
       .protocolFailure, .storageUnconfirmed, .transportFailure:
       ceremonyEnded(String(localized: "Pairing ended before it was completed."))
@@ -155,6 +162,8 @@ extension RappPairingModel {
       #if os(macOS)
         PersistentTokenRegistry.shared.startAfterPairing()
       #endif
+    } catch  where StorageFailure.isOutOfSpace(error) {
+      fail(.reported(DiskFullMessage.text))
     } catch {
       ceremonyEnded(String(localized: "The paired device could not be selected."))
     }

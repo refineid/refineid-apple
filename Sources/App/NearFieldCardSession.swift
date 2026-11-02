@@ -187,8 +187,9 @@
       #if DEBUG
         HolderTrace.say("NearFieldCardSession.open: opening slot with message '\(message)'")
       #endif
-      guard PrimeStore.markRegistrationField() else {
-        throw Failure.slotRefused
+      let marked = PrimeStore.markRegistrationField()
+      guard marked == errSecSuccess else {
+        throw StorageFailure.isOutOfSpace(marked) ? StorageFailure.outOfSpace : Failure.slotRefused
       }
       do {
         guard let manager = TKSmartCardSlotManager.default else {
