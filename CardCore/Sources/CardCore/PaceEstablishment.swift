@@ -82,6 +82,11 @@ public struct PaceEstablishment {
     /// sent after it. The reading the floor judged is carried.
     case retryFloorRefused(RetryFloorVerdict, RetryProbeOutcome)
 
+    /// The PIN is a held PIN 1 and MSE:Set AT reports a refusal since the
+    /// card accepted it, so it was not sent; nothing was sent after MSE:Set
+    /// AT. The reading is carried.
+    case heldPinUnconfirmed(RetryProbeOutcome)
+
     /// The card reports the PIN password deactivated (BSI TR-03110-3
     /// section B.14.1); nothing was sent after MSE:Set AT.
     case passwordDeactivated

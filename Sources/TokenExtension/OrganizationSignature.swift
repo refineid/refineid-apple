@@ -20,8 +20,9 @@ import Security
 /// So the PIN is settled first -- typed in the system sheet, or the PIN 1
 /// this card accepted before -- and only then is the card touched. Every
 /// signature opens its own channel; PIN 1 accepted once is reused for the
-/// next one while ``Pin1Retention`` permits it, exactly as on the contact
-/// path.
+/// next one only while MSE:Set AT reports no refusal since the card
+/// accepted it, and a PIN 1 the card refuses is dropped at once
+/// (``OrganizationCardOpening/pin1(over:entered:serial:records:)``).
 internal enum OrganizationSignature {
   /// An authentication signature with the PIN 1-gated key.
   internal static func authenticate(
@@ -30,21 +31,28 @@ internal enum OrganizationSignature {
     request: SignRequest,
     token: Token
   ) throws -> Data {
-    let serial = token.chipSerial
-    let pin1 = try ReaderSignature.pin(entered: enteredPin, serial: serial)
-    let fingerprint = pin1.fingerprint(boundTo: serial)
-    guard !CredentialMemory.rejectedPins.isKnownRejected(fingerprint) else {
+    let opening: OrganizationCardOpening.Pin1Opening
+    do {
+      opening = try OrganizationCardOpening.pin1(
+        over: channel,
+        entered: try Self.typedPin1(enteredPin),
+        serial: token.chipSerial,
+        records: OrganizationCardOpening.Pin1Records(
+          memory: Pin1Memory.shared,
+          rejected: CredentialMemory.rejectedPins,
+          owner: token.pin1Owner)
+      )
+    } catch OrganizationCardOpening.Pin1Unsettled.entryRequired {
+      TokenLog.info("sign: PIN 1 entry required")
+      throw TokenError.authenticationRequired
+    } catch OrganizationCardOpening.Pin1Unsettled.knownRejected {
       TokenLog.error("sign: PIN already rejected this session - refusing to resend")
       throw TokenError.pinAlreadyRejected
+    } catch let failure as PaceEstablishment.Failure {
+      throw Self.refusal(failure, pin: .pin1)
     }
-    let (operations, pinState) = try opened(
-      channel,
-      password: PacePassword(pin1: pin1.consumeForSingleTransmission()),
-      pin: .pin1,
-      fingerprint: fingerprint,
-      token: token
-    )
-    try operations.selectFineidApplication()
+    let operations = opening.opened.operations
+    let serial = token.chipSerial
     guard try operations.readChipSerial() == serial else {
       TokenLog.error("sign: card in the slot is not the token's card")
       throw TokenError.signRefused
@@ -57,7 +65,9 @@ internal enum OrganizationSignature {
     )
     let signature = try ReaderSignature.checkedWireSignature(
       from: raw, request: request, token: token)
-    ReaderSignature.rememberOnSuccess(enteredPin: enteredPin, token: token, probe: pinState)
+    if let acceptance = opening.acceptance {
+      Pin1Memory.shared.commit(acceptance, after: opening.opened.pinState)
+    }
     return signature
   }
 
@@ -86,13 +96,17 @@ internal enum OrganizationSignature {
       TokenLog.error("sign: PIN2 already rejected this session - refusing to resend")
       throw TokenError.pinAlreadyRejected
     }
-    let (operations, _) = try opened(
-      channel,
-      password: PacePassword(pin2: pin2.consumeForSingleTransmission()),
-      pin: .pin2,
-      fingerprint: fingerprint,
-      token: token
-    )
+    let operations: CardOperations
+    do {
+      operations = try OrganizationCardOpening.pin2(
+        over: channel, pin2.consumeForSingleTransmission()
+      ).operations
+    } catch let failure as PaceEstablishment.Failure {
+      if case .wrongPin = failure {
+        token.forgetPinAfterRefusal(fingerprint: fingerprint)
+      }
+      throw Self.refusal(failure, pin: .pin2)
+    }
     try operations.selectEsignDirectory()
     TokenLog.info("sign: PIN 2 opened the channel; MSE:SET + PSO:CDS in DF.ESIGN")
     let raw = try operations.computeQualifiedSignature(
@@ -112,48 +126,38 @@ internal enum OrganizationSignature {
     return signature
   }
 
-  /// Opens the secure channel with `password`, answering every refusal
-  /// as the PIN sheet expects.
+  /// The PIN 1 the holder typed, or nil when none was.
+  private static func typedPin1(_ digits: String?) throws -> Pin1? {
+    guard let digits else { return nil }
+    guard let pin = Pin1(digits: digits) else {
+      throw TokenError.pinFormatInvalid
+    }
+    return pin
+  }
+
+  /// The error the PIN sheet expects for a handshake the card refused.
   ///
   /// A floor refusal, a deactivated PIN and a blocked one refuse the
-  /// signature; a wrong PIN is remembered so it is never sent again, and
-  /// the PINs this token holds go. PIN 1's state also decides whether an
-  /// accepted PIN 1 may still be held.
-  private static func opened(
-    _ channel: SmartCardChannel,
-    password: consuming PacePassword,
-    pin role: CredentialRole,
-    fingerprint: PinFingerprint,
-    token: Token
-  ) throws -> (operations: CardOperations, pinState: RetryProbeOutcome) {
-    let started = ContinuousClock.now
-    let established: PaceEstablishment.Established
-    do {
-      established = try PaceEstablishment(channel: channel).establish(with: password)
-    } catch PaceEstablishment.Failure.retryFloorRefused(let verdict, let state) {
-      if role == .pin1 {
-        Pin1Memory.shared.retain(after: state, serial: token.chipSerial)
-      }
+  /// signature; a wrong PIN asks again. Every other failure is passed on.
+  private static func refusal(_ failure: PaceEstablishment.Failure, pin role: CredentialRole)
+    -> any Error
+  {
+    switch failure {
+    case .retryFloorRefused(let verdict, let state):
       TokenLog.error("sign: \(role) retry floor refuses (\(verdict)); state=\(state)")
-      throw TokenError.signRefused
-    } catch PaceEstablishment.Failure.passwordDeactivated {
+      return TokenError.signRefused
+
+    case .passwordDeactivated:
       TokenLog.error("sign: \(role) deactivated")
-      throw TokenError.signRefused
-    } catch PaceEstablishment.Failure.wrongPin(let remaining) {
-      token.forgetPinAfterRefusal(fingerprint: fingerprint)
-      throw remaining.isBlocked ? TokenError.signRefused : TokenError.pinRejected
+      return TokenError.signRefused
+
+    case .wrongPin(let remaining):
+      TokenLog.error("sign: \(role) refused by the card")
+      return remaining.isBlocked ? TokenError.signRefused : TokenError.pinRejected
+
+    default:
+      TokenLog.error("sign: PACE with \(role) failed: \(failure)")
+      return failure
     }
-    TokenLog.info(
-      "sign: PACE with \(role) ok ms="
-        + TraceTiming.milliseconds(started.duration(to: ContinuousClock.now))
-    )
-    guard let pinState = established.pinState else {
-      throw TokenError.signRefused
-    }
-    if role == .pin1 {
-      Pin1Memory.shared.retain(after: pinState, serial: token.chipSerial)
-    }
-    let secure = SecureMessagingChannel(wrapping: channel, sessionKeys: established.keys)
-    return (CardOperations(channel: secure, openedWith: role), pinState)
   }
 }

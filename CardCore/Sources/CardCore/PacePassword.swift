@@ -30,6 +30,11 @@ public struct PacePassword: ~Copyable {
   /// access number, which has none.
   internal let credential: CredentialRole?
 
+  /// Where the PIN comes from: a held PIN 1 is sent only while the state
+  /// MSE:Set AT reports shows no refusal since the card accepted it
+  /// (``PinAdmission``).
+  internal let spending: PinAdmission.Spending
+
   /// `K_pi`.
   internal let key: Data
 
@@ -37,13 +42,16 @@ public struct PacePassword: ~Copyable {
   public init(cardAccessNumber: CardAccessNumber) {
     reference = PaceValues.passwordReferenceCan
     credential = nil
+    spending = .entered
     key = cardAccessNumber.derivedPasswordKey()
   }
 
-  /// PIN 1 of an organization card.
-  public init(pin1: consuming Pin1Transmission) {
+  /// PIN 1 of an organization card, typed for this operation or held
+  /// from an earlier one the card accepted.
+  public init(pin1: consuming Pin1Transmission, spending: PinAdmission.Spending = .entered) {
     reference = FineidValues.organizationReference(for: .pin1)
     credential = .pin1
+    self.spending = spending
     key = PaceKeyDerivation.derivedKey(from: Data(pin1.store.bytes), for: .password)
   }
 
@@ -51,6 +59,7 @@ public struct PacePassword: ~Copyable {
   public init(pin2: consuming Pin2Transmission) {
     reference = FineidValues.organizationReference(for: .pin2)
     credential = .pin2
+    spending = .entered
     key = PaceKeyDerivation.derivedKey(from: Data(pin2.store.bytes), for: .password)
   }
 }
