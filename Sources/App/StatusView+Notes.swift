@@ -82,7 +82,16 @@
     /// the first frame; until then the window keeps reading the card.
     @ViewBuilder internal var activationSection: some View {
       let activation = ActivationWatch.shared
-      if activation.management.activation != nil, let lengths = activation.management.pinLengths {
+      // Two cards awaiting activation: neither is activated until one is
+      // taken away, so no PIN can reach the wrong card.
+      if CardSelection.shared.activationSlots.count > 1 {
+        Section {
+          Text("Two cards are waiting for activation. Remove one of them.")
+            .foregroundStyle(.secondary)
+        }
+      } else if activation.management.activation != nil,
+        let lengths = activation.management.pinLengths
+      {
         CardActivationSection(model: activation.management, lengths: lengths) {
           activation.cardActivated()
           model.refresh()
