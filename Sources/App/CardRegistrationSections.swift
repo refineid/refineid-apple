@@ -28,7 +28,7 @@
     /// A registration without its prime cannot sign. Treating that stale
     /// index as ready hid the mint action after a revocation.
     internal static var hasRegisteredIdentity: Bool {
-      !PrimeStore.primedHolderNames().isEmpty
+      PhoneCardPrime.isStored
         && TKSmartCardTokenRegistrationManager.default.registeredSmartCardTokens
           .contains { CardTokenNamespace.owns(tokenIdentifier: $0) }
     }
@@ -106,7 +106,7 @@
           guard let accessNumber = cardAccessNumber() else { return }
           onRegistrationStarted()
           let succeeded = await Self.registerIdentity(
-            cardAccessNumber: accessNumber,
+            entry: .cardAccessNumber(accessNumber),
             model: model,
             commit: IdentityCommitments(storeCardAccessNumber: storeCardAccessNumber) {
               isRegistered = true
@@ -137,16 +137,22 @@
     /// inside it, and it is not written to this device until that hold has
     /// produced a registered identity. PIN 1 is asked for when the card
     /// first signs, never here (RAPP v26.10.29 §11 item 2).
+    ///
+    /// An organization card's entry is its PIN 1, which opens the card and
+    /// is never stored: only a personal card's access number is committed.
     @MainActor
     internal static func registerIdentity(
-      cardAccessNumber: String,
+      entry: CardPriming.SetupEntry,
       model: CardPrimingModel,
       commit: IdentityCommitments
     ) async -> Bool {
-      await model.prime(cardAccessNumber: cardAccessNumber)
-      guard case .succeeded = model.lastRunResult,
-        commit.storeCardAccessNumber(cardAccessNumber)
-      else { return false }
+      await model.prime(entry: entry)
+      guard case .succeeded = model.lastRunResult else { return false }
+      if case .cardAccessNumber(let cardAccessNumber) = entry,
+        !commit.storeCardAccessNumber(cardAccessNumber)
+      {
+        return false
+      }
       commit.markRegistered()
       return true
     }

@@ -78,8 +78,17 @@
     /// The access number is supplied rather than read from storage, because
     /// a first setup has not stored one yet: this hold is what proves it.
     internal func prime(cardAccessNumber: String) async {
+      await prime(entry: .cardAccessNumber(cardAccessNumber))
+    }
+
+    /// Primes the card on the antenna from what the setup entry holds: a
+    /// personal card's access number, an organization card's PIN 1, or
+    /// nothing, which only learns which card is on the antenna
+    /// (``CardSetupRefusal/cardKind(_:)``).
+    internal func prime(entry: CardPriming.SetupEntry) async {
       guard !isRunning else { return }
       if DemoMode.shared.isActive {
+        guard case .cardAccessNumber(let cardAccessNumber) = entry else { return }
         await primeVirtualCard(cardAccessNumber: cardAccessNumber)
         return
       }
@@ -93,15 +102,17 @@
       let isRecovery = isRecoveryModeNext
       // The meter on the system NFC sheet carries progress; the holder
       // is looking at the card, not at this screen.
-      let outcome = await CardPriming.prime(
-        cardAccessNumber: cardAccessNumber,
-        isRecovery: isRecovery)
+      let outcome = await CardPriming.prime(entry: entry, isRecovery: isRecovery)
       // The sound is started and answered inside the panel's lifetime,
       // in `CardPriming`; nothing here makes a noise after it closed. A
       // hold the holder cancelled never got as far as a sound at all.
       refusal = outcome.refusal
       credentialReport = outcome.credentialReport
       if outcome.cancelled {
+        lastRunResult = .notRun
+        failure = nil
+      } else if case .cardKind = outcome.refusal {
+        // The hold learned which entry the card takes; nothing failed.
         lastRunResult = .notRun
         failure = nil
       } else if outcome.stored, outcome.registered {

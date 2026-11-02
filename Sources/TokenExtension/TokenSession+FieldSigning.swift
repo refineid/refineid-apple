@@ -17,7 +17,6 @@ extension TokenSession {
   /// of cost that was measured losing the handshake.
   internal func signInField(
     token: Token,
-    accessNumber: CardAccessNumber,
     dataToSign: Data,
     algorithm: TKTokenKeyAlgorithm
   ) throws -> Data {
@@ -68,9 +67,7 @@ extension TokenSession {
       throw TKError(.tokenNotFound)
     }
 
-    return try performedInField(
-      token: token, accessNumber: accessNumber, pin1: pin1, origin: origin, request: request
-    )
+    return try performedInField(token: token, pin1: pin1, origin: origin, request: request)
   }
 
   private func resolveAuthorizedPin(token: Token) throws -> AuthorizedPin1 {
@@ -101,19 +98,30 @@ extension TokenSession {
   }
 
   /// Runs the field signature and maps every way it can end.
+  ///
+  /// A personal card signs in the channel its card access number opens;
+  /// an organization card opens its own channel with the PIN 1 it spends
+  /// (``OrganizationFieldSignature``).
   internal func performedInField(
     token: Token,
-    accessNumber: CardAccessNumber,
     pin1: consuming Pin1,
     origin: AuthorizedPin1.Origin,
     request: SignRequest
   ) throws -> Data {
     do {
-      let signature = FieldSignature(
-        token: token,
-        accessNumber: accessNumber
-      )
-      return try signature.perform(pin1: pin1, origin: origin, request: request)
+      switch token.unsealing {
+      case .cardAccessNumber(let accessNumber):
+        return try FieldSignature(token: token, accessNumber: accessNumber)
+          .perform(pin1: pin1, origin: origin, request: request)
+
+      case .organizationPin:
+        return try OrganizationFieldSignature(token: token)
+          .perform(pin1: pin1, origin: origin, request: request)
+
+      case .plain:
+        // Unreachable: a field token is minted only from a prime.
+        throw TKError(.authenticationNeeded)
+      }
     } catch {
       throw mapFieldFailure(error, token: token)
     }

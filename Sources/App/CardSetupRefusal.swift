@@ -16,6 +16,10 @@
       needs: CardActivationNeeds,
       pinLengths: CardPinLengths)
 
+    /// The card on the antenna takes the entry of this kind of card, and
+    /// nothing was sent to it.
+    case cardKind(ContactlessCardKind)
+
     /// PACE timed out at step 2/5 (likely card anti-tamper penalty delay).
     case secureChannelTimedOut
 

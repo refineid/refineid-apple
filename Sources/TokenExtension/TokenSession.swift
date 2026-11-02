@@ -271,14 +271,8 @@ internal final class TokenSession: TKSmartCardTokenSession, TKTokenSessionDelega
       )
 
     case .fieldWithDeadline:
-      guard let accessNumber = cardToken.unsealing.accessNumber else {
-        // Unreachable: this token is only ever minted from a prime, and a
-        // prime without a usable number is refused there.
-        throw TKError(.authenticationNeeded)
-      }
       return try signInField(
         token: cardToken,
-        accessNumber: accessNumber,
         dataToSign: dataToSign,
         algorithm: algorithm
       )

@@ -2,7 +2,10 @@
 
 import Foundation
 
-/// The six-digit card access number printed on the card.
+/// The six-digit card access number printed on a personal card.
+///
+/// An organization card has none: its PACE password is PIN 1 or PIN 2,
+/// which travels as ``Pin1`` or ``Pin2`` and never as this type.
 ///
 /// The CAN authorizes READING the card in a field: it is the shared secret
 /// PACE turns into a contactless session, and that is the whole of its

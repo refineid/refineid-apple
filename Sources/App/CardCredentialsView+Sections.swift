@@ -172,6 +172,32 @@ extension CardCredentialsView {
 
   @ViewBuilder internal var cardAccessNumberRow: some View {
     #if os(iOS)
+      switch antennaCardKind {
+      case .personal:
+        personalCardAccessNumberRow
+
+      case .organization:
+        organizationCardAccessNumberRow
+      }
+    #else
+      TextField(
+        "Card Access Number (CAN)",
+        text: $cardAccessNumberEntry
+      )
+      .font(.body)
+      // A macOS form field otherwise gives VoiceOver its title only as
+      // placeholder text.
+      .accessibilityLabel(Text("Card Access Number (CAN)"))
+      .accessibilityIdentifier("cardAccessNumberField")
+      .onValueChange(of: cardAccessNumberEntry) { typed in
+        cardAccessNumberEntry = LimitedDigits.cardAccessNumber(typed)
+      }
+    #endif
+  }
+
+  #if os(iOS)
+    /// A personal card's entry: the six digits printed on the card.
+    private var personalCardAccessNumberRow: some View {
       HStack {
         PersonRowLabel.cardIcon(
           systemName: "person.text.rectangle",
@@ -194,21 +220,40 @@ extension CardCredentialsView {
         #endif
       }
       .buttonStyle(.borderless)
-    #else
-      TextField(
-        "Card Access Number (CAN)",
-        text: $cardAccessNumberEntry
-      )
-      .font(.body)
-      // A macOS form field otherwise gives VoiceOver its title only as
-      // placeholder text.
-      .accessibilityLabel(Text("Card Access Number (CAN)"))
-      .accessibilityIdentifier("cardAccessNumberField")
-      .onValueChange(of: cardAccessNumberEntry) { typed in
-        cardAccessNumberEntry = LimitedDigits.cardAccessNumber(typed)
+    }
+
+    /// An organization card's entry, under the same label: its PIN 1,
+    /// four to twelve digits, hidden behind the eye like every PIN.
+    ///
+    /// No card access number rule applies to it: it is bound to its own
+    /// state, never to the card access number's, and is not scanned.
+    private var organizationCardAccessNumberRow: some View {
+      HStack {
+        PersonRowLabel.cardIcon(
+          systemName: "person.text.rectangle",
+          lit: isSetupEntryComplete
+        )
+        CredentialSecretField(
+          name: String(localized: "Card Access Number (CAN)"),
+          text: $organizationPinEntry,
+          revealIdentifier: "organizationCardAccessNumberReveal"
+        ) {
+          SecureField(
+            String(localized: "Card Access Number (CAN)"),
+            text: $organizationPinEntry
+          )
+          .font(.body)
+          .keyboardType(.numberPad)
+          .textContentType(.oneTimeCode)
+          .focused($isCardAccessNumberFieldFocused)
+          .accessibilityIdentifier("cardAccessNumberField")
+          .onValueChange(of: organizationPinEntry) { typed in
+            organizationPinEntry = LimitedDigits.pin(typed)
+          }
+        }
       }
-    #endif
-  }
+    }
+  #endif
 
   #if REFINEID_LOCAL_CARD && os(iOS)
     @ViewBuilder private var canScanButton: some View {

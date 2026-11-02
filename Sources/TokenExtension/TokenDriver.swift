@@ -24,6 +24,36 @@ import Foundation
 /// `platform/apple/RefineIDTokenExtension/TokenDriver.swift`, whose
 /// contactless branch was proven on device.
 internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriverDelegate {
+  /// The prime a field mint publishes from.
+  private enum FieldPrime {
+    /// A personal card's, with its card access number.
+    case personal(PrimeStore.ContactlessMatch)
+
+    /// An organization card's, with no password: each signature opens
+    /// the card with the PIN it spends.
+    case organization(OrganizationPrime, isRegistrationField: Bool)
+
+    var chipSerial: ChipSerial {
+      switch self {
+      case .personal(let match):
+        match.identity.chipSerial
+
+      case .organization(let prime, _):
+        prime.chipSerial
+      }
+    }
+
+    var isRegistrationField: Bool {
+      switch self {
+      case .personal(let match):
+        match.isRegistrationField
+
+      case .organization(_, let isRegistrationField):
+        isRegistrationField
+      }
+    }
+  }
+
   /// How many times the mint looks for a prime before giving up.
   private static let primeWaitAttempts = 48
 
@@ -55,15 +85,25 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
   /// certificate reads take several seconds over NFC (such as ECC citizen
   /// cards on Thales MultiApp v5), while still ensuring an unprimed card
   /// eventually fails rather than holding the field indefinitely.
+  ///
+  /// A personal card's prime is found by the whole answer to reset; an
+  /// organization card's, which the phone's setup or a contact read left,
+  /// by the card model's historical bytes (``OrganizationPrimeStore``).
   private static func awaitPrime(
-    lookupID: PrimeLookupIdentifier
-  ) -> PrimeStore.ContactlessMatch? {
+    lookupID: PrimeLookupIdentifier,
+    answerToReset: Data
+  ) -> FieldPrime? {
     for attempt in 1...primeWaitAttempts {
-      if let match = PrimeStore.readContactless(lookupID: lookupID) {
+      let found: FieldPrime? =
+        PrimeStore.readContactless(lookupID: lookupID).map(FieldPrime.personal)
+        ?? OrganizationPrimeStore.read(answerToReset: answerToReset).map { prime in
+          .organization(prime, isRegistrationField: PrimeStore.isRegistrationFieldMarked)
+        }
+      if let found {
         if attempt > 1 {
           TokenLog.trace("mintFromPrime: prime arrived on attempt \(attempt)")
         }
-        return match
+        return found
       }
       Thread.sleep(forTimeInterval: primeWaitInterval)
     }
@@ -210,21 +250,29 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
       TokenLog.error("mintFromPrime: atr=\(answerToReset.count)B names no card")
       throw TokenError.primeMissing
     }
-    guard let match = Self.awaitPrime(lookupID: lookupID) else {
+    guard let match = Self.awaitPrime(lookupID: lookupID, answerToReset: answerToReset) else {
       TokenLog.error(
         "mintFromPrime: prime MISS for \(lookupID.value), "
           + "\(PrimeStore.storedCount()) prime(s) stored"
       )
       throw TokenError.primeMissing
     }
-    let serial = match.identity.chipSerial
+    let serial = match.chipSerial
+    let material: PrimedTokenMaterial
+    switch match {
+    case .personal(let personal):
+      material = try Token.validated(primed: personal.identity, chipSerial: serial)
+
+    case .organization(let prime, _):
+      material = try Token.validated(organization: prime)
+    }
     // Recorded rather than written: this is inside the two seconds the
     // system gives the mint, and the line is written out by whichever
     // `createToken` outcome line follows it.
     TokenLog.trace(
       "mintFromPrime: prime HIT "
-        + "leaf=\(match.identity.certDER.count)B "
-        + "issuer=\(match.identity.issuerDER?.count ?? -1)B "
+        + "leaf=\(material.identity.leafDER.count)B "
+        + "issuer=\(material.identity.issuerDER?.count ?? -1)B "
         + "registration=\(match.isRegistrationField)"
     )
     let isPendingSign = PendingSigningState.shared.isPendingSign
@@ -240,8 +288,7 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
       primedSmartCard: smartCard,
       aid: aid,
       tokenDriver: tokenDriver,
-      chipSerial: serial,
-      primed: match.identity,
+      material: material,
       shouldHoldSession: needsSigningField,
       isPendingSign: isPendingSign
     )

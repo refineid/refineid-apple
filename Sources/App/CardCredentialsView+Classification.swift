@@ -178,10 +178,18 @@ extension CardCredentialsView {
   }
 
   /// Sets the identity up in one hold.
+  ///
+  /// An empty entry starts a hold too: it sends the card nothing and
+  /// learns which entry the card on the antenna takes.
   internal func connectIdentityCard() {
-    guard isCardAccessNumberEntryComplete else {
+    #if os(iOS)
+      let ready = canReadIdentityCard
+    #else
+      let ready = isCardAccessNumberEntryComplete
+    #endif
+    guard ready else {
       #if DEBUG
-        DebugConsole.emit("connectIdentityCard: guard failed, access number incomplete")
+        DebugConsole.emit("connectIdentityCard: guard failed, entry incomplete")
       #endif
       return
     }
@@ -194,7 +202,9 @@ extension CardCredentialsView {
       #endif
       return
     }
-    let entered = cardAccessNumberEntry
+    #if REFINEID_LOCAL_CARD && os(iOS)
+      let entry = takeSetupEntry()
+    #endif
     activation = nil
     activationNeeds = nil
     activationPinLengths = nil
@@ -204,7 +214,7 @@ extension CardCredentialsView {
     Task { @MainActor in
       #if REFINEID_LOCAL_CARD && os(iOS)
         let succeeded = await CardRegistrationSections.registerIdentity(
-          cardAccessNumber: entered,
+          entry: entry,
           model: primingModel,
           commit: IdentityCommitments(storeCardAccessNumber: storeProvenCardAccessNumber) {
             isRegistered = true
@@ -231,6 +241,11 @@ extension CardCredentialsView {
         return
       }
       switch primingModel.refusal {
+      case .cardKind(let kind):
+        antennaCardKind = kind
+        isCardAccessNumberFieldFocused = true
+        transition(.classificationFailed)
+
       case .wrongCardAccessNumber:
         Task { @MainActor in
           if !isDemonstration, hasIdentity {
@@ -252,6 +267,27 @@ extension CardCredentialsView {
       }
     #endif
   }
+
+  #if REFINEID_LOCAL_CARD && os(iOS)
+    /// What the setup entry holds, for the card kind on the antenna.
+    ///
+    /// An organization card's entry is its PIN 1: it leaves the field as
+    /// a ``Pin1Entry`` and the field is emptied at once, so the digits
+    /// stay only in that entry's zeroizing store and are spent on one
+    /// handshake.
+    private func takeSetupEntry() -> CardPriming.SetupEntry {
+      switch antennaCardKind {
+      case .personal:
+        return isCardAccessNumberEntryComplete
+          ? .cardAccessNumber(cardAccessNumberEntry) : .empty
+
+      case .organization:
+        let typed = organizationPinEntry
+        organizationPinEntry = ""
+        return Pin1Entry(digits: typed).map(CardPriming.SetupEntry.organizationPin1) ?? .empty
+      }
+    }
+  #endif
 
   /// A live reader identity opens management directly: its card is already present.
   internal func openCardManagement() {

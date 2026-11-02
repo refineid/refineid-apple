@@ -6,8 +6,11 @@ import SwiftUI
 /// Setting the card up: the access number and the hold that registers the
 /// card for Safari.
 ///
-/// No PIN is entered here: PIN 1 is asked for when the card first signs
-/// and is held only in memory (RAPP v26.10.29 §11 item 2).
+/// A personal card's setup takes no PIN: PIN 1 is asked for when the
+/// card first signs and is held only in memory (RAPP v26.10.29 §11 item
+/// 2). An organization card has no printed access number, and its entry
+/// under the same label is its PIN 1, which opens the setup hold's PACE
+/// and is spent there.
 ///
 /// This is the screen that matters, so it is the one the app opens on.
 /// Development builds keep technical state behind the Diagnostics row.
@@ -74,6 +77,17 @@ internal struct CardCredentialsView: View {
     @ObservedObject internal var demoMode = DemoMode.shared
   #endif
   @State internal var cardAccessNumberEntry = ""
+
+  /// The kind of card the setup entry is for, as the last hold on the
+  /// antenna found it; a personal card's until a hold says otherwise.
+  @State internal var antennaCardKind = ContactlessCardKind.personal
+
+  /// An organization card's setup entry: its PIN 1.
+  ///
+  /// It stands under the same "Card Access Number (CAN)" label, is held
+  /// only until the hold that spends it starts, and is never written
+  /// anywhere.
+  @State internal var organizationPinEntry = ""
   @State internal var isScanning = false
   @State internal var scannerTorchEnabled = false
   @State internal var registrationReset = false
@@ -124,15 +138,41 @@ internal struct CardCredentialsView: View {
   /// The complete visible CAN handed to signing and PIN management.
   ///
   /// These routes can establish and verify their own card session, so they
-  /// become available at six digits without requiring an earlier NFC read.
+  /// become available at a personal card's six digits without requiring
+  /// an earlier NFC read.
   internal var managementCardAccessNumber: String? {
     isCardAccessNumberEntryComplete ? cardAccessNumberEntry : nil
   }
 
   /// The point at which operations using the printed card number can be
-  /// offered.
+  /// offered: a personal card's six digits.
   internal var isCardAccessNumberEntryComplete: Bool {
     cardAccessNumberEntry.count == CardAccessNumber.digitCount
+  }
+
+  /// Whether the setup entry for the card on the antenna is complete: a
+  /// personal card's six digits, or an organization card's PIN 1 of four
+  /// to twelve.
+  internal var isSetupEntryComplete: Bool {
+    switch antennaCardKind {
+    case .personal:
+      isCardAccessNumberEntryComplete
+
+    case .organization:
+      (Pin1.minimumDigitCount...Pin1.maximumDigitCount).contains(organizationPinEntry.count)
+    }
+  }
+
+  /// Whether the setup entry for the card on the antenna is empty, so a
+  /// hold only learns which card is there.
+  internal var isSetupEntryEmpty: Bool {
+    switch antennaCardKind {
+    case .personal:
+      cardAccessNumberEntry.isEmpty
+
+    case .organization:
+      organizationPinEntry.isEmpty
+    }
   }
 
   /// Disclosure follows a validated connection, never digit count alone.
@@ -170,7 +210,11 @@ internal struct CardCredentialsView: View {
       }
     #endif
     guard isRegistered else { return nil }
-    return PrimeStore.primedHolderNames().first
+    #if REFINEID_LOCAL_CARD && os(iOS)
+      return PhoneCardPrime.holderName
+    #else
+      return PrimeStore.primedHolderNames().first
+    #endif
   }
 
   /// Whether there is a complete, displayable identity.
@@ -257,9 +301,12 @@ internal struct CardCredentialsView: View {
     }
 
     /// Whether Read Identity Card can start the NFC hold that primes the card.
+    ///
+    /// An empty entry reads too: that hold sends nothing and only learns
+    /// which card is on the antenna, so the screen can show its entry.
     internal var canReadIdentityCard: Bool {
       guard
-        isCardAccessNumberEntryComplete,
+        isSetupEntryComplete || isSetupEntryEmpty,
         !model.isConnecting
       else { return false }
       #if REFINEID_LOCAL_CARD

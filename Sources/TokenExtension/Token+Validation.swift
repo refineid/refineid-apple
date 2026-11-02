@@ -91,11 +91,52 @@ extension Token {
       throw TokenError.primeMissing
     }
     return PrimedTokenMaterial(
-      accessNumber: accessNumber,
+      unsealing: .cardAccessNumber(accessNumber),
+      identity: PublishedIdentity(
+        leafDER: primed.certDER,
+        issuerDER: primed.issuerDER,
+        signLeafDER: nil,
+        chipSerial: chipSerial
+      ),
       leaf: leaf,
       profile: profile,
       publicKey: publicKey,
       serial: chipSerial,
+      instanceID: instanceID
+    )
+  }
+
+  /// Validates an organization card's prime for a mint on the phone's
+  /// antenna.
+  ///
+  /// The prime holds no password: each signature opens the card with the
+  /// PIN it spends, and checks the chip serial in the channel before it
+  /// signs. The qualified certificate is not published, as on a personal
+  /// card's antenna mint.
+  internal static func validated(
+    organization prime: OrganizationPrime
+  ) throws -> PrimedTokenMaterial {
+    guard let leaf = SecCertificateCreateWithData(nil, prime.certificateDER as CFData) else {
+      TokenLog.trace("Token.init(organization): stored leaf is not a cert")
+      throw TokenError.certificateUnreadable
+    }
+    let (profile, publicKey) = try Self.validatedSigningKey(in: leaf)
+    guard let instanceID = TokenInstanceID(chipSerial: prime.chipSerial) else {
+      TokenLog.trace("Token.init(organization): chip serial has no supported printed form")
+      throw TokenError.primeMissing
+    }
+    return PrimedTokenMaterial(
+      unsealing: .organizationPin,
+      identity: PublishedIdentity(
+        leafDER: prime.certificateDER,
+        issuerDER: prime.issuerDER,
+        signLeafDER: nil,
+        chipSerial: prime.chipSerial
+      ),
+      leaf: leaf,
+      profile: profile,
+      publicKey: publicKey,
+      serial: prime.chipSerial,
       instanceID: instanceID
     )
   }

@@ -73,6 +73,30 @@ public enum OrganizationPrimeStore {
   /// trusted.
   public static func read(answerToReset: Data) -> OrganizationPrime? {
     guard let account = account(answerToReset: answerToReset) else { return nil }
+    return read(account: account)
+  }
+
+  /// Every stored prime, each re-validated through the initializer; an
+  /// undecodable record is skipped.
+  public static func storedPrimes() -> [OrganizationPrime] {
+    var search = query(account: nil)
+    search[kSecMatchLimit as String] = kSecMatchLimitAll
+    search[kSecReturnAttributes as String] = true
+    var items: CFTypeRef?
+    guard
+      SecItemCopyMatching(search as CFDictionary, &items) == errSecSuccess,
+      let found = items as? [[String: Any]]
+    else {
+      return []
+    }
+    return found.compactMap { attributes in
+      guard let account = attributes[kSecAttrAccount as String] as? String else { return nil }
+      return read(account: account)
+    }
+  }
+
+  /// The record under `account`, re-validated, or nil.
+  private static func read(account: String) -> OrganizationPrime? {
     var search = query(account: account)
     search[kSecReturnData as String] = true
     search[kSecMatchLimit as String] = kSecMatchLimitOne

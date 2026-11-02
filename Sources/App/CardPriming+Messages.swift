@@ -77,6 +77,10 @@
       case Failure.cardAccessNumberMissing:
         String(localized: "Store the card access number first, then try again.")
 
+      case Failure.cardKind:
+        // Not shown: the hold only learned which entry the card takes.
+        ""
+
       case Failure.secureChannelTimedOut:
         String(localized: "The card security delay timed out. Hold the card still and try again.")
 

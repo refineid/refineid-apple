@@ -123,18 +123,30 @@
       operation: NearFieldOperation,
       _ work: @escaping @Sendable (CardOperations) -> Outcome
     ) async -> Outcome {
-      await withCard(cardAccessNumber: cardAccessNumber, operation: operation) { operations, _ in
-        work(operations)
-      }
+      await withCard(
+        cardAccessNumber: cardAccessNumber,
+        operation: operation,
+        organization: nil,
+        personal: { operations, _ in work(operations) }
+      )
     }
 
     /// Runs `work` on the card in an attached reader, or else on the
     /// phone's own antenna with the sheet drawing the meter of
     /// `operation`.
+    ///
+    /// On the antenna a personal card opens with `cardAccessNumber`. The
+    /// phone's organization card opens only with the PIN an operation
+    /// spends, so `organization` runs instead, on the field's plain
+    /// channel, and runs its own PACE; an operation without it, such as a
+    /// certificate read the prime does not answer, finds no card.
     internal static func withCard(
       cardAccessNumber: String?,
       operation: NearFieldOperation,
-      _ work:
+      organization: (
+        @Sendable (CardOperations, RappNearFieldSessionHolder.Context) -> Outcome
+      )?,
+      personal work:
         @escaping @Sendable (
           CardOperations,
           RappNearFieldSessionHolder.Context?
@@ -155,12 +167,22 @@
           return .refusedBeforeCredentialTransmit(.cardUnavailable)
         }
       }
+      if case .organization? = PhoneCardPrime.current {
+        guard let organization else {
+          return .refusedBeforeCredentialTransmit(.cardUnavailable)
+        }
+        return await RappNearFieldSessionHolder.shared.execute(
+          opening: .organizationCard,
+          operation: operation,
+          organization
+        ) ?? .refusedBeforeCredentialTransmit(.cardUnavailable)
+      }
       guard let cardAccessNumber else {
         return .refusedBeforeCredentialTransmit(.cardUnavailable)
       }
       guard
         let result = await RappNearFieldSessionHolder.shared.execute(
-          cardAccessNumber: cardAccessNumber,
+          opening: .cardAccessNumber(cardAccessNumber),
           operation: operation,
           work
         )

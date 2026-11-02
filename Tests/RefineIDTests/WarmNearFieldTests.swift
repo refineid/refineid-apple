@@ -75,7 +75,9 @@ internal struct WarmNearFieldTests {
   }
 
   private static func sign(on core: Core) async -> Fakes.Outcome? {
-    await core.execute(cardAccessNumber: Self.cardAccessNumber, operation: .authentication) {
+    await core.execute(
+      opening: .cardAccessNumber(Self.cardAccessNumber), operation: .authentication
+    ) {
       card, credentials in
       Self.signature(on: card, credentials: credentials)
     }
@@ -116,6 +118,24 @@ internal struct WarmNearFieldTests {
     #expect(log.reuses == Self.burstSize - 1)
     #expect(log.endings.isEmpty)
     #expect(await core.isWarm)
+  }
+
+  @Test("A channel prepared for one opening is prepared afresh for another, in the same field")
+  internal func channelFollowsTheOpening() async {
+    let reader = Fakes.Reader(
+      idleLifeMs: Self.platformIdleLifeMs, fieldLifeMs: Self.platformFieldLifeMs)
+    let core = Self.field(over: reader, log: Fakes.EventLog())
+    #expect(await Self.sign(on: core) == .signed)
+    let organization = await core.execute(opening: .organizationCard, operation: .authentication) {
+      card, _ in
+      // The organization card's PACE with the PIN stands as its
+      // verification.
+      guard card.verifyPin1() else { return Fakes.Outcome.unanswered }
+      return card.sign()
+    }
+    #expect(organization == .signed)
+    #expect(reader.opens == 1)
+    #expect(reader.card.work().filter { $0 == .pace }.count == 2)
   }
 
   @Test("VERIFY PIN 1 runs before every signature on the reused channel")

@@ -24,6 +24,10 @@ internal enum SyntheticPaceCardValues {
   /// GENERAL AUTHENTICATE.
   internal static let generalAuthenticate: UInt8 = 0x86
 
+  /// GENERAL AUTHENTICATE rounds in one PACE run: nonce, mapping, key
+  /// agreement and mutual authentication (BSI TR-03110-3 section B.1).
+  internal static let paceRounds: Int = 4
+
   /// Tag `7C`, dynamic authentication data.
   internal static let dynamicAuthenticationDataTag: UInt8 = 0x7C
 

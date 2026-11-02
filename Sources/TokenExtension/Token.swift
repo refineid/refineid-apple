@@ -177,26 +177,28 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
   /// number, all read from this same card and none of them able to have
   /// changed since - so this mint does NO card I/O whatsoever and
   /// publishes exactly the items the contact path would.
+  ///
+  /// `material` is validated from a personal card's prime or an
+  /// organization card's (``validated(primed:chipSerial:)``,
+  /// ``validated(organization:)``); every refusal there is named, because
+  /// they all leave the same error at the boundary and the difference
+  /// between them is the diagnosis. Lines are recorded, not written: this
+  /// whole initializer runs inside the two seconds the system gives the
+  /// mint, and every line here is written out by the `createToken`
+  /// outcome that follows.
   internal init(
     primedSmartCard smartCard: TKSmartCard,
     aid: Data?,
     tokenDriver: TKSmartCardTokenDriver,
-    chipSerial: ChipSerial,
-    primed: PrimedIdentity,
+    material: PrimedTokenMaterial,
     shouldHoldSession: Bool,
     isPendingSign: Bool
   ) throws {
-    // Recorded, not written: this whole initializer runs inside the two
-    // seconds the system gives the mint, and every line here is written
-    // out by the `createToken` outcome that follows. Each refusal is
-    // named, because they all leave the same error at the boundary and
-    // the difference between them is the diagnosis.
-    let material = try Self.validated(primed: primed, chipSerial: chipSerial)
     self.keyProfile = material.profile
     self.leafPublicKey = material.publicKey
     self.signKeyProfile = nil
     self.signLeafPublicKey = nil
-    self.unsealing = .cardAccessNumber(material.accessNumber)
+    self.unsealing = material.unsealing
     self.interface = .fieldWithDeadline
     self.chipSerial = material.serial
     self.instanceID = material.instanceID
@@ -214,12 +216,7 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
       holdSession(on: smartCard, isPendingSign: isPendingSign)
     }
     try publish(
-      PublishedIdentity(
-        leafDER: primed.certDER,
-        issuerDER: primed.issuerDER,
-        signLeafDER: nil,
-        chipSerial: material.serial
-      ),
+      material.identity,
       leaf: material.leaf,
       profile: material.profile,
       signLeaf: nil,
