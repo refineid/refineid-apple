@@ -125,7 +125,7 @@
       _ work: @escaping @Sendable (CardOperations) -> Answer?
     ) async -> Answer? {
       guard let manager = TKSmartCardSlotManager.default,
-        let found = await CardSlotSearch.occupied(in: manager),
+        let found = await targetReaderSlots(in: manager).first,
         let smartCard = found.slot.makeSmartCard()
       else {
         return nil

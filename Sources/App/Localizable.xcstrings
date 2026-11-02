@@ -4778,6 +4778,38 @@
         }
       }
     },
+    "Select": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valitse"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj"
+          }
+        }
+      }
+    },
+    "Select %@": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valitse %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj %@"
+          }
+        }
+      }
+    },
     "Selected": {
       "localizations": {
         "fi": {

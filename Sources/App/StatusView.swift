@@ -35,6 +35,9 @@
     internal let remoteRegistry = PersistentTokenRegistry.shared
     @State private var signing = SignDocumentModel()
 
+    /// The cards in this Mac's readers and the one the holder chose.
+    private let selection = CardSelection.shared
+
     /// Notices a card waiting to be taken into use, and carries the
     /// model its activation form works through.
     private let activation = ActivationWatch.shared
@@ -52,6 +55,7 @@
     /// (RAPP v26.10.29 §11 item 2).
     private var canSign: Bool {
       availability == .ready
+        && !selection.awaitsChoice
         && signing.pending != nil
         && (!asksLocalPin2 || Self.isEntryComplete(pin2))
         && !signing.working
@@ -156,6 +160,8 @@
         warnsUnavailableCard: activation.warnsUnavailableCard
       )
       stateView
+        // The card stays the one chosen while it is being used.
+        .disabled(signing.working || signing.readingStamp)
         .accessibilityIdentifier("loginIdentityStatus")
       if availability != .noCard || !signing.queued.isEmpty || signing.pending != nil {
         StatusDocumentSection(
@@ -170,6 +176,7 @@
           pin2: $pin2,
           accessNumber: $accessNumber,
           asksLocalPin2: asksLocalPin2,
+          target: selection.target,
           canSign: canSign,
           onSign: { sign() }
         )

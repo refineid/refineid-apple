@@ -11,9 +11,17 @@
     @Binding internal var pin2: String
     @Binding internal var accessNumber: String
     internal let asksLocalPin2: Bool
+    /// Where the card operations go; nowhere while several cards wait
+    /// for the holder's choice.
+    internal let target: ReaderTarget
     internal let canSign: Bool
     internal let onSign: () -> Void
     @FocusState private var pinFocused: Bool
+
+    /// Whether a card is there to type for.
+    private var acceptsEntry: Bool {
+      target != .unchosen
+    }
 
     internal var body: some View {
       if signing.pending != nil {
@@ -34,10 +42,12 @@
                 .onSubmit { onSign() }
                 .accessibilityIdentifier("signPin2")
             }
+            .disabled(!acceptsEntry)
           }
           #if FEATURE_PDF_STAMP
             if format == .pades {
               StampRow(signing: signing, accessNumber: $accessNumber)
+                .disabled(!acceptsEntry)
             }
           #endif
           #if DEBUG
@@ -48,7 +58,16 @@
           #endif
           actionRow
         }
-        .onAppear { if asksLocalPin2 { pinFocused = true } }
+        .onAppear { if asksLocalPin2, acceptsEntry { pinFocused = true } }
+        .onChange(of: target) { used, _ in
+          // What was typed or read belongs to the card used before.
+          if case .slot = used, !signing.working {
+            signing.cardRemoved()
+            pin2 = ""
+            accessNumber = ""
+          }
+          if asksLocalPin2, acceptsEntry { pinFocused = true }
+        }
       }
     }
 

@@ -169,10 +169,7 @@ internal enum CardMaintenance {
     _ operation: @escaping @Sendable (CardOperations) -> Answer
   ) async -> Answer? {
     guard let manager = TKSmartCardSlotManager.default else { return nil }
-    let occupied = await CardSlotSearch.allOccupied(in: manager).filter { occupiedSlot in
-      CardTransport.transport(forSlotNamed: occupiedSlot.name) == .reader
-    }
-    let cards = occupied.compactMap { occupiedSlot in
+    let cards = await targetReaderSlots(in: manager).compactMap { occupiedSlot in
       occupiedSlot.slot.makeSmartCard().map(UncheckedCard.init)
     }
     guard !cards.isEmpty else { return nil }
@@ -192,6 +189,23 @@ internal enum CardMaintenance {
         continuation.resume(returning: nil)
       }
     }
+  }
+
+  /// The occupied reader slots an operation may use: those the window's
+  /// ``ReaderTarget`` admits on the Mac, every one elsewhere.
+  internal static func targetReaderSlots(
+    in manager: TKSmartCardSlotManager
+  ) async -> [(name: String, slot: TKSmartCardSlot)] {
+    let occupied = await CardSlotSearch.allOccupied(in: manager).filter { occupiedSlot in
+      CardTransport.transport(forSlotNamed: occupiedSlot.name) == .reader
+    }
+    #if os(macOS)
+      let target = await MainActor.run { CardSelection.shared.target }
+    #else
+      let target = ReaderTarget.anyReader
+    #endif
+    let admitted = target.admits(occupied.map(\.name))
+    return occupied.filter { admitted.contains($0.name) }
   }
 
   internal static func selectedOperations(

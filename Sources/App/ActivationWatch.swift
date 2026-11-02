@@ -53,7 +53,14 @@
 
     @ObservationIgnored private var paused = false
 
-    @ObservationIgnored private var activationTokenIDs = Set<String>()
+    /// The activation tokens published now; their slots are where the
+    /// activation form's operations go.
+    @ObservationIgnored private var activationTokenIDs = Set<String>() {
+      didSet {
+        CardSelection.shared.activationSlots =
+          activationTokenIDs.compactMap(ActivationTokenIdentity.slotName(tokenID:)).sorted()
+      }
+    }
 
     @ObservationIgnored private var tokenWatcher: TKTokenWatcher?
 
