@@ -5725,6 +5725,22 @@
         }
       }
     },
+    "Two cards are waiting for activation. Remove one of them.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaksi korttia odottaa aktivointia. Poista toinen niistä."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Två kort väntar på aktivering. Ta bort det ena."
+          }
+        }
+      }
+    },
     "USB-C reader connected with ID card.": {
       "localizations": {
         "fi": {
