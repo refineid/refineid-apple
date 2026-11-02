@@ -41,4 +41,11 @@ internal enum DeviceModel {
   internal static func name(ofMachine identifier: String) -> String {
     DeviceModels.names[identifier] ?? identifier
   }
+
+  /// The marketing name for `identifier`, or the device's family, such
+  /// as "iPhone", when the identifier is not listed: the name a phone or
+  /// a tablet is known by in a pairing (``PeerDisplayName``).
+  internal static func name(ofMachine identifier: String, family: String) -> String {
+    DeviceModels.names[identifier] ?? family
+  }
 }

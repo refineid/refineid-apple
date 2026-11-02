@@ -321,11 +321,13 @@ ceremony, a stored pairing without a name is revoked at launch, and no
 view prints "Phone", "Computer" or "Remote device" in a name's place.
 The Mac window names the paired phone it cannot reach and keeps the code
 boxes under that line, so another phone is paired from the window rather
-than from Settings. iOS introduces itself with `UIDevice.current.name`,
-which is the model name ("iPhone") until the app holds the
+than from Settings. An iPhone or iPad introduces itself by its
+model name, since `UIDevice.current.name` is only "iPhone" until the app
+holds the
 `com.apple.developer.device-information.user-assigned-device-name`
-entitlement; the owner requests it from Apple, and the key enters
-`Config/RefineID-iOS.entitlements` once it is granted. Android sends the
+entitlement; the owner requests it from Apple, and once it is granted
+the key enters `Config/RefineID-iOS.entitlements` and the device name
+replaces the model (the naming rule is in design/ui.md). Android sends the
 name set in its system settings and already appears by it.
 
 ## 2026-10-09 Bluetooth is declared, and stays unwired

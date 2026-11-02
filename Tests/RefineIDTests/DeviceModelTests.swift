@@ -18,6 +18,13 @@ internal struct DeviceModelTests {
   }
 
   @Test
+  internal func anUnlistedIdentifierIsNamedByItsFamily() {
+    #expect(DeviceModel.name(ofMachine: "iPhone16,2", family: "iPhone") == "iPhone 15 Pro Max")
+    #expect(DeviceModel.name(ofMachine: "iPhone99,9", family: "iPhone") == "iPhone")
+    #expect(DeviceModel.name(ofMachine: "iPad99,9", family: "iPad") == "iPad")
+  }
+
+  @Test
   internal func theMachineIdentifierIsNeverEmpty() {
     #expect(!DeviceModel.machineIdentifier.isEmpty)
   }

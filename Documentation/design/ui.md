@@ -42,6 +42,17 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   six digits, or an organization card's PIN 1. Until then the value is a
   secret; an organization card's never becomes a card access number and
   is never stored or shown as one.
+- **Device names.** A device introduces itself in a pairing by the name
+  every peer then shows. A computer names its system and its host name,
+  "macOS - Mac mini". A phone or a tablet names only itself, "iPhone 15
+  Pro Max", since the device already says which system it runs. Until
+  Apple grants the user-assigned device name entitlement, iOS reports
+  every phone as "iPhone", so an iPhone or iPad sends its model name from
+  the table `Scripts/generate-device-models.sh` writes, or "iPhone" or
+  "iPad" for a model the table lacks. Once the entitlement is in
+  `Config/RefineID-iOS.entitlements`, the one switch
+  `readsUserAssignedDeviceName` in `RappPairingModel` turns on and the
+  name the owner gave the device is sent instead.
 - **Finnish vocabulary.** Pairing is *yhdistäminen*, and its code is the
   *yhdistämiskoodi*. *Paritus*, *pariliitos* and *laitepari* are not used.
 - **PIN names.** The codes take DVV's names: the basic PIN (*perus*,
