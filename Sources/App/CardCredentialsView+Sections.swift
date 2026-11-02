@@ -4,6 +4,9 @@ import CardCore
 import SwiftUI
 
 extension CardCredentialsView {
+  /// How far the setup entry's label may shrink to fit its row.
+  private static let setupEntryMinimumScale = 0.6
+
   #if os(iOS)
     private var verifyRow: some View {
       NavigationLink(value: Route.verifyDocuments) {
@@ -222,6 +225,10 @@ extension CardCredentialsView {
             cardAccessNumberEntry = LimitedDigits.pin(typed)
           }
         }
+        // The label shrinks to fit beside the eye and the camera rather
+        // than being cut off.
+        .lineLimit(1)
+        .minimumScaleFactor(Self.setupEntryMinimumScale)
         #if REFINEID_LOCAL_CARD && os(iOS)
           canScanButton
         #endif
