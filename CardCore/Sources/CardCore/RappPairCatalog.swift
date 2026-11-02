@@ -27,7 +27,8 @@
     /// refusing a vault that repeats a pair identifier.
     ///
     /// A pairing this endpoint forgot serves nothing and is not listed (RAPP
-    /// v26.10.29 §4.6).
+    /// v26.10.29 §4.6), nor is one whose storage the peer never confirmed
+    /// (§4.3 item 4).
     public func activePairs() throws -> [RappPairingCoordinator.PairSummary] {
       var seen = Set<Data>()
       return try vault.activePairIDs()
@@ -35,7 +36,7 @@
         .compactMap { pairID in
           guard seen.insert(pairID).inserted else { return nil }
           guard let pair = try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault),
-            pair.metadata().forgottenAtMs == nil
+            pair.metadata().storageConfirmed, pair.metadata().forgottenAtMs == nil
           else { return nil }
           return RappPairingCoordinator.PairSummary(pair.metadata())
         }

@@ -198,16 +198,15 @@
     /// §4.6 item 4).
     ///
     /// This computer forgets the pairing too, the borrowed identity leaves
-    /// at once, and the row names the phone that did it. On the Mac remote
-    /// use turns off when that was the last pairing (CC-101).
-    internal func holderRevoked(pairID: Data) {
-      let vault = RappDeviceVault()
-      let name = RappPairNames.name(forPairID: pairID)
+    /// at once, and the row names the phone that did it above the pairing
+    /// prompt. Remote use stays on: only the holder turns it off.
+    internal func holderRevoked(pairID: Data, in vault: RappDeviceVault) {
+      let name = (try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault))?.metadata()
+        .peerDisplayName
       if holderSession?.pairID == pairID {
         closeHolderSession()
       }
       try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: RappPlatformClock())
-      RappPairNames.forget(pairID: pairID)
       if (try? vault.selectedPairID()) == pairID {
         try? vault.clearSelectedPair()
       }
@@ -215,13 +214,10 @@
       advertisementLossTask = nil
       holderIsAdvertising = false
       Self.withdrawPublishedIdentity()
-      refreshPairing()
+      refreshPairing(in: vault)
       if let name {
         phoneThatForgot = name
       }
-      #if os(macOS) && REFINEID_REMOTE_CARD
-        remoteUseFollowsThePairings(.shared, in: vault)
-      #endif
       restartWatchingPresence()
       NotificationCenter.default.post(
         name: RappPairingModel.pairingsDidChangeNotification, object: nil)
@@ -233,7 +229,7 @@
     /// own session.
     internal func holderRevokedElsewhere() {
       guard let pairID = Self.publishedPairID() else { return }
-      holderRevoked(pairID: pairID)
+      holderRevoked(pairID: pairID, in: RappDeviceVault())
     }
 
     /// This computer's close for a pairing it forgot reached the phone
@@ -247,9 +243,11 @@
         name: RappPairingModel.pairingsDidChangeNotification, object: nil)
     }
 
-    /// The holder announced that it stopped serving: the borrowed identity
-    /// leaves at once, without the hold an unannounced loss gets, and no
-    /// request goes out until the holder advertises a session again.
+    /// The holder announced that it stopped serving, in a withdrawn record
+    /// or in its session's `service_withdrawn` close (RAPP v26.10.29 §4.5
+    /// item 6): the borrowed identity leaves at once, without the hold an
+    /// unannounced loss gets, and no stream dial goes out until the
+    /// holder's session record is seen again.
     internal func holderWithdrew() {
       advertisementLossTask?.cancel()
       advertisementLossTask = nil
@@ -291,6 +289,12 @@
           streamFailedInSight = false
           bluetoothUsable = Self.dialsOverBluetooth
           sessionSlot.startOver()
+          // The announcement is dialled at once: a Bluetooth dial still
+          // scanning for the phone gives way to the stream.
+          if sessionSlot.state == .dialing(.bluetooth) {
+            holderSession?.close()
+            forgetHeldSession()
+          }
         }
         advertisementLossTask?.cancel()
         advertisementLossTask = nil

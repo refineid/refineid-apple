@@ -4,22 +4,11 @@ import XCTest
 
 @testable import RefineIDTestHost
 
-/// A `--pretend-paired` launch starts the pairing row paired, and
-/// revoking it returns the row to Connect.
+/// The pairing row starts unpaired unless a launch pretends otherwise.
 internal final class PretendPairedTests: XCTestCase {
   @MainActor
   internal func testPretendPairingStartsAbsent() {
     let model = RappPairingModel()
-    XCTAssertFalse(model.pretendPaired)
-    XCTAssertFalse(model.hasActivePairs)
-  }
-
-  @MainActor
-  internal func testRevokingClearsPretendPairing() {
-    let model = RappPairingModel()
-    model.pretendPaired = true
-    XCTAssertTrue(model.hasActivePairs)
-    model.revokeAll()
     XCTAssertFalse(model.pretendPaired)
     XCTAssertFalse(model.hasActivePairs)
   }

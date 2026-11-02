@@ -36,5 +36,33 @@
       #expect(try vault.selectedPairID() == nil)
       #expect(vault.dropUnreadablePairs() == 0)
     }
+
+    @Test("A pairing whose storage the peer never confirmed is not listed")
+    internal func unconfirmedPairingIsNotListed() async throws {
+      let vault = RappDeviceVault(
+        accessGroup: nil, servicePrefix: "fi.refineid.test.unconfirmed.\(UUID().uuidString)")
+      defer { _ = try? vault.deleteServiceNamespace("fi.refineid.test.unconfirmed") }
+      let local = Curve25519.KeyAgreement.PrivateKey()
+      let confirmedPeer = Curve25519.KeyAgreement.PrivateKey()
+      let unconfirmedPeer = Curve25519.KeyAgreement.PrivateKey()
+      let confirmed = try PairRecordFixture.makePairRecord(
+        localStaticPrivate: local.rawRepresentation,
+        localStaticPublic: local.publicKey.rawRepresentation,
+        localRole: .proxy,
+        remotePublicKey: confirmedPeer.publicKey.rawRepresentation)
+      let unconfirmed = try PairRecordFixture.makeUnconfirmedPairRecord(
+        localStaticPrivate: local.rawRepresentation,
+        localStaticPublic: local.publicKey.rawRepresentation,
+        localRole: .proxy,
+        remotePublicKey: unconfirmedPeer.publicKey.rawRepresentation)
+      try vault.insertPair(
+        pairID: confirmed.metadata().pairId, record: try confirmed.encodedBytes())
+      try vault.insertPair(
+        pairID: unconfirmed.metadata().pairId, record: try unconfirmed.encodedBytes())
+
+      let listed = try await RappPairCatalog(vault: vault).activePairs().map(\.pairID)
+
+      #expect(listed == [confirmed.metadata().pairId])
+    }
   }
 #endif

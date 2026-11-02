@@ -49,11 +49,9 @@ extension RappPairingModel {
     case .offerRestored:
       restoreCustodianOffer(coordinator: coordinator)
 
-    case .keyConfirmed:
+    case .keyConfirmed, .peerIntroduced:
+      // The peer's name arrives in the stored pair.
       break
-
-    case .peerIntroduced(let peer):
-      introduce(peer)
 
     case .paired(let pair):
       handlePaired(pair)
@@ -79,8 +77,9 @@ extension RappPairingModel {
           source: .app)
       #endif
 
-    case .peerIntroduced(let peer):
-      introduce(peer)
+    case .peerIntroduced:
+      // The peer's name arrives in the stored pair.
+      break
 
     case .paired(let pair):
       handlePaired(pair)
@@ -102,17 +101,6 @@ extension RappPairingModel {
     }
   }
 
-  /// Keeps the name and the platform the peer introduced itself with,
-  /// inside the authenticated pairing channel.
-  private func introduce(_ peer: RappPairingCoordinator.Peer) {
-    let name = peer.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !name.isEmpty else {
-      ceremonyEnded(String(localized: "The device did not give its name."))
-      return
-    }
-    reviewedPeerName = name
-  }
-
   private func handleClosed(_ reason: RappPairingCoordinator.CloseReason) {
     switch reason {
     case .offerExpired:
@@ -129,24 +117,13 @@ extension RappPairingModel {
     }
   }
 
-  /// Keeps the pair under the name its peer gave.
+  /// Selects the new pair.
   ///
-  /// A pair whose peer gave none is revoked before it can be listed or
-  /// chosen. A phone that offered lists the new computer and shows the
-  /// next code.
+  /// The pair carries the name its peer gave (RAPP v26.10.29 §4.3 item 3).
+  /// A phone that offered lists the new computer and shows the next code.
   private func handlePaired(_ pair: RappPairingCoordinator.PairSummary) {
-    guard let reviewedPeerName else {
-      try? RappPairRevocation.revoke(pairID: pair.pairID, in: vault, clock: RappPlatformClock())
-      if (try? vault.selectedPairID()) == pair.pairID {
-        try? vault.clearSelectedPair()
-      }
-      ceremonyEnded(String(localized: "The device did not give its name."))
-      return
-    }
     do {
       try vault.selectPair(pairID: pair.pairID)
-      RappPairNames.remember(reviewedPeerName, pairID: pair.pairID)
-      supersedeOlderPairings(with: pair.pairID)
       selectedPairID = pair.pairID
       refresh()
       serveNewPairing()
@@ -186,29 +163,6 @@ extension RappPairingModel {
         return
       }
       replacement.start()
-    }
-  }
-
-  /// Revokes the pairings the new one replaces.
-  ///
-  /// Pairing the same two devices again makes a fresh record and leaves the
-  /// last one behind, so a device that has been paired a few times holds
-  /// several records naming one peer and only one of them answers. The
-  /// newest is the one both sides just agreed on; the rest are spent.
-  ///
-  /// Only pairings naming the same peer are taken. A device legitimately
-  /// pairs with more than one other, and those records are not this one's
-  /// to revoke.
-  internal func supersedeOlderPairings(with keptPairID: Data) {
-    guard let keptName = RappPairNames.name(forPairID: keptPairID) else { return }
-    let superseded = ((try? vault.activePairIDs()) ?? [])
-      .filter { pairID in
-        pairID != keptPairID && RappPairNames.name(forPairID: pairID) == keptName
-      }
-    let clock = RappPlatformClock()
-    for pairID in superseded {
-      try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: clock)
-      RappPairNames.forget(pairID: pairID)
     }
   }
 }

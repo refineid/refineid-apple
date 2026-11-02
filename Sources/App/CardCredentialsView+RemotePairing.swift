@@ -70,7 +70,7 @@ import SwiftUI
     /// The toggle's binding: the holder's flip reaches the gate first.
     ///
     /// Flipping on starts serving and lets the system ask for what it
-    /// has no answer for; flipping off wipes every remote trace at once.
+    /// has no answer for; flipping off withdraws and keeps the pairings.
     private var remoteAccessBinding: Binding<Bool> {
       Binding(
         get: { remoteAccessEnabled },
@@ -85,7 +85,7 @@ import SwiftUI
         turnRemoteAccessOn(flow: flow)
       } else {
         remoteAccessFlowID = nil
-        pairingModel.revokeAll()
+        pairingModel.stopRemoteAccess()
         syncRemoteAccessToggle()
       }
     }
@@ -109,7 +109,7 @@ import SwiftUI
     internal func handleLocalNetworkDenial() {
       guard RemoteAccessGate.isEnabled else { return }
       remoteAccessFlowID = nil
-      pairingModel.revokeAll()
+      pairingModel.stopRemoteAccess()
       syncRemoteAccessToggle()
       showingLocalNetworkDenied = true
     }

@@ -33,6 +33,9 @@ internal func makeOffer() throws -> PairingOffer {
     transportProfiles: [StreamProfile.name, RappBleGattProfile.name])
 }
 
+/// The name the fixture's peer gave when it paired.
+internal let fixturePeerDisplayName = "iOS - example-phone"
+
 internal func makePairRecord() throws -> PairRecord {
   try PairRecord(
     pairIdentifier: filler(fillerPairIdentifier, PairRecordSize.pairIdentifier),
@@ -48,6 +51,7 @@ internal func makePairRecord() throws -> PairRecord {
       parameters: ["endpoints": .array([.text(fixtureEndpoint)])]
     ),
     createdAtMilliseconds: fixtureRecordCreatedAtMilliseconds,
+    peerDisplayName: fixturePeerDisplayName,
     storageConfirmed: true
   )
 }
@@ -83,5 +87,6 @@ internal func expectedPairRecordValue() -> WireValue {
     "storage_confirmed": .boolean(true),
     "forgotten_at_ms": .null,
     "last_session_at_ms": .null,
+    "peer_display_name": .text(fixturePeerDisplayName),
   ])
 }

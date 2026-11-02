@@ -3,7 +3,7 @@
 import Foundation
 
 /// Storage-format version of a persisted pairing.
-internal let pairRecordFormatVersion: UInt64 = 7
+internal let pairRecordFormatVersion: UInt64 = 8
 
 /// One durable pairing, as stored on this device only.
 internal struct PairRecord: Equatable {
@@ -12,7 +12,7 @@ internal struct PairRecord: Equatable {
     "format_version", "pair_id", "role", "local_static_private",
     "local_static_public", "remote_static_public", "grants_hash", "profiles", "transport_profile",
     "candidate_id", "transport_parameters", "created_at_ms", "storage_confirmed",
-    "forgotten_at_ms", "last_session_at_ms",
+    "forgotten_at_ms", "last_session_at_ms", "peer_display_name",
   ]
 
   /// Days a forgotten record keeps its key for the `pairing_revoked` close
@@ -34,6 +34,9 @@ internal struct PairRecord: Equatable {
   internal let profiles: [ProfileName]
   internal let transport: PairTransportBinding
   internal let createdAtMilliseconds: UInt64
+  /// The name the peer gave in its `pairing.hello` (RAPP v26.10.29 §4.3
+  /// item 3), kept with the keys so a stored pairing always names its peer.
+  internal let peerDisplayName: String
   /// Whether both endpoints confirmed storing the pairing.
   ///
   /// A record stored before the peer's `pairing.stored` is unconfirmed
@@ -64,6 +67,7 @@ internal struct PairRecord: Equatable {
     profiles: [ProfileName],
     transport: PairTransportBinding,
     createdAtMilliseconds: UInt64,
+    peerDisplayName: String,
     storageConfirmed: Bool
   ) throws {
     guard pairIdentifier.count == PairRecordSize.pairIdentifier,
@@ -77,6 +81,9 @@ internal struct PairRecord: Equatable {
       !remoteStaticPublic.allSatisfy({ $0 == 0 })
     else { throw PairRecordError.invalidInput }
     guard !profiles.isEmpty else { throw PairRecordError.invalidInput }
+    guard (try? validateLabel(peerDisplayName, "peer_display_name")) != nil else {
+      throw PairRecordError.invalidInput
+    }
     guard !transport.profile.isEmpty, !transport.candidateIdentifier.isEmpty else {
       throw PairRecordError.invalidInput
     }
@@ -89,6 +96,7 @@ internal struct PairRecord: Equatable {
     self.profiles = profiles
     self.transport = transport
     self.createdAtMilliseconds = createdAtMilliseconds
+    self.peerDisplayName = peerDisplayName
     self.storageConfirmed = storageConfirmed
     self.forgottenAtMilliseconds = nil
     self.lastSessionAtMilliseconds = nil
@@ -123,6 +131,7 @@ internal struct PairRecord: Equatable {
     let decodedStorageConfirmed = try takeBoolean(&map, "storage_confirmed")
     let decodedForgottenAt = try takeOptionalUnsigned(&map, "forgotten_at_ms")
     let decodedLastSessionAt = try takeOptionalUnsigned(&map, "last_session_at_ms")
+    let decodedPeerDisplayName = try takeText(&map, "peer_display_name")
     guard map.isEmpty else { throw PairRecordError.invalidInput }
     // Only a confirmed record is kept as forgotten (§4.6 item 2).
     if decodedForgottenAt != nil, !decodedStorageConfirmed { throw PairRecordError.invalidInput }
@@ -136,6 +145,7 @@ internal struct PairRecord: Equatable {
       profiles: decodedProfiles,
       transport: decodedTransport,
       createdAtMilliseconds: decodedCreatedAtMilliseconds,
+      peerDisplayName: decodedPeerDisplayName,
       storageConfirmed: decodedStorageConfirmed
     )
     record.lastSessionAtMilliseconds = decodedLastSessionAt
@@ -176,6 +186,7 @@ internal struct PairRecord: Equatable {
       "storage_confirmed": .boolean(storageConfirmed),
       "forgotten_at_ms": forgottenAtMilliseconds.map { .unsigned($0) } ?? .null,
       "last_session_at_ms": lastSessionAtMilliseconds.map { .unsigned($0) } ?? .null,
+      "peer_display_name": .text(peerDisplayName),
     ])
     do {
       return try value.encoded()

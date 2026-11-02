@@ -60,6 +60,8 @@
       public let candidateID: String
       /// Wall-clock creation time recorded in the pair record.
       public let createdAtMilliseconds: UInt64
+      /// The name the peer gave when it paired, verbatim.
+      public let peerDisplayName: String
 
       // MARK: Lifecycle
 
@@ -70,6 +72,7 @@
         transportProfile = metadata.transportProfile
         candidateID = metadata.candidateId
         createdAtMilliseconds = metadata.createdAtMs
+        peerDisplayName = metadata.peerDisplayName
       }
     }
 

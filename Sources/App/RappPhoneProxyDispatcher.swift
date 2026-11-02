@@ -17,6 +17,9 @@
     internal let inbox: RappAuthorizationInbox
     /// The pairing the session runs over.
     internal let pairID: Data
+    /// The name the session's computer gave when it paired, for the prompt
+    /// and the summons.
+    internal let requesterName: String
     /// The session this dispatcher serves.
     internal let session: UUID
     /// PIN 1 for each browser authentication, typed or held, until the card
@@ -32,19 +35,14 @@
     /// hears `consent_shown` once for each (§8.2 item 3).
     internal var promptedOperations: Set<RappOperationIdentifier> = []
 
-    // MARK: Computed Properties
-
-    /// The name the session's computer introduced itself with, for the
-    /// prompt and the summons.
-    internal var requesterName: String {
-      RappPairNames.name(forPairID: pairID) ?? String(localized: "Paired device")
-    }
-
     // MARK: Lifecycle
 
-    internal init(inbox: RappAuthorizationInbox, pairID: Data, session: UUID) {
+    internal init(
+      inbox: RappAuthorizationInbox, pairID: Data, requesterName: String, session: UUID
+    ) {
       self.inbox = inbox
       self.pairID = pairID
+      self.requesterName = requesterName
       self.session = session
     }
 

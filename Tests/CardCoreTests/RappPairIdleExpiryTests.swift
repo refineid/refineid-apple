@@ -21,8 +21,6 @@
     /// The smallest step of the millisecond clock.
     private static let tick: UInt64 = 1
 
-    private static let display = "Test phone"
-
     /// A pairing identifier no vault in these tests holds.
     private static let absentPairID = Data(
       repeating: 1, count: RappDeviceVault.IdentifierSize.pair)
@@ -53,14 +51,12 @@
       try RappPairRecord.loadFromVault(pairId: pairID, vault: vault).metadata()
     }
 
-    @Test("A pairing idle for 30 days expires silently; its name and selection go")
-    internal func idlePairingExpires() throws {
+    @Test("A pairing idle for 30 days expires silently; its row and selection go")
+    internal func idlePairingExpires() async throws {
       let vault = Self.vault()
       defer { _ = try? vault.deleteServiceNamespace(Self.namespace) }
       let pairID = try Self.storedPairing(in: vault)
       try vault.selectPair(pairID: pairID)
-      RappPairNames.remember(Self.display, pairID: pairID)
-      defer { RappPairNames.forget(pairID: pairID) }
       let limit = rappPairingIdleExpiryMs()
 
       let early = RappPairIdleExpiry.sweep(
@@ -74,7 +70,7 @@
       #expect(due.failures == 0)
       #expect(try Self.metadata(pairID, in: vault).forgottenAtMs == Self.creation + limit)
       #expect(try vault.selectedPairID() == nil)
-      #expect(RappPairNames.name(forPairID: pairID) == nil)
+      #expect(try await RappPairCatalog(vault: vault).activePairs().isEmpty, "nor is it listed")
       #expect(!RappPairIdleExpiry.holdsActivePairing(vault))
       #expect(
         RappPairIdleExpiry.sweep(in: vault, nowMilliseconds: .max, established: []).expired

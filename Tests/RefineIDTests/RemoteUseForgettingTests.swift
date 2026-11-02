@@ -17,8 +17,6 @@
     /// The defaults suite these tests keep the holder's click in.
     private static let storeName = "fi.refineid.tests.remote-use-forgetting.finish"
 
-    private static let phone = "Alpha iPhone"
-
     /// When the earlier test pairing was made, in milliseconds since the
     /// Unix epoch.
     private static let earlierCreation: UInt64 = 1_000
@@ -62,9 +60,7 @@
       let clickedAt = Self.earlierCreation + 1
       let after = try Self.storedPairing(in: vault, createdAt: clickedAt + 1)
       let beforeID = before.metadata().pairId
-      RappPairNames.remember(Self.phone, pairID: beforeID)
       defer {
-        RappPairNames.forget(pairID: beforeID)
         try? vault.revokePair(
           pairID: after.metadata().pairId, revokedAtMilliseconds: Self.revocationTime)
       }
@@ -81,7 +77,7 @@
       #expect(outcome.destroyed == [beforeID])
       #expect(outcome.failures == 0)
       #expect(try vault.activePairIDs() == [after.metadata().pairId])
-      #expect(RappPairNames.name(forPairID: beforeID) == nil, "the name goes with the key")
+      #expect(try vault.loadPair(pairID: beforeID) == nil, "the name goes with the key")
       #expect(RemoteUseForgetting.pending(in: store) == nil)
     }
 

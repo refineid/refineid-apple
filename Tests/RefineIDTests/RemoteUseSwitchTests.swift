@@ -170,27 +170,6 @@
       #expect(!rig.localNetwork.isWatching)
     }
 
-    @Test("Remote use turns off when the last pairing ends other than by the click")
-    internal func lastPairingEndingTurnsRemoteUseOff() throws {
-      let rig = Self.rig()
-      let registry = PersistentTokenRegistry.shared
-      let vault = RappDeviceVault()
-      rig.remoteUse.toggle()
-      defer { rig.remoteUse.stop() }
-
-      registry.remoteUseFollowsThePairings(rig.remoteUse, in: vault)
-      #expect(!rig.remoteUse.isOn, "no active pairing is left")
-      #expect(rig.moves.value == [.turnedOn, .stopped], "the pairings are kept as they are")
-
-      rig.remoteUse.toggle()
-      let pairing = try Self.storedPairing(in: vault)
-      registry.remoteUseFollowsThePairings(rig.remoteUse, in: vault)
-      #expect(rig.remoteUse.isOn, "a pairing remains")
-      _ = try RappPairRevocation.forget(pairing, in: vault, clock: RappPlatformClock())
-      registry.remoteUseFollowsThePairings(rig.remoteUse, in: vault)
-      #expect(!rig.remoteUse.isOn, "a forgotten pairing owing its close serves nothing")
-    }
-
     @Test("A refused permission is named before Bluetooth off, and asked afresh on return")
     internal func blockagePriority() {
       let rig = Self.rig()

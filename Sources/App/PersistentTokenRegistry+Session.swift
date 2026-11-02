@@ -292,32 +292,29 @@
         streamFailedInSight = true
       }
       forgetHeldSession()
-      // A session that carried a pairing's end ended as it should.
-      if !reason.peerRevokedPairing, reason != .handshake(.revocationNoticeDelivered) {
-        sessionSlot.ended(at: .now)
-      }
       holderCardStatus = nil
-      if reason.peerRevokedPairing {
+      let end = PhoneSessionEnd(reason)
+      switch end {
+      case .pairingRevoked:
         if let ended {
-          holderRevoked(pairID: ended.pairID)
+          holderRevoked(pairID: ended.pairID, in: RappDeviceVault())
         }
         return
-      }
-      if reason == .handshake(.revocationNoticeDelivered) {
+
+      case .revocationNoticeDelivered:
         if let ended {
           revocationNoticeDelivered(pairID: ended.pairID)
         }
         return
-      }
-      if reason.serviceWithdrawn {
-        // The phone announced it stopped serving: a verified withdrawal
-        // takes the identity at once; its next session record or Bluetooth
-        // advertisement brings it back (§4.5 item 6).
-        Self.withdrawPublishedIdentity()
-        if transportPolicy.nextDial == .bluetooth {
-          scheduleRedial()
-        }
+
+      case .withdrawn:
+        // The phone's statement, not a fault: no back-off is recorded, and
+        // the next dial follows the phone's announcement (§4.5 item 6).
+        holderWithdrew()
         return
+
+      case .lost:
+        sessionSlot.ended(at: .now)
       }
       confirmationLost()
       guard !CardPresence.shared.isReaderCardPresent else {

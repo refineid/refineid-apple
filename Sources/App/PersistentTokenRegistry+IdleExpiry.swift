@@ -57,7 +57,7 @@
     ///
     /// A pairing the open session runs over is recorded instead. One that
     /// expired leaves silently: its identity is withdrawn, the row follows
-    /// the vault, and on the Mac remote use turns off when it was the last.
+    /// the vault, and remote use stays as the holder set it.
     internal func sweepIdlePairings() {
       let sweep = RappPairIdleExpiry.sweep(
         in: RappDeviceVault(), nowMilliseconds: RappPlatformClock().wallMilliseconds(),
@@ -81,9 +81,6 @@
       }
       refreshPairing()
       restartWatchingPresence()
-      #if os(macOS) && REFINEID_REMOTE_CARD
-        remoteUseFollowsThePairings(.shared, in: RappDeviceVault())
-      #endif
       NotificationCenter.default.post(
         name: RappPairingModel.pairingsDidChangeNotification, object: nil)
     }

@@ -17,6 +17,10 @@
       ProfileName.documentSigning,
     ]
     private static let millisecondsPerSecond: Double = 1_000.0
+    /// The name a requester's record gives its phone.
+    internal static let phoneName = "iOS - example-phone"
+    /// The name a custodian's record gives its computer.
+    internal static let computerName = "macOS - example-host"
 
     /// A record for the peer `remotePublicKey`, created now.
     internal static func makePairRecord(
@@ -60,6 +64,7 @@
           parameters: [:]
         ),
         createdAtMilliseconds: createdAtMilliseconds,
+        peerDisplayName: localRole == .requester ? Self.phoneName : Self.computerName,
         storageConfirmed: true
       )
       return RappPairRecord(record: record)

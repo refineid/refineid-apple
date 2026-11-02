@@ -8,9 +8,10 @@
   ///
   /// Enabling records the choice and starts discovery and serving; the
   /// notification authorization the approval prompts need is asked
-  /// separately, after its own explanation. Disabling stops the
-  /// services; the caller wipes the pairings too, so off leaves no
-  /// remote state behind.
+  /// separately, after its own explanation. Disabling withdraws (RAPP
+  /// v26.10.29 §4.5 item 3): every open session closes with
+  /// `service_withdrawn`, the listener announces the withdrawal, and the
+  /// pairings stay for the next time it is enabled.
   @MainActor
   internal enum RemoteAccessServing {
     internal static func setEnabled(_ enabled: Bool) {
