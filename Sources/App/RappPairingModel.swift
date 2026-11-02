@@ -61,24 +61,42 @@ internal final class RappPairingModel: ObservableObject {
     }
   }
 
-  /// The in-protocol name this device introduces itself with: its
-  /// operating system and its name, as every peer is shown
-  /// (``PeerDisplayName``).
+  /// The in-protocol name this device introduces itself with
+  /// (``PeerDisplayName``): a Mac its system and host name, an iPhone or
+  /// an iPad its own name.
   internal static var localDisplayName: String {
     #if os(macOS)
-      PeerDisplayName(
+      PeerDisplayName.computer(
         system: PeerDisplayName.macSystem,
         host: SCDynamicStoreCopyLocalHostName(nil) as String?
           ?? Host.current().localizedName ?? String(localized: "Mac")
       ).text
     #else
-      PeerDisplayName(
-        system: UIDevice.current.userInterfaceIdiom == .pad
-          ? PeerDisplayName.iPadSystem : PeerDisplayName.iPhoneSystem,
-        host: UIDevice.current.name
-      ).text
+      PeerDisplayName.handheld(name: handheldName).text
     #endif
   }
+
+  #if !os(macOS)
+    /// Whether the app reads the name the owner gave this device.
+    ///
+    /// That takes the
+    /// `com.apple.developer.device-information.user-assigned-device-name`
+    /// entitlement. Without it `UIDevice.current.name` is only "iPhone"
+    /// or "iPad", so the device is named by its model; once the
+    /// entitlement is granted and in `Config/RefineID-iOS.entitlements`,
+    /// this turns true and the name the owner gave the device is sent.
+    private static let readsUserAssignedDeviceName = false
+
+    /// The name the owner gave this device, or its model, such as
+    /// "iPhone 15 Pro Max", or its family for a model not listed.
+    private static var handheldName: String {
+      if readsUserAssignedDeviceName {
+        return UIDevice.current.name
+      }
+      let family = UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone"
+      return DeviceModel.name(ofMachine: DeviceModel.machineIdentifier, family: family)
+    }
+  #endif
 
   /// The platform description this device introduces itself with: the
   /// device's model, which tells a person which device this is.
