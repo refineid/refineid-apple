@@ -281,9 +281,12 @@ one Bluetooth link to the phone, which the remote card's token extension
 uses. Clicking the Dock icon or opening the app again brings the window
 back. Only quitting ends the app.
 
-The first launch of a copy in an Applications folder registers the app as
-a login item. macOS lists it under General > Login Items, where the holder
-can remove it, and a removal stands. A login launch opens no window.
+A local card needs no launch: the CryptoTokenKit extension serves it
+without the app ever opening, and logging in with it registers no login
+item. Background and startup presence follow only from turning remote
+use on, which registers the app as a login item. macOS lists it under
+General > Login Items, where the holder can remove it, and a removal
+stands. A login launch opens no window.
 
 ## Document signing
 
@@ -321,6 +324,9 @@ for a container over several files, then " - ", the word "signed" in the
 app's language, a space, and that instant in UTC with colons replaced by
 hyphens. A container name the holder types keeps the suffix when it is
 still there and gets it appended when typing replaced it.
+
+There is no Verify screen on the Mac; verification lives on iPhone and
+iPad.
 
 ## Web signing (SCS)
 

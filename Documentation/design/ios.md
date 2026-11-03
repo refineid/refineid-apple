@@ -188,7 +188,9 @@ in [macos.md](macos.md#document-signing).
 ## Verify
 
 The Verify screen reports a chosen signed document in cards: the
-"Document" card, then one "Signature" card per signature.
+"Document" card, then one "Signature" card per signature. The verifier
+implements the shared design in refineid-core
+`doc/architecture/document-verification.md`.
 
 - **Rows.** Every row has one shape: the label on the first line and the
   value, when there is one, under it, both leading-aligned and wrapping as

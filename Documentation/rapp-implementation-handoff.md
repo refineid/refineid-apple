@@ -12,7 +12,8 @@ claim that RAPP is production-ready.
 
 The vendored documents are the authority, and the Swift engine in
 `CardCore/Sources/RappEngine` implements them. There is no compiled protocol
-artifact in this repository.
+artifact in this repository, and none is reintroduced: a change starts
+from the specification, not from generated code.
 
 - Specification: `Documentation/protocol/rapp-v26.11.2.md`, with the
   transport and discovery hierarchy it cites in

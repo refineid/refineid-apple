@@ -1,6 +1,7 @@
 # Electronic signature stamp style
 
-The Apple renderer is the reference implementation for this shared platform style.
+The reference renderer for this shared platform style is refineid-core
+`crates/doc-sign/src/pades/stamp.rs`; the Apple renderer matches it.
 The visual advice asks the reader to verify the document's electronic signature.
 The PDF signature, rather than the visible stamp, supplies that verification.
 
@@ -31,5 +32,4 @@ the Desktop from production vector operators using Apple's PDFKit. Filenames
 end in `-tilted.png`, preserving upright reference samples. Pass an output
 directory and a fixed angle from 5 to 15 for repeatable examples, such as
 `Scripts/render-stamp-samples.sh ~/Desktop 10`. The temporary PDFs stay under
-`tmp/pdfs/`. Other platforms should match this geometry and type fitting; their
-renderers have not yet been migrated.
+`tmp/pdfs/`.

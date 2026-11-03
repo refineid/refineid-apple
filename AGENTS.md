@@ -10,7 +10,8 @@
 # Rule #3 – Comments describe the code, never its history
 - Comments explain what the code does now and the constraints it honors.
   Past bugs, previous implementations, and explanations of what a fix changed
-  belong in commit messages, not source comments.
+  belong in commit messages, not source comments. No measurement dates
+  in comments.
 
 # Rule #4 – Everything the software stores in the keychain lives under `fi.refineid`
 - Every keychain service the software creates starts with `fi.refineid`. That prefix is the whole deletable namespace: wiping it forgets every card number, pairing, and credential the app holds, and nothing else.
@@ -27,6 +28,8 @@
   or any AI-naming trailer; subject + body only. 
 - Apple uses PascalCase.
 - ASCII only in source, UTF-8 only where required.
+- New files carry `Copyright 2026 Petri Koistinen` with no email address
+  and HTTPS license URLs.
 - No Magic Codes - define everything (see [Types and numbers](#types-and-numbers)).
 - After a feature commit, install that build on every machine that
   can run it: `Scripts/apple-app-store-connect-release-manager.swift
@@ -121,7 +124,10 @@ Every rule, decision and finding an agent should remember lives in this
 repository, never only in an agent's memory: a design rule in
 `Documentation/design/`, a defect in an issue, a working rule in this
 file. This file states each rule in a line and points to the reading
-behind it; the readings live in `Documentation/`, not here.
+behind it; the readings live in `Documentation/`, not here. Design
+documents are English only; UI text is quoted by its English source
+string, or in the original language where the term itself is the
+subject.
 
 ## Commits and integration
 
@@ -233,6 +239,8 @@ record for RAPP and its applications.
   ones (EU eIDAS), from trusted lists at runtime. No certificates or
   fingerprints are shipped in the software.
 - No pinning or other trust policy is added without the owner's decision.
+- Describe what the code does and cite the source; ask the owner before
+  changing trust behavior.
 
 ## Independent review
 
