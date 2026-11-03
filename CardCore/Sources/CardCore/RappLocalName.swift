@@ -18,6 +18,8 @@
     private static let tabletFamily = "iPad"
     /// The family a handheld that is not an iPad names.
     private static let phoneFamily = "iPhone"
+    /// The host name a Mac without one names.
+    private static let macFallbackHost = "Mac"
 
     /// The name this device gives itself (``PeerDisplayName``): a Mac its
     /// system and host name, an iPhone or an iPad its own name, shortened
@@ -44,11 +46,9 @@
     /// The device's name before the protocol bound applies.
     private static var deviceName: String {
       #if os(macOS)
-        PeerDisplayName.computer(
-          system: PeerDisplayName.macSystem,
-          host: SCDynamicStoreCopyLocalHostName(nil) as String?
-            ?? Host.current().localizedName ?? ""
-        ).text
+        computerDeviceName(
+          localHostName: SCDynamicStoreCopyLocalHostName(nil) as String?,
+          localizedName: Host.current().localizedName)
       #else
         PeerDisplayName.handheld(name: handheldName).text
       #endif
@@ -88,5 +88,21 @@
           family: isTablet ? tabletFamily : phoneFamily)
       }
     #endif
+
+    /// A Mac's name from its two host-name sources: the first that
+    /// names one, else the fallback host.
+    internal static func computerDeviceName(
+      localHostName: String?, localizedName: String?
+    ) -> String {
+      for candidate in [localHostName, localizedName] {
+        if let trimmed = candidate?.trimmingCharacters(in: .whitespacesAndNewlines),
+          !trimmed.isEmpty
+        {
+          return PeerDisplayName.computer(system: PeerDisplayName.macSystem, host: trimmed).text
+        }
+      }
+      return PeerDisplayName.computer(system: PeerDisplayName.macSystem, host: macFallbackHost)
+        .text
+    }
   }
 #endif

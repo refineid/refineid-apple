@@ -11,8 +11,8 @@
     /// Records `name`, the name the session to the pairing `pairID` carried, where it differs from
     /// the record's.
     ///
-    /// Answers whether the record holds `name` now; a store that failed keeps the old name and the
-    /// session goes on.
+    /// Answers whether the name changed; a store that failed keeps the old name and the session
+    /// goes on.
     @discardableResult
     public static func record(
       _ name: RappDisplayName, pairID: Data, in vault: RappDeviceVault
@@ -20,7 +20,7 @@
       guard let pair = try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault) else {
         return false
       }
-      return (try? pair.updatePeerDisplayName(vault: vault, name: name)) != nil
+      return (try? pair.updatePeerDisplayName(vault: vault, name: name)) == true
     }
   }
 #endif

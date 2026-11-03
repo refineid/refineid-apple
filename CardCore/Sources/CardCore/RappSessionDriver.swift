@@ -104,6 +104,22 @@
       }
     }
 
+    /// The session's end for a close that crossed this endpoint's sent
+    /// `protocol_violation` while it waited for the echo (§7.1 item 7):
+    /// the echo, whatever its reason, and the received reason acted on.
+    ///
+    /// The echo of the violation ends the violation; a revocation ends the
+    /// pairing, anything else as the peer's close.
+    internal static func closeReason(crossingReceived received: RappCloseReason) -> CloseReason {
+      if received == .pairingRevoked {
+        return .pairRevoked
+      }
+      if received == .protocolViolation {
+        return .protocolViolation
+      }
+      return .peerClosed(received)
+    }
+
     /// Starts a fresh session.
     ///
     /// The requester emits the first Noise KK frame; the custodian waits for
@@ -177,17 +193,16 @@
     }
 
     /// Answers one frame while waiting for the echo of the sent close:
-    /// anything but the echo is ignored, and a crossing close that
-    /// revokes the pairing is acted on.
+    /// anything but a close is ignored, and a close that crossed this
+    /// endpoint's is the echo and its reason is acted on (§7.1 item 7).
     private func receiveCloseEcho(_ frame: Data, expecting reason: CloseReason) -> [Command] {
       switch session.receiveCloseEcho(bytes: frame) {
       case .ignored:
         return []
 
-      case .acknowledged(.pairingRevoked) where reason != .revocationNoticeDelivered:
-        // A crossing close that revokes the pairing is acted on.
+      case .acknowledged(let received) where reason != .revocationNoticeDelivered:
         closeSession()
-        return [.closed(.pairRevoked)]
+        return [.closed(Self.closeReason(crossingReceived: received))]
 
       case .acknowledged, .ended:
         closeSession()
