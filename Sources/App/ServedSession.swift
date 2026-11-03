@@ -180,7 +180,10 @@
         report(self, .closed(reason))
 
       case .peerNamed(let name):
-        RappPeerName.record(name, pairID: pairID, in: RappDeviceVault())
+        if RappPeerName.record(name, pairID: pairID, in: RappDeviceVault()) {
+          NotificationCenter.default.post(
+            name: RappPairingModel.pairingsDidChangeNotification, object: nil)
+        }
 
       case .progress, .cardStatus:
         break
