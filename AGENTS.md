@@ -28,8 +28,8 @@
   or any AI-naming trailer; subject + body only. 
 - Apple uses PascalCase.
 - ASCII only in source, UTF-8 only where required.
-- New files carry `Copyright 2026 Petri Koistinen` with no email address
-  and HTTPS license URLs.
+- New source files carry `Copyright 2026 Petri Koistinen` with no
+  email address and HTTPS license URLs.
 - No Magic Codes - define everything (see [Types and numbers](#types-and-numbers)).
 - After a feature commit, install that build on every machine that
   can run it: `Scripts/apple-app-store-connect-release-manager.swift
