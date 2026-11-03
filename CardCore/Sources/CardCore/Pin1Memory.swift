@@ -13,7 +13,7 @@ import os
 /// sheet is cancelled, or the card is forgotten. Only one candidate exists
 /// at a time; staging or asking about one card drops a candidate held for
 /// any other. An accepted value is a PIN the card verified, held for silent
-/// reuse only while ``Pin1Retention`` permits it (RAPP v26.10.29 section 11
+/// reuse only while ``Pin1Retention`` permits it (RAPP v26.11.2 section 11
 /// item 2, FINEID S1 v4.2 section 3.5).
 ///
 /// Values live only in zeroizing process memory and are never persisted.

@@ -4,7 +4,7 @@ import CardCore
 import Foundation
 
 /// How a requester finds the custodians in pairing mode and opens pairing
-/// connections to them (RAPP v26.10.29 §4.2, "Trying Each Custodian in
+/// connections to them (RAPP v26.11.2 §4.2, "Trying Each Custodian in
 /// Pairing Mode").
 internal enum PairingCandidateLink {
   /// Each published service carrying the pairing attributes, once, in

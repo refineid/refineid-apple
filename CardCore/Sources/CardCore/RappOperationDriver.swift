@@ -5,13 +5,16 @@
   import RappEngine
   /// Owns one established RAPP operation runtime and translates engine
   /// records into Sendable Apple-side values. It never performs card I/O
-  /// itself. Nothing of an operation outlives the session (RAPP v26.10.29
+  /// itself. Nothing of an operation outlives the session (RAPP v26.11.2
   /// §8.1 item 3).
   public actor RappOperationDriver {
     internal let bridge: RappOperationBridge
     internal let entropy: RappPlatformEntropy
     internal let clock: RappPlatformClock
     internal var closed = false
+    /// The reason this session ends with once its own close was released
+    /// and the echo is awaited (§7.1 item 7).
+    internal var echoReason: CloseReason?
 
     internal init(
       role: RappSessionDriver.Role,
@@ -89,7 +92,7 @@
     }
 
     /// Starts a requester batch signature over named documents (RAPP
-    /// v26.10.29 §9.3); names and digests pair up by position.
+    /// v26.11.2 §9.3); names and digests pair up by position.
     public func beginBatchSignDocuments(
       documentNames: [String],
       keyProfile: KeyProfile,
@@ -122,9 +125,10 @@
       try commands(bridge.completeBatch(operationId: operationID))
     }
 
-    /// Starts a requester document-signing operation for the named document.
+    /// Starts a requester document-signing operation for `document`, a
+    /// single document or a package (RAPP v26.11.2 §9.3).
     public func beginSignDocument(
-      documentName: String,
+      document: RappSigningDocument,
       keyProfile: KeyProfile,
       algorithm: SignatureAlgorithm,
       digest: Data,
@@ -133,7 +137,8 @@
       try commands(
         bridge.beginSignDocument(
           operationId: entropy.operationID(),
-          documentName: documentName,
+          documentName: document.name,
+          containedFiles: document.containedFiles,
           keyProfile: keyProfile.binding,
           algorithm: algorithm.binding,
           digest: digest,
@@ -144,6 +149,7 @@
 
     /// Consumes one complete opaque frame received from the transport.
     public func receive(_ frame: Data) -> [Command] {
+      if let echoReason { return receiveWhileAwaitingEcho(frame, sent: echoReason) }
       guard !closed else { return [] }
       return commands(bridge.receiveFrame(bytes: frame, nowMs: clock.monotonicMilliseconds()))
     }

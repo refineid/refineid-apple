@@ -12,8 +12,10 @@
       algorithm: RappOperationDriver.SignatureAlgorithm,
       digest: Data
     )
+    /// A document signature, of a single document or a package (RAPP
+    /// v26.11.2 §9.3).
     case documentSigning(
-      documentName: String,
+      document: RappSigningDocument,
       keyProfile: RappOperationDriver.KeyProfile,
       algorithm: RappOperationDriver.SignatureAlgorithm,
       digest: Data
@@ -59,10 +61,10 @@
           origin: context, keyProfile: keyProfile, algorithm: algorithm, digest: digest,
           expiresAfterMilliseconds: lifetime)
 
-      case .documentSigning(let documentName, let keyProfile, let algorithm, let digest):
+      case .documentSigning(let document, let keyProfile, let algorithm, let digest):
         try await beginSignDocument(
-          documentName: documentName, keyProfile: keyProfile, algorithm: algorithm,
-          digest: digest, expiresAfterMilliseconds: lifetime)
+          document: document, keyProfile: keyProfile, algorithm: algorithm, digest: digest,
+          expiresAfterMilliseconds: lifetime)
       }
     }
   }

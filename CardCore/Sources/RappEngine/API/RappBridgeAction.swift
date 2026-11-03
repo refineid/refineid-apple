@@ -6,7 +6,7 @@ import Foundation
 // so the source reads in the order the caller meets them.
 // swiftlint:disable sorted_enum_cases
 
-/// The bounded step the caller performs next (RAPP v26.10.29 §8).
+/// The bounded step the caller performs next (RAPP v26.11.2 §8).
 ///
 /// Every outcome is data. The engine decides what must happen and the caller
 /// performs it, so nothing here touches a card, a transport, or a screen. A
@@ -17,8 +17,11 @@ public enum RappBridgeAction: Equatable, Sendable {
   /// operation when it names one.
   case sendFrame(Data, operationId: RappOperationIdentifier?)
   /// Release this endpoint's sealed `session.close` carrying `reason`, then
-  /// drop the link; the session is over and `endedOperation`, when present,
-  /// ended with it (§8.1 item 3).
+  /// wait for the peer's echo within the bound and drop the link (§7.1 item
+  /// 7); the session is over and `endedOperation`, when present, ended with
+  /// it (§8.1 item 3). Frames read while waiting go to
+  /// ``RappOperationBridge/receiveFrame(bytes:nowMs:)``, which reports the
+  /// echo as ``closeAcknowledged(reason:crossing:)``.
   case sendClose(Data, reason: RappCloseReason, endedOperation: RappEndedOperation?)
   /// Perform the custodian's next step for the described live operation.
   case custodianStep(RappOperationIdentifier, RappCustodianStep, RappOperationDescriptor)
@@ -31,6 +34,18 @@ public enum RappBridgeAction: Equatable, Sendable {
   /// The custodian reported the card it holds and whether a card reader is
   /// connected to it (§8.4).
   case cardStatus(RappCardStatus)
+  /// The requester named itself in its `session.hello`: record the name
+  /// in the pair record where it differs (§4.3 item 4). Custodian only.
+  case peerNamed(RappDisplayName)
+  /// The peer closed the session with an authenticated `session.close`
+  /// carrying `reason`: release `echo`, the close with the same reason that
+  /// acknowledges it, then drop the link (§7.1 item 7). The session is over
+  /// as for ``sessionClosed(reason:endedOperation:)``.
+  case echoClose(Data, reason: RappCloseReason, endedOperation: RappEndedOperation?)
+  /// The close this endpoint sent was acknowledged: the peer's echo, or,
+  /// with `crossing`, a close carrying another reason that crossed it. Act
+  /// on a crossing `reason`, never answer it, and drop the link.
+  case closeAcknowledged(reason: RappCloseReason, crossing: Bool)
   /// Nothing to do.
   case noAction
   /// The session is over; the pairing stays. `reason` names the peer's

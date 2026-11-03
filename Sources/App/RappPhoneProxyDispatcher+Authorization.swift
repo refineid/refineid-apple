@@ -6,7 +6,7 @@
   import Foundation
   import RappEngine
 
-  /// The PIN an operation needs, taken on the phone (RAPP v26.10.29 §8.2
+  /// The PIN an operation needs, taken on the phone (RAPP v26.11.2 §8.2
   /// item 3): from memory for a browser authentication whose PIN 1 the phone
   /// holds, else from a prompt, which is the holder's consent.
   extension RappPhoneProxyDispatcher {
@@ -89,13 +89,14 @@
       notice: String?,
       coordinator: RappConnectionCoordinator
     ) async -> RappAuthorizationDecision {
-      let request = RappAuthorizationRequest(
+      var request = RappAuthorizationRequest(
         requestID: requestID(for: operationID),
         requester: requesterName,
         action: action,
         documentNames: Self.promptDocuments(for: operation),
         notice: notice
       )
+      if operation.kind == .signDocument { request.containedFiles = operation.containedFiles }
       // A warm near field's system sheet would cover the prompt: the field
       // ends first, and the reader's pause after it runs while the holder
       // types.

@@ -8,7 +8,7 @@
   import RappEngine
 
   /// The holder's click turning remote use off, kept until every pairing it
-  /// forgets is destroyed (RAPP v26.10.29 §4.6 item 6, STPA CC-100).
+  /// forgets is destroyed (RAPP v26.11.2 §4.6 item 6, STPA CC-100).
   ///
   /// The click is stored with its wall-clock time and the pairings it
   /// forgets before anything else happens. Those pairings are then
@@ -132,6 +132,36 @@
         clear(request, in: store)
       }
       return outcome
+    }
+
+    /// Makes the one bounded attempt to tell the phone of each pairing the pending click forgets,
+    /// within ``RevocationBound/attempt`` of the click (RAPP v26.11.2 §4.6 item 6): the record is
+    /// kept forgotten, its key only for the close, and ``finish(in:store:clock:)`` destroys it
+    /// after.
+    ///
+    /// A click whose bound has passed, as at the next launch, attempts nothing.
+    internal static func attemptRevocation(in vault: RappDeviceVault, store: Store) async {
+      guard let request = pending(in: store) else { return }
+      let now = RappPlatformClock().wallMilliseconds()
+      let elapsed = Duration.milliseconds(
+        Int64(now > request.clickedAtMs ? now - request.clickedAtMs : 0))
+      let deadline = ContinuousClock.now + RevocationBound.attempt - elapsed
+      for pairID in request.pairIDs {
+        guard let pair = try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault) else {
+          continue
+        }
+        if pair.metadata().forgottenAtMs == nil {
+          guard
+            (try? pair.forget(vault: vault, forgottenAtMs: request.clickedAtMs)) == .noticePending
+          else { continue }
+        }
+        let delivered = await RappRevocationAttempt.deliver(pair, until: deadline)
+        #if DEBUG
+          if !delivered {
+            DevErrorLog.report("remote use off: the phone was not told", source: .app)
+          }
+        #endif
+      }
     }
 
     /// Names an attempt's failures among the development errors.

@@ -10,7 +10,7 @@ import Testing
   import RappEngine
 
   /// What a phone's stream listener does with connections it answers busy
-  /// (RAPP v26.10.29 §4.2, "Busy Refusal").
+  /// (RAPP v26.11.2 §4.2, "Busy Refusal").
   @Suite("A stream listener answering busy", .timeLimit(.minutes(1)))
   internal struct StreamBusyRefusalTests {
     // MARK: Static Properties

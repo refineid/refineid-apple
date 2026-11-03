@@ -6,21 +6,10 @@
   import RappEngine
 
   /// The standing session with the phone whose word the offered identity
-  /// rests on (RAPP v26.10.29 §8.3, §8.4), over the stream while Bonjour
+  /// rests on (RAPP v26.11.2 §8.3, §8.4), over the stream while Bonjour
   /// shows the phone and over Bluetooth otherwise (RAPP transport
   /// hierarchy §3).
   extension PersistentTokenRegistry {
-    /// How long the redial loop may run over the stream without a usable
-    /// session.
-    ///
-    /// Past this it stops and leaves a terminal state (R-58). It sits above
-    /// the longest interactive operation, so a phone busy with one is not
-    /// mistaken for a dead loop. A fresh advertisement or a user action
-    /// restarts it.
-    /// Bluetooth dials on, each waiting for the phone's advertisement
-    /// (CC-50). The offered identity follows ``RemoteIdentityOffer`` alone.
-    private static let abortLoopSeconds = 150
-
     /// How long one Bluetooth dial scans for the phone before it starts
     /// over.
     private static let bluetoothScanSeconds: TimeInterval = 30
@@ -54,7 +43,7 @@
     ///
     /// It is the one whose hint the phone in sight carries, which for a
     /// pairing this computer forgot delivers its `pairing_revoked` close to
-    /// that phone and no other (RAPP v26.10.29 §4.6 item 2); with none in
+    /// that phone and no other (RAPP v26.11.2 §4.6 item 2); with none in
     /// sight, the chosen usable pairing, else the newest. A forgotten pairing
     /// is dialed only when its phone is in sight, and not once its 30 days
     /// ran out (§4.6 item 3).
@@ -151,7 +140,7 @@
 
     /// Clears what the registry knows of the session it let go; a session
     /// that was established is recorded in its pairing as it ends (RAPP
-    /// v26.10.29 §4.6 item 5).
+    /// v26.11.2 §4.6 item 5).
     internal func forgetHeldSession() {
       if sessionSlot.isEstablished, let pairID = holderSession?.pairID {
         Self.recordSession(pairID: pairID)
@@ -166,25 +155,18 @@
       guard token == holderSessionToken else { return }
       switch report {
       case .established:
-        localNetworkDenied = false
-        sessionSlot.established()
-        if let pairID = holderSession?.pairID {
-          Self.recordSession(pairID: pairID)
-        }
-        holderOverBluetooth = sessionSlot.transport == .bluetooth
-        if sessionSlot.transport == .stream {
-          streamFailedInSight = false
-        }
+        holderEstablished()
 
       case .cardStatus(let status):
         cardStatusReported(status)
 
-      case .bluetoothPeer(let peer, let routed):
-        if routed {
-          bluetoothPeers.routed(peer)
-        } else {
-          bluetoothPeers.refused(peer, at: .now)
+      case .peerNamed(let name):
+        if let pairID = holderSession?.pairID {
+          RappPeerName.record(name, pairID: pairID, in: RappDeviceVault())
         }
+
+      case .bluetoothPeer(let peer, let routed):
+        bluetoothPeerReported(peer, routed: routed)
 
       case .bluetoothTrace(let step):
         bluetoothStep(step)
@@ -197,6 +179,28 @@
           DevErrorLog.report("phone session: the local network is denied", source: .app)
         #endif
         localNetworkDenied = true
+      }
+    }
+
+    /// The session with the phone is up.
+    private func holderEstablished() {
+      localNetworkDenied = false
+      sessionSlot.established()
+      if let pairID = holderSession?.pairID {
+        Self.recordSession(pairID: pairID)
+      }
+      holderOverBluetooth = sessionSlot.transport == .bluetooth
+      if sessionSlot.transport == .stream {
+        streamFailedInSight = false
+      }
+    }
+
+    /// Notes whether the Bluetooth advertiser `peer` routed the session.
+    private func bluetoothPeerReported(_ peer: UUID, routed: Bool) {
+      if routed {
+        bluetoothPeers.routed(peer)
+      } else {
+        bluetoothPeers.refused(peer, at: .now)
       }
     }
 
@@ -218,7 +222,7 @@
     /// Acts on what the phone's `card.status` did to the offer: the card
     /// offered is published again, another card's identity is withdrawn at
     /// once and the certificate read afresh, and absence leaves the offer
-    /// to its grace (RAPP v26.10.29 §8.4 items 2 and 3).
+    /// to its grace (RAPP v26.11.2 §8.4 items 2 and 3).
     private func respond(to response: RemoteIdentityOffer.Response) {
       switch response {
       case .absent:
@@ -294,28 +298,8 @@
       forgetHeldSession()
       holderCardStatus = nil
       let end = PhoneSessionEnd(reason)
-      switch end {
-      case .pairingRevoked:
-        if let ended {
-          holderRevoked(pairID: ended.pairID, in: RappDeviceVault())
-        }
-        return
-
-      case .revocationNoticeDelivered:
-        if let ended {
-          revocationNoticeDelivered(pairID: ended.pairID)
-        }
-        return
-
-      case .withdrawn:
-        // The phone's statement, not a fault: no back-off is recorded, and
-        // the next dial follows the phone's announcement (§4.5 item 6).
-        holderWithdrew()
-        return
-
-      case .lost:
-        sessionSlot.ended(at: .now)
-      }
+      guard !concluded(by: end, pairID: ended?.pairID) else { return }
+      sessionSlot.ended(at: .now)
       confirmationLost()
       guard !CardPresence.shared.isReaderCardPresent else {
         Self.withdrawPublishedIdentity()
@@ -324,6 +308,40 @@
       if transportPolicy.nextDial != nil {
         scheduleRedial()
       }
+    }
+
+    /// Acts on an end that is not a loss and answers true; a loss is left
+    /// to the redial that follows it (RAPP v26.11.2 §4.5 item 6).
+    private func concluded(by end: PhoneSessionEnd, pairID: Data?) -> Bool {
+      switch end {
+      case .pairingRevoked:
+        if let pairID { holderRevoked(pairID: pairID, in: RappDeviceVault()) }
+
+      case .revocationNoticeDelivered:
+        if let pairID { revocationNoticeDelivered(pairID: pairID) }
+
+      case .withdrawn:
+        // The phone's statement, not a fault: no back-off is recorded, and
+        // the next dial follows the phone's announcement.
+        holderWithdrew()
+
+      case .violation:
+        holderViolated()
+
+      case .lost:
+        return false
+      }
+      return true
+    }
+
+    /// The session ended for an authenticated protocol violation.
+    ///
+    /// The pairing stays and the identity follows its grace; the next dial
+    /// waits for the phone to appear again or a consumer to ask (RAPP
+    /// v26.11.2 §4.5 item 6). A version mismatch is the likely cause.
+    private func holderViolated() {
+      holderIsAdvertising = false
+      confirmationLost()
     }
 
     #if DEBUG
@@ -361,35 +379,5 @@
       }
     }
 
-    /// Dials again once the slot's back-off is over; over the stream only
-    /// until the loop has run for ``abortLoopSeconds`` without a session.
-    internal func scheduleRedial() {
-      redialTask?.cancel()
-      let now = ContinuousClock.now
-      let since = continuousFailureSince ?? now
-      continuousFailureSince = since
-      let overBluetooth = transportPolicy.nextDial == .bluetooth
-      guard overBluetooth || now - since < .seconds(Self.abortLoopSeconds) else {
-        // The loop has not produced a usable session within the deadline.
-        // Stop dialing and leave a terminal state instead of looping; a
-        // fresh advertisement (holderIsAdvertising) or a user action
-        // starts a new attempt. The offer's grace has run by now.
-        #if DEBUG
-          DevErrorLog.report(
-            "phone session: no usable session in \(Self.abortLoopSeconds) s, stopped dialling",
-            source: .app)
-        #endif
-        continuousFailureSince = nil
-        redialTask = nil
-        return
-      }
-      let dialAt = sessionSlot.nextDialAt ?? now
-      redialTask = Task { @MainActor in
-        try? await Task.sleep(until: dialAt, clock: .continuous)
-        guard !Task.isCancelled else { return }
-        redialTask = nil
-        openHolderSession()
-      }
-    }
   }
 #endif

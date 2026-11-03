@@ -10,7 +10,7 @@ import Foundation
   ///
   /// Each refused dialer's first frame is handed to the listener owner's
   /// answer, which a pairing custodian makes its `pairing-busy` (RAPP
-  /// v26.10.29 §4.2, "Busy Refusal"); the connection being carried sees
+  /// v26.11.2 §4.2, "Busy Refusal"); the connection being carried sees
   /// none of it. All state is confined to the listener's queue.
   internal final class StreamRelayRefusals: @unchecked Sendable {
     /// How long a refused dialer is kept from its accept, in milliseconds:

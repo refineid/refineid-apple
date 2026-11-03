@@ -6,6 +6,20 @@
 
   /// Turning one bridge action into the caller's commands.
   extension RappOperationDriver {
+    /// The session's end for an authenticated close the peer sent.
+    private static func closeReason(peer reason: RappCloseReason) -> CloseReason {
+      switch reason {
+      case .pairingRevoked:
+        .pairRevoked
+
+      case .serviceWithdrawn:
+        .serviceWithdrawn
+
+      default:
+        .peerClosed(reason)
+      }
+    }
+
     /// Must be called only after the transport reports whether it released the
     /// corresponding frame; a failed release closes the session.
     public func frameReleased(_ release: FrameRelease, succeeded: Bool) -> [Command] {
@@ -17,12 +31,40 @@
 
       case .closeSession(let reason):
         closed = true
-        return [.closed(reason)]
+        echoReason = reason
+        return [.awaitCloseEcho]
+      }
+    }
+
+    /// Ends the wait for the echo of this endpoint's close once its bound
+    /// passed; the session ends as the close said (§7.1 item 7).
+    public func echoWaitEnded() -> [Command] {
+      guard let echoReason else { return [] }
+      self.echoReason = nil
+      _ = bridge.closeSession()
+      return [.closed(echoReason)]
+    }
+
+    /// One frame read while this endpoint waits for the echo of its close:
+    /// the echo, or a crossing close whose reason this endpoint acts on,
+    /// ends the session; anything else is ignored.
+    internal func receiveWhileAwaitingEcho(_ frame: Data, sent: CloseReason) -> [Command] {
+      switch bridge.receiveFrame(bytes: frame, nowMs: clock.monotonicMilliseconds()) {
+      case .closeAcknowledged(let reason, let crossing):
+        echoReason = nil
+        return [.closed(crossing ? Self.closeReason(peer: reason) : sent)]
+
+      case .sessionClosed:
+        echoReason = nil
+        return [.closed(sent)]
+
+      default:
+        return []
       }
     }
 
     /// Advances liveness with fresh challenge bytes: a ping after 5 seconds
-    /// of silence, the session's end after 30 (RAPP v26.10.29 §8.3).
+    /// of silence, the session's end after 30 (RAPP v26.11.2 §8.3).
     public func pollLiveness() -> [Command] {
       guard !closed else { return [] }
       do {
@@ -36,12 +78,14 @@
 
     /// Closes the session after the transport reported closure.
     public func transportClosed() -> [Command] {
+      if echoReason != nil { return echoWaitEnded() }
       guard !closed else { return [] }
       return ending(bridge.closeSession(), as: .transportClosed)
     }
 
     /// Closes the session at local request.
     public func close() -> [Command] {
+      if echoReason != nil { return echoWaitEnded() }
       guard !closed else { return [] }
       return ending(bridge.closeSession(), as: .localRequest)
     }
@@ -75,19 +119,13 @@
       case .custodianStep(let operationID, let step, let descriptor):
         return [custodianCommand(step, operationID: operationID, operation: Operation(descriptor))]
 
-      case .completed(let operationID, let result):
-        return [.completed(operationID: operationID, result: result)]
+      case .completed, .terminal, .progress, .cardStatus, .peerNamed:
+        return [reported(action)].compactMap(\.self)
 
-      case .terminal(let operationID, let reason):
-        return [.terminal(operationID: operationID, reason: reason)]
+      case .echoClose(let frame, let reason, let ended):
+        return echoing(frame, reason: reason, ended: ended)
 
-      case .progress(let operationID, let event):
-        return [.progress(operationID: operationID, event: event)]
-
-      case .cardStatus(let status):
-        return [.cardStatus(status)]
-
-      case .noAction:
+      case .noAction, .closeAcknowledged:
         return []
 
       case .sessionClosed:
@@ -120,10 +158,46 @@
       frame: Data, reason: RappCloseReason, ended: RappEndedOperation?
     ) -> [Command] {
       let release: CloseReason =
-        reason == .protocolViolation ? .protocolFailure : .terminalFrameReleased
+        reason == .protocolViolation ? .protocolViolation : .terminalFrameReleased
       let send = Command.send(frame: frame, release: .closeSession(release))
       guard let ended else { return [send] }
       return [.operationEnded(ended), send]
+    }
+
+    /// The command reporting what the peer said, for the actions that only
+    /// report.
+    private func reported(_ action: RappBridgeAction) -> Command? {
+      switch action {
+      case .completed(let operationID, let result):
+        .completed(operationID: operationID, result: result)
+
+      case .terminal(let operationID, let reason):
+        .terminal(operationID: operationID, reason: reason)
+
+      case .progress(let operationID, let event):
+        .progress(operationID: operationID, event: event)
+
+      case .cardStatus(let status):
+        .cardStatus(status)
+
+      case .peerNamed(let name):
+        .peerNamed(name)
+
+      default:
+        nil
+      }
+    }
+
+    /// The commands for the peer's close: the operation that ended with the
+    /// session, then the echo, then the close (§7.1 item 7).
+    private func echoing(
+      _ frame: Data, reason: RappCloseReason, ended: RappEndedOperation?
+    ) -> [Command] {
+      closed = true
+      let send = Command.send(frame: frame, release: .noRelease)
+      let close = Command.closed(Self.closeReason(peer: reason))
+      guard let ended else { return [send, close] }
+      return [.operationEnded(ended), send, close]
     }
 
     /// The commands for a session that ended: the operation that ended with
@@ -138,16 +212,7 @@
     /// notice.
     private func closeReason(received action: RappBridgeAction) -> CloseReason {
       guard case .sessionClosed(let reason?, _) = action else { return .transportClosed }
-      switch reason {
-      case .pairingRevoked:
-        return .pairRevoked
-
-      case .serviceWithdrawn:
-        return .serviceWithdrawn
-
-      default:
-        return .peerClosed(reason)
-      }
+      return Self.closeReason(peer: reason)
     }
 
     internal func protocolFailure() -> [Command] {

@@ -4,7 +4,7 @@ import Testing
 
 @testable import RappEngine
 
-/// Invariants of the RAPP v26.10.29 formal model, read off the tables the
+/// Invariants of the RAPP v26.11.2 formal model, read off the tables the
 /// engine carries.
 @Suite("RAPP state invariants")
 internal struct StateInvariantTests {
@@ -13,7 +13,7 @@ internal struct StateInvariantTests {
   /// peer's notice (§4.6).
   private static let revokingEvents: Set<PairingEvent> = [
     .forgetPairing, .idleExpired, .revocationNoticeSent, .noticeWindowExpired,
-    .peerRevocationNotice,
+    .revocationAttemptEnded, .peerRevocationNotice,
   ]
 
   /// Actions that store, confirm, revoke or end a stored pairing; recording
@@ -65,11 +65,13 @@ internal struct StateInvariantTests {
     #expect(!expiries.isEmpty, "the tables name idle expiry")
     for rule in expiries {
       #expect(rule.from == [.pairedDisconnected], "only with no session established")
-      #expect(rule.role == .both, "both endpoints expire a pairing")
       #expect(
         rule.actions.allSatisfy { !Self.isNotice($0) }, "idle expiry is silent")
     }
     for role in [EndpointRole.requester, .proxy] {
+      #expect(
+        PairingState.transition(from: .pairedDisconnected, on: .idleExpired, role: role) != nil,
+        "both endpoints expire a pairing")
       #expect(PairingState.outcome(from: .pairedConnected, on: .idleExpired, role: role) == .noRule)
       let check = try #require(
         PairingState.transition(from: .pairedConnected, on: .expiryCheck, role: role))
@@ -78,16 +80,20 @@ internal struct StateInvariantTests {
     }
   }
 
-  @Test("A requester that forgets with no session open owes nothing (§4.6 item 6)")
-  internal func requesterForgetOwesNothing() throws {
+  @Test("A requester that forgets with no session open keeps the key for one attempt (§4.6 item 6)")
+  internal func requesterForgetAttemptsOnce() throws {
     let forgotten = try #require(
       PairingState.transition(from: .pairedDisconnected, on: .forgetPairing, role: .requester))
-    #expect(forgotten.state == .revoked)
-    #expect(forgotten.actions.contains(.destroyPairKeys))
-    #expect(!forgotten.actions.contains(.sendClosePairingRevoked))
-    let custodian = try #require(
-      PairingState.transition(from: .pairedDisconnected, on: .forgetPairing, role: .proxy))
-    #expect(custodian.state == .revoking)
+    #expect(forgotten.state == .revoking)
+    #expect(!forgotten.actions.contains(.destroyPairKeys))
+    let ended = try #require(
+      PairingState.transition(from: .revoking, on: .revocationAttemptEnded, role: .requester))
+    #expect(ended.state == .revoked && ended.actions == [.destroyPairKeys])
+    #expect(
+      PairingState.outcome(from: .revoking, on: .revocationAttemptEnded, role: .proxy) == .noRule)
+    let expired = try #require(
+      PairingState.transition(from: .pairedDisconnected, on: .idleExpired, role: .requester))
+    #expect(expired.state == .revoked, "a requester's idle expiry sends nothing and keeps nothing")
   }
 
   @Test("Every session start and end records the last session")

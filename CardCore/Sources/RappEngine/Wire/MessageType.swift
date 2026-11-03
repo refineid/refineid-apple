@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The thirteen registered envelope discriminants (RAPP v26.10.29 §7.1).
+/// The fourteen registered envelope discriminants (RAPP v26.11.2 §7.1).
 internal enum MessageType: String, CaseIterable {
   case cardStatus = "card.status"
   case error = "error"
@@ -16,5 +16,6 @@ internal enum MessageType: String, CaseIterable {
   case pairingHello = "pairing.hello"
   case pairingStored = "pairing.stored"
   case sessionClose = "session.close"
+  case sessionHello = "session.hello"
   case sessionReady = "session.ready"
 }

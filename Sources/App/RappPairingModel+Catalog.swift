@@ -14,7 +14,7 @@ extension RappPairingModel {
     "fi.refineid.pairingsDidChange")
 
   /// Ends the session the pairing `pairID` carries with `pairing_revoked`;
-  /// false when none is open or the close did not leave (RAPP v26.10.29
+  /// false when none is open or the close did not leave (RAPP v26.11.2
   /// §4.6 items 1 and 2).
   private static func closeSessionForRevocation(pairID: Data) async -> Bool {
     var closed = false
@@ -48,7 +48,7 @@ extension RappPairingModel {
   }
 
   /// Forgets one paired device through the vault the list is read from
-  /// (RAPP v26.10.29 §4.6).
+  /// (RAPP v26.11.2 §4.6).
   ///
   /// A session open over the pairing closes with `pairing_revoked` and,
   /// once that close left, the record and its key go at once. Otherwise the
@@ -101,7 +101,7 @@ extension RappPairingModel {
       try RappPairRecord.loadFromVault(pairId: pairID, vault: vault), in: vault, clock: clock)
   }
 
-  /// Turns remote access off: this phone withdraws (RAPP v26.10.29 §4.5).
+  /// Turns remote access off: this phone withdraws (RAPP v26.11.2 §4.5).
   ///
   /// Every open session closes with `service_withdrawn` before its
   /// transport goes, the stream listener announces the withdrawal, and the

@@ -109,10 +109,12 @@ extension FlowDriveTests {
   internal func decryptFailureEndsSession(_ peers: PairedPeers) {
     do {
       var (requesterAuthentication, proxyAuthentication) = try authentications(peers)
-      var tampered = try proxyAuthentication.sendReady(nonce: randomBytes(FlowLimit.readyNonce))
+      var tampered = try proxyAuthentication.sendReady(
+        nonce: randomBytes(FlowLimit.readyNonce), displayName: DisplayNameFixture.custodian)
       tampered[tampered.startIndex] ^= tamperByteMask
       check(
-        try requesterAuthentication.receiveReady(tampered) == .integrityFailure,
+        try requesterAuthentication.receiveReady(
+          tampered, displayName: DisplayNameFixture.requester) == .integrityFailure,
         "a frame that fails to decrypt ends only the session")
     } catch {
       check(false, "a frame that fails to decrypt ends only the session")
@@ -120,23 +122,33 @@ extension FlowDriveTests {
   }
 
   /// Only the custodian sends `session.ready`, once, and only the requester
-  /// reads it (RAPP v26.10.29 §7.1 item 5).
+  /// reads it (RAPP v26.11.2 §7.1 item 5).
   internal func readyIsTheCustodiansAlone(_ peers: PairedPeers) {
     do {
       var (requesterAuthentication, proxyAuthentication) = try authentications(peers)
+      let custodianName = DisplayNameFixture.custodian
+      let requesterName = DisplayNameFixture.requester
       check(
-        (try? requesterAuthentication.sendReady(nonce: randomBytes(FlowLimit.readyNonce))) == nil,
+        (try? requesterAuthentication.sendReady(
+          nonce: randomBytes(FlowLimit.readyNonce), displayName: requesterName)) == nil,
         "a requester never sends session.ready")
-      let ready = try proxyAuthentication.sendReady(nonce: randomBytes(FlowLimit.readyNonce))
+      let ready = try proxyAuthentication.sendReady(
+        nonce: randomBytes(FlowLimit.readyNonce), displayName: custodianName)
       check(
-        (try? proxyAuthentication.sendReady(nonce: randomBytes(FlowLimit.readyNonce))) == nil,
+        (try? proxyAuthentication.sendReady(
+          nonce: randomBytes(FlowLimit.readyNonce), displayName: custodianName)) == nil,
         "the custodian sends session.ready once")
       check(
-        (try? proxyAuthentication.receiveReady(ready)) == nil,
+        (try? proxyAuthentication.receiveReady(ready, displayName: custodianName)) == nil,
         "a custodian never reads session.ready")
-      check(
-        try requesterAuthentication.receiveReady(ready) == .verified,
-        "the requester verifies the custodian's session.ready")
+      guard
+        case .verified(let peerName, _) = try requesterAuthentication.receiveReady(
+          ready, displayName: requesterName)
+      else {
+        check(false, "the requester verifies the custodian's session.ready")
+        return
+      }
+      check(peerName == custodianName, "the ready carries the custodian's name")
     } catch {
       check(false, "only the custodian sends session.ready")
     }
@@ -147,7 +159,7 @@ extension FlowDriveTests {
   /// A ready with the expected parameters verifies, a close in its place
   /// ends the session with its reason, and anything else - including a
   /// ready with other parameters - closes it with a sealed
-  /// `protocol_violation` close (RAPP v26.10.29 §7.1 item 5). None of them
+  /// `protocol_violation` close (RAPP v26.11.2 §7.1 item 5). None of them
   /// touches the pairing.
   internal func unexpectedFirstMessageClosesTheSession(_ peers: PairedPeers) {
     do {
@@ -160,17 +172,15 @@ extension FlowDriveTests {
         candidateIdentifier: RappBleGattProfile.candidateId,
         grantsHash: peers.requester.grantsHash)
       let nonce = randomBytes(FlowLimit.readyNonce)
+      let name = DisplayNameFixture.custodian
+      let ready = SessionReady(parameters: expected, nonce: nonce, displayName: name)
+      let other = SessionReady(parameters: otherProfile, nonce: nonce, displayName: name)
       let firstMessages = [
-        FirstMessage(
-          type: .sessionReady, body: try SessionReady(parameters: expected, nonce: nonce).body(),
-          expectation: .verified),
+        FirstMessage(type: .sessionReady, body: try ready.body(), expectation: .verified),
         FirstMessage(
           type: .sessionClose, body: ["reason": .text(CloseReasonName.pairingRevoked)],
           expectation: .closed),
-        FirstMessage(
-          type: .sessionReady,
-          body: try SessionReady(parameters: otherProfile, nonce: nonce).body(),
-          expectation: .violation),
+        FirstMessage(type: .sessionReady, body: try other.body(), expectation: .violation),
         FirstMessage(
           type: .livenessPing,
           body: ["challenge": .bytes(randomBytes(FlowLimit.livenessChallenge))],
@@ -183,15 +193,16 @@ extension FlowDriveTests {
           sessionIdentifier: matchedSessionIdentifier, expectedParameters: expected,
           channel: requester)
         let outcome = try authentication.receiveReady(
-          try custodian.seal(first.type, body: first.body))
+          try custodian.seal(first.type, body: first.body),
+          displayName: DisplayNameFixture.requester)
         switch (outcome, first.expectation) {
         case (.verified, .verified):
           check(true, "a ready with the expected parameters verifies")
 
-        case (.peerClosed(let reason), .closed):
+        case (.peerClosed(let reason, let echo), .closed):
           check(
-            reason == .pairingRevoked,
-            "a close in place of ready ends the session with its reason")
+            reason == .pairingRevoked && echo != nil,
+            "a close in place of ready ends the session with its reason, echoed")
 
         case (.violationClosed(let notice), .violation):
           check(notice != nil, "\(first.type.rawValue) first is answered with a sealed close")
@@ -207,7 +218,7 @@ extension FlowDriveTests {
 
   /// A session bound to a different transport than the peer's fails.
   internal func parameterEchoMismatch(_ peers: PairedPeers) {
-    // Each side binds the transport its connection uses (RAPP v26.10.29
+    // Each side binds the transport its connection uses (RAPP v26.11.2
     // §4.3 item 5), so peers disagreeing about it cannot finish the
     // handshake.
     do {

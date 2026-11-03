@@ -120,22 +120,22 @@ internal struct IdentityLineTests {
 
     // A paired phone, no card here.
     Case(
-      name: "a paired phone offering no identity is connecting",
-      facts: with { $0.phonePaired = true }, line: .paired(.connecting)),
+      name: "a paired phone offering no identity asks for a code as if none were paired",
+      facts: with { $0.phonePaired = true }, line: .pairPhone),
     Case(
-      name: "a paired phone beside an empty reader here is connecting",
+      name: "a paired phone beside an empty reader here asks for a code",
       facts: with { facts in
         facts.readerConnected = true
         facts.phonePaired = true
       },
-      line: .paired(.connecting)),
+      line: .pairPhone),
     Case(
-      name: "a paired phone with its card unread is connecting",
+      name: "a paired phone with its card unread asks for a code",
       facts: with { facts in
         facts.availability = .cardWithoutIdentity
         facts.phonePaired = true
       },
-      line: .paired(.connecting)),
+      line: .pairPhone),
     Case(
       name: "the card warning needs a local card",
       facts: with { facts in
@@ -143,14 +143,14 @@ internal struct IdentityLineTests {
         facts.phonePaired = true
         facts.warnsUnavailableCard = true
       },
-      line: .paired(.connecting)),
+      line: .pairPhone),
     Case(
-      name: "a phone holding a card in its reader, the card unread, is connecting",
+      name: "a phone holding a card in its reader, the card unread, asks for a code",
       facts: with { facts in
         facts.phonePaired = true
         facts.phoneCardStatus = cardInReader
       },
-      line: .paired(.connecting)),
+      line: .pairPhone),
     Case(
       name: "a phone holding a card in its reader shows the holder",
       facts: with { facts in
@@ -184,12 +184,12 @@ internal struct IdentityLineTests {
       },
       line: .paired(.holder)),
     Case(
-      name: "a phone without a card reader reporting no card, no identity, is connecting",
+      name: "a phone without a card reader reporting no card, no identity, asks for a code",
       facts: with { facts in
         facts.phonePaired = true
         facts.phoneCardStatus = noCardNoReader
       },
-      line: .paired(.connecting)),
+      line: .pairPhone),
     Case(
       name: "a phone's empty card reader asks for the card",
       facts: with { facts in
@@ -227,7 +227,7 @@ internal struct IdentityLineTests {
       name: "a denied local network stands in for the pairing code",
       facts: with { $0.localNetworkDenied = true }, line: .localNetworkDenied),
     Case(
-      name: "a denied local network stands in for a phone still connecting",
+      name: "a denied local network stands in for a paired phone offering no card",
       facts: with { facts in
         facts.phonePaired = true
         facts.localNetworkDenied = true
@@ -265,7 +265,7 @@ internal struct IdentityLineTests {
 
   /// The phone's reader is named only for no card beside an attached
   /// reader; no card and no reader asks for the card on the phone, and a
-  /// present card or no word asks for nothing (RAPP v26.10.29 §8.4 item 6).
+  /// present card or no word asks for nothing (RAPP v26.11.2 §8.4 item 6).
   @Test
   internal func phoneCardRequestFollowsCardAndReader() throws {
     let present = try #require(Self.cardInReader)

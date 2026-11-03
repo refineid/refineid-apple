@@ -4,9 +4,11 @@ import Foundation
 
 /// Bounds the human-readable context an operation may carry.
 internal enum OperationLimit {
-  /// Longest display name or origin an authorizer is asked to render.
-  internal static let displayContextBytes = 512
-  /// Byte length of one batch document name (RAPP v26.10.29 §9.3
-  /// `tstr .size (1..256)`).
-  internal static let batchDocumentNameBytes = 1...256
+  /// Byte length of one name an authorizer shows: `origin` (RAPP v26.11.2
+  /// §9.2), `document_name`, an entry of `document_names` or of
+  /// `contained_files` (§9.3), `tstr .size (1..256)`.
+  internal static let displayNameBytes = 1...256
+  /// The directory an ASiC-E container reserves for its manifest and
+  /// signatures; no entry of `contained_files` lies under it (§9.3).
+  internal static let containerReservedDirectory = "META-INF/"
 }

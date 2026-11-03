@@ -8,15 +8,21 @@
   /// Runs one authenticated connection from Noise setup through card
   /// operations. All externally visible events are semantic and authenticated.
   public actor RappConnectionCoordinator {
-    private enum Phase: Equatable {
+    internal enum Phase: Equatable {
       case handshaking
       case operating
+      /// This endpoint's close left before the session was established;
+      /// the session driver waits for its echo.
+      case closingHandshake
+      /// This endpoint's close left on the established session; the
+      /// operation driver waits for its echo.
+      case closingOperation
       case closed
     }
 
     /// How often a session advances its liveness and checks the live
     /// operation's deadline; the engine decides when a ping is due (RAPP
-    /// v26.10.29 §8.1 item 2, §8.3).
+    /// v26.11.2 §8.1 item 2, §8.3).
     public static let livenessPollIntervalMilliseconds: UInt64 = 1_000
 
     private static let logger = Logger(
@@ -29,12 +35,22 @@
     nonisolated public let events: AsyncStream<Event>
 
     private let transport: any RappFrameTransport
-    private let handshake: RappSessionDriver
+    internal let handshake: RappSessionDriver
     private let maximumLifetimeMilliseconds: UInt64
     private let continuation: AsyncStream<Event>.Continuation
-    private var operation: RappOperationDriver?
-    private var phase = Phase.handshaking
-    private var livenessTask: Task<Void, Never>?
+    internal var operation: RappOperationDriver?
+    internal var phase = Phase.handshaking
+    internal var livenessTask: Task<Void, Never>?
+    /// Ends the wait for the echo of this endpoint's close at its bound.
+    internal var echoTask: Task<Void, Never>?
+    /// How long this endpoint waits for the echo of a close it sent (RAPP
+    /// v26.11.2 §7.1 item 7): ``rappQuitWithdrawalBoundMs()`` unless the
+    /// owner sets another with ``setCloseEchoBound(milliseconds:)``.
+    internal var closeEchoBoundMilliseconds = rappQuitWithdrawalBoundMs()
+    /// Whether this endpoint's own close left on the transport.
+    internal var ownCloseLeft = false
+    /// Callers waiting for the connection to finish.
+    internal var finishWaiters: [CheckedContinuation<Void, Never>] = []
     /// Why the connection closed, once it has.
     private var closeReason: CloseReason?
 
@@ -46,6 +62,7 @@
     public init(
       role: RappSessionDriver.Role,
       pair: RappPairRecord,
+      displayName: RappDisplayName,
       transport: any RappFrameTransport,
       maximumLifetimeMilliseconds: UInt64,
       transportProfile: String = rappStreamProfileName(),
@@ -56,6 +73,7 @@
       self.handshake = try RappSessionDriver(
         role: role,
         pair: pair,
+        displayName: displayName,
         transportProfile: transportProfile,
         clock: clock
       )
@@ -79,10 +97,10 @@
     /// Delivers one complete frame received by the transport.
     public func receive(_ frame: Data) async {
       switch phase {
-      case .handshaking:
+      case .handshaking, .closingHandshake:
         await handleHandshake(await handshake.receive(frame))
 
-      case .operating:
+      case .operating, .closingOperation:
         guard let operation else {
           await finish(.transportFailure)
           return
@@ -109,10 +127,10 @@
     /// Reports that the transport closed without a local request.
     public func transportClosed() async {
       switch phase {
-      case .handshaking:
+      case .handshaking, .closingHandshake:
         await handleHandshake(await handshake.transportClosed())
 
-      case .operating:
+      case .operating, .closingOperation:
         guard let operation else {
           await finish(.transportFailure)
           return
@@ -136,6 +154,14 @@
           if let event = Event(command) { continuation.yield(event) }
         }
 
+      case .closingHandshake:
+        await handleHandshake(await handshake.close())
+        return
+
+      case .closingOperation:
+        await handleOperation(await operation?.echoWaitEnded() ?? [])
+        return
+
       case .closed:
         return
       }
@@ -149,8 +175,8 @@
       return operation
     }
 
-    private func handleHandshake(_ commands: [RappSessionDriver.Command]) async {
-      for command in commands where phase == .handshaking {
+    internal func handleHandshake(_ commands: [RappSessionDriver.Command]) async {
+      for command in commands where phase == .handshaking || phase == .closingHandshake {
         switch command {
         case .send(let frame):
           do {
@@ -159,6 +185,13 @@
             _ = await handshake.transportClosed()
             await finish(.transportFailure)
           }
+
+        case .peerNamed(let name):
+          continuation.yield(.peerNamed(name))
+
+        case .awaitCloseEcho:
+          ownCloseLeft = true
+          startEchoWait(.closingHandshake)
 
         case .established:
           do {
@@ -199,7 +232,7 @@
     }
 
     internal func handleOperation(_ commands: [RappOperationDriver.Command]) async {
-      for command in commands where phase == .operating {
+      for command in commands where phase == .operating || phase == .closingOperation {
         if let event = Event(command) {
           continuation.yield(event)
           continue
@@ -207,6 +240,13 @@
         switch command {
         case .send(let frame, let release):
           await sendOperationFrame(frame, release: release)
+
+        case .awaitCloseEcho:
+          ownCloseLeft = true
+          startEchoWait(.closingOperation)
+
+        case .peerNamed(let name):
+          continuation.yield(.peerNamed(name))
 
         case .closed(let reason):
           await finish(.operation(reason))
@@ -234,61 +274,6 @@
       }
     }
 
-    /// Ends the session with `pairing_revoked` because this endpoint's
-    /// user is forgetting the pairing (RAPP v26.10.29 §4.6 item 1).
-    ///
-    /// Answers whether the close left on the transport. Only then may the
-    /// record and its key be destroyed (§4.6 item 3); otherwise the pairing
-    /// is kept forgotten so its next session delivers the close.
-    public func closePairingRevoked() async -> Bool {
-      let wasOperating = phase == .operating
-      await endOperating { await $0.close(reason: .pairingRevoked) }
-      return wasOperating && closeReason == .operation(.terminalFrameReleased)
-    }
-
-    /// Ends the session with `service_withdrawn` because this endpoint
-    /// withdraws: its holder turned remote access or remote use off, or quit
-    /// (RAPP v26.10.29 §4.5 items 3 and 8).
-    ///
-    /// An open session sends the close before the connection goes; one not
-    /// yet open closes without a notice. Answers whether the close left on
-    /// the transport.
-    @discardableResult
-    public func closeServiceWithdrawn() async -> Bool {
-      let wasOperating = phase == .operating
-      await endOperating { await $0.close(reason: .serviceWithdrawn) }
-      return wasOperating && closeReason == .operation(.terminalFrameReleased)
-    }
-
-    /// Ends the session with `card_unavailable` because the custodian can
-    /// no longer serve any card for the rest of it (§8.4 item 5); the
-    /// pairing stays.
-    public func closeCardUnavailable() async {
-      await endOperating { await $0.close(reason: .cardUnavailable) }
-    }
-
-    /// Runs `ending` on the operation driver, or closes a session that
-    /// never reached one.
-    private func endOperating(
-      _ ending: (RappOperationDriver) async -> [RappOperationDriver.Command]
-    ) async {
-      switch phase {
-      case .handshaking:
-        _ = await handshake.close()
-        await finish(.localRequest)
-
-      case .operating:
-        guard let operation else {
-          await finish(.localRequest)
-          return
-        }
-        await handleOperation(await ending(operation))
-
-      case .closed:
-        return
-      }
-    }
-
     /// Polls liveness and the live operation's deadline on a fixed cadence
     /// while the session operates.
     private func startLiveness() {
@@ -307,19 +292,25 @@
       }
     }
 
-    private func finish(_ reason: CloseReason) async {
+    internal func finish(_ reason: CloseReason) async {
       guard phase != .closed else { return }
       phase = .closed
       closeReason = reason
       livenessTask?.cancel()
       livenessTask = nil
+      echoTask?.cancel()
+      echoTask = nil
       await transport.close()
       continuation.yield(.closed(reason))
       continuation.finish()
+      let waiters = finishWaiters
+      finishWaiters = []
+      for waiter in waiters { waiter.resume() }
     }
 
     deinit {
       livenessTask?.cancel()
+      echoTask?.cancel()
       continuation.finish()
     }
   }

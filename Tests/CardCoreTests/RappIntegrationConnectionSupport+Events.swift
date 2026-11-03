@@ -18,6 +18,9 @@ import Testing
     ) async throws -> RappOperationResult {
       for await event in coordinator.events {
         switch event {
+        case .peerNamed:
+          break
+
         case .cardStatus, .progress:
           break
 
@@ -49,6 +52,9 @@ import Testing
     ) async throws -> RappTerminalReason {
       for await event in coordinator.events {
         switch event {
+        case .peerNamed:
+          break
+
         case .cardStatus, .progress:
           break
 
@@ -81,6 +87,9 @@ import Testing
       try await operation.begin(on: coordinator)
       for await event in coordinator.events {
         switch event {
+        case .peerNamed:
+          break
+
         case .cardStatus, .progress:
           break
 
@@ -109,6 +118,9 @@ import Testing
       var heard: [RappCardStatus] = []
       for await event in coordinator.events {
         switch event {
+        case .peerNamed:
+          break
+
         case .established:
           break
 
@@ -126,12 +138,23 @@ import Testing
       throw RappIntegrationFixtures.TestFailure.operationEndedWithoutResult
     }
 
-    /// Waits for the session to establish, skipping nothing else.
-    internal static func awaitEstablished(_ coordinator: RappConnectionCoordinator) async throws {
+    /// Waits for the session to establish and for the peer's name, which
+    /// a requester reads in `session.ready` and a custodian in the
+    /// requester's `session.hello` (RAPP v26.11.2 §4.3 item 4), skipping
+    /// nothing else; answers the name.
+    @discardableResult
+    internal static func awaitEstablished(_ coordinator: RappConnectionCoordinator) async throws
+      -> RappDisplayName
+    {
+      var established = false
+      var named: RappDisplayName?
       for await event in coordinator.events {
         switch event {
         case .established:
-          return
+          established = true
+
+        case .peerNamed(let name):
+          named = name
 
         case .closed(let reason):
           throw RappIntegrationFixtures.TestFailure.connectionClosed(reason)
@@ -139,6 +162,7 @@ import Testing
         default:
           throw RappIntegrationFixtures.TestFailure.unexpectedConnectionEvent
         }
+        if established, let named { return named }
       }
       throw RappIntegrationFixtures.TestFailure.operationEndedWithoutResult
     }

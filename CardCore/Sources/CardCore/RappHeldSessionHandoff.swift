@@ -10,7 +10,7 @@
   /// A Mac holds one session to its phone, and the app holds it, on either
   /// transport. Every process of one Mac shares a single Bluetooth link and
   /// GATT client to the phone, which the phone sees as one central with one
-  /// channel characteristic (RAPP v26.10.29 §5.2): a second RAPP connection
+  /// channel characteristic (RAPP v26.11.2 §5.2): a second RAPP connection
   /// from the extension would interleave its fragments with the app's, and
   /// on the stream it would be a second session beside the app's. So the
   /// extension asks the running app to carry its operation, and the app
@@ -106,6 +106,7 @@
       static let keyProfile = "keyProfile"
       static let algorithm = "algorithm"
       static let digest = "digest"
+      static let containedFiles = "containedFiles"
       static let response = "response"
       static let bytes = "bytes"
       static let error = "error"
@@ -123,7 +124,7 @@
 
     /// The encoding both directions share.
     private enum Coding {
-      /// RAPP pair identifiers are 16 bytes (RAPP v26.10.29 §4.3 item 2).
+      /// RAPP pair identifiers are 16 bytes (RAPP v26.11.2 §4.3 item 2).
       static let pairIdentifierByteCount = 16
 
       /// The requester errors that carry nothing.
@@ -169,10 +170,11 @@
           fields[Key.context] = context
           return fields
 
-        case .documentSigning(let documentName, let keyProfile, let algorithm, let digest):
+        case .documentSigning(let document, let keyProfile, let algorithm, let digest):
           var fields = signing(keyProfile: keyProfile, algorithm: algorithm, digest: digest)
           fields[Key.operation] = Tag.documentSigning
-          fields[Key.context] = documentName
+          fields[Key.context] = document.name
+          fields[Key.containedFiles] = document.containedFiles
           return fields
         }
       }
@@ -195,7 +197,9 @@
 
         case Tag.documentSigning:
           return .documentSigning(
-            documentName: context, keyProfile: keyProfile, algorithm: algorithm, digest: digest)
+            document: RappSigningDocument(
+              name: context, containedFiles: fields[Key.containedFiles] as? [String] ?? []),
+            keyProfile: keyProfile, algorithm: algorithm, digest: digest)
 
         default:
           return nil

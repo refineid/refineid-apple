@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.10.29 busy answer (section 4.2, PairingBusy Schema and Busy Refusal)")
+@Suite("RAPP v26.11.2 busy answer (section 4.2, PairingBusy Schema and Busy Refusal)")
 internal struct PairingBusyTests {
   private static let transports = [RappBleGattProfile.name, streamProfile]
   private static let code = "7KX4M9"

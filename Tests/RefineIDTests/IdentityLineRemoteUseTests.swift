@@ -82,7 +82,7 @@ internal struct IdentityLineRemoteUseTests {
   }
 
   /// Turning remote use on brings the pairing prompt beside an empty
-  /// reader, and with a pairing the paired phone's line, connecting.
+  /// reader, and a pairing whose phone offers no card yet shows it too.
   @Test
   internal func remoteUseOnBringsThePhoneBack() {
     var facts = Self.with { $0.readerConnected = true }
@@ -90,6 +90,6 @@ internal struct IdentityLineRemoteUseTests {
     facts.remoteUse = true
     #expect(IdentityLine.derive(facts) == .pairPhone)
     facts.phonePaired = true
-    #expect(IdentityLine.derive(facts) == .paired(.connecting))
+    #expect(IdentityLine.derive(facts) == .pairPhone)
   }
 }

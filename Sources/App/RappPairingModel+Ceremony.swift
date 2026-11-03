@@ -119,7 +119,7 @@ extension RappPairingModel {
 
   /// Selects the new pair.
   ///
-  /// The pair carries the name its peer gave (RAPP v26.10.29 §4.3 item 3).
+  /// The pair carries the name its peer gave (RAPP v26.11.2 §4.3 item 3).
   /// A phone that offered lists the new computer and shows the next code.
   private func handlePaired(_ pair: RappPairingCoordinator.PairSummary) {
     do {
@@ -136,6 +136,9 @@ extension RappPairingModel {
       #endif
       phase = .paired(pair)
       finishAttempt()
+      if pair.role == .requester {
+        PersistentTokenRegistry.shared.forgetReplacedPairings(keeping: pair.pairID)
+      }
       #if os(macOS)
         PersistentTokenRegistry.shared.startAfterPairing()
       #endif

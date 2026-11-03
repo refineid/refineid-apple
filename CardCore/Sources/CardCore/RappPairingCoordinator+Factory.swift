@@ -24,7 +24,7 @@
       /// The registered transport profile the ceremony runs over.
       public let transportProfile: String
       /// User-visible name this endpoint introduces itself with.
-      public let displayName: String
+      public let displayName: RappDisplayName
       /// Platform label this endpoint introduces itself with.
       public let platform: String
       /// Persistent storage for the completed pair record.
@@ -41,7 +41,7 @@
         code: String,
         profiles: [String],
         transportProfile: String,
-        displayName: String,
+        displayName: RappDisplayName,
         platform: String,
         vault: RappDeviceVault,
         entropy: RappPlatformEntropy = RappPlatformEntropy(),
@@ -84,7 +84,7 @@
     /// The requester side over `transport`, from the bridge built on the
     /// offer that connection served through its bootstrap: the custodian's
     /// first stream frame or the BLE bootstrap characteristic (RAPP
-    /// v26.10.29 §4.2, Bootstrap Read Flow).
+    /// v26.11.2 §4.2, Bootstrap Read Flow).
     ///
     /// `bootstrap` is the requester's ``RappPairingBridge`` over that offer,
     /// built with the typed code; CPace begins once the transport is

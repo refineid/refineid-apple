@@ -20,7 +20,7 @@ import Testing
         code: code,
         profiles: rappCredentialProfiles(),
         transportProfile: rappStreamProfileName(),
-        displayName: "Peer",
+        displayName: TestDisplayNames.requester,
         platform: "macOS",
         vault: makeVault(suffix: suffix)
       )

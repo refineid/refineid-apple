@@ -2,9 +2,6 @@
 
 import Foundation
 
-/// Storage-format version of a persisted pairing.
-internal let pairRecordFormatVersion: UInt64 = 8
-
 /// One durable pairing, as stored on this device only.
 internal struct PairRecord: Equatable {
   /// Every key a stored record may carry, and must carry in full.
@@ -16,10 +13,10 @@ internal struct PairRecord: Equatable {
   ]
 
   /// Days a forgotten record keeps its key for the `pairing_revoked` close
-  /// (RAPP v26.10.29 §4.6 item 3).
+  /// (RAPP v26.11.2 §4.6 item 3).
   internal static let revocationNoticeDays: UInt64 = 30
   /// Days a pairing lives without an established session before it expires
-  /// (RAPP v26.10.29 §4.6 item 5).
+  /// (RAPP v26.11.2 §4.6 item 5).
   internal static let pairingIdleExpiryDays: UInt64 = 30
   private static let millisecondsPerDay: UInt64 = 86_400_000
   /// How long a pairing lives without an established session.
@@ -34,13 +31,14 @@ internal struct PairRecord: Equatable {
   internal let profiles: [ProfileName]
   internal let transport: PairTransportBinding
   internal let createdAtMilliseconds: UInt64
-  /// The name the peer gave in its `pairing.hello` (RAPP v26.10.29 §4.3
-  /// item 3), kept with the keys so a stored pairing always names its peer.
-  internal let peerDisplayName: String
+  /// The name the peer gave in its `pairing.hello` (RAPP v26.11.2 §4.3
+  /// item 3), kept with the keys so a stored pairing always names its peer,
+  /// and replaced by the name its next sessions carry (§4.3 item 4).
+  internal private(set) var peerDisplayName: String
   /// Whether both endpoints confirmed storing the pairing.
   ///
   /// A record stored before the peer's `pairing.stored` is unconfirmed
-  /// (RAPP v26.10.29 §4.3 item 4): it opens no session, routes nothing,
+  /// (RAPP v26.11.2 §4.3 item 4): it opens no session, routes nothing,
   /// and is revoked when found at start-up.
   internal private(set) var storageConfirmed: Bool
   /// When the local user forgot the pairing, or it expired (§4.6 item 5),
@@ -81,9 +79,7 @@ internal struct PairRecord: Equatable {
       !remoteStaticPublic.allSatisfy({ $0 == 0 })
     else { throw PairRecordError.invalidInput }
     guard !profiles.isEmpty else { throw PairRecordError.invalidInput }
-    guard (try? validateLabel(peerDisplayName, "peer_display_name")) != nil else {
-      throw PairRecordError.invalidInput
-    }
+    guard RappDisplayName.isLabel(peerDisplayName) else { throw PairRecordError.invalidInput }
     guard !transport.profile.isEmpty, !transport.candidateIdentifier.isEmpty else {
       throw PairRecordError.invalidInput
     }
@@ -107,7 +103,7 @@ internal struct PairRecord: Equatable {
       case .map(var map) = decoded
     else { throw PairRecordError.invalidInput }
     guard map.keys.allSatisfy(expectedKeys.contains) else { throw PairRecordError.invalidInput }
-    guard try takeUnsigned(&map, "format_version") == pairRecordFormatVersion else {
+    guard map.removeValue(forKey: "format_version") == PairRecordFormat.current.value else {
       throw PairRecordError.invalidInput
     }
     let decodedPairIdentifier = try takeBytes(&map, "pair_id")
@@ -152,13 +148,25 @@ internal struct PairRecord: Equatable {
     return decodedForgottenAt.map(record.forgotten(at:)) ?? record
   }
 
-  /// Whether the 30 days a forgotten record keeps its key have passed
-  /// (§4.6 item 3).
+  /// Whether the time a forgotten record keeps its key has passed: 30 days
+  /// on a custodian (§4.6 item 3), `revocation_attempt_bound_ms` on a
+  /// requester (§4.6 item 6).
   internal func revocationNoticeExpired(nowMilliseconds: UInt64) -> Bool {
     guard let forgottenAtMilliseconds else { return false }
-    let window = Self.revocationNoticeDays * Self.millisecondsPerDay
+    let window =
+      role == .requester
+      ? RevocationAttemptBound.milliseconds
+      : Self.revocationNoticeDays * Self.millisecondsPerDay
     let (deadline, overflowed) = forgottenAtMilliseconds.addingReportingOverflow(window)
     return !overflowed && nowMilliseconds >= deadline
+  }
+
+  /// This record naming its peer `name`, the name the peer's latest session
+  /// carried (§4.3 item 4).
+  internal func renamed(_ name: RappDisplayName) -> Self {
+    var record = self
+    record.peerDisplayName = name.text
+    return record
   }
 
   internal func encoded() throws -> Data {
@@ -171,7 +179,7 @@ internal struct PairRecord: Equatable {
     forgottenAtMilliseconds: UInt64?, lastSessionAtMilliseconds: UInt64?
   ) throws -> Data {
     let value = WireValue.map([
-      "format_version": .unsigned(pairRecordFormatVersion),
+      "format_version": PairRecordFormat.current.value,
       "pair_id": .bytes(pairIdentifier),
       "role": .text(role.rawValue),
       "local_static_private": .bytes(localStaticPrivate),

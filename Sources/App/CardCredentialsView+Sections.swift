@@ -74,7 +74,9 @@ extension CardCredentialsView {
           cardAccessNumberRow
 
         case .identity, .readerIdentity:
-          remoteAccessRow
+          if SupportedCardTransports.servesRemoteCards {
+            remoteAccessRow
+          }
           cardManagementRow
 
         case .holding, .remoteOnly:

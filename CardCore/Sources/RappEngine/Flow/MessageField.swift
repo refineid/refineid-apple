@@ -23,14 +23,7 @@ internal func requireSuite(_ map: inout [String: WireValue], _ expected: String)
 }
 
 internal func profileName(_ value: WireValue) throws -> ProfileName {
-  guard case .text(let name) = value else {
-    print("[profileName] value is not .text: \(value)")
-    Darwin.fflush(stdout)
-    throw MessageFieldError.invalidField("profiles")
-  }
-  guard let profile = ProfileName(rawValue: name) else {
-    print("[profileName] unrecognized profile text: '\(name)'")
-    Darwin.fflush(stdout)
+  guard case .text(let name) = value, let profile = ProfileName(rawValue: name) else {
     throw MessageFieldError.invalidField("profiles")
   }
   return profile
@@ -55,6 +48,20 @@ internal func validateLabel(_ value: String, _ field: String) throws {
   guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
     value.utf8.count <= FlowLimit.labelBytes
   else { throw MessageFieldError.invalidField(field) }
+}
+
+/// A `platform` value: bounded and checked as a display name is (RAPP
+/// v26.11.2 §7.1).
+internal func validatePlatform(_ value: String) throws {
+  guard RappDisplayName.isLabel(value) else { throw MessageFieldError.invalidField("platform") }
+}
+
+/// The `display_name` field, checked as §7.1 bounds it.
+internal func takeDisplayName(_ map: inout [String: WireValue]) throws -> RappDisplayName {
+  guard let name = RappDisplayName(try takeMessageText(&map, "display_name")) else {
+    throw MessageFieldError.invalidField("display_name")
+  }
+  return name
 }
 
 internal func validateTransportName(_ value: String, _ field: String) throws {

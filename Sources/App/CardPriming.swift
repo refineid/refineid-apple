@@ -144,7 +144,7 @@
     /// No PIN is asked for or sent here. The certificate is public and
     /// needs only the secure channel; PIN 1 is asked for when the card
     /// first signs, where the counter is read in the same session that
-    /// spends it, and is held only in memory (RAPP v26.10.29 §11 item 2).
+    /// spends it, and is held only in memory (RAPP v26.11.2 §11 item 2).
     internal static func prime(cardAccessNumber: String) async -> Outcome {
       guard let entry = SetupEntry(digits: cardAccessNumber) else {
         return Self.failure(Failure.cardAccessNumberMissing)

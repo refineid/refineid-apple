@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-/// Forgetting a pairing and telling the peer (RAPP v26.10.29 §4.6).
+/// Forgetting a pairing and telling the peer (RAPP v26.11.2 §4.6).
 @Suite("RAPP pairing revocation between the bridges")
 internal struct RevocationDriveTests {
   private static let start = OperationFixture.startMilliseconds
@@ -42,12 +42,19 @@ internal struct RevocationDriveTests {
     #expect(custodian.revocationNoticePending())
     #expect(!requester.revocationNoticePending())
     #expect(throws: RappBindingError.WrongPhase) {
-      _ = try custodian.sendReady(nonce: randomBytes(FlowLimit.readyNonce))
+      _ = try custodian.sendReady(
+        nonce: randomBytes(FlowLimit.readyNonce), displayName: DisplayNameFixture.custodian)
     }
     let notice = try custodian.deliverRevocationNotice()
     #expect(throws: RappBindingError.WrongPhase) { try custodian.enterEstablished() }
-    #expect(try requester.receiveReady(bytes: notice) == .peerClosed(.pairingRevoked))
+    let answer = try requester.receiveReady(
+      bytes: notice, displayName: DisplayNameFixture.requester)
+    guard case .peerClosed(.pairingRevoked, let echo?) = answer else {
+      Issue.record("the requester answers the close with its echo")
+      return
+    }
     #expect(throws: RappBindingError.WrongPhase) { try requester.enterEstablished() }
+    #expect(custodian.receiveCloseEcho(bytes: echo) == .acknowledged(.pairingRevoked))
 
     // Delivered, the key goes (§4.6 item 3).
     try pairing.custodian.revoke(vault: vault, revokedAtMs: Self.forgottenAt)
@@ -63,16 +70,18 @@ internal struct RevocationDriveTests {
       try pairing.requester.forget(vault: vault, forgottenAtMs: Self.forgottenAt)
         == .noticePending)
     let (requester, custodian) = try authenticatingSessions(pairing)
-    _ = try custodian.sendReady(nonce: randomBytes(FlowLimit.readyNonce))
+    let ready = try custodian.sendReady(
+      nonce: randomBytes(FlowLimit.readyNonce), displayName: DisplayNameFixture.custodian)
     try custodian.enterEstablished()
     let operations = try RappOperationBridge.beginProxy(
       session: custodian, maximumLifetimeMs: OperationFixture.maximumLifetimeMilliseconds,
       nowMs: Self.start)
     #expect(throws: RappBindingError.WrongPhase) { try requester.enterEstablished() }
     let notice = try requester.deliverRevocationNotice()
-    #expect(
-      operations.receiveFrame(bytes: notice, nowMs: Self.start)
-        == .sessionClosed(reason: .pairingRevoked, endedOperation: nil))
+    let answer = operations.receiveFrame(bytes: notice, nowMs: Self.start)
+    #expect(answer == .echoClose(try frame(answer), reason: .pairingRevoked, endedOperation: nil))
+    #expect(requester.receiveCloseEcho(bytes: ready) == .ignored, "the ready is not the echo")
+    #expect(requester.receiveCloseEcho(bytes: try frame(answer)) == .acknowledged(.pairingRevoked))
   }
 
   @Test("A pairing forgotten during a session is revoked with the close at once")
@@ -80,9 +89,8 @@ internal struct RevocationDriveTests {
     let session = try establishedSession(
       try PairedBridges.pair(granting: everyProfile), nowMilliseconds: Self.start)
     let close = session.custodian.closeWithReason(.pairingRevoked)
-    #expect(
-      try deliver(close, to: session.requester, at: Self.start)
-        == .sessionClosed(reason: .pairingRevoked, endedOperation: nil))
+    let echo = try deliver(close, to: session.requester, at: Self.start)
+    #expect(echo == .echoClose(try frame(echo), reason: .pairingRevoked, endedOperation: nil))
   }
 
   @Test("Only a forgotten record delivers the close")
@@ -144,15 +152,48 @@ internal struct RevocationDriveTests {
     }
   }
 
-  @Test("A forgotten record keeps its key for thirty days")
+  @Test(
+    "A custodian's forgotten record keeps its key for thirty days, a requester's for its attempt")
   internal func noticeWindow() throws {
     let vault = MemoryPairVault()
     let pairing = try Self.storedPairing(vault)
-    #expect(!pairing.requester.revocationNoticeExpired(nowMs: Self.forgottenAt))
-    _ = try pairing.requester.forget(vault: vault, forgottenAtMs: Self.forgottenAt)
+    let custodianVault = MemoryPairVault()
+    try pairing.custodian.persistDeviceOnly(vault: custodianVault)
+    #expect(!pairing.custodian.revocationNoticeExpired(nowMs: Self.forgottenAt))
+    _ = try pairing.custodian.forget(vault: custodianVault, forgottenAtMs: Self.forgottenAt)
     let window = Self.noticeDays * Self.millisecondsPerDay
     #expect(
-      !pairing.requester.revocationNoticeExpired(nowMs: Self.forgottenAt + window - Self.tick))
-    #expect(pairing.requester.revocationNoticeExpired(nowMs: Self.forgottenAt + window))
+      !pairing.custodian.revocationNoticeExpired(nowMs: Self.forgottenAt + window - Self.tick))
+    #expect(pairing.custodian.revocationNoticeExpired(nowMs: Self.forgottenAt + window))
+    _ = try pairing.requester.forget(vault: vault, forgottenAtMs: Self.forgottenAt)
+    let bound = rappRevocationAttemptBoundMs()
+    #expect(
+      !pairing.requester.revocationNoticeExpired(nowMs: Self.forgottenAt + bound - Self.tick))
+    #expect(pairing.requester.revocationNoticeExpired(nowMs: Self.forgottenAt + bound))
+  }
+
+  @Test("A requester's idle expiry destroys the pairing and owes nothing")
+  internal func requesterExpiryDestroys() throws {
+    let vault = MemoryPairVault()
+    let pairing = try Self.storedPairing(vault)
+    let created = pairing.requester.metadata().createdAtMs
+    #expect(
+      try pairing.requester.sweep(
+        vault: vault, nowMs: created + rappPairingIdleExpiryMs(), sessionEstablished: false)
+        == .expired)
+    #expect(vault.wasRevoked(pairing.requester.metadata().pairId))
+    #expect(throws: RappBindingError.WrongPhase) { _ = try pairing.requester.encodedBytes() }
+  }
+
+  @Test("The peer's new name is stored, and the same name stores nothing")
+  internal func peerRenamed() throws {
+    let vault = MemoryPairVault()
+    let pairing = try PairedBridges.pair(granting: everyProfile)
+    try pairing.custodian.persistDeviceOnly(vault: vault)
+    let name = try #require(RappDisplayName("macOS - renamed-host"))
+    #expect(try pairing.custodian.updatePeerDisplayName(vault: vault, name: name))
+    #expect(!(try pairing.custodian.updatePeerDisplayName(vault: vault, name: name)))
+    let stored = try #require(vault.stored(pairing.custodian.metadata().pairId))
+    #expect(try PairRecord.decode(stored).peerDisplayName == name.text)
   }
 }

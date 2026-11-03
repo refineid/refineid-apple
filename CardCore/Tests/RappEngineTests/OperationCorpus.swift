@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The vendored operation-protocol message bodies (RAPP v26.10.29 §7.1, §9,
+/// The vendored operation-protocol message bodies (RAPP v26.11.2 §7.1, §9,
 /// §10.3).
 internal struct OperationCorpus: Decodable {
   private enum CodingKeys: String, CodingKey {
@@ -11,6 +11,8 @@ internal struct OperationCorpus: Decodable {
     case fixedInputs = "fixed_inputs"
     case vectors = "vectors"
     case rejected = "rejected"
+    case refused = "refused"
+    case rejectedByFrameBound = "rejected_by_frame_bound"
   }
 
   internal let format: String
@@ -19,4 +21,8 @@ internal struct OperationCorpus: Decodable {
   internal let vectors: [OperationVector]
   /// Bodies a receiver must refuse.
   internal let rejected: [OperationVector]
+  /// Requests that decode and are refused with `unsupported_parameter`.
+  internal let refused: [OperationVector]
+  /// Packages whose request does not fit one frame (RAPP v26.11.2 §9.3).
+  internal let rejectedByFrameBound: [FrameBoundVector]
 }

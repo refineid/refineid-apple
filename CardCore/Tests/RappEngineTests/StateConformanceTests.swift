@@ -8,7 +8,7 @@ import Testing
 @Suite("RAPP state tables against the vendored formal model")
 internal struct StateConformanceTests {
   /// Rule counts the model declares, per component machine.
-  private static let expectedRuleCounts = [("pairing", 36), ("session", 28), ("operation", 25)]
+  private static let expectedRuleCounts = [("pairing", 38), ("session", 29), ("operation", 25)]
 
   /// The model constants the engine holds as numbers, by name.
   private static let engineConstants: [String: UInt64] = [
@@ -20,6 +20,9 @@ internal struct StateConformanceTests {
     "pairing_idle_expiry_days": PairRecord.pairingIdleExpiryDays,
     "identity_offer_grace_ms": IdentityOfferGrace.milliseconds,
     "quit_withdrawal_bound_ms": QuitWithdrawalBound.milliseconds,
+    "redial_window_ms": RedialWindow.milliseconds,
+    "revocation_attempt_bound_ms": RevocationAttemptBound.milliseconds,
+    "display_name_max_bytes": UInt64(RappDisplayName.maximumBytes),
   ]
 
   /// Model constants the engine holds by its shape rather than as a number
@@ -148,11 +151,26 @@ internal struct StateConformanceTests {
     #expect(duplicates.isEmpty, "\(duplicates)")
   }
 
-  @Test("The guard and action vocabularies match the model")
+  @Test("The guard and action vocabularies are the ones the component machines use")
   internal func vocabularyMatches() throws {
     let model = try reader()
-    #expect(Set(RappGuard.allCases.map(\.rawValue)) == model.guardNames)
-    #expect(Set(RappAction.allCases.map(\.rawValue)) == model.actionNames)
+    let rules = model.rules.values.flatMap(\.self)
+    #expect(Set(RappGuard.allCases.map(\.rawValue)) == Set(rules.compactMap(\.condition)))
+    #expect(Set(RappAction.allCases.map(\.rawValue)) == Set(rules.flatMap(\.actions)))
+  }
+
+  @Test("Every declared guard and action is used by a component or lifecycle machine")
+  internal func everyDeclaredNameIsUsed() throws {
+    let model = try reader()
+    let lifecycle = try StateModelFile.lifecycle(filePath: #filePath).machines.values
+    let entries = lifecycle.flatMap { $0.transitions + $0.cannotHappen }
+    let rules = model.rules.values.flatMap(\.self)
+    let usedGuards = Set(rules.compactMap(\.condition)).union(entries.flatMap(\.guards))
+    let usedActions = Set(rules.flatMap(\.actions)).union(entries.flatMap(\.actions))
+    // `pair_record_store_failed` is also the pairing event it names, and
+    // `sweep_stored_pairings` runs before `launched` is raised (§4.7).
+    #expect(model.guardNames.subtracting(usedGuards) == ["pair_record_store_failed"])
+    #expect(model.actionNames.subtracting(usedActions) == ["sweep_stored_pairings"])
   }
 
   @Test("The state and event vocabularies match the model")

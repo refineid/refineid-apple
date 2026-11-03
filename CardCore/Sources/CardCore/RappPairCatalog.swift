@@ -27,7 +27,7 @@
     /// refusing a vault that repeats a pair identifier.
     ///
     /// A pairing this endpoint forgot serves nothing and is not listed (RAPP
-    /// v26.10.29 §4.6), nor is one whose storage the peer never confirmed
+    /// v26.11.2 §4.6), nor is one whose storage the peer never confirmed
     /// (§4.3 item 4).
     public func activePairs() throws -> [RappPairingCoordinator.PairSummary] {
       var seen = Set<Data>()
@@ -67,7 +67,7 @@
 
     /// Forgets the pairing while no session to its peer is open: it serves
     /// nothing from now on and keeps its key only to tell the peer on the
-    /// next session (RAPP v26.10.29 §4.6 item 2).
+    /// next session (RAPP v26.11.2 §4.6 item 2).
     @discardableResult
     public func forget(pairID: Data) throws -> RappForgetOutcome {
       try RappPairRevocation.forget(try load(pairID: pairID), in: vault, clock: clock)

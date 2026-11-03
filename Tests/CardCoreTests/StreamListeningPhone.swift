@@ -38,7 +38,7 @@ import Foundation
           code: code,
           profiles: rappCredentialProfiles(),
           transportProfile: rappStreamProfileName(),
-          displayName: "Phone",
+          displayName: TestDisplayNames.custodian,
           platform: "iOS",
           vault: vault),
         transport: RappClosureFrameTransport(

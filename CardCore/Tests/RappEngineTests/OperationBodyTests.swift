@@ -1,7 +1,7 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 //
 // Replays the operation-protocol bodies an independent encoder produced from
-// the RAPP v26.10.29 schemas. Every body is produced through the engine's own
+// the RAPP v26.11.2 schemas. Every body is produced through the engine's own
 // encoders rather than assembled here, so the test proves what a peer would
 // actually receive, and every body is read back through the decoder a peer
 // runs.
@@ -22,7 +22,7 @@ internal struct OperationBodyTests {
   /// The session identifier the read-back envelopes carry.
   private static let sessionIdentifier = Data(count: WireLimits.sessionIdentifier)
 
-  /// The sequence of the first envelope in a direction (RAPP v26.10.29
+  /// The sequence of the first envelope in a direction (RAPP v26.11.2
   /// §7.2 item 3).
   internal static let firstSequence: UInt64 = 0
 
@@ -99,7 +99,7 @@ internal struct OperationBodyTests {
   internal func vectorIdentity() throws {
     let corpus = try Self.corpus()
     #expect(corpus.format == "fi.refineid.rapp.operation-vectors")
-    #expect(corpus.protocolDocumentVersion == "26.10.29")
+    #expect(corpus.protocolDocumentVersion == "26.11.2")
     #expect(!corpus.vectors.isEmpty)
     #expect(!corpus.rejected.isEmpty)
   }
@@ -124,8 +124,17 @@ internal struct OperationBodyTests {
       RequestCase(
         name: "request-sign-document",
         operation: .signDocument(
-          documentName: inputs.documentName, keyProfile: .ecdsaP384, algorithm: .ecdsaSha384,
+          document: DocumentToSign(name: inputs.documentName, containedFiles: nil),
+          keyProfile: .ecdsaP384, algorithm: .ecdsaSha384,
           digest: try Data(hex: inputs.digestSha384))),
+      RequestCase(
+        name: "request-sign-document-package",
+        operation: .signDocument(
+          document: DocumentToSign(
+            name: inputs.packageName,
+            containedFiles: try ContainedFiles(names: inputs.packageFiles)),
+          keyProfile: .rsa2048, algorithm: .rsaPkcs1Sha256,
+          digest: try Data(hex: inputs.digestSha256))),
       RequestCase(
         name: "request-batch-sign-documents",
         operation: .batchSignDocuments(
@@ -172,6 +181,42 @@ internal struct OperationBodyTests {
         _ = try Self.received(
           type, bodyHex: vector.bodyHex, nowMilliseconds: Self.receiptMilliseconds)
       }
+    }
+  }
+
+  @Test("Every refused request decodes and is refused as an unsupported parameter")
+  internal func refusedRequests() throws {
+    let corpus = try Self.corpus()
+    #expect(!corpus.refused.isEmpty)
+    for vector in corpus.refused {
+      let received = try Self.received(
+        .operationRequest, bodyHex: vector.bodyHex, nowMilliseconds: Self.receiptMilliseconds)
+      guard case .operationRequestRefused(let refusal) = received else {
+        Issue.record("\(vector.name) is refused")
+        continue
+      }
+      #expect(refusal.error == .unsupportedParameter, "\(vector.name)")
+    }
+  }
+
+  @Test("A package whose request does not fit one frame is refused at the smallest count")
+  internal func packageFrameBound() throws {
+    let corpus = try Self.corpus()
+    let inputs = corpus.fixedInputs
+    let bound = try #require(corpus.rejectedByFrameBound.first)
+    func request(_ count: Int) throws -> OperationRequest {
+      try Self.request(
+        inputs,
+        .signDocument(
+          document: DocumentToSign(
+            name: bound.documentName,
+            containedFiles: try ContainedFiles(names: (0..<count).map(bound.entry))),
+          keyProfile: .rsa2048, algorithm: .rsaPkcs1Sha256,
+          digest: try Data(hex: inputs.digestSha256)))
+    }
+    #expect(throws: Never.self) { _ = try request(bound.smallestRefusedCount - 1) }
+    #expect(throws: CardOperationError.packageTooLarge) {
+      _ = try request(bound.smallestRefusedCount)
     }
   }
 

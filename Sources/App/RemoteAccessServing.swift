@@ -9,7 +9,7 @@
   /// Enabling records the choice and starts discovery and serving; the
   /// notification authorization the approval prompts need is asked
   /// separately, after its own explanation. Disabling withdraws (RAPP
-  /// v26.10.29 §4.5 item 3): every open session closes with
+  /// v26.11.2 §4.5 item 3): every open session closes with
   /// `service_withdrawn`, the listener announces the withdrawal, and the
   /// pairings stay for the next time it is enabled.
   @MainActor

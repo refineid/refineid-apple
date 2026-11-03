@@ -6,7 +6,7 @@ import Testing
 @testable import CardCore
 
 /// One CPace attempt at a time across a BLE custodian's links (RAPP
-/// v26.10.29 §3.3 item 6, §4.2 "Busy Refusal" item 2).
+/// v26.11.2 §3.3 item 6, §4.2 "Busy Refusal" item 2).
 @Suite
 internal struct RappBleAttemptGateTests {
   @Test("A holder that disconnects frees the gate for another central's step 1")

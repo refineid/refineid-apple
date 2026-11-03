@@ -21,6 +21,9 @@ import Testing
     ) async throws {
       for await event in coordinator.events {
         switch event {
+        case .peerNamed:
+          break
+
         case .established:
           try await coordinator.reportCardStatus(
             RappCardStatus(card: .present(fingerprint), reader: .absent))
@@ -50,6 +53,9 @@ import Testing
       var announced: RappCardStatus?
       for await event in coordinator.events {
         switch event {
+        case .peerNamed:
+          break
+
         case .established, .progress:
           break
 

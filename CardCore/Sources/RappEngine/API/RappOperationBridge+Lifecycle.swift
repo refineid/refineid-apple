@@ -3,6 +3,16 @@
 import Foundation
 
 extension RappOperationBridge {
+  /// The files a package holds, or nil for a single document.
+  private static func package(holding names: [String]) throws -> ContainedFiles? {
+    guard !names.isEmpty else { return nil }
+    do {
+      return try ContainedFiles(names: names)
+    } catch {
+      throw RappBindingError.InvalidInput
+    }
+  }
+
   /// Begins a card inspection.
   public func beginInspectCard(
     operationId: RappOperationIdentifier, localStartMs: UInt64, expiresAfterMs: UInt64
@@ -51,9 +61,17 @@ extension RappOperationBridge {
   }
 
   /// Begins a document signature over a document digest.
+  ///
+  /// For a package, `documentName` is the package's own name and
+  /// `containedFiles` the names of the files it holds, in container order;
+  /// empty for a single document (RAPP v26.11.2 §9.3).
+  ///
+  /// - Throws: ``RappBindingError/InvalidInput`` for invalid names or a
+  ///   package whose request does not fit one frame.
   public func beginSignDocument(  // swiftlint:disable:this function_parameter_count
     operationId: RappOperationIdentifier,
     documentName: String,
+    containedFiles: [String],
     keyProfile: RappCardKeyProfile,
     algorithm: RappSignatureAlgorithm,
     digest: Data,
@@ -62,12 +80,14 @@ extension RappOperationBridge {
   ) throws -> RappBridgeAction {
     try beginOperation(
       .signDocument(
-        documentName: documentName, keyProfile: keyProfile.engineProfile,
+        document: DocumentToSign(
+          name: documentName, containedFiles: try Self.package(holding: containedFiles)),
+        keyProfile: keyProfile.engineProfile,
         algorithm: algorithm.engineAlgorithm, digest: digest),
       operationId: operationId, localStartMs: localStartMs, expiresAfterMs: expiresAfterMs)
   }
 
-  /// Begins signing documents under one PIN 2 entry (RAPP v26.10.29 §9.3);
+  /// Begins signing documents under one PIN 2 entry (RAPP v26.11.2 §9.3);
   /// names and digests pair up by position.
   public func beginBatchSignDocuments(  // swiftlint:disable:this function_parameter_count
     operationId: RappOperationIdentifier,
@@ -93,6 +113,7 @@ extension RappOperationBridge {
   /// `protocol_violation` close. Neither touches the pairing (§10.1).
   public func receiveFrame(bytes: Data, nowMs: UInt64) -> RappBridgeAction {
     locked {
+      if let sent = awaitingEcho { return receiveWhileAwaitingEcho(bytes, sent: sent) }
       guard !closed else { return .noAction }
       let envelope: Envelope
       do {
@@ -109,23 +130,21 @@ extension RappOperationBridge {
 
   /// The step for one authenticated message on the established session;
   /// called with the lock held.
+  ///
+  /// A custodian admits nothing before the requester's `session.hello` but
+  /// a close (§7.1 item 6).
   private func act(on envelope: Envelope, nowMs: UInt64) -> RappBridgeAction {
+    if !helloReceived, envelope.messageType != .sessionHello,
+      envelope.messageType != .sessionClose
+    {
+      return violationClose()
+    }
     switch envelope.messageType {
-    case .livenessPing:
-      guard let challenge = PingChallenge(body: envelope.body) else { return violationClose() }
-      return sendOrClose(.livenessPong, body: ["challenge": .bytes(challenge.bytes)])
+    case .livenessPing, .livenessPong:
+      return liveness(envelope, nowMs: nowMs)
 
-    case .livenessPong:
-      guard let challenge = PingChallenge(body: envelope.body) else { return violationClose() }
-      _ = liveness.receivePong(nowMilliseconds: nowMs, challenge: challenge)
-      return .noAction
-
-    case .sessionClose:
-      var reason: RappCloseReason?
-      if case .text(let name)? = envelope.body["reason"] {
-        reason = RappCloseReason(rawValue: name)
-      }
-      return .sessionClosed(reason: reason, endedOperation: endOperations())
+    case .sessionClose, .sessionHello:
+      return sessionMessage(envelope)
 
     case .pairingHello, .pairingConfirm, .pairingAbort, .pairingStored, .sessionReady:
       // A message of an earlier phase has no transition on an established
@@ -144,12 +163,39 @@ extension RappOperationBridge {
     }
   }
 
+  /// A ping is answered at once; a pong settles the outstanding challenge.
+  private func liveness(_ envelope: Envelope, nowMs: UInt64) -> RappBridgeAction {
+    guard let challenge = PingChallenge(body: envelope.body) else { return violationClose() }
+    guard envelope.messageType == .livenessPing else {
+      _ = liveness.receivePong(nowMilliseconds: nowMs, challenge: challenge)
+      return .noAction
+    }
+    return sendOrClose(.livenessPong, body: ["challenge": .bytes(challenge.bytes)])
+  }
+
+  /// The peer's close, answered with its echo (§7.1 item 7), or the
+  /// requester's hello, which a custodian takes once (§7.1 item 6).
+  private func sessionMessage(_ envelope: Envelope) -> RappBridgeAction {
+    if envelope.messageType == .sessionClose {
+      guard case .text(let name)? = envelope.body["reason"],
+        let reason = RappCloseReason(rawValue: name)
+      else { return violationClose() }
+      return echoClose(reason)
+    }
+    guard case .proxy = side, !helloReceived,
+      let hello = try? SessionHello.from(body: envelope.body)
+    else { return violationClose() }
+    helloReceived = true
+    return .peerNamed(hello.displayName)
+  }
+
   /// Advances liveness with the platform's monotonic time and fresh random
   /// challenge bytes: a ping after 5 seconds of silence, the session's end
   /// after 30 (§8.3).
   public func pollLiveness(nowMs: UInt64, challenge: Data) throws -> RappBridgeAction {
     guard let ping = PingChallenge(challenge) else { throw RappBindingError.InvalidInput }
     return locked {
+      guard awaitingEcho == nil else { return .noAction }
       guard !closed else { return .sessionClosed(reason: nil, endedOperation: nil) }
       switch liveness.poll(nowMilliseconds: nowMs, nextChallenge: ping) {
       case .noAction:
@@ -164,28 +210,35 @@ extension RappOperationBridge {
     }
   }
 
-  /// Closes the session; every operation of it is over and the pairing
-  /// stays.
+  /// Closes the session; every operation of it is over and the pairing stays.
+  ///
+  /// It also ends the wait for the echo of this endpoint's close.
   public func closeSession() -> RappBridgeAction {
-    locked { closingAction() }
+    locked {
+      if awaitingEcho != nil {
+        awaitingEcho = nil
+        session.close()
+        return .sessionClosed(reason: nil, endedOperation: nil)
+      }
+      return closingAction()
+    }
   }
 
   /// Closes the session with an authenticated `session.close` carrying
-  /// `reason`; the returned frame is delivered before the link drops.
+  /// `reason`; the returned frame is delivered, then the endpoint waits for
+  /// the peer's echo within its bound before the link drops (§7.1 item 7).
   ///
-  /// A session already closed gives `sessionClosed` without a frame.
+  /// A session already closed, or already waiting for an echo, gives
+  /// `sessionClosed` or nothing, without a frame.
   ///
   /// An endpoint that withdraws, custodian or requester, closes every open
-  /// session with ``RappCloseReason/serviceWithdrawn`` (§4.5 items 3 and 8);
-  /// a requester that quits waits at most ``rappQuitWithdrawalBoundMs()`` for
-  /// the frames to leave.
+  /// session with ``RappCloseReason/serviceWithdrawn`` (§4.5 items 3 and 8)
+  /// and waits at most ``rappQuitWithdrawalBoundMs()`` for each echo.
   public func closeWithReason(_ reason: RappCloseReason) -> RappBridgeAction {
     locked {
+      guard awaitingEcho == nil else { return .noAction }
       guard !closed else { return .sessionClosed(reason: nil, endedOperation: nil) }
-      let notice = try? session.seal(.sessionClose, body: ["reason": .text(reason.rawValue)])
-      let ended = endOperations()
-      guard let notice else { return .sessionClosed(reason: nil, endedOperation: ended) }
-      return .sendClose(notice, reason: reason, endedOperation: ended)
+      return sealClose(reason)
     }
   }
 

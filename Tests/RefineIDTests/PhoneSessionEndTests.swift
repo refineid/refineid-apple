@@ -10,7 +10,7 @@
 
   /// The phone's statements at the end of a session are told apart from a
   /// lost connection, and only a loss waits a back-off before the next dial
-  /// (RAPP v26.10.29 §4.5 item 6, §4.6 item 4).
+  /// (RAPP v26.11.2 §4.5 item 6, §4.6 item 4).
   @MainActor
   @Suite(.serialized)
   internal struct PhoneSessionEndTests {
@@ -26,6 +26,21 @@
       #expect(PhoneSessionEnd(.handshake(.pairRevoked)) == .pairingRevoked)
       #expect(
         PhoneSessionEnd(.handshake(.revocationNoticeDelivered)) == .revocationNoticeDelivered)
+    }
+
+    @Test("A card_unavailable close drops the identity as a withdrawal does")
+    internal func cardUnavailableIsAWithdrawal() {
+      #expect(PhoneSessionEnd(.operation(.peerClosed(.cardUnavailable))) == .withdrawn)
+      #expect(PhoneSessionEnd(.handshake(.peerClosed(.cardUnavailable))) == .withdrawn)
+    }
+
+    @Test("A protocol violation, sent or received, is its own end and no loss")
+    internal func violationIsItsOwnEnd() {
+      #expect(PhoneSessionEnd(.operation(.protocolViolation)) == .violation)
+      #expect(PhoneSessionEnd(.operation(.peerClosed(.protocolViolation))) == .violation)
+      #expect(PhoneSessionEnd(.handshake(.protocolViolation)) == .violation)
+      #expect(PhoneSessionEnd(.handshake(.peerClosed(.protocolViolation))) == .violation)
+      #expect(PhoneSessionEnd(.handshake(.protocolFailure)) == .lost)
     }
 
     @Test("A lost transport, a local close and an ordinary close are losses")

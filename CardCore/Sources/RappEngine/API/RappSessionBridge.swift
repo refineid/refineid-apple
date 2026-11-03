@@ -2,16 +2,21 @@
 
 import Foundation
 
-/// One session over a stored pairing (RAPP v26.10.29 §6.3, §7.1 item 5).
+/// One session over a stored pairing (RAPP v26.11.2 §6.3, §7.1 items 5 to
+/// 7).
 ///
 /// The session authenticates the pairing's keys with `Noise_KK`, then the
-/// custodian sends `session.ready` and the requester verifies it, and the
+/// custodian sends `session.ready` with its display name and the requester
+/// verifies it and answers with `session.hello` carrying its own, and the
 /// session carries operations until it closes. Closing spends the bridge.
 public final class RappSessionBridge: @unchecked Sendable {
   /// Where the session has reached.
   private enum Phase {
     case handshaking(SessionHandshake)
     case authenticating(SessionAuthentication)
+    /// This endpoint sent a close before `session.ready` was settled and
+    /// waits for its echo (§7.1 item 7).
+    case closing(SessionAuthentication)
     case established(EstablishedSession)
     case closed
   }
@@ -143,43 +148,59 @@ public final class RappSessionBridge: @unchecked Sendable {
   }
 
   /// The custodian's `session.ready`: the exact session parameters with a
-  /// fresh random nonce.
+  /// fresh random nonce and `displayName`, the custodian's current name
+  /// (§4.3 item 4).
   ///
   /// Then call ``enterEstablished()``.
   ///
   /// - Throws: ``RappBindingError/WrongPhase`` outside authentication, on a
   /// requester, for a forgotten record, or on a second ready.
-  public func sendReady(nonce: Data) throws -> Data {
+  public func sendReady(nonce: Data, displayName: RappDisplayName) throws -> Data {
     guard !revocationNoticePending() else { throw RappBindingError.WrongPhase }
     return try locked {
       guard case .authenticating(var authentication) = phase else {
         throw RappBindingError.WrongPhase
       }
       defer { phase = .authenticating(authentication) }
-      return try Self.mapping { try authentication.sendReady(nonce: nonce) }
+      return try Self.mapping {
+        try authentication.sendReady(nonce: nonce, displayName: displayName)
+      }
     }
   }
 
-  /// The requester reads the custodian's first message (§7.1 item 5).
+  /// The requester reads the custodian's first message (§7.1 item 5);
+  /// `displayName` is the requester's current name for its `session.hello`.
   ///
-  /// On ``RappReadyOutcome/verified`` call ``enterEstablished()``; every other
-  /// outcome ends the session. The pairing stays unless the custodian closed
-  /// with `pairingRevoked`.
+  /// On ``RappReadyOutcome/verified(peerDisplayName:hello:)`` release the
+  /// hello and call ``enterEstablished()``; on
+  /// ``RappReadyOutcome/violationClosed(notice:)`` with a notice, wait for
+  /// its echo with ``receiveCloseEcho(bytes:)``; every other outcome ends the
+  /// session. The pairing stays unless the custodian closed with
+  /// `pairingRevoked`.
   ///
   /// - Throws: ``RappBindingError/WrongPhase`` outside authentication or on
   /// the custodian.
-  public func receiveReady(bytes: Data) throws -> RappReadyOutcome {
+  public func receiveReady(bytes: Data, displayName: RappDisplayName) throws -> RappReadyOutcome {
     try locked {
       guard case .authenticating(var authentication) = phase else {
         throw RappBindingError.WrongPhase
       }
       let outcome: RappReadyOutcome
       do {
-        outcome = try authentication.receiveReady(bytes)
+        outcome = try authentication.receiveReady(bytes, displayName: displayName)
       } catch {
         throw RappBindingError.WrongPhase
       }
-      phase = outcome == .verified ? .authenticating(authentication) : .closed
+      switch outcome {
+      case .verified:
+        phase = .authenticating(authentication)
+
+      case .violationClosed(notice: .some):
+        phase = .closing(authentication)
+
+      case .violationClosed(notice: .none), .peerClosed, .integrityFailure:
+        phase = .closed
+      }
       return outcome
     }
   }
@@ -188,7 +209,8 @@ public final class RappSessionBridge: @unchecked Sendable {
   /// the sealed `session.close` with reason `pairing_revoked` (§4.6 item
   /// 2), sent once ``enterAuthentication()`` ran and before anything else.
   ///
-  /// The session closes and no card session starts; deliver the frame, drop
+  /// No card session starts. Deliver the frame, wait for the peer's echo
+  /// with ``receiveCloseEcho(bytes:)`` within the bound (§7.1 item 7), drop
   /// the link, then destroy the record with
   /// ``RappPairRecord/revoke(vault:revokedAtMs:)``.
   ///
@@ -201,8 +223,20 @@ public final class RappSessionBridge: @unchecked Sendable {
       guard case .authenticating(var authentication) = phase else {
         throw RappBindingError.WrongPhase
       }
-      phase = .closed
-      return try Self.mapping { try authentication.sendRevocationNotice() }
+      let notice = try Self.mapping { try authentication.sendRevocationNotice() }
+      phase = .closing(authentication)
+      return notice
+    }
+  }
+
+  /// Reads one frame while this endpoint waits for the echo of the close it
+  /// sent before the session was established (§7.1 item 7).
+  public func receiveCloseEcho(bytes: Data) -> RappCloseEcho {
+    locked {
+      guard case .closing(var authentication) = phase else { return .ended }
+      let echo = authentication.receiveCloseEcho(bytes)
+      phase = echo == .ignored ? .closing(authentication) : .closed
+      return echo
     }
   }
 

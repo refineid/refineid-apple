@@ -29,8 +29,13 @@ internal struct RappHeldSessionHandoffTests {
             digest: digest))
         all.append(
           .documentSigning(
-            documentName: "contract.pdf", keyProfile: keyProfile, algorithm: algorithm,
-            digest: digest))
+            document: RappSigningDocument(name: "contract.pdf", containedFiles: []),
+            keyProfile: keyProfile, algorithm: algorithm, digest: digest))
+        all.append(
+          .documentSigning(
+            document: RappSigningDocument(
+              name: "dossier.asice", containedFiles: ["contract.pdf", "annex.pdf"]),
+            keyProfile: keyProfile, algorithm: algorithm, digest: digest))
       }
     }
     return all

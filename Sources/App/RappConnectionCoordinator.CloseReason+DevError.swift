@@ -16,6 +16,9 @@
       case .protocolFailure:
         "handshake protocol failure"
 
+      case .protocolViolation:
+        "handshake closed for a protocol violation"
+
       case .peerClosed(let close):
         Self.isFailure(close) ? "peer refused the session: \(close.rawValue)" : nil
       }
@@ -34,6 +37,9 @@
 
       case .protocolFailure:
         "protocol failure"
+
+      case .protocolViolation:
+        "closed for a protocol violation"
 
       case .peerClosed(let close):
         Self.isFailure(close) ? "peer closed the session: \(close.rawValue)" : nil

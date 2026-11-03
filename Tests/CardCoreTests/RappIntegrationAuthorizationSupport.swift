@@ -48,7 +48,7 @@ import Testing
 
     /// Takes `expected` through inspection, consent and the card command,
     /// then answers with `signature`; the custodian is done once the result
-    /// left, since nothing acknowledges it (RAPP v26.10.29 §8.2).
+    /// left, since nothing acknowledges it (RAPP v26.11.2 §8.2).
     internal static func authorizeAndComplete(
       _ coordinator: RappConnectionCoordinator,
       operation expected: RappIntegrationFixtures.RequestedOperation,
@@ -58,6 +58,9 @@ import Testing
       var progress = RappIntegrationFixtures.ProxyProgress()
       for await event in coordinator.events {
         switch event {
+        case .peerNamed:
+          break
+
         case .established, .answered:
           // The custodian's own word that an earlier operation is over.
           break
@@ -157,6 +160,9 @@ import Testing
       var progress = RappIntegrationFixtures.ProxyProgress()
       for await event in coordinator.events {
         switch event {
+        case .peerNamed:
+          break
+
         case .established, .answered:
           // The custodian's own word that an earlier operation is over.
           break

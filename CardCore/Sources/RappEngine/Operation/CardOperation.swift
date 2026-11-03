@@ -20,17 +20,20 @@ internal enum CardOperation: Equatable {
   case browserAuthenticate(
     origin: String, keyProfile: CardKeyProfile, algorithm: SignatureAlgorithm, digest: Data)
 
+  /// Signs one document, or one package with the files it holds (RAPP
+  /// v26.11.2 §9.3).
   case signDocument(
-    documentName: String, keyProfile: CardKeyProfile, algorithm: SignatureAlgorithm, digest: Data)
+    document: DocumentToSign, keyProfile: CardKeyProfile, algorithm: SignatureAlgorithm,
+    digest: Data)
 
-  /// Signs one or more documents under one PIN 2 entry (RAPP v26.10.29
+  /// Signs one or more documents under one PIN 2 entry (RAPP v26.11.2
   /// §9.3); names and digests pair up by position.
   case batchSignDocuments(
     documentNames: [String], keyProfile: CardKeyProfile, algorithm: SignatureAlgorithm,
     digests: [Data])
 
   /// Whether this action commands a private key behind a PIN, which the
-  /// custodian takes before the card command (RAPP v26.10.29 §8.2 items 3
+  /// custodian takes before the card command (RAPP v26.11.2 §8.2 items 3
   /// and 6).
   internal var isConsequential: Bool {
     switch self {
@@ -102,8 +105,8 @@ internal enum CardOperation: Equatable {
     case .browserAuthenticate(let origin, _, _, _):
       ["origin": .text(origin)]
 
-    case .signDocument(let documentName, _, _, _):
-      ["document_name": .text(documentName)]
+    case .signDocument(let document, _, _, _):
+      document.context
 
     case .batchSignDocuments(let documentNames, _, _, _):
       ["document_names": .array(documentNames.map(WireValue.text))]
@@ -142,16 +145,20 @@ internal enum CardOperation: Equatable {
     _ algorithm: SignatureAlgorithm,
     _ digest: Data
   ) throws {
-    let trimmed = displayContext.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty, displayContext.utf8.count <= OperationLimit.displayContextBytes else {
-      throw CardOperationError.invalidDisplayContext
-    }
+    try validateDisplayName(displayContext)
     guard digest.count == algorithm.digestLength else {
       throw CardOperationError.wrongDigestLength
     }
     guard algorithm.supports(keyProfile) else {
       throw CardOperationError.keyAlgorithmMismatch
     }
+  }
+
+  /// A name the authorizer shows: within the name bound and not blank.
+  internal static func validateDisplayName(_ name: String) throws {
+    guard OperationLimit.displayNameBytes.contains(name.utf8.count),
+      !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    else { throw CardOperationError.invalidDisplayContext }
   }
 
   /// Rebuilds an operation from an authenticated request body.
@@ -182,7 +189,9 @@ internal enum CardOperation: Equatable {
 
     case "sign_document":
       operation = .signDocument(
-        documentName: try takeOperationText(&context, "document_name"),
+        document: DocumentToSign(
+          name: try takeOperationText(&context, "document_name"),
+          containedFiles: try takeContainedFiles(&context)),
         keyProfile: try takeKeyProfile(&payload),
         algorithm: try takeAlgorithm(&payload),
         digest: try takeOperationBytes(&payload, "digest"))
@@ -211,16 +220,13 @@ internal enum CardOperation: Equatable {
     case .browserAuthenticate(let origin, let keyProfile, let algorithm, let digest):
       try Self.validateNamedDigest(origin, keyProfile, algorithm, digest)
 
-    case .signDocument(let documentName, let keyProfile, let algorithm, let digest):
-      try Self.validateNamedDigest(documentName, keyProfile, algorithm, digest)
+    case .signDocument(let document, let keyProfile, let algorithm, let digest):
+      try Self.validateNamedDigest(document.name, keyProfile, algorithm, digest)
 
     case .batchSignDocuments(let documentNames, let keyProfile, let algorithm, let digests):
       guard !digests.isEmpty, documentNames.count == digests.count
       else { throw CardOperationError.invalidField(field: "digests") }
       for (name, digest) in zip(documentNames, digests) {
-        guard OperationLimit.batchDocumentNameBytes.contains(name.utf8.count) else {
-          throw CardOperationError.invalidDisplayContext
-        }
         try Self.validateNamedDigest(name, keyProfile, algorithm, digest)
       }
     }

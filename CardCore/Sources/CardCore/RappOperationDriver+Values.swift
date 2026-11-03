@@ -178,6 +178,9 @@
       public let documentNames: [String]
       /// A batch's digests, paired with `documentNames`; empty otherwise.
       public let digests: [Data]
+      /// A package's files in container order, shown under its name (RAPP
+      /// v26.11.2 §9.3); empty otherwise.
+      public let containedFiles: [String]
 
       internal init(_ value: RappOperationDescriptor) {
         kind = OperationKind(value.kind)
@@ -187,6 +190,7 @@
         digest = value.digest
         documentNames = value.documentNames
         digests = value.digests
+        containedFiles = value.containedFiles
       }
     }
 
@@ -194,13 +198,16 @@
     public enum CloseReason: Sendable, Equatable {
       case localRequest
       case transportClosed
-      /// An authenticated protocol violation, sent or received, or a frame
-      /// that failed authentication; the pairing stays (§10.1).
+      /// A local failure to drive the session; the pairing stays.
       case protocolFailure
+      /// This endpoint detected an authenticated protocol violation and
+      /// closed with `protocol_violation`; the pairing stays (§10.1).
+      case protocolViolation
       /// The peer revoked the pairing; revoke it here too and withdraw its
       /// identity (§4.6 item 4).
       case pairRevoked
-      /// This endpoint's own close notice was released.
+      /// This endpoint's own close notice was released, and its echo
+      /// arrived or the wait for it ended (§7.1 item 7).
       case terminalFrameReleased
       /// The peer withdrew (`service_withdrawn`, §4.5): a custodian stopped
       /// serving, or a requester stopped using, every pairing. The pairing
@@ -214,7 +221,8 @@
     /// A token that the transport must return after it has released a frame.
     public enum FrameRelease: Sendable, Equatable {
       case noRelease
-      /// The frame was this endpoint's close; the session ends with it.
+      /// The frame was this endpoint's close; the wait for its echo
+      /// follows, and the session ends with `CloseReason` (§7.1 item 7).
       case closeSession(CloseReason)
     }
 
@@ -234,6 +242,13 @@
       case cardStatus(RappCardStatus)
       /// The session's operation ended with the session (§8.1 item 3).
       case operationEnded(RappEndedOperation)
+      /// The requester named itself in `session.hello` (§4.3 item 4); the
+      /// custodian records the name in the pair record where it differs.
+      case peerNamed(RappDisplayName)
+      /// This endpoint's close left; keep the link and feed frames until
+      /// the echo arrives, or call ``RappOperationDriver/echoWaitEnded()``
+      /// once the bound passed (§7.1 item 7).
+      case awaitCloseEcho
       case closed(CloseReason)
     }
   }

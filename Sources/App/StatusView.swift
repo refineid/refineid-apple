@@ -52,7 +52,7 @@
 
     /// Ready when a document is waiting and PIN 2 has been entered for
     /// it: PIN 2 is asked for every signature or batch and kept no longer
-    /// (RAPP v26.10.29 §11 item 2).
+    /// (RAPP v26.11.2 §11 item 2).
     private var canSign: Bool {
       availability == .ready
         && !selection.awaitsChoice

@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The custodian's one attempt slot for an offer (RAPP v26.10.29 §3.3
+/// The custodian's one attempt slot for an offer (RAPP v26.11.2 §3.3
 /// items 1 to 5).
 ///
 /// An attempt is admitted before Y_B and T_B leave the custodian, so a peer

@@ -12,7 +12,7 @@ private let fixturePairingCode = "246813"
   import RappEngine
 
   /// A custodian that stored its record and then hears nonsense instead of
-  /// the peer's `pairing.stored` revokes the record (RAPP v26.10.29 §4.3
+  /// the peer's `pairing.stored` revokes the record (RAPP v26.11.2 §4.3
   /// item 4).
   internal final class RappPairingStorageFailureTests: XCTestCase {
     private actor RecordingTransport: RappFrameTransport {
@@ -71,7 +71,8 @@ private let fixturePairingCode = "246813"
       await custodian.receive(try requester.writeHandshakeFrame(nowMonotonicMs: now))
       try requester.enterConfirmation(nowMonotonicMs: now)
       await custodian.receive(
-        try requester.sendHello(displayName: "Mac", platform: "macOS", nowMonotonicMs: now))
+        try requester.sendHello(
+          displayName: TestDisplayNames.requester, platform: "macOS", nowMonotonicMs: now))
       let answered = await transport.snapshot()
       XCTAssertEqual(answered.count, 5)
       _ = try requester.receiveHello(bytes: answered[3], nowMonotonicMs: now)
@@ -90,7 +91,7 @@ private let fixturePairingCode = "246813"
           code: fixturePairingCode,
           profiles: Self.profiles,
           transportProfile: Self.transportProfile,
-          displayName: "Custodian",
+          displayName: TestDisplayNames.custodian,
           platform: "iOS",
           vault: vault),
         transport: transport)

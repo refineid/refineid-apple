@@ -5,6 +5,33 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-11-02 The Apple apps speak RAPP v26.11.2
+
+Every pairing and session on iPhone, iPad and Mac runs RAPP v26.11.2; the
+wire version in the Noise prologue refuses a v26.10.29 peer, and a pair
+record of another format version (now `[26, 11, 2]`, the RAPP version
+that last changed its layout) is dropped, not converted.
+
+- Names follow the device: `session.ready` carries the phone's current
+  name and the Mac's or iPad's first message, `session.hello`, its own;
+  a name that differs replaces the one in the pair record.
+- Every close is acknowledged: a received close is answered with a close
+  carrying the same reason, and an endpoint that sent one waits for that
+  echo, at most 1 second, or for the rest of a revocation attempt.
+- An iPad is a requester only; it never shows a pairing code or serves
+  a card.
+- The Mac shows the phone only through its card: no status names the
+  phone's state. A `card_unavailable` close drops the identity at once
+  like a withdrawal; a protocol violation keeps the pairing and redials
+  only when the phone next appears; a loss redials within 120 seconds.
+- Turning remote use off, and pairing another phone, forget the pairing
+  with one bounded attempt of 10 seconds when no session is open.
+- `sign_document` names a package and the files it holds; the phone's
+  PIN 2 prompt lists them.
+
+The vendored specification, state model, corpus and vectors are the
+v26.11.2 set from the reference repository.
+
 ## 2026-10-29 The Apple apps speak RAPP v26.10.29
 
 Every pairing and session on iPhone, iPad and Mac runs RAPP v26.10.29; the

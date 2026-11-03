@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.10.29 pairing bridge: CPace KC2, attempt admission, ceremony")
+@Suite("RAPP v26.11.2 pairing bridge: CPace KC2, attempt admission, ceremony")
 internal struct PairingBridgeTests {
   private static let code = "7KX4M9"
   private static let wrongCode = "7KX4M8"
@@ -83,11 +83,12 @@ internal struct PairingBridgeTests {
     try custodian.enterConfirmation(nowMonotonicMs: now)
 
     let requesterHello = try requester.sendHello(
-      displayName: "Mac", platform: "macOS", nowMonotonicMs: now)
+      displayName: DisplayNameFixture.requester, platform: "macOS", nowMonotonicMs: now)
     let introduced = try custodian.receiveHello(bytes: requesterHello, nowMonotonicMs: now)
     #expect(introduced.requestedProfiles == Self.profiles.sorted())
     _ = try requester.receiveHello(
-      bytes: try custodian.sendHello(displayName: "iPhone", platform: "iOS", nowMonotonicMs: now),
+      bytes: try custodian.sendHello(
+        displayName: DisplayNameFixture.custodian, platform: "iOS", nowMonotonicMs: now),
       nowMonotonicMs: now)
     let granted = try requester.receiveConfirmation(
       bytes: try custodian.sendConfirmation(grantedProfiles: Self.profiles, nowMonotonicMs: now),

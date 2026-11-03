@@ -94,17 +94,17 @@
         start()
       }
 
-      /// Forgets every pairing as the holder turns remote use off (RAPP
-      /// v26.10.29 §4.6 item 6, CC-100).
+      /// Forgets the pairing as the holder turns remote use off (RAPP
+      /// v26.11.2 §4.6 item 6, CC-100).
       ///
       /// The click is stored in `store` first, with the pairings `vault`
       /// holds (``RemoteUseForgetting``). The phone's identity leaves at
       /// once and everything remote stops. An open session closes with
-      /// `pairing_revoked`; once its close left, or after
-      /// ``QuitWithdrawal/bound``, those pairings are destroyed with their
-      /// keys, off the main thread so a quit can wait on it. A phone with no session open
-      /// is told nothing. A click off while an earlier one is still
-      /// forgetting follows it.
+      /// `pairing_revoked` and waits for its echo; with none open, one
+      /// bounded attempt delivers the close (``RappRevocationAttempt``).
+      /// Then the pairings are destroyed with their keys, off the main
+      /// thread so a quit can wait on it. A click off while an earlier one
+      /// is still forgetting follows it.
       internal func forgetEveryPairing(
         in vault: RappDeviceVault, store: RemoteUseForgetting.Store
       ) {
@@ -116,8 +116,9 @@
         finishForgetting(after: closes, in: vault, store: store)
       }
 
-      /// Finishes the stored click once `closes` left or its bound passed,
-      /// off the main thread, and answers once the app followed.
+      /// Finishes the stored click once `closes` ended, or, when they did
+      /// not leave, once the revocation attempt ended, off the main thread,
+      /// and answers once the app followed.
       ///
       /// One destruction runs at a time: this one starts once any still
       /// running has ended, and a quit waiting on the latest waits on all.
@@ -139,8 +140,12 @@
           if let earlier {
             _ = await earlier.value
           }
+          var told = false
           if let closes {
-            _ = await Self.settled(closes, atMost: QuitWithdrawal.bound)
+            told = await Self.settled(closes, atMost: RevocationBound.attempt)
+          }
+          if !told {
+            await RemoteUseForgetting.attemptRevocation(in: vault, store: store)
           }
           return RemoteUseForgetting.finish(in: vault, store: store, clock: clock)
         }
@@ -175,7 +180,7 @@
     #endif
 
     /// This computer's withdrawal, as a card in its reader suspends remote
-    /// use, as it quits, or as remote use stops (RAPP v26.10.29 §4.5 item
+    /// use, as it quits, or as remote use stops (RAPP v26.11.2 §4.5 item
     /// 8, CC-98, CC-102).
     ///
     /// An open session closes with `service_withdrawn` and a dial under way
@@ -199,7 +204,7 @@
       Self.withdrawPublishedIdentity()
     }
 
-    /// Ends the session as this computer withdraws (RAPP v26.10.29 §4.5
+    /// Ends the session as this computer withdraws (RAPP v26.11.2 §4.5
     /// item 8), answering whether its close left; nil when no session
     /// is open or being dialled.
     ///
@@ -212,7 +217,7 @@
     }
 
     /// Ends the session as the holder forgets every pairing (RAPP
-    /// v26.10.29 §4.6 item 6), answering whether its close left; nil
+    /// v26.11.2 §4.6 item 6), answering whether its close left; nil
     /// when no session is open or being dialled.
     ///
     /// An open session closes with `pairing_revoked`; a dial under way
@@ -222,7 +227,7 @@
     }
 
     /// Ends the open session with `pairing_revoked` when it runs over
-    /// `pairID`, as the pairing is forgotten (RAPP v26.10.29 §4.6 item 1);
+    /// `pairID`, as the pairing is forgotten (RAPP v26.11.2 §4.6 item 1);
     /// false when no session over `pairID` is open or the close did not
     /// leave, so the pairing is kept forgotten for its next session.
     internal func closeSessionForRevocation(pairID: Data) async -> Bool {
@@ -234,6 +239,38 @@
       let told = await session.closePairingRevoked()
       Self.withdrawPublishedIdentity()
       return told
+    }
+
+    /// Forgets every pairing but `kept`, the one just made: a requester
+    /// holds one pairing, and pairing another phone forgets the one it
+    /// replaces (RAPP v26.11.2 §4.6 item 6).
+    ///
+    /// An open session over a replaced pairing closes with
+    /// `pairing_revoked` and waits for its echo; with none open, one
+    /// bounded attempt delivers the close. The record is destroyed after
+    /// either, whatever the phone heard.
+    internal func forgetReplacedPairings(keeping kept: Data) {
+      let vault = RappDeviceVault()
+      let replaced = ((try? vault.activePairIDs()) ?? []).filter { $0 != kept }
+      guard !replaced.isEmpty else { return }
+      let clock = RappPlatformClock()
+      let forgottenAt = clock.wallMilliseconds()
+      let deadline = ContinuousClock.now + RevocationBound.attempt
+      Task { @MainActor [weak self] in
+        for pairID in replaced {
+          let told = await self?.closeSessionForRevocation(pairID: pairID) ?? false
+          if !told, let pair = try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault) {
+            if pair.metadata().forgottenAtMs == nil {
+              _ = try? pair.forget(vault: vault, forgottenAtMs: forgottenAt)
+            }
+            _ = await RappRevocationAttempt.deliver(pair, until: deadline)
+          }
+          try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: clock)
+        }
+        self?.refreshPairing(in: vault)
+        NotificationCenter.default.post(
+          name: RappPairingModel.pairingsDidChangeNotification, object: nil)
+      }
     }
 
     /// The app is active again, perhaps back from the settings where the

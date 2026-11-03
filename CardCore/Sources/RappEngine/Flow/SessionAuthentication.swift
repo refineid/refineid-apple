@@ -4,12 +4,13 @@ import CryptoKit
 import Foundation
 
 /// A session whose handshake completed and whose `session.ready` has not yet
-/// been sent or verified (RAPP v26.10.29 §7.1 item 5).
+/// been sent or verified (RAPP v26.11.2 §7.1 item 5).
 ///
 /// The custodian sends `session.ready` on completing the handshake; the
-/// requester verifies it, or reads a `session.close` in its place. Anything
-/// else first, or mismatched parameters, closes the session with a sealed
-/// `protocol_violation` close.
+/// requester verifies it and answers with `session.hello`, or reads a
+/// `session.close` in its place and echoes it. Anything else first, or
+/// mismatched parameters or name, closes the session with a sealed
+/// `protocol_violation` close, whose echo the sender then waits for.
 internal struct SessionAuthentication {
   private let role: EndpointRole
   private let pairIdentifier: Data
@@ -17,6 +18,8 @@ internal struct SessionAuthentication {
   private let expectedParameters: SessionParameters
   private var channel: RappMessageChannel?
   private var ready = false
+  /// This endpoint sent its close and waits for the peer's echo.
+  private var awaitingEcho = false
 
   internal init(
     role: EndpointRole,
@@ -33,13 +36,15 @@ internal struct SessionAuthentication {
   }
 
   /// The custodian's `session.ready`: the exact session parameters with a
-  /// fresh nonce.
-  internal mutating func sendReady(nonce: Data) throws -> Data {
+  /// fresh nonce and its current display name.
+  internal mutating func sendReady(nonce: Data, displayName: RappDisplayName) throws -> Data {
     guard role == .proxy else { throw SessionError.roleViolation }
-    guard !ready else { throw SessionError.duplicateReady }
+    guard !ready, !awaitingEcho else { throw SessionError.duplicateReady }
     let body: [String: WireValue]
     do {
-      body = try SessionReady(parameters: expectedParameters, nonce: nonce).body()
+      body = try SessionReady(
+        parameters: expectedParameters, nonce: nonce, displayName: displayName
+      ).body()
     } catch let error as MessageFieldError {
       throw SessionError.message(error)
     }
@@ -49,9 +54,15 @@ internal struct SessionAuthentication {
   }
 
   /// The requester reads the custodian's first message.
-  internal mutating func receiveReady(_ frame: Data) throws -> RappReadyOutcome {
+  ///
+  /// A verified `session.ready` is answered with `session.hello` carrying `displayName`, the
+  /// requester's current name, as the session's first message (§7.1 item 6); a `session.close` in
+  /// its place is answered with its echo (§7.1 item 7).
+  internal mutating func receiveReady(
+    _ frame: Data, displayName: RappDisplayName
+  ) throws -> RappReadyOutcome {
     guard role == .requester else { throw SessionError.roleViolation }
-    guard !ready else { throw SessionError.duplicateReady }
+    guard !ready, !awaitingEcho else { throw SessionError.duplicateReady }
     guard var working = channel else { throw SessionError.closed }
     let envelope: Envelope
     do {
@@ -66,22 +77,35 @@ internal struct SessionAuthentication {
     channel = working
     switch envelope.messageType {
     case .sessionReady:
-      guard let received = try? SessionReady.from(body: envelope.body),
-        received.parameters == expectedParameters
-      else { return closeForViolation() }
-      ready = true
-      return .verified
+      return verify(envelope, answeringWith: displayName)
 
     case .sessionClose:
+      guard let reason = closeReason(of: envelope) else { return closeForViolation() }
+      let echo = try? seal(.sessionClose, body: ["reason": .text(reason.rawValue)])
       channel = nil
-      guard case .text(let name)? = envelope.body["reason"],
-        let reason = RappCloseReason(rawValue: name)
-      else { return .violationClosed(notice: nil) }
-      return .peerClosed(reason)
+      return .peerClosed(reason, echo: echo)
 
     default:
       return closeForViolation()
     }
+  }
+
+  /// Verifies the custodian's `session.ready` and seals the requester's
+  /// `session.hello` carrying `displayName`.
+  private mutating func verify(
+    _ envelope: Envelope, answeringWith displayName: RappDisplayName
+  ) -> RappReadyOutcome {
+    guard let received = try? SessionReady.from(body: envelope.body),
+      received.parameters == expectedParameters
+    else { return closeForViolation() }
+    guard
+      let hello = try? seal(.sessionHello, body: SessionHello(displayName: displayName).body())
+    else {
+      channel = nil
+      return .integrityFailure
+    }
+    ready = true
+    return .verified(peerDisplayName: received.displayName, hello: hello)
   }
 
   /// The first and only message of a session over a forgotten record: the
@@ -89,18 +113,40 @@ internal struct SessionAuthentication {
   /// `session.ready` on the custodian and before anything else on the
   /// requester (§4.6 item 2).
   ///
-  /// The channel closes with it.
+  /// The channel stays open for the peer's echo (§7.1 item 7), read with
+  /// ``receiveCloseEcho(_:)``.
   internal mutating func sendRevocationNotice() throws -> Data {
-    guard !ready else { throw SessionError.duplicateReady }
-    defer { channel = nil }
-    return try seal(.sessionClose, body: ["reason": .text(CloseReasonName.pairingRevoked)])
+    guard !ready, !awaitingEcho else { throw SessionError.duplicateReady }
+    let notice = try seal(
+      .sessionClose, body: ["reason": .text(CloseReasonName.pairingRevoked)])
+    awaitingEcho = true
+    return notice
+  }
+
+  /// Reads one frame while this endpoint waits for the echo of its own
+  /// close: a `session.close`, whatever its reason, is the echo or a close
+  /// that crossed this endpoint's, and is never answered; anything else is
+  /// ignored (§7.1 item 7).
+  internal mutating func receiveCloseEcho(_ frame: Data) -> RappCloseEcho {
+    guard awaitingEcho, var working = channel else { return .ended }
+    guard let envelope = try? working.open(frame) else {
+      channel = nil
+      awaitingEcho = false
+      return .ended
+    }
+    channel = working
+    guard envelope.messageType == .sessionClose else { return .ignored }
+    channel = nil
+    awaitingEcho = false
+    guard let reason = closeReason(of: envelope) else { return .ended }
+    return .acknowledged(reason)
   }
 
   /// Promotes to a healthy session once `session.ready` was sent or
   /// verified.
   internal consuming func intoEstablished() throws -> EstablishedSession {
     guard ready else { throw SessionError.readyIncomplete }
-    guard let channel else { throw SessionError.closed }
+    guard !awaitingEcho, let channel else { throw SessionError.closed }
     return EstablishedSession(
       role: role, pairIdentifier: pairIdentifier, sessionIdentifier: sessionIdentifier,
       channel: channel)
@@ -120,10 +166,22 @@ internal struct SessionAuthentication {
     return frame
   }
 
+  /// Seals the `protocol_violation` close and waits for its echo; without
+  /// a sealed close the channel ends at once.
   private mutating func closeForViolation() -> RappReadyOutcome {
-    let notice = try? seal(
-      .sessionClose, body: ["reason": .text(CloseReasonName.protocolViolation)])
-    channel = nil
+    guard
+      let notice = try? seal(
+        .sessionClose, body: ["reason": .text(CloseReasonName.protocolViolation)])
+    else {
+      channel = nil
+      return .violationClosed(notice: nil)
+    }
+    awaitingEcho = true
     return .violationClosed(notice: notice)
+  }
+
+  private func closeReason(of envelope: Envelope) -> RappCloseReason? {
+    guard case .text(let name)? = envelope.body["reason"] else { return nil }
+    return RappCloseReason(rawValue: name)
   }
 }

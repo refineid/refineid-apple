@@ -37,9 +37,14 @@ internal func makeOffer() throws -> PairingOffer {
 internal let fixturePeerDisplayName = "iOS - example-phone"
 
 internal func makePairRecord() throws -> PairRecord {
+  try makePairRecord(role: .proxy)
+}
+
+/// The fixture stored by an endpoint in `role`.
+internal func makePairRecord(role: EndpointRole) throws -> PairRecord {
   try PairRecord(
     pairIdentifier: filler(fillerPairIdentifier, PairRecordSize.pairIdentifier),
-    role: .requester,
+    role: role,
     localStaticPrivate: filler(fillerLocalStaticPrivate, PairRecordSize.staticKey),
     localStaticPublic: filler(fillerLocalStaticPublic, PairRecordSize.staticKey),
     remoteStaticPublic: filler(fillerRemoteStaticPublic, PairRecordSize.staticKey),
@@ -57,7 +62,7 @@ internal func makePairRecord() throws -> PairRecord {
 }
 
 /// ``makePairRecord()`` as stored before the peer confirmed it (RAPP
-/// v26.10.29 §4.3 item 4).
+/// v26.11.2 §4.3 item 4).
 internal func makeUnconfirmedPairRecord() throws -> PairRecord {
   guard case .map(var map) = expectedPairRecordValue() else {
     throw PairRecordError.invalidInput
@@ -70,9 +75,9 @@ internal func makeUnconfirmedPairRecord() throws -> PairRecord {
 /// the record's storage keys, so a renamed key or a changed value shows.
 internal func expectedPairRecordValue() -> WireValue {
   .map([
-    "format_version": .unsigned(pairRecordFormatVersion),
+    "format_version": PairRecordFormat.current.value,
     "pair_id": .bytes(filler(fillerPairIdentifier, PairRecordSize.pairIdentifier)),
-    "role": .text(EndpointRole.requester.rawValue),
+    "role": .text(EndpointRole.proxy.rawValue),
     "local_static_private": .bytes(filler(fillerLocalStaticPrivate, PairRecordSize.staticKey)),
     "local_static_public": .bytes(filler(fillerLocalStaticPublic, PairRecordSize.staticKey)),
     "remote_static_public": .bytes(filler(fillerRemoteStaticPublic, PairRecordSize.staticKey)),

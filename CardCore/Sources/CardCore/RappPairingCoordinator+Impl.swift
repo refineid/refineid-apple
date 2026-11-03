@@ -5,7 +5,7 @@
   import RappEngine
 
   extension RappPairingCoordinator {
-    /// Watchdog windows matching the engine's deadlines (RAPP v26.10.29 §3.3).
+    /// Watchdog windows matching the engine's deadlines (RAPP v26.11.2 §3.3).
     private enum Window {
       static let attemptMilliseconds: UInt64 = 5_000
       static let handshakeMilliseconds: UInt64 = 10_000
@@ -37,7 +37,7 @@
     /// A custodian serves its bootstrap answer as the first frame on a
     /// frame transport; a requester, which already read the offer, sends
     /// CPace step 1. At most one connection per 500 ms reaches the offer
-    /// (RAPP v26.10.29 §3.3 item 6); a connection refused by that spacing,
+    /// (RAPP v26.11.2 §3.3 item 6); a connection refused by that spacing,
     /// or one served a `pairing-busy`, is answered busy and closed (§4.2,
     /// "Busy Refusal").
     public func transportConnected() async {
@@ -185,7 +185,7 @@
     }
 
     /// The requester's first CPace message; step 2 is due within the
-    /// attempt deadline (RAPP v26.10.29 §3.3 item 3).
+    /// attempt deadline (RAPP v26.11.2 §3.3 item 3).
     private func beginRequesterCpace(now: UInt64) async throws {
       try bridge.beginCpace(
         candidateId: candidateID, randomBytes64: try entropy.cpaceRandom(), nowMonotonicMs: now)
@@ -241,7 +241,7 @@
 
     /// Stores the unconfirmed record, then tells the peer.
     ///
-    /// The storage exchange is RAPP v26.10.29 §4.3 item 4; the
+    /// The storage exchange is RAPP v26.11.2 §4.3 item 4; the
     /// confirmation deadline keeps running.
     private func store(now: UInt64) async throws {
       let record = try bridge.buildPairRecord(
@@ -301,7 +301,7 @@
     }
 
     /// Ends the connected attempt; a custodian keeps its offer while it
-    /// lives and waits for the next connection (RAPP v26.10.29 §3.3 item 4).
+    /// lives and waits for the next connection (RAPP v26.11.2 §3.3 item 4).
     private func abandonCandidate(_ reason: CloseReason) async {
       guard state != .completed, state != .closed else { return }
       // A record stored for this attempt is not the next attempt's.

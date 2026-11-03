@@ -21,10 +21,11 @@ extension RappOperationDescriptor {
         keyProfile: RappCardKeyProfile(profile),
         algorithm: RappSignatureAlgorithm(algorithm), digest: digest)
 
-    case .signDocument(let name, let profile, let algorithm, let digest):
+    case .signDocument(let document, let profile, let algorithm, let digest):
       self.init(
-        kind: .signDocument, displayContext: name, keyProfile: RappCardKeyProfile(profile),
-        algorithm: RappSignatureAlgorithm(algorithm), digest: digest)
+        kind: .signDocument, displayContext: document.name,
+        keyProfile: RappCardKeyProfile(profile), algorithm: RappSignatureAlgorithm(algorithm),
+        digest: digest, containedFiles: document.containedFiles?.names ?? [])
 
     case .batchSignDocuments(let names, let profile, let algorithm, let digests):
       self.init(

@@ -32,7 +32,7 @@ import Foundation
           code: code,
           profiles: RappIntegrationFixtures.profiles,
           transportProfile: RappIntegrationFixtures.transportProfile,
-          displayName: name,
+          displayName: TestDisplayNames.name(name),
           platform: "iOS",
           vault: phoneVault),
         transport: phoneLink.custodianTransport())

@@ -7,7 +7,7 @@ import SwiftUI
 /// card for Safari.
 ///
 /// A personal card's setup takes no PIN: PIN 1 is asked for when the
-/// card first signs and is held only in memory (RAPP v26.10.29 §11 item
+/// card first signs and is held only in memory (RAPP v26.11.2 §11 item
 /// 2). An organization card has no printed access number, and its entry
 /// under the same label is its PIN 1, which opens the setup hold's PACE
 /// and is spent there.

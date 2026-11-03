@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.10.29 offer bootstrap on BLE and stream (section 4.2)")
+@Suite("RAPP v26.11.2 offer bootstrap on BLE and stream (section 4.2)")
 internal struct BootstrapOfferTests {
   private static let code = "7KX4M9"
   private static let profiles = [
@@ -84,10 +84,12 @@ internal struct BootstrapOfferTests {
     try requester.enterConfirmation(nowMonotonicMs: now)
     try custodian.enterConfirmation(nowMonotonicMs: now)
     _ = try custodian.receiveHello(
-      bytes: try requester.sendHello(displayName: "Mac", platform: "macOS", nowMonotonicMs: now),
+      bytes: try requester.sendHello(
+        displayName: DisplayNameFixture.requester, platform: "macOS", nowMonotonicMs: now),
       nowMonotonicMs: now)
     _ = try requester.receiveHello(
-      bytes: try custodian.sendHello(displayName: "iPhone", platform: "iOS", nowMonotonicMs: now),
+      bytes: try custodian.sendHello(
+        displayName: DisplayNameFixture.custodian, platform: "iOS", nowMonotonicMs: now),
       nowMonotonicMs: now)
     let granted = try requester.receiveConfirmation(
       bytes: try custodian.sendConfirmation(grantedProfiles: Self.profiles, nowMonotonicMs: now),

@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The operations of one established session (RAPP v26.10.29 §8).
+/// The operations of one established session (RAPP v26.11.2 §8).
 ///
 /// Every call answers with the bounded step the caller performs next. The
 /// bridge decides what must happen; the caller performs it, so nothing here
@@ -23,6 +23,14 @@ public final class RappOperationBridge: @unchecked Sendable {
   internal var session: EstablishedSession
   internal var side: Side
   internal var closed = false
+  /// The reason of the close this endpoint sent while it waits for the
+  /// peer's echo (§7.1 item 7).
+  internal var awaitingEcho: RappCloseReason?
+  /// Whether the requester's `session.hello` arrived; a custodian admits nothing else first but a
+  /// close (§7.1 item 6).
+  ///
+  /// A requester sent its own before the bridge was built.
+  internal var helloReceived: Bool
 
   internal init(
     session: EstablishedSession,
@@ -37,6 +45,11 @@ public final class RappOperationBridge: @unchecked Sendable {
     self.side = side
     self.maximumLifetimeMilliseconds = maximumLifetimeMs
     self.liveness = LivenessTracker(nowMilliseconds: nowMilliseconds)
+    if case .requester = side {
+      self.helloReceived = true
+    } else {
+      self.helloReceived = false
+    }
   }
 
   /// Takes the established session as the requester.

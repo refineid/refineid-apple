@@ -31,14 +31,6 @@
       #expect(last[Self.color] == .secondary)
     }
 
-    /// Connecting, the line is secondary throughout.
-    @Test
-    internal func connectingLineIsSecondary() {
-      let line = PairedPhoneLine.line(lead: .connecting, holder: Self.holder)
-      #expect(String(line.characters) == String(localized: "Connecting to the phone…"))
-      #expect(line.runs.allSatisfy { $0[Self.color] == .secondary })
-    }
-
     /// The request for the phone's card reader is secondary throughout.
     @Test
     internal func phoneReaderLineAsksForTheCardAlone() {
@@ -49,13 +41,12 @@
       #expect(line.runs.allSatisfy { $0[Self.color] == .secondary })
     }
 
-    /// Until the holder's name is read, the holder's line says it is
-    /// connecting.
+    /// Until the holder's name is read, the line says nothing: no status
+    /// names the phone (RAPP v26.11.2 §4.7).
     @Test(arguments: [nil, ""] as [String?])
-    internal func holderLineWithoutANameIsConnecting(_ holder: String?) {
+    internal func holderLineWithoutANameIsEmpty(_ holder: String?) {
       let line = PairedPhoneLine.line(lead: .holder, holder: holder)
-      #expect(String(line.characters) == String(localized: "Connecting to the phone…"))
-      #expect(line.runs.allSatisfy { $0[Self.color] == .secondary })
+      #expect(String(line.characters).isEmpty)
     }
   }
 

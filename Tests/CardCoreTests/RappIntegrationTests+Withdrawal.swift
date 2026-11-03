@@ -8,7 +8,7 @@ import Testing
 #if canImport(RappEngine)
   import RappEngine
 
-  /// Withdrawal over two real coordinators (RAPP v26.10.29 §4.5 items 3, 6,
+  /// Withdrawal over two real coordinators (RAPP v26.11.2 §4.5 items 3, 6,
   /// 8 and 9).
   extension RappIntegrationTests {
     // MARK: Static Functions
@@ -20,6 +20,9 @@ import Testing
     ) async throws -> RappOperationIdentifier {
       for await event in coordinator.events {
         switch event {
+        case .peerNamed:
+          break
+
         case .inspectPrerequisites(let operationID, _):
           return operationID
 
@@ -36,8 +39,8 @@ import Testing
     // MARK: Functions
 
     /// A requester that withdraws with a session open tells the custodian
-    /// with `service_withdrawn`: the custodian's operation ends, it sends
-    /// no close of its own, and both keep the pairing.
+    /// with `service_withdrawn`: the custodian's operation ends, it answers
+    /// with the echo alone, and both keep the pairing.
     @Test
     internal func aRequesterWithdrawalEndsTheCustodiansOperationAndKeepsThePairing() async throws {
       let fixture = try await RappIntegrationConnectionSupport.makePairedFixture()
@@ -67,7 +70,9 @@ import Testing
       }
       #expect(reason.serviceWithdrawn)
       #expect(!reason.peerRevokedPairing)
-      #expect(await connection.proxyOutbound.snapshot().frames.count == custodianSent)
+      #expect(
+        await connection.proxyOutbound.snapshot().frames.count == custodianSent + 1,
+        "the custodian answers with the echo alone")
       let requesterSeen = await RappIntegrationConnectionSupport.eventsUntilClosed(
         connection.requester)
       #expect(requesterSeen.last == .closed(.operation(.terminalFrameReleased)))
@@ -148,6 +153,27 @@ import Testing
       #expect(!reason.serviceWithdrawn)
       #expect(!reason.peerRevokedPairing)
       #expect(try fixture.requesterVault.loadPair(pairID: fixture.requesterSummary.pairID) != nil)
+    }
+
+    /// Every session carries both names: the requester reads the
+    /// custodian's in `session.ready`, the custodian the requester's in its
+    /// `session.hello` (RAPP v26.11.2 §4.3 item 4).
+    @Test
+    internal func everySessionCarriesBothNames() async throws {
+      let fixture = try await RappIntegrationConnectionSupport.makePairedFixture()
+      defer { RappIntegrationConnectionSupport.deleteKeychainServices(for: fixture) }
+      let connection = try await RappIntegrationConnectionSupport.makeConnection(fixture)
+
+      await connection.proxy.start()
+      await connection.requester.start()
+      #expect(
+        try await RappIntegrationConnectionSupport.awaitEstablished(connection.requester)
+          == TestDisplayNames.custodian)
+      #expect(
+        try await RappIntegrationConnectionSupport.awaitEstablished(connection.proxy)
+          == TestDisplayNames.requester)
+      await connection.requester.close()
+      await connection.proxy.close()
     }
   }
 #endif

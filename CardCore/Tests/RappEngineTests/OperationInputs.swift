@@ -27,6 +27,8 @@ internal struct OperationInputs: Decodable {
     case batchDigestsSha256 = "batch_digests_sha256"
     case batchSignatures = "batch_signatures"
     case errorMessages = "error_messages"
+    case packageName = "package_name"
+    case packageFiles = "package_files"
   }
 
   internal let operationIdentifierRequest: String
@@ -44,6 +46,11 @@ internal struct OperationInputs: Decodable {
   internal let cardIdentifier: String
   internal let issuanceDate: String
   internal let expirationDate: String
+  /// The package of the `sign_document` package vectors (RAPP v26.11.2
+  /// §9.3).
+  internal let packageName: String
+  /// The files that package holds, in container order.
+  internal let packageFiles: [String]
   internal let localStartMilliseconds: UInt64
   internal let expiresAfterMilliseconds: UInt64
   internal let batchDocumentNames: [String]

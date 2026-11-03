@@ -31,8 +31,8 @@ internal enum RappNoiseAndEnvelopeCorpusSupport {
     internal static let byteCountUInt32 = 4
     internal static let byteCountUInt64 = 8
     internal static let wireMajor: UInt64 = 26
-    internal static let wireMinor: UInt64 = 10
-    internal static let wirePatch: UInt64 = 29
+    internal static let wireMinor: UInt64 = 11
+    internal static let wirePatch: UInt64 = 2
     internal static let versionLength = 3
     internal static let patchIndex = 2
     internal static let sessionIDLength = 16
@@ -71,7 +71,7 @@ internal enum RappNoiseAndEnvelopeCorpusSupport {
     case unsupported
   }
 
-  /// The prologue and identifier labels (RAPP v26.10.29 §4.3 items 1, 2
+  /// The prologue and identifier labels (RAPP v26.11.2 §4.3 items 1, 2
   /// and 5).
   internal static let pairingPrologueLabel = "rapp-pairing"
   internal static let sessionPrologueLabel = "rapp-session"
@@ -190,7 +190,7 @@ internal enum RappNoiseAndEnvelopeCorpusSupport {
       repositoryRoot
       .appendingPathComponent("Documentation")
       .appendingPathComponent("rapp-conformance")
-      .appendingPathComponent("rapp-v26.10.29.json")
+      .appendingPathComponent("rapp-v26.11.2.json")
     return try JSONDecoder().decode(Corpus.self, from: Data(contentsOf: url))
   }
 

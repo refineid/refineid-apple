@@ -27,17 +27,14 @@
     /// The words of the line: the holder's name in the primary color,
     /// everything else in the secondary one.
     ///
-    /// The holder's line ends with "(via phone)". Until the holder's name
-    /// is read, the line says it is connecting.
+    /// The holder's line ends with "(via phone)"; until the holder's name
+    /// is read the line is empty.
     nonisolated internal static func line(
       lead: IdentityLine.PairedLead, holder: String?
     ) -> AttributedString {
       switch lead {
-      case .connecting:
-        return Self.connecting()
-
       case .holder:
-        guard let holder, !holder.isEmpty else { return Self.connecting() }
+        guard let holder, !holder.isEmpty else { return AttributedString() }
         var line = AttributedString(holder)
         line.append(Self.secondary(" " + String(localized: "(via phone)")))
         return line
@@ -45,10 +42,6 @@
       case .phoneReader:
         return Self.secondary(PhoneCardRequestLine.instruction(for: .insertIntoPhoneReader))
       }
-    }
-
-    nonisolated private static func connecting() -> AttributedString {
-      Self.secondary(String(localized: "Connecting to the phone…"))
     }
 
     nonisolated private static func secondary(_ words: String) -> AttributedString {

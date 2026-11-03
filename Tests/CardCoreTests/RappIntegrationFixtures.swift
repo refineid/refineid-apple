@@ -23,7 +23,7 @@ import Testing
 
     /// Each way the custodian ends an operation without a completed
     /// result, and the registered error the requester receives for it
-    /// (RAPP v26.10.29 §10.3).
+    /// (RAPP v26.11.2 §10.3).
     internal enum ProxyTermination: CaseIterable, Sendable {
       case cardError
       case operationFailed
@@ -172,7 +172,7 @@ import Testing
 
         case .documentSigning(let documentName, let digest):
           try await coordinator.beginSignDocument(
-            documentName: documentName,
+            document: RappSigningDocument(name: documentName, containedFiles: []),
             keyProfile: .ecdsaP256,
             algorithm: .ecdsaSHA256,
             digest: digest,
