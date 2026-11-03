@@ -8,8 +8,9 @@
   import Testing
 
   /// Idle expiry over the device's vault (RAPP v26.11.2 §4.6 item 5): a
-  /// pairing with no established session for 30 days is stored forgotten,
-  /// and a pairing in session is recorded instead.
+  /// pairing with no established session for 30 days is stored forgotten
+  /// on a custodian and destroyed at once on a requester, and a pairing
+  /// in session is recorded instead.
   @Suite("Pairing idle expiry")
   internal struct RappPairIdleExpiryTests {
     private static let namespace = "fi.refineid.test.idle-expiry"
@@ -68,13 +69,15 @@
         in: vault, nowMilliseconds: Self.creation + limit, established: [])
       #expect(due.expired == [pairID])
       #expect(due.failures == 0)
-      #expect(try Self.metadata(pairID, in: vault).forgottenAtMs == Self.creation + limit)
+      #expect(throws: RappBindingError.PairNotFound) {
+        try Self.metadata(pairID, in: vault)
+      }
       #expect(try vault.selectedPairID() == nil)
       #expect(try await RappPairCatalog(vault: vault).activePairs().isEmpty, "nor is it listed")
       #expect(!RappPairIdleExpiry.holdsActivePairing(vault))
       #expect(
         RappPairIdleExpiry.sweep(in: vault, nowMilliseconds: .max, established: []).expired
-          .isEmpty, "a forgotten pairing does not expire twice")
+          .isEmpty, "a destroyed pairing does not expire twice")
     }
 
     @Test("A pairing in session is recorded, never expired, and its time renews the limit")
