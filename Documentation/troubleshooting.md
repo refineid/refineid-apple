@@ -227,3 +227,12 @@ such a build should also delete that certificate in Keychain Access
 (search `127.0.0.1`), which clears its trust with it. The shipped MVP
 creates no such certificate, so its uninstall is the three directories
 above and nothing more.
+
+## The keychain reports zero matches for a token Safari uses
+
+**Symptom.** `SecItemCopyMatching` answers 0 matches against a token
+extension Safari is using, which invites cleanup automation that drops
+the persisted token.
+
+**Rule.** A 0-matches answer is not evidence the token is gone. Never
+automate destructive actions from it.

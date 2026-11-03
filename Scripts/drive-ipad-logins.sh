@@ -74,9 +74,9 @@ xcrun simctl boot "$IPAD_UDID" 2>/dev/null || true
 clean_safari() {
   echo "==> Clearing Safari tabs and state on iPad simulator..."
   xcrun simctl terminate "$IPAD_UDID" com.apple.mobilesafari 2>/dev/null || true
-  rm -f "/Users/pk/Library/Developer/CoreSimulator/Devices/$IPAD_UDID/data/Library/Safari/SafariTabs.db"* \
-        "/Users/pk/Library/Developer/CoreSimulator/Devices/$IPAD_UDID/data/Library/Safari/BrowserState.db"* \
-        "/Users/pk/Library/Developer/CoreSimulator/Devices/$IPAD_UDID/data/Library/Safari/CloudTabs.db"* 2>/dev/null || true
+  rm -f "$HOME/Library/Developer/CoreSimulator/Devices/$IPAD_UDID/data/Library/Safari/SafariTabs.db"* \
+        "$HOME/Library/Developer/CoreSimulator/Devices/$IPAD_UDID/data/Library/Safari/BrowserState.db"* \
+        "$HOME/Library/Developer/CoreSimulator/Devices/$IPAD_UDID/data/Library/Safari/CloudTabs.db"* 2>/dev/null || true
   local data_container
   data_container="$(xcrun simctl get_app_container "$IPAD_UDID" com.apple.mobilesafari data 2>/dev/null || true)"
   if [[ -n "$data_container" && -d "$data_container" ]]; then

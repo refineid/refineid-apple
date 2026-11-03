@@ -40,7 +40,8 @@ and a fresh scan afterward. Confirm fresh PACE, successful verification and
 signature output, prompt failure on loss, and absence of old-channel commands
 after invalidation. Do not call radio behavior or Safari recovery verified from
 synthetic tests alone. A slow exchange does not by itself prove a card penalty
-delay or an OS-imposed field deadline.
+delay or an OS-imposed field deadline. Controller temperature is not a lead:
+analyse idle gaps in the APDU timeline and session lifetime instead.
 
 Protected maximum-response RSA signatures use CryptoTokenKit's structured send
 operation. Its protocol handling collects continuation before completing the

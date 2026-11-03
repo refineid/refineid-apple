@@ -19,7 +19,7 @@ This document defines the tiered testing, formatting, and release quality gates 
 - **Formatting Tool**: Run `Scripts/format.sh` (or `Scripts/format.sh --staged`) to format modified Swift files in-place using `swift-format`.
 - **Whitespace Check**: `git diff --cached --check` prevents committing trailing whitespace, spaces before tabs, or spurious carriage returns.
 - **Lint Snapshot**: `Scripts/QualityReceipt.py lint-index` materializes Git blobs from the staged tree and runs `Scripts/lint.sh` (swift-format, SwiftLint, `swiftc -typecheck` of every Swift script under `Scripts/`, and the suppression register) in that snapshot. A successful local receipt can skip the same lint run at push when the tree and toolchain still match. Receipts are a local speed optimization, never proof accepted by GitHub.
-- **Rule**: Diffs must remain focused and minimal. Zero noise diffs or accidental whitespace reformats across unrelated lines.
+- **Rule**: Diffs must remain focused and minimal. Zero noise diffs or accidental whitespace reformats across unrelated lines. Xcode builds rewrite the string catalogs: commit only the real extracted keys and discard junk diffs (empty keys, stale marks).
 
 ## 2. Push & PR Tier (Functional Verification)
 
@@ -69,6 +69,7 @@ This document defines the tiered testing, formatting, and release quality gates 
 - **Fast-Loop Headless Testing (Default)**: `RefineID.xctestplan`, the scheme's default test plan, holds `CardCoreTests` and `RefineIDTests` only. Running tests via `xcodebuild test -scheme RefineID` or pressing ⌘U in Xcode executes in-memory unit and integration tests without opening windows, stealing focus, or interrupting workstation tasks.
 - **UI test plan**: `RefineIDUITests.xctestplan` holds `RefineIDUITests`. A UI test runs only through it, by name with `xcodebuild test -scheme RefineID -testPlan RefineIDUITests -destination 'platform=macOS' -only-testing:RefineIDUITests/<class>/<method>`, through `Scripts/test.sh macos-mvp`, or in a VM through `Scripts/test-ui-tart.sh`. UI tests open windows and take the keyboard and mouse: run them only off the workstation's screen.
 - **Gate scope**: the pre-commit hook runs `Scripts/test.sh commit` (lint, no tests) and the pre-push hook runs `Scripts/test.sh pr` (lint, CardCore and PKCS11Bridge package tests, the iOS build, `RefineIDTests` on macOS). Neither runs a UI test.
+- **iPad hardware**: a physical iPad cannot be test-driven under the project's Xcode. Build for it and install and launch with `ios-deploy`; never plan a hardware-iPad UI test. Simulator iPad UI tests are unaffected.
 - **Isolated Headless UI Tests with Tart**: When full end-to-end `RefineIDUITests` must be verified locally without screen-stealing, run them inside a headless macOS virtual machine using Tart:
   ```bash
   Scripts/test-ui-tart.sh [VM_NAME]

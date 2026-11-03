@@ -12,9 +12,12 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
 - **No explainer text.** No caption restates what is already visible: a name
   stands without a "Person" caption before it. Controls carry no standards
   acronyms. A control's accessibility label names it for VoiceOver; a line of
-  prose above it does not.
+  prose above it does not. That never leaves a state blank: a row value
+  states its state in explicit words ("None", "Unproven"), never a
+  blank or a dash.
 - **No confirmation dialogs.** A chosen action happens. "Are you sure?" is
-  not asked.
+  not asked. The one exception is the save panel after signing on the
+  Mac, whose Cancel asks keep-or-throw-away (macos.md).
 - **No recovery buttons.** No "paused" state waits for a "resume". Back-offs
   stay silent and clear themselves.
 - **Red and orange mean errors.** Only an error takes red or orange. Normal
@@ -58,6 +61,8 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   boundary.
 - **Finnish vocabulary.** Pairing is *yhdistäminen*, and its code is the
   *yhdistämiskoodi*. *Paritus*, *pariliitos* and *laitepari* are not used.
+  Revocation-list evidence is labelled *sulkulista*; a revoked state is
+  *mitätöity* and its time the *mitätöintiaika*.
 - **PIN names.** The codes take DVV's names: the basic PIN (*perus*,
   *grund*) is PIN 1 and the signature PIN (*allekirjoitus*, *signatur*)
   is PIN 2. The number is always written with a space, "PIN 1". In every

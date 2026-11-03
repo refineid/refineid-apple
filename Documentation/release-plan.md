@@ -32,7 +32,9 @@ including from Safari through the remote-card CryptoTokenKit extension. The
 Mac is always the requester and only dials out. SCS is excluded from every
 macOS build configuration. iOS retains its existing features. The first
 candidate is for TestFlight; App Review submission remains a separate
-release action.
+release action. App Store and TestFlight stay the main channel; Xcode
+Cloud builds come later, and a notarized DMG with a Homebrew cask only
+if someone asks.
 
 User story is:
 
