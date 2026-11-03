@@ -79,7 +79,7 @@
     /// The card's first answer decides whether the entry is a personal
     /// card's access number or an organization card's PIN 1. A personal
     /// card's setup sends no PIN: PIN 1 is asked for when it first signs
-    /// (RAPP v26.10.29 §11 item 2).
+    /// (RAPP v26.11.2 §11 item 2).
     internal func prime(entry: CardPriming.SetupEntry) async {
       guard !isRunning else { return }
       if DemoMode.shared.isActive {

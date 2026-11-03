@@ -5,7 +5,7 @@
   import os
   import RappEngine
 
-  /// The requester's standing session with the custodian (RAPP v26.10.29
+  /// The requester's standing session with the custodian (RAPP v26.11.2
   /// §8.3, §8.4): dialled over the stream when the custodian is on the
   /// network and over Bluetooth otherwise, held open so the custodian's
   /// `card.status` reaches the requester, and used for the operations the
@@ -41,6 +41,9 @@
       case established
       /// The custodian's word on the card it holds and on its card reader.
       case cardStatus(RappCardStatus)
+      /// The custodian's current name, from its `session.ready` (RAPP
+      /// v26.11.2 §4.3 item 4); record it in the pair record.
+      case peerNamed(RappDisplayName)
       /// The Bluetooth link went to this advertiser, which routed the
       /// preamble or refused it.
       case bluetoothPeer(UUID, routed: Bool)
@@ -81,6 +84,9 @@
     internal let route: Route
     internal let policy: RappRequesterPolicy
     internal let report: @Sendable (Report) -> Void
+    /// How long the session waits for the echo of a close it sends (RAPP
+    /// v26.11.2 §7.1 item 7).
+    internal let closeEchoBoundMilliseconds: UInt64
     internal let state = OSAllocatedUnfairLock(initialState: State())
     internal let frameDelivery = OrderedDelivery(capacity: OrderedDelivery.relayFrameCapacity)
     internal let link = Link()
@@ -98,16 +104,21 @@
     // MARK: Lifecycle
 
     /// Prepares a session over `pair` along `route`; ``start()`` dials.
+    /// `closeEchoBoundMilliseconds` bounds the wait for the echo of a close
+    /// the session sends: a revocation attempt passes what is left of its
+    /// ``rappRevocationAttemptBoundMs()``.
     @preconcurrency
     public init(
       pair: RappPairRecord,
       route: Route = .stream,
       policy: RappRequesterPolicy = .interactive,
+      closeEchoBoundMilliseconds: UInt64 = rappQuitWithdrawalBoundMs(),
       report: @escaping @Sendable (Report) -> Void
     ) {
       self.pair = pair
       self.route = route
       self.policy = policy
+      self.closeEchoBoundMilliseconds = closeEchoBoundMilliseconds
       self.report = report
       let owned = link
       self.transport = RappClosureFrameTransport(
@@ -211,7 +222,7 @@
 
     /// Runs one operation over the session and answers what it yields.
     ///
-    /// The session carries one operation at a time (RAPP v26.10.29 §8.1
+    /// The session carries one operation at a time (RAPP v26.11.2 §8.1
     /// item 1): one that arrives while another runs waits for it, first come
     /// first served, instead of being refused. The session must be
     /// established.
@@ -292,7 +303,7 @@
     }
 
     /// Ends the session with `pairing_revoked`, as the pairing it runs over
-    /// is forgotten (RAPP v26.10.29 §4.6 item 1).
+    /// is forgotten (RAPP v26.11.2 §4.6 item 1).
     ///
     /// The close frame is sent before the connection goes; the answer says
     /// whether it left.
@@ -304,7 +315,7 @@
     }
 
     /// Ends the session with `service_withdrawn`, as this computer stops
-    /// using remote access (RAPP v26.10.29 §4.5 item 8); the pairing stays.
+    /// using remote access (RAPP v26.11.2 §4.5 item 8); the pairing stays.
     ///
     /// An open session sends the close before the connection goes; one
     /// still being dialled closes without a notice. The answer says whether

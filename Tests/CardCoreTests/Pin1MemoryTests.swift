@@ -6,7 +6,7 @@ import Testing
 @testable import CardCore
 
 /// The token extension's one PIN 1 store: per chip serial, one value that
-/// is either a typed candidate or a PIN the card accepted (RAPP v26.10.29
+/// is either a typed candidate or a PIN the card accepted (RAPP v26.11.2
 /// section 11 item 2).
 @Suite
 internal struct Pin1MemoryTests {

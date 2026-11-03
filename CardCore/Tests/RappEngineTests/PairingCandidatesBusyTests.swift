@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.10.29 a busy custodian is tried again quietly (section 4.2)")
+@Suite("RAPP v26.11.2 a busy custodian is tried again quietly (section 4.2)")
 internal struct PairingCandidatesBusyTests {
   /// The monotonic time of the searches that do not wait.
   internal static let now: UInt64 = 10_000

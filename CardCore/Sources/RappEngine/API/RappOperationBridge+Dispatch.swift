@@ -115,6 +115,13 @@ extension RappOperationBridge {
   /// Ends the session and every operation of it (§8.1 item 3), naming the
   /// operation that ended with it.
   internal func endOperations() -> RappEndedOperation? {
+    endOperations(awaitingEcho: nil)
+  }
+
+  /// Ends the session and every operation of it, keeping the channel open
+  /// while `reason`, the close this endpoint sealed, awaits its echo (§7.1
+  /// item 7).
+  internal func endOperations(awaitingEcho reason: RappCloseReason?) -> RappEndedOperation? {
     var ended: RappEndedOperation?
     switch side {
     case .proxy(var engine):
@@ -136,21 +143,60 @@ extension RappOperationBridge {
     }
     liveness.close()
     closed = true
-    session.close()
+    awaitingEcho = reason
+    if reason == nil { session.close() }
     return ended
   }
 
   /// Ends the session after an authenticated protocol violation: the sealed
   /// `protocol_violation` close, when the channel can still seal it, then
-  /// the link drops.
+  /// the wait for its echo.
   ///
   /// The pairing stays (§10.1).
   internal func violationClose() -> RappBridgeAction {
-    let notice = try? session.seal(
-      .sessionClose, body: ["reason": .text(CloseReasonName.protocolViolation)])
+    sealClose(.protocolViolation)
+  }
+
+  /// Seals this endpoint's `session.close` carrying `reason` and waits for
+  /// the peer's echo (§7.1 item 7); without a sealed close the session ends
+  /// at once.
+  internal func sealClose(_ reason: RappCloseReason) -> RappBridgeAction {
+    guard let notice = try? session.seal(.sessionClose, body: ["reason": .text(reason.rawValue)])
+    else { return .sessionClosed(reason: nil, endedOperation: endOperations()) }
+    return .sendClose(
+      notice, reason: reason, endedOperation: endOperations(awaitingEcho: reason))
+  }
+
+  /// Answers the peer's authenticated `session.close` with its echo, the
+  /// close carrying the same reason, and ends the session (§7.1 item 7).
+  internal func echoClose(_ reason: RappCloseReason) -> RappBridgeAction {
+    let echo = try? session.seal(.sessionClose, body: ["reason": .text(reason.rawValue)])
     let ended = endOperations()
-    guard let notice else { return .sessionClosed(reason: nil, endedOperation: ended) }
-    return .sendClose(notice, reason: .protocolViolation, endedOperation: ended)
+    guard let echo else { return .sessionClosed(reason: reason, endedOperation: ended) }
+    return .echoClose(echo, reason: reason, endedOperation: ended)
+  }
+
+  /// Reads one frame while this endpoint waits for the echo of its own
+  /// close: a `session.close` is the echo, or a close that crossed this
+  /// endpoint's, and is never answered; anything else is ignored.
+  internal func receiveWhileAwaitingEcho(_ bytes: Data, sent: RappCloseReason) -> RappBridgeAction {
+    let envelope: Envelope
+    do {
+      envelope = try session.open(bytes)
+    } catch SessionError.unexpectedMessage {
+      return .noAction
+    } catch {
+      awaitingEcho = nil
+      session.close()
+      return .sessionClosed(reason: nil, endedOperation: nil)
+    }
+    guard envelope.messageType == .sessionClose else { return .noAction }
+    awaitingEcho = nil
+    session.close()
+    guard case .text(let name)? = envelope.body["reason"],
+      let received = RappCloseReason(rawValue: name)
+    else { return .sessionClosed(reason: nil, endedOperation: nil) }
+    return .closeAcknowledged(reason: received, crossing: received != sent)
   }
 
   internal func locked<Value>(_ body: () throws -> Value) rethrows -> Value {

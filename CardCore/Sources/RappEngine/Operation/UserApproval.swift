@@ -3,7 +3,7 @@
 import Foundation
 
 /// The holder's approval of one operation of the session, the one the PIN
-/// prompt rendered, or the PIN the custodian already holds (RAPP v26.10.29
+/// prompt rendered, or the PIN the custodian already holds (RAPP v26.11.2
 /// §8.2 item 3).
 internal struct UserApproval: Equatable {
   internal let operationIdentifier: RappOperationIdentifier

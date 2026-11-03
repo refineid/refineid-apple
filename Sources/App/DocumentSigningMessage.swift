@@ -105,7 +105,7 @@ internal enum DocumentSigningMessage {
   }
 
   /// What the requester's user is told for the error name the phone gave
-  /// (RAPP v26.10.29 §10.3).
+  /// (RAPP v26.11.2 §10.3).
   private static func terminalReasonMessage(_ reason: RappTerminalReason) -> String {
     switch reason {
     case .userCancelled:

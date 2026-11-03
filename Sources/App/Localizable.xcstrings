@@ -6592,22 +6592,6 @@
         }
       }
     },
-    "Connecting to the phone…": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Yhdistetään puhelimeen…"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ansluter till telefonen…"
-          }
-        }
-      }
-    },
     "Open RefineID remote access on your phone and enter the pairing code:": {
       "localizations": {
         "fi": {
@@ -6928,6 +6912,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "%1$@ ber dig att underteckna %2$@."
+          }
+        }
+      }
+    },
+    "%@ asks you to sign the package %@ holding %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ asks you to sign the package %2$@ holding %3$@."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ pyytää allekirjoittamaan paketin %2$@, jossa ovat %3$@."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ ber dig att underteckna paketet %2$@ med %3$@."
           }
         }
       }

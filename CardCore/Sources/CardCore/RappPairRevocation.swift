@@ -4,12 +4,13 @@
   import Foundation
   import RappEngine
 
-  /// Ending a pairing the way RAPP v26.10.29 §4.6 requires.
+  /// Ending a pairing the way RAPP v26.11.2 §4.6 requires.
   ///
-  /// With a session open the endpoint closes it with `pairing_revoked` and
-  /// revokes at once. Without one the record is marked forgotten: it serves
-  /// nothing, keeps its key only to deliver that close on the next session,
-  /// and is destroyed once the close is sent or after 30 days.
+  /// With a session open the endpoint closes it with `pairing_revoked`,
+  /// waits for the echo within its bound, and revokes. Without one the
+  /// record is marked forgotten: it serves nothing and keeps its key only to
+  /// deliver that close, on a custodian on the next session for 30 days,
+  /// on a requester in one attempt of ``rappRevocationAttemptBoundMs()``.
   public enum RappPairRevocation {
     /// Forgets `pair` while no session to the peer is open.
     @discardableResult
@@ -48,8 +49,9 @@
       }
     }
 
-    /// Destroys every forgotten record whose 30 days ran out without a
-    /// session to deliver its close (§4.6 item 3).
+    /// Destroys every forgotten record whose time ran out without its close
+    /// delivered: 30 days on a custodian (§4.6 item 3), the bound of its one
+    /// attempt on a requester (§4.6 item 6).
     public static func expireRevocationNotices(in vault: RappDeviceVault, clock: RappPlatformClock)
     {
       guard let pairIDs = try? vault.activePairIDs() else { return }

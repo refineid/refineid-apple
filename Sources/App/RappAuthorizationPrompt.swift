@@ -17,6 +17,20 @@ internal enum RappAuthorizationPrompt {
     String(localized: "\(computer) asks you to authenticate.")
   }
 
+  /// The prompt for a package.
+  ///
+  /// It names the package and every file it holds, in container order
+  /// (RAPP v26.11.2 §9.3, §11 item 1).
+  internal static func packageMessage(computer: String, package: String, files: [String])
+    -> String
+  {
+    let named = ListFormatter.localizedString(byJoining: files)
+    return String(
+      localized: "\(computer) asks you to sign the package \(package) holding \(named).")
+  }
+
+  /// The prompt for a signature.
+  ///
   /// One document by its name, a batch as a list in signing order, and a
   /// request that names none without a document.
   internal static func signatureMessage(computer: String, documents: [String]) -> String {

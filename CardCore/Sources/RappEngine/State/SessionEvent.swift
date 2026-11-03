@@ -20,7 +20,10 @@ internal enum SessionEvent: String, CaseIterable, Sendable {
   /// A received `session.close`; on the requester also a revoking
   /// custodian's close in place of `session.ready`.
   case peerCloseReceived = "peer_close_received"
+  /// `session.ready` verified, with the custodian's current display name.
   case readyVerified = "ready_verified"
+  /// The requester's first message, with its current display name.
+  case sessionHelloReceived = "session_hello_received"
   /// Before authentication: the connection closes, nothing stored changes.
   case candidateFailure = "candidate_failure"
   /// Version, `session_id`, sequence or message misuse.

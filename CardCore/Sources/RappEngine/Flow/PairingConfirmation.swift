@@ -63,7 +63,7 @@ internal struct PairingConfirmation {
   }
 
   /// Send this peer's label and its exact parameter echo.
-  internal mutating func sendHello(displayName: String, platform: String) throws -> Data {
+  internal mutating func sendHello(displayName: RappDisplayName, platform: String) throws -> Data {
     guard !localHelloSent else { throw PairingError.duplicateMessage }
     let hello = PairingHello(
       parameters: localParameters,
@@ -142,7 +142,7 @@ internal struct PairingConfirmation {
 
   /// Build the record to store, after both hellos and both equal
   /// confirmations, and the storage exchange that confirms it (RAPP
-  /// v26.10.29 §4.3 item 4).
+  /// v26.11.2 §4.3 item 4).
   ///
   /// The record is unconfirmed until ``ActivePairing/confirm(_:)``; the
   /// channel stays open for the two `pairing.stored` messages.
@@ -175,7 +175,7 @@ internal struct PairingConfirmation {
           candidateIdentifier: candidate.candidateIdentifier,
           parameters: candidate.parameters),
         createdAtMilliseconds: createdAtMilliseconds,
-        peerDisplayName: peerHello.displayName,
+        peerDisplayName: peerHello.displayName.text,
         storageConfirmed: false)
     } catch let error as PairRecordError {
       throw PairingError.pairRecord(error)

@@ -6,7 +6,7 @@ import Foundation
 ///
 /// The record holds the pairing's keys, so it is never handed out as bytes
 /// except through the vault the caller owns. Once revoked it holds them no
-/// more: nothing in this process can use the key afterwards (RAPP v26.10.29
+/// more: nothing in this process can use the key afterwards (RAPP v26.11.2
 /// §4.6 items 3 and 4).
 public final class RappPairRecord: @unchecked Sendable {
   private let lock = NSLock()
@@ -90,6 +90,28 @@ public final class RappPairRecord: @unchecked Sendable {
     }
   }
 
+  /// The summary a requester's expired pairing leaves behind.
+  ///
+  /// The pairing is destroyed at once, here and in the vault, and nothing
+  /// is owed (§4.6 items 5 and 6). Nil when the pairing has not expired.
+  private static func expiredRequesterSummary(
+    of current: PairRecord,
+    in vault: RappPairVault,
+    at nowMs: UInt64,
+    sessionEstablished: Bool
+  ) throws -> RappPairMetadata? {
+    guard current.role == .requester else { return nil }
+    var planned = current
+    let plannedOutcome = try? planned.sweep(
+      nowMilliseconds: nowMs, sessionEstablished: sessionEstablished
+    ) { _ in
+      // The plan stores nothing: expiry destroys the pairing at once.
+    }
+    guard plannedOutcome == .expired else { return nil }
+    try destroy(current, in: vault, at: nowMs)
+    return summary(of: planned)
+  }
+
   /// Returns the raw serialized bytes of this pair record.
   ///
   /// - Throws: ``RappBindingError/WrongPhase`` once the pairing was revoked.
@@ -109,7 +131,7 @@ public final class RappPairRecord: @unchecked Sendable {
   }
 
   /// Stores the confirmed pairing over the unconfirmed record written
-  /// before the peer's `pairing.stored` arrived (RAPP v26.10.29 §4.3 item
+  /// before the peer's `pairing.stored` arrived (RAPP v26.11.2 §4.3 item
   /// 4).
   ///
   /// - Throws: ``RappBindingError/StorageUnconfirmed`` for a record that is
@@ -150,20 +172,19 @@ public final class RappPairRecord: @unchecked Sendable {
     }
   }
 
-  /// The custodian's user forgets the pairing while no session to the peer
-  /// is open (RAPP v26.10.29 §4.6).
+  /// The user forgets the pairing while no session to the peer is open
+  /// (RAPP v26.11.2 §4.6).
   ///
   /// Idle expiry is ``sweep(vault:nowMs:sessionEstablished:)``'s. A
   /// confirmed record is stored as forgotten and keeps its key only to
-  /// deliver the `pairing_revoked` close on the next session; an unconfirmed
-  /// one is destroyed at once, here and in the vault, and nobody is told.
-  /// With a session open, close it with reason `pairingRevoked` and call
-  /// ``revoke(vault:revokedAtMs:)`` instead. A requester whose holder turns
-  /// remote use off never forgets this way: it closes each open session with
-  /// `pairingRevoked`, waits at most ``rappQuitWithdrawalBoundMs()`` for the
-  /// closes to leave, and calls ``revoke(vault:revokedAtMs:)`` for every
-  /// pairing, owing nothing (§4.6 item 6). `forgottenAtMs` is milliseconds
-  /// since the Unix epoch.
+  /// deliver the `pairing_revoked` close: on a custodian on the next
+  /// session, for 30 days; on a requester in one attempt within
+  /// ``rappRevocationAttemptBoundMs()`` of `forgottenAtMs` (§4.6 item 6).
+  /// An unconfirmed one is destroyed at once, here and in the vault, and
+  /// nobody is told. With a session open, close it with reason
+  /// `pairingRevoked`, wait for the echo within
+  /// ``rappQuitWithdrawalBoundMs()``, and call ``revoke(vault:revokedAtMs:)``
+  /// instead. `forgottenAtMs` is milliseconds since the Unix epoch.
   ///
   /// - Throws: ``RappBindingError/WrongPhase`` for a revoked pairing, and
   ///   ``RappBindingError/LocalStateFailure`` when storage refused.
@@ -187,8 +208,9 @@ public final class RappPairRecord: @unchecked Sendable {
     }
   }
 
-  /// Whether a forgotten record kept its key for 30 days without a session
-  /// to deliver the close (§4.6 item 3).
+  /// Whether a forgotten record kept its key as long as it may without
+  /// delivering the close: 30 days on a custodian (§4.6 item 3),
+  /// ``rappRevocationAttemptBoundMs()`` on a requester (§4.6 item 6).
   ///
   /// Destroy it then with ``revoke(vault:revokedAtMs:)``; a revoked pairing
   /// has nothing left to expire.
@@ -197,7 +219,7 @@ public final class RappPairRecord: @unchecked Sendable {
   }
 
   /// Checks this pairing for idle expiry at `nowMs`, milliseconds since the
-  /// Unix epoch, and stores what changed (RAPP v26.10.29 §4.6 item 5).
+  /// Unix epoch, and stores what changed (RAPP v26.11.2 §4.6 item 5).
   ///
   /// `sessionEstablished` says whether a session to the pairing is
   /// established now. With one, the time is recorded and the pairing kept,
@@ -207,6 +229,9 @@ public final class RappPairRecord: @unchecked Sendable {
   /// while it has had none, and is then stored as forgotten. The change is
   /// stored first and taken into memory only once the vault confirmed it, so
   /// a sweep that failed to store is repeated whole by the next one.
+  ///
+  /// On a requester an expired pairing is destroyed at once, here and in
+  /// the vault, and nothing is owed (§4.6 items 5 and 6).
   ///
   /// Sweep every pairing at launch and at least once a day, and sweep a
   /// pairing with `sessionEstablished` true once its session is established
@@ -223,6 +248,15 @@ public final class RappPairRecord: @unchecked Sendable {
       guard var current = stored else { throw RappBindingError.WrongPhase }
       guard current.storageConfirmed else { throw RappBindingError.StorageUnconfirmed }
       let pairID = current.pairIdentifier
+      if let expired = try Self.expiredRequesterSummary(
+        of: current, in: vault, at: nowMs, sessionEstablished: sessionEstablished
+      ) {
+        // A requester's expiry destroys the pairing at once: nothing is
+        // stored as forgotten, so nothing is left to dial.
+        stored = nil
+        summary = expired
+        return .expired
+      }
       let outcome: PairRecordSweepOutcome
       do {
         outcome = try current.sweep(
@@ -238,6 +272,31 @@ public final class RappPairRecord: @unchecked Sendable {
       stored = current
       summary = Self.summary(of: current)
       return RappSweepOutcome(outcome)
+    }
+  }
+
+  /// Replaces the peer's name in the record with `name`, the name its `session.ready` or
+  /// `session.hello` carried, where it differs (RAPP v26.11.2 §4.3 item 4): first in the vault,
+  /// then here.
+  ///
+  /// Answers whether the name changed.
+  ///
+  /// - Throws: ``RappBindingError/WrongPhase`` for a revoked pairing, and
+  ///   ``RappBindingError/LocalStateFailure`` when storage refused; the
+  ///   record keeps its old name and the session goes on.
+  public func updatePeerDisplayName(vault: RappPairVault, name: RappDisplayName) throws -> Bool {
+    try locked {
+      guard let current = stored else { throw RappBindingError.WrongPhase }
+      guard current.peerDisplayName != name.text else { return false }
+      let renamed = current.renamed(name)
+      do {
+        try vault.replaceDeviceOnly(pairId: renamed.pairIdentifier, record: renamed.encoded())
+      } catch {
+        throw RappBindingError.LocalStateFailure
+      }
+      stored = renamed
+      summary = Self.summary(of: renamed)
+      return true
     }
   }
 

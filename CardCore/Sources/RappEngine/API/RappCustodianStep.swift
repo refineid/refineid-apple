@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// What the custodian does next for its live operation (RAPP v26.10.29
+/// What the custodian does next for its live operation (RAPP v26.11.2
 /// §8.2).
 ///
 /// An operation meets them in the order inspect, then the PIN or the read,

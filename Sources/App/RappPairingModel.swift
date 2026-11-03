@@ -9,7 +9,6 @@ import SwiftUI
   import UIKit
 #elseif os(macOS)
   import AppKit
-  import SystemConfiguration
 #endif
 
 @MainActor
@@ -59,49 +58,6 @@ internal final class RappPairingModel: ObservableObject {
         false
       }
     }
-  }
-
-  /// The in-protocol name this device introduces itself with
-  /// (``PeerDisplayName``): a Mac its system and host name, an iPhone or
-  /// an iPad its own name.
-  internal static var localDisplayName: String {
-    #if os(macOS)
-      PeerDisplayName.computer(
-        system: PeerDisplayName.macSystem,
-        host: SCDynamicStoreCopyLocalHostName(nil) as String?
-          ?? Host.current().localizedName ?? String(localized: "Mac")
-      ).text
-    #else
-      PeerDisplayName.handheld(name: handheldName).text
-    #endif
-  }
-
-  #if !os(macOS)
-    /// Whether the app reads the name the owner gave this device.
-    ///
-    /// That takes the
-    /// `com.apple.developer.device-information.user-assigned-device-name`
-    /// entitlement. Without it `UIDevice.current.name` is only "iPhone"
-    /// or "iPad", so the device is named by its model; once the
-    /// entitlement is granted and in `Config/RefineID-iOS.entitlements`,
-    /// this turns true and the name the owner gave the device is sent.
-    private static let readsUserAssignedDeviceName = false
-
-    /// The name the owner gave this device, or its model, such as
-    /// "iPhone 15 Pro Max", or its family for a model not listed.
-    private static var handheldName: String {
-      if readsUserAssignedDeviceName {
-        return UIDevice.current.name
-      }
-      let family = UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone"
-      return DeviceModel.name(ofMachine: DeviceModel.machineIdentifier, family: family)
-    }
-  #endif
-
-  /// The platform description this device introduces itself with: the
-  /// device's model, which tells a person which device this is.
-  internal static var localPlatform: String {
-    DeviceModel.description
   }
 
   @Published internal var phase = Phase.idle
@@ -179,7 +135,10 @@ internal final class RappPairingModel: ObservableObject {
     createOffer(customCode: nil)
   }
 
+  /// Shows a pairing code and serves it; only a phone does (RAPP v26.11.2
+  /// §1): an iPad or a Mac is a requester and offers nothing.
   internal func createOffer(customCode: String?) {
+    guard SupportedCardTransports.servesRemoteCards else { return }
     resetAttempt()
     isOffering = true
     #if os(iOS)
@@ -210,8 +169,8 @@ internal final class RappPairingModel: ObservableObject {
       code: code,
       profiles: rappCredentialProfiles(),
       transportProfile: rappStreamProfileName(),
-      displayName: Self.localDisplayName,
-      platform: Self.localPlatform,
+      displayName: RappLocalName.displayName,
+      platform: RappLocalName.platform,
       vault: vault)
   }
 

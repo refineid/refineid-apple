@@ -21,6 +21,9 @@ public struct RappOperationDescriptor: Equatable, Sendable {
   public var documentNames: [String]
   /// A batch's digests, paired with `documentNames`; empty otherwise.
   public var digests: [Data]
+  /// A package's files, in container order, shown under its name (RAPP
+  /// v26.11.2 §9.3, §11 item 1); empty for any other operation.
+  public var containedFiles: [String]
 
   /// Describes one operation for the holder.
   public init(
@@ -30,7 +33,8 @@ public struct RappOperationDescriptor: Equatable, Sendable {
     algorithm: RappSignatureAlgorithm?,
     digest: Data,
     documentNames: [String] = [],
-    digests: [Data] = []
+    digests: [Data] = [],
+    containedFiles: [String] = []
   ) {
     self.kind = kind
     self.displayContext = displayContext
@@ -39,5 +43,6 @@ public struct RappOperationDescriptor: Equatable, Sendable {
     self.digest = digest
     self.documentNames = documentNames
     self.digests = digests
+    self.containedFiles = containedFiles
   }
 }

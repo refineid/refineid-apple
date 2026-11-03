@@ -19,10 +19,9 @@
 
     @Test
     @MainActor
-    internal func noCardIsStillConnecting() {
+    internal func noCardShowsNoRemoteCard() {
       #expect(
-        IdentityLine.derive(DemoPairedPhone.facts(availability: .noCard))
-          == .paired(.connecting))
+        IdentityLine.derive(DemoPairedPhone.facts(availability: .noCard)) == .pairPhone)
     }
   }
 

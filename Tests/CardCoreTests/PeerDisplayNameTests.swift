@@ -2,7 +2,7 @@
 
 import Testing
 
-@testable import RefineIDTestHost
+@testable import CardCore
 
 /// A computer names itself by its operating system and its host name; a
 /// phone or a tablet by its own name alone.

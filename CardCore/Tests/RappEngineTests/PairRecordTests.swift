@@ -9,7 +9,7 @@ import Testing
 internal struct PairRecordTests {
   /// When the fixture is forgotten, in milliseconds since the Unix epoch.
   private let forgottenAtMilliseconds: UInt64 = 1_700_000_000_000
-  /// Days a forgotten record keeps its key (RAPP v26.10.29 §4.6 item 3).
+  /// Days a forgotten record keeps its key (RAPP v26.11.2 §4.6 item 3).
   private let revocationNoticeDays: UInt64 = 30
   private let millisecondsPerDay: UInt64 = 86_400_000
   /// The smallest step of the millisecond clock.
@@ -58,11 +58,15 @@ internal struct PairRecordTests {
     }
   }
 
-  @Test("A wrong format version is rejected")
+  @Test("A format version other than the RAPP version that set the layout is rejected")
   internal func wrongFormatVersionIsRejected() throws {
     let encoded = try makePairRecord().encoded()
-    #expect(throws: (any Error).self) {
-      _ = try PairRecord.decode(try mutated(encoded, "format_version", .unsigned(1)))
+    let format = PairRecordFormat.current
+    let earlier = PairRecordFormat(year: format.year, month: format.month - 1, day: format.day)
+    for stored: WireValue in [.unsigned(format.day), earlier.value] {
+      #expect(throws: (any Error).self) {
+        _ = try PairRecord.decode(try mutated(encoded, "format_version", stored))
+      }
     }
   }
 
@@ -103,6 +107,23 @@ internal struct PairRecordTests {
         nowMilliseconds: forgottenAtMilliseconds + window - tick))
     #expect(
       forgotten.revocationNoticeExpired(nowMilliseconds: forgottenAtMilliseconds + window))
+  }
+
+  @Test("A requester's forgotten record keeps its key for one bounded attempt")
+  internal func revocationAttemptBound() throws {
+    let forgotten = try makePairRecord(role: .requester).forgotten(at: forgottenAtMilliseconds)
+    let bound = RevocationAttemptBound.milliseconds
+    #expect(
+      !forgotten.revocationNoticeExpired(nowMilliseconds: forgottenAtMilliseconds + bound - tick))
+    #expect(forgotten.revocationNoticeExpired(nowMilliseconds: forgottenAtMilliseconds + bound))
+  }
+
+  @Test("A new name replaces the peer's name in the record")
+  internal func renamed() throws {
+    let record = try makePairRecord()
+    let renamed = record.renamed(DisplayNameFixture.requester)
+    #expect(renamed.peerDisplayName == DisplayNameFixture.requester.text)
+    #expect(try PairRecord.decode(try renamed.encoded()) == renamed)
   }
 
   @Test("Only a confirmed record is stored as forgotten")

@@ -18,7 +18,7 @@ public struct RappPairMetadata: Equatable, Sendable {
   public var createdAtMs: UInt64
   /// The name the peer gave when it paired, verbatim.
   public var peerDisplayName: String
-  /// Whether both endpoints confirmed storing the pairing (RAPP v26.10.29
+  /// Whether both endpoints confirmed storing the pairing (RAPP v26.11.2
   /// §4.3 item 4); an unconfirmed record is revoked, never used.
   public var storageConfirmed: Bool
   /// When the local user forgot the pairing, or it expired, while no

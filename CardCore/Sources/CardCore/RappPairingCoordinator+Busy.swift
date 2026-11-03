@@ -4,7 +4,7 @@
   import Foundation
   import RappEngine
 
-  /// The custodian's bootstrap answer and its busy refusal (RAPP v26.10.29
+  /// The custodian's bootstrap answer and its busy refusal (RAPP v26.11.2
   /// §4.2, Bootstrap Read Flow and "Busy Refusal").
   extension RappPairingCoordinator {
     /// Serves the custodian's bootstrap answer to a connection whose

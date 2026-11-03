@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The endpoint a requester opens next (RAPP v26.10.29 §4.2, "Trying Each
+/// The endpoint a requester opens next (RAPP v26.11.2 §4.2, "Trying Each
 /// Custodian in Pairing Mode" item 1).
 internal enum NextEndpoint<Endpoint: Equatable>: Equatable {
   /// No endpoint is left to open, or the connection limit is reached.

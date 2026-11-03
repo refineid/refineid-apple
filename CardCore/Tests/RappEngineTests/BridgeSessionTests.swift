@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-/// How a session ends, and that no failure ends the pairing (RAPP v26.10.29
+/// How a session ends, and that no failure ends the pairing (RAPP v26.11.2
 /// §8.1 item 3, §8.3, §10.1).
 @Suite("RAPP session lifetime between the bridges")
 internal struct BridgeSessionTests {
@@ -57,19 +57,26 @@ internal struct BridgeSessionTests {
       close
         == .sendClose(
           try frame(close), reason: .userDisconnect, endedOperation: .dropped(identifier)))
+    let echo = try deliver(close, to: session.custodian, at: Self.start)
     #expect(
-      try deliver(close, to: session.custodian, at: Self.start)
-        == .sessionClosed(reason: .userDisconnect, endedOperation: .dropped(identifier)))
+      echo
+        == .echoClose(
+          try frame(echo), reason: .userDisconnect, endedOperation: .dropped(identifier)))
     #expect(
-      session.requester.closeWithReason(.normal)
-        == .sessionClosed(reason: nil, endedOperation: nil),
-      "a closed session sends nothing more")
+      session.requester.closeWithReason(.normal) == .noAction,
+      "a session waiting for its echo sends nothing more")
+    #expect(
+      try deliver(echo, to: session.requester, at: Self.start)
+        == .closeAcknowledged(reason: .userDisconnect, crossing: false))
 
     let withdrawn = try establishedSession(pairing, nowMilliseconds: Self.start)
     let notice = withdrawn.custodian.closeWithReason(.serviceWithdrawn)
+    let answer = try deliver(notice, to: withdrawn.requester, at: Self.start)
     #expect(
-      try deliver(notice, to: withdrawn.requester, at: Self.start)
-        == .sessionClosed(reason: .serviceWithdrawn, endedOperation: nil))
+      answer == .echoClose(try frame(answer), reason: .serviceWithdrawn, endedOperation: nil))
+    #expect(
+      try deliver(answer, to: withdrawn.custodian, at: Self.start)
+        == .closeAcknowledged(reason: .serviceWithdrawn, crossing: false))
   }
 
   @Test("A requester's withdrawal reaches the custodian, ends its operation, and keeps the pairing")
@@ -83,9 +90,12 @@ internal struct BridgeSessionTests {
       notice
         == .sendClose(
           try frame(notice), reason: .serviceWithdrawn, endedOperation: .dropped(identifier)))
+    let echo = try deliver(notice, to: session.custodian, at: Self.start)
     #expect(
-      try deliver(notice, to: session.custodian, at: Self.start)
-        == .sessionClosed(reason: .serviceWithdrawn, endedOperation: .dropped(identifier)))
+      echo
+        == .echoClose(
+          try frame(echo), reason: .serviceWithdrawn, endedOperation: .dropped(identifier)),
+      "the custodian answers with the echo alone")
     #expect(
       session.custodian.closeWithReason(.normal)
         == .sessionClosed(reason: nil, endedOperation: nil),
@@ -114,9 +124,9 @@ internal struct BridgeSessionTests {
     #expect(
       violation
         == .sendClose(try frame(violation), reason: .protocolViolation, endedOperation: nil))
+    let echo = try deliver(violation, to: custodianOnly.requester, at: Self.start)
     #expect(
-      try deliver(violation, to: custodianOnly.requester, at: Self.start)
-        == .sessionClosed(reason: .protocolViolation, endedOperation: nil))
+      echo == .echoClose(try frame(echo), reason: .protocolViolation, endedOperation: nil))
 
     let requesterOnly = try establishedSession(pairing, nowMilliseconds: Self.start)
     let request = try inspectionRequest(OperationFixture.operationIdentifier).wireBody()
@@ -135,7 +145,8 @@ internal struct BridgeSessionTests {
             transportProfile: StreamProfile.name,
             candidateIdentifier: TransportRegistry.streamCandidateIdentifier,
             grantsHash: pairing.requester.record.grantsHash),
-          nonce: randomBytes(FlowLimit.readyNonce)
+          nonce: randomBytes(FlowLimit.readyNonce),
+          displayName: DisplayNameFixture.custodian
         )
         .body(), from: earlierPhase.custodian),
       nowMs: Self.start)
@@ -200,12 +211,13 @@ internal struct BridgeSessionTests {
   internal func readyIsSentOnce() throws {
     let (requester, custodian) = try authenticatingSessions(
       try PairedBridges.pair(granting: everyProfile))
+    let name = DisplayNameFixture.custodian
     #expect(throws: (any Error).self, "the requester never sends ready") {
-      _ = try requester.sendReady(nonce: randomBytes(FlowLimit.readyNonce))
+      _ = try requester.sendReady(nonce: randomBytes(FlowLimit.readyNonce), displayName: name)
     }
-    _ = try custodian.sendReady(nonce: randomBytes(FlowLimit.readyNonce))
+    _ = try custodian.sendReady(nonce: randomBytes(FlowLimit.readyNonce), displayName: name)
     #expect(throws: (any Error).self, "a second ready is refused") {
-      _ = try custodian.sendReady(nonce: randomBytes(FlowLimit.readyNonce))
+      _ = try custodian.sendReady(nonce: randomBytes(FlowLimit.readyNonce), displayName: name)
     }
     try custodian.enterEstablished()
     #expect(custodian.isEstablished())

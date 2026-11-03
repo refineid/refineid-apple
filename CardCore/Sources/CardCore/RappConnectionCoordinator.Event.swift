@@ -12,7 +12,7 @@
       case transportFailure
       case localRequest
 
-      /// Whether the peer revoked the pairing (RAPP v26.10.29 §4.6 item 4).
+      /// Whether the peer revoked the pairing (RAPP v26.11.2 §4.6 item 4).
       public var peerRevokedPairing: Bool {
         self == .handshake(.pairRevoked) || self == .operation(.pairRevoked)
       }
@@ -21,6 +21,23 @@
       /// serving, or a requester stopped using, every pairing (§4.5).
       public var serviceWithdrawn: Bool {
         self == .operation(.serviceWithdrawn) || self == .handshake(.peerClosed(.serviceWithdrawn))
+      }
+
+      /// Whether the custodian closed with `card_unavailable`: it can serve
+      /// no card for the rest of the session (§8.4 item 5).
+      public var cardUnavailable: Bool {
+        self == .operation(.peerClosed(.cardUnavailable))
+          || self == .handshake(.peerClosed(.cardUnavailable))
+      }
+
+      /// Whether the session ended for an authenticated protocol violation:
+      /// the peer's `protocol_violation` close, or one this endpoint
+      /// detected and closed with (§4.5 item 6, §10.1 item 2).
+      public var protocolViolation: Bool {
+        [
+          .operation(.protocolViolation), .operation(.peerClosed(.protocolViolation)),
+          .handshake(.protocolViolation), .handshake(.peerClosed(.protocolViolation)),
+        ].contains(self)
       }
     }
 
@@ -47,13 +64,18 @@
       case terminal(operationID: RappOperationIdentifier, reason: RappTerminalReason)
       case progress(operationID: RappOperationIdentifier, event: ProgressEvent)
       /// The custodian's word on the card it holds and on its card reader
-      /// (RAPP v26.10.29 §8.4).
+      /// (RAPP v26.11.2 §8.4).
       case cardStatus(RappCardStatus)
       /// The session's operation ended with the session (§8.1 item 3).
       case operationEnded(RappEndedOperation)
       /// This custodian answered or refused `operationID`, so the operation
       /// is over on its side and the session is free for the next one.
       case answered(operationID: RappOperationIdentifier)
+      /// The peer named itself on this session (RAPP v26.11.2 §4.3 item
+      /// 4): `session.ready` on a requester, `session.hello` on a
+      /// custodian. Record the name in the pair record where it differs; a
+      /// failed store keeps the old name and the session goes on.
+      case peerNamed(RappDisplayName)
       case closed(CloseReason)
 
       internal init?(_ command: RappOperationDriver.Command) {
@@ -85,7 +107,7 @@
         case .operationEnded(let ended):
           self = .operationEnded(ended)
 
-        case .send, .closed:
+        case .send, .closed, .awaitCloseEcho, .peerNamed:
           return nil
         }
       }

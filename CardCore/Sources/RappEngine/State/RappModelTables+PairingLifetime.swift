@@ -3,7 +3,7 @@
 extension RappModelTables {
   /// Pairing component rules from a stored pairing's sessions to its end:
   /// recorded sessions, idle expiry, forgetting and revocation (RAPP
-  /// v26.10.29 §4.5, §4.6).
+  /// v26.11.2 §4.5, §4.6).
   internal static let pairingLifetime: [RappRule<PairingState, PairingEvent>] = [
     RappRule(
       from: .pairedDisconnected,
@@ -40,18 +40,10 @@ extension RappModelTables {
     RappRule(
       from: .pairedDisconnected,
       event: .forgetPairing,
-      role: .custodian,
+      role: .both,
       condition: .localUserAction,
       destination: .revoking,
       actions: [.markRecordRevoked, .withdrawIdentity, .showForgotten]
-    ),
-    RappRule(
-      from: .pairedDisconnected,
-      event: .forgetPairing,
-      role: .requester,
-      condition: .localUserAction,
-      destination: .revoked,
-      actions: [.markRecordRevoked, .destroyPairKeys, .withdrawIdentity, .showForgotten]
     ),
     RappRule(
       from: .pairedConnected,
@@ -70,9 +62,16 @@ extension RappModelTables {
     RappRule(
       from: .pairedDisconnected,
       event: .idleExpired,
-      role: .both,
+      role: .custodian,
       destination: .revoking,
       actions: [.markRecordRevoked, .withdrawIdentity]
+    ),
+    RappRule(
+      from: .pairedDisconnected,
+      event: .idleExpired,
+      role: .requester,
+      destination: .revoked,
+      actions: [.markRecordRevoked, .destroyPairKeys, .withdrawIdentity]
     ),
     RappRule(
       from: .revoking,
@@ -84,7 +83,14 @@ extension RappModelTables {
     RappRule(
       from: .revoking,
       event: .noticeWindowExpired,
-      role: .both,
+      role: .custodian,
+      destination: .revoked,
+      actions: [.destroyPairKeys]
+    ),
+    RappRule(
+      from: .revoking,
+      event: .revocationAttemptEnded,
+      role: .requester,
       destination: .revoked,
       actions: [.destroyPairKeys]
     ),

@@ -20,7 +20,7 @@ import Testing
         #expect(code.count == RappPairingCode.codeLength)
         #expect(RappPairingCode.isValid(code))
         #expect(RappPairingCode.normalize(code) == code)
-        // Excluded visually ambiguous symbols per RAPP v26.10.29 §3.1
+        // Excluded visually ambiguous symbols per RAPP v26.11.2 §3.1
         #expect(!code.contains("I"))
         #expect(!code.contains("L"))
         #expect(!code.contains("O"))
@@ -91,7 +91,7 @@ import Testing
           code: code,
           profiles: RappIntegrationFixtures.profiles,
           transportProfile: RappIntegrationFixtures.transportProfile,
-          displayName: "iPad Requester",
+          displayName: TestDisplayNames.requester,
           platform: "iOS",
           vault: RappDeviceVault(accessGroup: nil, servicePrefix: requesterPrefix)),
         remoteUseAvailable: { true },

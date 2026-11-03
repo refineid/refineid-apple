@@ -100,9 +100,10 @@
       answered(operationID)
     }
 
-    /// Starts a sign-document operation over the digest of a named document.
+    /// Starts a sign-document operation over the digest of `document`, a
+    /// single document or a package (RAPP v26.11.2 §9.3).
     public func beginSignDocument(
-      documentName: String,
+      document: RappSigningDocument,
       keyProfile: RappOperationDriver.KeyProfile,
       algorithm: RappOperationDriver.SignatureAlgorithm,
       digest: Data,
@@ -111,7 +112,7 @@
       let driver = try operationDriver()
       await handleOperation(
         try await driver.beginSignDocument(
-          documentName: documentName,
+          document: document,
           keyProfile: keyProfile,
           algorithm: algorithm,
           digest: digest,
@@ -120,14 +121,14 @@
     }
 
     /// Tells the requester which card this custodian holds and whether a
-    /// contact card reader is connected to it (RAPP v26.10.29 §8.4).
+    /// contact card reader is connected to it (RAPP v26.11.2 §8.4).
     public func reportCardStatus(_ status: RappCardStatus) async throws {
       let driver = try operationDriver()
       await handleOperation(await driver.reportCardStatus(status))
     }
 
     /// Reports progress on an active operation, such as a PIN prompt being
-    /// on screen (RAPP v26.10.29 §8.2 item 3).
+    /// on screen (RAPP v26.11.2 §8.2 item 3).
     public func reportProgress(operationID: RappOperationIdentifier, event: ProgressEvent)
       async throws
     {
@@ -172,7 +173,7 @@
       answered(operationID)
     }
 
-    /// The retry floor refused before any verification (RAPP v26.10.29
+    /// The retry floor refused before any verification (RAPP v26.11.2
     /// §10.2).
     public func retryFloor(operationID: RappOperationIdentifier) async throws {
       let driver = try operationDriver()
@@ -208,7 +209,7 @@
       answered(operationID)
     }
 
-    /// Completes an identity read (RAPP v26.10.29 §9.1).
+    /// Completes an identity read (RAPP v26.11.2 §9.1).
     public func completeIdentity(
       operationID: RappOperationIdentifier,
       identity: RappOperationDriver.Identity

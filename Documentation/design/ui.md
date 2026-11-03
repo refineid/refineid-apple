@@ -51,8 +51,11 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   the table `Scripts/generate-device-models.sh` writes, or "iPhone" or
   "iPad" for a model the table lacks. Once the entitlement is in
   `Config/RefineID-iOS.entitlements`, the one switch
-  `readsUserAssignedDeviceName` in `RappPairingModel` turns on and the
-  name the owner gave the device is sent instead.
+  `readsUserAssignedDeviceName` in `RappLocalName` (CardCore) turns on and the
+  name the owner gave the device is sent instead. The name is sent again
+  on every session, so a renamed device reaches its peer with its next
+  session, and a name over 256 bytes is shortened at a character
+  boundary.
 - **Finnish vocabulary.** Pairing is *yhdistäminen*, and its code is the
   *yhdistämiskoodi*. *Paritus*, *pariliitos* and *laitepari* are not used.
 - **PIN names.** The codes take DVV's names: the basic PIN (*perus*,

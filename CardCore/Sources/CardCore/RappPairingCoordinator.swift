@@ -4,7 +4,7 @@
   import Foundation
   import RappEngine
 
-  /// Drives one RAPP v26.10.29 pairing ceremony over one transport.
+  /// Drives one RAPP v26.11.2 pairing ceremony over one transport.
   ///
   /// The custodian creates a random offer, shows a pairing code and waits;
   /// the requester's side starts from the offer one connection served
@@ -32,7 +32,7 @@
       // MARK: Lifecycle
 
       internal init(_ hello: RappPeerHello) {
-        displayName = hello.displayName
+        displayName = hello.displayName.text
         platform = hello.platform
         requestedProfiles = hello.requestedProfiles
       }
@@ -86,14 +86,14 @@
       case outOfSpace
       case offerExpired
       /// No CPace step 2 arrived within the attempt deadline of the
-      /// requester's step 1 (RAPP v26.10.29 §3.3 item 3).
+      /// requester's step 1 (RAPP v26.11.2 §3.3 item 3).
       case attemptTimedOut
       /// The custodian answered `pairing-busy` in place of CPace step 2: it
       /// could not admit the attempt, and asks to be tried again no sooner
-      /// than the wait (RAPP v26.10.29 §4.2, "Busy Refusal").
+      /// than the wait (RAPP v26.11.2 §4.2, "Busy Refusal").
       case custodianBusy(retryAfterMilliseconds: UInt64)
       /// The peer never confirmed storing the pairing; the record this
-      /// endpoint stored is revoked (RAPP v26.10.29 §4.3 item 4).
+      /// endpoint stored is revoked (RAPP v26.11.2 §4.3 item 4).
       case storageUnconfirmed
     }
 
@@ -104,7 +104,7 @@
       /// transport must be replaced before it can answer.
       case offerRestored
       /// The custodian's T_B verified: it holds the code the requester's
-      /// user typed (RAPP v26.10.29 §6.1.3 step 3).
+      /// user typed (RAPP v26.11.2 §6.1.3 step 3).
       case keyConfirmed
       /// The peer's authenticated introduction, for naming the pairing.
       case peerIntroduced(Peer)
@@ -123,7 +123,7 @@
       case awaitingPeerHello
       case awaitingPeerConfirmation
       /// The record is stored and `pairing.stored` sent; the peer's is
-      /// awaited (RAPP v26.10.29 §4.3 item 4).
+      /// awaited (RAPP v26.11.2 §4.3 item 4).
       case awaitingPeerStored
       case completed
       case closed
@@ -139,11 +139,11 @@
     internal let bridge: RappPairingBridge
     internal let vault: RappDeviceVault
     internal var transport: any RappFrameTransport
-    /// The transport profile this ceremony runs over (RAPP v26.10.29 §2.2).
+    /// The transport profile this ceremony runs over (RAPP v26.11.2 §2.2).
     internal let transportProfile: String
     internal let candidateID: String
     internal let profiles: [String]
-    internal let displayName: String
+    internal let displayName: RappDisplayName
     internal let platform: String
     internal let clock: RappPlatformClock
     internal let entropy: RappPlatformEntropy
@@ -164,7 +164,7 @@
       transportProfile: String,
       candidateID: String,
       profiles: [String],
-      displayName: String,
+      displayName: RappDisplayName,
       platform: String,
       vault: RappDeviceVault,
       transport: any RappFrameTransport,

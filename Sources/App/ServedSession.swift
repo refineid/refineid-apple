@@ -6,7 +6,7 @@
   import RappEngine
 
   /// One authenticated RAPP session the phone serves: one stream
-  /// connection or one Bluetooth link (RAPP v26.10.29 §8.3).
+  /// connection or one Bluetooth link (RAPP v26.11.2 §8.3).
   ///
   /// Every session runs apart from the others: its own coordinator and
   /// dispatcher, its own ordered frame delivery, liveness, close and
@@ -178,6 +178,9 @@
         ended()
         tellDispatcher(event)
         report(self, .closed(reason))
+
+      case .peerNamed(let name):
+        RappPeerName.record(name, pairID: pairID, in: RappDeviceVault())
 
       case .progress, .cardStatus:
         break

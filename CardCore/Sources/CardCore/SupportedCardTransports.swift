@@ -46,4 +46,15 @@ public enum SupportedCardTransports {
   public static var offersNearField: Bool {
     current.permits(.nearField)
   }
+
+  /// Whether this device serves its card to computers over RAPP: only a phone with NFC is a
+  /// custodian.
+  ///
+  /// An iPad, like a computer, is a requester only and never serves a card (RAPP v26.11.2 §1).
+  public static var servesRemoteCards: Bool {
+    offersNearField && !DeviceModel.machineIdentifier.hasPrefix(tabletFamily)
+  }
+
+  /// The machine identifier prefix of every iPad.
+  private static let tabletFamily = "iPad"
 }

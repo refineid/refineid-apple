@@ -62,7 +62,7 @@ private let fixturePairingCode = "246813"
         code: fixturePairingCode,
         profiles: profiles,
         transportProfile: streamProfile,
-        displayName: name,
+        displayName: TestDisplayNames.name(name),
         platform: name == "Requester" ? "iPadOS" : "iOS",
         vault: vault)
     }

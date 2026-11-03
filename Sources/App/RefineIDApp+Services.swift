@@ -107,7 +107,7 @@ extension RefineIDApp {
       PersistentTokenRegistry.shared.retryAfterLocalNetworkDenial()
     }
 
-    /// Sweeps the pairings for idle expiry (RAPP v26.10.29 §4.6 item 5),
+    /// Sweeps the pairings for idle expiry (RAPP v26.11.2 §4.6 item 5),
     /// then serves or follows from what remains, and sweeps again while the
     /// app runs.
     ///

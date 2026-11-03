@@ -45,7 +45,7 @@ private let misreadPairingCode = "246814"
           code: fixturePairingCode,
           profiles: Self.profiles,
           transportProfile: Self.transportProfile,
-          displayName: "Custodian",
+          displayName: TestDisplayNames.custodian,
           platform: "iOS",
           vault: RappDeviceVault(accessGroup: nil)),
         transport: transport)

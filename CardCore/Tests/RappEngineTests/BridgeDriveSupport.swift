@@ -29,32 +29,45 @@ internal func authenticatingSessions(
 }
 
 /// A session established over `pairing`: the custodian sends
-/// `session.ready`, the requester verifies it, and both take operations
+/// `session.ready`, the requester verifies it and answers with
+/// `session.hello`, which the custodian reads, and both take operations
 /// from `nowMilliseconds` on.
 internal func establishedSession(
   _ pairing: PairedBridges, nowMilliseconds: UInt64
 ) throws -> LiveSession {
   let (requester, custodian) = try authenticatingSessions(pairing)
-  let ready = try custodian.sendReady(nonce: randomBytes(FlowLimit.readyNonce))
+  let ready = try custodian.sendReady(
+    nonce: randomBytes(FlowLimit.readyNonce), displayName: DisplayNameFixture.custodian)
   try custodian.enterEstablished()
-  guard try requester.receiveReady(bytes: ready) == .verified else {
+  guard
+    case .verified(let peerName, let hello) = try requester.receiveReady(
+      bytes: ready, displayName: DisplayNameFixture.requester),
+    peerName == DisplayNameFixture.custodian
+  else {
     throw DriveFailure(description: "the requester verifies the custodian's ready")
   }
   try requester.enterEstablished()
   #expect(requester.isEstablished() && custodian.isEstablished())
-  return LiveSession(
+  let live = LiveSession(
     requester: try RappOperationBridge.beginRequester(
       session: requester, maximumLifetimeMs: OperationFixture.maximumLifetimeMilliseconds,
       nowMs: nowMilliseconds),
     custodian: try RappOperationBridge.beginProxy(
       session: custodian, maximumLifetimeMs: OperationFixture.maximumLifetimeMilliseconds,
       nowMs: nowMilliseconds))
+  guard
+    live.custodian.receiveFrame(bytes: hello, nowMs: nowMilliseconds)
+      == .peerNamed(DisplayNameFixture.requester)
+  else {
+    throw DriveFailure(description: "the custodian reads the requester's hello")
+  }
+  return live
 }
 
 /// The sealed frame a step releases.
 internal func frame(_ action: RappBridgeAction) throws -> Data {
   switch action {
-  case .sendFrame(let frame, _), .sendClose(let frame, _, _):
+  case .sendFrame(let frame, _), .sendClose(let frame, _, _), .echoClose(let frame, _, _):
     return frame
 
   default:

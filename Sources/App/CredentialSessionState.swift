@@ -19,7 +19,7 @@ internal struct CredentialSessionState: Equatable {
   /// The card refused the PIN with `fingerprint` for `role`: that PIN is
   /// never sent again in this session, and the role's counter is probed
   /// again before its next verification, since the refusal spent an
-  /// attempt (RAPP v26.10.29 §10.2).
+  /// attempt (RAPP v26.11.2 §10.2).
   internal mutating func recordNegativePin(_ fingerprint: PinFingerprint, role: CredentialRole) {
     negativePinFingerprints.insert(fingerprint)
     probedRoles.remove(role)

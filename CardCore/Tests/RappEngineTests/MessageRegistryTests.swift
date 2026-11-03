@@ -48,7 +48,10 @@ internal struct MessageRegistryTests {
       ]
 
     case .sessionReady:
-      ["parameters": .map([:]), "nonce": .bytes(digest)]
+      ["parameters": .map([:]), "nonce": .bytes(digest), "display_name": .text("iPhone")]
+
+    case .sessionHello:
+      ["display_name": .text("macOS - example-host")]
 
     case .sessionClose:
       ["reason": .text("user_disconnect")]

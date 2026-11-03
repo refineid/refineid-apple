@@ -188,7 +188,7 @@ internal struct FlowDriveTests {
   }
 
   /// Liveness: a ping after five seconds of silence, the end after thirty
-  /// (RAPP v26.10.29 §8.3).
+  /// (RAPP v26.11.2 §8.3).
   private func liveness() throws {
     let ping = LivenessTracker.pingAfterSilenceMilliseconds
     let limit = LivenessTracker.sessionSilenceLimitMilliseconds

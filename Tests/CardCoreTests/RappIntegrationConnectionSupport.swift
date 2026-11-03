@@ -38,7 +38,7 @@ private let fixturePairingCode = "246813"
           code: fixturePairingCode,
           profiles: RappIntegrationFixtures.profiles,
           transportProfile: RappIntegrationFixtures.transportProfile,
-          displayName: computerName,
+          displayName: TestDisplayNames.name(computerName),
           platform: "macOS",
           vault: requesterVault),
         remoteUseAvailable: { true },
@@ -105,6 +105,7 @@ private let fixturePairingCode = "246813"
       let requester = try RappConnectionCoordinator(
         role: .requester,
         pair: requesterPair,
+        displayName: TestDisplayNames.requester,
         transport: RappClosureFrameTransport(
           sender: { frame in try await requesterOutbound.send(frame) },
           closer: { await requesterOutbound.close() }
@@ -116,6 +117,7 @@ private let fixturePairingCode = "246813"
       let proxy = try RappConnectionCoordinator(
         role: .proxy,
         pair: proxyPair,
+        displayName: TestDisplayNames.custodian,
         transport: RappClosureFrameTransport(
           sender: { frame in try await proxyOutbound.send(frame) },
           closer: { await proxyOutbound.close() }

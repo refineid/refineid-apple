@@ -2,7 +2,7 @@
 
 /// PIN 1 the holder entered, bound to the card it was entered for: one the
 /// card accepted, or one no card ever received because the card did not
-/// come (RAPP v26.10.29 §8.4 item 1, §11 item 2).
+/// come (RAPP v26.11.2 §8.4 item 1, §11 item 2).
 ///
 /// `Card` names the card; the phone binds the value to the card's
 /// certificate fingerprint. The value ends when another card, or no card,

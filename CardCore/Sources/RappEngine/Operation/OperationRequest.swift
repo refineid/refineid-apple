@@ -3,7 +3,7 @@
 import Foundation
 
 /// One typed request, which lives inside the session that carried it (RAPP
-/// v26.10.29 §8.1).
+/// v26.11.2 §8.1).
 internal struct OperationRequest: Equatable {
   /// The lifetime a request that names none receives (§8.1 item 2).
   internal static let defaultLifetimeMilliseconds: UInt64 = 300_000
@@ -79,13 +79,30 @@ internal struct OperationRequest: Equatable {
     }
   }
 
-  /// Rejects a request whose lifetime or profile do not agree.
+  /// Rejects a request whose lifetime or profile do not agree, and a
+  /// package whose request does not fit one frame (RAPP v26.11.2 §9.3).
   internal func validate() throws {
     guard expiresAfterMilliseconds > 0 else { throw CardOperationError.invalidLifetime }
     guard profile == operation.requiredProfile else {
       throw CardOperationError.profileActionMismatch
     }
     try operation.validate()
+    if case .signDocument(let document, _, _, _) = operation, document.containedFiles != nil {
+      try ensureFitsOneFrame()
+    }
+  }
+
+  /// Checks that this request travels in one frame (§7.2 item 4): its
+  /// `operation.request` envelope at the widest sequence encoding is built
+  /// and measured against the single-frame limit.
+  private func ensureFitsOneFrame() throws {
+    let envelope = Envelope(
+      messageType: .operationRequest,
+      sessionIdentifier: Data(count: WireLimits.sessionIdentifier),
+      sequence: UInt64.max,
+      body: wireBody())
+    guard let encoded = try? envelope.encoded(), encoded.count <= WireLimits.framePlaintext
+    else { throw CardOperationError.packageTooLarge }
   }
 
   /// Local deadline on the continuous clock, shortened by this endpoint's

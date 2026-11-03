@@ -30,13 +30,16 @@ import Testing
 
     /// Answers a certificate read as the custodian does: the read skips
     /// consent and runs as soon as its prerequisites are done (RAPP
-    /// v26.10.29 §8.2 item 6).
+    /// v26.11.2 §8.2 item 6).
     private static func answerCertificateRead(
       _ coordinator: RappConnectionCoordinator
     ) async throws -> ReadProgress {
       var progress = ReadProgress()
       for await event in coordinator.events {
         switch event {
+        case .peerNamed:
+          break
+
         case .established:
           break
 
@@ -75,6 +78,9 @@ import Testing
       var answeredRead: RappOperationIdentifier?
       for await event in coordinator.events {
         switch event {
+        case .peerNamed:
+          break
+
         case .inspectPrerequisites(let operationID, _):
           try await coordinator.prerequisitesComplete(operationID: operationID)
 
@@ -103,6 +109,9 @@ import Testing
     ) async throws -> RappOperationResult {
       for await event in coordinator.events {
         switch event {
+        case .peerNamed:
+          break
+
         case .established:
           try await coordinator.beginReadCertificate(
             signatureCertificate: false,

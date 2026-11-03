@@ -3,7 +3,7 @@
 import CardCore
 import Testing
 
-/// PIN 1 held for one card, and every event that ends it (RAPP v26.10.29
+/// PIN 1 held for one card, and every event that ends it (RAPP v26.11.2
 /// §8.4 item 1, §11 item 2).
 @Suite
 internal struct CardBoundPin1Tests {

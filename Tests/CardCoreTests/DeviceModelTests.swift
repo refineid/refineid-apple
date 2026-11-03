@@ -2,7 +2,7 @@
 
 import Testing
 
-@testable import RefineIDTestHost
+@testable import CardCore
 
 @Suite
 internal struct DeviceModelTests {

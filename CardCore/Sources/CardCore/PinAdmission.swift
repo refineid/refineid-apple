@@ -9,7 +9,7 @@
 /// accepted it, which is the full allowance or a verified answer
 /// (``Pin1Retention``). Any other counter means someone has been wrong on
 /// this card, so the held value is not sent and the holder is asked
-/// instead (RAPP v26.10.29 §11 item 2).
+/// instead (RAPP v26.11.2 §11 item 2).
 public enum PinAdmission: Equatable, Sendable {
   /// The credential is blocked.
   case credentialBlocked

@@ -6,15 +6,15 @@
 
 /// How the peer named itself during the ceremony.
 public struct RappPeerHello: Equatable, Sendable {
-  /// The label the peer shows for itself.
-  public var displayName: String
+  /// The name the peer gives itself (RAPP v26.11.2 §4.3 item 3).
+  public var displayName: RappDisplayName
   /// The platform the peer runs on.
   public var platform: String
   /// Present on the requester's hello only; absent and empty differ.
   public var requestedProfiles: [String]?
 
   /// Describes how the peer named itself.
-  public init(displayName: String, platform: String, requestedProfiles: [String]?) {
+  public init(displayName: RappDisplayName, platform: String, requestedProfiles: [String]?) {
     self.displayName = displayName
     self.platform = platform
     self.requestedProfiles = requestedProfiles

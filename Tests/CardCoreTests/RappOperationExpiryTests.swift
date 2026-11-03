@@ -10,7 +10,7 @@ import Testing
 
   /// An operation whose deadline passes before the card was commanded is
   /// cancelled, and the custodian's owner hears it is over, so its prompt
-  /// comes down and the card goes to the next operation (RAPP v26.10.29
+  /// comes down and the card goes to the next operation (RAPP v26.11.2
   /// §8.1 item 2, §8.2 item 2).
   @Suite
   internal struct RappOperationExpiryTests {
@@ -24,6 +24,9 @@ import Testing
     ) async throws -> RappTerminalReason {
       for await event in coordinator.events {
         switch event {
+        case .peerNamed:
+          break
+
         case .established:
           try await coordinator.beginReadCertificate(
             signatureCertificate: false, expiresAfterMilliseconds: shortExpiryMilliseconds)
@@ -54,6 +57,9 @@ import Testing
       var held: RappOperationIdentifier?
       for await event in coordinator.events {
         switch event {
+        case .peerNamed:
+          break
+
         case .inspectPrerequisites(let operationID, _):
           held = operationID
 

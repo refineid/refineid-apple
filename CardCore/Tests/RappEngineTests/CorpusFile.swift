@@ -2,12 +2,12 @@
 
 import Foundation
 
-/// The vendored RAPP v26.10.29 documents the engine is replayed against.
+/// The vendored RAPP v26.11.2 documents the engine is replayed against.
 internal enum CorpusFile {
-  private static let conformanceName = "rapp-v26.10.29.json"
-  private static let operationName = "rapp-operation-v26.10.29.json"
-  private static let routingName = "rapp-routing-v26.10.29.json"
-  private static let withdrawalName = "rapp-withdrawal-v26.10.29.json"
+  private static let conformanceName = "rapp-v26.11.2.json"
+  private static let operationName = "rapp-operation-v26.11.2.json"
+  private static let routingName = "rapp-routing-v26.11.2.json"
+  private static let withdrawalName = "rapp-withdrawal-v26.11.2.json"
 
   /// Test sources sit four directories below the repository root.
   private static let depthBelowRepositoryRoot = 4
@@ -15,6 +15,11 @@ internal enum CorpusFile {
   internal static func conformance(filePath: String) throws -> Corpus {
     try JSONDecoder().decode(
       Corpus.self, from: try data(named: conformanceName, filePath: filePath))
+  }
+
+  internal static func displayNames(filePath: String) throws -> DisplayNameCorpus {
+    try JSONDecoder().decode(
+      DisplayNameCorpus.self, from: try data(named: conformanceName, filePath: filePath))
   }
 
   internal static func operation(filePath: String) throws -> OperationCorpus {

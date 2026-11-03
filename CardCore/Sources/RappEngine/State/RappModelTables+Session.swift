@@ -51,15 +51,15 @@ extension RappModelTables {
       from: .authenticating,
       event: .handshakeCompleteWhileRevoking,
       role: .both,
-      destination: .closed,
-      actions: [.deriveSessionIdentifiers, .sendClosePairingRevoked, .destroySessionMaterial]
+      destination: .closing,
+      actions: [.deriveSessionIdentifiers, .sendClosePairingRevoked]
     ),
     RappRule(
       from: .authenticating,
       event: .peerCloseReceived,
       role: .requester,
       destination: .closed,
-      actions: [.recordPeerCloseReason, .destroySessionMaterial]
+      actions: [.recordPeerCloseReason, .echoPeerClose, .destroySessionMaterial]
     ),
     RappRule(
       from: .authenticating,
@@ -67,7 +67,7 @@ extension RappModelTables {
       role: .requester,
       condition: .readyParametersMatch,
       destination: .healthy,
-      actions: [.startLiveness, .showConnected]
+      actions: [.recordPeerDisplayName, .sendSessionHello, .startLiveness, .showConnected]
     ),
     RappRule(
       from: .authenticating,
@@ -89,6 +89,13 @@ extension RappModelTables {
       role: .both,
       destination: .closing,
       actions: [.sendCloseProtocolViolation, .showDisconnecting]
+    ),
+    RappRule(
+      from: .healthy,
+      event: .sessionHelloReceived,
+      role: .custodian,
+      destination: .healthy,
+      actions: [.recordPeerDisplayName]
     ),
     RappRule(
       from: .healthy,
@@ -144,7 +151,7 @@ extension RappModelTables {
       event: .peerCloseReceived,
       role: .both,
       destination: .closing,
-      actions: [.recordPeerCloseReason, .showDisconnecting]
+      actions: [.recordPeerCloseReason, .echoPeerClose, .showDisconnecting]
     ),
     RappRule(
       from: .healthy,
@@ -185,8 +192,11 @@ extension RappModelTables {
       from: .closing,
       event: .peerCloseReceived,
       role: .both,
-      destination: .closing,
-      actions: []
+      destination: .closed,
+      actions: [
+        .recordPeerCloseReason, .destroySessionMaterial, .destroyCredentialBuffers,
+        .showConnectionStopped,
+      ]
     ),
     RappRule(
       from: .closing,

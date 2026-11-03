@@ -1,14 +1,14 @@
 #!/bin/sh
 # Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 #
-# Writes Sources/App/DeviceModels.swift from the device database Xcode
+# Writes CardCore/Sources/CardCore/DeviceModels.swift from the device database Xcode
 # ships with the iOS platform: every iPhone and iPad machine identifier
 # with the name on its box. Run it after an Xcode update and commit the
 # result; the application maps the identifier uname reports through it.
 set -eu
 cd "$(dirname "$0")/.."
 platform="$(xcode-select -p)/Platforms/iPhoneOS.platform/usr/standalone/device_traits.db"
-out=Sources/App/DeviceModels.swift
+out=CardCore/Sources/CardCore/DeviceModels.swift
 xcode="$(xcodebuild -version | head -1)"
 {
   echo "// Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0."

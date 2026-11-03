@@ -120,6 +120,7 @@
         let coordinator = try RappConnectionCoordinator(
           role: .requester,
           pair: pair,
+          displayName: RappLocalName.displayName,
           transport: transport,
           maximumLifetimeMilliseconds: policy.maximumOperationLifetimeMilliseconds,
           transportProfile: route.transportProfile
@@ -130,6 +131,7 @@
           return true
         }
         guard installed else { return }
+        await coordinator.setCloseEchoBound(milliseconds: closeEchoBoundMilliseconds)
         Task { [weak self] in
           for await event in coordinator.events {
             await self?.receive(event, from: coordinator)
@@ -152,6 +154,9 @@
 
       case .cardStatus(let status):
         report(.cardStatus(status))
+
+      case .peerNamed(let name):
+        report(.peerNamed(name))
 
       case .progress(_, let progressEvent):
         RappRequesterNotices.post(progress: progressEvent)

@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.10.29 a custodian that cannot admit an attempt answers busy (section 4.2)")
+@Suite("RAPP v26.11.2 a custodian that cannot admit an attempt answers busy (section 4.2)")
 internal struct BusyRefusalBridgeTests {
   private static let code = "7KX4M9"
   private static let wrongCode = "3HQ8TW"

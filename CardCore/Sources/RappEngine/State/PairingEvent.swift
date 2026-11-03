@@ -37,17 +37,23 @@ internal enum PairingEvent: String, CaseIterable, Sendable {
   case handshakeAuthenticated = "handshake_authenticated"
   case handshakeFailed = "handshake_failed"
   case helloVerified = "hello_verified"
+  /// Raised once the atomic store succeeded; a failed store raises
+  /// ``pairRecordStoreFailed`` in its place.
   case bothConfirmed = "both_confirmed"
   /// Also a `pairing.stored` naming another `pair_id`.
   case deniedAbortedOrTimedOut = "denied_aborted_or_timed_out"
+  /// Both `pairing.confirm` messages arrived and the atomic store failed:
+  /// nothing is stored and no `pairing.stored` is sent (§4.3 item 4).
+  case pairRecordStoreFailed = "pair_record_store_failed"
   case peerStorageConfirmed = "peer_storage_confirmed"
   /// Produced by the session machine entering healthy.
   case sessionHealthy = "session_healthy"
   /// Produced by the session machine entering closed.
   case sessionClosed = "session_closed"
   /// The local user forgot the pairing; on a requester, by turning remote
-  /// use off, which forgets every pairing it holds and, with no session
-  /// open, owes the custodian nothing (§4.6 item 6).
+  /// use off or by pairing another phone, which forgets the pairing it
+  /// holds; with no session open the requester keeps the key for one
+  /// bounded revocation attempt (§4.6 item 6).
   case forgetPairing = "forget_pairing"
   /// The idle-expiry sweep, with a session to the pairing established or
   /// with none and the pairing short of the idle limit (§4.6 item 5).
@@ -56,10 +62,14 @@ internal enum PairingEvent: String, CaseIterable, Sendable {
   /// `pairing_idle_expiry_days` of wall-clock time past its latest recorded
   /// session, or its creation (§4.6 item 5).
   case idleExpired = "idle_expired"
-  /// Produced by the next session sending the close as its first message.
+  /// Produced by the next session sending the close as its first message,
+  /// once the peer echoed it or the wait for the echo ended.
   case revocationNoticeSent = "revocation_notice_sent"
   /// `revocation_notice_days` after the revocation.
   case noticeWindowExpired = "notice_window_expired"
+  /// `revocation_attempt_bound_ms` after a requester's revocation without
+  /// the close sent (§4.6 item 6).
+  case revocationAttemptEnded = "revocation_attempt_ended"
   /// `session.close` with reason `pairing_revoked`, also in place of
   /// `session.ready`.
   case peerRevocationNotice = "peer_revocation_notice"

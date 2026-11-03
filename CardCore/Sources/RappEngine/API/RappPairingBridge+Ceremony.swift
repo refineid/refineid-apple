@@ -76,12 +76,13 @@ extension RappPairingBridge {
     }
   }
 
-  /// Sends this endpoint's label and its parameter echo.
+  /// Sends this endpoint's display name and platform with its parameter
+  /// echo (RAPP v26.11.2 §4.3 item 3).
   ///
   /// - Throws: ``RappBindingError/WrongPhase`` outside the pairing channel.
-  public func sendHello(displayName: String, platform: String, nowMonotonicMs: UInt64) throws
-    -> Data
-  {
+  public func sendHello(
+    displayName: RappDisplayName, platform: String, nowMonotonicMs: UInt64
+  ) throws -> Data {
     try withConfirmation(nowMilliseconds: nowMonotonicMs) { confirmation in
       try confirmation.sendHello(displayName: displayName, platform: platform)
     }
@@ -128,7 +129,7 @@ extension RappPairingBridge {
   }
 
   /// Builds the pairing this ceremony agreed, unconfirmed, for the caller
-  /// to store before it sends `pairing.stored` (RAPP v26.10.29 §4.3 item
+  /// to store before it sends `pairing.stored` (RAPP v26.11.2 §4.3 item
   /// 4).
   ///
   /// The storage exchange that follows runs under the same deadline as the

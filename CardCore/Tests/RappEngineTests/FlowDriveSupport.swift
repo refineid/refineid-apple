@@ -74,10 +74,10 @@ internal func runPairing(
   var proxyConfirmation = try proxy.intoConfirmation()
 
   let requesterHello = try requesterConfirmation.sendHello(
-    displayName: "RefineID iPad", platform: "iPadOS")
+    displayName: DisplayNameFixture.requester, platform: "macOS")
   _ = try proxyConfirmation.receiveHello(requesterHello)
   let proxyHello = try proxyConfirmation.sendHello(
-    displayName: "RefineID iPhone", platform: "iOS")
+    displayName: DisplayNameFixture.custodian, platform: "iOS")
   _ = try requesterConfirmation.receiveHello(proxyHello)
 
   let proxyConfirm = try proxyConfirmation.sendConfirmation(grantedProfiles: grants)
@@ -88,7 +88,7 @@ internal func runPairing(
   let requesterPairIdentifier = requesterConfirmation.pairIdentifier
   let proxyPairIdentifier = proxyConfirmation.pairIdentifier
   // Both store their record, then confirm it to each other (RAPP
-  // v26.10.29 §4.3 item 4); only both confirmations make a pairing active.
+  // v26.11.2 §4.3 item 4); only both confirmations make a pairing active.
   var (requesterRecord, requesterStorage) = try requesterConfirmation.intoStorage(
     createdAtMilliseconds: FlowFixture.createdAtMilliseconds)
   var (proxyRecord, proxyStorage) = try proxyConfirmation.intoStorage(
@@ -121,15 +121,19 @@ internal func runSession(
   var requesterAuthentication = try requester.intoAuthentication()
   var proxyAuthentication = try proxy.intoAuthentication()
 
-  // Only the custodian sends session.ready; the requester verifies it
-  // (RAPP v26.10.29 §7.1 item 5).
+  // Only the custodian sends session.ready; the requester verifies it and
+  // answers with session.hello (RAPP v26.11.2 §7.1 items 5 and 6).
   let outcome = try requesterAuthentication.receiveReady(
-    try proxyAuthentication.sendReady(nonce: randomBytes(FlowLimit.readyNonce)))
-  guard outcome == .verified else { throw SessionError.readyIncomplete }
+    try proxyAuthentication.sendReady(
+      nonce: randomBytes(FlowLimit.readyNonce), displayName: DisplayNameFixture.custodian),
+    displayName: DisplayNameFixture.requester)
+  guard case .verified(_, let hello) = outcome else { throw SessionError.readyIncomplete }
 
-  return (
-    try requesterAuthentication.intoEstablished(), try proxyAuthentication.intoEstablished()
-  )
+  var proxyEstablished = try proxyAuthentication.intoEstablished()
+  guard try proxyEstablished.open(hello).messageType == .sessionHello else {
+    throw SessionError.readyIncomplete
+  }
+  return (try requesterAuthentication.intoEstablished(), proxyEstablished)
 }
 
 /// The filler byte of the key a matched channel pair shares.

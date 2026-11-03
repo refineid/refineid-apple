@@ -7,9 +7,11 @@
   /// A card in this Mac's reader overrides the paired phone: while one is
   /// there the line speaks of that card alone. With remote use off the line
   /// speaks of this Mac's reader alone. Otherwise a paired phone's line
-  /// stands, and with no phone paired the line asks for a pairing code;
-  /// a local-network denial stands in for the pairing code and for a
-  /// phone still connecting.
+  /// stands while the phone offers its card; with no remote card, whether
+  /// no phone is paired or the paired one offers none, the line asks for a
+  /// pairing code as if no phone were there, and names neither the phone's
+  /// state nor a reason (RAPP v26.11.2 §4.7). A local-network denial
+  /// stands in for the pairing code.
   internal enum IdentityLine: Equatable, Sendable {
     /// The card in this Mac's reader has stayed without an identity long
     /// enough to warn; the PIN codes stay one click away.
@@ -49,9 +51,6 @@
 
     /// What the paired phone's line says.
     internal enum PairedLead: Equatable, Sendable {
-      /// "Connecting to the phone…": the phone offers no identity yet.
-      case connecting
-
       /// The holder's name from the certificate the phone confirmed, then
       /// "(via phone)".
       case holder
@@ -83,9 +82,8 @@
         }
         return facts.localNetworkDenied ? .localNetworkDenied : .pairPhone
       }
-      let lead = pairedLead(facts)
-      if lead == .connecting, facts.localNetworkDenied {
-        return .localNetworkDenied
+      guard let lead = pairedLead(facts) else {
+        return facts.localNetworkDenied ? .localNetworkDenied : .pairPhone
       }
       return .paired(lead)
     }
@@ -94,14 +92,15 @@
     /// wins.
     ///
     /// The phone's word that its card reader is empty outranks an identity
-    /// still offered in its grace (RAPP v26.10.29 §8.4 item 3). A phone
+    /// still offered in its grace (RAPP v26.11.2 §8.4 item 3). A phone
     /// without a card reader that reports no card leaves the identity it
     /// offers standing.
-    private static func pairedLead(_ facts: RequesterFacts) -> PairedLead {
+    /// Nil while the phone offers no card.
+    private static func pairedLead(_ facts: RequesterFacts) -> PairedLead? {
       if PhoneCardRequest(facts.phoneCardStatus) == .insertIntoPhoneReader {
         return .phoneReader
       }
-      return facts.availability == .ready ? .holder : .connecting
+      return facts.availability == .ready ? .holder : nil
     }
   }
 

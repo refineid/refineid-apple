@@ -7,7 +7,7 @@ import Foundation
   import RappEngine
 
   /// The custodian end of `fi.refineid.rapp.ble`: the GATT server
-  /// (RAPP v26.10.29 §5.1, §5.2).
+  /// (RAPP v26.11.2 §5.1, §5.2).
   ///
   /// One peripheral manager publishes the RAPP service once and advertises
   /// only its UUID and a generic name for as long as the server runs. Each
@@ -39,7 +39,7 @@ import Foundation
 
     /// Decides on the server's queue whether the CPace step 1 written on a
     /// pairing link can be admitted; one that cannot is refused with ATT
-    /// error Insufficient Resources (RAPP v26.10.29 §4.2, "Busy Refusal"
+    /// error Insufficient Resources (RAPP v26.11.2 §4.2, "Busy Refusal"
     /// item 2).
     public typealias AttemptAdmission = @Sendable (RappBleGattLink) -> Bool
 

@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// What a requester reads from a custodian in pairing mode (RAPP v26.10.29
+/// What a requester reads from a custodian in pairing mode (RAPP v26.11.2
 /// §4.2, Bootstrap Read Flow item 3): the offer while the custodian can
 /// admit an attempt, and `pairing-busy` while it cannot.
 internal enum BootstrapAnswer: Sendable {

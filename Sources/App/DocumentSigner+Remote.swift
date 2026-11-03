@@ -47,6 +47,7 @@ extension DocumentSigner {
   ) async throws -> CardMaterial {
     let product = try await Self.remoteQualifiedSignature(
       documentName: documentName,
+      containedFiles: [],
       expectedCertificate: expectedCertificate
     ) { certificate in
       QualifiedDocumentCms.signedAttributes(
@@ -107,8 +108,13 @@ extension DocumentSigner {
   /// The requester sends only the digest and public algorithm metadata;
   /// PIN 2 exists solely in the phone authorization UI and its NFC card
   /// session.
+  ///
+  /// For a package, `documentName` is the package's own name and
+  /// `containedFiles` the names of the files it holds, in container order
+  /// (RAPP v26.11.2 §9.3); empty for a single document.
   internal static func remoteQualifiedSignature(
     documentName: String,
+    containedFiles: [String],
     expectedCertificate: Data?,
     content: @escaping @Sendable (Data) -> Data
   ) async throws -> CardMaintenance.QualifiedProduct {
@@ -129,6 +135,7 @@ extension DocumentSigner {
     do {
       return try await Self.executeRemoteQualifiedSignature(
         documentName: documentName,
+        containedFiles: containedFiles,
         certificate: certificate,
         content: content)
     } catch Failure.remote(.unverifiedSignature) {
@@ -141,6 +148,7 @@ extension DocumentSigner {
 
   private static func executeRemoteQualifiedSignature(
     documentName: String,
+    containedFiles: [String],
     certificate: Data,
     content: (Data) -> Data
   ) async throws -> CardMaintenance.QualifiedProduct {
@@ -165,6 +173,7 @@ extension DocumentSigner {
 
     let signature = try await Self.executeRemoteDocumentSigning(
       documentName: documentName,
+      containedFiles: containedFiles,
       keyProfile: RappOperationDriver.KeyProfile(profile),
       algorithm: remoteAlgorithm,
       digest: digest
@@ -184,6 +193,7 @@ extension DocumentSigner {
   /// when the transport connection drops or the peer was not found before authorization.
   private static func executeRemoteDocumentSigning(
     documentName: String,
+    containedFiles: [String],
     keyProfile: RappOperationDriver.KeyProfile,
     algorithm: RappOperationDriver.SignatureAlgorithm,
     digest: Data
@@ -194,7 +204,7 @@ extension DocumentSigner {
         trace("remote signing attempt \(attempt)/\(RemoteSigningPolicy.maximumSigningAttempts)")
         let signatureResponse = try await Self.askPhone(
           .documentSigning(
-            documentName: documentName,
+            document: RappSigningDocument(name: documentName, containedFiles: containedFiles),
             keyProfile: keyProfile,
             algorithm: algorithm,
             digest: digest

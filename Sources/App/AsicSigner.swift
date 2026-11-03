@@ -125,14 +125,18 @@ internal enum AsicSigner {
     _ objects: [AsicContainer.DataObject]
   ) async throws -> Product {
     let signedAt = Date()
-    let documentName = objects.count == 1 ? objects[0].name : "ASiC-E container"
+    // The package's own name is the one it is proposed under; its files
+    // are listed in container order (RAPP v26.11.2 §9.3).
+    let packageName = SignedDocumentName.suggested(
+      sourceNames: objects.map(\.name), format: .asice, at: signedAt)
     #if DEBUG
       logger.notice(
         "[AsicSigner] signRemotely: signing \(objects.count, privacy: .public) objects"
       )
     #endif
     let product = try await DocumentSigner.remoteQualifiedSignature(
-      documentName: documentName,
+      documentName: packageName,
+      containedFiles: objects.map(\.name),
       expectedCertificate: nil
     ) { certificate in
       Self.plannedSignedInfo(

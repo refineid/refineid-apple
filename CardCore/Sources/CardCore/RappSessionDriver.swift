@@ -5,7 +5,7 @@
   import OSLog
   import RappEngine
   /// Transport-independent coordinator for the authenticated RAPP session setup
-  /// (RAPP v26.10.29 §6.3, §7.1 item 5).
+  /// (RAPP v26.11.2 §6.3, §7.1 items 5 to 7).
   ///
   /// The surrounding transport may carry bytes and report closure, but it must not
   /// interpret RAPP frames or decide protocol state. Card operations may start only
@@ -21,13 +21,17 @@
     public enum CloseReason: Sendable, Equatable {
       case localRequest
       case transportClosed
+      /// The handshake failed, or a frame failed authentication: a loss.
       case protocolFailure
+      /// This endpoint detected an authenticated protocol violation and
+      /// closed with `protocol_violation`; the pairing stays (§10.1).
+      case protocolViolation
       /// The peer revoked the pairing; revoke it here too and withdraw its
       /// identity (§4.6 item 4).
       case pairRevoked
       /// This endpoint's pairing was forgotten and the session carried the
-      /// `pairing_revoked` close as its only message; destroy the record
-      /// now (§4.6 items 2 and 3).
+      /// `pairing_revoked` close as its only message, echoed or not within
+      /// the wait; destroy the record now (§4.6 items 2 and 3, §7.1 item 7).
       case revocationNoticeDelivered
       /// The custodian closed the session in place of `session.ready` with
       /// another registered reason.
@@ -38,8 +42,15 @@
     public enum Command: Sendable, Equatable {
       /// Deliver these opaque bytes to the selected transport peer.
       case send(Data)
+      /// The peer named itself (§4.3 item 4): `session.ready` on the
+      /// requester. Record the name in the pair record where it differs.
+      case peerNamed(RappDisplayName)
       /// The handshake and `session.ready` have completed.
       case established
+      /// This endpoint sent its close; keep the link and feed frames until
+      /// the echo arrives, or end the wait with ``close()`` once its bound
+      /// passed (§7.1 item 7).
+      case awaitCloseEcho
       /// Tear down the physical transport and discard the session driver.
       case closed(CloseReason)
     }
@@ -49,6 +60,8 @@
       case awaitingRequesterHandshake
       case awaitingResponderHandshake
       case awaitingCustodianReady
+      /// This endpoint's close was sent; the reason the session ends with.
+      case awaitingEcho(CloseReason)
       case established
       case operationsTransferred
       case closed
@@ -57,6 +70,7 @@
     private static let logger = Logger(subsystem: "fi.refineid.ReFineID", category: "rapp-session")
 
     private let role: Role
+    private let displayName: RappDisplayName
     private let session: RappSessionBridge
     private let entropy: RappPlatformEntropy
     private let clock: RappPlatformClock
@@ -64,14 +78,18 @@
 
     /// Binds a new driver to one pair and opens the role's side of the
     /// session bridge, bound to the connection's transport profile.
+    /// `displayName` is this endpoint's current name, sent in
+    /// `session.ready` or `session.hello` (§4.3 item 4).
     public init(
       role: Role,
       pair: RappPairRecord,
+      displayName: RappDisplayName,
       transportProfile: String = rappStreamProfileName(),
       entropy: RappPlatformEntropy = RappPlatformEntropy(),
       clock: RappPlatformClock = RappPlatformClock()
     ) throws {
       self.role = role
+      self.displayName = displayName
       self.entropy = entropy
       self.clock = clock
 
@@ -137,6 +155,9 @@
         case .awaitingCustodianReady:
           return try readCustodianReady(frame)
 
+        case .awaitingEcho(let reason):
+          return receiveCloseEcho(frame, expecting: reason)
+
         case .idle, .established, .operationsTransferred, .closed:
           #if DEBUG
             let stateDesc = String(describing: self.state)
@@ -155,22 +176,52 @@
       }
     }
 
+    /// Answers one frame while waiting for the echo of the sent close:
+    /// anything but the echo is ignored, and a crossing close that
+    /// revokes the pairing is acted on.
+    private func receiveCloseEcho(_ frame: Data, expecting reason: CloseReason) -> [Command] {
+      switch session.receiveCloseEcho(bytes: frame) {
+      case .ignored:
+        return []
+
+      case .acknowledged(.pairingRevoked) where reason != .revocationNoticeDelivered:
+        // A crossing close that revokes the pairing is acted on.
+        closeSession()
+        return [.closed(.pairRevoked)]
+
+      case .acknowledged, .ended:
+        closeSession()
+        return [.closed(reason)]
+      }
+    }
+
     /// Closes the session because the transport closed underneath it.
     public func transportClosed() -> [Command] {
       guard state != .closed else {
         return []
       }
-      closeSession()
-      return [.closed(.transportClosed)]
+      return ending(as: .transportClosed)
     }
 
-    /// Closes the session at the owner's request.
+    /// Closes the session at the owner's request; while this endpoint waits
+    /// for the echo of its close, it ends the wait.
     public func close() -> [Command] {
       guard state != .closed else {
         return []
       }
+      return ending(as: .localRequest)
+    }
+
+    /// Ends the session; a sent close names the end whatever cut the wait.
+    private func ending(as reason: CloseReason) -> [Command] {
+      let ended: CloseReason
+      if case .awaitingEcho(let sent) = state {
+        ended = sent
+      } else {
+        ended = reason
+      }
       closeSession()
-      return [.closed(.localRequest)]
+      return [.closed(ended)]
     }
 
     /// Whether both this driver and the underlying session are established.
@@ -212,7 +263,8 @@
       if session.revocationNoticePending() {
         return deliverRevocationNotice(after: [.send(response)])
       }
-      let ready = try session.sendReady(nonce: entropy.sessionReadyNonce())
+      let ready = try session.sendReady(
+        nonce: entropy.sessionReadyNonce(), displayName: displayName)
       try session.enterEstablished()
       state = .established
       return [.send(response), .send(ready), .established]
@@ -220,19 +272,24 @@
 
     /// The requester reads the custodian's first message.
     private func readCustodianReady(_ frame: Data) throws -> [Command] {
-      switch try session.receiveReady(bytes: frame) {
-      case .verified:
+      switch try session.receiveReady(bytes: frame, displayName: displayName) {
+      case .verified(let peerName, let hello):
         try session.enterEstablished()
         state = .established
-        return [.established]
+        return [.peerNamed(peerName), .send(hello), .established]
 
-      case .peerClosed(let reason):
+      case .peerClosed(let reason, let echo):
         closeSession()
-        return [.closed(reason == .pairingRevoked ? .pairRevoked : .peerClosed(reason))]
+        return (echo.map { [Command.send($0)] } ?? [])
+          + [.closed(reason == .pairingRevoked ? .pairRevoked : .peerClosed(reason))]
 
-      case .violationClosed(let notice):
+      case .violationClosed(let notice?):
+        state = .awaitingEcho(.protocolViolation)
+        return [.send(notice), .awaitCloseEcho]
+
+      case .violationClosed(nil):
         closeSession()
-        return (notice.map { [Command.send($0)] } ?? []) + [.closed(.protocolFailure)]
+        return [.closed(.protocolViolation)]
 
       case .integrityFailure:
         return failClosed()
@@ -240,13 +297,13 @@
     }
 
     /// The close a forgotten record owes its peer, as the session's only
-    /// message.
+    /// message; the wait for its echo follows (§7.1 item 7).
     private func deliverRevocationNotice(after preceding: [Command]) -> [Command] {
       guard let notice = try? session.deliverRevocationNotice() else {
         return preceding + failClosed()
       }
-      closeSession()
-      return preceding + [.send(notice), .closed(.revocationNoticeDelivered)]
+      state = .awaitingEcho(.revocationNoticeDelivered)
+      return preceding + [.send(notice), .awaitCloseEcho]
     }
 
     private func failClosed() -> [Command] {
