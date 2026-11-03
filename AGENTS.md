@@ -90,6 +90,16 @@
   required remote checks pass, then remove the worktree and branch
   and fast-forward `main`. Full workflow:
   `Documentation/process/agent-worktrees.md`.
+- Clean worktrees at the start and end of every task: run
+  `Scripts/agent-housekeeping.sh --clean` before creating your worktree
+  and again before finishing. It removes only worktrees whose branch is
+  merged into main, whose tree is clean, that hold no unpushed commits,
+  and that have been idle for over a day; everything else is left alone.
+  If your own branch just merged and is too fresh for `--clean` to take,
+  remove it yourself once its tree is clean and pushed, then delete the
+  branch and fast-forward local main. If your pull request is still open
+  when you finish, leave the worktree in place — a later start-clean reaps
+  it after merge. Verify with `git worktree list`.
 - Never poll background commands or set rapid check timers (e.g. 10s-30s).
   When running builds, tests, or async tasks, execute asynchronously and
   wait strictly for system completion notifications.
