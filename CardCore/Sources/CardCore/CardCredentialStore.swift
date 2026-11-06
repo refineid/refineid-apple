@@ -12,12 +12,15 @@ import Security
 /// held only in the memory of the process that asked for it, and PIN 2 is
 /// asked for every signature (RAPP v26.11.2 §11 item 2).
 ///
-/// The item is `WhenUnlockedThisDeviceOnly` and non-synchronizable, so it
-/// is never written into a backup, restored onto another device, or sent
-/// to iCloud. Neither attribute implies the other; both are set. It
-/// carries no `SecAccessControl`: the token extension reads it while
-/// opening the card for a Safari request and has no interface to answer a
-/// prompt.
+/// The item is `AfterFirstUnlockThisDeviceOnly` and non-synchronizable, so
+/// it is never written into a backup, restored onto another device, or
+/// sent to iCloud. Neither attribute implies the other; both are set. It
+/// is after-first-unlock rather than when-unlocked, and carries no
+/// `SecAccessControl`, because the token extension reads it in the
+/// background while opening the card for a Safari request and has no
+/// interface to answer a prompt. On macOS the item is in the file-based
+/// keychain, where the accessibility value does not apply; see
+/// `KeychainPlatform`.
 public enum CardCredentialStore {
   // MARK: Nested Types
 
