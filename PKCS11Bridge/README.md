@@ -29,6 +29,10 @@ applications (SunPKCS11/DSS) and exposes only the contentCommitment
 identities, so a signing key picker cannot offer the wrong key. The
 profile is decided by the file name the module is loaded under, so
 the choice is always explicit in the consumer's configuration.
+Both RefineID tokens, the smart-card token and the paired-phone token,
+publish only the PIN 1 authentication identity and never the qualified
+signature key, so the signing name currently finds no RefineID
+identity to expose.
 
 Status: working read-and-sign module, EC identities first. The full
 PKCS#11 v3.2 surface is present: all 104 entry points exist

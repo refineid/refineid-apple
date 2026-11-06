@@ -4,10 +4,23 @@ import Foundation
 
 /// Which keychain the card stores use on this platform.
 ///
-/// Both iOS and macOS use the data-protection keychain backed by
-/// the shared App Group (`group.fi.refineid.RefineID`), ensuring items are
-/// device-only, non-syncable, shared securely between the app and its token
-/// extensions, and free from per-build login keychain authorization dialogs.
+/// On iOS this is true: every store that consults it sets
+/// `kSecUseDataProtectionKeychain`, so its items are data-protection
+/// keychain items and their `kSecAttrAccessible` value applies.
+///
+/// On macOS this is false. A store that names
+/// ``CardCredentialStore/sharedKeychainGroup`` sets
+/// `kSecUseDataProtectionKeychain` itself for those items: the shared
+/// ``CardCredentialStore`` items, ``OrganizationPrimeStore`` and
+/// ``TrustRootsCache``, while the entitlement names the group. Every other
+/// store that consults this flag -- ``PrimeStore``, ``CardTransportStore``,
+/// the stored card access number and ``RappDeviceVault`` without an access
+/// group -- writes to the file-based keychain. Those items set
+/// `kSecAttrSynchronizable` false, and Apple's `kSecAttrAccessible`
+/// reference says the attribute applies to macOS keychain items only when
+/// `kSecUseDataProtectionKeychain`, `kSecAttrSynchronizable` or both are
+/// true, so neither its unlock condition nor `ThisDeviceOnly` applies to
+/// them.
 internal enum KeychainPlatform {
   /// Whether `kSecUseDataProtectionKeychain` may be requested.
   internal static var usesDataProtection: Bool {

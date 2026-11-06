@@ -22,8 +22,11 @@ extension Token {
   /// Builds the keychain items published for browser authentication.
   ///
   /// Only the authentication key and certificate (PIN 1) are published to
-  /// the system keychain. Qualified signing keys (PIN 2) are not published
-  /// as client authentication identities for websites.
+  /// the system keychain. The qualified signing key (PIN 2) is not
+  /// published for any consumer: no item carries `Token.signObjectID` or
+  /// the PIN 2 constraint, so the session's qualified route is not
+  /// reached and the PKCS#11 bridge's signing profile finds no qualified
+  /// identity.
   internal static func makePublicationKeychainItems(
     leaf: SecCertificate,
     profile: CardKeyProfile,
@@ -44,6 +47,8 @@ extension Token {
   }
 
   /// Builds and fills the keychain contents from the read identity.
+  ///
+  /// `signLeaf` and `signProfile` are accepted and not published.
   internal func publish(
     _ identity: PublishedIdentity,
     leaf: SecCertificate,

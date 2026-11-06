@@ -23,9 +23,9 @@
   /// Two kinds of mode, and the difference is the scene:
   ///
   /// - ``DebugLaunchMode/diagnostics``, ``DebugLaunchMode/forgetCan``,
-  ///   ``DebugLaunchMode/resetCardState``, ``DebugLaunchMode/setCan``,
-  ///   ``DebugLaunchMode/setPin1`` and ``DebugLaunchMode/trace`` only read
-  ///   or write this device's own state. They run from the app initializer, before any window exists,
+  ///   ``DebugLaunchMode/resetCardState``, ``DebugLaunchMode/setCan`` and
+  ///   ``DebugLaunchMode/trace`` only read or write this device's own
+  ///   state. They run from the app initializer, before any window exists,
   ///   and exit there.
   /// - ``DebugLaunchMode/prime`` needs a live scene: CoreNFC will not open
   ///   a slot for a process with no foreground window. It is handed to
@@ -43,9 +43,10 @@
   /// from a command line.
   ///
   /// No mode prints a PIN, a card access number, a serial or a holder name.
-  /// The two credential modes read their value from the command line at
+  /// ``DebugLaunchMode/setCan`` reads its value from the command line at
   /// each launch -- a value is never committed, never defaulted, and never
-  /// echoed back; only its length and whether the store accepted it.
+  /// echoed back; only whether the store accepted it and the keychain
+  /// status are printed.
   ///
   /// Provenance: `--dump-ctk`, `--ctk-reset`, `--test-sign` and the
   /// `--prime-*` family in the donor
