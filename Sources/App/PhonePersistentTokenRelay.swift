@@ -37,6 +37,11 @@
     internal var sessions: [UUID: ServedSession] = [:]
     /// Hands the card to one operation at a time, across every session.
     internal let cardQueue = CustodianCardQueue<ServedSession.Turn>()
+    /// Holds credential actions while the phone is locked, across every
+    /// session.
+    internal let unlockGate = CustodianUnlockGate<ServedSession.Turn>(
+      lockState: ProtectedDataLockState())
+    private var unlockObservers: [any NSObjectProtocol] = []
     /// What this phone knows of the reader card it serves.
     internal var readerCard = ReaderCard()
     /// What each open session was last told in `card.status`.
@@ -80,6 +85,9 @@
     // MARK: Lifecycle
 
     private init() {
+      unlockObservers = ProtectedDataLockState.observeUnlock { [unlockGate] in
+        unlockGate.reassess()
+      }
       pairingsObserver = NotificationCenter.default.addObserver(
         forName: RappPairingModel.pairingsDidChangeNotification,
         object: nil,
@@ -151,7 +159,7 @@
       }
       let session = ServedSession(
         transport: transport, pair: pair.metadata(), coordinator: coordinator,
-        cardQueue: cardQueue
+        cardQueue: cardQueue, unlockGate: unlockGate
       ) { [weak self] session, report in
         self?.sessionReported(session, report)
       }

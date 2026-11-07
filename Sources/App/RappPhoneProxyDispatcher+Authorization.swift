@@ -40,9 +40,9 @@
       try? await coordinator.prerequisitesComplete(operationID: operationID)
     }
 
-    /// Takes the PIN an action needs: the held PIN 1 with no prompt, or the
-    /// holder's entry on a prompt; reads never come here (§8.2 items 3 and
-    /// 6).
+    /// Takes the PIN an action needs once the phone is unlocked: the held
+    /// PIN 1 with no prompt, or the holder's entry on a prompt; reads never
+    /// come here (§8.2 items 3 and 6).
     internal func handleApproval(
       operationID: RappOperationIdentifier,
       operation: RappOperationDriver.Operation,
@@ -55,6 +55,9 @@
         await invalid(operationID, coordinator: coordinator)
         return
       }
+      guard
+        await awaitUnlock(operationID: operationID, action: action, coordinator: coordinator)
+      else { return }
       if await takeHeldPin1(operationID: operationID, operation: operation) {
         try? await coordinator.approve(operationID: operationID)
         return
@@ -81,7 +84,8 @@
     /// The requester hears `consent_shown` once the operation's first prompt
     /// is on screen (§8.2 item 3). A `notice` says why the holder is asked
     /// again for the same operation: the card refused the PIN entered last
-    /// (§10.2).
+    /// (§10.2). A prompt never opens on a locked phone: it waits for the
+    /// unlock, and an operation that ends first counts as declined.
     internal func ask(
       operationID: RappOperationIdentifier,
       operation: RappOperationDriver.Operation,
@@ -89,6 +93,9 @@
       notice: String?,
       coordinator: RappConnectionCoordinator
     ) async -> RappAuthorizationDecision {
+      guard
+        await awaitUnlock(operationID: operationID, action: action, coordinator: coordinator)
+      else { return .denied }
       var request = RappAuthorizationRequest(
         requestID: requestID(for: operationID),
         requester: requesterName,

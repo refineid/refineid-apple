@@ -17,6 +17,18 @@ internal enum RappAuthorizationPrompt {
     String(localized: "\(computer) asks you to authenticate.")
   }
 
+  /// The lock-screen notice of an authentication waiting for the unlock
+  /// (RAPP v26.11.2 §8.2 item 3).
+  internal static func unlockAuthenticationMessage(computer: String) -> String {
+    String(localized: "\(computer) asks you to authenticate with Basic PIN 1. Unlock your phone.")
+  }
+
+  /// The lock-screen notice of a signature waiting for the unlock (RAPP
+  /// v26.11.2 §8.2 item 3).
+  internal static func unlockSignatureMessage(computer: String) -> String {
+    String(localized: "\(computer) asks you to sign with Signature PIN 2. Unlock your phone.")
+  }
+
   /// The prompt for a package.
   ///
   /// It names the package and every file it holds, in container order

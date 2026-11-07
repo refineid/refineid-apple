@@ -13,7 +13,8 @@
   /// holding the card asks (RAPP v26.11.2 §8.2 item 2), and a second
   /// request is denied while one is visible. Expiry and disconnect arrive
   /// from the RAPP state machine and explicitly cancel the matching
-  /// request, also one cancelled on its way to the screen. Every request
+  /// request, also one cancelled on its way to the screen. No request comes
+  /// here while the phone is locked (``CustodianUnlockGate``). Every request
   /// is a PIN prompt, and entering the PIN is the holder's consent; reads
   /// never come here (§8.2 items 3 and 6).
   @MainActor
@@ -21,6 +22,7 @@
     internal static let shared = RappAuthorizationInbox()
 
     private static let notificationPrefix = "rapp-auth-"
+    private static let unlockNotificationPrefix = notificationPrefix + "unlock-"
 
     /// How many requests withdrawn before they reached the screen are
     /// remembered; one request is on its way at a time, the card turn
@@ -122,7 +124,7 @@
       center.add(notificationRequest)
     }
 
-    /// Clears card requests left from an earlier run.
+    /// Clears card requests and unlock notices left from an earlier run.
     ///
     /// A request lives only as long as the session that asked, so any
     /// delivered one without a request on screen is stale.
@@ -136,6 +138,30 @@
         guard !stale.isEmpty else { return }
         center.removeDeliveredNotifications(withIdentifiers: stale)
       }
+    }
+
+    /// Shows on the lock screen which computer waits for the unlock, and for
+    /// which PIN.
+    ///
+    /// Feedback is never withheld, so no card transport decides it.
+    internal func showUnlockWait(_ wait: RappUnlockWait) {
+      let content = UNMutableNotificationContent()
+      content.title = "RefineID"
+      content.body = wait.message
+      content.sound = .default
+      content.interruptionLevel = .timeSensitive
+      UNUserNotificationCenter.current().add(
+        UNNotificationRequest(
+          identifier: Self.unlockNotificationPrefix + wait.requestID, content: content,
+          trigger: nil))
+    }
+
+    /// Takes the lock-screen notice down: the wait is over.
+    internal func withdrawUnlockWait(_ wait: RappUnlockWait) {
+      let identifier = Self.unlockNotificationPrefix + wait.requestID
+      let center = UNUserNotificationCenter.current()
+      center.removePendingNotificationRequests(withIdentifiers: [identifier])
+      center.removeDeliveredNotifications(withIdentifiers: [identifier])
     }
 
     /// Tells the holder something about a request that ended without a

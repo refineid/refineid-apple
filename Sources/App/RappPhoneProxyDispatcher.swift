@@ -22,6 +22,8 @@
     internal let requesterName: String
     /// The session this dispatcher serves.
     internal let session: UUID
+    /// Holds credential actions while the phone is locked.
+    internal let unlockGate: CustodianUnlockGate<ServedSession.Turn>
     /// PIN 1 for each browser authentication, typed or held, until the card
     /// command spends it.
     internal var pin1ByOperation: [RappOperationIdentifier: RappCardExecutor.SigningPin] = [:]
@@ -34,16 +36,23 @@
     /// The operations whose PIN prompt reached the screen, so the requester
     /// hears `consent_shown` once for each (§8.2 item 3).
     internal var promptedOperations: Set<RappOperationIdentifier> = []
+    /// Whether the session closed, so nothing of it waits for an unlock.
+    internal var sessionEnded = false
 
     // MARK: Lifecycle
 
     internal init(
-      inbox: RappAuthorizationInbox, pairID: Data, requesterName: String, session: UUID
+      inbox: RappAuthorizationInbox,
+      pairID: Data,
+      requesterName: String,
+      session: UUID,
+      unlockGate: CustodianUnlockGate<ServedSession.Turn>
     ) {
       self.inbox = inbox
       self.pairID = pairID
       self.requesterName = requesterName
       self.session = session
+      self.unlockGate = unlockGate
     }
 
     // MARK: Functions
@@ -96,11 +105,16 @@
     /// Forgets the session's operations and takes down its own prompt.
     private func cleanup() async {
       let prompts = Array(requestIDs.values)
+      let waiting = Array(requestIDs.keys)
+      sessionEnded = true
       lastReadAuthCertDER = nil
       pin1ByOperation.removeAll(keepingCapacity: false)
       pin2ByOperation.removeAll(keepingCapacity: false)
       requestIDs.removeAll(keepingCapacity: false)
       promptedOperations.removeAll(keepingCapacity: false)
+      for operationID in waiting {
+        await endUnlockWait(operationID)
+      }
       for requestID in prompts {
         await inbox.cancel(requestID)
       }
