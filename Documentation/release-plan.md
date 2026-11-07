@@ -175,6 +175,10 @@ revokes that automatic identity. It still never probes PIN2 or PUK.
   recovery. A blocked PIN cannot spend another PIN attempt; its blocked state
   must not prevent an unblock operation using an eligible PUK.
 - Missing, malformed, stale, or unreadable retry state: reject attempt to talk to card.
+- The PUK, before a reset or an activation that presents it: refuse at one or
+  two attempts remaining and at unreadable state; at zero or blocked, send the
+  command and let the card answer. It spends nothing, and the software cannot
+  tell a PUK from an activation code in the holder's hand.
 - CTK has no expert override.
 
 If a wrong PIN1 sent at three attempts leaves two attempts, clear positive PIN1
