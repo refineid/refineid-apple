@@ -840,6 +840,29 @@
         }
       }
     },
+    "Unlock your phone, please.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock your phone, please."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avaa puhelimen lukitus."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lås upp mobilen."
+          }
+        }
+      }
+    },
     "%@ %@": {
       "localizations": {
         "en": {

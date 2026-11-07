@@ -10,6 +10,11 @@ public enum RappCardPromptNotificationNames {
   /// Darwin distributed notification posted when card wait ends or the prompt is dismissed.
   public static let cardDismissDarwinNotification = "fi.refineid.card.dismiss"
 
+  /// Darwin distributed notification posted when the operation waits for the
+  /// holder to unlock the phone (`waiting_for_unlock`, RAPP v26.11.2 §8.2
+  /// item 3).
+  public static let unlockNeededDarwinNotification = "fi.refineid.phone.unlock"
+
   /// UserNotification request identifier for transient macOS card prompt banners.
   public static let userNotificationRequestIdentifier = "fi.refineid.card.prompt.banner"
 }

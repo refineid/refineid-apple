@@ -6,11 +6,12 @@
   import Foundation
   import UserNotifications
 
-  /// Relays transient ID card prompts from the authenticated requester client to macOS UserNotifications.
+  /// Relays transient phone prompts from the authenticated requester client to macOS UserNotifications.
   ///
   /// When an authentication or signing request is waiting for the card on the phone,
-  /// this relay displays a temporary banner. As soon as the card is detected or the
-  /// operation completes/cancels, the delivered notification is immediately removed so
+  /// or for the holder to unlock the phone, this relay displays a temporary banner.
+  /// As soon as the card is detected, the phone proceeds or the operation
+  /// completes/cancels, the delivered notification is immediately removed so
   /// it does not clutter the Notification Center history.
   @MainActor
   internal final class RappCardPromptNotificationRelay: NSObject, UNUserNotificationCenterDelegate {
@@ -22,9 +23,14 @@
       RappCardPromptNotificationNames.cardNeededDarwinNotification
     internal static let cardDismissDarwinNotification =
       RappCardPromptNotificationNames.cardDismissDarwinNotification
+    internal static let unlockNeededDarwinNotification =
+      RappCardPromptNotificationNames.unlockNeededDarwinNotification
     private static let promptGracePeriodSeconds: TimeInterval = 1.5
+    private static let cardPromptTitle = String(localized: "Your phone needs an ID card, please.")
+    private static let unlockPromptTitle = String(localized: "Unlock your phone, please.")
 
     private var distributedNeededObserver: (any NSObjectProtocol)?
+    private var distributedUnlockObserver: (any NSObjectProtocol)?
     private var distributedDismissObserver: (any NSObjectProtocol)?
     private var distributedWithdrawnObserver: (any NSObjectProtocol)?
     private var distributedRevokedObserver: (any NSObjectProtocol)?
@@ -45,43 +51,42 @@
       // The host RefineID application is the sole consumer of UserNotifications in this bundle.
       UNUserNotificationCenter.current().delegate = self
 
-      distributedNeededObserver = DistributedNotificationCenter.default().addObserver(
-        forName: Notification.Name(Self.cardNeededDarwinNotification),
+      distributedNeededObserver = observe(Self.cardNeededDarwinNotification) { relay in
+        relay.schedulePromptNotification()
+      }
+      // A locked phone waits only for its holder, so the banner shows at once.
+      distributedUnlockObserver = observe(Self.unlockNeededDarwinNotification) { relay in
+        relay.pendingPresentWorkItem?.cancel()
+        relay.pendingPresentWorkItem = nil
+        relay.postPromptNotification(title: Self.unlockPromptTitle)
+      }
+      distributedDismissObserver = observe(Self.cardDismissDarwinNotification) { relay in
+        relay.dismissPromptNotification()
+      }
+      distributedWithdrawnObserver = observe(
+        RappServiceNotificationNames.serviceWithdrawnDarwinNotification
+      ) { _ in
+        PersistentTokenRegistry.shared.holderWithdrew()
+      }
+      distributedRevokedObserver = observe(
+        RappServiceNotificationNames.pairingRevokedDarwinNotification
+      ) { _ in
+        PersistentTokenRegistry.shared.holderRevokedElsewhere()
+      }
+    }
+
+    /// Runs `handler` on the main actor for every distributed notice `name`.
+    private func observe(
+      _ name: String, _ handler: @escaping @MainActor (RappCardPromptNotificationRelay) -> Void
+    ) -> any NSObjectProtocol {
+      DistributedNotificationCenter.default().addObserver(
+        forName: Notification.Name(name),
         object: nil,
         queue: .main
       ) { [weak self] _ in
         MainActor.assumeIsolated {
-          self?.schedulePromptNotification()
-        }
-      }
-
-      distributedDismissObserver = DistributedNotificationCenter.default().addObserver(
-        forName: Notification.Name(Self.cardDismissDarwinNotification),
-        object: nil,
-        queue: .main
-      ) { [weak self] _ in
-        MainActor.assumeIsolated {
-          self?.dismissPromptNotification()
-        }
-      }
-
-      distributedWithdrawnObserver = DistributedNotificationCenter.default().addObserver(
-        forName: Notification.Name(
-          RappServiceNotificationNames.serviceWithdrawnDarwinNotification),
-        object: nil,
-        queue: .main
-      ) { _ in
-        MainActor.assumeIsolated {
-          PersistentTokenRegistry.shared.holderWithdrew()
-        }
-      }
-      distributedRevokedObserver = DistributedNotificationCenter.default().addObserver(
-        forName: Notification.Name(RappServiceNotificationNames.pairingRevokedDarwinNotification),
-        object: nil,
-        queue: .main
-      ) { _ in
-        MainActor.assumeIsolated {
-          PersistentTokenRegistry.shared.holderRevokedElsewhere()
+          guard let self else { return }
+          handler(self)
         }
       }
     }
@@ -92,7 +97,7 @@
         guard let self else { return }
         MainActor.assumeIsolated {
           self.pendingPresentWorkItem = nil
-          self.postPromptNotification()
+          self.postPromptNotification(title: Self.cardPromptTitle)
         }
       }
       pendingPresentWorkItem = workItem
@@ -104,9 +109,10 @@
       )
     }
 
-    private func postPromptNotification() {
+    /// Posts the one prompt banner; a later title replaces an earlier one.
+    private func postPromptNotification(title: String) {
       let content = UNMutableNotificationContent()
-      content.title = String(localized: "Your phone needs an ID card, please.")
+      content.title = title
       // No sound by default on macOS
 
       let request = UNNotificationRequest(

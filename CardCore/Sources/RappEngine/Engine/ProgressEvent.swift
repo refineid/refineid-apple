@@ -11,6 +11,10 @@ import Foundation
 public enum ProgressEvent: String, Sendable, Equatable, CaseIterable {
   /// Another session's operation holds the card (§8.2 item 2).
   case queued = "queued"
+  /// The custodian's device is locked: the request is on its lock screen
+  /// and no credential command starts until the holder unlocks (§8.2
+  /// item 3). Wire version `[26, 11, 7]`.
+  case waitingForUnlock = "waiting_for_unlock"
   /// The custodian's PIN prompt is on screen; entering the PIN is the
   /// holder's consent (§8.2 item 3). Never sent when no prompt is shown.
   case consentShown = "consent_shown"
