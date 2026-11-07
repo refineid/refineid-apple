@@ -251,10 +251,27 @@ record for RAPP and its applications.
 
 ## Certificates and trust
 
-- Certificates come from the card, which carries its own, or, for external
-  ones (EU eIDAS), from trusted lists at runtime. No certificates or
-  fingerprints are shipped in the software.
-- No pinning or other trust policy is added without the owner's decision.
+- The only certificates shipped are the EU Official Journal's
+  list-signing certificates, which bootstrap the EU trusted lists
+  (ETSI TS 119 612). Every other anchor comes from the card when one is
+  present (its EF.4334 root and EF.4336 issuing CA) or from the trusted
+  lists at runtime. No other certificate, fingerprint, pin or trust
+  policy is added without the owner's decision.
+- Owner's decision of 2026-11-07: the DVV Gov. Root CA G3 roots and the
+  Sectigo Qualified Time Stamping Root R45 leave the software. The
+  Finnish trusted list names DVV's services by their issuing CAs ("DVV
+  Citizen Certificates - G4E" and "G4R", "VRK Gov. CA for Citizen
+  Certificates - G3", the organisational and service CAs), and the
+  Spanish list names Sectigo's qualified time-stamping service by
+  "Sectigo Qualified Time Stamping CA R35", so neither root is an anchor
+  a trusted list grants. Accepted consequence: a fresh install verifies
+  a card-less signature only after it has fetched the lists once.
+- This is the target. `CardCore/Sources/CardCore/PinnedTrustAnchors.swift`
+  still pins those three roots and `TrustAnchors.pinned` is the only
+  anchor set `DocumentVerification.verify` uses; the roots go when a
+  trusted-list reader like refineid-core's
+  `crates/doc-sign/src/verification/trusted_list.rs` supplies the
+  anchors, not before.
 - Describe what the code does and cite the source; ask the owner before
   changing trust behavior.
 
