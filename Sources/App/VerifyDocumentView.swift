@@ -25,6 +25,7 @@
     }()
 
     @StateObject private var model = VerifyDocumentModel()
+    @ObservedObject private var trustedLists = TrustedListStore.shared
     @State private var importing = false
 
     internal var body: some View {
@@ -48,8 +49,10 @@
           }
           chooseSection
         }
+        trustedListsSection
       }
       .navigationTitle(text("verify.title", "Verify"))
+      .task { await trustedLists.refreshIfNeeded() }
       .fileImporter(
         isPresented: $importing,
         allowedContentTypes: Self.supportedDocumentTypes
@@ -67,6 +70,45 @@
         }
         .accessibilityIdentifier("verifyChooseDocument")
       }
+    }
+
+    /// When the trusted lists were fetched, whether they are stale,
+    /// and the button that fetches them again.
+    private var trustedListsSection: some View {
+      Section {
+        factRow(text("verify.trustedLists", "Trusted lists"), trustedListsValue)
+        Button(text("verify.refreshTrustedLists", "Refresh trusted lists")) {
+          Task { await trustedLists.refreshNow() }
+        }
+        .disabled(trustedLists.isRefreshing)
+        .accessibilityIdentifier("verifyRefreshTrustedLists")
+      }
+    }
+
+    /// The trusted-lists row: the fetch time, marked stale once a list
+    /// is past its next update, or that nothing has been fetched; a
+    /// failed fetch is the one error.
+    private var trustedListsValue: VerifyDocumentRowValue {
+      let failed = trustedLists.lastRefreshFailed
+      guard let anchors = trustedLists.anchors, let fetchedAt = anchors.fetchedAt else {
+        return VerifyDocumentRowValue(
+          text: text("verify.trustedListsNotFetched", "Not fetched"),
+          indicator: trustedLists.isRefreshing ? .progress : failed ? .fails : .hidden
+        )
+      }
+      let fetched = formatted(fetchedAt)
+      let stale = anchors.isStale(at: Date())
+      let secondary: String? =
+        failed
+        ? text("verify.trustedListsFetchFailed", "Fetch failed")
+        : stale ? text("verify.trustedListsStale", "Stale") : nil
+      let indicator: VerifyDocumentRowValue.Indicator =
+        trustedLists.isRefreshing ? .progress : failed ? .fails : stale ? .hidden : .holds
+      return VerifyDocumentRowValue(
+        text: text("verify.trustedListsFetched", "Fetched \(fetched)"),
+        secondaryText: secondary,
+        indicator: indicator
+      )
     }
 
     private var unsupportedSection: some View {
