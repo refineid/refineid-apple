@@ -162,11 +162,11 @@
         RappRequesterNotices.post(progress: progressEvent)
 
       case .completed(_, let result):
-        RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
+        RappRequesterNotices.post(RappRequesterNotices.cardWaitEnded)
         Self.settle(state, .success(result))
 
       case .terminal(_, let reason):
-        RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
+        RappRequesterNotices.post(RappRequesterNotices.cardWaitEnded)
         Self.settle(state, .failure(OperationError.terminal(reason)))
 
       case .operationEnded:
@@ -177,7 +177,7 @@
         break
 
       case .closed(let reason):
-        RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
+        RappRequesterNotices.post(RappRequesterNotices.cardWaitEnded)
         finish(reason)
 
       case .inspectPrerequisites, .awaitUserApproval, .executeSafeRead, .executeCardCommand:

@@ -66,7 +66,9 @@
       guard let driver = driverConfiguration, !driver.tokenConfigurations.isEmpty else {
         return true
       }
-      return driver.tokenConfigurations.values.contains { $0.configurationData == nil }
+      return driver.tokenConfigurations.values.contains { configuration in
+        PersistentTokenPairing(configurationData: configuration.configurationData) == nil
+      }
     }
 
     /// Safari's chooser title, matching the local reader token.

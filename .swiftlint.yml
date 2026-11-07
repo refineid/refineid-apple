@@ -114,6 +114,15 @@ file_header:
 
 # Typing discipline (Documentation/typing-discipline.md).
 custom_rules:
+  no_system_wide_notifications:
+    name: "System-wide notification center"
+    regex: 'DistributedNotificationCenter|CFNotificationCenterGetDistributedCenter'
+    message: >
+      Any local process can post any name on a system-wide notification
+      center, so nothing heard there may carry authority and nothing here
+      listens or posts there. Use the process's own NotificationCenter, and
+      re-read the state that decides.
+    severity: error
   raw_byte_array_in_api:
     name: "Raw [UInt8] across an API boundary"
     regex: '(?:func|init)\b[^{}\n]*\[UInt8\]'

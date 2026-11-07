@@ -104,7 +104,7 @@ internal struct StorageFailureTests {
   #if canImport(RappEngine)
     @Test
     internal func aPairingWriteRefusedForSpaceEndsOutOfSpace() {
-      let witness = RappVaultWriteWitness(vault: RappDeviceVault(accessGroup: nil))
+      let witness = RappVaultWriteWitness(vault: RappDeviceVault())
       #expect(witness.closeReason == .persistenceFailure(status: nil))
       #expect(throws: RappVaultError.Unavailable) {
         try witness.witnessing { try Self.refuse(errSecDiskFull) }
@@ -114,7 +114,7 @@ internal struct StorageFailureTests {
 
     @Test
     internal func aPairingWriteRefusedOtherwiseCarriesTheStatus() {
-      let witness = RappVaultWriteWitness(vault: RappDeviceVault(accessGroup: nil))
+      let witness = RappVaultWriteWitness(vault: RappDeviceVault())
       #expect(throws: RappVaultError.Unavailable) {
         try witness.witnessing { try Self.refuse(errSecIO) }
       }

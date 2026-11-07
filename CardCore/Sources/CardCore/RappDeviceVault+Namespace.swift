@@ -41,12 +41,65 @@ extension RappDeviceVault {
     }
   }
 
+  /// Deletes every item of this vault's namespace from the macOS file
+  /// keychain, and returns how many were deleted.
+  ///
+  /// A vault in the shared group lives in the data-protection keychain and
+  /// never reads the file keychain, so an item there serves nothing, and it
+  /// may hold a pairing's private key. A vault with no group answers zero:
+  /// the file keychain is where that vault lives. Throws the first failure
+  /// after trying every item.
+  @discardableResult
+  public func deleteFileKeychainStrays() throws -> Int {
+    #if os(macOS)
+      try synchronized {
+        guard accessGroup != nil else { return 0 }
+        return try deleteStrays()
+      }
+    #else
+      0
+    #endif
+  }
+
+  #if os(macOS)
+    private func deleteStrays() throws -> Int {
+      var deleted = 0
+      var firstError: (any Error)?
+      for coordinate in try fileKeychainStrayCoordinates() {
+        do {
+          try deleteNamespacedItem(
+            service: coordinate.service, account: coordinate.account, dataProtection: false)
+          deleted += 1
+        } catch {
+          if firstError == nil { firstError = error }
+        }
+      }
+      if let firstError { throw firstError }
+      return deleted
+    }
+
+    private func fileKeychainStrayCoordinates() throws -> [(service: String, account: String)] {
+      #if DEBUG
+        if TestCredentialEnvironment.isTestMode {
+          return testKeychain.fileKeychainCoordinates(prefix: namespace.services)
+        }
+      #endif
+      return try namespaceCoordinates(prefix: namespace.services, dataProtection: false)
+    }
+  #endif
+
   #if DEBUG
     private func deleteInMemoryNamespace(prefix: String) -> Int {
       let services = testKeychain.items.keys.filter { $0.hasPrefix(prefix) }
-      let deleted = services.reduce(0) { $0 + (testKeychain.items[$1]?.count ?? 0) }
+      let strays = testKeychain.fileKeychain.keys.filter { $0.hasPrefix(prefix) }
+      let deleted =
+        services.reduce(0) { $0 + (testKeychain.items[$1]?.count ?? 0) }
+        + strays.reduce(0) { $0 + (testKeychain.fileKeychain[$1]?.count ?? 0) }
       for service in services {
         testKeychain.items.removeValue(forKey: service)
+      }
+      for service in strays {
+        testKeychain.fileKeychain.removeValue(forKey: service)
       }
       return deleted
     }

@@ -51,10 +51,13 @@ public final class RappDeviceVault: @unchecked Sendable {
   }
 
   internal struct Namespace {
+    /// What every service of this vault starts with, separator included.
+    internal let services: String
     internal let pair: String
     internal let selection: String
 
     internal init(prefix: String) {
+      services = "\(prefix)."
       pair = "\(prefix).pair"
       selection = "\(prefix).selection"
     }
@@ -83,9 +86,17 @@ public final class RappDeviceVault: @unchecked Sendable {
     internal let testKeychain = RappVaultTestKeychain()
   #endif
 
-  /// Opens the production vault, optionally shared via an access group.
-  public convenience init(accessGroup: String? = nil) {
-    self.init(accessGroup: accessGroup, servicePrefix: Self.serviceNamespace)
+  /// Opens the production vault in the keychain group the app shares
+  /// with its token extensions.
+  ///
+  /// The remote-card token extension reads its pairing's keys from this
+  /// group when it dials the phone, so on macOS the vault is in the
+  /// data-protection keychain rather than the file keychain, whose items
+  /// only the app that created them may read.
+  public convenience init() {
+    self.init(
+      accessGroup: CardCredentialStore.sharedKeychainGroup,
+      servicePrefix: Self.serviceNamespace)
   }
 
   /// Isolates deterministic integration tests from production and from each
@@ -188,6 +199,21 @@ public final class RappDeviceVault: @unchecked Sendable {
       let item = try loadOne(service: namespace.pair, account: pairID.hexadecimal)
       guard !item.isEmpty else { return false }
       return try decodePairMarker(item).state == .revoked
+    }
+  }
+
+  /// Whether the keychain answers that the vault no longer serves the pair:
+  /// the item is absent or marked revoked.
+  ///
+  /// Throws when the keychain gives any other answer, a locked keychain
+  /// included, where ``loadPair(pairID:)`` reads as absent: a decision to end
+  /// a pairing's identity needs the keychain's word that the pair is gone.
+  public func pairIsGone(pairID: Data) throws -> Bool {
+    try synchronized {
+      try requireIdentifier(pairID, size: IdentifierSize.pair)
+      let item = try loadOneStrictly(service: namespace.pair, account: pairID.hexadecimal)
+      guard !item.isEmpty else { return true }
+      return try decodePairMarker(item).state != .active
     }
   }
 
