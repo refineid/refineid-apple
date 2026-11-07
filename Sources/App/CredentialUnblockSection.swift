@@ -112,7 +112,7 @@ internal struct CredentialUnblockSection: View {
     )
   }
 
-  /// The action named with the credential's everyday term.
+  /// The action named with the credential's full name.
   private var resetTitle: LocalizedStringKey {
     target == .pin2 ? "Reset Signature PIN 2" : "Reset Basic PIN 1"
   }

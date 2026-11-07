@@ -35,17 +35,6 @@ internal struct CredentialChangeSection: View {
     internal var identifierName: String {
       name.replacingOccurrences(of: " ", with: "")
     }
-
-    /// The full everyday name, written to sit inside a longer label.
-    internal var everydayName: String {
-      switch self {
-      case .pin1:
-        String(localized: "basic PIN")
-
-      case .pin2:
-        String(localized: "signature PIN")
-      }
-    }
   }
 
   /// The keyboard path through the section.
@@ -158,7 +147,7 @@ internal struct CredentialChangeSection: View {
     )
   }
 
-  /// The action named with the credential's everyday term.
+  /// The action named with the credential's full name.
   private var changeTitle: LocalizedStringKey {
     switch credential {
     case .pin1:
@@ -201,12 +190,12 @@ internal struct CredentialChangeSection: View {
   /// The three secret fields, threaded for Return.
   @ViewBuilder private var entryRows: some View {
     CredentialSecretField(
-      name: String(localized: "Current \(credential.everydayName)"),
+      name: CredentialLabels.currentPinField(for: role),
       text: $current,
       revealIdentifier: "managementChange\(credential.identifierName)CurrentReveal",
       fieldIdentifier: "managementChange\(credential.identifierName)Current",
       field: {
-        SecureField("Current \(credential.everydayName)", text: $current)
+        SecureField(CredentialLabels.currentPinField(for: role), text: $current)
           .textContentType(.oneTimeCode)
           #if os(iOS)
             .keyboardType(.numberPad)
