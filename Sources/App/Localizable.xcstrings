@@ -923,7 +923,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld dokumenttia"
+            "value": "%lld asiakirjaa"
           }
         },
         "sv": {
@@ -939,7 +939,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld dokumenttia allekirjoitettavana"
+            "value": "%lld asiakirjaa allekirjoitettavana"
           }
         },
         "sv": {
@@ -2430,7 +2430,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Allekirjoitettavat dokumentit"
+            "value": "Allekirjoitettavat asiakirjat"
           }
         },
         "sv": {
@@ -2496,7 +2496,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pudota dokumentit tähän allekirjoitettavaksi."
+            "value": "Pudota asiakirjat tähän allekirjoitettavaksi."
           }
         },
         "sv": {
@@ -4929,7 +4929,7 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Allekirjoitetaan dokumenttia…"
+            "value": "Allekirjoitetaan asiakirjaa…"
           }
         },
         "sv": {

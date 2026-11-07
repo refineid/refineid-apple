@@ -1329,7 +1329,7 @@
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tarkasta toinen asiakirja"
+            "value" : "Todenna toinen asiakirja"
           }
         },
         "sv" : {
@@ -1513,7 +1513,7 @@
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tarkastetaan"
+            "value" : "Todennetaan"
           }
         },
         "sv" : {
@@ -1673,7 +1673,7 @@
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tarkasta"
+            "value" : "Todenna"
           }
         },
         "sv" : {
