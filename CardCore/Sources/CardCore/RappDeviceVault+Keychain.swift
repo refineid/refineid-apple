@@ -6,11 +6,16 @@ import Security
 extension RappDeviceVault {
   private static let cssmErrNoUserInteraction: OSStatus = -2_147_415_840
 
-  internal static func isInteractionNotAllowed(_ status: OSStatus) -> Bool {
+  /// Whether a read found the keychain closed to this process for now.
+  ///
+  /// That is a locked keychain, or an item it may not read without a
+  /// prompt. Reads only: a write answering any of these did not store
+  /// anything. `errSecMissingEntitlement` is not among them, since no later
+  /// attempt by the same process can succeed.
+  internal static func isUnreadableForNow(_ status: OSStatus) -> Bool {
     status == errSecInteractionNotAllowed
       || status == cssmErrNoUserInteraction
       || status == errSecAuthFailed
-      || status == errSecMissingEntitlement
   }
 
   internal func pairMarker(
@@ -60,12 +65,9 @@ extension RappDeviceVault {
   }
 
   internal func loadOne(service: String, account: String) throws -> [String: Any] {
-    if let inMemory = inMemoryStore[service]?[account] {
-      return inMemory
-    }
     #if DEBUG
       if TestCredentialEnvironment.isTestMode {
-        return [:]
+        return testKeychain.items[service]?[account] ?? [:]
       }
     #endif
     var query = itemQuery(service: service, account: account)
@@ -84,7 +86,7 @@ extension RappDeviceVault {
       return [:]
 
     default:
-      if Self.isInteractionNotAllowed(status) {
+      if Self.isUnreadableForNow(status) {
         return [:]
       }
       throw Failure.unavailable(status)
@@ -99,28 +101,10 @@ extension RappDeviceVault {
     }
   }
 
-  private func inMemoryItems(for service: String) -> [[String: Any]] {
-    Array((inMemoryStore[service] ?? [:]).values)
-  }
-
-  private func mergeInMemory(items: [[String: Any]], service: String) -> [[String: Any]] {
-    var combined = items
-    guard let inMem = inMemoryStore[service] else { return combined }
-    for (acc, val) in inMem {
-      let present = combined.contains { existing in
-        (existing[kSecAttrAccount as String] as? String) == acc
-      }
-      if !present {
-        combined.append(val)
-      }
-    }
-    return combined
-  }
-
   internal func loadAll(service: String) throws -> [[String: Any]] {
     #if DEBUG
       if TestCredentialEnvironment.isTestMode {
-        return sortItems(inMemoryItems(for: service))
+        return sortItems(Array((testKeychain.items[service] ?? [:]).values))
       }
     #endif
     var query = itemQuery(service: service)
@@ -146,14 +130,14 @@ extension RappDeviceVault {
           items.append(loaded)
         }
       }
-      return sortItems(mergeInMemory(items: items, service: service))
+      return sortItems(items)
 
     case errSecItemNotFound:
-      return sortItems(inMemoryItems(for: service))
+      return []
 
     default:
-      if Self.isInteractionNotAllowed(status) {
-        return sortItems(inMemoryItems(for: service))
+      if Self.isUnreadableForNow(status) {
+        return []
       }
       throw Failure.unavailable(status)
     }
@@ -164,50 +148,17 @@ extension RappDeviceVault {
     account: String,
     attributes: [String: Any]
   ) throws {
-    #if DEBUG
-      if TestCredentialEnvironment.isTestMode {
-        mergeInMemory(service: service, account: account, attributes: attributes)
-        return
-      }
-    #endif
-    if inMemoryStore[service]?[account] != nil {
-      mergeInMemory(service: service, account: account, attributes: attributes)
-    }
-    let status = SecItemUpdate(
-      itemQuery(service: service, account: account) as CFDictionary,
-      attributes as CFDictionary)
+    let status = writes.update(itemQuery(service: service, account: account), attributes)
     switch status {
     case errSecSuccess:
       return
 
     case errSecItemNotFound:
-      if inMemoryStore[service]?[account] != nil {
-        return
-      }
       throw Failure.notFound
 
     default:
-      if Self.isInteractionNotAllowed(status) {
-        inMemoryStore[service, default: [:]][account] = attributes
-        return
-      }
       throw Failure.unavailable(status)
     }
-  }
-
-  /// Mirrors SecItemUpdate merge semantics: folds the attributes into the
-  /// stored item and keeps its account, so later reads see one whole item.
-  private func mergeInMemory(
-    service: String,
-    account: String,
-    attributes: [String: Any]
-  ) {
-    var stored = inMemoryStore[service]?[account] ?? [:]
-    stored[kSecAttrAccount as String] = account
-    for (key, value) in attributes {
-      stored[key] = value
-    }
-    inMemoryStore[service, default: [:]][account] = stored
   }
 
   internal func upsert(
@@ -215,17 +166,9 @@ extension RappDeviceVault {
     account: String,
     attributes: [String: Any]
   ) throws {
-    var stored = itemQuery(service: service, account: account)
-    for (key, value) in attributes {
-      stored[key] = value
-    }
-    inMemoryStore[service, default: [:]][account] = stored
-    #if DEBUG
-      if TestCredentialEnvironment.isTestMode { return }
-    #endif
     let query = itemQuery(service: service, account: account)
-    let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
-    if updateStatus == errSecSuccess || Self.isInteractionNotAllowed(updateStatus) { return }
+    let updateStatus = writes.update(query, attributes)
+    if updateStatus == errSecSuccess { return }
     guard updateStatus == errSecItemNotFound else {
       throw Failure.unavailable(updateStatus)
     }
@@ -235,47 +178,33 @@ extension RappDeviceVault {
     for (key, value) in attributes {
       item[key] = value
     }
-    let addStatus = SecItemAdd(item as CFDictionary, nil)
-    if addStatus == errSecSuccess || Self.isInteractionNotAllowed(addStatus) { return }
-    if addStatus == errSecDuplicateItem {
-      let retryStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
-      if retryStatus == errSecSuccess || Self.isInteractionNotAllowed(retryStatus) { return }
+    let addStatus = writes.add(item)
+    if addStatus == errSecSuccess { return }
+    guard addStatus == errSecDuplicateItem else {
+      throw Failure.unavailable(addStatus)
+    }
+    let retryStatus = writes.update(query, attributes)
+    guard retryStatus == errSecSuccess else {
       throw Failure.unavailable(retryStatus)
     }
-    throw Failure.unavailable(addStatus)
   }
 
   internal func deleteItem(service: String, account: String) throws {
-    inMemoryStore[service]?.removeValue(forKey: account)
-    #if DEBUG
-      if TestCredentialEnvironment.isTestMode { return }
-    #endif
-    let query = itemQuery(service: service, account: account)
-    var status = SecItemDelete(query as CFDictionary)
-    #if os(macOS)
-      if status == errSecInvalidOwnerEdit {
-        status = Self.deleteKeychainItemRef(query: query)
-      }
-    #endif
-    if Self.isInteractionNotAllowed(status) { return }
-    guard status == errSecSuccess || status == errSecItemNotFound else {
-      throw Failure.unavailable(status)
-    }
+    try requireDeleted(itemQuery(service: service, account: account))
   }
 
   internal func deleteAll(service: String) throws {
-    inMemoryStore.removeValue(forKey: service)
-    #if DEBUG
-      if TestCredentialEnvironment.isTestMode { return }
-    #endif
-    let query = itemQuery(service: service)
-    var status = SecItemDelete(query as CFDictionary)
+    try requireDeleted(itemQuery(service: service))
+  }
+
+  /// Deletes what `query` names; an item already absent counts as deleted.
+  internal func requireDeleted(_ query: [String: Any]) throws {
+    var status = writes.delete(query)
     #if os(macOS)
       if status == errSecInvalidOwnerEdit {
         status = Self.deleteKeychainItemRef(query: query)
       }
     #endif
-    if Self.isInteractionNotAllowed(status) { return }
     guard status == errSecSuccess || status == errSecItemNotFound else {
       throw Failure.unavailable(status)
     }

@@ -10,6 +10,9 @@ import Foundation
 /// `pairing.stored` messages; ``intoActive()`` is the only way to obtain
 /// an ``ActivePairing``, and it exists only with both confirmations.
 internal struct PairingStorage {
+  /// The `pairing.abort` reason of a record the endpoint could not store.
+  internal static let notStoredReason = "pairing record not stored"
+
   internal let pairIdentifier: Data
 
   private var channel: RappMessageChannel
@@ -39,6 +42,17 @@ internal struct PairingStorage {
     }
     localStoredSent = true
     return frame
+  }
+
+  /// Tells the peer the local record could not be stored; the confirmation
+  /// it replaces is never sent (RAPP v26.11.2 §4.3 item 4).
+  internal mutating func sendAbort() throws -> Data {
+    guard !localStoredSent else { throw PairingError.duplicateMessage }
+    do {
+      return try channel.seal(.pairingAbort, body: ["reason": .text(Self.notStoredReason)])
+    } catch {
+      throw PairingError.noise
+    }
   }
 
   /// Accepts the peer's storage confirmation; one naming another pairing

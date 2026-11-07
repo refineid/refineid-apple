@@ -3,6 +3,7 @@
 import CardCore
 import Foundation
 import RappEngine
+import Security
 import SwiftUI
 
 /// What the model does with each event the pairing ceremony reports.
@@ -18,6 +19,9 @@ extension RappPairingModel {
     switch reason {
     case .ceremonyEnded(.outOfSpace):
       .reported(DiskFullMessage.text)
+
+    case .ceremonyEnded(.persistenceFailure(let status)):
+      .reported(notStoredMessage(status: status))
 
     case .ceremonyEnded:
       .reported(String(localized: "Pairing ended before it was completed."))
@@ -37,6 +41,15 @@ extension RappPairingModel {
     case .unreachable:
       .unreachable
     }
+  }
+
+  /// What the holder is told when the keychain did not store a pairing,
+  /// with the cause the system gives (RAPP v26.11.2 §4.3 item 4).
+  nonisolated internal static func notStoredMessage(status: OSStatus?) -> String {
+    guard let status, let cause = SecCopyErrorMessageString(status, nil) as String? else {
+      return String(localized: "The pairing could not be stored.")
+    }
+    return String(localized: "The pairing could not be stored. \(cause)")
   }
 
   /// What the custodian's ceremony reports.
@@ -111,7 +124,16 @@ extension RappPairingModel {
       // A next offer could not be stored either.
       fail(.reported(DiskFullMessage.text))
 
-    case .attemptTimedOut, .custodianBusy, .localRequest, .persistenceFailure,
+    case .persistenceFailure(let status):
+      // A next offer could not be stored either.
+      #if DEBUG
+        DevErrorLog.report(
+          "pairing not stored: keychain status \(status.map(String.init) ?? "none")",
+          source: .app)
+      #endif
+      fail(.reported(Self.notStoredMessage(status: status)))
+
+    case .attemptTimedOut, .custodianBusy, .localRequest,
       .protocolFailure, .storageUnconfirmed, .transportFailure:
       ceremonyEnded(String(localized: "Pairing ended before it was completed."))
     }

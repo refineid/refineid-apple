@@ -242,7 +242,9 @@
     /// Stores the unconfirmed record, then tells the peer.
     ///
     /// The storage exchange is RAPP v26.11.2 §4.3 item 4; the
-    /// confirmation deadline keeps running.
+    /// confirmation deadline keeps running. A refused write sends
+    /// `pairing.abort` in place of `pairing.stored`, and ending the attempt
+    /// destroys the candidate keys.
     private func store(now: UInt64) async throws {
       let record = try bridge.buildPairRecord(
         createdAtMs: clock.wallMilliseconds(), nowMonotonicMs: now)
@@ -250,6 +252,9 @@
       do {
         try record.persistDeviceOnly(vault: witness)
       } catch {
+        if let abort = try? bridge.sendAbort(nowMonotonicMs: now) {
+          try? await transport.send(abort)
+        }
         await fail(witness.closeReason)
         return
       }

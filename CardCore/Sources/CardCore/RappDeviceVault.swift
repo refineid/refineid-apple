@@ -5,8 +5,10 @@ import Security
 
 /// Device-bound storage for RAPP pair records and the selected pairing.
 ///
-/// Every public mutation maps to one Keychain add or update. Removing a pair
-/// deletes the Keychain item so the same devices can pair again. Nothing of
+/// Every public mutation maps to one Keychain add or update, and succeeds
+/// only when the keychain reports the write: a record the keychain did not
+/// store is not stored. Removing a pair deletes the Keychain item so the same
+/// devices can pair again. Nothing of
 /// an operation is stored: it lives and ends with its session (RAPP
 /// v26.11.2 §8.1 item 3).
 public final class RappDeviceVault: @unchecked Sendable {
@@ -75,7 +77,11 @@ public final class RappDeviceVault: @unchecked Sendable {
   private let lock = NSLock()
   internal let encoder: PropertyListEncoder
   internal let decoder = PropertyListDecoder()
-  internal var inMemoryStore: [String: [String: [String: Any]]] = [:]
+  internal let writes: RappVaultKeychainWrites
+  #if DEBUG
+    /// What holds the items under test isolation, in place of the keychain.
+    internal let testKeychain = RappVaultTestKeychain()
+  #endif
 
   /// Opens the production vault, optionally shared via an access group.
   public convenience init(accessGroup: String? = nil) {
@@ -92,6 +98,11 @@ public final class RappDeviceVault: @unchecked Sendable {
     namespace = Namespace(prefix: servicePrefix)
     encoder = PropertyListEncoder()
     encoder.outputFormat = .binary
+    #if DEBUG
+      writes = TestCredentialEnvironment.isTestMode ? testKeychain.writes : .system
+    #else
+      writes = .system
+    #endif
   }
 
   /// Stores a new active pair record under its pair identifier.
@@ -112,11 +123,7 @@ public final class RappDeviceVault: @unchecked Sendable {
     item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
     item[kSecAttrGeneric as String] = marker
     item[kSecValueData as String] = record
-    inMemoryStore[namespace.pair, default: [:]][pairID.hexadecimal] = item
-    #if DEBUG
-      if TestCredentialEnvironment.isTestMode { return }
-    #endif
-    let status = SecItemAdd(item as CFDictionary, nil)
+    let status = writes.add(item)
     #if DEBUG
       print("[RappDeviceVault] insertPair status: \(status)")
       fflush(stdout)
@@ -137,7 +144,6 @@ public final class RappDeviceVault: @unchecked Sendable {
       )
 
     default:
-      if Self.isInteractionNotAllowed(status) { return }
       throw Failure.unavailable(status)
     }
   }

@@ -20,10 +20,13 @@
     /// Why the pairing ends after the engine refused to store it.
     internal var closeReason: RappPairingCoordinator.CloseReason {
       let refused = lock.withLock { refusal }
-      guard let refused, StorageFailure.isOutOfSpace(refused) else {
-        return .persistenceFailure
+      if let refused, StorageFailure.isOutOfSpace(refused) {
+        return .outOfSpace
       }
-      return .outOfSpace
+      if case RappDeviceVault.Failure.unavailable(let status)? = refused {
+        return .persistenceFailure(status: status)
+      }
+      return .persistenceFailure(status: nil)
     }
 
     internal init(vault: RappDeviceVault) {

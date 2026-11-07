@@ -171,6 +171,16 @@ extension RappPairingBridge {
     try withStorage(nowMilliseconds: nowMonotonicMs) { storage in try storage.sendStored() }
   }
 
+  /// Tells the peer the record could not be stored, in place of
+  /// `pairing.stored` (RAPP v26.11.2 §4.3 item 4).
+  ///
+  /// - Throws: ``RappBindingError/WrongPhase`` outside the storage
+  ///   exchange, and ``RappBindingError/StorageUnconfirmed`` past its
+  ///   deadline.
+  public func sendAbort(nowMonotonicMs: UInt64) throws -> Data {
+    try withStorage(nowMilliseconds: nowMonotonicMs) { storage in try storage.sendAbort() }
+  }
+
   /// Accepts the peer's storage confirmation.
   ///
   /// - Throws: ``RappBindingError/ProtocolFailure`` when it names another

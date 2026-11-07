@@ -41,14 +41,16 @@ extension RappDeviceVault {
     }
   }
 
-  private func deleteInMemoryNamespace(prefix: String) -> Int {
-    let services = inMemoryStore.keys.filter { $0.hasPrefix(prefix) }
-    let deleted = services.reduce(0) { $0 + (inMemoryStore[$1]?.count ?? 0) }
-    for service in services {
-      inMemoryStore.removeValue(forKey: service)
+  #if DEBUG
+    private func deleteInMemoryNamespace(prefix: String) -> Int {
+      let services = testKeychain.items.keys.filter { $0.hasPrefix(prefix) }
+      let deleted = services.reduce(0) { $0 + (testKeychain.items[$1]?.count ?? 0) }
+      for service in services {
+        testKeychain.items.removeValue(forKey: service)
+      }
+      return deleted
     }
-    return deleted
-  }
+  #endif
 
   private func deleteKeychainNamespace(prefix: String) throws -> Int {
     var deleted = 0
@@ -107,7 +109,11 @@ extension RappDeviceVault {
       return []
 
     default:
-      if Self.isInteractionNotAllowed(status) { return [] }
+      #if os(macOS)
+        // On macOS the data-protection keychain takes an access-group
+        // entitlement; a process without one has no items there to delete.
+        if dataProtection, status == errSecMissingEntitlement { return [] }
+      #endif
       throw Failure.unavailable(status)
     }
   }
@@ -120,15 +126,6 @@ extension RappDeviceVault {
     var query = itemQuery(service: service, account: account)
     query[kSecUseDataProtectionKeychain as String] = dataProtection
     query.removeValue(forKey: kSecAttrAccessGroup as String)
-    var status = SecItemDelete(query as CFDictionary)
-    #if os(macOS)
-      if status == errSecInvalidOwnerEdit {
-        status = Self.deleteKeychainItemRef(query: query)
-      }
-    #endif
-    if Self.isInteractionNotAllowed(status) { return }
-    guard status == errSecSuccess || status == errSecItemNotFound else {
-      throw Failure.unavailable(status)
-    }
+    try requireDeleted(query)
   }
 }
