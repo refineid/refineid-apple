@@ -61,14 +61,12 @@
 
     @Test
     internal func aFloorRefusalNamesPin2AndPointsToThePuk() {
-      for verdict in [RetryFloorVerdict.refuseLowAttempts, .refuseBlocked] {
-        let message = DocumentSigningMessage.message(
-          for: DocumentSigner.Failure.card(.floorRefused(verdict)))
-        #expect(
-          message.range(of: CredentialLabels.name(for: .pin2), options: .caseInsensitive)
-            != nil)
-        #expect(message.contains("PUK"))
-      }
+      let message = DocumentSigningMessage.message(
+        for: DocumentSigner.Failure.card(.floorRefused(.refuseLowAttempts)))
+      #expect(
+        message.range(of: CredentialLabels.name(for: .pin2), options: .caseInsensitive)
+          != nil)
+      #expect(message.contains("PUK"))
     }
 
     @Test

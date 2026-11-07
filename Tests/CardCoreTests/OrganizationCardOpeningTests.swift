@@ -116,6 +116,23 @@ internal struct OrganizationCardOpeningTests {
   }
 
   @Test
+  internal func aHeldPin1IsNotSentToABlockedCounterAndTheHolderIsToldSo() throws {
+    var configuration = try PaceEstablishmentTests.organizationCardConfiguration(pin: .pin1)
+    configuration.authenticationTemplateStatusHex = PaceEstablishmentTests.noTriesLeftStatusHex
+    let card = SyntheticAntennaCard(
+      pace: configuration, refusal: .conditionsNotSatisfied, afterPace: [])
+    #expect(throws: PaceEstablishment.Failure.credentialBlocked) {
+      try OrganizationCardOpening.pin1(over: card, try Self.pin1(), spending: .heldPin1)
+    }
+    #expect(
+      !card.plainCommands.contains { command in
+        command.count > SyntheticPaceCardValues.instructionOffset
+          && command[command.startIndex + SyntheticPaceCardValues.instructionOffset]
+            == SyntheticPaceCardValues.generalAuthenticate
+      })
+  }
+
+  @Test
   internal func anOrganizationEntryIsNoCardAccessNumber() throws {
     // The organization entry is a Pin1Entry: it issues single-use PINs and
     // reflects as nothing, so no path can read its digits back into a

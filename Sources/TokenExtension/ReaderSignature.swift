@@ -200,6 +200,9 @@ internal enum ReaderSignature {
     } catch CardOperationError.pinBlocked {
       token.forgetPinAfterRefusal(fingerprint: fingerprint)
       throw TokenError.signRefused
+    } catch CardOperationError.credentialInvalidated {
+      TokenLog.error("sign: PIN1 invalidated")
+      throw TokenError.signRefused
     }
 
     TokenLog.info("sign: PIN1 verified; MSE:SET + PSO:HASH + PSO:CDS")

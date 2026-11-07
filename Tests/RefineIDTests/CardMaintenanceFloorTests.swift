@@ -9,9 +9,8 @@
   @testable import RefineIDTestHost
 
   /// The floor before a PIN change or reset, judged on the credential the
-  /// command presents: a blocked PIN is refused before the card is asked,
-  /// and a PUK at no tries left is passed to the card, which answers for
-  /// itself.
+  /// command presents: a credential at no tries left or blocked is passed
+  /// to the card, which answers for itself.
   internal struct CardMaintenanceFloorTests {
     private struct UnexpectedCommand: Error {}
 
@@ -264,9 +263,8 @@
     }
 
     @Test
-    internal func aBlockedPin1IsRefusedBeforeTheCard() {
+    internal func aBlockedPin1GoesToTheCard() {
       let lengths = CardPinLengths.notListed(numbering: .citizen)
-      // The probe alone is scripted: a change command would fail the test.
       let card = ScriptedCard([
         (
           CommandApdu.readRetryCounter(role: .pin1, references: .citizen).encoded,
@@ -275,13 +273,15 @@
       ])
       let operations = CardOperations(channel: card)
 
+      var reached = false
       let outcome = CardMaintenance.floored(presenting: .pin1, on: operations, lengths: lengths) {
         _, _ in
-        Issue.record("a blocked PIN 1 reached the card")
-        return .failed
+        reached = true
+        return .pinBlocked
       }
 
-      #expect(outcome == .floorRefused(.refuseBlocked))
+      #expect(reached)
+      #expect(outcome == .pinBlocked)
       #expect(card.isExhausted)
     }
   }

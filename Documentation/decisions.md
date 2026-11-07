@@ -94,6 +94,28 @@ The rule is the maintainer's, recorded in refineid-core:
 - Admission, `card.status` and reads are not credential use. The primed
   card's remembered fingerprint (CC-70) stays.
 
+## 2026-11-07 One retry floor: a blocked PIN goes to the card too
+
+The maintainer's rule, as refineid-core #311 implements it: one rule for
+PIN 1, PIN 2, the PUK and the activation PIN. A command that could spend a
+try is refused at two or one tries left or an unreadable counter, and sent
+otherwise, including at zero or blocked, where the card answers and spends
+nothing. A PUK reported verified is unreadable. `RetryFloorVerdict` loses
+`refuseBlocked` and `RetryFloor` loses `evaluateLastTries`. An invalidated
+credential goes to the card as well, as core reads `6984` with `6983`.
+
+A blocked PIN's answer reaches the holder as blocked, with the PUK path
+open. A held PIN 1 is never sent for a counter that shows the PIN blocked:
+the holder is told so from that reading, which sends no credential.
+
+Each channel is floored where it can be read, and no probe was added. A
+contact session and a channel the CAN opened read the counter with the
+VERIFY status probe; a card that does not answer it with a counter is
+refused as unreadable, with no PIN sent. A channel an organization card's
+PIN opens is floored on MSE:Set AT's answer before the first GENERAL
+AUTHENTICATE and sends no VERIFY status probe; at `63C0` the handshake goes
+on and the card answers, and `6983` on MSE:Set AT is itself the answer.
+
 ## 2026-11-07 The PUK at no tries left goes to the card
 
 Before presenting the PUK - a PIN reset, the organization card's PUK

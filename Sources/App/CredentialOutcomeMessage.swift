@@ -22,18 +22,16 @@ internal enum CredentialOutcomeMessage {
   /// A retry-floor refusal: the credential that was not presented and
   /// the way back.
   ///
-  /// A PIN at one or two attempts, or blocked, is reset with the PUK,
-  /// which the floor judges on its own counter. `remaining` is the exact
-  /// count when the card supplied it.
+  /// A PIN at one or two attempts is reset with the PUK, which the floor
+  /// judges on its own counter. `remaining` is the exact count when the
+  /// card supplied it. A blocked PIN is not a refusal: its command went to
+  /// the card, and ``blocked(_:)`` words the answer.
   internal static func floorRefusal(
     role: CredentialRole,
     verdict: RetryFloorVerdict,
     remaining: RetryCount?
   ) -> String {
     switch verdict {
-    case .refuseBlocked:
-      return blocked(role)
-
     case .refuseLowAttempts:
       guard role != .puk else { return otherSoftwareRecovery() }
       let detail =

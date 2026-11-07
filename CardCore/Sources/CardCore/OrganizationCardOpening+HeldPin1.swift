@@ -95,10 +95,10 @@ extension OrganizationCardOpening {
   /// the error to throw.
   ///
   /// A state MSE:Set AT reported decides holding (``Pin1Retention``), and
-  /// a held PIN it does not admit asks the holder. A wrong PIN (`63CX`) or
-  /// a blocked one (`6983`) is recorded as refused and the held value
-  /// dropped; a handshake the card fails without a counter (`6300`, or a
-  /// token mismatch) drops the held value only.
+  /// a held PIN it does not admit asks the holder. A wrong PIN (`63CX`) is
+  /// recorded as refused and the held value dropped; a blocked PIN, and a
+  /// handshake the card fails without a counter (`6300`, or a token
+  /// mismatch), drop the held value only.
   private static func forget(
     after failure: PaceEstablishment.Failure,
     fingerprint: PinFingerprint,
@@ -113,11 +113,11 @@ extension OrganizationCardOpening {
     case .retryFloorRefused(_, let state):
       records.memory.retain(after: state, serial: serial)
 
-    case .wrongPin, .cardRejected(.authenticationBlocked):
+    case .wrongPin:
       records.rejected.recordRejection(fingerprint)
       records.memory.clear(serial: serial)
 
-    case .cardRejected(.authenticationFailed), .authenticationTokenMismatch:
+    case .credentialBlocked, .cardRejected(.authenticationFailed), .authenticationTokenMismatch:
       records.memory.clear(serial: serial)
 
     default:

@@ -114,6 +114,9 @@ internal struct FieldSignature {
     } catch CardOperationError.pinBlocked {
       token.forgetPinAfterRefusal(fingerprint: fingerprint)
       throw TokenError.signRefused
+    } catch CardOperationError.credentialInvalidated {
+      TokenLog.error("sign: PIN1 invalidated")
+      throw TokenError.signRefused
     } catch {
       // Ambiguous transport or communication failure during or after
       // VERIFY: an unverified candidate is dropped, an accepted value kept.

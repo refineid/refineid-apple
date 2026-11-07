@@ -43,7 +43,8 @@ extension PaceEstablishment {
   /// section B.14.1): `9000` while the PIN has its initial tries, five on
   /// the organization card (FINEID S4-2 v4.0 section 4.3), `63CX` for X
   /// tries left, `6283` for a deactivated PIN. Below the floor nothing
-  /// further is sent.
+  /// further is sent. At `63C0` the handshake goes on: the card has no try
+  /// to take, and it answers for itself. `6983` is the card's own answer.
   internal func setAuthenticationTemplate(
     suite: PaceInfo,
     password: borrowing PacePassword
@@ -75,7 +76,7 @@ extension PaceEstablishment {
       state = remaining.isBlocked ? .locked : .remaining(remaining)
 
     case .authenticationBlocked:
-      state = .locked
+      throw Failure.credentialBlocked
 
     case .other(PaceValues.swPasswordDeactivated):
       throw Failure.passwordDeactivated
@@ -97,8 +98,15 @@ extension PaceEstablishment {
     guard verdict == .proceed else {
       throw Failure.retryFloorRefused(verdict, state)
     }
-    if case .heldPin1Unconfirmed = PinAdmission(probe: state, spending: spending) {
+    switch PinAdmission(probe: state, spending: spending) {
+    case .credentialBlocked:
+      throw Failure.credentialBlocked
+
+    case .heldPin1Unconfirmed:
       throw Failure.heldPinUnconfirmed(state)
+
+    case .credentialInvalidated, .proceed, .retryFloor:
+      break
     }
   }
 
@@ -240,6 +248,9 @@ extension PaceEstablishment {
 
     case .pinIncorrect(let remaining) where password.credential != nil:
       throw Failure.wrongPin(remaining: remaining)
+
+    case .authenticationBlocked where password.credential != nil:
+      throw Failure.credentialBlocked
 
     default:
       throw Failure.cardRejected(response.statusWord)
