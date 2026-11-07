@@ -54,14 +54,14 @@
       Toggle(
         virtualCardLocalized(
           "activation.pin1Factory",
-          defaultValue: "PIN 1 is in factory state"),
+          defaultValue: "Basic PIN 1 is in factory state"),
         isOn: $draft.card.pin1.isFactoryValue
       )
       .accessibilityIdentifier("virtualCardPIN1Factory")
       Toggle(
         virtualCardLocalized(
           "activation.pin2Factory",
-          defaultValue: "PIN 2 is in factory state"),
+          defaultValue: "Signature PIN 2 is in factory state"),
         isOn: $draft.card.pin2.isFactoryValue
       )
       .accessibilityIdentifier("virtualCardPIN2Factory")

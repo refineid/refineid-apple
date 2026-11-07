@@ -36,16 +36,24 @@ internal enum CredentialOutcomeMessage {
 
     case .refuseLowAttempts:
       guard role != .puk else { return otherSoftwareRecovery() }
-      let name = shortName(role)
       let detail =
-        switch remaining?.attemptsRemaining {
-        case .some(1):
-          String(localized: "Only 1 attempt remains for \(name).")
+        switch (role, remaining?.attemptsRemaining) {
+        case (.puk, _):
+          preconditionFailure("PUK is the recovery credential, not a reset target")
 
-        case .some(let count):
-          String(localized: "Only \(count) attempts remain for \(name).")
+        case (.pin1, .some(1)):
+          String(localized: "Only 1 attempt remains for Basic PIN 1.")
 
-        case .none:
+        case (.pin2, .some(1)):
+          String(localized: "Only 1 attempt remains for Signature PIN 2.")
+
+        case (.pin1, .some(let count)):
+          String(localized: "Only \(count) attempts remain for Basic PIN 1.")
+
+        case (.pin2, .some(let count)):
+          String(localized: "Only \(count) attempts remain for Signature PIN 2.")
+
+        case (_, .none):
           String(localized: "RefineID does not use either of the last two attempts.")
         }
       return String(localized: "Operation refused.")
@@ -64,10 +72,10 @@ internal enum CredentialOutcomeMessage {
   internal static func blocked(_ role: CredentialRole) -> String {
     switch role {
     case .pin1:
-      String(localized: "PIN 1 is blocked.") + "\n" + resetWithPuk(role)
+      String(localized: "Basic PIN 1 is blocked.") + "\n" + resetWithPuk(role)
 
     case .pin2:
-      String(localized: "PIN 2 is blocked.") + "\n" + resetWithPuk(role)
+      String(localized: "Signature PIN 2 is blocked.") + "\n" + resetWithPuk(role)
 
     case .puk:
       pukBlockedByCard()
@@ -77,14 +85,14 @@ internal enum CredentialOutcomeMessage {
   internal static func recoveryGuidance(for role: CredentialRole) -> String {
     switch role {
     case .pin1:
-      String(localized: "RefineID does not use PIN 1 with fewer than 3 attempts left.")
+      String(localized: "RefineID does not use Basic PIN 1 with fewer than 3 attempts left.")
         + "\n"
-        + String(localized: "Reset PIN 1 with the PUK, or use other software.")
+        + String(localized: "Reset Basic PIN 1 with the PUK, or use other software.")
 
     case .pin2:
-      String(localized: "RefineID does not use PIN 2 with fewer than 3 attempts left.")
+      String(localized: "RefineID does not use Signature PIN 2 with fewer than 3 attempts left.")
         + "\n"
-        + String(localized: "Reset PIN 2 with the PUK, or use other software.")
+        + String(localized: "Reset Signature PIN 2 with the PUK, or use other software.")
 
     case .puk:
       preconditionFailure("PUK is the recovery credential, not a reset target")
@@ -94,26 +102,13 @@ internal enum CredentialOutcomeMessage {
   private static func resetWithPuk(_ role: CredentialRole) -> String {
     switch role {
     case .pin1:
-      String(localized: "Reset PIN 1 with your PUK.")
+      String(localized: "Reset Basic PIN 1 with your PUK.")
 
     case .pin2:
-      String(localized: "Reset PIN 2 with your PUK.")
+      String(localized: "Reset Signature PIN 2 with your PUK.")
 
     case .puk:
       preconditionFailure("PUK is the recovery credential, not a reset target")
-    }
-  }
-
-  private static func shortName(_ role: CredentialRole) -> String {
-    switch role {
-    case .pin1:
-      "PIN 1"
-
-    case .pin2:
-      "PIN 2"
-
-    case .puk:
-      "PUK"
     }
   }
 
@@ -135,10 +130,10 @@ internal enum CredentialOutcomeMessage {
   internal static func incorrect(_ credential: PresentedCredential) -> String {
     switch credential {
     case .pin1:
-      String(localized: "PIN 1 is incorrect.")
+      String(localized: "Basic PIN 1 is incorrect.")
 
     case .pin2:
-      String(localized: "PIN 2 is incorrect.")
+      String(localized: "Signature PIN 2 is incorrect.")
 
     case .puk:
       String(localized: "PUK is incorrect.")

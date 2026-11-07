@@ -70,7 +70,7 @@
     @ViewBuilder
     private func alertActions(for req: RappAuthorizationRequest) -> some View {
       SecureField(
-        req.action == .documentSignature ? "PIN 2" : "PIN 1",
+        req.action == .documentSignature ? "Signature PIN 2" : "Basic PIN 1",
         text: Binding(
           get: { enteredPin },
           set: { enteredPin = LimitedDigits.pin($0) }

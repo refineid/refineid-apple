@@ -28,16 +28,16 @@ extension CardManagementView {
     internal var name: String {
       switch self {
       case .changePin1:
-        String(localized: "Change PIN 1")
+        String(localized: "Change Basic PIN 1")
 
       case .changePin2:
-        String(localized: "Change PIN 2")
+        String(localized: "Change Signature PIN 2")
 
       case .resetPin1:
-        String(localized: "Reset PIN 1")
+        String(localized: "Reset Basic PIN 1")
 
       case .resetPin2:
-        String(localized: "Reset PIN 2")
+        String(localized: "Reset Signature PIN 2")
       }
     }
 

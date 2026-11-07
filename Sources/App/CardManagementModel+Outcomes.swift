@@ -8,15 +8,15 @@ extension CardManagementModel {
     let entry = PresentedCredential(activation: activation.scheme)
     switch (activation.pin1, activation.pin2) {
     case (.success, .success):
-      notice = String(localized: "Card activated: PIN 1 and PIN 2 are set.")
+      notice = String(localized: "Card activated: Basic PIN 1 and Signature PIN 2 are set.")
       return true
 
     case (.alreadyActivated, .success):
-      notice = String(localized: "Card activated: PIN 2 is set; PIN 1 already was.")
+      notice = String(localized: "Card activated: Signature PIN 2 is set; Basic PIN 1 already was.")
       return true
 
     case (.success, .alreadyActivated), (.success, nil):
-      notice = String(localized: "Card activated: PIN 1 is set; PIN 2 already was.")
+      notice = String(localized: "Card activated: Basic PIN 1 is set; Signature PIN 2 already was.")
       return true
 
     case (.success, .some(let second)):
@@ -24,7 +24,7 @@ extension CardManagementModel {
         for: second, presenting: entry,
         spending: activationSpends(activation.scheme, writing: .pin2)
       )
-      .map { String(localized: "PIN 1 was set, but PIN 2 was not: \($0)") }
+      .map { String(localized: "Basic PIN 1 was set, but Signature PIN 2 was not: \($0)") }
       return false
 
     case (.alreadyActivated, .some(let second)):
@@ -32,7 +32,7 @@ extension CardManagementModel {
         for: second, presenting: entry,
         spending: activationSpends(activation.scheme, writing: .pin2)
       )
-      .map { String(localized: "PIN 2 was not set: \($0)") }
+      .map { String(localized: "Signature PIN 2 was not set: \($0)") }
       return false
 
     case (.alreadyActivated, nil):
@@ -121,7 +121,7 @@ extension CardManagementModel {
       CredentialOutcomeMessage.blocked(role)
 
     case .floorRefused(.refuseUnreadable):
-      String(localized: "The \(presenting.name) retry counter could not be read; nothing was sent.")
+      presenting.unreadableCounterMessage
 
     case .floorRefused(let verdict):
       CredentialOutcomeMessage.floorRefusal(role: role, verdict: verdict, remaining: nil)

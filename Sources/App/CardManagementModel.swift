@@ -165,7 +165,7 @@ internal final class CardManagementModel: ObservableObject {
 
   internal func changePin1(current: String, new: String) async -> Bool {
     await perform(
-      presenting: .pin1, spending: .pin1, accepted: String(localized: "PIN 1 changed.")
+      presenting: .pin1, spending: .pin1, accepted: String(localized: "Basic PIN 1 changed.")
     ) {
       await CardMaintenance.changePin1(
         current: current,
@@ -178,7 +178,7 @@ internal final class CardManagementModel: ObservableObject {
 
   internal func changePin2(current: String, new: String) async -> Bool {
     await perform(
-      presenting: .pin2, spending: .pin2, accepted: String(localized: "PIN 2 changed.")
+      presenting: .pin2, spending: .pin2, accepted: String(localized: "Signature PIN 2 changed.")
     ) {
       await CardMaintenance.changePin2(
         current: current,
@@ -192,8 +192,8 @@ internal final class CardManagementModel: ObservableObject {
   internal func unblock(target: CredentialRole, puk: String, new: String) async -> Bool {
     let accepted =
       target == .pin2
-      ? String(localized: "PIN 2 reset.")
-      : String(localized: "PIN 1 reset.")
+      ? String(localized: "Signature PIN 2 reset.")
+      : String(localized: "Basic PIN 1 reset.")
     return await perform(presenting: .puk, spending: .puk, accepted: accepted) {
       if target == .pin2 {
         return await CardMaintenance.unblockPin2(

@@ -33,7 +33,7 @@
           return CredentialOutcomeMessage.incorrect(.pin1)
 
         case .pinBlocked:
-          return String(localized: "PIN 1 is blocked.")
+          return String(localized: "Basic PIN 1 is blocked.")
 
         default:
           break
@@ -67,7 +67,7 @@
           remaining: remaining)
 
       case .pinBlocked:
-        return String(localized: "PIN 1 is blocked.")
+        return String(localized: "Basic PIN 1 is blocked.")
 
       default:
         return String(localized: "The card could not be read. Hold it still and try again.")
@@ -90,7 +90,7 @@
         String(localized: "The Card Access Number (CAN) is incorrect.")
 
       case Failure.pin1Unavailable:
-        String(localized: "PIN 1 could not be verified safely.")
+        String(localized: "Basic PIN 1 could not be verified safely.")
 
       case Failure.pin1LowAttempts(let remaining):
         CredentialOutcomeMessage.floorRefusal(

@@ -64,7 +64,9 @@
       for verdict in [RetryFloorVerdict.refuseLowAttempts, .refuseBlocked] {
         let message = DocumentSigningMessage.message(
           for: DocumentSigner.Failure.card(.floorRefused(verdict)))
-        #expect(message.contains("PIN 2"))
+        #expect(
+          message.range(of: CredentialLabels.name(for: .pin2), options: .caseInsensitive)
+            != nil)
         #expect(message.contains("PUK"))
       }
     }

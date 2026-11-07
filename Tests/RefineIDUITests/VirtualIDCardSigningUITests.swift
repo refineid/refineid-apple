@@ -40,7 +40,7 @@
 
       fillSecure(UITestIdentifiers.signingPIN2, with: "000000", in: app)
       app.buttons[UITestIdentifiers.signingCommit].tap()
-      assertSigningMessage(contains: "PIN 2 is incorrect", in: app)
+      assertSigningMessage(contains: "Signature PIN 2 is incorrect", in: app)
       assertPIN2Attempts(4, in: app)
     }
 

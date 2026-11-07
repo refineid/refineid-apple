@@ -36,10 +36,10 @@ extension CardManagementModel {
     )
     working = false
     if second.outcome == .success {
-      notice = String(localized: "PIN 1 and PIN 2 reset.")
+      notice = String(localized: "Basic PIN 1 and Signature PIN 2 reset.")
     } else {
       failure = message(for: second.outcome, presenting: .puk, spending: .puk)
-        .map { String(localized: "PIN 1 was reset, but PIN 2 was not: \($0)") }
+        .map { String(localized: "Basic PIN 1 was reset, but Signature PIN 2 was not: \($0)") }
     }
     if let snapshot = second.snapshot ?? first.snapshot {
       apply(snapshot, preservingOutcome: true)

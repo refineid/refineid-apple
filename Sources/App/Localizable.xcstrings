@@ -59,28 +59,6 @@
         }
       }
     },
-    "activation PIN": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "activation PIN"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "aktivointitunnusluku"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "aktiveringskod"
-          }
-        }
-      }
-    },
     "Another card operation is still in progress. Try again.": {
       "localizations": {
         "en": {
@@ -103,68 +81,68 @@
         }
       }
     },
-    "Card activated: PIN 1 and PIN 2 are set.": {
+    "Card activated: Basic PIN 1 and Signature PIN 2 are set.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Card activated: PIN 1 and PIN 2 are set."
+            "value": "Card activated: Basic PIN 1 and Signature PIN 2 are set."
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kortti aktivoitu: PIN 1 ja PIN 2 on asetettu."
+            "value": "Kortti aktivoitu: perustunnusluku 1 ja allekirjoitustunnusluku 2 on asetettu."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kortet aktiverat: PIN 1 och PIN 2 har angetts."
+            "value": "Kortet aktiverat: grund PIN 1 och signaturkod 2 har angetts."
           }
         }
       }
     },
-    "Card activated: PIN 1 is set; PIN 2 already was.": {
+    "Card activated: Basic PIN 1 is set; Signature PIN 2 already was.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Card activated: PIN 1 is set; PIN 2 already was."
+            "value": "Card activated: Basic PIN 1 is set; Signature PIN 2 already was."
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kortti aktivoitu: PIN 1 on asetettu, PIN 2 oli jo asetettu."
+            "value": "Kortti aktivoitu: perustunnusluku 1 on asetettu, allekirjoitustunnusluku 2 oli jo asetettu."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kortet aktiverat: PIN 1 har angetts, PIN 2 var redan angiven."
+            "value": "Kortet aktiverat: grund PIN 1 har angetts, signaturkod 2 var redan angiven."
           }
         }
       }
     },
-    "Card activated: PIN 2 is set; PIN 1 already was.": {
+    "Card activated: Signature PIN 2 is set; Basic PIN 1 already was.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Card activated: PIN 2 is set; PIN 1 already was."
+            "value": "Card activated: Signature PIN 2 is set; Basic PIN 1 already was."
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kortti aktivoitu: PIN 2 on asetettu, PIN 1 oli jo asetettu."
+            "value": "Kortti aktivoitu: allekirjoitustunnusluku 2 on asetettu, perustunnusluku 1 oli jo asetettu."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kortet aktiverat: PIN 2 har angetts, PIN 1 var redan angiven."
+            "value": "Kortet aktiverat: signaturkod 2 har angetts, grund PIN 1 var redan angiven."
           }
         }
       }
@@ -289,178 +267,178 @@
         }
       }
     },
-    "PIN 1 and PIN 2 reset.": {
+    "Basic PIN 1 and Signature PIN 2 reset.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 and PIN 2 reset."
+            "value": "Basic PIN 1 and Signature PIN 2 reset."
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 ja PIN 2 palautettu."
+            "value": "Perustunnusluku 1 ja allekirjoitustunnusluku 2 palautettu."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 och PIN 2 har återställts."
+            "value": "Grund PIN 1 och signaturkod 2 har återställts."
           }
         }
       }
     },
-    "PIN 1 changed.": {
+    "Basic PIN 1 changed.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 changed."
+            "value": "Basic PIN 1 changed."
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 vaihdettu."
+            "value": "Perustunnusluku 1 vaihdettu."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 har bytts."
+            "value": "Grund PIN 1 har bytts."
           }
         }
       }
     },
-    "PIN 1 reset.": {
+    "Basic PIN 1 reset.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 reset."
+            "value": "Basic PIN 1 reset."
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 palautettu."
+            "value": "Perustunnusluku 1 palautettu."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 har återställts."
+            "value": "Grund PIN 1 har återställts."
           }
         }
       }
     },
-    "PIN 1 was reset, but PIN 2 was not: %@": {
+    "Basic PIN 1 was reset, but Signature PIN 2 was not: %@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 was reset, but PIN 2 was not: %@"
+            "value": "Basic PIN 1 was reset, but Signature PIN 2 was not: %@"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 palautettiin, mutta PIN 2:ta ei: %@"
+            "value": "Perustunnusluku 1 palautettiin, mutta allekirjoitustunnuslukua 2 ei: %@"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 återställdes, men inte PIN 2: %@"
+            "value": "Grund PIN 1 återställdes, men inte signaturkod 2: %@"
           }
         }
       }
     },
-    "PIN 1 was set, but PIN 2 was not: %@": {
+    "Basic PIN 1 was set, but Signature PIN 2 was not: %@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 was set, but PIN 2 was not: %@"
+            "value": "Basic PIN 1 was set, but Signature PIN 2 was not: %@"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 asetettiin, mutta PIN 2:ta ei: %@"
+            "value": "Perustunnusluku 1 asetettiin, mutta allekirjoitustunnuslukua 2 ei: %@"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 angavs, men inte PIN 2: %@"
+            "value": "Grund PIN 1 angavs, men inte signaturkod 2: %@"
           }
         }
       }
     },
-    "PIN 2 changed.": {
+    "Signature PIN 2 changed.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 2 changed."
+            "value": "Signature PIN 2 changed."
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 2 vaihdettu."
+            "value": "Allekirjoitustunnusluku 2 vaihdettu."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 2 har bytts."
+            "value": "Signaturkod 2 har bytts."
           }
         }
       }
     },
-    "PIN 2 reset.": {
+    "Signature PIN 2 reset.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 2 reset."
+            "value": "Signature PIN 2 reset."
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 2 palautettu."
+            "value": "Allekirjoitustunnusluku 2 palautettu."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 2 har återställts."
+            "value": "Signaturkod 2 har återställts."
           }
         }
       }
     },
-    "PIN 2 was not set: %@": {
+    "Signature PIN 2 was not set: %@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 2 was not set: %@"
+            "value": "Signature PIN 2 was not set: %@"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 2:ta ei asetettu: %@"
+            "value": "Allekirjoitustunnuslukua 2 ei asetettu: %@"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 2 angavs inte: %@"
+            "value": "Signaturkod 2 angavs inte: %@"
           }
         }
       }
@@ -499,24 +477,66 @@
         }
       }
     },
-    "The %@ retry counter could not be read; nothing was sent.": {
+    "The Basic PIN 1 retry counter could not be read; nothing was sent.": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The %@ retry counter could not be read; nothing was sent."
-          }
-        },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Jäljellä olevien yritysten määrää ei voitu lukea (%@), joten mitään ei lähetetty."
+            "value": "Perustunnusluvun 1 jäljellä olevien yritysten määrää ei voitu lukea, joten mitään ei lähetetty."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Antalet återstående försök kunde inte läsas (%@), så inget skickades."
+            "value": "Antalet återstående försök för grund PIN 1 kunde inte läsas, så inget skickades."
+          }
+        }
+      }
+    },
+    "The Signature PIN 2 retry counter could not be read; nothing was sent.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allekirjoitustunnusluvun 2 jäljellä olevien yritysten määrää ei voitu lukea, joten mitään ei lähetetty."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antalet återstående försök för signaturkod 2 kunde inte läsas, så inget skickades."
+          }
+        }
+      }
+    },
+    "The PUK retry counter could not be read; nothing was sent.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PUK-koodin jäljellä olevien yritysten määrää ei voitu lukea, joten mitään ei lähetetty."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antalet återstående försök för PUK kunde inte läsas, så inget skickades."
+          }
+        }
+      }
+    },
+    "The activation PIN retry counter could not be read; nothing was sent.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktivointitunnusluvun jäljellä olevien yritysten määrää ei voitu lukea, joten mitään ei lähetetty."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antalet återstående försök för aktiveringskoden kunde inte läsas, så inget skickades."
           }
         }
       }
@@ -1044,34 +1064,50 @@
         }
       }
     },
-    "A wrong %@ spends one attempt. %lld attempts remain. Exhausting the %@ cannot be undone by software.": {
+    "A wrong PUK spends one attempt. %lld attempts remain. Exhausting the PUK cannot be undone by software.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Väärä %1$@ kuluttaa yhden yrityksen. Yrityksiä on jäljellä %2$lld. Loppuun kulunutta koodia %3$@ ei voi palauttaa ohjelmistolla."
+            "value": "Väärä PUK kuluttaa yhden yrityksen. Yrityksiä on jäljellä %lld. Loppuun kulunutta PUK-koodia ei voi palauttaa ohjelmistolla."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "En felaktig %1$@ förbrukar ett försök. %2$lld försök återstår. En förbrukad %3$@ kan inte återställas med programvara."
+            "value": "En felaktig PUK förbrukar ett försök. %lld försök återstår. En förbrukad PUK kan inte återställas med programvara."
           }
         }
       }
     },
-    "A wrong current %@ spends one attempt. %lld attempts remain.": {
+    "A wrong current Basic PIN 1 spends one attempt. %lld attempts remain.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Väärä nykyinen %1$@ kuluttaa yhden yrityksen. Yrityksiä on jäljellä %2$lld."
+            "value": "Väärä nykyinen perustunnusluku 1 kuluttaa yhden yrityksen. Yrityksiä on jäljellä %lld."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "En felaktig nuvarande %1$@ förbrukar ett försök. %2$lld försök återstår."
+            "value": "En felaktig nuvarande grund PIN 1 förbrukar ett försök. %lld försök återstår."
+          }
+        }
+      }
+    },
+    "A wrong current Signature PIN 2 spends one attempt. %lld attempts remain.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Väärä nykyinen allekirjoitustunnusluku 2 kuluttaa yhden yrityksen. Yrityksiä on jäljellä %lld."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En felaktig nuvarande signaturkod 2 förbrukar ett försök. %lld försök återstår."
           }
         }
       }
@@ -1514,66 +1550,66 @@
         }
       }
     },
-    "RefineID does not use PIN 1 with fewer than 3 attempts left.": {
+    "RefineID does not use Basic PIN 1 with fewer than 3 attempts left.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "RefineID ei käytä PIN 1:tä, kun yrityksiä on alle kolme."
+            "value": "RefineID ei käytä perustunnuslukua 1, kun yrityksiä on alle kolme."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "RefineID använder inte PIN 1 när färre än tre försök återstår."
+            "value": "RefineID använder inte grund PIN 1 när färre än tre försök återstår."
           }
         }
       }
     },
-    "RefineID does not use PIN 2 with fewer than 3 attempts left.": {
+    "RefineID does not use Signature PIN 2 with fewer than 3 attempts left.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "RefineID ei käytä PIN 2:ta, kun yrityksiä on alle kolme."
+            "value": "RefineID ei käytä allekirjoitustunnuslukua 2, kun yrityksiä on alle kolme."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "RefineID använder inte PIN 2 när färre än tre försök återstår."
+            "value": "RefineID använder inte signaturkod 2 när färre än tre försök återstår."
           }
         }
       }
     },
-    "Reset PIN 1 with the PUK, or use other software.": {
+    "Reset Basic PIN 1 with the PUK, or use other software.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Palauta PIN 1 PUK-koodilla tai käytä toista ohjelmistoa."
+            "value": "Palauta perustunnusluku 1 PUK-koodilla tai käytä toista ohjelmistoa."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Återställ PIN 1 med PUK-koden eller använd annan programvara."
+            "value": "Återställ grund PIN 1 med PUK-koden eller använd annan programvara."
           }
         }
       }
     },
-    "Reset PIN 2 with the PUK, or use other software.": {
+    "Reset Signature PIN 2 with the PUK, or use other software.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Palauta PIN 2 PUK-koodilla tai käytä toista ohjelmistoa."
+            "value": "Palauta allekirjoitustunnusluku 2 PUK-koodilla tai käytä toista ohjelmistoa."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Återställ PIN 2 med PUK-koden eller använd annan programvara."
+            "value": "Återställ signaturkod 2 med PUK-koden eller använd annan programvara."
           }
         }
       }
@@ -1763,50 +1799,6 @@
         }
       }
     },
-    "Change PIN 1": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Change PIN 1"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vaihda PIN 1"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Byt PIN 1"
-          }
-        }
-      }
-    },
-    "Change PIN 2": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Change PIN 2"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vaihda PIN 2"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Byt PIN 2"
-          }
-        }
-      }
-    },
     "Change Signature PIN 2": {
       "localizations": {
         "fi": {
@@ -1985,34 +1977,66 @@
         }
       }
     },
-    "Confirm %@ change?": {
+    "Confirm Basic PIN 1 change?": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vahvistetaanko koodin %@ vaihto?"
+            "value": "Vahvistetaanko perustunnusluvun 1 vaihto?"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bekräfta byte av %@?"
+            "value": "Bekräfta byte av grund PIN 1?"
           }
         }
       }
     },
-    "Confirm %@ reset?": {
+    "Confirm Signature PIN 2 change?": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vahvistetaanko koodin %@ palautus?"
+            "value": "Vahvistetaanko allekirjoitustunnusluvun 2 vaihto?"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bekräfta återställning av %@?"
+            "value": "Bekräfta byte av signaturkod 2?"
+          }
+        }
+      }
+    },
+    "Confirm Basic PIN 1 reset?": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vahvistetaanko perustunnusluvun 1 palautus?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bekräfta återställning av grund PIN 1?"
+          }
+        }
+      }
+    },
+    "Confirm Signature PIN 2 reset?": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vahvistetaanko allekirjoitustunnusluvun 2 palautus?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bekräfta återställning av signaturkod 2?"
           }
         }
       }
@@ -2228,18 +2252,18 @@
         }
       }
     },
-    "Could not store PIN 1 (%d).": {
+    "Could not store Basic PIN 1 (%d).": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1:n tallentaminen ei onnistunut (%d)."
+            "value": "Perustunnusluvun 1 tallentaminen ei onnistunut (%d)."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 kunde inte sparas (%d)."
+            "value": "Grund PIN 1 kunde inte sparas (%d)."
           }
         }
       }
@@ -3305,36 +3329,70 @@
         }
       }
     },
-    "Only %u attempts remain for %@.": {
+    "Only %u attempts remain for Basic PIN 1.": {
       "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vain %1$u yritystä on jäljellä koodille %2$@."
+            "value": "Perustunnusluvulle 1 on jäljellä vain %u yritystä."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Endast %1$u försök återstår för %2$@."
+            "value": "Endast %u försök återstår för grund PIN 1."
           }
         }
       }
     },
-    "Only 1 attempt remains for %@.": {
+    "Only %u attempts remain for Signature PIN 2.": {
       "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vain 1 yritys on jäljellä koodille %@."
+            "value": "Allekirjoitustunnusluvulle 2 on jäljellä vain %u yritystä."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Endast 1 försök återstår för %@."
+            "value": "Endast %u försök återstår för signaturkod 2."
+          }
+        }
+      }
+    },
+    "Only 1 attempt remains for Basic PIN 1.": {
+      "extractionState": "manual",
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perustunnusluvulle 1 on jäljellä vain 1 yritys."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Endast 1 försök återstår för grund PIN 1."
+          }
+        }
+      }
+    },
+    "Only 1 attempt remains for Signature PIN 2.": {
+      "extractionState": "manual",
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allekirjoitustunnusluvulle 2 on jäljellä vain 1 yritys."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Endast 1 försök återstår för signaturkod 2."
           }
         }
       }
@@ -3388,28 +3446,12 @@
         }
       }
     },
-    "PIN 1": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PIN 1"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PIN 1"
-          }
-        }
-      }
-    },
-    "PIN 1 could not be verified safely.": {
+    "Basic PIN 1 could not be verified safely.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 could not be verified safely."
+            "value": "Basic PIN 1 could not be verified safely."
           }
         },
         "fi": {
@@ -3426,12 +3468,12 @@
         }
       }
     },
-    "PIN 1 does not fit its digit rules.": {
+    "Basic PIN 1 does not fit its digit rules.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 does not fit its digit rules."
+            "value": "Basic PIN 1 does not fit its digit rules."
           }
         },
         "fi": {
@@ -3448,86 +3490,70 @@
         }
       }
     },
-    "PIN 1 is blocked.": {
+    "Basic PIN 1 is blocked.": {
       "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 on lukittu."
+            "value": "Perustunnusluku 1 on lukittu."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 är spärrad."
+            "value": "Grund PIN 1 är spärrad."
           }
         }
       }
     },
-    "PIN 1 is incorrect.": {
+    "Basic PIN 1 is incorrect.": {
       "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 on väärä."
+            "value": "Perustunnusluku 1 on väärä."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 1 är felaktig."
+            "value": "Grund PIN 1 är felaktig."
           }
         }
       }
     },
-    "PIN 2": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PIN 2"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PIN 2"
-          }
-        }
-      }
-    },
-    "PIN 2 is blocked.": {
+    "Signature PIN 2 is blocked.": {
       "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 2 on lukittu."
+            "value": "Allekirjoitustunnusluku 2 on lukittu."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 2 är spärrad."
+            "value": "Signaturkod 2 är spärrad."
           }
         }
       }
     },
-    "PIN 2 is incorrect.": {
+    "Signature PIN 2 is incorrect.": {
       "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 2 on väärä."
+            "value": "Allekirjoitustunnusluku 2 on väärä."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "PIN 2 är felaktig."
+            "value": "Signaturkod 2 är felaktig."
           }
         }
       }
@@ -4135,34 +4161,34 @@
         }
       }
     },
-    "Changing PIN 1": {
+    "Changing Basic PIN 1": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vaihdetaan PIN 1"
+            "value": "Vaihdetaan perustunnuslukua 1"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Byter PIN 1"
+            "value": "Byter grund PIN 1"
           }
         }
       }
     },
-    "Changing PIN 2": {
+    "Changing Signature PIN 2": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vaihdetaan PIN 2"
+            "value": "Vaihdetaan allekirjoitustunnuslukua 2"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Byter PIN 2"
+            "value": "Byter signaturkod 2"
           }
         }
       }
@@ -4183,34 +4209,34 @@
         }
       }
     },
-    "Resetting PIN 1": {
+    "Resetting Basic PIN 1": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Avataan PIN 1"
+            "value": "Palautetaan perustunnuslukua 1"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Återställer PIN 1"
+            "value": "Återställer grund PIN 1"
           }
         }
       }
     },
-    "Resetting PIN 2": {
+    "Resetting Signature PIN 2": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Avataan PIN 2"
+            "value": "Palautetaan allekirjoitustunnuslukua 2"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Återställer PIN 2"
+            "value": "Återställer signaturkod 2"
           }
         }
       }
@@ -4561,80 +4587,36 @@
         }
       }
     },
-    "Reset PIN 1": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reset PIN 1"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Palauta PIN 1"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Återställ PIN 1"
-          }
-        }
-      }
-    },
-    "Reset PIN 1 with your PUK.": {
+    "Reset Basic PIN 1 with your PUK.": {
       "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Palauta PIN 1 PUK-koodilla."
+            "value": "Palauta perustunnusluku 1 PUK-koodilla."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Återställ PIN 1 med din PUK-kod."
+            "value": "Återställ grund PIN 1 med din PUK-kod."
           }
         }
       }
     },
-    "Reset PIN 2": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reset PIN 2"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Palauta PIN 2"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Återställ PIN 2"
-          }
-        }
-      }
-    },
-    "Reset PIN 2 with your PUK.": {
+    "Reset Signature PIN 2 with your PUK.": {
       "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Palauta PIN 2 PUK-koodilla."
+            "value": "Palauta allekirjoitustunnusluku 2 PUK-koodilla."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Återställ PIN 2 med din PUK-kod."
+            "value": "Återställ signaturkod 2 med din PUK-kod."
           }
         }
       }
@@ -5830,36 +5812,36 @@
         }
       }
     },
-    "Unblock PIN 1": {
+    "Unblock Basic PIN 1": {
       "extractionState": "stale",
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Poista PIN 1:n sulku"
+            "value": "Poista perustunnusluvun 1 sulku"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lås upp PIN 1"
+            "value": "Lås upp grund PIN 1"
           }
         }
       }
     },
-    "Unblock PIN 2": {
+    "Unblock Signature PIN 2": {
       "extractionState": "stale",
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Poista PIN 2:n sulku"
+            "value": "Poista allekirjoitustunnusluvun 2 sulku"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lås upp PIN 2"
+            "value": "Lås upp signaturkod 2"
           }
         }
       }

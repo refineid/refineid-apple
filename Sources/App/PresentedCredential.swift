@@ -12,20 +12,21 @@ internal enum PresentedCredential: Equatable, Sendable {
   case pin2
   case puk
 
-  /// The name used inside a sentence.
-  internal var name: String {
+  /// The refusal when the counter guarding this credential could not
+  /// be read, named in full as `Documentation/design/ui.md` sets out.
+  internal var unreadableCounterMessage: String {
     switch self {
     case .pin1:
-      String(localized: "PIN 1")
+      String(localized: "The Basic PIN 1 retry counter could not be read; nothing was sent.")
 
     case .pin2:
-      String(localized: "PIN 2")
+      String(localized: "The Signature PIN 2 retry counter could not be read; nothing was sent.")
 
     case .puk:
-      String(localized: "PUK")
+      String(localized: "The PUK retry counter could not be read; nothing was sent.")
 
     case .activationCode, .activationPin:
-      String(localized: "activation PIN")
+      String(localized: "The activation PIN retry counter could not be read; nothing was sent.")
     }
   }
 
