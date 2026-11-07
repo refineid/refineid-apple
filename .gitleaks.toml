@@ -1,0 +1,22 @@
+# Copyright 2026 Petri Koistinen. SPDX-License-Identifier: Apache-2.0
+#
+# gitleaks configuration: the default rules, minus two things that hold
+# no secret: the published RAPP conformance vectors, whose fields are
+# example values of the protocol, and the Swift type annotations of keys
+# the tests generate at run time.
+
+title = "refineid-apple"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "published protocol conformance vectors"
+paths = ['''^Documentation/rapp-conformance/.*\.json$''']
+
+[[allowlists]]
+description = "type annotations of keys the tests generate"
+condition = "AND"
+regexTarget = "line"
+paths = ['''^Tests/.*\.swift$''']
+regexes = ['''key: P(256|384)\.Signing\.PrivateKey''']
