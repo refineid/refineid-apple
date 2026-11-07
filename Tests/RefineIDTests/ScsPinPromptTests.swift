@@ -30,18 +30,18 @@ internal struct ScsPinPromptTests {
     switch language {
     case "fi":
       ExpectedLabels(
-        basic: "Sy\u{00F6}t\u{00E4} Perus (PIN 1)",
-        signature: "Sy\u{00F6}t\u{00E4} Allekirjoitus (PIN 2)",
+        basic: "Sy\u{00F6}t\u{00E4} Perus-PIN 1",
+        signature: "Sy\u{00F6}t\u{00E4} Allekirjoitus-PIN 2",
         sign: "Allekirjoita", cancel: "Peruuta",
         digestLine: "Tiiviste (SHA256): \(printedDigest)")
     case "sv":
       ExpectedLabels(
-        basic: "Ange Grund (PIN 1)", signature: "Ange Signatur (PIN 2)",
+        basic: "Ange Bas-PIN 1", signature: "Ange Signatur-PIN 2",
         sign: "Signera", cancel: "Avbryt",
         digestLine: "Digest (SHA256): \(printedDigest)")
     default:
       ExpectedLabels(
-        basic: "Enter Basic (PIN 1)", signature: "Enter Signature (PIN 2)",
+        basic: "Enter Basic PIN 1", signature: "Enter Signature PIN 2",
         sign: "Sign", cancel: "Cancel",
         digestLine: "Digest (SHA256): \(printedDigest)")
     }

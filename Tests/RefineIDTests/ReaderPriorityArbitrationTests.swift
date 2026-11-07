@@ -168,8 +168,8 @@
       let items = PersistentTokenRegistry.makeKeychainItems(for: certificate, profile: profile)
       let (certificateItem, keyItem) = try #require(items)
 
-      #expect(certificateItem.label == String(localized: "Basic (PIN 1)"))
-      #expect(keyItem.label == String(localized: "Basic (PIN 1)"))
+      #expect(certificateItem.label == String(localized: "Basic PIN 1"))
+      #expect(keyItem.label == String(localized: "Basic PIN 1"))
       #expect(keyItem.canSign == true)
       #expect(keyItem.canDecrypt == false)
       #expect(keyItem.canPerformKeyExchange == false)
@@ -212,8 +212,8 @@
       #expect(keyItem.canDecrypt == false)
       #expect(keyItem.canPerformKeyExchange == false)
       #expect(keyItem.isSuitableForLogin == true)
-      #expect(certificateItem.label == String(localized: "Basic (PIN 1)"))
-      #expect(keyItem.label == String(localized: "Basic (PIN 1)"))
+      #expect(certificateItem.label == String(localized: "Basic PIN 1"))
+      #expect(keyItem.label == String(localized: "Basic PIN 1"))
     }
 
     @Test

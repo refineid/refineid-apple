@@ -12,9 +12,9 @@ internal enum CredentialLabels {
   internal static func name(for role: CredentialRole, bundle: Bundle) -> String {
     switch role {
     case .pin1:
-      String(localized: "Basic (PIN 1)", bundle: bundle)
+      String(localized: "Basic PIN 1", bundle: bundle)
     case .pin2:
-      String(localized: "Signature (PIN 2)", bundle: bundle)
+      String(localized: "Signature PIN 2", bundle: bundle)
     case .puk:
       String(localized: "PUK", bundle: bundle)
     }

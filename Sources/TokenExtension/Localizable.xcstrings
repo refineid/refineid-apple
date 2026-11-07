@@ -24,36 +24,36 @@
         }
       }
     },
-    "Basic (PIN 1)" : {
+    "Basic PIN 1" : {
       "extractionState" : "manual",
       "localizations" : {
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Perus (PIN 1)"
+            "value" : "Perus-PIN 1"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Grund (PIN 1)"
+            "value" : "Bas-PIN 1"
           }
         }
       }
     },
-    "Signature (PIN 2)" : {
+    "Signature PIN 2" : {
       "extractionState" : "manual",
       "localizations" : {
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Allekirjoitus (PIN 2)"
+            "value" : "Allekirjoitus-PIN 2"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signatur (PIN 2)"
+            "value" : "Signatur-PIN 2"
           }
         }
       }

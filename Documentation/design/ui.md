@@ -73,8 +73,12 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   The activation form, titled "Identity card activation" ("Organisation
   card activation" for an organization card), has three
   groups, headed "Activation PIN", "Basic PIN 1" and "Signature PIN 2"
-  (Finnish "Perustunnusluku (PIN 1)"), so a filled field still says what
-  it holds.
+  (Finnish "Perus-PIN 1"), so a filled field still says what
+  it holds. "Basic PIN 1" (Finnish "Perus-PIN 1", Swedish "Bas-PIN 1")
+  and "Signature PIN 2" ("Allekirjoitus-PIN 2", "Signatur-PIN 2") are
+  also the credential names the PIN prompts take and the token label
+  Safari and the system show, without parentheses, as refineid-core's
+  PKCS#11 module writes them.
 - **Activation PIN.** The credential in DVV's activation letter takes
   DVV's official name from the letters: "Activation PIN", Finnish
   *aktivointitunnusluku*, Swedish *aktiveringskod* (definite
