@@ -10,16 +10,17 @@ internal enum TimestampJudge {
   ///
   /// A token that does not parse, or names a hash other than SHA-256,
   /// SHA-384 or SHA-512, is unsupported. The authority's path is first
-  /// built under the time-stamping anchors as the only anchors, from
-  /// the token's own and the document's certificates, at genTime; an
-  /// authority revoked at or before genTime, or for a compromise, is
-  /// not anchored. A token that does not anchor is verified under its
-  /// own certificates and is claimed when that holds, invalid when not.
+  /// built under the time-stamping anchors granted at genTime as the
+  /// only anchors, from the token's own and the document's
+  /// certificates, at genTime; an authority revoked at or before
+  /// genTime, or for a compromise, is not anchored. A token that does
+  /// not anchor is verified under its own certificates and is claimed
+  /// when that holds, invalid when not.
   internal static func state(
     of token: Data,
     imprintMatches: (CmsSignerVerification.Digest, Data) -> Bool,
     evidence: ValidationEvidence,
-    anchors: [Data],
+    anchors: TrustAnchors,
     now: Date
   ) -> TimestampState {
     guard
@@ -37,7 +38,7 @@ internal enum TimestampJudge {
     }
     if let anchored = try? TimestampTokenVerifier.verify(
       token,
-      trustedCertificates: anchors,
+      trustedCertificates: anchors.certificates(for: .timeStamping, at: contents.generatedAt),
       additionalCertificates: evidence.certificates
     ) {
       var tokenEvidence = evidence

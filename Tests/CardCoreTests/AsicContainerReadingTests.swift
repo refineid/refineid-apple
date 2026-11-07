@@ -68,7 +68,7 @@ internal struct AsicContainerReadingTests {
       entries: [Self.mimetype(AsicContainer.mimeType), Self.dataObject]
     ).encoded
     #expect(throws: DocumentVerification.Failure.noSignatures) {
-      _ = try DocumentVerification.verify(document: container)
+      _ = try DocumentVerification.verify(document: container, anchors: .empty)
     }
   }
 

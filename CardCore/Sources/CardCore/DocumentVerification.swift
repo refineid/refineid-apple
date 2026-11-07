@@ -185,9 +185,13 @@ public enum DocumentVerification {
 
   /// Verifies every signature and document timestamp of the document
   /// under `anchors`, with `now` as the current time.
+  ///
+  /// The anchors are the shell's: the ones it took from the EU trusted
+  /// lists (`TrustAnchors(trustedLists:)`), or `TrustAnchors.empty`,
+  /// under which no signer or time-stamp authority anchors.
   public static func verify(
     document: Data,
-    anchors: TrustAnchors = .pinned,
+    anchors: TrustAnchors,
     now: Date = Date()
   ) throws -> DocumentReport {
     if ZipReader.hasZipSignature(document) {
@@ -219,7 +223,7 @@ public enum DocumentVerification {
     let path = CertificatePath.anchored(
       facts.signerCertificate,
       candidates: evidence.certificates,
-      anchors: anchors.certificateIssuing,
+      anchors: anchors.certificates(for: .certificateIssuing, at: validationTime.date),
       at: validationTime.date
     )
     let chain: ChainStatus =

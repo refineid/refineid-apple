@@ -31,15 +31,24 @@ internal final class VerifyDocumentModel: ObservableObject {
 
   /// How a document becomes a report and a query a live answer.
   internal struct Dependencies: Sendable {
-    /// The app's verifier, under the pinned anchors and the clock.
+    /// The app's verifier, under the anchors the trusted lists yield
+    /// and the clock.
     internal static let live = Self(
-      verify: { document in try DocumentVerification.verify(document: document) },
+      anchors: { await TrustedListStore.shared.loadedAnchors() },
+      verify: { document, anchors in
+        try DocumentVerification.verify(document: document, anchors: anchors)
+      },
       liveStatus: VerifyDocumentModel.liveStatus(of:),
       now: Date.init
     )
 
-    /// Verifies one document offline.
-    internal let verify: @Sendable (Data) throws -> DocumentVerification.DocumentReport
+    /// The anchors to verify under, nil while no trusted list has been
+    /// read.
+    internal let anchors: @Sendable () async -> TrustAnchors?
+
+    /// Verifies one document offline under the anchors.
+    internal let verify:
+      @Sendable (Data, TrustAnchors) throws -> DocumentVerification.DocumentReport
 
     /// The live evidence for one path certificate, nil when none came.
     internal let liveStatus:
@@ -52,6 +61,14 @@ internal final class VerifyDocumentModel: ObservableObject {
 
   private static var unreadableMessage: String {
     text("verify.errorUnreadable", "The document could not be read.")
+  }
+
+  /// The message when no trusted list has been read, so no anchor
+  /// exists.
+  private static var noTrustedListsMessage: String {
+    text(
+      "verify.errorNoTrustedLists",
+      "The trusted lists have not been fetched yet, so no certificate chain can be verified.")
   }
 
   @Published internal private(set) var phase = Phase.idle
@@ -121,14 +138,15 @@ internal final class VerifyDocumentModel: ObservableObject {
     }
   }
 
-  /// The outcome of reading and verifying one document.
+  /// The outcome of reading and verifying one document under `anchors`.
   nonisolated private static func outcome(
     _ load: @Sendable () throws -> Data,
-    verify: @Sendable (Data) throws -> DocumentVerification.DocumentReport
+    anchors: TrustAnchors,
+    verify: @Sendable (Data, TrustAnchors) throws -> DocumentVerification.DocumentReport
   ) -> Result<DocumentVerification.DocumentReport, DocumentVerification.Failure> {
     guard let document = try? load() else { return .failure(.unreadable) }
     do {
-      return .success(try verify(document))
+      return .success(try verify(document, anchors))
     } catch let failure as DocumentVerification.Failure {
       return .failure(failure)
     } catch {
@@ -178,9 +196,15 @@ internal final class VerifyDocumentModel: ObservableObject {
     phase = .verifying
     documentName = name
     let verifier = dependencies.verify
+    let anchorSource = dependencies.anchors
     verification = Task { [weak self] in
+      guard let anchors = await anchorSource() else {
+        guard let self, !Task.isCancelled, generation == current else { return }
+        phase = .failed(Self.noTrustedListsMessage)
+        return
+      }
       let outcome = await Task.detached(priority: .userInitiated) {
-        Self.outcome(load, verify: verifier)
+        Self.outcome(load, anchors: anchors, verify: verifier)
       }.value
       guard let self, !Task.isCancelled, generation == current else { return }
       switch outcome {

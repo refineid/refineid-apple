@@ -195,7 +195,7 @@ public enum AsicVerification {
   /// Verifies an ASiC-E or BDOC container, returning a complete DocumentReport.
   public static func verify(
     container: Data,
-    anchors: TrustAnchors = .pinned,
+    anchors: TrustAnchors,
     now: Date = Date()
   ) throws -> DocumentVerification.DocumentReport {
     let entries = try Self.containerEntries(container)

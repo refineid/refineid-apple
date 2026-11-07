@@ -5,6 +5,43 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-11-07 Document verification anchors on the EU trusted lists
+
+The software ships the six Official Journal list-signing certificates
+(OJ C, C/2026/1944) and no CA root. `TrustedLists` in CardCore is the
+second implementation of refineid-core's `trusted_list.rs`.
+
+- The app fetches the list of the lists and the national lists through
+  `SigningNetwork` (`.certificateMaterial`: public addresses, two
+  redirects, a body cap of `TrustedList.maximumBytes`), so the network
+  contract gains GETs of public lists and no new traffic-capable API.
+  What travels is a request for a public document; a pointer may name
+  HTTP, and that is safe for the same reason a CRL is: the signature, not
+  the transport, proves the list.
+- The cache is raw bytes and fetch times in
+  `Application Support/TrustedLists`, outside the keychain and excluded
+  from backups, and every read verifies every signature again.
+- The lists are fetched again when nothing is cached, when one is past
+  its `NextUpdate`, when the fetch is older than seven days, and on the
+  holder's request. A failed fetch keeps the cache. A stale list still
+  anchors, as in core, and the Verify screen says so with the fetch time.
+- With no cache and no network the Verify screen refuses and says the
+  lists have not been fetched. The owner accepted this consequence.
+- Differences from core, each from the platform's evaluation: an anchor
+  is handed to SecTrust as a certificate, so the validation time must lie
+  inside its validity as well as its granted period, and a certificate
+  with an anchor's name and key but other bytes is not a path of one; a
+  CA whose key names id-RSASSA-PSS does not chain, because the platform
+  loads no such key from a certificate.
+
+STPA: the shell's list fetch is the controller, feedback the fetch time
+and staleness row, hazard H-8 of core's document-verification record.
+UCA: the shell renders a verdict from stale anchors without saying so
+(core's UCA-113, CC-117 here); the reader takes anchors from a list not
+signed by an entitled certificate (UCA-112, CC-116); it anchors outside
+a granted period (UCA-114, CC-118); it follows pointers without bound
+(UCA-115, CC-119).
+
 ## 2026-11-07 RAPP wire version 26.11.7: the unlock event
 
 The wire version triple in channel envelopes, the pairing context, the

@@ -138,10 +138,10 @@ extension QualifiedDocumentCmsTests {
       )
     )
 
-    let verified = try DocumentVerification.verify(document: matching)
+    let verified = try DocumentVerification.verify(document: matching, anchors: .empty)
     #expect(verified.documentTimestamps.count == 1)
     #expect(verified.documentTimestamps.first?.claimedTime != nil)
-    let refused = try DocumentVerification.verify(document: unrelated)
+    let refused = try DocumentVerification.verify(document: unrelated, anchors: .empty)
     #expect(refused.documentTimestamps == [.invalid])
   }
 }

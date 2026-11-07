@@ -266,12 +266,11 @@ record for RAPP and its applications.
   "Sectigo Qualified Time Stamping CA R35", so neither root is an anchor
   a trusted list grants. Accepted consequence: a fresh install verifies
   a card-less signature only after it has fetched the lists once.
-- This is the target. `CardCore/Sources/CardCore/PinnedTrustAnchors.swift`
-  still pins those three roots and `TrustAnchors.pinned` is the only
-  anchor set `DocumentVerification.verify` uses; the roots go when a
-  trusted-list reader like refineid-core's
-  `crates/doc-sign/src/verification/trusted_list.rs` supplies the
-  anchors, not before.
+- This is what the code does. `EuListOfTheListsSigners` ships the six
+  certificates and `DocumentVerification.verify` anchors only on
+  `TrustAnchors(trustedLists:)`, read by `TrustedLists` and fetched by
+  the app's `TrustedListStore`. Decision record in
+  `Documentation/decisions.md`, 2026-11-07.
 - Describe what the code does and cite the source; ask the owner before
   changing trust behavior.
 

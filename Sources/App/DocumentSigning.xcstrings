@@ -1409,6 +1409,28 @@
         }
       }
     },
+    "verify.errorNoTrustedLists" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The trusted lists have not been fetched yet, so no certificate chain can be verified."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luotettuja luetteloita ei ole vielä haettu, joten varmenneketjua ei voida todentaa."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Förteckningarna över betrodda tjänsteleverantörer har inte hämtats ännu, så ingen certifikatkedja kan verifieras."
+          }
+        }
+      }
+    },
     "verify.errorUnreadable" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1520,6 +1542,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Verifierar"
+          }
+        }
+      }
+    },
+    "verify.refreshTrustedLists" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh trusted lists"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Päivitä luotetut luettelot"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uppdatera förteckningarna över betrodda tjänsteleverantörer"
           }
         }
       }
@@ -1680,6 +1724,116 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Verifiera"
+          }
+        }
+      }
+    },
+    "verify.trustedLists" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trusted lists"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luotetut luettelot"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Förteckningar över betrodda tjänsteleverantörer"
+          }
+        }
+      }
+    },
+    "verify.trustedListsFetchFailed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fetch failed"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Haku epäonnistui"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hämtningen misslyckades"
+          }
+        }
+      }
+    },
+    "verify.trustedListsFetched" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fetched %@"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Haettu %@"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hämtade %@"
+          }
+        }
+      }
+    },
+    "verify.trustedListsNotFetched" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not fetched"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ei haettu"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inte hämtade"
+          }
+        }
+      }
+    },
+    "verify.trustedListsStale" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stale"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vanhentunut"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Föråldrade"
           }
         }
       }

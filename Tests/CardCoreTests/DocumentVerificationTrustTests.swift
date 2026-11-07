@@ -84,7 +84,7 @@
         .init(cmsCertificates: [fixture.issuing, fixture.root]))
       let report = try DocumentTrustFixture.report(
         document,
-        anchors: TrustAnchors(certificateIssuing: [], timeStamping: []),
+        anchors: .empty,
         now: DocumentTrustFixture.instant(Self.currentTime)
       )
 

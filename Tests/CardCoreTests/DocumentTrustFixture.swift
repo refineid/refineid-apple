@@ -220,9 +220,22 @@
       return signature
     }
 
-    /// Anchors naming the root, and the authority when `anchorsAuthority`.
+    /// Anchors granted without bounds, as from no list.
+    internal static func anchors(certificateIssuing: [Data], timeStamping: [Data]) -> TrustAnchors {
+      let issuingAnchors = certificateIssuing.compactMap { certificate in
+        TrustAnchor(certificate: certificate, role: .certificateIssuing, granted: [.unbounded])
+      }
+      let stampingAnchors = timeStamping.compactMap { certificate in
+        TrustAnchor(certificate: certificate, role: .timeStamping, granted: [.unbounded])
+      }
+      return TrustAnchors(
+        anchors: issuingAnchors + stampingAnchors, fetchedAt: nil, listsValidUntil: nil)
+    }
+
+    /// Anchors naming the root, and the authority when `anchorsAuthority`,
+    /// each granted without bounds, as from no list.
     internal func anchors(anchorsAuthority: Bool) -> TrustAnchors {
-      TrustAnchors(
+      Self.anchors(
         certificateIssuing: [root],
         timeStamping: anchorsAuthority ? [authority.certificate] : []
       )

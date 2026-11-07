@@ -70,7 +70,8 @@ internal struct XadesSigningCertificateTests {
 
   /// The rows of one signatures file in the sample container.
   private static func rows(_ document: String) throws -> DocumentVerification.DocumentReport {
-    try AsicVerification.verify(container: AsicVerificationTests.container(document: document))
+    try AsicVerification.verify(
+      container: AsicVerificationTests.container(document: document), anchors: .empty)
   }
 
   /// The range of `open` through `close` in `text`.

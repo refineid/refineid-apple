@@ -46,7 +46,7 @@ internal struct XadesXmlParserTests {
     #expect(parsed[1].signerCertificateDer == second.identity.certificate)
 
     let report = try AsicVerification.verify(
-      container: try AsicVerificationTests.container(document: document))
+      container: try AsicVerificationTests.container(document: document), anchors: .empty)
     try #require(report.judged.count == 2)
     for signature in report.judged {
       #expect(signature.documentIntact)
@@ -69,7 +69,7 @@ internal struct XadesXmlParserTests {
     ])
 
     let report = try AsicVerification.verify(
-      container: try AsicVerificationTests.container(document: document))
+      container: try AsicVerificationTests.container(document: document), anchors: .empty)
     try #require(report.judged.count == 2)
     #expect(report.judged[0].documentIntact)
     #expect(!report.judged[1].documentIntact)

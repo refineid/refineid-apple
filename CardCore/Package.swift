@@ -43,6 +43,12 @@ private let package = Package(
         "PcscCardReset",
         "RappEngine",
       ],
+      // The six EU Official Journal list-signing certificates that
+      // bootstrap the trusted lists (EuListOfTheListsSigners), the one
+      // set of certificates the software ships.
+      resources: [
+        .copy("TrustedListSigners")
+      ],
       linkerSettings: [
         .linkedFramework("Security")
       ]),

@@ -93,7 +93,7 @@ extension AsicVerification {
           matchesSignatureValue(parsed: parsed, digest: digest, imprint: imprint)
         },
         evidence: evidence,
-        anchors: anchors.timeStamping,
+        anchors: anchors,
         now: now
       )
     }
