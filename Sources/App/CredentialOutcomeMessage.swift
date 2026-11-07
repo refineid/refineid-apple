@@ -60,7 +60,7 @@ internal enum CredentialOutcomeMessage {
   }
 
   /// A blocked credential and the way back: the PUK for a PIN, the
-  /// issuer for the PUK.
+  /// issuer for a PUK the card itself has answered blocked.
   internal static func blocked(_ role: CredentialRole) -> String {
     switch role {
     case .pin1:
@@ -70,7 +70,7 @@ internal enum CredentialOutcomeMessage {
       String(localized: "PIN 2 is blocked.") + "\n" + resetWithPuk(role)
 
     case .puk:
-      unrecoverableCard()
+      pukBlockedByCard()
     }
   }
 
@@ -124,10 +124,12 @@ internal enum CredentialOutcomeMessage {
         localized: "RefineID will not use either of the final two PUK attempts.")
   }
 
-  internal static func unrecoverableCard() -> String {
-    String(localized: "The PUK is blocked.")
+  /// The card's own answer to a PUK: nothing was spent, and no software
+  /// command resets a PUK.
+  internal static func pukBlockedByCard() -> String {
+    String(localized: "The card answered that the PUK is blocked.")
       + "\n"
-      + String(localized: "This card cannot be recovered with software.")
+      + String(localized: "Software cannot reset a PUK; contact the card issuer.")
   }
 
   internal static func incorrect(_ credential: PresentedCredential) -> String {

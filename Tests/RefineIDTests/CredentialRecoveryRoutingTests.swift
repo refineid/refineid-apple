@@ -6,8 +6,11 @@ import Testing
 @testable import RefineIDTestHost
 
 /// Which recovery the card management view offers for a set of retry
-/// counters: one form for two blocked PINs, a single reset for one, and
-/// the other-software guidance once the PUK is below the floor.
+/// counters.
+///
+/// One form for two blocked PINs, a single reset for one, and the
+/// other-software guidance once the PUK is at one or two tries. A PUK
+/// at no tries left removes no reset: the card answers it itself.
 @MainActor
 @Suite
 internal struct CredentialRecoveryRoutingTests {
@@ -40,13 +43,28 @@ internal struct CredentialRecoveryRoutingTests {
   }
 
   @Test
-  internal func pukBelowFloorKeepsTheGuidance() {
+  internal func pukAtOneOrTwoTriesKeepsTheGuidance() {
     #expect(
       CredentialRetryHealth.recovery(pin1: Self.blocked, pin2: Self.blocked, puk: Self.belowFloor)
         == .useOtherSoftware)
     #expect(
+      CredentialRetryHealth.recovery(pin1: Self.blocked, pin2: Self.full, puk: Self.belowFloor)
+        == .useOtherSoftware)
+  }
+
+  @Test
+  internal func pukAtNoTriesLeftRoutesLikeAHealthyOne() {
+    #expect(
       CredentialRetryHealth.recovery(pin1: Self.blocked, pin2: Self.blocked, puk: Self.blocked)
-        == .unrecoverable)
+        == .resetBothPins)
+    #expect(
+      CredentialRetryHealth.recovery(pin1: Self.blocked, pin2: Self.full, puk: Self.blocked)
+        == .resetPin1)
+    #expect(
+      CredentialRetryHealth.recovery(pin1: Self.full, pin2: Self.blocked, puk: Self.blocked)
+        == .resetPin2)
+    #expect(
+      CredentialRetryHealth.recovery(pin1: Self.full, pin2: Self.full, puk: Self.blocked) == nil)
   }
 
   @Test
@@ -61,6 +79,16 @@ internal struct CredentialRecoveryRoutingTests {
     let health = CredentialRetryHealth.shared
     defer { health.clear() }
     health.update(CredentialProbeReport(pin1: .locked, pin2: .locked, puk: .remaining(puk)))
+    #expect(health.recovery == .resetBothPins)
+    #expect(CardManagementView.initialTask(for: health.recovery) == .resetPin1)
+  }
+
+  @Test
+  internal func aLockedPukStillOffersTheCombinedForm() {
+    let health = CredentialRetryHealth.shared
+    defer { health.clear() }
+    health.update(CredentialProbeReport(pin1: .locked, pin2: .locked, puk: .locked))
+    #expect(health.level == .critical)
     #expect(health.recovery == .resetBothPins)
     #expect(CardManagementView.initialTask(for: health.recovery) == .resetPin1)
   }

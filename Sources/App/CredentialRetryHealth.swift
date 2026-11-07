@@ -67,15 +67,15 @@ internal final class CredentialRetryHealth: ObservableObject {
   /// The only useful destination while the key is critical.
   ///
   /// Both PINs blocked take one form that resets them with one PUK
-  /// entry; otherwise PIN 1 wins when both PINs need recovery. A low PUK
-  /// removes every operation because both reset commands spend that
-  /// counter.
+  /// entry; otherwise PIN 1 wins when both PINs need recovery. A PUK at
+  /// one or two tries removes every operation because both reset
+  /// commands spend that counter. A PUK at no tries left removes
+  /// nothing: the reset goes to the card, which answers for itself.
   internal enum Recovery: Equatable {
     case resetPin1
     case resetPin2
     case resetBothPins
     case useOtherSoftware
-    case unrecoverable
   }
 
   // MARK: Static Properties
@@ -116,12 +116,9 @@ internal final class CredentialRetryHealth: ObservableObject {
   }
 
   /// The destination for one accepted set of counters, or nil while no
-  /// counter is at or below the low-attempt ceiling.
+  /// PIN counter is at or below the low-attempt ceiling.
   internal static func recovery(pin1: UInt8, pin2: UInt8, puk: UInt8) -> Recovery? {
-    if puk == RetryThreshold.zeroAttempts {
-      return .unrecoverable
-    }
-    if puk <= RetryThreshold.lowAttempts {
+    if puk != RetryThreshold.zeroAttempts, puk <= RetryThreshold.lowAttempts {
       return .useOtherSoftware
     }
     if pin1 == RetryThreshold.zeroAttempts, pin2 == RetryThreshold.zeroAttempts {

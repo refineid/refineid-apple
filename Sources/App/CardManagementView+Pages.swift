@@ -16,7 +16,7 @@ extension CardManagementView {
     case .resetPin2:
       .resetPin2
 
-    case .useOtherSoftware, .unrecoverable, nil:
+    case .useOtherSoftware, nil:
       .changePin1
     }
   }
@@ -57,13 +57,6 @@ extension CardManagementView {
         Section {
           CredentialOutcomeText(
             message: CredentialOutcomeMessage.otherSoftwareRecovery(),
-            tone: .failure)
-        }
-
-      case .unrecoverable:
-        Section {
-          CredentialOutcomeText(
-            message: CredentialOutcomeMessage.unrecoverableCard(),
             tone: .failure)
         }
 

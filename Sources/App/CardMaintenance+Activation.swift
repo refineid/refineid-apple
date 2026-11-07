@@ -139,7 +139,7 @@ extension CardMaintenance {
       guard let code = Puk(digits: entry), let pin = Pin1(digits: newPin1) else {
         return .invalidEntry
       }
-      if let refusal = activationFloorRefusal(operations, role: .puk) {
+      if let refusal = floorRefusal(presenting: .puk, on: operations) {
         return refusal
       }
       do {
@@ -157,7 +157,7 @@ extension CardMaintenance {
       guard let preset = Pin1(digits: entry), let pin = Pin1(digits: newPin1) else {
         return .invalidEntry
       }
-      if let refusal = activationFloorRefusal(operations, role: .pin1) {
+      if let refusal = floorRefusal(presenting: .pin1, on: operations) {
         return refusal
       }
       do {
@@ -185,7 +185,7 @@ extension CardMaintenance {
       guard let code = Puk(digits: entry), let pin = Pin2(digits: newPin2) else {
         return .invalidEntry
       }
-      if let refusal = activationFloorRefusal(operations, role: .puk) {
+      if let refusal = floorRefusal(presenting: .puk, on: operations) {
         return refusal
       }
       do {
@@ -203,7 +203,7 @@ extension CardMaintenance {
       guard let preset = Pin2(digits: entry), let pin = Pin2(digits: newPin2) else {
         return .invalidEntry
       }
-      if let refusal = activationFloorRefusal(operations, role: .pin2) {
+      if let refusal = floorRefusal(presenting: .pin2, on: operations) {
         return refusal
       }
       do {
@@ -217,21 +217,5 @@ extension CardMaintenance {
         return outcome(of: error)
       }
     }
-  }
-
-  /// Applies the shared `{1, 2}` refusal set immediately before one
-  /// activation write.
-  ///
-  /// This probe is credential state, not a certificate read, and each
-  /// PIN receives its own fresh decision.
-  private static func activationFloorRefusal(
-    _ operations: CardOperations,
-    role: CredentialRole
-  ) -> Outcome? {
-    guard let probe = try? operations.probeRetryCounter(role: role) else {
-      return .floorRefused(.refuseUnreadable)
-    }
-    let verdict = RetryFloor.evaluate(probeOutcome: probe)
-    return verdict == .proceed ? nil : .floorRefused(verdict)
   }
 }

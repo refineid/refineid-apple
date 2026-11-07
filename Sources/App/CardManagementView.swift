@@ -118,7 +118,7 @@ internal struct CardManagementView: View {
     case .resetPin1, .resetPin2:
       [.resetPin1, .resetPin2]
 
-    case .resetBothPins, .useOtherSoftware, .unrecoverable:
+    case .resetBothPins, .useOtherSoftware:
       []
 
     case nil:
@@ -324,7 +324,7 @@ internal struct CardManagementView: View {
       case .resetPin2:
         .resetPin2
 
-      case .resetBothPins, .useOtherSoftware, .unrecoverable, nil:
+      case .resetBothPins, .useOtherSoftware, nil:
         nil
       }
     if let recoveryTask {

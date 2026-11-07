@@ -13,6 +13,10 @@ extension CardManagementModel {
   /// activation-code scheme that is the PUK, whatever the factory-blocked
   /// PINs show; under the activation-PIN scheme it is every PIN still
   /// awaiting its factory-state write.
+  ///
+  /// A PUK reading of no tries left or blocked disables nothing: the
+  /// backend lets that operation reach the card, which answers for
+  /// itself.
   internal var allowsActivationOperation: Bool {
     switch activation?.scheme {
     case .activationCodeIsPuk:
@@ -39,6 +43,6 @@ extension CardManagementModel {
 
   internal func allowsCredentialOperation(spending role: CredentialRole) -> Bool {
     guard let outcome = retryOutcome(for: role) else { return true }
-    return RetryFloor.evaluate(probeOutcome: outcome) == .proceed
+    return RetryFloor.evaluate(probeOutcome: outcome, presenting: role) == .proceed
   }
 }
