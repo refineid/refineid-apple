@@ -17,8 +17,18 @@ internal enum RappNoise {
 
   private static let wireMajor: UInt64 = 26
   private static let wireMinor: UInt64 = 11
-  private static let wirePatch: UInt64 = 2
+  private static let wirePatch: UInt64 = 7
 
+  /// The wire version triple `[Year, Month, Day]`, carried in channel
+  /// envelopes, the pairing context and the handshake prologues, and the
+  /// offer version of `pairing-offer` and `pairing-busy`.
+  ///
+  /// There is one version of RAPP and every peer updates together: the
+  /// triple changes with every change of wire vocabulary, so a peer left
+  /// behind fails at the handshake instead of later on a word it does not
+  /// know (RAPP v26.11.2 §10.1 item 4). The document keeps its name and
+  /// section numbering. History: `[26, 11, 2]` the stamped specification;
+  /// `[26, 11, 7]` adds the `waiting_for_unlock` progress event.
   internal static let wireVersion = WireVersion(
     major: wireMajor,
     minor: wireMinor,

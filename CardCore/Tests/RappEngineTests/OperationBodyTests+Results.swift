@@ -188,6 +188,38 @@ extension OperationBodyTests {
     }
   }
 
+  /// The operation corpus predates the unlock event, so its body is proven
+  /// through the engine's own encoder and read back as a peer reads it.
+  @Test("The unlock event round-trips and names the wire word of the specification")
+  internal func unlockProgressRoundTrips() throws {
+    let corpus = try Self.corpus()
+    let identifier = try RappOperationIdentifier(hex: corpus.fixedInputs.operationIdentifierResult)
+    let message = TypedMessage.operationProgress(
+      OperationProgressMessage(operationIdentifier: identifier, event: .waitingForUnlock))
+    let encoded = try Self.encoded(message)
+    #expect(ProgressEvent.waitingForUnlock.rawValue == "waiting_for_unlock")
+    #expect(
+      try Self.received(
+        .operationProgress, bodyHex: encoded, nowMilliseconds: Self.receiptMilliseconds)
+        == message)
+  }
+
+  /// A progress event this version does not define is malformed, never
+  /// ignored (RAPP v26.11.2 §10.1 item 4).
+  @Test("An unknown progress event fails the message")
+  internal func unknownProgressEventIsRefused() throws {
+    let corpus = try Self.corpus()
+    let identifier = try RappOperationIdentifier(hex: corpus.fixedInputs.operationIdentifierResult)
+    let body: [String: WireValue] = [
+      "operation_id": .bytes(identifier.bytes), "event": .text("waiting_for_coffee"),
+    ]
+    let encoded = try WireValue.map(body).encoded().hex
+    #expect(throws: CardOperationError.invalidField(field: "event")) {
+      try Self.received(
+        .operationProgress, bodyHex: encoded, nowMilliseconds: Self.receiptMilliseconds)
+    }
+  }
+
   @Test("Card status names the card by fingerprint or the zero fingerprint, and the reader")
   internal func cardStatusBodies() throws {
     let corpus = try Self.corpus()

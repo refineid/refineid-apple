@@ -5,6 +5,32 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-11-07 RAPP wire version 26.11.7: the unlock event
+
+The wire version triple in channel envelopes, the pairing context, the
+handshake prologues and the offer is `[26, 11, 7]`; the document keeps
+its name and section numbering (RAPP v26.11.2). The triple changes with
+every change of wire vocabulary, this time for the progress event
+`waiting_for_unlock` (§8.2 item 3, §11 item 2): the phone sends it when
+its lock screen is up and no credential operation starts until the
+holder unlocks. The Mac shows it as a banner, "Unlock your phone,
+please.", beside the card banner it already shows, and removes it with
+the phone's next word; the 2026-11-02 rule that no status names the
+phone's state yields to it, since feedback is never withheld in the name
+of security.
+
+- Unknown vocabulary fails, never ignored: a message type, progress
+  event, status, error name or field value this version does not define
+  is malformed and fails its stage (§10.1 item 4). The decoder refuses an
+  unknown progress event as an invalid field.
+- There is one version of RAPP and every peer updates together; a peer
+  left behind fails at the handshake, not later on a word it does not
+  know. The conformance corpus `rapp-v26.11.2.json` is regenerated with
+  the new triple bound into the CPace context; the other corpora are
+  unchanged.
+- The phone can emit the event; sending it from the locked-phone flow is
+  refineid-apple#366.
+
 ## 2026-11-07 The PUK at no tries left goes to the card
 
 Before presenting the PUK - a PIN reset, the organization card's PUK
