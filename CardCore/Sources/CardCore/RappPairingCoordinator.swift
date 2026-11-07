@@ -81,7 +81,10 @@
       case localRequest
       case transportFailure
       case protocolFailure
-      case persistenceFailure
+      /// This device's storage refused the pairing, with the keychain's
+      /// status when the keychain was what refused (RAPP v26.11.2 §4.3
+      /// item 4).
+      case persistenceFailure(status: OSStatus?)
       /// This device's storage refused the pairing for lack of space.
       case outOfSpace
       case offerExpired

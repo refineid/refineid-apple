@@ -6505,6 +6505,38 @@
         }
       }
     },
+    "The pairing could not be stored.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yhdistämistä ei voitu tallentaa."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parkopplingen kunde inte sparas."
+          }
+        }
+      }
+    },
+    "The pairing could not be stored. %@": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yhdistämistä ei voitu tallentaa. %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parkopplingen kunde inte sparas. %@"
+          }
+        }
+      }
+    },
     "The remote card could not be read.": {
       "localizations": {
         "fi": {

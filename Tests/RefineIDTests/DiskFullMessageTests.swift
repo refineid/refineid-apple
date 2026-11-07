@@ -25,8 +25,47 @@ internal final class DiskFullMessageTests: XCTestCase {
     XCTAssertEqual(
       RappPairingModel.failure(for: Reason.ceremonyEnded(.outOfSpace))?.message, Self.diskFull)
     XCTAssertEqual(
-      RappPairingModel.failure(for: Reason.ceremonyEnded(.persistenceFailure))?.message,
+      RappPairingModel.failure(for: Reason.ceremonyEnded(.protocolFailure))?.message,
       String(localized: "Pairing ended before it was completed."))
+  }
+
+  internal func testAPairingTheKeychainRefusedSaysItWasNotStoredWithTheCause() throws {
+    let bare = String(localized: "The pairing could not be stored.")
+    XCTAssertEqual(
+      RappPairingModel.failure(for: Reason.ceremonyEnded(.persistenceFailure(status: nil)))?
+        .message,
+      bare)
+    let cause = try XCTUnwrap(SecCopyErrorMessageString(errSecMissingEntitlement, nil) as String?)
+    let message = try XCTUnwrap(
+      RappPairingModel.failure(
+        for: Reason.ceremonyEnded(.persistenceFailure(status: errSecMissingEntitlement)))?.message)
+    XCTAssertEqual(message, String(localized: "The pairing could not be stored. \(cause)"))
+    XCTAssertTrue(message.hasSuffix(cause))
+  }
+
+  internal func testThePairingNotStoredSentenceIsSaidInEveryLanguage() throws {
+    let catalog = URL(fileURLWithPath: #filePath)
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .appending(path: "Sources/App/Localizable.xcstrings")
+    let json = try JSONSerialization.jsonObject(with: try Data(contentsOf: catalog))
+    let strings = try XCTUnwrap((json as? [String: Any])?["strings"] as? [String: Any])
+    let expected = [
+      ("fi", "Yhdistämistä ei voitu tallentaa."),
+      ("sv", "Parkopplingen kunde inte sparas."),
+    ]
+    for (key, suffix) in [
+      ("The pairing could not be stored.", ""), ("The pairing could not be stored. %@", " %@"),
+    ] {
+      let entry = try XCTUnwrap(strings[key] as? [String: Any])
+      let localizations = try XCTUnwrap(entry["localizations"] as? [String: Any])
+      for (language, value) in expected {
+        let localization = try XCTUnwrap(localizations[language] as? [String: Any])
+        let unit = try XCTUnwrap(localization["stringUnit"] as? [String: Any])
+        XCTAssertEqual(unit["value"] as? String, value + suffix, language)
+      }
+    }
   }
 
   internal func testACardAccessNumberRefusedForSpaceSaysTheDiskIsFull() {
