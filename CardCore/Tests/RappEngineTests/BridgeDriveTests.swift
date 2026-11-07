@@ -66,6 +66,32 @@ internal struct BridgeDriveTests {
         == nil, "an operation with its result reports no progress")
   }
 
+  @Test("A locked phone's wait reaches the requester, and the operation then runs or expires")
+  internal func unlockWait() throws {
+    let session = try Self.established()
+    let identifier = OperationFixture.operationIdentifier
+    try Self.authenticationAwaitingConsent(session, identifier)
+    let waiting = try session.custodian.reportProgress(
+      operationId: identifier, event: .waitingForUnlock)
+    #expect(
+      try deliver(waiting, to: session.requester, at: Self.start)
+        == .progress(identifier, .waitingForUnlock))
+    guard
+      case .custodianStep(identifier, .executeCardCommand, _) = try session.custodian
+        .approve(operationId: identifier, approvedAtMs: OperationFixture.approvalMilliseconds)
+    else { throw DriveFailure(description: "the unlock continues to the card, no consent event") }
+
+    let expiring = try Self.established()
+    try Self.authenticationAwaitingConsent(expiring, identifier)
+    _ = try deliver(
+      try expiring.custodian.reportProgress(operationId: identifier, event: .waitingForUnlock),
+      to: expiring.requester, at: Self.start)
+    let late = Self.start + Self.lifetime + Self.tick
+    #expect(
+      try deliver(try expiring.custodian.expireDue(nowMs: late), to: expiring.requester, at: late)
+        == .terminal(identifier, .operationExpired))
+  }
+
   @Test("A read takes its turn and asks the holder nothing")
   internal func readAsksNothing() throws {
     let session = try Self.established()

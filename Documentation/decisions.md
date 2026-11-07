@@ -28,8 +28,34 @@ of security.
   know. The conformance corpus `rapp-v26.11.2.json` is regenerated with
   the new triple bound into the CPace context; the other corpora are
   unchanged.
-- The phone can emit the event; sending it from the locked-phone flow is
-  refineid-apple#366.
+- The phone sends the event from the locked-phone flow; see the entry
+  below.
+
+## 2026-11-07 A locked iPhone serves no credential operation
+
+The rule is the maintainer's, recorded in refineid-core:
+`doc/security/credential-custody.md` ("A locked phone serves nothing"),
+`doc/security/security-and-usability-balance.md` §1.1, §1.2 and §3.1.1, and
+`doc/protocols/rapp-v26.11.2.md` §8.2 item 3.
+
+- Locked means `UIApplication.isProtectedDataAvailable` is false. A phone
+  with no passcode never reads locked. Auto-lock and "Require Passcode" are
+  the holder's choice: an action that starts between the screen locking and
+  protected data going is not held back, since iOS offers a public app no
+  earlier signal.
+- The gate (`CustodianUnlockGate`) sits in the dispatcher before a held
+  PIN 1 is taken and before every PIN prompt, so PIN entries after a refusal
+  wait too. While locked, the computer hears `waiting_for_unlock`, and a
+  time-sensitive notification names the computer and the PIN, not the
+  documents.
+- Unlocking continues the same operation: a held PIN 1 goes to the card
+  with no prompt, and a prompt opens otherwise. The operation's deadline
+  ends a wait still locked with the normal expiry. While it waits it keeps
+  its turn on the card, as it does with a prompt up.
+- The gate is asked only before a credential use starts: a card command
+  already sent and an approved batch run to their answer.
+- Admission, `card.status` and reads are not credential use. The primed
+  card's remembered fingerprint (CC-70) stays.
 
 ## 2026-11-07 The PUK at no tries left goes to the card
 
@@ -169,7 +195,8 @@ phase 4); no Bluetooth pairing exists in the product.
   to it, and up to 90 seconds for the app to come forward, after which the
   operation ends `card_error`. A reader card needs no screen; a PIN prompt
   posts its own notification and stays the only consent. While the phone
-  is locked, the primed card last read stands for the card the phone holds.
+  is locked, the primed card last read stands for the card the phone holds;
+  credential use waits for the unlock (see the 2026-11-07 entry).
 - The Mac dials the stream while Bonjour shows the phone and Bluetooth
   otherwise, and also when a stream dial failed while the record stayed in
   sight. An open session is kept whatever its transport, and a Bluetooth

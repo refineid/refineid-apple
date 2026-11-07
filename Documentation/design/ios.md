@@ -121,6 +121,15 @@ last, the card's notice stands above the sentence. The time-sensitive
 notification that comes with the prompt carries the same title and
 sentence.
 
+## A locked phone
+
+A locked phone starts no credential action for a paired computer: no login
+with the held PIN 1, no PIN prompt, no signature. The notification reads
+"%@ asks you to authenticate with Basic PIN 1. Unlock your phone." or "%@
+asks you to sign with Signature PIN 2. Unlock your phone.", and the computer shows "Unlock your phone, please.".
+Unlocking continues the request. The rule and its limits are in
+`Documentation/decisions.md` (2026-11-07).
+
 ## The NFC sheet
 
 Every operation on the phone's own antenna draws one meter in the system

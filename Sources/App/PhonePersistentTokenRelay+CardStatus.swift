@@ -34,7 +34,9 @@
     /// lives in a keychain item that opens only while protected data is
     /// available, so while the phone is locked the primed card last read
     /// stands in for it (CC-70): a session that opens over Bluetooth from
-    /// a pocket reports the card the holder can still present.
+    /// a pocket reports the card the holder can still present. This answers
+    /// admission and card presence only; credential use waits for the unlock
+    /// (``CustodianUnlockGate``).
     internal var servedCardFingerprint: RappCertificateFingerprint? {
       if CardPresence.shared.isReaderCardPresent {
         return readerCard.certificate.flatMap(RappCertificateFingerprint.init(certificate:))

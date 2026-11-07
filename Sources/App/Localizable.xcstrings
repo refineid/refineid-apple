@@ -6838,6 +6838,50 @@
         }
       }
     },
+    "%@ asks you to authenticate with Basic PIN 1. Unlock your phone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ asks you to authenticate with Basic PIN 1. Unlock your phone."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ pyytää tunnistautumaan perustunnusluvulla 1. Avaa puhelimen lukitus."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ber dig att identifiera dig med grund PIN 1. Lås upp mobilen."
+          }
+        }
+      }
+    },
+    "%@ asks you to sign with Signature PIN 2. Unlock your phone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ asks you to sign with Signature PIN 2. Unlock your phone."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ pyytää allekirjoittamaan allekirjoitustunnusluvulla 2. Avaa puhelimen lukitus."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ber dig att underteckna med signaturkod 2. Lås upp mobilen."
+          }
+        }
+      }
+    },
     "%@ asks you to authenticate.": {
       "localizations": {
         "fi": {

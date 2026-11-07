@@ -235,6 +235,7 @@
       pin1ByOperation.removeValue(forKey: operationID)
       pin2ByOperation.removeValue(forKey: operationID)
       promptedOperations.remove(operationID)
+      await endUnlockWait(operationID)
       if let requestID = requestIDs.removeValue(forKey: operationID) {
         await inbox.cancel(requestID)
       }

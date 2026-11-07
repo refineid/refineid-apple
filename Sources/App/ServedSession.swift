@@ -66,6 +66,7 @@
 
     private let dispatcher: RappPhoneProxyDispatcher
     private let cardQueue: CustodianCardQueue<Turn>
+    private let unlockGate: CustodianUnlockGate<Turn>
     private let report: (ServedSession, Report) -> Void
     /// Frames enter the coordinator in arrival order through this bounded
     /// chain.
@@ -86,22 +87,25 @@
     // MARK: Lifecycle
 
     /// A session over `pairID` on `transport`, driven by `coordinator`,
-    /// taking the card through `cardQueue` and reporting to `report`.
+    /// taking the card through `cardQueue`, holding credential actions at
+    /// `unlockGate` and reporting to `report`.
     internal init(
       transport: ServedTransport,
       pair: RappPairMetadata,
       coordinator: RappConnectionCoordinator,
       cardQueue: CustodianCardQueue<Turn>,
+      unlockGate: CustodianUnlockGate<Turn>,
       report: @escaping (ServedSession, Report) -> Void
     ) {
       self.transport = transport
       pairID = pair.pairId
       self.coordinator = coordinator
       self.cardQueue = cardQueue
+      self.unlockGate = unlockGate
       self.report = report
       dispatcher = RappPhoneProxyDispatcher(
         inbox: RappAuthorizationInbox.shared, pairID: pair.pairId,
-        requesterName: pair.peerDisplayName, session: identifier)
+        requesterName: pair.peerDisplayName, session: identifier, unlockGate: unlockGate)
     }
 
     // MARK: Functions
@@ -124,7 +128,11 @@
     }
 
     /// Delivers one frame the transport received.
+    ///
+    /// A frame can be what wakes an app suspended through the unlock, so the
+    /// lock is read again.
     internal func receive(_ frame: Data) {
+      unlockGate.reassess()
       deliverInOrder { [coordinator] in await coordinator.receive(frame) }
     }
 
