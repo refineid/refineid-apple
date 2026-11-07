@@ -6946,13 +6946,13 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Perus-PIN 1"
+            "value": "Perustunnusluku 1"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Grund-PIN 1"
+            "value": "Grundläggande kod 1"
           }
         }
       }
@@ -6962,13 +6962,13 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Allekirjoitus-PIN 2"
+            "value": "Allekirjoitustunnusluku 2"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Signatur-PIN 2"
+            "value": "Signaturkod 2"
           }
         }
       }

@@ -73,9 +73,9 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   The activation form, titled "Identity card activation" ("Organisation
   card activation" for an organization card), has three
   groups, headed "Activation PIN", "Basic PIN 1" and "Signature PIN 2"
-  (Finnish "Perus-PIN 1"), so a filled field still says what
-  it holds. "Basic PIN 1" (Finnish "Perus-PIN 1", Swedish "Grund-PIN 1")
-  and "Signature PIN 2" ("Allekirjoitus-PIN 2", "Signatur-PIN 2") are
+  (Finnish "Perustunnusluku 1"), so a filled field still says what
+  it holds. "Basic PIN 1" (Finnish "Perustunnusluku 1", Swedish "Grundläggande kod 1")
+  and "Signature PIN 2" ("Allekirjoitustunnusluku 2", "Signaturkod 2") are
   also the credential names the PIN prompts take and the token label
   Safari and the system show, without parentheses, as refineid-core's
   PKCS#11 module writes them.
