@@ -12,6 +12,13 @@ import Security
 /// length, name constraints and critical extensions are checked on
 /// every certificate below the anchor. Candidate certificates only
 /// supply intermediates; none of them becomes an anchor.
+///
+/// An anchor need not be a root: the trusted lists name issuing CAs
+/// and time-stamping units, and a path ends at the anchor certificate
+/// whose subject name and key the certificate below it chains to. The
+/// caller hands over the anchors granted at the validation time, which
+/// must also lie inside the anchor certificate's own validity, because
+/// the platform checks that too.
 internal enum CertificatePath {
   /// The validated path from `certificate` to an anchor, the
   /// certificate first and the anchor last, or empty when no path

@@ -50,7 +50,7 @@ extension QualifiedDocumentCmsTests {
     cms: Data
   ) throws -> DocumentVerification.SignatureReport {
     let document = try placeholder.filled(with: cms)
-    let report = try DocumentVerification.verify(document: document)
+    let report = try DocumentVerification.verify(document: document, anchors: .empty)
     #expect(report.signatures.count == 1)
     return try #require(report.judged.first)
   }
@@ -271,7 +271,7 @@ extension QualifiedDocumentCmsTests {
     )
 
     let document = try placeholder.filled(with: cms)
-    let report = try DocumentVerification.verify(document: document)
+    let report = try DocumentVerification.verify(document: document, anchors: .empty)
     #expect(report.judged.isEmpty)
     #expect(report.signatures.count == 1)
     #expect(!report.isValid)

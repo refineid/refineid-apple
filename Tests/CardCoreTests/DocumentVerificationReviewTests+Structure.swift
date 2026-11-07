@@ -62,7 +62,7 @@
           of: token,
           imprintMatches: { digest, imprint in imprint == digest.hash(Self.stampedBytes) },
           evidence: ValidationEvidence(),
-          anchors: anchors,
+          anchors: DocumentTrustFixture.anchors(certificateIssuing: [], timeStamping: anchors),
           now: Date()
         )
       }

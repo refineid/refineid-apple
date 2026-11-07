@@ -107,7 +107,7 @@ extension DocumentVerification {
         imprint == digest.hash(signature.signedSpans.signedOctets)
       },
       evidence: evidence,
-      anchors: anchors.timeStamping,
+      anchors: anchors,
       now: now
     )
   }
@@ -161,7 +161,7 @@ extension DocumentVerification {
           imprint == digest.hash(outcome.signatureValue)
         },
         evidence: evidence,
-        anchors: anchors.timeStamping,
+        anchors: anchors,
         now: now
       )
     }

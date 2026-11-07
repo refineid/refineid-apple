@@ -101,7 +101,8 @@ extension AsicVerificationTests {
       return edited
     }
 
-    let report = try AsicVerification.verify(container: Self.container(document: document))
+    let report = try AsicVerification.verify(
+      container: Self.container(document: document), anchors: .empty)
     #expect(report.signatures.count == 1)
     #expect(report.judged.isEmpty)
   }

@@ -50,7 +50,7 @@ internal struct XadesParserSafetyTests {
     #expect(parser.parse(data: Data(document.utf8)).isEmpty)
     #expect(!parser.parsedWholeDocument)
     let report = try AsicVerification.verify(
-      container: AsicVerificationTests.container(document: document))
+      container: AsicVerificationTests.container(document: document), anchors: .empty)
     #expect(report.signatures.count == 1)
     #expect(report.judged.isEmpty)
   }

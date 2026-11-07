@@ -123,7 +123,8 @@ extension QualifiedDocumentCmsTests {
       ),
       attributes: attributes
     )
-    let report = try DocumentVerification.verify(document: placeholder.filled(with: cms))
+    let report = try DocumentVerification.verify(
+      document: placeholder.filled(with: cms), anchors: .empty)
 
     #expect(report.signatures.count == 1)
     #expect(report.judged.isEmpty)
@@ -203,7 +204,8 @@ extension QualifiedDocumentCmsTests {
       attributes: attributes
     )
 
-    let report = try DocumentVerification.verify(document: placeholder.filled(with: cms))
+    let report = try DocumentVerification.verify(
+      document: placeholder.filled(with: cms), anchors: .empty)
     #expect(report.signatures.count == 1)
     #expect(report.judged.isEmpty)
     #expect(!report.isValid)

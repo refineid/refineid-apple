@@ -144,7 +144,7 @@ internal struct AsicVerificationTests {
   internal static func report(
     _ container: Data
   ) throws -> DocumentVerification.SignatureReport {
-    let report = try AsicVerification.verify(container: container)
+    let report = try AsicVerification.verify(container: container, anchors: .empty)
     try #require(report.judged.count == 1)
     return report.judged[0]
   }
@@ -177,7 +177,7 @@ internal struct AsicVerificationTests {
   @Test
   internal func verifiesValidAsicContainerWithEcdsa() throws {
     let (container, _) = try Self.signedContainer(profile: .ecdsaP384)
-    let report = try AsicVerification.verify(container: container)
+    let report = try AsicVerification.verify(container: container, anchors: .empty)
 
     #expect(report.signatures.count == 1)
     let sig = report.judged[0]
@@ -190,7 +190,7 @@ internal struct AsicVerificationTests {
   @Test
   internal func verifiesValidAsicContainerWithRsa() throws {
     let (container, _) = try Self.signedContainer(profile: .rsa2048)
-    let report = try AsicVerification.verify(container: container)
+    let report = try AsicVerification.verify(container: container, anchors: .empty)
 
     #expect(report.signatures.count == 1)
     let sig = report.judged[0]
@@ -202,7 +202,7 @@ internal struct AsicVerificationTests {
   @Test
   internal func dispatchThroughDocumentVerificationVerify() throws {
     let (container, _) = try Self.signedContainer(profile: .ecdsaP384)
-    let report = try DocumentVerification.verify(document: container)
+    let report = try DocumentVerification.verify(document: container, anchors: .empty)
 
     #expect(report.signatures.count == 1)
     let sig = report.judged[0]
@@ -220,7 +220,7 @@ internal struct AsicVerificationTests {
 
     let tamperedContainer = try Self.reassembled(entries)
 
-    let report = try AsicVerification.verify(container: tamperedContainer)
+    let report = try AsicVerification.verify(container: tamperedContainer, anchors: .empty)
     #expect(report.signatures.count == 1)
     #expect(!report.judged[0].documentIntact)
   }
@@ -246,7 +246,7 @@ internal struct AsicVerificationTests {
 
     let tamperedContainer = try Self.reassembled(entries)
 
-    let report = try AsicVerification.verify(container: tamperedContainer)
+    let report = try AsicVerification.verify(container: tamperedContainer, anchors: .empty)
     #expect(report.judged.isEmpty)
     #expect(!report.signatures.isEmpty)
     #expect(!report.isValid)
@@ -260,7 +260,7 @@ internal struct AsicVerificationTests {
     let archive = try #require(writer.finish())
 
     #expect(throws: DocumentVerification.Failure.noSignatures) {
-      try AsicVerification.verify(container: archive)
+      try AsicVerification.verify(container: archive, anchors: .empty)
     }
   }
 }
