@@ -190,6 +190,26 @@ internal enum DocumentSigningMessage {
         "error.timestampRevoked",
         "The timestamp service certificate is revoked.")
 
+    case ValidationMaterialCollector.Failure.trustAnchorUnavailable:
+      text(
+        "error.trustAnchor",
+        """
+        No signed document was made: no trusted root certificate was available for \
+        this card's certificate, so the material for long-term validation could not \
+        be collected. The card was not asked to sign with Signature PIN\u{00A0}2.
+        """
+      )
+
+    case ValidationMaterialCollector.Failure.issuerUnavailable:
+      text(
+        "error.issuer",
+        """
+        The signature was made, but the material for long-term validation could not \
+        be collected: the issuer of the certificate could not be found. Nothing was \
+        saved.
+        """
+      )
+
     default:
       text(
         "error.validation",

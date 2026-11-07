@@ -33,16 +33,9 @@
       let document = try Data(contentsOf: source)
       let signedAt = Date()
       let visibleStamp = self.visibleStamp(on: document)
-      #if DEBUG
-        let reason =
-          DebugRevokedDocumentSigning.isEnabled()
-          ? DebugRevokedDocumentSigning.reason : nil
-      #else
-        let reason: String? = nil
-      #endif
       let pdfClaim = PdfIncrementalSigner.SignatureClaim(
         signedAt: signedAt,
-        reason: reason,
+        reason: nil,
         location: nil
       )
       let result = try await reportingPhases {
@@ -58,14 +51,11 @@
           )
         )
       }
+      let signed = SignedDocument(result)
       #if DEBUG
-        if result.completion == .revokedSignerTest {
-          setNotice(DebugRevokedDocumentSigning.warning)
-        }
+        setNotice(signed.belowLongTerm?.notice)
       #endif
-      return SignedDocument(
-        bytes: result.bytes, signatureTimestampTime: result.signatureTimestampTime
-      )
+      return signed
     }
   }
 

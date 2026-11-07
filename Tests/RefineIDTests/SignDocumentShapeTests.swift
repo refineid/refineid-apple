@@ -68,19 +68,24 @@ internal struct SignDocumentShapeTests {
     #expect(
       SignDocumentModel.stampedContainer(
         from: URL(fileURLWithPath: "/documents/kasa" + suffix + ".asice"),
-        at: instant
+        at: instant,
+        marker: SignedDocumentName.longTermMarker
       ).lastPathComponent == "kasa" + suffix + ".asice"
     )
     // Typed over the suffix: the same instant is appended.
     #expect(
       SignDocumentModel.stampedContainer(
-        from: URL(fileURLWithPath: "/documents/kasa.asice"), at: instant
+        from: URL(fileURLWithPath: "/documents/kasa.asice"),
+        at: instant,
+        marker: SignedDocumentName.longTermMarker
       ).lastPathComponent == "kasa" + suffix + ".asice"
     )
     // A name that arrives bare is stamped the same way.
     #expect(
       SignDocumentModel.stampedContainer(
-        from: URL(fileURLWithPath: "/documents/kasa"), at: instant
+        from: URL(fileURLWithPath: "/documents/kasa"),
+        at: instant,
+        marker: SignedDocumentName.longTermMarker
       ).lastPathComponent == "kasa" + suffix + ".asice"
     )
     // One document keeps its own name, which is not a guess at all.
@@ -88,7 +93,8 @@ internal struct SignDocumentShapeTests {
       SignDocumentModel.destination(
         for: URL(fileURLWithPath: "/documents/Agreement.odt"),
         at: instant,
-        format: .asice
+        format: .asice,
+        marker: SignedDocumentName.longTermMarker
       ).lastPathComponent == "Agreement" + suffix + ".asice"
     )
   }

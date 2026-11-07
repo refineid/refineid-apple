@@ -30,6 +30,10 @@ extension CardMaintenance {
     /// The present card is not the one that supplied the visible stamp.
     case signerCertificateMismatch
 
+    /// The certificate cannot reach the long-term level this build
+    /// requires, so the card was not asked to sign.
+    case longTermUnavailable(ValidationMaterialCollector.Failure)
+
     /// The card signed.
     case signed(QualifiedProduct)
   }
@@ -47,6 +51,9 @@ extension CardMaintenance {
   ///
   /// The attributes cannot be built before the session because they
   /// hash the certificate, and the certificate is on the card.
+  /// The build judges that certificate before PIN 2 is verified
+  /// (`DocumentSigner.signerRefusal`); a refusal ends the session
+  /// without a signature.
   internal static func qualifiedSignature(
     pin2: String,
     expectedCertificate: Data?,
@@ -90,7 +97,7 @@ extension CardMaintenance {
     case .signed:
       nil
 
-    case .signerCertificateMismatch:
+    case .signerCertificateMismatch, .longTermUnavailable:
       .certificate
 
     case .refused(.failed):
@@ -102,7 +109,8 @@ extension CardMaintenance {
   }
 
   /// The qualified signature, inside an open session: floor, the
-  /// certificate, PIN2, then the one signature it authorises.
+  /// certificate and its anchor, PIN2, then the one signature it
+  /// authorises.
   ///
   /// A channel PIN 2 opened (an organization card on an antenna) has
   /// already passed the floor and counts as PIN 2 verified, so it is
@@ -130,6 +138,9 @@ extension CardMaintenance {
       )
     else {
       return .signerCertificateMismatch
+    }
+    if let refusal = DocumentSigner.signerRefusal(identity.certificate) {
+      return .longTermUnavailable(refusal)
     }
     if let refusal = Self.authorization(operations, pin2: pin2, openedByPin2: openedByPin2) {
       return refusal

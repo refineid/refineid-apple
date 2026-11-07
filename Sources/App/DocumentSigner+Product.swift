@@ -14,6 +14,8 @@ extension DocumentSigner {
 
     /// The generation time of the signature's own timestamp; a
     /// document timestamp over the finished file never sets it.
+    ///
+    /// A development signature without a timestamp carries the clock.
     internal let signatureTimestampTime: Date
 
     /// Bytes built on `signature`, which carries their signature timestamp.
@@ -22,6 +24,16 @@ extension DocumentSigner {
       self.completion = completion
       self.signatureTimestampTime = signature.signatureTimestampTime
     }
+
+    #if DEBUG
+      /// Development bytes that carry no signature timestamp, named by
+      /// `clock`.
+      internal init(basic bytes: Data, clock: Date, shortfall: BelowLongTermSignature) {
+        self.bytes = bytes
+        self.completion = .belowLongTerm(shortfall)
+        self.signatureTimestampTime = clock
+      }
+    #endif
   }
 
   /// What evidence was completed after the card signature.
@@ -30,8 +42,15 @@ extension DocumentSigner {
     case archival
 
     #if DEBUG
-      /// Debug-only PAdES-B-T output from an authenticated revoked signer.
-      case revokedSignerTest
+      /// A development signature kept below PAdES-B-LTA.
+      case belowLongTerm(BelowLongTermSignature)
+
+      /// The level a development signature stopped at, if below
+      /// PAdES-B-LTA.
+      internal var shortfall: BelowLongTermSignature? {
+        guard case .belowLongTerm(let shortfall) = self else { return nil }
+        return shortfall
+      }
     #endif
   }
 }

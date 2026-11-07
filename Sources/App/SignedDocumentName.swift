@@ -4,10 +4,18 @@ import Foundation
 
 /// Stable, collision-resistant names shared by every signing surface.
 internal enum SignedDocumentName {
+  /// What a long-term signature's name carries after the suffix:
+  /// nothing.
+  internal static let longTermMarker = ""
+
+  /// The name a signed output is offered under. `marker` follows the
+  /// suffix: empty for a long-term signature, the level for a
+  /// development one.
   nonisolated internal static func suggested(
     sourceNames: [String],
     format: SignatureFormat,
-    at instant: Date
+    at instant: Date,
+    marker: String
   ) -> String {
     let stem: String
     if sourceNames.count == 1, let name = sourceNames.first {
@@ -19,7 +27,7 @@ internal enum SignedDocumentName {
         table: "DocumentSigning")
     }
     let pathExtension = format == .pades ? "pdf" : "asice"
-    return stem + Self.suffix(at: instant) + "." + pathExtension
+    return stem + Self.suffix(at: instant) + marker + "." + pathExtension
   }
 
   /// The suffix every signed output's name carries: the word for

@@ -17,25 +17,8 @@
       internal let isPDF: Bool
     }
 
-    private struct ExportDocument: FileDocument {
-      static var readableContentTypes: [UTType] { [.data] }
-      let data: Data
-
-      init(data: Data) { self.data = data }
-
-      init(configuration: ReadConfiguration) {
-        data = configuration.file.regularFileContents ?? Data()
-      }
-
-      func fileWrapper(
-        configuration _: WriteConfiguration
-      ) -> FileWrapper {
-        FileWrapper(regularFileWithContents: data)
-      }
-    }
-
     private struct Output {
-      let document: ExportDocument
+      let document: SignedFileDocument
       let name: String
       let contentType: UTType
     }
@@ -55,6 +38,11 @@
     @State private var output: Output?
     @State private var message: String?
     @State private var messageTone: CredentialOutcomeText.Tone = .failure
+    #if DEBUG
+      /// The notice of a development signature below the long-term
+      /// level; the screen stays to show it after the save.
+      @State private var developmentNotice: String?
+    #endif
 
     internal var body: some View {
       Form {
@@ -88,6 +76,13 @@
       ) { result in
         switch result {
         case .success:
+          #if DEBUG
+            if let developmentNotice {
+              messageTone = .notice
+              message = developmentNotice
+              return
+            }
+          #endif
           dismiss()
 
         case .failure:
@@ -145,6 +140,9 @@
       guard canSign else { return }
       isSigning = true
       message = nil
+      #if DEBUG
+        developmentNotice = nil
+      #endif
       let enteredPIN2: String? = requiresRequesterPIN2 ? pin2 : nil
       defer {
         pin2 = ""
@@ -157,14 +155,18 @@
       do {
         let signed = try await signedDocument(pin2: enteredPIN2)
         output = Output(
-          document: ExportDocument(data: signed.bytes),
+          document: SignedFileDocument(data: signed.bytes),
           name: SignedDocumentName.suggested(
             sourceNames: inputs.map(\.name),
             format: format,
-            at: signed.bestSignatureTime),
+            at: signed.bestSignatureTime,
+            marker: signed.nameMarker),
           contentType: format == .pades
             ? .pdf
             : (UTType(filenameExtension: "asice") ?? .zip))
+        #if DEBUG
+          developmentNotice = signed.belowLongTerm?.notice
+        #endif
         finishSuccessfully()
       } catch {
         showFailure(DocumentSigningMessage.message(for: error))
@@ -185,8 +187,7 @@
             cardAccessNumber: cardAccessNumber
           )
         )
-        return SignedDocument(
-          bytes: product.bytes, signatureTimestampTime: product.signatureTimestampTime)
+        return SignedDocument(product)
       }
       let objects = inputs.map { input in
         AsicSigner.dataObject(input.data, named: input.name)
@@ -196,8 +197,7 @@
         pin2: pin2,
         transport: transport,
         cardAccessNumber: cardAccessNumber)
-      return SignedDocument(
-        bytes: product.bytes, signatureTimestampTime: product.signatureTimestampTime)
+      return SignedDocument(product)
     }
 
     private func signWithVirtualCard(pin2: String) async {

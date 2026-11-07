@@ -225,14 +225,21 @@ internal enum ValidationMaterialCollector {
     signerCertificate: Data,
     timestampTokens: [TimestampTokenVerifier.VerifiedToken]
   ) async throws -> PdfValidationStore.Material {
-    let issuer = IssuerCertificate.der(matching: signerCertificate)
-    let signerTrust = issuer.map { Set([$0]) } ?? []
-    return try await Self.collect(
+    try await Self.collect(
       signerCertificate: signerCertificate,
       timestampTokens: timestampTokens,
       dependencies: .live,
-      signerTrustCertificates: signerTrust
+      signerTrustCertificates: Self.signerAnchors(for: signerCertificate)
     )
+  }
+
+  /// The certificates that may end the signer's path: the cached
+  /// issuing certificate the card supplied for it, or none.
+  ///
+  /// Read without network, so a signer with no anchor is known before
+  /// the card is asked to sign.
+  internal static func signerAnchors(for signerCertificate: Data) -> Set<Data> {
+    IssuerCertificate.der(matching: signerCertificate).map { Set([$0]) } ?? []
   }
 
   /// Collects complete evidence for the card signer and each verified TSA.
