@@ -98,7 +98,9 @@
       let now = Date()
       for offset in 0...Self.collisionWindow {
         let instant = now.addingTimeInterval(-TimeInterval(offset))
-        let name = SignDocumentModel.suggestedName(for: source, format: .pades, at: instant)
+        let name = SignDocumentModel.suggestedName(
+          for: source, format: .pades, at: instant, marker: SignedDocumentName.longTermMarker
+        )
         try Data("planted".utf8).write(to: folder.appendingPathComponent(name))
       }
     }

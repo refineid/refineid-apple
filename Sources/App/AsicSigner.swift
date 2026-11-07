@@ -8,6 +8,9 @@ import UniformTypeIdentifiers
 
 /// Signs a set of files into one ASiC-E container at level XAdES-LT.
 ///
+/// A release build offers nothing below that level; a development
+/// build keeps the level it reached (`SignatureLevelPolicy`).
+///
 /// The order is forced by what each step attests, exactly as in
 /// `DocumentSigner`: the XAdES `SignedInfo` is prepared and signed
 /// first; its timestamp proves the signature existed; and the
@@ -41,8 +44,15 @@ internal enum AsicSigner {
     /// The container bytes.
     internal let bytes: Data
 
-    /// The generation time of the XAdES signature timestamp.
+    /// The generation time of the XAdES signature timestamp, or the
+    /// clock for a development container that carries none.
     internal let signatureTimestampTime: Date
+
+    #if DEBUG
+      /// The level a development container stopped at, when below
+      /// XAdES-LT.
+      internal var belowLongTerm: BelowLongTermSignature?
+    #endif
   }
 
   #if DEBUG
@@ -110,6 +120,9 @@ internal enum AsicSigner {
     case .signerCertificateMismatch:
       throw DocumentSigner.Failure.stampSignerChanged
 
+    case .longTermUnavailable(let refusal):
+      throw DocumentSigner.Failure.validation(refusal)
+
     case .signed(let product):
       return try await Self.assembled(
         from: product, objects: objects, signedAt: signedAt
@@ -128,7 +141,10 @@ internal enum AsicSigner {
     // The package's own name is the one it is proposed under; its files
     // are listed in container order (RAPP v26.11.2 §9.3).
     let packageName = SignedDocumentName.suggested(
-      sourceNames: objects.map(\.name), format: .asice, at: signedAt)
+      sourceNames: objects.map(\.name),
+      format: .asice,
+      at: signedAt,
+      marker: SignedDocumentName.longTermMarker)
     #if DEBUG
       logger.notice(
         "[AsicSigner] signRemotely: signing \(objects.count, privacy: .public) objects"
@@ -153,8 +169,8 @@ internal enum AsicSigner {
     )
   }
 
-  /// Timestamps the signature, collects the evidence, and writes the
-  /// container.
+  /// Checks that the card signed the planned octets, then completes
+  /// the container.
   private static func assembled(
     from product: CardMaintenance.QualifiedProduct,
     objects: [AsicContainer.DataObject],
@@ -178,38 +194,12 @@ internal enum AsicSigner {
     else {
       throw Failure.signedOctetsChanged
     }
-    let token: TimestampTokenVerifier.VerifiedToken
-    DocumentSigner.report(.timestamp)
-    do {
-      token = try await TimestampClient.token(
-        over: XadesSignature.timestampDigest(xmlSignature)
-      )
-    } catch {
-      throw DocumentSigner.Failure.network(error)
-    }
-    let evidence: PdfValidationStore.Material
-    DocumentSigner.report(.validation)
-    do {
-      evidence = try await ValidationMaterialCollector.collect(
-        signerCertificate: product.certificate,
-        timestampTokens: [token]
-      )
-    } catch {
-      throw DocumentSigner.Failure.validation(error)
-    }
-    let document = plan.document(
+    return try await Self.evidenced(
+      plan: plan,
       xmlSignature: xmlSignature,
-      timestampTokens: [token.token],
-      material: evidence
+      certificate: product.certificate,
+      objects: objects
     )
-    guard
-      let archive = AsicContainer.container(
-        objects: objects, signatureXml: document
-      )
-    else {
-      throw Failure.container
-    }
-    return Product(bytes: archive, signatureTimestampTime: token.generatedAt)
   }
 
   /// The canonical `SignedInfo` octets for the card to sign, built

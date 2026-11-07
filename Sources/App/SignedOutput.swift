@@ -50,9 +50,11 @@
         ? SignedDocumentName.suggested(
           sourceNames: documents.map(\.lastPathComponent),
           format: format,
-          at: instant
+          at: instant,
+          marker: signed.nameMarker
         )
-        : SignDocumentModel.suggestedName(for: first, format: format, at: instant)
+        : SignDocumentModel.suggestedName(
+          for: first, format: format, at: instant, marker: signed.nameMarker)
       panel.nameFieldStringValue = typedName ?? proposed
       panel.directoryURL = first.deletingLastPathComponent()
       panel.message =
@@ -74,7 +76,8 @@
       }
       return SignDocumentModel.PlaceAnswer(
         destination: together
-          ? SignDocumentModel.stampedContainer(from: chosen, at: instant) : chosen,
+          ? SignDocumentModel.stampedContainer(
+            from: chosen, at: instant, marker: signed.nameMarker) : chosen,
         typedName: typed
       )
     }

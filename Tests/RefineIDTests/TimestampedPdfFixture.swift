@@ -10,7 +10,7 @@
   @testable import RefineIDTestHost
 
   /// Builds and inspects the exact post-card PAdES-B-T test stage.
-  internal enum DebugRevokedDocumentSigningFixture {
+  internal enum TimestampedPdfFixture {
     /// One fully built stage and the values that prove it.
     internal struct Result {
       internal let placeholder: PdfSignaturePlaceholder
@@ -193,7 +193,7 @@
         revision: .signature(
           PdfIncrementalSigner.SignatureClaim(
             signedAt: Date(timeIntervalSince1970: 0),
-            reason: DebugRevokedDocumentSigning.reason,
+            reason: nil,
             location: nil
           )
         )

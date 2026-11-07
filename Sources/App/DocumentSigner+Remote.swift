@@ -132,6 +132,11 @@ extension DocumentSigner {
     else {
       throw Failure.stampSignerChanged
     }
+    // Judged before the phone is asked, so its PIN 2 prompt never
+    // appears for a signature this build would refuse.
+    if let refusal = Self.signerRefusal(certificate) {
+      throw Failure.validation(refusal)
+    }
     do {
       return try await Self.executeRemoteQualifiedSignature(
         documentName: documentName,

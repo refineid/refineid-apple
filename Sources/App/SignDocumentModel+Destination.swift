@@ -25,16 +25,19 @@
     /// The signed file's place beside the original.
     ///
     /// Stamped with the best signature time, colons replaced so the
-    /// name is safe everywhere. The extension follows the format: the
-    /// original's for a PAdES PDF, `.asice` for a container.
+    /// name is safe everywhere, then `marker`: empty for a long-term
+    /// signature, the level for a development one. The extension
+    /// follows the format: the original's for a PAdES PDF, `.asice`
+    /// for a container.
     nonisolated internal static func destination(
       for source: URL,
       at instant: Date,
-      format: SignatureFormat
+      format: SignatureFormat,
+      marker: String
     ) -> URL {
       let name = source.deletingPathExtension().lastPathComponent
       return source.deletingLastPathComponent()
-        .appendingPathComponent(name + SignedDocumentName.suffix(at: instant))
+        .appendingPathComponent(name + SignedDocumentName.suffix(at: instant) + marker)
         .appendingPathExtension(format.outputPathExtension(for: source))
     }
 
@@ -43,9 +46,10 @@
     nonisolated internal static func suggestedName(
       for source: URL,
       format: SignatureFormat,
-      at instant: Date
+      at instant: Date,
+      marker: String
     ) -> String {
-      Self.destination(for: source, at: instant, format: format)
+      Self.destination(for: source, at: instant, format: format, marker: marker)
         .lastPathComponent
     }
 
@@ -58,15 +62,16 @@
     /// second signature never overwrites the first.
     nonisolated internal static func stampedContainer(
       from chosen: URL,
-      at instant: Date
+      at instant: Date,
+      marker: String
     ) -> URL {
       let stem = chosen.deletingPathExtension().lastPathComponent
-      guard !stem.hasSuffix(SignedDocumentName.suffix(at: instant)) else {
+      guard !stem.hasSuffix(SignedDocumentName.suffix(at: instant) + marker) else {
         return chosen.pathExtension.isEmpty
           ? chosen.appendingPathExtension("asice")
           : chosen
       }
-      return Self.destination(for: chosen, at: instant, format: .asice)
+      return Self.destination(for: chosen, at: instant, format: .asice, marker: marker)
     }
   }
 

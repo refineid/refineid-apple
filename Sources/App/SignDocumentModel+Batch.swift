@@ -63,9 +63,11 @@
           transport: .reader,
           cardAccessNumber: nil)
       }
-      return SignedDocument(
-        bytes: container.bytes, signatureTimestampTime: container.signatureTimestampTime
-      )
+      let signed = SignedDocument(container)
+      #if DEBUG
+        setNotice(signed.belowLongTerm?.notice)
+      #endif
+      return signed
     }
 
     /// Signs everything queued into one container, then asks `choose`
@@ -186,7 +188,12 @@
           guard let finished = signatures[source] else { continue }
           focus(on: source)
           let destination = folder.appendingPathComponent(
-            Self.suggestedName(for: source, format: format, at: finished.bestSignatureTime)
+            Self.suggestedName(
+              for: source,
+              format: format,
+              at: finished.bestSignatureTime,
+              marker: finished.nameMarker
+            )
           )
           if Self.isOriginal(destination, among: documents) {
             failures[source] = String(

@@ -47,6 +47,182 @@
         }
       }
     },
+    "dev.belowLongTerm" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Development build: saved as %1$@ without long-term validation material; the file name ends in %2$@. Reason: %3$@."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kehitysversio: tallennettiin %1$@ -tasoisena ilman pitkäaikaisen validoinnin aineistoa; tiedostonimen loppu on %2$@. Syy: %3$@."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utvecklingsversion: sparad som %1$@ utan material för långtidsvalidering; filnamnet slutar på %2$@. Orsak: %3$@."
+          }
+        }
+      }
+    },
+    "dev.cause.archiveTimestamp" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no valid archive timestamp was obtained"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "kelvollista arkistoaikaleimaa ei saatu"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ingen giltig arkivtidsstämpel erhölls"
+          }
+        }
+      }
+    },
+    "dev.cause.evidence" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the material for long-term validation could not be collected"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pitkäaikaisen validoinnin aineistoa ei saatu kerättyä"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "materialet för långtidsvalidering kunde inte samlas in"
+          }
+        }
+      }
+    },
+    "dev.cause.issuer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the issuer of the certificate could not be found"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "varmenteen myöntäjää ei löytynyt"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "certifikatets utfärdare hittades inte"
+          }
+        }
+      }
+    },
+    "dev.cause.revocation" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the revocation status of the certificate could not be fetched"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "varmenteen sulkutietoa ei saatu haettua"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "certifikatets spärrstatus kunde inte hämtas"
+          }
+        }
+      }
+    },
+    "dev.cause.revoked" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "a certificate in the chain is revoked"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "varmenneketjun varmenne on peruutettu"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ett certifikat i kedjan är spärrat"
+          }
+        }
+      }
+    },
+    "dev.cause.signatureTimestamp" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no valid signature timestamp was obtained"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "kelvollista allekirjoituksen aikaleimaa ei saatu"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ingen giltig tidsstämpel för signaturen erhölls"
+          }
+        }
+      }
+    },
+    "dev.cause.trustAnchor" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no trusted root certificate was available"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "luotettua juurivarmennetta ei ollut saatavilla"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "inget betrott rotcertifikat fanns tillgängligt"
+          }
+        }
+      }
+    },
     "error.attempts" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -272,6 +448,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "De valda dokumenten kunde inte läsas."
+          }
+        }
+      }
+    },
+    "error.issuer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The signature was made, but the material for long-term validation could not be collected: the issuer of the certificate could not be found. Nothing was saved."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allekirjoitus tehtiin, mutta pitkäaikaisen validoinnin aineistoa ei saatu kerättyä: varmenteen myöntäjää ei löytynyt. Mitään ei tallennettu."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signaturen skapades, men materialet för långtidsvalidering kunde inte samlas in: certifikatets utfärdare hittades inte. Ingenting sparades."
           }
         }
       }
@@ -880,6 +1078,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Signeringen misslyckades"
+          }
+        }
+      }
+    },
+    "error.trustAnchor" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No signed document was made: no trusted root certificate was available for this card's certificate, so the material for long-term validation could not be collected. The card was not asked to sign with Signature PIN 2."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allekirjoitettua asiakirjaa ei syntynyt: tämän kortin varmenteelle ei ollut saatavilla luotettua juurivarmennetta, joten pitkäaikaisen validoinnin aineistoa ei saatu kerättyä. Korttia ei pyydetty allekirjoittamaan allekirjoitustunnusluvulla 2."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inget signerat dokument skapades: inget betrott rotcertifikat fanns tillgängligt för kortets certifikat, så materialet för långtidsvalidering kunde inte samlas in. Kortet ombads inte att signera med signaturkod 2."
           }
         }
       }

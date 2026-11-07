@@ -94,14 +94,13 @@
               cardAccessNumber: nil
             )
           )
-          let destination = SignDocumentModel.destination(
-            for: source, at: product.signatureTimestampTime, format: .pades
-          )
+          let destination = Self.destination(of: product, beside: source)
           try product.bytes.write(to: destination, options: .atomic)
           box.record(
             line: "--sign-document: wrote \(destination.lastPathComponent), "
               + "\(product.bytes.count) bytes in "
-              + TraceTiming.milliseconds(started.duration(to: .now)) + " ms",
+              + TraceTiming.milliseconds(started.duration(to: .now)) + " ms"
+              + (product.completion.shortfall.map { " - " + $0.notice } ?? ""),
             succeeded: true
           )
         } catch {
@@ -113,6 +112,21 @@
       }
       semaphore.wait()
       return box.report
+    }
+
+    /// Where `product` is written: beside `source`, named by its
+    /// signature time and, below the long-term level, by its level.
+    private static func destination(
+      of product: DocumentSigner.Product,
+      beside source: URL
+    ) -> URL {
+      SignDocumentModel.destination(
+        for: source,
+        at: product.signatureTimestampTime,
+        format: .pades,
+        marker: product.completion.shortfall?.nameMarker
+          ?? SignedDocumentName.longTermMarker
+      )
     }
   }
 

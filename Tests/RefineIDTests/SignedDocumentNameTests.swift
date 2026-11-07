@@ -30,7 +30,7 @@
 
     @Test
     internal func aSignatureTimestampNamesTheOutput() throws {
-      let fixture = try DebugRevokedDocumentSigningFixture.make()
+      let fixture = try TimestampedPdfFixture.make()
       let generated = try RfcTimestamp.generationTime(in: fixture.timestampToken)
       let signed = SignedDocument(
         bytes: fixture.timestamped.bytes,
@@ -40,7 +40,10 @@
       #expect(signed.bestSignatureTime == generated)
       #expect(
         SignDocumentModel.suggestedName(
-          for: Self.source, format: .pades, at: signed.bestSignatureTime
+          for: Self.source,
+          format: .pades,
+          at: signed.bestSignatureTime,
+          marker: signed.nameMarker
         ) == "Agreement" + SignedDocumentName.suffix(at: generated) + ".pdf"
       )
     }
@@ -52,7 +55,8 @@
       let name = SignedDocumentName.suggested(
         sourceNames: ["Ledger.ods", "Notes.txt"],
         format: .asice,
-        at: signed.bestSignatureTime
+        at: signed.bestSignatureTime,
+        marker: signed.nameMarker
       )
       #expect(name.contains(SignedDocumentName.suffix(at: Self.clock)))
     }
@@ -61,7 +65,7 @@
     /// timestamp is named by the signature timestamp.
     @Test
     internal func aDocumentTimestampDoesNotNameTheOutput() throws {
-      let fixture = try DebugRevokedDocumentSigningFixture.make()
+      let fixture = try TimestampedPdfFixture.make()
       let signatureTime = try RfcTimestamp.generationTime(in: fixture.timestampToken)
       let formatter = Self.generalizedTimeFormatter()
       let documentTime = signatureTime.addingTimeInterval(Self.documentTimestampDelay)
@@ -86,7 +90,10 @@
       )
       #expect(signed.bestSignatureTime == signatureTime)
       let name = SignDocumentModel.suggestedName(
-        for: Self.source, format: .pades, at: signed.bestSignatureTime
+        for: Self.source,
+        format: .pades,
+        at: signed.bestSignatureTime,
+        marker: signed.nameMarker
       )
       #expect(name.contains(SignedDocumentName.suffix(at: signatureTime)))
       #expect(!name.contains(SignedDocumentName.suffix(at: documentTime)))

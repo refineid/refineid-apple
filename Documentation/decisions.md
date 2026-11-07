@@ -5,6 +5,38 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-11-08 Release builds make only long-term signatures
+
+Maintainer's rule, for every platform: "dev version can make non-LTA PDF
+documents but production version will only make LTA". `SignatureLevelPolicy`
+holds it, fixed at compile time: `longTermOnly` in Release and TestFlight,
+`highestReached` under `DEBUG`, which is the only build that compiles the
+second case and everything that saves below the long-term level.
+
+- Release: a signature whose validation material cannot be collected is
+  refused with its reason and nothing is saved. The long-term level is
+  PAdES-B-LTA for a PDF and XAdES-LT for an ASiC-E container. A signer
+  certificate whose path has no approved anchor (no issuing certificate
+  from the card in the cache) is refused before PIN 2: inside the card
+  session after the certificate read and before VERIFY, and on the RAPP
+  path before the phone is asked to sign. That check is exact for the
+  signer path, because the evidence walk anchors on the same lookup. A
+  missing issuer elsewhere, a revocation answer or a timestamp failure is
+  only known after the card signed.
+- Debug: the highest level reached is saved: B-T when the evidence or the
+  archive timestamp failed, B-B when the signature timestamp failed. The
+  holder is told it is a development-build document without long-term
+  validation material, at which level, and why. The name carries
+  `-dev-B-T` or `-dev-B-B` after the signing suffix. This replaces the
+  opt-in revoked-signer escape hatch, `--allow-revoked-signature-test`.
+
+STPA. Controller: the signing pipeline; control action: save a signed
+document; feedback: the evidence collector's result. UCA: a release build
+saves a signature that cannot be validated after its certificates expire,
+or a development document passes for a long-term one. CC: release refuses
+below the long-term level, before PIN 2 where the certificate decides it;
+a development document names its level in its file name and in the notice.
+
 ## 2026-11-07 The pairing's keys stay in the vault, and no notice ends a pairing
 
 The token configuration holds only the 16-byte pair identifier, on every

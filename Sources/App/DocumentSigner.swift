@@ -12,9 +12,10 @@ import Security
 /// prepared and taken first; its timestamp proves the signature
 /// existed; the validation material proves the chain was good; and
 /// the archive timestamp, taken last over everything, proves all of
-/// it existed before the algorithms or certificates age. Nothing
-/// below that level is offered: a signature that cannot outlive its
-/// certificates is not what this is for.
+/// it existed before the algorithms or certificates age. A release
+/// build offers nothing below that level: a signature that cannot
+/// outlive its certificates is not what this is for. A development
+/// build keeps the level it reached (`SignatureLevelPolicy`).
 internal enum DocumentSigner {
   // MARK: Nested Types
 
@@ -134,7 +135,17 @@ internal enum DocumentSigner {
       access: access
     )
     Self.report(.timestamp)
-    let verifiedTokens = try await Self.timestamped(material.signature)
+    let verifiedTokens: [TimestampTokenVerifier.VerifiedToken]
+    do {
+      verifiedTokens = try await Self.timestamped(material.signature)
+    } catch {
+      #if DEBUG
+        if SignatureLevelPolicy.forBuild.keepsBelowLongTerm {
+          return try Self.basic(material)
+        }
+      #endif
+      throw error
+    }
     let timestamped = try TimestampedSignature.verified(
       TimestampedSignatureInput(
         placeholder: material.placeholder,
@@ -145,34 +156,20 @@ internal enum DocumentSigner {
       ),
       timestampTokens: verifiedTokens
     )
-    let evidence: PdfValidationStore.Material
-    Self.report(.validation)
     do {
-      evidence = try await ValidationMaterialCollector.collect(
+      return try await Self.longTerm(
+        timestamped,
         signerCertificate: material.certificate,
         timestampTokens: verifiedTokens
       )
     } catch {
-      #if DEBUG && os(macOS)
-        if let product = DebugRevokedDocumentSigning.product(
-          timestamped: timestamped,
-          after: error,
-          enabled: DebugRevokedDocumentSigning.isEnabled()
-        ) {
-          return product
+      #if DEBUG
+        if SignatureLevelPolicy.forBuild.keepsBelowLongTerm {
+          return Self.timestampedOnly(timestamped, after: error)
         }
       #endif
-      throw Failure.validation(error)
+      throw error
     }
-    let withEvidence = try PdfValidationStore.appended(
-      to: timestamped.bytes, material: evidence
-    )
-    Self.report(.timestamp)
-    let archived = try await Self.archiveTimestamped(withEvidence)
-    #if DEBUG
-      Self.phaseTrace("archived")
-    #endif
-    return Product(bytes: archived, completion: .archival, signature: timestamped)
   }
 
   /// Reads the qualified certificate, verifies PIN2 and signs, in
@@ -220,6 +217,9 @@ internal enum DocumentSigner {
     case .signerCertificateMismatch:
       throw Failure.stampSignerChanged
 
+    case .longTermUnavailable(let refusal):
+      throw Failure.validation(refusal)
+
     case .signed(let product):
       return CardMaterial(
         placeholder: prepared,
@@ -245,26 +245,6 @@ internal enum DocumentSigner {
       return [
         try await TimestampClient.token(over: imprint)
       ]
-    } catch {
-      throw Failure.network(error)
-    }
-  }
-
-  /// The archive timestamp over the finished file.
-  private static func archiveTimestamped(_ document: Data) async throws -> Data {
-    let prepared: PdfSignaturePlaceholder
-    do {
-      prepared = try PdfIncrementalSigner.prepare(
-        document, revision: .documentTimestamp
-      )
-    } catch let error as PdfSigningError {
-      throw Failure.document(error)
-    }
-    do {
-      let token = try await TimestampClient.token(over: prepared.digest(.sha384))
-      return try prepared.filled(with: token.token)
-    } catch let error as PdfSigningError {
-      throw Failure.document(error)
     } catch {
       throw Failure.network(error)
     }

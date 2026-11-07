@@ -50,12 +50,6 @@
                 .disabled(!acceptsEntry)
             }
           #endif
-          #if DEBUG
-            if DebugRevokedDocumentSigning.isEnabled() {
-              Text(DebugRevokedDocumentSigning.armedWarning)
-                .foregroundStyle(.orange)
-            }
-          #endif
           actionRow
         }
         .onAppear { if asksLocalPin2, acceptsEntry { pinFocused = true } }
