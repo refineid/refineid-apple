@@ -160,7 +160,9 @@ internal struct CredentialResetBothSection: View {
       enabled: isComplete
         && model.canContactCard
         && model.allowsCredentialOperation(spending: .puk)
-        && !model.cardOperationInProgress
+        && !model.cardOperationInProgress,
+      blockedReason: isComplete
+        ? model.blockedReason(presenting: .puk, spending: .puk) : nil
     ) {
       focus = nil
       pending = .unblockBoth

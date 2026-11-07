@@ -123,7 +123,8 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   card's answer reaches the holder as blocked, with the PUK as the way
   back. The counter row may read a credential as blocked before any
   prompt, as information, since that reading sends no credential; no
-  button is disabled by it.
+  button is disabled by it. A button that is off while every entry is valid
+  says why beside it, in the words the refusal itself uses.
 - **Development builds show errors.** Every failure path reports to
   `DevErrorLog`: the Errors window on the Mac, the error pill and the
   Diagnostics screen on iPhone and iPad. TestFlight and Release builds

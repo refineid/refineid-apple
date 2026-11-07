@@ -1,8 +1,9 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-import CardCore
 import Foundation
 import Testing
+
+@testable import CardCore
 
 /// The credential flows on the organization card, driven through
 /// `CardOperations` over a scripted channel: bare typed-length blocks
@@ -17,6 +18,11 @@ internal struct OrganizationCredentialTests {
     ("0020001100", "6A88"),
     ("0020000300", "63C5"),
   ]
+
+  /// A command's wire form, as the script spells it.
+  private static func hex(_ command: CommandApdu) -> String {
+    command.encoded.map { String(format: "%02X", $0) }.joined()
+  }
 
   @Test
   internal func verifyPin1SendsTheBareTypedBlock() throws {
@@ -114,6 +120,8 @@ internal struct OrganizationCredentialTests {
   internal func unblockPin2TargetsThePinSigObject() throws {
     let channel = ScriptedChannel(
       [
+        (Self.hex(.selectFile(.mainFile, selectionP1: Iso7816Values.selectByFileIdP1)), "9000"),
+        (Self.hex(.selectApplication(.esignDirectory)), "9000"),
         ("00200012083132333435363738", "9000"),
         ("002C020406363534333231", "9000"),
       ]

@@ -49,6 +49,18 @@ public enum OrganizationCardOpening {
     try Self.opened(over: channel, password: PacePassword(pin2: pin), role: .pin2)
   }
 
+  /// PACE with the PUK; the card stays at the main file.
+  ///
+  /// A PIN is reset on this channel with the handshake as the proof, and
+  /// the PUK is not sent again (FINEID S4-2 v4.0 section 4.3; BSI TR-03110-3
+  /// section B.7.1).
+  public static func puk(
+    over channel: any CardChannel,
+    _ puk: consuming PukTransmission
+  ) throws -> Opened {
+    try Self.opened(over: channel, password: PacePassword(puk: puk), role: .puk)
+  }
+
   private static func opened(
     over channel: any CardChannel,
     password: consuming PacePassword,
@@ -60,7 +72,7 @@ public enum OrganizationCardOpening {
     }
     let secure = SecureMessagingChannel(wrapping: channel, sessionKeys: established.keys)
     return Opened(
-      operations: CardOperations(channel: secure, openedWith: role),
+      operations: CardOperations(channel: secure, openedWith: role, plainChannel: channel),
       pinState: pinState)
   }
 }

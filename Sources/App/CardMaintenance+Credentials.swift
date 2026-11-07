@@ -26,6 +26,9 @@ extension CardMaintenance {
   private struct CredentialFloor {
     fileprivate let role: CredentialRole
     fileprivate let confirming: CredentialRole
+    /// The credential as typed, which opens an organization card on an
+    /// antenna.
+    fileprivate let channelPin: ChannelPin
   }
 
   internal static func snapshot(
@@ -96,7 +99,7 @@ extension CardMaintenance {
       return await DemoMode.shared.changePIN1(current: current, new: new)
     }
     return await withFloor(
-      CredentialFloor(role: .pin1, confirming: .pin1),
+      CredentialFloor(role: .pin1, confirming: .pin1, channelPin: .pin1(current)),
       transport: transport,
       cardAccessNumber: cardAccessNumber,
       operation: .changePin1
@@ -130,7 +133,7 @@ extension CardMaintenance {
       return await DemoMode.shared.changePIN2(current: current, new: new)
     }
     return await withFloor(
-      CredentialFloor(role: .pin2, confirming: .pin2),
+      CredentialFloor(role: .pin2, confirming: .pin2, channelPin: .pin2(current)),
       transport: transport,
       cardAccessNumber: cardAccessNumber,
       operation: .changePin2
@@ -164,7 +167,7 @@ extension CardMaintenance {
       return await DemoMode.shared.resetPIN1(puk: puk, new: new)
     }
     return await withFloor(
-      CredentialFloor(role: .puk, confirming: .pin1),
+      CredentialFloor(role: .puk, confirming: .pin1, channelPin: .puk(puk)),
       transport: transport,
       cardAccessNumber: cardAccessNumber,
       operation: .resetPin1
@@ -173,6 +176,11 @@ extension CardMaintenance {
         return .invalidEntry
       }
       do {
+        if operations.channelPin == .puk {
+          try operations.resetPin1OnPukChannel(
+            new: pin.consumeForSingleTransmission(), lengths: lengths)
+          return .success
+        }
         try operations.unblockPin1(
           puk: key.consumeForSingleTransmission(),
           new: pin.consumeForSingleTransmission(),
@@ -195,7 +203,7 @@ extension CardMaintenance {
       return await DemoMode.shared.resetPIN2(puk: puk, new: new)
     }
     return await withFloor(
-      CredentialFloor(role: .puk, confirming: .pin2),
+      CredentialFloor(role: .puk, confirming: .pin2, channelPin: .puk(puk)),
       transport: transport,
       cardAccessNumber: cardAccessNumber,
       operation: .resetPin2
@@ -204,6 +212,11 @@ extension CardMaintenance {
         return .invalidEntry
       }
       do {
+        if operations.channelPin == .puk {
+          try operations.resetPin2OnPukChannel(
+            new: pin.consumeForSingleTransmission(), lengths: lengths)
+          return .success
+        }
         try operations.unblockPin2(
           puk: key.consumeForSingleTransmission(),
           new: pin.consumeForSingleTransmission(),
@@ -216,6 +229,11 @@ extension CardMaintenance {
     }
   }
 
+  /// One PIN change or reset in one session.
+  ///
+  /// A failed opening of an organization card on an antenna still reads
+  /// the card's counters, so the form never shows a count from before the
+  /// try it spent.
   private static func withFloor(
     _ floor: CredentialFloor,
     transport: Transport,
@@ -225,7 +243,15 @@ extension CardMaintenance {
   ) async -> MutationReport {
     let result = await onCard(
       transport: transport,
-      opener: .cardAccessNumber(cardAccessNumber),
+      opener: .pin(floor.channelPin, cardAccessNumber: cardAccessNumber) { outcome, plain in
+        MutationReport(
+          outcome: outcome,
+          snapshot: Snapshot(
+            report: try? plain.probeCredentials(),
+            activationNeeds: nil,
+            activation: nil,
+            pinLengths: nil))
+      },
       operation: operation,
       failedStep: Self.failedStep(of:)
     ) { operations -> MutationReport in
@@ -266,11 +292,14 @@ extension CardMaintenance {
   ///
   /// Refused at two or one tries left and at an unreadable counter; at
   /// none left or blocked the card answers for itself and spends nothing,
-  /// and the software does not close a recovery the card would allow.
+  /// and the software does not close a recovery the card would allow. A
+  /// channel this credential opened has passed the floor already, on the
+  /// state MSE:Set AT reported before the handshake.
   internal static func floorRefusal(
     presenting role: CredentialRole,
     on operations: CardOperations
   ) -> Outcome? {
+    guard operations.channelPin != role else { return nil }
     guard let probe = try? operations.probeRetryCounter(role: role) else {
       return .floorRefused(.refuseUnreadable)
     }
@@ -330,10 +359,21 @@ extension CardMaintenance {
 
   /// The card's state over `operations`, carrying the `pinLengths` this
   /// session read.
+  ///
+  /// A channel a credential opened is read last and for its counters only:
+  /// the plain command that reads them ends the channel, and a card opened
+  /// that way is judged by the counters, as its plain snapshot is.
   internal static func snapshot(
     on operations: CardOperations,
     pinLengths: CardPinLengths?
   ) -> Snapshot {
+    if operations.channelPin != nil {
+      return Snapshot(
+        report: try? operations.credentialsAfterChannel(),
+        activationNeeds: nil,
+        activation: nil,
+        pinLengths: pinLengths)
+    }
     let activation = operations.activationClassification()
     let needs = activation.map { classified in
       operations.activationNeeds(scheme: classified.scheme)

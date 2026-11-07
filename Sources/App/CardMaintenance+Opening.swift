@@ -6,20 +6,22 @@ import Foundation
 /// Opening the card for one operation: in the clear, or with PACE and the
 /// card access number or the operation's PIN.
 extension CardMaintenance {
-  /// The PIN an operation spends, offered to open an organization card on
-  /// an antenna: such a card opens its PACE channel with PIN 1 or PIN 2 in
-  /// place of a card access number (FINEID S1 v4.0, organizational cards,
-  /// section 2.1), and a completed PACE counts as that PIN verified.
+  /// The credential an operation spends, offered to open an organization
+  /// card on an antenna: such a card opens its PACE channel with PIN 1,
+  /// PIN 2 or the PUK in place of a card access number (FINEID S1 v4.0,
+  /// organizational cards, section 2.1; FINEID S4-2 v4.0 sections 4.2 and
+  /// 6), and a completed PACE counts as that credential verified.
   internal enum ChannelPin: Sendable {
     case pin1(String)
     case pin2(String)
+    case puk(String)
   }
 
   /// What opens a sealed card for one operation.
   ///
   /// A citizen card on an antenna opens with its card access number; an
-  /// organization card there opens with the PIN the operation spends, and
-  /// `refused` answers the operation when the card refuses that PIN.
+  /// organization card there opens with the credential the operation
+  /// spends, and `refused` answers the operation when the card refuses it.
   internal struct CardOpener<Answer>: Sendable {
     /// The card access number offered, or nil for the one in memory.
     internal let cardAccessNumber: String?
@@ -27,8 +29,9 @@ extension CardMaintenance {
     /// The PIN the operation spends, offered to an organization card.
     internal let channelPin: ChannelPin?
 
-    /// The operation's answer to a refused PIN.
-    internal let refused: (@Sendable (Outcome) -> Answer)?
+    /// The operation's answer to a refused credential, given the plain
+    /// operations the card's state can still be read over.
+    internal let refused: (@Sendable (Outcome, CardOperations) -> Answer)?
 
     /// The card access number alone.
     internal static func cardAccessNumber(_ digits: String?) -> Self {
@@ -39,19 +42,23 @@ extension CardMaintenance {
     internal static func pin(
       _ pin: ChannelPin,
       cardAccessNumber digits: String?,
-      refused: @escaping @Sendable (Outcome) -> Answer
+      refused: @escaping @Sendable (Outcome, CardOperations) -> Answer
     ) -> Self {
       Self(cardAccessNumber: digits, channelPin: pin, refused: refused)
     }
   }
+
+  /// An entry its credential's type does not accept; nothing was sent.
+  private struct ChannelEntryRefused: Error {}
 
   /// What opening the card for an operation came to.
   internal enum Opening {
     /// The card answers through these operations.
     case opened(CardOperations)
 
-    /// The card refused the offered PIN, at the floor or at the handshake.
-    case refused(Outcome)
+    /// The card refused the offered credential, at the floor or at the
+    /// handshake; the plain operations still reach the card.
+    case refused(Outcome, CardOperations)
 
     /// No channel could be opened.
     case unavailable
@@ -61,15 +68,15 @@ extension CardMaintenance {
   /// refused PIN, and nothing when no channel opened.
   internal static func answer<Answer>(
     _ opening: Opening,
-    refused: ((Outcome) -> Answer)?,
+    refused: ((Outcome, CardOperations) -> Answer)?,
     _ work: (CardOperations) -> Answer?
   ) -> Answer? {
     switch opening {
     case .opened(let operations):
       work(operations)
 
-    case .refused(let outcome):
-      refused?(outcome)
+    case .refused(let outcome, let plain):
+      refused?(outcome, plain)
 
     case .unavailable:
       nil
@@ -170,46 +177,85 @@ extension CardMaintenance {
     return .opened(secureOperations)
   }
 
-  /// PACE with the operation's PIN, the retry floor applied to the state
-  /// MSE:Set AT reports before any try is spent.
+  /// PACE with the operation's credential, the retry floor applied to the
+  /// state MSE:Set AT reports before any try is spent.
   private static func pinOpenedOperations(
     over channel: any CardChannel,
     pin: ChannelPin
   ) -> Opening {
+    let plain = CardOperations(channel: channel)
     let role: CredentialRole
     let established: PaceEstablishment.Established
     do {
-      switch pin {
-      case .pin1(let digits):
-        guard let credential = Pin1(digits: digits) else { return .refused(.invalidEntry) }
-        role = .pin1
-        established = try PaceEstablishment(channel: channel)
-          .establish(with: PacePassword(pin1: credential.consumeForSingleTransmission()))
-
-      case .pin2(let digits):
-        guard let credential = Pin2(digits: digits) else { return .refused(.invalidEntry) }
-        role = .pin2
-        established = try PaceEstablishment(channel: channel)
-          .establish(with: PacePassword(pin2: credential.consumeForSingleTransmission()))
-      }
-    } catch PaceEstablishment.Failure.credentialBlocked {
-      return .refused(.pinBlocked)
-    } catch PaceEstablishment.Failure.retryFloorRefused(let verdict, _) {
-      return .refused(.floorRefused(verdict))
-    } catch PaceEstablishment.Failure.passwordDeactivated {
-      return .refused(.invalidated)
-    } catch PaceEstablishment.Failure.wrongPin(let remaining) {
-      return .refused(remaining.isBlocked ? .pinBlocked : .rejected(remaining: remaining))
+      (role, established) = try establishedChannel(over: channel, pin: pin)
     } catch {
-      return .refused(.failed)
+      return .refused(paceRefusal(error), plain)
     }
     let secure = SecureMessagingChannel(wrapping: channel, sessionKeys: established.keys)
-    let operations = CardOperations(channel: secure, openedWith: role)
-    // PIN 2's service is DF.ESIGN, which the operation selects from the
-    // main file where PACE leaves the card; PIN 1's is the application.
-    guard role == .pin2 || (try? operations.selectFineidApplication()) != nil else {
-      return .refused(.failed)
+    let operations = CardOperations(channel: secure, openedWith: role, plainChannel: channel)
+    // PIN 2's service is DF.ESIGN and the PUK's is a reset that selects
+    // what it needs, both from the main file where PACE leaves the card;
+    // PIN 1's is the application.
+    guard role != .pin1 || (try? operations.selectFineidApplication()) != nil else {
+      return .refused(.failed, plain)
     }
     return .opened(operations)
+  }
+
+  /// One PACE run with `pin`, or ``ChannelEntryRefused`` for an entry its
+  /// credential's type does not accept.
+  private static func establishedChannel(
+    over channel: any CardChannel,
+    pin: ChannelPin
+  ) throws -> (CredentialRole, PaceEstablishment.Established) {
+    let establishment = PaceEstablishment(channel: channel)
+    switch pin {
+    case .pin1(let digits):
+      guard let credential = Pin1(digits: digits) else { throw ChannelEntryRefused() }
+      return (
+        .pin1,
+        try establishment.establish(
+          with: PacePassword(pin1: credential.consumeForSingleTransmission()))
+      )
+
+    case .pin2(let digits):
+      guard let credential = Pin2(digits: digits) else { throw ChannelEntryRefused() }
+      return (
+        .pin2,
+        try establishment.establish(
+          with: PacePassword(pin2: credential.consumeForSingleTransmission()))
+      )
+
+    case .puk(let digits):
+      guard let credential = Puk(digits: digits) else { throw ChannelEntryRefused() }
+      return (
+        .puk,
+        try establishment.establish(
+          with: PacePassword(puk: credential.consumeForSingleTransmission()))
+      )
+    }
+  }
+
+  /// What a failed PACE run with a credential comes to.
+  private static func paceRefusal(_ error: any Error) -> Outcome {
+    switch error {
+    case is ChannelEntryRefused:
+      .invalidEntry
+
+    case PaceEstablishment.Failure.credentialBlocked:
+      .pinBlocked
+
+    case PaceEstablishment.Failure.retryFloorRefused(let verdict, _):
+      .floorRefused(verdict)
+
+    case PaceEstablishment.Failure.passwordDeactivated:
+      .invalidated
+
+    case PaceEstablishment.Failure.wrongPin(let remaining):
+      remaining.isBlocked ? .pinBlocked : .rejected(remaining: remaining)
+
+    default:
+      .failed
+    }
   }
 }
