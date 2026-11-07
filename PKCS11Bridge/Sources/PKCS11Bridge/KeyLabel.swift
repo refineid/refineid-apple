@@ -8,7 +8,7 @@ import Security
 ///
 /// One rule, every field verbatim: the base is "CN (card number)",
 /// e.g. "SURNAME GIVENNAME 99999999A (AB1234567)", and the signing
-/// profile appends the key name -- " - Signature (PIN 2)" -- so a
+/// profile appends the key name -- " - Signature PIN 2" -- so a
 /// key picker states which key it is; the authentication profile
 /// exposes a single key and needs no suffix. Surname-first CN scans
 /// and sorts in long certificate lists and matches how the platform

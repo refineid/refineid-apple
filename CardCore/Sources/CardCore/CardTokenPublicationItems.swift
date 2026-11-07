@@ -9,7 +9,7 @@
   public enum CardTokenPublicationItems {
     /// Safari's chooser title, matching the local reader token.
     public static var authenticationLabel: String {
-      String(localized: "Basic (PIN 1)")
+      String(localized: "Basic PIN 1")
     }
 
     /// Builds the keychain items published for browser authentication.

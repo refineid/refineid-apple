@@ -1319,28 +1319,6 @@
         }
       }
     },
-    "Basic (PIN 1)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Basic (PIN 1)"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Perus (PIN 1)"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Grund (PIN 1)"
-          }
-        }
-      }
-    },
     "CAN": {
       "localizations": {
         "fi": {
@@ -4946,28 +4924,6 @@
         }
       }
     },
-    "Signature (PIN 2)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Signature (PIN 2)"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Allekirjoitus (PIN 2)"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Signatur (PIN 2)"
-          }
-        }
-      }
-    },
     "Signing document…": {
       "localizations": {
         "fi": {
@@ -6990,13 +6946,13 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Perustunnusluku (PIN 1)"
+            "value": "Perus-PIN 1"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Grundkod (PIN 1)"
+            "value": "Bas-PIN 1"
           }
         }
       }
@@ -7006,13 +6962,13 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Allekirjoitustunnusluku (PIN 2)"
+            "value": "Allekirjoitus-PIN 2"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Signaturkod (PIN 2)"
+            "value": "Signatur-PIN 2"
           }
         }
       }
