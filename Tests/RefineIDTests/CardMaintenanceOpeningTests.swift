@@ -67,16 +67,32 @@
 
     /// A fictitious PIN 2.
     private static let pin2Digits = "2468"
+    private static let pukDigits = "13579246"
 
     @Test
     internal func anOrganizationCardWhoseSelectSucceedsGoesToPaceWithItsPin() {
       let card = ScriptedCard(application: .success)
       let opener = CardMaintenance.CardOpener<CardMaintenance.Outcome>.pin(
         .pin2(Self.pin2Digits), cardAccessNumber: nil
-      ) { outcome in outcome }
+      ) { outcome, _ in outcome }
       let opening = CardMaintenance.openedOperations(over: card, opener: opener)
       #expect(card.startedPace)
       #expect(!card.received(instruction: Iso7816Values.insVerify))
+      if case .opened = opening {
+        Issue.record("A card refusing its reads before PACE was opened in the clear")
+      }
+    }
+
+    @Test
+    internal func anOrganizationCardGoesToPaceWithThePukAResetPresents() {
+      let card = ScriptedCard(application: .success)
+      let opener = CardMaintenance.CardOpener<CardMaintenance.Outcome>.pin(
+        .puk(Self.pukDigits), cardAccessNumber: nil
+      ) { outcome, _ in outcome }
+      let opening = CardMaintenance.openedOperations(over: card, opener: opener)
+      #expect(card.startedPace)
+      #expect(!card.received(instruction: Iso7816Values.insVerify))
+      #expect(!card.received(instruction: Iso7816Values.insResetRetryCounter))
       if case .opened = opening {
         Issue.record("A card refusing its reads before PACE was opened in the clear")
       }
@@ -87,7 +103,7 @@
       let card = ScriptedCard(application: .securityNotSatisfied)
       let opener = CardMaintenance.CardOpener<CardMaintenance.Outcome>.pin(
         .pin2(Self.pin2Digits), cardAccessNumber: nil
-      ) { outcome in outcome }
+      ) { outcome, _ in outcome }
       _ = CardMaintenance.openedOperations(over: card, opener: opener)
       #expect(!card.received(instruction: Iso7816Values.insVerify))
     }

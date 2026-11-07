@@ -82,10 +82,12 @@ internal struct CredentialUnblockSection: View {
           entryRows
         } footer: {
           resetButton
+          blockedReason
         }
       #else
         Section {
           entryRows
+          blockedReason
         }
         resetButton
       #endif
@@ -104,6 +106,12 @@ internal struct CredentialUnblockSection: View {
       reject: { _ in clearEntries() },
       confirm: { _ in unblock() }
     )
+  }
+
+  private var blockedReason: some View {
+    CredentialBlockedReason(
+      entriesAreComplete: isComplete,
+      reason: model.blockedReason(presenting: .puk, spending: .puk))
   }
 
   /// The action named with the credential's full name.

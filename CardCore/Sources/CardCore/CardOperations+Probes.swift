@@ -9,7 +9,9 @@ import Foundation
 /// status form (S1 v4.2 §3.5.1.1) and the GET DATA PIN-container
 /// (S1 v4.2 §3.15) both leave every counter untouched - which is what
 /// lets resolution ride on the same exchanges the retry floor already
-/// pays for.
+/// pays for. A card that refuses the VERIFY status form before PACE is
+/// read through MSE:Set AT instead (CardOperations+PasswordStates.swift),
+/// which spends no try either.
 extension CardOperations {
   /// Decodes a probe answer into the retry-state vocabulary.
   private static func classify(_ statusWord: StatusWord) -> RetryProbeOutcome {
@@ -97,9 +99,13 @@ extension CardOperations {
   private func probePinRetryCounter(role: CredentialRole) throws -> RetryProbeOutcome {
     if let known = referenceMemo.resolved {
       let response = try transmit(.readRetryCounter(role: role, references: known))
-      return Self.classify(response.statusWord)
+      return sealedReading(of: role, after: response.statusWord)
+        ?? Self.classify(response.statusWord)
     }
     let citizen = try transmit(.readRetryCounter(role: role, references: .citizen))
+    if let sealed = sealedReading(of: role, after: citizen.statusWord) {
+      return sealed
+    }
     guard citizen.statusWord == .referenceDataNotFound else {
       referenceMemo.resolved = .citizen
       return Self.classify(citizen.statusWord)
@@ -147,13 +153,18 @@ extension CardOperations {
     let response = try transmit(
       .readRetryCounter(role: .puk, references: .organization)
     )
-    return Self.classify(response.statusWord)
+    return sealedReading(of: .puk, after: response.statusWord)
+      ?? Self.classify(response.statusWord)
   }
 
   /// One citizen probe, and a second organization probe only when the
   /// citizen reference is absent.
   private func probeReferenceNumbering() throws -> CredentialReferenceSet {
     let citizen = try transmit(.readRetryCounter(role: .pin1, references: .citizen))
+    if let sealed = sealedReading(of: .pin1, after: citizen.statusWord) {
+      referenceMemo.probedRetryCounters[.pin1] = sealed
+      return .organization
+    }
     guard citizen.statusWord == .referenceDataNotFound else {
       let outcome = Self.classify(citizen.statusWord)
       referenceMemo.probedRetryCounters[.pin1] = outcome

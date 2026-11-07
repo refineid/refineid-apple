@@ -6,10 +6,10 @@ import Foundation
 /// needs it: the MSE:Set AT password reference and the nonce key.
 ///
 /// The citizen cards take the card access number printed on the card; the
-/// organization cards take PIN 1 or PIN 2 instead (FINEID S1 v4.0,
-/// organizational cards, section 2.1; FINEID S4-2 v4.0 section 6), under
-/// the card's own security-data-object references, the ones its VERIFY
-/// uses (S4-2 v4.0 section 4.2).
+/// organization cards take PIN 1, PIN 2 or the PUK instead (FINEID S1 v4.0,
+/// organizational cards, section 2.1; FINEID S4-2 v4.0 sections 4.2 and 6),
+/// under the card's own security-data-object references, the ones its
+/// VERIFY uses (S4-2 v4.0 section 4.2).
 ///
 /// The password never travels. Both sides derive the nonce key
 /// `K_pi = SHA-256(password || 00000003)` (BSI TR-03110-3 section A.2.3),
@@ -61,5 +61,14 @@ public struct PacePassword: ~Copyable {
     credential = .pin2
     spending = .entered
     key = PaceKeyDerivation.derivedKey(from: Data(pin2.store.bytes), for: .password)
+  }
+
+  /// The PUK of an organization card, the password a PIN is reset under
+  /// on the contactless interface (BSI TR-03110-3 section B.7.1).
+  public init(puk: consuming PukTransmission) {
+    reference = FineidValues.organizationReference(for: .puk)
+    credential = .puk
+    spending = .entered
+    key = PaceKeyDerivation.derivedKey(from: Data(puk.store.bytes), for: .password)
   }
 }

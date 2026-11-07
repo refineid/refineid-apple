@@ -116,3 +116,16 @@ yields its certificates before the holder types a PIN.
 - **Documents.** The window's document signing finds the card on the
   antenna by its `6985` and opens it with the PIN 2 typed for the
   signature, the same way.
+- **Retry counters.** Before PACE every counter is read by naming its
+  password reference in MSE:Set AT (PIN 1 `03`, PIN 2 `04`, PUK `12`).
+  The answer is the state (BSI TR-03110-3 section B.14.1) and no try is
+  spent. All three counters are read this way in the PIN codes window and
+  at insertion, and again after an operation, over the plain channel,
+  which ends the secure one. The one retry floor decides on this reading.
+- **PIN codes.** Each operation opens PACE with the credential it presents,
+  and the floor decides on the state MSE:Set AT answered. A PIN change
+  opens with the current PIN and sends CHANGE REFERENCE DATA with the
+  current and new PIN. A reset opens with the PUK and sends RESET RETRY
+  COUNTER with the new PIN only. PIN 2's commands run from DF.ESIGN.
+  Observed on an organization test card over a reader's antenna, for
+  both PINs and both operations, with every counter at 5 afterwards.

@@ -69,7 +69,7 @@ extension CardMaintenance {
     }
     let result = await onCard(
       transport: transport,
-      opener: .pin(.pin2(pin2), cardAccessNumber: cardAccessNumber) { outcome in
+      opener: .pin(.pin2(pin2), cardAccessNumber: cardAccessNumber) { outcome, _ in
         .refused(outcome)
       },
       operation: .signature,

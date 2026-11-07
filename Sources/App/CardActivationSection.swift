@@ -108,10 +108,8 @@ internal struct CardActivationSection: View {
     CardFormButton(
       title: "Activate Card",
       identifier: "managementActivate",
-      enabled: isComplete
-        && model.canContactCard
-        && model.allowsActivationOperation
-        && !model.cardOperationInProgress
+      enabled: isComplete && model.activationBlockedReason == nil,
+      blockedReason: isComplete ? model.activationBlockedReason : nil
     ) {
       focus = nil
       pending = .activate

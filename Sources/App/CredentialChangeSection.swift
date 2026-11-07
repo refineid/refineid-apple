@@ -105,10 +105,12 @@ internal struct CredentialChangeSection: View {
           entryRows
         } footer: {
           changeButton
+          blockedReason
         }
       #else
         Section {
           entryRows
+          blockedReason
         }
         changeButton
       #endif
@@ -136,6 +138,12 @@ internal struct CredentialChangeSection: View {
       reject: { _ in clearEntries() },
       confirm: { _ in change() }
     )
+  }
+
+  private var blockedReason: some View {
+    CredentialBlockedReason(
+      entriesAreComplete: isComplete,
+      reason: model.blockedReason(presenting: PresentedCredential(role), spending: role))
   }
 
   /// The action named with the credential's full name.

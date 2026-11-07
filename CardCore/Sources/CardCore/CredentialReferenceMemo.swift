@@ -16,4 +16,7 @@ internal final class CredentialReferenceMemo {
 
   /// Probed retry counter outcomes per role, cached for the lifetime of this session.
   internal var probedRetryCounters: [CredentialRole: RetryProbeOutcome] = [:]
+
+  /// The PACE suite password states are read under, once per session.
+  internal var passwordStateSuite: PaceInfo?
 }

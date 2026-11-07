@@ -41,7 +41,7 @@ extension CardMaintenance {
     }
     return await onCard(
       transport: transport,
-      opener: .cardAccessNumber(cardAccessNumber),
+      opener: activationOpener(request: request, cardAccessNumber: cardAccessNumber),
       operation: .activation,
       failedStep: Self.failedStep(of:)
     ) { operations -> ActivationExecution? in
@@ -69,6 +69,29 @@ extension CardMaintenance {
       )
     }
     .flatMap(\.self)
+  }
+
+  /// What opens the card for an activation.
+  ///
+  /// Under the activation-code scheme the code is the PUK, which opens an
+  /// organization card on an antenna (refineid-core
+  /// `doc/reference/pace.md`). The preset-PIN scheme is the citizen card's,
+  /// opened by its card access number.
+  private static func activationOpener(
+    request: ActivationRequest,
+    cardAccessNumber: String?
+  ) -> CardOpener<ActivationExecution?> {
+    switch request.scheme {
+    case .activationCodeIsPuk:
+      .pin(.puk(request.entry), cardAccessNumber: cardAccessNumber) { outcome, _ in
+        ActivationExecution(
+          activation: ActivationReport(scheme: request.scheme, pin1: outcome, pin2: nil),
+          remaining: request.needs)
+      }
+
+    case .presetActivationPin:
+      .cardAccessNumber(cardAccessNumber)
+    }
   }
 
   /// Where on the meter an activation broke: at the credential while any
@@ -145,6 +168,11 @@ extension CardMaintenance {
         return refusal
       }
       do {
+        if operations.channelPin == .puk {
+          try operations.resetPin1OnPukChannel(
+            new: pin.consumeForSingleTransmission(), lengths: lengths)
+          return .success
+        }
         try operations.unblockPin1(
           puk: code.consumeForSingleTransmission(),
           new: pin.consumeForSingleTransmission(),
@@ -191,6 +219,11 @@ extension CardMaintenance {
         return refusal
       }
       do {
+        if operations.channelPin == .puk {
+          try operations.resetPin2OnPukChannel(
+            new: pin.consumeForSingleTransmission(), lengths: lengths)
+          return .success
+        }
         try operations.unblockPin2(
           puk: code.consumeForSingleTransmission(),
           new: pin.consumeForSingleTransmission(),

@@ -140,6 +140,7 @@ extension CardOperations {
     try lengths.check(.pin2, digitCount: current.store.bytes.count)
     try lengths.check(.pin2, digitCount: new.store.bytes.count)
     let references = lengths.numbering
+    try enterPin2Directory(references)
     try performCredentialUpdate(
       CredentialBearingCommand.changePin2(
         current: current,
@@ -220,6 +221,7 @@ extension CardOperations {
       )
 
     case .organization:
+      try enterPin2Directory(references)
       try performOrganizationUnblock(
         verify: CredentialBearingCommand.verifyUnblockCredential(
           puk,
@@ -231,6 +233,43 @@ extension CardOperations {
         )
       )
     }
+  }
+
+  /// Resets PIN 1 on a channel PACE opened with the PUK.
+  ///
+  /// The handshake is the proof, and the command carries only the new PIN
+  /// (BSI TR-03110-3 section B.7.1; FINEID S4-2 v4.0 section 4.3). The PUK's
+  /// counter stays as it was, since no PUK is presented (refineid-core
+  /// `doc/reference/pace.md`, observed on hardware).
+  public func resetPin1OnPukChannel(
+    new: consuming Pin1Transmission,
+    lengths: CardPinLengths
+  ) throws {
+    try lengths.check(.pin1, digitCount: new.store.bytes.count)
+    try performCredentialUpdate(
+      CredentialBearingCommand.resetPin1AfterVerifiedUnblock(new: new, references: .organization)
+    )
+  }
+
+  /// Resets PIN 2 on a channel PACE opened with the PUK, from DF.ESIGN.
+  public func resetPin2OnPukChannel(
+    new: consuming Pin2Transmission,
+    lengths: CardPinLengths
+  ) throws {
+    try lengths.check(.pin2, digitCount: new.store.bytes.count)
+    try enterPin2Directory(.organization)
+    try performCredentialUpdate(
+      CredentialBearingCommand.resetPin2AfterVerifiedUnblock(new: new, references: .organization)
+    )
+  }
+
+  /// Makes DF.ESIGN current on the organization card.
+  ///
+  /// PIN 2's reference is local there (FINEID S4-2 v4.0 section 4.2). The
+  /// citizen card has no such directory.
+  private func enterPin2Directory(_ references: CredentialReferenceSet) throws {
+    guard references == .organization else { return }
+    try selectEsignDirectory()
   }
 
   /// Sends the organization card's two-command unblock in order,

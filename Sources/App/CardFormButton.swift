@@ -8,9 +8,21 @@ internal struct CardFormButton: View {
   internal let title: LocalizedStringKey
   internal let identifier: String
   internal let enabled: Bool
+
+  /// Why the button is off while every entry is valid; nil when it is not.
+  internal var blockedReason: String?
+
   internal let action: () -> Void
 
   internal var body: some View {
+    button
+    if let blockedReason {
+      CredentialOutcomeText(message: blockedReason, tone: .failure)
+        .accessibilityIdentifier("managementBlockedReason")
+    }
+  }
+
+  private var button: some View {
     Button(action: action) {
       Text(title)
         #if os(iOS)

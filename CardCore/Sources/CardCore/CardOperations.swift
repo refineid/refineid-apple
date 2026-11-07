@@ -34,10 +34,15 @@ public struct CardOperations {
   /// nothing on it probes or verifies the PIN again.
   public let channelPin: CredentialRole?
 
+  /// The plain transport under a channel a credential opened, the one the
+  /// card's password states are read over (``credentialsAfterChannel()``).
+  internal let plainChannel: (any CardChannel)?
+
   /// Wraps one exclusive session's transport.
   public init(channel: any CardChannel) {
     self.channel = channel
     self.channelPin = nil
+    self.plainChannel = nil
   }
 
   /// Wraps a secure channel PACE opened with an organization card's PIN.
@@ -45,9 +50,14 @@ public struct CardOperations {
   /// The PIN opened the channel under the organization numbering's
   /// security-data-object reference (FINEID S4-2 v4.0 section 6), which
   /// resolves the numbering for the session without a probe.
-  public init(channel: any CardChannel, openedWith pin: CredentialRole) {
+  public init(
+    channel: any CardChannel,
+    openedWith pin: CredentialRole,
+    plainChannel: (any CardChannel)? = nil
+  ) {
     self.channel = channel
     self.channelPin = pin
+    self.plainChannel = plainChannel
     referenceMemo.resolved = .organization
   }
 
