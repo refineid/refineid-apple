@@ -170,6 +170,21 @@ subject.
   unavailable, preserve a sanitized finding locally and report that it was
   not filed; never silently discard it.
 
+## Two implementations on purpose
+
+`CardCore` and `RappEngine` implement the card stack and the RAPP
+protocol in Swift although refineid-core implements them in Rust. That
+is the maintainer's design, not duplication to be removed: two
+implementations in two languages against one document and one set of
+conformance vectors show which parts of a protocol are specification
+and which are habit. Read
+[two-implementations.md](https://github.com/refineid/refineid-core/blob/main/doc/architecture/two-implementations.md)
+before proposing to move this repository onto the Rust crates. The
+obligations it brings: a wire change is finished only when both engines
+pass the regenerated vectors (`Documentation/rapp-conformance/` is a
+byte-identical copy of core's `doc/protocols/vectors/`), and the wire
+version triple moves with every change of wire vocabulary.
+
 ## Types and numbers
 
 Two rules from refineid-core bind this repository too: refinement types
