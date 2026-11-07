@@ -63,18 +63,35 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   *yhdistämiskoodi*. *Paritus*, *pariliitos* and *laitepari* are not used.
   Revocation-list evidence is labelled *sulkulista*; a revoked state is
   *mitätöity* and its time the *mitätöintiaika*.
-- **PIN names.** The codes take DVV's names: the basic PIN (*perus*,
-  *grund*) is PIN 1 and the signature PIN (*allekirjoitus*, *signatur*)
-  is PIN 2. The number is always written with a space, "PIN 1". In every
-  form, the field for a new code names it in full, "New basic PIN 1",
-  and the field that repeats it is "Repeat PIN 1". Where the language's
-  word is not "PIN", the number follows in brackets: "Uusi
-  perustunnusluku (PIN 1)", "Ny grundkod (PIN 1)".
+- **PIN names.** The codes take DVV's names: the basic PIN is PIN 1
+  and the signature PIN is PIN 2. Every user-facing name of a PIN, in
+  a field label, a heading, a button or a message, is the full name
+  with its number and no parentheses, in one vocabulary across every
+  RefineID app: "Basic PIN 1" and "Signature PIN 2", so "Current Basic
+  PIN 1", "New Basic PIN 1", "Basic PIN 1 again", "Change Basic PIN 1",
+  "Reset Signature PIN 2", "Enter Basic PIN 1". The number is always
+  written with a space. Finnish takes DVV's own words (dvv.fi,
+  PIN-tunnuslukujen hallinta), *perustunnusluku 1* and
+  *allekirjoitustunnusluku 2*, capitalised only at the start of a
+  label: "Nykyinen perustunnusluku 1", "Uusi perustunnusluku 1",
+  "Perustunnusluku 1 uudelleen", "Vaihda perustunnusluku 1", "Syötä
+  perustunnusluku 1". Swedish takes *grund PIN 1*, the preferred term
+  of the Finnish public-sector Certification vocabulary
+  (sanastot.suomi.fi, concept "basic PIN"), and DVV's *signaturkod 2*
+  (dvv.fi/sv, hantering av PIN-koder): "Nuvarande grund PIN 1", "Ny
+  grund PIN 1", "Grund PIN 1 igen", "Byt grund PIN 1", "Ange grund
+  PIN 1". The reasons: they are the issuer's own words; Kielitoimisto
+  needs no compound hyphen when the full word is written out, so the
+  number simply follows the name; and a number in parentheses reads
+  badly in a field label. Not used: "PIN 1 (basic)", "Basic PIN
+  (PIN 1)", "Signing PIN", "Perus-PIN", "grundkod", "grundläggande
+  kod", "Bas-PIN", a bare "PIN 1" in Finnish prose, and any number in
+  parentheses. The PUK is "PUK" in every language.
   The activation form, titled "Identity card activation" ("Organisation
   card activation" for an organization card), has three
   groups, headed "Activation PIN", "Basic PIN 1" and "Signature PIN 2"
   (Finnish "Perustunnusluku 1"), so a filled field still says what
-  it holds. "Basic PIN 1" (Finnish "Perustunnusluku 1", Swedish "Grundläggande kod 1")
+  it holds. "Basic PIN 1" (Finnish "Perustunnusluku 1", Swedish "Grund PIN 1")
   and "Signature PIN 2" ("Allekirjoitustunnusluku 2", "Signaturkod 2") are
   also the credential names the PIN prompts take and the token label
   Safari and the system show, without parentheses, as refineid-core's

@@ -30,13 +30,13 @@ internal struct ScsPinPromptTests {
     switch language {
     case "fi":
       ExpectedLabels(
-        basic: "Sy\u{00F6}t\u{00E4} Perustunnusluku 1",
-        signature: "Sy\u{00F6}t\u{00E4} Allekirjoitustunnusluku 2",
+        basic: "Sy\u{00F6}t\u{00E4} perustunnusluku 1",
+        signature: "Sy\u{00F6}t\u{00E4} allekirjoitustunnusluku 2",
         sign: "Allekirjoita", cancel: "Peruuta",
         digestLine: "Tiiviste (SHA256): \(printedDigest)")
     case "sv":
       ExpectedLabels(
-        basic: "Ange Grundläggande kod 1", signature: "Ange Signaturkod 2",
+        basic: "Ange grund PIN 1", signature: "Ange signaturkod 2",
         sign: "Signera", cancel: "Avbryt",
         digestLine: "Digest (SHA256): \(printedDigest)")
     default:

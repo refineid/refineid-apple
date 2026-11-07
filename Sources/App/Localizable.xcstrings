@@ -794,25 +794,53 @@
         }
       }
     },
-    "Enter %@": {
+    "Enter Basic PIN 1": {
       "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enter %1$@"
-          }
-        },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Syötä %1$@"
+            "value": "Syötä perustunnusluku 1"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ange %1$@"
+            "value": "Ange grund PIN 1"
+          }
+        }
+      }
+    },
+    "Enter Signature PIN 2": {
+      "extractionState": "manual",
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Syötä allekirjoitustunnusluku 2"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ange signaturkod 2"
+          }
+        }
+      }
+    },
+    "Enter PUK": {
+      "extractionState": "manual",
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Syötä PUK"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ange PUK"
           }
         }
       }
@@ -1724,13 +1752,13 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vaihda perustunnusluku (PIN 1)"
+            "value": "Vaihda perustunnusluku 1"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Byt grundkod (PIN 1)"
+            "value": "Byt grund PIN 1"
           }
         }
       }
@@ -1784,13 +1812,13 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vaihda allekirjoitustunnusluku (PIN 2)"
+            "value": "Vaihda allekirjoitustunnusluku 2"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Byt signaturkod (PIN 2)"
+            "value": "Byt signaturkod 2"
           }
         }
       }
@@ -2248,18 +2276,34 @@
         }
       }
     },
-    "Current %@": {
+    "Current Basic PIN 1": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nykyinen %@"
+            "value": "Nykyinen perustunnusluku 1"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nuvarande %@"
+            "value": "Nuvarande grund PIN 1"
+          }
+        }
+      }
+    },
+    "Current Signature PIN 2": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nykyinen allekirjoitustunnusluku 2"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nuvarande signaturkod 2"
           }
         }
       }
@@ -3050,66 +3094,66 @@
         }
       }
     },
-    "New basic PIN 1": {
+    "New Basic PIN 1": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Uusi perustunnusluku (PIN 1)"
+            "value": "Uusi perustunnusluku 1"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ny grundkod (PIN 1)"
+            "value": "Ny grund PIN 1"
           }
         }
       }
     },
-    "Repeat PIN 1": {
+    "Basic PIN 1 again": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Toista PIN 1"
+            "value": "Perustunnusluku 1 uudelleen"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Upprepa PIN 1"
+            "value": "Grund PIN 1 igen"
           }
         }
       }
     },
-    "New signature PIN 2": {
+    "New Signature PIN 2": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Uusi allekirjoitustunnusluku (PIN 2)"
+            "value": "Uusi allekirjoitustunnusluku 2"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ny signaturkod (PIN 2)"
+            "value": "Ny signaturkod 2"
           }
         }
       }
     },
-    "Repeat PIN 2": {
+    "Signature PIN 2 again": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Toista PIN 2"
+            "value": "Allekirjoitustunnusluku 2 uudelleen"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Upprepa PIN 2"
+            "value": "Signaturkod 2 igen"
           }
         }
       }
@@ -3371,13 +3415,13 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Perustunnuslukua (PIN 1) ei voitu tarkistaa turvallisesti."
+            "value": "Perustunnuslukua 1 ei voitu tarkistaa turvallisesti."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Grundkoden (PIN 1) kunde inte kontrolleras säkert."
+            "value": "Grund PIN 1 kunde inte kontrolleras säkert."
           }
         }
       }
@@ -3393,13 +3437,13 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Perustunnusluvussa (PIN 1) on väärä määrä numeroita."
+            "value": "Perustunnusluvussa 1 on väärä määrä numeroita."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Grundkoden (PIN 1) har fel antal siffror."
+            "value": "Grund PIN 1 har fel antal siffror."
           }
         }
       }
@@ -4506,13 +4550,13 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Palauta perustunnusluku (PIN 1)"
+            "value": "Palauta perustunnusluku 1"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Återställ grundkod (PIN 1)"
+            "value": "Återställ grund PIN 1"
           }
         }
       }
@@ -4600,13 +4644,13 @@
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Palauta allekirjoitustunnusluku (PIN 2)"
+            "value": "Palauta allekirjoitustunnusluku 2"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Återställ signaturkod (PIN 2)"
+            "value": "Återställ signaturkod 2"
           }
         }
       }
@@ -6050,28 +6094,6 @@
         }
       }
     },
-    "basic PIN": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "basic PIN"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "perustunnusluku"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "grundkod"
-          }
-        }
-      }
-    },
     "blocked": {
       "localizations": {
         "fi": {
@@ -6180,28 +6202,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "inget valt"
-          }
-        }
-      }
-    },
-    "signature PIN": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "signature PIN"
-          }
-        },
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "allekirjoitustunnusluku"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "signaturkod"
           }
         }
       }
@@ -6952,7 +6952,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Grundläggande kod 1"
+            "value": "Grund PIN 1"
           }
         }
       }
