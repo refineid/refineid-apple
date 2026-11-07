@@ -7,7 +7,8 @@
 set -eu
 
 msg="$1"
-if grep -qiE '^(Co-authored-by|Signed-off-by|Reviewed-by|Acked-by|Tested-by|Reported-by):' "$msg"; then
+if grep -qiE '^(Co-authored-by|Signed-off-by|Reviewed-by|Acked-by|Tested-by|Reported-by):' "$msg" \
+    || grep -qi 'Generated with \[Claude Code\]' "$msg"; then
     echo "commit-msg: GOLDEN RULE — commit trailers forbidden." >&2
     echo "No Co-authored-by for any AI." >&2
     echo "Subject + body only. Disable IDE --trailer injection." >&2
