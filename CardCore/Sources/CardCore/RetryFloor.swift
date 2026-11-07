@@ -5,11 +5,15 @@
 ///
 /// A credential is presented only with at least
 /// `minimumAttemptsToProceed` attempts left, or when it is already
-/// verified. One or two attempts left, a blocked credential and an
-/// unreadable counter are refused: RefineID never spends an attempt that
-/// could block the card. Each operation judges the credential it presents,
-/// so a reset presents the PUK and is judged on the PUK's counter whatever
-/// the PIN it resets shows.
+/// verified. One or two attempts left and an unreadable counter are
+/// refused: RefineID never spends an attempt that could block the card.
+/// A blocked PIN is refused too. A blocked PUK, or one at no tries left,
+/// goes to the card (`evaluate(probeOutcome:presenting:)`): the card
+/// answers for itself and spends nothing, and the software cannot know
+/// whether the code in the holder's hand is a PUK or an activation code,
+/// so it must not close a recovery the card would allow. Each operation
+/// judges the credential it presents, so a reset presents the PUK and is
+/// judged on the PUK's counter whatever the PIN it resets shows.
 public enum RetryFloor {
   private enum Constants {
     static let minimumAttemptsToProceed: UInt8 = 3
@@ -64,5 +68,20 @@ public enum RetryFloor {
     case .invalidated, .noInformation, .other:
       return .refuseUnreadable
     }
+  }
+
+  /// Decides for the credential `role` presents.
+  ///
+  /// PIN 1 and PIN 2 take the floor as it stands. The PUK is refused at
+  /// one or two tries left and at an unreadable counter, but at no
+  /// tries left or blocked the operation proceeds to the card, which
+  /// refuses by itself without spending anything.
+  public static func evaluate(
+    probeOutcome: RetryProbeOutcome,
+    presenting role: CredentialRole
+  ) -> RetryFloorVerdict {
+    let verdict = evaluate(probeOutcome: probeOutcome)
+    guard role == .puk, verdict == .refuseBlocked else { return verdict }
+    return .proceed
   }
 }

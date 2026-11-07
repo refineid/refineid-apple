@@ -58,6 +58,45 @@ internal struct RetryFloorPolicyTests {
   }
 
   @Test
+  internal func thePukAtNoTriesLeftGoesToTheCard() throws {
+    // The PUK is judged for the credential it is: one or two tries
+    // left and an unreadable counter refuse as for a PIN, but none
+    // left or blocked proceed. The card answers for itself and spends
+    // nothing, and the software cannot tell a PUK from an activation
+    // code in the holder's hand, so it must not close a recovery the
+    // card would allow.
+    let none = try #require(RetryCount(attemptsRemaining: 0))
+    #expect(RetryFloor.evaluate(probeOutcome: .remaining(none), presenting: .puk) == .proceed)
+    #expect(RetryFloor.evaluate(probeOutcome: .locked, presenting: .puk) == .proceed)
+    for remaining in [UInt8(1), 2] {
+      let count = try #require(RetryCount(attemptsRemaining: remaining))
+      #expect(
+        RetryFloor.evaluate(probeOutcome: .remaining(count), presenting: .puk)
+          == .refuseLowAttempts)
+    }
+    for remaining in [UInt8(3), 4, 5] {
+      let count = try #require(RetryCount(attemptsRemaining: remaining))
+      #expect(RetryFloor.evaluate(probeOutcome: .remaining(count), presenting: .puk) == .proceed)
+    }
+    #expect(RetryFloor.evaluate(probeOutcome: .verified, presenting: .puk) == .proceed)
+    for unreadable in [RetryProbeOutcome.noInformation, .other(0), .invalidated] {
+      #expect(RetryFloor.evaluate(probeOutcome: unreadable, presenting: .puk) == .refuseUnreadable)
+    }
+  }
+
+  @Test
+  internal func aPinAtNoTriesLeftStaysRefused() throws {
+    // The PIN floor is unchanged: a blocked PIN is refused before the
+    // card is asked, and the PUK resets it.
+    let none = try #require(RetryCount(attemptsRemaining: 0))
+    for role in [CredentialRole.pin1, .pin2] {
+      #expect(
+        RetryFloor.evaluate(probeOutcome: .remaining(none), presenting: role) == .refuseBlocked)
+      #expect(RetryFloor.evaluate(probeOutcome: .locked, presenting: role) == .refuseBlocked)
+    }
+  }
+
+  @Test
   internal func eachCredentialIsJudgedOnItsOwnCounter() throws {
     // The three counters are never combined. A PUK with room is what
     // permits an unblock, whatever the blocked PIN says; a PIN2 near
