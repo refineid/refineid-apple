@@ -110,6 +110,14 @@ Counts are how often each is cited across this tree.
 - **RFC 3161** (`rfc3161`, 33) — Time-Stamp Protocol.
 - **RFC 6960** (`rfc6960`, 15) — OCSP.
 - **RFC 5652** (`rfc5652`, 10) — Cryptographic Message Syntax.
+- **ETSI TS 119 612** (`etsi_ts_119_612`) — trusted lists: what
+  `TrustedLists` reads, signature profile (annex B) and statuses (annex
+  D.5.6, annex J). It does not say which lists a relying party should
+  trust; the Official Journal notice OJ C, C/2026/1944 names the signers
+  of the list of the lists.
+- **W3C Canonical XML 1.0 and 1.1, Exclusive XML Canonicalization 1.0,
+  XML Signature 1.1** (`w3c_xml_signature`) — what `XmlCanonicalizer` and
+  `TrustedListSignature` compute.
 - **ETSI EN 319 162** and siblings (`etsi_aades`) — ASiC and the AdES
   format family. **eIDAS** (`eidas910_2014`) — what "qualified" means in
   law; cite it for the definition, never as proof that an

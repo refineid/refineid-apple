@@ -57,7 +57,8 @@ internal struct NetworkContractTests {
 
   /// Every file that can open a connection or accept one.
   ///
-  /// Signing fetches timestamps and revocation material; the relay,
+  /// Signing fetches timestamps and revocation material, and
+  /// `SigningNetwork` also fetches the EU trusted lists; the relay,
   /// discovery, and server files serve remote card and signing
   /// service builds; the probes are debug-only; the detector runs a
   /// link-local Bonjour self-check; the Mac's permission watch browses
