@@ -59,6 +59,11 @@ extension RefineIDApp {
       #endif
 
       let vault = RappDeviceVault()
+      #if os(macOS)
+        RappVaultFileKeychainSweep.run(defaults: .standard) {
+          try vault.deleteFileKeychainStrays()
+        }
+      #endif
       if vault.dropUnreadablePairs() > 0 {
         PersistentTokenRegistry.withdrawPublishedIdentity()
       }

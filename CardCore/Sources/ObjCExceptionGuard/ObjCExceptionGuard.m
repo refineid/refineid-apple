@@ -19,7 +19,10 @@ OSStatus CardCoreDeleteKeychainItemRef(CFDictionaryRef query) {
   refQuery[(__bridge NSString *)kSecReturnRef] = @YES;
   CFTypeRef refOutput = NULL;
   OSStatus status = SecItemCopyMatching((__bridge CFDictionaryRef)refQuery, &refOutput);
-  if (status != errSecSuccess || !refOutput) {
+  if (status != errSecSuccess) {
+    return status;
+  }
+  if (!refOutput) {
     return errSecItemNotFound;
   }
   if (CFGetTypeID(refOutput) != SecKeychainItemGetTypeID()) {

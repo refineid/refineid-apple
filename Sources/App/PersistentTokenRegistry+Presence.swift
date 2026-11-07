@@ -223,13 +223,17 @@
         name: RappPairingModel.pairingsDidChangeNotification, object: nil)
     }
 
-    /// The token extension's own session heard `pairing_revoked` (RAPP
-    /// v26.11.2 §4.6 item 4): the pairing its identity was published for
-    /// ends here too, and the identity leaves at once, as on this process's
-    /// own session.
-    internal func holderRevokedElsewhere() {
-      guard let pairID = Self.publishedPairID() else { return }
-      holderRevoked(pairID: pairID, in: RappDeviceVault())
+    /// A one-shot requester session of this process heard `pairing_revoked`
+    /// (RAPP v26.11.2 §4.6 item 4): the identity leaves at once, as on the
+    /// held session, when it was published for a pairing the vault no longer
+    /// holds.
+    ///
+    /// The notice names no pairing and says only where to look. The vault
+    /// decides, so a notice that reaches here without a revocation behind it
+    /// changes nothing, and a vault that does not answer changes nothing.
+    internal func pairingEndNoticed(published pairID: Data?, in vault: RappDeviceVault) {
+      guard let pairID, (try? vault.pairIsGone(pairID: pairID)) == true else { return }
+      holderRevoked(pairID: pairID, in: vault)
     }
 
     /// This computer's close for a pairing it forgot reached the phone

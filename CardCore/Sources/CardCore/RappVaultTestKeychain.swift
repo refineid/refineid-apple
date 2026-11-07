@@ -20,6 +20,13 @@ import Security
     /// Items by service, then by account.
     internal var items: [String: [String: [String: Any]]] = [:]
 
+    /// Items of the macOS file keychain, by service, then by account; only
+    /// a delete naming that keychain reaches them.
+    internal var fileKeychain: [String: [String: [String: Any]]] = [:]
+
+    /// The status a strict read is refused with, or nil to let it through.
+    internal var readRefusal: OSStatus?
+
     /// The status a write is refused with, or nil to let it through.
     internal var refusal: (Write) -> OSStatus? = { _ in nil }
 
@@ -39,6 +46,12 @@ import Security
 
     private static func account(_ query: [String: Any]) -> String {
       query[kSecAttrAccount as String] as? String ?? ""
+    }
+
+    internal func fileKeychainCoordinates(prefix: String) -> [(service: String, account: String)] {
+      fileKeychain.filter { $0.key.hasPrefix(prefix) }.flatMap { service, accounts in
+        accounts.keys.map { (service: service, account: $0) }
+      }
     }
 
     private func refused(_ write: Write) -> OSStatus? {
@@ -68,6 +81,12 @@ import Security
     private func delete(query: [String: Any]) -> OSStatus {
       if let status = refused(.delete) { return status }
       let service = Self.service(query)
+      if query[kSecUseDataProtectionKeychain as String] as? Bool == false,
+        fileKeychain[service]?[Self.account(query)] != nil
+      {
+        fileKeychain[service]?.removeValue(forKey: Self.account(query))
+        return errSecSuccess
+      }
       guard query[kSecAttrAccount as String] != nil else {
         return items.removeValue(forKey: service) == nil ? errSecItemNotFound : errSecSuccess
       }

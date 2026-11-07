@@ -52,8 +52,11 @@ extension RappDeviceVault {
       kSecUseDataProtectionKeychain as String: KeychainPlatform.usesDataProtection,
       kSecAttrSynchronizable as String: false,
     ]
+    // The file keychain drops an access group, so a grouped item lives in
+    // the data-protection keychain on every platform.
     if let accessGroup {
       query[kSecAttrAccessGroup as String] = accessGroup
+      query[kSecUseDataProtectionKeychain as String] = true
     }
     return query
   }
@@ -89,6 +92,34 @@ extension RappDeviceVault {
       if Self.isUnreadableForNow(status) {
         return [:]
       }
+      throw Failure.unavailable(status)
+    }
+  }
+
+  /// The item, empty when the keychain answers it is absent; every other
+  /// answer throws, one that only means "not now" included.
+  internal func loadOneStrictly(service: String, account: String) throws -> [String: Any] {
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        if let status = testKeychain.readRefusal { throw Failure.unavailable(status) }
+        return testKeychain.items[service]?[account] ?? [:]
+      }
+    #endif
+    var query = itemQuery(service: service, account: account)
+    query[kSecReturnAttributes as String] = kCFBooleanTrue
+    query[kSecMatchLimit as String] = kSecMatchLimitOne
+    query[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUISkip
+    var output: CFTypeRef?
+    let status = SecItemCopyMatching(query as CFDictionary, &output)
+    switch status {
+    case errSecSuccess:
+      guard let item = output as? [String: Any] else { throw Failure.malformed }
+      return item
+
+    case errSecItemNotFound:
+      return [:]
+
+    default:
       throw Failure.unavailable(status)
     }
   }

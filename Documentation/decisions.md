@@ -5,6 +5,59 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-11-07 The pairing's keys stay in the vault, and no notice ends a pairing
+
+The token configuration holds only the 16-byte pair identifier, on every
+path, and the extension refuses anything else. `ctkd` stores configuration
+data in the clear in `~/Library/Preferences/com.apple.security.ctkd-db.plist`,
+mode 0600 and included in Time Machine backups, so any process of the user
+outside a sandbox reads it without a keychain prompt. Observed on this
+project's Mac with a throwaway token class and a sentinel, not with a real
+key (Darwin 27.2): the sentinel appears in the plist in the clear within 8
+seconds of being set, with or without keychain items, and is gone from it
+within about 20 seconds of `removeTokenConfiguration`. Removal says nothing
+about a backup taken meanwhile, and nothing here can reach one.
+
+- On macOS the vault moves from the file keychain to the shared
+  data-protection group, which is what lets the extension read a pairing it
+  is not handed. Pairings are not migrated; nothing RAPP is released, and the
+  holder pairs again. A phone keeps its side of the old pairing until the
+  holder forgets it there or its idle expiry runs out.
+- One sweep at launch deletes the vault's namespace from the login keychain.
+  It repeats at each launch until every item went. Forgetting everything
+  deletes the same items in any case.
+- Nothing posts or listens on `DistributedNotificationCenter`, whose posts
+  carry no sender: a forged `pairing-revoked` ended the pairing, a forged
+  `withdrawn` took the identity down, and a forged card or unlock name drew
+  or cleared a prompt. All five names are now notices inside one process. The
+  extension's own session has no way to reach the app with them, and needs
+  none: it dials only when no app holds the handoff port.
+
+STPA. Controller: the Mac app; control action: end a pairing and withdraw
+the identity; feedback: the Noise-authenticated close on its own session, and
+the vault. Hazards H-3 (an identity offered that the phone cannot serve) and
+H-7 (a usable identity withdrawn). Losses as in core's record.
+
+| ID | Unsafe control action | Type | Closed by |
+| :--- | :--- | :--- | :--- |
+| UCA-a | Ends a pairing, or withdraws the identity, on a notice any local process can post. | P | CC-a, CC-b |
+| UCA-b | Ends a pairing because a locked keychain read as empty. | P | CC-b |
+| UCA-c | The extension's session hears `pairing_revoked` and the app keeps offering the identity until it next reads the pairings. | T | Accepted: the race needs the extension dialing while an app runs, and the phone refuses the pairing meanwhile. |
+| UCA-d | Leaves a pairing's private key where the holder cannot see it gone. | N | CC-c |
+
+- CC-a: the app takes no instruction from a system-wide notification center.
+- CC-b: a notice sends the app to the vault, and only the keychain's answer
+  that the pair is absent or revoked ends it (`pairIsGone`, which throws on
+  any other answer). This keeps core's CC-10: the notice comes from an
+  authenticated session of this process, and the keychain alone starts
+  nothing.
+- CC-c: the launch sweep and forgetting everything both reach the login
+  keychain.
+
+These identifiers are local to this entry; core's record
+(`doc/security/stpa-rapp.md`) takes them under its own numbers when this
+change is public.
+
 ## 2026-11-07 Document verification anchors on the EU trusted lists
 
 The software ships the six Official Journal list-signing certificates

@@ -83,6 +83,26 @@ reads it as a toggle.
   suspended, and a card seen later suspends it then.
   A launch that restores it on asks for no permission. Sleep leaves
   remote use as it was.
+- **Where the pairing lives.** The vault is in the data-protection
+  keychain, in the access group the app and its token extensions share.
+  The token configuration holds the pair identifier, 16 bytes and nothing
+  else, because `ctkd` keeps configuration data in the clear in
+  `~/Library/Preferences/com.apple.security.ctkd-db.plist`. The extension
+  refuses any other configuration and reads the keys from the vault only
+  when it dials the phone itself. Every launch withdraws the configuration
+  an earlier run left. The first launch that finds the vault in its group
+  also deletes the vault's namespace from the login keychain, private keys
+  included, and is done only once every item went; those pairings are not
+  carried over, and the holder pairs again.
+- **What a pairing's end listens to.** Nothing system-wide: any local
+  process can post any name on `DistributedNotificationCenter`, so none of
+  this software posts or listens there (a SwiftLint rule holds this). The
+  app ends a pairing on the word of its own Noise session. A one-shot
+  session's notice travels inside the process and only sends the app to
+  the vault, which must answer that the published pairing is gone, and a
+  vault that does not answer changes nothing. The extension's own session
+  removes the pairing from the shared vault; the app acts on that the next
+  time it reads the pairings.
 
 A card in this Mac's own reader suspends remote use while it is there
 (see below).

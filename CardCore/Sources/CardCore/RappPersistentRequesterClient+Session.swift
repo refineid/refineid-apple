@@ -102,7 +102,7 @@
       _ result: RappOperationResult,
       on coordinator: RappConnectionCoordinator
     ) async {
-      RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
+      RappRequesterNotices.post(RappRequesterNotices.cardWaitEnded)
       let response = operation?.response(for: result)
       await coordinator.close()
       if let response {
@@ -119,7 +119,7 @@
       _ reason: RappTerminalReason,
       on coordinator: RappConnectionCoordinator
     ) async {
-      RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
+      RappRequesterNotices.post(RappRequesterNotices.cardWaitEnded)
       #if DEBUG
         Self.logger.notice(
           "[RappRequester] coordinator terminal reason: \(String(describing: reason), privacy: .public)"
@@ -133,9 +133,9 @@
       if state.withLock({ $0.established }) {
         recordSession()
       }
-      RappRequesterNotices.post(RappCardPromptNotificationNames.cardDismissDarwinNotification)
+      RappRequesterNotices.post(RappRequesterNotices.cardWaitEnded)
       if reason.serviceWithdrawn {
-        RappRequesterNotices.post(RappServiceNotificationNames.serviceWithdrawnDarwinNotification)
+        RappRequesterNotices.post(RappRequesterNotices.serviceWithdrawn)
       }
       endPairing(after: reason)
       #if DEBUG
@@ -170,7 +170,7 @@
       else { return }
       try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: RappPlatformClock())
       if revokedByPeer {
-        RappRequesterNotices.post(RappServiceNotificationNames.pairingRevokedDarwinNotification)
+        RappRequesterNotices.post(RappRequesterNotices.pairingRevoked)
       }
     }
 
