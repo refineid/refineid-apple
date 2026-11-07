@@ -3,10 +3,12 @@ updates:
   - package-ecosystem: swift
     directory: /CardCore
     schedule:
-      interval: weekly
+      interval: daily
     cooldown:
       default-days: 7
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: daily
+    cooldown:
+      default-days: 7
