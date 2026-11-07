@@ -3,18 +3,21 @@
 /// Whether the card's counter lets a signature send its PIN, decided from
 /// the probe that precedes the PIN-bearing command.
 ///
-/// The retry floor (``RetryFloor``) serves a PIN only at five, four or
-/// three attempts left, or on a verified card. A held PIN 1 is narrower:
-/// it is sent only while the counter shows no refusal since the card
-/// accepted it, which is the full allowance or a verified answer
-/// (``Pin1Retention``). Any other counter means someone has been wrong on
-/// this card, so the held value is not sent and the holder is asked
-/// instead (RAPP v26.11.2 §11 item 2).
+/// The retry floor (``RetryFloor``) refuses a PIN at one or two attempts
+/// left and at an unreadable counter, and lets an entered PIN through
+/// otherwise: at no tries left or blocked the card answers for itself and
+/// spends nothing. A held PIN 1 is narrower: it is sent only while the
+/// counter shows no refusal since the card accepted it, which is the full
+/// allowance or a verified answer (``Pin1Retention``). Any other counter
+/// means someone has been wrong on this card, so the held value is not
+/// sent and the holder is asked instead (RAPP v26.11.2 §11 item 2), or, at
+/// a counter that shows the PIN blocked, told so from this reading.
 public enum PinAdmission: Equatable, Sendable {
-  /// The credential is blocked.
+  /// A held PIN 1 is not sent for a credential the probe shows blocked.
   case credentialBlocked
 
-  /// The credential's reference data is invalidated.
+  /// A held PIN 1 is not sent for reference data the probe shows
+  /// invalidated.
   case credentialInvalidated
 
   /// The counter shows a refusal since the held PIN 1 was accepted.
@@ -38,10 +41,13 @@ public enum PinAdmission: Equatable, Sendable {
   public init(probe: RetryProbeOutcome, spending: Spending) {
     switch probe {
     case .locked:
-      self = .credentialBlocked
+      self = spending == .entered ? .proceed : .credentialBlocked
 
     case .invalidated:
-      self = .credentialInvalidated
+      self = spending == .entered ? .proceed : .credentialInvalidated
+
+    case .remaining(let count) where count.isBlocked:
+      self = spending == .entered ? .proceed : .credentialBlocked
 
     case .remaining, .verified:
       let verdict = RetryFloor.evaluate(probeOutcome: probe)

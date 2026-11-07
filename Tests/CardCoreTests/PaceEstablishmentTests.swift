@@ -48,6 +48,7 @@ internal struct PaceEstablishmentTests {
   private static let twoTriesLeftHex = "63C2"
   private static let oneTryLeftHex = "63C1"
   private static let blockedHex = "63C0"
+  private static let authenticationBlockedHex = "6983"
   private static let threeTriesLeftHex = "63C3"
   private static let deactivatedHex = "6283"
 
@@ -64,6 +65,9 @@ internal struct PaceEstablishmentTests {
 
   /// MSE:Set AT's answer with four tries left, for other suites.
   internal static let fourTriesLeftStatusHex = fourTriesLeftHex
+
+  /// MSE:Set AT's answer with no tries left, for other suites.
+  internal static let noTriesLeftStatusHex = blockedHex
 
   /// The longest nonce the handshake accepts, in AES blocks.
   private static let longestNonceBlocks = 4
@@ -261,7 +265,7 @@ internal struct PaceEstablishmentTests {
     #expect(card.generalAuthenticateCount == 1)
   }
 
-  @Test(arguments: [twoTriesLeftHex, oneTryLeftHex, blockedHex])
+  @Test(arguments: [twoTriesLeftHex, oneTryLeftHex])
   internal func theFloorRefusesBeforeAnyGeneralAuthenticate(status: String) throws {
     let card = try Self.organizationCard(status: status)
     #expect {
@@ -272,6 +276,22 @@ internal struct PaceEstablishmentTests {
     }
     #expect(card.generalAuthenticateCount == 0)
     #expect(card.sessionKeys == nil)
+  }
+
+  @Test
+  internal func noTriesLeftGoesOnAndTheCardAnswers() throws {
+    let card = try Self.organizationCard(status: Self.blockedHex)
+    _ = try Self.run(card, with: try Self.pin1(Self.pinDigits))
+    #expect(card.generalAuthenticateCount > 0)
+  }
+
+  @Test
+  internal func aBlockedAnswerOnMseSetAtIsTheCardsOwn() throws {
+    let card = try Self.organizationCard(status: Self.authenticationBlockedHex)
+    #expect(throws: PaceEstablishment.Failure.credentialBlocked) {
+      try Self.run(card, with: try Self.pin1(Self.pinDigits))
+    }
+    #expect(card.generalAuthenticateCount == 0)
   }
 
   @Test

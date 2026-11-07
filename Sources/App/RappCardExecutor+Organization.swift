@@ -89,7 +89,7 @@
     ) -> Outcome {
       let role = params.role
       switch error {
-      case PaceEstablishment.Failure.retryFloorRefused(_, .locked):
+      case PaceEstablishment.Failure.credentialBlocked:
         return .refusedBeforeCredentialTransmit(.credentialBlocked(role))
 
       case PaceEstablishment.Failure.retryFloorRefused(let verdict, _):

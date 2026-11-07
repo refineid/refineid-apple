@@ -24,9 +24,9 @@ internal struct RetryFloorPolicyTests {
       let count = try #require(RetryCount(attemptsRemaining: remaining))
       #expect(RetryFloor.evaluate(freshReading: count) == .refuseLowAttempts)
     }
-    // Zero: blocked. Nothing is sent; the PUK resets it.
+    // Zero: blocked. The command goes to the card, which answers itself.
     let blocked = try #require(RetryCount(attemptsRemaining: 0))
-    #expect(RetryFloor.evaluate(freshReading: blocked) == .refuseBlocked)
+    #expect(RetryFloor.evaluate(freshReading: blocked) == .proceed)
   }
 
   @Test
@@ -36,7 +36,6 @@ internal struct RetryFloorPolicyTests {
     #expect(RetryFloor.evaluate(freshReading: nil) == .refuseUnreadable)
     #expect(RetryFloor.evaluate(probeOutcome: .noInformation) == .refuseUnreadable)
     #expect(RetryFloor.evaluate(probeOutcome: .other(0)) == .refuseUnreadable)
-    #expect(RetryFloor.evaluate(probeOutcome: .invalidated) == .refuseUnreadable)
   }
 
   @Test
@@ -52,70 +51,46 @@ internal struct RetryFloorPolicyTests {
 
   @Test
   internal func aLockedCredentialIsRefusedAsBlocked() {
-    // A locked credential is refused like a zero count, and told apart
-    // from an unreadable counter so the refusal can name the PUK.
-    #expect(RetryFloor.evaluate(probeOutcome: .locked) == .refuseBlocked)
+    // A locked credential goes on like a zero count: the card answers,
+    // and an unreadable counter stays refused.
+    #expect(RetryFloor.evaluate(probeOutcome: .locked) == .proceed)
+    #expect(RetryFloor.evaluate(probeOutcome: .invalidated) == .proceed)
   }
 
   @Test
-  internal func thePukAtNoTriesLeftGoesToTheCard() throws {
-    // The PUK is judged for the credential it is: one or two tries
-    // left and an unreadable counter refuse as for a PIN, but none
-    // left or blocked proceed. The card answers for itself and spends
-    // nothing, and the software cannot tell a PUK from an activation
-    // code in the holder's hand, so it must not close a recovery the
-    // card would allow.
+  internal func everyCredentialTakesTheOneRule() throws {
+    // One or two tries left and an unreadable counter refuse; none left
+    // and blocked go to the card, which answers for itself and spends
+    // nothing, and the software cannot tell which code is in the holder's
+    // hand, so it must not close a recovery the card would allow.
     let none = try #require(RetryCount(attemptsRemaining: 0))
-    #expect(RetryFloor.evaluate(probeOutcome: .remaining(none), presenting: .puk) == .proceed)
-    #expect(RetryFloor.evaluate(probeOutcome: .locked, presenting: .puk) == .proceed)
-    for remaining in [UInt8(1), 2] {
-      let count = try #require(RetryCount(attemptsRemaining: remaining))
-      #expect(
-        RetryFloor.evaluate(probeOutcome: .remaining(count), presenting: .puk)
-          == .refuseLowAttempts)
-    }
-    for remaining in [UInt8(3), 4, 5] {
-      let count = try #require(RetryCount(attemptsRemaining: remaining))
-      #expect(RetryFloor.evaluate(probeOutcome: .remaining(count), presenting: .puk) == .proceed)
-    }
-    #expect(RetryFloor.evaluate(probeOutcome: .verified, presenting: .puk) == .proceed)
-    for unreadable in [RetryProbeOutcome.noInformation, .other(0), .invalidated] {
-      #expect(RetryFloor.evaluate(probeOutcome: unreadable, presenting: .puk) == .refuseUnreadable)
-    }
-  }
-
-  @Test
-  internal func activationLetsTheCardAnswerAnExhaustedCredential() throws {
-    // The last-tries rule, for whatever an activation presents: one or
-    // two tries left and an unreadable counter refuse; none left and
-    // blocked go to the card, which spends nothing.
-    let none = try #require(RetryCount(attemptsRemaining: 0))
-    #expect(RetryFloor.evaluateLastTries(probeOutcome: .remaining(none)) == .proceed)
-    #expect(RetryFloor.evaluateLastTries(probeOutcome: .locked) == .proceed)
-    for remaining in [UInt8(1), 2] {
-      let count = try #require(RetryCount(attemptsRemaining: remaining))
-      #expect(RetryFloor.evaluateLastTries(probeOutcome: .remaining(count)) == .refuseLowAttempts)
-    }
-    for remaining in [UInt8(3), 4, 5] {
-      let count = try #require(RetryCount(attemptsRemaining: remaining))
-      #expect(RetryFloor.evaluateLastTries(probeOutcome: .remaining(count)) == .proceed)
-    }
-    #expect(RetryFloor.evaluateLastTries(probeOutcome: .verified) == .proceed)
-    for unreadable in [RetryProbeOutcome.noInformation, .other(0), .invalidated] {
-      #expect(RetryFloor.evaluateLastTries(probeOutcome: unreadable) == .refuseUnreadable)
+    for role in [CredentialRole.pin1, .pin2, .puk] {
+      #expect(RetryFloor.evaluate(probeOutcome: .remaining(none), presenting: role) == .proceed)
+      #expect(RetryFloor.evaluate(probeOutcome: .locked, presenting: role) == .proceed)
+      #expect(RetryFloor.evaluate(probeOutcome: .invalidated, presenting: role) == .proceed)
+      for remaining in [UInt8(1), 2] {
+        let count = try #require(RetryCount(attemptsRemaining: remaining))
+        #expect(
+          RetryFloor.evaluate(probeOutcome: .remaining(count), presenting: role)
+            == .refuseLowAttempts)
+      }
+      for remaining in [UInt8(3), 4, 5] {
+        let count = try #require(RetryCount(attemptsRemaining: remaining))
+        #expect(RetryFloor.evaluate(probeOutcome: .remaining(count), presenting: role) == .proceed)
+      }
+      for unreadable in [RetryProbeOutcome.noInformation, .other(0)] {
+        #expect(
+          RetryFloor.evaluate(probeOutcome: unreadable, presenting: role) == .refuseUnreadable)
+      }
     }
   }
 
   @Test
-  internal func aPinAtNoTriesLeftStaysRefused() throws {
-    // The PIN floor is unchanged: a blocked PIN is refused before the
-    // card is asked, and the PUK resets it.
-    let none = try #require(RetryCount(attemptsRemaining: 0))
+  internal func aVerifiedPinIsServedAndAVerifiedPukIsUnreadable() {
     for role in [CredentialRole.pin1, .pin2] {
-      #expect(
-        RetryFloor.evaluate(probeOutcome: .remaining(none), presenting: role) == .refuseBlocked)
-      #expect(RetryFloor.evaluate(probeOutcome: .locked, presenting: role) == .refuseBlocked)
+      #expect(RetryFloor.evaluate(probeOutcome: .verified, presenting: role) == .proceed)
     }
+    #expect(RetryFloor.evaluate(probeOutcome: .verified, presenting: .puk) == .refuseUnreadable)
   }
 
   @Test
@@ -127,7 +102,7 @@ internal struct RetryFloorPolicyTests {
     let low = try #require(RetryCount(attemptsRemaining: 2))
     let healthy = try #require(RetryCount(attemptsRemaining: 5))
     let state = CredentialRetryState(pin1: blocked, pin2: low, puk: healthy)
-    #expect(RetryFloor.evaluate(freshReading: state.pin1) == .refuseBlocked)
+    #expect(RetryFloor.evaluate(freshReading: state.pin1) == .proceed)
     #expect(RetryFloor.evaluate(freshReading: state.pin2) == .refuseLowAttempts)
     #expect(RetryFloor.evaluate(freshReading: state.puk) == .proceed)
   }

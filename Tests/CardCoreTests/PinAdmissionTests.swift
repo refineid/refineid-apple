@@ -4,8 +4,9 @@ import CardCore
 import Testing
 
 /// The counter check before a signature sends its PIN, over every probe
-/// answer: the retry floor serves five, four or three attempts left, and a
-/// held PIN 1 only the full allowance or a verified card.
+/// answer: the retry floor refuses one or two attempts left and an unreadable
+/// counter, and a held PIN 1 is served only at the full allowance or on a
+/// verified card.
 @Suite
 internal struct PinAdmissionTests {
   private static func remaining(_ attempts: UInt8) throws -> RetryProbeOutcome {
@@ -44,26 +45,31 @@ internal struct PinAdmissionTests {
   @Test
   internal func theFloorRefusesBeforeTheHeldCheck() throws {
     for spending in [PinAdmission.Spending.entered, .heldPin1] {
-      for attempts in UInt8.zero..<RetryFloor.minimumAttemptsToProceed {
-        let verdict: RetryFloorVerdict =
-          attempts == .zero ? .refuseBlocked : .refuseLowAttempts
+      for attempts in (UInt8.zero + 1)..<RetryFloor.minimumAttemptsToProceed {
         #expect(
           PinAdmission(probe: try Self.remaining(attempts), spending: spending)
-            == .retryFloor(verdict))
+            == .retryFloor(.refuseLowAttempts))
       }
-    }
-  }
-
-  @Test
-  internal func aLockedInvalidatedOrUnreadableCounterIsRefused() {
-    for spending in [PinAdmission.Spending.entered, .heldPin1] {
-      #expect(PinAdmission(probe: .locked, spending: spending) == .credentialBlocked)
-      #expect(PinAdmission(probe: .invalidated, spending: spending) == .credentialInvalidated)
       #expect(
         PinAdmission(probe: .noInformation, spending: spending)
           == .retryFloor(.refuseUnreadable))
       #expect(
         PinAdmission(probe: .other(.zero), spending: spending) == .retryFloor(.refuseUnreadable))
     }
+  }
+
+  @Test
+  internal func anEnteredPinGoesToTheCardAtNoTriesLeftOrBlocked() throws {
+    for probe in [try Self.remaining(.zero), .locked, .invalidated] {
+      #expect(PinAdmission(probe: probe, spending: .entered) == .proceed)
+    }
+  }
+
+  @Test
+  internal func aHeldPin1IsNeverSentForABlockedCounter() throws {
+    #expect(
+      PinAdmission(probe: try Self.remaining(.zero), spending: .heldPin1) == .credentialBlocked)
+    #expect(PinAdmission(probe: .locked, spending: .heldPin1) == .credentialBlocked)
+    #expect(PinAdmission(probe: .invalidated, spending: .heldPin1) == .credentialInvalidated)
   }
 }

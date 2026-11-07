@@ -264,11 +264,9 @@ extension CardMaintenance {
   /// The floor's refusal for the credential `role` presents, or nil
   /// when the operation may go to the card.
   ///
-  /// A PIN is refused at two, one or no tries left, blocked, and at an
-  /// unreadable counter. The PUK is refused at two or one tries left
-  /// and at an unreadable counter; at none left or blocked the card
-  /// answers for itself and spends nothing, and the software does not
-  /// close a recovery the card would allow.
+  /// Refused at two or one tries left and at an unreadable counter; at
+  /// none left or blocked the card answers for itself and spends nothing,
+  /// and the software does not close a recovery the card would allow.
   internal static func floorRefusal(
     presenting role: CredentialRole,
     on operations: CardOperations
@@ -277,24 +275,6 @@ extension CardMaintenance {
       return .floorRefused(.refuseUnreadable)
     }
     let verdict = RetryFloor.evaluate(probeOutcome: probe, presenting: role)
-    return verdict == .proceed ? nil : .floorRefused(verdict)
-  }
-
-  /// The refusal before an activation presents `role`, or nil when the
-  /// write may go to the card.
-  ///
-  /// Activation takes the last-tries rule for whichever credential it
-  /// presents, the PUK or a preset PIN: refused at two or one tries left
-  /// and at an unreadable counter; at none left or blocked the card
-  /// answers for itself.
-  internal static func activationFloorRefusal(
-    presenting role: CredentialRole,
-    on operations: CardOperations
-  ) -> Outcome? {
-    guard let probe = try? operations.probeRetryCounter(role: role) else {
-      return .floorRefused(.refuseUnreadable)
-    }
-    let verdict = RetryFloor.evaluateLastTries(probeOutcome: probe)
     return verdict == .proceed ? nil : .floorRefused(verdict)
   }
 

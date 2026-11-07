@@ -83,9 +83,10 @@
     /// The holder's answer, once the card can still afford to sign and
     /// the request has been shown for what it is.
     ///
-    /// The floor probe runs before the prompt so a blocked credential
+    /// The floor probe runs before the prompt so a refused credential
     /// never costs the holder a PIN entry, and the prompt names the
-    /// requesting origin and the digest the card is about to sign.
+    /// requesting origin and the digest the card is about to sign. A
+    /// blocked credential goes on: the card answers its VERIFY.
     private static func authorizedPin(
       _ operations: CardOperations,
       request: ScsSignRequest,

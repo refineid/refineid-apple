@@ -151,6 +151,10 @@ internal enum OrganizationSignature {
       TokenLog.error("sign: \(role) deactivated")
       return TokenError.signRefused
 
+    case .credentialBlocked:
+      TokenLog.error("sign: \(role) blocked")
+      return TokenError.signRefused
+
     case .wrongPin(let remaining):
       TokenLog.error("sign: \(role) refused by the card")
       return remaining.isBlocked ? TokenError.signRefused : TokenError.pinRejected

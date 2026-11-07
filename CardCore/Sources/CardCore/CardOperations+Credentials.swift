@@ -49,6 +49,10 @@ extension CardOperations {
       referenceMemo.probedRetryCounters[.pin1] = .locked
       throw CardOperationError.pinBlocked
 
+    case .referenceDataInvalidated:
+      referenceMemo.probedRetryCounters[.pin1] = .invalidated
+      throw CardOperationError.credentialInvalidated
+
     default:
       referenceMemo.probedRetryCounters[.pin1] = nil
       throw CardOperationError.pinVerifyFailed(response.statusWord)

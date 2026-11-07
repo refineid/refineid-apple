@@ -29,11 +29,13 @@ extension VirtualIDCard {
         snapshot: current)
     }
     var credential = credential(for: role)
-    if let refusal = retryRefusal(credential.attemptsRemaining, presenting: role) {
+    if let refusal = lastTriesRefusal(credential.attemptsRemaining) {
       return MutationResult(outcome: refusal, snapshot: current)
     }
     let outcome: CredentialOutcome
-    if entered != credential.value {
+    if credential.attemptsRemaining == Self.noAttemptsLeft {
+      outcome = .blocked
+    } else if entered != credential.value {
       credential.attemptsRemaining -= 1
       setCredential(credential, for: role)
       outcome =
@@ -79,7 +81,7 @@ extension VirtualIDCard {
         outcome: .transportFailure(fault),
         snapshot: current)
     }
-    if let refusal = retryRefusal(current.card.puk.attemptsRemaining, presenting: .puk) {
+    if let refusal = lastTriesRefusal(current.card.puk.attemptsRemaining) {
       return MutationResult(outcome: refusal, snapshot: current)
     }
     let outcome: CredentialOutcome
@@ -150,29 +152,10 @@ extension VirtualIDCard {
     return .success
   }
 
-  /// What the software refuses before presenting `role`.
-  ///
-  /// One or two tries left refuse for every credential, and none left
-  /// for a PIN. The PUK at no tries left goes to the card, which answers
-  /// blocked itself and spends nothing.
-  internal func retryRefusal(
-    _ remaining: UInt8,
-    presenting role: CredentialRole
-  ) -> CredentialOutcome? {
-    switch role {
-    case .pin1, .pin2:
-      remaining == Self.noAttemptsLeft ? .blocked : lastTriesRefusal(remaining)
-
-    case .puk:
-      lastTriesRefusal(remaining)
-    }
-  }
-
-  /// What the software refuses before an activation presents a
-  /// credential, or before any use of the PUK.
+  /// What the software refuses before presenting a credential.
   ///
   /// Only one or two tries left refuse. None left goes to the card,
-  /// which answers blocked itself.
+  /// which answers blocked itself and spends nothing.
   internal func lastTriesRefusal(_ remaining: UInt8) -> CredentialOutcome? {
     switch remaining {
     case 1...RetryCount.lowAttemptCeiling:

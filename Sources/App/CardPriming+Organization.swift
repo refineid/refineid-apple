@@ -133,7 +133,7 @@
       case PaceEstablishment.Failure.retryFloorRefused(_, .remaining(let remaining)):
         return Failure.pin1LowAttempts(remaining)
 
-      case PaceEstablishment.Failure.retryFloorRefused(_, .locked):
+      case PaceEstablishment.Failure.credentialBlocked:
         return CardOperationError.pinBlocked
 
       case PaceEstablishment.Failure.retryFloorRefused,

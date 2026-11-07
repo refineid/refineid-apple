@@ -45,6 +45,17 @@ extension VirtualIDCardTests {
     XCTAssertEqual(result.snapshot.card.pin1.attemptsRemaining, 0)
   }
 
+  internal func testCorrectPINAtNoTriesLeftIsAnsweredBlockedByTheCard() async {
+    var state = VirtualIDCard.Scenario.activatedReader.snapshot
+    state.card.pin1.attemptsRemaining = 0
+    let card = VirtualIDCard(snapshot: state)
+
+    let result = await card.changePIN1(current: state.card.pin1.value, new: "9876")
+
+    XCTAssertEqual(result.outcome, .blocked)
+    XCTAssertEqual(result.snapshot.card.pin1.attemptsRemaining, 0)
+  }
+
   internal func testPIN2ChangeAndResetUseTheSameSafetyRules() async {
     let changing = VirtualIDCard(scenario: .activatedReader)
     let changed = await changing.changePIN2(current: "123456", new: "987654")

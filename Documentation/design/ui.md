@@ -113,20 +113,17 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   "PUK", "Basic PIN 1" and "Signature PIN 2", laid out as the
   activation form, and a "Reset" button. It resets PIN 1, then PIN 2 only if PIN 1 was reset, with the
   one PUK entry, on any card that does not await activation.
-- **The PUK at no tries left goes to the card.** Before presenting the
-  PUK (a PIN reset, the organization card's PUK verify, and activation
-  on a card whose activation PIN is the PUK) the software refuses at two
-  or one tries left and at an unreadable counter, and lets a reading of
-  none left or blocked through: the card answers for itself and spends
-  nothing, and the software cannot know whether the code in the holder's
-  hand is a PUK or an activation code, so it must not close a recovery
-  the card would allow. The counter row may still read the PUK as
-  blocked, as information; no reset or activation button is disabled by
-  it. Activation by a preset activation PIN takes the same last-tries
-  rule for the PIN it changes: which code the holder has in hand is
-  inferred, so a preset PIN at no tries left or blocked goes to the card
-  too. PIN 1 and PIN 2 in ordinary use (verify, sign, change) keep their
-  floor: refused at two, one and no tries left, blocked, and unreadable.
+- **At no tries left the command goes to the card.** One rule holds for
+  PIN 1, PIN 2, the PUK and the activation PIN: a command that could
+  spend a try is refused at two or one tries left and at an unreadable
+  counter, and a PUK reported verified reads as unreadable. A reading of
+  none left or blocked goes through: the card answers for itself and
+  spends nothing, and the software cannot know which code the holder has
+  in hand, so it must not close a recovery the card would allow. The
+  card's answer reaches the holder as blocked, with the PUK as the way
+  back. The counter row may read a credential as blocked before any
+  prompt, as information, since that reading sends no credential; no
+  button is disabled by it.
 - **Development builds show errors.** Every failure path reports to
   `DevErrorLog`: the Errors window on the Mac, the error pill and the
   Diagnostics screen on iPhone and iPad. TestFlight and Release builds

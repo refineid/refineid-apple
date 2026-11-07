@@ -148,12 +148,17 @@
 
       case .rejected(.credential(let role, let remaining)):
         // The card refused the PIN and the floor allows no further
-        // verification: the remaining attempts are the issuer's.
+        // verification: the remaining attempts are the issuer's. An answer
+        // with no tries left, or with no count, is the card's "blocked".
         await applyRejectedCredential(.credential(role, remaining: remaining))
-        await refuseAtRetryFloor(
-          role: role,
-          verdict: remaining.map { RetryFloor.evaluate(freshReading: $0) } ?? .refuseLowAttempts,
-          remaining: remaining)
+        if let remaining, !remaining.isBlocked {
+          await refuseAtRetryFloor(
+            role: role,
+            verdict: RetryFloor.evaluate(freshReading: remaining),
+            remaining: remaining)
+        } else {
+          await inbox.inform(CredentialOutcomeMessage.blocked(role))
+        }
         try? await coordinator.retryFloor(operationID: operationID)
 
       case .refusedBeforeCredentialTransmit(let refusal):
@@ -174,7 +179,7 @@
         try? await coordinator.cardError(operationID: operationID)
 
       case .credentialBlocked(let role):
-        await refuseAtRetryFloor(role: role, verdict: .refuseBlocked, remaining: nil)
+        await inbox.inform(CredentialOutcomeMessage.blocked(role))
         try? await coordinator.retryFloor(operationID: operationID)
 
       case .credentialInvalidated(let role):

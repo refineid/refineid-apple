@@ -78,6 +78,11 @@ public struct PaceEstablishment {
     /// parameter this build runs; nothing was sent after the read.
     case noSupportedSuite
 
+    /// The card answered the PIN password blocked (`6983`), on MSE:Set AT
+    /// or a GENERAL AUTHENTICATE; or a held PIN 1 was not sent for a state
+    /// MSE:Set AT reports blocked.
+    case credentialBlocked
+
     /// The retry floor refused the PIN on MSE:Set AT's answer; nothing was
     /// sent after it. The reading the floor judged is carried.
     case retryFloorRefused(RetryFloorVerdict, RetryProbeOutcome)

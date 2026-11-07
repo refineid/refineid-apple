@@ -192,6 +192,8 @@ extension CardMaintenance {
         established = try PaceEstablishment(channel: channel)
           .establish(with: PacePassword(pin2: credential.consumeForSingleTransmission()))
       }
+    } catch PaceEstablishment.Failure.credentialBlocked {
+      return .refused(.pinBlocked)
     } catch PaceEstablishment.Failure.retryFloorRefused(let verdict, _) {
       return .refused(.floorRefused(verdict))
     } catch PaceEstablishment.Failure.passwordDeactivated {
