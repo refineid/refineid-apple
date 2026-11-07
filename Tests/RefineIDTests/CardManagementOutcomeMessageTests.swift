@@ -68,6 +68,27 @@ internal final class CardManagementOutcomeMessageTests: XCTestCase {
       String(localized: "The \(name) retry counter could not be read; nothing was sent."))
   }
 
+  internal func testAPukTheCardAnsweredBlockedIsReportedAsTheCardsAnswer() throws {
+    // The floor passes a PUK at no tries left to the card; only the
+    // card's own answer says the PUK is blocked, and the way back is
+    // the issuer, never a claim that the PUK was unusable.
+    let message = Self.model().message(for: .pinBlocked, presenting: .puk, spending: .puk)
+    XCTAssertEqual(message, CredentialOutcomeMessage.blocked(.puk))
+    XCTAssertEqual(
+      message,
+      String(localized: "The card answered that the PUK is blocked.")
+        + "\n"
+        + String(localized: "Software cannot reset a PUK; contact the card issuer."))
+    try Self.assertTranslations(
+      of: "The card answered that the PUK is blocked.",
+      finnish: "Kortti vastasi, että PUK on lukittu.",
+      swedish: "Kortet svarade att PUK-koden är spärrad.")
+    try Self.assertTranslations(
+      of: "Software cannot reset a PUK; contact the card issuer.",
+      finnish: "Ohjelmisto ei voi nollata PUK-koodia; ota yhteyttä kortin myöntäjään.",
+      swedish: "Programvara kan inte återställa en PUK-kod; kontakta kortutfärdaren.")
+  }
+
   internal func testActivationSuccessIsSaidInEveryLanguage() throws {
     try Self.assertTranslations(
       of: "Card activated: PIN 1 and PIN 2 are set.",

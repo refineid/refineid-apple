@@ -8,11 +8,14 @@
 public enum RetryFloorVerdict: Equatable, Sendable {
   /// Three or more attempts remain - or the credential is already
   /// verified in this session, which proves a counter reset to its
-  /// maximum (S1 v4.2 §3.5); the operation may proceed.
+  /// maximum (S1 v4.2 §3.5); the operation may proceed. A PUK, or a
+  /// preset activation PIN, at no tries left or blocked proceeds too,
+  /// to let the card answer.
   case proceed
 
-  /// Zero attempts remain: the credential is blocked. A blocked PIN is
-  /// reset with the PUK; a blocked PUK only by the issuer.
+  /// Zero attempts remain: the PIN is blocked and is reset with the
+  /// PUK. The PUK and an activation PIN are never refused on this
+  /// ground under the last-tries rule; the card answers them itself.
   case refuseBlocked
 
   /// One or two attempts remain: refuse before prompting for or sending

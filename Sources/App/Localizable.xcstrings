@@ -5206,19 +5206,19 @@
         }
       }
     },
-    "The PUK is blocked.": {
+    "The card answered that the PUK is blocked.": {
       "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "PUK on lukittu."
+            "value": "Kortti vastasi, että PUK on lukittu."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "PUK-koden är spärrad."
+            "value": "Kortet svarade att PUK-koden är spärrad."
           }
         }
       }
@@ -5644,19 +5644,19 @@
         }
       }
     },
-    "This card cannot be recovered with software.": {
+    "Software cannot reset a PUK; contact the card issuer.": {
       "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tätä korttia ei voi palauttaa ohjelmistolla."
+            "value": "Ohjelmisto ei voi nollata PUK-koodia; ota yhteyttä kortin myöntäjään."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kortet kan inte återställas med programvara."
+            "value": "Programvara kan inte återställa en PUK-kod; kontakta kortutfärdaren."
           }
         }
       }

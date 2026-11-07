@@ -76,7 +76,9 @@ VirtualIDCard implements the operations currently exposed by iOS:
 
 The retry-floor policy is shared in behavior with the product:
 
-- 0 means blocked.
+- 0 means blocked. A blocked PIN is refused without transmitting a
+  credential; a blocked PUK is presented to the card, which answers
+  blocked itself and spends nothing.
 - 1 or 2 is refused without transmitting a credential.
 - 3, 4, and 5 may operate.
 - A wrong transmitted credential decrements only the credential the card checks.

@@ -15,6 +15,8 @@ extension VirtualIDCardTests {
 
       switch attempts {
       case 0:
+        // The PUK goes to the card, which answers blocked and spends
+        // nothing.
         XCTAssertEqual(result.outcome, .blocked)
         XCTAssertEqual(result.snapshot.card.puk.attemptsRemaining, 0)
 
@@ -28,6 +30,19 @@ extension VirtualIDCardTests {
       }
       XCTAssertEqual(result.snapshot.card.pin1.attemptsRemaining, 0)
     }
+  }
+
+  internal func testCorrectPUKAtNoTriesLeftIsAnsweredBlockedByTheCard() async {
+    var state = VirtualIDCard.Scenario.activatedReader.snapshot
+    state.card.pin1.attemptsRemaining = 0
+    state.card.puk.attemptsRemaining = 0
+    let card = VirtualIDCard(snapshot: state)
+
+    let result = await card.resetPIN1(puk: state.card.puk.value, new: "9876")
+
+    XCTAssertEqual(result.outcome, .blocked)
+    XCTAssertEqual(result.snapshot.card.puk.attemptsRemaining, 0)
+    XCTAssertEqual(result.snapshot.card.pin1.attemptsRemaining, 0)
   }
 
   internal func testPIN2ChangeAndResetUseTheSameSafetyRules() async {

@@ -232,20 +232,7 @@ extension CardMaintenance {
       guard let lengths = try? operations.readCardPinLengths() else {
         return MutationReport(outcome: .failed, snapshot: snapshot(on: operations, pinLengths: nil))
       }
-      guard let probe = try? operations.probeRetryCounter(role: floor.role) else {
-        return MutationReport(
-          outcome: .floorRefused(.refuseUnreadable),
-          snapshot: snapshot(on: operations, pinLengths: lengths)
-        )
-      }
-      let verdict = RetryFloor.evaluate(probeOutcome: probe)
-      guard verdict == .proceed else {
-        return MutationReport(
-          outcome: .floorRefused(verdict),
-          snapshot: snapshot(on: operations, pinLengths: lengths)
-        )
-      }
-      let outcome = mutation(operations, lengths)
+      let outcome = floored(presenting: floor.role, on: operations, lengths: lengths, mutation)
       let resultingSnapshot = snapshot(on: operations, pinLengths: lengths)
       let confirmedOutcome =
         outcome == .success && !confirmsRestored(floor.confirming, in: resultingSnapshot)
@@ -257,6 +244,58 @@ extension CardMaintenance {
       )
     }
     return result ?? MutationReport(outcome: .noCard, snapshot: nil)
+  }
+
+  /// Runs `mutation` only when the floor of the credential it presents
+  /// lets it, judged on a probe taken immediately before in the same
+  /// session.
+  internal static func floored(
+    presenting role: CredentialRole,
+    on operations: CardOperations,
+    lengths: CardPinLengths,
+    _ mutation: (CardOperations, CardPinLengths) -> Outcome
+  ) -> Outcome {
+    if let refusal = floorRefusal(presenting: role, on: operations) {
+      return refusal
+    }
+    return mutation(operations, lengths)
+  }
+
+  /// The floor's refusal for the credential `role` presents, or nil
+  /// when the operation may go to the card.
+  ///
+  /// A PIN is refused at two, one or no tries left, blocked, and at an
+  /// unreadable counter. The PUK is refused at two or one tries left
+  /// and at an unreadable counter; at none left or blocked the card
+  /// answers for itself and spends nothing, and the software does not
+  /// close a recovery the card would allow.
+  internal static func floorRefusal(
+    presenting role: CredentialRole,
+    on operations: CardOperations
+  ) -> Outcome? {
+    guard let probe = try? operations.probeRetryCounter(role: role) else {
+      return .floorRefused(.refuseUnreadable)
+    }
+    let verdict = RetryFloor.evaluate(probeOutcome: probe, presenting: role)
+    return verdict == .proceed ? nil : .floorRefused(verdict)
+  }
+
+  /// The refusal before an activation presents `role`, or nil when the
+  /// write may go to the card.
+  ///
+  /// Activation takes the last-tries rule for whichever credential it
+  /// presents, the PUK or a preset PIN: refused at two or one tries left
+  /// and at an unreadable counter; at none left or blocked the card
+  /// answers for itself.
+  internal static func activationFloorRefusal(
+    presenting role: CredentialRole,
+    on operations: CardOperations
+  ) -> Outcome? {
+    guard let probe = try? operations.probeRetryCounter(role: role) else {
+      return .floorRefused(.refuseUnreadable)
+    }
+    let verdict = RetryFloor.evaluateLastTries(probeOutcome: probe)
+    return verdict == .proceed ? nil : .floorRefused(verdict)
   }
 
   /// A successful CHANGE REFERENCE DATA or RESET RETRY COUNTER restores the

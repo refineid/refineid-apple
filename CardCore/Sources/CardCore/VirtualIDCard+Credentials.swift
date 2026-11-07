@@ -3,6 +3,9 @@
 import Foundation
 
 extension VirtualIDCard {
+  /// A counter the card reports as blocked.
+  internal static let noAttemptsLeft: UInt8 = 0
+
   internal func change(
     role: CredentialRole,
     operation: Operation,
@@ -26,7 +29,7 @@ extension VirtualIDCard {
         snapshot: current)
     }
     var credential = credential(for: role)
-    if let refusal = retryRefusal(credential.attemptsRemaining) {
+    if let refusal = retryRefusal(credential.attemptsRemaining, presenting: role) {
       return MutationResult(outcome: refusal, snapshot: current)
     }
     let outcome: CredentialOutcome
@@ -76,11 +79,13 @@ extension VirtualIDCard {
         outcome: .transportFailure(fault),
         snapshot: current)
     }
-    if let refusal = retryRefusal(current.card.puk.attemptsRemaining) {
+    if let refusal = retryRefusal(current.card.puk.attemptsRemaining, presenting: .puk) {
       return MutationResult(outcome: refusal, snapshot: current)
     }
     let outcome: CredentialOutcome
-    if enteredPUK != current.card.puk.value {
+    if current.card.puk.attemptsRemaining == Self.noAttemptsLeft {
+      outcome = .blocked
+    } else if enteredPUK != current.card.puk.value {
       current.card.puk.attemptsRemaining -= 1
       outcome =
         current.card.puk.attemptsRemaining == 0
@@ -118,8 +123,11 @@ extension VirtualIDCard {
     let checkedRole: CredentialRole =
       current.card.activationScheme == .activationCodeIsPuk ? .puk : role
     var checked = credential(for: checkedRole)
-    if let refusal = retryRefusal(checked.attemptsRemaining) {
+    if let refusal = lastTriesRefusal(checked.attemptsRemaining) {
       return refusal
+    }
+    if checked.attemptsRemaining == Self.noAttemptsLeft {
+      return .blocked
     }
     if entry != current.card.activationEntry {
       checked.attemptsRemaining -= 1
@@ -142,11 +150,31 @@ extension VirtualIDCard {
     return .success
   }
 
-  internal func retryRefusal(_ remaining: UInt8) -> CredentialOutcome? {
-    switch remaining {
-    case 0:
-      .blocked
+  /// What the software refuses before presenting `role`.
+  ///
+  /// One or two tries left refuse for every credential, and none left
+  /// for a PIN. The PUK at no tries left goes to the card, which answers
+  /// blocked itself and spends nothing.
+  internal func retryRefusal(
+    _ remaining: UInt8,
+    presenting role: CredentialRole
+  ) -> CredentialOutcome? {
+    switch role {
+    case .pin1, .pin2:
+      remaining == Self.noAttemptsLeft ? .blocked : lastTriesRefusal(remaining)
 
+    case .puk:
+      lastTriesRefusal(remaining)
+    }
+  }
+
+  /// What the software refuses before an activation presents a
+  /// credential, or before any use of the PUK.
+  ///
+  /// Only one or two tries left refuse. None left goes to the card,
+  /// which answers blocked itself.
+  internal func lastTriesRefusal(_ remaining: UInt8) -> CredentialOutcome? {
+    switch remaining {
     case 1...RetryCount.lowAttemptCeiling:
       .refusedLowAttempts(remaining: remaining)
 

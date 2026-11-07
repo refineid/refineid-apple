@@ -5,6 +5,25 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-11-07 The PUK at no tries left goes to the card
+
+Before presenting the PUK - a PIN reset, the organization card's PUK
+verify, and activation on a card whose activation PIN is the PUK - the
+software refuses at two or one tries left and at a counter it cannot
+read, as before. At no tries left or blocked it now sends the command:
+the card answers for itself and spends nothing, and the software cannot
+know whether the code in the holder's hand is a PUK or an activation
+code, so it must not close a recovery the card would allow. PIN 1 and
+PIN 2 keep their floor unchanged: refused at two, one and no tries left,
+blocked, and unreadable - except in activation. An activation presents
+either the PUK or a preset activation PIN, and which one the holder has
+in hand is inferred from the card, never known, so activation takes the
+same last-tries rule for every credential it presents: a preset
+activation PIN at no tries left or blocked goes to the card too, as
+refineid-core already does. Card management no longer has an
+"unrecoverable" state; a PUK read as blocked is shown in the attempts
+row and disables nothing, and neither does a blocked preset PIN.
+
 ## 2026-11-02 The Apple apps speak RAPP v26.11.2
 
 Every pairing and session on iPhone, iPad and Mac runs RAPP v26.11.2; the

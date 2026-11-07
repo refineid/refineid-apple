@@ -226,9 +226,12 @@ While a code is below the floor, the two keys in the toolbar are red and
 the window's top section says why the card cannot be used and the way
 back: "RefineID does not use PIN 1 with fewer than 3 attempts left." and
 "Reset PIN 1 with the PUK, or use other software." (the same for PIN
-2). A PUK below the floor keeps the "use other software" text, since the
-PUK cannot be reset here. At four or three tries left nothing is coloured
-and nothing opens: the footer row shows the count.
+2). A PUK at two or one tries left keeps the "use other software" text,
+since the PUK cannot be reset here. A PUK the card reports blocked keeps
+every reset form open: the PUK is presented and the card answers for
+itself, so the holder is never kept from a recovery the card would allow.
+At four or three tries left nothing is coloured and nothing opens: the
+footer row shows the count.
 
 The "Attempts left:" row along the foot of the window lists only the
 counters below full. While PIN 1, PIN 2 and the PUK are all full, the
