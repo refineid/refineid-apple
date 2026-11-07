@@ -34,14 +34,14 @@
     @ViewBuilder private var pin1Credentials: some View {
       credentialSection(
         CredentialFieldSpec(
-          title: virtualCardLocalized("credential.pin1", defaultValue: "PIN 1"),
+          title: virtualCardLocalized("credential.pin1", defaultValue: "Basic PIN 1"),
           identifier: "virtualCardPIN1",
           valueLabel: virtualCardLocalized(
             "credential.pin1Value",
-            defaultValue: "PIN 1 value"),
+            defaultValue: "Basic PIN 1 value"),
           attemptsLabel: virtualCardLocalized(
             "credential.pin1Attempts",
-            defaultValue: "PIN 1 attempts")),
+            defaultValue: "Basic PIN 1 attempts")),
         value: $draft.card.pin1.value,
         attempts: attemptsBinding(\.pin1))
     }
@@ -49,14 +49,14 @@
     @ViewBuilder private var pin2Credentials: some View {
       credentialSection(
         CredentialFieldSpec(
-          title: virtualCardLocalized("credential.pin2", defaultValue: "PIN 2"),
+          title: virtualCardLocalized("credential.pin2", defaultValue: "Signature PIN 2"),
           identifier: "virtualCardPIN2",
           valueLabel: virtualCardLocalized(
             "credential.pin2Value",
-            defaultValue: "PIN 2 value"),
+            defaultValue: "Signature PIN 2 value"),
           attemptsLabel: virtualCardLocalized(
             "credential.pin2Attempts",
-            defaultValue: "PIN 2 attempts")),
+            defaultValue: "Signature PIN 2 attempts")),
         value: $draft.card.pin2.value,
         attempts: attemptsBinding(\.pin2))
     }

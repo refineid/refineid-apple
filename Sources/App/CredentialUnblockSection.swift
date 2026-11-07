@@ -30,16 +30,10 @@ internal struct CredentialUnblockSection: View {
   /// The PIN and PUK lengths of the card in session.
   internal let lengths: CardPinLengths
 
-  /// The on-screen name of that credential, so the button and the
-  /// fields say which one they mean.
-  private var targetName: String {
-    target == .pin2 ? "PIN 2" : "PIN 1"
-  }
-
-  /// The same name without its space, for accessibility identifiers
-  /// that tests match exactly.
+  /// The name of that credential in accessibility identifiers, which
+  /// tests match exactly.
   private var identifierName: String {
-    targetName.replacingOccurrences(of: " ", with: "")
+    target == .pin2 ? "PIN2" : "PIN1"
   }
 
   @State private var puk = ""

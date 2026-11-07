@@ -208,17 +208,17 @@
 
       case .invalidEntry:
         showFailure(
-          text("error.pin2Format", "PIN 2 must contain 6 to 12 digits."))
+          text("error.pin2Format", "Signature PIN 2 must contain 6 to 12 digits."))
 
       case .blocked:
         showFailure(
           text(
             "error.pin2Blocked",
-            "PIN 2 is blocked. Reset it in PIN settings."))
+            "Signature PIN 2 is blocked. Reset it in PIN settings."))
 
       case .rejected(let remaining):
         showFailure(
-          text("error.pin2Incorrect", "PIN 2 is incorrect.")
+          text("error.pin2Incorrect", "Signature PIN 2 is incorrect.")
             + "\n"
             + String(
               format: text(

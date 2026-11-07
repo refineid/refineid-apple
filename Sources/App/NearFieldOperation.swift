@@ -65,16 +65,16 @@ internal enum NearFieldOperation: Sendable, Equatable, CaseIterable {
       String(localized: "Reading Identity Card")
 
     case .changePin1:
-      String(localized: "Changing PIN 1")
+      String(localized: "Changing Basic PIN 1")
 
     case .changePin2:
-      String(localized: "Changing PIN 2")
+      String(localized: "Changing Signature PIN 2")
 
     case .resetPin1:
-      String(localized: "Resetting PIN 1")
+      String(localized: "Resetting Basic PIN 1")
 
     case .resetPin2:
-      String(localized: "Resetting PIN 2")
+      String(localized: "Resetting Signature PIN 2")
 
     case .signature:
       String(localized: "Signing")

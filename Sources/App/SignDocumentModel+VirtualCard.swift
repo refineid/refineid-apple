@@ -24,20 +24,20 @@
         return SignedDocument(untimestamped: sourceData, clock: Date())
 
       case .invalidEntry:
-        fail(message: String(localized: "PIN 2 must contain 6 to 12 digits."))
+        fail(
+          message: signingText(
+            "error.pin2Format", "Signature PIN 2 must contain 6 to 12 digits."))
         return nil
 
       case .blocked:
         fail(
-          message: String(
-            localized: "PIN 2 is blocked. Reset it in PIN settings."
-          )
-        )
+          message: signingText(
+            "error.pin2Blocked", "Signature PIN 2 is blocked. Reset it in PIN settings."))
         return nil
 
       case .rejected(let remaining):
         fail(
-          message: String(localized: "PIN 2 is incorrect.")
+          message: signingText("error.pin2Incorrect", "Signature PIN 2 is incorrect.")
             + "\n"
             + String(
               format: String(localized: "You have %d attempts remaining."),
@@ -69,6 +69,15 @@
         fail(message: String(localized: "The card connection was lost."))
         return nil
       }
+    }
+
+    /// A sentence from the DocumentSigning table, which the signing
+    /// view and the virtual card share.
+    private func signingText(
+      _ key: StaticString,
+      _ fallback: String.LocalizationValue
+    ) -> String {
+      String(localized: key, defaultValue: fallback, table: "DocumentSigning")
     }
   }
 

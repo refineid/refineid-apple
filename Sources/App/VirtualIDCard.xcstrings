@@ -168,19 +168,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 1 is in factory state"
+            "value" : "Basic PIN 1 is in factory state"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 1 on tehdastilassa"
+            "value" : "Perustunnusluku 1 on tehdastilassa"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 1 har fabriksinställning"
+            "value" : "Grund PIN 1 har fabriksinställning"
           }
         }
       }
@@ -191,19 +191,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2 is in factory state"
+            "value" : "Signature PIN 2 is in factory state"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2 on tehdastilassa"
+            "value" : "Allekirjoitustunnusluku 2 on tehdastilassa"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2 har fabriksinställning"
+            "value" : "Signaturkod 2 har fabriksinställning"
           }
         }
       }
@@ -513,19 +513,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 1"
+            "value" : "Basic PIN 1"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 1"
+            "value" : "Perustunnusluku 1"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 1"
+            "value" : "Grund PIN 1"
           }
         }
       }
@@ -536,19 +536,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 1 attempts"
+            "value" : "Basic PIN 1 attempts"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 1 -yritykset"
+            "value" : "Perustunnusluvun 1 yritykset"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 1-försök"
+            "value" : "Försök för grund PIN 1"
           }
         }
       }
@@ -559,19 +559,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 1 value"
+            "value" : "Basic PIN 1 value"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 1 -arvo"
+            "value" : "Perustunnusluvun 1 arvo"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 1-värde"
+            "value" : "Värde för grund PIN 1"
           }
         }
       }
@@ -582,19 +582,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2"
+            "value" : "Signature PIN 2"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2"
+            "value" : "Allekirjoitustunnusluku 2"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2"
+            "value" : "Signaturkod 2"
           }
         }
       }
@@ -605,19 +605,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2 attempts"
+            "value" : "Signature PIN 2 attempts"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2 -yritykset"
+            "value" : "Allekirjoitustunnusluvun 2 yritykset"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2-försök"
+            "value" : "Försök för signaturkod 2"
           }
         }
       }
@@ -628,19 +628,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2 value"
+            "value" : "Signature PIN 2 value"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2 -arvo"
+            "value" : "Allekirjoitustunnusluvun 2 arvo"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2-värde"
+            "value" : "Värde för signaturkod 2"
           }
         }
       }
@@ -766,19 +766,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 1 stored"
+            "value" : "Basic PIN 1 stored"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 1 tallennettu"
+            "value" : "Perustunnusluku 1 tallennettu"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 1 sparad"
+            "value" : "Grund PIN 1 sparad"
           }
         }
       }
@@ -1019,19 +1019,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Response lost after PIN 1 activation"
+            "value" : "Response lost after Basic PIN 1 activation"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vastaus katoaa PIN 1:n käyttöönoton jälkeen"
+            "value" : "Vastaus katoaa perustunnusluvun 1 käyttöönoton jälkeen"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Svaret förloras efter aktivering av PIN 1"
+            "value" : "Svaret förloras efter aktivering av grund PIN 1"
           }
         }
       }
@@ -1042,19 +1042,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Response lost after PIN 2 activation"
+            "value" : "Response lost after Signature PIN 2 activation"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vastaus katoaa PIN 2:n käyttöönoton jälkeen"
+            "value" : "Vastaus katoaa allekirjoitustunnusluvun 2 käyttöönoton jälkeen"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Svaret förloras efter aktivering av PIN 2"
+            "value" : "Svaret förloras efter aktivering av signaturkod 2"
           }
         }
       }
@@ -1433,19 +1433,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 1 recovery with reader"
+            "value" : "Basic PIN 1 recovery with reader"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 1:n palautus kortinlukijalla"
+            "value" : "Perustunnusluvun 1 palautus kortinlukijalla"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Återställ PIN 1 med kortläsare"
+            "value" : "Återställ grund PIN 1 med kortläsare"
           }
         }
       }
@@ -1456,19 +1456,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2 recovery with reader"
+            "value" : "Signature PIN 2 recovery with reader"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2:n palautus kortinlukijalla"
+            "value" : "Allekirjoitustunnusluvun 2 palautus kortinlukijalla"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Återställ PIN 2 med kortläsare"
+            "value" : "Återställ signaturkod 2 med kortläsare"
           }
         }
       }

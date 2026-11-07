@@ -23,53 +23,53 @@
     internal func testChangePIN1RunsThroughGUI() {
       assertCredentialJourney(
         VirtualIDCardUITestSupport.CredentialJourney(
-          task: "Change PIN 1",
+          task: "Change Basic PIN 1",
           fields: [
             ("managementChangePIN1Current", "1234"),
             ("managementChangePIN1New", "9876"),
             ("managementChangePIN1Repeat", "9876"),
           ],
           action: UITestIdentifiers.managementChangePin1,
-          outcome: "PIN 1 changed."))
+          outcome: "Basic PIN 1 changed."))
     }
 
     internal func testChangePIN2RunsThroughGUI() {
       assertCredentialJourney(
         VirtualIDCardUITestSupport.CredentialJourney(
-          task: "Change PIN 2",
+          task: "Change Signature PIN 2",
           fields: [
             ("managementChangePIN2Current", "123456"),
             ("managementChangePIN2New", "987654"),
             ("managementChangePIN2Repeat", "987654"),
           ],
           action: UITestIdentifiers.managementChangePin2,
-          outcome: "PIN 2 changed."))
+          outcome: "Signature PIN 2 changed."))
     }
 
     internal func testResetPIN1RunsThroughGUI() {
       assertCredentialJourney(
         VirtualIDCardUITestSupport.CredentialJourney(
-          task: "Reset PIN 1",
+          task: "Reset Basic PIN 1",
           fields: [
             ("managementResetPIN1Puk", "12345678"),
             ("managementResetPIN1New", "9876"),
             ("managementResetPIN1Repeat", "9876"),
           ],
           action: UITestIdentifiers.managementResetPin1,
-          outcome: "PIN 1 reset."))
+          outcome: "Basic PIN 1 reset."))
     }
 
     internal func testResetPIN2RunsThroughGUI() {
       assertCredentialJourney(
         VirtualIDCardUITestSupport.CredentialJourney(
-          task: "Reset PIN 2",
+          task: "Reset Signature PIN 2",
           fields: [
             ("managementResetPIN2Puk", "12345678"),
             ("managementResetPIN2New", "987654"),
             ("managementResetPIN2Repeat", "987654"),
           ],
           action: UITestIdentifiers.managementResetPin2,
-          outcome: "PIN 2 reset."))
+          outcome: "Signature PIN 2 reset."))
     }
 
     internal func testRetryCounterEditedInGUISelectsRecovery() {
@@ -93,7 +93,7 @@
       openManagement(in: app)
 
       XCTAssertTrue(
-        app.buttons["Reset PIN 1"].firstMatch
+        app.buttons["Reset Basic PIN 1"].firstMatch
           .waitForExistence(timeout: UITestApp.appearTimeout),
         "a PIN 1 retry floor did not select PIN 1 recovery")
     }

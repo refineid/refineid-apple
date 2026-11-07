@@ -466,19 +466,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2 is blocked. Reset it in PIN settings."
+            "value" : "Signature PIN 2 is blocked. Reset it in PIN settings."
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2 on lukittu. Palauta se PIN-asetuksissa."
+            "value" : "Allekirjoitustunnusluku 2 on lukittu. Palauta se PIN-asetuksissa."
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2 är spärrad. Återställ den i PIN-inställningarna."
+            "value" : "Signaturkod 2 är spärrad. Återställ den i PIN-inställningarna."
           }
         }
       }
@@ -489,19 +489,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2 must contain 6 to 12 digits."
+            "value" : "Signature PIN 2 must contain 6 to 12 digits."
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2:n on oltava 6–12 numeroa."
+            "value" : "Allekirjoitustunnusluvun 2 on oltava 6–12 numeroa."
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2 måste innehålla 6–12 siffror."
+            "value" : "Signaturkod 2 måste innehålla 6–12 siffror."
           }
         }
       }
@@ -512,19 +512,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2 is incorrect."
+            "value" : "Signature PIN 2 is incorrect."
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2 on väärä."
+            "value" : "Allekirjoitustunnusluku 2 on väärä."
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIN 2 är felaktig."
+            "value" : "Signaturkod 2 är felaktig."
           }
         }
       }

@@ -34,7 +34,7 @@ internal final class CredentialConfirmationUITests: XCTestCase {
     )
     attachScreenshot(app.screenshot(), named: "confirm-change-pin1")
     XCTAssertTrue(
-      confirm.label.contains("PIN 1"),
+      confirm.label.contains("Basic PIN 1"),
       "the confirming button does not name the credential: \(confirm.label)"
     )
   }
@@ -83,7 +83,7 @@ internal final class CredentialConfirmationUITests: XCTestCase {
     }
     try XCTSkipUnless(
       fields[0].waitForExistence(timeout: 5),
-      "the window did not open on Change PIN 1"
+      "the window did not open on Change Basic PIN 1"
     )
     fields[0].click()
     fields[0].typeText("1111")

@@ -85,8 +85,13 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   number simply follows the name; and a number in parentheses reads
   badly in a field label. Not used: "PIN 1 (basic)", "Basic PIN
   (PIN 1)", "Signing PIN", "Perus-PIN", "grundkod", "grundläggande
-  kod", "Bas-PIN", a bare "PIN 1" in Finnish prose, and any number in
-  parentheses. The PUK is "PUK" in every language.
+  kod", "Bas-PIN", a bare "PIN 1" or "PIN 2" in prose of any language,
+  and any number in parentheses. The full name goes into every sentence
+  a holder reads too: status lines ("Basic PIN 1 changed."), attempt
+  counters, confirmations ("Confirm Basic PIN 1 change?"), refusals and
+  help text, declined in Finnish as the sentence needs
+  ("perustunnusluvun 1 vaihto", "allekirjoitustunnuslukua 2 ei asetettu").
+  The PUK is "PUK" in every language.
   The activation form, titled "Identity card activation" ("Organisation
   card activation" for an organization card), has three
   groups, headed "Activation PIN", "Basic PIN 1" and "Signature PIN 2"
@@ -104,9 +109,9 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   PINs ship preset to it; "activation code" is not used.
 - **Both PINs blocked.** When PIN 1 and PIN 2 are both blocked and the
   PUK is not at one or two tries, card management offers one form in place
-  of "Reset PIN 1" and "Reset PIN 2": groups headed "PUK", "Basic PIN 1"
-  and "Signature PIN 2", laid out as the activation form, and a "Reset"
-  button. It resets PIN 1, then PIN 2 only if PIN 1 was reset, with the
+  of "Reset Basic PIN 1" and "Reset Signature PIN 2": groups headed
+  "PUK", "Basic PIN 1" and "Signature PIN 2", laid out as the
+  activation form, and a "Reset" button. It resets PIN 1, then PIN 2 only if PIN 1 was reset, with the
   one PUK entry, on any card that does not await activation.
 - **The PUK at no tries left goes to the card.** Before presenting the
   PUK (a PIN reset, the organization card's PUK verify, and activation

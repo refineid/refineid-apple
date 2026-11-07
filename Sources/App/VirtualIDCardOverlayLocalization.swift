@@ -19,8 +19,10 @@
         .registeredNearField: ("scenario.registeredNearField", "Registered NFC identity"),
         .factoryFreshReader: ("scenario.factoryFreshReader", "Factory-fresh reader card"),
         .activatedReader: ("scenario.activatedReader", "Activated reader card"),
-        .pin1RecoveryReader: ("scenario.pin1RecoveryReader", "PIN 1 recovery with reader"),
-        .pin2RecoveryReader: ("scenario.pin2RecoveryReader", "PIN 2 recovery with reader"),
+        .pin1RecoveryReader: ("scenario.pin1RecoveryReader", "Basic PIN 1 recovery with reader"),
+        .pin2RecoveryReader: (
+          "scenario.pin2RecoveryReader", "Signature PIN 2 recovery with reader"
+        ),
         .pukRecoveryRefusedReader: (
           "scenario.pukRecoveryRefusedReader", "PUK recovery refused with reader"
         ),
@@ -105,12 +107,12 @@
       case .responseLostAfterPIN1Activation:
         localizedText(
           "fault.responseLostAfterPIN1Activation",
-          defaultValue: "Response lost after PIN 1 activation")
+          defaultValue: "Response lost after Basic PIN 1 activation")
 
       case .responseLostAfterPIN2Activation:
         localizedText(
           "fault.responseLostAfterPIN2Activation",
-          defaultValue: "Response lost after PIN 2 activation")
+          defaultValue: "Response lost after Signature PIN 2 activation")
 
       case .responseLostAfterSignature:
         localizedText(

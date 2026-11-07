@@ -77,11 +77,20 @@ internal struct CredentialOperationConfirmation: ViewModifier {
   private static func actionTitle(of operation: Operation) -> String {
     let title: String =
       switch operation {
-      case .change(let role):
-        String(localized: "Confirm \(Self.name(of: role)) change?")
+      case .change(.pin1):
+        String(localized: "Confirm Basic PIN 1 change?")
 
-      case .unblock(let role):
-        String(localized: "Confirm \(Self.name(of: role)) reset?")
+      case .change(.pin2):
+        String(localized: "Confirm Signature PIN 2 change?")
+
+      case .unblock(.pin1):
+        String(localized: "Confirm Basic PIN 1 reset?")
+
+      case .unblock(.pin2):
+        String(localized: "Confirm Signature PIN 2 reset?")
+
+      case .change(.puk), .unblock(.puk):
+        preconditionFailure("PUK is the recovery credential, not a change or reset target")
 
       case .unblockBoth:
         String(localized: "Change both PINs")
@@ -100,7 +109,6 @@ internal struct CredentialOperationConfirmation: ViewModifier {
     for operation: Operation,
     report: CredentialProbeReport?
   ) -> String? {
-    let spent = operation.spends.map(Self.name) ?? ""
     let minimum = Int(RetryFloor.minimumAttemptsToProceed)
     let pristine = Int(RetryCount.pristineAllowance)
     guard
@@ -113,19 +121,30 @@ internal struct CredentialOperationConfirmation: ViewModifier {
       return nil
     }
     switch operation {
-    case .change:
+    case .change(.pin1):
       return String(
         localized: """
-          A wrong current \(spent) spends one attempt. \
+          A wrong current Basic PIN 1 spends one attempt. \
           \(remaining) attempts remain.
           """
       )
 
+    case .change(.pin2):
+      return String(
+        localized: """
+          A wrong current Signature PIN 2 spends one attempt. \
+          \(remaining) attempts remain.
+          """
+      )
+
+    case .change(.puk):
+      preconditionFailure("PUK is the recovery credential, not a change target")
+
     case .unblock, .unblockBoth:
       return String(
         localized: """
-          A wrong \(spent) spends one attempt. \(remaining) attempts remain. \
-          Exhausting the \(spent) cannot be undone by software.
+          A wrong PUK spends one attempt. \(remaining) attempts remain. \
+          Exhausting the PUK cannot be undone by software.
           """
       )
 
@@ -154,20 +173,6 @@ internal struct CredentialOperationConfirmation: ViewModifier {
     return Int(count.attemptsRemaining)
   }
 
-  /// The on-screen name, written the way the card documentation
-  /// writes it.
-  private static func name(of role: CredentialRole) -> String {
-    switch role {
-    case .pin1:
-      "PIN 1"
-
-    case .pin2:
-      "PIN 2"
-
-    case .puk:
-      "PUK"
-    }
-  }
   internal func body(content: Content) -> some View {
     content
       .alert(

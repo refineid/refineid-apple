@@ -25,7 +25,7 @@
 
     internal var body: some View {
       if signing.pending != nil {
-        let pinTitle = String(localized: "PIN 2")
+        let pinTitle = CredentialLabels.name(for: .pin2)
         Section {
           SignatureFormatRow(documents: signing.queued, format: $format)
           if asksLocalPin2 {

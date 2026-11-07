@@ -37,8 +37,8 @@ import SwiftUI
       _ report: CredentialProbeReport
     ) -> [AttemptsReading] {
       [
-        AttemptsReading(name: "PIN 1", outcome: report.pin1),
-        AttemptsReading(name: "PIN 2", outcome: report.pin2),
+        AttemptsReading(name: CredentialLabels.name(for: .pin1), outcome: report.pin1),
+        AttemptsReading(name: CredentialLabels.name(for: .pin2), outcome: report.pin2),
         AttemptsReading(name: "PUK", outcome: report.puk),
       ]
       .filter { !isFull($0.outcome) }

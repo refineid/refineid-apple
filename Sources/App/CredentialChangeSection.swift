@@ -15,25 +15,16 @@ internal struct CredentialChangeSection: View {
     case pin1
     case pin2
 
-    /// The on-screen name.
-    ///
-    /// Written the way the holder's own card documentation writes
-    /// it, with the space, and used wherever a field or a button
-    /// names the credential it spends.
-    internal var name: String {
+    /// The name used in accessibility identifiers, which tests match
+    /// exactly.
+    internal var identifierName: String {
       switch self {
       case .pin1:
-        "PIN 1"
+        "PIN1"
 
       case .pin2:
-        "PIN 2"
+        "PIN2"
       }
-    }
-
-    /// The name used in accessibility identifiers, which tests match
-    /// exactly and which therefore carries no space.
-    internal var identifierName: String {
-      name.replacingOccurrences(of: " ", with: "")
     }
   }
 

@@ -44,7 +44,7 @@ internal final class CardManagementOutcomeMessageTests: XCTestCase {
       scheme: .activationCodeIsPuk, pin1: .success, pin2: .success)
     XCTAssertTrue(model.describe(report))
     XCTAssertEqual(
-      model.notice, String(localized: "Card activated: PIN 1 and PIN 2 are set."))
+      model.notice, String(localized: "Card activated: Basic PIN 1 and Signature PIN 2 are set."))
     XCTAssertNil(model.failure)
   }
 
@@ -56,16 +56,16 @@ internal final class CardManagementOutcomeMessageTests: XCTestCase {
     XCTAssertFalse(model.describe(report))
     let reason = CredentialOutcomeMessage.rejection(.activationPin, remaining: remaining)
     XCTAssertEqual(
-      model.failure, String(localized: "PIN 1 was set, but PIN 2 was not: \(reason)"))
+      model.failure,
+      String(localized: "Basic PIN 1 was set, but Signature PIN 2 was not: \(reason)"))
   }
 
   internal func testAnUnreadableCounterNamesTheEntry() {
     let message = Self.model().message(
       for: .floorRefused(.refuseUnreadable), presenting: .activationCode, spending: .puk)
-    let name = String(localized: "activation PIN")
     XCTAssertEqual(
       message,
-      String(localized: "The \(name) retry counter could not be read; nothing was sent."))
+      String(localized: "The activation PIN retry counter could not be read; nothing was sent."))
   }
 
   internal func testAPukTheCardAnsweredBlockedIsReportedAsTheCardsAnswer() throws {
@@ -91,13 +91,17 @@ internal final class CardManagementOutcomeMessageTests: XCTestCase {
 
   internal func testActivationSuccessIsSaidInEveryLanguage() throws {
     try Self.assertTranslations(
-      of: "Card activated: PIN 1 and PIN 2 are set.",
-      finnish: "Kortti aktivoitu: PIN 1 ja PIN 2 on asetettu.",
-      swedish: "Kortet aktiverat: PIN 1 och PIN 2 har angetts.")
+      of: "Card activated: Basic PIN 1 and Signature PIN 2 are set.",
+      finnish: "Kortti aktivoitu: perustunnusluku 1 ja allekirjoitustunnusluku 2 on asetettu.",
+      swedish: "Kortet aktiverat: grund PIN 1 och signaturkod 2 har angetts.")
   }
 
   internal func testActivationEntryNamesAreSaidInEveryLanguage() throws {
     try Self.assertTranslations(
-      of: "activation PIN", finnish: "aktivointitunnusluku", swedish: "aktiveringskod")
+      of: "The activation PIN retry counter could not be read; nothing was sent.",
+      finnish: "Aktivointitunnusluvun jäljellä olevien yritysten määrää ei voitu lukea, "
+        + "joten mitään ei lähetetty.",
+      swedish: "Antalet återstående försök för aktiveringskoden kunde inte läsas, "
+        + "så inget skickades.")
   }
 }
