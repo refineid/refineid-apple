@@ -85,6 +85,28 @@ internal struct RetryFloorPolicyTests {
   }
 
   @Test
+  internal func activationLetsTheCardAnswerAnExhaustedCredential() throws {
+    // The last-tries rule, for whatever an activation presents: one or
+    // two tries left and an unreadable counter refuse; none left and
+    // blocked go to the card, which spends nothing.
+    let none = try #require(RetryCount(attemptsRemaining: 0))
+    #expect(RetryFloor.evaluateLastTries(probeOutcome: .remaining(none)) == .proceed)
+    #expect(RetryFloor.evaluateLastTries(probeOutcome: .locked) == .proceed)
+    for remaining in [UInt8(1), 2] {
+      let count = try #require(RetryCount(attemptsRemaining: remaining))
+      #expect(RetryFloor.evaluateLastTries(probeOutcome: .remaining(count)) == .refuseLowAttempts)
+    }
+    for remaining in [UInt8(3), 4, 5] {
+      let count = try #require(RetryCount(attemptsRemaining: remaining))
+      #expect(RetryFloor.evaluateLastTries(probeOutcome: .remaining(count)) == .proceed)
+    }
+    #expect(RetryFloor.evaluateLastTries(probeOutcome: .verified) == .proceed)
+    for unreadable in [RetryProbeOutcome.noInformation, .other(0), .invalidated] {
+      #expect(RetryFloor.evaluateLastTries(probeOutcome: unreadable) == .refuseUnreadable)
+    }
+  }
+
+  @Test
   internal func aPinAtNoTriesLeftStaysRefused() throws {
     // The PIN floor is unchanged: a blocked PIN is refused before the
     // card is asked, and the PUK resets it.

@@ -280,6 +280,24 @@ extension CardMaintenance {
     return verdict == .proceed ? nil : .floorRefused(verdict)
   }
 
+  /// The refusal before an activation presents `role`, or nil when the
+  /// write may go to the card.
+  ///
+  /// Activation takes the last-tries rule for whichever credential it
+  /// presents, the PUK or a preset PIN: refused at two or one tries left
+  /// and at an unreadable counter; at none left or blocked the card
+  /// answers for itself.
+  internal static func activationFloorRefusal(
+    presenting role: CredentialRole,
+    on operations: CardOperations
+  ) -> Outcome? {
+    guard let probe = try? operations.probeRetryCounter(role: role) else {
+      return .floorRefused(.refuseUnreadable)
+    }
+    let verdict = RetryFloor.evaluateLastTries(probeOutcome: probe)
+    return verdict == .proceed ? nil : .floorRefused(verdict)
+  }
+
   /// A successful CHANGE REFERENCE DATA or RESET RETRY COUNTER restores the
   /// target credential's retry allowance.
   ///

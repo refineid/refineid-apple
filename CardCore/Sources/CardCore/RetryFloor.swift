@@ -8,9 +8,10 @@
 /// verified. One or two attempts left and an unreadable counter are
 /// refused: RefineID never spends an attempt that could block the card.
 /// A blocked PIN is refused too. A blocked PUK, or one at no tries left,
-/// goes to the card (`evaluate(probeOutcome:presenting:)`): the card
+/// goes to the card (`evaluate(probeOutcome:presenting:)`), and so does
+/// a preset activation PIN (`evaluateLastTries(probeOutcome:)`): the card
 /// answers for itself and spends nothing, and the software cannot know
-/// whether the code in the holder's hand is a PUK or an activation code,
+/// whether the code in the holder's hand is a PUK or an activation PIN,
 /// so it must not close a recovery the card would allow. Each operation
 /// judges the credential it presents, so a reset presents the PUK and is
 /// judged on the PUK's counter whatever the PIN it resets shows.
@@ -70,18 +71,38 @@ public enum RetryFloor {
     }
   }
 
-  /// Decides for the credential `role` presents.
+  /// Decides for the credential `role` presents in ordinary use.
   ///
-  /// PIN 1 and PIN 2 take the floor as it stands. The PUK is refused at
-  /// one or two tries left and at an unreadable counter, but at no
-  /// tries left or blocked the operation proceeds to the card, which
-  /// refuses by itself without spending anything.
+  /// PIN 1 and PIN 2 take the floor as it stands. The PUK takes the
+  /// last-tries rule: refused at one or two tries left and at an
+  /// unreadable counter, but at no tries left or blocked the operation
+  /// proceeds to the card, which refuses by itself without spending
+  /// anything.
   public static func evaluate(
     probeOutcome: RetryProbeOutcome,
     presenting role: CredentialRole
   ) -> RetryFloorVerdict {
+    switch role {
+    case .pin1, .pin2:
+      evaluate(probeOutcome: probeOutcome)
+
+    case .puk:
+      evaluateLastTries(probeOutcome: probeOutcome)
+    }
+  }
+
+  /// Refuses only where a last try would be spent or the counter cannot
+  /// be read: one or two tries left, or no reading.
+  ///
+  /// At no tries left or blocked the operation proceeds: the card
+  /// answers for itself and spends nothing. This is the rule for every
+  /// credential an activation presents - the PUK under the
+  /// activation-code scheme and each preset PIN under the
+  /// activation-PIN scheme - since which code the holder has in hand is
+  /// inferred from the card, never known, and the software must not
+  /// close a recovery the card would allow.
+  public static func evaluateLastTries(probeOutcome: RetryProbeOutcome) -> RetryFloorVerdict {
     let verdict = evaluate(probeOutcome: probeOutcome)
-    guard role == .puk, verdict == .refuseBlocked else { return verdict }
-    return .proceed
+    return verdict == .refuseBlocked ? .proceed : verdict
   }
 }

@@ -123,7 +123,7 @@ extension VirtualIDCard {
     let checkedRole: CredentialRole =
       current.card.activationScheme == .activationCodeIsPuk ? .puk : role
     var checked = credential(for: checkedRole)
-    if let refusal = retryRefusal(checked.attemptsRemaining, presenting: checkedRole) {
+    if let refusal = lastTriesRefusal(checked.attemptsRemaining) {
       return refusal
     }
     if checked.attemptsRemaining == Self.noAttemptsLeft {
@@ -159,10 +159,22 @@ extension VirtualIDCard {
     _ remaining: UInt8,
     presenting role: CredentialRole
   ) -> CredentialOutcome? {
-    switch remaining {
-    case Self.noAttemptsLeft:
-      role == .puk ? nil : .blocked
+    switch role {
+    case .pin1, .pin2:
+      remaining == Self.noAttemptsLeft ? .blocked : lastTriesRefusal(remaining)
 
+    case .puk:
+      lastTriesRefusal(remaining)
+    }
+  }
+
+  /// What the software refuses before an activation presents a
+  /// credential, or before any use of the PUK.
+  ///
+  /// Only one or two tries left refuse. None left goes to the card,
+  /// which answers blocked itself.
+  internal func lastTriesRefusal(_ remaining: UInt8) -> CredentialOutcome? {
+    switch remaining {
     case 1...RetryCount.lowAttemptCeiling:
       .refusedLowAttempts(remaining: remaining)
 

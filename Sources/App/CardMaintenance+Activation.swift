@@ -77,7 +77,9 @@ extension CardMaintenance {
     execution?.remaining.any == false ? nil : .credential
   }
 
-  private static func runActivation(
+  /// The activation writes over an open session, each PIN behind its
+  /// own fresh last-tries decision.
+  internal static func runActivation(
     _ operations: CardOperations,
     request: ActivationRequest,
     lengths: CardPinLengths
@@ -139,7 +141,7 @@ extension CardMaintenance {
       guard let code = Puk(digits: entry), let pin = Pin1(digits: newPin1) else {
         return .invalidEntry
       }
-      if let refusal = floorRefusal(presenting: .puk, on: operations) {
+      if let refusal = activationFloorRefusal(presenting: .puk, on: operations) {
         return refusal
       }
       do {
@@ -157,7 +159,7 @@ extension CardMaintenance {
       guard let preset = Pin1(digits: entry), let pin = Pin1(digits: newPin1) else {
         return .invalidEntry
       }
-      if let refusal = floorRefusal(presenting: .pin1, on: operations) {
+      if let refusal = activationFloorRefusal(presenting: .pin1, on: operations) {
         return refusal
       }
       do {
@@ -185,7 +187,7 @@ extension CardMaintenance {
       guard let code = Puk(digits: entry), let pin = Pin2(digits: newPin2) else {
         return .invalidEntry
       }
-      if let refusal = floorRefusal(presenting: .puk, on: operations) {
+      if let refusal = activationFloorRefusal(presenting: .puk, on: operations) {
         return refusal
       }
       do {
@@ -203,7 +205,7 @@ extension CardMaintenance {
       guard let preset = Pin2(digits: entry), let pin = Pin2(digits: newPin2) else {
         return .invalidEntry
       }
-      if let refusal = floorRefusal(presenting: .pin2, on: operations) {
+      if let refusal = activationFloorRefusal(presenting: .pin2, on: operations) {
         return refusal
       }
       do {

@@ -14,17 +14,17 @@ extension CardManagementModel {
   /// PINs show; under the activation-PIN scheme it is every PIN still
   /// awaiting its factory-state write.
   ///
-  /// A PUK reading of no tries left or blocked disables nothing: the
-  /// backend lets that operation reach the card, which answers for
-  /// itself.
+  /// A reading of no tries left or blocked disables nothing here: the
+  /// backend lets an activation reach the card under the last-tries
+  /// rule, and the card answers for itself.
   internal var allowsActivationOperation: Bool {
     switch activation?.scheme {
     case .activationCodeIsPuk:
-      return allowsCredentialOperation(spending: .puk)
+      return allowsActivationCredential(spending: .puk)
 
     case .presetActivationPin, .none:
-      return (!activationNeeds.pin1 || allowsCredentialOperation(spending: .pin1))
-        && (!activationNeeds.pin2 || allowsCredentialOperation(spending: .pin2))
+      return (!activationNeeds.pin1 || allowsActivationCredential(spending: .pin1))
+        && (!activationNeeds.pin2 || allowsActivationCredential(spending: .pin2))
     }
   }
 
@@ -44,5 +44,10 @@ extension CardManagementModel {
   internal func allowsCredentialOperation(spending role: CredentialRole) -> Bool {
     guard let outcome = retryOutcome(for: role) else { return true }
     return RetryFloor.evaluate(probeOutcome: outcome, presenting: role) == .proceed
+  }
+
+  private func allowsActivationCredential(spending role: CredentialRole) -> Bool {
+    guard let outcome = retryOutcome(for: role) else { return true }
+    return RetryFloor.evaluateLastTries(probeOutcome: outcome) == .proceed
   }
 }

@@ -44,8 +44,10 @@
     /// the counter parser does not read it.
     private static let authenticationMethod: UInt8 = 0xFF
 
-    /// A fictitious PUK and PIN 1 of the lengths a citizen card accepts.
+    /// A fictitious PUK, preset activation PIN and PIN 1 of the lengths
+    /// a citizen card accepts.
     private static let pukDigits = "12345678"
+    private static let activationPinDigits = "1234567"
     private static let pin1Digits = "4321"
 
     /// `statusWord` after `body`, as the card puts it on the wire.
@@ -114,6 +116,24 @@
       .intoTransportPayload()
     }
 
+    /// The preset activation PIN presented as the current PIN 1 on the
+    /// wire.
+    private static func presetPin1ChangeCommand() -> Data {
+      guard
+        let preset = Pin1(digits: Self.activationPinDigits),
+        let pin = Pin1(digits: Self.pin1Digits)
+      else {
+        Issue.record("valid credential failed to construct")
+        return Data()
+      }
+      return CredentialBearingCommand.changePin1(
+        current: preset.consumeForSingleTransmission(),
+        new: pin.consumeForSingleTransmission(),
+        references: .citizen
+      )
+      .intoTransportPayload()
+    }
+
     @Test
     internal func aPukAtNoTriesLeftIsPassedToTheCitizenCard() throws {
       let none = try #require(RetryCount(attemptsRemaining: 0))
@@ -162,6 +182,63 @@
       }
 
       #expect(outcome == .pinBlocked)
+      #expect(card.isExhausted)
+    }
+
+    @Test
+    internal func aPresetActivationPinAtNoTriesLeftIsPassedToTheCard() {
+      // PIN 1 probes blocked; the activation change still goes out, and
+      // the card answers blocked.
+      let card = ScriptedCard([
+        (
+          CommandApdu.readRetryCounter(role: .pin1, references: .citizen).encoded,
+          Self.answer(.authenticationBlocked)
+        ),
+        (Self.presetPin1ChangeCommand(), Self.answer(.authenticationBlocked)),
+      ])
+      let request = CardMaintenance.ActivationRequest(
+        entry: Self.activationPinDigits,
+        newPin1: Self.pin1Digits,
+        newPin2: nil,
+        scheme: .presetActivationPin,
+        needs: CardActivationNeeds(pin1: true, pin2: false)
+      )
+
+      let report = CardMaintenance.runActivation(
+        CardOperations(channel: card),
+        request: request,
+        lengths: .notListed(numbering: .citizen)
+      )
+
+      #expect(report?.pin1 == .pinBlocked)
+      #expect(report?.pin2 == nil)
+      #expect(card.isExhausted)
+    }
+
+    @Test
+    internal func aPresetActivationPinAtTwoTriesLeftIsRefusedBeforeTheCard() throws {
+      let two = try #require(RetryCount(attemptsRemaining: RetryCount.lowAttemptCeiling))
+      let card = ScriptedCard([
+        (
+          CommandApdu.readRetryCounter(role: .pin1, references: .citizen).encoded,
+          Self.answer(.pinIncorrect(remaining: two))
+        )
+      ])
+      let request = CardMaintenance.ActivationRequest(
+        entry: Self.activationPinDigits,
+        newPin1: Self.pin1Digits,
+        newPin2: nil,
+        scheme: .presetActivationPin,
+        needs: CardActivationNeeds(pin1: true, pin2: false)
+      )
+
+      let report = CardMaintenance.runActivation(
+        CardOperations(channel: card),
+        request: request,
+        lengths: .notListed(numbering: .citizen)
+      )
+
+      #expect(report?.pin1 == .floorRefused(.refuseLowAttempts))
       #expect(card.isExhausted)
     }
 

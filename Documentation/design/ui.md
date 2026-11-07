@@ -96,8 +96,11 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   hand is a PUK or an activation code, so it must not close a recovery
   the card would allow. The counter row may still read the PUK as
   blocked, as information; no reset or activation button is disabled by
-  it. PIN 1 and PIN 2 keep their floor: refused at two, one and no tries
-  left, blocked, and unreadable.
+  it. Activation by a preset activation PIN takes the same last-tries
+  rule for the PIN it changes: which code the holder has in hand is
+  inferred, so a preset PIN at no tries left or blocked goes to the card
+  too. PIN 1 and PIN 2 in ordinary use (verify, sign, change) keep their
+  floor: refused at two, one and no tries left, blocked, and unreadable.
 - **Development builds show errors.** Every failure path reports to
   `DevErrorLog`: the Errors window on the Mac, the error pill and the
   Diagnostics screen on iPhone and iPad. TestFlight and Release builds
