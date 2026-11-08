@@ -209,7 +209,9 @@
     ) {
       #if DEBUG
         if let failure = reason.devErrorName(midOperation: !session.isIdle) {
-          DevErrorLog.report("session closed: \(failure)", source: .app)
+          let peer = DevErrorLog.peerName(pairID: session.pairID, vault: vault)
+          DevErrorLog.report(
+            "session closed: \(failure), \(peer), \(session.transport.devErrorName)", source: .app)
         }
       #endif
       guard sessions.removeValue(forKey: session.identifier) != nil else { return }

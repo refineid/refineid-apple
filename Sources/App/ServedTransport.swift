@@ -9,5 +9,18 @@
     case bluetooth(RappBleGattLink)
     /// One connection on the session listener.
     case stream(StreamSessionConnection)
+
+    #if DEBUG
+      /// The transport as the development error strip names it.
+      internal var devErrorName: String {
+        switch self {
+        case .bluetooth:
+          "Bluetooth"
+
+        case .stream:
+          "network"
+        }
+      }
+    #endif
   }
 #endif
