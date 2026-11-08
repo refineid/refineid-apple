@@ -9,35 +9,31 @@ import Foundation
 ///
 /// Custodians are found on every transport the requester dials sessions
 /// over: the stream's `mode=pairing` records and, on a Mac, the RAPP
-/// service's Bluetooth advertisements. The stream is
-/// tried first (hierarchy specification §3): advertisers are reported once
-/// the stream has had ``bluetoothHeadStartMilliseconds`` to be found, so a
-/// phone reachable both ways pairs over the stream, and Bluetooth reaches
-/// a phone with no shared network.
+/// service's Bluetooth advertisements. Discovery first gathers for
+/// ``gatherMilliseconds``, so a custodian that answers slowly or only over
+/// Bluetooth is found with the code (item 1) before a fast refusal from
+/// another one could end the search; the gathered ones are handed on with
+/// the stream first (hierarchy specification §3), and later ones at once.
 internal enum PairingCandidateLink {
-  /// How long the stream's records are gathered before the first
-  /// Bluetooth advertiser is reported.
-  internal static let bluetoothHeadStartMilliseconds = 2_000
+  /// How long discovery gathers custodians before the first is tried.
+  internal static let gatherMilliseconds = 3_000
 
-  /// Each custodian found, once, in the order reported, until `stop` is
+  /// Each custodian found, once, in the order handed on, until `stop` is
   /// called; never the Bluetooth advertiser `sessionPeer`, which carries
   /// this requester's session.
   internal static func discover(skipping sessionPeer: UUID?) -> (
     found: AsyncStream<PairingEndpoint>, stop: @Sendable () -> Void
   ) {
     let (found, sink) = AsyncStream.makeStream(of: PairingEndpoint.self)
+    let gathering = PairingEndpointGathering { endpoint in sink.yield(endpoint) }
     let browser = StreamRelayBrowser(
       reportingEachWithAttributes: StreamRendezvousName.pairingAttributes
     ) { service in
-      sink.yield(.stream(service))
+      gathering.found(.stream(service))
     }
-    let bluetoothFrom = ContinuousClock.now + .milliseconds(bluetoothHeadStartMilliseconds)
     let scanner = RappBleAppearanceWatcher { peripheral in
       guard peripheral != sessionPeer else { return }
-      Task {
-        try? await Task.sleep(until: bluetoothFrom, clock: .continuous)
-        sink.yield(.bluetooth(peripheral))
-      }
+      gathering.found(.bluetooth(peripheral))
     }
     browser.start()
     // A requester looks over Bluetooth only where it dials its sessions
@@ -45,9 +41,14 @@ internal enum PairingCandidateLink {
     if PersistentTokenRegistry.dialsOverBluetooth {
       scanner.start()
     }
+    let release = Task {
+      try? await Task.sleep(for: .milliseconds(gatherMilliseconds))
+      gathering.release()
+    }
     return (
       found,
       {
+        release.cancel()
         browser.cancel()
         scanner.cancel()
         sink.finish()

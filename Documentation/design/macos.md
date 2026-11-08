@@ -60,8 +60,9 @@ reads it as a toggle.
   local network and runs until macOS allows it. With no phone paired, the
   pairing prompt shows, beside a card reader or not, and the Mac looks
   for phones in pairing mode only while a code is tried: their
-  `mode=pairing` records on the network, and from 2 seconds on the RAPP
-  Bluetooth peripherals in reach, so a phone with no network shared with
+  `mode=pairing` records on the network and the RAPP Bluetooth
+  peripherals in reach, gathered for 3 seconds and tried the network
+  first, so a phone with no network shared with
   the Mac pairs over Bluetooth (RAPP v26.11.8 §4.2). A pairing made over
   Bluetooth dials that phone over Bluetooth first. With a pairing,
   the phone's line returns.

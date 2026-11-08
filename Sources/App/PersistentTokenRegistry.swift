@@ -231,6 +231,9 @@
 
     /// The forgotten pairings whose close a session is delivering now.
     internal var revocationDeliveries: Set<Data> = []
+    /// Whether forgotten pairings' closes are being delivered over
+    /// Bluetooth now; the held session dials Bluetooth once they are done.
+    internal var revokingOverBluetooth = false
 
     /// Opens the one session that delivers a forgotten pairing's close
     /// along a route; a test puts a session of its own in its place.

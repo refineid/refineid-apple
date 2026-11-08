@@ -73,6 +73,9 @@
     internal func openHolderSession() {
       guard Self.dialsPhones, holderSession == nil, let transport = transportPolicy.nextDial
       else { return }
+      // A forgotten pairing's close holds the Bluetooth link; the dial
+      // follows it.
+      if transport == .bluetooth, revokingOverBluetooth { return }
       guard sessionSlot.mayDial(at: .now) else {
         if redialTask == nil { scheduleRedial() }
         return

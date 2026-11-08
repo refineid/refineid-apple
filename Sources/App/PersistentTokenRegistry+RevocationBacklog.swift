@@ -142,14 +142,34 @@
 
     /// A RAPP peripheral appeared over Bluetooth (§4.6 item 6): the
     /// advertisement names no pairing, so each forgotten pairing with no
-    /// delivery under way opens one connection to that peripheral, whose
-    /// routing says whether it holds the pairing.
+    /// delivery under way opens one connection to that peripheral and no
+    /// other, in turn, whose routing says whether it holds the pairing.
+    ///
+    /// Every client on a Mac shares one Bluetooth connection to a phone,
+    /// and the phone keeps one link per computer: a delivery opened beside
+    /// the held session, or beside another delivery, would end that link.
+    /// So nothing is opened while the held session dials over Bluetooth or
+    /// runs to this peripheral, and the deliveries go one at a time.
     internal func bluetoothPeripheralAppeared(_ peripheral: UUID, in vault: RappDeviceVault) {
-      guard Self.dialsPhones else { return }
-      for pairing in Self.forgottenPairings(in: vault) {
-        deliverRevocation(
-          of: pairing.pairID, along: .bluetooth(RappBleCentralPeers(preferred: peripheral)),
-          in: vault)
+      let sessionOverBluetooth =
+        sessionSlot.state == .dialing(.bluetooth) || sessionSlot.state == .open(.bluetooth)
+      let sessionPeer = sessionOverBluetooth ? bluetoothPeers.preferred : nil
+      guard Self.dialsPhones, !revokingOverBluetooth,
+        !sessionOverBluetooth || (sessionPeer != nil && sessionPeer != peripheral)
+      else { return }
+      let waiting = Self.forgottenPairings(in: vault).map(\.pairID).filter { pairID in
+        !revocationDeliveries.contains(pairID)
+      }
+      guard !waiting.isEmpty else { return }
+      revocationDeliveries.formUnion(waiting)
+      revokingOverBluetooth = true
+      Task { @MainActor [weak self] in
+        for pairID in waiting {
+          await self?.deliverRevocationNow(
+            of: pairID, along: .bluetooth(.only(peripheral)), in: vault)
+        }
+        self?.revokingOverBluetooth = false
+        self?.openHolderSession()
       }
     }
 
@@ -165,36 +185,43 @@
     ) {
       guard Self.dialsPhones, !revocationDeliveries.contains(pairID) else { return }
       revocationDeliveries.insert(pairID)
+      Task { @MainActor [weak self] in
+        await self?.deliverRevocationNow(of: pairID, along: route, in: vault)
+      }
+    }
+
+    /// Runs the delivery of `pairID` along `route`, already marked under
+    /// way, to its end.
+    private func deliverRevocationNow(
+      of pairID: Data, along route: RappHeldRequesterSession.Route, in vault: RappDeviceVault
+    ) async {
       let deliver = revocationDelivery
       let policy: RappRequesterPolicy =
         if case .bluetooth = route { Self.bluetoothPolicy } else { .interactive }
-      Task { @MainActor [weak self] in
-        let clock = RappPlatformClock()
-        var delivery = RappRevocationNotice.Delivery.unreached
-        if let pair = try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault),
-          pair.metadata().forgottenAtMs != nil
-        {
-          if pair.revocationNoticeExpired(nowMs: clock.wallMilliseconds()) {
-            try? RappPairRevocation.revoke(pair, in: vault, clock: clock)
-          } else {
-            delivery = await deliver(pair, route, policy)
-          }
+      let clock = RappPlatformClock()
+      var delivery = RappRevocationNotice.Delivery.unreached
+      if let pair = try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault),
+        pair.metadata().forgottenAtMs != nil
+      {
+        if pair.revocationNoticeExpired(nowMs: clock.wallMilliseconds()) {
+          try? RappPairRevocation.revoke(pair, in: vault, clock: clock)
+        } else {
+          delivery = await deliver(pair, route, policy)
         }
-        guard let self else { return }
-        revocationDeliveries.remove(pairID)
-        guard delivery == .acknowledged else {
-          followRevocationBacklog(in: vault)
-          #if DEBUG
-            if delivery == .unacknowledged {
-              DevErrorLog.report(
-                "forgotten pairing: the phone did not echo its close; kept for its next appearance",
-                source: .app)
-            }
-          #endif
-          return
-        }
-        revocationNoticeDelivered(pairID: pairID, in: vault)
       }
+      revocationDeliveries.remove(pairID)
+      guard delivery == .acknowledged else {
+        followRevocationBacklog(in: vault)
+        #if DEBUG
+          if delivery == .unacknowledged {
+            DevErrorLog.report(
+              "forgotten pairing: the phone did not echo its close; kept for its next appearance",
+              source: .app)
+          }
+        #endif
+        return
+      }
+      revocationNoticeDelivered(pairID: pairID, in: vault)
     }
   }
 #endif
