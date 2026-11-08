@@ -31,14 +31,15 @@
       )
     }
 
-    /// Whether the paired phone is in sight, on the network or over
-    /// Bluetooth.
+    /// Whether the paired phone's identity stands: the phone is in sight,
+    /// on the network or over Bluetooth, or its identity is still offered
+    /// under the grace after a loss.
     ///
     /// A phone whose pairing this computer forgot is in sight only to hear
     /// that close, and serves nothing here.
     private var holderInSight: Bool {
       #if REFINEID_REMOTE_CARD
-        remoteRegistry.pairedPhoneID != nil && remoteRegistry.holderInSight
+        remoteRegistry.pairedPhoneID != nil && remoteRegistry.holderIdentityStands
       #else
         false
       #endif
@@ -66,7 +67,7 @@
     /// Whether a paired phone has already answered with a certificate.
     private var hasBorrowedIdentity: Bool {
       #if REFINEID_REMOTE_CARD
-        remoteRegistry.holderInSight && remoteRegistry.holderLine != nil
+        remoteRegistry.holderLine != nil
       #else
         false
       #endif

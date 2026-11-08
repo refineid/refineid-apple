@@ -116,6 +116,18 @@
       holderIsAdvertising || holderOverBluetooth
     }
 
+    /// Whether the phone's identity stands for the identity row.
+    ///
+    /// It does while the phone is in sight, or while the identity it
+    /// confirmed is still offered under the grace after a loss (RAPP
+    /// v26.11.8 §8.4 item 3). Over Bluetooth only a session puts the phone
+    /// in sight, so a dropped session keeps the row
+    /// until the redial brings the session back or the grace withdraws the
+    /// identity.
+    internal var holderIdentityStands: Bool {
+      holderInSight || holderLine != nil
+    }
+
     /// The phone's last `card.status` on the open session; nil without a
     /// session or before its first report.
     internal var holderCardStatus: RappCardStatus?
