@@ -348,12 +348,13 @@
       /// strip; a Bluetooth dial that reached no phone within its scan is
       /// the discovery failure itself.
       private func reportEnd(_ reason: RappConnectionCoordinator.CloseReason) {
+        let peer = DevErrorLog.peerName(pairID: holderSession?.pairID, vault: RappDeviceVault())
         if sessionSlot.transport == .bluetooth, !sessionSlot.isEstablished,
           reason == .transportFailure
         {
-          DevErrorLog.report("phone over Bluetooth: not reached within the scan", source: .app)
+          DevErrorLog.report(
+            "phone over Bluetooth: not reached within the scan, \(peer)", source: .app)
         } else if let failure = reason.devErrorName(midOperation: isRunning) {
-          let peer = DevErrorLog.peerName(pairID: holderSession?.pairID, vault: RappDeviceVault())
           let route = sessionSlot.transport == .bluetooth ? "Bluetooth" : "network"
           DevErrorLog.report("phone session closed: \(failure), \(peer), \(route)", source: .app)
         }
