@@ -1891,7 +1891,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Arkivbeständig: kan granskas i årtionden"
+            "value" : "Arkivnivå: kan granskas i årtionden"
           }
         }
       }
@@ -1957,7 +1957,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tidsstämplad, ingen valideringsdata"
+            "value" : "Tidsstämplad, utan valideringsdata"
           }
         }
       }
