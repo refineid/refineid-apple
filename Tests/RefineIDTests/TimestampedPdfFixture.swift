@@ -58,7 +58,7 @@
     private static let hexadecimalAlphabeticOffset: UInt8 = 10
 
     /// A minimal structurally complete PDF.
-    private static var minimalPdf: Data {
+    internal static var minimalPdf: Data {
       var text = "%PDF-1.7\n"
       var offsets: [Int] = []
       for (number, body) in [

@@ -6,7 +6,7 @@
 # Usage:
 #   Scripts/test.sh           # default: runs PR tier (lint, package tests, iOS build, app and core unit tests)
 #   Scripts/test.sh commit    # fast pre-commit tier (whitespace check + lint)
-#   Scripts/test.sh pr        # PR / pre-push tier (lint, package tests, iOS build, RefineIDTests, CardCoreTests)
+#   Scripts/test.sh pr        # PR / pre-push tier (lint, package tests, iOS build, RefineIDTests, CardCoreTests, DSS gate)
 #   Scripts/test.sh nfc-signing # retained-field lifecycle and PACE regression tests
 #   Scripts/test.sh macos-mvp # localized local-card UI checks
 
@@ -97,10 +97,14 @@ case "${mode}" in
     xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -destination 'platform=macOS' -only-testing:CardCoreTests/RappIntegrationTests -quiet \
       || fail "RAPP integration tests failed."
 
+    step "9. Judging the Swift signers' documents with EU DSS (Scripts/dss-gate.sh)"
+    Scripts/dss-gate.sh \
+      || fail "A Swift signer's document is below the release level in DSS."
+
     Scripts/QualityReceipt.py verify-head "${checked_head}" "${checked_tree}" \
       || fail "The checked-out commit changed during push checks."
 
-    printf '\nPR gate passed: gate tests, lint, CardCore and PKCS11Bridge package tests, iOS build, RefineIDTests, CardCoreTests, and RappIntegrationTests.\n'
+    printf '\nPR gate passed: gate tests, lint, CardCore and PKCS11Bridge package tests, iOS build, RefineIDTests, CardCoreTests, RappIntegrationTests, and the DSS gate.\n'
     ;;
 
   nfc-signing)

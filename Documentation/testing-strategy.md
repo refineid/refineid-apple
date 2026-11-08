@@ -31,7 +31,43 @@ This document defines the tiered testing, formatting, and release quality gates 
   4. **Multi-Platform Build**: Verifies iOS compilation using the generic iOS destination.
   5. **App Unit Tests**: Executes `RefineIDTests` via `xcodebuild test -scheme RefineID -destination 'platform=macOS' -only-testing:RefineIDTests`.
   6. **Core Tests**: Executes `CardCoreTests` without `RappIntegrationTests`, then `CardCoreTests/RappIntegrationTests` alone, each in its own `xcodebuild test` invocation on macOS. A combined invocation can stall while Xcode finalizes its test record.
-  7. **Checkout Integrity**: Requires every updated push ref to name `HEAD`, rejects dirty trees, and rechecks the commit after all steps.
+  7. **Independent Validation**: `Scripts/dss-gate.sh` has the EU DSS validator judge what the Swift signers write (see [Independent validation gate](#independent-validation-gate)).
+  8. **Checkout Integrity**: Requires every updated push ref to name `HEAD`, rejects dirty trees, and rechecks the commit after all steps.
+
+### Independent validation gate
+
+Our own tests check what our code means to write; the gate asks the EU
+DSS library, the European Commission's reference validator and the one
+behind DVV's validation service, what it did write. A release build
+saves only a long-term archival signature, so the gate requires:
+
+| Document | DSS signature format | DSS indication | Container |
+| --- | --- | --- | --- |
+| `swift-pades.pdf` | `PAdES-BASELINE-LTA` | `TOTAL_PASSED` | none |
+| `swift-asic-e.asice` | `XAdES-BASELINE-LTA` | `TOTAL_PASSED` | `ASiC-E` |
+
+- **Run**: `Scripts/dss-gate.sh`. Step 9 of `Scripts/test.sh pr` runs it.
+- **Export**: `RefineIDTests/DssGateExportTests` stands in only for the
+  card, with a generated RSA-2048 key. From the card's answer on it runs
+  the app's own stages: `TimestampClient`, `DocumentSigner.longTerm` and
+  `AsicSigner.evidenced`, over `SigningNetwork`. `DssGateUrlProtocol`
+  answers every request in memory from `DssGateAuthorities` (a CA, its
+  CRL at a numeric public address, and `DebugTimestampAuthority` for the
+  configured timestamp authority), installed in each ephemeral session
+  configuration for the test's duration. The CA is seeded into
+  `TrustRootsCache` as a card's issuer would be. The files land in the
+  test host's temporary directory, `RefineIDDssGate`.
+- **Judge**: `Scripts/dss-gate/DssGate.java` on DSS 6.5.1, which trusts
+  only the exported CA and timestamp authority certificates, loads no
+  trusted list and has every online source off. The jars are pinned by
+  SHA-256 in `Scripts/dss-gate/dss.lock`, fetched once from Maven Central
+  into `~/.cache/refineid/dss-gate` (or `REFINEID_DSS_CACHE`); after that
+  the gate runs offline. It needs a JDK 17 or later (`JAVA_HOME`,
+  `/usr/libexec/java_home`, or Homebrew's `openjdk`). The validator and
+  the pins are refineid-core's (`tools/dss-gate/`), and the two
+  repositories move to a new DSS release together.
+- **A failure** prints DSS's whole report for the document. Do not lower
+  an expectation to make the gate pass; the signer is what is wrong.
 
 ## 3. TestFlight Tier (Staging on Physical Hardware)
 
@@ -68,7 +104,7 @@ This document defines the tiered testing, formatting, and release quality gates 
 
 - **Fast-Loop Headless Testing (Default)**: `RefineID.xctestplan`, the scheme's default test plan, holds `CardCoreTests` and `RefineIDTests` only. Running tests via `xcodebuild test -scheme RefineID` or pressing ⌘U in Xcode executes in-memory unit and integration tests without opening windows, stealing focus, or interrupting workstation tasks.
 - **UI test plan**: `RefineIDUITests.xctestplan` holds `RefineIDUITests`. A UI test runs only through it, by name with `xcodebuild test -scheme RefineID -testPlan RefineIDUITests -destination 'platform=macOS' -only-testing:RefineIDUITests/<class>/<method>`, through `Scripts/test.sh macos-mvp`, or in a VM through `Scripts/test-ui-tart.sh`. UI tests open windows and take the keyboard and mouse: run them only off the workstation's screen.
-- **Gate scope**: the pre-commit hook runs `Scripts/test.sh commit` (lint, no tests) and the pre-push hook runs `Scripts/test.sh pr` (lint, CardCore and PKCS11Bridge package tests, the iOS build, `RefineIDTests` on macOS). Neither runs a UI test.
+- **Gate scope**: the pre-commit hook runs `Scripts/test.sh commit` (lint, no tests) and the pre-push hook runs `Scripts/test.sh pr` (lint, CardCore and PKCS11Bridge package tests, the iOS build, `RefineIDTests` on macOS, and the DSS gate). Neither runs a UI test.
 - **iPad hardware**: a physical iPad cannot be test-driven under the project's Xcode. Build for it and install and launch with `ios-deploy`; never plan a hardware-iPad UI test. Simulator iPad UI tests are unaffected.
 - **Isolated Headless UI Tests with Tart**: When full end-to-end `RefineIDUITests` must be verified locally without screen-stealing, run them inside a headless macOS virtual machine using Tart:
   ```bash
