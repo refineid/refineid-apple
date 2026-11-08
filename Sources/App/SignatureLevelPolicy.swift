@@ -5,8 +5,8 @@ import Foundation
 /// What a build does with a signature whose long-term level is out of
 /// reach.
 ///
-/// The long-term level is PAdES-B-LTA for a PDF and XAdES-LT for an
-/// ASiC-E container. The build fixes the policy at compile time through
+/// The long-term level is the archival one for every format:
+/// PAdES-B-LTA for a PDF and XAdES-B-LTA for an ASiC-E container. The build fixes the policy at compile time through
 /// `forBuild`; nothing at run time selects it. Decision record in
 /// `Documentation/decisions.md`.
 internal enum SignatureLevelPolicy: Equatable, Sendable {

@@ -59,7 +59,8 @@ internal struct XadesSignatureTests {
       Self.plan().document(
         xmlSignature: Data("signature".utf8),
         timestampTokens: [],
-        material: Self.noMaterial
+        material: Self.noMaterial,
+        archiveTimestampToken: nil
       )
     )
   }
@@ -129,7 +130,8 @@ internal struct XadesSignatureTests {
       plan.document(
         xmlSignature: Data("signature".utf8),
         timestampTokens: [],
-        material: Self.noMaterial
+        material: Self.noMaterial,
+        archiveTimestampToken: nil
       )
     )
     let expected = Data(SHA384.hash(data: Data("one".utf8)))
@@ -154,7 +156,8 @@ internal struct XadesSignatureTests {
       plan.document(
         xmlSignature: Data("signature".utf8),
         timestampTokens: [],
-        material: Self.noMaterial
+        material: Self.noMaterial,
+        archiveTimestampToken: nil
       )
     )
     #expect(
@@ -187,16 +190,25 @@ internal struct XadesSignatureTests {
       Self.plan().document(
         xmlSignature: Data("signature".utf8),
         timestampTokens: [token],
-        material: material
+        material: material,
+        archiveTimestampToken: nil
       )
     )
-    #expect(document.contains(#"<xades:SignatureTimeStamp Id="SIG-1-TS-0">"#))
+    #expect(
+      document.contains(
+        #"<xades:SignatureTimeStamp xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" Id="SIG-1-TS-0">"#
+      )
+    )
     #expect(
       document.contains(
         "<xades:EncapsulatedTimeStamp>\(token.base64EncodedString())"
       )
     )
-    #expect(document.contains("<xades:CertificateValues>"))
+    #expect(
+      document.contains(
+        #"<xades:CertificateValues xmlns:xades="http://uri.etsi.org/01903/v1.3.2#">"#
+      )
+    )
     // Schema order inside RevocationValues: CRLs before OCSP responses.
     let crlValues = try #require(document.range(of: "<xades:CRLValues>"))
     let ocspValues = try #require(document.range(of: "<xades:OCSPValues>"))

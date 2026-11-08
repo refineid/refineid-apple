@@ -6,18 +6,20 @@ import OSLog
 import Security
 import UniformTypeIdentifiers
 
-/// Signs a set of files into one ASiC-E container at level XAdES-LT.
+/// Signs a set of files into one ASiC-E container at level XAdES-B-LTA.
 ///
 /// A release build offers nothing below that level; a development
 /// build keeps the level it reached (`SignatureLevelPolicy`).
 ///
 /// The order is forced by what each step attests, exactly as in
 /// `DocumentSigner`: the XAdES `SignedInfo` is prepared and signed
-/// first; its timestamp proves the signature existed; and the
-/// validation material proves the chain was good at that instant.
-/// The container is only assembled once all the evidence is in the
-/// signature document, because a container is one write - there is
-/// no incremental revision to extend later.
+/// first; its timestamp proves the signature existed; the validation
+/// material proves the chain was good at that instant; and the archive
+/// timestamp, taken last over everything, proves all of it existed
+/// before the algorithms or certificates age. The container is only
+/// assembled once all the evidence is in the signature document,
+/// because a container is one write - there is no incremental
+/// revision to extend later.
 ///
 /// The output is the `.asice` format ETSI EN 319 162-1 defines and
 /// Estonian DigiDoc (BDOC 2.1) exchanges.
@@ -26,6 +28,10 @@ internal enum AsicSigner {
   /// card/network/validation failures reported through
   /// `DocumentSigner.Failure`.
   internal enum Failure: Error {
+    /// The archive timestamp's signer path is not among the
+    /// certificates the container carries.
+    case archiveTimestampUncovered
+
     /// The finished entries could not be described by the container
     /// format's 32-bit fields.
     case container
@@ -50,7 +56,7 @@ internal enum AsicSigner {
 
     #if DEBUG
       /// The level a development container stopped at, when below
-      /// XAdES-LT.
+      /// XAdES-B-LTA.
       internal var belowLongTerm: BelowLongTermSignature?
     #endif
   }
@@ -198,7 +204,8 @@ internal enum AsicSigner {
       plan: plan,
       xmlSignature: xmlSignature,
       certificate: product.certificate,
-      objects: objects
+      objects: objects,
+      completion: .forBuild
     )
   }
 

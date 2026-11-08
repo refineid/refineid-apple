@@ -53,6 +53,12 @@ internal enum DocumentSigningMessage {
 
   private static func asicSignerMessage(_ failure: AsicSigner.Failure) -> String {
     switch failure {
+    case .archiveTimestampUncovered:
+      text(
+        "error.archiveTimestampUncovered",
+        "The archive timestamp could not be verified from the signature's evidence. Nothing was written."
+      )
+
     case .container:
       text("error.container", "The signed ASiC-E file could not be written.")
 

@@ -198,7 +198,8 @@ internal struct XadesInteropTests {
       timestampTokens: [],
       material: PdfValidationStore.Material(
         certificates: [], ocspResponses: [], revocationLists: []
-      )
+      ),
+      archiveTimestampToken: nil
     )
     return try #require(
       AsicContainer.container(objects: objects, signatureXml: document)

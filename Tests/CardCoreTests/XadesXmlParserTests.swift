@@ -150,7 +150,8 @@ internal struct XadesXmlParserTests {
             certificates: [authority.certificate],
             ocspResponses: [Self.ocspStandIn],
             revocationLists: [Self.crlStandIn]
-          )
+          ),
+          archiveTimestampToken: nil
         ),
         encoding: .utf8
       )

@@ -70,6 +70,9 @@
   registration of the app's bundle identifiers
   (`purge-stale-registrations` does it alone); after every install macOS
   local-network privacy follows only `/Applications/RefineID.app`.
+- A signing format is done only when the EU DSS validator reports the
+  release level for what the Swift signer writes: `Scripts/dss-gate.sh`,
+  step 9 of the pre-push tier (`Documentation/testing-strategy.md`).
 - UI tests live in their own test plan, `RefineIDUITests.xctestplan`, and
   run only off the workstation's screen; the default plan and the hook
   gates run none. Each tier's scope is in `Documentation/testing-strategy.md`.
