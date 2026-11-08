@@ -256,7 +256,7 @@
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Arkistoaikaleimaa ei voitu todentaa allekirjoituksen todistusaineistosta. Mitään ei tallennettu."
+            "value" : "Arkistoaikaleimaa ei voitu tarkastaa allekirjoituksen todistusaineistosta. Mitään ei tallennettu."
           }
         },
         "sv" : {
@@ -1593,7 +1593,7 @@
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Todenna toinen asiakirja"
+            "value" : "Tarkasta toinen asiakirja"
           }
         },
         "sv" : {
@@ -1722,19 +1722,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The trusted lists have not been fetched yet, so no certificate chain can be verified."
+            "value" : "The EU trusted lists have not been fetched yet, so no certificate chain can be verified."
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Luotettuja luetteloita ei ole vielä haettu, joten varmenneketjua ei voida todentaa."
+            "value" : "EU:n luotettuja luetteloita ei ole vielä haettu, joten varmenneketjua ei voida tarkastaa."
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Förteckningarna över betrodda tjänsteleverantörer har inte hämtats ännu, så ingen certifikatkedja kan verifieras."
+            "value" : "EU:s förteckningar över betrodda tjänsteleverantörer har inte hämtats ännu, så ingen certifikatkedja kan granskas."
           }
         }
       }
@@ -1756,7 +1756,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Inga EU-förteckningar över betrodda tjänsteleverantörer har sparats ännu och enheten är offline. Anslut till internet en gång för att hämta dem; därefter kan dokument granskas även offline."
+            "value" : "EU:s förteckningar över betrodda tjänsteleverantörer har inte sparats ännu och enheten är offline. Anslut till internet en gång för att hämta dem; därefter kan dokument granskas även offline."
           }
         }
       }
@@ -1909,7 +1909,7 @@
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Todennetaan"
+            "value" : "Tarkastetaan"
           }
         },
         "sv" : {
@@ -1925,19 +1925,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Refresh trusted lists"
+            "value" : "Refresh EU trusted lists"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Päivitä luotetut luettelot"
+            "value" : "Päivitä EU:n luotetut luettelot"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Uppdatera förteckningarna över betrodda tjänsteleverantörer"
+            "value" : "Uppdatera EU:s förteckningar över betrodda tjänsteleverantörer"
           }
         }
       }
@@ -2068,8 +2068,8 @@
         },
         "fi" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Todentamaton"
+            "state" : "translated",
+            "value" : "Vahvistamaton"
           }
         },
         "sv" : {
@@ -2091,7 +2091,7 @@
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Todenna"
+            "value" : "Tarkasta"
           }
         },
         "sv" : {
@@ -2107,19 +2107,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trusted lists"
+            "value" : "EU trusted lists"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Luotetut luettelot"
+            "value" : "EU:n luotetut luettelot"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Förteckningar över betrodda tjänsteleverantörer"
+            "value" : "EU:s förteckningar över betrodda tjänsteleverantörer"
           }
         }
       }

@@ -14,10 +14,14 @@ in the title bar, holds one control: the remote-use switch at the right
 end, where it takes no room from the content. From the top, the window
 shows:
 
-1. The identity line.
-2. The document drop area, while an identity is available or documents
-   are waiting.
-3. The signing controls and the outcome of the last action.
+1. The identity line, except while documents are waiting and no card
+   or phone can sign: the holder is there to verify, so the window does
+   not ask for a reader. It returns with the holder's name as soon as a
+   card or phone can sign.
+2. The document drop area.
+3. The signing controls, only while a card or phone can sign or a
+   signature is in flight, and the outcome of the last action.
+4. "Verify…", in its own row below everything.
 
 A card waiting to be taken into use replaces these with the activation
 form, and the window has no toolbar button while it does: activation is
@@ -368,14 +372,18 @@ app's language, a space, and that instant in UTC with colons replaced by
 hyphens. A container name the holder types keeps the suffix when it is
 still there and gets it appended when typing replaced it.
 
-The drop area reads "Drop documents here to sign or verify them."
+The drop area reads "Drop documents here to sign or verify them." while a
+card or phone can sign, and "Drop documents here to verify them." while
+none can; then the format row, PIN 2 and "Sign…" are not shown either.
 
 ## Document verification
 
-"Verify…" stands beside "Sign…" in the signing controls, a plain button
-beside the default one. It is enabled while documents are waiting and no
+"Verify…" sits in its own row at the bottom of the window, with or
+without a card. It is enabled while documents are waiting and no
 signature is in flight, and it verifies every waiting document. The
-result opens as a sheet: one "Document" section per document, then the
+result opens as a resizable sheet, at a size that shows one whole
+signature without scrolling, and scrolls for several documents: one
+"Document" section per document, then the
 signature sections the Verify screen on iPhone and iPad shows
 ([ios.md](ios.md#verify)), and the trusted-lists section; "Done" closes
 it. A document without signatures, an office file or plain text among

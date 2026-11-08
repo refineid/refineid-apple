@@ -69,7 +69,7 @@ internal final class VerifyDocumentModel: ObservableObject {
   private static var noTrustedListsMessage: String {
     text(
       "verify.errorNoTrustedLists",
-      "The trusted lists have not been fetched yet, so no certificate chain can be verified.")
+      "The EU trusted lists have not been fetched yet, so no certificate chain can be verified.")
   }
 
   /// The message when no trusted list is stored and the device is

@@ -13,6 +13,8 @@
 
     internal let signing: SignDocumentModel
     @Binding internal var format: SignatureFormat
+    /// Whether the drop area invites signing as well as verifying.
+    internal let offersSigning: Bool
     internal let onChoose: () -> Void
     internal let onAccept: ([URL]) -> Bool
     @State private var isTargeted = false
@@ -33,7 +35,9 @@
           } isTargeted: { targeted in
             isTargeted = targeted
           }
-          .accessibilityLabel("Documents to sign")
+          .accessibilityLabel(
+            offersSigning ? Text("Documents to sign") : Text("Documents to verify")
+          )
           .accessibilityValue(StatusView.pileValue(signing.queued))
           .accessibilityIdentifier("documentDropArea")
       }
@@ -41,7 +45,7 @@
 
     @ViewBuilder private var dropContents: some View {
       if signing.queued.isEmpty {
-        SignDropInvitation(targeted: isTargeted) { onChoose() }
+        SignDropInvitation(targeted: isTargeted, offersSigning: offersSigning) { onChoose() }
           .frame(maxWidth: .infinity, minHeight: Self.dropHeight)
       } else {
         SignDocumentPile(

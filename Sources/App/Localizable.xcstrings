@@ -2525,6 +2525,22 @@
         }
       }
     },
+    "Documents to verify": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tarkastettavat asiakirjat"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dokument att granska"
+          }
+        }
+      }
+    },
     "Done": {
       "extractionState": "manual",
       "localizations": {
@@ -2587,6 +2603,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Släpp dokument här för att underteckna eller granska dem."
+          }
+        }
+      }
+    },
+    "Drop documents here to verify them.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pudota asiakirjat tähän tarkastettavaksi."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Släpp dokument här för att granska dem."
           }
         }
       }

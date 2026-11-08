@@ -63,6 +63,11 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   *yhdistämiskoodi*. *Paritus*, *pariliitos* and *laitepari* are not used.
   Revocation-list evidence is labelled *sulkulista*; a revoked state is
   *mitätöity* and its time the *mitätöintiaika*.
+  Verifying a document is *tarkastaa* ("Tarkasta…", "Tarkastetaan",
+  *tarkastus*); *todentaa* is kept for authentication. The trusted lists
+  take the eIDAS term (Regulation (EU) No 910/2014 Article 22):
+  *EU:n luotetut luettelot*, in Swedish *EU:s förteckningar över
+  betrodda tjänsteleverantörer*, in English *EU trusted lists*.
 - **PIN names.** The codes take DVV's names: the basic PIN is PIN 1
   and the signature PIN is PIN 2. Every user-facing name of a PIN, in
   a field label, a heading, a button or a message, is the full name

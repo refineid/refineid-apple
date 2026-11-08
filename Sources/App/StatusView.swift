@@ -40,7 +40,7 @@
 
     /// Notices a card waiting to be taken into use, and carries the
     /// model its activation form works through.
-    private let activation = ActivationWatch.shared
+    internal let activation = ActivationWatch.shared
     @State private var offeringNumber = false
     @State private var hasStoredNumber = false
     @State private var pin2 = ""
@@ -155,33 +155,34 @@
     }
 
     @ViewBuilder private var readySection: some View {
-      let stateView = IdentityStateView(
-        availability: availability,
-        warnsUnavailableCard: activation.warnsUnavailableCard
-      )
-      stateView
-        // The card stays the one chosen while it is being used.
-        .disabled(signing.working || signing.readingStamp)
-        .accessibilityIdentifier("loginIdentityStatus")
+      let controls = StatusDocumentControls(
+        availability: availability, queued: signing.queued, signing: signing.working)
+      if controls.showsIdentity {
+        identityRow
+      }
       // Shown with no card too: verifying needs no card, only the EU
-      // trusted lists; signing stays disabled until a card is ready.
+      // trusted lists.
       StatusDocumentSection(
         signing: signing,
         format: $format,
+        offersSigning: controls.offersSigning,
         onChoose: { choose() },
         onAccept: { urls in accept(urls) }
       )
-      StatusSignatureSection(
-        signing: signing,
-        format: $format,
-        pin2: $pin2,
-        accessNumber: $accessNumber,
-        asksLocalPin2: asksLocalPin2,
-        target: selection.target,
-        canSign: canSign,
-        onSign: { sign() }
-      )
+      if controls.offersSigning {
+        StatusSignatureSection(
+          signing: signing,
+          format: $format,
+          pin2: $pin2,
+          accessNumber: $accessNumber,
+          asksLocalPin2: asksLocalPin2,
+          target: selection.target,
+          canSign: canSign,
+          onSign: { sign() }
+        )
+      }
       outcomeSection
+      StatusVerifySection(signing: signing, enabled: controls.verifyEnabled)
     }
 
     private func handleAppear() {

@@ -37,7 +37,7 @@
 
     /// Whether the Verify button can run: a document is waiting and no
     /// signature is in flight.
-    internal static func isAvailable(queued: [URL], signing working: Bool) -> Bool {
+    nonisolated internal static func isAvailable(queued: [URL], signing working: Bool) -> Bool {
       !queued.isEmpty && !working
     }
 
