@@ -42,7 +42,7 @@ internal enum PairingCandidateLink {
       scanner.start()
     }
     let release = Task {
-      try? await Task.sleep(for: .milliseconds(gatherMilliseconds))
+      guard (try? await Task.sleep(for: .milliseconds(gatherMilliseconds))) != nil else { return }
       gathering.release()
     }
     return (

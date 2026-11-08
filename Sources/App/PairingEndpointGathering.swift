@@ -24,26 +24,30 @@ internal final class PairingEndpointGathering: Sendable {
 
   /// A custodian was found.
   internal func found(_ endpoint: PairingEndpoint) {
-    let now = state.withLock { state -> Bool in
-      guard !state.released else { return true }
-      state.gathered.append(endpoint)
-      return false
+    state.withLock { state in
+      guard state.released else {
+        state.gathered.append(endpoint)
+        return
+      }
+      handOn(endpoint)
     }
-    if now { handOn(endpoint) }
   }
 
   /// Ends the gathering: what was gathered is handed on, the stream first.
+  ///
+  /// Handing on happens under the lock, so nothing found meanwhile
+  /// overtakes what was gathered.
   internal func release() {
-    let gathered = state.withLock { state -> [PairingEndpoint] in
+    state.withLock { state in
+      guard !state.released else { return }
       state.released = true
-      defer { state.gathered.removeAll() }
-      return state.gathered
-    }
-    let streamFirst =
-      gathered.filter { if case .stream = $0 { true } else { false } }
-      + gathered.filter { if case .bluetooth = $0 { true } else { false } }
-    for endpoint in streamFirst {
-      handOn(endpoint)
+      let streamFirst =
+        state.gathered.filter { if case .stream = $0 { true } else { false } }
+        + state.gathered.filter { if case .bluetooth = $0 { true } else { false } }
+      state.gathered.removeAll()
+      for endpoint in streamFirst {
+        handOn(endpoint)
+      }
     }
   }
 }

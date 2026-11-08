@@ -294,6 +294,9 @@
         reportEnd(reason)
       #endif
       let ended = holderSession
+      // The peripheral the session held is free for the closes it held
+      // back (RAPP v26.11.8 §4.6 item 6).
+      let freed = holderOverBluetooth ? bluetoothPeers.preferred : nil
       if sessionSlot.transport == .stream, !sessionSlot.isEstablished, holderIsAdvertising {
         // The record is there and the phone did not answer: a suspended
         // app leaves its record behind, so the next dial tries Bluetooth
@@ -302,6 +305,9 @@
       }
       forgetHeldSession()
       holderCardStatus = nil
+      if let freed {
+        bluetoothPeripheralAppeared(freed, in: RappDeviceVault())
+      }
       let end = PhoneSessionEnd(reason)
       guard !concluded(by: end, pairID: ended?.pairID) else { return }
       sessionSlot.ended(at: .now)

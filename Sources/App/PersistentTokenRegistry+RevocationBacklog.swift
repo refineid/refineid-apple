@@ -164,12 +164,14 @@
       revocationDeliveries.formUnion(waiting)
       revokingOverBluetooth = true
       Task { @MainActor [weak self] in
+        defer {
+          self?.revokingOverBluetooth = false
+          self?.openHolderSession()
+        }
         for pairID in waiting {
           await self?.deliverRevocationNow(
             of: pairID, along: .bluetooth(.only(peripheral)), in: vault)
         }
-        self?.revokingOverBluetooth = false
-        self?.openHolderSession()
       }
     }
 
