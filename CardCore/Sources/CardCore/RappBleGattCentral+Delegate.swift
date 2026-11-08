@@ -4,24 +4,13 @@ import Foundation
 
 #if canImport(CoreBluetooth) && canImport(RappEngine)
   @preconcurrency import CoreBluetooth
+  import RappEngine
 
   extension RappBleGattCentral: CBCentralManagerDelegate, CBPeripheralDelegate {
     /// Scans once Bluetooth is on.
     public func centralManagerDidUpdateState(_ central: CBCentralManager) {
       stateChanged(central.state)
     }
-
-    // swiftlint:disable legacy_objc_type
-    /// One advertisement of a custodian.
-    public func centralManager(
-      _: CBCentralManager,
-      didDiscover peripheral: CBPeripheral,
-      advertisementData _: [String: Any],
-      rssi: NSNumber
-    ) {
-      discovered(peripheral, rssi: rssi.intValue)
-    }
-    // swiftlint:enable legacy_objc_type
 
     /// The connection is up.
     public func centralManager(
@@ -91,6 +80,42 @@ import Foundation
       error: (any Error)?
     ) {
       wrote(error: error)
+    }
+
+    // swiftlint:disable legacy_objc_type
+    /// One advertisement of a custodian.
+    public func centralManager(
+      _: CBCentralManager,
+      didDiscover peripheral: CBPeripheral,
+      advertisementData _: [String: Any],
+      rssi: NSNumber
+    ) {
+      discovered(peripheral, rssi: rssi.intValue)
+    }
+  }
+
+  /// The passive appearance watcher's half of the same delegate protocol;
+  /// the two advertisement callbacks share the one bridged signal type.
+  extension RappBleAppearanceWatcher: CBCentralManagerDelegate {
+    /// One advertisement of a RAPP peripheral: a sighting.
+    public func centralManager(
+      _: CBCentralManager,
+      didDiscover peripheral: CBPeripheral,
+      advertisementData _: [String: Any],
+      rssi _: NSNumber
+    ) {
+      guard !cancelled else { return }
+      sighted(peripheral.identifier, at: .now)
+    }
+    // swiftlint:enable legacy_objc_type
+
+    /// Scans for the RAPP service once Bluetooth is powered on, reporting
+    /// every advertisement so a peripheral's absence can be told.
+    public func centralManagerDidUpdateState(_ central: CBCentralManager) {
+      guard central.state == .poweredOn, !cancelled else { return }
+      central.scanForPeripherals(
+        withServices: [CBUUID(string: RappBleGattProfile.serviceUUIDString)],
+        options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
     }
   }
 #endif

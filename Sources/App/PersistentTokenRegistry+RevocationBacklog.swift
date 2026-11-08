@@ -12,9 +12,11 @@
   /// another phone, is stored forgotten: it serves nothing and keeps its key
   /// only for the `pairing_revoked` close. While any waits, this computer
   /// browses for the hints of those pairings, whatever remote use and the
-  /// local reader are, and each time a phone appears for one it opens one
-  /// session that sends the close first and waits for the echo; a session
-  /// that cannot reach the phone on the stream tries Bluetooth once. The echo
+  /// local reader are, and scans for RAPP peripherals over Bluetooth. Each
+  /// time a phone appears for one, by its session record or as a peripheral
+  /// newly in sight, it opens one session by the route that appeared, which
+  /// sends the close first and waits for the echo; that appearance tries no
+  /// other route. The echo
   /// destroys the pairing. Nothing is dialed on a timer, and a pairing whose
   /// phone does not come back goes at its idle expiry, 30 days after its last
   /// session. Several forgotten pairings may wait at once.
@@ -61,12 +63,24 @@
     /// The appearance handler the browser calls on its own queue; it hops
     /// to the main actor.
     nonisolated private static func backlogAppearanceHandler(
-      pairIDs: [String: Data]
+      pairIDs: [String: Data], in vault: RappDeviceVault
     ) -> @Sendable (String) -> Void {
       { key in
         guard let pairID = pairIDs[key] else { return }
         Task { @MainActor in
-          Self.shared.forgottenPairingAppeared(pairID)
+          Self.shared.forgottenPairingAppeared(pairID, in: vault)
+        }
+      }
+    }
+
+    /// The Bluetooth appearance handler the watcher calls on its own queue;
+    /// it hops to the main actor.
+    nonisolated private static func bluetoothAppearanceHandler(
+      in vault: RappDeviceVault
+    ) -> @Sendable (UUID) -> Void {
+      { peripheral in
+        Task { @MainActor in
+          Self.shared.bluetoothPeripheralAppeared(peripheral, in: vault)
         }
       }
     }
@@ -84,49 +98,102 @@
       guard !pairings.isEmpty else {
         revocationBacklog?.cancel()
         revocationBacklog = nil
+        revocationBluetoothWatch?.cancel()
+        revocationBluetoothWatch = nil
         return
       }
+      if Self.dialsOverBluetooth, revocationBluetoothWatch == nil {
+        let watch = RappBleAppearanceWatcher(
+          onAppeared: Self.bluetoothAppearanceHandler(in: vault))
+        revocationBluetoothWatch = watch
+        if Self.backlogBrowses {
+          watch.start()
+        }
+      }
       let keys = Set(pairings.map(\.key))
-      guard revocationBacklog?.following != keys else { return }
-      revocationBacklog?.cancel()
+      let classify = Self.backlogClassifier(among: pairings)
+      let appeared = Self.backlogAppearanceHandler(
+        pairIDs: Dictionary(uniqueKeysWithValues: pairings.map { ($0.key, $0.pairID) }),
+        in: vault)
+      if let browser = revocationBacklog {
+        // A phone that stays in sight is not a new appearance because
+        // another pairing joined or left the backlog.
+        if browser.following != keys {
+          browser.update(following: keys, classifyingRecord: classify, onAppeared: appeared)
+        }
+        return
+      }
       let browser = RappRevocationBacklogBrowser(
-        following: keys,
-        classifyingRecord: Self.backlogClassifier(among: pairings),
-        onAppeared: Self.backlogAppearanceHandler(
-          pairIDs: Dictionary(uniqueKeysWithValues: pairings.map { ($0.key, $0.pairID) })))
+        following: keys, classifyingRecord: classify, onAppeared: appeared)
       revocationBacklog = browser
       if Self.backlogBrowses {
         browser.start()
       }
     }
 
-    /// The phone of the forgotten pairing `pairID` appeared: one session
-    /// delivers the close, unless one already is.
-    internal func forgottenPairingAppeared(_ pairID: Data) {
-      guard Self.dialsPhones, !revocationDeliveries.contains(pairID),
-        let pair = try? RappPairRecord.loadFromVault(pairId: pairID, vault: RappDeviceVault()),
-        pair.metadata().forgottenAtMs != nil
-      else { return }
+    /// The phone of the forgotten pairing `pairID` in `vault` appeared on
+    /// the network.
+    ///
+    /// One session over the stream delivers the close. The appearance is
+    /// the stream's alone; Bluetooth has its own.
+    internal func forgottenPairingAppeared(_ pairID: Data, in vault: RappDeviceVault) {
+      deliverRevocation(of: pairID, along: .stream, in: vault)
+    }
+
+    /// A RAPP peripheral appeared over Bluetooth (§4.6 item 6): the
+    /// advertisement names no pairing, so each forgotten pairing with no
+    /// delivery under way opens one connection to that peripheral, whose
+    /// routing says whether it holds the pairing.
+    internal func bluetoothPeripheralAppeared(_ peripheral: UUID, in vault: RappDeviceVault) {
+      guard Self.dialsPhones else { return }
+      for pairing in Self.forgottenPairings(in: vault) {
+        deliverRevocation(
+          of: pairing.pairID, along: .bluetooth(RappBleCentralPeers(preferred: peripheral)),
+          in: vault)
+      }
+    }
+
+    /// Opens one session for the forgotten pairing `pairID` along `route`,
+    /// the route its phone appeared by, unless a delivery for it is under
+    /// way; the phone's echo destroys the pairing.
+    ///
+    /// The record is read from `vault` again right before the session, so
+    /// a pairing an idle sweep destroyed meanwhile sends nothing, and one
+    /// whose notice expired is destroyed untold instead (§4.6 item 3).
+    private func deliverRevocation(
+      of pairID: Data, along route: RappHeldRequesterSession.Route, in vault: RappDeviceVault
+    ) {
+      guard Self.dialsPhones, !revocationDeliveries.contains(pairID) else { return }
       revocationDeliveries.insert(pairID)
-      let overBluetooth = Self.dialsOverBluetooth
-      let bluetoothPolicy = Self.bluetoothPolicy
+      let deliver = revocationDelivery
+      let policy: RappRequesterPolicy =
+        if case .bluetooth = route { Self.bluetoothPolicy } else { .interactive }
       Task { @MainActor [weak self] in
-        var delivery = await RappRevocationNotice.deliver(pair, route: .stream)
-        if delivery == .unreached, overBluetooth {
-          delivery = await RappRevocationNotice.deliver(
-            pair, route: .bluetooth(RappBleCentralPeers()), policy: bluetoothPolicy)
+        let clock = RappPlatformClock()
+        var delivery = RappRevocationNotice.Delivery.unreached
+        if let pair = try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault),
+          pair.metadata().forgottenAtMs != nil
+        {
+          if pair.revocationNoticeExpired(nowMs: clock.wallMilliseconds()) {
+            try? RappPairRevocation.revoke(pair, in: vault, clock: clock)
+          } else {
+            delivery = await deliver(pair, route, policy)
+          }
         }
         guard let self else { return }
         revocationDeliveries.remove(pairID)
         guard delivery == .acknowledged else {
+          followRevocationBacklog(in: vault)
           #if DEBUG
-            DevErrorLog.report(
-              "forgotten pairing: the phone did not echo its close; kept for its next appearance",
-              source: .app)
+            if delivery == .unacknowledged {
+              DevErrorLog.report(
+                "forgotten pairing: the phone did not echo its close; kept for its next appearance",
+                source: .app)
+            }
           #endif
           return
         }
-        revocationNoticeDelivered(pairID: pairID)
+        revocationNoticeDelivered(pairID: pairID, in: vault)
       }
     }
   }

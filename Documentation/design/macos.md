@@ -60,13 +60,22 @@ reads it as a toggle.
   active pairing stops. The click asks for no confirmation. Turning remote
   use on again asks for a new pairing code.
 - **The revocation backlog.** While a forgotten pairing waits, the Mac
-  browses for its phone's session record whatever the switch and the
-  reader are (`PersistentTokenRegistry+RevocationBacklog`,
-  `RappRevocationBacklogBrowser`). Each time a phone appears for one, the
-  Mac opens one session that sends the close as its first message and
-  waits for the echo (`RappRevocationNotice`); a session that cannot
-  reach the phone on the stream tries Bluetooth once. The echo destroys
-  the pairing and its key. Nothing is dialed on a timer. A pairing whose
+  browses for its phone's session record and scans passively for RAPP
+  Bluetooth peripherals, whatever the switch and the reader are
+  (`PersistentTokenRegistry+RevocationBacklog`,
+  `RappRevocationBacklogBrowser`, `RappBleAppearanceWatcher`). Each
+  appearance opens one session, by the route that appeared: the stream
+  when the pairing's session record appears, Bluetooth to that
+  peripheral when a RAPP peripheral comes into sight; it tries no other
+  route (`RappRevocationNotice`). The session sends the close as its
+  first message and waits for the echo; only the echo, or the phone's
+  own `pairing_revoked`, destroys the pairing and its key, and a crossing
+  close of another reason keeps it. A peripheral counts as in sight
+  until 30 seconds pass without its advertisement, so one that stays in
+  sight is dialed once. The record is read again right before each
+  session: one gone meanwhile sends nothing, and one whose idle expiry
+  passed is destroyed untold. Nothing is dialed on a timer, and both
+  scans stop once the backlog is empty. A pairing whose
   phone does not appear goes 30 days after its last session, when its
   idle expiry would have passed, and that phone forgets this computer by
   its own idle expiry. Several forgotten pairings may wait at once, beside

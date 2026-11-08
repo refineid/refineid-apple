@@ -337,6 +337,16 @@ public final class RappPairRecord: @unchecked Sendable {
     }
   }
 
+  /// Runs `body` while this record is held and serves, so no forget lands
+  /// during it; nil once it is revoked or forgotten. `body` must not call
+  /// back into this record.
+  internal func whileServing<Value>(_ body: () throws -> Value) rethrows -> Value? {
+    try locked {
+      guard let stored, stored.forgottenAtMilliseconds == nil else { return nil }
+      return try body()
+    }
+  }
+
   private func locked<Value>(_ body: () throws -> Value) rethrows -> Value {
     lock.lock()
     defer { lock.unlock() }

@@ -13,15 +13,20 @@ import Foundation
   /// followed on its own, so several forgotten pairings resolve side by
   /// side. A record that stays listed is not a new appearance.
   public final class RappRevocationBacklogBrowser: @unchecked Sendable {
+    private let queue = DispatchQueue(label: "fi.refineid.revocation-backlog")
+    private var followed: Set<String>
+    private var classify: @Sendable ([String: String], String) -> String?
+    private var onAppeared: @Sendable (String) -> Void
+    private var browser: NWBrowser?
+    private var listed: Set<NWBrowser.Result> = []
+    private var hasListing = false
+    private var inSight: Set<String> = []
+
     /// What the browser follows, so an owner can tell whether a running
     /// browser still matches its backlog.
-    public let following: Set<String>
-
-    private let classify: @Sendable ([String: String], String) -> String?
-    private let onAppeared: @Sendable (String) -> Void
-    private let queue = DispatchQueue(label: "fi.refineid.revocation-backlog")
-    private var browser: NWBrowser?
-    private var inSight: Set<String> = []
+    public var following: Set<String> {
+      queue.sync { followed }
+    }
 
     /// Follows `following`; `classify` names the followed pairing whose
     /// hint a record published under an instance name carries, or nil, and
@@ -33,7 +38,7 @@ import Foundation
       classifyingRecord classify: @escaping @Sendable ([String: String], String) -> String?,
       onAppeared: @escaping @Sendable (String) -> Void
     ) {
-      self.following = following
+      self.followed = following
       self.classify = classify
       self.onAppeared = onAppeared
     }
@@ -52,6 +57,27 @@ import Foundation
       made.start(queue: queue)
     }
 
+    /// Follows `following` from now on, without starting over: a pairing
+    /// still followed whose record stays listed is not a new appearance,
+    /// and one newly followed whose record is listed already appears now.
+    @preconcurrency
+    public func update(
+      following: Set<String>,
+      classifyingRecord classify: @escaping @Sendable ([String: String], String) -> String?,
+      onAppeared: @escaping @Sendable (String) -> Void
+    ) {
+      queue.sync {
+        followed = following
+        self.classify = classify
+        self.onAppeared = onAppeared
+        inSight.formIntersection(following)
+      }
+      queue.async { [weak self] in
+        guard let self, hasListing else { return }
+        apply(listed)
+      }
+    }
+
     /// Stops browsing.
     public func cancel() {
       queue.async {
@@ -60,17 +86,30 @@ import Foundation
       }
     }
 
+    /// Reads `results` on the browser's queue.
     private func apply(_ results: Set<NWBrowser.Result>) {
-      var listed: Set<String> = []
+      listed = results
+      hasListing = true
+      var named: Set<String> = []
       for result in results {
         guard case .service(let serviceName, _, _, _) = result.endpoint,
           case .bonjour(let record) = result.metadata,
           let pairing = classify(record.dictionary, serviceName)
         else { continue }
-        listed.insert(pairing)
+        named.insert(pairing)
       }
-      let appeared = listed.subtracting(inSight)
-      inSight = listed
+      sighted(named)
+    }
+
+    /// Takes the followed pairings whose records are listed now.
+    ///
+    /// Each one not in sight before appears. Internal so a test can hand
+    /// listings in without a network; it runs on the browser's queue
+    /// otherwise.
+    internal func sighted(_ named: Set<String>) {
+      let current = named.intersection(followed)
+      let appeared = current.subtracting(inSight)
+      inSight = current
       for pairing in appeared.sorted() {
         onAppeared(pairing)
       }

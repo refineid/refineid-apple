@@ -21,9 +21,13 @@ iPhone listed the Mac until its idle expiry.
   no operation, no card, never selected. A forgotten record refuses
   `session.ready`, so it never sends `session.hello`.
 - The revocation backlog browses for the phones of forgotten pairings
-  whatever remote use and the local reader are, opens one session each
-  time a phone appears for one, sends the close first and destroys the
-  record only on the phone's echo. A close without its echo keeps it.
+  and scans passively for RAPP Bluetooth peripherals, whatever remote
+  use and the local reader are. Each appearance opens one session, by
+  the route that appeared: the stream for a session record, Bluetooth for
+  a peripheral newly in sight; no other route on that appearance. The
+  session sends the close first, and only the phone's echo, or its own
+  `pairing_revoked`, destroys the record. A close without its echo, or a
+  crossing close of another reason, keeps it.
 - A forgotten record goes untold 30 days after its last established
   session, not 30 days after the forget. One active pairing at a time;
   forgotten ones wait beside it with no limit but that expiry.
@@ -36,10 +40,10 @@ iPhone listed the Mac until its idle expiry.
 - Network contract: `RappRevocationBacklogBrowser` browses
   `_refineid-stream._tcp` with TXT records only while a forgotten pairing
   waits, reads each record only to match a forgotten pairing's discovery
-  hint, and dials nothing itself; the registry opens one session per
-  appearance (`RappRevocationNotice`).
-- Known gap: the backlog finds a phone by its session record; a phone
-  reachable only over Bluetooth is dialed only when its record was seen.
+  hint, and dials nothing itself; `RappBleAppearanceWatcher` scans for
+  the RAPP service UUID only while a forgotten pairing waits and connects
+  to nothing; the registry opens one session per appearance
+  (`RappRevocationNotice`).
 
 STPA: core's story 2, UCA-123, CC-118, CC-123 and R-2 (`doc/security/stpa-rapp.md`).
 

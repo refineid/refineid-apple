@@ -16,7 +16,8 @@
     /// and the echo is awaited (§7.1 item 7).
     internal var echoReason: CloseReason?
     /// Whether the peer answered this endpoint's close with its echo, or
-    /// with a close that crossed it (RAPP v26.11.2 §7.1 item 7).
+    /// with its own `pairing_revoked` crossing it; a crossing close of
+    /// another reason is neither (RAPP v26.11.2 §7.1 item 7).
     internal var ownCloseEchoed = false
 
     internal init(

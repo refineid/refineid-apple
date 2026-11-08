@@ -233,9 +233,14 @@
     /// The phone echoed this computer's close for a pairing it forgot (RAPP
     /// v26.11.2 §4.6 items 3 and 6): the record and its key go now.
     internal func revocationNoticeDelivered(pairID: Data) {
-      try? RappPairRevocation.revoke(
-        pairID: pairID, in: RappDeviceVault(), clock: RappPlatformClock())
-      refreshPairing()
+      revocationNoticeDelivered(pairID: pairID, in: RappDeviceVault())
+    }
+
+    /// As ``revocationNoticeDelivered(pairID:)``, for a pairing in `vault`.
+    internal func revocationNoticeDelivered(pairID: Data, in vault: RappDeviceVault) {
+      try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: RappPlatformClock())
+      refreshPairing(in: vault)
+      followRevocationBacklog(in: vault)
       restartWatchingPresence()
       NotificationCenter.default.post(
         name: RappPairingModel.pairingsDidChangeNotification, object: nil)

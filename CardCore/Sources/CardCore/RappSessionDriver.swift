@@ -215,6 +215,12 @@
         closeSession()
         return [.closed(Self.closeReason(crossingReceived: received))]
 
+      case .acknowledged(let received) where received != .pairingRevoked:
+        // A close of another reason crossed the revocation close: it is not
+        // the echo, so the close is not known to have arrived.
+        closeSession()
+        return [.closed(.revocationNoticeUnacknowledged)]
+
       case .acknowledged:
         closeSession()
         return [.closed(reason)]

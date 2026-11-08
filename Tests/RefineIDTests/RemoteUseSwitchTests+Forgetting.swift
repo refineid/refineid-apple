@@ -16,7 +16,7 @@
   extension RemoteUseSwitchTests {
     /// How long, in milliseconds, a destruction free to run is given to
     /// destroy what the vault holds.
-    private static let unchainedDestructionMarginMilliseconds: Int64 = 200
+    internal static let unchainedDestructionMarginMilliseconds: Int64 = 200
 
     /// ``unchainedDestructionMarginMilliseconds`` as a duration.
     private static let unchainedDestructionMargin = Duration.milliseconds(
@@ -73,7 +73,7 @@
     }
 
     /// Destroys what a test left in `vault`, and the backlog's model of it.
-    private static func destroy(
+    internal static func destroy(
       _ pairings: [RappPairRecord],
       in vault: RappDeviceVault,
       registry: PersistentTokenRegistry
@@ -87,7 +87,7 @@
     }
 
     /// Whether `vault` keeps `pairing` forgotten, in the revocation backlog.
-    private static func forgotten(_ pairing: RappPairRecord, in vault: RappDeviceVault) -> Bool {
+    internal static func forgotten(_ pairing: RappPairRecord, in vault: RappDeviceVault) -> Bool {
       (try? RappPairRecord.loadFromVault(pairId: pairing.metadata().pairId, vault: vault))?
         .metadata().forgottenAtMs != nil
     }
