@@ -15,7 +15,19 @@ second case and everything that saves below the long-term level.
 
 - Release: a signature whose validation material cannot be collected is
   refused with its reason and nothing is saved. The long-term level is
-  PAdES-B-LTA for a PDF and XAdES-LT for an ASiC-E container. A signer
+  the archival one for every format: PAdES-B-LTA for a PDF and
+  XAdES-B-LTA for an ASiC-E container. The container's archive timestamp
+  is one `xadesv141:ArchiveTimeStamp`, the last unsigned signature
+  property after `CertificateValues` and `RevocationValues`; the 1.3.2
+  one is forbidden at B-LTA (EN 319 132-1 V1.3.1 clause 6.3, table 2).
+  Its SHA-384 imprint covers, per clause 5.5.2.3 (not the distributed
+  case), the signed files in reference order, the canonical
+  `SignedProperties`, `SignedInfo`, `SignatureValue` and `KeyInfo`, and
+  every unsigned signature property before it. Each of those is written
+  already in exclusive canonical form, so the octets are digested where
+  they stand; refineid-core writes the same bytes. A container whose
+  archive timestamp fails, or whose authority path is not entirely in
+  the `CertificateValues` already written, is refused. A signer
   certificate whose path has no approved anchor (no issuing certificate
   from the card in the cache) is refused before PIN 2: inside the card
   session after the certificate read and before VERIFY, and on the RAPP
@@ -23,11 +35,14 @@ second case and everything that saves below the long-term level.
   signer path, because the evidence walk anchors on the same lookup. A
   missing issuer elsewhere, a revocation answer or a timestamp failure is
   only known after the card signed.
-- Debug: the highest level reached is saved: B-T when the evidence or the
-  archive timestamp failed, B-B when the signature timestamp failed. The
-  holder is told it is a development-build document without long-term
-  validation material, at which level, and why. The name carries
-  `-dev-B-T` or `-dev-B-B` after the signing suffix. This replaces the
+- Debug: the highest level reached is saved: for a PDF, B-T when the
+  evidence or the archive timestamp failed; for a container, B-LT when
+  only the archive timestamp failed and B-T when the evidence failed; B-B
+  when the signature timestamp failed. The holder is told it is a
+  development-build document, at which level, what it lacks (long-term
+  validation material, or for B-LT the archive timestamp), and why. The
+  name carries `-dev-B-LT`, `-dev-B-T` or `-dev-B-B` after the signing
+  suffix. This replaces the
   opt-in revoked-signer escape hatch, `--allow-revoked-signature-test`.
 
 STPA. Controller: the signing pipeline; control action: save a signed

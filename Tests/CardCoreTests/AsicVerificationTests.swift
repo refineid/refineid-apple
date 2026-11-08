@@ -81,7 +81,8 @@ internal struct AsicVerificationTests {
     let document = plan.document(
       xmlSignature: signature,
       timestampTokens: try timestampTokens(signature),
-      material: Self.emptyMaterial
+      material: Self.emptyMaterial,
+      archiveTimestampToken: nil
     )
     return SignedDocument(
       document: try #require(String(data: document, encoding: .utf8)),

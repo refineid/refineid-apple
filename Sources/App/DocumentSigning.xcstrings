@@ -47,6 +47,28 @@
         }
       }
     },
+    "dev.belowArchival" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Development build: saved as %1$@ without an archive timestamp; the file name ends in %2$@. Reason: %3$@."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kehitysversio: tallennettiin %1$@ -tasoisena ilman arkistoaikaleimaa; tiedostonimen loppu on %2$@. Syy: %3$@."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utvecklingsversion: sparad som %1$@ utan arkivtidsstämpel; filnamnet slutar på %2$@. Orsak: %3$@."
+          }
+        }
+      }
+    },
     "dev.belowLongTerm" : {
       "localizations" : {
         "en" : {
@@ -219,6 +241,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "inget betrott rotcertifikat fanns tillgängligt"
+          }
+        }
+      }
+    },
+    "error.archiveTimestampUncovered" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The archive timestamp could not be verified from the signature's evidence. Nothing was written."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arkistoaikaleimaa ei voitu todentaa allekirjoituksen todistusaineistosta. Mitään ei tallennettu."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arkivtidsstämpeln kunde inte verifieras med signaturens bevismaterial. Inget sparades."
           }
         }
       }

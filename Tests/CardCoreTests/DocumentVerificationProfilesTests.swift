@@ -112,7 +112,8 @@
         xmlSignature: signature,
         timestampTokens: [],
         material: PdfValidationStore.Material(
-          certificates: [fixture.issuing], ocspResponses: [], revocationLists: [])
+          certificates: [fixture.issuing], ocspResponses: [], revocationLists: []),
+        archiveTimestampToken: nil
       )
       let container = try AsicVerificationTests.container(
         document: try #require(String(data: document, encoding: .utf8)))

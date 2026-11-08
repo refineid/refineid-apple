@@ -4,13 +4,13 @@
 
   import Foundation
 
-  /// A development-build signature kept below the long-term level: the
-  /// level it reached and why it went no further.
+  /// A development-build signature kept below the long-term archival
+  /// level (B-LTA): the level it reached and why it went no further.
   ///
   /// Only `SignatureLevelPolicy.highestReached` produces one. Release and
   /// TestFlight builds contain none of this type.
   internal struct BelowLongTermSignature: Equatable, Sendable {
-    /// A baseline level below long-term (ETSI EN 319 142-1 and
+    /// A baseline level below B-LTA (ETSI EN 319 142-1 and
     /// EN 319 132-1, clause 6.3).
     internal enum Level: Equatable, Sendable {
       /// The card signature and its certificate, with no timestamp.
@@ -18,6 +18,10 @@
 
       /// The card signature with its signature timestamp.
       case timestamped
+
+      /// The timestamped signature with its validation material, but
+      /// no archive timestamp.
+      case longTerm
 
       /// The level's name in the baseline profiles.
       internal var label: String {
@@ -27,11 +31,14 @@
 
         case .timestamped:
           BelowLongTermSignature.timestampedLabel
+
+        case .longTerm:
+          BelowLongTermSignature.longTermLabel
         }
       }
     }
 
-    /// Why the long-term level was not reached.
+    /// Why the long-term archival level was not reached.
     internal enum Cause: Equatable, Sendable {
       /// The signature timestamp could not be obtained.
       case signatureTimestamp
@@ -95,6 +102,9 @@
     /// ETSI's name for the timestamped level.
     internal static let timestampedLabel = "B-T"
 
+    /// ETSI's name for the level with validation material.
+    internal static let longTermLabel = "B-LT"
+
     /// What a development output's name carries before the level.
     internal static let nameMarkerPrefix = "-dev-"
 
@@ -130,18 +140,32 @@
 
     /// What the holder is told beside the saved output.
     internal var notice: String {
-      String(
-        format: Self.text(
+      String(format: noticeFormat, levelName, nameMarker, causeText)
+    }
+
+    /// The notice's sentence: what a level below B-LT lacks is the
+    /// validation material, and what B-LT lacks is the archive
+    /// timestamp.
+    private var noticeFormat: String {
+      switch level {
+      case .basic, .timestamped:
+        Self.text(
           "dev.belowLongTerm",
           """
           Development build: saved as %1$@ without long-term validation material; \
           the file name ends in %2$@. Reason: %3$@.
           """
-        ),
-        levelName,
-        nameMarker,
-        causeText
-      )
+        )
+
+      case .longTerm:
+        Self.text(
+          "dev.belowArchival",
+          """
+          Development build: saved as %1$@ without an archive timestamp; \
+          the file name ends in %2$@. Reason: %3$@.
+          """
+        )
+      }
     }
 
     /// The cause as a clause.

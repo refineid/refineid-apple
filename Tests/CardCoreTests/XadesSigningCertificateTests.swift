@@ -52,7 +52,8 @@ internal struct XadesSigningCertificateTests {
     let plan = XadesSignature.Plan(
       signedInfoXml: info,
       signedPropertiesXml: properties,
-      certificateDer: identity.certificate
+      certificateDer: identity.certificate,
+      objectContents: objects.map(\.content)
     )
     let signature = try AsicVerificationTests.xmlSignature(
       over: plan.signedInfo, identity: identity, profile: Self.profile)
@@ -60,7 +61,8 @@ internal struct XadesSigningCertificateTests {
       xmlSignature: signature,
       timestampTokens: [],
       material: PdfValidationStore.Material(
-        certificates: certificates, ocspResponses: [], revocationLists: [])
+        certificates: certificates, ocspResponses: [], revocationLists: []),
+      archiveTimestampToken: nil
     )
     return Signed(
       document: try #require(String(data: document, encoding: .utf8)),

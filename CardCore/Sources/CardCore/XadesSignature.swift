@@ -64,6 +64,12 @@ public enum XadesSignature {
     /// The signer's certificate, for `ds:KeyInfo`.
     private let certificateDer: Data
 
+    /// The signed files' bytes, in `ds:Reference` order.
+    ///
+    /// An archive timestamp covers them again (EN 319 132-1 clause
+    /// 5.5.2.3 step 3).
+    private let objectContents: [Data]
+
     /// The octets the card must sign.
     ///
     /// `ds:SignedInfo` in its canonical form. The verifier will
@@ -72,79 +78,81 @@ public enum XadesSignature {
     /// produces a signature over octets nobody else computes.
     public var signedInfo: Data { Data(signedInfoXml.utf8) }
 
-    /// Remembers the two canonical subtrees and the signer.
+    /// `ds:KeyInfo` in canonical form, without a trailing newline.
+    ///
+    /// An archive timestamp digests it, so it declares the prefix it
+    /// uses like every other subtree digested on its own.
+    private var keyInfoElement: String {
+      #"<ds:KeyInfo xmlns:ds="\#(namespaceDsig)">"# + "\n"
+        + "<ds:X509Data>\n"
+        + "<ds:X509Certificate>"
+        + certificateDer.base64EncodedString()
+        + "</ds:X509Certificate>\n"
+        + "</ds:X509Data>\n"
+        + "</ds:KeyInfo>"
+    }
+
+    /// Remembers the two canonical subtrees, the signer and the files.
     internal init(
       signedInfoXml: String,
       signedPropertiesXml: String,
-      certificateDer: Data
+      certificateDer: Data,
+      objectContents: [Data]
     ) {
       self.signedInfoXml = signedInfoXml
       self.signedPropertiesXml = signedPropertiesXml
       self.certificateDer = certificateDer
+      self.objectContents = objectContents
     }
 
-    /// The unsigned properties: timestamps and validation material.
+    /// The input an archive timestamp imprints, as octets
+    /// (EN 319 132-1 V1.3.1 clause 5.5.2.3, steps 3 to 6).
     ///
-    /// Unsigned, so ordinary XML rules apply: nothing digests this
-    /// subtree, which is the whole reason a timestamp over the
-    /// signature can live in it. Schema order is fixed: timestamps,
-    /// then certificates, then revocation values, and inside those
-    /// CRLs before OCSP responses (XAdES `RevocationValuesType`).
-    private static func unsignedProperties(
+    /// Concatenated with no separators: each signed file's bytes in
+    /// reference order (a detached reference without transforms
+    /// dereferences to its octets), the canonical `SignedProperties`
+    /// (the reference with the exclusive transform), the canonical
+    /// `SignedInfo`, the canonical `SignatureValue` element, the
+    /// canonical `KeyInfo`, and each unsigned signature property that
+    /// precedes the archive timestamp, in document order. The one
+    /// `ds:Object` holds only `QualifyingProperties`, which step 6
+    /// excludes, so nothing more follows.
+    public func archiveTimestampInput(
+      xmlSignature: Data,
       timestampTokens: [Data],
       material: PdfValidationStore.Material
-    ) -> String {
-      guard !timestampTokens.isEmpty || !material.isEmpty else { return "" }
-      var out = "<xades:UnsignedProperties>\n"
-      out += "<xades:UnsignedSignatureProperties>\n"
-      for (index, token) in timestampTokens.enumerated() {
-        out += #"<xades:SignatureTimeStamp "#
-        out += #"Id="\#(signatureId)-TS-\#(index)">"# + "\n"
-        // Which canonicalisation the verifier must apply before
-        // digesting `ds:SignatureValue`. It has to name the one
-        // actually used, or the verifier hashes different bytes.
-        out += #"<ds:CanonicalizationMethod "#
-        out += #"Algorithm="\#(canonicalizationExclusive)">"#
-        out += "</ds:CanonicalizationMethod>\n"
-        out += "<xades:EncapsulatedTimeStamp>"
-        out += token.base64EncodedString()
-        out += "</xades:EncapsulatedTimeStamp>\n"
-        out += "</xades:SignatureTimeStamp>\n"
+    ) -> Data {
+      var input = Data()
+      for content in objectContents {
+        input.append(content)
       }
-      if !material.certificates.isEmpty {
-        out += "<xades:CertificateValues>\n"
-        for chainCertificate in material.certificates {
-          out += "<xades:EncapsulatedX509Certificate>"
-          out += chainCertificate.base64EncodedString()
-          out += "</xades:EncapsulatedX509Certificate>\n"
-        }
-        out += "</xades:CertificateValues>\n"
+      input.append(Data(signedPropertiesXml.utf8))
+      input.append(Data(signedInfoXml.utf8))
+      input.append(Data(XadesSignature.signatureValueElement(xmlSignature).utf8))
+      input.append(Data(keyInfoElement.utf8))
+      for element in XadesSignature.unsignedSignaturePropertyElements(
+        timestampTokens: timestampTokens, material: material
+      ) {
+        input.append(Data(element.utf8))
       }
-      if !material.revocationLists.isEmpty || !material.ocspResponses.isEmpty {
-        out += "<xades:RevocationValues>\n"
-        if !material.revocationLists.isEmpty {
-          out += "<xades:CRLValues>\n"
-          for list in material.revocationLists {
-            out += "<xades:EncapsulatedCRLValue>"
-            out += list.base64EncodedString()
-            out += "</xades:EncapsulatedCRLValue>\n"
-          }
-          out += "</xades:CRLValues>\n"
-        }
-        if !material.ocspResponses.isEmpty {
-          out += "<xades:OCSPValues>\n"
-          for response in material.ocspResponses {
-            out += "<xades:EncapsulatedOCSPValue>"
-            out += response.base64EncodedString()
-            out += "</xades:EncapsulatedOCSPValue>\n"
-          }
-          out += "</xades:OCSPValues>\n"
-        }
-        out += "</xades:RevocationValues>\n"
-      }
-      out += "</xades:UnsignedSignatureProperties>\n"
-      out += "</xades:UnsignedProperties>\n"
-      return out
+      return input
+    }
+
+    /// Digest of `archiveTimestampInput`, for a timestamp authority.
+    public func archiveTimestampDigest(
+      xmlSignature: Data,
+      timestampTokens: [Data],
+      material: PdfValidationStore.Material
+    ) -> Data {
+      Data(
+        SHA384.hash(
+          data: archiveTimestampInput(
+            xmlSignature: xmlSignature,
+            timestampTokens: timestampTokens,
+            material: material
+          )
+        )
+      )
     }
 
     /// Assembles `META-INF/signatures0.xml`.
@@ -155,16 +163,20 @@ public enum XadesSignature {
     /// `XadesSignature.timestampDigest` and becomes its own
     /// `xades:SignatureTimeStamp`; an empty array leaves the signature
     /// at baseline level B. `material` fills `CertificateValues` and
-    /// `RevocationValues`, raising the level to LT.
+    /// `RevocationValues`, raising the level to B-LT.
+    /// `archiveTimestampToken`, an RFC 3161 token over
+    /// `archiveTimestampDigest` of the same arguments, becomes the
+    /// `xadesv141:ArchiveTimeStamp` that raises it to B-LTA.
     public func document(
       xmlSignature: Data,
       timestampTokens: [Data],
-      material: PdfValidationStore.Material
+      material: PdfValidationStore.Material,
+      archiveTimestampToken: Data?
     ) -> Data {
       var out = #"<?xml version="1.0" encoding="UTF-8"?>"# + "\n"
       // The container-level wrapper. Not canonicalised and not
       // digested - nothing signs it - so ordinary XML rules apply
-      // from here down, except inside the two subtrees that are.
+      // from here down, except inside the subtrees that are.
       out += #"<asic:XAdESSignatures xmlns:asic="\#(namespaceAsic)">"# + "\n"
       out += #"<ds:Signature xmlns:ds="\#(namespaceDsig)" "#
       out += #"Id="\#(signatureId)">"# + "\n"
@@ -176,21 +188,20 @@ public enum XadesSignature {
       // was taken: one spelling of this element, always.
       out += XadesSignature.signatureValueElement(xmlSignature) + "\n"
 
-      out += "<ds:KeyInfo>\n<ds:X509Data>\n"
-      out += "<ds:X509Certificate>"
-      out += certificateDer.base64EncodedString()
-      out += "</ds:X509Certificate>\n"
-      out += "</ds:X509Data>\n</ds:KeyInfo>\n"
+      out += keyInfoElement + "\n"
 
       out += "<ds:Object>\n"
       out += #"<xades:QualifyingProperties xmlns:xades="\#(namespaceXades)" "#
       out += "Target=\"#\(signatureId)\">\n"
       // Byte for byte as digested by the second reference.
       out += signedPropertiesXml + "\n"
-      out += Self.unsignedProperties(
-        timestampTokens: timestampTokens,
-        material: material
+      var properties = XadesSignature.unsignedSignaturePropertyElements(
+        timestampTokens: timestampTokens, material: material
       )
+      if let archiveTimestampToken {
+        properties.append(XadesSignature.archiveTimeStampElement(archiveTimestampToken))
+      }
+      out += XadesSignature.unsignedProperties(properties)
       out += "</xades:QualifyingProperties>\n"
       out += "</ds:Object>\n"
 
@@ -205,6 +216,10 @@ public enum XadesSignature {
 
   /// XAdES 1.3.2 namespace, the version ASiC-E and BDOC both name.
   internal static let namespaceXades = "http://uri.etsi.org/01903/v1.3.2#"
+
+  /// XAdES 1.4.1 namespace, the only home of the archive timestamp
+  /// at baseline B-LTA (EN 319 132-1 V1.3.1 clause 6.3, table 2).
+  internal static let namespaceXades141 = "http://uri.etsi.org/01903/v1.4.1#"
 
   /// ASiC namespace (EN 319 162-1).
   internal static let namespaceAsic = "http://uri.etsi.org/02918/v1.2.1#"
@@ -236,6 +251,9 @@ public enum XadesSignature {
   /// to when a signature is raised to a long-term level.
   internal static let signatureValueId = "SIG-1-SIGVAL"
 
+  /// Identifier of the one archive timestamp.
+  internal static let archiveTimestampId = "SIG-1-ATS-0"
+
   /// Builds the signature over `objects` and returns the plan to sign
   /// it.
   ///
@@ -264,7 +282,8 @@ public enum XadesSignature {
     return Plan(
       signedInfoXml: info,
       signedPropertiesXml: properties,
-      certificateDer: certificate
+      certificateDer: certificate,
+      objectContents: objects.map(\.content)
     )
   }
 
