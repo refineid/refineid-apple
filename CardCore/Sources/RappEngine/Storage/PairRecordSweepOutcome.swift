@@ -1,6 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-/// What an idle-expiry sweep did with one pairing (RAPP v26.11.2 §4.6 item
+/// What an idle-expiry sweep did with one pairing (RAPP v26.11.8 §4.6 item
 /// 5).
 internal enum PairRecordSweepOutcome: Equatable, Sendable {
   /// The pairing had no established session for

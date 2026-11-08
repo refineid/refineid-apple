@@ -83,6 +83,8 @@ internal final class RappPairingModel: ObservableObject {
   internal var coordinator: RappPairingCoordinator?
   /// The requester's tries of the code its user typed.
   internal var search: RappPairingSearch<PairingEndpoint>?
+  /// The route of the requester's last pairing connection.
+  internal var lastDialed: LastDialedEndpoint?
   /// Stops looking for custodians in pairing mode.
   internal var stopDiscovery: (@Sendable () -> Void)?
   internal var eventTask: Task<Void, Never>?
@@ -137,7 +139,7 @@ internal final class RappPairingModel: ObservableObject {
     createOffer(customCode: nil)
   }
 
-  /// Shows a pairing code and serves it; only a phone does (RAPP v26.11.2
+  /// Shows a pairing code and serves it; only a phone does (RAPP v26.11.8
   /// §1): an iPad or a Mac is a requester and offers nothing.
   internal func createOffer(customCode: String?) {
     guard SupportedCardTransports.servesRemoteCards else { return }
@@ -172,7 +174,7 @@ internal final class RappPairingModel: ObservableObject {
   /// The ceremony options both roles share; the offer hash binds them.
   ///
   /// A phone's offer lists the stream and Bluetooth, and a requester pairs
-  /// over either (RAPP v26.11.2 §4.2).
+  /// over either (RAPP v26.11.8 §4.2).
   internal func options(code: String) -> RappPairingCoordinator.Options {
     RappPairingCoordinator.Options(
       code: code,

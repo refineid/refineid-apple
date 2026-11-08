@@ -9,7 +9,7 @@ import Testing
   import RappEngine
 
   /// A phone serves one offer on the stream and over Bluetooth, and a
-  /// requester tries the phones it finds on either (RAPP v26.11.2 §4.2,
+  /// requester tries the phones it finds on either (RAPP v26.11.8 §4.2,
   /// "Trying Each Custodian in Pairing Mode" items 1 and 2, "Busy
   /// Refusal" item 2).
   @Suite("A requester pairs over whichever transport reaches the phone", .timeLimit(.minutes(1)))

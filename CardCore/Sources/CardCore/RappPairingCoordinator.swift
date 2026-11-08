@@ -4,7 +4,7 @@
   import Foundation
   import RappEngine
 
-  /// Drives one RAPP v26.11.2 pairing ceremony, one connection at a time.
+  /// Drives one RAPP v26.11.8 pairing ceremony, one connection at a time.
   ///
   /// The custodian creates a random offer, shows a pairing code and waits,
   /// serving the offer on every transport its options name, one pairing
@@ -84,21 +84,21 @@
       case transportFailure
       case protocolFailure
       /// This device's storage refused the pairing, with the keychain's
-      /// status when the keychain was what refused (RAPP v26.11.2 §4.3
+      /// status when the keychain was what refused (RAPP v26.11.8 §4.3
       /// item 4).
       case persistenceFailure(status: OSStatus?)
       /// This device's storage refused the pairing for lack of space.
       case outOfSpace
       case offerExpired
       /// No CPace step 2 arrived within the attempt deadline of the
-      /// requester's step 1 (RAPP v26.11.2 §3.3 item 3).
+      /// requester's step 1 (RAPP v26.11.8 §3.3 item 3).
       case attemptTimedOut
       /// The custodian answered `pairing-busy` in place of CPace step 2: it
       /// could not admit the attempt, and asks to be tried again no sooner
-      /// than the wait (RAPP v26.11.2 §4.2, "Busy Refusal").
+      /// than the wait (RAPP v26.11.8 §4.2, "Busy Refusal").
       case custodianBusy(retryAfterMilliseconds: UInt64)
       /// The peer never confirmed storing the pairing; the record this
-      /// endpoint stored is revoked (RAPP v26.11.2 §4.3 item 4).
+      /// endpoint stored is revoked (RAPP v26.11.8 §4.3 item 4).
       case storageUnconfirmed
     }
 
@@ -109,7 +109,7 @@
       /// with ``attach(_:transportProfile:)``.
       case offerRestored
       /// The custodian's T_B verified: it holds the code the requester's
-      /// user typed (RAPP v26.11.2 §6.1.3 step 3).
+      /// user typed (RAPP v26.11.8 §6.1.3 step 3).
       case keyConfirmed
       /// The peer's authenticated introduction, for naming the pairing.
       case peerIntroduced(Peer)
@@ -128,7 +128,7 @@
       case awaitingPeerHello
       case awaitingPeerConfirmation
       /// The record is stored and `pairing.stored` sent; the peer's is
-      /// awaited (RAPP v26.11.2 §4.3 item 4).
+      /// awaited (RAPP v26.11.8 §4.3 item 4).
       case awaitingPeerStored
       case completed
       case closed

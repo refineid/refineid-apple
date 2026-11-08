@@ -3,7 +3,7 @@
 import Foundation
 
 /// Keeps a credential action from starting while the phone is locked (RAPP
-/// v26.11.2 §8.2 item 3).
+/// v26.11.8 §8.2 item 3).
 ///
 /// An action passes before it takes a held PIN 1 or shows a PIN prompt. While
 /// the phone is locked it waits here until the holder unlocks or the

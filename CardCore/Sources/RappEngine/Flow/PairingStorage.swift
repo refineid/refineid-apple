@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The storage exchange of a pairing ceremony (RAPP v26.11.2 §4.3 item 4):
+/// The storage exchange of a pairing ceremony (RAPP v26.11.8 §4.3 item 4):
 /// each endpoint confirms that its record is durably stored, and the
 /// pairing is active only once both confirmations have been exchanged.
 ///
@@ -45,7 +45,7 @@ internal struct PairingStorage {
   }
 
   /// Tells the peer the local record could not be stored; the confirmation
-  /// it replaces is never sent (RAPP v26.11.2 §4.3 item 4).
+  /// it replaces is never sent (RAPP v26.11.8 §4.3 item 4).
   internal mutating func sendAbort() throws -> Data {
     guard !localStoredSent else { throw PairingError.duplicateMessage }
     do {

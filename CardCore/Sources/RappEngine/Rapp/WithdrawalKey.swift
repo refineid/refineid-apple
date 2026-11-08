@@ -3,7 +3,7 @@
 import CryptoKit
 import Foundation
 
-/// The key a pairing's withdrawal hints are made with (RAPP v26.11.2
+/// The key a pairing's withdrawal hints are made with (RAPP v26.11.8
 /// §4.5).
 internal struct WithdrawalKey {
   private let secret: SymmetricKey

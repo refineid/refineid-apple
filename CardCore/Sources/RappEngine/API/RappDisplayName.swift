@@ -3,7 +3,7 @@
 import Foundation
 
 /// The name an endpoint gives itself, as its peer shows it and stores it in the pair record (RAPP
-/// v26.11.2 §4.3 items 3 and 4): 1 to ``maximumBytes`` bytes of UTF-8 holding at least one
+/// v26.11.8 §4.3 items 3 and 4): 1 to ``maximumBytes`` bytes of UTF-8 holding at least one
 /// character that is not white space.
 ///
 /// A label for people: no pairing is found, matched, replaced or revoked by it.

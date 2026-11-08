@@ -22,7 +22,7 @@
       /// Credential profiles the offer names and the requester asks for.
       public let profiles: [String]
       /// The registered transport profiles this side pairs over: the
-      /// custodian's offer lists each (RAPP v26.11.2 §4.2), and a requester
+      /// custodian's offer lists each (RAPP v26.11.8 §4.2), and a requester
       /// runs the ceremony on a connection of any of them.
       public let transportProfiles: [String]
       /// User-visible name this endpoint introduces itself with.
@@ -90,7 +90,7 @@
     /// The requester side over `transport`, a connection of
     /// `transportProfile`, from the bridge built on the offer that
     /// connection served through its bootstrap: the custodian's first
-    /// stream frame or the BLE bootstrap characteristic (RAPP v26.11.2
+    /// stream frame or the BLE bootstrap characteristic (RAPP v26.11.8
     /// §4.2, Bootstrap Read Flow).
     ///
     /// `bootstrap` is the requester's ``RappPairingBridge`` over that offer,

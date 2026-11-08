@@ -4,7 +4,7 @@ import Foundation
 
 /// One machine of the formal model, read for its lifecycle shape: role,
 /// initial state, states, events, transitions, ignored and impossible
-/// entries, and presentation (RAPP v26.11.2 §4.7).
+/// entries, and presentation (RAPP v26.11.8 §4.7).
 internal struct LifecycleMachine {
   internal var role: String?
   internal var initial = ""

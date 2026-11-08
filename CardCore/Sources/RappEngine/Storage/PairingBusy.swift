@@ -3,7 +3,7 @@
 import Foundation
 
 /// The `pairing-busy` a custodian in pairing mode answers while it cannot
-/// admit an attempt (RAPP v26.11.2 §3.3 item 6, §4.2 "PairingBusy Schema"
+/// admit an attempt (RAPP v26.11.8 §3.3 item 6, §4.2 "PairingBusy Schema"
 /// and "Busy Refusal").
 ///
 /// It carries only the time until the custodian can admit an attempt,

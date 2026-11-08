@@ -12,7 +12,7 @@
     /// What it asks for.
     internal let action: RappAuthorizationRequest.Action
 
-    /// The sentence naming the computer and the PIN (RAPP v26.11.2 §8.2
+    /// The sentence naming the computer and the PIN (RAPP v26.11.8 §8.2
     /// item 3); documents stay off the lock screen.
     internal var message: String {
       switch action {

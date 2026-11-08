@@ -6704,6 +6704,22 @@
         }
       }
     },
+    "Connecting to %@…": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yhdistetään laitteeseen %@…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ansluter till %@…"
+          }
+        }
+      }
+    },
     "%@ needs your identity card.": {
       "localizations": {
         "en": {

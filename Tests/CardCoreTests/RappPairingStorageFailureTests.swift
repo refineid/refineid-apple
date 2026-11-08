@@ -12,7 +12,7 @@ private let fixturePairingCode = "246813"
   import RappEngine
 
   /// A custodian that stored its record and then hears nonsense instead of
-  /// the peer's `pairing.stored` revokes the record (RAPP v26.11.2 §4.3
+  /// the peer's `pairing.stored` revokes the record (RAPP v26.11.8 §4.3
   /// item 4).
   internal final class RappPairingStorageFailureTests: XCTestCase {
     private actor RecordingTransport: RappFrameTransport {
@@ -135,7 +135,7 @@ private let fixturePairingCode = "246813"
     /// A custodian whose keychain refuses the record confirms nothing,
     /// keeps nothing and reports the keychain's status.
     ///
-    /// RAPP v26.11.2 §4.3 item 4.
+    /// RAPP v26.11.8 §4.3 item 4.
     internal func testARefusedWriteAbortsInsteadOfConfirming() async throws {
       for status in [errSecAuthFailed, errSecMissingEntitlement, errSecIO] {
         let vault = RappDeviceVault(

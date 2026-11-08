@@ -4,7 +4,7 @@
   import CardCore
   import Foundation
 
-  /// The phone's pairing offer as its GATT server serves it (RAPP v26.11.2
+  /// The phone's pairing offer as its GATT server serves it (RAPP v26.11.8
   /// §4.2, Bootstrap Read Flow item 1, "Busy Refusal" item 2).
   internal struct BluetoothPairingOffer: Sendable {
     /// The bootstrap answer of the moment: the offer, or `pairing-busy`.

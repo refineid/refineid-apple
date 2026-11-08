@@ -4,7 +4,7 @@ import CardCore
 import Foundation
 
 /// How a requester finds the custodians in pairing mode and opens pairing
-/// connections to them (RAPP v26.11.2 §4.2, "Trying Each Custodian in
+/// connections to them (RAPP v26.11.8 §4.2, "Trying Each Custodian in
 /// Pairing Mode").
 ///
 /// Custodians are found on every transport the requester dials sessions

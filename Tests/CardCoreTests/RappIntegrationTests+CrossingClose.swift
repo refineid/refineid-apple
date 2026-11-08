@@ -9,7 +9,7 @@ import Testing
   import RappEngine
 
   /// A close of another reason that crosses a requester's `pairing_revoked`
-  /// close is not its echo (RAPP v26.11.2 §7.1 item 7, §4.6 item 6): the
+  /// close is not its echo (RAPP v26.11.8 §7.1 item 7, §4.6 item 6): the
   /// forgotten record stays in the backlog, on the handshake path and on an
   /// open session alike.
   extension RappIntegrationTests {

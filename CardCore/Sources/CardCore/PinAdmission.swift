@@ -10,7 +10,7 @@
 /// counter shows no refusal since the card accepted it, which is the full
 /// allowance or a verified answer (``Pin1Retention``). Any other counter
 /// means someone has been wrong on this card, so the held value is not
-/// sent and the holder is asked instead (RAPP v26.11.2 §11 item 2), or, at
+/// sent and the holder is asked instead (RAPP v26.11.8 §11 item 2), or, at
 /// a counter that shows the PIN blocked, told so from this reading.
 public enum PinAdmission: Equatable, Sendable {
   /// A held PIN 1 is not sent for a credential the probe shows blocked.

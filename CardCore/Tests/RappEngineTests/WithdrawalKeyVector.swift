@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The vendored withdrawal corpus (RAPP v26.11.2 §4.5).
+/// The vendored withdrawal corpus (RAPP v26.11.8 §4.5).
 
 internal struct WithdrawalKeyVector: Decodable {
   private enum CodingKeys: String, CodingKey {

@@ -6,7 +6,7 @@
 
 import Foundation
 
-/// `operation-status-val` (RAPP v26.11.2 §7.1).
+/// `operation-status-val` (RAPP v26.11.8 §7.1).
 internal enum ResultStatus: String, Equatable {
   case completed = "completed"
   case rejected = "rejected"

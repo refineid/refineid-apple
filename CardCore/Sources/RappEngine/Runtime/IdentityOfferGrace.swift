@@ -4,7 +4,7 @@ import Foundation
 
 /// How long a requester keeps offering a certificate the custodian confirmed
 /// while no session is open or the custodian reports absence, with no
-/// report of the card present in that time (RAPP v26.11.2 §8.4 item 3).
+/// report of the card present in that time (RAPP v26.11.8 §8.4 item 3).
 internal enum IdentityOfferGrace {
   /// The grace, in milliseconds.
   internal static let milliseconds: UInt64 = 120_000

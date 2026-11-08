@@ -32,7 +32,7 @@
     }
   }
 
-  /// The phone's pairing offer on its GATT server (RAPP v26.11.2 §4.2,
+  /// The phone's pairing offer on its GATT server (RAPP v26.11.8 §4.2,
   /// §5.2): served beside the stream listener while the phone shows a
   /// code, whether or not it serves any pairing yet.
   @MainActor

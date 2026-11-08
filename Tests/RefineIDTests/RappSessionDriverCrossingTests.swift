@@ -11,7 +11,7 @@
 
   /// A close that crosses this endpoint's sent protocol_violation while
   /// it waits for the echo is the echo and its reason is acted on (RAPP
-  /// v26.11.2 §7.1 item 7).
+  /// v26.11.8 §7.1 item 7).
   @Suite
   internal struct RappSessionDriverCrossingTests {
     @Test("Own protocol_violation crossed by service_withdrawn drops the identity")

@@ -205,7 +205,7 @@ extension OperationBodyTests {
   }
 
   /// A progress event this version does not define is malformed, never
-  /// ignored (RAPP v26.11.2 §10.1 item 4).
+  /// ignored (RAPP v26.11.8 §10.1 item 4).
   @Test("An unknown progress event fails the message")
   internal func unknownProgressEventIsRefused() throws {
     let corpus = try Self.corpus()

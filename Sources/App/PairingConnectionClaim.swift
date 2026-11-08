@@ -7,7 +7,7 @@ import os
 /// transports.
 ///
 /// One offer is served on the stream listener and on the Bluetooth
-/// server (RAPP v26.11.2 §4.2), and its ceremony runs on one connection at
+/// server (RAPP v26.11.8 §4.2), and its ceremony runs on one connection at
 /// a time. The first connection to arrive claims the offer; another,
 /// on either transport, is answered busy until the claim is released
 /// (§4.2, "Busy Refusal"). A claim is taken on the queue the connection

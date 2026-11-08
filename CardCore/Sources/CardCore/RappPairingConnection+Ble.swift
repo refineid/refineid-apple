@@ -20,7 +20,7 @@
     public static let bluetoothDialMilliseconds: UInt64 = 10_000
 
     /// The wait an offer served again in place of `pairing-busy` asks for
-    /// (RAPP v26.11.2 §4.2, "Busy Refusal" item 2).
+    /// (RAPP v26.11.8 §4.2, "Busy Refusal" item 2).
     private static let offerServedAgainWaitMilliseconds: UInt64 = 0
 
     /// The wait the answer read again after a refused CPace step 1 asks for.
@@ -74,7 +74,7 @@
     }
 
     /// Opens a pairing connection to the RAPP peripheral `peer` and no
-    /// other (RAPP v26.11.2 §5.2).
+    /// other (RAPP v26.11.8 §5.2).
     ///
     /// The bootstrap answer read off the Bootstrap Characteristic is
     /// reported as the connection's first frame once routing finished, as

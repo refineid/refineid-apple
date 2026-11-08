@@ -3,7 +3,7 @@
 extension RappModelTables {
   /// Pairing component rules from a stored pairing's sessions to its end:
   /// recorded sessions, idle expiry, forgetting and revocation (RAPP
-  /// v26.11.2 §4.5, §4.6).
+  /// v26.11.8 §4.5, §4.6).
   internal static let pairingLifetime: [RappRule<PairingState, PairingEvent>] = [
     RappRule(
       from: .pairedDisconnected,

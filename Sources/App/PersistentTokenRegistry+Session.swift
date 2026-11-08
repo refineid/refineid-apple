@@ -6,7 +6,7 @@
   import RappEngine
 
   /// The standing session with the phone whose word the offered identity
-  /// rests on (RAPP v26.11.2 §8.3, §8.4), over the stream while Bonjour
+  /// rests on (RAPP v26.11.8 §8.3, §8.4), over the stream while Bonjour
   /// shows the phone and over Bluetooth otherwise (RAPP transport
   /// hierarchy §3).
   extension PersistentTokenRegistry {
@@ -44,7 +44,7 @@
     /// It is the usable one whose hint the phone in sight carries; with none
     /// in sight, the chosen usable pairing, else the newest. A forgotten
     /// pairing is never the session's: the revocation backlog delivers its
-    /// close on a session of its own (RAPP v26.11.2 §4.6 item 6).
+    /// close on a session of its own (RAPP v26.11.8 §4.6 item 6).
     private static func sessionPair(in vault: RappDeviceVault, inSight: Data?) -> RappPairRecord? {
       let pairIDs = (try? vault.activePairIDs()) ?? []
       let usable = pairIDs.compactMap { pairID in
@@ -139,7 +139,7 @@
 
     /// Clears what the registry knows of the session it let go; a session
     /// that was established is recorded in its pairing as it ends (RAPP
-    /// v26.11.2 §4.6 item 5).
+    /// v26.11.8 §4.6 item 5).
     internal func forgetHeldSession() {
       if sessionSlot.isEstablished, let pairID = holderSession?.pairID {
         Self.recordSession(pairID: pairID)
@@ -211,6 +211,7 @@
     /// changes only how the card is asked for; the card alone governs the
     /// offer (§8.4 items 3 and 6, CC-82).
     private func cardStatusReported(_ status: RappCardStatus) {
+      connectedAfterPairing()
       continuousFailureSince = nil
       holderCardStatus = status
       let offered = (certificateDER ?? Self.publishedCertificateDER())
@@ -221,7 +222,7 @@
     /// Acts on what the phone's `card.status` did to the offer: the card
     /// offered is published again, another card's identity is withdrawn at
     /// once and the certificate read afresh, and absence leaves the offer
-    /// to its grace (RAPP v26.11.2 §8.4 items 2 and 3).
+    /// to its grace (RAPP v26.11.8 §8.4 items 2 and 3).
     private func respond(to response: RemoteIdentityOffer.Response) {
       switch response {
       case .absent:
@@ -310,7 +311,7 @@
     }
 
     /// Acts on an end that is not a loss and answers true; a loss is left
-    /// to the redial that follows it (RAPP v26.11.2 §4.5 item 6).
+    /// to the redial that follows it (RAPP v26.11.8 §4.5 item 6).
     private func concluded(by end: PhoneSessionEnd, pairID: Data?) -> Bool {
       switch end {
       case .pairingRevoked:
@@ -337,7 +338,7 @@
     ///
     /// The pairing stays and the identity follows its grace; the next dial
     /// waits for the phone to appear again or a consumer to ask (RAPP
-    /// v26.11.2 §4.5 item 6). A version mismatch is the likely cause.
+    /// v26.11.8 §4.5 item 6). A version mismatch is the likely cause.
     private func holderViolated() {
       holderIsAdvertising = false
       confirmationLost()

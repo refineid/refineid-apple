@@ -8,7 +8,7 @@ import Testing
 #if canImport(RappEngine)
   import RappEngine
 
-  /// Withdrawal over two real coordinators (RAPP v26.11.2 §4.5 items 3, 6,
+  /// Withdrawal over two real coordinators (RAPP v26.11.8 §4.5 items 3, 6,
   /// 8 and 9).
   extension RappIntegrationTests {
     // MARK: Static Functions
@@ -157,7 +157,7 @@ import Testing
 
     /// Every session carries both names: the requester reads the
     /// custodian's in `session.ready`, the custodian the requester's in its
-    /// `session.hello` (RAPP v26.11.2 §4.3 item 4).
+    /// `session.hello` (RAPP v26.11.8 §4.3 item 4).
     @Test
     internal func everySessionCarriesBothNames() async throws {
       let fixture = try await RappIntegrationConnectionSupport.makePairedFixture()

@@ -5,7 +5,7 @@
   import RappEngine
 
   extension RappPairingCoordinator {
-    /// One pairing connection and the offer entry it binds (RAPP v26.11.2
+    /// One pairing connection and the offer entry it binds (RAPP v26.11.8
     /// §4.2, Bootstrap Read Flow item 4).
     internal struct Binding: Sendable {
       // MARK: Properties
@@ -57,7 +57,7 @@
     ///
     /// Only an idle offer takes a connection, of a transport its offer
     /// lists; false otherwise, and the caller answers the connection busy
-    /// with ``busyAnswer()`` (RAPP v26.11.2 §4.2, "Busy Refusal").
+    /// with ``busyAnswer()`` (RAPP v26.11.8 §4.2, "Busy Refusal").
     @discardableResult
     public func attach(_ transport: any RappFrameTransport, transportProfile: String) -> Bool {
       guard role == .proxy, state == .offer,

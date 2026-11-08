@@ -13,7 +13,7 @@
       digest: Data
     )
     /// A document signature, of a single document or a package (RAPP
-    /// v26.11.2 §9.3).
+    /// v26.11.8 §9.3).
     case documentSigning(
       document: RappSigningDocument,
       keyProfile: RappOperationDriver.KeyProfile,

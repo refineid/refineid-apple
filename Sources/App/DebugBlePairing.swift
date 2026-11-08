@@ -7,7 +7,7 @@
   import RappEngine
 
   /// Drives both halves of a pairing over `fi.refineid.rapp.ble`
-  /// (RAPP v26.11.2 §4.2, §5) from the command line.
+  /// (RAPP v26.11.8 §4.2, §5) from the command line.
   ///
   /// The custodian prints the code it shows and serves its offer on the
   /// bootstrap characteristic; the requester takes the code from the

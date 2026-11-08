@@ -140,6 +140,7 @@
           remoteUse: remoteUse,
           phonePaired: false,
           phoneThatForgot: nil,
+          phoneJustPaired: nil,
           localNetworkDenied: false,
           phoneCardStatus: nil
         )
@@ -153,6 +154,7 @@
         remoteUse: remoteUse,
         phonePaired: registry.pairedPhoneID != nil,
         phoneThatForgot: registry.phoneThatForgot,
+        phoneJustPaired: registry.phoneJustPaired,
         localNetworkDenied: localNetworkDenied,
         phoneCardStatus: registry.holderCardStatus
       )
@@ -185,6 +187,15 @@
         } else {
           readingLine
         }
+
+      case .connectingToPairedPhone(let phone):
+        HStack {
+          ProgressView()
+            .controlSize(.small)
+          Text("Connecting to \(phone)…")
+            .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
 
       case .cardNotReady:
         Text("Remove the card from the reader for a moment.")

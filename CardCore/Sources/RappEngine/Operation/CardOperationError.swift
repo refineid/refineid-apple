@@ -11,7 +11,7 @@ internal enum CardOperationError: Error, Equatable {
   case keyAlgorithmMismatch
   case operationMismatch
   /// The request of a package, with every file it holds, does not fit one
-  /// frame (RAPP v26.11.2 §9.3).
+  /// frame (RAPP v26.11.8 §9.3).
   case packageTooLarge
   case profileActionMismatch
   case unexpectedField

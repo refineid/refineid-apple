@@ -23,7 +23,7 @@ import Testing
 
     /// Each way the custodian ends an operation without a completed
     /// result, and the registered error the requester receives for it
-    /// (RAPP v26.11.2 §10.3).
+    /// (RAPP v26.11.8 §10.3).
     internal enum ProxyTermination: CaseIterable, Sendable {
       case cardError
       case operationFailed

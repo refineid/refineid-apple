@@ -7,7 +7,7 @@ import Testing
 
 #if canImport(CoreBluetooth) && canImport(RappEngine)
   /// What counts as a RAPP peripheral appearing over Bluetooth (RAPP
-  /// v26.11.2 §4.6 item 6): the first sighting, or one after the loss hold,
+  /// v26.11.8 §4.6 item 6): the first sighting, or one after the loss hold,
   /// never a sighting while it stays in sight.
   @Suite("RAPP BLE appearance watcher")
   internal struct RappBleAppearanceWatcherTests {

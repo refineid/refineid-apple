@@ -21,10 +21,10 @@
     /// authentication, which names only the computer (§11 item 1).
     internal let documentNames: [String]
     /// The files a package holds, in container order, shown under its
-    /// name; empty for anything but a package (RAPP v26.11.2 §9.3).
+    /// name; empty for anything but a package (RAPP v26.11.8 §9.3).
     internal var containedFiles: [String] = []
     /// What the card said about the PIN the holder entered last for this
-    /// request, when it refused it (RAPP v26.11.2 §10.2).
+    /// request, when it refused it (RAPP v26.11.8 §10.2).
     internal let notice: String?
 
     /// The prompt's title, naming the act.

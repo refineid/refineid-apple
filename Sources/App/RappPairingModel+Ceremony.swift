@@ -44,7 +44,7 @@ extension RappPairingModel {
   }
 
   /// What the holder is told when the keychain did not store a pairing,
-  /// with the cause the system gives (RAPP v26.11.2 §4.3 item 4).
+  /// with the cause the system gives (RAPP v26.11.8 §4.3 item 4).
   nonisolated internal static func notStoredMessage(status: OSStatus?) -> String {
     guard let status, let cause = SecCopyErrorMessageString(status, nil) as String? else {
       return String(localized: "The pairing could not be stored.")
@@ -141,7 +141,7 @@ extension RappPairingModel {
 
   /// Selects the new pair.
   ///
-  /// The pair carries the name its peer gave (RAPP v26.11.2 §4.3 item 3).
+  /// The pair carries the name its peer gave (RAPP v26.11.8 §4.3 item 3).
   /// A phone that offered lists the new computer and shows the next code.
   private func handlePaired(_ pair: RappPairingCoordinator.PairSummary) {
     do {
@@ -163,7 +163,8 @@ extension RappPairingModel {
           keeping: pair.pairID, in: vault)
       }
       #if os(macOS)
-        PersistentTokenRegistry.shared.startAfterPairing()
+        PersistentTokenRegistry.shared.followJustPaired(
+          phone: pair.peerDisplayName, peripheral: lastDialed?.peripheral)
       #endif
     } catch  where StorageFailure.isOutOfSpace(error) {
       fail(.reported(DiskFullMessage.text))

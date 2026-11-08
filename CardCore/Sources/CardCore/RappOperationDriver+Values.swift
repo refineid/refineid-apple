@@ -179,7 +179,7 @@
       /// A batch's digests, paired with `documentNames`; empty otherwise.
       public let digests: [Data]
       /// A package's files in container order, shown under its name (RAPP
-      /// v26.11.2 §9.3); empty otherwise.
+      /// v26.11.8 §9.3); empty otherwise.
       public let containedFiles: [String]
 
       internal init(_ value: RappOperationDescriptor) {

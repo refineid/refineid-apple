@@ -42,7 +42,7 @@
     }
 
     /// Until the holder's name is read, the line says nothing: no status
-    /// names the phone (RAPP v26.11.2 §4.7).
+    /// names the phone (RAPP v26.11.8 §4.7).
     @Test(arguments: [nil, ""] as [String?])
     internal func holderLineWithoutANameIsEmpty(_ holder: String?) {
       let line = PairedPhoneLine.line(lead: .holder, holder: holder)

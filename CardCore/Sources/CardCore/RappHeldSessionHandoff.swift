@@ -10,7 +10,7 @@
   /// A Mac holds one session to its phone, and the app holds it, on either
   /// transport. Every process of one Mac shares a single Bluetooth link and
   /// GATT client to the phone, which the phone sees as one central with one
-  /// channel characteristic (RAPP v26.11.2 §5.2): a second RAPP connection
+  /// channel characteristic (RAPP v26.11.8 §5.2): a second RAPP connection
   /// from the extension would interleave its fragments with the app's, and
   /// on the stream it would be a second session beside the app's. So the
   /// extension asks the running app to carry its operation, and the app
@@ -124,7 +124,7 @@
 
     /// The encoding both directions share.
     private enum Coding {
-      /// RAPP pair identifiers are 16 bytes (RAPP v26.11.2 §4.3 item 2).
+      /// RAPP pair identifiers are 16 bytes (RAPP v26.11.8 §4.3 item 2).
       static let pairIdentifierByteCount = 16
 
       /// The requester errors that carry nothing.

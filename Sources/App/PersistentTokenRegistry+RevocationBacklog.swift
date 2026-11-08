@@ -5,7 +5,7 @@
   import Foundation
   import RappEngine
 
-  /// The requester's revocation backlog (RAPP v26.11.2 §4.6 item 6, STPA
+  /// The requester's revocation backlog (RAPP v26.11.8 §4.6 item 6, STPA
   /// CC-118).
   ///
   /// A pairing its user forgot, by turning remote use off or by pairing

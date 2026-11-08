@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.11.2 trying each custodian in pairing mode (section 4.2)")
+@Suite("RAPP v26.11.8 trying each custodian in pairing mode (section 4.2)")
 internal struct PairingCandidatesTests {
   /// The custodians a test makes, each with an offer of its own.
   private static let firstCustodian: UInt8 = 0x01

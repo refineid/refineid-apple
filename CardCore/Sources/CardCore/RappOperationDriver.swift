@@ -5,7 +5,7 @@
   import RappEngine
   /// Owns one established RAPP operation runtime and translates engine
   /// records into Sendable Apple-side values. It never performs card I/O
-  /// itself. Nothing of an operation outlives the session (RAPP v26.11.2
+  /// itself. Nothing of an operation outlives the session (RAPP v26.11.8
   /// §8.1 item 3).
   public actor RappOperationDriver {
     internal let bridge: RappOperationBridge
@@ -17,7 +17,7 @@
     internal var echoReason: CloseReason?
     /// Whether the peer answered this endpoint's close with its echo, or
     /// with its own `pairing_revoked` crossing it; a crossing close of
-    /// another reason is neither (RAPP v26.11.2 §7.1 item 7).
+    /// another reason is neither (RAPP v26.11.8 §7.1 item 7).
     internal var ownCloseEchoed = false
 
     internal init(
@@ -96,7 +96,7 @@
     }
 
     /// Starts a requester batch signature over named documents (RAPP
-    /// v26.11.2 §9.3); names and digests pair up by position.
+    /// v26.11.8 §9.3); names and digests pair up by position.
     public func beginBatchSignDocuments(
       documentNames: [String],
       keyProfile: KeyProfile,
@@ -130,7 +130,7 @@
     }
 
     /// Starts a requester document-signing operation for `document`, a
-    /// single document or a package (RAPP v26.11.2 §9.3).
+    /// single document or a package (RAPP v26.11.8 §9.3).
     public func beginSignDocument(
       document: RappSigningDocument,
       keyProfile: KeyProfile,

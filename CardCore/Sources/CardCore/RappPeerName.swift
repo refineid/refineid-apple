@@ -4,7 +4,7 @@
   import Foundation
   import RappEngine
 
-  /// Keeping the peer's name in its pair record current (RAPP v26.11.2
+  /// Keeping the peer's name in its pair record current (RAPP v26.11.8
   /// §4.3 item 4): every session carries the peer's current name, and a
   /// name that differs from the record's replaces it there.
   public enum RappPeerName {

@@ -35,7 +35,7 @@ extension RappPairingModel {
   }
 
   /// Answers a stream pairing connection busy while another connection
-  /// holds the offer, keeping the listener for the next one (RAPP v26.11.2
+  /// holds the offer, keeping the listener for the next one (RAPP v26.11.8
   /// §4.2, "Busy Refusal").
   internal func refuseStreamConnection(
     relay: PairingRelay, coordinator: RappPairingCoordinator
@@ -50,7 +50,7 @@ extension RappPairingModel {
 
   #if os(iOS) && REFINEID_LOCAL_CARD
     /// Serves this phone's offer on its GATT server beside the stream
-    /// (RAPP v26.11.2 §4.2, §5.2).
+    /// (RAPP v26.11.8 §4.2, §5.2).
     ///
     /// The link that claimed the offer runs the ceremony; another link's
     /// CPace step 1 is refused busy at the server.

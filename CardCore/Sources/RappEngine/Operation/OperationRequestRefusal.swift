@@ -6,7 +6,7 @@ import Foundation
 /// cannot serve.
 ///
 /// It is answered with a rejected result, not a session close (RAPP
-/// v26.11.2 §10.1 item 3), so it carries the identifier the result names.
+/// v26.11.8 §10.1 item 3), so it carries the identifier the result names.
 internal struct OperationRequestRefusal: Error, Equatable {
   internal let operationIdentifier: RappOperationIdentifier
   internal let error: ResultError

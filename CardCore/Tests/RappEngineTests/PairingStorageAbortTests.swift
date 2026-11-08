@@ -6,7 +6,7 @@ import Testing
 @testable import RappEngine
 
 /// A record that could not be stored is answered with `pairing.abort`, in
-/// place of `pairing.stored` (RAPP v26.11.2 §4.3 item 4).
+/// place of `pairing.stored` (RAPP v26.11.8 §4.3 item 4).
 @Suite("Pairing storage abort")
 internal struct PairingStorageAbortTests {
   private static let pairIdentifier = Data(repeating: 1, count: PairRecordSize.pairIdentifier)

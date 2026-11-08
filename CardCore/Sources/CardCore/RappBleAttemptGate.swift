@@ -3,7 +3,7 @@
 import Foundation
 
 /// The one CPace attempt a BLE custodian runs at a time across all its
-/// links (RAPP v26.11.2 §3.3 item 6).
+/// links (RAPP v26.11.8 §3.3 item 6).
 ///
 /// The central whose step 1 was admitted holds the gate until its link
 /// ends or is removed, however that happens; until then every other

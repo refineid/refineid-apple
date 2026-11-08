@@ -111,7 +111,7 @@ extension DocumentSigner {
   ///
   /// For a package, `documentName` is the package's own name and
   /// `containedFiles` the names of the files it holds, in container order
-  /// (RAPP v26.11.2 §9.3); empty for a single document.
+  /// (RAPP v26.11.8 §9.3); empty for a single document.
   internal static func remoteQualifiedSignature(
     documentName: String,
     containedFiles: [String],

@@ -11,7 +11,7 @@
   @testable import RefineIDTestHost
 
   /// The holder's click off is kept until its pairings are gone (RAPP
-  /// v26.11.2 §4.6 item 6, CC-100).
+  /// v26.11.8 §4.6 item 6, CC-100).
   @Suite(.serialized)
   internal struct RemoteUseForgettingTests {
     /// The defaults suite these tests keep the holder's click in.

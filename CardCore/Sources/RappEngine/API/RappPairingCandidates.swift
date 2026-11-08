@@ -3,7 +3,7 @@
 import Foundation
 
 /// The custodians in pairing mode a requester tries with one typed code
-/// (RAPP v26.11.2 §4.2, "Trying Each Custodian in Pairing Mode").
+/// (RAPP v26.11.8 §4.2, "Trying Each Custodian in Pairing Mode").
 ///
 /// The platform creates one per submitted code, reports every endpoint
 /// discovery finds in pairing mode by its own name for it (a service
@@ -100,7 +100,7 @@ public final class RappPairingCandidates<Endpoint: Equatable & Sendable>: @unche
   ///
   /// The wait is the value ``rappPairingBusyRetryAfterMs(_:)`` read from its
   /// bootstrap or from the frame in place of CPace step 2, or zero when a
-  /// BLE custodian refused step 1 and then served its offer (RAPP v26.11.2
+  /// BLE custodian refused step 1 and then served its offer (RAPP v26.11.8
   /// §4.2, "Busy Refusal"). The endpoint is opened again after its wait and after every
   /// endpoint not yet opened; nothing is shown to the user.
   /// `remoteUseAvailable` is read as in ``closed(remoteUseAvailable:)``.

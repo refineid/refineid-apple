@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The vendored lifecycle scenarios (RAPP v26.11.2 §4.7): each walks one
+/// The vendored lifecycle scenarios (RAPP v26.11.8 §4.7): each walks one
 /// machine from a start state through events, naming the state and the
 /// ordered actions after each.
 internal struct LifecycleCorpus: Decodable {
@@ -12,7 +12,7 @@ internal struct LifecycleCorpus: Decodable {
     case scenarios = "scenarios"
   }
 
-  private static let fileName = "rapp-lifecycle-v26.11.2.json"
+  private static let fileName = "rapp-lifecycle-v26.11.8.json"
   private static let depthBelowRepositoryRoot = 4
 
   internal let format: String

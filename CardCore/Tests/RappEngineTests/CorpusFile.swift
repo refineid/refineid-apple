@@ -2,12 +2,12 @@
 
 import Foundation
 
-/// The vendored RAPP v26.11.2 documents the engine is replayed against.
+/// The vendored RAPP v26.11.8 documents the engine is replayed against.
 internal enum CorpusFile {
-  private static let conformanceName = "rapp-v26.11.2.json"
-  private static let operationName = "rapp-operation-v26.11.2.json"
-  private static let routingName = "rapp-routing-v26.11.2.json"
-  private static let withdrawalName = "rapp-withdrawal-v26.11.2.json"
+  private static let conformanceName = "rapp-v26.11.8.json"
+  private static let operationName = "rapp-operation-v26.11.8.json"
+  private static let routingName = "rapp-routing-v26.11.8.json"
+  private static let withdrawalName = "rapp-withdrawal-v26.11.8.json"
 
   /// Test sources sit four directories below the repository root.
   private static let depthBelowRepositoryRoot = 4

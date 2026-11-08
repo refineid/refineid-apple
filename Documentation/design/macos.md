@@ -62,9 +62,10 @@ reads it as a toggle.
   for phones in pairing mode only while a code is tried: their
   `mode=pairing` records on the network, and from 2 seconds on the RAPP
   Bluetooth peripherals in reach, so a phone with no network shared with
-  the Mac pairs over Bluetooth (RAPP v26.11.2 §4.2). With a pairing,
+  the Mac pairs over Bluetooth (RAPP v26.11.8 §4.2). A pairing made over
+  Bluetooth dials that phone over Bluetooth first. With a pairing,
   the phone's line returns.
-- **Turning off.** The click forgets the pairing (RAPP v26.11.2 §4.6
+- **Turning off.** The click forgets the pairing (RAPP v26.11.8 §4.6
   item 6). The Mac stores the click first, with the pairings it holds
   (`RemoteUseForgetting`). An open session closes with `pairing_revoked`,
   and the Mac waits at most 1 second for the phone's echo of that close;
@@ -183,6 +184,7 @@ every other change is a change of colour.
 | Remote use off, empty reader here | "Insert the card into the reader." |
 | Remote use on, no card here, no phone paired or the paired phone offering no card | "Open RefineID remote access on your phone and enter the pairing code:" and the six-box code entry |
 | Remote use on after the phone forgot this computer | "*phone* forgot this computer." above the pairing prompt |
+| A phone just paired, until its first card status or the 120-second redial window (RAPP v26.11.8 §4.7) | A spinner and "Connecting to *phone*…" in place of the code entry |
 | Card in this Mac's reader, name not read yet | "Reading information…" |
 | Card in this Mac's reader | *HOLDER NAME* |
 | Card in this Mac's reader, no token for it after a while | "Remove the card from the reader for a moment." in orange |
@@ -246,14 +248,14 @@ Safari lists every published identity, whatever is chosen here.
 A paired phone's line takes the first of these that holds:
 
 1. The phone reports no card in the card reader attached to it (RAPP
-   v26.11.2 §8.4 item 6): "Insert the card into the phone's card
+   v26.11.8 §8.4 item 6): "Insert the card into the phone's card
    reader.", even while its identity is still offered in its grace.
 2. The phone's identity is offered: the holder's line. A phone without a
    card reader reporting no card leaves it standing.
 3. Otherwise the row shows no remote card, exactly as if no phone were
    paired: the pairing prompt, where pairing another phone replaces the
    pairing. It never names the phone's state or why its card is absent;
-   dialling and redialling are not shown (RAPP v26.11.2 §4.7).
+   dialling and redialling are not shown (RAPP v26.11.8 §4.7).
 
 An empty reader on this Mac leaves a paired phone's line as it is. Until
 the holder's name is read, the holder's line is empty. Only the holder's name is in the primary text color; the rest
@@ -321,7 +323,7 @@ the Mac neither holds nor dials its session with the paired phone
 (hierarchy specification §5.2):
 
 - `CardPresence` reports the card to `PersistentTokenRegistry`. The
-  registry withdraws (RAPP v26.11.2 §4.5 item 8): it closes the session
+  registry withdraws (RAPP v26.11.8 §4.5 item 8): it closes the session
   with `service_withdrawn`, withdraws the phone's published identity, and
   stops browsing for the phone.
 - `RequesterTransportPolicy` leaves nothing to dial, so no dial, redial or

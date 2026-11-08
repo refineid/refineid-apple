@@ -77,7 +77,7 @@ internal func takeOperationTextArray(_ map: inout [String: WireValue], _ field: 
 
 /// The `contained_files` of a package when the field is present, nil when
 /// it is absent; a present field of any other shape is a schema violation
-/// (RAPP v26.11.2 §9.3).
+/// (RAPP v26.11.8 §9.3).
 internal func takeContainedFiles(_ map: inout [String: WireValue]) throws -> ContainedFiles? {
   let field = "contained_files"
   guard map[field] != nil else { return nil }

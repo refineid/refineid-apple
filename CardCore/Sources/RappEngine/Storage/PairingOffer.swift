@@ -6,7 +6,7 @@ import Foundation
 /// Scheme name carried inside the encoded offer.
 internal let offerSchemeName = "rapp"
 
-/// Validated pairing offer (RAPP v26.11.2 §4.2).
+/// Validated pairing offer (RAPP v26.11.8 §4.2).
 ///
 /// The offer carries no secret: the pre-shared key comes from CPace, so the
 /// offer is public and its hash binds the context, the prologue and the
@@ -57,7 +57,7 @@ internal struct PairingOffer: Sendable {
   }
 
   /// A fresh offer naming `transportProfiles`, each with its registered
-  /// entry (RAPP v26.11.2 §4.2).
+  /// entry (RAPP v26.11.8 §4.2).
   ///
   /// The identifier is randomness the caller draws; it is never derived
   /// from the pairing code.

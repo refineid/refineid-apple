@@ -1,6 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-/// The transition tables of the formal RAPP state model (RAPP v26.11.2),
+/// The transition tables of the formal RAPP state model (RAPP v26.11.8),
 /// transcribed in model order so a rule here and a rule there can be compared
 /// line for line.
 internal enum RappModelTables {
@@ -8,7 +8,7 @@ internal enum RappModelTables {
   internal static let pairing = pairingCeremony + pairingLifetime
 
   /// Pairing component rules from the offer to both endpoints storing the
-  /// pairing (RAPP v26.11.2 §3, §4.3).
+  /// pairing (RAPP v26.11.8 §3, §4.3).
   private static let pairingCeremony: [RappRule<PairingState, PairingEvent>] = [
     RappRule(
       from: .unpaired,

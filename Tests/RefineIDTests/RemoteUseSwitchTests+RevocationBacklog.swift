@@ -50,7 +50,7 @@
   }
 
   /// The revocation backlog finds a phone that appears only over Bluetooth
-  /// (RAPP v26.11.2 §4.6 item 6): one connection per appearance, the echo
+  /// (RAPP v26.11.8 §4.6 item 6): one connection per appearance, the echo
   /// destroys the pairing, and the scan stops with the backlog.
   extension RemoteUseSwitchTests {
     /// A forgotten pairing in `vault`, followed by the backlog, whose

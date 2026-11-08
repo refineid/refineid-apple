@@ -3,7 +3,7 @@
 import Foundation
 
 /// What the requester does after a pairing connection closed without its
-/// custodian taking the code (RAPP v26.11.2 §4.2, "Trying Each Custodian in
+/// custodian taking the code (RAPP v26.11.8 §4.2, "Trying Each Custodian in
 /// Pairing Mode").
 internal enum NextCandidate: Equatable, Sendable {
   /// The custodian answered busy and is kept for another opening: open the

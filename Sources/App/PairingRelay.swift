@@ -14,7 +14,7 @@ import RappEngine
 internal final class PairingRelay: @unchecked Sendable {
   private let onEvent: @Sendable (PersistentRelayEvent) -> Void
   /// The `pairing-busy` for a requester arriving while another one is
-  /// served (RAPP v26.11.2 §4.2, "Busy Refusal"); set before ``start()``.
+  /// served (RAPP v26.11.8 §4.2, "Busy Refusal"); set before ``start()``.
   internal var busyAnswer: (@Sendable () -> Data?)?
   /// Whether the channel was closed, set from the coordinator's executor
   /// through the ceremony's transport.
@@ -86,7 +86,7 @@ internal final class PairingRelay: @unchecked Sendable {
   /// Reports a stream event the way the ceremony above names it.
   ///
   /// The requester has arrived once its pairing preamble is received
-  /// (RAPP v26.11.2 §2.2.1 routing): anything else first is
+  /// (RAPP v26.11.8 §2.2.1 routing): anything else first is
   /// pre-authentication invalid input that closes that connection, and the
   /// offer keeps listening.
   private func receiveStream(_ event: StreamRelayEvent) {

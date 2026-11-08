@@ -4,7 +4,7 @@
   import Foundation
   import RappEngine
 
-  /// Ending a pairing the way RAPP v26.11.2 §4.6 requires.
+  /// Ending a pairing the way RAPP v26.11.8 §4.6 requires.
   ///
   /// With a session open the endpoint closes it with `pairing_revoked`,
   /// waits for the echo within its bound, and revokes. Without one the
