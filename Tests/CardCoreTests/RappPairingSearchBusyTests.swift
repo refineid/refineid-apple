@@ -81,7 +81,7 @@ import Testing
       let options = RappPairingCoordinator.Options(
         code: code,
         profiles: RappIntegrationFixtures.profiles,
-        transportProfile: RappIntegrationFixtures.transportProfile,
+        transportProfiles: [RappIntegrationFixtures.transportProfile],
         displayName: TestDisplayNames.requester,
         platform: "macOS",
         vault: RappDeviceVault(accessGroup: nil, servicePrefix: prefix(testID, "requester")))

@@ -58,8 +58,11 @@ reads it as a toggle.
 - **Turning on.** Turning on is when macOS asks for the permissions. A
   Bluetooth manager asks for Bluetooth. A Bonjour browse asks for the
   local network and runs until macOS allows it. With no phone paired, the
-  pairing prompt shows, beside a card reader or not, and the Mac browses
-  for phones in pairing mode only while a code is tried. With a pairing,
+  pairing prompt shows, beside a card reader or not, and the Mac looks
+  for phones in pairing mode only while a code is tried: their
+  `mode=pairing` records on the network, and from 2 seconds on the RAPP
+  Bluetooth peripherals in reach, so a phone with no network shared with
+  the Mac pairs over Bluetooth (RAPP v26.11.2 §4.2). With a pairing,
   the phone's line returns.
 - **Turning off.** The click forgets the pairing (RAPP v26.11.2 §4.6
   item 6). The Mac stores the click first, with the pairings it holds

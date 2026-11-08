@@ -25,6 +25,9 @@ import Foundation
 
     private let sink: AsyncStream<(Int, StreamRelayEvent)>.Continuation
     private var listener: StreamRelayListener?
+    /// The current listener's connection, attached as each requester
+    /// arrives.
+    private var transport: RappClosureFrameTransport?
     private var admission = StreamPairingAdmission(preamble: rappStreamPairingPreamble())
 
     // MARK: Lifecycle
@@ -37,17 +40,10 @@ import Foundation
         options: RappPairingCoordinator.Options(
           code: code,
           profiles: rappCredentialProfiles(),
-          transportProfile: rappStreamProfileName(),
+          transportProfiles: [rappStreamProfileName()],
           displayName: TestDisplayNames.custodian,
           platform: "iOS",
-          vault: vault),
-        transport: RappClosureFrameTransport(
-          sender: { _ in
-            // Replaced by the first listener's transport before any frame.
-          },
-          closer: {
-            // Nothing is open before the first listener starts.
-          }))
+          vault: vault))
       let ceremony = custodian
       Task { [weak self] in
         for await (generation, event) in events {
@@ -65,7 +61,7 @@ import Foundation
 
     /// Starts the first listener and the offer.
     internal func start() async {
-      await listenAfresh()
+      listenAfresh()
       await custodian.start()
     }
 
@@ -81,15 +77,15 @@ import Foundation
       sink.finish()
     }
 
-    private func record(_ event: RappPairingCoordinator.Event) async {
+    private func record(_ event: RappPairingCoordinator.Event) {
       reported.append(event)
       if event == .offerRestored {
-        await listenAfresh()
+        listenAfresh()
       }
     }
 
     /// A listener of its own, as the app starts one after a failed attempt.
-    private func listenAfresh() async {
+    private func listenAfresh() {
       listener?.cancel()
       listenersStarted += 1
       arrivals.append(0)
@@ -102,11 +98,10 @@ import Foundation
         },
         onEvent: { [sink] event in sink.yield((generation, event)) })
       listener = made
-      _ = await custodian.replaceTransport(
-        RappClosureFrameTransport(
-          sender: { frame in try made.send(frame) },
-          closer: { made.cancel() },
-          connectionEnder: { frame in made.endConnection(answering: frame) }))
+      transport = RappClosureFrameTransport(
+        sender: { frame in try made.send(frame) },
+        closer: { made.cancel() },
+        connectionEnder: { frame in made.endConnection(answering: frame) })
       made.start(displayName: "RefineID busy \(generation)")
     }
 
@@ -118,6 +113,9 @@ import Foundation
 
       case .arrive:
         arrivals[generation - 1] += 1
+        if let transport {
+          await custodian.attach(transport, transportProfile: rappStreamProfileName())
+        }
         await custodian.transportConnected()
 
       case .reject:

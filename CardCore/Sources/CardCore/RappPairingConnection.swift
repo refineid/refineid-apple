@@ -22,6 +22,10 @@
 
     /// What the connection reports, in order.
     public enum Event: Sendable, Equatable {
+      /// The custodian refused the CPace step 1 written on the connection
+      /// and asked to be tried again no sooner than the wait (RAPP v26.11.2
+      /// §4.2, "Busy Refusal" item 2, on BLE). The connection closes next.
+      case busy(retryAfterMilliseconds: UInt64)
       /// The connection closed, or could not be opened for a reason the
       /// transport cannot tell.
       case closed
@@ -45,14 +49,21 @@
     /// Carries the ceremony's frames to the custodian and closes the
     /// connection.
     public let transport: any RappFrameTransport
+    /// The registered transport profile of the connection (RAPP v26.11.2
+    /// §2.2), which the ceremony on it binds.
+    public let transportProfile: String
     /// The connection's events, ending with `closed`.
     public let events: AsyncStream<Event>
 
     // MARK: Lifecycle
 
-    /// A connection the platform opened, reporting on `events`.
-    public init(transport: any RappFrameTransport, events: AsyncStream<Event>) {
+    /// A connection of `transportProfile` the platform opened, reporting
+    /// on `events`.
+    public init(
+      transport: any RappFrameTransport, transportProfile: String, events: AsyncStream<Event>
+    ) {
       self.transport = transport
+      self.transportProfile = transportProfile
       self.events = events
     }
   }

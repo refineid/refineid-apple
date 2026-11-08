@@ -13,8 +13,8 @@
   /// bootstrap characteristic; the requester takes the code from the
   /// environment, reads the offer, and runs the ceremony over GATT writes
   /// and indications. It grants exactly what typing the code grants. DEBUG
-  /// only; the product pairs over the stream and serves sessions over
-  /// both transports.
+  /// only; it exercises Bluetooth alone, where the product offers and
+  /// searches on both transports.
   internal enum DebugBlePairing {
     /// What a link reports to the ceremony, on either side.
     private enum LinkStep: Sendable {
@@ -69,6 +69,12 @@
       }
     }
 
+    /// A ceremony and the link it runs on.
+    private struct Ceremony {
+      let coordinator: RappPairingCoordinator
+      let transport: any RappFrameTransport
+    }
+
     /// One link event or coordinator outcome, in arrival order.
     private enum Step: Sendable {
       case link(LinkStep)
@@ -101,8 +107,7 @@
         closer: { box.value?.cancel() })
       let coordinator: RappPairingCoordinator
       do {
-        coordinator = try RappPairingCoordinator.custodian(
-          options: options(code: code), transport: transport)
+        coordinator = try RappPairingCoordinator.custodian(options: options(code: code))
         _ = try coordinator.bootstrapAnswer()
       } catch {
         return DebugModeReport(
@@ -133,7 +138,8 @@
       defer { link.cancel() }
       DebugConsole.emit(offerPrefix + code)
       return await drive(
-        coordinator: coordinator, steps: steps, sink: sink, prefix: custodianPrefix
+        Ceremony(coordinator: coordinator, transport: transport), steps: steps, sink: sink,
+        prefix: custodianPrefix
       ) {
         await coordinator.start()
         link.start()
@@ -203,17 +209,19 @@
       let pairingOptions = Self.options(code: code)
       guard
         let bootstrap = try? RappPairingBridge.bootstrapOffer(
-          bootstrap: answer, transportProfile: pairingOptions.transportProfile,
+          bootstrap: answer, transportProfile: RappBleGattProfile.name,
           pairingCode: code, startedAtMonotonicMs: pairingOptions.clock.monotonicMilliseconds()),
         let coordinator = try? RappPairingCoordinator.requester(
-          options: pairingOptions, transport: transport, bootstrap: bootstrap)
+          options: pairingOptions, transport: transport,
+          transportProfile: RappBleGattProfile.name, bootstrap: bootstrap)
       else {
         return DebugModeReport(
           lines: [requesterPrefix + ": the custodian's offer was refused"], succeeded: false)
       }
       DebugConsole.emit(requesterPrefix + ": read the bootstrap offer")
       return await drive(
-        coordinator: coordinator, steps: steps, sink: sink, prefix: requesterPrefix
+        Ceremony(coordinator: coordinator, transport: transport), steps: steps, sink: sink,
+        prefix: requesterPrefix
       ) { await coordinator.start() }
     }
 
@@ -222,7 +230,7 @@
       RappPairingCoordinator.Options(
         code: code,
         profiles: rappCredentialProfiles(),
-        transportProfile: RappBleGattProfile.name,
+        transportProfiles: [RappBleGattProfile.name],
         displayName: RappLocalName.displayName,
         platform: RappLocalName.platform,
         vault: RappDeviceVault())
@@ -232,12 +240,13 @@
     /// pairing or a close.
     @MainActor
     private static func drive(
-      coordinator: RappPairingCoordinator,
+      _ ceremony: Ceremony,
       steps: AsyncStream<Step>,
       sink: AsyncStream<Step>.Continuation,
       prefix: String,
       start: () async -> Void
     ) async -> DebugModeReport {
+      let coordinator = ceremony.coordinator
       let events = Task {
         for await event in coordinator.events {
           sink.yield(.pairing(event))
@@ -256,6 +265,9 @@
         switch step {
         case .link(.connected):
           DebugConsole.emit(prefix + ": routed")
+          // A custodian's ceremony takes the link that routed; a requester's
+          // runs on its own from the start.
+          await coordinator.attach(ceremony.transport, transportProfile: RappBleGattProfile.name)
           await coordinator.transportConnected()
 
         case .link(.frame(let frame)):

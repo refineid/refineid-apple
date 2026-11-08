@@ -16,6 +16,8 @@ internal final class PairingRelay: @unchecked Sendable {
   /// The `pairing-busy` for a requester arriving while another one is
   /// served (RAPP v26.11.2 §4.2, "Busy Refusal"); set before ``start()``.
   internal var busyAnswer: (@Sendable () -> Data?)?
+  /// Whether the channel was closed; it then serves nothing more.
+  internal private(set) var isCancelled = false
 
   private var listener: StreamRelayListener?
   private var admission = StreamPairingAdmission(preamble: rappStreamPairingPreamble())
@@ -62,8 +64,15 @@ internal final class PairingRelay: @unchecked Sendable {
     listener?.endConnection(answering: frame) ?? false
   }
 
+  /// Ends the requester's connection unanswered, keeping the listener and
+  /// its published name for the next requester.
+  internal func disconnect() {
+    listener?.disconnect()
+  }
+
   /// Closes the channel.
   internal func cancel() {
+    isCancelled = true
     listener?.cancel()
   }
 

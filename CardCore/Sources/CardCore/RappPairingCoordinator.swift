@@ -4,10 +4,12 @@
   import Foundation
   import RappEngine
 
-  /// Drives one RAPP v26.11.2 pairing ceremony over one transport.
+  /// Drives one RAPP v26.11.2 pairing ceremony, one connection at a time.
   ///
-  /// The custodian creates a random offer, shows a pairing code and waits;
-  /// the requester's side starts from the offer one connection served
+  /// The custodian creates a random offer, shows a pairing code and waits,
+  /// serving the offer on every transport its options name, one pairing
+  /// connection at a time (``attach(_:transportProfile:)``); the
+  /// requester's side starts from the offer one connection served
   /// through the transport's bootstrap, with the code its user typed
   /// (``RappPairingSearch`` reads it). CPace KC2 proves both hold the code,
   /// Noise_XXpsk3 binds fresh pair keys, and the custodian grants the
@@ -103,8 +105,8 @@
     /// One externally visible pairing event.
     public enum Event: Sendable, Equatable {
       /// A custodian attempt failed, or a connection it could not admit was
-      /// answered busy, and the same offer awaits a new connection; the
-      /// transport must be replaced before it can answer.
+      /// answered busy, and the same offer awaits a new connection, attached
+      /// with ``attach(_:transportProfile:)``.
       case offerRestored
       /// The custodian's T_B verified: it holds the code the requester's
       /// user typed (RAPP v26.11.2 §6.1.3 step 3).
@@ -141,10 +143,11 @@
     /// The ceremony's engine.
     internal let bridge: RappPairingBridge
     internal let vault: RappDeviceVault
-    internal var transport: any RappFrameTransport
-    /// The transport profile this ceremony runs over (RAPP v26.11.2 §2.2).
-    internal let transportProfile: String
-    internal let candidateID: String
+    /// The connection the ceremony runs on now; a custodian's has none until
+    /// its first pairing connection arrives.
+    internal var binding: Binding?
+    /// The transport profiles a custodian's offer lists.
+    internal let offeredTransportProfiles: [String]
     internal let profiles: [String]
     internal let displayName: RappDisplayName
     internal let platform: String
@@ -164,28 +167,20 @@
     internal init(
       role: Role,
       bridge: RappPairingBridge,
-      transportProfile: String,
-      candidateID: String,
-      profiles: [String],
-      displayName: RappDisplayName,
-      platform: String,
-      vault: RappDeviceVault,
-      transport: any RappFrameTransport,
-      clock: RappPlatformClock,
-      entropy: RappPlatformEntropy,
+      binding: Binding?,
+      options: Options,
       offerDeadlineMilliseconds: UInt64
     ) {
       self.role = role
       self.bridge = bridge
-      self.transportProfile = transportProfile
-      self.candidateID = candidateID
-      self.profiles = profiles
-      self.displayName = displayName
-      self.platform = platform
-      self.vault = vault
-      self.transport = transport
-      self.clock = clock
-      self.entropy = entropy
+      self.binding = binding
+      self.offeredTransportProfiles = options.transportProfiles
+      self.profiles = options.profiles
+      self.displayName = options.displayName
+      self.platform = options.platform
+      self.vault = options.vault
+      self.clock = options.clock
+      self.entropy = options.entropy
       self.offerDeadlineMilliseconds = offerDeadlineMilliseconds
 
       var capturedContinuation: AsyncStream<Event>.Continuation?

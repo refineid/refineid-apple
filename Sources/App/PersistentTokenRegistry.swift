@@ -46,7 +46,7 @@
     /// Whether this device reaches the phone over Bluetooth when Bonjour
     /// does not show it: a Mac, whose app holds the one link its token
     /// extension hands operations to.
-    internal static var dialsOverBluetooth: Bool {
+    nonisolated internal static var dialsOverBluetooth: Bool {
       #if os(macOS)
         true
       #else

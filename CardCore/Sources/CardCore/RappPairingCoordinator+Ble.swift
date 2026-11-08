@@ -8,7 +8,7 @@
     /// Whether the transport carries the offer as the custodian's first
     /// frame rather than on a characteristic the requester reads.
     internal var servesOfferAsFrame: Bool {
-      transportProfile != RappBleGattProfile.name
+      binding?.transportProfile != RappBleGattProfile.name
     }
 
     /// The custodian's bootstrap answer now, for the BLE characteristic: the

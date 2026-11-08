@@ -78,6 +78,8 @@ internal final class RappPairingModel: ObservableObject {
   internal let catalog: RappPairCatalog
   internal var relay: PairingRelay?
   internal var relayGeneration: UUID?
+  /// Which connection this device's offer serves, across its transports.
+  internal var claim: PairingConnectionClaim?
   internal var coordinator: RappPairingCoordinator?
   /// The requester's tries of the code its user typed.
   internal var search: RappPairingSearch<PairingEndpoint>?
@@ -147,14 +149,18 @@ internal final class RappPairingModel: ObservableObject {
     let code = customCode.map(RappPairingCode.normalize) ?? RappPairingCode.generate()
     let custodianRelay = makeRelay()
     do {
-      let newCoordinator = try RappPairingCoordinator.custodian(
-        options: options(code: code), transport: makeTransport(relay: custodianRelay))
+      let newCoordinator = try RappPairingCoordinator.custodian(options: options(code: code))
       pairingCode = code
       custodianRelay.busyAnswer = { newCoordinator.busyAnswer() }
       install(coordinator: newCoordinator, relay: custodianRelay)
+      let offerClaim = PairingConnectionClaim()
+      claim = offerClaim
       phase = .offer(code)
       Task { await newCoordinator.start() }
       custodianRelay.start()
+      #if os(iOS) && REFINEID_LOCAL_CARD
+        offerOverBluetooth(newCoordinator, claim: offerClaim)
+      #endif
     } catch {
       fail(
         .reported(
@@ -164,11 +170,14 @@ internal final class RappPairingModel: ObservableObject {
   }
 
   /// The ceremony options both roles share; the offer hash binds them.
+  ///
+  /// A phone's offer lists the stream and Bluetooth, and a requester pairs
+  /// over either (RAPP v26.11.2 §4.2).
   internal func options(code: String) -> RappPairingCoordinator.Options {
     RappPairingCoordinator.Options(
       code: code,
       profiles: rappCredentialProfiles(),
-      transportProfile: rappStreamProfileName(),
+      transportProfiles: [RappBleGattProfile.name, rappStreamProfileName()],
       displayName: RappLocalName.displayName,
       platform: RappLocalName.platform,
       vault: vault)
@@ -217,12 +226,26 @@ internal final class RappPairingModel: ObservableObject {
     generation: UUID
   ) {
     guard generation == relayGeneration else { return }
-    guard let coordinator else { return }
+    guard let coordinator, let claim, let relay else { return }
     switch event {
     case .connected:
-      deliverInOrder { await coordinator.transportConnected() }
+      guard claim.claim(.stream) else {
+        refuseStreamConnection(relay: relay, coordinator: coordinator)
+        return
+      }
+      let transport = makeTransport(relay: relay)
+      deliverInOrder { [weak self] in
+        guard await coordinator.attach(transport, transportProfile: rappStreamProfileName())
+        else {
+          claim.release(.stream)
+          await self?.refuseStreamConnection(relay: relay, coordinator: coordinator)
+          return
+        }
+        await coordinator.transportConnected()
+      }
 
     case .frame(let frame):
+      guard claim.holds(.stream) else { return }
       deliverInOrder { await coordinator.receive(frame) }
 
     case .closed:
@@ -230,13 +253,17 @@ internal final class RappPairingModel: ObservableObject {
         finishAttempt()
         return
       }
-      deliverInOrder { await coordinator.transportClosed() }
+      guard claim.holds(.stream) else { return }
+      deliverInOrder {
+        await coordinator.transportClosed()
+        claim.release(.stream)
+      }
     }
   }
 
   /// Runs `work` after every delivery enqueued before it; a peer that
   /// outruns the bounded chain ends the attempt.
-  private func deliverInOrder(_ work: @escaping @Sendable () async -> Void) {
+  internal func deliverInOrder(_ work: @escaping @Sendable () async -> Void) {
     if eventDelivery.deliver(work) { return }
     relay?.cancel()
   }
@@ -257,6 +284,12 @@ internal final class RappPairingModel: ObservableObject {
     isOffering = false
     relay = nil
     relayGeneration = nil
+    if claim != nil {
+      claim = nil
+      #if os(iOS) && REFINEID_LOCAL_CARD
+        PhonePersistentTokenRelay.shared.withdrawPairingOverBluetooth()
+      #endif
+    }
     coordinator = nil
     search = nil
     stopDiscovery?()

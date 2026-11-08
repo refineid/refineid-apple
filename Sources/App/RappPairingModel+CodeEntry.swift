@@ -57,7 +57,8 @@ extension RappPairingModel {
   /// Hands every custodian found in pairing mode to `search`, in the order
   /// found, until the requester stops looking.
   private func discover(for search: RappPairingSearch<PairingEndpoint>) {
-    let discovery = PairingCandidateLink.discover()
+    let discovery = PairingCandidateLink.discover(
+      skipping: PersistentTokenRegistry.shared.bluetoothSessionPeer)
     stopDiscovery = discovery.stop
     Task {
       for await endpoint in discovery.found {

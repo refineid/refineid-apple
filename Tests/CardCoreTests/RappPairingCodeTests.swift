@@ -90,7 +90,7 @@ import Testing
         options: RappPairingCoordinator.Options(
           code: code,
           profiles: RappIntegrationFixtures.profiles,
-          transportProfile: RappIntegrationFixtures.transportProfile,
+          transportProfiles: [RappIntegrationFixtures.transportProfile],
           displayName: TestDisplayNames.requester,
           platform: "iOS",
           vault: RappDeviceVault(accessGroup: nil, servicePrefix: requesterPrefix)),

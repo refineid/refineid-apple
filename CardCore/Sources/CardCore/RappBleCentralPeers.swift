@@ -14,10 +14,26 @@ public struct RappBleCentralPeers: Sendable, Equatable {
   public let preferred: UUID?
   /// Advertisers that refused a preamble recently; not dialed.
   public let avoided: Set<UUID>
+  /// Whether the link dials `preferred` alone, never another advertiser.
+  public let isExclusive: Bool
 
   /// Dial `preferred` first and never one of `avoided`.
   public init(preferred: UUID? = nil, avoided: Set<UUID> = []) {
     self.preferred = preferred
     self.avoided = avoided
+    isExclusive = false
+  }
+
+  private init(only peer: UUID) {
+    preferred = peer
+    avoided = []
+    isExclusive = true
+  }
+
+  /// Dial `peer` and no other advertiser: a pairing search opens one
+  /// connection to each peripheral it found (RAPP v26.11.2 §4.2, "Trying
+  /// Each Custodian in Pairing Mode" item 1).
+  public static func only(_ peer: UUID) -> Self {
+    Self(only: peer)
   }
 }

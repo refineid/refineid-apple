@@ -172,23 +172,16 @@ extension RappPairingModel {
     }
   }
 
-  /// Keeps showing the same code after a failed attempt, listening afresh.
+  /// Keeps showing the same code after a failed attempt, for the next
+  /// connection on either transport; a stream attempt that closed its
+  /// listener is followed by a fresh one.
   private func restoreCustodianOffer(coordinator: RappPairingCoordinator) {
-    relay?.cancel()
+    guard relay?.isCancelled != false else { return }
+    // The closed listener reports no more; its connection's claim ends here.
+    claim?.release(.stream)
     let replacement = makeRelay()
     replacement.busyAnswer = { coordinator.busyAnswer() }
-    let replacementTransport = makeTransport(relay: replacement)
     relay = replacement
-    Task { @MainActor [weak self] in
-      guard await coordinator.replaceTransport(replacementTransport),
-        let self,
-        self.coordinator === coordinator,
-        !isFinished
-      else {
-        self?.fail(.reported(String(localized: "Pairing could not be started.")))
-        return
-      }
-      replacement.start()
-    }
+    replacement.start()
   }
 }

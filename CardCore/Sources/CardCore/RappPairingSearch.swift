@@ -99,6 +99,8 @@
       /// Tells this connection's inputs from a closed one's.
       internal let generation: Int
       internal let transport: any RappFrameTransport
+      /// The connection's transport profile, which its ceremony binds.
+      internal let transportProfile: String
       /// The driver's input; finishing it stops the driver.
       internal let steps: AsyncStream<Step>.Continuation
       /// The ceremony, once the connection's offer is admitted.

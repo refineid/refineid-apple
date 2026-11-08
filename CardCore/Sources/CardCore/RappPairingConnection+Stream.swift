@@ -53,6 +53,7 @@
         transport: RappClosureFrameTransport(
           sender: { frame in try await session.send(frame) },
           closer: { session.cancel() }),
+        transportProfile: rappStreamProfileName(),
         events: events)
     }
   }

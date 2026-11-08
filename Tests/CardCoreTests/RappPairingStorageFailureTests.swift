@@ -96,11 +96,11 @@ private let fixturePairingCode = "246813"
         accessGroup: nil, servicePrefix: "fi.refineid.test.storage.\(UUID().uuidString)")
       defer { _ = try? vault.deleteServiceNamespace("fi.refineid.test.storage") }
       let transport = RecordingTransport()
-      let custodian = try RappPairingCoordinator.custodian(
+      let custodian = try await RappPairingCoordinator.attachedCustodian(
         options: .init(
           code: fixturePairingCode,
           profiles: Self.profiles,
-          transportProfile: Self.transportProfile,
+          transportProfiles: [Self.transportProfile],
           displayName: TestDisplayNames.custodian,
           platform: "iOS",
           vault: vault),
@@ -170,7 +170,7 @@ private let fixturePairingCode = "246813"
       let vault = RappDeviceVault(
         accessGroup: nil, servicePrefix: "fi.refineid.test.storage.\(UUID().uuidString)")
       let transport = RecordingTransport()
-      let custodian = try makeCustodian(vault: vault, transport: transport)
+      let custodian = try await makeCustodian(vault: vault, transport: transport)
       try await driveToStorage(custodian, transport: transport)
       let frames = await transport.snapshot()
       XCTAssertEqual(frames.count, 6)
@@ -182,7 +182,7 @@ private let fixturePairingCode = "246813"
     /// the attempt ended, what it sent and the requester's bridge.
     private func runCeremony(vault: RappDeviceVault) async throws -> EndedCeremony {
       let transport = RecordingTransport()
-      let custodian = try makeCustodian(vault: vault, transport: transport)
+      let custodian = try await makeCustodian(vault: vault, transport: transport)
       let events = custodian.events
       let collector = Task { () -> RappPairingCoordinator.CloseReason? in
         for await event in events {
@@ -198,12 +198,12 @@ private let fixturePairingCode = "246813"
 
     private func makeCustodian(
       vault: RappDeviceVault, transport: RecordingTransport
-    ) throws -> RappPairingCoordinator {
-      try RappPairingCoordinator.custodian(
+    ) async throws -> RappPairingCoordinator {
+      try await RappPairingCoordinator.attachedCustodian(
         options: .init(
           code: fixturePairingCode,
           profiles: Self.profiles,
-          transportProfile: Self.transportProfile,
+          transportProfiles: [Self.transportProfile],
           displayName: TestDisplayNames.custodian,
           platform: "iOS",
           vault: vault),

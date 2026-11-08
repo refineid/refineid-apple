@@ -5,6 +5,28 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-11-08 A phone pairs over Bluetooth too
+
+Maintainer's decision, after an iPhone reachable only over Bluetooth could
+not be paired (#402): pairing over `fi.refineid.rapp.ble` joins the
+product. It supersedes the 2026-10-09 and 2026-10-22 entries for pairing.
+
+- The iPhone's offer lists both transports and is served on the stream
+  listener and on the GATT server's Bootstrap Characteristic while the
+  phone shows a code, whether or not it serves a pairing yet (RAPP
+  v26.11.2 §4.2). One connection runs the ceremony at a time across both
+  (`PairingConnectionClaim`): another stream connection is answered
+  `pairing-busy`, and another Bluetooth link's CPace step 1 is refused with
+  ATT error Insufficient Resources (§4.2, "Busy Refusal").
+- The Mac tries the phones in pairing mode it finds on the network and,
+  from 2 seconds after the code is submitted, each RAPP Bluetooth
+  peripheral in reach, one connection at a time and each `offer_id` once
+  (§4.2, "Trying Each Custodian in Pairing Mode"); the stream goes first
+  (hierarchy specification §3). An iPad requester keeps the stream only,
+  as it does for sessions.
+- The pairing binds the transport it was made on; sessions run over
+  either transport as before.
+
 ## 2026-11-08 A forgotten pairing waits for the phone's echo; RAPP wire version 26.11.8
 
 Maintainer's decision: "list of terminated pairings in store for 30 days.

@@ -194,9 +194,10 @@ internal struct NetworkContractTests {
     )
   }
 
-  /// The `fi.refineid.rapp.ble` GATT link serves sessions on the phone and
-  /// dials them from the requester's held session; pairing over it stays a
-  /// development mode (decisions 2026-10-22).
+  /// The `fi.refineid.rapp.ble` GATT link serves sessions and the pairing
+  /// offer on the phone, and dials sessions from the requester's held
+  /// session and pairing connections from its pairing search (decisions
+  /// 2026-10-22, 2026-11-08).
   @Test
   internal func bleGattProfileIsWiredWhereTheDecisionSays() throws {
     let actual = try Self.files(containingAny: ["RappBleGattPeripheral", "RappBleGattCentral"])
@@ -208,6 +209,7 @@ internal struct NetworkContractTests {
       "CardCore/Sources/CardCore/RappBleGattPeripheral+Delegate.swift",
       "CardCore/Sources/CardCore/RappBleGattPeripheral+Links.swift",
       "CardCore/Sources/CardCore/RappHeldRequesterSession+Link.swift",
+      "CardCore/Sources/CardCore/RappPairingConnection+Ble.swift",
       "CardCore/Sources/CardCore/RappHeldRequesterSession+Transport.swift",
       "Sources/App/DebugBlePairing.swift",
       "Sources/App/PhonePersistentTokenRelay.swift",
@@ -217,8 +219,8 @@ internal struct NetworkContractTests {
       actual == expected,
       "Wiring the BLE profile somewhere new needs a decision entry first."
     )
-    // The GATT server is the phone's alone, and pairing over Bluetooth
-    // is a development mode.
+    // The GATT server is the phone's alone, and the command-line pairing
+    // over Bluetooth is a development mode.
     let gates: [String: String] = [
       "Sources/App/PhonePersistentTokenRelay+Ble.swift": "#if os(iOS) && REFINEID_LOCAL_CARD",
       "Sources/App/PhonePersistentTokenRelay.swift": "#if os(iOS) && REFINEID_LOCAL_CARD",

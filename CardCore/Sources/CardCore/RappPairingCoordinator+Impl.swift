@@ -22,15 +22,6 @@
       armDeadline(at: offerDeadlineMilliseconds)
     }
 
-    /// Installs the transport for the next connection after a failed
-    /// custodian attempt restored the offer.
-    @discardableResult
-    public func replaceTransport(_ replacement: any RappFrameTransport) -> Bool {
-      guard state == .offer else { return false }
-      transport = replacement
-      return true
-    }
-
     /// Starts the ceremony once the candidate's connection is open and its
     /// pairing preamble has been read.
     ///

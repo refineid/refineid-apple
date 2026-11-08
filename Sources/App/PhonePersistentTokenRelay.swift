@@ -63,6 +63,9 @@
       initialState: BluetoothRouting())
     /// Whether the server advertises now.
     internal var bluetoothAdvertising = false
+    /// Takes the pairing links' events while the phone offers a pairing
+    /// over Bluetooth.
+    internal var bluetoothPairingHandler: ((BluetoothPairingEvent) -> Void)?
     /// Whether the stream listener stays down while the app is in the
     /// background (CC-68).
     internal var streamSuspended = false
@@ -227,7 +230,7 @@
           await RappNearFieldSessionHolder.shared.closeSession(.lastSessionClosed)
         }
       }
-      if !hasUsablePair() {
+      if !hasUsablePair(), !isOfferingPairingOverBluetooth {
         tearDownTransport()
         return
       }
