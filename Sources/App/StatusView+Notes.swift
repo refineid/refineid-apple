@@ -26,7 +26,7 @@
       return LoginIdentityModel.resolved(
         tokenPublished: model.isReady,
         cardPresent: cardPresence.isCardPresent,
-        holderAdvertising: holderInSight,
+        holderAdvertising: holderIdentityStands,
         hasBorrowedCertificate: hasBorrowedIdentity
       )
     }
@@ -37,7 +37,7 @@
     ///
     /// A phone whose pairing this computer forgot is in sight only to hear
     /// that close, and serves nothing here.
-    private var holderInSight: Bool {
+    private var holderIdentityStands: Bool {
       #if REFINEID_REMOTE_CARD
         remoteRegistry.pairedPhoneID != nil && remoteRegistry.holderIdentityStands
       #else
@@ -67,7 +67,7 @@
     /// Whether a paired phone has already answered with a certificate.
     private var hasBorrowedIdentity: Bool {
       #if REFINEID_REMOTE_CARD
-        remoteRegistry.holderLine != nil
+        remoteRegistry.pairedPhoneID != nil && remoteRegistry.holderLine != nil
       #else
         false
       #endif
