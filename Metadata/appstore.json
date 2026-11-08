@@ -38,6 +38,10 @@
       "description": {
         "macos": "Identity card reader and signing tool.\n\nConnect a compatible smart-card reader to your Mac. You can also use your phone wirelessly as a card reader.\n\n• Sign in to online services: Authenticate to e-services.\n• Sign and verify documents: Create a qualified electronic signature and verify signed documents.\n• Card and certificate management: Card activation and PIN code management.\n• Privacy: No ads or tracking, open source: github.com/refineid",
         "ios": "Identity card reader and signing tool.\n\nYou can also use your phone wirelessly as a card reader.\n\n• Sign in to online services: Authenticate to e-services.\n• Sign and verify documents: Create a qualified electronic signature and verify signed documents.\n• Card and certificate management: Card activation and PIN code management.\n• Privacy: No ads or tracking, open source: github.com/refineid"
+      },
+      "whatToTest": {
+        "ios": "• Pair your iPhone with a Mac over Bluetooth too: a Mac that shares no network with the phone finds its pairing code over Bluetooth",
+        "macos": "• Bluetooth: pair with your iPhone and use its card with no shared network\n• After pairing, the Mac shows that it is connecting to your phone until your name appears\n• Your name stays through a short Bluetooth interruption"
       }
     },
     "fi": {
@@ -52,6 +56,10 @@
       "description": {
         "macos": "Henkilökortinlukija ja allekirjoitustyökalu.\n\nLiitä yhteensopiva kortinlukija Maciin. Voit käyttää myös puhelinta langattomasti kortinlukijana.\n\n• Kirjaudu verkkopalveluihin: Tunnistaudu sähköisiin asiointipalveluihin.\n• Allekirjoita ja tarkasta asiakirjoja: Tee asiakirjoihin hyväksytty sähköinen allekirjoitus ja tarkasta allekirjoitukset.\n• Kortin ja varmenteiden hallinta: Kortin aktivointi ja tunnuslukujen hallinta.\n• Yksityisyys: Ei mainoksia tai seurantaa, avointa lähdekoodia: github.com/refineid",
         "ios": "Henkilökortinlukija ja allekirjoitustyökalu.\n\nVoit käyttää myös puhelinta langattomasti kortinlukijana.\n\n• Kirjaudu verkkopalveluihin: Tunnistaudu sähköisiin asiointipalveluihin.\n• Allekirjoita ja tarkasta asiakirjoja: Tee asiakirjoihin hyväksytty sähköinen allekirjoitus ja tarkasta allekirjoitukset.\n• Kortin ja varmenteiden hallinta: Kortin aktivointi ja tunnuslukujen hallinta.\n• Yksityisyys: Ei mainoksia tai seurantaa, avointa lähdekoodia: github.com/refineid"
+      },
+      "whatToTest": {
+        "ios": "• Yhdistä iPhone Maciin myös Bluetoothilla: Mac, jolla ei ole yhteistä verkkoa puhelimen kanssa, löytää yhdistämiskoodin Bluetoothin kautta",
+        "macos": "• Bluetooth: yhdistä iPhoneen ja käytä sen korttia ilman yhteistä verkkoa\n• Yhdistämisen jälkeen Mac näyttää yhdistävänsä puhelimeesi, kunnes nimesi näkyy\n• Nimesi pysyy näkyvissä lyhyen Bluetooth-katkon ajan"
       }
     },
     "sv": {
@@ -66,6 +74,10 @@
       "description": {
         "macos": "Identitetskortläsare och underskriftsverktyg.\n\nAnslut en kompatibel kortläsare till din Mac. Du kan även använda telefonen trådlöst som kortläsare.\n\n• Logga in på e-tjänster: Identifiera dig i e-tjänster.\n• Underteckna och granska dokument: Skapa en kvalificerad elektronisk underskrift och granska dokument.\n• Hantering av kort och certifikat: Aktivering av kort och hantering av koder.\n• Integritet: Ingen reklam eller spårning, öppen källkod: github.com/refineid",
         "ios": "Identitetskortläsare och underskriftsverktyg.\n\nDu kan även använda telefonen trådlöst som kortläsare.\n\n• Logga in på e-tjänster: Identifiera dig i e-tjänster.\n• Underteckna och granska dokument: Skapa en kvalificerad elektronisk underskrift och granska dokument.\n• Hantering av kort och certifikat: Aktivering av kort och hantering av koder.\n• Integritet: Ingen reklam eller spårning, öppen källkod: github.com/refineid"
+      },
+      "whatToTest": {
+        "ios": "• Koppla din iPhone till en Mac även via Bluetooth: en Mac utan gemensamt nätverk med telefonen hittar kopplingskoden via Bluetooth",
+        "macos": "• Bluetooth: koppla till din iPhone och använd dess kort utan gemensamt nätverk\n• Efter kopplingen visar Macen att den ansluter till telefonen tills ditt namn visas\n• Ditt namn ligger kvar under ett kort Bluetooth-avbrott"
       }
     }
   }

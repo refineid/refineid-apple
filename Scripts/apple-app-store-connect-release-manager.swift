@@ -3946,6 +3946,7 @@ func distribute(_ platformName: String, _ groupName: String, _ candidateID: Stri
   guard attributes["processingState"] as? String == "VALID",
     attributes["expired"] as? Bool != true
   else { die("candidate must finish processing and must not be expired") }
+  pushWhatToTest(platformName, buildID)
   let groups = dataArray(api("GET", "/v1/apps/\(appID())/betaGroups?limit=50"))
   guard
     let group = groups.first(where: {
@@ -3991,6 +3992,38 @@ func distribute(_ platformName: String, _ groupName: String, _ candidateID: Stri
         + "run distribute again once it ends to submit this one")
   } else {
     die("HTTP \(submission.status) on POST /v1/betaAppReviewSubmissions: \(submission.text)")
+  }
+}
+
+// Sets the build's TestFlight "What to Test" in each locale that
+// Metadata/appstore.json gives one for the platform: the text testers see
+// with the build. A locale already present is updated.
+func pushWhatToTest(_ platformName: String, _ buildID: String) {
+  let existing = existingLocalizations("/v1/builds/\(buildID)/betaBuildLocalizations?limit=50")
+  for locale in localizations.keys.sorted() {
+    let entry = localizations[locale] as? [String: Any] ?? [:]
+    guard let text = (entry["whatToTest"] as? [String: Any])?[platformName] as? String
+    else { continue }
+    if let id = existing[locale] {
+      api(
+        "PATCH", "/v1/betaBuildLocalizations/\(id)",
+        body: [
+          "data": [
+            "type": "betaBuildLocalizations", "id": id, "attributes": ["whatsNew": text],
+          ]
+        ])
+    } else {
+      api(
+        "POST", "/v1/betaBuildLocalizations",
+        body: [
+          "data": [
+            "type": "betaBuildLocalizations",
+            "attributes": ["locale": locale, "whatsNew": text],
+            "relationships": ["build": ["data": ["type": "builds", "id": buildID]]],
+          ]
+        ])
+    }
+    print("  what to test (\(locale)): set")
   }
 }
 

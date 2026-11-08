@@ -243,6 +243,11 @@ After explicit approval for the named tester group:
 Scripts/apple-app-store-connect-release-manager.swift distribute macos <group> <build-id>
 ```
 
+The command first sets the build's TestFlight **What to Test** in every
+locale from `whatToTest` in `Metadata/appstore.json`, the platform's own
+text; change that text with each candidate whose testers should look at
+something new.
+
 Use the exact uploaded build identifier. Internal distribution does not submit
 beta review, and TestFlight distribution does not attach an App Store build.
 An internal group with access to all builds takes every processed build by
