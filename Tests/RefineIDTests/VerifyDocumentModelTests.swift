@@ -56,7 +56,7 @@ internal struct VerifyDocumentModelTests {
     gate: LiveGate?
   ) -> VerifyDocumentModel.Dependencies {
     VerifyDocumentModel.Dependencies(
-      anchors: { .empty },
+      anchors: { .success(.empty) },
       verify: { _, _ in VerifyDocumentModelFixture.documentReport },
       liveStatus: { _ in
         await gate?.hold()

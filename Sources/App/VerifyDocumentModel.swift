@@ -34,7 +34,7 @@ internal final class VerifyDocumentModel: ObservableObject {
     /// The app's verifier, under the anchors the trusted lists yield
     /// and the clock.
     internal static let live = Self(
-      anchors: { await TrustedListStore.shared.loadedAnchors() },
+      anchors: { await TrustedListStore.shared.verificationAnchors() },
       verify: { document, anchors in
         try DocumentVerification.verify(document: document, anchors: anchors)
       },
@@ -42,9 +42,10 @@ internal final class VerifyDocumentModel: ObservableObject {
       now: Date.init
     )
 
-    /// The anchors to verify under, nil while no trusted list has been
+    /// The anchors to verify under, or why no trusted list could be
     /// read.
-    internal let anchors: @Sendable () async -> TrustAnchors?
+    internal let anchors:
+      @Sendable () async -> Result<TrustAnchors, TrustedListStore.RefreshFailure>
 
     /// Verifies one document offline under the anchors.
     internal let verify:
@@ -69,6 +70,23 @@ internal final class VerifyDocumentModel: ObservableObject {
     text(
       "verify.errorNoTrustedLists",
       "The trusted lists have not been fetched yet, so no certificate chain can be verified.")
+  }
+
+  /// The message when no trusted list is stored and the device is
+  /// offline, so none can be fetched.
+  internal static var offlineWithoutTrustedListsMessage: String {
+    text(
+      "verify.errorOfflineNoTrustedLists",
+      """
+      No EU trusted lists are stored yet and this device is offline. \
+      Connect to the internet once to fetch them; after that, documents verify offline too.
+      """
+    )
+  }
+
+  /// The message for a document without signatures.
+  internal static var noSignaturesMessage: String {
+    text("verify.errorNoSignatures", "The document carries no signatures.")
   }
 
   @Published internal private(set) var phase = Phase.idle
@@ -97,14 +115,13 @@ internal final class VerifyDocumentModel: ObservableObject {
     for failure: DocumentVerification.Failure
   ) -> String {
     switch failure {
-    case .notAPdf:
-      text("error.notPDF", "The selected file is not a PDF.")
+    // A file that is neither a PDF nor a signature container carries
+    // no signature this verifier reads.
+    case .notAPdf, .noSignatures:
+      Self.noSignaturesMessage
 
     case .unreadable:
       Self.unreadableMessage
-
-    case .noSignatures:
-      text("verify.errorNoSignatures", "The document carries no signatures.")
 
     case .unsupportedProfile:
       text("verify.errorUnsupported", "The signature profile is not supported.")
@@ -145,6 +162,11 @@ internal final class VerifyDocumentModel: ObservableObject {
     verify: @Sendable (Data, TrustAnchors) throws -> DocumentVerification.DocumentReport
   ) -> Result<DocumentVerification.DocumentReport, DocumentVerification.Failure> {
     guard let document = try? load() else { return .failure(.unreadable) }
+    // A ZIP that is not an ASiC container, such as an office document,
+    // is an unsigned document.
+    if AsicVerification.isZipArchive(document), !AsicVerification.isAsicContainer(document) {
+      return .failure(.noSignatures)
+    }
     do {
       return .success(try verify(document, anchors))
     } catch let failure as DocumentVerification.Failure {
@@ -152,6 +174,25 @@ internal final class VerifyDocumentModel: ObservableObject {
     } catch {
       return .failure(.unreadable)
     }
+  }
+
+  /// What a verification without anchors says.
+  ///
+  /// Whether the document carries signatures at all needs no anchor, so an unsigned or
+  /// unreadable one says that first; a signed one says why no trusted
+  /// list could be read.
+  private static func missingAnchorsMessage(
+    _ failure: TrustedListStore.RefreshFailure,
+    load: @escaping @Sendable () throws -> Data,
+    verify: @escaping @Sendable (Data, TrustAnchors) throws -> DocumentVerification.DocumentReport
+  ) async -> String {
+    let anchorless = await Task.detached(priority: .userInitiated) {
+      Self.outcome(load, anchors: .empty, verify: verify)
+    }.value
+    if case .failure(let unsigned) = anchorless {
+      return Self.message(for: unsigned)
+    }
+    return failure == .offline ? Self.offlineWithoutTrustedListsMessage : Self.noTrustedListsMessage
   }
 
   /// Whether a report still lacks revocation status a live answer could
@@ -198,9 +239,15 @@ internal final class VerifyDocumentModel: ObservableObject {
     let verifier = dependencies.verify
     let anchorSource = dependencies.anchors
     verification = Task { [weak self] in
-      guard let anchors = await anchorSource() else {
+      let anchors: TrustAnchors
+      switch await anchorSource() {
+      case .success(let read):
+        anchors = read
+
+      case .failure(let failure):
+        let message = await Self.missingAnchorsMessage(failure, load: load, verify: verifier)
         guard let self, !Task.isCancelled, generation == current else { return }
-        phase = .failed(Self.noTrustedListsMessage)
+        phase = .failed(message)
         return
       }
       let outcome = await Task.detached(priority: .userInitiated) {

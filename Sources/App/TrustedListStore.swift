@@ -75,6 +75,15 @@ internal final class TrustedListStore: ObservableObject {
     }
   }
 
+  /// Why the lists could not be fetched.
+  internal enum RefreshFailure: Error, Equatable, Sendable {
+    /// The device has no network connection.
+    case offline
+
+    /// The lists did not arrive or did not read.
+    case unavailable
+  }
+
   /// The app's one store.
   internal static let shared = TrustedListStore(dependencies: .live)
 
@@ -88,8 +97,8 @@ internal final class TrustedListStore: ObservableObject {
   /// Whether a fetch is under way.
   @Published internal private(set) var isRefreshing = false
 
-  /// Whether the last fetch failed to yield lists.
-  @Published internal private(set) var lastRefreshFailed = false
+  /// Why the last fetch failed to yield lists, nil after one that did.
+  @Published internal private(set) var lastRefreshFailure: RefreshFailure?
 
   /// The dependencies.
   internal let dependencies: Dependencies
@@ -105,14 +114,16 @@ internal final class TrustedListStore: ObservableObject {
     self.dependencies = dependencies
   }
 
-  /// The anchors once the cache has been read and any first fetch under
-  /// way has ended, nil when neither has yielded lists.
-  internal func loadedAnchors() async -> TrustAnchors? {
+  /// The anchors to verify under: the cached lists at once, or, when
+  /// nothing is cached, the lists a fetch yields; why there are none
+  /// when that fetch fails.
+  internal func verificationAnchors() async -> Result<TrustAnchors, RefreshFailure> {
     await loadCache()
     if anchors == nil {
-      await refresh?.value
+      await refreshNow()
     }
-    return anchors
+    guard let anchors else { return .failure(lastRefreshFailure ?? .unavailable) }
+    return .success(anchors)
   }
 
   /// Reads the cache once; later calls wait for that read.
@@ -151,10 +162,14 @@ internal final class TrustedListStore: ObservableObject {
       refresh = Task { [weak self] in
         let fetched = await Self.fetchLists(environment)
         guard let self else { return }
-        if let fetched {
-          anchors = TrustAnchors(trustedLists: fetched)
+        switch fetched {
+        case .success(let lists):
+          anchors = TrustAnchors(trustedLists: lists)
+          lastRefreshFailure = nil
+
+        case .failure(let failure):
+          lastRefreshFailure = failure
         }
-        lastRefreshFailed = fetched == nil
         isRefreshing = false
         refresh = nil
       }
