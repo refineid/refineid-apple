@@ -62,7 +62,7 @@ internal func makePairRecord(role: EndpointRole) throws -> PairRecord {
 }
 
 /// ``makePairRecord()`` as stored before the peer confirmed it (RAPP
-/// v26.11.2 §4.3 item 4).
+/// v26.11.8 §4.3 item 4).
 internal func makeUnconfirmedPairRecord() throws -> PairRecord {
   guard case .map(var map) = expectedPairRecordValue() else {
     throw PairRecordError.invalidInput

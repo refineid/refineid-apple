@@ -46,7 +46,7 @@ internal struct OperationInputs: Decodable {
   internal let cardIdentifier: String
   internal let issuanceDate: String
   internal let expirationDate: String
-  /// The package of the `sign_document` package vectors (RAPP v26.11.2
+  /// The package of the `sign_document` package vectors (RAPP v26.11.8
   /// §9.3).
   internal let packageName: String
   /// The files that package holds, in container order.

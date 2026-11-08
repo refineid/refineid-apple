@@ -5,7 +5,7 @@
   import RappEngine
 
   /// One session that delivers a requester's `pairing_revoked` close for a
-  /// pairing in its revocation backlog (RAPP v26.11.2 §4.6 item 6).
+  /// pairing in its revocation backlog (RAPP v26.11.8 §4.6 item 6).
   ///
   /// The owner opens one each time the custodian appears for the pairing,
   /// never on a timer. The session completes the handshake, sends the close

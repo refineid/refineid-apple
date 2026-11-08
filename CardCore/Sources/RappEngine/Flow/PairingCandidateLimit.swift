@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The bound RAPP v26.11.2 §4.2 ("Trying Each Custodian in Pairing Mode"
+/// The bound RAPP v26.11.8 §4.2 ("Trying Each Custodian in Pairing Mode"
 /// item 5) sets on the tries of one typed code.
 internal enum PairingCandidateLimit {
   /// Pairing connections one typed code may open, whether or not CPace runs

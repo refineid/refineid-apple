@@ -7,7 +7,7 @@
   import RappEngine
   import Testing
 
-  /// The peer's changed name is stored in its pair record (RAPP v26.11.2
+  /// The peer's changed name is stored in its pair record (RAPP v26.11.8
   /// §4.3 item 4); the same name stores nothing.
   @Suite(.serialized)
   internal struct RappPeerNameTests {

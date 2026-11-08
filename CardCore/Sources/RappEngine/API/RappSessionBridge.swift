@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// One session over a stored pairing (RAPP v26.11.2 §6.3, §7.1 items 5 to
+/// One session over a stored pairing (RAPP v26.11.8 §6.3, §7.1 items 5 to
 /// 7).
 ///
 /// The session authenticates the pairing's keys with `Noise_KK`, then the

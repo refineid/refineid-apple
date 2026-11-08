@@ -21,21 +21,37 @@ import Foundation
     // MARK: Static Functions
 
     /// A phone showing `code`, keeping its pairing under `servicePrefix`;
-    /// its link drops after it sent `dropAfter` frames.
+    /// its stream link drops after it sent `dropAfter` frames.
     internal static func showing(
       _ code: String, name: String, servicePrefix: String, dropAfter: Int?
     ) async throws -> Self {
+      try await showing(
+        code, name: name, servicePrefix: servicePrefix, dropAfter: dropAfter,
+        transportProfiles: [RappIntegrationFixtures.transportProfile])
+    }
+
+    /// A phone showing `code`, keeping its pairing under `servicePrefix`,
+    /// whose offer lists `transportProfiles`; its link, of the first
+    /// profile, drops after it sent `dropAfter` frames.
+    internal static func showing(
+      _ code: String,
+      name: String,
+      servicePrefix: String,
+      dropAfter: Int?,
+      transportProfiles: [String]
+    ) async throws -> Self {
       let phoneVault = RappDeviceVault(accessGroup: nil, servicePrefix: servicePrefix)
-      let phoneLink = RappTestPairingLink(servedOffer: nil, dropAfter: dropAfter)
+      let phoneLink = RappTestPairingLink(
+        servedOffer: nil, dropAfter: dropAfter,
+        transportProfile: transportProfiles.first ?? RappIntegrationFixtures.transportProfile)
       let ceremony = try RappPairingCoordinator.custodian(
         options: RappPairingCoordinator.Options(
           code: code,
           profiles: RappIntegrationFixtures.profiles,
-          transportProfile: RappIntegrationFixtures.transportProfile,
+          transportProfiles: transportProfiles,
           displayName: TestDisplayNames.name(name),
           platform: "iOS",
-          vault: phoneVault),
-        transport: phoneLink.custodianTransport())
+          vault: phoneVault))
       await phoneLink.attach(ceremony)
       let events = ceremony.events
       let reported = Task {

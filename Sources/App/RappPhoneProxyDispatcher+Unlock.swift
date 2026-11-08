@@ -5,7 +5,7 @@
   import Foundation
   import RappEngine
 
-  /// A locked phone serves no credential action (RAPP v26.11.2 §8.2 item 3).
+  /// A locked phone serves no credential action (RAPP v26.11.8 §8.2 item 3).
   extension RappPhoneProxyDispatcher {
     /// Waits for the holder to unlock before a credential action starts:
     /// true when it may start, false when its operation ended first.

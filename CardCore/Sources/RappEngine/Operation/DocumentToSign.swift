@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The document a `sign_document` names (RAPP v26.11.2 §9.3): a single
+/// The document a `sign_document` names (RAPP v26.11.8 §9.3): a single
 /// document by its name, or a package by its own name and the files it
 /// holds.
 internal struct DocumentToSign: Equatable, Sendable {

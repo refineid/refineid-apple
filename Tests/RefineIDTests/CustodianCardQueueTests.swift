@@ -7,7 +7,7 @@ import Testing
 
 /// The card serves one whole operation at a time across every session,
 /// first come first served, and a waiting operation that ends leaves the
-/// queue (RAPP v26.11.2 §8.2 item 2, STPA CC-59).
+/// queue (RAPP v26.11.8 §8.2 item 2, STPA CC-59).
 @MainActor
 @Suite
 internal struct CustodianCardQueueTests {

@@ -6,7 +6,7 @@ import Testing
 
 @testable import RefineIDTestHost
 
-/// When the identity a phone confirmed stays offered (RAPP v26.11.2 §8.4
+/// When the identity a phone confirmed stays offered (RAPP v26.11.8 §8.4
 /// item 3).
 @Suite
 internal struct RemoteIdentityOfferTests {

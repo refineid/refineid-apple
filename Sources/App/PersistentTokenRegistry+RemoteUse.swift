@@ -68,7 +68,7 @@
       }
 
       /// Forgets the pairing as the holder turns remote use off (RAPP
-      /// v26.11.2 §4.6 item 6, CC-100, CC-118).
+      /// v26.11.8 §4.6 item 6, CC-100, CC-118).
       ///
       /// The click is stored in `store` first, with the pairings `vault`
       /// holds (``RemoteUseForgetting``). The phone's identity leaves at
@@ -155,7 +155,7 @@
     #endif
 
     /// This computer's withdrawal, as a card in its reader suspends remote
-    /// use, as it quits, or as remote use stops (RAPP v26.11.2 §4.5 item
+    /// use, as it quits, or as remote use stops (RAPP v26.11.8 §4.5 item
     /// 8, CC-98, CC-102).
     ///
     /// An open session closes with `service_withdrawn` and a dial under way
@@ -179,7 +179,7 @@
       Self.withdrawPublishedIdentity()
     }
 
-    /// Ends the session as this computer withdraws (RAPP v26.11.2 §4.5
+    /// Ends the session as this computer withdraws (RAPP v26.11.8 §4.5
     /// item 8), answering whether its close left; nil when no session
     /// is open or being dialled.
     ///
@@ -192,7 +192,7 @@
     }
 
     /// Ends the session as the holder forgets every pairing (RAPP
-    /// v26.11.2 §4.6 item 6), answering whether the phone echoed its
+    /// v26.11.8 §4.6 item 6), answering whether the phone echoed its
     /// close; nil when no session is open or being dialled.
     ///
     /// An open session closes with `pairing_revoked`; a dial under way
@@ -202,7 +202,7 @@
     }
 
     /// Ends the open session with `pairing_revoked` when it runs over
-    /// `pairID`, as the pairing is forgotten (RAPP v26.11.2 §4.6 items 1
+    /// `pairID`, as the pairing is forgotten (RAPP v26.11.8 §4.6 items 1
     /// and 6), answering whether the phone echoed the close; false when no
     /// session over `pairID` is open or no echo came, so the pairing is kept
     /// forgotten in the revocation backlog for its next session.
@@ -219,7 +219,7 @@
 
     /// Forgets every pairing but `kept`, the one just made: a requester
     /// holds one active pairing, and pairing another phone forgets the one
-    /// it replaces (RAPP v26.11.2 §4.6 item 6, CC-118).
+    /// it replaces (RAPP v26.11.8 §4.6 item 6, CC-118).
     ///
     /// Each replaced pairing is stored forgotten at once, so it serves
     /// nothing more. An open session over one closes with `pairing_revoked`

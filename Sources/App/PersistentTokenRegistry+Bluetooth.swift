@@ -12,6 +12,15 @@
     /// run on while none is up.
     private static let carryPollMilliseconds = 250
 
+    /// The advertiser the session over Bluetooth runs to, while one is up.
+    ///
+    /// Every client on a Mac shares one Bluetooth connection to a phone, and
+    /// its indications, so a pairing link opened beside the session would
+    /// write into the session's link; a pairing search leaves it alone.
+    internal var bluetoothSessionPeer: UUID? {
+      holderOverBluetooth ? bluetoothPeers.preferred : nil
+    }
+
     /// The failure a requester reports for an operation the held session
     /// could not answer.
     private static func clientError(

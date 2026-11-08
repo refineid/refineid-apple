@@ -88,7 +88,7 @@ internal func runPairing(
   let requesterPairIdentifier = requesterConfirmation.pairIdentifier
   let proxyPairIdentifier = proxyConfirmation.pairIdentifier
   // Both store their record, then confirm it to each other (RAPP
-  // v26.11.2 §4.3 item 4); only both confirmations make a pairing active.
+  // v26.11.8 §4.3 item 4); only both confirmations make a pairing active.
   var (requesterRecord, requesterStorage) = try requesterConfirmation.intoStorage(
     createdAtMilliseconds: FlowFixture.createdAtMilliseconds)
   var (proxyRecord, proxyStorage) = try proxyConfirmation.intoStorage(
@@ -122,7 +122,7 @@ internal func runSession(
   var proxyAuthentication = try proxy.intoAuthentication()
 
   // Only the custodian sends session.ready; the requester verifies it and
-  // answers with session.hello (RAPP v26.11.2 §7.1 items 5 and 6).
+  // answers with session.hello (RAPP v26.11.8 §7.1 items 5 and 6).
   let outcome = try requesterAuthentication.receiveReady(
     try proxyAuthentication.sendReady(
       nonce: randomBytes(FlowLimit.readyNonce), displayName: DisplayNameFixture.custodian),

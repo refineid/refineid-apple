@@ -39,12 +39,14 @@ private let misreadPairingCode = "246814"
     /// More misread codes than any per-offer count would admit.
     private static let misreadAttempts = 4
 
-    private func makeCustodian(transport: RecordingTransport) throws -> RappPairingCoordinator {
-      try RappPairingCoordinator.custodian(
+    private func makeCustodian(
+      transport: RecordingTransport
+    ) async throws -> RappPairingCoordinator {
+      try await RappPairingCoordinator.attachedCustodian(
         options: .init(
           code: fixturePairingCode,
           profiles: Self.profiles,
-          transportProfile: Self.transportProfile,
+          transportProfiles: [Self.transportProfile],
           displayName: TestDisplayNames.custodian,
           platform: "iOS",
           vault: RappDeviceVault(
@@ -99,7 +101,7 @@ private let misreadPairingCode = "246814"
     internal func testCustodianKeepsItsOfferAfterAnInvalidFirstMessage() async throws {
       let restored = expectation(description: "offer restored")
       let firstTransport = RecordingTransport()
-      let custodian = try makeCustodian(transport: firstTransport)
+      let custodian = try await makeCustodian(transport: firstTransport)
       let collector = collect(custodian, restored: restored)
 
       await custodian.transportConnected()
@@ -111,7 +113,7 @@ private let misreadPairingCode = "246814"
 
       try await Task.sleep(nanoseconds: Self.reconnectSpacingNanoseconds)
       let replacement = RecordingTransport()
-      let replaced = await custodian.replaceTransport(replacement)
+      let replaced = await custodian.attach(replacement, transportProfile: Self.transportProfile)
       XCTAssertTrue(replaced)
       await custodian.transportConnected()
       let requester = try await makeRequesterBridge(code: fixturePairingCode, offer: replacement)
@@ -126,7 +128,7 @@ private let misreadPairingCode = "246814"
 
     internal func testCustodianServesTheOfferOnceItConnects() async throws {
       let transport = RecordingTransport()
-      let custodian = try makeCustodian(transport: transport)
+      let custodian = try await makeCustodian(transport: transport)
       await custodian.transportConnected()
       let frames = await transport.snapshot().frames
       XCTAssertEqual(frames.count, 1)
@@ -143,13 +145,13 @@ private let misreadPairingCode = "246814"
       let restored = expectation(description: "offer restored after each connection")
       restored.expectedFulfillmentCount = 2
       let first = RecordingTransport()
-      let custodian = try makeCustodian(transport: first)
+      let custodian = try await makeCustodian(transport: first)
       let collector = collect(custodian, restored: restored)
 
       await custodian.transportConnected()
       await custodian.receive(Data(count: 32))
       let second = RecordingTransport()
-      let replaced = await custodian.replaceTransport(second)
+      let replaced = await custodian.attach(second, transportProfile: Self.transportProfile)
       XCTAssertTrue(replaced)
       await custodian.transportConnected()
 
@@ -169,7 +171,7 @@ private let misreadPairingCode = "246814"
       let restored = expectation(description: "offer restored after each failed attempt")
       restored.expectedFulfillmentCount = Self.misreadAttempts
       let firstTransport = RecordingTransport()
-      let custodian = try makeCustodian(transport: firstTransport)
+      let custodian = try await makeCustodian(transport: firstTransport)
       let collector = collect(custodian, restored: restored)
 
       for attempt in 1...Self.misreadAttempts {
@@ -177,7 +179,7 @@ private let misreadPairingCode = "246814"
         if attempt > 1 {
           try await Task.sleep(nanoseconds: Self.reconnectSpacingNanoseconds)
           transport = RecordingTransport()
-          let replaced = await custodian.replaceTransport(transport)
+          let replaced = await custodian.attach(transport, transportProfile: Self.transportProfile)
           XCTAssertTrue(replaced)
         }
         await custodian.transportConnected()

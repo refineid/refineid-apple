@@ -5,7 +5,7 @@
   import OSLog
   import RappEngine
   /// Transport-independent coordinator for the authenticated RAPP session setup
-  /// (RAPP v26.11.2 §6.3, §7.1 items 5 to 7).
+  /// (RAPP v26.11.8 §6.3, §7.1 items 5 to 7).
   ///
   /// The surrounding transport may carry bytes and report closure, but it must not
   /// interpret RAPP frames or decide protocol state. Card operations may start only

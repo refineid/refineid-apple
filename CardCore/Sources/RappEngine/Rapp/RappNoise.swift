@@ -26,7 +26,7 @@ internal enum RappNoise {
   /// There is one version of RAPP and every peer updates together: the
   /// triple changes with every change of wire vocabulary, so a peer left
   /// behind fails at the handshake instead of later on a word it does not
-  /// know (RAPP v26.11.2 §10.1 item 4). The document keeps its name and
+  /// know (RAPP v26.11.8 §10.1 item 4). The document keeps its name and
   /// section numbering. History: `[26, 11, 2]` the stamped specification;
   /// `[26, 11, 7]` adds the `waiting_for_unlock` progress event; `[26, 11,
   /// 8]` keeps a forgotten pairing on the Requester until the Custodian
@@ -55,7 +55,7 @@ internal enum RappNoise {
     ])
   }
 
-  /// Binds the pairing handshake to the offer it answers (RAPP v26.11.2 §4.3 item 1).
+  /// Binds the pairing handshake to the offer it answers (RAPP v26.11.8 §4.3 item 1).
   ///
   /// The prologue names the KC2 suite literal; the Noise protocol name
   /// itself stays ``pairingSuite``.

@@ -30,7 +30,7 @@ import Testing
 
     /// Answers a certificate read as the custodian does: the read skips
     /// consent and runs as soon as its prerequisites are done (RAPP
-    /// v26.11.2 §8.2 item 6).
+    /// v26.11.8 §8.2 item 6).
     private static func answerCertificateRead(
       _ coordinator: RappConnectionCoordinator
     ) async throws -> ReadProgress {

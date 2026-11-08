@@ -11,7 +11,7 @@
     /// The text for a pairing whose record is gone or unreadable.
     private static let unknownPeer = "unknown pairing"
 
-    /// The display name the pair record keeps for its peer (RAPP v26.11.2
+    /// The display name the pair record keeps for its peer (RAPP v26.11.8
     /// §4.3 items 3 and 4), or a placeholder when the record cannot be
     /// read.
     ///

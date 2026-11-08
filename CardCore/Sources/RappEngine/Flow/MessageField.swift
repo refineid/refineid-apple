@@ -51,7 +51,7 @@ internal func validateLabel(_ value: String, _ field: String) throws {
 }
 
 /// A `platform` value: bounded and checked as a display name is (RAPP
-/// v26.11.2 §7.1).
+/// v26.11.8 §7.1).
 internal func validatePlatform(_ value: String) throws {
   guard RappDisplayName.isLabel(value) else { throw MessageFieldError.invalidField("platform") }
 }

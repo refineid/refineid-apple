@@ -7,7 +7,7 @@
 
   extension RappPairingConnection {
     /// Dials the pairing listener a custodian published, sending the
-    /// stream's pairing preamble first (RAPP v26.11.2 §4.2).
+    /// stream's pairing preamble first (RAPP v26.11.8 §4.2).
     public static func stream(to service: NWEndpoint) -> Self {
       stream { onEvent in
         StreamRelaySession(
@@ -53,6 +53,7 @@
         transport: RappClosureFrameTransport(
           sender: { frame in try await session.send(frame) },
           closer: { session.cancel() }),
+        transportProfile: rappStreamProfileName(),
         events: events)
     }
   }

@@ -64,7 +64,7 @@ extension RappOperationBridge {
   ///
   /// For a package, `documentName` is the package's own name and
   /// `containedFiles` the names of the files it holds, in container order;
-  /// empty for a single document (RAPP v26.11.2 §9.3).
+  /// empty for a single document (RAPP v26.11.8 §9.3).
   ///
   /// - Throws: ``RappBindingError/InvalidInput`` for invalid names or a
   ///   package whose request does not fit one frame.
@@ -87,7 +87,7 @@ extension RappOperationBridge {
       operationId: operationId, localStartMs: localStartMs, expiresAfterMs: expiresAfterMs)
   }
 
-  /// Begins signing documents under one PIN 2 entry (RAPP v26.11.2 §9.3);
+  /// Begins signing documents under one PIN 2 entry (RAPP v26.11.8 §9.3);
   /// names and digests pair up by position.
   public func beginBatchSignDocuments(  // swiftlint:disable:this function_parameter_count
     operationId: RappOperationIdentifier,

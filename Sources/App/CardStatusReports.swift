@@ -4,7 +4,7 @@ import Foundation
 import RappEngine
 
 /// What the custodian last told each session it serves in `card.status`
-/// (RAPP v26.11.2 §8.4 item 1, STPA CC-61 and CC-81).
+/// (RAPP v26.11.8 §8.4 item 1, STPA CC-61 and CC-81).
 ///
 /// A session hears the custodian's word once right after `session.ready`,
 /// and again whenever the word changed since that session was last told: a

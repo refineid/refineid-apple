@@ -3,7 +3,7 @@
 import Foundation
 
 /// One typed request, which lives inside the session that carried it (RAPP
-/// v26.11.2 §8.1).
+/// v26.11.8 §8.1).
 internal struct OperationRequest: Equatable {
   /// The lifetime a request that names none receives (§8.1 item 2).
   internal static let defaultLifetimeMilliseconds: UInt64 = 300_000
@@ -80,7 +80,7 @@ internal struct OperationRequest: Equatable {
   }
 
   /// Rejects a request whose lifetime or profile do not agree, and a
-  /// package whose request does not fit one frame (RAPP v26.11.2 §9.3).
+  /// package whose request does not fit one frame (RAPP v26.11.8 §9.3).
   internal func validate() throws {
     guard expiresAfterMilliseconds > 0 else { throw CardOperationError.invalidLifetime }
     guard profile == operation.requiredProfile else {

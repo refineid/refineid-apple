@@ -3,7 +3,7 @@
 #if canImport(RappEngine)
   import Foundation
 
-  /// The document a requester asks its custodian to sign (RAPP v26.11.2
+  /// The document a requester asks its custodian to sign (RAPP v26.11.8
   /// §9.3): a single document by its name, or a package by its own name
   /// and the names of the files it holds, in container order.
   public struct RappSigningDocument: Sendable, Equatable {

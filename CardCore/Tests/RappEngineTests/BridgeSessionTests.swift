@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-/// How a session ends, and that no failure ends the pairing (RAPP v26.11.2
+/// How a session ends, and that no failure ends the pairing (RAPP v26.11.8
 /// §8.1 item 3, §8.3, §10.1).
 @Suite("RAPP session lifetime between the bridges")
 internal struct BridgeSessionTests {

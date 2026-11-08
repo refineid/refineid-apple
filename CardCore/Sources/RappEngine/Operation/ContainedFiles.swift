@@ -3,7 +3,7 @@
 import Foundation
 
 /// The files a package holds, as the `contained_files` of `sign_document`
-/// carry them (RAPP v26.11.2 §9.3).
+/// carry them (RAPP v26.11.8 §9.3).
 ///
 /// They are the names of the data objects as the container holds them, in
 /// container order, at least one, each within the name bound and not

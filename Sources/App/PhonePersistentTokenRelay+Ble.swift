@@ -8,7 +8,7 @@
   import UIKit
 
   /// The Bluetooth half of the phone relay: the GATT server of
-  /// `fi.refineid.rapp.ble` (RAPP v26.11.2 §5), serving the same pairings
+  /// `fi.refineid.rapp.ble` (RAPP v26.11.8 §5), serving the same pairings
   /// as the stream listener, beside it, and on from the background.
   ///
   /// Each central whose link routes a session preamble gets a session of
@@ -25,19 +25,31 @@
     /// for its Bluetooth events after the system ended the process.
     internal static let bluetoothRestoreIdentifier = "fi.refineid.rapp-ble-custodian"
 
-    /// Admits a link's preamble on the server's queue: a session preamble
-    /// routed to a pairing this phone serves (§2.2.1).
+    /// Admits a link's preamble on the server's queue.
+    ///
+    /// A session preamble is admitted when it routes to a pairing this
+    /// phone serves (§2.2.1), a pairing preamble while the phone shows a
+    /// code (§5.2 step 3). The first pairing link to arrive while no connection holds the offer claims
+    /// it; another is admitted and answered busy at its CPace step 1.
     nonisolated private static func admitsBluetooth(
       _ purpose: RappBleRoutingPurpose,
       link: RappBleGattLink,
       routing: OSAllocatedUnfairLock<BluetoothRouting>
     ) -> Bool {
       guard case .session(let preamble) = purpose else {
-        #if DEBUG
-          DevErrorLog.report(
-            "ble link refused: pairing preamble on the session server", source: .app)
-        #endif
-        return false
+        let offer = routing.withLock { state -> BluetoothPairingOffer? in
+          guard let offer = state.pairingOffer else { return nil }
+          state.pairingLinks.insert(link)
+          return offer
+        }
+        guard let offer else {
+          #if DEBUG
+            DevErrorLog.report("ble link refused: pairing preamble with no offer", source: .app)
+          #endif
+          return false
+        }
+        _ = offer.claim.claim(.bluetooth(link))
+        return true
       }
       return routing.withLock { state in
         let verdict = state.admission.admit(preamble, transportProfile: RappBleGattProfile.name)
@@ -69,9 +81,15 @@
       let (events, sink) = AsyncStream.makeStream(of: RappBleGattServerEvent.self)
       let server = RappBleGattPeripheral(
         restoreIdentifier: Self.bluetoothRestoreIdentifier,
-        bootstrap: nil,
+        bootstrap: {
+          routing.withLock { $0.pairingOffer }?.bootstrap()
+        },
         admits: { purpose, link in
           Self.admitsBluetooth(purpose, link: link, routing: routing)
+        },
+        admitsAttempt: { link in
+          guard let offer = routing.withLock({ $0.pairingOffer }) else { return false }
+          return offer.claim.holds(.bluetooth(link)) && offer.admitsAttempt()
         },
         onEvent: { event in sink.yield(event) })
       bluetoothServer = server
@@ -90,7 +108,14 @@
       bluetoothServer?.cancel()
       bluetoothServer = nil
       bluetoothAdvertising = false
-      bluetoothRouting.withLock { $0.routed.removeAll() }
+      let pairingLinks = bluetoothRouting.withLock { routing in
+        routing.routed.removeAll()
+        defer { routing.pairingLinks.removeAll() }
+        return routing.pairingLinks
+      }
+      for link in pairingLinks {
+        bluetoothPairingHandler?(.closed(link))
+      }
       for session in sessions.values {
         if case .bluetooth = session.transport { session.transportClosed() }
       }
@@ -151,6 +176,10 @@
     }
 
     private func receiveBluetooth(_ event: RappBleGattServerEvent) {
+      if let pairing = BluetoothPairingEvent(event, routing: bluetoothRouting) {
+        bluetoothPairingHandler?(pairing)
+        return
+      }
       switch event {
       case .routed(let link):
         bluetoothRouted(link)

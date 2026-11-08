@@ -37,7 +37,7 @@ private let fixturePairingCode = "246813"
         options: RappPairingCoordinator.Options(
           code: fixturePairingCode,
           profiles: RappIntegrationFixtures.profiles,
-          transportProfile: RappIntegrationFixtures.transportProfile,
+          transportProfiles: [RappIntegrationFixtures.transportProfile],
           displayName: TestDisplayNames.name(computerName),
           platform: "macOS",
           vault: requesterVault),

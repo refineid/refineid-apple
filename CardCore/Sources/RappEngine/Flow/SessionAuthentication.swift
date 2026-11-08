@@ -4,7 +4,7 @@ import CryptoKit
 import Foundation
 
 /// A session whose handshake completed and whose `session.ready` has not yet
-/// been sent or verified (RAPP v26.11.2 §7.1 item 5).
+/// been sent or verified (RAPP v26.11.8 §7.1 item 5).
 ///
 /// The custodian sends `session.ready` on completing the handshake; the
 /// requester verifies it and answers with `session.hello`, or reads a

@@ -5,7 +5,7 @@
   import RappEngine
 
   /// How a connection ends with a close of this endpoint's own, and the
-  /// wait for its echo (RAPP v26.11.2 §7.1 item 7).
+  /// wait for its echo (RAPP v26.11.8 §7.1 item 7).
   extension RappConnectionCoordinator {
     /// Waits until the connection has closed.
     public func waitUntilClosed() async {
@@ -45,7 +45,7 @@
     }
 
     /// Ends the session with `pairing_revoked` because this endpoint's
-    /// user is forgetting the pairing (RAPP v26.11.2 §4.6 item 1), and
+    /// user is forgetting the pairing (RAPP v26.11.8 §4.6 item 1), and
     /// returns once the echo arrived or the wait for it ended (§7.1 item 7).
     ///
     /// Answers whether the close left on the transport. Only then may the
@@ -58,7 +58,7 @@
     /// Ends the session with `pairing_revoked` as a requester's user forgets
     /// the pairing, and answers whether the custodian echoed it.
     ///
-    /// Only the echo within the wait (RAPP v26.11.2 §7.1 item 7) lets a
+    /// Only the echo within the wait (RAPP v26.11.8 §7.1 item 7) lets a
     /// requester destroy the record and its key; without it the pairing
     /// stays forgotten in the revocation backlog (§4.6 item 6).
     public func closePairingRevokedAwaitingEcho() async -> Bool {
@@ -68,7 +68,7 @@
 
     /// Ends the session with `service_withdrawn` because this endpoint
     /// withdraws: its holder turned remote access off, a local card
-    /// suspended remote use, or the holder quit (RAPP v26.11.2 §4.5 items 3
+    /// suspended remote use, or the holder quit (RAPP v26.11.8 §4.5 items 3
     /// and 8), and returns once the echo arrived or the wait for it ended.
     ///
     /// An open session sends the close before the connection goes; one not

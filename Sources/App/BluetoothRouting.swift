@@ -7,10 +7,14 @@
   /// What the phone's GATT server queue routes and admits links with.
   internal struct BluetoothRouting {
     /// Routes each link's preamble to a pairing served here and refuses
-    /// replayed routing on this server (RAPP v26.11.2 §2.2.1).
+    /// replayed routing on this server (RAPP v26.11.8 §2.2.1).
     internal var admission = CustodianSessionAdmission()
     /// The pairing each admitted link routed to, until the main actor
     /// takes it.
     internal var routed: [RappBleGattLink: RappPairRecord] = [:]
+    /// The pairing offer the server serves while the phone shows a code.
+    internal var pairingOffer: BluetoothPairingOffer?
+    /// The links that routed a `"pairing"` preamble, until they close.
+    internal var pairingLinks: Set<RappBleGattLink> = []
   }
 #endif

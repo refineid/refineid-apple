@@ -27,14 +27,14 @@ public enum RappBindingError: Error, Equatable, Hashable, LocalizedError, Sendab
   /// No stored pairing carries the identifier.
   case PairNotFound
   /// The pairing's storage was never confirmed by both endpoints (RAPP
-  /// v26.11.2 §4.3 item 4): the deadline passed, or a stored record is
+  /// v26.11.8 §4.3 item 4): the deadline passed, or a stored record is
   /// unconfirmed. The caller revokes the record it stored.
   case StorageUnconfirmed
   /// A pre-authentication attempt came within 500 ms of the previous one
-  /// (RAPP v26.11.2 §3.3 item 6); the caller refuses it and changes
+  /// (RAPP v26.11.8 §3.3 item 6); the caller refuses it and changes
   /// nothing.
   case RateLimited
-  /// The custodian answered `pairing-busy` (RAPP v26.11.2 §4.2, "Busy
+  /// The custodian answered `pairing-busy` (RAPP v26.11.8 §4.2, "Busy
   /// Refusal"): it cannot admit an attempt now. The answer's wait is read
   /// with ``rappPairingBusyRetryAfterMs(_:)`` and reported to
   /// ``RappPairingCandidates/busy(retryAfterMs:nowMonotonicMs:remoteUseAvailable:)``.

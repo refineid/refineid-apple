@@ -4,7 +4,7 @@ import Foundation
 
 /// How long an endpoint that sent a close waits for the peer's echo: a
 /// requester that quits or turns remote use off with a session open, and a
-/// custodian withdrawing each session (RAPP v26.11.2 §4.5 items 1 and 8,
+/// custodian withdrawing each session (RAPP v26.11.8 §4.5 items 1 and 8,
 /// §7.1 item 7).
 internal enum QuitWithdrawalBound {
   /// The bound, in milliseconds.

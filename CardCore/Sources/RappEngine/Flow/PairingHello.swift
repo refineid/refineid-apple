@@ -13,7 +13,7 @@ import Foundation
 internal struct PairingHello: Equatable {
   internal var parameters: NegotiatedParameters
 
-  /// The sender's display name (RAPP v26.11.2 §4.3 item 3).
+  /// The sender's display name (RAPP v26.11.8 §4.3 item 3).
   internal var displayName: RappDisplayName
 
   internal var platform: String

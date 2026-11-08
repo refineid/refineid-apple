@@ -18,7 +18,7 @@
     ///
     /// Bonjour browse results drop a live name for a moment without the
     /// holder having left. An open session and the offered identity do not
-    /// follow the advertisement (RAPP v26.11.2 §4.5 item 6, §8.4 item 3).
+    /// follow the advertisement (RAPP v26.11.8 §4.5 item 6, §8.4 item 3).
     private static let advertisementLossHoldSeconds = 30
 
     private static var advertisementLossHold: Duration {
@@ -27,7 +27,7 @@
 
     /// The stored pairings that serve: a forgotten one is the revocation
     /// backlog's alone, which delivers its close on a session of its own
-    /// (RAPP v26.11.2 §4.6 item 6), so this watcher neither follows nor
+    /// (RAPP v26.11.8 §4.6 item 6), so this watcher neither follows nor
     /// dials it.
     private static func activeHolderPairings() -> [HolderPairing] {
       let vault = RappDeviceVault()
@@ -112,7 +112,7 @@
     /// Browses for a holder in session mode whose hints name a pairing.
     ///
     /// The holder's record says it is on the network and worth dialing;
-    /// whether a card can answer is what its session says (RAPP v26.11.2
+    /// whether a card can answer is what its session says (RAPP v26.11.8
     /// §8.4). Losing the record stops the dialing; the identity follows the
     /// session's word and its grace. The pairing stays so the next card can
     /// use it. Nothing browses while remote use is off.
@@ -188,13 +188,14 @@
       startWatchingPresence()
     }
 
-    /// The holder closed a session with `pairing_revoked` (RAPP v26.11.2
+    /// The holder closed a session with `pairing_revoked` (RAPP v26.11.8
     /// §4.6 item 4).
     ///
     /// This computer forgets the pairing too, the borrowed identity leaves
     /// at once, and the row names the phone that did it above the pairing
     /// prompt. Remote use stays on: only the holder turns it off.
     internal func holderRevoked(pairID: Data, in vault: RappDeviceVault) {
+      connectedAfterPairing()
       let name = (try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault))?.metadata()
         .peerDisplayName
       if holderSession?.pairID == pairID {
@@ -218,7 +219,7 @@
     }
 
     /// A one-shot requester session of this process heard `pairing_revoked`
-    /// (RAPP v26.11.2 §4.6 item 4): the identity leaves at once, as on the
+    /// (RAPP v26.11.8 §4.6 item 4): the identity leaves at once, as on the
     /// held session, when it was published for a pairing the vault no longer
     /// holds.
     ///
@@ -231,7 +232,7 @@
     }
 
     /// The phone echoed this computer's close for a pairing it forgot (RAPP
-    /// v26.11.2 §4.6 items 3 and 6): the record and its key go now.
+    /// v26.11.8 §4.6 items 3 and 6): the record and its key go now.
     internal func revocationNoticeDelivered(pairID: Data) {
       revocationNoticeDelivered(pairID: pairID, in: RappDeviceVault())
     }
@@ -247,11 +248,12 @@
     }
 
     /// The holder announced that it stopped serving, in a withdrawn record
-    /// or in its session's `service_withdrawn` close (RAPP v26.11.2 §4.5
+    /// or in its session's `service_withdrawn` close (RAPP v26.11.8 §4.5
     /// item 6): the borrowed identity leaves at once, without the hold an
     /// unannounced loss gets, and no stream dial goes out until the
     /// holder's session record is seen again.
     internal func holderWithdrew() {
+      connectedAfterPairing()
       advertisementLossTask?.cancel()
       advertisementLossTask = nil
       holderIsAdvertising = false

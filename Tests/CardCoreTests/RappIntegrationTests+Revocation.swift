@@ -9,7 +9,7 @@ import Testing
   import RappEngine
 
   /// Ending a pairing and ending a session, over two real coordinators
-  /// (RAPP v26.11.2 §4.5, §4.6, §8.1 item 3).
+  /// (RAPP v26.11.8 §4.5, §4.6, §8.1 item 3).
   extension RappIntegrationTests {
     // MARK: Static Functions
 

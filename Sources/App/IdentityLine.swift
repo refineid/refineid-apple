@@ -10,12 +10,16 @@
   /// stands while the phone offers its card; with no remote card, whether
   /// no phone is paired or the paired one offers none, the line asks for a
   /// pairing code as if no phone were there, and names neither the phone's
-  /// state nor a reason (RAPP v26.11.2 §4.7). A local-network denial
+  /// state nor a reason (RAPP v26.11.8 §4.7). A local-network denial
   /// stands in for the pairing code.
   internal enum IdentityLine: Equatable, Sendable {
     /// The card in this Mac's reader has stayed without an identity long
     /// enough to warn; the PIN codes stay one click away.
     case cardNotReady
+
+    /// "Connecting to <phone>...": the phone its user has just paired,
+    /// until its first card status or the redial window.
+    case connectingToPairedPhone(String)
 
     /// "Connect a card reader.": remote use is off and no reader is
     /// attached.
@@ -83,7 +87,10 @@
         return facts.localNetworkDenied ? .localNetworkDenied : .pairPhone
       }
       guard let lead = pairedLead(facts) else {
-        return facts.localNetworkDenied ? .localNetworkDenied : .pairPhone
+        if facts.localNetworkDenied {
+          return .localNetworkDenied
+        }
+        return facts.phoneJustPaired.map(Self.connectingToPairedPhone) ?? .pairPhone
       }
       return .paired(lead)
     }
@@ -92,7 +99,7 @@
     /// wins.
     ///
     /// The phone's word that its card reader is empty outranks an identity
-    /// still offered in its grace (RAPP v26.11.2 §8.4 item 3). A phone
+    /// still offered in its grace (RAPP v26.11.8 §8.4 item 3). A phone
     /// without a card reader that reports no card leaves the identity it
     /// offers standing.
     /// Nil while the phone offers no card.

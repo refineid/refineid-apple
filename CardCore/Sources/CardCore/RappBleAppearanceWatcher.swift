@@ -7,7 +7,7 @@ import Foundation
   import RappEngine
 
   /// Scans passively for RAPP BLE peripherals and reports each appearance
-  /// (RAPP v26.11.2 §4.5 item 6, §4.6 item 6; hierarchy specification §3).
+  /// (RAPP v26.11.8 §4.5 item 6, §4.6 item 6; hierarchy specification §3).
   ///
   /// The advertisement carries only the RAPP service UUID, so an appearance
   /// names a peripheral, not a pairing: the owner dials it with the pairing

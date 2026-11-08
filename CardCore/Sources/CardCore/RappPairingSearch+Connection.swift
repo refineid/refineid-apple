@@ -39,7 +39,9 @@
           sink.yield(.connection(event))
         }
       }
-      var opened = Attempt(generation: current, transport: connection.transport, steps: sink)
+      var opened = Attempt(
+        generation: current, transport: connection.transport,
+        transportProfile: connection.transportProfile, steps: sink)
       opened.feeders.append(reader)
       attempt = opened
       Task { [weak self] in
@@ -110,6 +112,10 @@
           await connectionEnded(.noOffer, generation: current.generation)
         }
 
+      case .busy(let retryAfter):
+        guard !codeAccepted else { return }
+        await custodianBusy(retryAfterMilliseconds: retryAfter, generation: current.generation)
+
       case .notOpened(let failure):
         await connectionEnded(.notOpened(failure), generation: current.generation)
       }
@@ -122,11 +128,12 @@
     /// closes the connection before CPace step 1 and spends no attempt. A
     /// `pairing-busy` defers the endpoint.
     private func admitOffer(_ frame: Data, generation stepGeneration: Int) async {
+      guard let transportProfile = attempt?.transportProfile else { return }
       let bridge: RappPairingBridge
       let admitted: Bool
       do {
         bridge = try RappPairingBridge.bootstrapOffer(
-          bootstrap: frame, transportProfile: options.transportProfile, pairingCode: code,
+          bootstrap: frame, transportProfile: transportProfile, pairingCode: code,
           startedAtMonotonicMs: options.clock.monotonicMilliseconds())
         admitted = try candidates.beginTry(bridge)
       } catch RappBindingError.CustodianBusy {
@@ -149,7 +156,8 @@
       let coordinator: RappPairingCoordinator
       do {
         coordinator = try RappPairingCoordinator.requester(
-          options: options, transport: current.transport, bootstrap: bridge)
+          options: options, transport: current.transport,
+          transportProfile: current.transportProfile, bootstrap: bridge)
       } catch {
         await connectionEnded(.offerRejected, generation: stepGeneration)
         return

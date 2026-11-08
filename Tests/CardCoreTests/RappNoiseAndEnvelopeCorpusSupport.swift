@@ -71,7 +71,7 @@ internal enum RappNoiseAndEnvelopeCorpusSupport {
     case unsupported
   }
 
-  /// The prologue and identifier labels (RAPP v26.11.2 §4.3 items 1, 2
+  /// The prologue and identifier labels (RAPP v26.11.8 §4.3 items 1, 2
   /// and 5).
   internal static let pairingPrologueLabel = "rapp-pairing"
   internal static let sessionPrologueLabel = "rapp-session"
@@ -190,7 +190,7 @@ internal enum RappNoiseAndEnvelopeCorpusSupport {
       repositoryRoot
       .appendingPathComponent("Documentation")
       .appendingPathComponent("rapp-conformance")
-      .appendingPathComponent("rapp-v26.11.2.json")
+      .appendingPathComponent("rapp-v26.11.8.json")
     return try JSONDecoder().decode(Corpus.self, from: Data(contentsOf: url))
   }
 

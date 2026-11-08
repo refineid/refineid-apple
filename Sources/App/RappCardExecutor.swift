@@ -21,7 +21,7 @@
       case credentialBlocked(CredentialRole)
       case credentialInvalidated(CredentialRole)
       /// The PIN 1 counter shows a refusal since the held PIN 1 was
-      /// accepted, so the held value was not sent (RAPP v26.11.2 §11 item
+      /// accepted, so the held value was not sent (RAPP v26.11.8 §11 item
       /// 2).
       case heldPin1Unconfirmed
       case invalidCredential(CredentialRole)

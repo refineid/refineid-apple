@@ -9,7 +9,7 @@
 
   @testable import RefineIDTestHost
 
-  /// A phone that forgets this computer (RAPP v26.11.2 §4.6 item 4) drops
+  /// A phone that forgets this computer (RAPP v26.11.8 §4.6 item 4) drops
   /// the pairing here and leaves remote use on: the row names the phone
   /// above the pairing prompt.
   extension RemoteUseSwitchTests {

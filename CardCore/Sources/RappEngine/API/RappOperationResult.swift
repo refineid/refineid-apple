@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The answer a completed operation produced (RAPP v26.11.2 §9).
+/// The answer a completed operation produced (RAPP v26.11.8 §9).
 ///
 /// The certificates and signatures travel on to a verifier on the
 /// requester; the engine consults none of their bytes.

@@ -9,7 +9,7 @@
   /// Gathered into one value because they are one decision: nothing the
   /// holder typed reaches this device until the card has proved the access
   /// number and the identity is registered. No PIN is ever written (RAPP
-  /// v26.11.2 §11 item 2).
+  /// v26.11.8 §11 item 2).
   @MainActor
   internal struct IdentityCommitments {
     /// Commits the access number once PACE has proved it.

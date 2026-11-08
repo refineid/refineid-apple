@@ -6,7 +6,7 @@ import Foundation
   import Network
 
   /// Browses for the custodians of a requester's forgotten pairings and
-  /// reports each appearance (RAPP v26.11.2 §4.6 item 6, §8.3).
+  /// reports each appearance (RAPP v26.11.8 §4.6 item 6, §8.3).
   ///
   /// A pairing appears when a `mode=session` record carrying its discovery
   /// hint is listed while none was before. Every pairing in sight is
