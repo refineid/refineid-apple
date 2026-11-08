@@ -17,6 +17,9 @@
     private static let unsignedName = "unsigned.pdf"
     private static let textName = "notes.txt"
     private static let officeName = "sheet.docx"
+    private static let stampOnlyName = "stamped.pdf"
+    private static let detachedSignatureName = "contract.pdf.p7s"
+    private static let unnamedSignatureName = "signature.der"
     private static let officeEntryName = "content.xml"
     private static let textContent = Data("An unsigned note.".utf8)
 
@@ -45,6 +48,7 @@
         Self.unsignedName: TimestampedPdfFixture.minimalPdf,
         Self.textName: Self.textContent,
         Self.officeName: try #require(office.finish()),
+        Self.stampOnlyName: try Self.documentTimestampOnly(),
       ]
       var urls: [String: URL] = [:]
       for (name, data) in contents {
@@ -53,6 +57,15 @@
         urls[name] = url
       }
       return urls
+    }
+
+    /// A PDF whose one revision is a document timestamp, which signs
+    /// nothing.
+    private static func documentTimestampOnly() throws -> Data {
+      let revision = try PdfIncrementalSigner.prepare(
+        TimestampedPdfFixture.minimalPdf, revision: .documentTimestamp)
+      return try revision.filled(
+        with: DerEncoder.sequence([DerEncoder.integer(SignOids.cmsVersion)]))
     }
 
     /// Every verification of `verification` run to its end.
@@ -72,12 +85,14 @@
     }
 
     /// A signed document shows its signature's report; an unsigned PDF,
-    /// a text file and an office document each say plainly that they
-    /// carry no signatures.
+    /// a PDF with only a document timestamp, a text file and an office
+    /// document each say plainly that they carry no signatures.
     @Test
     internal func signedAndUnsignedDocumentsEachShowTheirOutcome() async throws {
       let urls = try Self.documents()
-      let order = [Self.signedName, Self.unsignedName, Self.textName, Self.officeName]
+      let order = [
+        Self.signedName, Self.unsignedName, Self.stampOnlyName, Self.textName, Self.officeName,
+      ]
       let verification = QueuedDocumentVerification(
         documents: try order.map { name in try #require(urls[name]) },
         dependencies: Self.dependencies)
@@ -128,6 +143,54 @@
       #expect(pending != nil)
       #expect(
         QueuedDocumentVerification.isAvailable(queued: signing.queued, signing: signing.working))
+    }
+
+    /// A report without a signature row, whatever produced it, says
+    /// that the document carries no signatures.
+    @Test
+    internal func anEmptyReportSaysNoSignatures() async {
+      let model = VerifyDocumentModel(
+        dependencies: VerifyDocumentModel.Dependencies(
+          anchors: { .success(.empty) },
+          verify: { _, _ in
+            DocumentVerification.DocumentReport(signatures: [], documentTimestamps: [.invalid])
+          },
+          liveStatus: { _ in nil },
+          now: Date.init))
+      model.verify(document: Self.textContent, name: Self.unsignedName)
+      await model.verification?.value
+      guard case .failed(let message) = model.phase else {
+        Issue.record("An empty report was shown as a report")
+        return
+      }
+      #expect(message == VerifyDocumentModel.noSignaturesMessage)
+    }
+
+    /// A CMS SignedData file, named as one or recognised by its
+    /// content, says its format cannot be verified here yet, never that
+    /// it carries no signatures.
+    @Test
+    internal func cmsSignedDataSaysItCannotBeVerifiedYet() async throws {
+      let directory = FileManager.default.temporaryDirectory.appending(
+        path: "QueuedDocumentVerificationTests-\(UUID().uuidString)", directoryHint: .isDirectory)
+      try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+      let cms = try TimestampedPdfFixture.make().cms
+      let named = directory.appending(path: Self.detachedSignatureName)
+      let unnamed = directory.appending(path: Self.unnamedSignatureName)
+      try Self.textContent.write(to: named)
+      try cms.write(to: unnamed)
+
+      let verification = QueuedDocumentVerification(
+        documents: [named, unnamed], dependencies: Self.dependencies)
+      await Self.finished(verification)
+
+      for item in verification.items {
+        guard case .failed(let message) = item.model.phase else {
+          Issue.record("\(item.document.lastPathComponent) was not refused")
+          continue
+        }
+        #expect(message == VerifyDocumentModel.cmsSignedDataMessage)
+      }
     }
   }
 

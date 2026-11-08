@@ -35,7 +35,7 @@
     private static let currentTime = "20260601000000Z"
 
     /// The signature timestamp's generation time.
-    private static let signatureStampTime = "20260515000000Z"
+    internal static let signatureStampTime = "20260515000000Z"
 
     /// The archive or document timestamp's generation time, after it.
     private static let archiveStampTime = "20260520000000Z"
@@ -52,12 +52,12 @@
     /// archive timestamp is placed.
     private static let unsignedSignaturePropertiesClose = "</xades:UnsignedSignatureProperties>"
 
-    private static func now() throws -> Date {
+    internal static func now() throws -> Date {
       try DocumentTrustFixture.instant(Self.currentTime)
     }
 
     /// The CRLs that answer the fixture's whole path.
-    private static func pathRevocationLists(_ fixture: DocumentTrustFixture) throws -> [Data] {
+    internal static func pathRevocationLists(_ fixture: DocumentTrustFixture) throws -> [Data] {
       [
         try fixture.revocationList(revoking: false),
         try fixture.rootRevocationList(revoking: false),
@@ -81,7 +81,7 @@
     }
 
     /// `document` with an anchored document timestamp revision.
-    private static func documentStamped(
+    internal static func documentStamped(
       _ document: Data,
       _ fixture: DocumentTrustFixture
     ) throws -> Data {
@@ -143,6 +143,15 @@
         archiveTimestampToken: archiveToken
       )
       return try #require(AsicContainer.container(objects: objects, signatureXml: document))
+    }
+
+    /// The one report of `document` under the fixture's root and
+    /// authority.
+    internal static func anchoredReport(
+      _ document: Data,
+      _ fixture: DocumentTrustFixture
+    ) throws -> DocumentVerification.SignatureReport {
+      try Self.report(document, fixture)
     }
 
     private static func report(

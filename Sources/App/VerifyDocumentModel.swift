@@ -84,6 +84,16 @@ internal final class VerifyDocumentModel: ObservableObject {
     )
   }
 
+  /// The message for a CMS SignedData file, which carries signatures
+  /// this verifier does not verify.
+  internal static var cmsSignedDataMessage: String {
+    text("verify.errorCades", "This signature format (CAdES) can't be verified here yet.")
+  }
+
+  /// The extensions of CMS SignedData files (RFC 5751 section 3.2.1),
+  /// in whatever encoding they hold it.
+  private static let cmsSignedDataExtensions: Set<String> = ["p7m", "p7s", "p7c"]
+
   /// The message for a document without signatures.
   internal static var noSignaturesMessage: String {
     text("verify.errorNoSignatures", "The document carries no signatures.")
@@ -122,6 +132,9 @@ internal final class VerifyDocumentModel: ObservableObject {
 
     case .unreadable:
       Self.unreadableMessage
+
+    case .cmsSignedData:
+      Self.cmsSignedDataMessage
 
     case .unsupportedProfile:
       text("verify.errorUnsupported", "The signature profile is not supported.")
@@ -168,7 +181,10 @@ internal final class VerifyDocumentModel: ObservableObject {
       return .failure(.noSignatures)
     }
     do {
-      return .success(try verify(document, anchors))
+      let report = try verify(document, anchors)
+      // A report without a signature row has nothing to show but that.
+      guard !report.signatures.isEmpty else { return .failure(.noSignatures) }
+      return .success(report)
     } catch let failure as DocumentVerification.Failure {
       return .failure(failure)
     } catch {
@@ -234,8 +250,14 @@ internal final class VerifyDocumentModel: ObservableObject {
     verification?.cancel()
     generation += 1
     let current = generation
-    phase = .verifying
     documentName = name
+    let fileExtension = URL(filePath: name).pathExtension.lowercased()
+    guard !Self.cmsSignedDataExtensions.contains(fileExtension) else {
+      verification = nil
+      phase = .failed(Self.cmsSignedDataMessage)
+      return
+    }
+    phase = .verifying
     let verifier = dependencies.verify
     let anchorSource = dependencies.anchors
     verification = Task { [weak self] in

@@ -1672,6 +1672,28 @@
         }
       }
     },
+    "verify.errorCades" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This signature format (CAdES) can't be verified here yet."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tätä allekirjoitusmuotoa (CAdES) ei voi vielä tarkastaa täällä."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Det här signaturformatet (CAdES) kan inte granskas här ännu."
+          }
+        }
+      }
+    },
     "verify.errorNoSignatures" : {
       "extractionState" : "stale",
       "localizations" : {

@@ -138,8 +138,11 @@ extension AsicVerification {
         timestamps: timestamps,
         creditedProofs: [],
         coversWholeDocument: integrity.coversWholeDocument,
-        archiveTimestamps: archiveTimestamps,
-        carriesValidationData: !parsed.ocspValues.isEmpty || !parsed.crlValues.isEmpty
+        archiveTimestamps: archiveTimestamps.map { state in
+          DocumentVerification.ArchiveCandidate(state: state, covered: nil)
+        },
+        longTermValues: DocumentVerification.RevocationValues(
+          ocspResponses: parsed.ocspValues, revocationLists: parsed.crlValues)
       ),
       evidence: evidence,
       anchors: judgement.anchors,

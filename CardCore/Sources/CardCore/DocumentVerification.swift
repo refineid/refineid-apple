@@ -164,6 +164,9 @@ public enum DocumentVerification {
 
   /// Why a document yielded no report.
   public enum Failure: Error, Sendable {
+    /// A CMS SignedData file (CAdES, `.p7m` or `.p7s`), which this
+    /// verifier recognises but does not verify.
+    case cmsSignedData
     case noSignatures
     case notAPdf
     case unreadable
@@ -198,13 +201,14 @@ public enum DocumentVerification {
     internal let creditedProofs: [ProvenTime]
     internal let coversWholeDocument: Bool
 
-    /// The archive timestamps over the signature.
-    internal let archiveTimestamps: [TimestampState]
+    /// The archive timestamps over the signature, each with the
+    /// revocation values the revision it covers keeps.
+    internal let archiveTimestamps: [ArchiveCandidate]
 
-    /// Whether the document carries revocation values in the place
-    /// its profile keeps long-term validation data: the XAdES
-    /// `RevocationValues`, or the PDF document security store.
-    internal let carriesValidationData: Bool
+    /// The revocation values the document keeps where its profile
+    /// keeps long-term validation data: the XAdES `RevocationValues`,
+    /// or the PDF document security store.
+    internal let longTermValues: RevocationValues
   }
 
   /// Verifies every signature and document timestamp of the document
@@ -220,6 +224,9 @@ public enum DocumentVerification {
   ) throws -> DocumentReport {
     if ZipReader.hasZipSignature(document) {
       return try AsicVerification.verify(container: document, anchors: anchors, now: now)
+    }
+    if CmsSignedDataFile.isSignedData(document) {
+      throw Failure.cmsSignedData
     }
     return try Self.verifyPdf(document, anchors: anchors, now: now)
   }
@@ -262,6 +269,10 @@ public enum DocumentVerification {
       ? RevocationJudge.links(
         ofPath: path, evidence: evidence, at: validationTime.date, now: now)
       : []
+    let longTerm = LongTermJudgement(
+      path: chain.isAnchored ? path : [], certificates: evidence.certificates,
+      validationTime: validationTime.date, now: now)
+    let archives = longTerm.archives(facts.archiveTimestamps)
     return SignatureReport(
       signerCommonName: DistinguishedName.commonName(inName: subject) ?? "",
       signerIdentifier: DistinguishedName.identifier(inName: subject) ?? "",
@@ -270,34 +281,12 @@ public enum DocumentVerification {
       signatureValid: facts.signatureValid,
       chain: chain,
       timestamps: facts.timestamps,
-      archiveTimestamps: facts.archiveTimestamps,
-      level: Self.level(
-        facts, chain: chain, links: links, proven: validationTime.proofOfExistence != nil),
+      archiveTimestamps: archives,
+      level: longTerm.level(
+        facts, archives: archives, proven: validationTime.proofOfExistence != nil),
       validationTime: validationTime,
       revocationLinks: links,
       coversWholeDocument: facts.coversWholeDocument
-    )
-  }
-
-  /// The level `facts` reach: B-LT needs the document's own revocation
-  /// values to answer the whole anchored path as good.
-  private static func level(
-    _ facts: SignatureFacts,
-    chain: ChainStatus,
-    links: [RevocationJudge.Link],
-    proven: Bool
-  ) -> SignatureLevel? {
-    let answeredByDocument: Bool
-    if chain.isAnchored, case .good = RevocationJudge.combined(links) {
-      answeredByDocument = true
-    } else {
-      answeredByDocument = false
-    }
-    return SignatureLevel.reached(
-      verifies: facts.documentIntact && facts.signatureValid,
-      timestamped: proven,
-      carriesValidationData: facts.carriesValidationData && answeredByDocument,
-      archived: facts.archiveTimestamps.contains { stamp in stamp.provenTime != nil }
     )
   }
 }

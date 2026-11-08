@@ -225,6 +225,11 @@ implements the shared design in refineid-core
 - **Revocation.** The state without a time: the mark alone when good,
   "Revoked" with the failing mark, "Not checked" when no answer came, and
   a spinner in the mark column while the check runs.
+- **No signature.** A document without a signature row, a PDF carrying
+  only document timestamps among them, says "The document carries no
+  signatures." A CMS SignedData file (`.p7m`, `.p7s`, `.p7c`, or a DER
+  ContentInfo of type signedData) says "This signature format (CAdES)
+  can't be verified here yet."
 - **Unsupported.** A signature whose profile is not supported shows the
   person row's symbol and label, "The signature profile is not
   supported." under it and the failing mark.
@@ -232,8 +237,11 @@ implements the shared design in refineid-core
   reach, "B-B", "B-T", "B-LT" or "B-LTA" (EN 319 142-1 and EN 319 132-1,
   clause 6), judged from what the document carries: B-T needs an anchored
   timestamp, B-LT revocation values in the XAdES `RevocationValues` or the
-  PDF document security store that answer the whole path, B-LTA an
-  anchored archive timestamp. A live revocation answer does not raise it.
+  PDF document security store that alone answer the whole path, B-LTA an
+  anchored archive timestamp; a PDF document timestamp counts as one only
+  when the revision it covers carries a store that alone answers the
+  path. Revocation values elsewhere, inside a CMS among them, decide the
+  verdict but raise no level. A live revocation answer does not raise it.
   A signature that does not verify over intact data shows no level.
 - **Trusted lists.** Anchors come only from the EU trusted lists the
   app fetches and caches. A cached copy verifies at once, offline too,
