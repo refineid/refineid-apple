@@ -3995,10 +3995,35 @@ func distribute(_ platformName: String, _ groupName: String, _ candidateID: Stri
   }
 }
 
-// Sets the build's TestFlight "What to Test" in each locale that
-// Metadata/appstore.json gives one for the platform: the text testers see
-// with the build. A locale already present is updated.
+// Sets the build's TestFlight "What to Test" in every locale of
+// Metadata/appstore.json: the text testers see with the build. The notes
+// are mandatory and written for one version, named by whatToTestVersion,
+// so a build of another version, or a locale without the platform's
+// text, stops the distribution before the build reaches any group. A
+// locale already present on the build is updated.
 func pushWhatToTest(_ platformName: String, _ buildID: String) {
+  let buildVersion =
+    (api("GET", "/v1/builds/\(buildID)/preReleaseVersion")["data"] as? [String: Any])
+    .flatMap { ($0["attributes"] as? [String: Any])?["version"] as? String }
+  guard let notesVersion = metadata["whatToTestVersion"] as? String,
+    notesVersion == buildVersion
+  else {
+    die(
+      "What to Test in Metadata/appstore.json is for version "
+        + "\(metadata["whatToTestVersion"] as? String ?? "none"), the build is "
+        + "\(buildVersion ?? "unknown"): write the notes for this version and set "
+        + "whatToTestVersion")
+  }
+  let missing = localizations.keys.sorted().filter { locale in
+    let entry = localizations[locale] as? [String: Any] ?? [:]
+    let text = (entry["whatToTest"] as? [String: Any])?[platformName] as? String
+    return text?.isEmpty != false
+  }
+  guard missing.isEmpty else {
+    die(
+      "What to Test for \(platformName) is missing in "
+        + "\(missing.joined(separator: ", ")) in Metadata/appstore.json")
+  }
   let existing = existingLocalizations("/v1/builds/\(buildID)/betaBuildLocalizations?limit=50")
   for locale in localizations.keys.sorted() {
     let entry = localizations[locale] as? [String: Any] ?? [:]

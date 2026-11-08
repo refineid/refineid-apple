@@ -245,8 +245,11 @@ Scripts/apple-app-store-connect-release-manager.swift distribute macos <group> <
 
 The command first sets the build's TestFlight **What to Test** in every
 locale from `whatToTest` in `Metadata/appstore.json`, the platform's own
-text; change that text with each candidate whose testers should look at
-something new.
+text. The notes are mandatory and written for one version:
+`whatToTestVersion` names it, and the command refuses a build of another
+version, or a locale without the platform's text, before the build reaches
+any group. Write and review the notes with each new version, then set
+`whatToTestVersion` to it.
 
 Use the exact uploaded build identifier. Internal distribution does not submit
 beta review, and TestFlight distribution does not attach an App Store build.
