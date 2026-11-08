@@ -32,7 +32,7 @@ internal enum RappNoiseAndEnvelopeCorpusSupport {
     internal static let byteCountUInt64 = 8
     internal static let wireMajor: UInt64 = 26
     internal static let wireMinor: UInt64 = 11
-    internal static let wirePatch: UInt64 = 7
+    internal static let wirePatch: UInt64 = 8
     internal static let versionLength = 3
     internal static let patchIndex = 2
     internal static let sessionIDLength = 16

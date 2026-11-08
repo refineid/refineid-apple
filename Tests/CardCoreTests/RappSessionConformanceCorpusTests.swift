@@ -7,7 +7,7 @@ import Testing
 internal struct RappSessionConformanceCorpusTests {
   // MARK: Static Properties
 
-  private static let supportedWireVersion: [UInt16] = [26, 11, 7]
+  private static let supportedWireVersion: [UInt16] = [26, 11, 8]
   /// The wire versions the corpus pins, accepted and refused.
   private static let wireVersionVectorCount = 15
 

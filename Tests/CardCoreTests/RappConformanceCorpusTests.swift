@@ -11,7 +11,7 @@ internal struct RappConformanceCorpusTests {
   /// The pinned corpus file, and the SHA-256 digest of its bytes.
   private static let corpusPath = "Documentation/rapp-conformance/rapp-v26.11.2.json"
   private static let corpusDigest =
-    "af9ea5edf8d40f50bdd949b0fc6b754e343635b028e68277ddb67dc0f1b63ab5"
+    "94b1315b1343e23b5512317edf8b646de8a739652b4a3207bf21d07b79ecaa78"
 
   // MARK: Static Functions
 
