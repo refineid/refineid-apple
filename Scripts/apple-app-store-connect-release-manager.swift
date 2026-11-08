@@ -4017,7 +4017,7 @@ func pushWhatToTest(_ platformName: String, _ buildID: String) {
   let missing = localizations.keys.sorted().filter { locale in
     let entry = localizations[locale] as? [String: Any] ?? [:]
     let text = (entry["whatToTest"] as? [String: Any])?[platformName] as? String
-    return text?.isEmpty != false
+    return text?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false
   }
   guard missing.isEmpty else {
     die(
