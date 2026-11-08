@@ -30,8 +30,8 @@
 
     /// Follows `phone`, which this computer's user has just paired, over
     /// the Bluetooth advertiser `peripheral` when the pairing ran there,
-    /// and shows that it connects to it until its first card status or the
-    /// redial window (RAPP v26.11.8 §4.7).
+    /// and shows that it connects to it until its identity is shown, it
+    /// reports no card, or the redial window passes (RAPP v26.11.8 §4.7).
     internal func followJustPaired(phone: String, peripheral: UUID?) {
       phoneJustPaired = phone
       peripheralJustPaired = peripheral
@@ -44,7 +44,9 @@
       startAfterPairing()
     }
 
-    /// Ends the connecting shown after a pairing.
+    /// Ends the connecting shown after a pairing: the phone's identity
+    /// shown, its word that it holds no card, the redial window, a
+    /// withdrawal, a revocation or the pairing gone.
     internal func connectedAfterPairing() {
       justPairedLapse?.cancel()
       justPairedLapse = nil

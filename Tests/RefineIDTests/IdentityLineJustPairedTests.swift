@@ -48,6 +48,13 @@ internal struct IdentityLineJustPairedTests {
     #expect(IdentityLine.derive(facts) == .localHolder)
   }
 
+  @Test("A local-network denial outranks the connecting line")
+  internal func denialOutranks() {
+    var facts = Self.justPaired
+    facts.localNetworkDenied = true
+    #expect(IdentityLine.derive(facts) == .localNetworkDenied)
+  }
+
   @Test("Without a pairing the code entry stands")
   internal func noPairingAsksForACode() {
     var facts = Self.justPaired

@@ -135,8 +135,8 @@
     internal var phoneThatForgot: String?
 
     /// The phone this computer's user has just paired, by the name it gave
-    /// in `pairing.hello`, while the computer connects to it: until the
-    /// first session reports the card status, or the redial window passes
+    /// in `pairing.hello`, while the computer connects to it: until its
+    /// identity is shown, it reports no card, or the redial window passes
     /// (RAPP v26.11.8 §4.7).
     internal var phoneJustPaired: String?
 

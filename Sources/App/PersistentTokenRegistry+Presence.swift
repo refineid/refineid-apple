@@ -195,6 +195,7 @@
     /// at once, and the row names the phone that did it above the pairing
     /// prompt. Remote use stays on: only the holder turns it off.
     internal func holderRevoked(pairID: Data, in vault: RappDeviceVault) {
+      connectedAfterPairing()
       let name = (try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault))?.metadata()
         .peerDisplayName
       if holderSession?.pairID == pairID {
@@ -252,6 +253,7 @@
     /// unannounced loss gets, and no stream dial goes out until the
     /// holder's session record is seen again.
     internal func holderWithdrew() {
+      connectedAfterPairing()
       advertisementLossTask?.cancel()
       advertisementLossTask = nil
       holderIsAdvertising = false

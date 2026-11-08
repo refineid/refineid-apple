@@ -97,6 +97,13 @@
         .task(id: trackKey) {
           await track()
         }
+        .onValueChange(of: IdentityLine.derive(facts)) { line in
+          // The phone just paired is shown by its identity now: the
+          // connecting line has done its work (RAPP v26.11.8 §4.7).
+          if case .paired = line, !DemoMode.shared.isActive {
+            PersistentTokenRegistry.shared.connectedAfterPairing()
+          }
+        }
     }
 
     /// Whether the holder has remote use on.

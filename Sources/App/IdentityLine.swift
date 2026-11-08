@@ -87,10 +87,10 @@
         return facts.localNetworkDenied ? .localNetworkDenied : .pairPhone
       }
       guard let lead = pairedLead(facts) else {
-        if let phone = facts.phoneJustPaired {
-          return .connectingToPairedPhone(phone)
+        if facts.localNetworkDenied {
+          return .localNetworkDenied
         }
-        return facts.localNetworkDenied ? .localNetworkDenied : .pairPhone
+        return facts.phoneJustPaired.map(Self.connectingToPairedPhone) ?? .pairPhone
       }
       return .paired(lead)
     }

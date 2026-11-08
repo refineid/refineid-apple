@@ -211,7 +211,9 @@
     /// changes only how the card is asked for; the card alone governs the
     /// offer (§8.4 items 3 and 6, CC-82).
     private func cardStatusReported(_ status: RappCardStatus) {
-      connectedAfterPairing()
+      if case .absent = status.card {
+        connectedAfterPairing()
+      }
       continuousFailureSince = nil
       holderCardStatus = status
       let offered = (certificateDER ?? Self.publishedCertificateDER())
