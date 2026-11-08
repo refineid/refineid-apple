@@ -72,8 +72,10 @@ went stale, so the text is not repeated: read it there.
 ## Evidence held ready
 
 - Export compliance rationale: `Documentation/export-compliance.md`.
-- Sandbox and entitlement rationale: comments in
-  `Config/RefineID.entitlements`.
+- Sandbox and entitlements: `Config/RefineID-Store.entitlements`, the
+  macOS app's entitlements in every configuration. Bluetooth reaches the
+  paired phone where no network is shared; a Mac never listens, so no
+  server entitlement.
 - ATS rationale: comments above `NSAppTransportSecurity` in all four
   application plists (`Config/RefineID-Info.plist`,
   `Config/RefineID-Store-Info.plist`,

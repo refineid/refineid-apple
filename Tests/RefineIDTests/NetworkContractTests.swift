@@ -247,24 +247,19 @@ internal struct NetworkContractTests {
     #expect(port.contains("#if os(macOS)"))
   }
 
-  /// Only the two configurations that compile DEBUG sign macOS with the
-  /// Bluetooth sandbox entitlement.
+  /// Every configuration signs macOS with the store entitlements, and
+  /// they grant Bluetooth: the remote card reaches the phone where no
+  /// network is shared (decisions 2026-11-08).
   @Test
-  internal func bluetoothEntitlementOnlyInDebugConfigurations() throws {
+  internal func bluetoothEntitlementInEveryConfiguration() throws {
     let project = try String(
       contentsOf: Self.root.appending(path: "RefineID.xcodeproj/project.pbxproj"),
       encoding: .utf8)
-    let blocks = project.components(separatedBy: "isa = XCBuildConfiguration;").dropFirst()
-    var granting: [String] = []
-    for block in blocks where block.contains("RefineID-Debug.entitlements") {
-      let tail = block.components(separatedBy: "name = ").last ?? ""
-      granting.append(String(tail.prefix { character in character != ";" }))
-    }
-    #expect(granting.sorted() == ["Debug", "Profile"])
+    #expect(!project.contains("RefineID-Debug.entitlements"))
     let store = try String(
       contentsOf: Self.root.appending(path: "Config/RefineID-Store.entitlements"),
       encoding: .utf8)
-    #expect(!store.contains("com.apple.security.device.bluetooth"))
+    #expect(store.contains("com.apple.security.device.bluetooth"))
   }
 
   /// ATS stays open and Bluetooth carries exactly its one purpose

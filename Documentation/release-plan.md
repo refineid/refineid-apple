@@ -82,9 +82,6 @@ Remote-card user story:
 - SCS loopback signing service, certificate trust setup, and settings.
 - Any listening socket: the Mac never accepts a connection, so no build
   carries the network-server entitlement.
-- RAPP over Bluetooth on the Mac: Release and TestFlight builds sign without
-  `com.apple.security.device.bluetooth`, so the Mac pairs and dials over the
-  stream only (decisions 2026-10-22, 2026-11-08).
 
 - The `refineid` command line tool or any command line installer.
 - Rust libraries, Rust runtime code, helper executables, daemons, or privileged

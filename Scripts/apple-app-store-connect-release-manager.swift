@@ -547,11 +547,13 @@ private func inspectReleaseArchive(_ archive: URL) {
       "com.apple.security.get-task-allow",
     ]
     // The client side carries timestamps, revocation fetches and, with
-    // the remote card, the dial to the paired phone. A Mac never
-    // listens, so no macOS bundle carries the server side.
+    // the remote card, the dial to the paired phone; Bluetooth carries
+    // the pairing and the session where no network is shared. A Mac
+    // never listens, so no macOS bundle carries the server side.
     let appEntitlements: Set<String> = [
       "com.apple.security.app-sandbox",
       "com.apple.security.application-groups",
+      "com.apple.security.device.bluetooth",
       "com.apple.security.files.user-selected.read-write",
       "com.apple.security.network.client",
       "com.apple.security.smartcard",
