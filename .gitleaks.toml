@@ -1,9 +1,11 @@
 # Copyright 2026 Petri Koistinen. SPDX-License-Identifier: Apache-2.0
 #
-# gitleaks configuration: the default rules, minus two things that hold
-# no secret: the published RAPP conformance vectors, whose fields are
-# example values of the protocol, and the Swift type annotations of keys
-# the tests generate at run time.
+# gitleaks configuration: the default rules, minus things that hold no
+# secret: the published RAPP conformance vectors, whose fields are example
+# values of the protocol; the Swift type annotations of keys the tests
+# generate at run time; the CPace domain-separation names the protocol
+# documents quote; and the field names of the Noise test vectors. The
+# history holds all of them, so each is matched by its line, not its file.
 
 title = "refineid-apple"
 
@@ -18,5 +20,19 @@ paths = ['''^Documentation/rapp-conformance/.*\.json$''']
 description = "type annotations of keys the tests generate"
 condition = "AND"
 regexTarget = "line"
-paths = ['''^Tests/.*\.swift$''']
-regexes = ['''key: P(256|384)\.Signing\.PrivateKey''']
+paths = ['''^(CardCore/)?Tests/.*\.swift$''']
+regexes = ['''(?i)key: P(256|384)\.Signing\.PrivateKey''']
+
+[[allowlists]]
+description = "CPace domain-separation names quoted by the protocol documents"
+condition = "AND"
+regexTarget = "line"
+paths = ['''^Documentation/protocol/.*\.md$''']
+regexes = ['''CPaceRistretto255(_ISK)?''']
+
+[[allowlists]]
+description = "field names of the Noise test vectors"
+condition = "AND"
+regexTarget = "line"
+paths = ['''^CardCore/Tests/RappEngineTests/NoiseVector\.swift$''']
+regexes = ['''case \w+KeyHex = "[a-z0-9_]+_hex"''']
