@@ -90,25 +90,17 @@ internal struct RappShippingConfigurationTests {
         separatedBy:
           "\"INFOPLIST_FILE[sdk=macosx*]\" = \"Config/RefineID-Store-Info.plist\";"
       ).count - 1 == 4)
-    // Release and TestFlight sign macOS with the store entitlements; Debug
-    // and Profile add only Bluetooth to them (decisions 2026-10-09).
+    // Every configuration signs macOS with the store entitlements, which
+    // grant Bluetooth for the remote card (decisions 2026-11-08).
     #expect(
       project.components(
         separatedBy:
           "\"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]\" = \"Config/RefineID-Store.entitlements\";"
-      ).count - 1 == 2)
-    #expect(
-      project.components(
-        separatedBy:
-          "\"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]\" = \"Config/RefineID-Debug.entitlements\";"
-      ).count - 1 == 2)
+      ).count - 1 == 4)
+    #expect(!project.contains("RefineID-Debug.entitlements"))
     let store = try Self.plist("Config/RefineID-Store.entitlements")
-    var development = try Self.plist("Config/RefineID-Debug.entitlements")
-    #expect(development.removeValue(forKey: "com.apple.security.device.bluetooth") as? Bool == true)
-    #expect(Set(development.keys) == Set(store.keys))
-    for (key, value) in store {
-      #expect(String(describing: value) == String(describing: development[key] ?? ""), "\(key)")
-    }
+    #expect(store["com.apple.security.device.bluetooth"] as? Bool == true)
+    #expect(store["com.apple.security.network.server"] == nil)
     let features = try String(
       contentsOf: Self.root.appending(path: "Config/Features.xcconfig"), encoding: .utf8)
     #expect(features.contains("REFINEID_FEATURES = FEATURE_CONTACTLESS\n"))
@@ -129,12 +121,6 @@ internal struct RappShippingConfigurationTests {
     #expect(
       try JSONSerialization.data(withJSONObject: full, options: .sortedKeys)
         == JSONSerialization.data(withJSONObject: store, options: .sortedKeys))
-    var entitlements = try Self.plist("Config/RefineID.entitlements")
-    entitlements.removeValue(forKey: "com.apple.security.network.server")
-    let storeEntitlements = try Self.plist("Config/RefineID-Store.entitlements")
-    #expect(
-      try JSONSerialization.data(withJSONObject: entitlements, options: .sortedKeys)
-        == JSONSerialization.data(withJSONObject: storeEntitlements, options: .sortedKeys))
   }
 
   @Test("RAPP network declarations are present in shipping containers")
@@ -160,7 +146,6 @@ internal struct RappShippingConfigurationTests {
     // extension are network clients and never servers.
     for path in [
       "Config/RefineID-Store.entitlements",
-      "Config/RefineID-Debug.entitlements",
       "Config/RappTokenExtension.entitlements",
     ] {
       let entitlements = try Self.plist(path)

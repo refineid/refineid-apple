@@ -292,8 +292,11 @@ not evidence that the resulting public presentation is correct.
 
 Before submission, confirm:
 
-- The attached build is the exact TestFlight-tested candidate.
-- All required metadata is complete and reviewed.
+- The attached build is the exact TestFlight-tested candidate, smoke-checked
+  on hardware for every path changed since the last verification.
+- All required metadata is complete and reviewed: the localized screenshots,
+  `Metadata/appstore.json`, the reviewer instructions and the human-approved
+  What's New.
 - Review notes explain the CryptoTokenKit extension and hardware requirements.
 - Screenshots contain only synthetic or approved redacted data.
 - The release owner has explicitly approved App Review submission.

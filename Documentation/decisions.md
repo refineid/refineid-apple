@@ -5,6 +5,20 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-11-08 The Mac App Store build reaches the phone over Bluetooth
+
+Maintainer's decision: "I want Mac to use bluetooth also, naturally."
+Every macOS configuration now signs the app with
+`Config/RefineID-Store.entitlements`, which grants
+`com.apple.security.device.bluetooth`, so a TestFlight or App Store Mac
+pairs with and dials a phone that shares no network with it. The
+separate development entitlements file and the unused
+`Config/RefineID.entitlements`, which still named the server
+entitlement a Mac never uses, are gone. `inspect-archive` allows
+Bluetooth on the macOS app; the token extensions stay without it. This
+supersedes the 2026-10-22 entry's last bullet and the 2026-10-09 entry
+for macOS signing.
+
 ## 2026-11-08 A phone pairs over Bluetooth too
 
 Maintainer's decision, after an iPhone reachable only over Bluetooth could
