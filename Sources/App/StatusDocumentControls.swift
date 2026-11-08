@@ -10,9 +10,16 @@
   /// signature is in flight. Without one the window is for verifying
   /// only: the drop area invites verification, nothing about signing is
   /// shown, and once a document is listed the identity row that asks
-  /// for a reader steps aside. Verify sits below everything, enabled
-  /// while documents are listed and no signature runs.
+  /// for a reader steps aside. The button bar below every panel holds
+  /// Verify, enabled while documents are listed and no signature runs,
+  /// and Sign while signing is offered.
   internal struct StatusDocumentControls: Equatable {
+    /// One button of the window's button bar.
+    internal enum Action: Equatable, Hashable {
+      case sign
+      case verify
+    }
+
     /// Whether the identity row is shown.
     internal let showsIdentity: Bool
 
@@ -22,6 +29,12 @@
 
     /// Whether the Verify button can run.
     internal let verifyEnabled: Bool
+
+    /// The button bar, left to right: Verify, then the default Sign
+    /// while signing is offered.
+    internal var actions: [Action] {
+      offersSigning ? [.verify, .sign] : [.verify]
+    }
 
     internal init(
       availability: LoginIdentityModel.Availability,

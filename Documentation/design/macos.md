@@ -14,14 +14,21 @@ in the title bar, holds one control: the remote-use switch at the right
 end, where it takes no room from the content. From the top, the window
 shows:
 
-1. The identity line, except while documents are waiting and no card
-   or phone can sign: the holder is there to verify, so the window does
+1. The status row, where the app talks to the holder. It shows the
+   identity line, except while documents are waiting and no card or
+   phone can sign: the holder is there to verify, so the window does
    not ask for a reader. It returns with the holder's name as soon as a
-   card or phone can sign.
-2. The document drop area.
-3. The signing controls, only while a card or phone can sign or a
-   signature is in flight, and the outcome of the last action.
-4. "Verify…", in its own row below everything.
+   card or phone can sign. While a document is signed the row says the
+   step, with a progress indicator ("Signing document…",
+   "Timestamping…", and so on); afterwards it says what became of it:
+   "Signed and saved." with "Show in Finder", a notice, or the failure in
+   plain words. "OK" acknowledges the outcome, and a change to the
+   documents puts it away; the row then shows the identity again.
+2. The document drop area, with the list of waiting documents.
+3. The signing configuration, only while a card or phone can sign or a
+   signature is in flight: the format and PIN 2.
+4. The button bar, centred below every panel: "Verify…", and the
+   default "Sign…" while a card or phone can sign.
 
 A card waiting to be taken into use replaces these with the activation
 form, and the window has no toolbar button while it does: activation is
@@ -378,7 +385,7 @@ none can; then the format row, PIN 2 and "Sign…" are not shown either.
 
 ## Document verification
 
-"Verify…" sits in its own row at the bottom of the window, with or
+"Verify…" sits in the button bar at the bottom of the window, with or
 without a card. It is enabled while documents are waiting and no
 signature is in flight, and it verifies every waiting document. The
 result opens as a resizable sheet, at a size that shows one whole

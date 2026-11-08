@@ -4,8 +4,10 @@
 
   import CardCore
   import SwiftUI
-  /// The format, PIN 2 entry, optional stamp and Sign button for ready
-  /// documents.
+  /// The signing configuration for ready documents.
+  ///
+  /// The format, PIN 2 entry and the optional stamp; its action is in
+  /// the button bar.
   internal struct StatusSignatureSection: View {
     internal let signing: SignDocumentModel
     @Binding internal var format: SignatureFormat
@@ -15,7 +17,6 @@
     /// Where the card operations go; nowhere while several cards wait
     /// for the holder's choice.
     internal let target: ReaderTarget
-    internal let canSign: Bool
     internal let onSign: () -> Void
     @FocusState private var pinFocused: Bool
 
@@ -51,7 +52,6 @@
                 .disabled(!acceptsEntry)
             }
           #endif
-          actionRow
         }
         .onAppear { if asksLocalPin2, acceptsEntry { pinFocused = true } }
         .onChange(of: target) { used, _ in
@@ -64,24 +64,6 @@
           if asksLocalPin2, acceptsEntry { pinFocused = true }
         }
       }
-    }
-
-    @ViewBuilder private var actionRow: some View {
-      HStack {
-        if let note = StatusView.progressNote(signing) {
-          ProgressView().controlSize(.small)
-          Text(note)
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-        }
-        Spacer()
-        Button("Sign…") { onSign() }
-          .buttonStyle(.borderedProminent)
-          .keyboardShortcut(.defaultAction)
-          .disabled(!canSign)
-          .accessibilityIdentifier("signDocument")
-      }
-      .announcesOutcome(StatusView.progressNote(signing))
     }
   }
 

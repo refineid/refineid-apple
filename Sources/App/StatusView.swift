@@ -68,6 +68,10 @@
     internal var body: some View {
       VStack(alignment: .leading, spacing: Self.spacing) {
         statusForm
+        if showsReadySection {
+          StatusActionBar(
+            signing: signing, controls: documentControls, canSign: canSign, onSign: { sign() })
+        }
         if demoMode.isActive {
           CardSetupFooter(isDemonstration: true)
         }
@@ -121,9 +125,7 @@
         react(to: .noCard)
       }
       .onDisappear { activation.stop() }
-      .acknowledgesFailure(of: signing)
       .asksAboutUnsaved(for: signing)
-      .announcesOutcome(signing.notice)
       .announcesOutcome(activation.management.failure)
       .announcesOutcome(activation.management.notice)
     }
@@ -154,12 +156,15 @@
       }
     }
 
+    /// Whether the window shows the ready section and its button bar.
+    private var showsReadySection: Bool {
+      !(offeringNumber || awaitingAccessNumber) && !asksForCardSlot
+        && !activation.awaitsActivation && !activation.isReading && !shouldShowPairingPrompt
+    }
+
     @ViewBuilder private var readySection: some View {
-      let controls = StatusDocumentControls(
-        availability: availability, queued: signing.queued, signing: signing.working)
-      if controls.showsIdentity {
-        identityRow
-      }
+      let controls = documentControls
+      statusRow(showsIdentity: controls.showsIdentity)
       // Shown with no card too: verifying needs no card, only the EU
       // trusted lists.
       StatusDocumentSection(
@@ -177,12 +182,9 @@
           accessNumber: $accessNumber,
           asksLocalPin2: asksLocalPin2,
           target: selection.target,
-          canSign: canSign,
           onSign: { sign() }
         )
       }
-      outcomeSection
-      StatusVerifySection(signing: signing, enabled: controls.verifyEnabled)
     }
 
     private func handleAppear() {

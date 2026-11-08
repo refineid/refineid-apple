@@ -62,6 +62,22 @@
       #expect(controls.offersSigning)
       #expect(!controls.verifyEnabled)
     }
+
+    /// The button bar holds Verify and the default Sign with a card or
+    /// phone, and Verify alone without one.
+    @Test
+    internal func theButtonBarOffersSignOnlyWhenSomethingCanSign() {
+      let withCard = StatusDocumentControls(
+        availability: .ready, queued: Self.documents, signing: false)
+      let withoutCard = StatusDocumentControls(
+        availability: .noCard, queued: Self.documents, signing: false)
+      let emptyWithoutCard = StatusDocumentControls(
+        availability: .noCard, queued: [], signing: false)
+
+      #expect(withCard.actions == [.verify, .sign])
+      #expect(withoutCard.actions == [.verify])
+      #expect(emptyWithoutCard.actions == [.verify])
+    }
   }
 
 #endif

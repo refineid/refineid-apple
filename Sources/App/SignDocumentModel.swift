@@ -299,6 +299,18 @@
       releaseAcknowledgement()
     }
 
+    /// Acknowledges what the status row says about the last action: a
+    /// failure releases the signature waiting on it; a notice or the
+    /// saved file is put away.
+    internal func acknowledgeOutcome() {
+      if failure != nil {
+        acknowledgeFailure()
+        return
+      }
+      notice = nil
+      signed = nil
+    }
+
     /// Records a completed write and releases the card identity state.
     internal func complete(with destination: URL) {
       signed = destination

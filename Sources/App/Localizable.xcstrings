@@ -7078,6 +7078,38 @@
           }
         }
       }
+    },
+    "Signed and saved.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allekirjoitettu ja tallennettu."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signerat och sparat."
+          }
+        }
+      }
+    },
+    "Show in Finder": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Näytä Finderissa"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa i Finder"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
