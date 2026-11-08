@@ -1599,7 +1599,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verifiera ett annat dokument"
+            "value" : "Granska ett annat dokument"
           }
         }
       }
@@ -1915,7 +1915,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verifierar"
+            "value" : "Granskar"
           }
         }
       }
@@ -2097,7 +2097,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verifiera"
+            "value" : "Granska"
           }
         }
       }
