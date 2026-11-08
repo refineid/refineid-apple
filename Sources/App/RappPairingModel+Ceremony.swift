@@ -44,7 +44,7 @@ extension RappPairingModel {
   }
 
   /// What the holder is told when the keychain did not store a pairing,
-  /// with the cause the system gives (RAPP v26.11.2 §4.3 item 4).
+  /// with the cause the system gives (RAPP v26.11.8 §4.3 item 4).
   nonisolated internal static func notStoredMessage(status: OSStatus?) -> String {
     guard let status, let cause = SecCopyErrorMessageString(status, nil) as String? else {
       return String(localized: "The pairing could not be stored.")
@@ -141,7 +141,7 @@ extension RappPairingModel {
 
   /// Selects the new pair.
   ///
-  /// The pair carries the name its peer gave (RAPP v26.11.2 §4.3 item 3).
+  /// The pair carries the name its peer gave (RAPP v26.11.8 §4.3 item 3).
   /// A phone that offered lists the new computer and shows the next code.
   private func handlePaired(_ pair: RappPairingCoordinator.PairSummary) {
     do {
@@ -163,7 +163,8 @@ extension RappPairingModel {
           keeping: pair.pairID, in: vault)
       }
       #if os(macOS)
-        PersistentTokenRegistry.shared.startAfterPairing()
+        PersistentTokenRegistry.shared.followJustPaired(
+          phone: pair.peerDisplayName, peripheral: lastDialed?.peripheral)
       #endif
     } catch  where StorageFailure.isOutOfSpace(error) {
       fail(.reported(DiskFullMessage.text))
@@ -172,23 +173,16 @@ extension RappPairingModel {
     }
   }
 
-  /// Keeps showing the same code after a failed attempt, listening afresh.
+  /// Keeps showing the same code after a failed attempt, for the next
+  /// connection on either transport; a stream attempt that closed its
+  /// listener is followed by a fresh one.
   private func restoreCustodianOffer(coordinator: RappPairingCoordinator) {
-    relay?.cancel()
+    guard relay?.isCancelled != false else { return }
+    // The closed listener reports no more; its connection's claim ends here.
+    claim?.release(.stream)
     let replacement = makeRelay()
     replacement.busyAnswer = { coordinator.busyAnswer() }
-    let replacementTransport = makeTransport(relay: replacement)
     relay = replacement
-    Task { @MainActor [weak self] in
-      guard await coordinator.replaceTransport(replacementTransport),
-        let self,
-        self.coordinator === coordinator,
-        !isFinished
-      else {
-        self?.fail(.reported(String(localized: "Pairing could not be started.")))
-        return
-      }
-      replacement.start()
-    }
+    replacement.start()
   }
 }

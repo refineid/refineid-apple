@@ -37,6 +37,7 @@
         remoteUse: true,
         phonePaired: true,
         phoneThatForgot: nil,
+        phoneJustPaired: nil,
         phoneCardStatus: nil
       )
     }

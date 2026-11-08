@@ -50,7 +50,7 @@
   }
 
   /// The revocation backlog finds a phone that appears only over Bluetooth
-  /// (RAPP v26.11.2 §4.6 item 6): one connection per appearance, the echo
+  /// (RAPP v26.11.8 §4.6 item 6): one connection per appearance, the echo
   /// destroys the pairing, and the scan stops with the backlog.
   extension RemoteUseSwitchTests {
     /// A forgotten pairing in `vault`, followed by the backlog, whose
@@ -104,10 +104,40 @@
 
       #expect(
         deliveries.routes(for: pairing.metadata().pairId)
-          == [.bluetooth(RappBleCentralPeers(preferred: phone))])
+          == [.bluetooth(.only(phone))])
       #expect(try vault.loadPair(pairID: pairing.metadata().pairId) == nil, "the echo destroys it")
       #expect(registry.revocationBacklog == nil)
       #expect(registry.revocationBluetoothWatch == nil, "an empty backlog scans no more")
+    }
+
+    @Test("No close is opened to the peripheral that carries the held session")
+    internal func noDeliveryBesideTheHeldSession() async throws {
+      let registry = PersistentTokenRegistry.shared
+      let vault = RappDeviceVault()
+      let deliveries = BacklogDeliveries(holding: false)
+      let pairing = try Self.forgottenInBacklog(
+        in: vault, registry: registry, deliveries: deliveries)
+      let savedSlot = registry.sessionSlot
+      let savedPeers = registry.bluetoothPeers
+      defer {
+        registry.sessionSlot = savedSlot
+        registry.bluetoothPeers = savedPeers
+        Self.restoreDelivery(registry)
+        Self.destroy([pairing], in: vault, registry: registry)
+      }
+      let sessionPhone = UUID()
+      registry.bluetoothPeers.routed(sessionPhone)
+      _ = registry.sessionSlot.dial(over: .bluetooth, at: .now)
+      registry.sessionSlot.established()
+
+      registry.bluetoothPeripheralAppeared(sessionPhone, in: vault)
+      #expect(deliveries.routes(for: pairing.metadata().pairId).isEmpty)
+
+      // Another phone in sight is tried, and only that one.
+      let otherPhone = UUID()
+      registry.bluetoothPeripheralAppeared(otherPhone, in: vault)
+      await Self.settle { !deliveries.routes(for: pairing.metadata().pairId).isEmpty }
+      #expect(deliveries.routes(for: pairing.metadata().pairId) == [.bluetooth(.only(otherPhone))])
     }
 
     @Test("A peripheral in sight while its close is under way opens no second connection")

@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// One operation of a session from admission to its result (RAPP v26.11.2
+/// One operation of a session from admission to its result (RAPP v26.11.8
 /// §8).
 ///
 /// It lives in memory only and ends with the session.

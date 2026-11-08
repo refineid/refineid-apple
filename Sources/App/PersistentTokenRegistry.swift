@@ -11,7 +11,7 @@
 
   /// Publishes the paired phone's authentication certificate as a per-user
   /// persistent CryptoTokenKit identity once the phone confirms that card
-  /// (RAPP v26.11.2 §8.4).
+  /// (RAPP v26.11.8 §8.4).
   ///
   /// Private-key operations stay delegated to the phone. The identity is
   /// offered on a certificate whose fingerprint the phone confirmed on a
@@ -21,7 +21,7 @@
   /// phone announces it stopped serving, and when remote use is turned off;
   /// otherwise once no session has reported the card present for
   /// ``RemoteIdentityOffer/grace``. A pairing idle for 30 days expires
-  /// silently (RAPP v26.11.2 §4.6 item 5).
+  /// silently (RAPP v26.11.8 §4.6 item 5).
   @MainActor
   @Observable
   internal final class PersistentTokenRegistry {
@@ -46,7 +46,7 @@
     /// Whether this device reaches the phone over Bluetooth when Bonjour
     /// does not show it: a Mac, whose app holds the one link its token
     /// extension hands operations to.
-    internal static var dialsOverBluetooth: Bool {
+    nonisolated internal static var dialsOverBluetooth: Bool {
       #if os(macOS)
         true
       #else
@@ -106,7 +106,7 @@
 
     /// Whether a session over Bluetooth is up with the phone.
     ///
-    /// Bluetooth advertisements name no pairing (RAPP v26.11.2 §4.1), so
+    /// Bluetooth advertisements name no pairing (RAPP v26.11.8 §4.1), so
     /// over Bluetooth only an established session says the phone is there.
     internal var holderOverBluetooth = false
 
@@ -121,7 +121,7 @@
     internal var holderCardStatus: RappCardStatus?
 
     /// How to ask for the phone's card, while the open session's last
-    /// `card.status` says the phone holds none (RAPP v26.11.2 §8.4 item
+    /// `card.status` says the phone holds none (RAPP v26.11.8 §8.4 item
     /// 6).
     internal var holderCardRequest: PhoneCardRequest? {
       PhoneCardRequest(holderCardStatus)
@@ -130,9 +130,22 @@
     /// The paired phone's pairing; nil while no usable pairing exists.
     internal private(set) var pairedPhoneID: Data?
 
-    /// The phone that told this computer it forgot it (RAPP v26.11.2 §4.6
+    /// The phone that told this computer it forgot it (RAPP v26.11.8 §4.6
     /// item 4), by name, until a phone is paired again.
     internal var phoneThatForgot: String?
+
+    /// The phone this computer's user has just paired, by the name it gave
+    /// in `pairing.hello`, while the computer connects to it: until its
+    /// identity is shown, it reports no card, or the redial window passes
+    /// (RAPP v26.11.8 §4.7).
+    internal var phoneJustPaired: String?
+
+    /// The Bluetooth advertiser the pairing of ``phoneJustPaired`` ran
+    /// over: it has just reached the phone, so it is dialed first.
+    internal var peripheralJustPaired: UUID?
+
+    /// Ends ``phoneJustPaired`` once the redial window passes.
+    internal var justPairedLapse: Task<Void, Never>?
 
     /// Whether the platform denied this app the local network on a dial
     /// to a phone, until a session is up, remote use stops, or the app is
@@ -154,7 +167,7 @@
     internal var holderSessionToken: UUID?
 
     /// The pairing whose hint the phone on the network carries; a session
-    /// dials it and no other (RAPP v26.11.2 §4.6 item 2).
+    /// dials it and no other (RAPP v26.11.8 §4.6 item 2).
     internal var pairInSight: Data?
 
     /// Dials the phone again once the wait after a session that ended is
@@ -192,7 +205,7 @@
     internal var settleDialTask: Task<Void, Never>?
 
     #if os(macOS) && REFINEID_REMOTE_CARD
-      /// The latest click off forgetting every pairing (RAPP v26.11.2 §4.6
+      /// The latest click off forgetting every pairing (RAPP v26.11.8 §4.6
       /// item 6), or one left unfinished tried again; nil once it finished
       /// and the app followed.
       internal var forgetting: Task<Void, Never>?
@@ -209,7 +222,7 @@
     internal let idleSweep = PairingIdleSweep()
 
     /// Browses for the phones of the pairings in the revocation backlog
-    /// while any waits (RAPP v26.11.2 §4.6 item 6); nil while none does.
+    /// while any waits (RAPP v26.11.8 §4.6 item 6); nil while none does.
     internal var revocationBacklog: RappRevocationBacklogBrowser?
 
     /// Scans for RAPP peripherals over Bluetooth while a forgotten pairing
@@ -218,6 +231,9 @@
 
     /// The forgotten pairings whose close a session is delivering now.
     internal var revocationDeliveries: Set<Data> = []
+    /// Whether forgotten pairings' closes are being delivered over
+    /// Bluetooth now; the held session dials Bluetooth once they are done.
+    internal var revokingOverBluetooth = false
 
     /// Opens the one session that delivers a forgotten pairing's close
     /// along a route; a test puts a session of its own in its place.
@@ -270,6 +286,8 @@
       pairedPhoneID = Self.dialsPhones ? Self.pairedPhoneID(in: vault) : nil
       if pairedPhoneID != nil {
         phoneThatForgot = nil
+      } else {
+        connectedAfterPairing()
       }
     }
 
@@ -278,7 +296,7 @@
     /// device's reader.
     ///
     /// While a click off is forgetting the pairings, following waits until
-    /// they are gone (RAPP v26.11.2 §4.6 item 6).
+    /// they are gone (RAPP v26.11.8 §4.6 item 6).
     internal func start() {
       followRevocationBacklog()
       #if os(macOS) && REFINEID_REMOTE_CARD
@@ -325,6 +343,9 @@
       continuousFailureSince = nil
       bluetoothUsable = Self.dialsOverBluetooth
       bluetoothPeers = RequesterBluetoothPeers()
+      if let peripheral = peripheralJustPaired {
+        bluetoothPeers.routed(peripheral)
+      }
       closeHolderSession()
       restartWatchingPresence()
     }
@@ -344,7 +365,7 @@
         return
       }
       // Only the card the phone names on this session is offered (RAPP
-      // v26.11.2 §8.4 item 2); a certificate read across a card change
+      // v26.11.8 §8.4 item 2); a certificate read across a card change
       // waits for the phone's next word.
       guard case .present(let named)? = holderCardStatus?.card,
         RappCertificateFingerprint(certificate: fetched) == named

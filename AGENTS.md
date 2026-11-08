@@ -186,7 +186,13 @@ before proposing to move this repository onto the Rust crates. The
 obligations it brings: a wire change is finished only when both engines
 pass the regenerated vectors (`Documentation/rapp-conformance/` is a
 byte-identical copy of core's `doc/protocols/vectors/`), and the wire
-version triple moves with every change of wire vocabulary.
+version triple moves with every change of wire vocabulary. The RAPP
+document version and the wire version are one stamp (`[Year, Month,
+Day]`): a change of either moves both, the documents in
+`Documentation/protocol/` and the corpora are core's, byte for byte,
+under the new stamp's names, and every citation follows, in both
+repositories at once. The spec is a working document: update it as the
+details are worked out.
 
 ## Types and numbers
 

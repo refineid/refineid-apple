@@ -4,7 +4,7 @@ import Foundation
 
 @testable import RappEngine
 
-/// The display names test endpoints give themselves (RAPP v26.11.2 §4.3
+/// The display names test endpoints give themselves (RAPP v26.11.8 §4.3
 /// item 3), in the forms the specification's examples use.
 internal enum DisplayNameFixture {
   /// A computer: its operating system and host name.

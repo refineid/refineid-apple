@@ -3,7 +3,7 @@
 import Foundation
 
 /// Admits at most one pre-authentication pairing attempt per 500 ms
-/// (RAPP v26.11.2 §3.3 item 6).
+/// (RAPP v26.11.8 §3.3 item 6).
 ///
 /// The custodian reads the routing preamble of every accepted connection,
 /// then asks. When it refuses, a session connection is closed unanswered,

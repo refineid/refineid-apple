@@ -6,7 +6,7 @@
 
 /// How the peer named itself during the ceremony.
 public struct RappPeerHello: Equatable, Sendable {
-  /// The name the peer gives itself (RAPP v26.11.2 §4.3 item 3).
+  /// The name the peer gives itself (RAPP v26.11.8 §4.3 item 3).
   public var displayName: RappDisplayName
   /// The platform the peer runs on.
   public var platform: String

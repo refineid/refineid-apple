@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// One `operation.result` (RAPP v26.11.2 §7.1).
+/// One `operation.result` (RAPP v26.11.8 §7.1).
 ///
 /// The response stays the map the wire carries: only the requester, which
 /// knows the operation it asked for, reads it as a typed answer.

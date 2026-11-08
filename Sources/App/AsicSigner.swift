@@ -145,7 +145,7 @@ internal enum AsicSigner {
   ) async throws -> Product {
     let signedAt = Date()
     // The package's own name is the one it is proposed under; its files
-    // are listed in container order (RAPP v26.11.2 §9.3).
+    // are listed in container order (RAPP v26.11.8 §9.3).
     let packageName = SignedDocumentName.suggested(
       sourceNames: objects.map(\.name),
       format: .asice,

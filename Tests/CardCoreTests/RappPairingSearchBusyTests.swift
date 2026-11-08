@@ -10,7 +10,7 @@ import Testing
 
   /// A phone that cannot admit an attempt answers busy, and the requester
   /// asks it again after its wait, quietly, within the connection limit
-  /// (RAPP v26.11.2 §4.2, "Busy Refusal"; STPA CC-108).
+  /// (RAPP v26.11.8 §4.2, "Busy Refusal"; STPA CC-108).
   @Suite("A requester asks a busy phone again", .timeLimit(.minutes(1)))
   internal struct RappPairingSearchBusyTests {
     // MARK: Nested Types
@@ -58,7 +58,7 @@ import Testing
     /// The least wait a busy answer carries.
     private static let leastBusyWait: UInt64 = 1
     /// Pairing connections one typed code may open (`pairing_candidates_max`,
-    /// RAPP v26.11.2 §4.2, "Trying Each Custodian in Pairing Mode" item 5).
+    /// RAPP v26.11.8 §4.2, "Trying Each Custodian in Pairing Mode" item 5).
     private static let connectionLimit = 8
 
     // MARK: Static Functions
@@ -81,7 +81,7 @@ import Testing
       let options = RappPairingCoordinator.Options(
         code: code,
         profiles: RappIntegrationFixtures.profiles,
-        transportProfile: RappIntegrationFixtures.transportProfile,
+        transportProfiles: [RappIntegrationFixtures.transportProfile],
         displayName: TestDisplayNames.requester,
         platform: "macOS",
         vault: RappDeviceVault(accessGroup: nil, servicePrefix: prefix(testID, "requester")))

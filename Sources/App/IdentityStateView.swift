@@ -97,6 +97,13 @@
         .task(id: trackKey) {
           await track()
         }
+        .onValueChange(of: IdentityLine.derive(facts)) { line in
+          // The phone just paired is shown by its identity now: the
+          // connecting line has done its work (RAPP v26.11.8 §4.7).
+          if case .paired = line, !DemoMode.shared.isActive {
+            PersistentTokenRegistry.shared.connectedAfterPairing()
+          }
+        }
     }
 
     /// Whether the holder has remote use on.
@@ -140,6 +147,7 @@
           remoteUse: remoteUse,
           phonePaired: false,
           phoneThatForgot: nil,
+          phoneJustPaired: nil,
           localNetworkDenied: false,
           phoneCardStatus: nil
         )
@@ -153,6 +161,7 @@
         remoteUse: remoteUse,
         phonePaired: registry.pairedPhoneID != nil,
         phoneThatForgot: registry.phoneThatForgot,
+        phoneJustPaired: registry.phoneJustPaired,
         localNetworkDenied: localNetworkDenied,
         phoneCardStatus: registry.holderCardStatus
       )
@@ -185,6 +194,15 @@
         } else {
           readingLine
         }
+
+      case .connectingToPairedPhone(let phone):
+        HStack {
+          ProgressView()
+            .controlSize(.small)
+          Text("Connecting to \(phone)…")
+            .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
 
       case .cardNotReady:
         Text("Remove the card from the reader for a moment.")

@@ -6,11 +6,11 @@
   import RappEngine
 
   /// Dialling the phone again after a loss of the session, within the
-  /// redial window (RAPP v26.11.2 §8.3).
+  /// redial window (RAPP v26.11.8 §8.3).
   extension PersistentTokenRegistry {
     /// How long the phone is redialled over the stream after a loss of the session, or after the
     /// first failed dial since it last appeared, before dialling waits for its next appearance
-    /// (RAPP v26.11.2 §8.3, `redial_window_ms`).
+    /// (RAPP v26.11.8 §8.3, `redial_window_ms`).
     ///
     /// Bluetooth dials on, each waiting for the phone's advertisement (CC-50). The offered identity
     /// follows ``RemoteIdentityOffer`` alone.
@@ -18,7 +18,7 @@
 
     /// Dials again once the slot's back-off is over; over the stream only
     /// within the redial window, ``redialWindow`` from the loss or the
-    /// first failed dial since the phone last appeared (RAPP v26.11.2
+    /// first failed dial since the phone last appeared (RAPP v26.11.8
     /// §8.3).
     internal func scheduleRedial() {
       redialTask?.cancel()

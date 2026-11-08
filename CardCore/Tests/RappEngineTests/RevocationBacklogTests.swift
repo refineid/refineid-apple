@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-/// A requester's revocation backlog between the bridges (RAPP v26.11.2 §4.6
+/// A requester's revocation backlog between the bridges (RAPP v26.11.8 §4.6
 /// item 6): a forgotten pairing waits for its custodian's echo, or for its
 /// idle expiry, and serves nothing meanwhile.
 @Suite("RAPP revocation backlog between the bridges")

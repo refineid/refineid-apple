@@ -61,7 +61,7 @@ private let fixturePairingCode = "246813"
       RappPairingCoordinator.Options(
         code: fixturePairingCode,
         profiles: profiles,
-        transportProfile: streamProfile,
+        transportProfiles: [streamProfile],
         displayName: TestDisplayNames.name(name),
         platform: name == "Requester" ? "iPadOS" : "iOS",
         vault: vault)
@@ -80,8 +80,8 @@ private let fixturePairingCode = "246813"
     private static func makeProxy(
       vault: RappDeviceVault,
       listener: StreamRelayListener
-    ) throws -> RappPairingCoordinator {
-      try RappPairingCoordinator.custodian(
+    ) async throws -> RappPairingCoordinator {
+      try await RappPairingCoordinator.attachedCustodian(
         options: options("Proxy", vault: vault),
         transport: RappClosureFrameTransport(
           sender: { frame in try listener.send(frame) },
@@ -170,7 +170,7 @@ private let fixturePairingCode = "246813"
 
       let requester = try Self.makeRequester(vault: vaults.requester)
       defer { Task { await requester.close() } }
-      let proxy = try Self.makeProxy(vault: vaults.proxy, listener: listener)
+      let proxy = try await Self.makeProxy(vault: vaults.proxy, listener: listener)
 
       let made = try await Self.pairBothSides(
         requester: requester,

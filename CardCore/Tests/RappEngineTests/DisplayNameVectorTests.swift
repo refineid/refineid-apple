@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.11.2 display names on pairing and on every session (sections 4.3 and 7.1)")
+@Suite("RAPP v26.11.8 display names on pairing and on every session (sections 4.3 and 7.1)")
 internal struct DisplayNameVectorTests {
   private static let sessionReady = "session.ready"
 

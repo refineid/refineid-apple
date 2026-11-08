@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The display-name vectors of the conformance corpus (RAPP v26.11.2 §4.3
+/// The display-name vectors of the conformance corpus (RAPP v26.11.8 §4.3
 /// items 3 and 4, §7.1): `pairing.hello`, `session.ready` and
 /// `session.hello` envelopes with names that are accepted or refused.
 internal struct DisplayNameCorpus: Decodable {

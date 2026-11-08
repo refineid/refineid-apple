@@ -25,7 +25,7 @@ Ship a small, trustworthy macOS App Store product named **RefineID**.
 The macOS release carries the local card and the remote card (owner
 decisions 2026-09-30 and 2026-10-10). It includes the CryptoTokenKit
 smart-card extension, contact and contactless reading, authentication, card
-activation, PIN management, local document signing, and RAPP v26.11.2
+activation, PIN management, local document signing, and RAPP v26.11.8
 pairing with a phone that holds the card: the Mac types the code the phone
 shows, and afterwards signs documents and authenticates through the phone,
 including from Safari through the remote-card CryptoTokenKit extension. The
@@ -82,7 +82,9 @@ Remote-card user story:
 - SCS loopback signing service, certificate trust setup, and settings.
 - Any listening socket: the Mac never accepts a connection, so no build
   carries the network-server entitlement.
-- Bluetooth RAPP pairing (development builds only, decisions 2026-10-09).
+- RAPP over Bluetooth on the Mac: Release and TestFlight builds sign without
+  `com.apple.security.device.bluetooth`, so the Mac pairs and dials over the
+  stream only (decisions 2026-10-22, 2026-11-08).
 
 - The `refineid` command line tool or any command line installer.
 - Rust libraries, Rust runtime code, helper executables, daemons, or privileged
@@ -202,7 +204,7 @@ user entry, not card verification. PIN2 and PUK never enter this memory.
 
 No PIN is ever written to storage on any device: PIN1 is asked for once and
 held only in memory, and PIN2 is asked for every signature or batch (RAPP
-v26.11.2 section 11 item 2). The first confirmed PIN1 rejection clears that
+v26.11.8 section 11 item 2). The first confirmed PIN1 rejection clears that
 card's accepted PIN memory and nothing else; the card the phone holds stays
 added. Transport, PACE, signature, and TLS failures do not revoke identity
 state.

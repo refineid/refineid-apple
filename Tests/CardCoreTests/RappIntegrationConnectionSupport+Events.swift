@@ -140,7 +140,7 @@ import Testing
 
     /// Waits for the session to establish and for the peer's name, which
     /// a requester reads in `session.ready` and a custodian in the
-    /// requester's `session.hello` (RAPP v26.11.2 §4.3 item 4), skipping
+    /// requester's `session.hello` (RAPP v26.11.8 §4.3 item 4), skipping
     /// nothing else; answers the name.
     @discardableResult
     internal static func awaitEstablished(_ coordinator: RappConnectionCoordinator) async throws

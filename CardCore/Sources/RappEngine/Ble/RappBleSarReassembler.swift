@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// The normative SAR receive state machine (RAPP v26.11.2 §5.3), for one
+/// The normative SAR receive state machine (RAPP v26.11.8 §5.3), for one
 /// connection and one direction.
 ///
 /// Fragments must be handed over in arrival order. Any refused fragment

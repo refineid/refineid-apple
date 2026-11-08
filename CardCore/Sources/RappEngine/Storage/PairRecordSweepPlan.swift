@@ -1,7 +1,7 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 /// The times a sweep leaves in one record and what it did, decided before
-/// anything changes so that the store commits first (RAPP v26.11.2 §4.6
+/// anything changes so that the store commits first (RAPP v26.11.8 §4.6
 /// item 5).
 internal struct PairRecordSweepPlan: Equatable, Sendable {
   internal let outcome: PairRecordSweepOutcome

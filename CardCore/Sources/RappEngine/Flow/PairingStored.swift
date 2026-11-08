@@ -3,7 +3,7 @@
 import Foundation
 
 /// One peer's word that its pairing record is durably stored, naming the
-/// pairing it stored (RAPP v26.11.2 §7.1).
+/// pairing it stored (RAPP v26.11.8 §7.1).
 internal struct PairingStored: Equatable {
   internal var pairIdentifier: Data
 

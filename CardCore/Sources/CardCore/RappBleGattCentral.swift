@@ -7,13 +7,14 @@ import Foundation
   import RappEngine
 
   /// The requester end of `fi.refineid.rapp.ble`: the GATT central
-  /// (RAPP v26.11.2 §5.2).
+  /// (RAPP v26.11.8 §5.2).
   ///
   /// It scans for the RAPP service UUID, which also finds a custodian whose
   /// app advertises from the background (iOS moves the UUID to an overflow
   /// area only an explicit scan for it sees), and dials one advertiser:
   /// the one that routed last at once, else the strongest seen within the
-  /// choice window, never one recently refused. No signal strength gates
+  /// choice window, never one recently refused; or, for a pairing search,
+  /// only the one its peers name. No signal strength gates
   /// the dial; a relay cannot be told apart by it (§4.4). It reads the MTU
   /// before its first write and drops a link below 512, enables
   /// indications, reads the bootstrap answer for a pairing, writes the

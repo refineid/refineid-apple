@@ -3,7 +3,7 @@
 import Foundation
 
 /// One frame read while this endpoint waits for the echo of the
-/// `session.close` it sent (RAPP v26.11.2 §7.1 item 7).
+/// `session.close` it sent (RAPP v26.11.8 §7.1 item 7).
 public enum RappCloseEcho: Equatable, Sendable {
   /// A `session.close` arrived: the peer's echo, or a close that crossed
   /// this endpoint's, carrying `reason`. It is never answered; act on a

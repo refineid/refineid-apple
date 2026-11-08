@@ -10,7 +10,7 @@
     import UIKit
   #endif
 
-  /// How this device introduces itself to its RAPP peers (RAPP v26.11.2
+  /// How this device introduces itself to its RAPP peers (RAPP v26.11.8
   /// §4.3 item 3): its display name, sent in `pairing.hello`,
   /// `session.ready` and `session.hello`, and its platform.
   public enum RappLocalName {

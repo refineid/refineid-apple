@@ -12,7 +12,7 @@
       case transportFailure
       case localRequest
 
-      /// Whether the peer revoked the pairing (RAPP v26.11.2 §4.6 item 4).
+      /// Whether the peer revoked the pairing (RAPP v26.11.8 §4.6 item 4).
       public var peerRevokedPairing: Bool {
         self == .handshake(.pairRevoked) || self == .operation(.pairRevoked)
       }
@@ -64,14 +64,14 @@
       case terminal(operationID: RappOperationIdentifier, reason: RappTerminalReason)
       case progress(operationID: RappOperationIdentifier, event: ProgressEvent)
       /// The custodian's word on the card it holds and on its card reader
-      /// (RAPP v26.11.2 §8.4).
+      /// (RAPP v26.11.8 §8.4).
       case cardStatus(RappCardStatus)
       /// The session's operation ended with the session (§8.1 item 3).
       case operationEnded(RappEndedOperation)
       /// This custodian answered or refused `operationID`, so the operation
       /// is over on its side and the session is free for the next one.
       case answered(operationID: RappOperationIdentifier)
-      /// The peer named itself on this session (RAPP v26.11.2 §4.3 item
+      /// The peer named itself on this session (RAPP v26.11.8 §4.3 item
       /// 4): `session.ready` on a requester, `session.hello` on a
       /// custodian. Record the name in the pair record where it differs; a
       /// failed store keeps the old name and the session goes on.

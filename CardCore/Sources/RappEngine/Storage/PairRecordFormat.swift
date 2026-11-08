@@ -8,7 +8,7 @@ import Foundation
 /// A stored record carrying any other value is refused and dropped;
 /// nothing converts it.
 internal struct PairRecordFormat: Equatable, Sendable {
-  /// The year of RAPP v26.11.2, which set the current layout.
+  /// The year of RAPP v26.11.8, which set the current layout.
   private static let layoutYear: UInt64 = 26
   /// Its month.
   private static let layoutMonth: UInt64 = 11

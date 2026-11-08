@@ -16,7 +16,7 @@
     public static let cardNeeded = Notification.Name("fi.refineid.card.needed")
 
     /// The operation waits for the holder to unlock the phone
-    /// (`waiting_for_unlock`, RAPP v26.11.2 §8.2 item 3).
+    /// (`waiting_for_unlock`, RAPP v26.11.8 §8.2 item 3).
     public static let unlockNeeded = Notification.Name("fi.refineid.phone.unlock")
 
     /// The card was found, the phone proceeded, or the operation ended.
@@ -27,7 +27,7 @@
     public static let serviceWithdrawn = Notification.Name("fi.refineid.service.withdrawn")
 
     /// The custodian closed a session with `pairing_revoked`; the session
-    /// has already removed the pairing from the vault (RAPP v26.11.2 §4.6
+    /// has already removed the pairing from the vault (RAPP v26.11.8 §4.6
     /// item 4).
     public static let pairingRevoked = Notification.Name("fi.refineid.service.pairing-revoked")
 

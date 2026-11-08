@@ -26,6 +26,10 @@
     /// The phone that announced it forgot this computer, by name.
     internal var phoneThatForgot: String?
 
+    /// The phone this computer's user has just paired, by name, while the
+    /// computer connects to it (RAPP v26.11.8 §4.7).
+    internal var phoneJustPaired: String?
+
     /// The platform denies this app the local network: a browse or a dial
     /// to a phone was refused it.
     internal var localNetworkDenied = false

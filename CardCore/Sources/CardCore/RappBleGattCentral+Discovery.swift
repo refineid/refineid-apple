@@ -25,6 +25,13 @@ import Foundation
         for connected in manager?.retrieveConnectedPeripherals(withServices: [service]) ?? [] {
           discovered(connected, rssi: RappBleGattLimit.unavailableRssi)
         }
+        // A peripheral another scan of this app found is dialed without
+        // waiting for its next advertisement.
+        if peers.isExclusive, let only = peers.preferred {
+          for known in manager?.retrievePeripherals(withIdentifiers: [only]) ?? [] {
+            discovered(known, rssi: RappBleGattLimit.unavailableRssi)
+          }
+        }
         guard peripheral == nil else { return }
         manager?.scanForPeripherals(
           withServices: [service],
@@ -42,7 +49,9 @@ import Foundation
     /// Dials the advertiser that routed last at once; otherwise gathers
     /// advertisers for the choice window and dials the strongest.
     internal func discovered(_ found: CBPeripheral, rssi: Int) {
-      guard peripheral == nil, !finished, !peers.avoided.contains(found.identifier) else {
+      guard peripheral == nil, !finished, !peers.avoided.contains(found.identifier),
+        !peers.isExclusive || found.identifier == peers.preferred
+      else {
         return
       }
       onEvent(.trace(.discovered(peer: found.identifier, rssi: rssi)))

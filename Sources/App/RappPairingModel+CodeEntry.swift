@@ -30,7 +30,7 @@ extension RappPairingModel {
   }
 
   /// Tries the typed code on every custodian found in pairing mode, one at
-  /// a time, until one takes it (RAPP v26.11.2 §4.2, "Trying Each
+  /// a time, until one takes it (RAPP v26.11.8 §4.2, "Trying Each
   /// Custodian in Pairing Mode").
   internal func acceptPairingCode(_ rawCode: String) {
     resetAttempt()
@@ -40,16 +40,21 @@ extension RappPairingModel {
       return
     }
     let newSearch: RappPairingSearch<PairingEndpoint>
+    let dialed = LastDialedEndpoint()
     do {
       newSearch = try RappPairingSearch(
         options: options(code: code),
         remoteUseAvailable: { RemoteUseAvailability.isAvailable },
-        dial: { endpoint in PairingCandidateLink.dial(endpoint) })
+        dial: { endpoint in
+          dialed.record(endpoint)
+          return PairingCandidateLink.dial(endpoint)
+        })
     } catch {
       fail(.reported(String(localized: "The pairing code is invalid.")))
       return
     }
     install(search: newSearch)
+    lastDialed = dialed
     phase = .connecting
     discover(for: newSearch)
   }
@@ -57,7 +62,8 @@ extension RappPairingModel {
   /// Hands every custodian found in pairing mode to `search`, in the order
   /// found, until the requester stops looking.
   private func discover(for search: RappPairingSearch<PairingEndpoint>) {
-    let discovery = PairingCandidateLink.discover()
+    let discovery = PairingCandidateLink.discover(
+      skipping: PersistentTokenRegistry.shared.bluetoothSessionPeer)
     stopDiscovery = discovery.stop
     Task {
       for await endpoint in discovery.found {

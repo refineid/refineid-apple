@@ -3,7 +3,7 @@
 import Foundation
 
 /// The device as a person names it, for the display name an iPhone or an
-/// iPad gives itself in a pairing (RAPP v26.11.2 §4.3 item 3): "iPhone 15
+/// iPad gives itself in a pairing (RAPP v26.11.8 §4.3 item 3): "iPhone 15
 /// Pro Max" rather than the operating system.
 ///
 /// Apple reports the hardware as a machine identifier such as

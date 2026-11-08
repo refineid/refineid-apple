@@ -5,7 +5,7 @@ import Testing
 
 @testable import RappEngine
 
-@Suite("RAPP v26.11.2 lifecycle machines and their scenarios (section 4.7)")
+@Suite("RAPP v26.11.8 lifecycle machines and their scenarios (section 4.7)")
 internal struct LifecycleModelTests {
   private enum Outcome {
     static let transition = "transition"

@@ -10,7 +10,7 @@
 
   /// The phone's statements at the end of a session are told apart from a
   /// lost connection, and only a loss waits a back-off before the next dial
-  /// (RAPP v26.11.2 §4.5 item 6, §4.6 item 4).
+  /// (RAPP v26.11.8 §4.5 item 6, §4.6 item 4).
   @MainActor
   @Suite(.serialized)
   internal struct PhoneSessionEndTests {

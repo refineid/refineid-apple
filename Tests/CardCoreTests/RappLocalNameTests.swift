@@ -5,7 +5,7 @@
   import Testing
 
   /// A Mac names itself by its host name, or by the fallback host when it
-  /// has none (RAPP v26.11.2 §4.3 item 3).
+  /// has none (RAPP v26.11.8 §4.3 item 3).
   @Suite
   internal struct RappLocalNameTests {
     @Test("Two empty host-name sources fall back to Mac")

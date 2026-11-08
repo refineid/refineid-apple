@@ -22,7 +22,7 @@
 
     /// How often a session advances its liveness and checks the live
     /// operation's deadline; the engine decides when a ping is due (RAPP
-    /// v26.11.2 §8.1 item 2, §8.3).
+    /// v26.11.8 §8.1 item 2, §8.3).
     public static let livenessPollIntervalMilliseconds: UInt64 = 1_000
 
     private static let logger = Logger(
@@ -44,7 +44,7 @@
     /// Ends the wait for the echo of this endpoint's close at its bound.
     internal var echoTask: Task<Void, Never>?
     /// How long this endpoint waits for the echo of a close it sent (RAPP
-    /// v26.11.2 §7.1 item 7).
+    /// v26.11.8 §7.1 item 7).
     internal let closeEchoBoundMilliseconds = rappQuitWithdrawalBoundMs()
     /// Whether this endpoint's own close left on the transport.
     internal var ownCloseLeft = false

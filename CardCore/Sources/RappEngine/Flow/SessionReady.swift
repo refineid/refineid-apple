@@ -3,7 +3,7 @@
 import Foundation
 
 /// The custodian's first session message: the session-parameter echo, a
-/// fresh nonce and its current display name (RAPP v26.11.2 §7.1 item 5,
+/// fresh nonce and its current display name (RAPP v26.11.8 §7.1 item 5,
 /// §4.3 item 4).
 internal struct SessionReady: Equatable {
   internal var parameters: SessionParameters

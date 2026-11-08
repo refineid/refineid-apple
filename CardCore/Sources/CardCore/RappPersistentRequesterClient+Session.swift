@@ -147,7 +147,7 @@
     }
 
     /// Records the session in its pairing's stored record, as it is
-    /// established and as it ends, for idle expiry (RAPP v26.11.2 §4.6
+    /// established and as it ends, for idle expiry (RAPP v26.11.8 §4.6
     /// item 5).
     private func recordSession() {
       guard let pairID = state.withLock({ $0.pairID }) else { return }
@@ -162,7 +162,7 @@
 
     /// Ends the pairing this request ran over when its session said so: the
     /// custodian revoked it, or the custodian echoed this endpoint's close of
-    /// a pairing it forgot (RAPP v26.11.2 §4.6 items 2 to 4); a close without
+    /// a pairing it forgot (RAPP v26.11.8 §4.6 items 2 to 4); a close without
     /// its echo keeps the pairing forgotten in the revocation backlog.
     private func endPairing(after reason: RappConnectionCoordinator.CloseReason) {
       let revokedByPeer = reason.peerRevokedPairing

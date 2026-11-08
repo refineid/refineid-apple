@@ -8,7 +8,7 @@
   import RappEngine
 
   /// The holder's click turning remote use off, kept until every pairing it
-  /// forgets is stored forgotten (RAPP v26.11.2 §4.6 item 6, STPA CC-100,
+  /// forgets is stored forgotten (RAPP v26.11.8 §4.6 item 6, STPA CC-100,
   /// CC-118).
   ///
   /// The click is stored with its wall-clock time and the pairings it

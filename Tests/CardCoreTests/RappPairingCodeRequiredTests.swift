@@ -19,7 +19,7 @@ import Testing
       RappPairingCoordinator.Options(
         code: code,
         profiles: rappCredentialProfiles(),
-        transportProfile: rappStreamProfileName(),
+        transportProfiles: [rappStreamProfileName()],
         displayName: TestDisplayNames.requester,
         platform: "macOS",
         vault: makeVault(suffix: suffix)
@@ -33,7 +33,8 @@ import Testing
         remoteUseAvailable: { true },
         dial: { _ in
           RappPairingConnection(
-            transport: discardingTransport(), events: AsyncStream { $0.finish() })
+            transport: discardingTransport(), transportProfile: rappStreamProfileName(),
+            events: AsyncStream { $0.finish() })
         })
     }
 
@@ -54,8 +55,7 @@ import Testing
     internal func custodianRefusesMalformedCode(_ code: String) throws {
       #expect(throws: (any Error).self) {
         try RappPairingCoordinator.custodian(
-          options: options(code: code, suffix: "custodian-malformed"),
-          transport: discardingTransport())
+          options: options(code: code, suffix: "custodian-malformed"))
       }
     }
 

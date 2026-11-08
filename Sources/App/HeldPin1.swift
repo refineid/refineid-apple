@@ -6,7 +6,7 @@
   import RappEngine
 
   /// PIN 1 the holder entered on this phone, bound to the certificate
-  /// fingerprint of the card it was entered for (RAPP v26.11.2 §8.4 item
+  /// fingerprint of the card it was entered for (RAPP v26.11.8 §8.4 item
   /// 1, §11 item 2).
   ///
   /// Held only in this process's memory, never in storage, so it ends with

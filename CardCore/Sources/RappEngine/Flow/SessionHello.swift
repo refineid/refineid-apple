@@ -3,7 +3,7 @@
 import Foundation
 
 /// The requester's first message once it verified `session.ready`, carrying
-/// its current display name (RAPP v26.11.2 §7.1 item 6, §4.3 item 4).
+/// its current display name (RAPP v26.11.8 §7.1 item 6, §4.3 item 4).
 internal struct SessionHello: Equatable {
   /// The requester's current display name.
   internal var displayName: RappDisplayName

@@ -6,7 +6,7 @@ import Testing
 @testable import RappEngine
 
 /// Acknowledged goodbyes and the requester's hello between the bridges
-/// (RAPP v26.11.2 §7.1 items 6 and 7).
+/// (RAPP v26.11.8 §7.1 items 6 and 7).
 @Suite("RAPP close echoes and the requester's hello")
 internal struct BridgeEchoTests {
   private static let start = OperationFixture.startMilliseconds

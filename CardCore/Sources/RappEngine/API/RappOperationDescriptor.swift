@@ -22,7 +22,7 @@ public struct RappOperationDescriptor: Equatable, Sendable {
   /// A batch's digests, paired with `documentNames`; empty otherwise.
   public var digests: [Data]
   /// A package's files, in container order, shown under its name (RAPP
-  /// v26.11.2 §9.3, §11 item 1); empty for any other operation.
+  /// v26.11.8 §9.3, §11 item 1); empty for any other operation.
   public var containedFiles: [String]
 
   /// Describes one operation for the holder.

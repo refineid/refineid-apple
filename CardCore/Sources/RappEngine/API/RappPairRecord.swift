@@ -6,7 +6,7 @@ import Foundation
 ///
 /// The record holds the pairing's keys, so it is never handed out as bytes
 /// except through the vault the caller owns. Once revoked it holds them no
-/// more: nothing in this process can use the key afterwards (RAPP v26.11.2
+/// more: nothing in this process can use the key afterwards (RAPP v26.11.8
 /// §4.6 items 3 and 4).
 public final class RappPairRecord: @unchecked Sendable {
   private let lock = NSLock()
@@ -143,7 +143,7 @@ public final class RappPairRecord: @unchecked Sendable {
   }
 
   /// Stores the confirmed pairing over the unconfirmed record written
-  /// before the peer's `pairing.stored` arrived (RAPP v26.11.2 §4.3 item
+  /// before the peer's `pairing.stored` arrived (RAPP v26.11.8 §4.3 item
   /// 4).
   ///
   /// - Throws: ``RappBindingError/StorageUnconfirmed`` for a record that is
@@ -185,7 +185,7 @@ public final class RappPairRecord: @unchecked Sendable {
   }
 
   /// The user forgets the pairing while no session to the peer is open
-  /// (RAPP v26.11.2 §4.6).
+  /// (RAPP v26.11.8 §4.6).
   ///
   /// Idle expiry is ``sweep(vault:nowMs:sessionEstablished:)``'s. A
   /// confirmed record is stored as forgotten and keeps its key only to
@@ -234,7 +234,7 @@ public final class RappPairRecord: @unchecked Sendable {
   }
 
   /// Checks this pairing for idle expiry at `nowMs`, milliseconds since the
-  /// Unix epoch, and stores what changed (RAPP v26.11.2 §4.6 item 5).
+  /// Unix epoch, and stores what changed (RAPP v26.11.8 §4.6 item 5).
   ///
   /// `sessionEstablished` says whether a session to the pairing is
   /// established now. With one, the time is recorded and the pairing kept,
@@ -298,7 +298,7 @@ public final class RappPairRecord: @unchecked Sendable {
   }
 
   /// Replaces the peer's name in the record with `name`, the name its `session.ready` or
-  /// `session.hello` carried, where it differs (RAPP v26.11.2 §4.3 item 4): first in the vault,
+  /// `session.hello` carried, where it differs (RAPP v26.11.8 §4.3 item 4): first in the vault,
   /// then here.
   ///
   /// Answers whether the name changed.

@@ -9,7 +9,7 @@ import Testing
   import RappEngine
 
   /// The requester tries every phone in pairing mode with the typed code
-  /// before it calls the code not accepted (RAPP v26.11.2 §4.2, "Trying
+  /// before it calls the code not accepted (RAPP v26.11.8 §4.2, "Trying
   /// Each Custodian in Pairing Mode"; STPA CC-83).
   @Suite("A requester tries every phone in pairing mode", .timeLimit(.minutes(1)))
   internal struct RappPairingSearchTests {
@@ -66,7 +66,7 @@ import Testing
       let options = RappPairingCoordinator.Options(
         code: typedCode,
         profiles: RappIntegrationFixtures.profiles,
-        transportProfile: RappIntegrationFixtures.transportProfile,
+        transportProfiles: [RappIntegrationFixtures.transportProfile],
         displayName: TestDisplayNames.requester,
         platform: "macOS",
         vault: RappDeviceVault(accessGroup: nil, servicePrefix: prefix(testID, "requester")))

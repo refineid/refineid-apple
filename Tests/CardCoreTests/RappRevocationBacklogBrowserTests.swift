@@ -7,7 +7,7 @@ import Testing
 
 #if canImport(Network)
   /// The revocation backlog's browser reports each forgotten pairing coming
-  /// into sight once (RAPP v26.11.2 §4.6 item 6), also across a change of
+  /// into sight once (RAPP v26.11.8 §4.6 item 6), also across a change of
   /// what it follows.
   @Suite("RAPP revocation backlog browser")
   internal struct RappRevocationBacklogBrowserTests {

@@ -28,17 +28,31 @@ import Foundation
     internal private(set) var isOpened = false
 
     private let sink: AsyncStream<RappPairingConnection.Event>.Continuation
+    /// The transport profile of the link.
+    nonisolated internal let transportProfile: String
     private let servedOffer: Data?
     private let dropAfter: Int?
+    /// The wait a custodian answers the requester's first frame with, in
+    /// place of taking it; nil for a link that carries it.
+    private var busyAtStepOne: UInt64?
     private let openFailure: RappPairingConnection.OpenFailure?
     private var custodian: RappPairingCoordinator?
     private var isDown = false
 
     // MARK: Lifecycle
 
-    /// A link to a custodian ceremony attached later, or to nothing but
-    /// `servedOffer`.
+    /// A stream link to a custodian ceremony attached later, or to
+    /// nothing but `servedOffer`.
     internal init(servedOffer: Data?, dropAfter: Int?) {
+      self.init(
+        servedOffer: servedOffer, dropAfter: dropAfter,
+        transportProfile: RappIntegrationFixtures.transportProfile)
+    }
+
+    /// A link of `transportProfile` to a custodian ceremony attached
+    /// later, or to nothing but `servedOffer`.
+    internal init(servedOffer: Data?, dropAfter: Int?, transportProfile: String) {
+      self.transportProfile = transportProfile
       self.servedOffer = servedOffer
       self.dropAfter = dropAfter
       openFailure = nil
@@ -47,6 +61,7 @@ import Foundation
 
     /// A link to a custodian that dialling cannot reach, for `failure`.
     internal init(failingToOpen failure: RappPairingConnection.OpenFailure) {
+      transportProfile = RappIntegrationFixtures.transportProfile
       servedOffer = nil
       dropAfter = nil
       openFailure = failure
@@ -54,6 +69,12 @@ import Foundation
     }
 
     // MARK: Functions
+
+    /// Answers the requester's CPace step 1 busy with `wait`, as a BLE
+    /// custodian that cannot admit the attempt does.
+    internal func answerStepOneBusy(wait: UInt64) {
+      busyAtStepOne = wait
+    }
 
     /// The custodian's end of the link, its ceremony's transport.
     nonisolated internal func custodianTransport() -> RappClosureFrameTransport {
@@ -69,6 +90,7 @@ import Foundation
         transport: RappClosureFrameTransport(
           sender: { frame in await self.requesterSends(frame) },
           closer: { await self.requesterCloses() }),
+        transportProfile: transportProfile,
         events: events)
     }
 
@@ -91,13 +113,28 @@ import Foundation
       sink.yield(.connected)
       if let servedOffer {
         sink.yield(.frame(servedOffer))
+      } else if transportProfile == RappBleGattProfile.name,
+        let answer = try? custodian?.bootstrapAnswer()
+      {
+        // A BLE requester reads the offer off the Bootstrap Characteristic.
+        sink.yield(.frame(answer))
       }
-      await custodian?.transportConnected()
+      guard let custodian else { return }
+      if await custodian.attach(custodianTransport(), transportProfile: transportProfile) {
+        await custodian.transportConnected()
+      }
     }
 
     private func requesterSends(_ frame: Data) async {
       requesterSent.frames.append(frame)
       guard !isDown else { return }
+      if let busyAtStepOne {
+        // A BLE custodian refuses the step 1 write and the requester reads
+        // the bootstrap characteristic again (§4.2, "Busy Refusal" item 2).
+        sink.yield(.busy(retryAfterMilliseconds: busyAtStepOne))
+        await linkDown()
+        return
+      }
       await custodian?.receive(frame)
     }
 

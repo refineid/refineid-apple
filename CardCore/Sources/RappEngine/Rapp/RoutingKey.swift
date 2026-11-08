@@ -3,7 +3,7 @@
 import CryptoKit
 import Foundation
 
-/// The key a pairing routes sessions with (RAPP v26.11.2 §4.3).
+/// The key a pairing routes sessions with (RAPP v26.11.8 §4.3).
 internal struct RoutingKey {
   private let secret: SymmetricKey
 

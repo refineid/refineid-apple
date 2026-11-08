@@ -7,7 +7,7 @@ import Testing
 
 /// A locked phone starts no credential action; it tells the holder and the
 /// computer, continues on the unlock, and leaves a started action alone
-/// (RAPP v26.11.2 §8.2 item 3).
+/// (RAPP v26.11.8 §8.2 item 3).
 @MainActor
 @Suite
 internal struct CustodianUnlockGateTests {

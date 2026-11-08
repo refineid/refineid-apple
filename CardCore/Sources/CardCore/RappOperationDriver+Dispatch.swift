@@ -54,7 +54,7 @@
         echoReason = nil
         // Only the echo, or the peer's own revocation crossing it, says the
         // peer heard this endpoint's close; another reason crossing it does
-        // not (RAPP v26.11.2 §7.1 item 7).
+        // not (RAPP v26.11.8 §7.1 item 7).
         ownCloseEchoed = !crossing || reason == .pairingRevoked
         return [.closed(crossing ? Self.closeReason(peer: reason) : sent)]
 
@@ -68,7 +68,7 @@
     }
 
     /// Advances liveness with fresh challenge bytes: a ping after 5 seconds
-    /// of silence, the session's end after 30 (RAPP v26.11.2 §8.3).
+    /// of silence, the session's end after 30 (RAPP v26.11.8 §8.3).
     public func pollLiveness() -> [Command] {
       guard !closed else { return [] }
       do {

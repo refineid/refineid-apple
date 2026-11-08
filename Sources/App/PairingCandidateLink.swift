@@ -4,32 +4,72 @@ import CardCore
 import Foundation
 
 /// How a requester finds the custodians in pairing mode and opens pairing
-/// connections to them (RAPP v26.11.2 §4.2, "Trying Each Custodian in
+/// connections to them (RAPP v26.11.8 §4.2, "Trying Each Custodian in
 /// Pairing Mode").
+///
+/// Custodians are found on every transport the requester dials sessions
+/// over: the stream's `mode=pairing` records and, on a Mac, the RAPP
+/// service's Bluetooth advertisements. Discovery first gathers for
+/// ``gatherMilliseconds``, so a custodian that answers slowly or only over
+/// Bluetooth is found with the code (item 1) before a fast refusal from
+/// another one could end the search; the gathered ones are handed on with
+/// the stream first (hierarchy specification §3), and later ones at once.
 internal enum PairingCandidateLink {
-  /// Each published service carrying the pairing attributes, once, in
-  /// the order found, until `stop` is called.
-  internal static func discover() -> (
+  /// How long discovery gathers custodians before the first is tried.
+  internal static let gatherMilliseconds = 3_000
+
+  /// Each custodian found, once, in the order handed on, until `stop` is
+  /// called; never the Bluetooth advertiser `sessionPeer`, which carries
+  /// this requester's session.
+  internal static func discover(skipping sessionPeer: UUID?) -> (
     found: AsyncStream<PairingEndpoint>, stop: @Sendable () -> Void
   ) {
     let (found, sink) = AsyncStream.makeStream(of: PairingEndpoint.self)
+    let gathering = PairingEndpointGathering { endpoint in sink.yield(endpoint) }
     let browser = StreamRelayBrowser(
       reportingEachWithAttributes: StreamRendezvousName.pairingAttributes
     ) { service in
-      sink.yield(PairingEndpoint(service: service))
+      gathering.found(.stream(service))
+    }
+    let scanner = RappBleAppearanceWatcher { peripheral in
+      guard peripheral != sessionPeer else { return }
+      gathering.found(.bluetooth(peripheral))
     }
     browser.start()
+    // A requester looks over Bluetooth only where it dials its sessions
+    // over Bluetooth.
+    if PersistentTokenRegistry.dialsOverBluetooth {
+      scanner.start()
+    }
+    let release = Task {
+      guard (try? await Task.sleep(for: .milliseconds(gatherMilliseconds))) != nil else { return }
+      gathering.release()
+    }
     return (
       found,
       {
+        release.cancel()
         browser.cancel()
+        scanner.cancel()
         sink.finish()
       }
     )
   }
 
-  /// Dials the custodian's pairing listener.
+  /// Opens a pairing connection to the custodian at `endpoint`.
   internal static func dial(_ endpoint: PairingEndpoint) -> RappPairingConnection {
-    .stream(to: endpoint.service)
+    switch endpoint {
+    case .stream(let service):
+      .stream(to: service)
+
+    case .bluetooth(let peripheral):
+      .bluetooth(to: peripheral) { step in
+        #if DEBUG
+          if case .ended(let failure) = step, failure != .cancelled, failure != .disconnected {
+            DevErrorLog.report("pairing over Bluetooth: \(step.line)", source: .app)
+          }
+        #endif
+      }
+    }
   }
 }

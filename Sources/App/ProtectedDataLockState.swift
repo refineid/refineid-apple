@@ -9,7 +9,7 @@
   ///
   /// A phone with no passcode always has protected data available while it
   /// is on, so it never reads locked; that is the holder's choice (RAPP
-  /// v26.11.2 §8.2 item 3). iOS makes protected data unavailable some time
+  /// v26.11.8 §8.2 item 3). iOS makes protected data unavailable some time
   /// after the screen locks, by the holder's "Require Passcode" setting, and
   /// an action that starts inside that interval is not held back: iOS offers
   /// a public app no earlier signal.
