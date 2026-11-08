@@ -249,5 +249,6 @@ implements the shared design in refineid-core
   cached the first verification fetches the lists; when the device is
   offline it says "No EU trusted lists are stored yet and this device is
   offline. Connect to the internet once to fetch them; after that,
-  documents verify offline too." and the trusted-lists row says
-  "Offline".
+  documents verify offline too." The fetching itself is not shown: the
+  trusted-lists section, with its retry button, appears only when a
+  fetch failed and no lists or only stale ones are stored.

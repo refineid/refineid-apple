@@ -97,6 +97,15 @@ internal struct VerifySignatureSection: View {
     return VerifyDocumentRowValue(indicator: .fails)
   }
 
+  /// Whether the archive timestamp gets a row of its own.
+  ///
+  /// One that holds says nothing new to the holder: the signing time is shown
+  /// once, and the long-term validity row carries the archival check.
+  /// One that is unproven or fails is shown, so the problem is seen.
+  internal static func showsArchiveRow(_ stamps: [TimestampState]) -> Bool {
+    !stamps.isEmpty && archiveValue(stamps).indicator != .holds
+  }
+
   private static func unprovenValue(_ claimed: Date) -> VerifyDocumentRowValue {
     VerifyDocumentRowValue(
       text: VerifyText.formatted(claimed),
@@ -174,8 +183,8 @@ internal struct VerifySignatureSection: View {
   /// The timestamps, the revocation status and the level reached.
   @ViewBuilder
   private func timeAndStatusRows(_ report: DocumentVerification.SignatureReport) -> some View {
-    Self.row(VerifyText.text("verify.timestamp", "Timestamp"), Self.timestampValue(of: report))
-    if !report.archiveTimestamps.isEmpty {
+    Self.row(VerifyText.text("verify.timestamp", "Signed at"), Self.timestampValue(of: report))
+    if Self.showsArchiveRow(report.archiveTimestamps) {
       Self.row(
         VerifyText.text("verify.archiveTimestamp", "Archive timestamp"),
         Self.archiveValue(report.archiveTimestamps))

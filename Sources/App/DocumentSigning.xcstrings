@@ -2105,19 +2105,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Timestamp"
+            "value" : "Signed at"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aikaleima"
+            "value" : "Allekirjoitusaika"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tidsstämpel"
+            "value" : "Signeringstid"
           }
         }
       }

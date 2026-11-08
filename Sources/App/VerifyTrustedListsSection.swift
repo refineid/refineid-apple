@@ -2,12 +2,27 @@
 
 import SwiftUI
 
-/// When the trusted lists were fetched, whether they are stale or
-/// could not be fetched, and the button that fetches them again.
+/// The trusted lists, shown only when fetching them failed in a way
+/// that matters.
+///
+/// That is when none are stored, or the stored ones are stale. They
+/// are fetched in the background; while that works there is nothing to
+/// show.
 internal struct VerifyTrustedListsSection: View {
+
   @ObservedObject internal var trustedLists: TrustedListStore
 
   internal var body: some View {
+    if Self.needsAttention(
+      failed: trustedLists.lastRefreshFailure != nil,
+      stored: trustedLists.anchors?.fetchedAt != nil,
+      stale: trustedLists.anchors?.isStale(at: Date()) ?? false
+    ) {
+      lists
+    }
+  }
+
+  private var lists: some View {
     Section {
       VerifyDocumentRow(indicator: value.indicator) {
         Text(VerifyText.text("verify.trustedLists", "EU trusted lists"))
@@ -62,5 +77,14 @@ internal struct VerifyTrustedListsSection: View {
       secondaryText: secondary,
       indicator: indicator
     )
+  }
+
+  /// Whether the lists need the user's attention.
+  ///
+  /// A fetch failed, and no lists are stored or the stored ones are
+  /// stale. A failed refresh while current lists are stored changes
+  /// nothing the user sees.
+  internal static func needsAttention(failed: Bool, stored: Bool, stale: Bool) -> Bool {
+    failed && (!stored || stale)
   }
 }
