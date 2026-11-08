@@ -1,5 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
+import CardCore
 import Foundation
 import Testing
 
@@ -34,6 +35,18 @@ internal struct VerifyWordingTests {
     "verify.errorOfflineNoTrustedLists",
   ]
 
+  /// The level strings.
+  private static let levelKeys = [
+    "verify.level",
+    "verify.level.archival",
+    "verify.level.longTerm",
+    "verify.level.timestamped",
+    "verify.level.basic",
+  ]
+
+  /// How the baseline profiles' codes begin.
+  private static let profileCodePrefix = "B-"
+
   /// One compiled Finnish table of the app.
   private static func finnishTable(_ name: String) throws -> [String: String] {
     let path = try #require(
@@ -66,6 +79,25 @@ internal struct VerifyWordingTests {
     for key in Self.trustedListKeys {
       let value = try #require(signing[key], "\(key) has no Finnish translation")
       #expect(value.contains(Self.trustedListsTerm), "\(key): \(value)")
+    }
+  }
+
+  /// The level a signature reached is said in words: the archival level
+  /// carries the check, the others say what is missing, and no Finnish
+  /// level text shows the profile's code.
+  @Test
+  internal func theLevelIsSaidInWordsAndArchivalHolds() throws {
+    let levels: [SignatureLevel] = [.longTermArchival, .longTerm, .timestamped, .basic]
+    for level in levels {
+      let value = VerifySignatureSection.levelValue(level)
+      #expect(value.text?.isEmpty == false)
+      let holds = value.indicator == .holds
+      #expect(holds == (level == .longTermArchival), "\(level)")
+    }
+    let signing = try Self.finnishTable(Self.documentSigningTable)
+    for key in Self.levelKeys {
+      let value = try #require(signing[key], "\(key) has no Finnish translation")
+      #expect(!value.contains(Self.profileCodePrefix), "\(key): \(value)")
     }
   }
 }
