@@ -3161,11 +3161,11 @@ let token: String = {
   return "\(signingInput).\(signature.rawRepresentation.base64URL)"
 }()
 
-// One API call. Returns the parsed body, or exits with the API's own
-// error on a non-2xx response. Brackets in a path (filter[bundleId])
-// are percent-encoded, which URL rejects unencoded.
-@discardableResult
-func api(_ method: String, _ path: String, body: [String: Any]? = nil) -> [String: Any] {
+// One API call: its HTTP status and parsed body. Brackets in a path
+// (filter[bundleId]) are percent-encoded, which URL rejects unencoded.
+func apiResponse(
+  _ method: String, _ path: String, body: [String: Any]? = nil
+) -> (status: Int, body: [String: Any], text: String) {
   let encoded = path.replacingOccurrences(of: "[", with: "%5B")
     .replacingOccurrences(of: "]", with: "%5D")
   guard let url = URL(string: apiBase + encoded) else { die("bad path: \(path)") }
@@ -3185,11 +3185,25 @@ func api(_ method: String, _ path: String, body: [String: Any]? = nil) -> [Strin
     semaphore.signal()
   }.resume()
   semaphore.wait()
-  guard (200..<300).contains(status) else {
-    die("HTTP \(status) on \(method) \(path): \(String(data: data, encoding: .utf8) ?? "")")
+  let parsed =
+    data.isEmpty ? [:] : (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+  return (status, parsed, String(data: data, encoding: .utf8) ?? "")
+}
+
+// The error codes App Store Connect answered with.
+func apiErrorCodes(_ body: [String: Any]) -> [String] {
+  (body["errors"] as? [[String: Any]] ?? []).compactMap { $0["code"] as? String }
+}
+
+// One API call. Returns the parsed body, or exits with the API's own
+// error on a non-2xx response.
+@discardableResult
+func api(_ method: String, _ path: String, body: [String: Any]? = nil) -> [String: Any] {
+  let response = apiResponse(method, path, body: body)
+  guard (200..<300).contains(response.status) else {
+    die("HTTP \(response.status) on \(method) \(path): \(response.text)")
   }
-  if data.isEmpty { return [:] }
-  return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+  return response.body
 }
 
 // Prints a response the way a person reads it.
@@ -3936,30 +3950,51 @@ func distribute(_ platformName: String, _ groupName: String, _ candidateID: Stri
       ($0["attributes"] as? [String: Any])?["name"] as? String == groupName
     }), let groupID = group["id"] as? String
   else { die("no beta group named '\(groupName)'") }
+  let groupAttributes = group["attributes"] as? [String: Any] ?? [:]
+  // An internal group with access to all builds takes every build that
+  // finished processing; App Store Connect refuses adding one by hand.
+  if groupAttributes["hasAccessToAllBuilds"] as? Bool == true {
+    print("group '\(groupName)' gets every \(platformName) build automatically")
+    return
+  }
   api(
     "POST", "/v1/betaGroups/\(groupID)/relationships/builds",
     body: [
       "data": [["type": "builds", "id": buildID]]
     ])
   print("added \(platformName) build to group '\(groupName)'")
-  if (group["attributes"] as? [String: Any])?["isInternalGroup"] as? Bool == true {
+  if groupAttributes["isInternalGroup"] as? Bool == true {
     return
   }
   let review = api("GET", "/v1/builds/\(buildID)/betaAppReviewSubmission")["data"] as? [String: Any]
-  if review == nil {
-    api(
-      "POST", "/v1/betaAppReviewSubmissions",
-      body: [
-        "data": [
-          "type": "betaAppReviewSubmissions",
-          "relationships": ["build": ["data": ["type": "builds", "id": buildID]]],
-        ]
-      ])
-    print("submitted \(platformName) build for beta review")
-  } else {
+  guard review == nil else {
     print("beta review already exists for the \(platformName) build")
+    return
+  }
+  let submission = apiResponse(
+    "POST", "/v1/betaAppReviewSubmissions",
+    body: [
+      "data": [
+        "type": "betaAppReviewSubmissions",
+        "relationships": ["build": ["data": ["type": "builds", "id": buildID]]],
+      ]
+    ])
+  if (200..<300).contains(submission.status) {
+    print("submitted \(platformName) build for beta review")
+  } else if apiErrorCodes(submission.body).contains(anotherBuildInReview) {
+    // One build of a version is in beta review at a time; this one waits
+    // in the group and is submitted again once that review ends.
+    print(
+      "another \(platformName) build of this version is in beta review; "
+        + "run distribute again once it ends to submit this one")
+  } else {
+    die("HTTP \(submission.status) on POST /v1/betaAppReviewSubmissions: \(submission.text)")
   }
 }
+
+// The error App Store Connect answers a beta review submission with while
+// another build of the same version is in review.
+let anotherBuildInReview = "ENTITY_UNPROCESSABLE.ANOTHER_BUILD_IN_REVIEW"
 
 // Creates a beta tester in a beta group. Joining an external group is
 // what makes App Store Connect send the TestFlight invitation email, so

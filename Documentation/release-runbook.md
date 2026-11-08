@@ -245,6 +245,11 @@ Scripts/apple-app-store-connect-release-manager.swift distribute macos <group> <
 
 Use the exact uploaded build identifier. Internal distribution does not submit
 beta review, and TestFlight distribution does not attach an App Store build.
+An internal group with access to all builds takes every processed build by
+itself, and the command says so instead of adding it. App Store Connect keeps
+one build of a version in beta review at a time: while another is in review,
+the command adds the build to the external group, says so, and the build is
+submitted by running the same command again once that review ends.
 
 Test the exact uploaded build. At minimum, retain evidence for:
 
