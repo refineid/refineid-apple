@@ -185,6 +185,12 @@ public enum AsicVerification {
   /// (W3C XML-Signature 1.1 section 4.4.3.2).
   internal static let sameDocumentUriPrefix = "#"
 
+  /// Whether the data opens as a ZIP archive, a signature container
+  /// or not.
+  public static func isZipArchive(_ data: Data) -> Bool {
+    ZipReader.hasZipSignature(data)
+  }
+
   /// Whether the data is a ZIP archive this verifier reads as an
   /// ASiC-E or BDOC container.
   public static func isAsicContainer(_ data: Data) -> Bool {
@@ -221,10 +227,8 @@ public enum AsicVerification {
     return DocumentVerification.DocumentReport(
       signatures: signatureEntries(
         signatureFiles: signatureFiles,
-        entries: entries,
-        carriedFileNames: carriedFileNames,
-        anchors: anchors,
-        now: now
+        judgement: ContainerJudgement(
+          entries: entries, carriedFileNames: carriedFileNames, anchors: anchors, now: now)
       ),
       documentTimestamps: []
     )

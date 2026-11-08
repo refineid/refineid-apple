@@ -39,6 +39,20 @@ public enum DocumentVerification {
     /// Every signature timestamp, in encoding order.
     public let timestamps: [TimestampState]
 
+    /// Every archive timestamp over this signature, in document order.
+    ///
+    /// The XAdES `ArchiveTimeStamp`s, or the PDF document timestamps
+    /// that cover it together with a document security store. None of
+    /// them moves the validation time.
+    public let archiveTimestamps: [TimestampState]
+
+    /// The baseline level the document was verified to reach.
+    ///
+    /// Judged from the evidence the document carries; nil when the
+    /// signature does not verify over intact data. A live revocation
+    /// answer does not raise it.
+    public let level: SignatureLevel?
+
     /// The proof of existence, or the verifier's clock without one; the
     /// chain and revocation are judged at this time.
     public let validationTime: ValidationTime
@@ -119,6 +133,8 @@ public enum DocumentVerification {
         signatureValid: signatureValid,
         chain: chain,
         timestamps: timestamps,
+        archiveTimestamps: archiveTimestamps,
+        level: level,
         validationTime: validationTime,
         revocationLinks: links,
         coversWholeDocument: coversWholeDocument
@@ -181,6 +197,14 @@ public enum DocumentVerification {
     internal let timestamps: [TimestampState]
     internal let creditedProofs: [ProvenTime]
     internal let coversWholeDocument: Bool
+
+    /// The archive timestamps over the signature.
+    internal let archiveTimestamps: [TimestampState]
+
+    /// Whether the document carries revocation values in the place
+    /// its profile keeps long-term validation data: the XAdES
+    /// `RevocationValues`, or the PDF document security store.
+    internal let carriesValidationData: Bool
   }
 
   /// Verifies every signature and document timestamp of the document
@@ -246,9 +270,34 @@ public enum DocumentVerification {
       signatureValid: facts.signatureValid,
       chain: chain,
       timestamps: facts.timestamps,
+      archiveTimestamps: facts.archiveTimestamps,
+      level: Self.level(
+        facts, chain: chain, links: links, proven: validationTime.proofOfExistence != nil),
       validationTime: validationTime,
       revocationLinks: links,
       coversWholeDocument: facts.coversWholeDocument
+    )
+  }
+
+  /// The level `facts` reach: B-LT needs the document's own revocation
+  /// values to answer the whole anchored path as good.
+  private static func level(
+    _ facts: SignatureFacts,
+    chain: ChainStatus,
+    links: [RevocationJudge.Link],
+    proven: Bool
+  ) -> SignatureLevel? {
+    let answeredByDocument: Bool
+    if chain.isAnchored, case .good = RevocationJudge.combined(links) {
+      answeredByDocument = true
+    } else {
+      answeredByDocument = false
+    }
+    return SignatureLevel.reached(
+      verifies: facts.documentIntact && facts.signatureValid,
+      timestamped: proven,
+      carriesValidationData: facts.carriesValidationData && answeredByDocument,
+      archived: facts.archiveTimestamps.contains { stamp in stamp.provenTime != nil }
     )
   }
 }
