@@ -10,14 +10,14 @@ internal struct VerifyTrustedListsSection: View {
   internal var body: some View {
     Section {
       VerifyDocumentRow(indicator: value.indicator) {
-        Text(VerifyText.text("verify.trustedLists", "Trusted lists"))
+        Text(VerifyText.text("verify.trustedLists", "EU trusted lists"))
       } value: {
         if let line = value.line {
           Text(line)
             .accessibilityLabel(Text(verbatim: value.accessibilityLine))
         }
       }
-      Button(VerifyText.text("verify.refreshTrustedLists", "Refresh trusted lists")) {
+      Button(VerifyText.text("verify.refreshTrustedLists", "Refresh EU trusted lists")) {
         Task { await trustedLists.refreshNow() }
       }
       .disabled(trustedLists.isRefreshing)

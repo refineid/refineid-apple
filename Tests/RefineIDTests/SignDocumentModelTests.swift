@@ -198,7 +198,7 @@ internal struct SignDocumentModelTests {
     let destination = URL.temporaryDirectory.appendingPathComponent("signed.pdf")
     model.complete(with: destination)
     #expect(model.stampMark() == nil)
-    #expect(model.signed == destination)
+    #expect(model.signedFiles == [destination])
   }
 
   @Test

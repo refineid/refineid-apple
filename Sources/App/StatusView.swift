@@ -40,7 +40,7 @@
 
     /// Notices a card waiting to be taken into use, and carries the
     /// model its activation form works through.
-    private let activation = ActivationWatch.shared
+    internal let activation = ActivationWatch.shared
     @State private var offeringNumber = false
     @State private var hasStoredNumber = false
     @State private var pin2 = ""
@@ -63,11 +63,17 @@
         // card, and asking it to sign mid-read is asking it to be in
         // two places.
         && !signing.readingStamp
+        // Not until a failure in the status row has been read.
+        && signing.unacknowledgedFailure == nil
     }
 
     internal var body: some View {
       VStack(alignment: .leading, spacing: Self.spacing) {
         statusForm
+        if showsReadySection {
+          StatusActionBar(
+            signing: signing, controls: documentControls, canSign: canSign, onSign: { sign() })
+        }
         if demoMode.isActive {
           CardSetupFooter(isDemonstration: true)
         }
@@ -121,9 +127,7 @@
         react(to: .noCard)
       }
       .onDisappear { activation.stop() }
-      .acknowledgesFailure(of: signing)
       .asksAboutUnsaved(for: signing)
-      .announcesOutcome(signing.notice)
       .announcesOutcome(activation.management.failure)
       .announcesOutcome(activation.management.notice)
     }
@@ -154,34 +158,35 @@
       }
     }
 
+    /// Whether the window shows the ready section and its button bar.
+    private var showsReadySection: Bool {
+      !(offeringNumber || awaitingAccessNumber) && !asksForCardSlot
+        && !activation.awaitsActivation && !activation.isReading && !shouldShowPairingPrompt
+    }
+
     @ViewBuilder private var readySection: some View {
-      let stateView = IdentityStateView(
-        availability: availability,
-        warnsUnavailableCard: activation.warnsUnavailableCard
-      )
-      stateView
-        // The card stays the one chosen while it is being used.
-        .disabled(signing.working || signing.readingStamp)
-        .accessibilityIdentifier("loginIdentityStatus")
+      let controls = documentControls
+      statusRow(showsIdentity: controls.showsIdentity)
       // Shown with no card too: verifying needs no card, only the EU
-      // trusted lists; signing stays disabled until a card is ready.
+      // trusted lists.
       StatusDocumentSection(
         signing: signing,
         format: $format,
+        offersSigning: controls.offersSigning,
         onChoose: { choose() },
         onAccept: { urls in accept(urls) }
       )
-      StatusSignatureSection(
-        signing: signing,
-        format: $format,
-        pin2: $pin2,
-        accessNumber: $accessNumber,
-        asksLocalPin2: asksLocalPin2,
-        target: selection.target,
-        canSign: canSign,
-        onSign: { sign() }
-      )
-      outcomeSection
+      if controls.offersSigning {
+        StatusSignatureSection(
+          signing: signing,
+          format: $format,
+          pin2: $pin2,
+          accessNumber: $accessNumber,
+          asksLocalPin2: asksLocalPin2,
+          target: selection.target,
+          onSign: { sign() }
+        )
+      }
     }
 
     private func handleAppear() {

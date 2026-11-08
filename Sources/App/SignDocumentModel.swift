@@ -56,8 +56,8 @@
     /// Resumes the signature waiting on its failure alert.
     @ObservationIgnored internal var acknowledgement: CheckedContinuation<Void, Never>?
 
-    /// Where the signed file landed.
-    internal private(set) var signed: URL?
+    /// Where the last sign action wrote its signed files, in order.
+    internal private(set) var signedFiles: [URL] = []
 
     /// The complete visible statement read from the card, with
     /// handwriting when the card carries it and identity alone otherwise.
@@ -102,6 +102,7 @@
     /// over the whole action rather than the last document alone.
     internal func beginAction() {
       lastActionSignedSomething = false
+      signedFiles = []
     }
 
     /// Empties the pile once its documents are signed, keeping the
@@ -150,7 +151,7 @@
       DocumentSigner.prepareRemoteSigning()
       failure = nil
       releaseAcknowledgement()
-      signed = nil
+      signedFiles = []
       stampState = nil
       stampFailure = nil
       notice = nil
@@ -248,7 +249,7 @@
       batchOutcomes = []
       failure = nil
       releaseAcknowledgement()
-      signed = nil
+      signedFiles = []
       stampState = nil
       stampFailure = nil
       notice = nil
@@ -269,7 +270,6 @@
       phase = DocumentSigner.usesRappSigning ? .phone : .card
       failure = nil
       releaseAcknowledgement()
-      signed = nil
       notice = nil
       return cardAppearance
     }
@@ -299,9 +299,22 @@
       releaseAcknowledgement()
     }
 
+    /// Acknowledges what the status row says about the last action, one
+    /// thing at a time: a failure first, which releases the signature
+    /// waiting on it; then the notice and the saved files, shown
+    /// together.
+    internal func acknowledgeOutcome() {
+      if failure != nil {
+        acknowledgeFailure()
+        return
+      }
+      notice = nil
+      signedFiles = []
+    }
+
     /// Records a completed write and releases the card identity state.
     internal func complete(with destination: URL) {
-      signed = destination
+      signedFiles.append(destination)
       pending = nil
       stampState = nil
       stampFailure = nil
@@ -311,7 +324,6 @@
     /// Fails the current signing operation with an error message.
     internal func fail(message: String) {
       failure = message
-      signed = nil
       notice = nil
     }
 

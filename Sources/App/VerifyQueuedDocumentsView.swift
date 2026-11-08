@@ -9,10 +9,12 @@
   /// of every signature it carries, and the trusted lists they were
   /// judged under.
   internal struct VerifyQueuedDocumentsView: View {
-    private static let minimumWidth: CGFloat = 480
-    private static let idealWidth: CGFloat = 560
-    private static let minimumHeight: CGFloat = 360
-    private static let idealHeight: CGFloat = 560
+    // Large enough to show one whole signature without scrolling;
+    // several documents scroll.
+    private static let minimumWidth: CGFloat = 560
+    private static let idealWidth: CGFloat = 640
+    private static let minimumHeight: CGFloat = 600
+    private static let idealHeight: CGFloat = 760
     private static let padding: CGFloat = 16
 
     internal let verification: QueuedDocumentVerification
@@ -38,9 +40,11 @@
         .padding(Self.padding)
       }
       .frame(
-        minWidth: Self.minimumWidth, idealWidth: Self.idealWidth,
-        minHeight: Self.minimumHeight, idealHeight: Self.idealHeight
+        minWidth: Self.minimumWidth, idealWidth: Self.idealWidth, maxWidth: .infinity,
+        minHeight: Self.minimumHeight, idealHeight: Self.idealHeight, maxHeight: .infinity
       )
+      // Opens at the ideal size and stays resizable.
+      .presentationSizing(.fitted)
       .task { await trustedLists.refreshIfNeeded() }
       .onDisappear { verification.cancel() }
     }

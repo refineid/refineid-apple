@@ -4,8 +4,10 @@
 
   import CardCore
   import SwiftUI
-  /// PIN 2 entry, optional stamp, and the Verify and Sign buttons for
-  /// ready documents.
+  /// The signing configuration for ready documents.
+  ///
+  /// The format, PIN 2 entry and the optional stamp; its action is in
+  /// the button bar.
   internal struct StatusSignatureSection: View {
     internal let signing: SignDocumentModel
     @Binding internal var format: SignatureFormat
@@ -15,12 +17,8 @@
     /// Where the card operations go; nowhere while several cards wait
     /// for the holder's choice.
     internal let target: ReaderTarget
-    internal let canSign: Bool
     internal let onSign: () -> Void
     @FocusState private var pinFocused: Bool
-
-    /// The verification the Verify button opened, shown in a sheet.
-    @State private var verification: QueuedDocumentVerification?
 
     /// Whether a card is there to type for.
     private var acceptsEntry: Bool {
@@ -54,9 +52,7 @@
                 .disabled(!acceptsEntry)
             }
           #endif
-          actionRow
         }
-        .presentsVerification($verification)
         .onAppear { if asksLocalPin2, acceptsEntry { pinFocused = true } }
         .onChange(of: target) { used, _ in
           // What was typed or read belongs to the card used before.
@@ -68,37 +64,6 @@
           if asksLocalPin2, acceptsEntry { pinFocused = true }
         }
       }
-    }
-
-    @ViewBuilder private var actionRow: some View {
-      HStack {
-        if let note = StatusView.progressNote(signing) {
-          ProgressView().controlSize(.small)
-          Text(note)
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-        }
-        Spacer()
-        Button("Verify…") { verifyQueued() }
-          .disabled(
-            !QueuedDocumentVerification.isAvailable(
-              queued: signing.queued, signing: signing.working)
-          )
-          .accessibilityIdentifier("verifyQueuedDocuments")
-        Button("Sign…") { onSign() }
-          .buttonStyle(.borderedProminent)
-          .keyboardShortcut(.defaultAction)
-          .disabled(!canSign)
-          .accessibilityIdentifier("signDocument")
-      }
-      .announcesOutcome(StatusView.progressNote(signing))
-    }
-
-    /// Verifies every waiting document, leaving the pile to be signed.
-    private func verifyQueued() {
-      guard QueuedDocumentVerification.isAvailable(queued: signing.queued, signing: signing.working)
-      else { return }
-      verification = QueuedDocumentVerification(documents: signing.queued, dependencies: .live)
     }
   }
 

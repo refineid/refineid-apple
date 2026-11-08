@@ -189,7 +189,7 @@
       }
       #expect(asked.isEmpty)
       #expect(signing.failure != nil)
-      #expect(signing.signed == nil)
+      #expect(signing.signedFiles.isEmpty)
       #expect(demo.state.card.pin2.attemptsRemaining == 4)
 
       // Correct PIN 2 ("123456" default in activatedReader): the
@@ -211,7 +211,7 @@
       #expect(named.bestSignatureTime >= before)
       #expect(named.bestSignatureTime <= Date())
       #expect(signing.failure == nil)
-      #expect(signing.signed == destURL)
+      #expect(signing.signedFiles == [destURL])
       #expect(FileManager.default.fileExists(atPath: destURL.path) == true)
     }
 

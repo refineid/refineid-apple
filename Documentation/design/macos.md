@@ -14,10 +14,25 @@ in the title bar, holds one control: the remote-use switch at the right
 end, where it takes no room from the content. From the top, the window
 shows:
 
-1. The identity line.
-2. The document drop area, while an identity is available or documents
-   are waiting.
-3. The signing controls and the outcome of the last action.
+1. The status row, where the app talks to the holder. It shows the
+   identity line, except while documents are waiting and no card or
+   phone can sign: the holder is there to verify, so the window does
+   not ask for a reader. It returns with the holder's name as soon as a
+   card or phone can sign. While a document is signed the row says the
+   step, with a progress indicator ("Signing document…",
+   "Timestamping…", and so on). A failure, in plain words, replaces the
+   step at once and is announced; until "OK" is pressed it holds the
+   default action and "Sign…" is disabled, so Return cannot sign again
+   unread. After that the row says what the action left: "Signed and
+   saved." ("Signed and saved 3 documents." for a pile) with "Show in
+   Finder", which selects every file written, and any notice beside it.
+   "OK" puts the outcome away, and so does a change to the documents; the
+   row then shows the identity again.
+2. The document drop area, with the list of waiting documents.
+3. The signing configuration, only while a card or phone can sign or a
+   signature is in flight: the format and PIN 2.
+4. The button bar, centred below every panel: "Verify…", and the
+   default "Sign…" while a card or phone can sign.
 
 A card waiting to be taken into use replaces these with the activation
 form, and the window has no toolbar button while it does: activation is
@@ -368,14 +383,18 @@ app's language, a space, and that instant in UTC with colons replaced by
 hyphens. A container name the holder types keeps the suffix when it is
 still there and gets it appended when typing replaced it.
 
-The drop area reads "Drop documents here to sign or verify them."
+The drop area reads "Drop documents here to sign or verify them." while a
+card or phone can sign, and "Drop documents here to verify them." while
+none can; then the format row, PIN 2 and "Sign…" are not shown either.
 
 ## Document verification
 
-"Verify…" stands beside "Sign…" in the signing controls, a plain button
-beside the default one. It is enabled while documents are waiting and no
+"Verify…" sits in the button bar at the bottom of the window, with or
+without a card. It is enabled while documents are waiting and no
 signature is in flight, and it verifies every waiting document. The
-result opens as a sheet: one "Document" section per document, then the
+result opens as a resizable sheet, at a size that shows one whole
+signature without scrolling, and scrolls for several documents: one
+"Document" section per document, then the
 signature sections the Verify screen on iPhone and iPad shows
 ([ios.md](ios.md#verify)), and the trusted-lists section; "Done" closes
 it. A document without signatures, an office file or plain text among

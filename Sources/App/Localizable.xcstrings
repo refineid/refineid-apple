@@ -2525,6 +2525,22 @@
         }
       }
     },
+    "Documents to verify": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tarkastettavat asiakirjat"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dokument att granska"
+          }
+        }
+      }
+    },
     "Done": {
       "extractionState": "manual",
       "localizations": {
@@ -2587,6 +2603,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Släpp dokument här för att underteckna eller granska dem."
+          }
+        }
+      }
+    },
+    "Drop documents here to verify them.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pudota asiakirjat tähän tarkastettavaksi."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Släpp dokument här för att granska dem."
           }
         }
       }
@@ -7043,6 +7075,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "Signaturkod 2"
+          }
+        }
+      }
+    },
+    "Signed and saved.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allekirjoitettu ja tallennettu."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signerat och sparat."
+          }
+        }
+      }
+    },
+    "Show in Finder": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Näytä Finderissa"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa i Finder"
+          }
+        }
+      }
+    },
+    "Signed and saved %lld documents.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allekirjoitettu ja tallennettu %lld asiakirjaa."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld dokument signerade och sparade."
           }
         }
       }

@@ -132,7 +132,7 @@
       #expect(first.signed.bytes == second.signed.bytes)
       #expect(first.signed.bestSignatureTime == second.signed.bestSignatureTime)
       #expect(scene.signing.unsaved == nil)
-      #expect(scene.signing.signed == destination)
+      #expect(scene.signing.signedFiles == [destination])
       #expect(FileManager.default.fileExists(atPath: destination.path))
     }
 
@@ -154,7 +154,7 @@
       #expect(panel.offered.count == 1)
       #expect(scene.signing.unsaved == nil)
       #expect(scene.signing.failure == nil)
-      #expect(scene.signing.signed == nil)
+      #expect(scene.signing.signedFiles.isEmpty)
       #expect(scene.signing.pending == scene.sources.first)
       #expect(!scene.signing.working)
       #expect(!FileManager.default.fileExists(atPath: destination.path))
@@ -176,7 +176,7 @@
       await task.value
 
       #expect(panel.offered.count == 2)
-      #expect(scene.signing.signed == destination)
+      #expect(scene.signing.signedFiles == [destination])
     }
 
     /// A place that is the original under another letter case is
@@ -206,7 +206,7 @@
       #expect(panel.offered.count == 2)
       #expect(panel.offered.last?.typedName == "AGREEMENT.pdf")
       #expect(try Data(contentsOf: source) == original)
-      #expect(scene.signing.signed == destination)
+      #expect(scene.signing.signedFiles == [destination])
     }
 
     @Test
@@ -227,7 +227,7 @@
       await task.value
 
       #expect(panel.offered.count == 2)
-      #expect(scene.signing.signed == destination)
+      #expect(scene.signing.signedFiles == [destination])
       #expect(FileManager.default.fileExists(atPath: destination.path))
     }
 
@@ -253,7 +253,7 @@
 
       #expect(panel.offered.count == 2)
       #expect(panel.offered.last?.typedName == "Pile")
-      #expect(scene.signing.signed == destination)
+      #expect(scene.signing.signedFiles == [destination])
     }
 
     @Test
