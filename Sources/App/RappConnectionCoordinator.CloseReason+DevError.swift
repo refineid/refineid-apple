@@ -10,6 +10,9 @@
       case .localRequest, .pairRevoked, .revocationNoticeDelivered:
         nil
 
+      case .revocationNoticeUnacknowledged:
+        "the phone did not echo the close of a forgotten pairing"
+
       case .transportClosed:
         "transport closed before the session was up"
 

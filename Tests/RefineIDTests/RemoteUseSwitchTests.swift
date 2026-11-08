@@ -96,6 +96,22 @@
       return pairing
     }
 
+    /// A requester's pairing stored in `vault` that was made now, so its
+    /// idle expiry is 30 days off and a forgotten one waits in the
+    /// revocation backlog.
+    internal static func recentPairing(in vault: RappDeviceVault) throws -> RappPairRecord {
+      let local = Curve25519.KeyAgreement.PrivateKey()
+      let remote = Curve25519.KeyAgreement.PrivateKey()
+      let pairing = try PairRecordFixture.makePairRecord(
+        localStaticPrivate: local.rawRepresentation,
+        localStaticPublic: local.publicKey.rawRepresentation,
+        localRole: .requester,
+        remotePublicKey: remote.publicKey.rawRepresentation,
+        createdAtMilliseconds: RappPlatformClock().wallMilliseconds())
+      try vault.insertPair(pairID: pairing.metadata().pairId, record: try pairing.encodedBytes())
+      return pairing
+    }
+
     // MARK: The switch
 
     @Test("A launch with no pairing left starts off and asks macOS for nothing")

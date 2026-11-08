@@ -43,13 +43,6 @@ public func rappRedialWindowMs() -> UInt64 {
   RedialWindow.milliseconds
 }
 
-/// How long a requester keeps a pairing its user forgot with no session
-/// open for its one attempt to deliver the `pairing_revoked` close, in
-/// milliseconds (RAPP v26.11.2 §4.6 item 6).
-public func rappRevocationAttemptBoundMs() -> UInt64 {
-  RevocationAttemptBound.milliseconds
-}
-
 /// How long a pairing lives without an established session before it
 /// expires, in milliseconds (RAPP v26.11.2 §4.6 item 5).
 public func rappPairingIdleExpiryMs() -> UInt64 {

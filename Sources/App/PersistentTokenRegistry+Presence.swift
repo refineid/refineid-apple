@@ -25,28 +25,24 @@
       Duration.seconds(advertisementLossHoldSeconds)
     }
 
-    /// Every stored pairing in the vault, a forgotten one too.
-    ///
-    /// A forgotten pairing's hint brings the session that delivers its close
-    /// (RAPP v26.11.2 §4.6 item 2). Forgotten pairings come first, so a
-    /// phone that carries the hint of one and of a newer pairing hears the
-    /// close before the newer pairing is used. A forgotten record whose 30
-    /// days ran out is destroyed first (§4.6 item 3).
+    /// The stored pairings that serve: a forgotten one is the revocation
+    /// backlog's alone, which delivers its close on a session of its own
+    /// (RAPP v26.11.2 §4.6 item 6), so this watcher neither follows nor
+    /// dials it.
     private static func activeHolderPairings() -> [HolderPairing] {
       let vault = RappDeviceVault()
-      RappPairRevocation.expireRevocationNotices(in: vault, clock: RappPlatformClock())
       let pairIDs = (try? vault.activePairIDs()) ?? []
-      let pairings = pairIDs.compactMap { pairID -> HolderPairing? in
-        guard let pair = try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault) else {
-          return nil
-        }
-        return HolderPairing(
-          key: pairID.map { String(format: "%02x", $0) }.joined(),
-          pairID: pairID,
-          record: pair)
+      return pairIDs.compactMap { pairID -> HolderPairing? in
+        guard let pair = try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault),
+          pair.metadata().forgottenAtMs == nil
+        else { return nil }
+        return HolderPairing(key: pairingKey(pairID), pairID: pairID, record: pair)
       }
-      let forgotten = pairings.filter { $0.record.metadata().forgottenAtMs != nil }
-      return forgotten + pairings.filter { $0.record.metadata().forgottenAtMs == nil }
+    }
+
+    /// The name a watcher follows a pairing by.
+    internal static func pairingKey(_ pairID: Data) -> String {
+      pairID.map { String(format: "%02x", $0) }.joined()
     }
 
     /// What a published record says about one of `pairings`.
@@ -104,10 +100,7 @@
           Self.shared.pairInSight = inSight
           if let pairID = inSight {
             let vault = RappDeviceVault()
-            let forgotten =
-              (try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault))?.metadata()
-              .forgottenAtMs != nil
-            if !forgotten, (try? vault.selectedPairID()) != pairID {
+            if (try? vault.selectedPairID()) != pairID {
               try? vault.selectPair(pairID: pairID)
             }
           }
@@ -173,6 +166,7 @@
     /// Restarts browsing for the currently selected holder, while remote
     /// use is on.
     internal func restartWatchingPresence() {
+      followRevocationBacklog()
       guard Self.followsPhone else { return }
       guard !CardPresence.shared.isReaderCardPresent else {
         stopWatchingPresence()
@@ -236,8 +230,8 @@
       holderRevoked(pairID: pairID, in: vault)
     }
 
-    /// This computer's close for a pairing it forgot reached the phone
-    /// (RAPP v26.11.2 §4.6 items 2 and 3): the record and its key go now.
+    /// The phone echoed this computer's close for a pairing it forgot (RAPP
+    /// v26.11.2 §4.6 items 3 and 6): the record and its key go now.
     internal func revocationNoticeDelivered(pairID: Data) {
       try? RappPairRevocation.revoke(
         pairID: pairID, in: RappDeviceVault(), clock: RappPlatformClock())

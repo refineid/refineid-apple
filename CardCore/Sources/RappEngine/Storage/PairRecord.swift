@@ -148,15 +148,16 @@ internal struct PairRecord: Equatable {
     return decodedForgottenAt.map(record.forgotten(at:)) ?? record
   }
 
-  /// Whether the time a forgotten record keeps its key has passed: 30 days
-  /// on a custodian (§4.6 item 3), `revocation_attempt_bound_ms` on a
-  /// requester (§4.6 item 6).
+  /// Whether the time a forgotten record keeps its key has passed (§4.6
+  /// item 3): on a custodian 30 days after the forget; on a requester, whose
+  /// revocation backlog keeps it until the custodian echoes the close, when
+  /// the pairing's idle expiry would have passed, counted from its latest
+  /// recorded session or its creation as the sweep counts, not from the
+  /// forget (§4.6 item 6).
   internal func revocationNoticeExpired(nowMilliseconds: UInt64) -> Bool {
     guard let forgottenAtMilliseconds else { return false }
-    let window =
-      role == .requester
-      ? RevocationAttemptBound.milliseconds
-      : Self.revocationNoticeDays * Self.millisecondsPerDay
+    guard role != .requester else { return idleLimitReached(nowMilliseconds: nowMilliseconds) }
+    let window = Self.revocationNoticeDays * Self.millisecondsPerDay
     let (deadline, overflowed) = forgottenAtMilliseconds.addingReportingOverflow(window)
     return !overflowed && nowMilliseconds >= deadline
   }

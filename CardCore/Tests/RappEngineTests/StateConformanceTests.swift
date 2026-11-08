@@ -21,7 +21,6 @@ internal struct StateConformanceTests {
     "identity_offer_grace_ms": IdentityOfferGrace.milliseconds,
     "quit_withdrawal_bound_ms": QuitWithdrawalBound.milliseconds,
     "redial_window_ms": RedialWindow.milliseconds,
-    "revocation_attempt_bound_ms": RevocationAttemptBound.milliseconds,
     "display_name_max_bytes": UInt64(RappDisplayName.maximumBytes),
   ]
 

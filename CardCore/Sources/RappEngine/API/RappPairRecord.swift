@@ -112,6 +112,18 @@ public final class RappPairRecord: @unchecked Sendable {
     return summary(of: planned)
   }
 
+  /// Destroys a requester's forgotten record whose idle expiry would have
+  /// passed at `nowMs` without the custodian's echo, answering whether it
+  /// did (§4.6 items 3 and 6).
+  private static func dropsExpiredBacklog(
+    _ current: PairRecord, in vault: RappPairVault, at nowMs: UInt64
+  ) throws -> Bool {
+    guard current.role == .requester, current.revocationNoticeExpired(nowMilliseconds: nowMs)
+    else { return false }
+    try destroy(current, in: vault, at: nowMs)
+    return true
+  }
+
   /// Returns the raw serialized bytes of this pair record.
   ///
   /// - Throws: ``RappBindingError/WrongPhase`` once the pairing was revoked.
@@ -178,13 +190,15 @@ public final class RappPairRecord: @unchecked Sendable {
   /// Idle expiry is ``sweep(vault:nowMs:sessionEstablished:)``'s. A
   /// confirmed record is stored as forgotten and keeps its key only to
   /// deliver the `pairing_revoked` close: on a custodian on the next
-  /// session, for 30 days; on a requester in one attempt within
-  /// ``rappRevocationAttemptBoundMs()`` of `forgottenAtMs` (§4.6 item 6).
-  /// An unconfirmed one is destroyed at once, here and in the vault, and
-  /// nobody is told. With a session open, close it with reason
-  /// `pairingRevoked`, wait for the echo within
-  /// ``rappQuitWithdrawalBoundMs()``, and call ``revoke(vault:revokedAtMs:)``
-  /// instead. `forgottenAtMs` is milliseconds since the Unix epoch.
+  /// session, for 30 days; on a requester in its revocation backlog, on a
+  /// session opened each time the custodian appears, until the custodian's
+  /// echo or ``revocationNoticeExpired(nowMs:)`` (§4.6 item 6). An
+  /// unconfirmed one is destroyed at once, here and in the vault, and nobody
+  /// is told. With a session open, forget it here too, close the session
+  /// with reason `pairingRevoked` and wait for the echo within
+  /// ``rappQuitWithdrawalBoundMs()``; a custodian calls
+  /// ``revoke(vault:revokedAtMs:)`` once the wait ended, a requester only
+  /// on the echo. `forgottenAtMs` is milliseconds since the Unix epoch.
   ///
   /// - Throws: ``RappBindingError/WrongPhase`` for a revoked pairing, and
   ///   ``RappBindingError/LocalStateFailure`` when storage refused.
@@ -209,8 +223,9 @@ public final class RappPairRecord: @unchecked Sendable {
   }
 
   /// Whether a forgotten record kept its key as long as it may without
-  /// delivering the close: 30 days on a custodian (§4.6 item 3),
-  /// ``rappRevocationAttemptBoundMs()`` on a requester (§4.6 item 6).
+  /// delivering the close (§4.6 item 3): 30 days after the forget on a
+  /// custodian, and on a requester 30 days after the pairing's latest
+  /// recorded session, or its creation (§4.6 item 6).
   ///
   /// Destroy it then with ``revoke(vault:revokedAtMs:)``; a revoked pairing
   /// has nothing left to expire.
@@ -231,7 +246,10 @@ public final class RappPairRecord: @unchecked Sendable {
   /// a sweep that failed to store is repeated whole by the next one.
   ///
   /// On a requester an expired pairing is destroyed at once, here and in
-  /// the vault, and nothing is owed (§4.6 items 5 and 6).
+  /// the vault, and nothing is owed (§4.6 items 5 and 6); so is a forgotten
+  /// one whose idle expiry would have passed without the custodian's echo
+  /// (``revocationNoticeExpired(nowMs:)``), which leaves the revocation
+  /// backlog with outcome `kept`.
   ///
   /// Sweep every pairing at launch and at least once a day, and sweep a
   /// pairing with `sessionEstablished` true once its session is established
@@ -256,6 +274,10 @@ public final class RappPairRecord: @unchecked Sendable {
         stored = nil
         summary = expired
         return .expired
+      }
+      if try Self.dropsExpiredBacklog(current, in: vault, at: nowMs) {
+        stored = nil
+        return .kept
       }
       let outcome: PairRecordSweepOutcome
       do {

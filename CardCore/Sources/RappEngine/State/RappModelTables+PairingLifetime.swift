@@ -29,12 +29,23 @@ extension RappModelTables {
     RappRule(
       from: .pairedConnected,
       event: .forgetPairing,
-      role: .both,
+      role: .custodian,
       condition: .localUserAction,
       destination: .revoked,
       actions: [
         .markRecordRevoked, .sendClosePairingRevoked, .closeSession, .destroyPairKeys,
         .withdrawIdentity, .showForgotten,
+      ]
+    ),
+    RappRule(
+      from: .pairedConnected,
+      event: .forgetPairing,
+      role: .requester,
+      condition: .localUserAction,
+      destination: .revoking,
+      actions: [
+        .markRecordRevoked, .sendClosePairingRevoked, .closeSession, .withdrawIdentity,
+        .showForgotten,
       ]
     ),
     RappRule(
@@ -83,14 +94,7 @@ extension RappModelTables {
     RappRule(
       from: .revoking,
       event: .noticeWindowExpired,
-      role: .custodian,
-      destination: .revoked,
-      actions: [.destroyPairKeys]
-    ),
-    RappRule(
-      from: .revoking,
-      event: .revocationAttemptEnded,
-      role: .requester,
+      role: .both,
       destination: .revoked,
       actions: [.destroyPairKeys]
     ),

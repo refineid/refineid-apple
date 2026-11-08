@@ -161,8 +161,9 @@
     }
 
     /// Ends the pairing this request ran over when its session said so: the
-    /// custodian revoked it, or this endpoint delivered the close of a
-    /// pairing it forgot (RAPP v26.11.2 §4.6 items 2 to 4).
+    /// custodian revoked it, or the custodian echoed this endpoint's close of
+    /// a pairing it forgot (RAPP v26.11.2 §4.6 items 2 to 4); a close without
+    /// its echo keeps the pairing forgotten in the revocation backlog.
     private func endPairing(after reason: RappConnectionCoordinator.CloseReason) {
       let revokedByPeer = reason.peerRevokedPairing
       guard revokedByPeer || reason == .handshake(.revocationNoticeDelivered),

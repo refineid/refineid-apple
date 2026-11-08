@@ -178,10 +178,12 @@ public final class RappSessionBridge: @unchecked Sendable {
   /// session. The pairing stays unless the custodian closed with
   /// `pairingRevoked`.
   ///
-  /// - Throws: ``RappBindingError/WrongPhase`` outside authentication or on
-  /// the custodian.
+  /// - Throws: ``RappBindingError/WrongPhase`` outside authentication, on
+  /// the custodian, or for a forgotten record, which sends
+  /// ``deliverRevocationNotice()`` instead and never a `session.hello`.
   public func receiveReady(bytes: Data, displayName: RappDisplayName) throws -> RappReadyOutcome {
-    try locked {
+    guard !revocationNoticePending() else { throw RappBindingError.WrongPhase }
+    return try locked {
       guard case .authenticating(var authentication) = phase else {
         throw RappBindingError.WrongPhase
       }
@@ -212,7 +214,9 @@ public final class RappSessionBridge: @unchecked Sendable {
   /// No card session starts. Deliver the frame, wait for the peer's echo
   /// with ``receiveCloseEcho(bytes:)`` within the bound (§7.1 item 7), drop
   /// the link, then destroy the record with
-  /// ``RappPairRecord/revoke(vault:revokedAtMs:)``.
+  /// ``RappPairRecord/revoke(vault:revokedAtMs:)``: a custodian once the
+  /// wait ended, a requester only on the echo, keeping the record in its
+  /// revocation backlog otherwise (§4.6 items 3 and 6).
   ///
   /// - Throws: ``RappBindingError/WrongPhase`` outside authentication, after
   /// the custodian's `session.ready`, or for a record that is not

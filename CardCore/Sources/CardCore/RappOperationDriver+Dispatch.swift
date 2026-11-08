@@ -52,6 +52,7 @@
       switch bridge.receiveFrame(bytes: frame, nowMs: clock.monotonicMilliseconds()) {
       case .closeAcknowledged(let reason, let crossing):
         echoReason = nil
+        ownCloseEchoed = true
         return [.closed(crossing ? Self.closeReason(peer: reason) : sent)]
 
       case .sessionClosed:

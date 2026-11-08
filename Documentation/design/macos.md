@@ -47,20 +47,31 @@ reads it as a toggle.
 - **Turning off.** The click forgets the pairing (RAPP v26.11.2 §4.6
   item 6). The Mac stores the click first, with the pairings it holds
   (`RemoteUseForgetting`). An open session closes with `pairing_revoked`,
-  and the Mac waits at most 1 second for the phone's echo of that close.
-  With no session open, the Mac makes one bounded attempt: within 10
-  seconds of the click it browses for the phone's session record, dials
-  the first instance found for the pairing once, and sends the close as
-  the session's first message (`RappRevocationAttempt`). Then those
-  pairings are destroyed with their keys, and each name goes once its key
-  is gone. What the keychain does not let go stays under the stored
-  click, which turning on again and the next launch finish first; while
-  they cannot, remote use stays off. A second click off while the first
-  is still forgetting runs after it, and a quit waits for both. A
-  connection still being made closes without a notice. A phone the
-  attempt does not reach forgets this computer by its own idle expiry. The phone's identity is withdrawn at once, without its grace,
-  and scanning stops. The click asks for no confirmation. Turning remote
+  and the Mac waits at most 1 second for the phone's echo of that close;
+  the echo destroys that pairing. Every other pairing, and that one
+  without the echo, is stored forgotten and joins the revocation backlog:
+  it serves nothing, offers no identity, is never selected, and keeps its
+  key only for the close. What the keychain does not let go stays under
+  the stored click, which turning on again and the next launch finish
+  first; while they cannot, remote use stays off. A second click off while
+  the first is still forgetting runs after it, and a quit waits for both.
+  A connection still being made closes without a notice. The phone's
+  identity is withdrawn at once, without its grace, and scanning for the
+  active pairing stops. The click asks for no confirmation. Turning remote
   use on again asks for a new pairing code.
+- **The revocation backlog.** While a forgotten pairing waits, the Mac
+  browses for its phone's session record whatever the switch and the
+  reader are (`PersistentTokenRegistry+RevocationBacklog`,
+  `RappRevocationBacklogBrowser`). Each time a phone appears for one, the
+  Mac opens one session that sends the close as its first message and
+  waits for the echo (`RappRevocationNotice`); a session that cannot
+  reach the phone on the stream tries Bluetooth once. The echo destroys
+  the pairing and its key. Nothing is dialed on a timer. A pairing whose
+  phone does not appear goes 30 days after its last session, when its
+  idle expiry would have passed, and that phone forgets this computer by
+  its own idle expiry. Several forgotten pairings may wait at once, beside
+  the one active pairing. Pairing another phone forgets the old pairing
+  the same way.
 - **The last pairing ends.** When the phone forgets this computer
   (`pairing_revoked`) or the pairing expires after 30 days without a
   session, remote use stays on: only the holder's click turns it off. A

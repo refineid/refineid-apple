@@ -52,8 +52,8 @@ internal enum PairingEvent: String, CaseIterable, Sendable {
   case sessionClosed = "session_closed"
   /// The local user forgot the pairing; on a requester, by turning remote
   /// use off or by pairing another phone, which forgets the pairing it
-  /// holds; with no session open the requester keeps the key for one
-  /// bounded revocation attempt (§4.6 item 6).
+  /// holds; the requester keeps the key in its revocation backlog until the
+  /// custodian echoes the close (§4.6 item 6).
   case forgetPairing = "forget_pairing"
   /// The idle-expiry sweep, with a session to the pairing established or
   /// with none and the pairing short of the idle limit (§4.6 item 5).
@@ -62,14 +62,14 @@ internal enum PairingEvent: String, CaseIterable, Sendable {
   /// `pairing_idle_expiry_days` of wall-clock time past its latest recorded
   /// session, or its creation (§4.6 item 5).
   case idleExpired = "idle_expired"
-  /// Produced by the next session sending the close as its first message,
-  /// once the peer echoed it or the wait for the echo ended.
+  /// Produced by the session that sent the close: on a custodian once the
+  /// peer echoed it or the wait for the echo ended, on a requester only on
+  /// the peer's echo.
   case revocationNoticeSent = "revocation_notice_sent"
-  /// `revocation_notice_days` after the revocation.
+  /// On a custodian `revocation_notice_days` after the revocation; on a
+  /// requester when the pairing's idle expiry would have passed (§4.6
+  /// item 3).
   case noticeWindowExpired = "notice_window_expired"
-  /// `revocation_attempt_bound_ms` after a requester's revocation without
-  /// the close sent (§4.6 item 6).
-  case revocationAttemptEnded = "revocation_attempt_ended"
   /// `session.close` with reason `pairing_revoked`, also in place of
   /// `session.ready`.
   case peerRevocationNotice = "peer_revocation_notice"

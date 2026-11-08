@@ -159,7 +159,8 @@ extension RappPairingModel {
       phase = .paired(pair)
       finishAttempt()
       if pair.role == .requester {
-        PersistentTokenRegistry.shared.forgetReplacedPairings(keeping: pair.pairID)
+        PersistentTokenRegistry.shared.forgetReplacedPairings(
+          keeping: pair.pairID, in: vault)
       }
       #if os(macOS)
         PersistentTokenRegistry.shared.startAfterPairing()

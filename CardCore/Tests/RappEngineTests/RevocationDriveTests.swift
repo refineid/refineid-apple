@@ -153,7 +153,8 @@ internal struct RevocationDriveTests {
   }
 
   @Test(
-    "A custodian's forgotten record keeps its key for thirty days, a requester's for its attempt")
+    "A custodian's forgotten record keeps its key for thirty days, a requester's until its idle expiry"
+  )
   internal func noticeWindow() throws {
     let vault = MemoryPairVault()
     let pairing = try Self.storedPairing(vault)
@@ -165,11 +166,14 @@ internal struct RevocationDriveTests {
     #expect(
       !pairing.custodian.revocationNoticeExpired(nowMs: Self.forgottenAt + window - Self.tick))
     #expect(pairing.custodian.revocationNoticeExpired(nowMs: Self.forgottenAt + window))
+    let sessionAt = Self.forgottenAt - Self.millisecondsPerDay
+    _ = try pairing.requester.sweep(vault: vault, nowMs: sessionAt, sessionEstablished: true)
     _ = try pairing.requester.forget(vault: vault, forgottenAtMs: Self.forgottenAt)
-    let bound = rappRevocationAttemptBoundMs()
+    let expiry = sessionAt + rappPairingIdleExpiryMs()
     #expect(
-      !pairing.requester.revocationNoticeExpired(nowMs: Self.forgottenAt + bound - Self.tick))
-    #expect(pairing.requester.revocationNoticeExpired(nowMs: Self.forgottenAt + bound))
+      !pairing.requester.revocationNoticeExpired(nowMs: Self.forgottenAt + Self.millisecondsPerDay))
+    #expect(!pairing.requester.revocationNoticeExpired(nowMs: expiry - Self.tick))
+    #expect(pairing.requester.revocationNoticeExpired(nowMs: expiry))
   }
 
   @Test("A requester's idle expiry destroys the pairing and owes nothing")

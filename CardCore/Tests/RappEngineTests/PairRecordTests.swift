@@ -109,13 +109,21 @@ internal struct PairRecordTests {
       forgotten.revocationNoticeExpired(nowMilliseconds: forgottenAtMilliseconds + window))
   }
 
-  @Test("A requester's forgotten record keeps its key for one bounded attempt")
-  internal func revocationAttemptBound() throws {
-    let forgotten = try makePairRecord(role: .requester).forgotten(at: forgottenAtMilliseconds)
-    let bound = RevocationAttemptBound.milliseconds
+  @Test("A requester's forgotten record keeps its key until 30 days after its last session")
+  internal func requesterBacklogExpiry() throws {
+    var record = try makePairRecord(role: .requester)
+    let sessionAt = record.createdAtMilliseconds + millisecondsPerDay
+    let forgottenAt = sessionAt + millisecondsPerDay
+    _ = try record.sweep(nowMilliseconds: sessionAt, sessionEstablished: true) { _ in
+      // The record in memory is all this test reads.
+    }
+    let forgotten = record.forgotten(at: forgottenAt)
+    let expiry = sessionAt + PairRecord.pairingIdleExpiryMilliseconds
+    #expect(!forgotten.revocationNoticeExpired(nowMilliseconds: forgottenAt))
+    #expect(!forgotten.revocationNoticeExpired(nowMilliseconds: expiry - tick))
     #expect(
-      !forgotten.revocationNoticeExpired(nowMilliseconds: forgottenAtMilliseconds + bound - tick))
-    #expect(forgotten.revocationNoticeExpired(nowMilliseconds: forgottenAtMilliseconds + bound))
+      forgotten.revocationNoticeExpired(nowMilliseconds: expiry),
+      "counted from the last session, not from the forget")
   }
 
   @Test("A new name replaces the peer's name in the record")

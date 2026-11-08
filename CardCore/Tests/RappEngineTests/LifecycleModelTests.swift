@@ -97,13 +97,9 @@ internal struct LifecycleModelTests {
     let constants = try StateModelFile.read(filePath: #filePath).constants
     #expect(constants["redial_window_ms"] == RedialWindow.milliseconds)
     #expect(constants["redial_window_ms"] == constants["identity_offer_grace_ms"])
-    #expect(constants["revocation_attempt_bound_ms"] == RevocationAttemptBound.milliseconds)
     #expect(constants["display_name_max_bytes"] == UInt64(RappDisplayName.maximumBytes))
     #expect(
       (constants["session_silence_limit_ms"] ?? 0) < (constants["redial_window_ms"] ?? 0))
-    #expect(
-      (constants["revocation_attempt_bound_ms"] ?? 0)
-        > (constants["quit_withdrawal_bound_ms"] ?? 0))
   }
 
   @Test("Every lifecycle scenario walks the model; pairing and session ones walk the engine")

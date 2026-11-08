@@ -8,21 +8,25 @@
   import RappEngine
 
   /// The holder's click turning remote use off, kept until every pairing it
-  /// forgets is destroyed (RAPP v26.11.2 §4.6 item 6, STPA CC-100).
+  /// forgets is stored forgotten (RAPP v26.11.2 §4.6 item 6, STPA CC-100,
+  /// CC-118).
   ///
   /// The click is stored with its wall-clock time and the pairings it
-  /// forgets before anything else happens. Those pairings are then
-  /// destroyed with their keys, and each name goes once its key is gone; a
-  /// pairing made after the click stays. What the vault does not let go
-  /// stays under the stored click, which turning remote use on and the
-  /// next launch finish first, so no launch restores remote use on after
-  /// the holder turned it off. A click is cleared only by the attempt that
-  /// finished it, never one stored after it.
+  /// forgets before anything else happens. Those pairings are then marked
+  /// forgotten at the click's time: each serves nothing more and keeps its
+  /// key only for the `pairing_revoked` close, in the revocation backlog,
+  /// which destroys it on the phone's echo or at its idle expiry. A pairing
+  /// made after the click stays. What the vault does not let go stays under
+  /// the stored click, which turning remote use on and the next launch
+  /// finish first, so no launch restores remote use on after the holder
+  /// turned it off. A click is cleared only by the attempt that finished it,
+  /// never one stored after it.
   internal enum RemoteUseForgetting {
     /// What one attempt to finish the forgetting did.
     internal struct Outcome: Equatable, Sendable {
-      /// The pairings destroyed.
-      internal var destroyed: [Data] = []
+      /// The pairings stored forgotten, or destroyed when the vault held a
+      /// record it could not read.
+      internal var forgotten: [Data] = []
 
       /// How many pairings, or listings of them, the vault refused; each is
       /// tried again by the next attempt.
@@ -34,12 +38,12 @@
       /// When the holder clicked, in milliseconds since the Unix epoch.
       internal var clickedAtMs: UInt64
 
-      /// The pairings the click forgets, listed before any is destroyed.
+      /// The pairings the click forgets, listed before any is forgotten.
       internal var pairIDs: [Data]
 
       /// Whether the vault could not be listed when the click was stored:
       /// the next attempt lists the pairings made up to the click before it
-      /// destroys any.
+      /// forgets any.
       internal var needsListing: Bool
     }
 
@@ -102,8 +106,8 @@
       }
     }
 
-    /// Destroys the pairings the pending click forgets and clears that
-    /// click once they are gone; nothing without a click.
+    /// Stores forgotten the pairings the pending click forgets and clears
+    /// that click once each is; nothing without a click.
     ///
     /// Runs on any thread: quitting waits on it while the main thread
     /// answers the quit. A click stored while it ran stays for the next
@@ -117,7 +121,7 @@
         do {
           listed = try listPairings(in: vault, madeBy: request.clickedAtMs)
         } catch {
-          return Outcome(destroyed: [], failures: 1)
+          return Outcome(forgotten: [], failures: 1)
         }
         var updated = request
         updated.pairIDs = merged(request.pairIDs + listed)
@@ -127,41 +131,11 @@
         }
         request = updated
       }
-      let outcome = destroy(request.pairIDs, in: vault, clock: clock)
+      let outcome = forget(request.pairIDs, at: request.clickedAtMs, in: vault, clock: clock)
       if outcome.failures == 0 {
         clear(request, in: store)
       }
       return outcome
-    }
-
-    /// Makes the one bounded attempt to tell the phone of each pairing the pending click forgets,
-    /// within ``RevocationBound/attempt`` of the click (RAPP v26.11.2 §4.6 item 6): the record is
-    /// kept forgotten, its key only for the close, and ``finish(in:store:clock:)`` destroys it
-    /// after.
-    ///
-    /// A click whose bound has passed, as at the next launch, attempts nothing.
-    internal static func attemptRevocation(in vault: RappDeviceVault, store: Store) async {
-      guard let request = pending(in: store) else { return }
-      let now = RappPlatformClock().wallMilliseconds()
-      let elapsed = Duration.milliseconds(
-        Int64(now > request.clickedAtMs ? now - request.clickedAtMs : 0))
-      let deadline = ContinuousClock.now + RevocationBound.attempt - elapsed
-      for pairID in request.pairIDs {
-        guard let pair = try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault) else {
-          continue
-        }
-        if pair.metadata().forgottenAtMs == nil {
-          guard
-            (try? pair.forget(vault: vault, forgottenAtMs: request.clickedAtMs)) == .noticePending
-          else { continue }
-        }
-        let delivered = await RappRevocationAttempt.deliver(pair, until: deadline)
-        #if DEBUG
-          if !delivered {
-            DevErrorLog.report("remote use off: the phone was not told", source: .app)
-          }
-        #endif
-      }
     }
 
     /// Names an attempt's failures among the development errors.
@@ -193,21 +167,37 @@
       }
     }
 
-    /// Destroys every pairing `pairIDs` names that `vault` still holds,
-    /// with its key and then its name.
-    private static func destroy(
-      _ pairIDs: [Data], in vault: RappDeviceVault, clock: RappPlatformClock
+    /// Stores forgotten at `clickedAtMs` every pairing `pairIDs` names that
+    /// `vault` still holds; one already forgotten keeps its first time, and
+    /// a record the vault holds but cannot read, which can deliver no close,
+    /// is destroyed.
+    private static func forget(
+      _ pairIDs: [Data],
+      at clickedAtMs: UInt64,
+      in vault: RappDeviceVault,
+      clock: RappPlatformClock
     ) -> Outcome {
       var outcome = Outcome()
       let held = Set((try? vault.activePairIDs()) ?? pairIDs)
       for pairID in pairIDs where held.contains(pairID) {
         do {
-          try RappPairRevocation.revoke(pairID: pairID, in: vault, clock: clock)
+          let pair = try RappPairRecord.loadFromVault(pairId: pairID, vault: vault)
+          if pair.metadata().forgottenAtMs == nil {
+            try RappPairRevocation.forget(pair, in: vault, at: clickedAtMs)
+          }
+        } catch RappBindingError.InvalidInput {
+          guard (try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: clock)) != nil
+          else {
+            outcome.failures += 1
+            continue
+          }
+        } catch RappBindingError.PairNotFound {
+          continue
         } catch {
           outcome.failures += 1
           continue
         }
-        outcome.destroyed.append(pairID)
+        outcome.forgotten.append(pairID)
       }
       return outcome
     }

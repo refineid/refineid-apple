@@ -10,14 +10,25 @@
   /// waits for the echo within its bound, and revokes. Without one the
   /// record is marked forgotten: it serves nothing and keeps its key only to
   /// deliver that close, on a custodian on the next session for 30 days,
-  /// on a requester in one attempt of ``rappRevocationAttemptBoundMs()``.
+  /// on a requester in its revocation backlog until the custodian echoes
+  /// the close or the pairing's idle expiry would have passed.
   public enum RappPairRevocation {
-    /// Forgets `pair` while no session to the peer is open.
+    /// Forgets `pair` now: it leaves the selection, serves nothing, and keeps
+    /// its key only for the close.
     @discardableResult
     public static func forget(
       _ pair: RappPairRecord, in vault: RappDeviceVault, clock: RappPlatformClock
     ) throws -> RappForgetOutcome {
-      let outcome = try pair.forget(vault: vault, forgottenAtMs: clock.wallMilliseconds())
+      try forget(pair, in: vault, at: clock.wallMilliseconds())
+    }
+
+    /// Forgets `pair` as its user did at `forgottenAtMs`, milliseconds since
+    /// the Unix epoch.
+    @discardableResult
+    public static func forget(
+      _ pair: RappPairRecord, in vault: RappDeviceVault, at forgottenAtMs: UInt64
+    ) throws -> RappForgetOutcome {
+      let outcome = try pair.forget(vault: vault, forgottenAtMs: forgottenAtMs)
       try clearSelection(of: pair.metadata().pairId, in: vault)
       return outcome
     }
@@ -50,8 +61,9 @@
     }
 
     /// Destroys every forgotten record whose time ran out without its close
-    /// delivered: 30 days on a custodian (§4.6 item 3), the bound of its one
-    /// attempt on a requester (§4.6 item 6).
+    /// delivered: 30 days after the forget on a custodian, and on a
+    /// requester 30 days after the pairing's last established session
+    /// (§4.6 items 3 and 6).
     public static func expireRevocationNotices(in vault: RappDeviceVault, clock: RappPlatformClock)
     {
       guard let pairIDs = try? vault.activePairIDs() else { return }

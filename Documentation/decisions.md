@@ -5,6 +5,44 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-11-08 A forgotten pairing waits for the phone's echo; RAPP wire version 26.11.8
+
+Maintainer's decision: "list of terminated pairings in store for 30 days.
+When the iPhone presents a used-to-be-valid pairing, we say we used to
+have this pairing but don't anymore, please delete this connection, and
+when the phone confirms macOS can also clear this from backlog." It
+follows a Mac that paired an Android phone in place of its iPhone: its one
+10-second attempt found no iPhone in reach, destroyed the key, and the
+iPhone listed the Mac until its idle expiry.
+
+- Every forget on the Mac or iPad (remote use turned off, or the pairing
+  replaced by another phone) stores the record forgotten. It keeps its key
+  for the `pairing_revoked` close alone and serves nothing: no identity,
+  no operation, no card, never selected. A forgotten record refuses
+  `session.ready`, so it never sends `session.hello`.
+- The revocation backlog browses for the phones of forgotten pairings
+  whatever remote use and the local reader are, opens one session each
+  time a phone appears for one, sends the close first and destroys the
+  record only on the phone's echo. A close without its echo keeps it.
+- A forgotten record goes untold 30 days after its last established
+  session, not 30 days after the forget. One active pairing at a time;
+  forgotten ones wait beside it with no limit but that expiry.
+- The iPhone side is unchanged: it keeps a forgotten record 30 days and
+  destroys it once its close was sent and the wait for the echo ended.
+- `revocation_attempt_bound_ms`, `rappRevocationAttemptBoundMs()`,
+  `RevocationBound` and `RappRevocationAttempt` are removed.
+- The wire and offer version is `[26, 11, 8]`, so this build refuses a
+  26.11.7 peer at the handshake (§10.1 item 4).
+- Network contract: `RappRevocationBacklogBrowser` browses
+  `_refineid-stream._tcp` with TXT records only while a forgotten pairing
+  waits, reads each record only to match a forgotten pairing's discovery
+  hint, and dials nothing itself; the registry opens one session per
+  appearance (`RappRevocationNotice`).
+- Known gap: the backlog finds a phone by its session record; a phone
+  reachable only over Bluetooth is dialed only when its record was seen.
+
+STPA: core's story 2, UCA-123, CC-118, CC-123 and R-2 (`doc/security/stpa-rapp.md`).
+
 ## 2026-11-08 Release builds make only long-term signatures
 
 Maintainer's rule, for every platform: "dev version can make non-LTA PDF

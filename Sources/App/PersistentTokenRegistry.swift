@@ -208,6 +208,13 @@
     /// Sweeps the pairings for idle expiry while the app runs.
     internal let idleSweep = PairingIdleSweep()
 
+    /// Browses for the phones of the pairings in the revocation backlog
+    /// while any waits (RAPP v26.11.2 §4.6 item 6); nil while none does.
+    internal var revocationBacklog: RappRevocationBacklogBrowser?
+
+    /// The forgotten pairings whose close a session is delivering now.
+    internal var revocationDeliveries: Set<Data> = []
+
     // MARK: Lifecycle
 
     private init() {
@@ -260,6 +267,7 @@
     /// While a click off is forgetting the pairings, following waits until
     /// they are gone (RAPP v26.11.2 §4.6 item 6).
     internal func start() {
+      followRevocationBacklog()
       #if os(macOS) && REFINEID_REMOTE_CARD
         guard forgetting == nil else { return }
       #endif
