@@ -44,9 +44,8 @@
     /// Ends the wait for the echo of this endpoint's close at its bound.
     internal var echoTask: Task<Void, Never>?
     /// How long this endpoint waits for the echo of a close it sent (RAPP
-    /// v26.11.2 §7.1 item 7): ``rappQuitWithdrawalBoundMs()`` unless the
-    /// owner sets another with ``setCloseEchoBound(milliseconds:)``.
-    internal var closeEchoBoundMilliseconds = rappQuitWithdrawalBoundMs()
+    /// v26.11.2 §7.1 item 7).
+    internal let closeEchoBoundMilliseconds = rappQuitWithdrawalBoundMs()
     /// Whether this endpoint's own close left on the transport.
     internal var ownCloseLeft = false
     /// Callers waiting for the connection to finish.

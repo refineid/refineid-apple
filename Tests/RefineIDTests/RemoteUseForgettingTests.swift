@@ -61,11 +61,13 @@
       let after = try Self.storedPairing(in: vault, createdAt: clickedAt + 1)
       let beforeID = before.metadata().pairId
       defer {
-        try? vault.revokePair(
-          pairID: after.metadata().pairId, revokedAtMilliseconds: Self.revocationTime)
+        for pairing in [before, after] {
+          try? vault.revokePair(
+            pairID: pairing.metadata().pairId, revokedAtMilliseconds: Self.revocationTime)
+        }
       }
       let idle = RemoteUseForgetting.finish(in: vault, store: store, clock: RappPlatformClock())
-      #expect(idle == RemoteUseForgetting.Outcome(), "without a stored click nothing goes")
+      #expect(idle == RemoteUseForgetting.Outcome(), "without a stored click nothing is forgotten")
 
       // The click was stored with the pairings it forgets, and the app
       // ended before anything else ran.
@@ -74,10 +76,16 @@
       let outcome = RemoteUseForgetting.finish(
         in: vault, store: store, clock: RappPlatformClock())
 
-      #expect(outcome.destroyed == [beforeID])
+      #expect(outcome.forgotten == [beforeID])
       #expect(outcome.failures == 0)
-      #expect(try vault.activePairIDs() == [after.metadata().pairId])
-      #expect(try vault.loadPair(pairID: beforeID) == nil, "the name goes with the key")
+      #expect(Set(try vault.activePairIDs()) == [beforeID, after.metadata().pairId])
+      let forgotten = try RappPairRecord.loadFromVault(pairId: beforeID, vault: vault)
+      #expect(
+        forgotten.metadata().forgottenAtMs == clickedAt,
+        "the pairing waits in the revocation backlog, forgotten at the click")
+      #expect(
+        try RappPairRecord.loadFromVault(pairId: after.metadata().pairId, vault: vault)
+          .metadata().forgottenAtMs == nil)
       #expect(RemoteUseForgetting.pending(in: store) == nil)
     }
 
@@ -97,7 +105,7 @@
       #expect(pending?.needsListing == false)
     }
 
-    @Test("A click stored while the vault could not be listed lists it before destroying")
+    @Test("A click stored while the vault could not be listed lists it before forgetting")
     internal func unlistedClickIsListedFirst() throws {
       let vault = RappDeviceVault()
       let store = Self.scratchStore()
@@ -106,16 +114,20 @@
       let clickedAt = Self.earlierCreation + 1
       let after = try Self.storedPairing(in: vault, createdAt: clickedAt + 1)
       defer {
-        try? vault.revokePair(
-          pairID: after.metadata().pairId, revokedAtMilliseconds: Self.revocationTime)
+        for pairing in [before, after] {
+          try? vault.revokePair(
+            pairID: pairing.metadata().pairId, revokedAtMilliseconds: Self.revocationTime)
+        }
       }
       RemoteUseForgetting.request(at: clickedAt, forgetting: [], listed: false, in: store)
       #expect(RemoteUseForgetting.pending(in: store)?.needsListing == true)
 
       let outcome = RemoteUseForgetting.finish(
         in: vault, store: store, clock: RappPlatformClock())
-      #expect(outcome.destroyed == [before.metadata().pairId])
-      #expect(try vault.activePairIDs() == [after.metadata().pairId])
+      #expect(outcome.forgotten == [before.metadata().pairId])
+      #expect(
+        try RappPairRecord.loadFromVault(pairId: before.metadata().pairId, vault: vault)
+          .metadata().forgottenAtMs == clickedAt)
       #expect(RemoteUseForgetting.pending(in: store) == nil)
     }
   }

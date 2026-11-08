@@ -133,7 +133,7 @@ extension RefineIDApp {
         // An earlier run's click off is finished as any forgetting is, so a
         // click off or a quit meanwhile follows it.
         let finishing = PersistentTokenRegistry.shared.finishForgetting(
-          after: nil, in: RappDeviceVault(), store: store)
+          after: nil, closing: nil, in: RappDeviceVault(), store: store)
         Task { @MainActor in
           await finishing.value
           let pairingRemains =

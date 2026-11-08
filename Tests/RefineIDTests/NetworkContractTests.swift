@@ -63,7 +63,9 @@ internal struct NetworkContractTests {
   /// service builds; the probes are debug-only; the detector runs a
   /// link-local Bonjour self-check; the Mac's permission watch browses
   /// only once the holder turns remote use on, and reads no record
-  /// (hierarchy specification §5.2, STPA CC-96). The local-network probe
+  /// (hierarchy specification §5.2, STPA CC-96); the revocation backlog's
+  /// browser runs only while a forgotten pairing waits for its phone (RAPP
+  /// §4.6 item 6). The local-network probe
   /// opens UDP connections, which send nothing, to the addresses of the
   /// service the stream dialer is dialling, and the verdict only reads
   /// their states.
@@ -78,6 +80,7 @@ internal struct NetworkContractTests {
       "CardCore/Sources/CardCore/StreamRelayBrowser.swift",
       "CardCore/Sources/CardCore/StreamRelayListener.swift",
       "CardCore/Sources/CardCore/StreamRelayPresence.swift",
+      "CardCore/Sources/CardCore/RappRevocationBacklogBrowser.swift",
       "CardCore/Sources/CardCore/StreamRelayRefusals.swift",
       "CardCore/Sources/CardCore/StreamRelaySession.swift",
       "CardCore/Sources/CardCore/StreamSessionListener.swift",

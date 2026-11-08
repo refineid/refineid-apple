@@ -20,7 +20,7 @@
 
     /// The policy of a dial over Bluetooth: the interactive one, scanning
     /// for its own window.
-    private static var bluetoothPolicy: RappRequesterPolicy {
+    internal static var bluetoothPolicy: RappRequesterPolicy {
       RappRequesterPolicy(
         maximumOperationLifetimeMilliseconds:
           RappRequesterPolicy.interactive.maximumOperationLifetimeMilliseconds,
@@ -41,20 +41,19 @@
 
     /// The pairing a session runs over.
     ///
-    /// It is the one whose hint the phone in sight carries, which for a
-    /// pairing this computer forgot delivers its `pairing_revoked` close to
-    /// that phone and no other (RAPP v26.11.2 §4.6 item 2); with none in
-    /// sight, the chosen usable pairing, else the newest. A forgotten pairing
-    /// is dialed only when its phone is in sight, and not once its 30 days
-    /// ran out (§4.6 item 3).
+    /// It is the usable one whose hint the phone in sight carries; with none
+    /// in sight, the chosen usable pairing, else the newest. A forgotten
+    /// pairing is never the session's: the revocation backlog delivers its
+    /// close on a session of its own (RAPP v26.11.2 §4.6 item 6).
     private static func sessionPair(in vault: RappDeviceVault, inSight: Data?) -> RappPairRecord? {
-      RappPairRevocation.expireRevocationNotices(in: vault, clock: RappPlatformClock())
       let pairIDs = (try? vault.activePairIDs()) ?? []
-      let pairs = pairIDs.compactMap { try? RappPairRecord.loadFromVault(pairId: $0, vault: vault) }
-      if let inSight, let named = pairs.first(where: { $0.metadata().pairId == inSight }) {
+      let usable = pairIDs.compactMap { pairID in
+        try? RappPairRecord.loadFromVault(pairId: pairID, vault: vault)
+      }
+      .filter { $0.metadata().forgottenAtMs == nil }
+      if let inSight, let named = usable.first(where: { $0.metadata().pairId == inSight }) {
         return named
       }
-      let usable = pairs.filter { $0.metadata().forgottenAtMs == nil }
       if let selected = try? vault.selectedPairID(),
         let chosen = usable.first(where: { $0.metadata().pairId == selected })
       {

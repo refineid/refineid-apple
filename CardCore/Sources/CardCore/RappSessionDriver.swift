@@ -29,10 +29,16 @@
       /// The peer revoked the pairing; revoke it here too and withdraw its
       /// identity (§4.6 item 4).
       case pairRevoked
-      /// This endpoint's pairing was forgotten and the session carried the
-      /// `pairing_revoked` close as its only message, echoed or not within
-      /// the wait; destroy the record now (§4.6 items 2 and 3, §7.1 item 7).
+      /// This endpoint's pairing was forgotten, the session carried the
+      /// `pairing_revoked` close as its only message, and the peer echoed it;
+      /// destroy the record now (§4.6 items 2 and 3, §7.1 item 7).
       case revocationNoticeDelivered
+      /// As ``revocationNoticeDelivered``, but the session ended without the
+      /// peer's echo: the close is not known to have arrived. A custodian
+      /// destroys the record all the same; a requester keeps it forgotten in
+      /// its revocation backlog for the custodian's next appearance (§4.6
+      /// items 3 and 6).
+      case revocationNoticeUnacknowledged
       /// The custodian closed the session in place of `session.ready` with
       /// another registered reason.
       case peerClosed(RappCloseReason)
@@ -120,6 +126,11 @@
       return .peerClosed(received)
     }
 
+    /// How a sent close ends a session whose echo did not come.
+    private static func unacknowledged(_ sent: CloseReason) -> CloseReason {
+      sent == .revocationNoticeDelivered ? .revocationNoticeUnacknowledged : sent
+    }
+
     /// Starts a fresh session.
     ///
     /// The requester emits the first Noise KK frame; the custodian waits for
@@ -204,9 +215,19 @@
         closeSession()
         return [.closed(Self.closeReason(crossingReceived: received))]
 
-      case .acknowledged, .ended:
+      case .acknowledged(let received) where received != .pairingRevoked:
+        // A close of another reason crossed the revocation close: it is not
+        // the echo, so the close is not known to have arrived.
+        closeSession()
+        return [.closed(.revocationNoticeUnacknowledged)]
+
+      case .acknowledged:
         closeSession()
         return [.closed(reason)]
+
+      case .ended:
+        closeSession()
+        return [.closed(Self.unacknowledged(reason))]
       }
     }
 
@@ -231,7 +252,7 @@
     private func ending(as reason: CloseReason) -> [Command] {
       let ended: CloseReason
       if case .awaitingEcho(let sent) = state {
-        ended = sent
+        ended = Self.unacknowledged(sent)
       } else {
         ended = reason
       }

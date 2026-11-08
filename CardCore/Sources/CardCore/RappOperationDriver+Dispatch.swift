@@ -52,6 +52,10 @@
       switch bridge.receiveFrame(bytes: frame, nowMs: clock.monotonicMilliseconds()) {
       case .closeAcknowledged(let reason, let crossing):
         echoReason = nil
+        // Only the echo, or the peer's own revocation crossing it, says the
+        // peer heard this endpoint's close; another reason crossing it does
+        // not (RAPP v26.11.2 §7.1 item 7).
+        ownCloseEchoed = !crossing || reason == .pairingRevoked
         return [.closed(crossing ? Self.closeReason(peer: reason) : sent)]
 
       case .sessionClosed:

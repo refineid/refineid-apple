@@ -13,7 +13,7 @@ internal struct StateInvariantTests {
   /// peer's notice (§4.6).
   private static let revokingEvents: Set<PairingEvent> = [
     .forgetPairing, .idleExpired, .revocationNoticeSent, .noticeWindowExpired,
-    .revocationAttemptEnded, .peerRevocationNotice,
+    .peerRevocationNotice,
   ]
 
   /// Actions that store, confirm, revoke or end a stored pairing; recording
@@ -80,17 +80,24 @@ internal struct StateInvariantTests {
     }
   }
 
-  @Test("A requester that forgets with no session open keeps the key for one attempt (§4.6 item 6)")
-  internal func requesterForgetAttemptsOnce() throws {
-    let forgotten = try #require(
-      PairingState.transition(from: .pairedDisconnected, on: .forgetPairing, role: .requester))
-    #expect(forgotten.state == .revoking)
-    #expect(!forgotten.actions.contains(.destroyPairKeys))
-    let ended = try #require(
-      PairingState.transition(from: .revoking, on: .revocationAttemptEnded, role: .requester))
-    #expect(ended.state == .revoked && ended.actions == [.destroyPairKeys])
-    #expect(
-      PairingState.outcome(from: .revoking, on: .revocationAttemptEnded, role: .proxy) == .noRule)
+  @Test(
+    "A requester keeps every pairing its user forgot until the echo or its expiry (§4.6 item 6)")
+  internal func requesterForgetKeepsTheBacklog() throws {
+    for state in [PairingState.pairedDisconnected, .pairedConnected] {
+      let forgotten = try #require(
+        PairingState.transition(from: state, on: .forgetPairing, role: .requester))
+      #expect(forgotten.state == .revoking)
+      #expect(!forgotten.actions.contains(.destroyPairKeys))
+      #expect(forgotten.actions.contains(.withdrawIdentity))
+    }
+    for event in [PairingEvent.revocationNoticeSent, .noticeWindowExpired] {
+      let ended = try #require(
+        PairingState.transition(from: .revoking, on: event, role: .requester))
+      #expect(ended.state == .revoked && ended.actions == [.destroyPairKeys])
+    }
+    let custodian = try #require(
+      PairingState.transition(from: .pairedConnected, on: .forgetPairing, role: .proxy))
+    #expect(custodian.state == .revoked)
     let expired = try #require(
       PairingState.transition(from: .pairedDisconnected, on: .idleExpired, role: .requester))
     #expect(expired.state == .revoked, "a requester's idle expiry sends nothing and keeps nothing")

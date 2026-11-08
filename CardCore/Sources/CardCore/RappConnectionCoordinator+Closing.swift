@@ -7,13 +7,6 @@
   /// How a connection ends with a close of this endpoint's own, and the
   /// wait for its echo (RAPP v26.11.2 §7.1 item 7).
   extension RappConnectionCoordinator {
-    /// Sets how long this endpoint waits for the echo of a close it sends:
-    /// a requester's revocation attempt waits the remainder of its
-    /// ``rappRevocationAttemptBoundMs()`` (RAPP v26.11.2 §4.6 item 6).
-    public func setCloseEchoBound(milliseconds: UInt64) {
-      closeEchoBoundMilliseconds = milliseconds
-    }
-
     /// Waits until the connection has closed.
     public func waitUntilClosed() async {
       guard phase != .closed else { return }
@@ -60,6 +53,17 @@
     /// keeps the pairing forgotten so its next session delivers the close.
     public func closePairingRevoked() async -> Bool {
       await closeWithNotice(.pairingRevoked)
+    }
+
+    /// Ends the session with `pairing_revoked` as a requester's user forgets
+    /// the pairing, and answers whether the custodian echoed it.
+    ///
+    /// Only the echo within the wait (RAPP v26.11.2 §7.1 item 7) lets a
+    /// requester destroy the record and its key; without it the pairing
+    /// stays forgotten in the revocation backlog (§4.6 item 6).
+    public func closePairingRevokedAwaitingEcho() async -> Bool {
+      guard await closePairingRevoked(), let operation else { return false }
+      return await operation.ownCloseEchoed
     }
 
     /// Ends the session with `service_withdrawn` because this endpoint

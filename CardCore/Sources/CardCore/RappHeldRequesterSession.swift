@@ -84,9 +84,6 @@
     internal let route: Route
     internal let policy: RappRequesterPolicy
     internal let report: @Sendable (Report) -> Void
-    /// How long the session waits for the echo of a close it sends (RAPP
-    /// v26.11.2 §7.1 item 7).
-    internal let closeEchoBoundMilliseconds: UInt64
     internal let state = OSAllocatedUnfairLock(initialState: State())
     internal let frameDelivery = OrderedDelivery(capacity: OrderedDelivery.relayFrameCapacity)
     internal let link = Link()
@@ -104,21 +101,16 @@
     // MARK: Lifecycle
 
     /// Prepares a session over `pair` along `route`; ``start()`` dials.
-    /// `closeEchoBoundMilliseconds` bounds the wait for the echo of a close
-    /// the session sends: a revocation attempt passes what is left of its
-    /// ``rappRevocationAttemptBoundMs()``.
     @preconcurrency
     public init(
       pair: RappPairRecord,
       route: Route = .stream,
       policy: RappRequesterPolicy = .interactive,
-      closeEchoBoundMilliseconds: UInt64 = rappQuitWithdrawalBoundMs(),
       report: @escaping @Sendable (Report) -> Void
     ) {
       self.pair = pair
       self.route = route
       self.policy = policy
-      self.closeEchoBoundMilliseconds = closeEchoBoundMilliseconds
       self.report = report
       let owned = link
       self.transport = RappClosureFrameTransport(
@@ -303,13 +295,14 @@
     }
 
     /// Ends the session with `pairing_revoked`, as the pairing it runs over
-    /// is forgotten (RAPP v26.11.2 §4.6 item 1).
+    /// is forgotten (RAPP v26.11.2 §4.6 items 1 and 6).
     ///
     /// The close frame is sent before the connection goes; the answer says
-    /// whether it left.
+    /// whether the custodian echoed it, the only answer that lets the
+    /// requester destroy the pairing.
     public func closePairingRevoked() async -> Bool {
       let coordinator = state.withLock { $0.coordinator }
-      let told = await coordinator?.closePairingRevoked() ?? false
+      let told = await coordinator?.closePairingRevokedAwaitingEcho() ?? false
       finish(.localRequest)
       return told
     }

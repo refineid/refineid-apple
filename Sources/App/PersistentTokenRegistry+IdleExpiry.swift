@@ -57,7 +57,8 @@
     ///
     /// A pairing the open session runs over is recorded instead. One that
     /// expired leaves silently: its identity is withdrawn, the row follows
-    /// the vault, and remote use stays as the holder set it.
+    /// the vault, and remote use stays as the holder set it. A forgotten
+    /// pairing whose idle expiry passed leaves the revocation backlog.
     internal func sweepIdlePairings() {
       let sweep = RappPairIdleExpiry.sweep(
         in: RappDeviceVault(), nowMilliseconds: RappPlatformClock().wallMilliseconds(),
@@ -66,6 +67,7 @@
       if !sweep.expired.isEmpty {
         pairingsExpired(sweep.expired)
       }
+      followRevocationBacklog()
     }
 
     /// Withdraws what the expired pairings offered, and follows what the

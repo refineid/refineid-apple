@@ -265,10 +265,14 @@
     }
 
     /// Destroys the pairing `pairID` when the session's close ended it: the
-    /// requester revoked it, or this phone delivered the close of a pairing
-    /// its holder forgot (RAPP v26.11.2 §4.6 items 2 to 4).
+    /// requester revoked it, or this phone sent the close of a pairing its
+    /// holder forgot and the wait for its echo ended (RAPP v26.11.2 §4.6
+    /// items 2 to 4).
     private func endPairingIfOver(_ reason: RappConnectionCoordinator.CloseReason, pairID: Data) {
-      guard reason.peerRevokedPairing || reason == .handshake(.revocationNoticeDelivered) else {
+      guard
+        reason.peerRevokedPairing || reason == .handshake(.revocationNoticeDelivered)
+          || reason == .handshake(.revocationNoticeUnacknowledged)
+      else {
         return
       }
       try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: RappPlatformClock())
