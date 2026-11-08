@@ -16,12 +16,19 @@ internal final class PairingRelay: @unchecked Sendable {
   /// The `pairing-busy` for a requester arriving while another one is
   /// served (RAPP v26.11.2 §4.2, "Busy Refusal"); set before ``start()``.
   internal var busyAnswer: (@Sendable () -> Data?)?
-  /// Whether the channel was closed; it then serves nothing more.
-  internal private(set) var isCancelled = false
+  /// Whether the channel was closed, set from the coordinator's executor
+  /// through the ceremony's transport.
+  private let cancelledLock = NSLock()
+  private var cancelled = false
 
   private var listener: StreamRelayListener?
   private var admission = StreamPairingAdmission(preamble: rappStreamPairingPreamble())
   private var reportedArrival = false
+
+  /// Whether the channel was closed.
+  internal var isCancelled: Bool {
+    cancelledLock.withLock { cancelled }
+  }
 
   /// Builds the channel the custodian's offer is served on.
   internal init(onEvent: @escaping @Sendable (PersistentRelayEvent) -> Void) {
@@ -72,7 +79,7 @@ internal final class PairingRelay: @unchecked Sendable {
 
   /// Closes the channel.
   internal func cancel() {
-    isCancelled = true
+    cancelledLock.withLock { cancelled = true }
     listener?.cancel()
   }
 

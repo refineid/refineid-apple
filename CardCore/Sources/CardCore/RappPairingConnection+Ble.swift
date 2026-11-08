@@ -19,6 +19,60 @@
     /// bootstrap answer and route its preamble before it counts as closed.
     public static let bluetoothDialMilliseconds: UInt64 = 10_000
 
+    /// The wait an offer served again in place of `pairing-busy` asks for
+    /// (RAPP v26.11.2 §4.2, "Busy Refusal" item 2).
+    private static let offerServedAgainWaitMilliseconds: UInt64 = 0
+
+    /// The wait the answer read again after a refused CPace step 1 asks for.
+    ///
+    /// A `pairing-busy` names its own, and the offer read before, served
+    /// again, asks for none. Anything else is no busy answer, and the close
+    /// that follows ends the connection.
+    private static func busyWait(_ answer: Data, read bootstrap: Data?) -> UInt64? {
+      if let wait = try? rappPairingBusyRetryAfterMs(answer) { return wait }
+      return answer == bootstrap ? offerServedAgainWaitMilliseconds : nil
+    }
+
+    /// Hands one link event on as the connection reports it.
+    private static func forward(
+      _ event: RappBleGattEvent,
+      progress: OSAllocatedUnfairLock<BluetoothProgress>,
+      sink: AsyncStream<Event>.Continuation,
+      onTrace: @Sendable (RappBleGattTrace) -> Void
+    ) {
+      switch event {
+      case .bootstrap(let answer):
+        progress.withLock { $0.bootstrap = answer }
+
+      case .connected:
+        let first = progress.withLock { state -> Data? in
+          state.isConnected = true
+          return state.bootstrap
+        }
+        sink.yield(.connected)
+        if let first { sink.yield(.frame(first)) }
+
+      case .frame(let frame):
+        sink.yield(.frame(frame))
+
+      case .attemptRefused(let answer):
+        if let wait = busyWait(answer, read: progress.withLock { $0.bootstrap }) {
+          sink.yield(.busy(retryAfterMilliseconds: wait))
+        }
+
+      case .closed:
+        progress.withLock { $0.isFinished = true }
+        sink.yield(.closed)
+        sink.finish()
+
+      case .trace(let step):
+        onTrace(step)
+
+      case .peer:
+        break
+      }
+    }
+
     /// Opens a pairing connection to the RAPP peripheral `peer` and no
     /// other (RAPP v26.11.2 §5.2).
     ///
@@ -38,36 +92,7 @@
       let (events, sink) = AsyncStream.makeStream(of: Event.self)
       let progress = OSAllocatedUnfairLock(initialState: BluetoothProgress())
       let link = RappBleGattCentral(purpose: .pairing, peers: .only(peer)) { event in
-        switch event {
-        case .bootstrap(let answer):
-          progress.withLock { $0.bootstrap = answer }
-
-        case .connected:
-          let first = progress.withLock { state -> Data? in
-            state.isConnected = true
-            return state.bootstrap
-          }
-          sink.yield(.connected)
-          if let first { sink.yield(.frame(first)) }
-
-        case .frame(let frame):
-          sink.yield(.frame(frame))
-
-        case .attemptRefused(let answer):
-          let wait = (try? rappPairingBusyRetryAfterMs(answer)) ?? 0
-          sink.yield(.busy(retryAfterMilliseconds: wait))
-
-        case .closed:
-          progress.withLock { $0.isFinished = true }
-          sink.yield(.closed)
-          sink.finish()
-
-        case .trace(let step):
-          onTrace(step)
-
-        case .peer:
-          break
-        }
+        forward(event, progress: progress, sink: sink, onTrace: onTrace)
       }
       link.start()
       let bound = Task {

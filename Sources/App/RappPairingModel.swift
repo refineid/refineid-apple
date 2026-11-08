@@ -262,10 +262,14 @@ internal final class RappPairingModel: ObservableObject {
   }
 
   /// Runs `work` after every delivery enqueued before it; a peer that
-  /// outruns the bounded chain ends the attempt.
+  /// outruns the bounded chain ends the ceremony, on whichever transport it
+  /// runs, and a phone shows its next offer.
   internal func deliverInOrder(_ work: @escaping @Sendable () async -> Void) {
     if eventDelivery.deliver(work) { return }
-    relay?.cancel()
+    #if DEBUG
+      DevErrorLog.report("pairing: frames outran the delivery queue", source: .app)
+    #endif
+    ceremonyEnded(String(localized: "Pairing ended before it was completed."))
   }
 
   internal func fail(_ failure: Failure) {
