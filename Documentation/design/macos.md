@@ -32,7 +32,9 @@ shows:
 3. The signing configuration, only while a card or phone can sign or a
    signature is in flight: the format and PIN 2.
 4. The button bar, centred below every panel: "Verify…", and the
-   default "Sign…" while a card or phone can sign.
+   default "Sign…" while a card or phone can sign. The bar appears
+   only once a document is listed: with nothing to act on, neither
+   button is shown.
 
 A card waiting to be taken into use replaces these with the activation
 form, and the window has no toolbar button while it does: activation is
@@ -390,7 +392,7 @@ none can; then the format row, PIN 2 and "Sign…" are not shown either.
 ## Document verification
 
 "Verify…" sits in the button bar at the bottom of the window, with or
-without a card. It is enabled while documents are waiting and no
+without a card, once a document is listed. It is enabled while documents are waiting and no
 signature is in flight, and it verifies every waiting document. The
 result opens as a resizable sheet, at a size that shows one whole
 signature without scrolling, and scrolls for several documents: one

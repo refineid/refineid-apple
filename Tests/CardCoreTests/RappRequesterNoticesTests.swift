@@ -14,8 +14,14 @@
       var names: [Notification.Name] = []
     }
 
+    /// The notices `post` posts.
+    ///
+    /// Other tests post on the same process-wide center at the same
+    /// time; a notice is delivered on the thread that posts it, so only
+    /// this thread's are counted.
     private func names(postedBy post: () -> Void) -> [Notification.Name] {
       let heard = Heard()
+      let poster = Thread.current
       let watched = [
         RappRequesterNotices.cardNeeded, RappRequesterNotices.unlockNeeded,
         RappRequesterNotices.cardWaitEnded,
@@ -23,7 +29,9 @@
       ]
       let observers = watched.map { name in
         NotificationCenter.default.addObserver(forName: name, object: nil, queue: nil) { _ in
-          heard.names.append(name)
+          if Thread.current == poster {
+            heard.names.append(name)
+          }
         }
       }
       defer { observers.forEach(NotificationCenter.default.removeObserver) }

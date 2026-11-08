@@ -104,6 +104,29 @@ internal struct VerifySignatureSection: View {
     )
   }
 
+  /// The level reached, in words rather than the profile's code: the
+  /// archival level holds, the others say what the document lacks.
+  internal static func levelValue(_ level: SignatureLevel) -> VerifyDocumentRowValue {
+    switch level {
+    case .longTermArchival:
+      VerifyDocumentRowValue(
+        text: VerifyText.text("verify.level.archival", "Archival: can be verified for decades"),
+        indicator: .holds)
+
+    case .longTerm:
+      VerifyDocumentRowValue(
+        text: VerifyText.text(
+          "verify.level.longTerm", "Validation data included, no archive timestamp"))
+
+    case .timestamped:
+      VerifyDocumentRowValue(
+        text: VerifyText.text("verify.level.timestamped", "Timestamped, no validation data"))
+
+    case .basic:
+      VerifyDocumentRowValue(text: VerifyText.text("verify.level.basic", "Not timestamped"))
+    }
+  }
+
   private static func revocationValue(
     _ revocation: RevocationState,
     checking: Bool
@@ -163,8 +186,8 @@ internal struct VerifySignatureSection: View {
     )
     if let level = report.level {
       Self.row(
-        VerifyText.text("verify.level", "Signature level"),
-        VerifyDocumentRowValue(text: level.label)
+        VerifyText.text("verify.level", "Long-term validity"),
+        Self.levelValue(level)
       )
       .accessibilityIdentifier("verifyLevel")
     }

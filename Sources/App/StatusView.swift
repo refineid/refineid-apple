@@ -70,7 +70,7 @@
     internal var body: some View {
       VStack(alignment: .leading, spacing: Self.spacing) {
         statusForm
-        if showsReadySection {
+        if showsReadySection, !documentControls.actions.isEmpty {
           StatusActionBar(
             signing: signing, controls: documentControls, canSign: canSign, onSign: { sign() })
         }

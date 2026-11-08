@@ -34,10 +34,17 @@
     /// held back and "OK" takes the default action until it is.
     internal let awaitsAcknowledgement: Bool
 
-    /// The button bar, left to right: Verify, then the default Sign
-    /// while signing is offered.
+    /// Whether there is anything for the buttons to act on: a listed
+    /// document, or a signature or card read under way.
+    internal let hasWork: Bool
+
+    /// The button bar, left to right: Verify, then the default Sign.
+    ///
+    /// Sign is there while signing is offered. The bar is empty while
+    /// nothing is listed, since neither button could do anything then.
     internal var actions: [Action] {
-      offersSigning ? [.verify, .sign] : [.verify]
+      guard hasWork else { return [] }
+      return offersSigning ? [.verify, .sign] : [.verify]
     }
 
     /// The controls for the window's state.
@@ -56,6 +63,7 @@
       showsIdentity = offersSigning || queued.isEmpty
       verifyEnabled = QueuedDocumentVerification.isAvailable(queued: queued, signing: working)
       awaitsAcknowledgement = failureShown
+      hasWork = !queued.isEmpty || working || readingStamp
     }
 
     /// Whether Sign can run, given that the card side is ready.

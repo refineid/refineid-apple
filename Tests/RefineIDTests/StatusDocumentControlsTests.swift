@@ -83,7 +83,15 @@
 
       #expect(withCard.actions == [.verify, .sign])
       #expect(withoutCard.actions == [.verify])
-      #expect(emptyWithoutCard.actions == [.verify])
+      #expect(emptyWithoutCard.actions.isEmpty)
+    }
+
+    /// With nothing listed neither button could act, so the bar shows
+    /// none, with a card or phone or without one.
+    @Test
+    internal func anEmptyListShowsNoButtons() {
+      #expect(Self.controls(.ready, queued: [], signing: false).actions.isEmpty)
+      #expect(Self.controls(.noCard, queued: [], signing: false).actions.isEmpty)
     }
 
     /// A card read for the stamp keeps the signing panel and Sign

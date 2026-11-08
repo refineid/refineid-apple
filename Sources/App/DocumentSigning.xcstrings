@@ -1857,19 +1857,107 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signature level"
+            "value" : "Long-term validity"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Allekirjoituksen taso"
+            "value" : "Pitkäaikainen säilyvyys"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signaturnivå"
+            "value" : "Långtidsgiltighet"
+          }
+        }
+      }
+    },
+    "verify.level.archival" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archival: can be verified for decades"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arkistokelpoinen: tarkastettavissa vuosikymmenien ajan"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arkivnivå: kan granskas i årtionden"
+          }
+        }
+      }
+    },
+    "verify.level.basic" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not timestamped"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ei aikaleimaa"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ingen tidsstämpel"
+          }
+        }
+      }
+    },
+    "verify.level.longTerm" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Validation data included, no archive timestamp"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tarkastustiedot mukana, ei arkistointiaikaleimaa"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valideringsdata medföljer, ingen arkivtidsstämpel"
+          }
+        }
+      }
+    },
+    "verify.level.timestamped" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Timestamped, no validation data"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aikaleimattu, ei tarkastustietoja"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tidsstämplad, utan valideringsdata"
           }
         }
       }
