@@ -40,6 +40,7 @@ internal struct VerifyWordingTests {
     "verify.level",
     "verify.level.archivalUntil",
     "verify.level.archivalExpired",
+    "verify.level.archivalUnknown",
     "verify.level.longTerm",
     "verify.level.timestamped",
     "verify.level.basic",

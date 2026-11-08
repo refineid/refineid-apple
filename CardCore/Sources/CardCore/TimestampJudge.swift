@@ -29,13 +29,15 @@ internal enum TimestampJudge {
     ).state
   }
 
-  /// Until when an anchored token keeps proving its time.
+  /// Until when an anchored token keeps proving its time; nil when
+  /// that cannot be told.
   ///
   /// The earliest notAfter on its verified chain, anchor included, and
   /// the end of its algorithm's suitability. A key the table does not
-  /// accept ends it before any time.
-  internal static func validUntil(of verified: TimestampTokenVerifier.VerifiedToken) -> Date {
-    let ends = verified.verifiedCertificateChain.compactMap { certificate in
+  /// accept ends it before any time. An empty chain or a notAfter that
+  /// does not read leaves no date: a later one must never be shown.
+  internal static func validUntil(of verified: TimestampTokenVerifier.VerifiedToken) -> Date? {
+    let ends = verified.verifiedCertificateChain.map { certificate in
       CertificateValidity.window(inDer: certificate)?.notAfter
     }
     let suitability: CryptographicSuitability.Verdict
@@ -51,13 +53,15 @@ internal enum TimestampJudge {
     return Self.validUntil(chainEnds: ends, suitability: suitability)
   }
 
-  /// The earliest of `chainEnds` and the end `suitability` gives; before
-  /// any time when the algorithm is not acceptable or no end is known.
+  /// The earliest of `chainEnds` and the end `suitability` gives;
+  /// before any time when the algorithm is not acceptable; nil when the
+  /// chain is empty or one of its ends is unknown.
   internal static func validUntil(
-    chainEnds: [Date],
+    chainEnds: [Date?],
     suitability: CryptographicSuitability.Verdict
-  ) -> Date {
-    var ends = chainEnds
+  ) -> Date? {
+    guard !chainEnds.isEmpty, !chainEnds.contains(nil) else { return nil }
+    var ends = chainEnds.compactMap(\.self)
     switch suitability {
     case .unlimited:
       break
@@ -68,7 +72,7 @@ internal enum TimestampJudge {
     case .unacceptable:
       return Date.distantPast
     }
-    return ends.min() ?? Date.distantPast
+    return ends.min()
   }
 
   /// The state of `token`, whose TSTInfo imprint `imprintMatches`

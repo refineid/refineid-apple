@@ -41,7 +41,7 @@
     internal static let signatureStampTime = "20260515000000Z"
 
     /// The archive or document timestamp's generation time, after it.
-    private static let archiveStampTime = "20260520000000Z"
+    internal static let archiveStampTime = "20260520000000Z"
 
     /// A SHA-384 imprint over input that is not the archive input.
     private static let unrelatedImprint = Data(
@@ -76,7 +76,7 @@
 
     /// The fixture's PDF, with a signature timestamp when `timestamped`
     /// and the path's CRLs in the document security store when `stored`.
-    private static func pdf(
+    internal static func pdf(
       _ fixture: DocumentTrustFixture,
       timestamped: Bool,
       stored: Bool

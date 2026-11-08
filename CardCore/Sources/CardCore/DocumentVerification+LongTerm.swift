@@ -45,11 +45,13 @@ extension DocumentVerification {
     /// The verifier's clock.
     internal let now: Date
 
-    /// The validity end of the latest anchored archive timestamp among
+    /// The validity end of the last anchored archive timestamp among
     /// `archives`, nil without one.
+    ///
+    /// `archives` are in document order: the one added last covers the
+    /// others, whatever times their clocks name.
     internal static func validUntil(of archives: [ArchiveCandidate]) -> Date? {
-      archives.compactMap { stamp in stamp.state.provenTime.map { proven in (proven, stamp) } }
-        .max { lhs, rhs in lhs.0 < rhs.0 }?.1.validUntil
+      archives.last { stamp in stamp.state.provenTime != nil }?.validUntil
     }
 
     /// Whether `values` alone answer every certificate below the

@@ -8,6 +8,9 @@ import SwiftUI
 ///
 /// The signer's name appears here and nowhere else.
 internal struct VerifySignatureSection: View {
+  /// The resolution of certificate and policy times, one second.
+  private static let expiryResolution: TimeInterval = 1
+
   private static var header: some View {
     Text(VerifyText.text("verify.signature", "Signature"))
       .frame(maxWidth: .infinity, alignment: .leading)
@@ -113,12 +116,21 @@ internal struct VerifySignatureSection: View {
     )
   }
 
+  /// The instant the last verifiable day is read from: one second
+  /// before `validUntil`, since at that instant itself DSS already
+  /// counts the archive timestamp expired, so an end of midnight UTC is
+  /// shown as the day before.
+  internal static func lastVerifiableDay(before validUntil: Date) -> Date {
+    validUntil.addingTimeInterval(-Self.expiryResolution)
+  }
+
   /// The level reached, in words rather than the profile's code.
   ///
-  /// The archival level says until when it can be verified, with the
-  /// check, while `validUntil` is after `now`, and that it needs a new
-  /// archive timestamp once that date has passed; the other levels say
-  /// what the document lacks.
+  /// The archival level says the last day it can be verified, with the
+  /// check, while `validUntil` is after `now`; that it needs a new
+  /// archive timestamp once that instant has passed; and that the
+  /// validity could not be determined when there is no date. The other
+  /// levels say what the document lacks.
   internal static func levelValue(
     _ level: SignatureLevel,
     validUntil: Date?,
@@ -126,8 +138,13 @@ internal struct VerifySignatureSection: View {
   ) -> VerifyDocumentRowValue {
     switch level {
     case .longTermArchival:
-      if let validUntil, validUntil > now {
-        let date = VerifyText.formattedDay(validUntil)
+      guard let validUntil else {
+        return VerifyDocumentRowValue(
+          text: VerifyText.text(
+            "verify.level.archivalUnknown", "Validity period could not be determined"))
+      }
+      if validUntil > now {
+        let date = VerifyText.formattedDay(Self.lastVerifiableDay(before: validUntil))
         return VerifyDocumentRowValue(
           text: VerifyText.text("verify.level.archivalUntil", "Verifiable until \(date)"),
           indicator: .holds)

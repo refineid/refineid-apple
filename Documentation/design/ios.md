@@ -243,13 +243,17 @@ implements the shared design in refineid-core
   path. Revocation values elsewhere, inside a CMS among them, decide the
   verdict but raise no level. A live revocation answer does not raise it.
   A signature that does not verify over intact data shows no level.
-- **Until when.** The archival level says how long the document stays
-  verifiable before it needs refreshing: "Verifiable until 1 Jan 2035"
-  ("Tarkastettavissa 1.1.2035 asti", "Kan granskas till 1 jan. 2035")
-  with the mark, the day in UTC. The date is that of the latest anchored
-  archive timestamp that counts for the level (the latest PAdES document
-  timestamp counted as archive, or the latest XAdES
-  `xadesv141:ArchiveTimeStamp`): the earliest of the notAfter of every
+- **Until when.** The archival level says the last day the document
+  stays verifiable before it needs refreshing: "Verifiable until 2 Aug
+  2034" ("Tarkastettavissa 2.8.2034 asti", "Kan granskas till 2 aug.
+  2034") with the mark. The day is the UTC day one second before the
+  end, since DSS counts the end instant itself as expired: an end of
+  2035-01-01T00:00:00Z shows 31 Dec 2034, and DVV's "Maximum validity
+  time: 2034-08-02 23:59:59 (UTC)" shows 2 Aug 2034. The end is that of
+  the last anchored archive timestamp in document order that counts for
+  the level (the last PAdES document-timestamp revision counted as
+  archive, or the last XAdES `xadesv141:ArchiveTimeStamp`), whatever
+  times the clocks name: the earliest of the notAfter of every
   certificate on its authority's verified chain, anchor included, and
   the day its signature algorithm and key size stop being acceptable
   under EU DSS 6.5.1's default validation policy (`CryptographicSuitability`
@@ -257,9 +261,13 @@ implements the shared design in refineid-core
   `AlgoExpirationDate`; RSA from 1900 bits until 2027-01-01, from 3000
   bits until 2035-01-01, ECDSA from P-256 and SHA-256, SHA-384 and
   SHA-512 without end), the same date DSS and DVV's validator report.
-  Once that day has passed it says "Needs a new archive timestamp"
+  Once the end has passed it says "Needs a new archive timestamp"
   ("Vaatii uuden arkistointiaikaleiman", "Behöver en ny
-  arkivtidsstämpel") without the mark.
+  arkivtidsstämpel") without the mark. When a certificate's notAfter
+  cannot be read or the chain is empty, no date is claimed: the row
+  says "Validity period could not be determined" ("Voimassaoloa ei
+  voitu selvittää", "Giltighetstiden kunde inte fastställas") without
+  the mark.
 - **Trusted lists.** Anchors come only from the EU trusted lists the
   app fetches and caches. A cached copy verifies at once, offline too,
   and is fetched again in the background when it is stale. With nothing

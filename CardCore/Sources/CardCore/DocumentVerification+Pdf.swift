@@ -91,12 +91,15 @@ extension DocumentVerification {
     )
   }
 
-  /// Every document timestamp of the found signatures.
+  /// Every document timestamp of the found signatures, in document
+  /// order: by where its revision ends, since the reader finds them by
+  /// object number.
   private static func documentTimestamps(
     in found: [PdfSignatureReader.FoundSignature],
     _ judgement: PdfJudgement
   ) -> [DocumentTimestamp] {
     found.filter { signature in signature.subFilter == .rfc3161 }
+      .sorted { lhs, rhs in lhs.signedSpans.document.count < rhs.signedSpans.document.count }
       .map { signature in
         DocumentTimestamp(
           judged: Self.documentTimestampState(

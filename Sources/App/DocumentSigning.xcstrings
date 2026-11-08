@@ -1896,6 +1896,28 @@
         }
       }
     },
+    "verify.level.archivalUnknown" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Validity period could not be determined"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voimassaoloa ei voitu selvittää"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giltighetstiden kunde inte fastställas"
+          }
+        }
+      }
+    },
     "verify.level.archivalUntil" : {
       "localizations" : {
         "en" : {

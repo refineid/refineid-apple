@@ -86,6 +86,33 @@
       #expect(
         TimestampJudge.validUntil(chainEnds: [chain], suitability: .unacceptable) == .distantPast)
     }
+
+    /// An empty chain or a notAfter that does not read leaves no date,
+    /// never a later one.
+    @Test
+    internal func anUnknownEndLeavesNoDate() throws {
+      let chain = try Self.instant(Self.chainEnd)
+      #expect(TimestampJudge.validUntil(chainEnds: [chain, nil], suitability: .unlimited) == nil)
+      #expect(TimestampJudge.validUntil(chainEnds: [], suitability: .unlimited) == nil)
+    }
+
+    /// The archive timestamp that counts is the last in document order,
+    /// whatever times the clocks name.
+    @Test
+    internal func theLastArchiveTimestampInDocumentOrderCounts() throws {
+      let laterClock = try Self.instant(Self.dvvReference)
+      let earlierClock = try Self.instant(Self.chainEnd)
+      let first = DocumentVerification.ArchiveCandidate(
+        state: .anchored(laterClock), covered: nil, validUntil: laterClock)
+      let last = DocumentVerification.ArchiveCandidate(
+        state: .anchored(earlierClock), covered: nil, validUntil: earlierClock)
+      let unproven = DocumentVerification.ArchiveCandidate(
+        state: .invalid, covered: nil, validUntil: nil)
+
+      #expect(
+        DocumentVerification.LongTermJudgement.validUntil(of: [first, last, unproven])
+          == earlierClock)
+    }
   }
 
 #endif
