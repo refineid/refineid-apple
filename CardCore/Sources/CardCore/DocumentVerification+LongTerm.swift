@@ -25,6 +25,9 @@ extension DocumentVerification {
   internal struct ArchiveCandidate {
     internal let state: TimestampState
     internal let covered: RevocationValues?
+
+    /// Until when it keeps proving its time, when anchored.
+    internal let validUntil: Date?
   }
 
   /// Judges revocation values alone against one anchored path.
@@ -42,6 +45,13 @@ extension DocumentVerification {
     /// The verifier's clock.
     internal let now: Date
 
+    /// The validity end of the latest anchored archive timestamp among
+    /// `archives`, nil without one.
+    internal static func validUntil(of archives: [ArchiveCandidate]) -> Date? {
+      archives.compactMap { stamp in stamp.state.provenTime.map { proven in (proven, stamp) } }
+        .max { lhs, rhs in lhs.0 < rhs.0 }?.1.validUntil
+    }
+
     /// Whether `values` alone answer every certificate below the
     /// anchor as good.
     internal func answers(_ values: RevocationValues) -> Bool {
@@ -58,21 +68,21 @@ extension DocumentVerification {
     /// The archive timestamps that count: each over the signature's own
     /// long-term values, or over a revision whose values answer the
     /// path.
-    internal func archives(_ candidates: [ArchiveCandidate]) -> [TimestampState] {
-      candidates.filter { candidate in candidate.covered.map(answers) ?? true }.map(\.state)
+    internal func archives(_ candidates: [ArchiveCandidate]) -> [ArchiveCandidate] {
+      candidates.filter { candidate in candidate.covered.map(answers) ?? true }
     }
 
     /// The level `facts` reach with `archives` counted.
     internal func level(
       _ facts: SignatureFacts,
-      archives: [TimestampState],
+      archives: [ArchiveCandidate],
       proven: Bool
     ) -> SignatureLevel? {
       SignatureLevel.reached(
         verifies: facts.documentIntact && facts.signatureValid,
         timestamped: proven,
         carriesValidationData: answers(facts.longTermValues),
-        archived: archives.contains { stamp in stamp.provenTime != nil }
+        archived: archives.contains { stamp in stamp.state.provenTime != nil }
       )
     }
   }

@@ -1874,24 +1874,46 @@
         }
       }
     },
-    "verify.level.archival" : {
+    "verify.level.archivalExpired" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Archival: can be verified for decades"
+            "value" : "Needs a new archive timestamp"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Arkistokelpoinen: tarkastettavissa vuosikymmenien ajan"
+            "value" : "Vaatii uuden arkistointiaikaleiman"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Arkivnivå: kan granskas i årtionden"
+            "value" : "Behöver en ny arkivtidsstämpel"
+          }
+        }
+      }
+    },
+    "verify.level.archivalUntil" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verifiable until %@"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tarkastettavissa %@ asti"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kan granskas till %@"
           }
         }
       }

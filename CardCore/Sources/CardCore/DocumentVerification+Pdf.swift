@@ -8,7 +8,8 @@ extension DocumentVerification {
   /// revocation values of the document security store the revision it
   /// covers carries (EN 319 142-1 clause 5.5).
   private struct DocumentTimestamp {
-    let state: TimestampState
+    let judged: TimestampJudge.Judged
+    var state: TimestampState { judged.state }
     let rangeStart: Int
     let coveredValues: RevocationValues
   }
@@ -69,7 +70,8 @@ extension DocumentVerification {
       }
       let credited = covering.compactMap(\.state.provenTime)
       let archives = covering.map { stamp in
-        ArchiveCandidate(state: stamp.state, covered: stamp.coveredValues)
+        ArchiveCandidate(
+          state: stamp.state, covered: stamp.coveredValues, validUntil: stamp.judged.validUntil)
       }
       guard
         let profile = Self.profile(ofSubFilter: signature.subFilter),
@@ -97,7 +99,7 @@ extension DocumentVerification {
     found.filter { signature in signature.subFilter == .rfc3161 }
       .map { signature in
         DocumentTimestamp(
-          state: Self.documentTimestampState(
+          judged: Self.documentTimestampState(
             of: signature,
             evidence: judgement.evidence,
             anchors: judgement.anchors,
@@ -120,10 +122,12 @@ extension DocumentVerification {
     evidence: ValidationEvidence,
     anchors: TrustAnchors,
     now: Date
-  ) -> TimestampState {
-    guard signature.endsRevision else { return .invalid }
-    return TimestampJudge.state(
-      of: signature.cms,
+  ) -> TimestampJudge.Judged {
+    guard signature.endsRevision else {
+      return TimestampJudge.Judged(state: .invalid, validUntil: nil)
+    }
+    return TimestampJudge.judged(
+      signature.cms,
       imprintMatches: { digest, imprint in
         imprint == digest.hash(signature.signedSpans.signedOctets)
       },

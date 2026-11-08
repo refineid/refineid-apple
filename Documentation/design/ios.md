@@ -243,6 +243,23 @@ implements the shared design in refineid-core
   path. Revocation values elsewhere, inside a CMS among them, decide the
   verdict but raise no level. A live revocation answer does not raise it.
   A signature that does not verify over intact data shows no level.
+- **Until when.** The archival level says how long the document stays
+  verifiable before it needs refreshing: "Verifiable until 1 Jan 2035"
+  ("Tarkastettavissa 1.1.2035 asti", "Kan granskas till 1 jan. 2035")
+  with the mark, the day in UTC. The date is that of the latest anchored
+  archive timestamp that counts for the level (the latest PAdES document
+  timestamp counted as archive, or the latest XAdES
+  `xadesv141:ArchiveTimeStamp`): the earliest of the notAfter of every
+  certificate on its authority's verified chain, anchor included, and
+  the day its signature algorithm and key size stop being acceptable
+  under EU DSS 6.5.1's default validation policy (`CryptographicSuitability`
+  in CardCore, transcribed from `policy/constraint.xml`
+  `AlgoExpirationDate`; RSA from 1900 bits until 2027-01-01, from 3000
+  bits until 2035-01-01, ECDSA from P-256 and SHA-256, SHA-384 and
+  SHA-512 without end), the same date DSS and DVV's validator report.
+  Once that day has passed it says "Needs a new archive timestamp"
+  ("Vaatii uuden arkistointiaikaleiman", "Behöver en ny
+  arkivtidsstämpel") without the mark.
 - **Trusted lists.** Anchors come only from the EU trusted lists the
   app fetches and caches. A cached copy verifies at once, offline too,
   and is fetched again in the background when it is stale. With nothing

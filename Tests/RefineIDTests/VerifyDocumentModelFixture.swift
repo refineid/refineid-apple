@@ -67,6 +67,7 @@ internal enum VerifyDocumentModelFixture {
       chain: .anchored(path: [Self.certificate, Self.issuerCertificate]),
       timestamps: [],
       archiveTimestamps: [],
+      archiveValidUntil: nil,
       level: .basic,
       validationTime: .currentClock(Self.currentTime),
       revocationLinks: [

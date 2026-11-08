@@ -36,7 +36,7 @@ extension AsicVerification {
     signatureValue: Data?,
     evidence: ValidationEvidence,
     judgement: ContainerJudgement
-  ) -> [TimestampState] {
+  ) -> [TimestampJudge.Judged] {
     let dsig = XadesSignature.namespaceDsig
     guard
       let value = signature.child(dsig, XadesXmlParser.Element.signatureValue),
@@ -58,7 +58,7 @@ extension AsicVerification {
     }
     let otherObjects = objects.filter { object in object != qualifying.parent }
     var preceding: [XmlElement] = []
-    var states: [TimestampState] = []
+    var states: [TimestampJudge.Judged] = []
     for property in properties.children {
       guard property.matches(XadesSignature.namespaceXades141, ArchiveElement.archiveTimeStamp)
       else {
@@ -101,7 +101,7 @@ extension AsicVerification {
     input: Data?,
     evidence: ValidationEvidence,
     judgement: ContainerJudgement
-  ) -> TimestampState {
+  ) -> TimestampJudge.Judged {
     let tokens = stamp.children(
       XadesSignature.namespaceXades, XadesXmlParser.Element.encapsulatedTimeStamp)
     guard
@@ -110,10 +110,10 @@ extension AsicVerification {
       tokens.count == 1,
       let token = XadesXmlParser.base64(only.text)
     else {
-      return .unsupported
+      return TimestampJudge.Judged(state: .unsupported, validUntil: nil)
     }
-    return TimestampJudge.state(
-      of: token,
+    return TimestampJudge.judged(
+      token,
       imprintMatches: { digest, imprint in digest.hash(input) == imprint },
       evidence: evidence,
       anchors: judgement.anchors,

@@ -175,6 +175,8 @@
         XCTAssertTrue(signature.isValid, name)
         XCTAssertTrue(signature.chainVerified, name)
         XCTAssertEqual(signature.level, .longTermArchival, name)
+        let validUntil = try XCTUnwrap(signature.archiveValidUntil, name)
+        XCTAssertGreaterThan(validUntil, Date(), name)
         let proof = try XCTUnwrap(signature.proofOfExistence, name)
         let archive = try XCTUnwrap(
           signature.archiveTimestamps.compactMap(\.provenTime).max(), name)
@@ -187,7 +189,8 @@
           "Verify \(name): valid \(signature.isValid), chain \(signature.chainVerified), "
             + "level \(signature.level?.label ?? "none"), "
             + "timestamps \(signature.timestamps.count), "
-            + "archive timestamps \(signature.archiveTimestamps.count)")
+            + "archive timestamps \(signature.archiveTimestamps.count), "
+            + "verifiable until \(validUntil.formatted(.iso8601))")
       }
     }
   }

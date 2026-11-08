@@ -31,6 +31,9 @@
       case unrelated
     }
 
+    /// The synthetic timestamp authority's certificate notAfter.
+    private static let authorityValidityEnd = "20300101000000Z"
+
     /// Inside every certificate's and CRL's validity.
     private static let currentTime = "20260601000000Z"
 
@@ -51,6 +54,13 @@
     /// The unsigned signature properties' end tag, before which an
     /// archive timestamp is placed.
     private static let unsignedSignaturePropertiesClose = "</xades:UnsignedSignatureProperties>"
+
+    /// The synthetic authority's notAfter: its P-256 key never expires
+    /// under the suitability table, so its chain alone ends the
+    /// archive timestamp's validity.
+    private static func authorityNotAfter() throws -> Date {
+      try DocumentTrustFixture.instant(Self.authorityValidityEnd)
+    }
 
     internal static func now() throws -> Date {
       try DocumentTrustFixture.instant(Self.currentTime)
@@ -179,6 +189,8 @@
       #expect(try Self.report(longTerm, fixture).level == .longTerm)
       let report = try Self.report(archival, fixture)
       #expect(report.level == .longTermArchival)
+      #expect(report.archiveValidUntil == (try Self.authorityNotAfter()))
+      #expect(try Self.report(longTerm, fixture).archiveValidUntil == nil)
       #expect(
         report.archiveTimestamps == [
           .anchored(try DocumentTrustFixture.instant(Self.archiveStampTime))
@@ -246,6 +258,7 @@
       #expect(report.level == .longTermArchival)
       #expect(
         report.proofOfExistence == (try DocumentTrustFixture.instant(Self.signatureStampTime)))
+      #expect(report.archiveValidUntil == (try Self.authorityNotAfter()))
     }
 
     /// Each missing piece of evidence leaves the container one level

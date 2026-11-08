@@ -113,26 +113,39 @@ internal struct VerifySignatureSection: View {
     )
   }
 
-  /// The level reached, in words rather than the profile's code: the
-  /// archival level holds, the others say what the document lacks.
-  internal static func levelValue(_ level: SignatureLevel) -> VerifyDocumentRowValue {
+  /// The level reached, in words rather than the profile's code.
+  ///
+  /// The archival level says until when it can be verified, with the
+  /// check, while `validUntil` is after `now`, and that it needs a new
+  /// archive timestamp once that date has passed; the other levels say
+  /// what the document lacks.
+  internal static func levelValue(
+    _ level: SignatureLevel,
+    validUntil: Date?,
+    now: Date
+  ) -> VerifyDocumentRowValue {
     switch level {
     case .longTermArchival:
-      VerifyDocumentRowValue(
-        text: VerifyText.text("verify.level.archival", "Archival: can be verified for decades"),
-        indicator: .holds)
+      if let validUntil, validUntil > now {
+        let date = VerifyText.formattedDay(validUntil)
+        return VerifyDocumentRowValue(
+          text: VerifyText.text("verify.level.archivalUntil", "Verifiable until \(date)"),
+          indicator: .holds)
+      }
+      return VerifyDocumentRowValue(
+        text: VerifyText.text("verify.level.archivalExpired", "Needs a new archive timestamp"))
 
     case .longTerm:
-      VerifyDocumentRowValue(
+      return VerifyDocumentRowValue(
         text: VerifyText.text(
           "verify.level.longTerm", "Validation data included, no archive timestamp"))
 
     case .timestamped:
-      VerifyDocumentRowValue(
+      return VerifyDocumentRowValue(
         text: VerifyText.text("verify.level.timestamped", "Timestamped, no validation data"))
 
     case .basic:
-      VerifyDocumentRowValue(text: VerifyText.text("verify.level.basic", "Not timestamped"))
+      return VerifyDocumentRowValue(text: VerifyText.text("verify.level.basic", "Not timestamped"))
     }
   }
 
@@ -196,7 +209,7 @@ internal struct VerifySignatureSection: View {
     if let level = report.level {
       Self.row(
         VerifyText.text("verify.level", "Long-term validity"),
-        Self.levelValue(level)
+        Self.levelValue(level, validUntil: report.archiveValidUntil, now: Date())
       )
       .accessibilityIdentifier("verifyLevel")
     }

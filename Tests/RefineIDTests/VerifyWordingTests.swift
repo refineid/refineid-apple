@@ -38,11 +38,16 @@ internal struct VerifyWordingTests {
   /// The level strings.
   private static let levelKeys = [
     "verify.level",
-    "verify.level.archival",
+    "verify.level.archivalUntil",
+    "verify.level.archivalExpired",
     "verify.level.longTerm",
     "verify.level.timestamped",
     "verify.level.basic",
   ]
+
+  /// An archive timestamp's validity end, and a moment before it.
+  private static let validityEnd = Date(timeIntervalSince1970: 2_051_222_400)
+  private static let beforeValidityEnd = Date(timeIntervalSince1970: 1_800_000_000)
 
   /// How the baseline profiles' codes begin.
   private static let profileCodePrefix = "B-"
@@ -89,7 +94,8 @@ internal struct VerifyWordingTests {
   internal func theLevelIsSaidInWordsAndArchivalHolds() throws {
     let levels: [SignatureLevel] = [.longTermArchival, .longTerm, .timestamped, .basic]
     for level in levels {
-      let value = VerifySignatureSection.levelValue(level)
+      let value = VerifySignatureSection.levelValue(
+        level, validUntil: Self.validityEnd, now: Self.beforeValidityEnd)
       #expect(value.text?.isEmpty == false)
       let holds = value.indicator == .holds
       #expect(holds == (level == .longTermArchival), "\(level)")
