@@ -7,6 +7,10 @@
 
   /// The status row while it speaks about document signing: the step
   /// with a progress indicator, or the outcome with its actions.
+  ///
+  /// A failure takes the default action for "OK", so Return reads it
+  /// away before anything signs again, and every message is announced
+  /// as it arrives.
   internal struct StatusMessageRow: View {
     internal let message: StatusMessage
 
@@ -32,11 +36,15 @@
       case .failure(let failure):
         CredentialOutcomeText(message: failure, tone: .failure)
 
-      case .notice(let notice):
-        CredentialOutcomeText(message: notice, tone: .notice)
-
-      case .signed:
-        Label("Signed and saved.", systemImage: "checkmark.seal")
+      case .outcome(let notice, let signed):
+        VStack(alignment: .leading) {
+          if !signed.isEmpty {
+            Label(StatusMessage.savedSentence(count: signed.count), systemImage: "checkmark.seal")
+          }
+          if let notice {
+            CredentialOutcomeText(message: notice, tone: .notice)
+          }
+        }
       }
     }
 
@@ -45,31 +53,32 @@
       case .progress:
         EmptyView()
 
-      case .signed(let file):
-        Button("Show in Finder") {
-          NSWorkspace.shared.activateFileViewerSelecting([file])
-        }
-        .accessibilityIdentifier("statusShowInFinder")
-        acknowledgeButton
+      case .failure:
+        Button("OK") { acknowledge() }
+          .keyboardShortcut(.defaultAction)
+          .accessibilityIdentifier("statusAcknowledge")
 
-      case .failure, .notice:
-        acknowledgeButton
+      case .outcome(_, let signed):
+        if !signed.isEmpty {
+          Button("Show in Finder") {
+            NSWorkspace.shared.activateFileViewerSelecting(signed)
+          }
+          .accessibilityIdentifier("statusShowInFinder")
+        }
+        Button("OK") { acknowledge() }
+          .accessibilityIdentifier("statusAcknowledge")
       }
     }
 
-    private var acknowledgeButton: some View {
-      Button("OK") { acknowledge() }
-        .accessibilityIdentifier("statusAcknowledge")
-    }
-
     /// What VoiceOver announces when the row changes.
-    private static func spoken(_ message: StatusMessage) -> String? {
+    private static func spoken(_ message: StatusMessage) -> String {
       switch message {
-      case .progress(let text), .failure(let text), .notice(let text):
+      case .progress(let text), .failure(let text):
         text
 
-      case .signed:
-        String(localized: "Signed and saved.")
+      case .outcome(let notice, let signed):
+        ([signed.isEmpty ? nil : StatusMessage.savedSentence(count: signed.count), notice]
+          .compactMap(\.self)).joined(separator: " ")
       }
     }
   }

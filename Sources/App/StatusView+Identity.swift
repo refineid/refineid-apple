@@ -10,7 +10,12 @@
     /// Which document controls the window shows now.
     internal var documentControls: StatusDocumentControls {
       StatusDocumentControls(
-        availability: availability, queued: signingModel.queued, signing: signingModel.working)
+        availability: availability,
+        queued: signingModel.queued,
+        signing: signingModel.working,
+        readingCard: signingModel.readingStamp,
+        failureShown: signingModel.unacknowledgedFailure != nil
+      )
     }
 
     /// Whose identity the card or phone offers, or what to attach.

@@ -7110,6 +7110,22 @@
           }
         }
       }
+    },
+    "Signed and saved %lld documents.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allekirjoitettu ja tallennettu %lld asiakirjaa."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld dokument signerade och sparade."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

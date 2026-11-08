@@ -11,32 +11,36 @@
   /// A signature in flight says its step; a finished one what became of
   /// it. Nothing to say leaves the row to the identity.
   internal enum StatusMessage: Equatable {
-    /// Why signing failed, in plain words, until acknowledged.
+    /// Why signing failed, in plain words, until acknowledged. It comes
+    /// first, before the step it interrupted.
     case failure(String)
 
-    /// A fact the holder must see beside the signed output.
-    case notice(String)
+    /// What the last action left: a notice the holder must see, the
+    /// files it wrote, or both, shown together.
+    case outcome(notice: String?, signed: [URL])
 
     /// The step a signature or a card read is on.
     case progress(String)
 
-    /// The signed file was written here.
-    case signed(URL)
-
     /// What the row says for `signing`, nil when it says nothing.
     @MainActor
     internal init?(_ signing: SignDocumentModel) {
-      if let note = StatusView.progressNote(signing) {
-        self = .progress(note)
-      } else if let failure = signing.unacknowledgedFailure {
+      if let failure = signing.unacknowledgedFailure {
         self = .failure(failure)
-      } else if let notice = signing.notice {
-        self = .notice(notice)
-      } else if let signed = signing.signed {
-        self = .signed(signed)
+      } else if let note = StatusView.progressNote(signing) {
+        self = .progress(note)
+      } else if signing.notice != nil || !signing.signedFiles.isEmpty {
+        self = .outcome(notice: signing.notice, signed: signing.signedFiles)
       } else {
         return nil
       }
+    }
+
+    /// The sentence for `count` signed and saved files.
+    internal static func savedSentence(count: Int) -> String {
+      count == 1
+        ? String(localized: "Signed and saved.")
+        : String(localized: "Signed and saved \(count) documents.")
     }
   }
 

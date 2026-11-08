@@ -27,8 +27,8 @@
           case .sign:
             Button("Sign…") { onSign() }
               .buttonStyle(.borderedProminent)
-              .keyboardShortcut(.defaultAction)
-              .disabled(!canSign)
+              .keyboardShortcut(controls.awaitsAcknowledgement ? nil : .defaultAction)
+              .disabled(!controls.allowsSigning(cardReady: canSign))
               .accessibilityIdentifier("signDocument")
           }
         }

@@ -20,10 +20,14 @@ shows:
    not ask for a reader. It returns with the holder's name as soon as a
    card or phone can sign. While a document is signed the row says the
    step, with a progress indicator ("Signing document…",
-   "Timestamping…", and so on); afterwards it says what became of it:
-   "Signed and saved." with "Show in Finder", a notice, or the failure in
-   plain words. "OK" acknowledges the outcome, and a change to the
-   documents puts it away; the row then shows the identity again.
+   "Timestamping…", and so on). A failure, in plain words, replaces the
+   step at once and is announced; until "OK" is pressed it holds the
+   default action and "Sign…" is disabled, so Return cannot sign again
+   unread. After that the row says what the action left: "Signed and
+   saved." ("Signed and saved 3 documents." for a pile) with "Show in
+   Finder", which selects every file written, and any notice beside it.
+   "OK" puts the outcome away, and so does a change to the documents; the
+   row then shows the identity again.
 2. The document drop area, with the list of waiting documents.
 3. The signing configuration, only while a card or phone can sign or a
    signature is in flight: the format and PIN 2.

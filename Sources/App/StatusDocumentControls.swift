@@ -30,20 +30,37 @@
     /// Whether the Verify button can run.
     internal let verifyEnabled: Bool
 
+    /// Whether a failure waits in the status row to be read: Sign is
+    /// held back and "OK" takes the default action until it is.
+    internal let awaitsAcknowledgement: Bool
+
     /// The button bar, left to right: Verify, then the default Sign
     /// while signing is offered.
     internal var actions: [Action] {
       offersSigning ? [.verify, .sign] : [.verify]
     }
 
+    /// The controls for the window's state.
+    ///
+    /// A signature or a card read
+    /// in flight keeps the signing panel through a momentary loss of
+    /// the card's publication.
     internal init(
       availability: LoginIdentityModel.Availability,
       queued: [URL],
-      signing working: Bool
+      signing working: Bool,
+      readingCard readingStamp: Bool,
+      failureShown: Bool
     ) {
-      offersSigning = availability != .noCard || working
+      offersSigning = availability != .noCard || working || readingStamp
       showsIdentity = offersSigning || queued.isEmpty
       verifyEnabled = QueuedDocumentVerification.isAvailable(queued: queued, signing: working)
+      awaitsAcknowledgement = failureShown
+    }
+
+    /// Whether Sign can run, given that the card side is ready.
+    internal func allowsSigning(cardReady: Bool) -> Bool {
+      cardReady && offersSigning && !awaitsAcknowledgement
     }
   }
 
