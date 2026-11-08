@@ -353,7 +353,9 @@
         {
           DevErrorLog.report("phone over Bluetooth: not reached within the scan", source: .app)
         } else if let failure = reason.devErrorName(midOperation: isRunning) {
-          DevErrorLog.report("phone session closed: \(failure)", source: .app)
+          let peer = DevErrorLog.peerName(pairID: holderSession?.pairID, vault: RappDeviceVault())
+          let route = sessionSlot.transport == .bluetooth ? "Bluetooth" : "network"
+          DevErrorLog.report("phone session closed: \(failure), \(peer), \(route)", source: .app)
         }
       }
     #endif
