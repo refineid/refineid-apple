@@ -46,6 +46,14 @@ public enum DocumentVerification {
     /// them moves the validation time.
     public let archiveTimestamps: [TimestampState]
 
+    /// Until when the latest anchored archive timestamp that counts for
+    /// the level keeps proving its time.
+    ///
+    /// The earliest notAfter on its authority's chain and the end of its
+    /// algorithm's suitability (`CryptographicSuitability`). Past it, the
+    /// document needs a new archive timestamp. Nil without one.
+    public let archiveValidUntil: Date?
+
     /// The baseline level the document was verified to reach.
     ///
     /// Judged from the evidence the document carries; nil when the
@@ -134,6 +142,7 @@ public enum DocumentVerification {
         chain: chain,
         timestamps: timestamps,
         archiveTimestamps: archiveTimestamps,
+        archiveValidUntil: archiveValidUntil,
         level: level,
         validationTime: validationTime,
         revocationLinks: links,
@@ -281,7 +290,8 @@ public enum DocumentVerification {
       signatureValid: facts.signatureValid,
       chain: chain,
       timestamps: facts.timestamps,
-      archiveTimestamps: archives,
+      archiveTimestamps: archives.map(\.state),
+      archiveValidUntil: LongTermJudgement.validUntil(of: archives),
       level: longTerm.level(
         facts, archives: archives, proven: validationTime.proofOfExistence != nil),
       validationTime: validationTime,

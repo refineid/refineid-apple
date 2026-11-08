@@ -398,7 +398,9 @@ result opens as a resizable sheet, at a size that shows one whole
 signature without scrolling, and scrolls for several documents: one
 "Document" section per document, then the
 signature sections the Verify screen on iPhone and iPad shows
-([ios.md](ios.md#verify)), and the trusted-lists section; "Done" closes
+([ios.md](ios.md#verify)), with the archival level's "Verifiable until"
+date, and the trusted-lists section only when
+fetching them failed and verification lacks current lists; "Done" closes
 it. A document without signatures, an office file or plain text among
 them, says "The document carries no signatures." Verifying leaves the
 pile as it was, so the same documents are signed next without being

@@ -243,11 +243,37 @@ implements the shared design in refineid-core
   path. Revocation values elsewhere, inside a CMS among them, decide the
   verdict but raise no level. A live revocation answer does not raise it.
   A signature that does not verify over intact data shows no level.
+- **Until when.** The archival level says the last day the document
+  stays verifiable before it needs refreshing: "Verifiable until 2 Aug
+  2034" ("Tarkastettavissa 2.8.2034 asti", "Kan granskas till 2 aug.
+  2034") with the mark. The day is the UTC day one second before the
+  end, since DSS counts the end instant itself as expired: an end of
+  2035-01-01T00:00:00Z shows 31 Dec 2034, and DVV's "Maximum validity
+  time: 2034-08-02 23:59:59 (UTC)" shows 2 Aug 2034. The end is that of
+  the last anchored archive timestamp in document order that counts for
+  the level (the last PAdES document-timestamp revision counted as
+  archive, or the last XAdES `xadesv141:ArchiveTimeStamp`), whatever
+  times the clocks name: the earliest of the notAfter of every
+  certificate on its authority's verified chain, anchor included, and
+  the day its signature algorithm and key size stop being acceptable
+  under EU DSS 6.5.1's default validation policy (`CryptographicSuitability`
+  in CardCore, transcribed from `policy/constraint.xml`
+  `AlgoExpirationDate`; RSA from 1900 bits until 2027-01-01, from 3000
+  bits until 2035-01-01, ECDSA from P-256 and SHA-256, SHA-384 and
+  SHA-512 without end), the same date DSS and DVV's validator report.
+  Once the end has passed it says "Needs a new archive timestamp"
+  ("Vaatii uuden arkistointiaikaleiman", "Behöver en ny
+  arkivtidsstämpel") without the mark. When a certificate's notAfter
+  cannot be read or the chain is empty, no date is claimed: the row
+  says "Validity period could not be determined" ("Voimassaoloa ei
+  voitu selvittää", "Giltighetstiden kunde inte fastställas") without
+  the mark.
 - **Trusted lists.** Anchors come only from the EU trusted lists the
   app fetches and caches. A cached copy verifies at once, offline too,
   and is fetched again in the background when it is stale. With nothing
   cached the first verification fetches the lists; when the device is
   offline it says "No EU trusted lists are stored yet and this device is
   offline. Connect to the internet once to fetch them; after that,
-  documents verify offline too." and the trusted-lists row says
-  "Offline".
+  documents verify offline too." The fetching itself is not shown: the
+  trusted-lists section, with its retry button, appears only when a
+  fetch failed and no lists or only stale ones are stored.

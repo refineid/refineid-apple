@@ -1874,24 +1874,68 @@
         }
       }
     },
-    "verify.level.archival" : {
+    "verify.level.archivalExpired" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Archival: can be verified for decades"
+            "value" : "Needs a new archive timestamp"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Arkistokelpoinen: tarkastettavissa vuosikymmenien ajan"
+            "value" : "Vaatii uuden arkistointiaikaleiman"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Arkivnivå: kan granskas i årtionden"
+            "value" : "Behöver en ny arkivtidsstämpel"
+          }
+        }
+      }
+    },
+    "verify.level.archivalUnknown" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Validity period could not be determined"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voimassaoloa ei voitu selvittää"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giltighetstiden kunde inte fastställas"
+          }
+        }
+      }
+    },
+    "verify.level.archivalUntil" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verifiable until %@"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tarkastettavissa %@ asti"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kan granskas till %@"
           }
         }
       }
@@ -2105,19 +2149,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Timestamp"
+            "value" : "Signed at"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aikaleima"
+            "value" : "Allekirjoitusaika"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tidsstämpel"
+            "value" : "Signeringstid"
           }
         }
       }

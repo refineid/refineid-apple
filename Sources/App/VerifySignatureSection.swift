@@ -8,6 +8,9 @@ import SwiftUI
 ///
 /// The signer's name appears here and nowhere else.
 internal struct VerifySignatureSection: View {
+  /// The resolution of certificate and policy times, one second.
+  private static let expiryResolution: TimeInterval = 1
+
   private static var header: some View {
     Text(VerifyText.text("verify.signature", "Signature"))
       .frame(maxWidth: .infinity, alignment: .leading)
@@ -97,6 +100,15 @@ internal struct VerifySignatureSection: View {
     return VerifyDocumentRowValue(indicator: .fails)
   }
 
+  /// Whether the archive timestamp gets a row of its own.
+  ///
+  /// One that holds says nothing new to the holder: the signing time is shown
+  /// once, and the long-term validity row carries the archival check.
+  /// One that is unproven or fails is shown, so the problem is seen.
+  internal static func showsArchiveRow(_ stamps: [TimestampState]) -> Bool {
+    !stamps.isEmpty && archiveValue(stamps).indicator != .holds
+  }
+
   private static func unprovenValue(_ claimed: Date) -> VerifyDocumentRowValue {
     VerifyDocumentRowValue(
       text: VerifyText.formatted(claimed),
@@ -104,26 +116,53 @@ internal struct VerifySignatureSection: View {
     )
   }
 
-  /// The level reached, in words rather than the profile's code: the
-  /// archival level holds, the others say what the document lacks.
-  internal static func levelValue(_ level: SignatureLevel) -> VerifyDocumentRowValue {
+  /// The instant the last verifiable day is read from: one second
+  /// before `validUntil`, since at that instant itself DSS already
+  /// counts the archive timestamp expired, so an end of midnight UTC is
+  /// shown as the day before.
+  internal static func lastVerifiableDay(before validUntil: Date) -> Date {
+    validUntil.addingTimeInterval(-Self.expiryResolution)
+  }
+
+  /// The level reached, in words rather than the profile's code.
+  ///
+  /// The archival level says the last day it can be verified, with the
+  /// check, while `validUntil` is after `now`; that it needs a new
+  /// archive timestamp once that instant has passed; and that the
+  /// validity could not be determined when there is no date. The other
+  /// levels say what the document lacks.
+  internal static func levelValue(
+    _ level: SignatureLevel,
+    validUntil: Date?,
+    now: Date
+  ) -> VerifyDocumentRowValue {
     switch level {
     case .longTermArchival:
-      VerifyDocumentRowValue(
-        text: VerifyText.text("verify.level.archival", "Archival: can be verified for decades"),
-        indicator: .holds)
+      guard let validUntil else {
+        return VerifyDocumentRowValue(
+          text: VerifyText.text(
+            "verify.level.archivalUnknown", "Validity period could not be determined"))
+      }
+      if validUntil > now {
+        let date = VerifyText.formattedDay(Self.lastVerifiableDay(before: validUntil))
+        return VerifyDocumentRowValue(
+          text: VerifyText.text("verify.level.archivalUntil", "Verifiable until \(date)"),
+          indicator: .holds)
+      }
+      return VerifyDocumentRowValue(
+        text: VerifyText.text("verify.level.archivalExpired", "Needs a new archive timestamp"))
 
     case .longTerm:
-      VerifyDocumentRowValue(
+      return VerifyDocumentRowValue(
         text: VerifyText.text(
           "verify.level.longTerm", "Validation data included, no archive timestamp"))
 
     case .timestamped:
-      VerifyDocumentRowValue(
+      return VerifyDocumentRowValue(
         text: VerifyText.text("verify.level.timestamped", "Timestamped, no validation data"))
 
     case .basic:
-      VerifyDocumentRowValue(text: VerifyText.text("verify.level.basic", "Not timestamped"))
+      return VerifyDocumentRowValue(text: VerifyText.text("verify.level.basic", "Not timestamped"))
     }
   }
 
@@ -174,8 +213,8 @@ internal struct VerifySignatureSection: View {
   /// The timestamps, the revocation status and the level reached.
   @ViewBuilder
   private func timeAndStatusRows(_ report: DocumentVerification.SignatureReport) -> some View {
-    Self.row(VerifyText.text("verify.timestamp", "Timestamp"), Self.timestampValue(of: report))
-    if !report.archiveTimestamps.isEmpty {
+    Self.row(VerifyText.text("verify.timestamp", "Signed at"), Self.timestampValue(of: report))
+    if Self.showsArchiveRow(report.archiveTimestamps) {
       Self.row(
         VerifyText.text("verify.archiveTimestamp", "Archive timestamp"),
         Self.archiveValue(report.archiveTimestamps))
@@ -187,7 +226,7 @@ internal struct VerifySignatureSection: View {
     if let level = report.level {
       Self.row(
         VerifyText.text("verify.level", "Long-term validity"),
-        Self.levelValue(level)
+        Self.levelValue(level, validUntil: report.archiveValidUntil, now: Date())
       )
       .accessibilityIdentifier("verifyLevel")
     }

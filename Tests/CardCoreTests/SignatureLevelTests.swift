@@ -31,6 +31,9 @@
       case unrelated
     }
 
+    /// The synthetic timestamp authority's certificate notAfter.
+    private static let authorityValidityEnd = "20300101000000Z"
+
     /// Inside every certificate's and CRL's validity.
     private static let currentTime = "20260601000000Z"
 
@@ -38,7 +41,7 @@
     internal static let signatureStampTime = "20260515000000Z"
 
     /// The archive or document timestamp's generation time, after it.
-    private static let archiveStampTime = "20260520000000Z"
+    internal static let archiveStampTime = "20260520000000Z"
 
     /// A SHA-384 imprint over input that is not the archive input.
     private static let unrelatedImprint = Data(
@@ -51,6 +54,13 @@
     /// The unsigned signature properties' end tag, before which an
     /// archive timestamp is placed.
     private static let unsignedSignaturePropertiesClose = "</xades:UnsignedSignatureProperties>"
+
+    /// The synthetic authority's notAfter: its P-256 key never expires
+    /// under the suitability table, so its chain alone ends the
+    /// archive timestamp's validity.
+    private static func authorityNotAfter() throws -> Date {
+      try DocumentTrustFixture.instant(Self.authorityValidityEnd)
+    }
 
     internal static func now() throws -> Date {
       try DocumentTrustFixture.instant(Self.currentTime)
@@ -66,7 +76,7 @@
 
     /// The fixture's PDF, with a signature timestamp when `timestamped`
     /// and the path's CRLs in the document security store when `stored`.
-    private static func pdf(
+    internal static func pdf(
       _ fixture: DocumentTrustFixture,
       timestamped: Bool,
       stored: Bool
@@ -179,6 +189,8 @@
       #expect(try Self.report(longTerm, fixture).level == .longTerm)
       let report = try Self.report(archival, fixture)
       #expect(report.level == .longTermArchival)
+      #expect(report.archiveValidUntil == (try Self.authorityNotAfter()))
+      #expect(try Self.report(longTerm, fixture).archiveValidUntil == nil)
       #expect(
         report.archiveTimestamps == [
           .anchored(try DocumentTrustFixture.instant(Self.archiveStampTime))
@@ -246,6 +258,7 @@
       #expect(report.level == .longTermArchival)
       #expect(
         report.proofOfExistence == (try DocumentTrustFixture.instant(Self.signatureStampTime)))
+      #expect(report.archiveValidUntil == (try Self.authorityNotAfter()))
     }
 
     /// Each missing piece of evidence leaves the container one level
