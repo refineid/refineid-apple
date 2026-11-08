@@ -5,6 +5,18 @@ import Security
 
 /// The rows of one container's XAdES signatures.
 extension AsicVerification {
+  /// What every signature of one container is judged with.
+  internal struct ContainerJudgement {
+    /// The container's entries by name.
+    internal let entries: [String: Data]
+
+    /// The files outside `META-INF/` the signatures must cover.
+    internal let carriedFileNames: Set<String>
+
+    internal let anchors: TrustAnchors
+    internal let now: Date
+  }
+
   /// Every signature in the signature files as a row.
   ///
   /// A signature file that does not read, a counter-signature, and a
@@ -12,15 +24,12 @@ extension AsicVerification {
   /// neighbours of an unsupported signature are still judged.
   internal static func signatureEntries(
     signatureFiles: [String],
-    entries: [String: Data],
-    carriedFileNames: Set<String>,
-    anchors: TrustAnchors,
-    now: Date
+    judgement: ContainerJudgement
   ) -> [DocumentVerification.SignatureEntry] {
     var rows: [DocumentVerification.SignatureEntry] = []
     for signatureFileName in signatureFiles {
       guard
-        let signatureXmlData = entries[signatureFileName],
+        let signatureXmlData = judgement.entries[signatureFileName],
         String(data: signatureXmlData, encoding: .utf8) != nil
       else {
         rows.append(.unsupported)
@@ -32,15 +41,16 @@ extension AsicVerification {
         rows.append(.unsupported)
         continue
       }
-      for parsed in parsedSignatures {
+      // The same signatures in the same document order, as elements an
+      // archive timestamp's input is rebuilt from.
+      let elements = Self.signatureElements(in: signatureXmlData)
+      for (index, parsed) in parsedSignatures.enumerated() {
         guard
           !parsed.isCounterSignature,
           let report = Self.report(
             of: parsed,
-            entries: entries,
-            carriedFileNames: carriedFileNames,
-            anchors: anchors,
-            now: now
+            element: elements.indices.contains(index) ? elements[index] : nil,
+            judgement: judgement
           )
         else {
           rows.append(.unsupported)
@@ -52,14 +62,44 @@ extension AsicVerification {
     return rows
   }
 
+  /// The certificates, revocation values and signature timestamps one
+  /// signature carries.
+  private static func evidence(of parsed: ParsedSignature) -> ValidationEvidence {
+    var evidence = ValidationEvidence()
+    evidence.add(certificates: parsed.keyInfoCertificates + parsed.certificateValues)
+    evidence.add(ocspResponses: parsed.ocspValues, revocationLists: parsed.crlValues)
+    for token in parsed.signatureTimestampTokens {
+      evidence.add(cms: token)
+    }
+    return evidence
+  }
+
+  /// The state of each `xades:SignatureTimeStamp` over the signature
+  /// value.
+  private static func signatureTimestamps(
+    of parsed: ParsedSignature,
+    evidence: ValidationEvidence,
+    judgement: ContainerJudgement
+  ) -> [TimestampState] {
+    parsed.signatureTimestampTokens.map { token in
+      TimestampJudge.state(
+        of: token,
+        imprintMatches: { digest, imprint in
+          matchesSignatureValue(parsed: parsed, digest: digest, imprint: imprint)
+        },
+        evidence: evidence,
+        anchors: judgement.anchors,
+        now: judgement.now
+      )
+    }
+  }
+
   /// The report of one XAdES signature, or nil when it carries no
   /// readable signer.
   private static func report(
     of parsed: ParsedSignature,
-    entries: [String: Data],
-    carriedFileNames: Set<String>,
-    anchors: TrustAnchors,
-    now: Date
+    element: XmlElement?,
+    judgement: ContainerJudgement
   ) -> DocumentVerification.SignatureReport? {
     guard
       let binding = Self.signerBinding(of: parsed),
@@ -68,11 +108,10 @@ extension AsicVerification {
     else {
       return nil
     }
-    let signerCertificate = binding.signer
     let integrity = checkDocumentIntegrity(
       parsed: parsed,
-      entries: entries,
-      carriedFileNames: carriedFileNames
+      entries: judgement.entries,
+      carriedFileNames: judgement.carriedFileNames
     )
     let signatureValid =
       binding.bindsValidly
@@ -80,35 +119,34 @@ extension AsicVerification {
         parsed: parsed,
         publicKey: signerPublicKey
       )
-    var evidence = ValidationEvidence()
-    evidence.add(certificates: parsed.keyInfoCertificates + parsed.certificateValues)
-    evidence.add(ocspResponses: parsed.ocspValues, revocationLists: parsed.crlValues)
-    for token in parsed.signatureTimestampTokens {
-      evidence.add(cms: token)
-    }
-    let timestamps = parsed.signatureTimestampTokens.map { token in
-      TimestampJudge.state(
-        of: token,
-        imprintMatches: { digest, imprint in
-          matchesSignatureValue(parsed: parsed, digest: digest, imprint: imprint)
-        },
-        evidence: evidence,
-        anchors: anchors,
-        now: now
-      )
-    }
+    let evidence = Self.evidence(of: parsed)
+    let timestamps = Self.signatureTimestamps(of: parsed, evidence: evidence, judgement: judgement)
+    let archiveTimestamps =
+      element.map { signature in
+        Self.archiveTimestamps(
+          of: signature,
+          signatureValue: parsed.signatureValueBytes,
+          evidence: evidence,
+          judgement: judgement
+        )
+      } ?? []
     return DocumentVerification.report(
       DocumentVerification.SignatureFacts(
-        signerCertificate: signerCertificate,
+        signerCertificate: binding.signer,
         documentIntact: integrity.documentIntact,
         signatureValid: signatureValid,
         timestamps: timestamps,
         creditedProofs: [],
-        coversWholeDocument: integrity.coversWholeDocument
+        coversWholeDocument: integrity.coversWholeDocument,
+        archiveTimestamps: archiveTimestamps.map { state in
+          DocumentVerification.ArchiveCandidate(state: state, covered: nil)
+        },
+        longTermValues: DocumentVerification.RevocationValues(
+          ocspResponses: parsed.ocspValues, revocationLists: parsed.crlValues)
       ),
       evidence: evidence,
-      anchors: anchors,
-      now: now
+      anchors: judgement.anchors,
+      now: judgement.now
     )
   }
 

@@ -348,8 +348,20 @@ app's language, a space, and that instant in UTC with colons replaced by
 hyphens. A container name the holder types keeps the suffix when it is
 still there and gets it appended when typing replaced it.
 
-There is no Verify screen on the Mac; verification lives on iPhone and
-iPad.
+The drop area reads "Drop documents here to sign or verify them."
+
+## Document verification
+
+"Verify…" stands beside "Sign…" in the signing controls, a plain button
+beside the default one. It is enabled while documents are waiting and no
+signature is in flight, and it verifies every waiting document. The
+result opens as a sheet: one "Document" section per document, then the
+signature sections the Verify screen on iPhone and iPad shows
+([ios.md](ios.md#verify)), and the trusted-lists section; "Done" closes
+it. A document without signatures, an office file or plain text among
+them, says "The document carries no signatures." Verifying leaves the
+pile as it was, so the same documents are signed next without being
+dropped again.
 
 ## Web signing (SCS)
 

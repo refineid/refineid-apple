@@ -4,10 +4,13 @@ import Foundation
 
 /// PAdES verification (EN 319 142-1).
 extension DocumentVerification {
-  /// One PDF document timestamp and where its range starts.
+  /// One PDF document timestamp, where its range starts, and the
+  /// revocation values of the document security store the revision it
+  /// covers carries (EN 319 142-1 clause 5.5).
   private struct DocumentTimestamp {
     let state: TimestampState
     let rangeStart: Int
+    let coveredValues: RevocationValues
   }
 
   /// What every signature of one PDF is judged with.
@@ -15,6 +18,12 @@ extension DocumentVerification {
     let evidence: ValidationEvidence
     let anchors: TrustAnchors
     let now: Date
+    let storeValues: RevocationValues
+  }
+
+  /// The revocation values of a document security store.
+  private static func revocationValues(_ store: PdfValidationStore.Material) -> RevocationValues {
+    RevocationValues(ocspResponses: store.ocspResponses, revocationLists: store.revocationLists)
   }
 
   /// Verifies every signature dictionary and document timestamp of a
@@ -36,28 +45,38 @@ extension DocumentVerification {
     } catch {
       throw Failure.unreadable
     }
-    guard !found.isEmpty else { throw Failure.noSignatures }
+    // A document timestamp alone signs nothing.
+    guard found.contains(where: { signature in signature.subFilter != .rfc3161 }) else {
+      throw Failure.noSignatures
+    }
 
     var documentEvidence = ValidationEvidence()
-    documentEvidence.add(PdfDocumentSecurityStore.material(in: document))
+    let store = PdfDocumentSecurityStore.material(in: document)
+    documentEvidence.add(store)
     for signature in found {
       documentEvidence.add(cms: signature.cms)
     }
-    let judgement = PdfJudgement(evidence: documentEvidence, anchors: anchors, now: now)
+    let judgement = PdfJudgement(
+      evidence: documentEvidence, anchors: anchors, now: now,
+      storeValues: Self.revocationValues(store))
     let documentTimestamps = Self.documentTimestamps(in: found, judgement)
     let signatures: [SignatureEntry] = found.filter { signature in
       signature.subFilter != .rfc3161
     }
     .map { signature in
-      let credited = documentTimestamps.filter { stamp in
+      let covering = documentTimestamps.filter { stamp in
         signature.signedSpans.document.count <= stamp.rangeStart
       }
-      .compactMap(\.state.provenTime)
+      let credited = covering.compactMap(\.state.provenTime)
+      let archives = covering.map { stamp in
+        ArchiveCandidate(state: stamp.state, covered: stamp.coveredValues)
+      }
       guard
         let profile = Self.profile(ofSubFilter: signature.subFilter),
         signature.endsRevision,
         let report = Self.report(
-          of: signature, profile: profile, creditedProofs: credited, judgement
+          of: signature, profile: profile, creditedProofs: credited,
+          archiveTimestamps: archives, judgement
         )
       else {
         return .unsupported
@@ -84,7 +103,9 @@ extension DocumentVerification {
             anchors: judgement.anchors,
             now: judgement.now
           ),
-          rangeStart: signature.signedSpans.contentsOpen
+          rangeStart: signature.signedSpans.contentsOpen,
+          coveredValues: Self.revocationValues(
+            PdfDocumentSecurityStore.material(in: signature.signedSpans.document))
         )
       }
   }
@@ -136,6 +157,7 @@ extension DocumentVerification {
     of signature: PdfSignatureReader.FoundSignature,
     profile: CmsSignerVerification.Profile,
     creditedProofs: [ProvenTime],
+    archiveTimestamps: [ArchiveCandidate],
     _ judgement: PdfJudgement
   ) -> SignatureReport? {
     let anchors = judgement.anchors
@@ -172,7 +194,9 @@ extension DocumentVerification {
         signatureValid: outcome.signatureValid,
         timestamps: timestamps,
         creditedProofs: creditedProofs,
-        coversWholeDocument: signature.coversWholeDocument
+        coversWholeDocument: signature.coversWholeDocument,
+        archiveTimestamps: archiveTimestamps,
+        longTermValues: judgement.storeValues
       ),
       evidence: evidence,
       anchors: anchors,

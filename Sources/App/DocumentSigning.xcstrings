@@ -1604,6 +1604,28 @@
         }
       }
     },
+    "verify.archiveTimestamp" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archive timestamp"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arkistointiaikaleima"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arkivtidsstämpel"
+          }
+        }
+      }
+    },
     "verify.chain" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1650,6 +1672,28 @@
         }
       }
     },
+    "verify.errorCades" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This signature format (CAdES) can't be verified here yet."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tätä allekirjoitusmuotoa (CAdES) ei voi vielä tarkastaa täällä."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Det här signaturformatet (CAdES) kan inte granskas här ännu."
+          }
+        }
+      }
+    },
     "verify.errorNoSignatures" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1691,6 +1735,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Förteckningarna över betrodda tjänsteleverantörer har inte hämtats ännu, så ingen certifikatkedja kan verifieras."
+          }
+        }
+      }
+    },
+    "verify.errorOfflineNoTrustedLists" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No EU trusted lists are stored yet and this device is offline. Connect to the internet once to fetch them; after that, documents verify offline too."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EU:n luotettuja luetteloita ei ole vielä tallennettu, eikä laitteella ole verkkoyhteyttä. Yhdistä internetiin kerran, jotta luettelot haetaan; sen jälkeen asiakirjat voi tarkastaa myös ilman verkkoyhteyttä."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inga EU-förteckningar över betrodda tjänsteleverantörer har sparats ännu och enheten är offline. Anslut till internet en gång för att hämta dem; därefter kan dokument granskas även offline."
           }
         }
       }
@@ -1760,6 +1826,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Dokumentet oförändrat"
+          }
+        }
+      }
+    },
+    "verify.issuer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Issuer"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Myöntäjä"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utfärdare"
+          }
+        }
+      }
+    },
+    "verify.level" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signature level"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allekirjoituksen taso"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signaturnivå"
           }
         }
       }
@@ -2076,6 +2186,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Inte hämtade"
+          }
+        }
+      }
+    },
+    "verify.trustedListsOffline" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Offline"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ei verkkoyhteyttä"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Offline"
           }
         }
       }

@@ -163,24 +163,24 @@
         // The card stays the one chosen while it is being used.
         .disabled(signing.working || signing.readingStamp)
         .accessibilityIdentifier("loginIdentityStatus")
-      if availability != .noCard || !signing.queued.isEmpty || signing.pending != nil {
-        StatusDocumentSection(
-          signing: signing,
-          format: $format,
-          onChoose: { choose() },
-          onAccept: { urls in accept(urls) }
-        )
-        StatusSignatureSection(
-          signing: signing,
-          format: $format,
-          pin2: $pin2,
-          accessNumber: $accessNumber,
-          asksLocalPin2: asksLocalPin2,
-          target: selection.target,
-          canSign: canSign,
-          onSign: { sign() }
-        )
-      }
+      // Shown with no card too: verifying needs no card, only the EU
+      // trusted lists; signing stays disabled until a card is ready.
+      StatusDocumentSection(
+        signing: signing,
+        format: $format,
+        onChoose: { choose() },
+        onAccept: { urls in accept(urls) }
+      )
+      StatusSignatureSection(
+        signing: signing,
+        format: $format,
+        pin2: $pin2,
+        accessNumber: $accessNumber,
+        asksLocalPin2: asksLocalPin2,
+        target: selection.target,
+        canSign: canSign,
+        onSign: { sign() }
+      )
       outcomeSection
     }
 

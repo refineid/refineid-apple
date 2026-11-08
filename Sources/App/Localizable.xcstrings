@@ -865,6 +865,22 @@
         }
       }
     },
+    "Verify…": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tarkasta…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Granska…"
+          }
+        }
+      }
+    },
     "Your phone needs an ID card, please.": {
       "extractionState": "manual",
       "localizations": {
@@ -2559,18 +2575,18 @@
         }
       }
     },
-    "Drop documents here to sign them.": {
+    "Drop documents here to sign or verify them.": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pudota asiakirjat tähän allekirjoitettavaksi."
+            "value": "Pudota asiakirjat tähän allekirjoitettavaksi tai tarkastettavaksi."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Släpp dokument här för att underteckna dem."
+            "value": "Släpp dokument här för att underteckna eller granska dem."
           }
         }
       }

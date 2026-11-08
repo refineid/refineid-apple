@@ -82,6 +82,15 @@ internal enum SigningNetwork {
     NSURLErrorResourceUnavailable,
   ]
 
+  /// URL loading failures that mean the device has no usable network
+  /// connection.
+  private static let offlineUrlErrors: Set<Int> = [
+    NSURLErrorNotConnectedToInternet,
+    NSURLErrorNetworkConnectionLost,
+    NSURLErrorDataNotAllowed,
+    NSURLErrorInternationalRoamingOff,
+  ]
+
   /// An ephemeral session whose DNS answers are validated by the
   /// system when `validating`.
   ///
@@ -121,6 +130,13 @@ internal enum SigningNetwork {
     ]
     let failure = error as NSError
     return failure.domain == NSURLErrorDomain && codes.contains(failure.code)
+  }
+
+  /// Whether a failure says the device is offline rather than that a
+  /// service failed.
+  internal static func isOffline(_ error: Error) -> Bool {
+    let failure = error as NSError
+    return failure.domain == NSURLErrorDomain && Self.offlineUrlErrors.contains(failure.code)
   }
 
   /// Whether an unchanged timestamp-authority request may succeed later.

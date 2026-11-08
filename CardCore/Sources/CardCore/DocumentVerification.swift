@@ -39,6 +39,20 @@ public enum DocumentVerification {
     /// Every signature timestamp, in encoding order.
     public let timestamps: [TimestampState]
 
+    /// Every archive timestamp over this signature, in document order.
+    ///
+    /// The XAdES `ArchiveTimeStamp`s, or the PDF document timestamps
+    /// that cover it together with a document security store. None of
+    /// them moves the validation time.
+    public let archiveTimestamps: [TimestampState]
+
+    /// The baseline level the document was verified to reach.
+    ///
+    /// Judged from the evidence the document carries; nil when the
+    /// signature does not verify over intact data. A live revocation
+    /// answer does not raise it.
+    public let level: SignatureLevel?
+
     /// The proof of existence, or the verifier's clock without one; the
     /// chain and revocation are judged at this time.
     public let validationTime: ValidationTime
@@ -119,6 +133,8 @@ public enum DocumentVerification {
         signatureValid: signatureValid,
         chain: chain,
         timestamps: timestamps,
+        archiveTimestamps: archiveTimestamps,
+        level: level,
         validationTime: validationTime,
         revocationLinks: links,
         coversWholeDocument: coversWholeDocument
@@ -148,6 +164,9 @@ public enum DocumentVerification {
 
   /// Why a document yielded no report.
   public enum Failure: Error, Sendable {
+    /// A CMS SignedData file (CAdES, `.p7m` or `.p7s`), which this
+    /// verifier recognises but does not verify.
+    case cmsSignedData
     case noSignatures
     case notAPdf
     case unreadable
@@ -181,6 +200,15 @@ public enum DocumentVerification {
     internal let timestamps: [TimestampState]
     internal let creditedProofs: [ProvenTime]
     internal let coversWholeDocument: Bool
+
+    /// The archive timestamps over the signature, each with the
+    /// revocation values the revision it covers keeps.
+    internal let archiveTimestamps: [ArchiveCandidate]
+
+    /// The revocation values the document keeps where its profile
+    /// keeps long-term validation data: the XAdES `RevocationValues`,
+    /// or the PDF document security store.
+    internal let longTermValues: RevocationValues
   }
 
   /// Verifies every signature and document timestamp of the document
@@ -196,6 +224,9 @@ public enum DocumentVerification {
   ) throws -> DocumentReport {
     if ZipReader.hasZipSignature(document) {
       return try AsicVerification.verify(container: document, anchors: anchors, now: now)
+    }
+    if CmsSignedDataFile.isSignedData(document) {
+      throw Failure.cmsSignedData
     }
     return try Self.verifyPdf(document, anchors: anchors, now: now)
   }
@@ -238,6 +269,10 @@ public enum DocumentVerification {
       ? RevocationJudge.links(
         ofPath: path, evidence: evidence, at: validationTime.date, now: now)
       : []
+    let longTerm = LongTermJudgement(
+      path: chain.isAnchored ? path : [], certificates: evidence.certificates,
+      validationTime: validationTime.date, now: now)
+    let archives = longTerm.archives(facts.archiveTimestamps)
     return SignatureReport(
       signerCommonName: DistinguishedName.commonName(inName: subject) ?? "",
       signerIdentifier: DistinguishedName.identifier(inName: subject) ?? "",
@@ -246,6 +281,9 @@ public enum DocumentVerification {
       signatureValid: facts.signatureValid,
       chain: chain,
       timestamps: facts.timestamps,
+      archiveTimestamps: archives,
+      level: longTerm.level(
+        facts, archives: archives, proven: validationTime.proofOfExistence != nil),
       validationTime: validationTime,
       revocationLinks: links,
       coversWholeDocument: facts.coversWholeDocument

@@ -9,18 +9,26 @@ extension TrustedListStore {
   nonisolated private static let concurrentFetches = 4
 
   /// Fetches and reads every list, stores the ones that read, and
-  /// returns them; nil when the list of the lists does not arrive or
-  /// does not read.
-  nonisolated internal static func fetchLists(_ dependencies: Dependencies) async -> TrustedLists? {
+  /// returns them; offline when the list of the lists could not be
+  /// fetched for want of a connection, unavailable when it otherwise
+  /// does not arrive or does not read.
+  nonisolated internal static func fetchLists(
+    _ dependencies: Dependencies
+  ) async -> Result<TrustedLists, RefreshFailure> {
     let fetchedAt = dependencies.now()
     let listOfTheLists: TrustedList
     let bytes: Data
     do {
       bytes = try await dependencies.fetch(TrustedLists.listOfTheListsLocation)
+    } catch {
+      Self.reportFetchFailure("list of the lists", error)
+      return .failure(SigningNetwork.isOffline(error) ? .offline : .unavailable)
+    }
+    do {
       listOfTheLists = try dependencies.reader.listOfTheLists(bytes)
     } catch {
       Self.reportFetchFailure("list of the lists", error)
-      return nil
+      return .failure(.unavailable)
     }
     let locations = listOfTheLists.pointers.filter(\.namesNationalList).compactMap(\.location)
     let national = await Self.fetchNational(locations, dependencies)
@@ -33,7 +41,7 @@ extension TrustedListStore {
       }.value
     } catch {
       Self.reportFetchFailure("lists", error)
-      return nil
+      return .failure(.unavailable)
     }
     for list in reading.lists.national {
       if case .failure(let failure) = list.outcome, failure != .notFetched {
@@ -41,7 +49,7 @@ extension TrustedListStore {
       }
     }
     Self.store(reading.cache, in: dependencies.directory)
-    return reading.lists
+    return .success(reading.lists)
   }
 
   /// The bytes of each location that arrives, a few at a time.

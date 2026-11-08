@@ -11,112 +11,32 @@ import Testing
 @MainActor
 @Suite
 internal struct TrustedListStoreTests {
-  /// A reader that hands out synthetic lists and counts its calls.
-  private final class FakeReader: TrustedListReader, @unchecked Sendable {
-    /// The bytes the list of the lists must have.
-    private let listOfTheListsBytes: Data
-
-    /// The bytes the national list must have.
-    private let nationalBytes: Data
-
-    /// The next update every list states.
-    private let nextUpdate: Date?
-
-    /// How many times the cache was read back.
-    private(set) var cacheReads = 0
-
-    init(listOfTheListsBytes: Data, nationalBytes: Data, nextUpdate: Date?) {
-      self.listOfTheListsBytes = listOfTheListsBytes
-      self.nationalBytes = nationalBytes
-      self.nextUpdate = nextUpdate
-    }
-
-    func listOfTheLists(_ bytes: Data) throws -> TrustedList {
-      guard bytes == listOfTheListsBytes else { throw TrustedListError.signatureInvalid }
-      return TrustedListStoreTests.list(
-        .euListOfTheLists, nextUpdate: nextUpdate,
-        pointers: [
-          TrustedListPointer(
-            location: TrustedListStoreTests.nationalLocation,
-            territory: TrustedListStoreTests.territory, kind: .euGeneric, format: .xml,
-            signers: [], unreadableSigners: 0)
-        ])
-    }
-
-    func lists(
-      listOfTheLists bytes: Data,
-      national: (String) -> Data?,
-      fetchedAt: Date
-    ) throws -> TrustedLists.Reading {
-      let lotl = try listOfTheLists(bytes)
-      guard national(TrustedListStoreTests.nationalLocation) == nationalBytes else {
-        throw TrustedListError.notFetched
-      }
-      let lists = TrustedLists(
-        listOfTheLists: lotl,
-        national: [
-          TrustedLists.NationalList(
-            territory: TrustedListStoreTests.territory,
-            location: TrustedListStoreTests.nationalLocation,
-            outcome: .success(
-              TrustedListStoreTests.list(.euGeneric, nextUpdate: nextUpdate, pointers: [])))
-        ],
-        fetchedAt: fetchedAt)
-      return TrustedLists.Reading(
-        lists: lists,
-        cache: [
-          TrustedLists.CachedList(
-            location: TrustedLists.listOfTheListsLocation, fetchedAt: fetchedAt,
-            nextUpdate: nextUpdate, bytes: bytes),
-          TrustedLists.CachedList(
-            location: TrustedListStoreTests.nationalLocation, fetchedAt: fetchedAt,
-            nextUpdate: nextUpdate, bytes: nationalBytes),
-        ])
-    }
-
-    func cached(_ records: [TrustedLists.CachedList]) throws -> TrustedLists {
-      cacheReads += 1
-      guard let lotl = records.first(where: { $0.location == TrustedLists.listOfTheListsLocation })
-      else {
-        throw TrustedListError.notFetched
-      }
-      return try lists(
-        listOfTheLists: lotl.bytes,
-        national: { location in records.first { $0.location == location }?.bytes },
-        fetchedAt: records.map(\.fetchedAt).min() ?? lotl.fetchedAt
-      ).lists
-    }
-  }
-
-  /// Serves bytes by location and counts the fetches.
-  private final class FakeNetwork: @unchecked Sendable {
-    private let served: [String: Data]
-    private(set) var fetches: [String] = []
-
-    init(served: [String: Data]) {
-      self.served = served
-    }
-
-    func fetch(_ location: String) throws -> Data {
-      fetches.append(location)
-      guard let bytes = served[location] else { throw TrustedListError.notFetched }
-      return bytes
-    }
-  }
-
-  nonisolated private static let territory = "FI"
-  nonisolated private static let nationalLocation = "https://trusted-list.example/fi.xml"
+  nonisolated internal static let territory = "FI"
+  nonisolated internal static let nationalLocation = "https://trusted-list.example/fi.xml"
   private static let lotlBytes = Data("list of the lists".utf8)
   private static let nationalBytes = Data("national list".utf8)
   nonisolated private static let fetchedAt = Date(timeIntervalSince1970: 1_780_272_000)
   private static let nextUpdate = Self.fetchedAt.addingTimeInterval(TrustedListStore.maximumAge)
 
+  /// The name of a document a test verifies.
+  private static let documentName = "document.pdf"
+
+  /// A document that is neither a PDF nor a container.
+  private static let unsignedNote = Data("An unsigned note.".utf8)
+
   /// The fetches one refresh makes: the list of the lists and the one
   /// national list.
   private static let oneRound = 2
 
+  /// A reader of the served lists.
+  private static func reader() -> TrustedListFakeReader {
+    TrustedListFakeReader(
+      listOfTheListsBytes: Self.lotlBytes, nationalBytes: Self.nationalBytes,
+      nextUpdate: Self.nextUpdate)
+  }
+
   /// A list of `kind` with no services.
-  nonisolated private static func list(
+  nonisolated internal static func list(
     _ kind: TrustedList.Kind,
     nextUpdate: Date?,
     pointers: [TrustedListPointer]
@@ -135,8 +55,8 @@ internal struct TrustedListStoreTests {
   }
 
   private static func dependencies(
-    network: FakeNetwork,
-    reader: FakeReader,
+    network: TrustedListFakeNetwork,
+    reader: TrustedListFakeReader,
     directory: URL,
     now: Date
   ) -> TrustedListStore.Dependencies {
@@ -148,29 +68,32 @@ internal struct TrustedListStoreTests {
     )
   }
 
-  private static func served() -> FakeNetwork {
-    FakeNetwork(served: [
-      TrustedLists.listOfTheListsLocation: Self.lotlBytes,
-      Self.nationalLocation: Self.nationalBytes,
-    ])
+  private static func served() -> TrustedListFakeNetwork {
+    TrustedListFakeNetwork(
+      served: [
+        TrustedLists.listOfTheListsLocation: Self.lotlBytes,
+        Self.nationalLocation: Self.nationalBytes,
+      ],
+      offline: false)
   }
 
   @Test
   internal func withoutACacheTheFirstUseFetchesAndStores() async throws {
     let directory = try Self.directory()
     let network = Self.served()
-    let reader = FakeReader(
+    let reader = TrustedListFakeReader(
       listOfTheListsBytes: Self.lotlBytes, nationalBytes: Self.nationalBytes,
       nextUpdate: Self.nextUpdate)
     let store = TrustedListStore(
       dependencies: Self.dependencies(
         network: network, reader: reader, directory: directory, now: Self.fetchedAt))
-    #expect(await store.loadedAnchors() == nil)
+    await store.loadCache()
+    #expect(store.anchors == nil)
     await store.refreshIfNeeded()
     let anchors = try #require(store.anchors)
     #expect(anchors.fetchedAt == Self.fetchedAt)
     #expect(anchors.listsValidUntil == Self.nextUpdate)
-    #expect(!store.lastRefreshFailed)
+    #expect(store.lastRefreshFailure == nil)
     #expect(network.fetches == [TrustedLists.listOfTheListsLocation, Self.nationalLocation])
     let index = directory.appending(path: TrustedListStore.indexFileName)
     let records = try JSONDecoder().decode(
@@ -186,7 +109,7 @@ internal struct TrustedListStoreTests {
   @Test
   internal func theCacheServesAFreshStoreWithoutTheNetwork() async throws {
     let directory = try Self.directory()
-    let reader = FakeReader(
+    let reader = TrustedListFakeReader(
       listOfTheListsBytes: Self.lotlBytes, nationalBytes: Self.nationalBytes,
       nextUpdate: Self.nextUpdate)
     let first = TrustedListStore(
@@ -194,7 +117,7 @@ internal struct TrustedListStoreTests {
         network: Self.served(), reader: reader, directory: directory, now: Self.fetchedAt))
     await first.refreshIfNeeded()
 
-    let offline = FakeNetwork(served: [:])
+    let offline = TrustedListFakeNetwork(served: [:], offline: false)
     let second = TrustedListStore(
       dependencies: Self.dependencies(
         network: offline, reader: reader, directory: directory,
@@ -203,13 +126,13 @@ internal struct TrustedListStoreTests {
     #expect(second.anchors?.fetchedAt == Self.fetchedAt)
     #expect(offline.fetches.isEmpty)
     #expect(reader.cacheReads == 1)
-    #expect(!second.lastRefreshFailed)
+    #expect(second.lastRefreshFailure == nil)
   }
 
   @Test
   internal func aStaleOrAgedCacheIsFetchedAgainAndAFailedFetchKeepsIt() async throws {
     let directory = try Self.directory()
-    let reader = FakeReader(
+    let reader = TrustedListFakeReader(
       listOfTheListsBytes: Self.lotlBytes, nationalBytes: Self.nationalBytes,
       nextUpdate: Self.nextUpdate)
     let first = TrustedListStore(
@@ -217,14 +140,14 @@ internal struct TrustedListStoreTests {
         network: Self.served(), reader: reader, directory: directory, now: Self.fetchedAt))
     await first.refreshIfNeeded()
 
-    let offline = FakeNetwork(served: [:])
+    let offline = TrustedListFakeNetwork(served: [:], offline: false)
     let later = Self.nextUpdate.addingTimeInterval(1)
     let aged = TrustedListStore(
       dependencies: Self.dependencies(
         network: offline, reader: reader, directory: directory, now: later))
     await aged.refreshIfNeeded()
     #expect(offline.fetches == [TrustedLists.listOfTheListsLocation])
-    #expect(aged.lastRefreshFailed)
+    #expect(aged.lastRefreshFailure == .unavailable)
     #expect(aged.anchors?.fetchedAt == Self.fetchedAt, "the cache stays when the fetch fails")
     #expect(aged.anchors?.isStale(at: later) == true)
 
@@ -234,14 +157,14 @@ internal struct TrustedListStoreTests {
         network: online, reader: reader, directory: directory, now: later))
     await refreshed.refreshIfNeeded()
     #expect(refreshed.anchors?.fetchedAt == later)
-    #expect(!refreshed.lastRefreshFailed)
+    #expect(refreshed.lastRefreshFailure == nil)
   }
 
   @Test
   internal func anExplicitRefreshFetchesEvenWhenFresh() async throws {
     let directory = try Self.directory()
     let network = Self.served()
-    let reader = FakeReader(
+    let reader = TrustedListFakeReader(
       listOfTheListsBytes: Self.lotlBytes, nationalBytes: Self.nationalBytes,
       nextUpdate: Self.nextUpdate)
     let store = TrustedListStore(
@@ -253,5 +176,97 @@ internal struct TrustedListStoreTests {
     await store.refreshNow()
     #expect(network.fetches.count == Self.oneRound + Self.oneRound)
     #expect(!store.isRefreshing)
+  }
+
+  /// With nothing cached and no connection, a signed document is told
+  /// the device is offline, and so is the trusted-lists row.
+  @Test
+  internal func offlineWithoutACacheSaysOffline() async throws {
+    let offline = TrustedListFakeNetwork(served: [:], offline: true)
+    let store = TrustedListStore(
+      dependencies: Self.dependencies(
+        network: offline, reader: Self.reader(), directory: try Self.directory(),
+        now: Self.fetchedAt))
+
+    #expect(await store.verificationAnchors() == .failure(.offline))
+    #expect(store.lastRefreshFailure == .offline)
+    #expect(store.anchors == nil)
+    #expect(offline.fetches == [TrustedLists.listOfTheListsLocation])
+
+    let model = VerifyDocumentModel(
+      dependencies: VerifyDocumentModel.Dependencies(
+        anchors: { await store.verificationAnchors() },
+        verify: { _, _ in VerifyDocumentModelFixture.documentReport },
+        liveStatus: { _ in nil },
+        now: { Self.fetchedAt }))
+    model.verify(document: Self.lotlBytes, name: Self.documentName)
+    await model.verification?.value
+    guard case .failed(let message) = model.phase else {
+      Issue.record("The verification did not fail")
+      return
+    }
+    #expect(message == VerifyDocumentModel.offlineWithoutTrustedListsMessage)
+  }
+
+  /// Offline without a cache, a document without signatures still says
+  /// so: that needs no trusted list.
+  @Test
+  internal func offlineWithoutACacheAnUnsignedDocumentSaysUnsigned() async throws {
+    let store = TrustedListStore(
+      dependencies: Self.dependencies(
+        network: TrustedListFakeNetwork(served: [:], offline: true), reader: Self.reader(),
+        directory: try Self.directory(), now: Self.fetchedAt))
+    let model = VerifyDocumentModel(
+      dependencies: VerifyDocumentModel.Dependencies(
+        anchors: { await store.verificationAnchors() },
+        verify: { document, anchors in
+          try DocumentVerification.verify(document: document, anchors: anchors)
+        },
+        liveStatus: { _ in nil },
+        now: { Self.fetchedAt }))
+    model.verify(document: Self.unsignedNote, name: Self.documentName)
+    await model.verification?.value
+    guard case .failed(let message) = model.phase else {
+      Issue.record("The verification did not fail")
+      return
+    }
+    #expect(message == VerifyDocumentModel.noSignaturesMessage)
+  }
+
+  /// Without a cache, a fetch that fails for another reason is not
+  /// reported as offline.
+  @Test
+  internal func aFailedFetchWithoutACacheIsUnavailable() async throws {
+    let store = TrustedListStore(
+      dependencies: Self.dependencies(
+        network: TrustedListFakeNetwork(served: [:], offline: false), reader: Self.reader(),
+        directory: try Self.directory(), now: Self.fetchedAt))
+
+    #expect(await store.verificationAnchors() == .failure(.unavailable))
+  }
+
+  /// After one online fetch, an offline device verifies from the cache
+  /// at once, even when the cache has aged past its next update.
+  @Test
+  internal func afterOneFetchAnOfflineDeviceVerifiesFromTheCache() async throws {
+    let directory = try Self.directory()
+    let reader = Self.reader()
+    let first = TrustedListStore(
+      dependencies: Self.dependencies(
+        network: Self.served(), reader: reader, directory: directory, now: Self.fetchedAt))
+    #expect(try await first.verificationAnchors().get().fetchedAt == Self.fetchedAt)
+
+    let offline = TrustedListFakeNetwork(served: [:], offline: true)
+    let later = Self.nextUpdate.addingTimeInterval(1)
+    let second = TrustedListStore(
+      dependencies: Self.dependencies(
+        network: offline, reader: reader, directory: directory, now: later))
+    let anchors = try await second.verificationAnchors().get()
+    #expect(anchors.fetchedAt == Self.fetchedAt)
+    #expect(offline.fetches.isEmpty, "verification does not wait for the network")
+
+    await second.refreshIfNeeded()
+    #expect(second.lastRefreshFailure == .offline)
+    #expect(second.anchors?.fetchedAt == Self.fetchedAt, "the cache stays when offline")
   }
 }

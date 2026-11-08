@@ -209,15 +209,45 @@ implements the shared design in refineid-core
 - **Document.** The card shows one row, "Document", with the file name
   under it and no mark.
 - **Signature.** The person row (the `person` symbol, "Person" and the
-  signer's name under it), then "Document intact", "Signature" and
-  "Certificate chain", each with its mark.
+  signer's name under it), "Issuer" with the issuing CA's name as the
+  signer certificate states it, then "Document intact", "Signature" and
+  "Certificate chain", each with its mark. The signer's name appears in
+  this row and nowhere else.
 - **Timestamp.** One time per signature: the best signature time, the
   earliest anchored time (a document timestamp that proves the signature
   counts), with the mark. A claimed time alone shows "Unproven" after it,
   a failed token the failing mark, and no timestamp "None".
+- **Archive timestamp.** Shown when the signature has one: an XAdES
+  `ArchiveTimeStamp` whose input the verifier recomputed, or a PDF document
+  timestamp over a revision whose document security store holds
+  revocation values. The latest anchored time with the mark, a claimed
+  time with "Unproven", or the failing mark.
 - **Revocation.** The state without a time: the mark alone when good,
   "Revoked" with the failing mark, "Not checked" when no answer came, and
   a spinner in the mark column while the check runs.
+- **No signature.** A document without a signature row, a PDF carrying
+  only document timestamps among them, says "The document carries no
+  signatures." A CMS SignedData file (`.p7m`, `.p7s`, `.p7c`, or a DER
+  ContentInfo of type signedData) says "This signature format (CAdES)
+  can't be verified here yet."
 - **Unsupported.** A signature whose profile is not supported shows the
   person row's symbol and label, "The signature profile is not
   supported." under it and the failing mark.
+- **Signature level.** The baseline level the document was verified to
+  reach, "B-B", "B-T", "B-LT" or "B-LTA" (EN 319 142-1 and EN 319 132-1,
+  clause 6), judged from what the document carries: B-T needs an anchored
+  timestamp, B-LT revocation values in the XAdES `RevocationValues` or the
+  PDF document security store that alone answer the whole path, B-LTA an
+  anchored archive timestamp; a PDF document timestamp counts as one only
+  when the revision it covers carries a store that alone answers the
+  path. Revocation values elsewhere, inside a CMS among them, decide the
+  verdict but raise no level. A live revocation answer does not raise it.
+  A signature that does not verify over intact data shows no level.
+- **Trusted lists.** Anchors come only from the EU trusted lists the
+  app fetches and caches. A cached copy verifies at once, offline too,
+  and is fetched again in the background when it is stale. With nothing
+  cached the first verification fetches the lists; when the device is
+  offline it says "No EU trusted lists are stored yet and this device is
+  offline. Connect to the internet once to fetch them; after that,
+  documents verify offline too." and the trusted-lists row says
+  "Offline".

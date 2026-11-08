@@ -143,6 +143,53 @@
       try container.write(to: directory.appending(path: "swift-asic-e.asice"))
       print("DSS gate export: \(directory.path)")
     }
+
+    /// The verifier the Mac's Verify button runs reads both release
+    /// signatures as B-LTA under the gate's CA and authority alone, the
+    /// archive timestamp anchored after the signature timestamp.
+    internal func testOwnVerifierReadsBothAtLongTermArchival() async throws {
+      let authorities = try XCTUnwrap(DssGateUrlProtocol.authorities)
+      let anchors = TrustAnchors(
+        anchors: [
+          TrustAnchor(
+            certificate: authorities.caCertificate, role: .certificateIssuing,
+            granted: [.unbounded]),
+          TrustAnchor(
+            certificate: authorities.timestampAuthority.certificate, role: .timeStamping,
+            granted: [.unbounded]),
+        ].compactMap(\.self),
+        fetchedAt: nil,
+        listsValidUntil: nil
+      )
+      let documents = [
+        ("swift-pades.pdf", try await Self.signedPdf(authorities)),
+        ("swift-asic-e.asice", try await Self.signedContainer(authorities)),
+      ]
+      for (name, document) in documents {
+        let report = try DocumentVerification.verify(document: document, anchors: anchors)
+        XCTAssertEqual(report.signatures.count, 1, name)
+        guard case .judged(let signature) = report.signatures.first else {
+          XCTFail("\(name): the signature was not judged")
+          continue
+        }
+        XCTAssertTrue(signature.isValid, name)
+        XCTAssertTrue(signature.chainVerified, name)
+        XCTAssertEqual(signature.level, .longTermArchival, name)
+        let proof = try XCTUnwrap(signature.proofOfExistence, name)
+        let archive = try XCTUnwrap(
+          signature.archiveTimestamps.compactMap(\.provenTime).max(), name)
+        XCTAssertGreaterThanOrEqual(archive.date, proof, name)
+        guard case .good = signature.revocation else {
+          XCTFail("\(name): the carried validation data did not answer the path")
+          continue
+        }
+        print(
+          "Verify \(name): valid \(signature.isValid), chain \(signature.chainVerified), "
+            + "level \(signature.level?.label ?? "none"), "
+            + "timestamps \(signature.timestamps.count), "
+            + "archive timestamps \(signature.archiveTimestamps.count)")
+      }
+    }
   }
 
 #endif
