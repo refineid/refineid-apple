@@ -1317,6 +1317,28 @@
         }
       }
     },
+    "Address": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Address"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osoite"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adress"
+          }
+        }
+      }
+    },
     "Add…": {
       "localizations": {
         "fi": {
@@ -3327,6 +3349,28 @@
         }
       }
     },
+    "Not a usable address": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not a usable address"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osoite ei ole käyttökelpoinen"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adressen kan inte användas"
+          }
+        }
+      }
+    },
     "Not available": {
       "extractionState": "manual",
       "localizations": {
@@ -4685,6 +4729,28 @@
         }
       }
     },
+    "Restore Defaults": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore Defaults"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Palauta oletukset"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Återställ standardvärden"
+          }
+        }
+      }
+    },
     "Safari login (CTK)": {
       "extractionState": "manual",
       "localizations": {
@@ -4994,6 +5060,50 @@
           "stringUnit": {
             "state": "translated",
             "value": "Signera"
+          }
+        }
+      }
+    },
+    "Signature Creation Service": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signature Creation Service"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allekirjoituspalvelu (Signature Creation Service)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signeringstjänst (Signature Creation Service)"
+          }
+        }
+      }
+    },
+    "Signing Service": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signing Service"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allekirjoituspalvelu"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signeringstjänst"
           }
         }
       }
@@ -5758,6 +5868,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Den här iPhone öppnade ingen kortläsningssession."
+          }
+        }
+      }
+    },
+    "Time Stamp": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time Stamp"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aikaleima"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tidsstämpel"
           }
         }
       }

@@ -4,8 +4,8 @@ UI text is quoted in its English source form; the translations are in
 `Sources/App/Localizable.xcstrings`.
 
 The Mac app is one window. It says whose card can log in and signs
-documents with it. There is no Settings window and no Help menu. The app
-menu holds About, which links the site. The View menu holds Demo Mode.
+documents with it. There is no Help menu. The app menu holds About,
+which links the site, and Settings. The View menu holds Demo Mode.
 
 ## The window
 
@@ -412,6 +412,17 @@ them, says "The document carries no signatures." Verifying leaves the
 pile as it was, so the same documents are signed next without being
 dropped again.
 
+## Settings
+
+The Settings window holds two panes, each behind its flag. The Time
+Stamp pane (`FEATURE_TIMESTAMP_CONFIG`) holds the one RFC 3161
+authority signatures ask, prefilled with the shipped qualified Sectigo
+service; "Restore Defaults" puts that service back, and an address the
+app could not ask is marked and never asked. The Signing Service pane
+(`FEATURE_SCS`, set by no configuration) holds the Signature Creation
+Service switch. The window itself exists only while at least one pane
+is compiled in.
+
 ## Web signing (SCS)
 
 The Signature Creation Service is a loopback HTTPS server that web pages
@@ -420,10 +431,10 @@ which no build configuration sets until it ships. It is not dead code:
 cleanups keep the server, its card backend, its transaction manager, its
 opt-in and their tests.
 
-When it ships it is a setting the holder turns on. The server starts only
-after that opt-in, so the certificate trust prompt it needs appears when
-the holder first turns it on. A launch with the opt-in stored starts the
-server again.
+The Signing Service pane is the setting the holder turns on. The server
+starts only after that opt-in, so the certificate trust prompt it needs
+appears when the holder first turns it on. A launch with the opt-in
+stored starts the server again.
 
 It implements the DVV specification
 [`dvv_scs_v1_3`](../references.md#dvv_scs_v1_3). Chapter 2 is normative;

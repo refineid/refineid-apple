@@ -141,6 +141,14 @@ internal struct RefineIDApp: App {
 
       PinCodesWindow()
 
+      #if FEATURE_SCS || FEATURE_TIMESTAMP_CONFIG
+        Settings {
+          RefineIDSettingsView()
+            .writingToolsBehavior(.disabled)
+            .windowFullScreenBehavior(.disabled)
+        }
+      #endif
+
       // Development builds only: the release configurations exclude the
       // diagnostics sources at file level, so the scene must not exist
       // there either.

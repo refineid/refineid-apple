@@ -19,17 +19,25 @@
 //       no stamp UI is offered.
 //
 //   FEATURE_SCS
-//       The loopback HTTPS signing service on macOS, started only after
-//       the holder opts in. Set by no configuration until SCS ships; a
-//       local build that sets it also needs a network-server entitlement.
+//       The loopback HTTPS signing service on macOS and its Settings
+//       pane, started only after the holder opts in. Set by no
+//       configuration until SCS ships; a local build that sets it also
+//       needs a network-server entitlement.
+//
+//   FEATURE_TIMESTAMP_CONFIG
+//       The Time Stamp Settings pane on macOS: the holder reads and
+//       changes the RFC 3161 time-stamp authority signatures ask.
+//       The store beneath stays built either way; with the pane
+//       compiled out nothing writes the key and every signature asks
+//       the shipped service.
 //
 // macOS ships local card authentication, management and document signing,
 // and the remote card over RAPP as a requester that only dials out
 // (Documentation/decisions.md, 2026-10-10). Every signature is
-// time-stamped by the qualified Sectigo server
-// (http://timestamp.sectigo.com/qualified).
+// time-stamped by the configured authority, or the qualified Sectigo
+// server (http://timestamp.sectigo.com/qualified) until one is set.
 
-REFINEID_FEATURES = FEATURE_CONTACTLESS
+REFINEID_FEATURES = FEATURE_CONTACTLESS FEATURE_TIMESTAMP_CONFIG
 
 // The local card: this build talks to a card the device itself holds,
 // over its own antenna. On by default, because every shipping iPhone

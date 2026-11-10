@@ -104,7 +104,7 @@ internal struct RappShippingConfigurationTests {
     #expect(store["com.apple.security.network.server"] == nil)
     let features = try String(
       contentsOf: Self.root.appending(path: "Config/Features.xcconfig"), encoding: .utf8)
-    #expect(features.contains("REFINEID_FEATURES = FEATURE_CONTACTLESS\n"))
+    #expect(features.contains("REFINEID_FEATURES = FEATURE_CONTACTLESS FEATURE_TIMESTAMP_CONFIG\n"))
     #expect(!features.contains("REFINEID_FEATURES[sdk="))
     #expect(!features.contains("REFINEID_REMOTE_CARD_FEATURE[sdk=macosx*]"))
     #expect(features.contains("REFINEID_REMOTE_CARD_FEATURE = REFINEID_REMOTE_CARD"))

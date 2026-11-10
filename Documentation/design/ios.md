@@ -192,7 +192,9 @@ days, the phone tells it with `pairing_revoked`.
 
 The signed file is offered for export after signing, named the way the
 Mac names it: by the signature timestamp's generation time, as described
-in [macos.md](macos.md#document-signing).
+in [macos.md](macos.md#document-signing). The time-stamp authority
+signatures ask is set in the Settings app, prefilled with the qualified
+service the app ships with.
 
 ## Verify
 

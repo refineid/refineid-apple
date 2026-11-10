@@ -12,8 +12,8 @@
 	<false/>
 	<!-- Outbound network contract. ATS stays open because an archival
 	     signature needs two things: the timestamp authority (now named below) and revocation endpoints (still unpredictable):
-	     the timestamp authority (http://timestamp.sectigo.com/qualified,
-	     the only TSA) and the
+	     the timestamp authority (the configured authority, or
+	     http://timestamp.sectigo.com/qualified until one is set) and the
 	     revocation endpoints published inside the validated certificates
 	     themselves (OCSP/CRL). Every such fetch goes through SigningNetwork,
 	     which admits public IPs only. See Documentation/decisions.md,

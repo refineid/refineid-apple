@@ -5,6 +5,28 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-11-10 Settings return: the time-stamp authority is configurable, SCS stays gated
+
+Maintainer's decision: "I think I would like to have SCS and option to
+change timestamp server as option on macOS. iOS should have timestamp
+server as configurable option in setting with current one refilled."
+
+- macOS grows a Settings window with two panes, each behind its flag.
+  The Time Stamp pane (`FEATURE_TIMESTAMP_CONFIG`, on in every
+  configuration) holds the one RFC 3161 authority signatures ask,
+  prefilled with the shipped qualified Sectigo service; an unusable
+  address is marked and never asked. The Signing Service pane
+  (`FEATURE_SCS`, set by no configuration) holds the SCS opt-in, and
+  the service still starts only after the holder turns it on.
+- iOS takes no in-app settings: the Settings app carries the same
+  address under the same key, prefilled with the same default. Either
+  platform reads through `TimestampAuthorityStore`, which answers the
+  shipped service until something usable is stored.
+- Every token is verified as before, whoever names the authority; a
+  configured authority changes no trust decision. SCS stays out of
+  every shipping configuration and the store entitlements keep no
+  server side, so "SCS is excluded" still holds for review.
+
 ## 2026-11-08 The Mac App Store build reaches the phone over Bluetooth
 
 Maintainer's decision: "I want Mac to use bluetooth also, naturally."
