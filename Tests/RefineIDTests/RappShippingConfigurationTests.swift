@@ -14,6 +14,7 @@ internal struct RappShippingConfigurationTests {
 
   private static let classID = "fi.refineid.ReFineID.rapp-token"
   private static let service = "_refineid-stream._tcp"
+  private static let testHostConfigurationCount = 4
 
   // MARK: Static Computed Properties
 
@@ -178,5 +179,20 @@ internal struct RappShippingConfigurationTests {
     #expect(source.contains("NSBonjourServices present without the remote card"))
     #expect(source.contains("network.server entitlement present without the remote card"))
     #expect(source.contains("iPhone-only artifact requiring iOS 26.0 and an NFC antenna"))
+  }
+
+  @Test("Test host listens on loopback and shares no state")
+  internal func testHostListensWithoutSharedState() throws {
+    let host = try Self.plist("Config/RefineIDTestHost.entitlements")
+    #expect(host["com.apple.security.network.server"] as? Bool == true)
+    #expect(host["com.apple.security.application-groups"] == nil)
+    #expect(host["keychain-access-groups"] == nil)
+    let project = try String(
+      contentsOf: Self.root.appending(path: "RefineID.xcodeproj/project.pbxproj"),
+      encoding: .utf8)
+    #expect(
+      project.components(
+        separatedBy: "CODE_SIGN_ENTITLEMENTS = Config/RefineIDTestHost.entitlements;"
+      ).count - 1 == Self.testHostConfigurationCount)
   }
 }
