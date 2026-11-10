@@ -15,8 +15,11 @@ screens render, and the tests that pin them.
 The verifier judges one file: a PDF carrying PAdES signatures, or an
 ASiC-E or BDOC container carrying XAdES signatures. A standalone CMS
 SignedData file (CAdES, `.p7m`, `.p7s` or `.p7c`) is recognised and
-reported unsupported; a CAdES signature inside a container is not
-judged. A ZIP archive that is not an ASiC-E or BDOC container, such as
+reported unsupported. A CAdES signature inside a container is not
+enumerated: only `META-INF/*.xml` signature files become rows, so a
+container with no XML signatures reports no signatures even when it
+carries `.p7s` entries. Core judges CAdES in containers; the Swift
+verifier does not yet. A ZIP archive that is not an ASiC-E or BDOC container, such as
 an office document, is reported as carrying no signatures. The
 baseline levels and the validation process are core's.
 
@@ -39,7 +42,7 @@ baseline levels and the validation process are core's.
 The Swift verifier keeps core's four borders. The file enters through
 `DocumentVerification.verify`; the anchors enter through `TrustAnchors`;
 the clock enters as the `now` argument; the evidence the file carries
-enters through `ValidationEvidence`. A certificate in the evidence pool
+and the card-read path candidates enter through `ValidationEvidence`. A certificate in the evidence pool
 can only extend a path to an anchor; an OCSP response or CRL counts only
 once it verifies under the issuer or an authorised responder.
 
@@ -57,8 +60,9 @@ lists and anchor nothing themselves. No CA root is shipped.
 `TrustAnchors` is the border. It carries, for each anchor, the
 certificate, its role (certificate issuing or time-stamping) and the
 periods the trusted list grants; beside them it carries the lists'
-fetch time and the earliest `NextUpdate` of the lists the anchors came
-from. `certificates(for:at:)` returns the anchors trusted for a role at
+fetch time and the earliest `NextUpdate` of the list of the lists
+and the national lists. `certificates(for:at:)` returns the anchors
+trusted for a role at
 an instant, and `isStale(at:)` says whether that earliest next update
 has passed. A certificate the document carries, or one this device has
 read from a card, is a path candidate in `ValidationEvidence`; it never
@@ -76,7 +80,7 @@ units. A shipped DVV Gov. Root CA G3 or Sectigo Qualified Time Stamping
 Root R45 would therefore anchor nothing a list does not, so neither is
 shipped.
 
-A fresh install has no anchor and verifies a card-less signature only
+A fresh install has no anchor and verifies a signature only
 after it has fetched the lists once; from then on it works offline from
 the cache. The same evidence is recorded in refineid-core's
 [`crates/doc-sign/src/trust.rs`](https://github.com/refineid/refineid-core/blob/main/crates/doc-sign/src/trust.rs),
@@ -156,7 +160,9 @@ involved. A pointer may name HTTP; that is safe for
 the same reason a CRL is: the signature, not the transport, proves the
 list. A national list that does not arrive or does not read is carried
 in the reading with its territory and reason and yields no anchor; the
-lists that read still do.
+lists that read still do. A refresh rewrites the whole cache from the
+lists that read: a territory whose list fails this refresh loses its
+cached list and its anchors until the list reads again.
 
 The cache is `Application Support/TrustedLists/`: an `index.json` of
 records and one `<sha256-of-location>.xml` file per list. A record
@@ -225,7 +231,8 @@ name and electronic identifier, the signer certificate, whether the
 document is intact, whether the signature verifies, the chain status,
 every signature timestamp, every archive timestamp, the archive valid
 until date, the baseline level, the validation time, the revocation
-state and whether the signature covers the whole document. Revocation is
+state and whether the signature covers the whole document. Coverage
+is recorded but affects neither the rows nor `isValid`. Revocation is
 judged at the proof of existence; `withLiveRevocation` fills a path
 certificate still unavailable with a live answer judged at the time of
 the check.
@@ -242,9 +249,9 @@ never presents a verdict from empty anchors.
 The iPhone and iPad Verify screen and the Mac verification sheet render
 these facts in the cards and rows described in [ios.md](ios.md#verify)
 and [macos.md](macos.md#document-verification). The trusted-lists
-section appears only when a fetch failed and no current lists are
-stored, with the fetch time or "Not fetched", the failure text, and
-the retry button.
+section appears only when a fetch failed and the stored lists are
+missing or stale, with the fetch time or "Not fetched", the failure
+text, and the retry button.
 
 ### Validation status and wording
 
@@ -255,19 +262,22 @@ Clause 5.2.9 asks a presentation to show the overall status, the reason
 a signature failed, the step that could make an indeterminate result
 determinate, the validation policy and the validation time.
 
-The Verify screens do not show one overall status. They show the facts
-that decide one, as rows: "Document intact", "Signature", "Certificate
+The Verify screens deliberately do not show one overall status.
+They show the facts that decide one, as rows: "Document intact", "Signature", "Certificate
 chain", "Revocation", "Signed at", the archive timestamp when it needs
 attention, and "Long-term validity". A row's mark says whether that
-check holds; the revocation row says "Revoked" or "Not checked", a
-timestamp can say "Unproven", and an unsupported signature says its
+check holds; the revocation row shows a bare mark when good, says
+"Revoked" when revoked, and reuses "Not checked" when the checks ran
+but no usable answer arrived (in the table below it means validation
+did not run). A timestamp can say "Unproven", and an unsupported
+signature says its
 profile is not supported. The person row's mark reflects
 `SignatureReport.isValid`, a Boolean over document intactness, the
 signature, the chain and a revocation that invalidates. It is not a
-fourth standard status, and it does not summarize the timestamps or the
+fourth standard status, and it does not summarise the timestamps or the
 level.
 
-When a screen shows the overall status, it uses these words:
+No screen shows one today; when a screen does, it uses these words:
 
 | Shown as | EN 319 102-1 | What it means |
 |---|---|---|
@@ -291,9 +301,9 @@ what the verifier established under this app's policy, not that the
 signature has legal effect. Qualification is a separate fact, and the
 verification report does not state it. eIDAS Article 25(1) forbids
 denying legal effect solely because a signature is electronic or is not
-qualified; Article 32(2) requires a qualified validation system to give
-the correct result and to let the relying party detect security-relevant
-issues.
+qualified; Article 32(2) requires the system used for validation
+to give the correct result and to let the relying party detect
+security-relevant issues.
 
 `SignatureReport.isValid` treats an unavailable revocation answer as
 not invalidating. It is therefore not by itself the `TOTAL-PASSED` test:
@@ -323,7 +333,8 @@ Swift verifier adds no loss and no hazard.
 
 Control structure: the relying party reads the report the Verify screen
 renders. The shell supplies the file, the anchors from
-`TrustedListStore`, the clock and the live revocation answers. The
+`TrustedListStore`, the clock, the live revocation answers and the
+card-read path candidates. The
 trusted lists are a trust input: the store fetches them, the reader
 verifies them, and their forgery or age reaches every verdict. Feedback
 the relying party needs: which facts hold, at which time they were
@@ -355,7 +366,7 @@ The Swift shell adds these constraints:
   current lists are stored, the screen shows the failure and either the
   fetch time or "Not fetched" (CC-113, CC-117).
 - With no cache and no network, the screen refuses; it never presents a
-  verdict under empty anchors (CC-113).
+  verdict under empty anchors.
 
 Loss scenario: a national list is substituted on the wire for one that
 lists an attacker's CA as a qualified certificate service. Without
@@ -387,5 +398,5 @@ anchor to; the screen says so.
 - RFC 5280, certificate paths; RFC 3161, time-stamp protocol;
   RFC 6960, OCSP.
 - ISO 32000-1, the PDF format.
-- `Documentation/references.md`, the index of which source governs
+- [references.md](../references.md), the index of which source governs
   what.
