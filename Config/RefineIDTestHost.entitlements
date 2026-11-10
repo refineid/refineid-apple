@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Test-host sandbox: loopback listener tests bind 127.0.0.1, so the
+     sandbox grants the network server side; nothing ships with it.
+     No application or keychain groups: the host keeps the suite's
+     defaults isolated from the app and its extensions. -->
 <plist version="1.0">
 <dict>
 	<key>com.apple.security.app-sandbox</key>
@@ -9,6 +13,8 @@
 	<key>com.apple.security.files.user-selected.read-write</key>
 	<true/>
 	<key>com.apple.security.network.client</key>
+	<true/>
+	<key>com.apple.security.network.server</key>
 	<true/>
 	<key>com.apple.security.smartcard</key>
 	<true/>
