@@ -4,7 +4,7 @@ import CardCore
 import Foundation
 import Security
 
-/// Asks the qualified time-stamp authority for a timestamp.
+/// Asks its time-stamp authority for a timestamp.
 ///
 /// The authority is retried after temporary failures. It is trusted
 /// as named: every token is still cryptographically verified against
@@ -20,8 +20,11 @@ internal enum TimestampClient {
     case randomUnavailable
   }
 
-  /// The qualified RFC 3161 time-stamp service every signature asks.
-  internal static let authority = "http://timestamp.sectigo.com/qualified"
+  /// The RFC 3161 time-stamp service every signature asks: the
+  /// configured one, or the shipped qualified service.
+  internal static var authority: String {
+    TimestampAuthorityStore.load(from: .standard)
+  }
 
   /// The content type RFC 3161 defines for a request.
   private static let requestContentType = "application/timestamp-query"
