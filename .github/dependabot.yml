@@ -5,12 +5,10 @@ updates:
     schedule:
       interval: daily
     cooldown:
-      # Two days, not the rule's seven: maintainer decision, refineid-apple #376.
-      default-days: 2 # nosemgrep: package_managers.dependabot.dependabot-missing-cooldown.dependabot-missing-cooldown
+      default-days: 7
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: daily
     cooldown:
-      # Two days, not the rule's seven: maintainer decision, refineid-apple #376.
-      default-days: 2 # nosemgrep: package_managers.dependabot.dependabot-missing-cooldown.dependabot-missing-cooldown
+      default-days: 7
