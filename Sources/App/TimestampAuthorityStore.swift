@@ -20,7 +20,7 @@ internal enum TimestampAuthorityStore: Sendable {
   /// The configured address when one usable is stored, else the default.
   internal static func load(from defaults: UserDefaults) -> String {
     guard
-      let configured = defaults.string(forKey: Self.key),
+      let configured = Self.configured(in: defaults),
       Self.isUsable(configured)
     else {
       return Self.defaultAuthority
@@ -28,25 +28,45 @@ internal enum TimestampAuthorityStore: Sendable {
     return configured
   }
 
+  /// The raw configured address, trimmed, or nil.
+  ///
+  /// Nil when nothing is stored. On macOS without the Time Stamp
+  /// pane the key is never read, so a value no pane can show cannot
+  /// steer signing.
+  internal static func configured(in defaults: UserDefaults) -> String? {
+    #if os(macOS) && !FEATURE_TIMESTAMP_CONFIG
+      return nil
+    #else
+      guard let stored = defaults.string(forKey: Self.key) else { return nil }
+      let trimmed = stored.trimmingCharacters(in: .whitespacesAndNewlines)
+      return trimmed.isEmpty ? nil : trimmed
+    #endif
+  }
+
   /// Whether the address names a service this app could ask.
   ///
-  /// Both schemes are accepted: timestamping is specified over plain
+  /// The same border the signing network enforces, so an address
+  /// marked usable here is one a request could carry there. Both
+  /// schemes are accepted: timestamping is specified over plain
   /// HTTP and several qualified authorities publish exactly that, so
   /// insisting on one scheme would refuse real services.
   internal static func isUsable(_ address: String) -> Bool {
-    guard
-      let url = URL(string: address),
-      let scheme = url.scheme?.lowercased(),
-      url.host != nil
-    else {
-      return false
-    }
-    return scheme == "http" || scheme == "https"
+    let trimmed = address.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let url = URL(string: trimmed) else { return false }
+    return SigningNetwork.isHttpUrl(url)
   }
 
   /// Stores the address as the service signatures ask.
+  ///
+  /// An empty address removes the key instead, so the shipped
+  /// service - and, on iOS, the Settings default - answers again.
   internal static func store(_ address: String, in defaults: UserDefaults) {
-    defaults.set(address, forKey: Self.key)
+    let trimmed = address.trimmingCharacters(in: .whitespacesAndNewlines)
+    if trimmed.isEmpty {
+      Self.restoreDefaults(in: defaults)
+    } else {
+      defaults.set(trimmed, forKey: Self.key)
+    }
   }
 
   /// Forgets the configured address; the shipped service answers again.

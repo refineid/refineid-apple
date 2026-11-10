@@ -20,10 +20,22 @@ internal enum TimestampClient {
     case randomUnavailable
   }
 
-  /// The RFC 3161 time-stamp service every signature asks: the
-  /// configured one, or the shipped qualified service.
+  /// The RFC 3161 time-stamp service every signature asks.
+  ///
+  /// The configured one, or the shipped qualified service. Falling
+  /// back from a configured but unusable address is reported, so a
+  /// holder who mistyped the authority can see which service
+  /// actually answered; the address itself is never logged.
   internal static var authority: String {
-    TimestampAuthorityStore.load(from: .standard)
+    let effective = TimestampAuthorityStore.load(from: .standard)
+    if let configured = TimestampAuthorityStore.configured(in: .standard),
+      configured != effective
+    {
+      DevErrorLog.report(
+        "timestamp: the configured authority is not usable; asking the shipped service",
+        source: .app)
+    }
+    return effective
   }
 
   /// The content type RFC 3161 defines for a request.

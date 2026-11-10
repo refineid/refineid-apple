@@ -30,16 +30,19 @@
       )
     }
 
-    /// An empty entry is not a service: the default answers instead.
+    /// An empty entry removes the key: the default answers, and the
+    /// Settings default shows again.
     @Test
-    internal func emptyLoadsTheDefault() throws {
+    internal func emptyRemovesTheKey() throws {
       let defaults = try Self.freshDefaults()
+      TimestampAuthorityStore.store("https://tsa.example.com/tsa", in: defaults)
       TimestampAuthorityStore.store("", in: defaults)
 
       #expect(
         TimestampAuthorityStore.load(from: defaults)
           == TimestampAuthorityStore.defaultAuthority
       )
+      #expect(TimestampAuthorityStore.configured(in: defaults) == nil)
     }
 
     /// A configured http service is asked as written.
@@ -99,7 +102,8 @@
       )
     }
 
-    /// Usability is http or https with a host, nothing else.
+    /// Usability is the signing network's border: http or https
+    /// with a host, nothing else.
     @Test
     internal func usabilityNamesHttpWithHost() {
       #expect(TimestampAuthorityStore.isUsable("http://tsa.example.com/tsa"))
@@ -108,6 +112,35 @@
       #expect(!TimestampAuthorityStore.isUsable("tsa.example.com/tsa"))
       #expect(!TimestampAuthorityStore.isUsable("ftp://tsa.example.com/tsa"))
       #expect(!TimestampAuthorityStore.isUsable("http:///missing-host"))
+      #expect(!TimestampAuthorityStore.isUsable("http://:8080/tsa"))
+      #expect(!TimestampAuthorityStore.isUsable("https://user:pass@tsa.example.com/tsa"))
+    }
+
+    /// Pasted whitespace is trimmed, not encoded or refused.
+    @Test
+    internal func whitespaceIsTrimmed() throws {
+      #expect(TimestampAuthorityStore.isUsable("  https://tsa.example.com/tsa  "))
+      let defaults = try Self.freshDefaults()
+      TimestampAuthorityStore.store("  https://tsa.example.com/tsa  ", in: defaults)
+
+      #expect(
+        TimestampAuthorityStore.load(from: defaults) == "https://tsa.example.com/tsa"
+      )
+    }
+
+    /// The raw configured address is what was stored, for callers
+    /// that show the draft rather than the effective service.
+    @Test
+    internal func configuredReturnsTheDraft() throws {
+      let defaults = try Self.freshDefaults()
+      #expect(TimestampAuthorityStore.configured(in: defaults) == nil)
+      TimestampAuthorityStore.store("not a service", in: defaults)
+
+      #expect(TimestampAuthorityStore.configured(in: defaults) == "not a service")
+      #expect(
+        TimestampAuthorityStore.load(from: defaults)
+          == TimestampAuthorityStore.defaultAuthority
+      )
     }
 
     /// The client asks a usable service, configured or shipped.

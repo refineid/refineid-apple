@@ -1,6 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-#if os(macOS)
+#if os(macOS) && FEATURE_TIMESTAMP_CONFIG
 
   import SwiftUI
 
@@ -8,9 +8,13 @@
   ///
   /// The address is stored as typed; the store answers the shipped
   /// service until what is typed names a usable one, so a half-typed
-  /// address never breaks signing.
+  /// address never breaks signing. The field opens on the stored
+  /// draft, not the effective service, so a half-typed address is
+  /// still visible after a relaunch.
   internal struct TimestampAuthoritySettingsView: View {
-    @State private var address = TimestampAuthorityStore.load(from: .standard)
+    @State private var address =
+      TimestampAuthorityStore.configured(in: .standard)
+      ?? TimestampAuthorityStore.defaultAuthority
 
     internal var body: some View {
       Form {

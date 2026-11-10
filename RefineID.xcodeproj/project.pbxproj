@@ -18,7 +18,7 @@
 		6D000000000000000000000A /* RefineIDDiscoveryExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2D000000000000000000000A /* RefineIDDiscoveryExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		6D000000000000000000000B /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2D0000000000000000000008 /* PrivacyInfo.xcprivacy */; };
 		6D000000000000000000000C /* CardCore in Frameworks */ = {isa = PBXBuildFile; productRef = AD0000000000000000000005 /* CardCore */; };
-		6D000000000000000000000D /* Sources/Settings.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 2D000000000000000000000F /* Sources/Settings.bundle */; };
+		6D000000000000000000000D /* Sources/Settings.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 2D000000000000000000000F /* Sources/Settings.bundle */; platformFilter = ios; };
 		BC0000000000000000000001 /* Sources/TokenExtension/SmartCardTransmit.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000002 /* Sources/TokenExtension/SmartCardTransmit.swift */; };
 		BC0000000000000000000003 /* Samples/NFCCardTiming/Sources/CardTimingProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000004 /* Samples/NFCCardTiming/Sources/CardTimingProbe.swift */; };
 		BC0000000000000000000005 /* Samples/NFCCardTiming/Sources/CardTimingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000006 /* Samples/NFCCardTiming/Sources/CardTimingView.swift */; };

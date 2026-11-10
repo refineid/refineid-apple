@@ -10,6 +10,13 @@
   /// The Settings words are said in every language.
   @Suite
   internal struct SettingsStringsTests {
+    /// One language's expected Settings titles.
+    private struct TitleRow {
+      let language: String
+      let stamp: String
+      let address: String
+    }
+
     private static var catalog: URL {
       URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
@@ -49,6 +56,28 @@
           let unit = try #require(localization["stringUnit"] as? [String: Any])
           #expect(unit["value"] as? String == value, "\(key) in \(language)")
         }
+      }
+    }
+
+    /// Each Settings language carries the group and field titles.
+    @Test
+    internal func settingsBundleTitlesAreTranslated() throws {
+      let bundle = Self.catalog
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .appending(path: "Settings.bundle")
+      for row in [
+        TitleRow(language: "en", stamp: "Time Stamp", address: "Address"),
+        TitleRow(language: "fi", stamp: "Aikaleima", address: "Osoite"),
+        TitleRow(language: "sv", stamp: "Tidsstämpel", address: "Adress"),
+      ] {
+        let strings = bundle.appending(path: "\(row.language).lproj/Root.strings")
+        let data = try Data(contentsOf: strings)
+        let table = try #require(
+          PropertyListSerialization.propertyList(from: data, format: nil) as? [String: String]
+        )
+        #expect(table["Time Stamp"] == row.stamp)
+        #expect(table["Address"] == row.address)
       }
     }
 
