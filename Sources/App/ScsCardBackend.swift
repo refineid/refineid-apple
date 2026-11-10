@@ -148,6 +148,21 @@
       }
     }
 
+    /// The certificate holder's name for the prompt.
+    ///
+    /// The subject summary with control characters stripped, nil
+    /// when nothing printable remains. A subject is card data, and
+    /// a prompt line break in it would redraw the consent the
+    /// holder reads.
+    private static func sanitizedSummary(of certificate: SecCertificate) -> String? {
+      guard let summary = SecCertificateCopySubjectSummary(certificate) as String? else {
+        return nil
+      }
+      let printable = summary.unicodeScalars.filter { !CharacterSet.controlCharacters.contains($0) }
+      let name = String(String.UnicodeScalarView(printable)).trimmingCharacters(in: .whitespaces)
+      return name.isEmpty ? nil : name
+    }
+
     /// Maps a refused verify or sign to the backend's failure pair,
     /// logging the card's own answer for the unexpected class.
     private static func refusal(from error: any Error) -> ScsBackendFailure {
@@ -200,7 +215,10 @@
         digest = Data(SHA512.hash(data: request.data))
       }
       let purpose = request.purpose
-      guard let profile = profile(for: purpose) else {
+      guard
+        let certificate = certificate(for: purpose),
+        let profile = CardKeyProfile.resolve(fromCertificate: certificate)
+      else {
         throw ScsBackendFailure.signingUnavailable("card certificate unavailable")
       }
       let scheme: SigningScheme
@@ -216,7 +234,7 @@
         digest: digest,
         algorithm: algorithm,
         expectedSignatureLength: profile.expectedSignatureLength,
-        signerName: signerName(for: purpose)
+        signerName: Self.sanitizedSummary(of: certificate)
       )
       let outcome: Result<Data, ScsBackendFailure>? = withCard { operations in
         Self.performSign(
@@ -249,24 +267,16 @@
       }
     }
 
-    /// The certificate holder's name for the prompt, from the
-    /// already-cached leaf; nil when the card could not name one.
-    private func signerName(for purpose: ScsSignPurpose) -> String? {
-      guard
-        let leaf = leaf(for: purpose),
-        let certificate = SecCertificateCreateWithData(nil, leaf as CFData),
-        let summary = SecCertificateCopySubjectSummary(certificate)
-      else {
+    /// The cached leaf as a certificate, parsed once per caller.
+    private func certificate(for purpose: ScsSignPurpose) -> SecCertificate? {
+      guard let leaf = leaf(for: purpose) else {
         return nil
       }
-      return summary as String
+      return SecCertificateCreateWithData(nil, leaf as CFData)
     }
 
     private func profile(for purpose: ScsSignPurpose) -> CardKeyProfile? {
-      guard
-        let leaf = leaf(for: purpose),
-        let certificate = SecCertificateCreateWithData(nil, leaf as CFData)
-      else {
+      guard let certificate = certificate(for: purpose) else {
         return nil
       }
       return CardKeyProfile.resolve(fromCertificate: certificate)

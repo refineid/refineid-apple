@@ -13,14 +13,10 @@
   /// cancelling refuses the sign without touching the card.
   ///
   /// The prompt names the requesting origin, the kind of request,
-  /// and the certificate holder whose key is about to sign: the
-  /// context a holder can act on. The signed digest is deliberately
-  /// not printed. A holder cannot recover the document from a hash,
-  /// services show no hash to compare against, and for CMS signs
-  /// the digest covers the signed attributes rather than the
-  /// document - so hex would only train the holder to click
-  /// through. The specification requires the origin
-  /// (DVV SCS specification v1.3 §2.1).
+  /// and the certificate holder whose key answers: the context a
+  /// holder can act on. The specification requires the origin
+  /// (DVV SCS specification v1.3 §2.1); the button confirms the
+  /// named action.
   internal enum ScsPinPrompt {
     private static let fieldWidth: CGFloat = 220
     private static let fieldHeight: CGFloat = 24
@@ -66,8 +62,7 @@
         actionLine(purpose: purpose, bundle: bundle),
       ]
       if let signerName {
-        lines.append(
-          String(localized: "Signing as: \(signerName)", bundle: bundle))
+        lines.append(signerLine(purpose: purpose, signerName: signerName, bundle: bundle))
       }
       return lines.joined(separator: "\n")
     }
@@ -92,6 +87,22 @@
       }
     }
 
+    /// The holder named as the actor of the request: logging in is
+    /// not signing, so the two word the name differently.
+    private static func signerLine(
+      purpose: ScsSignPurpose,
+      signerName: String,
+      bundle: Bundle
+    ) -> String {
+      switch purpose {
+      case .authentication:
+        String(localized: "Logging in as: \(signerName)", bundle: bundle)
+
+      case .qualified:
+        String(localized: "Signing as: \(signerName)", bundle: bundle)
+      }
+    }
+
     /// Builds the localized prompt with its consent details.
     @MainActor
     internal static func makeAlert(
@@ -108,10 +119,22 @@
       let field = NSSecureTextField(
         frame: NSRect(x: 0, y: 0, width: Self.fieldWidth, height: Self.fieldHeight))
       alert.accessoryView = field
-      alert.addButton(withTitle: String(localized: "Sign", bundle: bundle))
+      alert.addButton(withTitle: confirmTitle(purpose: purpose, bundle: bundle))
       alert.addButton(withTitle: String(localized: "Cancel", bundle: bundle))
       alert.window.initialFirstResponder = field
       return alert
+    }
+
+    /// The confirmation names the action: a login must not ask the
+    /// holder to click Sign.
+    private static func confirmTitle(purpose: ScsSignPurpose, bundle: Bundle) -> String {
+      switch purpose {
+      case .authentication:
+        String(localized: "Log in", bundle: bundle)
+
+      case .qualified:
+        String(localized: "Sign", bundle: bundle)
+      }
     }
 
     /// Runs the modal prompt; cancellation returns no credential.

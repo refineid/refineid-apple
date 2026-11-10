@@ -14,9 +14,11 @@ internal struct ScsPinPromptTests {
     let basic: String
     let signature: String
     let sign: String
+    let logIn: String
     let cancel: String
     let loginAction: String
     let signAction: String
+    let loggingInAs: String
     let signingAs: String
   }
 
@@ -24,25 +26,28 @@ internal struct ScsPinPromptTests {
     switch language {
     case "fi":
       ExpectedLabels(
-        basic: "Sy\u{00F6}t\u{00E4} perustunnusluku 1",
-        signature: "Sy\u{00F6}t\u{00E4} allekirjoitustunnusluku 2",
-        sign: "Allekirjoita", cancel: "Peruuta",
+        basic: "Syötä perustunnusluku 1",
+        signature: "Syötä allekirjoitustunnusluku 2",
+        sign: "Allekirjoita", logIn: "Kirjaudu", cancel: "Peruuta",
         loginAction: "Toiminto: Kirjautuminen",
         signAction: "Toiminto: Asiakirjan allekirjoitus",
-        signingAs: "Allekirjoittajana: Matti Meik\u{00E4}l\u{00E4}inen")
+        loggingInAs: "Kirjautujana: Matti Meikäläinen",
+        signingAs: "Allekirjoittajana: Matti Meikäläinen")
     case "sv":
       ExpectedLabels(
         basic: "Ange grund PIN 1", signature: "Ange signaturkod 2",
-        sign: "Signera", cancel: "Avbryt",
+        sign: "Signera", logIn: "Logga in", cancel: "Avbryt",
         loginAction: "Åtgärd: Inloggning",
         signAction: "Åtgärd: Dokumentunderskrift",
+        loggingInAs: "Loggar in som: Matti Meikäläinen",
         signingAs: "Undertecknare: Matti Meikäläinen")
     default:
       ExpectedLabels(
         basic: "Enter Basic PIN 1", signature: "Enter Signature PIN 2",
-        sign: "Sign", cancel: "Cancel",
+        sign: "Sign", logIn: "Log in", cancel: "Cancel",
         loginAction: "Action: Log in",
         signAction: "Action: Sign document",
+        loggingInAs: "Logging in as: Matti Meikäläinen",
         signingAs: "Signing as: Matti Meikäläinen")
     }
   }
@@ -69,14 +74,15 @@ internal struct ScsPinPromptTests {
     // The origin, the kind of request, and the signer have to be in
     // the prompt: the specification requires the origin (v1.3 §2.1),
     // and the action plus the name is the context a holder can act
-    // on. No digest hex: nothing compares against it.
+    // on. The confirmation names the same action the details do.
     #expect(
       alert.informativeText
         == "Origin: https://dvv.fineid.fi\n\(expected.signAction)\n\(expected.signingAs)")
     #expect(
       basic.informativeText
-        == "Origin: https://dvv.fineid.fi\n\(expected.loginAction)\n\(expected.signingAs)")
+        == "Origin: https://dvv.fineid.fi\n\(expected.loginAction)\n\(expected.loggingInAs)")
     #expect(alert.buttons.map(\.title) == [expected.sign, expected.cancel])
+    #expect(basic.buttons.map(\.title) == [expected.logIn, expected.cancel])
     #expect(alert.accessoryView is NSSecureTextField)
     let window = NSWindow(
       contentRect: .zero, styleMask: .titled, backing: .buffered, defer: false)
