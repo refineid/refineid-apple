@@ -22,9 +22,10 @@ developer or an agent. The loops are:
 - **Gates** run at commit and push: format, lint, build, tests. Never skip
   them. Continuous integration reports problems after the merge; it never
   gates one.
-- **An independent review** reads every diff before it merges: a model
-  from a different family than the one that wrote the change, run as this
-  repository's AGENTS.md describes.
+- **Proportionate review** checks every change before it merges. The front
+  agent may self-review trivial changes under AGENTS.md; other changes receive
+  independent review as that file describes. Security invariants, mandatory
+  gates and required hardware evidence remain unconditional.
 - **STPA** (System-Theoretic Process Analysis) names the feedback each
   controller needs. The method and its literature:
   <https://github.com/refineid/refineid-core/blob/main/doc/stpa.md>. The
@@ -98,7 +99,9 @@ protocol requires.
   agent directly, it stands down rather than fight for the machine.
 - Scans the diff, and every text it publishes, for personal data (see
   below) and secrets.
-- Runs the independent review, fixes or rejects each finding, and lists
+- Runs independent review when AGENTS.md requires it; otherwise self-reviews
+  the trivial change and records its scope briefly. Fixes or rejects each
+  review finding, and lists
   the rejected ones with the reason in the pull request.
 - A hardware acceptance item (a real card must complete something)
   blocks the merge: the front agent asks the owner to run it and

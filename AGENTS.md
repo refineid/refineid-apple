@@ -283,9 +283,35 @@ record for RAPP and its applications.
 - Describe what the code does and cite the source; ask the owner before
   changing trust behavior.
 
+## Proportionate review
+
+- Exercise judgment to advance the task. Follow security invariants without
+  exception. Apply process in proportion to risk and uncertainty; do not
+  create reviews, plans, delegation or documentation merely to show activity.
+  This discretion does not waive mandatory gates or required hardware evidence.
+- The front agent may self-review a trivial change whose complete effect is
+  readily apparent from the diff and which changes no executable behavior,
+  security policy, protocol meaning, dependency, build or release behavior,
+  or instruction governing agent authority. Examples are spelling, formatting,
+  an unambiguous documentation-link repair, and wording that preserves meaning.
+- Other changes require independent review proportionate to their consequences.
+  Credential custody, trust, cryptography, protocol state and card retry behavior
+  always require independent review. The Independent review section below
+  specifies how to run it when required.
+- Judge semantic effect, not line count or file extension. Investigate or seek
+  review when the effect is uncertain. Never split a consequential change into
+  trivial-looking patches to avoid review.
+- For a trivial change, the front agent's inspection of a worker's diff is
+  sufficient; do not recruit another reviewer merely because a worker wrote it.
+  State briefly in the pull request or handoff: "Self-reviewed: wording only;
+  meaning unchanged", or an equally short description of the actual effect.
+  No separate justification document or owner approval is needed.
+
 ## Independent review
 
-- Before a pull request merges, have its diff reviewed by a model from a
+These instructions apply when independent review is required above.
+
+- When independent review is required, before a pull request merges, have its diff reviewed by a model from a
   different family than the one that wrote it. Any CLI that runs a model
   headless will do; take the strongest model it offers that day, and add a
   second one for protocol, cryptography or state-machine changes.
