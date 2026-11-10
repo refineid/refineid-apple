@@ -28,13 +28,15 @@ internal enum TimestampClient {
   /// actually answered; the address itself is never logged.
   internal static var authority: String {
     let effective = TimestampAuthorityStore.load(from: .standard)
-    if let configured = TimestampAuthorityStore.configured(in: .standard),
-      configured != effective
-    {
-      DevErrorLog.report(
-        "timestamp: the configured authority is not usable; asking the shipped service",
-        source: .app)
-    }
+    #if DEBUG
+      if let configured = TimestampAuthorityStore.configured(in: .standard),
+        configured != effective
+      {
+        DevErrorLog.report(
+          "timestamp: the configured authority is not usable; asking the shipped service",
+          source: .app)
+      }
+    #endif
     return effective
   }
 

@@ -73,4 +73,16 @@ internal enum TimestampAuthorityStore: Sendable {
   internal static func restoreDefaults(in defaults: UserDefaults) {
     defaults.removeObject(forKey: Self.key)
   }
+
+  /// Removes a blank stored address.
+  ///
+  /// The Settings app writes cleared fields directly, past
+  /// `store(_:in:)`; call on iOS launch and activation so the
+  /// Settings default shows again.
+  internal static func removeBlankEntry(in defaults: UserDefaults) {
+    guard let stored = defaults.string(forKey: Self.key) else { return }
+    if stored.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+      defaults.removeObject(forKey: Self.key)
+    }
+  }
 }

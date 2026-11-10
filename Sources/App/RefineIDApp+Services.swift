@@ -13,6 +13,7 @@ import RappEngine
 extension RefineIDApp {
   private static var pairingsChangeObserver: (any NSObjectProtocol)?
   private static var activationObserver: (any NSObjectProtocol)?
+  private static var timestampSweepObserver: (any NSObjectProtocol)?
 
   #if os(macOS)
     private static let becameActive = NSApplication.didBecomeActiveNotification
@@ -44,7 +45,26 @@ extension RefineIDApp {
     }
   #endif
 
+  /// Clears a blank timestamp authority on launch and activation.
+  ///
+  /// The Settings app writes a cleared field directly, past the
+  /// store; without the sweep the field stays blank instead of
+  /// showing the default again. A blank entry already behaves as
+  /// the default, so removing it changes no signature.
+  internal static func startTimestampSweep() {
+    #if os(iOS)
+      guard !TestCredentialEnvironment.isTestMode else { return }
+      TimestampAuthorityStore.removeBlankEntry(in: .standard)
+      timestampSweepObserver = NotificationCenter.default.addObserver(
+        forName: becameActive, object: nil, queue: .main
+      ) { _ in
+        TimestampAuthorityStore.removeBlankEntry(in: .standard)
+      }
+    #endif
+  }
+
   internal static func startRemoteServices() {
+    Self.startTimestampSweep()
     // Every message a peer sent that the protocol refuses shows among the
     // development errors, named by its type and the rule it broke.
     #if DEBUG

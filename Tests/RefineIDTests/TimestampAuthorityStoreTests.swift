@@ -89,6 +89,27 @@
       )
     }
 
+    /// A blank entry written past the store is swept, so the
+    /// Settings default shows again.
+    @Test
+    internal func blankSweepRemovesDirectWrites() throws {
+      let defaults = try Self.freshDefaults()
+      defaults.set("", forKey: TimestampAuthorityStore.key)
+      TimestampAuthorityStore.removeBlankEntry(in: defaults)
+
+      #expect(defaults.string(forKey: TimestampAuthorityStore.key) == nil)
+      defaults.set("   ", forKey: TimestampAuthorityStore.key)
+      TimestampAuthorityStore.removeBlankEntry(in: defaults)
+
+      #expect(defaults.string(forKey: TimestampAuthorityStore.key) == nil)
+      TimestampAuthorityStore.store("https://tsa.example.com/tsa", in: defaults)
+      TimestampAuthorityStore.removeBlankEntry(in: defaults)
+
+      #expect(
+        TimestampAuthorityStore.load(from: defaults) == "https://tsa.example.com/tsa"
+      )
+    }
+
     /// Restoring the defaults forgets the configured service.
     @Test
     internal func restoreDefaultsForgetsTheConfiguredService() throws {
