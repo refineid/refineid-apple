@@ -42,6 +42,7 @@ trap unregister_gate_builds EXIT
 
 case "${mode}" in
   commit)
+    python3 -B Scripts/TestDocumentationGate.py || fail "Documentation gate tests failed."
     if ! git diff --cached --quiet -- Scripts/QualityReceipt.py Scripts/TestQualityReceipt.py; then
       step "Checking quality receipt gate behavior"
       python3 -B Scripts/TestQualityReceipt.py \
@@ -59,6 +60,7 @@ case "${mode}" in
     ;;
 
   pr)
+    python3 -B Scripts/TestDocumentationGate.py || fail "Documentation gate tests failed."
     Scripts/QualityReceipt.py verify-clean-head \
       || fail "Push checks require a clean checkout."
     checked_head="$(git rev-parse HEAD)"

@@ -122,6 +122,23 @@
   verification before handing over to the user. Never claim features work
   without automated verification.
 
+## Agent roles and authority
+
+The front agent owns task decomposition, integration, publication, and
+installation under the owner's standing authorization, including the
+authorizations stated in this document, and may complete small
+or tightly coupled changes itself rather than delegating. An
+implementation agent owns only its assigned worktree and brief. General instructions in this
+document to commit, push, merge, file issues, or install apply to the
+front agent. An explicit owner order may delegate commit and push for
+one run, with the commit and scan rules in the brief; opening pull
+requests, review, issue filing,
+installation, and merge are never delegated to an implementation
+agent. Workers report deferred findings in their handoff for the
+front agent to file. Where independence is required, the front
+agent runs the review using a model from a different family than
+the one that wrote the change.
+
 ## Rules live here, not in an agent's memory
 
 Every rule, decision and finding an agent should remember lives in this
@@ -135,9 +152,12 @@ subject.
 
 ## Commits and integration
 
-- Commits are cheap backups. Make small, focused commits often, without
-  asking for permission, once the required commit checks pass.
-- Complete the integration without waiting for another instruction: push
+- Commits are cheap backups. The front agent makes small, focused commits
+  often, without asking for permission, once the required commit checks
+  pass. Workers commit only under an explicit owner order in the brief.
+- Complete the integration without waiting for another instruction
+  (this instruction applies to the front agent; workers follow their
+  brief): push
   the task branch, open a pull request, and merge it into `main` once the
   required checks pass. Apple build and test checks run locally; the GitHub
   Swift workflow is manual-only and is not a merge requirement. Sync local
@@ -146,10 +166,11 @@ subject.
 
 ## Record deferred findings
 
-- While working, file a GitHub issue in the owning repository for each
+- The front agent files a GitHub issue in the owning repository for each
   confirmed, actionable defect or quality gap that cannot reasonably be
   fixed within the current task. Filing these issues is authorized; do not
-  wait for a separate instruction for each issue.
+  wait for a separate instruction for each issue. An implementation
+  agent reports deferred findings in its handoff instead of filing them.
 - Search existing open issues first. Reuse the matching issue and add only
   new, useful evidence instead of creating a duplicate. Group findings only
   when they share a cause and can be resolved by one focused change.
@@ -283,36 +304,31 @@ record for RAPP and its applications.
 - Describe what the code does and cite the source; ask the owner before
   changing trust behavior.
 
-## Proportionate review
+## Validation follows the change
 
-- Exercise judgment to advance the task. Follow security invariants without
-  exception. Apply process in proportion to risk and uncertainty; do not
-  create reviews, plans, delegation or documentation merely to show activity.
-  This discretion does not waive mandatory gates or required hardware evidence.
-- The front agent may self-review a trivial change whose complete effect is
-  readily apparent from the diff and which changes no executable behavior,
-  security policy, protocol meaning, dependency, build or release behavior,
-  or instruction governing agent authority. Examples are spelling, formatting,
-  an unambiguous documentation-link repair, and wording that preserves meaning.
-- Other changes require independent review proportionate to their consequences.
-  Credential custody, trust, cryptography, protocol state and card retry behavior
-  always require independent review. The Independent review section below
-  specifies how to run it when required.
-- Judge semantic effect, not line count or file extension. Investigate or seek
-  review when the effect is uncertain. Never split a consequential change into
-  trivial-looking patches to avoid review.
-- For a trivial change, the front agent's inspection of a worker's diff is
-  sufficient; do not recruit another reviewer merely because a worker wrote it.
-  State briefly in the pull request or handoff: "Self-reviewed: wording only;
-  meaning unchanged", or an equally short description of the actual effect.
-  No separate justification document or owner approval is needed.
+- Mandatory hooks select the validation lane; agents never bypass them.
+  Only explicitly allowlisted prose-only changes qualify for documentation
+  checks: whitespace and applicable repository-local links. Keep shared
+  working-method copies identical across the five active implementation repos.
+- Code, tests, dependencies, build configuration, gate scripts, mixed changes
+  and unknown paths retain the existing strict engineering gates. Agent skill
+  or confidence never waives those checks. Executable documentation and build
+  inputs do not qualify as prose merely because they use Markdown.
+- Commit classification covers the staged change. Push classification covers
+  every outgoing commit and ref, including changes later reverted. Uncertain
+  classification takes the full lane; a failed documentation check fails the
+  hook. Changing the classifier or its hooks requires the full lane itself.
+- Review and validation are separate: consequential policy changes need
+  independent review, but prose alone needs no application build, signing,
+  installation or hardware test. Install and hardware instructions apply only
+  when the change affects the relevant application or card behavior.
 
 ## Independent review
 
-These instructions apply when independent review is required above.
-
-- When independent review is required, before a pull request merges, have its diff reviewed by a model from a
-  different family than the one that wrote it. Any CLI that runs a model
+- Review is tiered per the working method. Before a pull request
+  merges, have its diff reviewed by a model from a different family
+  than the one that wrote it, unless the change is eligible for
+  self-review. Any CLI that runs a model
   headless will do; take the strongest model it offers that day, and add a
   second one for protocol, cryptography or state-machine changes.
 - Run the reviewer in a sandbox and plan mode, from an empty directory,
