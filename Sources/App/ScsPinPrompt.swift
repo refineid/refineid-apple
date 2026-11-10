@@ -12,25 +12,16 @@
   /// main thread and blocks the SCS worker until the holder answers;
   /// cancelling refuses the sign without touching the card.
   ///
-  /// The prompt names the requesting origin and the digest the card
-  /// is about to sign. The specification requires the origin
-  /// (DVV SCS specification v1.3 §2.1); the digest is what lets the
-  /// holder recognise a request for a document they did not choose,
-  /// which the origin alone does not distinguish.
+  /// The prompt names the requesting origin, the kind of request,
+  /// and the certificate holder whose key is about to sign: the
+  /// context a holder can act on. The signed digest is deliberately
+  /// not printed. A holder cannot recover the document from a hash,
+  /// services show no hash to compare against, and for CMS signs
+  /// the digest covers the signed attributes rather than the
+  /// document - so hex would only train the holder to click
+  /// through. The specification requires the origin
+  /// (DVV SCS specification v1.3 §2.1).
   internal enum ScsPinPrompt {
-    /// Bytes per group in the printed digest; four bytes is the
-    /// conventional fingerprint width and keeps the line wrappable.
-    private static let digestGroupByteCount = 4
-
-    /// Hex format for one digest byte.
-    private static let hexByteFormat = "%02x"
-
-    /// Separator between printed digest groups.
-    private static let digestGroupSeparator = " "
-
-    /// Separator between the origin and digest lines.
-    private static let detailLineSeparator = "\n"
-
     private static let fieldWidth: CGFloat = 220
     private static let fieldHeight: CGFloat = 24
 
@@ -38,27 +29,22 @@
     internal static func request(
       role: CredentialRole,
       origin: String?,
-      digest: Data,
-      hash: SigningHash
+      purpose: ScsSignPurpose,
+      signerName: String?
     ) -> String? {
       var answer: String?
       DispatchQueue.main.sync {
         MainActor.assumeIsolated {
           answer = Self.presentPrompt(
-            role: role, origin: origin, digest: digest, hash: hash)
+            role: role, origin: origin, purpose: purpose, signerName: signerName)
         }
       }
       return answer
     }
 
     /// What the holder is told about the request: the Origin header
-    /// exactly as it arrived, and the digest that will be signed.
-    ///
-    /// The digest identifies the bytes the card is handed, which for a
-    /// CMS-PAdES sign is the signed-attributes SET rather than the
-    /// document. That is deliberate: the prompt has to name what the
-    /// key is applied to, and a digest of something else would be a
-    /// claim the card does not back.
+    /// exactly as it arrived, what the key is asked to do, and whose
+    /// certificate holds the key.
     ///
     /// The origin is printed verbatim rather than reduced to a host
     /// name, because §2.1 asks for the header's content and the
@@ -66,22 +52,44 @@
     /// request that carried no Origin says so in as many words rather
     /// than leaving the line blank: a browser always sends Origin on a
     /// CORS request, so its absence means the requester is not a page,
-    /// which the holder needs to see before typing a PIN.
+    /// which the holder needs to see before typing a PIN. A signer
+    /// the card could not name omits its line rather than printing a
+    /// placeholder the holder might mistake for a name.
     internal static func consentDetails(
       origin: String?,
-      digest: Data,
-      hash: SigningHash,
+      purpose: ScsSignPurpose,
+      signerName: String?,
       bundle: Bundle
     ) -> String {
-      let originLine =
-        origin
+      var lines = [
+        originLine(origin: origin, bundle: bundle),
+        actionLine(purpose: purpose, bundle: bundle),
+      ]
+      if let signerName {
+        lines.append(
+          String(localized: "Signing as: \(signerName)", bundle: bundle))
+      }
+      return lines.joined(separator: "\n")
+    }
+
+    /// The requesting origin, verbatim, or the stated absence.
+    private static func originLine(origin: String?, bundle: Bundle) -> String {
+      origin
         .map { String(localized: "Origin: \($0)", bundle: bundle) }
         ?? String(
           localized: "Origin: (none - the request sent no Origin header)", bundle: bundle)
-      let digestLine = String(
-        localized: "Digest (\(ScsKeyAlgorithm.scsName(hash: hash))): \(printedDigest(digest))",
-        bundle: bundle)
-      return originLine + Self.detailLineSeparator + digestLine
+    }
+
+    /// What the key is asked to do, in the holder's words: an
+    /// authentication request logs in, a qualified request signs.
+    private static func actionLine(purpose: ScsSignPurpose, bundle: Bundle) -> String {
+      switch purpose {
+      case .authentication:
+        String(localized: "Action: Log in", bundle: bundle)
+
+      case .qualified:
+        String(localized: "Action: Sign document", bundle: bundle)
+      }
     }
 
     /// Builds the localized prompt with its consent details.
@@ -89,14 +97,14 @@
     internal static func makeAlert(
       role: CredentialRole,
       origin: String?,
-      digest: Data,
-      hash: SigningHash,
+      purpose: ScsSignPurpose,
+      signerName: String?,
       bundle: Bundle
     ) -> NSAlert {
       let alert = NSAlert()
       alert.messageText = CredentialLabels.entryPrompt(for: role, bundle: bundle)
       alert.informativeText = consentDetails(
-        origin: origin, digest: digest, hash: hash, bundle: bundle)
+        origin: origin, purpose: purpose, signerName: signerName, bundle: bundle)
       let field = NSSecureTextField(
         frame: NSRect(x: 0, y: 0, width: Self.fieldWidth, height: Self.fieldHeight))
       alert.accessoryView = field
@@ -111,28 +119,16 @@
     private static func presentPrompt(
       role: CredentialRole,
       origin: String?,
-      digest: Data,
-      hash: SigningHash
+      purpose: ScsSignPurpose,
+      signerName: String?
     ) -> String? {
       NSApp.activate(ignoringOtherApps: true)
       let alert = makeAlert(
-        role: role, origin: origin, digest: digest, hash: hash, bundle: .main)
+        role: role, origin: origin, purpose: purpose, signerName: signerName, bundle: .main)
       guard alert.runModal() == .alertFirstButtonReturn,
         let field = alert.accessoryView as? NSSecureTextField
       else { return nil }
       return field.stringValue
-    }
-
-    /// The digest as spaced lowercase hex, grouped for reading.
-    private static func printedDigest(_ digest: Data) -> String {
-      let bytes = [UInt8](digest)
-      return stride(from: 0, to: bytes.count, by: Self.digestGroupByteCount)
-        .map { start in
-          bytes[start..<min(start + Self.digestGroupByteCount, bytes.count)]
-            .map { String(format: Self.hexByteFormat, $0) }
-            .joined()
-        }
-        .joined(separator: Self.digestGroupSeparator)
     }
   }
 #endif
