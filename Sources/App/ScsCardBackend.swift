@@ -24,6 +24,17 @@
       }
     }
 
+    /// Everything `sign` resolves before the card session opens.
+    ///
+    /// The bytes to sign, how to sign them, and the name the prompt
+    /// shows, resolved on the SCS serial queue with the leaf caches.
+    private struct PreparedSign {
+      let digest: Data
+      let algorithm: SigningAlgorithm
+      let expectedSignatureLength: ExpectedResponseLength?
+      let signerName: String?
+    }
+
     private var authenticationLeaf: Data?
     private var qualifiedLeaf: Data?
 
@@ -31,16 +42,14 @@
     private static func performSign(
       _ operations: CardOperations,
       request: ScsSignRequest,
-      digest: Data,
-      algorithm: SigningAlgorithm,
-      expectedSignatureLength: ExpectedResponseLength?
+      prepared: PreparedSign
     ) -> Result<Data, ScsBackendFailure> {
       let purpose = request.purpose
       if let refused = contextRefusal(operations, purpose: purpose) {
         return .failure(refused)
       }
       let entered: String
-      switch authorizedPin(operations, request: request, digest: digest, algorithm: algorithm) {
+      switch authorizedPin(operations, request: request, signerName: prepared.signerName) {
       case .success(let pin):
         entered = pin
 
@@ -56,9 +65,9 @@
           try operations.verifyPin1(pin.consumeForSingleTransmission())
           return .success(
             try operations.computeAuthenticationSignature(
-              overDigest: digest,
-              algorithm: algorithm,
-              expectedSignatureLength: expectedSignatureLength
+              overDigest: prepared.digest,
+              algorithm: prepared.algorithm,
+              expectedSignatureLength: prepared.expectedSignatureLength
             )
           )
 
@@ -69,9 +78,9 @@
           try operations.verifyPin2(pin.consumeForSingleTransmission())
           return .success(
             try operations.computeQualifiedSignature(
-              overDigest: digest,
-              algorithm: algorithm,
-              expectedSignatureLength: expectedSignatureLength
+              overDigest: prepared.digest,
+              algorithm: prepared.algorithm,
+              expectedSignatureLength: prepared.expectedSignatureLength
             )
           )
         }
@@ -85,13 +94,13 @@
     ///
     /// The floor probe runs before the prompt so a refused credential
     /// never costs the holder a PIN entry, and the prompt names the
-    /// requesting origin and the digest the card is about to sign. A
-    /// blocked credential goes on: the card answers its VERIFY.
+    /// requesting origin, the kind of request, and the certificate
+    /// holder. A blocked credential goes on: the card answers its
+    /// VERIFY.
     private static func authorizedPin(
       _ operations: CardOperations,
       request: ScsSignRequest,
-      digest: Data,
-      algorithm: SigningAlgorithm
+      signerName: String?
     ) -> Result<String, ScsBackendFailure> {
       let role: CredentialRole = request.purpose == .authentication ? .pin1 : .pin2
       guard
@@ -104,8 +113,8 @@
         let entered = ScsPinPrompt.request(
           role: role,
           origin: request.origin,
-          digest: digest,
-          hash: algorithm.hash
+          purpose: request.purpose,
+          signerName: signerName
         )
       else {
         return .failure(.credentialRefused("PIN entry was cancelled"))
@@ -137,6 +146,21 @@
         ScsLog.error("backend: signature directory unavailable (\(error))")
         return .signingUnavailable("signature directory unavailable")
       }
+    }
+
+    /// The certificate holder's name for the prompt.
+    ///
+    /// The subject summary with control characters stripped, nil
+    /// when nothing printable remains. A subject is card data, and
+    /// a prompt line break in it would redraw the consent the
+    /// holder reads.
+    private static func sanitizedSummary(of certificate: SecCertificate) -> String? {
+      guard let summary = SecCertificateCopySubjectSummary(certificate) as String? else {
+        return nil
+      }
+      let printable = summary.unicodeScalars.filter { !CharacterSet.controlCharacters.contains($0) }
+      let name = String(String.UnicodeScalarView(printable)).trimmingCharacters(in: .whitespaces)
+      return name.isEmpty ? nil : name
     }
 
     /// Maps a refused verify or sign to the backend's failure pair,
@@ -191,7 +215,10 @@
         digest = Data(SHA512.hash(data: request.data))
       }
       let purpose = request.purpose
-      guard let profile = profile(for: purpose) else {
+      guard
+        let certificate = certificate(for: purpose),
+        let profile = CardKeyProfile.resolve(fromCertificate: certificate)
+      else {
         throw ScsBackendFailure.signingUnavailable("card certificate unavailable")
       }
       let scheme: SigningScheme
@@ -203,14 +230,17 @@
         scheme = .rsaPkcs1
       }
       let algorithm = SigningAlgorithm(hash: request.hash, scheme: scheme)
-      let expected = profile.expectedSignatureLength
+      let prepared = PreparedSign(
+        digest: digest,
+        algorithm: algorithm,
+        expectedSignatureLength: profile.expectedSignatureLength,
+        signerName: Self.sanitizedSummary(of: certificate)
+      )
       let outcome: Result<Data, ScsBackendFailure>? = withCard { operations in
         Self.performSign(
           operations,
           request: request,
-          digest: digest,
-          algorithm: algorithm,
-          expectedSignatureLength: expected
+          prepared: prepared
         )
       }
       guard let outcome else {
@@ -237,11 +267,16 @@
       }
     }
 
+    /// The cached leaf as a certificate, parsed once per caller.
+    private func certificate(for purpose: ScsSignPurpose) -> SecCertificate? {
+      guard let leaf = leaf(for: purpose) else {
+        return nil
+      }
+      return SecCertificateCreateWithData(nil, leaf as CFData)
+    }
+
     private func profile(for purpose: ScsSignPurpose) -> CardKeyProfile? {
-      guard
-        let leaf = leaf(for: purpose),
-        let certificate = SecCertificateCreateWithData(nil, leaf as CFData)
-      else {
+      guard let certificate = certificate(for: purpose) else {
         return nil
       }
       return CardKeyProfile.resolve(fromCertificate: certificate)
