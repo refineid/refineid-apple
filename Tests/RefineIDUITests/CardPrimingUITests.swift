@@ -27,6 +27,10 @@
     /// How long a screen takes to appear after a tap.
     private static let appearTimeout: TimeInterval = 15
 
+    /// How long the manual start button may take to show itself; a
+    /// complete entry usually starts the hold before it is looked for.
+    private static let shortTimeout: TimeInterval = 2
+
     // MARK: Static Functions
 
     /// Brings the device's stored credentials up to date when the run was
@@ -61,21 +65,25 @@
     // MARK: Functions
 
     /// Starts Safari setup from the card form and asserts registration.
+    ///
+    /// A complete entry starts the hold by itself; the button is tapped
+    /// only where it exists, an organization card's shorter PIN.
     internal func testRegistersCardForSafari() {
       let app = UITestApp.launch()
       attachScreenshot(app.screenshot(), named: "01-setup-opened")
       Self.storeCredentialsIfGiven(in: app)
-      app.swipeUp()
+      attachScreenshot(app.screenshot(), named: "02-registration-ready")
 
       let start = app.buttons[UITestIdentifiers.primeStartButton]
-      guard start.waitForExistence(timeout: Self.appearTimeout), start.isEnabled else {
-        attachScreenshot(app.screenshot(), named: "02-registration-unavailable")
-        XCTFail(
-          "Safari setup would not start from the current credential state")
-        return
+      if start.waitForExistence(timeout: Self.shortTimeout) {
+        guard start.isEnabled else {
+          attachScreenshot(app.screenshot(), named: "02-registration-unavailable")
+          XCTFail(
+            "Safari setup would not start from the current credential state")
+          return
+        }
+        start.tap()
       }
-      attachScreenshot(app.screenshot(), named: "02-registration-ready")
-      start.tap()
 
       let identity = app.staticTexts[UITestIdentifiers.identityStatus]
       let registered = identity.waitForExistence(timeout: Self.primeTimeout)

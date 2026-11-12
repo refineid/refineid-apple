@@ -2,10 +2,10 @@
 
 import XCTest
 
-/// Card setup, driven the way a holder drives it: type the access number
-/// and PIN1, then observe that the one minting action becomes available.
+/// Card setup, driven the way a holder drives it: type the access number,
+/// then observe that the hold starts by itself.
 ///
-/// Both values come from the test runner's environment and neither is
+/// The value comes from the test runner's environment and is never
 /// written down here. Physical-card tests require an explicit opt-in; after
 /// that opt-in a missing credential fails and names the missing variable.
 @MainActor
@@ -42,8 +42,12 @@ internal final class CardSetupUITests: XCTestCase {
 
   // MARK: Functions
 
-  /// Enters both credentials and asserts that identity creation is ready.
-  internal func testAcceptsCredentialsForIdentityMinting() throws {
+  /// Enters the access number and asserts that the hold starts by itself.
+  ///
+  /// No card is needed: the prompt dismissing proves the hold started,
+  /// and the NFC sheet waits for a card that never comes until the run
+  /// ends the app.
+  internal func testCompleteEntryStartsTheHoldThroughGUI() throws {
     let cardAccessNumber = try XCTUnwrap(
       UITestEnvironment.cardAccessNumber,
       Self.missing(UITestEnvironment.cardAccessNumberVariable))
@@ -61,14 +65,19 @@ internal final class CardSetupUITests: XCTestCase {
     let entered = CardSetupScreen.enterCredentials(
       cardAccessNumber: cardAccessNumber,
       in: app)
-    attachScreenshot(app.screenshot(), named: "03-credentials-entered")
     XCTAssertTrue(
       entered,
       "the card access number field could not be filled")
 
-    let mint = app.buttons[UITestIdentifiers.primeStartButton]
-    XCTAssertTrue(
-      mint.waitForExistence(timeout: 10) && mint.isEnabled,
-      "a valid CAN did not enable identity minting")
+    let field = app.descendants(matching: .any)[
+      UITestIdentifiers.cardAccessNumberField
+    ]
+    let dismissed = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "exists == false"),
+      object: field)
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [dismissed], timeout: 10),
+      .completed,
+      "a complete entry did not start the hold by itself")
   }
 }

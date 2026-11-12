@@ -11,13 +11,18 @@
 /// Each constant must match the `.accessibilityIdentifier(...)` of the
 /// same spelling in `Sources/App/CardCredentialsView.swift`,
 /// `Sources/App/CardRegistrationSections.swift`,
-/// `Sources/App/DiagnosticsView.swift`, and the card-management
-/// sections under `Sources/App/`.
+/// `Sources/App/DiagnosticsView.swift`, the setup actions and the
+/// setup authentication prompt under `Sources/App/`, and the
+/// card-management sections under `Sources/App/`.
 /// A UI test drives a separate process and cannot share a constant with
 /// it, so this is the register that keeps the two sides honest.
 
 internal enum UITestIdentifiers {
-  /// The six-digit entry field, present until an identity is set.
+  /// The setup action that opens the authentication prompt.
+  internal static let setupAuthenticate = "setupAuthenticate"
+
+  /// The entry field inside the setup authentication prompt, present
+  /// until an identity is set.
   internal static let cardAccessNumberField = "cardAccessNumberField"
 
   /// The document drop area in the status window.
@@ -39,7 +44,9 @@ internal enum UITestIdentifiers {
   /// The line saying the identity is set, present once registered.
   internal static let identityStatus = "identityStatus"
 
-  /// The button that starts one priming hold.
+  /// The button that starts one priming hold, offered only in
+  /// organization mode; a personal card's six digits start the hold by
+  /// themselves.
   internal static let primeStartButton = "primeStartButton"
 
   /// The minting action after its last attempt failed.
@@ -136,6 +143,7 @@ internal enum UITestIdentifiers {
   internal static let closePairing = "closePairing"
 
   /// Document-signing controls shared by reader and NFC routes.
+  internal static let signingCardAccessNumber = "signingCardAccessNumber"
   internal static let signingPIN2 = "signingPIN2"
   internal static let signingCommit = "signingCommit"
   internal static let signingSuccess = "signingSuccess"

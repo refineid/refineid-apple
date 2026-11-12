@@ -32,8 +32,8 @@
       fillSecure("managementActivationPin2Repeat", with: "654321", in: app)
       commit(action: UITestIdentifiers.managementActivate, in: app)
 
-      let cache = app.buttons[UITestIdentifiers.primeStartButton]
-      guard cache.waitForExistence(timeout: UITestApp.appearTimeout) else {
+      let setupActions = app.buttons[UITestIdentifiers.setupAuthenticate]
+      guard setupActions.waitForExistence(timeout: UITestApp.appearTimeout) else {
         let visibleFeedback = app.staticTexts.allElementsBoundByIndex
           .map(\.label)
           .filter { !$0.isEmpty }
@@ -55,60 +55,58 @@
 
     internal func testCardAccessNumberAcceptsDirectGUIInput() {
       let app = UITestApp.launchVirtualCard()
-      let field = app.textFields[UITestIdentifiers.cardAccessNumberField]
+      let auth = app.buttons[UITestIdentifiers.setupAuthenticate]
+      XCTAssertTrue(auth.waitForExistence(timeout: UITestApp.appearTimeout))
+      auth.tap()
+      let field = app.secureTextFields[UITestIdentifiers.cardAccessNumberField]
       XCTAssertTrue(field.waitForExistence(timeout: UITestApp.appearTimeout))
-      focusAndType(field, value: "123456", in: app)
+      focusAndType(field, value: "12345", in: app)
       XCTAssertEqual(
-        app.textFields[UITestIdentifiers.cardAccessNumberField].value as? String,
-        "123456")
+        app.secureTextFields[UITestIdentifiers.cardAccessNumberField].value as? String,
+        "12345")
     }
 
-    internal func testWirelessManagementRequiresLiveCardClassification() {
+    internal func testWirelessSetupOffersItsThreeActionsUpFront() {
       let app = UITestApp.launchVirtualCard()
       applyScenario("activated-nfc", in: app)
-      let signing = app.buttons[UITestIdentifiers.signDocuments]
-      let key = app.buttons[UITestIdentifiers.pinManagementButton]
 
-      XCTAssertTrue(
-        signing.waitForExistence(timeout: UITestApp.appearTimeout),
-        "wireless setup hid document signing instead of presenting it disabled")
+      for action in [
+        UITestIdentifiers.verifyDocuments,
+        UITestIdentifiers.signDocuments,
+        UITestIdentifiers.setupAuthenticate,
+      ] {
+        let button = app.buttons[action]
+        XCTAssertTrue(
+          button.waitForExistence(timeout: UITestApp.appearTimeout),
+          "wireless setup hid \(action)")
+        XCTAssertTrue(button.isEnabled, "\(action) is not offered up front")
+      }
       XCTAssertFalse(
-        signing.isEnabled,
-        "document signing was enabled before CAN was complete")
-      XCTAssertEqual(signing.label, "Sign")
-      XCTAssertTrue(app.staticTexts["Document"].exists)
-      XCTAssertTrue(key.waitForExistence(timeout: UITestApp.appearTimeout))
-      XCTAssertFalse(key.isEnabled, "PIN management was enabled before CAN was complete")
+        app.buttons[UITestIdentifiers.pinManagementButton].exists,
+        "PIN management is offered before any identity exists")
+      XCTAssertFalse(
+        app.secureTextFields[UITestIdentifiers.cardAccessNumberField].exists,
+        "setup asks for the CAN before it is needed")
 
-      let cache = app.buttons[UITestIdentifiers.primeStartButton]
-      XCTAssertTrue(cache.waitForExistence(timeout: UITestApp.appearTimeout))
-      XCTAssertEqual(cache.label, "Cache")
-      let cardHeader = app.staticTexts["Card"]
-      let documentHeader = app.staticTexts["Document"]
-      XCTAssertTrue(cardHeader.exists)
-      XCTAssertEqual(cardHeader.frame.minX, documentHeader.frame.minX, accuracy: 1)
-
-      let can = app.textFields[UITestIdentifiers.cardAccessNumberField]
-      XCTAssertTrue(can.exists)
+      let auth = app.buttons[UITestIdentifiers.setupAuthenticate]
+      auth.tap()
+      let can = app.secureTextFields[UITestIdentifiers.cardAccessNumberField]
+      XCTAssertTrue(can.waitForExistence(timeout: UITestApp.appearTimeout))
       XCTAssertFalse(
         app.secureTextFields[UITestIdentifiers.pin1Field].exists,
         "setup asks for no PIN")
+      XCTAssertFalse(
+        app.buttons[UITestIdentifiers.primeStartButton].exists,
+        "personal setup keeps a start button")
 
       focusAndType(can, value: "123456", in: app)
-      let signingEnabled = XCTNSPredicateExpectation(
-        predicate: NSPredicate(format: "enabled == true"),
-        object: signing)
-      let keyEnabled = XCTNSPredicateExpectation(
-        predicate: NSPredicate(format: "enabled == true"),
-        object: key)
+      let dismissed = XCTNSPredicateExpectation(
+        predicate: NSPredicate(format: "exists == false"),
+        object: can)
       XCTAssertEqual(
-        XCTWaiter.wait(
-          for: [signingEnabled, keyEnabled],
-          timeout: UITestApp.appearTimeout),
+        XCTWaiter.wait(for: [dismissed], timeout: UITestApp.appearTimeout),
         .completed,
-        "six-digit CAN did not enable signing and PIN management")
-
-      openManagement(in: app)
+        "a complete entry did not start the hold by itself")
     }
 
     internal func testActivatedNFCCardRevealsAuthenticationThroughGUI() {
@@ -116,9 +114,9 @@
       applyScenario("activated-nfc", in: app)
 
       XCTAssertTrue(
-        app.textFields[UITestIdentifiers.cardAccessNumberField]
+        app.buttons[UITestIdentifiers.setupAuthenticate]
           .waitForExistence(timeout: UITestApp.appearTimeout),
-        "initial setup did not offer the CAN")
+        "initial setup did not offer authentication")
       connect(accessNumber: "123456", in: app)
 
       XCTAssertTrue(
@@ -131,21 +129,52 @@
         "validated NFC card did not reveal document signing")
     }
 
+    internal func testCompleteEntryStartsTheHoldWithoutATapThroughGUI() {
+      let app = UITestApp.launchVirtualCard()
+      applyScenario("activated-nfc", in: app)
+
+      let auth = app.buttons[UITestIdentifiers.setupAuthenticate]
+      XCTAssertTrue(auth.waitForExistence(timeout: UITestApp.appearTimeout))
+      auth.tap()
+      let field = app.secureTextFields[UITestIdentifiers.cardAccessNumberField]
+      XCTAssertTrue(field.waitForExistence(timeout: UITestApp.appearTimeout))
+      focusAndType(field, value: "123456", in: app)
+
+      let dismissed = XCTNSPredicateExpectation(
+        predicate: NSPredicate(format: "exists == false"),
+        object: field)
+      XCTAssertEqual(
+        XCTWaiter.wait(for: [dismissed], timeout: UITestApp.appearTimeout),
+        .completed,
+        "a complete entry did not start the hold by itself")
+      XCTAssertTrue(
+        app.staticTexts[UITestIdentifiers.identityStatus]
+          .waitForExistence(timeout: UITestApp.appearTimeout),
+        "the automatically started hold registered no identity")
+    }
+
     internal func testWrongCardAccessNumberReturnsToSetupThroughGUI() {
       let app = UITestApp.launchVirtualCard()
       applyScenario("activated-nfc", in: app)
       connect(accessNumber: "654321", in: app)
 
-      let field = app.textFields[UITestIdentifiers.cardAccessNumberField]
-      XCTAssertTrue(field.waitForExistence(timeout: UITestApp.appearTimeout))
-      XCTAssertEqual(field.value as? String, "Card Access Number (CAN)")
+      let auth = app.buttons[UITestIdentifiers.setupAuthenticate]
+      XCTAssertTrue(auth.waitForExistence(timeout: UITestApp.appearTimeout))
       XCTAssertTrue(
         app.staticTexts["The Card Access Number (CAN) is incorrect."]
           .waitForExistence(timeout: UITestApp.appearTimeout))
       XCTAssertFalse(app.buttons[UITestIdentifiers.managementActivate].exists)
+      auth.tap()
+
+      let field = app.secureTextFields[UITestIdentifiers.cardAccessNumberField]
+      XCTAssertTrue(field.waitForExistence(timeout: UITestApp.appearTimeout))
+      XCTAssertNotEqual(
+        field.value as? String,
+        "654321",
+        "the incorrect entry was kept for the retry")
     }
 
-    internal func testConnectionFailureKeepsTransientCardAccessNumber() {
+    internal func testConnectionFailureOpensAFreshRetryThroughGUI() {
       let app = UITestApp.launchVirtualCard()
       openEditor(in: app)
       selectMenu(
@@ -163,12 +192,19 @@
       applyEditor(in: app)
       connect(accessNumber: "123456", in: app)
 
-      XCTAssertEqual(
-        app.textFields[UITestIdentifiers.cardAccessNumberField].value as? String,
-        "123456")
+      let auth = app.buttons[UITestIdentifiers.setupAuthenticate]
+      XCTAssertTrue(auth.waitForExistence(timeout: UITestApp.appearTimeout))
       XCTAssertTrue(
         app.staticTexts["The identity card could not be read. Try again."]
           .waitForExistence(timeout: UITestApp.appearTimeout))
+      auth.tap()
+
+      let field = app.secureTextFields[UITestIdentifiers.cardAccessNumberField]
+      XCTAssertTrue(field.waitForExistence(timeout: UITestApp.appearTimeout))
+      XCTAssertNotEqual(
+        field.value as? String,
+        "123456",
+        "the failed entry was kept instead of opening empty")
     }
 
     internal func testPartialActivationRequestsOnlyPIN2ThroughGUI() {
