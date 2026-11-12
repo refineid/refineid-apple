@@ -53,21 +53,6 @@ internal struct OrganizationCardOpeningTests {
   }
 
   @Test
-  internal func anOrganizationCardIsToldByItsRefusalBeforePace() throws {
-    let card = try Self.card(pin: .pin1)
-    #expect(ContactlessCardKind.of(CardOperations(channel: card)) == .organization)
-    #expect(!Self.sentSecurityEnvironment(card))
-  }
-
-  @Test
-  internal func aPersonalCardKeepsTheCardAccessNumberPathAndIsSentNoPin() throws {
-    let card = try Self.card(pin: .pin1, refusal: .securityNotSatisfied)
-    #expect(ContactlessCardKind.of(CardOperations(channel: card)) == .personal)
-    #expect(card.plainCommands.count == 1)
-    #expect(!Self.sentSecurityEnvironment(card))
-  }
-
-  @Test
   internal func pin1OpensTheChannelAndSelectsTheApplicationInIt() throws {
     let card = try Self.card(pin: .pin1, afterPace: [Self.selected])
     let opened = try OrganizationCardOpening.pin1(over: card, try Self.pin1(), spending: .entered)
@@ -83,7 +68,6 @@ internal struct OrganizationCardOpeningTests {
     // the phone's platform does; the opening must go from the refused
     // select by file identifier straight to EF.CardAccess.
     let card = try Self.card(pin: .pin1, afterPace: [Self.selected])
-    #expect(ContactlessCardKind.of(CardOperations(channel: card)) == .organization)
     let opened = try OrganizationCardOpening.pin1(over: card, try Self.pin1(), spending: .entered)
     #expect(!card.tornDown)
     #expect(card.secureCard != nil)

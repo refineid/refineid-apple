@@ -28,7 +28,7 @@
       static let rowVerticalPadding: CGFloat = 12
     }
 
-    /// The digits as typed; the hold decides what they open.
+    /// The digits bound to the mode displayed by this prompt.
     @Binding internal var entry: String
 
     /// Whether the entry is an organization card's PIN 1.

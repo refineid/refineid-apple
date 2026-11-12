@@ -25,8 +25,28 @@
       super.tearDown()
     }
 
+    internal func testOrganizationModeLabelsItsCredentialAndOmitsCanFromSigning() {
+      let app = UITestApp.launch(
+        arguments: ["--virtual-card", "absent", "-organizationCardEnabled", "YES"])
+      applyScenario("activated-nfc", in: app)
+      let auth = app.buttons[UITestIdentifiers.setupAuthenticate]
+      XCTAssertTrue(auth.waitForExistence(timeout: UITestApp.appearTimeout))
+      auth.tap()
+      let field = app.secureTextFields[UITestIdentifiers.cardAccessNumberField]
+      XCTAssertTrue(field.waitForExistence(timeout: UITestApp.appearTimeout))
+      XCTAssertTrue(field.label.contains("PIN 1"))
+      XCTAssertTrue(app.buttons[UITestIdentifiers.primeStartButton].exists)
+      app.navigationBars.buttons.firstMatch.tap()
+      app.buttons[UITestIdentifiers.signDocuments].tap()
+      XCTAssertTrue(
+        app.secureTextFields["signingPIN2"].waitForExistence(timeout: UITestApp.appearTimeout))
+      XCTAssertFalse(app.secureTextFields["signingCardAccessNumber"].exists)
+    }
+
     internal func testSignBackThenAuthenticateReachesIdentityThroughGUI() {
-      let app = UITestApp.launch(arguments: ["--virtual-card", "absent"])
+      let app = UITestApp.launch(arguments: [
+        "--virtual-card", "absent", "-organizationCardEnabled", "NO",
+      ])
       applyScenario("activated-nfc", in: app)
 
       let sign = app.buttons[UITestIdentifiers.signDocuments]

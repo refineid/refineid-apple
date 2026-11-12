@@ -72,16 +72,25 @@ or scanned, start the hold by themselves; the prompt dismisses as the
 hold starts. Signing collects its documents first, then takes the
 number beside PIN 2. An organization card is declared with the
 Organization Card switch in the Settings app; its prompt takes PIN 1
-of four to twelve digits with an explicit start button instead, and
-the card still has the last word on the hold. Once an identity exists
+of four to twelve digits with an explicit start button instead. The
+switch selects the card kind for every NFC operation. Once an identity exists
 the regular sections take over, unchanged.
 
-- **Which card.** The card's first answer, before any password, names
-  its kind: `6985` an organization card, any other answer a personal
-  card.
+- **Which card.** The Organization Card switch selects personal cards
+  when off and organization cards when on. Setup binds the entry to
+  that kind before opening NFC. A card refusal or transport error never
+  changes the credential kind or tries the other path. This is an owner
+  policy; FINEID specifies how each credential opens PACE, not which
+  setting the app must offer.
+- **Stored identity.** Only the selected kind's prime is served. An
+  absent selected prime means no NFC identity, even when the other kind
+  is stored. Switching kinds preserves both stores, clears the entry,
+  updates card presence and releases a held PIN for the previous card.
+  The app shares the choice with its token extension at launch,
+  activation and before setup; the extension mints only that kind.
+  The locked-phone fingerprint cache is separate for each kind.
 - **Personal card.** The entry must be the six digits printed on the
-  card. Any other length ends the hold as an incorrect card access
-  number, with no PACE run and nothing sent. Six digits run PACE, and
+  card. Other entries cannot start a hold. Six digits run PACE, and
   the number is stored once PACE proves it.
 - **Organization card.** The card has no printed number: it opens only
   with PACE and PIN 1 or PIN 2 as the password (FINEID S1 v4.0,

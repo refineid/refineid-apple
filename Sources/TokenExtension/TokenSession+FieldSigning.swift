@@ -20,6 +20,14 @@ extension TokenSession {
     dataToSign: Data,
     algorithm: TKTokenKeyAlgorithm
   ) throws -> Data {
+    #if os(iOS)
+      guard token.unsealing.contactlessKind == ContactlessCardKindStore.load() else {
+        #if DEBUG
+          DevErrorLog.report("NFC signature refused: card mode changed", source: .tokenExtension)
+        #endif
+        throw TKError(.tokenNotFound)
+      }
+    #endif
     guard
       let request = SigningAlgorithmResolver.resolve(
         algorithm,

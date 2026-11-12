@@ -105,7 +105,8 @@
         Task { @MainActor in
           guard
             let accessNumber = cardAccessNumber(),
-            let entry = CardPriming.SetupEntry(digits: accessNumber)
+            let entry = CardPriming.SetupEntry(
+              digits: accessNumber, kind: OrganizationCardStore.kind())
           else { return }
           onRegistrationStarted()
           let succeeded = await Self.registerIdentity(
@@ -151,7 +152,7 @@
     ) async -> Bool {
       await model.prime(entry: entry)
       guard case .succeeded = model.lastRunResult else { return false }
-      if model.cardKind != .organization {
+      if entry.kind == .personal {
         guard
           let proven = entry.personalAccessNumber(),
           commit.storeCardAccessNumber(proven.digits)

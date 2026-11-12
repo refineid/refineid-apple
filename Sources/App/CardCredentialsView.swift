@@ -74,6 +74,7 @@ internal struct CardCredentialsView: View {
   #endif
   @State internal var cardAccessNumberEntry = ""
 
+  @State internal var entryKindChangePending = false
   @State internal var registrationReset = false
   @State internal var isRegistered = false
   @State internal var activation: ActivationClassification?
@@ -89,6 +90,9 @@ internal struct CardCredentialsView: View {
   #endif
 
   #if os(iOS)
+    @AppStorage(OrganizationCardStore.key)
+    internal var organizationCardEnabled = false
+
     /// The holder names read from the live reader tokens.
     @State internal var readerHolders: [String] = []
 
@@ -125,7 +129,10 @@ internal struct CardCredentialsView: View {
   /// become available at a personal card's six digits without requiring
   /// an earlier NFC read.
   internal var managementCardAccessNumber: String? {
-    isCardAccessNumberEntryComplete ? cardAccessNumberEntry : nil
+    #if os(iOS)
+      guard !organizationCardEnabled else { return nil }
+    #endif
+    return isCardAccessNumberEntryComplete ? cardAccessNumberEntry : nil
   }
 
   /// The point at which operations using the printed card number can be
@@ -134,11 +141,14 @@ internal struct CardCredentialsView: View {
     cardAccessNumberEntry.count == CardAccessNumber.digitCount
   }
 
-  /// Whether the setup entry can be read: four to twelve digits, an
-  /// organization card's PIN 1 or, checked on the tap, a personal card's
-  /// six.
+  /// Whether the entry is valid for the kind selected in Settings.
   internal var isSetupEntryComplete: Bool {
-    (Pin1.minimumDigitCount...Pin1.maximumDigitCount).contains(cardAccessNumberEntry.count)
+    #if REFINEID_LOCAL_CARD
+      return CardPriming.SetupEntry(
+        digits: cardAccessNumberEntry, kind: OrganizationCardStore.kind()) != nil
+    #else
+      return false
+    #endif
   }
 
   /// Disclosure follows a validated connection, never digit count alone.

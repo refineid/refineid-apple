@@ -66,8 +66,16 @@
     }
 
     /// A fictitious PIN 2.
-    private static let pin2Digits = "2468"
-    private static let pukDigits = "13579246"
+    private static let decimalDigits = Array("0123456789")
+    private static var pin2Digits: String { generatedDigits(count: Pin2.minimumDigitCount) }
+    private static var pukDigits: String { generatedDigits(count: Puk.minimumDigitCount) }
+
+    private static func generatedDigits(count: Int) -> String {
+      String(
+        String(repeating: "x", count: count).map { _ in
+          Self.decimalDigits.randomElement() ?? "0"
+        })
+    }
 
     @Test
     internal func anOrganizationCardWhoseSelectSucceedsGoesToPaceWithItsPin() {
@@ -107,6 +115,41 @@
       _ = CardMaintenance.openedOperations(over: card, opener: opener)
       #expect(!card.received(instruction: Iso7816Values.insVerify))
     }
+    @Test
+    internal func personalNfcModeNeverFallsBackToAnOperationsPin() {
+      let card = ScriptedCard(application: .conditionsNotSatisfied)
+      let opener = CardMaintenance.CardOpener<CardMaintenance.Outcome>.pin(
+        .pin2(Self.generatedDigits(count: Pin2.minimumDigitCount)),
+        cardAccessNumber: nil
+      ) { outcome, _ in outcome }
+      _ = CardMaintenance.openedNearFieldOperations(over: card, kind: .personal, opener: opener)
+      #expect(!card.received(instruction: Iso7816Values.insManageSecurityEnvironment))
+      #expect(!card.received(instruction: Iso7816Values.insVerify))
+    }
+
+    @Test
+    internal func organizationNfcModeNeverUsesAnOfferedCan() {
+      let card = ScriptedCard(application: .securityNotSatisfied)
+      let opener = CardMaintenance.CardOpener<Never>.cardAccessNumber(nil)
+      let opening = CardMaintenance.openedNearFieldOperations(
+        over: card, kind: .organization, opener: opener)
+      #expect(card.commands.isEmpty)
+      if case .unavailable = opening { return }
+      Issue.record("An operation without a credential must leave organization NFC closed")
+    }
+
+    @Test
+    internal func organizationNfcModeOpensOnlyWithTheOperationsCredential() {
+      let card = ScriptedCard(application: .securityNotSatisfied)
+      let opener = CardMaintenance.CardOpener<CardMaintenance.Outcome>.pin(
+        .puk(Self.generatedDigits(count: Puk.minimumDigitCount)),
+        cardAccessNumber: nil
+      ) { outcome, _ in outcome }
+      _ = CardMaintenance.openedNearFieldOperations(over: card, kind: .organization, opener: opener)
+      #expect(card.startedPace)
+      #expect(!card.received(instruction: Iso7816Values.insVerify))
+    }
+
   }
 
 #endif

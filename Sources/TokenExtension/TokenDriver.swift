@@ -94,11 +94,22 @@ internal final class TokenDriver: TKSmartCardTokenDriver, TKSmartCardTokenDriver
     answerToReset: Data
   ) -> FieldPrime? {
     for attempt in 1...primeWaitAttempts {
-      let found: FieldPrime? =
-        PrimeStore.readContactless(lookupID: lookupID).map(FieldPrime.personal)
-        ?? OrganizationPrimeStore.read(answerToReset: answerToReset).map { prime in
-          .organization(prime, isRegistrationField: PrimeStore.isRegistrationFieldMarked)
-        }
+      #if os(iOS)
+        let found = ContactlessCardKindStore.load().select(
+          personal: { PrimeStore.readContactless(lookupID: lookupID).map(FieldPrime.personal) },
+          organization: {
+            OrganizationPrimeStore.read(answerToReset: answerToReset).map { prime in
+              FieldPrime.organization(
+                prime, isRegistrationField: PrimeStore.isRegistrationFieldMarked)
+            }
+          })
+      #else
+        let found: FieldPrime? =
+          PrimeStore.readContactless(lookupID: lookupID).map(FieldPrime.personal)
+          ?? OrganizationPrimeStore.read(answerToReset: answerToReset).map { prime in
+            .organization(prime, isRegistrationField: PrimeStore.isRegistrationFieldMarked)
+          }
+      #endif
       if let found {
         if attempt > 1 {
           TokenLog.trace("mintFromPrime: prime arrived on attempt \(attempt)")

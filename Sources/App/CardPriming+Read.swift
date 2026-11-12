@@ -14,12 +14,9 @@
 
     /// Reads everything the later signature must not have to read.
     ///
-    /// Runs on the card queue, inside the card's exclusive session. The
-    /// card's first answer names its kind before any password is sent
-    /// (``ContactlessCardKind``), and only then does the entry become a
-    /// password: a personal card's access number, which must be the six
-    /// printed digits -- any other entry ends the hold as a wrong access
-    /// number with no PACE run -- or an organization card's PIN 1.
+    /// Runs on the card queue inside the field's exclusive session. The
+    /// entry's selected kind controls which credential opens PACE; a card
+    /// refusal cannot reinterpret a CAN as PIN 1 or a PIN 1 as CAN.
     /// `store` receives a personal card's identity as soon as it is read
     /// and checked, so the token extension's mint, already waiting in this
     /// field, finds the prime while the hold reads the counters and any
@@ -32,9 +29,7 @@
       let isRecovery = execution.isRecovery
       let waitBudget: SmartCardChannel.ResponseWait = isRecovery ? .nearFieldRecovery : .nearField
       return try execution.session.withCardSession(waits: waitBudget) { channel in
-        let kind = ContactlessCardKind.of(CardOperations(channel: channel))
-        execution.foundKind.record(kind)
-        switch kind {
+        switch execution.entry.kind {
         case .personal:
           guard let proven = execution.entry.personalAccessNumber() else {
             throw Failure.wrongCardAccessNumber

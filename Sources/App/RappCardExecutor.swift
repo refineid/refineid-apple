@@ -167,7 +167,8 @@
           return .refusedBeforeCredentialTransmit(.cardUnavailable)
         }
       }
-      if case .organization? = PhoneCardPrime.current {
+      OrganizationCardStore.synchronize()
+      if OrganizationCardStore.kind() == .organization {
         guard let organization else {
           return .refusedBeforeCredentialTransmit(.cardUnavailable)
         }

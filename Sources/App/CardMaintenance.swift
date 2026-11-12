@@ -78,6 +78,8 @@ internal enum CardMaintenance {
     case .nearField:
       #if REFINEID_LOCAL_CARD && os(iOS)
         guard SupportedCardTransports.offersNearField else { return nil }
+        OrganizationCardStore.synchronize()
+        let kind = OrganizationCardStore.kind()
         let held: NearFieldCardSession
         do {
           held = try await NearFieldCardSession.open(showing: operation)
@@ -89,7 +91,10 @@ internal enum CardMaintenance {
         return await withCheckedContinuation { continuation in
           DispatchQueue.global(qos: .userInitiated).async {
             let answer = try? held.withCardSession { channel -> Answer? in
-              answer(openedOperations(over: channel, opener: opener), refused: opener.refused) {
+              answer(
+                openedNearFieldOperations(over: channel, kind: kind, opener: opener),
+                refused: opener.refused
+              ) {
                 operations in
                 sheet.advance()
                 return work(operations)

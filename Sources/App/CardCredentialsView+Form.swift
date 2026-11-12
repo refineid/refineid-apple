@@ -142,6 +142,13 @@ extension CardCredentialsView {
         #endif
       }
       #if os(iOS)
+        .onValueChange(of: organizationCardEnabled) { _ in
+          entryKindChangePending = !cardAccessNumberEntry.isEmpty
+          cardAccessNumberEntry = ""
+          model.invalidateCardStatus()
+          refreshRegistration()
+          synchronizeIdentityState()
+        }
         .task(id: readerHolderReadKey) {
           readerHolders = await readerModel?.holderNames() ?? []
         }
@@ -174,6 +181,10 @@ extension CardCredentialsView {
         #endif
       }
       .onValueChange(of: cardAccessNumberEntry) { entered in
+        if entryKindChangePending {
+          entryKindChangePending = false
+          return
+        }
         model.invalidateCardStatus()
         activation = nil
         activationNeeds = nil
@@ -184,7 +195,7 @@ extension CardCredentialsView {
         #if REFINEID_LOCAL_CARD && os(iOS)
           // Emptied after an organization card's hold, the field held
           // its PIN 1, not the stored access number.
-          guard primingModel.cardKind != .organization else { return }
+          guard !organizationCardEnabled, primingModel.cardKind != .organization else { return }
         #endif
         guard entered.isEmpty,
           !isDemonstration,
@@ -236,7 +247,7 @@ extension CardCredentialsView {
       case .authenticate:
         SetupAuthenticationView(
           entry: $cardAccessNumberEntry,
-          organizationMode: OrganizationCardStore.load(from: .standard),
+          organizationMode: organizationCardEnabled,
           canStart: canReadIdentityCard
         ) {
           isCardAccessNumberFieldFocused = false

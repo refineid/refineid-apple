@@ -54,10 +54,15 @@
     ) -> CardOperations? {
       switch opening {
       case .cardAccessNumber(let digits):
-        CardMaintenance.selectedOperations(over: channel, cardAccessNumber: digits)
+        let opener = CardMaintenance.CardOpener<Never>.cardAccessNumber(digits)
+        guard
+          case .opened(let operations) = CardMaintenance.openedNearFieldOperations(
+            over: channel, kind: .personal, opener: opener)
+        else { return nil }
+        return operations
 
       case .organizationCard:
-        CardOperations(channel: channel)
+        return CardOperations(channel: channel)
       }
     }
 

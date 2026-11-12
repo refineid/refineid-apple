@@ -14,9 +14,8 @@ import Foundation
 internal enum SetupAuthenticationFlow: Sendable {
   /// Whether `entry` is complete enough to start the hold by itself.
   ///
-  /// A UI heuristic only: the hold still proves the entry against the
-  /// card, and the card on the antenna has the last word on what the
-  /// digits were.
+  /// Only the selected mode can start a hold. The card must accept that
+  /// mode's credential; its response cannot change the credential kind.
   internal static func shouldBeginHold(entry: String, organizationMode: Bool) -> Bool {
     if organizationMode {
       return Self.isLongestPin1(entry)

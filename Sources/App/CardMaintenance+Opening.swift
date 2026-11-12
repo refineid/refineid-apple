@@ -126,6 +126,29 @@ extension CardMaintenance {
     }
   }
 
+  /// Opens the phone's antenna using only the selected credential kind.
+  ///
+  /// A refusal never changes which credential is offered to PACE.
+  internal static func openedNearFieldOperations<Answer>(
+    over channel: any CardChannel,
+    kind: ContactlessCardKind,
+    opener: CardOpener<Answer>
+  ) -> Opening {
+    switch kind {
+    case .personal:
+      try? CardOperations(channel: channel).selectMainFile()
+      return canOpenedOperations(over: channel, cardAccessNumber: opener.cardAccessNumber)
+    case .organization:
+      guard let pin = opener.channelPin else {
+        #if DEBUG
+          DevErrorLog.report("NFC opening refused: operation has no credential", source: .app)
+        #endif
+        return .unavailable
+      }
+      return pinOpenedOperations(over: channel, pin: pin)
+    }
+  }
+
   /// The card access number a citizen card on an antenna is opened with.
   ///
   /// The one the operation offers; else the first of the numbers the
