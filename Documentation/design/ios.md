@@ -112,6 +112,9 @@ the regular sections take over, unchanged.
   connection or timed-out exchange keeps setup running with the same
   entered CAN in memory. Each field ends before the next scan starts;
   scanning continues until registration succeeds or the holder cancels.
+  Personal setup uses the extended response budget from its first attempt,
+  allowing PACE to answer before the app replaces the field; the system
+  can still end the NFC session earlier.
   A card response rejecting the CAN clears it and reopens CAN entry.
   Activation, storage and malformed-card failures keep their own routes.
   Reopening entry after cancellation preserves its digits and offers

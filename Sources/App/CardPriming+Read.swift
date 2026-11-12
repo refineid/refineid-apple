@@ -27,7 +27,7 @@
     ) throws -> HoldRead {
       let sheet = execution.sheet
       let isRecovery = execution.isRecovery
-      let waitBudget: SmartCardChannel.ResponseWait = isRecovery ? .nearFieldRecovery : .nearField
+      let waitBudget = Self.responseWait(for: execution.entry.kind, isRecovery: isRecovery)
       return try execution.session.withCardSession(waits: waitBudget) { channel in
         switch execution.entry.kind {
         case .personal:

@@ -27,6 +27,18 @@
       #expect(SmartCardChannel.ResponseWait.nearField != .nearFieldRecovery)
     }
 
+    @Test(arguments: [false, true])
+    internal func personalSetupWaitsForPaceBeforeReplacingTheField(isRecovery: Bool) {
+      #expect(
+        CardPriming.responseWait(for: .personal, isRecovery: isRecovery) == .nearFieldRecovery)
+    }
+
+    @Test
+    internal func organizationSetupKeepsItsExplicitRecoveryPolicy() {
+      #expect(CardPriming.responseWait(for: .organization, isRecovery: false) == .nearField)
+      #expect(CardPriming.responseWait(for: .organization, isRecovery: true) == .nearFieldRecovery)
+    }
+
     @Test
     internal func slotNameResolvesToExpectedWaitPolicy() {
       #expect(
