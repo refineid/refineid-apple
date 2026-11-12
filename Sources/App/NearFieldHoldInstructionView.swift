@@ -6,50 +6,45 @@
 
   /// What the holder sees behind the system NFC sheet during a hold.
   ///
-  /// The sheet itself takes no views and covers everything below the
-  /// card, so the instruction lives here: the card fills the top edge
-  /// to edge, with the sentence overlaid on its lower area where the
-  /// sheet cannot cover it. Shown for every hold, whatever operation
-  /// started it.
+  /// The system NFC sheet covers the lower portion of the screen, while
+  /// the card illustration fills the top edge to edge. The instruction
+  /// sentence is centered in the visible gap between the card illustration
+  /// and the top of the system sheet. Shown for every hold, whatever
+  /// operation started it.
   internal struct NearFieldHoldInstructionView: View {
-    private enum Layout {
-      static let captionCornerRadius: CGFloat = 12
-      static let captionHorizontalPadding: CGFloat = 16
-      static let captionScrimOpacity = 0.55
-      static let captionBottomPadding: CGFloat = 12
-      static let textHorizontalPadding: CGFloat = 16
-      static let textVerticalPadding: CGFloat = 10
-    }
-
     internal var body: some View {
-      VStack(spacing: 0) {
-        ZStack(alignment: .bottom) {
+      GeometryReader { geometry in
+        let cardHeight = NearFieldHoldLayout.cardHeight(containerWidth: geometry.size.width)
+
+        VStack(spacing: 0) {
           Image(.identityCardInstruction)
             .resizable()
             .scaledToFit()
+            .frame(width: geometry.size.width, height: cardHeight, alignment: .top)
             .accessibilityHidden(true)
-            .ignoresSafeArea(edges: .top)
-            .frame(maxWidth: .infinity, alignment: .top)
+
+          Spacer(minLength: NearFieldHoldLayout.spacerMinLength)
+
           Text(
             String(
               localized:
                 "Read the identity card by holding it against the back of the phone where the picture shows."
             )
           )
-          .font(.body.weight(.semibold))
-          .foregroundStyle(.white)
+          .font(.body)
+          .foregroundStyle(.primary)
           .multilineTextAlignment(.center)
-          .padding(.horizontal, Layout.textHorizontalPadding)
-          .padding(.vertical, Layout.textVerticalPadding)
-          .background(
-            Color.black.opacity(Layout.captionScrimOpacity),
-            in: RoundedRectangle(cornerRadius: Layout.captionCornerRadius)
-          )
-          .padding(.horizontal, Layout.captionHorizontalPadding)
-          .padding(.bottom, Layout.captionBottomPadding)
+          .minimumScaleFactor(NearFieldHoldLayout.minimumTextScale)
+          .padding(.horizontal, NearFieldHoldLayout.textHorizontalPadding)
+
+          Spacer(minLength: NearFieldHoldLayout.spacerMinLength)
+
+          Color.clear
+            .frame(height: NearFieldHoldLayout.nfcSheetBaseHeight)
         }
-        Spacer(minLength: 0)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
       }
+      .ignoresSafeArea(edges: .top)
       .background(Color(.systemGroupedBackground).ignoresSafeArea())
     }
   }
