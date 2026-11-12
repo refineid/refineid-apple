@@ -42,7 +42,7 @@
       },
       "whatToTest": {
         "ios": "• Set up a card over NFC: check that the app keeps the CAN and retries after a missed scan. Check that an incorrect CAN returns to entry and Cancel stops scanning.\n• Check the shorter QR reader title in English, Finnish and Swedish.\n• Sign and verify documents, and use the card from a paired Mac.",
-        "macos": "• Bluetooth: pair with your iPhone and use its card with no shared network\n• After pairing, the Mac shows that it is connecting to your phone until your name appears\n• Your name stays through a short Bluetooth interruption"
+        "macos": "• Sign and verify PDF and ASiC documents.\n• Use a card in a USB reader, then disconnect and reconnect the reader. If a card read fails before PIN verification, check that the app asks for the PIN again on the next signing attempt.\n• Pair with an iPhone and use its card over the local network or Bluetooth."
       }
     },
     "fi": {
@@ -60,7 +60,7 @@
       },
       "whatToTest": {
         "ios": "• Ota kortti käyttöön NFC:llä: tarkista, että sovellus säilyttää CAN-koodin ja yrittää uudelleen, jos lukeminen ei onnistu. Väärän CAN-koodin pitää palauttaa koodin syöttöön ja Peruuta-painikkeen lopettaa lukeminen.\n• Tarkista QR-lukijan lyhyt otsikko suomeksi, ruotsiksi ja englanniksi.\n• Allekirjoita ja tarkista asiakirjoja sekä käytä korttia yhdistetystä Macista.",
-        "macos": "• Bluetooth: yhdistä iPhoneen ja käytä sen korttia ilman yhteistä verkkoa\n• Yhdistämisen jälkeen Mac näyttää yhdistävänsä puhelimeesi, kunnes nimesi näkyy\n• Nimesi pysyy näkyvissä lyhyen Bluetooth-katkon ajan"
+        "macos": "• Allekirjoita ja tarkista PDF- ja ASiC-asiakirjoja.\n• Käytä korttia USB-lukijassa, irrota lukija ja liitä se uudelleen. Jos kortin lukeminen epäonnistuu ennen PIN-koodin tarkistusta, tarkista, että sovellus pyytää PIN-koodin uudelleen seuraavalla allekirjoitusyrityksellä.\n• Muodosta laitepari iPhonen kanssa ja käytä sen korttia lähiverkon tai Bluetoothin kautta."
       }
     },
     "sv": {
@@ -78,7 +78,7 @@
       },
       "whatToTest": {
         "ios": "• Ställ in kortet med NFC: kontrollera att appen behåller CAN-koden och försöker igen om läsningen misslyckas. Kontrollera att fel CAN öppnar inmatningen och att Avbryt stoppar läsningen.\n• Kontrollera QR-läsarens kortare rubrik på engelska, finska och svenska.\n• Underteckna och granska dokument och använd kortet från en parkopplad Mac.",
-        "macos": "• Bluetooth: koppla till din iPhone och använd dess kort utan gemensamt nätverk\n• Efter kopplingen visar Macen att den ansluter till telefonen tills ditt namn visas\n• Ditt namn ligger kvar under ett kort Bluetooth-avbrott"
+        "macos": "• Underteckna och verifiera PDF- och ASiC-dokument.\n• Använd ett kort i en USB-läsare, koppla från läsaren och anslut den igen. Om kortläsningen misslyckas före PIN-verifieringen, kontrollera att appen ber om PIN-koden igen vid nästa signeringsförsök.\n• Parkoppla med en iPhone och använd dess kort via det lokala nätverket eller Bluetooth."
       }
     }
   }
