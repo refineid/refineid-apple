@@ -188,16 +188,19 @@ Read-only status and certificate inspection remain available when safe.
 
 ### Accepted PIN1 memory
 
-A PIN1 may be held as accepted only after the card has accepted it. The
-token extension holds one value per card in one zeroizing process store,
-keyed by the complete chip serial (never by the CryptoTokenKit token
-instance ID): a candidate the holder typed before the phone's field opened,
-or a PIN the card accepted. On a reader the value dies with the token: card
-removal or reader disconnection. On the phone's field it outlives each
-short-lived token and dies on rejection, revocation, or a counter that is
-no longer at its full allowance. There is no timer. Every reader signature still obtains
-fresh PIN1 retry state and sends VERIFY PIN1; the memory removes repeated
-user entry, not card verification. PIN2 and PUK never enter this memory.
+A PIN1 may be held as accepted only after the card has accepted it and only
+when the counter read before VERIFY is at its full allowance or reports
+verified. The token extension holds one value per card in one zeroizing
+process store, keyed by the complete chip serial (never by the CryptoTokenKit
+token instance ID): a candidate the holder typed before the phone's field
+opened, or a PIN the card accepted. On a reader the value dies with the token
+-- card removal or reader disconnection -- and on a counter that is no longer
+at its full allowance or a counter read that fails. On the phone's field it
+outlives each short-lived token and dies on rejection, revocation, a counter
+that is no longer at its full allowance, or a counter read that fails. There
+is no timer. Every reader and field signature obtains fresh PIN1 retry state
+before VERIFY PIN1; the memory removes repeated user entry, not card
+verification. PIN2 and PUK never enter this memory.
 
 No PIN is ever written to storage on any device: PIN1 is asked for once and
 held only in memory, and PIN2 is asked for every signature or batch (RAPP

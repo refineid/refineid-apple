@@ -24,27 +24,29 @@ internal struct FieldSignature {
 
   /// Probes the PIN1 counter and admits the PIN, or refuses before VERIFY.
   ///
-  /// The probe first decides holding (``Pin1Memory/retain(after:serial:)``):
-  /// one that forbids it drops the accepted value at once, before any
-  /// verdict. The retry floor then refuses a counter it cannot spend. Last,
-  /// a value reused from the dropped memory is not sent: the holder is
-  /// asked instead. Returns the probe.
+  /// The probe first decides holding (``Pin1Memory/probeField(_:serial:spending:)``):
+  /// a failed read or a reading that forbids holding drops the accepted value
+  /// at once, before any verdict. The retry floor then refuses a counter it
+  /// cannot spend. Last, a value reused from the dropped memory is not sent:
+  /// the holder is asked instead. Returns the probe.
   private func admit(
     _ operations: CardOperations,
     origin: AuthorizedPin1.Origin
   ) throws -> RetryProbeOutcome {
-    let probe = try operations.probeRetryCounter(role: .pin1)
-    let mayHold = Pin1Memory.shared.retain(after: probe, serial: token.chipSerial)
-    let verdict = RetryFloor.evaluate(probeOutcome: probe)
-    guard verdict == .proceed else {
+    let spending: PinAdmission.Spending =
+      origin == .acceptedMemory ? .heldPin1 : .entered
+    do {
+      return try Pin1Memory.shared.probeField(
+        operations, serial: token.chipSerial, spending: spending)
+    } catch Pin1Memory.ProbeRefusal.retryFloor(let verdict, _) {
       TokenLog.error("sign: PIN1 retry floor refuses (\(verdict))")
       throw TokenError.signRefused
-    }
-    if !mayHold, origin == .acceptedMemory {
+    } catch Pin1Memory.ProbeRefusal.heldPinUnconfirmed {
       TokenLog.info("sign: PIN1 counter not pristine; reused PIN1 dropped, asking the holder")
       throw TokenError.authenticationRequired
+    } catch Pin1Memory.ProbeRefusal.wrongCard {
+      throw TokenError.signRefused
     }
-    return probe
   }
 
   /// Establishes the contactless channel and signs `request` in it.

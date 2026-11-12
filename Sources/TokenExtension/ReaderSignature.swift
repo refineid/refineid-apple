@@ -38,20 +38,25 @@ internal enum ReaderSignature {
       return try OrganizationSignature.authenticate(
         on: channel, enteredPin: enteredPin, request: request, token: token)
     }
+    let unsealedChannel: any CardChannel
     do {
-      return try performSign(
-        channel: try unsealed(channel, with: unsealing.accessNumber),
-        enteredPin: enteredPin,
-        request: request,
-        token: token
-      )
+      unsealedChannel = try Self.unsealed(channel, with: unsealing.accessNumber)
     } catch PaceEstablishment.Failure.authenticationTokenMismatch {
       token.revokeAutomaticIdentityAfterCanRejection()
       throw TokenError.primeMissing
     } catch PaceEstablishment.Failure.cardRejected(.authenticationFailed) {
       token.revokeAutomaticIdentityAfterCanRejection()
       throw TokenError.primeMissing
+    } catch {
+      Pin1Memory.shared.clearAccepted(serial: token.chipSerial)
+      throw error
     }
+    return try Self.performSign(
+      channel: unsealedChannel,
+      enteredPin: enteredPin,
+      request: request,
+      token: token
+    )
   }
 
   /// The channel to work in: the plain one for a contact card, or a
@@ -111,7 +116,6 @@ internal enum ReaderSignature {
     token: Token
   ) throws -> Data {
     let operations = CardOperations(channel: channel)
-    try operations.selectFineidApplication()
     let serial = token.chipSerial
     let pin1Outcome = try Self.probePin1OfTokenCard(operations, token: token)
 
@@ -213,37 +217,35 @@ internal enum ReaderSignature {
     )
   }
 
-  /// Confirms the card is the one the token was created for, then reads
-  /// only the retry state of the credential this operation spends.
+  /// Selects the FINEID application, confirms the card is the one the token
+  /// was created for, and reads only the retry state of the credential this
+  /// operation spends.
   ///
-  /// The order is: the chip serial check, the PIN1 probe, the holding
-  /// decision, the retry-floor verdict. A card reporting another chip
-  /// serial is a different card and is refused before the probe and any
-  /// PIN-bearing command. The probe then decides holding
-  /// (``Pin1Memory/retain(after:serial:)``): one that forbids it drops the
-  /// accepted PIN of the token's card before the floor's verdict. PIN2 is
-  /// used for qualified signatures and PUK for recovery; reading either
-  /// during authentication adds APDUs and unrelated failure modes without
-  /// protecting PIN1.
+  /// The order is: the application select, the chip serial check, the PIN1
+  /// probe, the holding decision, the retry-floor verdict
+  /// (``Pin1Memory/probeReader(_:serial:)``). Any failed read, another card's
+  /// serial, or a counter that forbids holding drops the accepted PIN of the
+  /// token's card before returning or throwing. PIN2 is used for qualified
+  /// signatures and PUK for recovery; reading either during authentication
+  /// adds APDUs and unrelated failure modes without protecting PIN1.
   private static func probePin1OfTokenCard(
     _ operations: CardOperations,
     token: Token
   ) throws -> RetryProbeOutcome {
-    guard try operations.readChipSerial() == token.chipSerial else {
+    TokenLog.info("sign: PIN1 retry-floor probe")
+    do {
+      return try Pin1Memory.shared.probeReader(operations, serial: token.chipSerial)
+    } catch Pin1Memory.ProbeRefusal.wrongCard {
       TokenLog.error("sign: card in the slot is not the token's card")
       throw TokenError.signRefused
-    }
-    TokenLog.info("sign: PIN1 retry-floor probe")
-    let outcome = try operations.probeRetryCounter(role: .pin1)
-    Pin1Memory.shared.retain(after: outcome, serial: token.chipSerial)
-    let verdict = RetryFloor.evaluate(probeOutcome: outcome)
-    guard verdict == .proceed else {
+    } catch Pin1Memory.ProbeRefusal.retryFloor(let verdict, let outcome) {
       TokenLog.error(
         "sign: PIN1 retry floor refuses (\(verdict)); pin1=\(outcome)"
       )
       throw TokenError.signRefused
+    } catch Pin1Memory.ProbeRefusal.heldPinUnconfirmed {
+      throw TokenError.authenticationRequired
     }
-    return outcome
   }
 
   /// Remembers a freshly entered PIN only after the card accepted it, and
