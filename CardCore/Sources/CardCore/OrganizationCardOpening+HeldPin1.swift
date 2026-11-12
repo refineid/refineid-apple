@@ -81,13 +81,18 @@ extension OrganizationCardOpening {
       ? records.memory.acceptance(of: pin, serial: serial, owner: records.owner) : nil
     let opened: Opened
     do {
-      opened = try Self.pin1(over: channel, pin.consumeForSingleTransmission(), spending: spending)
+      opened = try Self.opened(
+        over: channel,
+        password: PacePassword(pin1: pin.consumeForSingleTransmission(), spending: spending),
+        role: .pin1)
     } catch let failure as PaceEstablishment.Failure {
       throw Self.forget(after: failure, fingerprint: fingerprint, serial: serial, records: records)
+    } catch {
+      records.memory.clearAccepted(serial: serial)
+      throw error
     }
-    if spending == .heldPin1 {
-      records.memory.retain(after: opened.pinState, serial: serial)
-    }
+    records.memory.retain(after: opened.pinState, serial: serial)
+    try opened.operations.selectFineidApplication()
     return Pin1Opening(opened: opened, acceptance: acceptance)
   }
 
@@ -98,7 +103,8 @@ extension OrganizationCardOpening {
   /// a held PIN it does not admit asks the holder. A wrong PIN (`63CX`) is
   /// recorded as refused and the held value dropped; a blocked PIN, and a
   /// handshake the card fails without a counter (`6300`, or a token
-  /// mismatch), drop the held value only.
+  /// mismatch), drop the held value; any other failed read or handshake
+  /// drops the accepted value.
   private static func forget(
     after failure: PaceEstablishment.Failure,
     fingerprint: PinFingerprint,
@@ -121,7 +127,7 @@ extension OrganizationCardOpening {
       records.memory.clear(serial: serial)
 
     default:
-      break
+      records.memory.clearAccepted(serial: serial)
     }
     return failure
   }

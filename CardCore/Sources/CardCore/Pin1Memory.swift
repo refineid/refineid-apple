@@ -149,6 +149,15 @@ public final class Pin1Memory: Sendable {
     }
   }
 
+  /// Drops this card's value when it is accepted, keeping a staged candidate.
+  public func clearAccepted(serial: ChipSerial) {
+    entries.withLock { entries in
+      if entries[serial]?.isAccepted == true {
+        entries[serial] = nil
+      }
+    }
+  }
+
   /// A copy of the PIN this card accepted, or nil when none is held.
   public func checkoutAccepted(serial: ChipSerial) -> Pin1? {
     let copy: ZeroizingDigitStore? = entries.withLock { entries in
@@ -165,11 +174,7 @@ public final class Pin1Memory: Sendable {
   @discardableResult
   public func retain(after probe: RetryProbeOutcome, serial: ChipSerial) -> Bool {
     guard Pin1Retention.permitsHolding(after: probe) else {
-      entries.withLock { entries in
-        if entries[serial]?.isAccepted == true {
-          entries[serial] = nil
-        }
-      }
+      clearAccepted(serial: serial)
       return false
     }
     return true

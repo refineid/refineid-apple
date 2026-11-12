@@ -35,6 +35,10 @@ internal struct OrganizationHeldPin1Tests {
   /// The PIN blocked by the refusal.
   private static let blockedHex = "6983"
 
+  /// MSE:Set AT reports the PIN password deactivated (BSI TR-03110-3
+  /// section B.14.1).
+  private static let passwordDeactivatedHex = "6283"
+
   /// Two AES blocks of nonce, as the organization card sends it.
   private static let nonceHex =
     "000102030405060708090A0B0C0D0E0F" + "F0E1D2C3B4A5968778695A4B3C2D1E0F"
@@ -167,5 +171,38 @@ internal struct OrganizationHeldPin1Tests {
         memory: Pin1Memory(), rejected: RejectedPinMemory(), owner: Pin1Memory.Owner())
     )
     #expect(card.sessionKeys != nil)
+  }
+
+  @Test
+  internal func aThrowingOrRejectedTemplateProbeDropsTheHeldPin() throws {
+    struct DisconnectedChannel: CardChannel {
+      var readChunkLength: ReadChunkLength { .plain }
+
+      func transmit(_: Data) throws -> Data {
+        throw CardOperationError.exchangeUnanswered
+      }
+    }
+
+    let serial = try Self.serial()
+    let memory = try Self.memory(holding: Self.cardPinDigits, serial: serial)
+
+    #expect(throws: CardOperationError.exchangeUnanswered) {
+      _ = try OrganizationCardOpening.pin1(
+        over: DisconnectedChannel(),
+        entered: nil,
+        serial: serial,
+        records: OrganizationCardOpening.Pin1Records(
+          memory: memory, rejected: RejectedPinMemory(), owner: Pin1Memory.Owner())
+      )
+    }
+    #expect(!Self.holds(memory, serial))
+
+    let deactivatedMemory = try Self.memory(holding: Self.cardPinDigits, serial: serial)
+    let deactivatedCard = try Self.card(templateStatus: Self.passwordDeactivatedHex)
+    #expect(throws: PaceEstablishment.Failure.passwordDeactivated) {
+      try Self.openHeld(
+        deactivatedCard, memory: deactivatedMemory, rejected: RejectedPinMemory(), serial: serial)
+    }
+    #expect(!Self.holds(deactivatedMemory, serial))
   }
 }

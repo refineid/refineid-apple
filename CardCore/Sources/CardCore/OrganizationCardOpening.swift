@@ -61,7 +61,7 @@ public enum OrganizationCardOpening {
     try Self.opened(over: channel, password: PacePassword(puk: puk), role: .puk)
   }
 
-  private static func opened(
+  internal static func opened(
     over channel: any CardChannel,
     password: consuming PacePassword,
     role: CredentialRole
