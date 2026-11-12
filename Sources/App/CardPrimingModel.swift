@@ -84,7 +84,7 @@
       cardKind = entry.kind
       if DemoMode.shared.isActive {
         guard let proven = entry.personalAccessNumber() else {
-          failVirtualRegistration(.transportFailure)
+          failVirtualRegistration(.transportFailure(.connectionLost))
           #if DEBUG
             DevErrorLog.report("demonstration setup refused: card mode unsupported", source: .app)
           #endif

@@ -139,8 +139,13 @@
     /// Personal cards use CAN only. Organization cards use the PIN 1
     /// explicitly entered in organization mode to open their channel.
     internal static func prime(cardAccessNumber: String) async -> Outcome {
-      guard let entry = SetupEntry(digits: cardAccessNumber, kind: OrganizationCardStore.kind())
-      else {
+      guard OrganizationCardStore.kind() == .personal else {
+        #if DEBUG
+          DevErrorLog.report("setup refused: CAN offered in organization mode", source: .app)
+        #endif
+        return Self.failure(Failure.pin1Unavailable)
+      }
+      guard let entry = SetupEntry(digits: cardAccessNumber, kind: .personal) else {
         return Self.failure(Failure.cardAccessNumberMissing)
       }
       return await prime(entry: entry, isRecovery: false)

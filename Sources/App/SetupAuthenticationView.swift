@@ -139,7 +139,9 @@
         .lineLimit(1)
         .minimumScaleFactor(Layout.minimumScale)
         #if REFINEID_LOCAL_CARD
-          canScanButton
+          if !organizationMode {
+            canScanButton
+          }
         #endif
       }
       .buttonStyle(.borderless)
