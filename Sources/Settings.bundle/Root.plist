@@ -8,13 +8,13 @@
 			<key>Type</key>
 			<string>PSGroupSpecifier</string>
 			<key>Title</key>
-			<string>Time Stamp</string>
+			<string>Qualified Time Stamping Authority</string>
 		</dict>
 		<dict>
 			<key>Type</key>
 			<string>PSTextFieldSpecifier</string>
 			<key>Title</key>
-			<string>Address</string>
+			<string></string>
 			<key>Key</key>
 			<string>timestampAuthority</string>
 			<key>DefaultValue</key>
@@ -25,6 +25,22 @@
 			<string>No</string>
 			<key>KeyboardType</key>
 			<string>URL</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+			<key>Title</key>
+			<string>Card</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+			<key>Title</key>
+			<string>Organization Card</string>
+			<key>Key</key>
+			<string>organizationCardEnabled</string>
+			<key>DefaultValue</key>
+			<false/>
 		</dict>
 	</array>
 	<key>StringsTable</key>

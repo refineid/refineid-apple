@@ -147,6 +147,50 @@
         }
       }
     },
+    "Change PIN 1": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change PIN 1"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vaihda PIN 1"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Byt PIN 1"
+          }
+        }
+      }
+    },
+    "Change PIN 2": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change PIN 2"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vaihda PIN 2"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Byt PIN 2"
+          }
+        }
+      }
+    },
     "Continue on your phone.": {
       "localizations": {
         "fi": {
@@ -241,6 +285,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Glöm signaturerna"
+          }
+        }
+      }
+    },
+    "Login website": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Login website"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kirjaudu verkkosivulle"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Logga in på webbplatsen"
           }
         }
       }
@@ -373,6 +439,94 @@
           "stringUnit": {
             "state": "translated",
             "value": "Grund PIN 1 angavs, men inte signaturkod 2: %@"
+          }
+        }
+      }
+    },
+    "Read the identity card by holding it against the back of the phone where the picture shows.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read the identity card by holding it against the back of the phone where the picture shows."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lue henkilökortti asettamalla se puhelimen taakse kiinni puhelimeen kuvan osoittamaan kohtaan."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läs identitetskortet genom att hålla det mot telefonens baksida där bilden visar."
+          }
+        }
+      }
+    },
+    "Reset PIN 1": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset PIN 1"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Palauta PIN 1"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Återställ PIN 1"
+          }
+        }
+      }
+    },
+    "Reset PIN 2": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset PIN 2"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Palauta PIN 2"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Återställ PIN 2"
+          }
+        }
+      }
+    },
+    "Sign document": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign document"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allekirjoita asiakirja"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signera dokument"
           }
         }
       }
@@ -953,6 +1107,50 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ange PUK"
+          }
+        }
+      }
+    },
+    "Turn on remote use from the top right corner.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn on remote use from the top right corner."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laita etäkäyttö päälle oikeasta yläreunasta."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slå på fjärråtkomst uppe till höger."
+          }
+        }
+      }
+    },
+    "Verify document": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verify document"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tarkasta asiakirja"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifiera dokument"
           }
         }
       }
@@ -6978,22 +7176,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "(via telefonen)"
-          }
-        }
-      }
-    },
-    "Connect a card reader.": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Liitä kortinlukija."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Anslut en kortläsare."
           }
         }
       }

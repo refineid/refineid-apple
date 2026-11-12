@@ -31,15 +31,11 @@ internal struct CardCredentialsView: View {
     case pinManagement
   }
 
-  /// The scanner button beside the printed digits.
+  /// The badges and buttons the rows share.
   internal enum Layout {
-    internal static let canButtonSize = 44.0
-    internal static let canButtonOuterPadding = -10.0
     internal static let cacheButtonHorizontalPadding: CGFloat = 12
     internal static let cacheButtonVerticalPadding: CGFloat = 6
     internal static let cacheButtonCornerRadius: CGFloat = 8
-    internal static let primaryActionButtonHeight: CGFloat = 50
-    internal static let disabledActionOpacity = 0.3
     internal static let connectedBadgeHorizontalPadding: CGFloat = 8
     internal static let connectedBadgeVerticalPadding: CGFloat = 3
     internal static let connectedBadgeOpacity = 0.15
@@ -78,8 +74,6 @@ internal struct CardCredentialsView: View {
   #endif
   @State internal var cardAccessNumberEntry = ""
 
-  @State internal var isScanning = false
-  @State internal var scannerTorchEnabled = false
   @State internal var registrationReset = false
   @State internal var isRegistered = false
   @State internal var activation: ActivationClassification?
