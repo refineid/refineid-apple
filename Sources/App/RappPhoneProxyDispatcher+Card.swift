@@ -36,9 +36,7 @@
     ) -> Data? {
       switch kind {
       case .readAuthenticationCertificate:
-        return
-          (CardPresence.shared.isReaderCardPresent
-          ? lastReadAuthCertDER : PhoneCardPrime.current?.authenticationCertificate)
+        return PhoneCardPrime.current?.authenticationCertificate
 
       case .readSignatureCertificate:
         return PhoneCardPrime.current?.signatureCertificate
@@ -296,9 +294,9 @@
       operationID: RappOperationIdentifier,
       coordinator: RappConnectionCoordinator
     ) async {
+      let isReader = await MainActor.run { CardPresence.shared.isReaderCardPresent }
       if let der =
-        (CardPresence.shared.isReaderCardPresent
-          ? lastReadAuthCertDER : PhoneCardPrime.current?.authenticationCertificate)
+        (isReader ? lastReadAuthCertDER : PhoneCardPrime.current?.authenticationCertificate)
       {
         await completeIdentity(der, operationID: operationID, coordinator: coordinator)
         return
