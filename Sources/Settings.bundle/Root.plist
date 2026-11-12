@@ -18,7 +18,7 @@
 			<key>Key</key>
 			<string>timestampAuthority</string>
 			<key>DefaultValue</key>
-			<string>http://timestamp.sectigo.com/qualified</string>
+			<string>timestamp.sectigo.com/qualified</string>
 			<key>AutocapitalizationType</key>
 			<string>None</string>
 			<key>AutocorrectionType</key>

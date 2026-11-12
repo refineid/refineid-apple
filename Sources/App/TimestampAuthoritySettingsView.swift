@@ -14,7 +14,7 @@
   internal struct TimestampAuthoritySettingsView: View {
     @State private var address =
       TimestampAuthorityStore.configured(in: .standard)
-      ?? TimestampAuthorityStore.defaultAuthority
+      ?? TimestampAuthorityStore.defaultAddress
 
     internal var body: some View {
       Form {
@@ -28,9 +28,9 @@
             Spacer()
             Button(String(localized: "Restore Defaults")) {
               TimestampAuthorityStore.restoreDefaults(in: .standard)
-              address = TimestampAuthorityStore.defaultAuthority
+              address = TimestampAuthorityStore.defaultAddress
             }
-            .disabled(address == TimestampAuthorityStore.defaultAuthority)
+            .disabled(address == TimestampAuthorityStore.defaultAddress)
           }
         } footer: {
           if !TimestampAuthorityStore.isUsable(address) {

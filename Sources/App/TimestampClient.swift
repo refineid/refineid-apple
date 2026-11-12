@@ -30,7 +30,7 @@ internal enum TimestampClient {
     let effective = TimestampAuthorityStore.load(from: .standard)
     #if DEBUG
       if let configured = TimestampAuthorityStore.configured(in: .standard),
-        configured != effective
+        !TimestampAuthorityStore.isUsable(configured)
       {
         DevErrorLog.report(
           "timestamp: the configured authority is not usable; asking the shipped service",

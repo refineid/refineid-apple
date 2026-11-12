@@ -53,12 +53,12 @@ extension RefineIDApp {
   internal static func startSettingsSweep() {
     #if os(iOS)
       guard !TestCredentialEnvironment.isTestMode else { return }
-      TimestampAuthorityStore.removeBlankEntry(in: .standard)
+      TimestampAuthorityStore.refreshDisplayAddress(in: .standard)
       OrganizationCardStore.synchronize()
       timestampSweepObserver = NotificationCenter.default.addObserver(
         forName: becameActive, object: nil, queue: .main
       ) { _ in
-        TimestampAuthorityStore.removeBlankEntry(in: .standard)
+        TimestampAuthorityStore.refreshDisplayAddress(in: .standard)
         OrganizationCardStore.synchronize()
         #if REFINEID_LOCAL_CARD
           MainActor.assumeIsolated {

@@ -118,7 +118,7 @@
       let field = try #require(fields.first)
       #expect(fields.count == 1)
       #expect(field["Key"] as? String == TimestampAuthorityStore.key)
-      #expect(field["DefaultValue"] as? String == TimestampAuthorityStore.defaultAuthority)
+      #expect(field["DefaultValue"] as? String == TimestampAuthorityStore.defaultAddress)
     }
   }
 

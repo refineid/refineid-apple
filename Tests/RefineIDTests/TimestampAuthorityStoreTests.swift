@@ -95,15 +95,15 @@
     internal func blankSweepRemovesDirectWrites() throws {
       let defaults = try Self.freshDefaults()
       defaults.set("", forKey: TimestampAuthorityStore.key)
-      TimestampAuthorityStore.removeBlankEntry(in: defaults)
+      TimestampAuthorityStore.refreshDisplayAddress(in: defaults)
 
       #expect(defaults.string(forKey: TimestampAuthorityStore.key) == nil)
       defaults.set("   ", forKey: TimestampAuthorityStore.key)
-      TimestampAuthorityStore.removeBlankEntry(in: defaults)
+      TimestampAuthorityStore.refreshDisplayAddress(in: defaults)
 
       #expect(defaults.string(forKey: TimestampAuthorityStore.key) == nil)
       TimestampAuthorityStore.store("https://tsa.example.com/tsa", in: defaults)
-      TimestampAuthorityStore.removeBlankEntry(in: defaults)
+      TimestampAuthorityStore.refreshDisplayAddress(in: defaults)
 
       #expect(
         TimestampAuthorityStore.load(from: defaults) == "https://tsa.example.com/tsa"
@@ -130,7 +130,7 @@
       #expect(TimestampAuthorityStore.isUsable("http://tsa.example.com/tsa"))
       #expect(TimestampAuthorityStore.isUsable("https://tsa.example.com/tsa"))
       #expect(!TimestampAuthorityStore.isUsable(""))
-      #expect(!TimestampAuthorityStore.isUsable("tsa.example.com/tsa"))
+      #expect(TimestampAuthorityStore.isUsable("tsa.example.com/tsa"))
       #expect(!TimestampAuthorityStore.isUsable("ftp://tsa.example.com/tsa"))
       #expect(!TimestampAuthorityStore.isUsable("http:///missing-host"))
       #expect(!TimestampAuthorityStore.isUsable("http://:8080/tsa"))
@@ -162,6 +162,58 @@
         TimestampAuthorityStore.load(from: defaults)
           == TimestampAuthorityStore.defaultAuthority
       )
+    }
+
+    @Test
+    internal func bareAddressResolvesToTheSameHttpService() throws {
+      let defaults = try Self.freshDefaults()
+      defaults.set("tsa.example.com/tsa", forKey: TimestampAuthorityStore.key)
+      #expect(TimestampAuthorityStore.load(from: defaults) == "http://tsa.example.com/tsa")
+      #expect(TimestampAuthorityStore.isUsable("tsa.example.com/tsa"))
+    }
+
+    @Test
+    internal func httpPrefixIsOmittedOnlyFromTheEditingAddress() throws {
+      let defaults = try Self.freshDefaults()
+      TimestampAuthorityStore.store("http://tsa.example.com/tsa", in: defaults)
+      #expect(TimestampAuthorityStore.configured(in: defaults) == "tsa.example.com/tsa")
+      #expect(TimestampAuthorityStore.load(from: defaults) == "http://tsa.example.com/tsa")
+      defaults.set("http://tsa.example.com/tsa", forKey: TimestampAuthorityStore.key)
+      TimestampAuthorityStore.refreshDisplayAddress(in: defaults)
+      #expect(TimestampAuthorityStore.configured(in: defaults) == "tsa.example.com/tsa")
+      #expect(TimestampAuthorityStore.load(from: defaults) == "http://tsa.example.com/tsa")
+    }
+
+    @Test
+    internal func explicitHttpsIsPreservedInTheEditorAndRequest() throws {
+      let defaults = try Self.freshDefaults()
+      TimestampAuthorityStore.store("https://tsa.example.com/tsa", in: defaults)
+      TimestampAuthorityStore.refreshDisplayAddress(in: defaults)
+      #expect(TimestampAuthorityStore.configured(in: defaults) == "https://tsa.example.com/tsa")
+      #expect(TimestampAuthorityStore.load(from: defaults) == "https://tsa.example.com/tsa")
+    }
+
+    @Test
+    internal func defaultDisplayAddressResolvesToTheShippedService() throws {
+      let defaults = try Self.freshDefaults()
+      defaults.set(TimestampAuthorityStore.defaultAddress, forKey: TimestampAuthorityStore.key)
+      #expect(
+        TimestampAuthorityStore.load(from: defaults) == TimestampAuthorityStore.defaultAuthority)
+    }
+
+    @Test
+    internal func urlInThePathDoesNotBecomeTheAddressScheme() throws {
+      let defaults = try Self.freshDefaults()
+      let address = "http://tsa.example.com/tsa?source=https://example.com/"
+      TimestampAuthorityStore.store(address, in: defaults)
+      #expect(TimestampAuthorityStore.load(from: defaults) == address)
+    }
+
+    @Test
+    internal func bareAddressCanIncludeAnExplicitPort() throws {
+      let defaults = try Self.freshDefaults()
+      TimestampAuthorityStore.store("tsa.example.com:8080/tsa", in: defaults)
+      #expect(TimestampAuthorityStore.load(from: defaults) == "http://tsa.example.com:8080/tsa")
     }
 
     /// The client asks a usable service, configured or shipped.
