@@ -8,7 +8,7 @@ internal enum CardSetupReadLoop {
   /// Lets the system release the previous field before another request.
   internal static let retryInterval: Duration = .seconds(1)
 
-  /// Each attempt finishes and releases its field before another can start.
+  /// Each attempt requests field teardown before another can start.
   ///
   /// A cancellation stops the operation without spending another card attempt.
   internal static func run<Outcome>(

@@ -89,6 +89,9 @@
       .navigationBarTitleDisplayMode(.inline)
       .onAppear {
         isEntryFocused = true
+        if organizationMode {
+          entry = ""
+        }
       }
       .onValueChange(of: entry) { typed in
         entry =
