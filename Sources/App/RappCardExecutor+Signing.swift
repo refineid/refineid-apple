@@ -332,7 +332,8 @@
     ) -> Identity? {
       let cachedCertData: Data? = {
         guard allowCache else { return nil }
-        if case .organization(let prime)? = PhoneCardPrime.current {
+        if OrganizationCardStore.kind() == .organization {
+          guard case .organization(let prime)? = PhoneCardPrime.current else { return nil }
           return organizationCertificate(prime, slot: params.slot)
         }
         let stored = PrimeStore.storedIdentities().first

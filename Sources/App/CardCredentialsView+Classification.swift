@@ -15,6 +15,9 @@ extension CardCredentialsView {
         return
       }
     #endif
+    #if os(iOS)
+      guard !organizationCardEnabled else { return }
+    #endif
     guard cardAccessNumberEntry.isEmpty, let stored = model.storedCardAccessNumber else {
       return
     }
@@ -179,8 +182,7 @@ extension CardCredentialsView {
 
   /// Sets the identity up in one hold.
   ///
-  /// The entry is four to twelve digits; the card on the antenna decides
-  /// on the tap whether they are its access number or its PIN 1.
+  /// The selected card kind binds the entry to CAN or PIN 1 before NFC opens.
   internal func connectIdentityCard() {
     #if os(iOS)
       let ready = canReadIdentityCard
@@ -269,11 +271,9 @@ extension CardCredentialsView {
   }
 
   #if REFINEID_LOCAL_CARD && os(iOS)
-    /// The setup entry as typed, still unclassified: the hold decides
-    /// whether it is a personal card's access number or an organization
-    /// card's PIN 1.
+    /// Binds the entry to the selected kind before opening NFC.
     private func takeSetupEntry() -> CardPriming.SetupEntry? {
-      CardPriming.SetupEntry(digits: cardAccessNumberEntry)
+      CardPriming.SetupEntry(digits: cardAccessNumberEntry, kind: OrganizationCardStore.kind())
     }
   #endif
 

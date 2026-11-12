@@ -38,13 +38,13 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   card's card access number, are typed into the six-box field
   (`CodeBoxesField`), never into a plain text field. The field has a
   VoiceOver label.
-- **The iPhone's card access number entry.** The setup entry "Card
-  Access Number (CAN)" is one hidden field of four to twelve digits with
-  the eye, then the camera. The card on the antenna decides on the tap
-  what the digits are: a personal card's access number, which must be
-  six digits, or an organization card's PIN 1. Until then the value is a
-  secret; an organization card's never becomes a card access number and
-  is never stored or shown as one.
+- **The iPhone's setup credential.** The Organization Card setting
+  selects either "Card Access Number (CAN)" for a personal card or
+  "Basic PIN 1" for an organization card. The entry stays hidden unless
+  the holder reveals it. CAN has the camera scanner and completes at
+  six digits; PIN 1 has an explicit start button. The selected kind is
+  bound before NFC opens, and no card response reinterprets the entry.
+  PIN 1 is never stored or shown as a card access number.
 - **Device names.** A device introduces itself in a pairing by the name
   every peer then shows. A computer names its system and its host name,
   "macOS - Mac mini". A phone or a tablet names only itself, "iPhone 15
@@ -96,7 +96,12 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   counters, confirmations ("Confirm Basic PIN 1 change?"), refusals and
   help text, declined in Finnish as the sentence needs
   ("perustunnusluvun 1 vaihto", "allekirjoitustunnuslukua 2 ei asetettu").
-  The PUK is "PUK" in every language.
+  The PUK is "PUK" in every language. The card-management tabs are the
+  one exception: they read "Change PIN 1" (Finnish "Vaihda PIN 1",
+  Swedish "Byt PIN 1") and its three siblings, because the iPhone lays
+  the four tabs out two by two and the full names truncate there. Any
+  change to a tab label is verified by rendering it on a real iPhone in
+  all three languages.
   The activation form, titled "Identity card activation" ("Organisation
   card activation" for an organization card), has three
   groups, headed "Activation PIN", "Basic PIN 1" and "Signature PIN 2"

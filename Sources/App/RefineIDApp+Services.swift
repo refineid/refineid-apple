@@ -45,26 +45,32 @@ extension RefineIDApp {
     }
   #endif
 
-  /// Clears a blank timestamp authority on launch and activation.
+  /// Applies Settings changes on launch and activation.
   ///
-  /// The Settings app writes a cleared field directly, past the
-  /// store; without the sweep the field stays blank instead of
-  /// showing the default again. A blank entry already behaves as
-  /// the default, so removing it changes no signature.
-  internal static func startTimestampSweep() {
+  /// Blank timestamp entries use the default. The NFC card kind is
+  /// shared with the token extension, and serving refreshes its identity
+  /// and held PIN after the holder returns from Settings.
+  internal static func startSettingsSweep() {
     #if os(iOS)
       guard !TestCredentialEnvironment.isTestMode else { return }
-      TimestampAuthorityStore.removeBlankEntry(in: .standard)
+      TimestampAuthorityStore.refreshDisplayAddress(in: .standard)
+      OrganizationCardStore.synchronize()
       timestampSweepObserver = NotificationCenter.default.addObserver(
         forName: becameActive, object: nil, queue: .main
       ) { _ in
-        TimestampAuthorityStore.removeBlankEntry(in: .standard)
+        TimestampAuthorityStore.refreshDisplayAddress(in: .standard)
+        OrganizationCardStore.synchronize()
+        #if REFINEID_LOCAL_CARD
+          MainActor.assumeIsolated {
+            HolderCardServing.availabilityChanged()
+          }
+        #endif
       }
     #endif
   }
 
   internal static func startRemoteServices() {
-    Self.startTimestampSweep()
+    Self.startSettingsSweep()
     // Every message a peer sent that the protocol refuses shows among the
     // development errors, named by its type and the rule it broke.
     #if DEBUG

@@ -21,18 +21,16 @@
     /// A personal card, opened with its card access number.
     case personal(PrimedIdentity)
 
-    /// The prime the phone serves: a personal card's first, else an
-    /// organization card's.
+    /// Only a prime of the kind selected in Settings can be served.
     internal static var current: Self? {
-      if let personal = PrimeStore.storedIdentities().first {
-        return .personal(personal)
-      }
-      return OrganizationPrimeStore.storedPrimes().first.map(Self.organization)
+      OrganizationCardStore.kind().select(
+        personal: { PrimeStore.storedIdentities().first.map(Self.personal) },
+        organization: { OrganizationPrimeStore.storedPrimes().first.map(Self.organization) })
     }
 
-    /// Whether the phone holds any prime.
+    /// Whether the selected kind has a stored prime.
     internal static var isStored: Bool {
-      PrimeStore.storedCount() > 0 || !OrganizationPrimeStore.storedPrimes().isEmpty
+      current != nil
     }
 
     /// The holder the served prime names, formatted as the identity row

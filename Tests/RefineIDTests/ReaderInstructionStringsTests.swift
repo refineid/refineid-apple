@@ -108,9 +108,13 @@ internal struct ReaderInstructionStringsTests {
   @Test
   internal func readerRequestWithRemoteUseOffMatchesInEveryLanguage() throws {
     let strings = try Self.catalog()
-    let key = "Connect a card reader."
-    #expect(try Self.value(for: key, language: "fi", in: strings) == "Liitä kortinlukija.")
-    #expect(try Self.value(for: key, language: "sv", in: strings) == "Anslut en kortläsare.")
+    let key = "Turn on remote use from the top right corner."
+    #expect(
+      try Self.value(for: key, language: "fi", in: strings)
+        == "Laita etäkäyttö päälle oikeasta yläreunasta.")
+    #expect(
+      try Self.value(for: key, language: "sv", in: strings)
+        == "Slå på fjärråtkomst uppe till höger.")
   }
 
   @Test
@@ -159,7 +163,7 @@ internal struct ReaderInstructionStringsTests {
     )
     #expect(notes.contains("RemoteUseSwitch.shared.isOn"))
     #expect(!notes.contains("isReaderConnected"))
-    #expect(identity.contains("Connect a card reader."))
+    #expect(identity.contains("Turn on remote use from the top right corner."))
     let remoteUseFiles = try ["RemoteUseState.swift", "RemoteUseBlockage.swift"].map { name in
       try String(contentsOf: Self.root.appending(path: "Sources/App/\(name)"), encoding: .utf8)
     }

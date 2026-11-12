@@ -1,62 +1,66 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 #if os(macOS)
-
   import Foundation
   import Testing
 
   @testable import CardCore
   @testable import RefineIDTestHost
 
-  /// The setup entry "Card Access Number (CAN)": four to twelve digits that
-  /// become a personal card's access number or an organization card's
-  /// PIN 1 only once the card has named its kind.
+  /// Setup binds the credential to Settings before any card I/O.
   internal struct CardSetupEntryTests {
-    /// A fictitious entry of a personal card's length.
-    private static let sixDigits = "246813"
+    private static let decimalDigits = Array("0123456789")
 
-    /// A fictitious entry of an organization card's shortest PIN 1.
-    private static let fourDigits = "2468"
-
-    /// A fictitious entry of an organization card's longest PIN 1.
-    private static let twelveDigits = "246813579135"
-
-    /// One digit beyond the longest PIN 1.
-    private static let thirteenDigits = twelveDigits + "7"
-
-    @Test(arguments: [fourDigits, sixDigits, twelveDigits])
-    internal func fourToTwelveDigitsAreAnEntry(digits: String) {
-      #expect(CardPriming.SetupEntry(digits: digits) != nil)
-    }
-
-    @Test(arguments: ["246", thirteenDigits, "24681a"])
-    internal func anythingElseIsNoEntry(digits: String) {
-      #expect(CardPriming.SetupEntry(digits: digits) == nil)
+    private static func digits(count: Int) -> String {
+      String(
+        String(repeating: "x", count: count).map { _ in
+          Self.decimalDigits.randomElement() ?? "0"
+        })
     }
 
     @Test
-    internal func onlySixDigitsBecomeAPersonalCardsAccessNumber() throws {
-      let six = try #require(CardPriming.SetupEntry(digits: Self.sixDigits))
-      #expect(six.personalAccessNumber()?.digits == Self.sixDigits)
-      let four = try #require(CardPriming.SetupEntry(digits: Self.fourDigits))
-      #expect(four.personalAccessNumber() == nil)
-      let twelve = try #require(CardPriming.SetupEntry(digits: Self.twelveDigits))
-      #expect(twelve.personalAccessNumber() == nil)
-    }
-
-    @Test(arguments: [fourDigits, sixDigits, twelveDigits])
-    internal func everyEntryBecomesAnOrganizationCardsPin1(digits: String) throws {
-      let entry = try #require(CardPriming.SetupEntry(digits: digits))
-      #expect(entry.organizationPin1() != nil)
-    }
-
-    @Test
-    internal func theEntryReflectsNothing() throws {
-      let entry = try #require(CardPriming.SetupEntry(digits: Self.sixDigits))
+    internal func personalEntryCannotBecomePin1() throws {
+      let accepted = CardPriming.SetupEntry(
+        digits: Self.digits(count: CardAccessNumber.digitCount), kind: .personal)
+      let entry = try #require(accepted)
+      #expect(entry.kind == .personal)
+      #expect(entry.personalAccessNumber() != nil)
+      #expect(entry.organizationPin1() == nil)
       #expect(Mirror(reflecting: entry).children.isEmpty)
-      #expect(!((entry as Any) is CustomStringConvertible))
-      #expect(!((entry as Any) is CardAccessNumber))
+    }
+
+    @Test
+    internal func organizationEntryCannotBecomeCan() throws {
+      let accepted = CardPriming.SetupEntry(
+        digits: Self.digits(count: CardAccessNumber.digitCount), kind: .organization)
+      let entry = try #require(accepted)
+      #expect(entry.kind == .organization)
+      #expect(entry.personalAccessNumber() == nil)
+      #expect(entry.organizationPin1() != nil)
+      #expect(Mirror(reflecting: entry).children.isEmpty)
+    }
+
+    @Test
+    internal func personalModeRejectsOrganizationOnlyEntries() {
+      for count in [Pin1.minimumDigitCount, Pin1.maximumDigitCount] {
+        let accepted = CardPriming.SetupEntry(digits: Self.digits(count: count), kind: .personal)
+        #expect(accepted == nil)
+      }
+    }
+
+    @Test
+    internal func organizationModeAcceptsItsCredentialBounds() {
+      for count in [Pin1.minimumDigitCount, Pin1.maximumDigitCount] {
+        let accepted = CardPriming.SetupEntry(
+          digits: Self.digits(count: count), kind: .organization)
+        #expect(accepted != nil)
+      }
+    }
+
+    @Test(arguments: [ContactlessCardKind.personal, .organization])
+    internal func invalidEntryIsRefused(kind: ContactlessCardKind) {
+      let accepted = CardPriming.SetupEntry(digits: "not a credential", kind: kind)
+      #expect(accepted == nil)
     }
   }
-
 #endif

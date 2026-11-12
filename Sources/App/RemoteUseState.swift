@@ -51,10 +51,10 @@
     internal var symbolName: String {
       switch self {
       case .off:
-        "key.radiowaves.forward.slash"
+        RemoteUseSymbol.disabled
 
       case .waiting, .connected, .blocked:
-        "key.radiowaves.forward"
+        RemoteUseSymbol.enabled
       }
     }
 

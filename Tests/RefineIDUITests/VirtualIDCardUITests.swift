@@ -21,19 +21,19 @@
     }
 
     internal func testScenarioFactoryFreshNFCRoutesThroughGUI() {
-      assertScenario("factory-fresh-nfc", destination: .cardAccessNumber)
+      assertScenario("factory-fresh-nfc", destination: .setupActions)
     }
 
     internal func testScenarioLegacyFactoryFreshNFCRoutesThroughGUI() {
-      assertScenario("legacy-factory-fresh-nfc", destination: .cardAccessNumber)
+      assertScenario("legacy-factory-fresh-nfc", destination: .setupActions)
     }
 
     internal func testScenarioPartialActivationNFCRoutesThroughGUI() {
-      assertScenario("partial-activation-nfc", destination: .cardAccessNumber)
+      assertScenario("partial-activation-nfc", destination: .setupActions)
     }
 
     internal func testScenarioActivatedNFCRoutesThroughGUI() {
-      assertScenario("activated-nfc", destination: .cardAccessNumber)
+      assertScenario("activated-nfc", destination: .setupActions)
     }
 
     internal func testScenarioRegisteredNFCRoutesThroughGUI() {
@@ -66,9 +66,9 @@
       XCTAssertTrue(removeButton.waitForExistence(timeout: UITestApp.appearTimeout))
       removeButton.tap()
 
-      let cardAccessNumber = app.textFields[UITestIdentifiers.cardAccessNumberField]
+      let setupActions = app.buttons[UITestIdentifiers.setupAuthenticate]
       XCTAssertTrue(
-        cardAccessNumber.waitForExistence(timeout: UITestApp.appearTimeout),
+        setupActions.waitForExistence(timeout: UITestApp.appearTimeout),
         "removing the identity did not return to card setup")
       XCTAssertFalse(identity.exists)
     }
@@ -94,7 +94,7 @@
     }
 
     internal func testScenarioAbsentCardRoutesThroughGUI() {
-      assertScenario("absent", destination: .cardAccessNumber)
+      assertScenario("absent", destination: .setupActions)
     }
 
     internal func testFaultPresetNoFaultIsConfiguredThroughGUI() {

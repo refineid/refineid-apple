@@ -67,9 +67,6 @@
       /// What the card said, when it said something the caller can route on.
       internal var refusal: CardSetupRefusal?
 
-      /// The kind of card the hold found, when a card answered.
-      internal var cardKind: ContactlessCardKind?
-
       /// The credential counters this hold read, for the health display and
       /// the recovery route.
       internal var credentialReport: CredentialProbeReport?
@@ -81,11 +78,9 @@
       internal let sheet: NearFieldSheet
       internal let lookup: PrimeLookupIdentifier
 
-      /// What the holder typed, still unclassified.
+      /// The credential bound to the selected card kind.
       internal let entry: SetupEntry
 
-      /// Where the card's first answer is recorded.
-      internal let foundKind: FoundKind
       internal let isRecovery: Bool
     }
 
@@ -141,12 +136,15 @@
     ///
     /// Primes the card the holder is about to present.
     ///
-    /// No PIN is asked for or sent here. The certificate is public and
-    /// needs only the secure channel; PIN 1 is asked for when the card
-    /// first signs, where the counter is read in the same session that
-    /// spends it, and is held only in memory (RAPP v26.11.8 §11 item 2).
+    /// This CAN-only entry point refuses organization mode.
     internal static func prime(cardAccessNumber: String) async -> Outcome {
-      guard let entry = SetupEntry(digits: cardAccessNumber) else {
+      guard OrganizationCardStore.kind() == .personal else {
+        #if DEBUG
+          DevErrorLog.report("setup refused: CAN offered in organization mode", source: .app)
+        #endif
+        return Self.failure(Failure.pin1Unavailable)
+      }
+      guard let entry = SetupEntry(digits: cardAccessNumber, kind: .personal) else {
         return Self.failure(Failure.cardAccessNumberMissing)
       }
       return await prime(entry: entry, isRecovery: false)
@@ -155,10 +153,8 @@
     /// Primes the card on the antenna from what the setup entry holds,
     /// optionally using extended recovery mode for throttled cards.
     ///
-    /// The card's first answer decides what the entry is before any
-    /// password is sent (``ContactlessCardKind``): a personal card's
-    /// access number, which must be six digits, or an organization card's
-    /// PIN 1.
+    /// The entry is already bound to the selected card kind: a personal
+    /// card's access number or an organization card's PIN 1.
     internal static func prime(
       entry: SetupEntry,
       isRecovery: Bool
@@ -167,6 +163,7 @@
       // token the moment the card arrives, and a mark written after that
       // would lose the race. The mark makes the extension publish
       // without taking a card session, leaving the card to this flow.
+      ContactlessCardKindStore.save(entry.kind)
       let marked = PrimeStore.markRegistrationField()
       guard marked == errSecSuccess else {
         #if DEBUG
@@ -196,14 +193,11 @@
       // shown, and it is answered below while that panel is still up: a
       // tone that outlives the sheet is a tone about nothing.
       await CardPrimingFeedback.startWorking()
-      let foundKind = FoundKind()
-      var outcome = await Self.hold(
+      let outcome = await Self.hold(
         session: session,
         sheet: sheet,
         entry: entry,
-        foundKind: foundKind,
         isRecovery: isRecovery)
-      outcome.cardKind = foundKind.value
       await CardPrimingFeedback.report(succeeded: outcome.stored && outcome.registered)
       return outcome
     }
@@ -216,7 +210,6 @@
       session: NearFieldCardSession,
       sheet: NearFieldSheet,
       entry: SetupEntry,
-      foundKind: FoundKind,
       isRecovery: Bool
     ) async -> Outcome {
       guard
@@ -231,7 +224,6 @@
         sheet: sheet,
         lookup: lookup,
         entry: entry,
-        foundKind: foundKind,
         isRecovery: isRecovery)
       return await Self.readStoreRegister(execution: execution)
     }
@@ -277,8 +269,7 @@
       } catch {
         #if DEBUG
           DevErrorLog.report(
-            "setup: hold failed (\(execution.foundKind.value.map { "\($0)" } ?? "no answer")): "
-              + "\(error)",
+            "setup: hold failed: \(error)",
             source: .app)
         #endif
         // The sheet is the only thing a holder can see while holding, so

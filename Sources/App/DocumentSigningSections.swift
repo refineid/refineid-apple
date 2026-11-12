@@ -20,11 +20,14 @@
     @Binding internal var inputs: [DocumentSigningView.Input]
     @Binding internal var format: SignatureFormat
     @Binding internal var pin2: String
+    @Binding internal var cardAccessNumber: String
     @Binding internal var importsDocuments: Bool
     internal let isSigning: Bool
     internal let canSign: Bool
     internal let pin2IsValid: Bool
+    internal let cardAccessNumberIsValid: Bool
     internal let requiresRequesterPIN2: Bool
+    internal let needsCardAccessNumber: Bool
     internal let message: String?
     internal let messageTone: CredentialOutcomeText.Tone
     internal let onCommit: () -> Void
@@ -100,39 +103,79 @@
     }
 
     @ViewBuilder private var credentialSection: some View {
-      if requiresRequesterPIN2 {
+      if requiresRequesterPIN2 || needsCardAccessNumber {
         Section(text("signing.authorization", "Signature authorization")) {
-          CredentialSecretField(
-            name: CredentialLabels.name(for: .pin2),
-            text: $pin2,
-            revealIdentifier: "signingPIN2Reveal",
-            field: {
-              SecureField(
-                CredentialLabels.name(for: .pin2),
-                text: $pin2
-              )
-              .keyboardType(.numberPad)
-              .textContentType(.oneTimeCode)
-              .accessibilityIdentifier("signingPIN2")
-              .onValueChange(of: pin2) { value in
-                pin2 = String(
-                  value.filter(\.isNumber).prefix(Pin2.maximumDigitCount))
-              }
-            },
-            validation: {
-              if !pin2.isEmpty {
-                Image(
-                  systemName: pin2IsValid
-                    ? "checkmark.circle.fill"
-                    : "xmark.circle.fill"
-                )
-                .foregroundStyle(pin2IsValid ? .green : .red)
-                .accessibilityHidden(true)
-              }
-            }
-          )
+          if needsCardAccessNumber {
+            cardAccessNumberField
+          }
+          if requiresRequesterPIN2 {
+            pin2Field
+          }
         }
       }
+    }
+
+    private var cardAccessNumberField: some View {
+      CredentialSecretField(
+        name: String(localized: "Card Access Number (CAN)"),
+        text: $cardAccessNumber,
+        revealIdentifier: "signingCardAccessNumberReveal",
+        field: {
+          SecureField(
+            String(localized: "Card Access Number (CAN)"),
+            text: $cardAccessNumber
+          )
+          .keyboardType(.numberPad)
+          .textContentType(.oneTimeCode)
+          .accessibilityIdentifier("signingCardAccessNumber")
+          .onValueChange(of: cardAccessNumber) { value in
+            cardAccessNumber = LimitedDigits.cardAccessNumber(value)
+          }
+        },
+        validation: {
+          if !cardAccessNumber.isEmpty {
+            Image(
+              systemName: cardAccessNumberIsValid
+                ? "checkmark.circle.fill"
+                : "xmark.circle.fill"
+            )
+            .foregroundStyle(cardAccessNumberIsValid ? .green : .red)
+            .accessibilityHidden(true)
+          }
+        }
+      )
+    }
+
+    private var pin2Field: some View {
+      CredentialSecretField(
+        name: CredentialLabels.name(for: .pin2),
+        text: $pin2,
+        revealIdentifier: "signingPIN2Reveal",
+        field: {
+          SecureField(
+            CredentialLabels.name(for: .pin2),
+            text: $pin2
+          )
+          .keyboardType(.numberPad)
+          .textContentType(.oneTimeCode)
+          .accessibilityIdentifier("signingPIN2")
+          .onValueChange(of: pin2) { value in
+            pin2 = String(
+              value.filter(\.isNumber).prefix(Pin2.maximumDigitCount))
+          }
+        },
+        validation: {
+          if !pin2.isEmpty {
+            Image(
+              systemName: pin2IsValid
+                ? "checkmark.circle.fill"
+                : "xmark.circle.fill"
+            )
+            .foregroundStyle(pin2IsValid ? .green : .red)
+            .accessibilityHidden(true)
+          }
+        }
+      )
     }
 
     private var actionSection: some View {

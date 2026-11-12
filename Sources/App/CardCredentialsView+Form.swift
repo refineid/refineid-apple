@@ -4,6 +4,13 @@ import CardCore
 import SwiftUI
 
 extension CardCredentialsView {
+  #if os(iOS)
+    private enum SetupScreenLayout {
+      static let contentSpacing: CGFloat = 16
+      static let horizontalPadding: CGFloat = 16
+    }
+  #endif
+
   /// The screen's identity area, by mode.
   @ViewBuilder internal var identityArea: some View {
     switch mode {
@@ -24,17 +31,71 @@ extension CardCredentialsView {
     }
   }
 
-  /// The form and its navigation chrome.
+  #if os(iOS)
+    /// The setup screen: its three actions centered, failures beneath.
+    @ViewBuilder internal var setupActionsScreen: some View {
+      VStack(spacing: SetupScreenLayout.contentSpacing) {
+        Spacer(minLength: 0)
+        SetupActionsView()
+        setupFailureContent
+        Spacer(minLength: 0)
+      }
+      .padding(.horizontal, SetupScreenLayout.horizontalPadding)
+      .background(Color(.systemGroupedBackground).ignoresSafeArea())
+    }
+
+    /// The failures a setup hold can leave behind.
+    @ViewBuilder internal var setupFailureContent: some View {
+      #if REFINEID_LOCAL_CARD
+        if let failure = primingModel.failure {
+          CredentialOutcomeText(message: failure, tone: .failure)
+            .accessibilityIdentifier("primeFailureMessage")
+        }
+      #endif
+      if let failure = model.failure {
+        CredentialOutcomeText(message: failure, tone: .failure)
+      }
+    }
+
+    /// The screen's mode content: the regular sections.
+    @ViewBuilder internal var navigationModeContent: some View {
+      signingSection
+      if mode != .remoteOnly {
+        cardSection
+      }
+    }
+  #endif
+
+  /// The screen and its navigation chrome.
   internal var navigationChrome: some View {
+    Group {
+      #if os(iOS)
+        if mode == .setup {
+          setupActionsScreen
+        } else if mode == .holding {
+          NearFieldHoldInstructionView()
+        } else {
+          modeForm
+        }
+      #else
+        modeForm
+      #endif
+    }
+    #if os(iOS)
+      .navigationDestination(item: flowDestination) { destination in
+        destinationView(destination)
+      }
+      .navigationDestination(for: Route.self) { route in
+        routeView(route)
+      }
+    #endif
+  }
+
+  /// The form for every mode but setup.
+  internal var modeForm: some View {
     Form {
       #if os(iOS)
-        if mode != .holding {
-          signingSection
-          if mode != .remoteOnly {
-            cardSection
-            readIdentityCardSection
-          }
-        }
+        navigationModeContent
       #else
         if mode != .holding {
           managementSection
@@ -50,12 +111,6 @@ extension CardCredentialsView {
     #if os(iOS)
       .listSections(spacing: Self.sectionSpacing)
       .scrollDismissesKeyboard(.interactively)
-      .navigationDestination(item: flowDestination) { destination in
-        destinationView(destination)
-      }
-      .navigationDestination(for: Route.self) { route in
-        routeView(route)
-      }
     #endif
   }
 
@@ -87,6 +142,13 @@ extension CardCredentialsView {
         #endif
       }
       #if os(iOS)
+        .onValueChange(of: organizationCardEnabled) { _ in
+          entryKindChangePending = !cardAccessNumberEntry.isEmpty
+          cardAccessNumberEntry = ""
+          model.invalidateCardStatus()
+          refreshRegistration()
+          synchronizeIdentityState()
+        }
         .task(id: readerHolderReadKey) {
           readerHolders = await readerModel?.holderNames() ?? []
         }
@@ -119,6 +181,10 @@ extension CardCredentialsView {
         #endif
       }
       .onValueChange(of: cardAccessNumberEntry) { entered in
+        if entryKindChangePending {
+          entryKindChangePending = false
+          return
+        }
         model.invalidateCardStatus()
         activation = nil
         activationNeeds = nil
@@ -129,7 +195,7 @@ extension CardCredentialsView {
         #if REFINEID_LOCAL_CARD && os(iOS)
           // Emptied after an organization card's hold, the field held
           // its PIN 1, not the stored access number.
-          guard primingModel.cardKind != .organization else { return }
+          guard !organizationCardEnabled, primingModel.cardKind != .organization else { return }
         #endif
         guard entered.isEmpty,
           !isDemonstration,
@@ -149,11 +215,6 @@ extension CardCredentialsView {
         model.invalidateCardStatus()
         isCardAccessNumberFieldFocused = true
       }
-      #if REFINEID_LOCAL_CARD && os(iOS)
-        .sheet(isPresented: $isScanning) {
-          scannerSheet
-        }
-      #endif
   }
 
   internal func forgetCurrentIdentity() {
@@ -182,6 +243,22 @@ extension CardCredentialsView {
 
       case .remoteAccess:
         RappPairingView()
+
+      case .authenticate:
+        SetupAuthenticationView(
+          entry: $cardAccessNumberEntry,
+          organizationMode: organizationCardEnabled,
+          canStart: canReadIdentityCard
+        ) {
+          isCardAccessNumberFieldFocused = false
+          connectIdentityCard()
+        }
+
+      case .signDocuments:
+        DocumentSigningView(
+          transport: hasReaderIdentity ? .reader : .nearField,
+          cardAccessNumber: hasReaderIdentity ? nil : managementCardAccessNumber
+        )
       }
     }
 

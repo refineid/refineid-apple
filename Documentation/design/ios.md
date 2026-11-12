@@ -61,21 +61,52 @@ PACE. Core NFC is also unavailable to extensions and allows one reader
 session in the system, so it would be a second NFC stack beside the slot
 the token extension signs through.
 
+## Time-stamp address in Settings
+
+The authority address is shown without its implicit `http://` prefix.
+A bare address resolves to HTTP; an explicit `https://` stays HTTPS.
+The shipped address remains `timestamp.sectigo.com/qualified`, requested
+from the same HTTP endpoint. Existing HTTP drafts are shown in that
+editing form when the app becomes active. Timestamp token and trusted-list
+verification are unchanged.
+
+The authority and Card group titles come from `Settings.bundle/Root.plist`.
+The "RefineID Settings" prefix is supplied by iOS, as observed in the native
+Settings renderer; it is not application copy. Apple's
+[Settings bundle schema](https://developer.apple.com/documentation/foundation/building-a-settings-bundle-for-your-app#Specify-the-contents-of-each-settings-page)
+defines the supported keys and says the page Title is unused. It does not
+specify the appearance of the generated app-name prefix.
+
 ## Setting a card up
 
-The setup entry is labelled "Card Access Number (CAN)" for every card:
-one hidden field of four to twelve digits, then the eye that shows them,
-then the camera that reads a personal card's six printed digits. A scan
-leaves the field hidden. "Read Identity Card" reads the card on the
-phone's antenna in one hold, and the card decides on that tap what the
-digits are.
+A fresh install offers three actions, each naming its whole job:
+"Verify document" touches no card, while "Sign document" and "Login
+website" both read the card over NFC. The setup screen shows no card
+access number: the number is asked inside the flow that needs it.
+Authentication prompts for it, and a personal card's six digits, typed
+or scanned, start the hold by themselves; the prompt dismisses as the
+hold starts. Signing collects its documents first, then takes the
+number beside PIN 2. An organization card is declared with the
+Organization Card switch in the Settings app; its prompt takes PIN 1
+of four to twelve digits with an explicit start button instead. The
+switch selects the card kind for every NFC operation. Once an identity exists
+the regular sections take over, unchanged.
 
-- **Which card.** The card's first answer, before any password, names
-  its kind: `6985` an organization card, any other answer a personal
-  card.
+- **Which card.** The Organization Card switch selects personal cards
+  when off and organization cards when on. Setup binds the entry to
+  that kind before opening NFC. A card refusal or transport error never
+  changes the credential kind or tries the other path. This is an owner
+  policy; FINEID specifies how each credential opens PACE, not which
+  setting the app must offer.
+- **Stored identity.** Only the selected kind's prime is served. An
+  absent selected prime means no NFC identity, even when the other kind
+  is stored. Switching kinds preserves both stores, clears the entry,
+  updates card presence and releases a held PIN for the previous card.
+  The app shares the choice with its token extension at launch,
+  activation and before setup; the extension mints only that kind.
+  The locked-phone fingerprint cache is separate for each kind.
 - **Personal card.** The entry must be the six digits printed on the
-  card. Any other length ends the hold as an incorrect card access
-  number, with no PACE run and nothing sent. Six digits run PACE, and
+  card. Other entries cannot start a hold. Six digits run PACE, and
   the number is stored once PACE proves it.
 - **Organization card.** The card has no printed number: it opens only
   with PACE and PIN 1 or PIN 2 as the password (FINEID S1 v4.0,
@@ -157,6 +188,15 @@ works.
   its own meter.
 - **Security delay.** During a card's anti-tamper delay at setup, the
   seconds left follow the balls on the second line.
+- **Hold instruction.** The sheet takes no views and covers everything
+  below the card, so while it is up the app behind it shows where to
+  hold the card: the specimen identity card's photo fills the top edge
+  to edge, with the sentence "Read the identity card by holding it
+  against the back of the phone where the picture shows." overlaid on
+  its lower area where the sheet cannot cover it. The same instruction
+  shows for every hold, whatever operation started it. The photo is
+  public domain; the layout and the sentence are verified on the
+  device in Finnish, Swedish and English.
 
 ## A computer that withdraws or forgets the phone
 

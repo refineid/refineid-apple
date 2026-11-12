@@ -7,10 +7,11 @@ extension CardManagementView {
 
   /// The four things this window does to a credential in use.
   ///
-  /// Each is one tab, named in full. The action and the credential
-  /// are read together or not at all: a holder who means PIN 2 must
-  /// not reach PIN 1, and must not have to make two choices to say
-  /// one thing.
+  /// Each is one tab, named short: the iPhone lays the four tabs out
+  /// two by two and the full credential names truncate there. The
+  /// action and the credential are still read together or not at
+  /// all: a holder who means PIN 2 must not reach PIN 1, and must
+  /// not have to make two choices to say one thing.
   ///
   /// Reset rather than unblock: the card resets the retry counter and
   /// takes a new value whether or not the credential was blocked, so
@@ -25,19 +26,24 @@ extension CardManagementView {
     // MARK: Computed Properties
 
     /// The tab's label, naming the action and the credential.
+    ///
+    /// Any change to these labels must be verified by rendering them
+    /// on a real iPhone in Finnish, Swedish and English before it
+    /// ships: the tab grid truncates what does not fit, and no
+    /// catalogue check catches that.
     internal var name: String {
       switch self {
       case .changePin1:
-        String(localized: "Change Basic PIN 1")
+        String(localized: "Change PIN 1")
 
       case .changePin2:
-        String(localized: "Change Signature PIN 2")
+        String(localized: "Change PIN 2")
 
       case .resetPin1:
-        String(localized: "Reset Basic PIN 1")
+        String(localized: "Reset PIN 1")
 
       case .resetPin2:
-        String(localized: "Reset Signature PIN 2")
+        String(localized: "Reset PIN 2")
       }
     }
 

@@ -8,9 +8,8 @@ import SwiftUI
 ///
 /// A personal card's setup takes no PIN: PIN 1 is asked for when the
 /// card first signs and is held only in memory (RAPP v26.11.8 §11 item
-/// 2). An organization card has no printed access number, and its entry
-/// under the same label is its PIN 1, which opens the setup hold's PACE
-/// and is spent there.
+/// 2). Organization mode asks for PIN 1 by name; that credential opens
+/// the setup hold's PACE and is spent there.
 ///
 /// This is the screen that matters, so it is the one the app opens on.
 /// Development builds keep technical state behind the Diagnostics row.
@@ -31,15 +30,11 @@ internal struct CardCredentialsView: View {
     case pinManagement
   }
 
-  /// The scanner button beside the printed digits.
+  /// The badges and buttons the rows share.
   internal enum Layout {
-    internal static let canButtonSize = 44.0
-    internal static let canButtonOuterPadding = -10.0
     internal static let cacheButtonHorizontalPadding: CGFloat = 12
     internal static let cacheButtonVerticalPadding: CGFloat = 6
     internal static let cacheButtonCornerRadius: CGFloat = 8
-    internal static let primaryActionButtonHeight: CGFloat = 50
-    internal static let disabledActionOpacity = 0.3
     internal static let connectedBadgeHorizontalPadding: CGFloat = 8
     internal static let connectedBadgeVerticalPadding: CGFloat = 3
     internal static let connectedBadgeOpacity = 0.15
@@ -78,8 +73,7 @@ internal struct CardCredentialsView: View {
   #endif
   @State internal var cardAccessNumberEntry = ""
 
-  @State internal var isScanning = false
-  @State internal var scannerTorchEnabled = false
+  @State internal var entryKindChangePending = false
   @State internal var registrationReset = false
   @State internal var isRegistered = false
   @State internal var activation: ActivationClassification?
@@ -95,6 +89,9 @@ internal struct CardCredentialsView: View {
   #endif
 
   #if os(iOS)
+    @AppStorage(OrganizationCardStore.key)
+    internal var organizationCardEnabled = false
+
     /// The holder names read from the live reader tokens.
     @State internal var readerHolders: [String] = []
 
@@ -131,7 +128,10 @@ internal struct CardCredentialsView: View {
   /// become available at a personal card's six digits without requiring
   /// an earlier NFC read.
   internal var managementCardAccessNumber: String? {
-    isCardAccessNumberEntryComplete ? cardAccessNumberEntry : nil
+    #if os(iOS)
+      guard !organizationCardEnabled else { return nil }
+    #endif
+    return isCardAccessNumberEntryComplete ? cardAccessNumberEntry : nil
   }
 
   /// The point at which operations using the printed card number can be
@@ -140,11 +140,14 @@ internal struct CardCredentialsView: View {
     cardAccessNumberEntry.count == CardAccessNumber.digitCount
   }
 
-  /// Whether the setup entry can be read: four to twelve digits, an
-  /// organization card's PIN 1 or, checked on the tap, a personal card's
-  /// six.
+  /// Whether the entry is valid for the kind selected in Settings.
   internal var isSetupEntryComplete: Bool {
-    (Pin1.minimumDigitCount...Pin1.maximumDigitCount).contains(cardAccessNumberEntry.count)
+    #if REFINEID_LOCAL_CARD
+      return CardPriming.SetupEntry(
+        digits: cardAccessNumberEntry, kind: OrganizationCardStore.kind()) != nil
+    #else
+      return false
+    #endif
   }
 
   /// Disclosure follows a validated connection, never digit count alone.

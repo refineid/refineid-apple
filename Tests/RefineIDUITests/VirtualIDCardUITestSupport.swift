@@ -8,9 +8,9 @@
   internal enum VirtualIDCardUITestSupport {
     internal enum Destination {
       case activation
-      case cardAccessNumber
       case readerIdentity
       case registeredIdentity
+      case setupActions
     }
 
     internal struct CredentialJourney {

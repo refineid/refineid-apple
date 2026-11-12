@@ -56,8 +56,8 @@
     ) {
       let element: XCUIElement
       switch destination {
-      case .cardAccessNumber:
-        element = app.textFields[UITestIdentifiers.cardAccessNumberField]
+      case .setupActions:
+        element = app.buttons[UITestIdentifiers.setupAuthenticate]
 
       case .activation:
         element = app.buttons[UITestIdentifiers.managementActivate]

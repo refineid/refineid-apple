@@ -36,7 +36,7 @@
     ) -> Data? {
       switch kind {
       case .readAuthenticationCertificate:
-        return lastReadAuthCertDER ?? PhoneCardPrime.current?.authenticationCertificate
+        return PhoneCardPrime.current?.authenticationCertificate
 
       case .readSignatureCertificate:
         return PhoneCardPrime.current?.signatureCertificate
@@ -294,7 +294,10 @@
       operationID: RappOperationIdentifier,
       coordinator: RappConnectionCoordinator
     ) async {
-      if let der = lastReadAuthCertDER ?? PhoneCardPrime.current?.authenticationCertificate {
+      let isReader = await MainActor.run { CardPresence.shared.isReaderCardPresent }
+      if let der =
+        (isReader ? lastReadAuthCertDER : PhoneCardPrime.current?.authenticationCertificate)
+      {
         await completeIdentity(der, operationID: operationID, coordinator: coordinator)
         return
       }
@@ -378,7 +381,7 @@
     }
 
     private func resolvedCardAccessNumber(isReader: Bool) -> String? {
-      guard !isReader else { return nil }
+      guard !isReader, OrganizationCardStore.kind() == .personal else { return nil }
       return CardCredentialStore.displayedCardAccessNumber()
         ?? PrimeStore.storedIdentities().first?.can
     }

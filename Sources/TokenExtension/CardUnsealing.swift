@@ -20,6 +20,18 @@ internal enum CardUnsealing: Sendable {
   /// Spoken to directly, in the clear.
   case plain
 
+  /// The selected NFC policy this token belongs to; nil for a contact card.
+  internal var contactlessKind: ContactlessCardKind? {
+    switch self {
+    case .cardAccessNumber:
+      .personal
+    case .organizationPin:
+      .organization
+    case .plain:
+      nil
+    }
+  }
+
   /// The card access number, when that is what opens the card.
   internal var accessNumber: CardAccessNumber? {
     guard case .cardAccessNumber(let number) = self else { return nil }

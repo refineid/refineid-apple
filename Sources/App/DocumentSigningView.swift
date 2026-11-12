@@ -32,6 +32,7 @@
     @State private var inputs: [Input] = []
     @State private var format: SignatureFormat = .pades
     @State private var pin2 = ""
+    @State private var cardAccessNumberEntry = ""
     @State private var importsDocuments = false
     @State private var exportsDocument = false
     @State private var isSigning = false
@@ -50,11 +51,14 @@
           inputs: $inputs,
           format: $format,
           pin2: $pin2,
+          cardAccessNumber: $cardAccessNumberEntry,
           importsDocuments: $importsDocuments,
           isSigning: isSigning,
           canSign: canSign,
           pin2IsValid: pin2IsValid,
+          cardAccessNumberIsValid: localCardAccessNumberIsValid,
           requiresRequesterPIN2: requiresRequesterPIN2,
+          needsCardAccessNumber: needsLocalCardAccessNumber,
           message: message,
           messageTone: messageTone,
           onCommit: { Task { await sign() } }
@@ -100,12 +104,31 @@
       Pin2(digits: pin2) != nil
     }
 
+    private var localCardAccessNumberIsValid: Bool {
+      CardAccessNumber(digits: cardAccessNumberEntry) != nil
+    }
+
     private var canSign: Bool {
       !isSigning && !inputs.isEmpty && (!requiresRequesterPIN2 || pin2IsValid)
+        && (!needsLocalCardAccessNumber || localCardAccessNumberIsValid)
     }
 
     private var requiresRequesterPIN2: Bool {
       !DocumentSigner.usesRappSigning
+    }
+
+    /// Whether this screen takes the card access number itself.
+    ///
+    /// A citizen card on the phone's own antenna needs its six printed
+    /// digits; a reader holds the card already, a paired phone's card is
+    /// opened on that phone, an organization card's channel is opened by
+    /// PIN 2 with no digits at all, and a demonstration signs with no
+    /// card. Without an identity yet the digits arrive here, beside
+    /// PIN 2, instead of on the setup screen.
+    private var needsLocalCardAccessNumber: Bool {
+      cardAccessNumber == nil && transport == .nearField && requiresRequesterPIN2
+        && !DemoMode.shared.isActive
+        && !OrganizationCardStore.load(from: .standard)
     }
 
     private func importResult(_ result: Result<[URL], Error>) {
@@ -144,8 +167,11 @@
         developmentNotice = nil
       #endif
       let enteredPIN2: String? = requiresRequesterPIN2 ? pin2 : nil
+      let enteredCardAccessNumber: String? =
+        needsLocalCardAccessNumber ? cardAccessNumberEntry : cardAccessNumber
       defer {
         pin2 = ""
+        cardAccessNumberEntry = ""
         isSigning = false
       }
       if DemoMode.shared.isActive {
@@ -153,7 +179,10 @@
         return
       }
       do {
-        let signed = try await signedDocument(pin2: enteredPIN2)
+        let signed = try await signedDocument(
+          pin2: enteredPIN2,
+          cardAccessNumber: enteredCardAccessNumber
+        )
         output = Output(
           document: SignedFileDocument(data: signed.bytes),
           name: SignedDocumentName.suggested(
@@ -174,7 +203,9 @@
     }
 
     /// Signs the imported documents in memory.
-    private func signedDocument(pin2: String?) async throws -> SignedDocument {
+    private func signedDocument(pin2: String?, cardAccessNumber: String?) async throws
+      -> SignedDocument
+    {
       if format == .pades, let input = inputs.first {
         let product = try await DocumentSigner.sign(
           input.data,
@@ -200,54 +231,6 @@
       return SignedDocument(product)
     }
 
-    private func signWithVirtualCard(pin2: String) async {
-      let result = await DemoMode.shared.authorizeQualifiedSignature(pin2: pin2)
-      switch result {
-      case .success:
-        finishSuccessfully()
-
-      case .invalidEntry:
-        showFailure(
-          text("error.pin2Format", "Signature PIN 2 must contain 6 to 12 digits."))
-
-      case .blocked:
-        showFailure(
-          text(
-            "error.pin2Blocked",
-            "Signature PIN 2 is blocked. Reset it in PIN settings."))
-
-      case .rejected(let remaining):
-        showFailure(
-          text("error.pin2Incorrect", "Signature PIN 2 is incorrect.")
-            + "\n"
-            + String(
-              format: text(
-                "error.attempts",
-                "You have %d attempts remaining."),
-              Int(remaining)))
-
-      case .refusedLowAttempts(let remaining):
-        showFailure(
-          text("error.operationRefused", "Operation refused.")
-            + "\n"
-            + String(
-              format: text(
-                "error.attempts",
-                "You have %d attempts remaining."),
-              Int(remaining)))
-
-      case .certificateUnavailable:
-        showFailure(
-          text(
-            "error.signatureCertificate",
-            "The signature certificate is unavailable."))
-
-      case .transportFailure:
-        showFailure(
-          text("error.connection", "The card connection was lost."))
-      }
-    }
-
     private func seedVirtualRequestIfNeeded() {
       guard DemoMode.shared.isActive,
         DemoMode.shared.state.device.pendingSigningRequest,
@@ -263,14 +246,14 @@
       format = .pades
     }
 
-    private func showFailure(_ value: String) {
+    internal func showFailure(_ value: String) {
       messageTone = .failure
       message = value
     }
 
     /// A saved or demonstrated signature returns to the front page;
     /// only a failure keeps this screen, with its message.
-    private func finishSuccessfully() {
+    internal func finishSuccessfully() {
       message = nil
       if output != nil {
         exportsDocument = true
@@ -279,7 +262,7 @@
       }
     }
 
-    private func text(
+    internal func text(
       _ key: StaticString,
       _ fallback: String.LocalizationValue
     ) -> String {

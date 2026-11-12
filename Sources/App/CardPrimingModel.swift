@@ -51,7 +51,7 @@
     /// asking for the card again.
     @Published internal private(set) var refusal: CardSetupRefusal?
 
-    /// The kind of card the last hold found, when a card answered.
+    /// The credential kind selected for the last setup attempt.
     @Published internal private(set) var cardKind: ContactlessCardKind?
 
     /// The credential counters the last hold read.
@@ -76,14 +76,20 @@
 
     /// Primes the card on the antenna from what the setup entry holds.
     ///
-    /// The card's first answer decides whether the entry is a personal
-    /// card's access number or an organization card's PIN 1. A personal
+    /// The selected kind binds the entry to CAN or PIN 1. A personal
     /// card's setup sends no PIN: PIN 1 is asked for when it first signs
     /// (RAPP v26.11.8 §11 item 2).
     internal func prime(entry: CardPriming.SetupEntry) async {
       guard !isRunning else { return }
+      cardKind = entry.kind
       if DemoMode.shared.isActive {
-        guard let proven = entry.personalAccessNumber() else { return }
+        guard let proven = entry.personalAccessNumber() else {
+          failVirtualRegistration(.transportFailure(.connectionLost))
+          #if DEBUG
+            DevErrorLog.report("demonstration setup refused: card mode unsupported", source: .app)
+          #endif
+          return
+        }
         await primeVirtualCard(cardAccessNumber: proven.digits)
         return
       }
@@ -93,7 +99,6 @@
       lastRunResult = .notRun
       failure = nil
       refusal = nil
-      cardKind = nil
       credentialReport = nil
       let isRecovery = isRecoveryModeNext
       // The meter on the system NFC sheet carries progress; the holder
@@ -103,7 +108,6 @@
       // in `CardPriming`; nothing here makes a noise after it closed. A
       // hold the holder cancelled never got as far as a sound at all.
       refusal = outcome.refusal
-      cardKind = outcome.cardKind
       credentialReport = outcome.credentialReport
       if outcome.cancelled {
         lastRunResult = .notRun

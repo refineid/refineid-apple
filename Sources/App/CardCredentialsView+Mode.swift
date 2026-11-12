@@ -19,11 +19,17 @@ extension CardCredentialsView {
 
   /// Where a row leads when nothing has to happen first.
   ///
-  /// Sign and PIN management are not routes: both classify the card
-  /// before they open, so the flow state carries their destination.
+  /// PIN management is not a route: it classifies the card before it
+  /// opens, so the flow state carries its destination, and signing
+  /// from an identity travels that way too. Signing from setup is a
+  /// plain route instead: a flow-state destination re-presents itself
+  /// after the system back button, which would cover whatever opens
+  /// next.
   internal enum Route: Hashable {
     case verifyDocuments
     case remoteAccess
+    case authenticate
+    case signDocuments
   }
 
   /// The one thing the screen is showing.

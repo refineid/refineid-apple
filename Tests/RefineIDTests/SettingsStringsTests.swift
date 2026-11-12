@@ -13,8 +13,9 @@
     /// One language's expected Settings titles.
     private struct TitleRow {
       let language: String
-      let stamp: String
-      let address: String
+      let authority: String
+      let card: String
+      let organization: String
     }
 
     private static var catalog: URL {
@@ -59,7 +60,9 @@
       }
     }
 
-    /// Each Settings language carries the group and field titles.
+    /// Each Settings language carries the group titles.
+    ///
+    /// The address field carries no title: the URL takes the whole row.
     @Test
     internal func settingsBundleTitlesAreTranslated() throws {
       let bundle = Self.catalog
@@ -67,17 +70,34 @@
         .deletingLastPathComponent()
         .appending(path: "Settings.bundle")
       for row in [
-        TitleRow(language: "en", stamp: "Time Stamp", address: "Address"),
-        TitleRow(language: "fi", stamp: "Aikaleima", address: "Osoite"),
-        TitleRow(language: "sv", stamp: "Tidsstämpel", address: "Adress"),
+        TitleRow(
+          language: "en",
+          authority: "Qualified Time Stamping Authority",
+          card: "Card",
+          organization: "Organization Card"
+        ),
+        TitleRow(
+          language: "fi",
+          authority: "Hyväksytty aikaleimavarmentaja",
+          card: "Kortti",
+          organization: "Organisaatiokortti"
+        ),
+        TitleRow(
+          language: "sv",
+          authority: "Kvalificerad tidsstämplingsauktoritet",
+          card: "Kort",
+          organization: "Organisationskort"
+        ),
       ] {
         let strings = bundle.appending(path: "\(row.language).lproj/Root.strings")
         let data = try Data(contentsOf: strings)
         let table = try #require(
           PropertyListSerialization.propertyList(from: data, format: nil) as? [String: String]
         )
-        #expect(table["Time Stamp"] == row.stamp)
-        #expect(table["Address"] == row.address)
+        #expect(table["Qualified Time Stamping Authority"] == row.authority)
+        #expect(table["Card"] == row.card)
+        #expect(table["Organization Card"] == row.organization)
+        #expect(table["Address"] == nil)
       }
     }
 
@@ -98,7 +118,7 @@
       let field = try #require(fields.first)
       #expect(fields.count == 1)
       #expect(field["Key"] as? String == TimestampAuthorityStore.key)
-      #expect(field["DefaultValue"] as? String == TimestampAuthorityStore.defaultAuthority)
+      #expect(field["DefaultValue"] as? String == TimestampAuthorityStore.defaultAddress)
     }
   }
 

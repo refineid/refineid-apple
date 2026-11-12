@@ -113,18 +113,21 @@
 
     @MainActor
     internal func connect(accessNumber: String, in app: XCUIApplication) {
-      let field = app.textFields[UITestIdentifiers.cardAccessNumberField]
+      let auth = app.buttons[UITestIdentifiers.setupAuthenticate]
+      XCTAssertTrue(auth.waitForExistence(timeout: UITestApp.appearTimeout))
+      auth.tap()
+      let field = app.secureTextFields[UITestIdentifiers.cardAccessNumberField]
       XCTAssertTrue(field.waitForExistence(timeout: UITestApp.appearTimeout))
       focusAndType(field, value: accessNumber, in: app)
-      let cache = app.buttons[UITestIdentifiers.primeStartButton]
-      let enabled = XCTNSPredicateExpectation(
-        predicate: NSPredicate(format: "enabled == true"),
-        object: cache)
+      // A complete entry starts the hold by itself and dismisses the
+      // prompt with it.
+      let dismissed = XCTNSPredicateExpectation(
+        predicate: NSPredicate(format: "exists == false"),
+        object: field)
       XCTAssertEqual(
-        XCTWaiter.wait(for: [enabled], timeout: UITestApp.appearTimeout),
+        XCTWaiter.wait(for: [dismissed], timeout: UITestApp.appearTimeout),
         .completed,
-        "Cache is disabled for a complete CAN")
-      cache.tap()
+        "a complete entry did not start the hold by itself")
     }
 
     @MainActor

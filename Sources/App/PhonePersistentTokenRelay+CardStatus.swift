@@ -24,7 +24,14 @@
     }
 
     /// Where the primed card's fingerprint is kept for the locked phone.
-    private static let primedFingerprintKey = "fi.refineid.rapp.primed-card-fingerprint"
+    private static var primedFingerprintKey: String {
+      switch OrganizationCardStore.kind() {
+      case .personal:
+        "fi.refineid.rapp.primed-personal-card-fingerprint"
+      case .organization:
+        "fi.refineid.rapp.primed-organization-card-fingerprint"
+      }
+    }
 
     /// The card the phone holds now, by the fingerprint of its
     /// authentication certificate; nil while it holds none, or one whose

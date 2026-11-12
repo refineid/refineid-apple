@@ -4,9 +4,6 @@ import CardCore
 import SwiftUI
 
 extension CardCredentialsView {
-  /// How far the setup entry's label may shrink to fit its row.
-  private static let setupEntryMinimumScale = 0.6
-
   #if os(iOS)
     private var verifyRow: some View {
       NavigationLink(value: Route.verifyDocuments) {
@@ -71,7 +68,8 @@ extension CardCredentialsView {
       Section {
         switch mode {
         case .setup:
-          cardAccessNumberRow
+          // Setup renders the three setup actions instead of this section.
+          EmptyView()
 
         case .identity, .readerIdentity:
           if SupportedCardTransports.servesRemoteCards {
@@ -111,7 +109,7 @@ extension CardCredentialsView {
       NavigationLink(value: Route.remoteAccess) {
         MenuRow(
           String(localized: "Remote Access"),
-          systemImage: "antenna.radiowaves.left.and.right",
+          systemImage: remoteAccessSymbolName,
           tint: remoteAccessTint
         ) {
           if isActivelyConnected {
@@ -120,6 +118,11 @@ extension CardCredentialsView {
         }
       }
       .accessibilityIdentifier("RappPairingRow")
+    }
+
+    /// The Mac switch's symbol, slashed while remote use is off.
+    private var remoteAccessSymbolName: String {
+      remoteAccessEnabled ? RemoteUseSymbol.enabled : RemoteUseSymbol.disabled
     }
 
     private var remoteAccessTint: Color {
@@ -142,16 +145,6 @@ extension CardCredentialsView {
         .clipShape(Capsule())
     }
 
-    @ViewBuilder internal var readIdentityCardSection: some View {
-      if mode == .setup {
-        Section {
-          readIdentityCardButton
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
-        }
-      }
-    }
-
     internal var readerIdentitySection: some View {
       CardReaderIdentitySection(holders: readerHolders)
     }
@@ -168,130 +161,21 @@ extension CardCredentialsView {
       EmptyView()
     #else
       Section {
-        cardAccessNumberRow
+        TextField(
+          "Card Access Number (CAN)",
+          text: $cardAccessNumberEntry
+        )
+        .font(.body)
+        // A macOS form field otherwise gives VoiceOver its title only as
+        // placeholder text.
+        .accessibilityLabel(Text("Card Access Number (CAN)"))
+        .accessibilityIdentifier("cardAccessNumberField")
+        .onValueChange(of: cardAccessNumberEntry) { typed in
+          cardAccessNumberEntry = LimitedDigits.cardAccessNumber(typed)
+        }
       } header: {
         CompactSectionHeader(title: String(localized: "Connect"))
       }
     #endif
   }
-
-  @ViewBuilder internal var cardAccessNumberRow: some View {
-    #if os(iOS)
-      setupEntryRow
-    #else
-      TextField(
-        "Card Access Number (CAN)",
-        text: $cardAccessNumberEntry
-      )
-      .font(.body)
-      // A macOS form field otherwise gives VoiceOver its title only as
-      // placeholder text.
-      .accessibilityLabel(Text("Card Access Number (CAN)"))
-      .accessibilityIdentifier("cardAccessNumberField")
-      .onValueChange(of: cardAccessNumberEntry) { typed in
-        cardAccessNumberEntry = LimitedDigits.cardAccessNumber(typed)
-      }
-    #endif
-  }
-
-  #if os(iOS)
-    /// The setup entry "Card Access Number (CAN)": four to twelve digits,
-    /// hidden behind the eye, then the camera that reads a personal card's
-    /// six printed digits.
-    ///
-    /// What the digits are is decided on the tap, by the card on the
-    /// antenna: a personal card's six-digit access number, or an
-    /// organization card's PIN 1. Until then the entry is a secret, so it
-    /// is hidden like every PIN, and a scan leaves it hidden too.
-    private var setupEntryRow: some View {
-      HStack {
-        PersonRowLabel.cardIcon(
-          systemName: "person.text.rectangle",
-          lit: isSetupEntryComplete
-        )
-        CredentialSecretField(
-          name: String(localized: "Card Access Number (CAN)"),
-          text: $cardAccessNumberEntry,
-          revealIdentifier: "cardAccessNumberReveal"
-        ) {
-          SecureField(
-            String(localized: "Card Access Number (CAN)"),
-            text: $cardAccessNumberEntry
-          )
-          .font(.body)
-          .keyboardType(.numberPad)
-          .textContentType(.oneTimeCode)
-          .focused($isCardAccessNumberFieldFocused)
-          .accessibilityIdentifier("cardAccessNumberField")
-          .onValueChange(of: cardAccessNumberEntry) { typed in
-            cardAccessNumberEntry = LimitedDigits.pin(typed)
-          }
-        }
-        // The label shrinks to fit beside the eye and the camera rather
-        // than being cut off.
-        .lineLimit(1)
-        .minimumScaleFactor(Self.setupEntryMinimumScale)
-        #if REFINEID_LOCAL_CARD && os(iOS)
-          canScanButton
-        #endif
-      }
-      .buttonStyle(.borderless)
-    }
-  #endif
-
-  #if REFINEID_LOCAL_CARD && os(iOS)
-    @ViewBuilder private var canScanButton: some View {
-      if CardAccessNumberScanner.isAvailable {
-        Button {
-          scannerTorchEnabled = false
-          isScanning = true
-        } label: {
-          Label("Scan", systemImage: "camera")
-            .labelStyle(.iconOnly)
-        }
-        .buttonStyle(.borderless)
-        .frame(width: Layout.canButtonSize, height: Layout.canButtonSize)
-        .contentShape(Rectangle())
-        .padding(Layout.canButtonOuterPadding)
-      }
-    }
-  #endif
-
-  #if os(iOS)
-    private var readIdentityCardButton: some View {
-      Button {
-        isCardAccessNumberFieldFocused = false
-        connectIdentityCard()
-      } label: {
-        Label(
-          String(localized: "Read Identity Card"),
-          systemImage: "person.badge.key.fill"
-        )
-        .font(.body.weight(.semibold))
-        .foregroundStyle(.white)
-        .frame(maxWidth: .infinity)
-        .frame(height: Layout.primaryActionButtonHeight)
-        .background(
-          canReadIdentityCard
-            ? Color.accentColor : Color.secondary.opacity(Layout.disabledActionOpacity),
-          in: Capsule()
-        )
-        .contentShape(Capsule())
-      }
-      .buttonStyle(.borderless)
-      .disabled(!canReadIdentityCard)
-      .accessibilityIdentifier("primeStartButton")
-    }
-  #endif
-
-  #if REFINEID_LOCAL_CARD && os(iOS)
-    internal var scannerSheet: some View {
-      ScannerSheet(
-        torchEnabled: $scannerTorchEnabled,
-        isScanning: $isScanning
-      ) { digits in
-        cardAccessNumberEntry = digits
-      }
-    }
-  #endif
 }
