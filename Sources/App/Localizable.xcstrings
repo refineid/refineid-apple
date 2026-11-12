@@ -5131,16 +5131,22 @@
     },
     "Scan card QR code": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read QR code"
+          }
+        },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skannaa kortin QR-koodi"
+            "value": "Lue QR-koodi"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skanna kortets QR-kod"
+            "value": "Läs QR-kod"
           }
         }
       }

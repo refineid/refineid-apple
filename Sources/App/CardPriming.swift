@@ -64,6 +64,9 @@
       /// tone.
       internal var cancelled: Bool = false
 
+      /// A new field can recover this transport failure without changing CAN.
+      internal var retryable: Bool = false
+
       /// What the card said, when it said something the caller can route on.
       internal var refusal: CardSetupRefusal?
 
@@ -235,6 +238,7 @@
         registered: false,
         summary: Self.summary(for: error),
         cancelled: (error as? NearFieldCardSession.Failure) == .dismissed,
+        retryable: Self.canRetryRead(after: error),
         refusal: Self.refusal(for: error))
     }
 

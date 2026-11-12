@@ -10,10 +10,10 @@
   /// A personal card's six digits start the hold on their own, typed or
   /// scanned, with the entry field accompanied by card specimen guidance.
   /// An organization card's PIN 1 runs four to twelve digits and keeps its
-  /// start button; only its longest length starts by itself. The prompt
-  /// always opens empty, so every completion is a fresh edit that
-  /// starts the hold, and dismisses itself as the hold starts, leaving
-  /// the hold instruction behind the system sheet.
+  /// start button; only its longest length starts by itself. A retained
+  /// entry can be read again with the same start button. The prompt
+  /// dismisses as the hold starts, leaving the hold instruction behind
+  /// the system sheet.
   internal struct SetupAuthenticationView: View {
     private enum Layout {
       static let buttonHeight: CGFloat = 50
@@ -73,6 +73,9 @@
               )
               .padding(.top, Layout.contentSpacing)
               entryCard
+              if canStart {
+                startButton
+              }
               Spacer(minLength: 0)
             }
           }
@@ -86,13 +89,7 @@
       .navigationBarTitleDisplayMode(.inline)
       .onAppear {
         isEntryFocused = true
-        // A complete entry opens empty: whatever is typed next starts
-        // the hold, and no reopened prompt can strand the holder with
-        // digits that start nothing.
-        if SetupAuthenticationFlow.shouldBeginHold(
-          entry: entry,
-          organizationMode: organizationMode
-        ) {
+        if organizationMode {
           entry = ""
         }
       }

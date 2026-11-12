@@ -108,6 +108,17 @@ the regular sections take over, unchanged.
 - **Personal card.** The entry must be the six digits printed on the
   card. Other entries cannot start a hold. Six digits run PACE, and
   the number is stored once PACE proves it.
+- **Interrupted personal-card setup.** A missed card, busy reader, lost
+  connection or timed-out exchange keeps setup running with the same
+  entered CAN in memory. Each field ends before the next scan starts;
+  scanning continues until registration succeeds or the holder cancels.
+  Personal setup uses the extended response budget from its first attempt,
+  allowing PACE to answer before the app replaces the field; the system
+  can still end the NFC session earlier.
+  A card response rejecting the CAN clears it and reopens CAN entry.
+  Activation, storage and malformed-card failures keep their own routes.
+  Reopening entry after cancellation preserves its digits and offers
+  "Read Identity Card". Organization-card PIN attempts are not retried.
 - **Organization card.** The card has no printed number: it opens only
   with PACE and PIN 1 or PIN 2 as the password (FINEID S1 v4.0,
   organizational cards, section 2.1), so the entry is its PIN 1. PACE

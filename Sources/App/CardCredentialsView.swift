@@ -89,6 +89,8 @@ internal struct CardCredentialsView: View {
   #endif
 
   #if os(iOS)
+    @State internal var isCorrectingCardAccessNumber = false
+
     @AppStorage(OrganizationCardStore.key)
     internal var organizationCardEnabled = false
 

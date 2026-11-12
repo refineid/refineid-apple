@@ -88,6 +88,9 @@ extension CardCredentialsView {
       .navigationDestination(for: Route.self) { route in
         routeView(route)
       }
+      .navigationDestination(isPresented: $isCorrectingCardAccessNumber) {
+        routeView(.authenticate)
+      }
     #endif
   }
 
