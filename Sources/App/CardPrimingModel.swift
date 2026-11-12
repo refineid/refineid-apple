@@ -51,7 +51,7 @@
     /// asking for the card again.
     @Published internal private(set) var refusal: CardSetupRefusal?
 
-    /// The kind of card the last hold found, when a card answered.
+    /// The credential kind selected for the last setup attempt.
     @Published internal private(set) var cardKind: ContactlessCardKind?
 
     /// The credential counters the last hold read.

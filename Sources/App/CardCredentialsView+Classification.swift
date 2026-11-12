@@ -182,8 +182,7 @@ extension CardCredentialsView {
 
   /// Sets the identity up in one hold.
   ///
-  /// The entry is four to twelve digits; the card on the antenna decides
-  /// on the tap whether they are its access number or its PIN 1.
+  /// The selected card kind binds the entry to CAN or PIN 1 before NFC opens.
   internal func connectIdentityCard() {
     #if os(iOS)
       let ready = canReadIdentityCard

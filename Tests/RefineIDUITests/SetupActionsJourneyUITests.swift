@@ -37,6 +37,12 @@
       XCTAssertTrue(app.buttons[UITestIdentifiers.primeStartButton].exists)
       XCTAssertTrue(field.label.contains("PIN 1"))
       app.navigationBars.buttons.firstMatch.tap()
+      openEditor(in: app)
+      let pending = app.buttons["virtualCardSigningPending"]
+      scrollTo(pending, in: app)
+      XCTAssertTrue(pending.waitForExistence(timeout: UITestApp.appearTimeout))
+      pending.tap()
+      applyEditor(in: app)
       app.buttons[UITestIdentifiers.signDocuments].tap()
       XCTAssertTrue(
         app.secureTextFields["signingPIN2"].waitForExistence(timeout: UITestApp.appearTimeout))

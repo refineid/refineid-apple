@@ -136,8 +136,7 @@
     ///
     /// Primes the card the holder is about to present.
     ///
-    /// Personal cards use CAN only. Organization cards use the PIN 1
-    /// explicitly entered in organization mode to open their channel.
+    /// This CAN-only entry point refuses organization mode.
     internal static func prime(cardAccessNumber: String) async -> Outcome {
       guard OrganizationCardStore.kind() == .personal else {
         #if DEBUG

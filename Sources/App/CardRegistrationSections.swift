@@ -139,8 +139,8 @@
     ///
     /// One hold does the whole thing: the access number is proved by PACE
     /// inside it, and it is not written to this device until that hold has
-    /// produced a registered identity. PIN 1 is asked for when the card
-    /// first signs, never here (RAPP v26.11.8 §11 item 2).
+    /// produced a registered identity. A personal card's PIN 1 is asked
+    /// for when it first signs (RAPP v26.11.8 §11 item 2).
     ///
     /// An organization card's entry is its PIN 1, which opens the card and
     /// is never stored: only a personal card's access number is committed.

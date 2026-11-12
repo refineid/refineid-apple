@@ -8,9 +8,8 @@ import SwiftUI
 ///
 /// A personal card's setup takes no PIN: PIN 1 is asked for when the
 /// card first signs and is held only in memory (RAPP v26.11.8 §11 item
-/// 2). An organization card has no printed access number, and its entry
-/// under the same label is its PIN 1, which opens the setup hold's PACE
-/// and is spent there.
+/// 2). Organization mode asks for PIN 1 by name; that credential opens
+/// the setup hold's PACE and is spent there.
 ///
 /// This is the screen that matters, so it is the one the app opens on.
 /// Development builds keep technical state behind the Diagnostics row.
