@@ -68,13 +68,12 @@
               startButton
               Spacer(minLength: 0)
             } else {
-              entryCard
-                .padding(.top, Layout.contentSpacing)
-              Spacer(minLength: Layout.contentSpacing)
               CardAccessNumberGuidanceView(
                 containerWidth: max(0, geometry.size.width - Layout.totalHorizontalPadding)
               )
-              .padding(.bottom, Layout.contentSpacing)
+              .padding(.top, Layout.contentSpacing)
+              entryCard
+              Spacer(minLength: 0)
             }
           }
           .frame(minHeight: geometry.size.height)
