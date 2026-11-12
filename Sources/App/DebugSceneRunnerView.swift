@@ -45,10 +45,12 @@
             await Self.run(mode)
           }
         #else
-          .task(id: scenePhase) {
+          .onChange(of: scenePhase, initial: true) {
             guard mode != .activationProbe, scenePhase == .active, !hasStarted else { return }
             hasStarted = true
-            await Self.run(mode)
+            // The system NFC sheet can make the scene inactive. The probe
+            // owns its task until it reports a result.
+            Task { await Self.run(mode) }
           }
         #endif
     }
