@@ -60,6 +60,11 @@
         filter: LimitedDigits.cardAccessNumber)
       #expect(edit == CodeBoxesField.Edit(text: "123456", completes: true))
     }
+
+    @Test
+    internal func initialFieldFocusSettleCompletes() async {
+      await InitialFieldFocus.settle()
+    }
   }
 
 #endif

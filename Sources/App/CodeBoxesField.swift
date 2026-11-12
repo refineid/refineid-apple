@@ -131,6 +131,16 @@
           withAnimation { shakes += 1 }
         }
       }
+      .task {
+        // Yields for the window to settle and become key so the first box
+        // receives keyboard focus when the field appears.
+        await InitialFieldFocus.settle()
+        focused = true
+      }
+      .onChange(of: isEnabled) { _, enabled in
+        guard enabled else { return }
+        focused = true
+      }
       .onChange(of: refused) { _, isRefused in
         guard isRefused else { return }
         focused = true
