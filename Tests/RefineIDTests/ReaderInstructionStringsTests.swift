@@ -102,6 +102,21 @@ internal struct ReaderInstructionStringsTests {
   }
 
   @Test
+  internal func cardAccessNumberGuidanceInstructionMatchesInEveryLanguage() throws {
+    let strings = try Self.catalog()
+    let key =
+      "The CAN is in the QR code, which can be read with the camera or typed as a number."
+    #expect(
+      try Self.value(for: key, language: "fi", in: strings)
+        == "CAN löytyy QR-koodista, jonka voi lukea kameralla tai kirjoittaa numeron."
+    )
+    #expect(
+      try Self.value(for: key, language: "sv", in: strings)
+        == "CAN finns i QR-koden som kan läsas med kameran eller skrivas som nummer."
+    )
+  }
+
+  @Test
   internal func pairedPhoneAndPinCodesMatchInEveryLanguage() throws {
     let strings = try Self.catalog()
     let finnish: [String: String] = [
@@ -204,5 +219,18 @@ internal struct ReaderInstructionStringsTests {
     )
     #expect(request.contains("Insert the card into the phone's card reader."))
     #expect(request.contains("Place the card on the phone."))
+  }
+
+  @Test
+  internal func canGuidanceViewUsesTheTranslatedKey() throws {
+    let guidance = try String(
+      contentsOf: Self.root.appending(path: "Sources/App/CardAccessNumberGuidanceView.swift"),
+      encoding: .utf8
+    )
+    #expect(
+      guidance.contains(
+        "The CAN is in the QR code, which can be read with the camera or typed as a number."
+      )
+    )
   }
 }

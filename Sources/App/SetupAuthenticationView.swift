@@ -8,8 +8,8 @@
   /// The setup authentication prompt: the entry, then the hold.
   ///
   /// A personal card's six digits start the hold on their own, typed or
-  /// scanned, so the prompt shows only the field, centered. An
-  /// organization card's PIN 1 runs four to twelve digits and keeps its
+  /// scanned, with the entry field accompanied by card specimen guidance.
+  /// An organization card's PIN 1 runs four to twelve digits and keeps its
   /// start button; only its longest length starts by itself. The prompt
   /// always opens empty, so every completion is a fresh edit that
   /// starts the hold, and dismisses itself as the hold starts, leaving
@@ -22,7 +22,9 @@
       static let cardCornerRadius: CGFloat = 10
       static let contentSpacing: CGFloat = 16
       static let disabledActionOpacity = 0.3
+      static let horizontalInsetCount: CGFloat = 2
       static let horizontalPadding: CGFloat = 16
+      static let totalHorizontalPadding: CGFloat = horizontalPadding * horizontalInsetCount
       static let minimumScale = 0.6
       static let rowHorizontalPadding: CGFloat = 16
       static let rowVerticalPadding: CGFloat = 12
@@ -57,15 +59,29 @@
     }
 
     internal var body: some View {
-      VStack(spacing: Layout.contentSpacing) {
-        Spacer(minLength: 0)
-        entryCard
-        if organizationMode {
-          startButton
+      GeometryReader { geometry in
+        ScrollView(.vertical) {
+          VStack(spacing: Layout.contentSpacing) {
+            if organizationMode {
+              Spacer(minLength: 0)
+              entryCard
+              startButton
+              Spacer(minLength: 0)
+            } else {
+              entryCard
+                .padding(.top, Layout.contentSpacing)
+              Spacer(minLength: Layout.contentSpacing)
+              CardAccessNumberGuidanceView(
+                containerWidth: max(0, geometry.size.width - Layout.totalHorizontalPadding)
+              )
+              .padding(.bottom, Layout.contentSpacing)
+            }
+          }
+          .frame(minHeight: geometry.size.height)
+          .padding(.horizontal, Layout.horizontalPadding)
         }
-        Spacer(minLength: 0)
+        .scrollBounceBehavior(.basedOnSize)
       }
-      .padding(.horizontal, Layout.horizontalPadding)
       .background(Color(.systemGroupedBackground).ignoresSafeArea())
       .navigationTitle(String(localized: "Login website"))
       .navigationBarTitleDisplayMode(.inline)

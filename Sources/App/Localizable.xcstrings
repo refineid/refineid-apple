@@ -5643,6 +5643,22 @@
         }
       }
     },
+    "The CAN is in the QR code, which can be read with the camera or typed as a number.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CAN löytyy QR-koodista, jonka voi lukea kameralla tai kirjoittaa numeron."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CAN finns i QR-koden som kan läsas med kameran eller skrivas som nummer."
+          }
+        }
+      }
+    },
     "The Card Access Number (CAN) is incorrect.": {
       "localizations": {
         "fi": {
