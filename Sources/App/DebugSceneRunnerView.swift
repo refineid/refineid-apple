@@ -247,16 +247,24 @@
           DebugConsole.emit("=== end ===")
           return false
         }
-        let outcome = await CardPriming.prime(cardAccessNumber: storedAccessNumber)
-        DebugConsole.emit("stored: \(outcome.stored)")
-        DebugConsole.emit("registered: \(outcome.registered)")
-        DebugConsole.emit("summary: " + outcome.summary)
+        guard OrganizationCardStore.kind() == .personal,
+          let entry = CardPriming.SetupEntry(digits: storedAccessNumber, kind: .personal)
+        else {
+          DebugConsole.emit("prime: a personal card setup entry is required")
+          return false
+        }
+        let model = CardPrimingModel()
+        await model.prime(entry: entry)
+        let registered = model.lastRunResult == .succeeded
+        DebugConsole.emit("stored: \(PhoneCardPrime.isStored)")
+        DebugConsole.emit("registered: \(registered)")
+        DebugConsole.emit("summary: " + (model.failure ?? ""))
         DebugConsole.emit("primed cards now: \(PrimeStore.storedCount())")
         DebugConsole.emit(
           "registered smart cards now: "
             + "\(TKSmartCardTokenRegistrationManager.default.registeredSmartCardTokens.count)")
         DebugConsole.emit("=== end ===")
-        return outcome.registered
+        return registered
       #else
         DebugConsole.emit("this platform has no near-field antenna to prime over")
         DebugConsole.emit("=== end ===")
