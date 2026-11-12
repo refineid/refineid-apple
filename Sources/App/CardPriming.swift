@@ -361,7 +361,6 @@
               The card details were stored, but Safari setup did not \
               finish. Try priming the card again.
               """),
-        retryable: !registered && !execution.session.holdsValidCard,
         credentialReport: credentialReport)
     }
   }
