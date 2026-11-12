@@ -63,12 +63,18 @@ the token extension signs through.
 
 ## Setting a card up
 
-The setup entry is labelled "Card Access Number (CAN)" for every card:
-one hidden field of four to twelve digits, then the eye that shows them,
-then the camera that reads a personal card's six printed digits. A scan
-leaves the field hidden. "Read Identity Card" reads the card on the
-phone's antenna in one hold, and the card decides on that tap what the
-digits are.
+A fresh install offers three actions, each naming its whole job:
+"Verify document" touches no card, while "Sign document" and "Login
+website" both read the card over NFC. The setup screen shows no card
+access number: the number is asked inside the flow that needs it.
+Authentication prompts for it, and a personal card's six digits, typed
+or scanned, start the hold by themselves; the prompt dismisses as the
+hold starts. Signing collects its documents first, then takes the
+number beside PIN 2. An organization card is declared with the
+Organization Card switch in the Settings app; its prompt takes PIN 1
+of four to twelve digits with an explicit start button instead, and
+the card still has the last word on the hold. Once an identity exists
+the regular sections take over, unchanged.
 
 - **Which card.** The card's first answer, before any password, names
   its kind: `6985` an organization card, any other answer a personal
@@ -157,6 +163,15 @@ works.
   its own meter.
 - **Security delay.** During a card's anti-tamper delay at setup, the
   seconds left follow the balls on the second line.
+- **Hold instruction.** The sheet takes no views and covers everything
+  below the card, so while it is up the app behind it shows where to
+  hold the card: the specimen identity card's photo fills the top edge
+  to edge, with the sentence "Read the identity card by holding it
+  against the back of the phone where the picture shows." overlaid on
+  its lower area where the sheet cannot cover it. The same instruction
+  shows for every hold, whatever operation started it. The photo is
+  public domain; the layout and the sentence are verified on the
+  device in Finnish, Swedish and English.
 
 ## A computer that withdraws or forgets the phone
 

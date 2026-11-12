@@ -96,7 +96,12 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   counters, confirmations ("Confirm Basic PIN 1 change?"), refusals and
   help text, declined in Finnish as the sentence needs
   ("perustunnusluvun 1 vaihto", "allekirjoitustunnuslukua 2 ei asetettu").
-  The PUK is "PUK" in every language.
+  The PUK is "PUK" in every language. The card-management tabs are the
+  one exception: they read "Change PIN 1" (Finnish "Vaihda PIN 1",
+  Swedish "Byt PIN 1") and its three siblings, because the iPhone lays
+  the four tabs out two by two and the full names truncate there. Any
+  change to a tab label is verified by rendering it on a real iPhone in
+  all three languages.
   The activation form, titled "Identity card activation" ("Organisation
   card activation" for an organization card), has three
   groups, headed "Activation PIN", "Basic PIN 1" and "Signature PIN 2"
