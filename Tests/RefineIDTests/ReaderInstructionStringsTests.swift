@@ -105,14 +105,14 @@ internal struct ReaderInstructionStringsTests {
   internal func cardAccessNumberGuidanceInstructionMatchesInEveryLanguage() throws {
     let strings = try Self.catalog()
     let key =
-      "The CAN is in the QR code, which can be read with the camera or typed as a number."
+      "The card access number (CAN) is also in the QR code, which you can read with the camera."
     #expect(
       try Self.value(for: key, language: "fi", in: strings)
-        == "CAN löytyy QR-koodista, jonka voi lukea kameralla tai kirjoittaa numeron."
+        == "Kortin pääsykoodi (CAN) löytyy myös QR-koodista, jonka voit lukea kameralla."
     )
     #expect(
       try Self.value(for: key, language: "sv", in: strings)
-        == "CAN finns i QR-koden som kan läsas med kameran eller skrivas som nummer."
+        == "Kortets åtkomstkod (CAN) finns även i QR-koden som du kan läsa med kameran."
     )
   }
 
@@ -229,7 +229,7 @@ internal struct ReaderInstructionStringsTests {
     )
     #expect(
       guidance.contains(
-        "The CAN is in the QR code, which can be read with the camera or typed as a number."
+        "The card access number (CAN) is also in the QR code, which you can read with the camera."
       )
     )
   }

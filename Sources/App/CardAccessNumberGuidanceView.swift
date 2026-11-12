@@ -23,7 +23,7 @@
         Text(
           String(
             localized:
-              "The CAN is in the QR code, which can be read with the camera or typed as a number."
+              "The card access number (CAN) is also in the QR code, which you can read with the camera."
           )
         )
         .font(.subheadline)
