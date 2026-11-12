@@ -134,6 +134,7 @@
             .keyboardType(.numberPad)
             .textContentType(.oneTimeCode)
             .focused($isEntryFocused)
+            .accessibilityLabel(Text(verbatim: fieldName))
             .accessibilityIdentifier("cardAccessNumberField")
         }
         .lineLimit(1)

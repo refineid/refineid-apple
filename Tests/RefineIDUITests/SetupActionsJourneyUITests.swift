@@ -34,8 +34,8 @@
       auth.tap()
       let field = app.secureTextFields[UITestIdentifiers.cardAccessNumberField]
       XCTAssertTrue(field.waitForExistence(timeout: UITestApp.appearTimeout))
-      XCTAssertTrue(field.label.contains("PIN 1"))
       XCTAssertTrue(app.buttons[UITestIdentifiers.primeStartButton].exists)
+      XCTAssertTrue(field.label.contains("PIN 1"))
       app.navigationBars.buttons.firstMatch.tap()
       app.buttons[UITestIdentifiers.signDocuments].tap()
       XCTAssertTrue(
