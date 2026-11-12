@@ -87,6 +87,21 @@ internal struct ReaderInstructionStringsTests {
   }
 
   @Test
+  internal func nearFieldHoldInstructionMatchesInEveryLanguage() throws {
+    let strings = try Self.catalog()
+    let key =
+      "Read the identity card by holding it against the back of the phone where the picture shows."
+    #expect(
+      try Self.value(for: key, language: "fi", in: strings)
+        == "Lue henkilökortti asettamalla se puhelimen taakse kiinni puhelimeen kuvan osoittamaan kohtaan."
+    )
+    #expect(
+      try Self.value(for: key, language: "sv", in: strings)
+        == "Läs identitetskortet genom att hålla det mot telefonens baksida där bilden visar."
+    )
+  }
+
+  @Test
   internal func pairedPhoneAndPinCodesMatchInEveryLanguage() throws {
     let strings = try Self.catalog()
     let finnish: [String: String] = [
