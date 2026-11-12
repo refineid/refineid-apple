@@ -210,7 +210,7 @@
           .frame(maxWidth: .infinity, alignment: .leading)
 
       case .connectReader:
-        Text("Connect a card reader.")
+        Text("Turn on remote use from the top right corner.")
           .foregroundStyle(.secondary)
 
       case .insertCard:

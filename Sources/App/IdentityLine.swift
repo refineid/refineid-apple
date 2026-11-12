@@ -21,8 +21,8 @@
     /// until its first card status or the redial window.
     case connectingToPairedPhone(String)
 
-    /// "Connect a card reader.": remote use is off and no reader is
-    /// attached.
+    /// "Turn on remote use from the top right corner.": remote use is
+    /// off and no reader is attached.
     case connectReader
 
     /// "Insert the card into the reader.": remote use is off and a reader

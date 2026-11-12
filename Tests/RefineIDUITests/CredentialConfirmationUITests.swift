@@ -83,7 +83,7 @@ internal final class CredentialConfirmationUITests: XCTestCase {
     }
     try XCTSkipUnless(
       fields[0].waitForExistence(timeout: 5),
-      "the window did not open on Change Basic PIN 1"
+      "the window did not open on Change PIN 1"
     )
     fields[0].click()
     fields[0].typeText("1111")
