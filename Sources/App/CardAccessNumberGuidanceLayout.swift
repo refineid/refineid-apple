@@ -6,25 +6,25 @@ import Foundation
 /// Geometry and sizing rules for the Card Access Number (CAN) guidance view.
 internal enum CardAccessNumberGuidanceLayout {
   /// The reference pixel width of the identity card instruction asset.
-  internal static let cardWidth: CGFloat = 1_440
+  internal static let cardWidth: CGFloat = 800
 
   /// The reference pixel height of the identity card instruction asset.
-  internal static let cardHeight: CGFloat = 898
+  internal static let cardHeight: CGFloat = 500
 
   /// Aspect ratio of the card illustration (width / height).
   internal static let cardAspectRatio: CGFloat = cardWidth / cardHeight
 
   /// X-coordinate of the CAN and QR code bounding box in reference pixels.
-  internal static let highlightX: CGFloat = 555
+  internal static let highlightX: CGFloat = 320
 
   /// Y-coordinate of the CAN and QR code bounding box in reference pixels.
-  internal static let highlightY: CGFloat = 408
+  internal static let highlightY: CGFloat = 248
 
   /// Width of the CAN and QR code bounding box in reference pixels.
-  internal static let highlightWidth: CGFloat = 180
+  internal static let highlightWidth: CGFloat = 96
 
   /// Height of the CAN and QR code bounding box in reference pixels.
-  internal static let highlightHeight: CGFloat = 260
+  internal static let highlightHeight: CGFloat = 146
 
   /// Corner radius of the green highlight rectangle in points.
   internal static let highlightCornerRadius: CGFloat = 4

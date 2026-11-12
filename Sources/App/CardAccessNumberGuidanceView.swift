@@ -36,7 +36,7 @@
     }
 
     private var cardIllustration: some View {
-      Image(.identityCardInstruction)
+      Image(.specimenFinnishIdentityCard)
         .resizable()
         .scaledToFit()
         .frame(width: containerWidth, height: cardHeight)

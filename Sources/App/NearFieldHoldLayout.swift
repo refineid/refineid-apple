@@ -8,8 +8,8 @@ import CoreGraphics
 /// edge to edge, and the instruction sentence is centered in the
 /// visible gap between the card illustration and the sheet.
 internal enum NearFieldHoldLayout {
-  internal static let cardPixelWidth: CGFloat = 1_440
-  internal static let cardPixelHeight: CGFloat = 898
+  internal static let cardPixelWidth: CGFloat = 800
+  internal static let cardPixelHeight: CGFloat = 500
   internal static let cardAspectRatio: CGFloat = cardPixelWidth / cardPixelHeight
   internal static let textHorizontalPadding: CGFloat = 24
   internal static let minimumTextScale: CGFloat = 0.8

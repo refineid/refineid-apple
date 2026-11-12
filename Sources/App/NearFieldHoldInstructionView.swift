@@ -17,7 +17,7 @@
         let cardHeight = NearFieldHoldLayout.cardHeight(containerWidth: geometry.size.width)
 
         VStack(spacing: 0) {
-          Image(.identityCardInstruction)
+          Image(.specimenFinnishIdentityCard)
             .resizable()
             .scaledToFit()
             .frame(width: geometry.size.width, height: cardHeight, alignment: .top)
