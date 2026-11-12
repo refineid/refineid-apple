@@ -75,7 +75,10 @@ another card attempt, not recovery.
 
 ## Diagnostic and test rules
 
-1. Do not automatically retry CAN-PACE.
+1. During a diagnostic experiment, do not automatically retry CAN-PACE.
+   The personal-card setup workflow retains the entered CAN and retries
+   interrupted reads as described in [the iOS design](../design/ios.md).
+   That workflow is not a measurement of the card's recovery behavior.
 2. On a delayed encrypted-nonce response, stop testing that card. Do not
    use repeated phone or source-revision A/B attempts as diagnostics.
 3. Record the source revision, each command duration, final status word

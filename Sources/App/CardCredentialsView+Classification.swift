@@ -256,6 +256,7 @@ extension CardCredentialsView {
           cardAccessNumberEntry = ""
           isCardAccessNumberFieldFocused = true
           transition(.classificationWrongCardAccessNumber)
+          isCorrectingCardAccessNumber = true
         }
 
       case .activationRequired(let activation, let needs, let pinLengths):

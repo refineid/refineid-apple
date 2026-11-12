@@ -7,10 +7,8 @@
 
   /// What the Safari setup action needs, and the one thing it can do.
   ///
-  /// The model holds no secret. It reads the card access number through
-  /// ``CardCredentialStore``, which never hands the digits back. Apple's
-  /// NFC sheet reports the live operation; after it closes, the setup form
-  /// retains only a sanitized failure sentence.
+  /// The entered credential stays in the running operation across NFC fields.
+  /// Apple's NFC sheet reports progress; only a sanitized failure is published.
   @MainActor
   internal final class CardPrimingModel: ObservableObject {
     /// Result retained only for device automation.
@@ -100,10 +98,33 @@
       failure = nil
       refusal = nil
       credentialReport = nil
-      let isRecovery = isRecoveryModeNext
       // The meter on the system NFC sheet carries progress; the holder
       // is looking at the card, not at this screen.
-      let outcome = await CardPriming.prime(entry: entry, isRecovery: isRecovery)
+      let outcome = await CardSetupReadLoop.run(
+        attempt: {
+          let outcome = await CardPriming.prime(entry: entry, isRecovery: self.isRecoveryModeNext)
+          if outcome.refusal == .secureChannelTimedOut {
+            self.consecutiveSecureChannelStalls += 1
+          } else {
+            self.consecutiveSecureChannelStalls = 0
+          }
+          return outcome
+        },
+        shouldRetry: { outcome in
+          entry.kind == .personal && outcome.retryable && !outcome.cancelled
+        },
+        pause: { try await Task.sleep(for: CardSetupReadLoop.retryInterval) })
+      finishPrime(outcome)
+      refresh()
+      isRunning = false
+    }
+
+    /// Publishes only the final result of the operation across all its fields.
+    private func finishPrime(_ outcome: CardPriming.Outcome?) {
+      guard let outcome else {
+        lastRunResult = .notRun
+        return
+      }
       // The sound is started and answered inside the panel's lifetime,
       // in `CardPriming`; nothing here makes a noise after it closed. A
       // hold the holder cancelled never got as far as a sound at all.
@@ -118,11 +139,6 @@
         failure = nil
       } else {
         lastRunResult = .failed
-        if outcome.refusal == .secureChannelTimedOut {
-          consecutiveSecureChannelStalls += 1
-        } else {
-          consecutiveSecureChannelStalls = 0
-        }
         if isRecoveryModeNext {
           failure = String(
             localized: """
@@ -133,8 +149,6 @@
           failure = outcome.summary
         }
       }
-      refresh()
-      isRunning = false
     }
 
     /// Simulates only card/device effects; callers still use
