@@ -7,9 +7,10 @@ extension OrganizationCardOpening {
   public static func pin1(
     over plain: CardOperations,
     _ pin: consuming Pin1Transmission,
-    spending: PinAdmission.Spending
+    spending: PinAdmission.Spending,
+    onPinState: ((RetryProbeOutcome) -> Void)? = nil
   ) throws -> Opened {
-    try Self.pin1(over: plain.channel, pin, spending: spending)
+    try Self.pin1(over: plain.channel, pin, spending: spending, onPinState: onPinState)
   }
 
   /// PACE with PIN 2 over the plain channel `plain` speaks on.

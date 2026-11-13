@@ -55,12 +55,12 @@
         operation: .signature,
         organization: { plain, context in
           signEach(parameters, counter: counter, recorder: recorder) { params in
-            executeOrganizationSign(params, on: plain, context: context)
+            executeOrganizationSign(params, on: plain, context: context, observer: nil)
           }
         },
         personal: { operations, context in
           signEach(parameters, counter: counter, recorder: recorder) { params in
-            executeSign(params, with: operations, context: context)
+            executeSign(params, with: operations, context: context, observer: nil)
           }
         }
       )
