@@ -38,6 +38,20 @@ stays built and tested.
   response, landed as a wire change with regenerated conformance
   vectors in both implementations; it is not in this change, and
   personal-card pairing is not disabled over it.
+## 2026-11-12 PIN 1 custody starts and continues only at the five-try limit
+
+Maintainer's decision (2026-11-08): a PIN 1 hold starts only when the
+PIN 1 counter read before VERIFY (or reported by `MSE:Set AT` before a
+PIN-opened PACE) is at its try limit, 5 of 5, or reads "verified"
+(FINEID S1 v4.2 sections 3.5 and 3.11). Any other reading -- 4 of 5 or
+lower, blocked, invalidated, no information, an unrecognized status, or a
+counter read that throws -- destroys a held PIN 1. A PIN 1 entered below
+the try limit serves only its own operation and is zeroized afterwards,
+and an operation that read no counter holds nothing. Both the token
+extension (`Pin1Memory`, #257 and #394) and the phone RAPP custodian
+(`HeldPin1` / `CardBoundPin1`, #393) enforce this through `Pin1Retention`.
+This supersedes the 2026-07-28 entry's statement that holding had no
+counter prerequisite.
 
 ## 2026-11-10 Settings return: the time-stamp authority is configurable, SCS stays gated
 
@@ -1565,11 +1579,14 @@ deadline after PACE. That path therefore uses only PIN1 the holder explicitly
 stored; a confirmed rejection removes the automatic identity before it can be
 offered again.
 
-Once a card accepts a freshly entered PIN1, the token extension may retain a
-zeroizing copy for that complete card serial on the live token. This avoids
-repeated entry while retaining a fresh retry-floor probe and actual VERIFY
-for every reader signature. There is no timer and no 5/5/5 prerequisite. The
-copy ends when the card or reader leaves.
+Once a card accepts a freshly entered PIN1 after a pre-VERIFY PIN1 probe at
+its five-try limit or verified (`Pin1Retention`), the token extension or phone
+RAPP custodian may retain a zeroizing copy for that card in process memory.
+This avoids repeated entry while retaining a pre-VERIFY probe and actual VERIFY
+for every authentication signature. There is no timer, and PIN2 and PUK
+counters are not read. Any pre-VERIFY PIN1 probe below five of five (or
+unreadable) drops the held copy, and a PIN1 entered below five of five serves
+only its own operation. The copy also ends when the card or reader leaves.
 
 The first confirmed PIN1 rejection clears that process memory. When the token is
 an automatically configured iOS identity, it also deletes stored PIN1, every

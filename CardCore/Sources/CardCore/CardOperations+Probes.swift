@@ -56,6 +56,12 @@ extension CardOperations {
     return resolved
   }
 
+  /// The retry counter outcome already observed for `role` in this session,
+  /// or nil before any probe or verification recorded one.
+  public func probedRetryCounter(role: CredentialRole) -> RetryProbeOutcome? {
+    referenceMemo.probedRetryCounters[role]
+  }
+
   /// Probes one credential's retry counter without side effects: the
   /// VERIFY probe form for PIN1/PIN2, the GET DATA PIN-container form
   /// for the PUK (which has no VERIFY probe on the citizen card).

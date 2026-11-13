@@ -6,73 +6,28 @@
   import Security
 
   extension RappCardExecutor {
-    /// The PIN a signature spends (RAPP v26.11.8 §8.2 item 3, §11 item 2).
-    ///
-    /// Each case carries the holder's zeroizing entry; every card command
-    /// is sent a single-use PIN the entry issues for it.
-    internal enum SigningPin: Sendable {
-      /// PIN 1 the holder typed for this browser authentication.
-      case enteredPin1(Pin1Entry)
-      /// PIN 1 held from an earlier operation the card accepted; spent only
-      /// while the card's PIN 1 counter shows no refusal since.
-      case heldPin1(Pin1Entry)
-      /// PIN 2 the holder typed for this signature or batch.
-      case pin2(Pin2Entry)
-
-      /// The credential the card checks it as.
-      internal var role: CredentialRole {
-        switch self {
-        case .enteredPin1, .heldPin1:
-          .pin1
-
-        case .pin2:
-          .pin2
-        }
-      }
-
-      /// Where the PIN comes from, for the counter check before it is sent.
-      internal var spending: PinAdmission.Spending {
-        switch self {
-        case .heldPin1:
-          .heldPin1
-
-        case .enteredPin1, .pin2:
-          .entered
-        }
-      }
-    }
-
-    internal struct SignParameters {
-      internal let cardAccessNumber: String?
-      internal let pin: SigningPin
-      internal let keyProfile: RappOperationDriver.KeyProfile
-      internal let algorithm: RappOperationDriver.SignatureAlgorithm
-      internal let digest: Data
-
-      internal var role: CredentialRole { pin.role }
-
-      /// Whether this is a qualified signature, with PIN 2.
-      internal var qualified: Bool { pin.role == .pin2 }
-
-      /// The certificate whose key signs.
-      internal var slot: CertificateSlot { qualified ? .qualifiedSignature : .authentication }
-    }
-
     internal static func browserAuthentication(
       cardAccessNumber: String?,
       pin1: SigningPin,
       keyProfile: RappOperationDriver.KeyProfile,
       algorithm: RappOperationDriver.SignatureAlgorithm,
       digest: Data
-    ) async -> Outcome {
-      await sign(
+    ) async -> BrowserAuthenticationOutcome {
+      let observer = Pin1ProbeObserver()
+      let outcome = await sign(
         SignParameters(
           cardAccessNumber: cardAccessNumber,
           pin: pin1,
           keyProfile: keyProfile,
           algorithm: algorithm,
           digest: digest
-        )
+        ),
+        observer: observer
+      )
+      return BrowserAuthenticationOutcome(
+        outcome: outcome,
+        preVerifyProbe: observer.preVerifyProbe,
+        authenticatedCard: observer.authenticatedCard
       )
     }
 
@@ -90,21 +45,23 @@
           keyProfile: keyProfile,
           algorithm: algorithm,
           digest: digest
-        )
+        ),
+        observer: nil
       )
     }
 
     private static func sign(
-      _ params: SignParameters
+      _ params: SignParameters,
+      observer: Pin1ProbeObserver?
     ) async -> Outcome {
       await withCard(
         cardAccessNumber: params.cardAccessNumber,
         operation: params.qualified ? .signature : .authentication,
         organization: { plain, context in
-          executeOrganizationSign(params, on: plain, context: context)
+          executeOrganizationSign(params, on: plain, context: context, observer: observer)
         },
         personal: { operations, context in
-          executeSign(params, with: operations, context: context)
+          executeSign(params, with: operations, context: context, observer: observer)
         }
       )
     }
@@ -112,7 +69,8 @@
     internal static func executeSign(
       _ params: SignParameters,
       with operations: CardOperations,
-      context: RappNearFieldSessionHolder.Context?
+      context: RappNearFieldSessionHolder.Context?,
+      observer: Pin1ProbeObserver?
     ) -> Outcome {
       guard
         let identity = identity(
@@ -121,17 +79,24 @@
           allowCache: context != nil
         )
       else {
+        observer?.clearHeld()
         return .refusedBeforeCredentialTransmit(.keyOrAlgorithmMismatch)
       }
+      observer?.recordCard(identity.certificateDER)
 
-      // The counter is read once per card session: a session that ended
-      // without the card answering opens a new one, and the next use reads
-      // it again (RAPP v26.11.8 §11 item 2).
-      if context?.isRoleProbed(params.role) != true {
-        if let refusal = evaluateRetryFloor(operations: operations, pin: params.pin) {
+      // The counter is read once per card session when the session already
+      // recorded a verified state in CardOperations; an entered PIN 1 on an
+      // uncached session still reads the card's counter before VERIFY.
+      if context?.isRoleProbed(params.role) != true
+        || operations.probedRetryCounter(role: params.role) == nil
+      {
+        let evaluation = evaluateRetryFloor(operations: operations, pin: params.pin)
+        observer?.recordProbe(evaluation.probe)
+        if let refusal = evaluation.refusal {
           return .refusedBeforeCredentialTransmit(refusal)
         }
-        context?.markRoleProbed(params.role)
+      } else if let cached = operations.probedRetryCounter(role: params.role) {
+        observer?.recordProbe(cached)
       }
 
       if let verificationOutcome = verifyCredential(
@@ -139,8 +104,12 @@
         operations: operations,
         context: context
       ) {
+        if params.role == .pin1, case .rejected = verificationOutcome {
+          observer?.clearHeld()
+        }
         return verificationOutcome
       }
+      context?.markRoleProbed(params.role)
 
       return computeAndVerifySignature(
         operations: operations,
@@ -149,34 +118,34 @@
       )
     }
 
-    /// Why the card's counter forbids spending `pin`, or nil when it
-    /// allows it (``PinAdmission``).
+    /// The pre-VERIFY counter reading and why it forbids spending `pin`, or
+    /// nil refusal when it allows it (``PinAdmission``).
     private static func evaluateRetryFloor(
       operations: CardOperations,
       pin: SigningPin
-    ) -> Refusal? {
+    ) -> (probe: RetryProbeOutcome, refusal: Refusal?) {
       let role = pin.role
       let probe: RetryProbeOutcome
       do {
         probe = try operations.probeRetryCounter(role: role)
       } catch {
-        return .retryFloor(role, .refuseUnreadable)
+        return (.noInformation, .retryFloor(role, .refuseUnreadable))
       }
       switch PinAdmission(probe: probe, spending: pin.spending) {
       case .proceed:
-        return nil
+        return (probe, nil)
 
       case .credentialBlocked:
-        return .credentialBlocked(role)
+        return (probe, .credentialBlocked(role))
 
       case .credentialInvalidated:
-        return .credentialInvalidated(role)
+        return (probe, .credentialInvalidated(role))
 
       case .retryFloor(let verdict):
-        return .retryFloor(role, verdict)
+        return (probe, .retryFloor(role, verdict))
 
       case .heldPin1Unconfirmed:
-        return .heldPin1Unconfirmed
+        return (probe, .heldPin1Unconfirmed)
       }
     }
 
@@ -376,7 +345,8 @@
       else {
         return nil
       }
-      return Identity(publicKey: publicKey, request: request)
+      return Identity(
+        certificateDER: certificateData, publicKey: publicKey, request: request)
     }
   }
 #endif

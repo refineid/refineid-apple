@@ -92,7 +92,7 @@
       guard let request = pinRequest(after: outcome), let action = action(for: operation.kind)
       else { return .outcomeStands }
       if case .rejected(let rejection) = outcome {
-        await applyRejectedCredential(rejection)
+        applyRejectedCredential(rejection)
       }
       pin1ByOperation.removeValue(forKey: operationID)
       pin2ByOperation.removeValue(forKey: operationID)
@@ -150,7 +150,7 @@
         // The card refused the PIN and the floor allows no further
         // verification: the remaining attempts are the issuer's. An answer
         // with no tries left, or with no count, is the card's "blocked".
-        await applyRejectedCredential(.credential(role, remaining: remaining))
+        applyRejectedCredential(.credential(role, remaining: remaining))
         if let remaining, !remaining.isBlocked {
           await refuseAtRetryFloor(
             role: role,
@@ -210,13 +210,13 @@
           role: role, verdict: verdict, remaining: remaining))
     }
 
-    private func applyRejectedCredential(_ rejection: RappCardExecutor.Rejection) async {
+    private func applyRejectedCredential(_ rejection: RappCardExecutor.Rejection) {
       switch rejection {
       case .cardAccessNumber:
         CardCredentialStore.forgetEveryCardAccessNumber()
 
       case .credential(.pin1, _):
-        await MainActor.run { HeldPin1.shared.clear() }
+        HeldPin1.shared.clear()
 
       case .credential(.pin2, _), .credential(.puk, _):
         break
