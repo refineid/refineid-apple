@@ -57,9 +57,23 @@ REFINEID_ACTIVATION_FEATURE = FEATURE_CARD_ACTIVATION
 REFINEID_ACTIVATION_FEATURE[config=TestFlight] = FEATURE_CARD_ACTIVATION
 REFINEID_ACTIVATION_FEATURE[config=Release] = FEATURE_CARD_ACTIVATION
 
+// FEATURE_ORGANIZATION_CARD
+//     Organization cards end to end: setup, activation, card
+//     management, authentication, signing and token publication.
+//     Off in every build on every platform right now: set by no
+//     configuration, in development, test and store builds alike,
+//     until the owner turns it on. Turning it on is this flag (a
+//     local build sets REFINEID_ORGANIZATION_CARD_FEATURE in
+//     LocalFeatures.xcconfig); the code beneath stays built and
+//     tested either way. Stored organization settings and primes
+//     are left untouched either way; a build without the flag
+//     refuses organization operations before any credential is
+//     spent.
+REFINEID_ORGANIZATION_CARD_FEATURE =
+
 // A developer's own flags, out of the repository: the file is
 // optional, ignored by git, and an assignment there replaces the
 // default above on that machine only.
 #include? "LocalFeatures.xcconfig"
 
-SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) $(REFINEID_FEATURES) $(REFINEID_IOS_FLOOR_FEATURE) $(REFINEID_LOCAL_CARD_FEATURE) $(REFINEID_REMOTE_CARD_FEATURE) $(REFINEID_ACTIVATION_FEATURE)
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) $(REFINEID_FEATURES) $(REFINEID_IOS_FLOOR_FEATURE) $(REFINEID_LOCAL_CARD_FEATURE) $(REFINEID_REMOTE_CARD_FEATURE) $(REFINEID_ACTIVATION_FEATURE) $(REFINEID_ORGANIZATION_CARD_FEATURE)

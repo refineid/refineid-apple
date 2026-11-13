@@ -12,6 +12,25 @@ worker completion, fresh preparation on replacement, stale timers, and rejection
 of commands from an invalidated active lease. They do not simulate Apple's NFC
 sheet, radio, Safari, or CryptoTokenKit scheduling.
 
+Setup holds (`CardPriming`) stamp their own phases into the same development
+trace with elapsed milliseconds from the hold's start:
+`priming-session-acquired` (or `-failed`), `priming-pace-begin`, `-done` or
+`-timed-out`, `priming-secured-read-done`, `priming-stored`, and
+`priming-registered` (or `-register-failed`); a failed read stamps
+`priming-read-failed`. The phases name discovery and session acquisition,
+PACE, the certificate and metadata reads behind it, the local store, and
+registration, so a failed hold can be placed without guessing. Two blue
+dots on the setup meter mean the card was found and the secure-channel
+step is running (`NearFieldMeter` draws the running step as reached); a
+failure at two dots is therefore in or after PACE, while a
+`cardNeverArrived` outcome never opened a session and shows no dots at
+all. The two are different failures and must not be read as one report:
+radio-level timeouts in a system log are evidence of communication loss,
+not proof of where a given hold stopped, and `transceive:error:` in such
+a log is a method name, not a failed exchange. Match the installed
+build to its source before correlating either with a build from another
+channel.
+
 In development builds, collect the extension trace from the app's Diagnostics
 screen after reproduction. Token-to-hold-to-channel links use ephemeral random
 identifiers. Held events carry monotonic age; PACE phase events carry elapsed

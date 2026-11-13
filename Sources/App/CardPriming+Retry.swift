@@ -18,6 +18,7 @@
         SmartCardChannel.TransportError.responseTimedOut,
         CardOperationError.sessionUnavailable,
         CardOperationError.exchangeUnanswered,
+        Failure.communicationInterrupted,
         Failure.secureChannelTimedOut:
         return true
 

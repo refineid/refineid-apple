@@ -133,10 +133,13 @@
       _ operations: CardOperations,
       purpose: ScsSignPurpose
     ) -> ScsBackendFailure? {
-      guard
-        purpose == .qualified,
-        (try? operations.resolveCredentialReferences()) == .organization
-      else {
+      guard (try? operations.resolveCredentialReferences()) == .organization else {
+        return nil
+      }
+      guard OrganizationCardSupport.isEnabled else {
+        return .signingUnavailable("organization card not supported in this build")
+      }
+      guard purpose == .qualified else {
         return nil
       }
       do {

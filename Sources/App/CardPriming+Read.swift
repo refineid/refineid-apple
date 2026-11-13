@@ -34,19 +34,9 @@
           guard let proven = execution.entry.personalAccessNumber() else {
             throw Failure.wrongCardAccessNumber
           }
-          let keys = try Self.establishPace(
-            channel: channel,
-            accessNumber: proven.value,
-            sheet: sheet,
-            isRecovery: isRecovery)
-          let payload = try Self.readSecuredPayload(
-            operations: CardOperations(
-              channel: SecureMessagingChannel(wrapping: channel, sessionKeys: keys)),
-            sheet: sheet,
-            store: { identity in try store(identity, proven) })
-          return HoldRead(
-            instance: payload.identity.instance,
-            credentialReport: payload.credentialReport)
+          return try Self.readPersonal(
+            channel: channel, proven: proven, sheet: sheet,
+            isRecovery: isRecovery, store: store)
 
         case .organization:
           guard let pin1 = execution.entry.organizationPin1() else {
@@ -58,6 +48,44 @@
             execution: execution)
         }
       }
+    }
+
+    /// PACE with the proven access number, then the secured reads.
+    ///
+    /// A transport answer that stops inside the secured reads is
+    /// interrupted communication: the card was found and the channel
+    /// was open, so it is named as itself rather than folded into
+    /// the generic unread-card sentence.
+    private static func readPersonal(
+      channel: SmartCardChannel,
+      proven: ProvenAccessNumber,
+      sheet: NearFieldSheet,
+      isRecovery: Bool,
+      store: @escaping StorePersonalIdentity
+    ) throws -> HoldRead {
+      let keys = try Self.establishPace(
+        channel: channel,
+        accessNumber: proven.value,
+        sheet: sheet,
+        isRecovery: isRecovery)
+      OperationPhaseTrace.mark("priming-pace-done")
+      let payload: Payload
+      do {
+        payload = try Self.readSecuredPayload(
+          operations: CardOperations(
+            channel: SecureMessagingChannel(wrapping: channel, sessionKeys: keys)),
+          sheet: sheet,
+          store: { identity in try store(identity, proven) })
+      } catch SmartCardChannel.TransportError.responseTimedOut,
+        CardOperationError.exchangeUnanswered,
+        CardOperationError.sessionUnavailable
+      {
+        throw Failure.communicationInterrupted
+      }
+      OperationPhaseTrace.mark("priming-secured-read-done")
+      return HoldRead(
+        instance: payload.identity.instance,
+        credentialReport: payload.credentialReport)
     }
 
     /// Runs PACE against the card, managing recovery feedback and error translation.
@@ -84,11 +112,13 @@
       defer {
         sheet.stopRecovery()
       }
+      OperationPhaseTrace.mark("priming-pace-begin")
       do {
         return try PaceEstablishment(channel: channel).establish(
           with: PacePassword(cardAccessNumber: accessNumber)
         ).keys
       } catch SmartCardChannel.TransportError.responseTimedOut {
+        OperationPhaseTrace.mark("priming-pace-timed-out")
         throw Failure.secureChannelTimedOut
       } catch PaceEstablishment.Failure.authenticationTokenMismatch,
         PaceEstablishment.Failure.cardRejected(.authenticationFailed)

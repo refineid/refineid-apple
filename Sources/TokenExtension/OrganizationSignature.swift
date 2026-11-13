@@ -31,6 +31,9 @@ internal enum OrganizationSignature {
     request: SignRequest,
     token: Token
   ) throws -> Data {
+    guard OrganizationCardSupport.isEnabled else {
+      throw TokenError.organizationUnsupported
+    }
     let opening: OrganizationCardOpening.Pin1Opening
     do {
       opening = try OrganizationCardOpening.pin1(
@@ -85,6 +88,9 @@ internal enum OrganizationSignature {
     signPublicKey: SecKey,
     token: Token
   ) throws -> Data {
+    guard OrganizationCardSupport.isEnabled else {
+      throw TokenError.organizationUnsupported
+    }
     guard let entered = enteredPin else {
       throw TokenError.authenticationRequired
     }

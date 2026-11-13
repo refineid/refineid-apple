@@ -36,6 +36,9 @@ internal struct OrganizationFieldSignature {
     origin: AuthorizedPin1.Origin,
     request: SignRequest
   ) throws -> Data {
+    guard OrganizationCardSupport.isEnabled else {
+      throw TokenError.organizationUnsupported
+    }
     let serial = token.chipSerial
     let entered: Pin1?
     if origin == .acceptedMemory {

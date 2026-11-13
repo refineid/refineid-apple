@@ -25,6 +25,9 @@
       context: RappNearFieldSessionHolder.Context,
       observer: Pin1ProbeObserver?
     ) -> Outcome {
+      guard OrganizationCardSupport.isEnabled else {
+        return .refusedBeforeCredentialTransmit(.cardUnavailable)
+      }
       guard case .organization(let prime)? = PhoneCardPrime.current else {
         return .refusedBeforeCredentialTransmit(.cardUnavailable)
       }

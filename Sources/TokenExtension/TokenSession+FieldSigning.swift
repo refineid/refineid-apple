@@ -21,7 +21,11 @@ extension TokenSession {
     algorithm: TKTokenKeyAlgorithm
   ) throws -> Data {
     #if os(iOS)
-      guard token.unsealing.contactlessKind == ContactlessCardKindStore.load() else {
+      guard
+        token.unsealing.contactlessKind
+          == ContactlessCardKindStore.load()
+          .gated(organizationSupported: OrganizationCardSupport.isEnabled)
+      else {
         #if DEBUG
           DevErrorLog.report("NFC signature refused: card mode changed", source: .tokenExtension)
         #endif

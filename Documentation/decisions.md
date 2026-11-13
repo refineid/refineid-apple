@@ -5,6 +5,39 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-11-13 Organization cards are gated off in every build
+
+Maintainer's decision: organization cards stand behind a dedicated
+build-time gate, `FEATURE_ORGANIZATION_CARD`
+(`Config/Features.xcconfig`), and the gate is off right now on every
+Apple build on every platform, in development, test and store builds
+alike. No configuration sets it; turning it on is the flag (plus the
+Settings bundle switch, removed while it is off). The code beneath
+stays built and tested.
+
+- The gate covers the whole capability: setup, activation, card
+  management, authentication, signing and token publication, in the
+  app and the token extension alike (`OrganizationCardSupport` in
+  both targets, from the one compilation condition).
+- Stored organization settings, primes and pairing state are left
+  exactly as they are; a gated build resolves a stored
+  organization selection to personal for identity selection and
+  refuses organization operations before any credential is spent.
+  An organization card is never reinterpreted as a personal card.
+- Personal cards are unaffected.
+- RAPP limitation, recorded not solved: `read_identity` (RAPP
+  v26.11.8 section 9.1) carries no card-kind field, and the granted
+  profiles name operations, not card kinds, so an Apple Requester
+  cannot reliably classify a remote card as an organization card
+  from the protocol. An Apple Custodian never serves one while the
+  gate is off: its executor and prime selection route on the gated
+  kind. The residual case is a non-Apple Custodian serving an
+  organization card to an Apple Requester; the credentials are
+  still spent only on the Custodian. The smallest compatible fix
+  is an optional `card_kind` field in the `read_identity`
+  response, landed as a wire change with regenerated conformance
+  vectors in both implementations; it is not in this change, and
+  personal-card pairing is not disabled over it.
 ## 2026-11-12 PIN 1 custody starts and continues only at the five-try limit
 
 Maintainer's decision (2026-11-08): a PIN 1 hold starts only when the

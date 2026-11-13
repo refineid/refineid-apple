@@ -108,19 +108,19 @@ extension CardMaintenance {
       // hardware). A card in the clear answers the read; one that waits
       // for PACE with a PIN answers 6985.
       guard let channelPin else {
-        return .opened(operations)
+        return openedUnlessUnsupportedOrganization(operations)
       }
       do {
         _ = try operations.readChipSerial()
-        return .opened(operations)
+        return openedUnlessUnsupportedOrganization(operations)
       } catch  where CardOperationError.refusesBeforePace(error) {
-        return pinOpenedOperations(over: channel, pin: channelPin)
+        return pinOpenedUnlessUnsupported(over: channel, pin: channelPin)
       } catch {
         return .unavailable
       }
     } catch  where CardOperationError.refusesBeforePace(error) {
       guard let channelPin else { return .unavailable }
-      return pinOpenedOperations(over: channel, pin: channelPin)
+      return pinOpenedUnlessUnsupported(over: channel, pin: channelPin)
     } catch {
       return canOpenedOperations(over: channel, cardAccessNumber: cardAccessNumber)
     }
@@ -198,6 +198,46 @@ extension CardMaintenance {
       return .unavailable
     }
     return .opened(secureOperations)
+  }
+
+  /// The opened card, or no channel when an organization card meets a
+  /// build without organization-card support.
+  ///
+  /// The numbering probe spends no credential, so the refusal lands
+  /// before the operation can spend one under organization
+  /// references; the card is never worked as a personal card instead.
+  private static func openedUnlessUnsupportedOrganization(
+    _ operations: CardOperations
+  ) -> Opening {
+    guard !OrganizationCardSupport.isEnabled else { return .opened(operations) }
+    guard (try? operations.resolveCredentialReferences()) == .organization else {
+      return .opened(operations)
+    }
+    #if DEBUG
+      DevErrorLog.report(
+        "card operation refused: organization card not supported in this build", source: .app)
+    #endif
+    return .unavailable
+  }
+
+  /// The PIN opening a reader card's refusal calls for, gated.
+  ///
+  /// Refused whole in a build without organization-card support: the
+  /// PIN is never offered to PACE there. The near-field opening
+  /// takes its kind from the gated selection instead
+  /// (``OrganizationCardStore``).
+  private static func pinOpenedUnlessUnsupported(
+    over channel: any CardChannel,
+    pin: ChannelPin
+  ) -> Opening {
+    guard OrganizationCardSupport.isEnabled else {
+      #if DEBUG
+        DevErrorLog.report(
+          "card operation refused: organization card not supported in this build", source: .app)
+      #endif
+      return .unavailable
+    }
+    return pinOpenedOperations(over: channel, pin: pin)
   }
 
   /// PACE with the operation's credential, the retry floor applied to the
