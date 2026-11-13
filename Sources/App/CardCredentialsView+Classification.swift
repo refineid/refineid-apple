@@ -72,7 +72,11 @@ extension CardCredentialsView {
       handleActivated(entered: entered, purpose: purpose)
 
     case .activationRequired(let activation, let needs, let pinLengths):
-      handleActivationRequired(activation: activation, needs: needs, pinLengths: pinLengths)
+      handleActivationRequired(
+        entered: entered,
+        activation: activation,
+        needs: needs,
+        pinLengths: pinLengths)
 
     case .wrongCardAccessNumber:
       handleWrongCardAccessNumber()
@@ -97,10 +101,17 @@ extension CardCredentialsView {
   }
 
   private func handleActivationRequired(
+    entered: String,
     activation: ActivationClassification,
     needs: CardActivationNeeds,
     pinLengths: CardPinLengths
   ) {
+    if !isDemonstration, !model.saveCardAccessNumber(entered) {
+      cardAccessNumberEntry = ""
+      isCardAccessNumberFieldFocused = true
+      transition(.classificationFailed)
+      return
+    }
     self.activation = activation
     activationNeeds = needs
     activationPinLengths = pinLengths
@@ -108,15 +119,18 @@ extension CardCredentialsView {
   }
 
   private func handleWrongCardAccessNumber() {
-    if !isDemonstration, hasIdentity {
-      Task { await model.forgetEverythingAfterCardMismatch() }
+    if !isDemonstration {
+      model.forgetCardAccessNumber()
+      if hasIdentity {
+        Task { await model.forgetEverythingAfterCardMismatch() }
+      }
     }
     cardAccessNumberEntry = ""
     isCardAccessNumberFieldFocused = true
     transition(.classificationWrongCardAccessNumber)
   }
 
-  /// Activation succeeded on the card; only now is its CAN persistent.
+  /// Activation succeeded on the card; updates state and dismisses the form.
   internal func activationSucceeded() {
     activation = nil
     activationNeeds = nil
@@ -250,8 +264,11 @@ extension CardCredentialsView {
       switch primingModel.refusal {
       case .wrongCardAccessNumber:
         Task { @MainActor in
-          if !isDemonstration, hasIdentity {
-            await model.forgetEverythingAfterCardMismatch()
+          if !isDemonstration {
+            model.forgetCardAccessNumber()
+            if hasIdentity {
+              await model.forgetEverythingAfterCardMismatch()
+            }
           }
           cardAccessNumberEntry = ""
           isCardAccessNumberFieldFocused = true
@@ -260,6 +277,12 @@ extension CardCredentialsView {
         }
 
       case .activationRequired(let activation, let needs, let pinLengths):
+        guard isDemonstration || model.contents.hasCardAccessNumber else {
+          cardAccessNumberEntry = ""
+          isCardAccessNumberFieldFocused = true
+          transition(.classificationFailed)
+          return
+        }
         self.activation = activation
         activationNeeds = needs
         activationPinLengths = pinLengths

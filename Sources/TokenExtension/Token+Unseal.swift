@@ -212,10 +212,14 @@ extension Token {
     case .transportDead(let error):
       // A transport death is not a refusal of this number: the card
       // stopped answering. Latch and report; nothing is forgotten.
-      RefusedUnseal.shared.record(
-        fingerprint: CardCredentialStore.fingerprint(canDigits: candidate.digits),
-        answerToReset: answerToReset)
-      TokenLog.error("readIdentity: transport failed (\(error)); latched against immediate retry")
+      if (error as? TokenError) == .activationRequired {
+        TokenLog.error("readIdentity: card requires activation")
+      } else {
+        RefusedUnseal.shared.record(
+          fingerprint: CardCredentialStore.fingerprint(canDigits: candidate.digits),
+          answerToReset: answerToReset)
+        TokenLog.error("readIdentity: transport failed (\(error)); latched against immediate retry")
+      }
       throw error
     }
   }

@@ -5,6 +5,21 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-11-13 Proven card access number is kept for cards awaiting activation
+
+Maintainer's decision (2026-10-24, #270): on iPhone, once PACE has
+proven the card access number against the card, the number is kept
+immediately, whether the card is activated or awaiting activation. A
+PACE mismatch on any subsequent tap forgets the number as for any card.
+This aligns Apple with Android ADR 0044.
+
+- The proven CAN persists across view transitions and NFC field drops
+  so the cardholder is not prompted to re-type the CAN during the
+  activation ceremony.
+- Authentication certificates, registered identities, and TokenExtension /
+  Safari token publication remain strictly withheld until activation
+  succeeds; an unactivated card is never offered to a browser or over RAPP.
+
 ## 2026-11-13 Organization cards are gated off in every build
 
 Maintainer's decision: organization cards stand behind a dedicated
