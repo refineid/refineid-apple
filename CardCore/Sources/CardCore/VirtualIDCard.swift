@@ -78,6 +78,7 @@ public actor VirtualIDCard {
         || cardAccessNumber != current.card.cardAccessNumber
     {
       current.device.connectedCardAccessNumber = nil
+      current.device.storedCardAccessNumber = nil
       return .incorrectCardAccessNumber
     }
     current.device.connectedCardAccessNumber =
@@ -88,7 +89,7 @@ public actor VirtualIDCard {
       current.device.connectedCardAccessNumber = nil
       return .unavailable(fault)
     }
-    if current.card.transport == .nearField, !activationRequired {
+    if current.card.transport == .nearField {
       current.device.storedCardAccessNumber = current.card.cardAccessNumber
     }
     return .connected(current)

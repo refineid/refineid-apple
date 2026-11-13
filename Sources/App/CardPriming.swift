@@ -132,10 +132,9 @@
     /// caller needs to catch.
     ///
     /// One hold does the whole setup: PACE proves the offered access
-    /// number, the public certificate is read behind it, and the identity
-    /// is stored and registered. Nothing is written to this device until
-    /// the card's identity has been read and checked; the reads after the
-    /// store cannot fail the hold.
+    /// number, which is committed immediately. The public certificate is
+    /// read behind it, and the identity is stored and registered once
+    /// verified and activated; the reads after the store cannot fail the hold.
     ///
     /// Primes the card the holder is about to present.
     ///
@@ -335,7 +334,7 @@
     }
 
     /// Why a keychain write that answered `status` left nothing stored.
-    private static func storeFailure(_ status: OSStatus) -> any Error {
+    internal static func storeFailure(_ status: OSStatus) -> any Error {
       StorageFailure.isOutOfSpace(status) ? StorageFailure.outOfSpace : Failure.primeNotStored
     }
 

@@ -151,7 +151,7 @@ extension VirtualIDCardTests {
       RetryCount.pristineAllowance)
   }
 
-  internal func testLostFinalActivationReplyRequiresSuccessfulReconnectBeforeCANStorage() async {
+  internal func testLostFinalActivationReplyRetainsProvenCANForReconnect() async {
     var state = VirtualIDCard.Scenario.factoryFreshNearField.snapshot
     state.faults = VirtualIDCard.FaultPreset.responseLostAfterPIN2Activation.faults
     let card = VirtualIDCard(snapshot: state)
@@ -167,7 +167,7 @@ extension VirtualIDCardTests {
     XCTAssertEqual(result.pin2, .transportFailure(.connectionLost))
     XCTAssertFalse(result.snapshot.card.pin1.isFactoryValue)
     XCTAssertFalse(result.snapshot.card.pin2.isFactoryValue)
-    XCTAssertNil(result.snapshot.device.storedCardAccessNumber)
+    XCTAssertEqual(result.snapshot.device.storedCardAccessNumber, "123456")
 
     _ = await card.connect(cardAccessNumber: "123456")
     let reconnected = await card.inspect()

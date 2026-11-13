@@ -43,14 +43,32 @@ internal final class VirtualIDCardTests: XCTestCase {
     XCTAssertTrue(connected.card.pin2.isFactoryValue)
   }
 
-  internal func testFactoryCardDoesNotStoreCardAccessNumberBeforeActivation() async {
+  internal func testFactoryCardStoresCardAccessNumberWhenConnected() async {
     let card = VirtualIDCard(scenario: .factoryFreshNearField)
 
     _ = await card.connect(cardAccessNumber: "123456")
     let state = await card.inspect()
 
     XCTAssertEqual(state.device.connectedCardAccessNumber, "123456")
-    XCTAssertNil(state.device.storedCardAccessNumber)
+    XCTAssertEqual(state.device.storedCardAccessNumber, "123456")
+  }
+
+  internal func testSubsequentWrongCardAccessNumberClearsStoredCardAccessNumber() async {
+    let card = VirtualIDCard(scenario: .factoryFreshNearField)
+
+    let firstConnect = await card.connect(cardAccessNumber: "123456")
+    guard case .connected = firstConnect else {
+      XCTFail("initial connect failed")
+      return
+    }
+    let connectedState = await card.inspect()
+    XCTAssertEqual(connectedState.device.storedCardAccessNumber, "123456")
+
+    let mismatchConnect = await card.connect(cardAccessNumber: "000000")
+    XCTAssertEqual(mismatchConnect, .incorrectCardAccessNumber)
+    let mismatchState = await card.inspect()
+    XCTAssertNil(mismatchState.device.connectedCardAccessNumber)
+    XCTAssertNil(mismatchState.device.storedCardAccessNumber)
   }
 
   internal func testActivationChangesBothFactoryCredentialsIndependently() async {

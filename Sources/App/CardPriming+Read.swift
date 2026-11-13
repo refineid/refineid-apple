@@ -69,6 +69,8 @@
         sheet: sheet,
         isRecovery: isRecovery)
       OperationPhaseTrace.mark("priming-pace-done")
+      let saved = CardCredentialStore.save(cardAccessNumber: proven.digits)
+      guard saved == errSecSuccess else { throw Self.storeFailure(saved) }
       let payload: Payload
       do {
         payload = try Self.readSecuredPayload(
