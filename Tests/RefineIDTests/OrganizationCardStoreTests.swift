@@ -14,6 +14,15 @@
   /// Serialized: the tests share one isolated domain and take turns.
   @Suite(.serialized)
   internal struct OrganizationCardStoreTests {
+    /// Whether this test build was compiled with the gate on.
+    private static var compiledWithOrganizationSupport: Bool {
+      #if FEATURE_ORGANIZATION_CARD
+        true
+      #else
+        false
+      #endif
+    }
+
     /// An isolated domain; the tests never touch the shared defaults.
     private static func freshDefaults() throws -> UserDefaults {
       let name = "OrganizationCardStoreTests"
@@ -57,15 +66,19 @@
       #expect(OrganizationCardStore.load(from: defaults))
     }
 
-    /// No configuration enables organization cards right now, so the
-    /// build under test resolves a stored on-switch to personal.
+    /// The build under test follows its own gate: no configuration
+    /// enables organization cards right now, so a stored on-switch
+    /// resolves to personal in the shipped test configuration.
     @Test
-    internal func buildUnderTestHasNoOrganizationSupport() throws {
-      #expect(!OrganizationCardSupport.isEnabled)
+    internal func buildUnderTestMatchesItsGate() throws {
+      #expect(OrganizationCardSupport.isEnabled == Self.compiledWithOrganizationSupport)
       let defaults = try Self.freshDefaults()
       defaults.set(true, forKey: OrganizationCardStore.key)
-      #expect(OrganizationCardStore.kind(from: defaults) == .personal)
+      #expect(
+        OrganizationCardStore.kind(from: defaults)
+          == (Self.compiledWithOrganizationSupport ? .organization : .personal))
     }
+
   }
 
 #endif
