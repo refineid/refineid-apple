@@ -16,7 +16,7 @@ extension CardCredentialsView {
       }
     #endif
     #if os(iOS)
-      guard !organizationCardEnabled else { return }
+      guard !effectiveOrganizationCardEnabled else { return }
     #endif
     guard cardAccessNumberEntry.isEmpty, let stored = model.storedCardAccessNumber else {
       return

@@ -94,6 +94,13 @@ internal struct CardCredentialsView: View {
     @AppStorage(OrganizationCardStore.key)
     internal var organizationCardEnabled = false
 
+    /// The stored switch under this build's support: a build without
+    /// organization-card support shows the personal-card entry even
+    /// when an earlier build stored the switch on.
+    internal var effectiveOrganizationCardEnabled: Bool {
+      organizationCardEnabled && OrganizationCardSupport.isEnabled
+    }
+
     /// The holder names read from the live reader tokens.
     @State internal var readerHolders: [String] = []
 
@@ -131,7 +138,7 @@ internal struct CardCredentialsView: View {
   /// an earlier NFC read.
   internal var managementCardAccessNumber: String? {
     #if os(iOS)
-      guard !organizationCardEnabled else { return nil }
+      guard !effectiveOrganizationCardEnabled else { return nil }
     #endif
     return isCardAccessNumberEntryComplete ? cardAccessNumberEntry : nil
   }

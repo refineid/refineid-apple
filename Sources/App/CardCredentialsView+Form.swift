@@ -198,7 +198,9 @@ extension CardCredentialsView {
         #if REFINEID_LOCAL_CARD && os(iOS)
           // Emptied after an organization card's hold, the field held
           // its PIN 1, not the stored access number.
-          guard !organizationCardEnabled, primingModel.cardKind != .organization else { return }
+          guard !effectiveOrganizationCardEnabled, primingModel.cardKind != .organization else {
+            return
+          }
         #endif
         guard entered.isEmpty,
           !isDemonstration,
@@ -250,7 +252,7 @@ extension CardCredentialsView {
       case .authenticate:
         SetupAuthenticationView(
           entry: $cardAccessNumberEntry,
-          organizationMode: organizationCardEnabled,
+          organizationMode: effectiveOrganizationCardEnabled,
           canStart: canReadIdentityCard
         ) {
           isCardAccessNumberFieldFocused = false

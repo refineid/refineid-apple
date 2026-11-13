@@ -10,13 +10,27 @@ import Foundation
 /// card: the prompt takes its PIN 1 of four to twelve digits instead.
 /// The setting selects the credential and identity; card failures never
 /// select the other kind. Written by Settings; nothing stored means off.
+///
+/// A build without organization-card support
+/// (``OrganizationCardSupport``) never resolves the stored switch to
+/// an organization kind; the stored value itself is left as it is, so
+/// a later supporting build finds the holder's choice intact.
 internal enum OrganizationCardStore: Sendable {
   /// The preferences key holding the switch.
   internal static let key = "organizationCardEnabled"
 
   /// The kind used for NFC setup, operations and stored identity selection.
   internal static func kind(from defaults: UserDefaults) -> ContactlessCardKind {
-    load(from: defaults) ? .organization : .personal
+    kind(from: defaults, organizationSupported: OrganizationCardSupport.isEnabled)
+  }
+
+  /// The kind for `defaults` under an explicit support answer.
+  internal static func kind(
+    from defaults: UserDefaults,
+    organizationSupported: Bool
+  ) -> ContactlessCardKind {
+    (load(from: defaults) ? ContactlessCardKind.organization : .personal)
+      .gated(organizationSupported: organizationSupported)
   }
 
   internal static func kind() -> ContactlessCardKind {

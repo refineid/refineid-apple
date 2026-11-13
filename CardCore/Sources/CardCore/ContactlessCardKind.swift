@@ -10,6 +10,18 @@ public enum ContactlessCardKind: Equatable, Sendable {
   /// PACE uses the printed CAN.
   case personal
 
+  /// This kind under a build's organization-card support.
+  ///
+  /// A build without organization-card support resolves a stored
+  /// organization selection to personal for identity selection, so
+  /// stale settings cannot mint an organization identity there.
+  /// Credential operations check support separately and refuse
+  /// rather than spend a personal credential on an organization
+  /// card. The stored selection itself is never rewritten.
+  public func gated(organizationSupported: Bool) -> Self {
+    organizationSupported ? self : .personal
+  }
+
   /// Selects only the matching identity, without reading the other store.
   public func select<Value>(personal: () -> Value?, organization: () -> Value?) -> Value? {
     switch self {

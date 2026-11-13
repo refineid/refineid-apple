@@ -25,29 +25,47 @@
       super.tearDown()
     }
 
-    internal func testOrganizationModeLabelsItsCredentialAndOmitsCanFromSigning() {
-      let app = UITestApp.launch(
-        arguments: ["--virtual-card", "absent", "-organizationCardEnabled", "YES"])
-      applyScenario("activated-nfc", in: app)
-      let auth = app.buttons[UITestIdentifiers.setupAuthenticate]
-      XCTAssertTrue(auth.waitForExistence(timeout: UITestApp.appearTimeout))
-      auth.tap()
-      let field = app.secureTextFields[UITestIdentifiers.cardAccessNumberField]
-      XCTAssertTrue(field.waitForExistence(timeout: UITestApp.appearTimeout))
-      XCTAssertTrue(app.buttons[UITestIdentifiers.primeStartButton].exists)
-      XCTAssertTrue(field.label.contains("PIN 1"))
-      app.navigationBars.buttons.firstMatch.tap()
-      openEditor(in: app)
-      let pending = app.buttons["virtualCardSigningPending"]
-      scrollTo(pending, in: app)
-      XCTAssertTrue(pending.waitForExistence(timeout: UITestApp.appearTimeout))
-      pending.tap()
-      applyEditor(in: app)
-      app.buttons[UITestIdentifiers.signDocuments].tap()
-      XCTAssertTrue(
-        app.secureTextFields["signingPIN2"].waitForExistence(timeout: UITestApp.appearTimeout))
-      XCTAssertFalse(app.secureTextFields["signingCardAccessNumber"].exists)
-    }
+    #if FEATURE_ORGANIZATION_CARD
+      internal func testOrganizationModeLabelsItsCredentialAndOmitsCanFromSigning() {
+        let app = UITestApp.launch(
+          arguments: ["--virtual-card", "absent", "-organizationCardEnabled", "YES"])
+        applyScenario("activated-nfc", in: app)
+        let auth = app.buttons[UITestIdentifiers.setupAuthenticate]
+        XCTAssertTrue(auth.waitForExistence(timeout: UITestApp.appearTimeout))
+        auth.tap()
+        let field = app.secureTextFields[UITestIdentifiers.cardAccessNumberField]
+        XCTAssertTrue(field.waitForExistence(timeout: UITestApp.appearTimeout))
+        XCTAssertTrue(app.buttons[UITestIdentifiers.primeStartButton].exists)
+        XCTAssertTrue(field.label.contains("PIN 1"))
+        app.navigationBars.buttons.firstMatch.tap()
+        openEditor(in: app)
+        let pending = app.buttons["virtualCardSigningPending"]
+        scrollTo(pending, in: app)
+        XCTAssertTrue(pending.waitForExistence(timeout: UITestApp.appearTimeout))
+        pending.tap()
+        applyEditor(in: app)
+        app.buttons[UITestIdentifiers.signDocuments].tap()
+        XCTAssertTrue(
+          app.secureTextFields["signingPIN2"].waitForExistence(timeout: UITestApp.appearTimeout))
+        XCTAssertFalse(app.secureTextFields["signingCardAccessNumber"].exists)
+      }
+
+    #else
+      /// A stale organization switch from an earlier build must not
+      /// switch the entry to an organization PIN 1 in a build without
+      /// organization-card support.
+      internal func testStaleOrganizationSwitchShowsCardAccessNumberEntry() {
+        let app = UITestApp.launch(
+          arguments: ["--virtual-card", "absent", "-organizationCardEnabled", "YES"])
+        applyScenario("activated-nfc", in: app)
+        let auth = app.buttons[UITestIdentifiers.setupAuthenticate]
+        XCTAssertTrue(auth.waitForExistence(timeout: UITestApp.appearTimeout))
+        auth.tap()
+        let field = app.secureTextFields[UITestIdentifiers.cardAccessNumberField]
+        XCTAssertTrue(field.waitForExistence(timeout: UITestApp.appearTimeout))
+        XCTAssertFalse(field.label.contains("PIN 1"))
+      }
+    #endif
 
     internal func testSignBackThenAuthenticateReachesIdentityThroughGUI() {
       let app = UITestApp.launch(arguments: [

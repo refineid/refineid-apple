@@ -77,34 +77,53 @@
         })
     }
 
-    @Test
-    internal func anOrganizationCardWhoseSelectSucceedsGoesToPaceWithItsPin() {
-      let card = ScriptedCard(application: .success)
-      let opener = CardMaintenance.CardOpener<CardMaintenance.Outcome>.pin(
-        .pin2(Self.pin2Digits), cardAccessNumber: nil
-      ) { outcome, _ in outcome }
-      let opening = CardMaintenance.openedOperations(over: card, opener: opener)
-      #expect(card.startedPace)
-      #expect(!card.received(instruction: Iso7816Values.insVerify))
-      if case .opened = opening {
-        Issue.record("A card refusing its reads before PACE was opened in the clear")
+    #if FEATURE_ORGANIZATION_CARD
+      @Test
+      internal func anOrganizationCardWhoseSelectSucceedsGoesToPaceWithItsPin() {
+        let card = ScriptedCard(application: .success)
+        let opener = CardMaintenance.CardOpener<CardMaintenance.Outcome>.pin(
+          .pin2(Self.pin2Digits), cardAccessNumber: nil
+        ) { outcome, _ in outcome }
+        let opening = CardMaintenance.openedOperations(over: card, opener: opener)
+        #expect(card.startedPace)
+        #expect(!card.received(instruction: Iso7816Values.insVerify))
+        if case .opened = opening {
+          Issue.record("A card refusing its reads before PACE was opened in the clear")
+        }
       }
-    }
 
-    @Test
-    internal func anOrganizationCardGoesToPaceWithThePukAResetPresents() {
-      let card = ScriptedCard(application: .success)
-      let opener = CardMaintenance.CardOpener<CardMaintenance.Outcome>.pin(
-        .puk(Self.pukDigits), cardAccessNumber: nil
-      ) { outcome, _ in outcome }
-      let opening = CardMaintenance.openedOperations(over: card, opener: opener)
-      #expect(card.startedPace)
-      #expect(!card.received(instruction: Iso7816Values.insVerify))
-      #expect(!card.received(instruction: Iso7816Values.insResetRetryCounter))
-      if case .opened = opening {
-        Issue.record("A card refusing its reads before PACE was opened in the clear")
+      @Test
+      internal func anOrganizationCardGoesToPaceWithThePukAResetPresents() {
+        let card = ScriptedCard(application: .success)
+        let opener = CardMaintenance.CardOpener<CardMaintenance.Outcome>.pin(
+          .puk(Self.pukDigits), cardAccessNumber: nil
+        ) { outcome, _ in outcome }
+        let opening = CardMaintenance.openedOperations(over: card, opener: opener)
+        #expect(card.startedPace)
+        #expect(!card.received(instruction: Iso7816Values.insVerify))
+        #expect(!card.received(instruction: Iso7816Values.insResetRetryCounter))
+        if case .opened = opening {
+          Issue.record("A card refusing its reads before PACE was opened in the clear")
+        }
       }
-    }
+
+    #else
+      /// Without organization-card support the reader opening refuses
+      /// before PACE: the operation's PIN is never offered, and no
+      /// VERIFY is sent either.
+      @Test
+      internal func anOrganizationCardIsRefusedBeforePaceWithoutSupport() {
+        let card = ScriptedCard(application: .success)
+        let opener = CardMaintenance.CardOpener<CardMaintenance.Outcome>.pin(
+          .pin2(Self.pin2Digits), cardAccessNumber: nil
+        ) { outcome, _ in outcome }
+        let opening = CardMaintenance.openedOperations(over: card, opener: opener)
+        #expect(!card.startedPace)
+        #expect(!card.received(instruction: Iso7816Values.insVerify))
+        if case .unavailable = opening { return }
+        Issue.record("An unsupported organization card was not refused")
+      }
+    #endif
 
     @Test
     internal func aPersonalCardIsSentNoVerifyForAnOperationsPin() {

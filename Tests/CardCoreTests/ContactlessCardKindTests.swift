@@ -37,6 +37,16 @@ internal struct ContactlessCardKindTests {
     #expect(selected == nil)
   }
 
+  @Test(arguments: [ContactlessCardKind.personal, .organization])
+  internal func supportedBuildKeepsTheSelectedKind(kind: ContactlessCardKind) {
+    #expect(kind.gated(organizationSupported: true) == kind)
+  }
+
+  @Test(arguments: [ContactlessCardKind.personal, .organization])
+  internal func unsupportedBuildNeverSelectsOrganization(kind: ContactlessCardKind) {
+    #expect(kind.gated(organizationSupported: false) == .personal)
+  }
+
   @Test
   internal func extensionReadsThePublishedSelection() throws {
     let name = "ContactlessCardKindTests." + UUID().uuidString

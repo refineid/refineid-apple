@@ -102,7 +102,7 @@
     /// The title already says an action is wanted, so this only names the
     /// card.
     internal static let registrationPrompt = String(
-      localized: "Hold your identity card near the top of the iPhone.")
+      localized: "Hold your identity card against the top back of the iPhone and keep it still.")
 
     /// How many times registration is attempted while the card is live.
     ///
@@ -162,6 +162,13 @@
       entry: SetupEntry,
       isRecovery: Bool
     ) async -> Outcome {
+      guard entry.kind != .organization || OrganizationCardSupport.isEnabled else {
+        #if DEBUG
+          DevErrorLog.report(
+            "setup refused: organization card not supported in this build", source: .app)
+        #endif
+        return Self.failure(Failure.organizationUnsupported)
+      }
       // Marked BEFORE the slot opens: `ctkd` asks the extension for a
       // token the moment the card arrives, and a mark written after that
       // would lose the race. The mark makes the extension publish
@@ -176,15 +183,18 @@
       }
       defer { PrimeStore.clearRegistrationField() }
 
+      OperationPhaseTrace.begin()
       let session: NearFieldCardSession
       do {
         session = try await NearFieldCardSession.open(showing: .setup)
       } catch {
+        OperationPhaseTrace.mark("priming-session-failed")
         #if DEBUG
           DevErrorLog.report("setup: no card session: \(error)", source: .app)
         #endif
         return Self.failure(error)
       }
+      OperationPhaseTrace.mark("priming-session-acquired")
       defer { session.end() }
       // The meter lives on the sheet: the card is against the phone and
       // Apple's panel is over the app, so this is the only surface the
@@ -271,6 +281,7 @@
             })
         }
       } catch {
+        OperationPhaseTrace.mark("priming-read-failed")
         #if DEBUG
           DevErrorLog.report(
             "setup: hold failed: \(error)",
@@ -338,10 +349,12 @@
       credentialReport: CredentialProbeReport?,
       execution: HoldExecution
     ) async -> Outcome {
+      OperationPhaseTrace.mark("priming-stored")
       execution.sheet.reach(.registered)
       let registered = await Self.register(
         instance: instance,
         session: execution.session)
+      OperationPhaseTrace.mark(registered ? "priming-registered" : "priming-register-failed")
       if registered {
         execution.sheet.finish()
       } else {

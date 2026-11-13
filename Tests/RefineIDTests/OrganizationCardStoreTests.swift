@@ -2,6 +2,7 @@
 
 #if os(macOS)
 
+  import CardCore
   import Foundation
   import Testing
 
@@ -33,6 +34,37 @@
       let defaults = try Self.freshDefaults()
       defaults.set(enabled, forKey: OrganizationCardStore.key)
       #expect(OrganizationCardStore.load(from: defaults) == enabled)
+    }
+
+    /// A supporting build follows the stored switch.
+    @Test(arguments: [true, false])
+    internal func supportedKindFollowsTheSwitch(enabled: Bool) throws {
+      let defaults = try Self.freshDefaults()
+      defaults.set(enabled, forKey: OrganizationCardStore.key)
+      #expect(
+        OrganizationCardStore.kind(from: defaults, organizationSupported: true)
+          == (enabled ? .organization : .personal))
+    }
+
+    /// A stale on-switch never yields an organization kind in a build
+    /// without support, and gating leaves the stored value intact.
+    @Test
+    internal func staleSwitchIsGatedAndPreserved() throws {
+      let defaults = try Self.freshDefaults()
+      defaults.set(true, forKey: OrganizationCardStore.key)
+      #expect(
+        OrganizationCardStore.kind(from: defaults, organizationSupported: false) == .personal)
+      #expect(OrganizationCardStore.load(from: defaults))
+    }
+
+    /// No configuration enables organization cards right now, so the
+    /// build under test resolves a stored on-switch to personal.
+    @Test
+    internal func buildUnderTestHasNoOrganizationSupport() throws {
+      #expect(!OrganizationCardSupport.isEnabled)
+      let defaults = try Self.freshDefaults()
+      defaults.set(true, forKey: OrganizationCardStore.key)
+      #expect(OrganizationCardStore.kind(from: defaults) == .personal)
     }
   }
 

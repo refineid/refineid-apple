@@ -19,6 +19,17 @@
       /// No card access number is stored, so PACE cannot be run.
       case cardAccessNumberMissing
 
+      /// The hold lost its card session after the card had been
+      /// found: an exchange went unanswered inside the field.
+      /// Distinct from a card that never arrived and from the
+      /// card's own security delay, which have their own cases.
+      case communicationInterrupted
+
+      /// An organization card was offered to a build without
+      /// organization-card support; refused before PACE, so no
+      /// credential was spent.
+      case organizationUnsupported
+
       /// The certificate came off the card but is not a certificate.
       case certificateUnreadable
 

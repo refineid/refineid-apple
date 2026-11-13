@@ -63,9 +63,29 @@ extension Token {
       } catch let failure where CardOperationError.refusesBeforePace(failure) {
         return try Self.organizationIdentity(answerToReset: answerToReset)
       }
+      try Self.refuseUnsupportedOrganization(operations: operations)
       Self.primeOrganizationCard(identity, operations: operations, answerToReset: answerToReset)
       return (identity, .plain)
     }
+  }
+
+  /// Refuses an organization card read in the clear when this build
+  /// has no organization-card support.
+  ///
+  /// The numbering decides, as in ``primeOrganizationCard``; the probe
+  /// spends no credential. Without support the identity is never
+  /// published as a plain personal token, which would spend PIN 1
+  /// under personal-card references at the first signature.
+  private static func refuseUnsupportedOrganization(operations: CardOperations) throws {
+    guard !OrganizationCardSupport.isEnabled else { return }
+    guard (try? operations.resolveCredentialReferences()) == .organization else { return }
+    #if DEBUG
+      DevErrorLog.report(
+        "readIdentity refused: organization card not supported in this build",
+        source: .tokenExtension)
+    #endif
+    TokenLog.info("readIdentity: organization card refused; not supported in this build")
+    throw TokenError.organizationUnsupported
   }
 
   /// The identity of an organization card on the antenna, from the prime
@@ -73,6 +93,15 @@ extension Token {
   private static func organizationIdentity(
     answerToReset: Data?
   ) throws -> (identity: PublishedIdentity, unsealing: CardUnsealing) {
+    guard OrganizationCardSupport.isEnabled else {
+      #if DEBUG
+        DevErrorLog.report(
+          "readIdentity refused: organization card not supported in this build",
+          source: .tokenExtension)
+      #endif
+      TokenLog.info("readIdentity: organization card refused; not supported in this build")
+      throw TokenError.organizationUnsupported
+    }
     guard
       let answerToReset,
       let prime = OrganizationPrimeStore.read(answerToReset: answerToReset)
@@ -105,6 +134,7 @@ extension Token {
     operations: CardOperations,
     answerToReset: Data?
   ) {
+    guard OrganizationCardSupport.isEnabled else { return }
     guard
       let answerToReset,
       !AnswerToReset.indicatesContactlessInterface(bytes: answerToReset),

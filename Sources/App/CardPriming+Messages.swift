@@ -24,6 +24,9 @@
       if case Failure.secureChannelTimedOut = error {
         return String(localized: "Connection timed out.")
       }
+      if case Failure.communicationInterrupted = error {
+        return String(localized: "Connection interrupted.")
+      }
       if case Failure.primeNotStored = error {
         return String(localized: "Could not save card details.")
       }
@@ -74,8 +77,32 @@
       }
     }
 
+    /// Explains a transport or support failure, when `failure` is one.
+    private static func transportSummary(for failure: Failure) -> String? {
+      switch failure {
+      case .communicationInterrupted:
+        String(
+          localized: """
+            The connection to the card was interrupted. Hold the card still against the \
+            top back of the phone and try again.
+            """)
+
+      case .organizationUnsupported:
+        String(localized: "Organization cards are not supported in this build.")
+
+      case .secureChannelTimedOut:
+        String(localized: "The card security delay timed out. Hold the card still and try again.")
+
+      default:
+        nil
+      }
+    }
+
     /// Explains an app-level priming failure.
     private static func summary(for failure: Failure) -> String {
+      if let transport = Self.transportSummary(for: failure) {
+        return transport
+      }
       switch failure {
       case Failure.activationRequired:
         String(localized: "Activate this card first, then try setup again.")
@@ -83,8 +110,10 @@
       case Failure.cardAccessNumberMissing:
         String(localized: "Store the card access number first, then try again.")
 
-      case Failure.secureChannelTimedOut:
-        String(localized: "The card security delay timed out. Hold the card still and try again.")
+      case Failure.communicationInterrupted, Failure.organizationUnsupported,
+        Failure.secureChannelTimedOut:
+        // Answered by transportSummary above.
+        String(localized: "The card could not be read. Hold it still and try again.")
 
       case Failure.wrongCardAccessNumber:
         String(localized: "The Card Access Number (CAN) is incorrect.")

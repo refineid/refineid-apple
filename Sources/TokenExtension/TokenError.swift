@@ -17,6 +17,11 @@ internal enum TokenError: Error {
   /// The system rejected construction of a keychain item.
   case keychainItemConstructionFailed
 
+  /// An organization card in a build without organization-card
+  /// support (``OrganizationCardSupport``): refused before any
+  /// credential is spent, never published as a personal card.
+  case organizationUnsupported
+
   /// The entered PIN was already rejected by this card; not resent.
   case pinAlreadyRejected
 
@@ -67,8 +72,8 @@ internal enum TokenError: Error {
       // owner has ruled out (Documentation/design/macos.md).
       TKError(.authenticationFailed)
 
-    case .activationRequired, .primeMissing, .unsealAlreadyRefused,
-      .unsupportedKeyProfile:
+    case .activationRequired, .organizationUnsupported, .primeMissing,
+      .unsealAlreadyRefused, .unsupportedKeyProfile:
       // Not this driver's card. Refusal is safe: the system treats the
       // card as unhandled rather than as broken.
       TKError(.tokenNotFound)

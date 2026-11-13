@@ -128,7 +128,7 @@
     private var needsLocalCardAccessNumber: Bool {
       cardAccessNumber == nil && transport == .nearField && requiresRequesterPIN2
         && !DemoMode.shared.isActive
-        && !OrganizationCardStore.load(from: .standard)
+        && OrganizationCardStore.kind() == .personal
     }
 
     private func importResult(_ result: Result<[URL], Error>) {

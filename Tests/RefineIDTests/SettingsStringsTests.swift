@@ -119,6 +119,17 @@
       #expect(fields.count == 1)
       #expect(field["Key"] as? String == TimestampAuthorityStore.key)
       #expect(field["DefaultValue"] as? String == TimestampAuthorityStore.defaultAddress)
+      let organizationToggles = specifiers.filter { specifier in
+        specifier["Key"] as? String == OrganizationCardStore.key
+      }
+      #if FEATURE_ORGANIZATION_CARD
+        #expect(organizationToggles.count == 1)
+      #else
+        // No build enables organization cards right now, so Settings
+        // offers no switch for them; a value stored earlier stays
+        // stored and gated, not deleted.
+        #expect(organizationToggles.isEmpty)
+      #endif
     }
   }
 

@@ -27,9 +27,10 @@
 
           Text(
             String(
-              localized:
-                "Read the identity card by holding it against the back of the phone where the picture shows."
-            )
+              localized: """
+                Hold the identity card flat against the top back of the iPhone, where the \
+                picture shows, and keep it still until reading finishes.
+                """)
           )
           .font(.body)
           .foregroundStyle(.primary)
