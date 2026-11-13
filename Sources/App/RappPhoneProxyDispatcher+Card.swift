@@ -192,15 +192,19 @@
       switch operation.kind {
       case .browserAuthenticate:
         guard let pin1 = pin1ByOperation.removeValue(forKey: operationID) else { return nil }
-        let outcome = await RappCardExecutor.browserAuthentication(
+        let startingEpoch = HeldPin1.shared.epoch
+        let authOutcome = await RappCardExecutor.browserAuthentication(
           cardAccessNumber: accessNumber,
           pin1: pin1,
           keyProfile: keyProfile,
           algorithm: algorithm,
           digest: operation.digest
         )
-        await settleHeldPin1(pin1, after: outcome)
-        return outcome
+        HeldPin1.shared.settle(
+          authOutcome.pin1Settlement(spending: pin1),
+          startingEpoch: startingEpoch
+        )
+        return authOutcome.outcome
 
       case .signDocument:
         guard let pin2 = pin2ByOperation.removeValue(forKey: operationID) else {
@@ -217,36 +221,6 @@
       case .inspectCard, .readIdentity, .readAuthenticationCertificate,
         .readSignatureCertificate, .batchSignDocuments:
         return nil
-      }
-    }
-
-    /// Holds a typed PIN 1 once the card accepted it, or when no card came
-    /// to take it, and forgets a held one the counter no longer confirms
-    /// (RAPP v26.11.8 §11 item 2).
-    ///
-    /// A PIN typed for a card that never arrived reached no card, so the
-    /// retry that follows uses it instead of asking again; the counter is
-    /// read before it is sent, and a card that refuses it ends it like any
-    /// held PIN. A refusal is forgotten where it is answered; a transport
-    /// failure keeps what is held, since the counter is read again before
-    /// its next use.
-    private func settleHeldPin1(
-      _ pin1: RappCardExecutor.SigningPin,
-      after outcome: RappCardExecutor.Outcome
-    ) async {
-      switch (pin1, outcome) {
-      case (.enteredPin1(let entry), .result),
-        (.enteredPin1(let entry), .refusedBeforeCredentialTransmit(.cardUnavailable)):
-        await MainActor.run {
-          guard let card = PhonePersistentTokenRelay.shared.servedCardFingerprint else { return }
-          HeldPin1.shared.hold(entry, card: card)
-        }
-
-      case (.heldPin1, .refusedBeforeCredentialTransmit(.heldPin1Unconfirmed)):
-        await MainActor.run { HeldPin1.shared.clear() }
-
-      default:
-        break
       }
     }
 

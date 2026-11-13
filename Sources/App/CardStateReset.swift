@@ -57,7 +57,7 @@ internal enum CardStateReset {
 
     Pin1Memory.shared.clearAll()
     #if os(iOS) && REFINEID_LOCAL_CARD
-      Task { @MainActor in HeldPin1.shared.clear() }
+      HeldPin1.shared.clear()
     #endif
 
     TrustRootsCache.shared.forgetAll()

@@ -3,6 +3,8 @@
 #if REFINEID_LOCAL_CARD && os(iOS)
   import CardCore
   import Foundation
+  import os
+  import RappEngine
   import Security
 
   internal typealias RappNfcCardExecutor = RappCardExecutor
@@ -82,7 +84,149 @@
       }
     }
 
+    /// What one browser authentication answered, paired with the pre-VERIFY
+    /// PIN 1 counter reading and the certificate fingerprint of the card
+    /// that signed.
+    internal struct BrowserAuthenticationOutcome: Sendable, Equatable {
+      internal let outcome: Outcome
+      internal let preVerifyProbe: RetryProbeOutcome?
+      internal let authenticatedCard: RappCertificateFingerprint?
+
+      /// How this authentication settles ``HeldPin1`` for `card`.
+      internal func pin1Settlement(
+        spending pin1: SigningPin
+      ) -> CardBoundPin1<RappCertificateFingerprint>.Settlement {
+        switch outcome {
+        case .result:
+          switch pin1 {
+          case .enteredPin1(let entry):
+            return .accepted(
+              entry,
+              preVerifyProbe: preVerifyProbe ?? .noInformation,
+              card: authenticatedCard
+            )
+
+          case .heldPin1:
+            return .probed(preVerifyProbe ?? .noInformation)
+
+          case .pin2:
+            return .unchanged
+          }
+
+        case .rejected(.credential(.pin1, _)),
+          .refusedBeforeCredentialTransmit(.invalidCredential(.pin1)),
+          .refusedBeforeCredentialTransmit(.keyOrAlgorithmMismatch),
+          .refusedBeforeCredentialTransmit(.certificateUnavailable):
+          return .clear
+
+        case .refusedBeforeCredentialTransmit(.cardUnavailable):
+          return .cardUnavailable
+
+        case .refusedBeforeCredentialTransmit(.heldPin1Unconfirmed),
+          .refusedBeforeCredentialTransmit(.retryFloor(.pin1, _)),
+          .refusedBeforeCredentialTransmit(.credentialBlocked(.pin1)),
+          .refusedBeforeCredentialTransmit(.credentialInvalidated(.pin1)):
+          return .probed(preVerifyProbe ?? .noInformation)
+
+        default:
+          if let probe = preVerifyProbe {
+            return .probed(probe)
+          }
+          return .unchanged
+        }
+      }
+    }
+
+    /// Collects the pre-VERIFY PIN 1 probe and authenticated card identity
+    /// observed during one browser authentication, while clearing
+    /// ``HeldPin1`` immediately on any non-pristine probe or refusal.
+    internal final class Pin1ProbeObserver: Sendable {
+      private let recorded = OSAllocatedUnfairLock<
+        (card: RappCertificateFingerprint?, probe: RetryProbeOutcome?)
+      >(initialState: (card: nil, probe: nil))
+
+      internal var authenticatedCard: RappCertificateFingerprint? {
+        recorded.withLock { $0.card }
+      }
+
+      internal var preVerifyProbe: RetryProbeOutcome? {
+        recorded.withLock { $0.probe }
+      }
+
+      internal func recordCard(_ certificateDER: Data) {
+        let card = RappCertificateFingerprint(certificate: certificateDER)
+        recorded.withLock { $0.card = card }
+      }
+
+      internal func recordProbe(_ probe: RetryProbeOutcome) {
+        HeldPin1.shared.retain(after: probe)
+        recorded.withLock { state in
+          if state.probe == nil || !Pin1Retention.permitsHolding(after: probe) {
+            state.probe = probe
+          }
+        }
+      }
+
+      internal func clearHeld() {
+        HeldPin1.shared.clear()
+      }
+    }
+
+    /// The PIN a signature spends (RAPP v26.11.8 section 8.2 item 3, section
+    /// 11 item 2).
+    ///
+    /// Each case carries the holder's zeroizing entry; every card command
+    /// is sent a single-use PIN the entry issues for it.
+    internal enum SigningPin: Sendable {
+      /// PIN 1 the holder typed for this browser authentication.
+      case enteredPin1(Pin1Entry)
+      /// PIN 1 held from an earlier operation the card accepted; spent only
+      /// while the card's PIN 1 counter shows no refusal since.
+      case heldPin1(Pin1Entry)
+      /// PIN 2 the holder typed for this signature or batch.
+      case pin2(Pin2Entry)
+
+      /// The credential the card checks it as.
+      internal var role: CredentialRole {
+        switch self {
+        case .enteredPin1, .heldPin1:
+          .pin1
+
+        case .pin2:
+          .pin2
+        }
+      }
+
+      /// Where the PIN comes from, for the counter check before it is sent.
+      internal var spending: PinAdmission.Spending {
+        switch self {
+        case .heldPin1:
+          .heldPin1
+
+        case .enteredPin1, .pin2:
+          .entered
+        }
+      }
+    }
+
+    internal struct SignParameters {
+      internal let cardAccessNumber: String?
+      internal let pin: SigningPin
+      internal let keyProfile: RappOperationDriver.KeyProfile
+      internal let algorithm: RappOperationDriver.SignatureAlgorithm
+      internal let digest: Data
+
+      internal var role: CredentialRole { pin.role }
+
+      /// Whether this is a qualified signature, with PIN 2.
+      internal var qualified: Bool { pin.role == .pin2 }
+
+      /// The certificate whose key signs.
+      internal var slot: CertificateSlot { qualified ? .qualifiedSignature : .authentication }
+    }
+
     internal struct Identity {
+      internal let certificateDER: Data
       internal let publicKey: SecKey
       internal let request: SignRequest
     }

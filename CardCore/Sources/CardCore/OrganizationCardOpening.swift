@@ -30,12 +30,14 @@ public enum OrganizationCardOpening {
   public static func pin1(
     over channel: any CardChannel,
     _ pin: consuming Pin1Transmission,
-    spending: PinAdmission.Spending
+    spending: PinAdmission.Spending,
+    onPinState: ((RetryProbeOutcome) -> Void)? = nil
   ) throws -> Opened {
     let opened = try Self.opened(
       over: channel,
       password: PacePassword(pin1: pin, spending: spending),
       role: .pin1)
+    onPinState?(opened.pinState)
     try opened.operations.selectFineidApplication()
     return opened
   }

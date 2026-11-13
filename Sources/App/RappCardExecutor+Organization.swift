@@ -3,6 +3,7 @@
 #if REFINEID_LOCAL_CARD && os(iOS)
   import CardCore
   import Foundation
+  import os
   import Security
 
   /// A signature by the phone's organization card for a paired computer.
@@ -21,55 +22,87 @@
     internal static func executeOrganizationSign(
       _ params: SignParameters,
       on plain: CardOperations,
-      context: RappNearFieldSessionHolder.Context
+      context: RappNearFieldSessionHolder.Context,
+      observer: Pin1ProbeObserver?
     ) -> Outcome {
       guard case .organization(let prime)? = PhoneCardPrime.current else {
         return .refusedBeforeCredentialTransmit(.cardUnavailable)
       }
       let fingerprint = params.pin.sessionFingerprint
       if context.isNegativePin(fingerprint) {
+        observer?.clearHeld()
         return .refusedBeforeCredentialTransmit(.invalidCredential(params.role))
+      }
+      let didRecordProbe = OSAllocatedUnfairLock(initialState: false)
+      let noteProbe: @Sendable (RetryProbeOutcome) -> Void = { probe in
+        didRecordProbe.withLock { $0 = true }
+        observer?.recordProbe(probe)
       }
       let opened: OrganizationCardOpening.Opened
       do {
-        opened = try Self.opened(plain, pin: params.pin)
+        opened = try Self.opened(plain, pin: params.pin, recordProbe: noteProbe)
       } catch {
-        return Self.refusal(error, params: params, fingerprint: fingerprint, context: context)
+        let outcome = Self.refusal(
+          error,
+          params: params,
+          context: context,
+          observer: observer,
+          recordProbe: noteProbe
+        )
+        if outcome == .completionAmbiguous, !didRecordProbe.withLock({ $0 }) {
+          observer?.recordProbe(.noInformation)
+        }
+        return outcome
       }
       let operations = opened.operations
       if params.qualified {
-        guard
-          let identity = identity(params: params, operations: operations, allowCache: true),
-          (try? operations.selectEsignDirectory()) != nil
-        else {
-          return .completionAmbiguous
-        }
-        return computeAndVerifySignature(
-          operations: operations, identity: identity, qualified: true)
+        return signQualifiedOrganization(params, operations: operations)
       }
-      guard (try? operations.readChipSerial()) == prime.chipSerial else {
-        return .refusedBeforeCredentialTransmit(.keyOrAlgorithmMismatch)
-      }
-      guard let identity = identity(params: params, operations: operations, allowCache: true)
+      guard (try? operations.readChipSerial()) == prime.chipSerial,
+        let identity = identity(params: params, operations: operations, allowCache: true)
       else {
+        observer?.clearHeld()
         return .refusedBeforeCredentialTransmit(.keyOrAlgorithmMismatch)
       }
+      observer?.recordCard(identity.certificateDER)
       return computeAndVerifySignature(operations: operations, identity: identity, qualified: false)
+    }
+
+    private static func signQualifiedOrganization(
+      _ params: SignParameters,
+      operations: CardOperations
+    ) -> Outcome {
+      guard
+        let identity = identity(params: params, operations: operations, allowCache: true),
+        (try? operations.selectEsignDirectory()) != nil
+      else {
+        return .completionAmbiguous
+      }
+      return computeAndVerifySignature(operations: operations, identity: identity, qualified: true)
     }
 
     /// PACE with the operation's PIN, one single-use PIN from its entry.
     private static func opened(
       _ plain: CardOperations,
-      pin: SigningPin
+      pin: SigningPin,
+      recordProbe: (@Sendable (RetryProbeOutcome) -> Void)?
     ) throws -> OrganizationCardOpening.Opened {
       switch pin {
       case .enteredPin1(let entry):
         try OrganizationCardOpening.pin1(
-          over: plain, entry.issue().consumeForSingleTransmission(), spending: .entered)
+          over: plain,
+          entry.issue().consumeForSingleTransmission(),
+          spending: .entered,
+          onPinState: recordProbe
+        )
 
       case .heldPin1(let entry):
         try OrganizationCardOpening.pin1(
-          over: plain, entry.issue().consumeForSingleTransmission(), spending: .heldPin1)
+          over: plain,
+          entry.issue().consumeForSingleTransmission(),
+          spending: .heldPin1,
+          onPinState: recordProbe
+        )
 
       case .pin2(let entry):
         try OrganizationCardOpening.pin2(
@@ -84,25 +117,33 @@
     private static func refusal(
       _ error: any Error,
       params: SignParameters,
-      fingerprint: PinFingerprint,
-      context: RappNearFieldSessionHolder.Context
+      context: RappNearFieldSessionHolder.Context,
+      observer: Pin1ProbeObserver?,
+      recordProbe: (@Sendable (RetryProbeOutcome) -> Void)?
     ) -> Outcome {
       let role = params.role
       switch error {
       case PaceEstablishment.Failure.credentialBlocked:
+        recordProbe?(.locked)
         return .refusedBeforeCredentialTransmit(.credentialBlocked(role))
 
-      case PaceEstablishment.Failure.retryFloorRefused(let verdict, _):
+      case PaceEstablishment.Failure.retryFloorRefused(let verdict, let state):
+        recordProbe?(state)
         return .refusedBeforeCredentialTransmit(.retryFloor(role, verdict))
 
-      case PaceEstablishment.Failure.heldPinUnconfirmed:
+      case PaceEstablishment.Failure.heldPinUnconfirmed(let state):
+        recordProbe?(state)
         return .refusedBeforeCredentialTransmit(.heldPin1Unconfirmed)
 
       case PaceEstablishment.Failure.passwordDeactivated:
+        recordProbe?(.invalidated)
         return .refusedBeforeCredentialTransmit(.credentialInvalidated(role))
 
       case PaceEstablishment.Failure.wrongPin(let remaining):
-        context.recordNegativePin(fingerprint, role)
+        context.recordNegativePin(params.pin.sessionFingerprint, role)
+        if role == .pin1 {
+          observer?.clearHeld()
+        }
         return .rejected(.credential(role, remaining: remaining.isBlocked ? nil : remaining))
 
       case PaceEstablishment.Failure.cardAccessUnreadable,
