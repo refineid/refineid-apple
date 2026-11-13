@@ -103,7 +103,7 @@
       if let transport = Self.transportSummary(for: failure) {
         return transport
       }
-      switch failure {
+      return switch failure {
       case Failure.activationRequired:
         String(localized: "Activate this card first, then try setup again.")
 
