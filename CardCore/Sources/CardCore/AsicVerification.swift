@@ -185,6 +185,14 @@ public enum AsicVerification {
   /// (W3C XML-Signature 1.1 section 4.4.3.2).
   internal static let sameDocumentUriPrefix = "#"
 
+  /// Directory prefix for container signature and manifest entries
+  /// (EN 319 162-1 clause 4.4.3.1).
+  private static let metaInfPrefix = "META-INF/"
+
+  /// Lowercase extensions of CMS / CAdES signature entries inside
+  /// `META-INF/` (EN 319 162-1 clause 4.4.3.1).
+  private static let cadesSignatureExtensions = [".p7s", ".p7m", ".p7c"]
+
   /// Whether the data opens as a ZIP archive, a signature container
   /// or not.
   public static func isZipArchive(_ data: Data) -> Bool {
@@ -206,30 +214,40 @@ public enum AsicVerification {
   ) throws -> DocumentVerification.DocumentReport {
     let entries = try Self.containerEntries(container)
 
-    let signatureFiles =
+    let xadesSignatureFiles =
       entries.keys
       .filter { key in
-        key.hasPrefix("META-INF/") && key.hasSuffix(".xml")
+        key.hasPrefix(Self.metaInfPrefix) && key.hasSuffix(".xml")
           && (key.contains("signature") || key.contains("signatures"))
       }
       .sorted()
 
-    guard !signatureFiles.isEmpty else {
+    let cadesEntries =
+      entries.keys
+      .filter { key in
+        Self.isCadesSignatureEntry(key)
+      }
+      .sorted()
+      .map { _ in DocumentVerification.SignatureEntry.unsupported }
+
+    guard !xadesSignatureFiles.isEmpty || !cadesEntries.isEmpty else {
       throw DocumentVerification.Failure.noSignatures
     }
 
     let carriedFileNames = Set(
       entries.keys.filter { name in
-        name != AsicContainer.mimetypeEntryName && !name.hasPrefix("META-INF/")
+        name != AsicContainer.mimetypeEntryName && !name.hasPrefix(Self.metaInfPrefix)
       }
     )
 
+    let xadesEntries = Self.signatureEntries(
+      signatureFiles: xadesSignatureFiles,
+      judgement: ContainerJudgement(
+        entries: entries, carriedFileNames: carriedFileNames, anchors: anchors, now: now)
+    )
+
     return DocumentVerification.DocumentReport(
-      signatures: signatureEntries(
-        signatureFiles: signatureFiles,
-        judgement: ContainerJudgement(
-          entries: entries, carriedFileNames: carriedFileNames, anchors: anchors, now: now)
-      ),
+      signatures: xadesEntries + cadesEntries,
       documentTimestamps: []
     )
   }
@@ -311,5 +329,15 @@ public enum AsicVerification {
       return false
     }
     return true
+  }
+
+  /// Whether `entryName` names a CMS / CAdES signature entry under
+  /// `META-INF/` (EN 319 162-1 clause 4.4.3.1).
+  private static func isCadesSignatureEntry(_ entryName: String) -> Bool {
+    guard entryName.hasPrefix(Self.metaInfPrefix) else { return false }
+    let folded = entryName.lowercased()
+    return Self.cadesSignatureExtensions.contains { suffix in
+      folded.hasSuffix(suffix)
+    }
   }
 }

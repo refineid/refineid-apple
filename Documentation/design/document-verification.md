@@ -15,13 +15,14 @@ screens render, and the tests that pin them.
 The verifier judges one file: a PDF carrying PAdES signatures, or an
 ASiC-E or BDOC container carrying XAdES signatures. A standalone CMS
 SignedData file (CAdES, `.p7m`, `.p7s` or `.p7c`) is recognised and
-reported unsupported. A CAdES signature inside a container is not
-enumerated: only `META-INF/*.xml` signature files become rows, so a
-container with no XML signatures reports no signatures even when it
-carries `.p7s` entries. Core judges CAdES in containers; the Swift
-verifier does not yet. A ZIP archive that is not an ASiC-E or BDOC container, such as
-an office document, is reported as carrying no signatures. The
-baseline levels and the validation process are core's.
+reported unsupported. Each CAdES signature entry inside a container
+(`META-INF/*.p7s`, `.p7m` or `.p7c`) becomes an `unsupported` row that
+blocks `DocumentReport.isValid`, so a container carrying only CAdES
+signatures reports unsupported rather than carrying no signatures. Core
+judges CAdES in containers; the Swift verifier does not yet. A ZIP
+archive that is not an ASiC-E or BDOC container, such as an office
+document, is reported as carrying no signatures. The baseline levels
+and the validation process are core's.
 
 ## Where the code lives
 
