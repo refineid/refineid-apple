@@ -102,35 +102,31 @@
           await track()
         }
         .onValueChange(of: IdentityLine.derive(facts)) { line in
-          // The phone just paired is shown by its identity now: the
-          // connecting line has done its work (RAPP v26.11.8 §4.7).
-          if case .paired = line, !DemoMode.shared.isActive {
-            #if REFINEID_REMOTE_CARD
+          #if REFINEID_REMOTE_CARD
+            // The phone just paired is shown by its identity now: the
+            // connecting line has done its work (RAPP v26.11.8 §4.7).
+            if case .paired = line, !DemoMode.shared.isActive {
               PersistentTokenRegistry.shared.connectedAfterPairing()
-            #endif
-          }
+            }
+          #else
+            _ = line
+          #endif
         }
     }
 
-    /// Whether the holder has remote use on.
-    private var remoteUse: Bool {
-      #if REFINEID_REMOTE_CARD
+    #if REFINEID_REMOTE_CARD
+      /// Whether the holder has remote use on.
+      private var remoteUse: Bool {
         RemoteUseSwitch.shared.isOn
-      #else
-        false
-      #endif
-    }
+      }
 
-    /// Whether the platform denies this app the local network: the
-    /// remote-use switch's browse or a dial to a phone was refused it.
-    private var localNetworkDenied: Bool {
-      #if REFINEID_REMOTE_CARD
+      /// Whether the platform denies this app the local network: the
+      /// remote-use switch's browse or a dial to a phone was refused it.
+      private var localNetworkDenied: Bool {
         PersistentTokenRegistry.shared.localNetworkDenied
           || RemoteUseSwitch.shared.blockage == .localNetworkNotAllowed
-      #else
-        false
-      #endif
-    }
+      }
+    #endif
 
     /// What the row knows now.
     ///
@@ -139,7 +135,7 @@
     /// (``DemoPairedPhone``).
     private var facts: RequesterFacts {
       if DemoMode.shared.isActive {
-        #if DEBUG
+        #if DEBUG && REFINEID_REMOTE_CARD
           if DemoPairedPhone.isShown {
             return DemoPairedPhone.facts(availability: availability)
           }
@@ -149,13 +145,7 @@
           availability: availability,
           warnsUnavailableCard: warnsUnavailableCard,
           readerConnected: card.readerConnected,
-          cardPresent: card.cardPresent,
-          remoteUse: remoteUse,
-          phonePaired: false,
-          phoneThatForgot: nil,
-          phoneJustPaired: nil,
-          localNetworkDenied: false,
-          phoneCardStatus: nil
+          cardPresent: card.cardPresent
         )
       }
       #if REFINEID_REMOTE_CARD
@@ -179,13 +169,7 @@
           availability: availability,
           warnsUnavailableCard: warnsUnavailableCard,
           readerConnected: cardPresence.isReaderConnected,
-          cardPresent: cardPresence.isCardPresent,
-          remoteUse: false,
-          phonePaired: false,
-          phoneThatForgot: nil,
-          phoneJustPaired: nil,
-          localNetworkDenied: false,
-          phoneCardStatus: nil
+          cardPresent: cardPresence.isCardPresent
         )
       #endif
     }
@@ -218,14 +202,16 @@
           readingLine
         }
 
-      case .connectingToPairedPhone(let phone):
-        HStack {
-          ProgressView()
-            .controlSize(.small)
-          Text("Connecting to \(phone)…")
-            .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+      #if REFINEID_REMOTE_CARD
+        case .connectingToPairedPhone(let phone):
+          HStack {
+            ProgressView()
+              .controlSize(.small)
+            Text("Connecting to \(phone)…")
+              .foregroundStyle(.secondary)
+          }
+          .frame(maxWidth: .infinity, alignment: .leading)
+      #endif
 
       case .cardNotReady:
         Text("Remove the card from the reader for a moment.")
@@ -247,22 +233,20 @@
         Text("Insert the card into the reader.")
           .foregroundStyle(.secondary)
 
-      case .paired(let lead):
-        PairedPhoneLine(lead: lead, holder: holder ?? borrowedHolderLine)
+      #if REFINEID_REMOTE_CARD
+        case .paired(let lead):
+          PairedPhoneLine(lead: lead, holder: holder ?? borrowedHolderLine)
 
-      case .phoneForgot(let phone):
-        Text("\(phone) forgot this computer.")
-          .foregroundStyle(.secondary)
+        case .phoneForgot(let phone):
+          Text("\(phone) forgot this computer.")
+            .foregroundStyle(.secondary)
 
-      case .pairPhone:
-        #if REFINEID_REMOTE_CARD
+        case .pairPhone:
           RemotePairingPromptView()
-        #else
-          EmptyView()
-        #endif
 
-      case .localNetworkDenied:
-        LocalNetworkNotice(message: LocalNetworkSettings.deniedMessage)
+        case .localNetworkDenied:
+          LocalNetworkNotice(message: LocalNetworkSettings.deniedMessage)
+      #endif
       }
     }
 

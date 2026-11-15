@@ -68,9 +68,12 @@ part of the 2026-10-10 entry and the macOS Bluetooth grant of the
   declarations, and the archive policy together.
 - `RappGatingContractTests` holds the gate: a line in `Sources/App`
   that names the engine, a pairing, the vault or the phone's card is
-  compiled into the macOS build only with the flag over it, and the
-  few shared row sources that name the phone without being RAPP code
-  are listed there with their reason.
+  compiled into the macOS build only with the flag over it. Its list of
+  shared sources is empty: the identity row's facts, its lines and its
+  phone views (`RequesterFacts`, `IdentityLine`, `PairedPhoneLine`,
+  `PhoneCardRequest`, `PhoneCardRequestLine`, `IdentityStateView`) now
+  follow the flag too, and the Mac row keeps the card-not-ready,
+  local-holder, reading, insert-card and connect-reader states alone.
 
 ### 2026-11-13 Proven card access number is kept for cards awaiting activation
 
