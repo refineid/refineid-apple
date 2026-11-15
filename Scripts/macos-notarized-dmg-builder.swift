@@ -336,7 +336,7 @@ private func notarizationSetupInstructions(for profile: String) -> String {
 
   1. Create an app-specific password named "RefineID-notary" (not your Apple ID password):
      https://account.apple.com/account/manage → App-Specific Passwords
-     (Apple Account app-specific password, not App Store Connect. If you don't see the option, sign in with your Apple ID password instead of a passkey.)
+     (Apple Account app-specific password, not App Store Connect. You must sign in with your Apple ID password, not a passkey.)
 
   2. Store it in your Keychain as profile "\(profile)":
      xcrun notarytool store-credentials "\(profile)" --apple-id "petri.koistinen@refineid.fi" --team-id 4ZJC3SFJR2
