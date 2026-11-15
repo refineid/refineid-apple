@@ -11,7 +11,7 @@
     internal var body: some View {
       Form {
         Toggle(
-          String(localized: "Add a verification stamp to the PDF file."),
+          String(localized: "Add a stamp to the PDF file"),
           isOn: $isStampEnabled
         )
         .accessibilityIdentifier("stampEnabledToggle")
