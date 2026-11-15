@@ -85,60 +85,58 @@ A fresh install offers three actions, each naming its whole job:
 website" both read the card over NFC. The setup screen shows no card
 access number: the number is asked inside the flow that needs it.
 Authentication prompts for it, and a personal card's six digits, typed
-or scanned, start the hold by themselves; the prompt dismisses as the
-hold starts. Signing collects its documents first, then takes the
-number beside PIN 2. An organization card is declared with the
-Organization Card switch in the Settings app; its prompt takes PIN 1
-of four to twelve digits with an explicit start button instead. The
-switch selects the card kind for every NFC operation. Once an identity exists
-the regular sections take over, unchanged.
+manually or scanned via on-device camera OCR (`NSCameraUsageDescription`),
+start the hold; the prompt dismisses as the hold starts. Signing collects
+its documents first, then takes the number beside PIN 2. Once an identity
+exists, the regular sections take over, unchanged.
 
-- **Which card.** The Organization Card switch selects personal cards
-  when off and organization cards when on. Setup binds the entry to
-  that kind before opening NFC. A card refusal or transport error never
-  changes the credential kind or tries the other path. This is an owner
-  policy; FINEID specifies how each credential opens PACE, not which
-  setting the app must offer.
-- **Stored identity.** Only the selected kind's prime is served. An
-  absent selected prime means no NFC identity, even when the other kind
-  is stored. Switching kinds preserves both stores, clears the entry,
-  updates card presence and releases a held PIN for the previous card.
-  The app shares the choice with its token extension at launch,
-  activation and before setup; the extension mints only that kind.
-  The locked-phone fingerprint cache is separate for each kind.
-- **Personal card.** The entry must be the six digits printed on the
-  card. Other entries cannot start a hold. Six digits run PACE, and
-  the number is stored once PACE proves it.
+- **Personal cards only.** RefineID supports personal citizen identity cards.
+  Organization cards are gated off across all builds (`FEATURE_ORGANIZATION_CARD`;
+  see [pin-and-credentials.md](pin-and-credentials.md)). The organization card
+  AIDs stay in the ISO 7816 select list so their presence is refused with
+  an explicit notice rather than an unknown-card error.
+- **Card access number (CAN).** The entry must be the six digits printed on
+  the front of the card. Six digits run PACE, and the number is stored in
+  the keychain under service `fi.refineid.credentials` (account `can`) once
+  PACE proves it against the card.
 - **Interrupted personal-card setup.** A missed card, busy reader, lost
   connection or timed-out exchange keeps setup running with the same
   entered CAN in memory. Each field ends before the next scan starts;
   scanning continues until registration succeeds or the holder cancels.
   Personal setup uses the extended response budget from its first attempt,
   allowing PACE to answer before the app replaces the field; the system
-  can still end the NFC session earlier.
-  A card response rejecting the CAN clears it and reopens CAN entry.
-  Activation, storage and malformed-card failures keep their own routes.
-  Reopening entry after cancellation preserves its digits and offers
-  "Read Identity Card". Organization-card PIN attempts are not retried.
-- **Organization card.** The card has no printed number: it opens only
-  with PACE and PIN 1 or PIN 2 as the password (FINEID S1 v4.0,
-  organizational cards, section 2.1), so the entry is its PIN 1. PACE
-  with PIN 1 opens the channel the certificates are read through, and
-  the organization prime (certificates and chip serial only) is stored
-  under the card model's historical bytes. PIN 1 is spent on that one
-  handshake and is neither stored nor held; the field is emptied when
-  the hold ends, and the digits never become a card access number.
-- **Wrong PIN 1.** The card's refusal is shown as for any PIN 1, with
-  the tries left, and the retry floor decides on the state MSE:Set AT
-  reports before the card takes a try.
+  can still end the NFC session earlier. A card response rejecting the CAN
+  clears it and reopens CAN entry. Activation, storage and malformed-card
+  failures keep their own routes. Reopening entry after cancellation preserves
+  its digits and offers "Read Identity Card".
 
-An organization card set up this way signs on the phone's antenna the
-way the Mac's reader does: every operation opens its own PACE channel
-with the PIN it spends, PIN 1 for an authentication, PIN 2 for a
-qualified signature, with no VERIFY. A paired computer's operation does
-the same on the warm field's plain channel; the certificates come from
-the prime. PIN management is not offered for an organization card on
-the phone.
+## Remote Access (RAPP) on iOS
+
+When Remote Access, served over the Remote Authentication & Proxy Protocol
+(RAPP), is enabled on the phone:
+- The phone acts as a Bluetooth peripheral and advertises on the local network
+  via Bonjour (`_refineid-stream._tcp`).
+- Background wake is driven by Bluetooth: the `bluetooth-peripheral`
+  `UIBackgroundModes` capability wakes the app when a paired computer
+  connects over BLE. Local-network streams serve connections while active.
+- Security boundary: PIN 1 is supplied locally to the card on the phone;
+  verification happens on-card. PIN 2 prompts appear strictly on the phone's
+  physical screen. PINs never travel across Bluetooth or the network (Rule #1).
+
+## Application Configuration
+
+The iOS application uses a single Info.plist across all build configurations:
+`Config/RefineID-iOS-Info.plist`. It carries:
+- `NFCReaderUsageDescription` and ISO 7816 application identifiers
+  (`com.apple.developer.nfc.readersession.iso7816.select-identifiers`) for PACE
+  and card communication.
+- `NSCameraUsageDescription` for on-device CAN OCR recognition.
+- `NSBonjourServices` declaring `_refineid-stream._tcp` and
+  `NSLocalNetworkUsageDescription` for RAPP stream serving.
+- `NSBluetoothAlwaysUsageDescription` and `bluetooth-peripheral` under
+  `UIBackgroundModes` for RAPP background serving.
+- Outbound ATS configuration with `NSAllowsArbitraryLoads` and Sectigo HTTP
+  exception domain. See [network-contract.md](network-contract.md).
 
 ## The activation screen
 
