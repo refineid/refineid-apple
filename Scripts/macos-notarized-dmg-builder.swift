@@ -75,8 +75,6 @@ private struct Options {
   var teamId: String = "4ZJC3SFJR2"
   var outputDirectory: String = "build/macos-notarized-dmg"
   var notaryProfile: String? = nil
-  var notaryAppleId: String? = nil
-  var notaryPassword: String? = nil
   var signingIdentityName: String? = nil
 }
 
@@ -96,10 +94,6 @@ private func parseOptions(from args: [String]) -> Options {
       pending = "outputDirectory"
     case "--notary-profile":
       pending = "notaryProfile"
-    case "--notary-apple-id":
-      pending = "notaryAppleId"
-    case "--notary-password":
-      pending = "notaryPassword"
     case "--signing-identity":
       pending = "signingIdentityName"
     default:
@@ -117,10 +111,6 @@ private func parseOptions(from args: [String]) -> Options {
           options.outputDirectory = argument
         case "notaryProfile":
           options.notaryProfile = argument
-        case "notaryAppleId":
-          options.notaryAppleId = argument
-        case "notaryPassword":
-          options.notaryPassword = argument
         case "signingIdentityName":
           options.signingIdentityName = argument
         default:
@@ -334,30 +324,25 @@ private func createDmg(sourceApp: URL, outputDmg: URL) {
 
 private func notarizeDmg(
   dmg: URL,
-  teamId: String,
-  notaryProfile: String?,
-  notaryAppleId: String?,
-  notaryPassword: String?
+  teamId _: String,
+  notaryProfile: String?
 ) {
   note("notarizing \(dmg.lastPathComponent)")
 
-  var arguments = [xcodeNotarytool, "submit", dmg.path, "--wait", "--output-log", dmg.path + ".notarytool.log"]
-
-  if let profile = notaryProfile, !profile.isEmpty {
-    arguments += ["--keychain-profile", profile]
-  } else if let appleId = notaryAppleId, !appleId.isEmpty {
-    arguments += [
-      "--apple-id", appleId,
-      "--password", notaryPassword ?? "",
-      "--team-id", teamId
-    ]
-  } else {
-    fail("no notarization credential: set --notary-profile or --notary-apple-id")
+  guard let profile = notaryProfile, !profile.isEmpty else {
+    fail("no notarization credential: set --notary-profile (use a notarytool keychain profile; Apple ID/password must not be passed on the command line)")
   }
 
+  let arguments = [
+    "submit", dmg.path,
+    "--wait",
+    "--keychain-profile", profile,
+    "--output-log", dmg.path + ".notarytool.log"
+  ]
+
   let status = run(
-    arguments[0],
-    Array(arguments.dropFirst()),
+    xcodeNotarytool,
+    arguments,
     directory: dmg.deletingLastPathComponent()
   )
 
@@ -480,9 +465,7 @@ private func main() {
   notarizeDmg(
     dmg: dmg,
     teamId: options.teamId,
-    notaryProfile: options.notaryProfile,
-    notaryAppleId: options.notaryAppleId,
-    notaryPassword: options.notaryPassword
+    notaryProfile: options.notaryProfile
   )
   stapleDmg(dmg: dmg)
   verifyDmgSignature(dmg: dmg)
