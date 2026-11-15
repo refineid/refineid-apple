@@ -2,7 +2,10 @@
 
 import CardCore
 import Foundation
-import RappEngine
+
+#if REFINEID_REMOTE_CARD
+  import RappEngine
+#endif
 
 #if os(macOS)
   import AppKit
@@ -73,7 +76,7 @@ extension RefineIDApp {
     Self.startSettingsSweep()
     // Every message a peer sent that the protocol refuses shows among the
     // development errors, named by its type and the rule it broke.
-    #if DEBUG
+    #if DEBUG && REFINEID_REMOTE_CARD
       RappRefusalLog.install { line in
         DevErrorLog.report("message refused: \(line)", source: .app)
       }

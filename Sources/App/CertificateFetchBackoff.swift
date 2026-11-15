@@ -1,68 +1,71 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-import Foundation
+#if REFINEID_REMOTE_CARD
 
-/// When the background read of the paired phone's certificate may ask
-/// the phone again.
-///
-/// Every read reaches the phone as a card request and can hold it for
-/// its whole card wait. While the phone stays on the network each
-/// failure is followed by another read: the first two after a short
-/// gap, for a phone that was only briefly out of reach, then after a
-/// gap that doubles from half a minute to five minutes. A launch or a
-/// new pairing starts over.
-internal struct CertificateFetchBackoff: Equatable, Sendable {
-  // MARK: Static Properties
+  import Foundation
 
-  /// Failures followed by a quick retry.
-  internal static let quickRetries = 2
+  /// When the background read of the paired phone's certificate may ask
+  /// the phone again.
+  ///
+  /// Every read reaches the phone as a card request and can hold it for
+  /// its whole card wait. While the phone stays on the network each
+  /// failure is followed by another read: the first two after a short
+  /// gap, for a phone that was only briefly out of reach, then after a
+  /// gap that doubles from half a minute to five minutes. A launch or a
+  /// new pairing starts over.
+  internal struct CertificateFetchBackoff: Equatable, Sendable {
+    // MARK: Static Properties
 
-  private static let quickDelaySeconds: Int64 = 2
-  private static let firstSlowDelaySeconds: Int64 = 30
-  private static let longestDelaySeconds: Int64 = 300
-  private static let growth: Int64 = 2
+    /// Failures followed by a quick retry.
+    internal static let quickRetries = 2
 
-  private static let quickDelay: Duration = .seconds(quickDelaySeconds)
-  private static let firstSlowDelay: Duration = .seconds(firstSlowDelaySeconds)
-  private static let longestDelay: Duration = .seconds(longestDelaySeconds)
+    private static let quickDelaySeconds: Int64 = 2
+    private static let firstSlowDelaySeconds: Int64 = 30
+    private static let longestDelaySeconds: Int64 = 300
+    private static let growth: Int64 = 2
 
-  // MARK: Properties
+    private static let quickDelay: Duration = .seconds(quickDelaySeconds)
+    private static let firstSlowDelay: Duration = .seconds(firstSlowDelaySeconds)
+    private static let longestDelay: Duration = .seconds(longestDelaySeconds)
 
-  /// Reads that ended without a certificate since the last start over.
-  internal private(set) var failures = 0
+    // MARK: Properties
 
-  private var notBefore: ContinuousClock.Instant?
+    /// Reads that ended without a certificate since the last start over.
+    internal private(set) var failures = 0
 
-  // MARK: Static Functions
+    private var notBefore: ContinuousClock.Instant?
 
-  /// The gap after `failures` consecutive failed reads.
-  internal static func delay(afterFailures failures: Int) -> Duration {
-    guard failures > quickRetries else { return quickDelay }
-    var delay = firstSlowDelay
-    for _ in 0..<(failures - quickRetries - 1) {
-      delay *= Self.growth
-      if delay >= longestDelay { return longestDelay }
+    // MARK: Static Functions
+
+    /// The gap after `failures` consecutive failed reads.
+    internal static func delay(afterFailures failures: Int) -> Duration {
+      guard failures > quickRetries else { return quickDelay }
+      var delay = firstSlowDelay
+      for _ in 0..<(failures - quickRetries - 1) {
+        delay *= Self.growth
+        if delay >= longestDelay { return longestDelay }
+      }
+      return delay
     }
-    return delay
-  }
 
-  // MARK: Functions
+    // MARK: Functions
 
-  /// Whether a read may start at `now`.
-  internal func permits(at now: ContinuousClock.Instant) -> Bool {
-    guard let notBefore else { return true }
-    return now >= notBefore
-  }
+    /// Whether a read may start at `now`.
+    internal func permits(at now: ContinuousClock.Instant) -> Bool {
+      guard let notBefore else { return true }
+      return now >= notBefore
+    }
 
-  /// Records a read that ended without a certificate at `now`.
-  internal mutating func recordFailure(at now: ContinuousClock.Instant) {
-    failures += 1
-    notBefore = now.advanced(by: Self.delay(afterFailures: failures))
-  }
+    /// Records a read that ended without a certificate at `now`.
+    internal mutating func recordFailure(at now: ContinuousClock.Instant) {
+      failures += 1
+      notBefore = now.advanced(by: Self.delay(afterFailures: failures))
+    }
 
-  /// Starts over, so the next read goes out at once.
-  internal mutating func reset() {
-    failures = 0
-    notBefore = nil
+    /// Starts over, so the next read goes out at once.
+    internal mutating func reset() {
+      failures = 0
+      notBefore = nil
+    }
   }
-}
+#endif

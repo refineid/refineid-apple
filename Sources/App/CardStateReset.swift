@@ -66,8 +66,10 @@ internal enum CardStateReset {
       Task { @MainActor in HolderCardServing.availabilityChanged() }
     #endif
 
-    let revoked = Self.revokeEveryPairing()
-    lines.append("RefineID pairings revoked: \(revoked)")
+    #if REFINEID_REMOTE_CARD
+      let revoked = Self.revokeEveryPairing()
+      lines.append("RefineID pairings revoked: \(revoked)")
+    #endif
 
     #if REFINEID_REMOTE_CARD
       Task { @MainActor in
@@ -96,24 +98,26 @@ internal enum CardStateReset {
       succeeded: registration.succeeded && traceCleared)
   }
 
-  /// Revokes every pairing this device holds, and returns how many.
-  ///
-  /// A pairing is state this device keeps about another, so a reset that
-  /// claims a known zero has to take them too. Leaving them behind was how
-  /// a device came to hold nine records for one peer, of which one answered.
-  private static func revokeEveryPairing() -> Int {
-    let vault = RappDeviceVault()
-    let pairIDs = (try? vault.activePairIDs()) ?? []
-    let clock = RappPlatformClock()
-    var revoked = 0
-    for pairID in pairIDs {
-      guard (try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: clock)) != nil
-      else { continue }
-      revoked += 1
+  #if REFINEID_REMOTE_CARD
+    /// Revokes every pairing this device holds, and returns how many.
+    ///
+    /// A pairing is state this device keeps about another, so a reset that
+    /// claims a known zero has to take them too. Leaving them behind was how
+    /// a device came to hold nine records for one peer, of which one answered.
+    private static func revokeEveryPairing() -> Int {
+      let vault = RappDeviceVault()
+      let pairIDs = (try? vault.activePairIDs()) ?? []
+      let clock = RappPlatformClock()
+      var revoked = 0
+      for pairID in pairIDs {
+        guard (try? RappPairRevocation.revoke(pairID: pairID, in: vault, clock: clock)) != nil
+        else { continue }
+        revoked += 1
+      }
+      try? vault.clearSelectedPair()
+      return revoked
     }
-    try? vault.clearSelectedPair()
-    return revoked
-  }
+  #endif
 
   /// Unregisters only token IDs issued by this app's CTK class.
   private static func unregisterOurTokens() -> (

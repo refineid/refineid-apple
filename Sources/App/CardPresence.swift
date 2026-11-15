@@ -23,7 +23,11 @@ internal final class CardPresence: ObservableObject {
   /// Whether a card is present in an external reader rather than the
   /// iPhone's temporary NFC slot.
   @Published internal private(set) var isReaderCardPresent = false {
-    didSet { RemoteUseAvailability.readerCardChanged(present: isReaderCardPresent) }
+    didSet {
+      #if REFINEID_REMOTE_CARD
+        RemoteUseAvailability.readerCardChanged(present: isReaderCardPresent)
+      #endif
+    }
   }
 
   /// Whether an external smart card reader hardware is connected.

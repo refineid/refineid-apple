@@ -2,7 +2,10 @@
 
 import CardCore
 import Foundation
-import RappEngine
+
+#if REFINEID_REMOTE_CARD
+  import RappEngine
+#endif
 
 /// One localized failure vocabulary shared by macOS and iOS signing.
 internal enum DocumentSigningMessage {
@@ -21,9 +24,11 @@ internal enum DocumentSigningMessage {
     if let asicFailure = error as? AsicSigner.Failure {
       return asicSignerMessage(asicFailure)
     }
-    if let clientError = error as? RappRequesterClientError {
-      return remoteClientMessage(clientError)
-    }
+    #if REFINEID_REMOTE_CARD
+      if let clientError = error as? RappRequesterClientError {
+        return remoteClientMessage(clientError)
+      }
+    #endif
     return text("error.generic", "The documents could not be signed.")
   }
 
@@ -78,29 +83,33 @@ internal enum DocumentSigningMessage {
     }
   }
 
-  private static func remoteClientMessage(_ error: RappRequesterClientError) -> String {
-    switch error {
-    case .noActivePair, .noSelectedPair:
-      text("error.remoteNotPaired", "No phone is paired.")
+  #if REFINEID_REMOTE_CARD
+    private static func remoteClientMessage(_ error: RappRequesterClientError) -> String {
+      switch error {
+      case .noActivePair, .noSelectedPair:
+        text("error.remoteNotPaired", "No phone is paired.")
 
-    case .peerNotFound, .timedOut:
-      text("error.remoteTimeout", "The paired phone did not respond.")
+      case .peerNotFound, .timedOut:
+        text("error.remoteTimeout", "The paired phone did not respond.")
 
-    case .transport:
-      text("error.remoteDisconnected", "The connection to the paired phone was lost.")
+      case .transport:
+        text("error.remoteDisconnected", "The connection to the paired phone was lost.")
 
-    case .terminal(let reason):
-      terminalReasonMessage(reason)
+      case .terminal(let reason):
+        terminalReasonMessage(reason)
 
-    case .protocolFailure, .unexpectedResult:
-      remoteAnswerMessage(.noSignature)
+      case .protocolFailure, .unexpectedResult:
+        remoteAnswerMessage(.noSignature)
+      }
     }
-  }
+
+  #endif
 
   private static func remoteAnswerMessage(_ failure: DocumentSigner.RemoteFailure) -> String {
     switch failure {
     case .noSignature:
-      text("error.remoteNoSignature", "The phone did not return a signature. Nothing was written.")
+      text(
+        "error.remoteNoSignature", "The phone did not return a signature. Nothing was written.")
 
     case .unverifiedSignature:
       text(
@@ -114,35 +123,38 @@ internal enum DocumentSigningMessage {
     }
   }
 
-  /// What the requester's user is told for the error name the phone gave
-  /// (RAPP v26.11.8 §10.3).
-  private static func terminalReasonMessage(_ reason: RappTerminalReason) -> String {
-    switch reason {
-    case .userCancelled:
-      text(
-        "error.remoteDenied",
-        "The signature request was declined on the paired phone.")
+  #if REFINEID_REMOTE_CARD
+    /// What the requester's user is told for the error name the phone gave
+    /// (RAPP v26.11.8 §10.3).
+    private static func terminalReasonMessage(_ reason: RappTerminalReason) -> String {
+      switch reason {
+      case .userCancelled:
+        text(
+          "error.remoteDenied",
+          "The signature request was declined on the paired phone.")
 
-    case .retryFloor:
-      CredentialOutcomeMessage.floorRefusal(
-        role: .pin2, verdict: .refuseLowAttempts, remaining: nil)
+      case .retryFloor:
+        CredentialOutcomeMessage.floorRefusal(
+          role: .pin2, verdict: .refuseLowAttempts, remaining: nil)
 
-    case .operationExpired:
-      text("error.remoteExpired", "The request was not approved on the phone in time.")
+      case .operationExpired:
+        text("error.remoteExpired", "The request was not approved on the phone in time.")
 
-    case .busy, .duplicateOperation, .invalidLifetime:
-      text("error.remoteCancelled", "The signature request was cancelled.")
+      case .busy, .duplicateOperation, .invalidLifetime:
+        text("error.remoteCancelled", "The signature request was cancelled.")
 
-    case .unauthorized, .unsupportedParameter:
-      text("error.remoteUnsupported", "The phone cannot make this kind of signature.")
+      case .unauthorized, .unsupportedParameter:
+        text("error.remoteUnsupported", "The phone cannot make this kind of signature.")
 
-    case .cardError:
-      text("error.remoteAmbiguous", "The card's answer was lost. Nothing was written.")
+      case .cardError:
+        text("error.remoteAmbiguous", "The card's answer was lost. Nothing was written.")
 
-    case .operationFailed:
-      remoteAnswerMessage(.noSignature)
+      case .operationFailed:
+        remoteAnswerMessage(.noSignature)
+      }
     }
-  }
+
+  #endif
 
   private static func cardMessage(_ outcome: CardMaintenance.Outcome) -> String {
     switch outcome {

@@ -1,6 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-#if DEBUG && (os(iOS) || os(macOS))
+#if DEBUG && (os(iOS) || os(macOS)) && REFINEID_REMOTE_CARD
 
   import CardCore
   import CryptoKit
