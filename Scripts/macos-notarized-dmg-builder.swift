@@ -325,22 +325,33 @@ private func createDmg(sourceApp: URL, outputDmg: URL) {
   try? FileManager.default.removeItem(at: stagingDmg)
 }
 
-private func notarizationSetupHelp(notaryOutput: String) -> String {
-  let help = """
+private func notarizationSetupInstructions(for profile: String) -> String {
+  let rerun = profile == "RefineID-notary"
+    ? "swift Scripts/macos-notarized-dmg-builder.swift --configuration Release"
+    : "swift Scripts/macos-notarized-dmg-builder.swift --configuration Release --notary-profile \"\(profile)\""
 
-    Notarization credentials not found. Do this once:
+  return """
 
-    1. Create an app-specific password (not your Apple ID password):
-       https://appleid.apple.com → Sign-In and Security → App-Specific Passwords
+  Notarization credentials not found. Do this once:
 
-    2. Store it in your Keychain as profile "RefineID-notary":
-       xcrun notarytool store-credentials "RefineID-notary" --apple-id "petri.koistinen@refineid.fi" --team-id 4ZJC3SFJR2
+  1. Create an app-specific password (not your Apple ID password):
+     https://appleid.apple.com → Sign-In and Security → App-Specific Passwords
 
-    3. When prompted, paste the app-specific password.
+  2. Store it in your Keychain as profile "\(profile)":
+     xcrun notarytool store-credentials "\(profile)" --apple-id "petri.koistinen@refineid.fi" --team-id 4ZJC3SFJR2
 
-    4. Rerun: swift Scripts/macos-notarized-dmg-builder.swift --configuration Release
-    """
-  return "notarytool submission failed: \(notaryOutput)\(help)"
+  3. When prompted, paste the app-specific password.
+
+  4. Rerun: \(rerun)
+  """
+}
+
+private func missingNotaryProfileMessage(_ output: String, profile: String) -> String {
+  let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+  if trimmed.contains("No Keychain password item found") || trimmed.contains("Could not find") {
+    return "Keychain profile '\(profile)' not found.\(notarizationSetupInstructions(for: profile))"
+  }
+  return "notarytool failed: \(trimmed)\(notarizationSetupInstructions(for: profile))"
 }
 
 private func preflightNotaryProfile(_ notaryProfile: String) {
@@ -348,7 +359,6 @@ private func preflightNotaryProfile(_ notaryProfile: String) {
     fail("no notarization credential: set --notary-profile (use a notarytool keychain profile)")
   }
 
-  note("checking notarization keychain profile '\(notaryProfile)'")
   let status = run(
     xcodeNotarytool,
     ["history", "--keychain-profile", notaryProfile],
@@ -358,9 +368,9 @@ private func preflightNotaryProfile(_ notaryProfile: String) {
   if status.status != 0 {
     let output = status.stderr.isEmpty ? status.stdout : status.stderr
     if output.contains("No Keychain password item found") || output.contains("Could not find") || status.status == 69 {
-      fail(notarizationSetupHelp(notaryOutput: output))
+      fail(missingNotaryProfileMessage(output, profile: notaryProfile))
     }
-    fail("notarytool profile check failed for '\(notaryProfile)': \(output)")
+    fail("notarytool profile check failed for '\(notaryProfile)': \(output.trimmingCharacters(in: .whitespacesAndNewlines))")
   }
 }
 
@@ -389,7 +399,10 @@ private func notarizeDmg(
 
   if status.status != 0 {
     let notaryOutput = status.stderr.isEmpty ? status.stdout : status.stderr
-    fail(notarizationSetupHelp(notaryOutput: notaryOutput))
+    if notaryOutput.contains("No Keychain password item found") || notaryOutput.contains("Could not find") {
+      fail(missingNotaryProfileMessage(notaryOutput, profile: notaryProfile))
+    }
+    fail("notarytool submission failed: \(notaryOutput.trimmingCharacters(in: .whitespacesAndNewlines))")
   }
 }
 
