@@ -66,6 +66,11 @@ part of the 2026-10-10 entry and the macOS Bluetooth grant of the
   row asks for the reader where it used to name the switch.
   Bringing the remote card back is the flag, the embed, the
   declarations, and the archive policy together.
+- `RappGatingContractTests` holds the gate: a line in `Sources/App`
+  that names the engine, a pairing, the vault or the phone's card is
+  compiled into the macOS build only with the flag over it, and the
+  few shared row sources that name the phone without being RAPP code
+  are listed there with their reason.
 
 ### 2026-11-13 Proven card access number is kept for cards awaiting activation
 

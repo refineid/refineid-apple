@@ -4,7 +4,9 @@
 
   import CardCore
   import Foundation
-  import RappEngine
+  #if REFINEID_REMOTE_CARD
+    import RappEngine
+  #endif
   import Testing
 
   @testable import RefineIDTestHost
@@ -12,52 +14,66 @@
   /// Every signing failure names its own cause and waits to be acknowledged.
   @Suite
   internal struct SigningFailureMessageTests {
-    private static let remoteFailures: [Error] = [
-      DocumentSigner.Failure.remote(.noSignature),
-      DocumentSigner.Failure.remote(.unverifiedSignature),
-      DocumentSigner.Failure.remote(.unusableCertificate),
-      RappRequesterClientError.noSelectedPair,
-      RappRequesterClientError.timedOut,
-      RappRequesterClientError.transport,
-      RappRequesterClientError.terminal(.userCancelled),
-      RappRequesterClientError.terminal(.operationExpired),
-      RappRequesterClientError.terminal(.busy),
-      RappRequesterClientError.terminal(.unsupportedParameter),
-      RappRequesterClientError.terminal(.retryFloor),
-      RappRequesterClientError.terminal(.cardError),
-    ]
+    #if REFINEID_REMOTE_CARD
+      private static let remoteFailures: [Error] = [
+        DocumentSigner.Failure.remote(.noSignature),
+        DocumentSigner.Failure.remote(.unverifiedSignature),
+        DocumentSigner.Failure.remote(.unusableCertificate),
+        RappRequesterClientError.noSelectedPair,
+        RappRequesterClientError.timedOut,
+        RappRequesterClientError.transport,
+        RappRequesterClientError.terminal(.userCancelled),
+        RappRequesterClientError.terminal(.operationExpired),
+        RappRequesterClientError.terminal(.busy),
+        RappRequesterClientError.terminal(.unsupportedParameter),
+        RappRequesterClientError.terminal(.retryFloor),
+        RappRequesterClientError.terminal(.cardError),
+      ]
+    #endif
 
-    @Test
-    internal func eachRemoteCauseHasItsOwnMessage() {
-      let messages = Self.remoteFailures.map(DocumentSigningMessage.message(for:))
-      #expect(Set(messages).count == messages.count)
-    }
+    #if REFINEID_REMOTE_CARD
 
-    @Test
-    internal func noRemoteCauseReadsAsAGenericCardFailure() {
-      let cardFailure = DocumentSigningMessage.message(
-        for: DocumentSigner.Failure.card(.failed))
-      for failure in Self.remoteFailures {
-        #expect(DocumentSigningMessage.message(for: failure) != cardFailure)
+      @Test
+      internal func eachRemoteCauseHasItsOwnMessage() {
+        let messages = Self.remoteFailures.map(DocumentSigningMessage.message(for:))
+        #expect(Set(messages).count == messages.count)
       }
-    }
+    #endif
 
-    @Test
-    internal func everyRegisteredErrorHasAMessage() {
-      for reason in RappTerminalReason.allCases {
+    #if REFINEID_REMOTE_CARD
+
+      @Test
+      internal func noRemoteCauseReadsAsAGenericCardFailure() {
+        let cardFailure = DocumentSigningMessage.message(
+          for: DocumentSigner.Failure.card(.failed))
+        for failure in Self.remoteFailures {
+          #expect(DocumentSigningMessage.message(for: failure) != cardFailure)
+        }
+      }
+    #endif
+
+    #if REFINEID_REMOTE_CARD
+
+      @Test
+      internal func everyRegisteredErrorHasAMessage() {
+        for reason in RappTerminalReason.allCases {
+          #expect(
+            !DocumentSigningMessage.message(for: RappRequesterClientError.terminal(reason))
+              .isEmpty)
+        }
+      }
+    #endif
+
+    #if REFINEID_REMOTE_CARD
+
+      @Test
+      internal func thePhoneRetryFloorMatchesTheLocalOne() {
         #expect(
-          !DocumentSigningMessage.message(for: RappRequesterClientError.terminal(reason))
-            .isEmpty)
+          DocumentSigningMessage.message(for: RappRequesterClientError.terminal(.retryFloor))
+            == DocumentSigningMessage.message(
+              for: DocumentSigner.Failure.card(.floorRefused(.refuseLowAttempts))))
       }
-    }
-
-    @Test
-    internal func thePhoneRetryFloorMatchesTheLocalOne() {
-      #expect(
-        DocumentSigningMessage.message(for: RappRequesterClientError.terminal(.retryFloor))
-          == DocumentSigningMessage.message(
-            for: DocumentSigner.Failure.card(.floorRefused(.refuseLowAttempts))))
-    }
+    #endif
 
     @Test
     internal func aFloorRefusalNamesPin2AndPointsToThePuk() {
@@ -69,12 +85,15 @@
       #expect(message.contains("PUK"))
     }
 
-    @Test
-    internal func aPhoneThatCouldNotSignReadsAsNoSignature() {
-      #expect(
-        DocumentSigningMessage.message(for: RappRequesterClientError.terminal(.operationFailed))
-          == DocumentSigningMessage.message(for: DocumentSigner.Failure.remote(.noSignature)))
-    }
+    #if REFINEID_REMOTE_CARD
+
+      @Test
+      internal func aPhoneThatCouldNotSignReadsAsNoSignature() {
+        #expect(
+          DocumentSigningMessage.message(for: RappRequesterClientError.terminal(.operationFailed))
+            == DocumentSigningMessage.message(for: DocumentSigner.Failure.remote(.noSignature)))
+      }
+    #endif
 
     @Test
     internal func aCauseSharedByThePileIsSaidOnce() throws {

@@ -38,8 +38,10 @@ internal struct DiagnosticsSnapshot: Sendable {
   /// What is printed for a section that found nothing.
   private static let nothing = "(none)"
 
-  /// Enough of an identifier to tell two pairings apart.
-  private static let identifierPrefixLength = 4
+  #if REFINEID_REMOTE_CARD
+    /// Enough of an identifier to tell two pairings apart.
+    private static let identifierPrefixLength = 4
+  #endif
 
   /// Every error the development error log holds, oldest first.
   internal let errors: [DevErrorLog.Entry]
@@ -76,20 +78,23 @@ internal struct DiagnosticsSnapshot: Sendable {
   /// the extension to mint a token and present an NFC reader sheet, so a
   /// diagnostic capture doing it would alter the failure being observed.
   internal static func collect() -> Self {
-    Self(
-      errors: DevErrorLog.read(),
-      sections: [
-        Self.registeredTokens(),
-        Self.watcherTokens(),
-        Self.driverConfigurations(),
-        Self.primeStore(),
-        Self.network(),
-        Self.pairings(),
-        Self.credentialPolicy(),
-        Self.transportPolicy(),
-        Self.keychainCounts(),
-        Self.extensionTrace(),
-      ])
+    var parts: [Section] = [
+      Self.registeredTokens(),
+      Self.watcherTokens(),
+      Self.driverConfigurations(),
+      Self.primeStore(),
+      Self.network(),
+    ]
+    #if REFINEID_REMOTE_CARD
+      parts.append(Self.pairings())
+    #endif
+    parts.append(contentsOf: [
+      Self.credentialPolicy(),
+      Self.transportPolicy(),
+      Self.keychainCounts(),
+      Self.extensionTrace(),
+    ])
+    return Self(errors: DevErrorLog.read(), sections: parts)
   }
 
   /// What the system has been told to ask for later.
@@ -200,36 +205,38 @@ internal struct DiagnosticsSnapshot: Sendable {
     return Section(title: "Network", lines: lines.isEmpty ? [Self.nothing] : lines)
   }
 
-  /// The pairings this device can serve or ask through.
-  ///
-  /// Identifiers only, and only their first bytes: a pairing names two
-  /// devices and nothing about the person holding either.
-  private static func pairings() -> Section {
-    let vault = RappDeviceVault()
-    var lines: [String] = []
-    do {
-      let active = try vault.activePairIDs()
-      lines.append("active: \(active.count)")
-      for pairID in active {
-        lines.append("id: " + pairID.map { String(format: "%02x", $0) }.joined())
+  #if REFINEID_REMOTE_CARD
+    /// The pairings this device can serve or ask through.
+    ///
+    /// Identifiers only, and only their first bytes: a pairing names two
+    /// devices and nothing about the person holding either.
+    private static func pairings() -> Section {
+      let vault = RappDeviceVault()
+      var lines: [String] = []
+      do {
+        let active = try vault.activePairIDs()
+        lines.append("active: \(active.count)")
+        for pairID in active {
+          lines.append("id: " + pairID.map { String(format: "%02x", $0) }.joined())
+        }
+        if let selected = try vault.selectedPairID() {
+          lines.append("selected: " + Self.shortIdentifier(selected))
+        } else {
+          lines.append("selected: none")
+        }
+      } catch {
+        lines.append("vault error: \(error)")
       }
-      if let selected = try vault.selectedPairID() {
-        lines.append("selected: " + Self.shortIdentifier(selected))
-      } else {
-        lines.append("selected: none")
-      }
-    } catch {
-      lines.append("vault error: \(error)")
+      return Section(title: "Pairings", lines: lines)
     }
-    return Section(title: "Pairings", lines: lines)
-  }
 
-  /// The leading bytes of an identifier, which is enough to tell two apart.
-  private static func shortIdentifier(_ identifier: Data) -> String {
-    identifier.prefix(Self.identifierPrefixLength)
-      .map { String(format: "%02x", $0) }
-      .joined()
-  }
+    /// The leading bytes of an identifier, which is enough to tell two apart.
+    private static func shortIdentifier(_ identifier: Data) -> String {
+      identifier.prefix(Self.identifierPrefixLength)
+        .map { String(format: "%02x", $0) }
+        .joined()
+    }
+  #endif
 
   /// How a contactless signature obtains PIN1.
   ///

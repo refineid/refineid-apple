@@ -124,7 +124,12 @@
         #endif
 
       case .selectPair:
-        Self.selectPairReport()
+        #if REFINEID_REMOTE_CARD
+          Self.selectPairReport()
+        #else
+          DebugModeReport(
+            lines: [mode.rawValue + ": no remote card in this build"], succeeded: false)
+        #endif
 
       case .remoteIdentityProbe:
         #if os(iOS) || os(macOS) && REFINEID_REMOTE_CARD
@@ -154,30 +159,32 @@
       }
     #endif
 
-    /// Chooses the pairing whose identifier starts with the given prefix.
-    private static func selectPairReport() -> DebugModeReport {
-      guard let prefix = Self.pathValue(after: .selectPair), !prefix.isEmpty else {
-        return DebugModeReport(
-          lines: ["usage: --select-pair <identifier prefix>"], succeeded: false)
+    #if REFINEID_REMOTE_CARD
+      /// Chooses the pairing whose identifier starts with the given prefix.
+      private static func selectPairReport() -> DebugModeReport {
+        guard let prefix = Self.pathValue(after: .selectPair), !prefix.isEmpty else {
+          return DebugModeReport(
+            lines: ["usage: --select-pair <identifier prefix>"], succeeded: false)
+        }
+        let vault = RappDeviceVault()
+        guard
+          let match = ((try? vault.activePairIDs()) ?? []).first(where: { pairID in
+            pairID.prefix(Self.identifierPrefixLength)
+              .map { String(format: "%02x", $0) }
+              .joined()
+              .hasPrefix(prefix)
+          })
+        else {
+          return DebugModeReport(lines: ["no pairing starts with \(prefix)"], succeeded: false)
+        }
+        do {
+          try vault.selectPair(pairID: match)
+          return DebugModeReport(lines: ["selected \(prefix)"], succeeded: true)
+        } catch {
+          return DebugModeReport(lines: ["could not select: \(error)"], succeeded: false)
+        }
       }
-      let vault = RappDeviceVault()
-      guard
-        let match = ((try? vault.activePairIDs()) ?? []).first(where: { pairID in
-          pairID.prefix(Self.identifierPrefixLength)
-            .map { String(format: "%02x", $0) }
-            .joined()
-            .hasPrefix(prefix)
-        })
-      else {
-        return DebugModeReport(lines: ["no pairing starts with \(prefix)"], succeeded: false)
-      }
-      do {
-        try vault.selectPair(pairID: match)
-        return DebugModeReport(lines: ["selected \(prefix)"], succeeded: true)
-      } catch {
-        return DebugModeReport(lines: ["could not select: \(error)"], succeeded: false)
-      }
-    }
+    #endif
 
     /// The modes that drive a reader or read what one left behind.
     private static func probeReport(for mode: DebugLaunchMode) -> DebugModeReport {

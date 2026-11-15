@@ -256,22 +256,24 @@ extension DocumentSigner {
     #endif
   }
 
-  /// Whether another attempt may succeed.
-  ///
-  /// It may when the session dropped, or, where each attempt dials a
-  /// session of its own, when the phone was not found in that dial's
-  /// window; the held session already waited out its own.
-  private static func isRecoverableRemoteError(_ error: RappRequesterClientError) -> Bool {
-    switch error {
-    case .transport, .protocolFailure:
-      return true
+  #if REFINEID_REMOTE_CARD
+    /// Whether another attempt may succeed.
+    ///
+    /// It may when the session dropped, or, where each attempt dials a
+    /// session of its own, when the phone was not found in that dial's
+    /// window; the held session already waited out its own.
+    private static func isRecoverableRemoteError(_ error: RappRequesterClientError) -> Bool {
+      switch error {
+      case .transport, .protocolFailure:
+        return true
 
-    case .peerNotFound:
-      return false
+      case .peerNotFound:
+        return false
 
-    case .noActivePair, .noSelectedPair, .terminal, .timedOut,
-      .unexpectedResult:
-      return false
+      case .noActivePair, .noSelectedPair, .terminal, .timedOut,
+        .unexpectedResult:
+        return false
+      }
     }
-  }
+  #endif
 }
