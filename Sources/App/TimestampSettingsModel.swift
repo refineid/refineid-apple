@@ -76,9 +76,8 @@
     /// The draft changed: trim it, show any verdict for it, then
     /// probe it after a pause.
     internal func draftChanged() {
-      testTask?.cancel()
-      testTask = nil
-      testing = false
+      cancelProbe()
+      generation += 1
       let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
       if trimmed != draft {
         draft = trimmed
@@ -110,11 +109,20 @@
 
     /// Forget the configured address; the shipped service answers again.
     internal func restoreDefaults() {
-      testTask?.cancel()
-      testTask = nil
       TimestampAuthorityStore.restoreDefaults(in: defaults)
       draft = TimestampAuthorityStore.defaultAuthority
       draftChanged()
+    }
+
+    /// The pane went away: stop any probe and drop the draft.
+    internal func dismissPane() {
+      cancelProbe()
+      revertToStored()
+      if let target = TimestampAuthorityStore.resolvedRequestAddress(draft) {
+        verification = TimestampAuthorityStore.verification(for: target, in: defaults)
+      } else {
+        verification = nil
+      }
     }
 
     /// One probe of the draft's address, kept only if still current.
@@ -136,12 +144,24 @@
         failure = nil
       } catch is CancellationError {
         return
+      } catch let urlError as URLError where urlError.code == .cancelled {
+        return
       } catch let caught as TimestampClient.Failure {
         failure = caught
       } catch {
         failure = TimestampClient.probeFailure(from: error)
       }
+      guard !Task.isCancelled else {
+        return
+      }
       complete(target: target, failure: failure, current: current)
+    }
+
+    /// Stop any scheduled or running probe.
+    private func cancelProbe() {
+      testTask?.cancel()
+      testTask = nil
+      testing = false
     }
 
     /// Keep a finished probe: record it when still current, store

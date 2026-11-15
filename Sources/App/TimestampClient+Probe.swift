@@ -31,12 +31,17 @@ extension TimestampClient {
   /// of retrying behind a button. Anything but a verified token is a
   /// `Failure`, the same verdict signing would reach.
   internal static func probe(_ authority: String) async throws {
+    guard !Task.isCancelled else {
+      throw CancellationError()
+    }
     do {
       let digest = Data(
         SHA384.hash(data: Data(Self.probeImprintSource.utf8))
       )
       _ = try await Self.token(over: digest, from: authority)
     } catch is CancellationError {
+      throw CancellationError()
+    } catch let urlError as URLError where urlError.code == .cancelled {
       throw CancellationError()
     } catch let failure as Failure {
       throw failure

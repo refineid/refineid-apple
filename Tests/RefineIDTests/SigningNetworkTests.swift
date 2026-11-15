@@ -121,7 +121,7 @@ internal struct SigningNetworkTests {
 
   /// One exchange may take ten seconds, probe and signing alike.
   @Test
-  internal func requestTimeoutIsTenSeconds() throws {
+  internal func exchangeTimeoutIsTenSeconds() throws {
     let request = try SigningNetwork.postRequest(
       Data("request".utf8),
       to: "http://timestamp.example/path",
@@ -130,6 +130,17 @@ internal struct SigningNetworkTests {
     )
 
     #expect(request.timeoutInterval == 10)
+  }
+
+  /// One bulk download keeps thirty seconds for slow links.
+  @Test
+  internal func materialTimeoutIsThirtySeconds() throws {
+    let request = try SigningNetwork.getRequest(
+      "https://lists.example/lotl.xml",
+      endpoint: .certificateMaterial
+    )
+
+    #expect(request.timeoutInterval == 30)
   }
 
   /// HTTPS carries the exact body and type the caller supplied.

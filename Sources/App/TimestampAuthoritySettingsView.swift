@@ -107,6 +107,9 @@
         model.revertToStored()
         model.draftChanged()
       }
+      .onDisappear {
+        model.dismissPane()
+      }
     }
 
     /// The badge's color.

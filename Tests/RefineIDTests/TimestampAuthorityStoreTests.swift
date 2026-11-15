@@ -273,6 +273,26 @@
       )
     }
 
+    /// Storing the draft stores the validated address.
+    @Test
+    internal func storingDraftEqualsStoringTarget() throws {
+      let defaults = try Self.freshDefaults()
+      for draft in [
+        "tsa.example.com/tsa",
+        "http://tsa.example.com/tsa",
+        "HTTP://tsa.example.com/tsa",
+        "https://tsa.example.com/tsa",
+        "  http://tsa.example.com/tsa\n",
+      ] {
+        let target = try #require(TimestampAuthorityStore.resolvedRequestAddress(draft))
+        TimestampAuthorityStore.store(draft, in: defaults)
+        let fromDraft = TimestampAuthorityStore.configured(in: defaults)
+        TimestampAuthorityStore.store(target, in: defaults)
+        let fromTarget = TimestampAuthorityStore.configured(in: defaults)
+        #expect(fromDraft == fromTarget, Comment(rawValue: draft))
+      }
+    }
+
     /// Every failure names a settings reason; the two invalid
     /// answers share one.
     @Test
