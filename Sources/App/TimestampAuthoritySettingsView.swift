@@ -12,9 +12,32 @@
   /// draft, not the effective service, so a half-typed address is
   /// still visible after a relaunch.
   internal struct TimestampAuthoritySettingsView: View {
+    private static let footerSpacing: CGFloat = 4
+
     @State private var address =
       TimestampAuthorityStore.configured(in: .standard)
       ?? TimestampAuthorityStore.defaultAddress
+
+    private var footerView: some View {
+      VStack(alignment: .leading, spacing: Self.footerSpacing) {
+        if !TimestampAuthorityStore.isUsable(address) {
+          Label(
+            String(localized: "Not a usable address"),
+            systemImage: "exclamationmark.triangle.fill"
+          )
+          .foregroundStyle(.orange)
+          .font(.footnote)
+        }
+        Text(
+          String(
+            localized:
+              "Signatures require an RFC 3161 authority listed on the EU trusted lists."
+          )
+        )
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+      }
+    }
 
     internal var body: some View {
       Form {
@@ -33,14 +56,7 @@
             .disabled(address == TimestampAuthorityStore.defaultAddress)
           }
         } footer: {
-          if !TimestampAuthorityStore.isUsable(address) {
-            Label(
-              String(localized: "Not a usable address"),
-              systemImage: "exclamationmark.triangle.fill"
-            )
-            .foregroundStyle(.orange)
-            .font(.footnote)
-          }
+          footerView
         }
       }
       .formStyle(.grouped)

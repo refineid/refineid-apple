@@ -31,10 +31,14 @@
     internal static let revocationListAddress = "http://1.1.1.1/dss-gate-ca.crl"
 
     internal static let caCommonName = "RefineID DSS Gate Test CA"
+    internal static let timestampCaCommonName = "RefineID DSS Gate Test TSA CA"
     internal static let holderCommonName = "RefineID DSS Gate Test Holder"
     internal static let caSerial = 1
     internal static let holderSerial = 2
+    internal static let timestampCaSerial = 3
     internal static let revocationListNumber = 1
+    internal static let timestampRevocationListNumber = 2
+    internal static let timestampRevocationListAddress = "http://1.1.1.1/dss-gate-tsa-ca.crl"
     internal static let crlVersionTwo = 1
     internal static let p256KeySize = 256
     internal static let rsaKeySize = 2_048
@@ -56,6 +60,12 @@
     /// The CA's generated P-256 key.
     internal let caKey: SecKey
 
+    /// The self-signed CA certificate for the timestamp authority.
+    internal let timestampCaCertificate: Data
+
+    /// The timestamp CA's generated P-256 key.
+    internal let timestampCaKey: SecKey
+
     /// The card's qualified certificate, issued by the CA.
     internal let holderCertificate: Data
 
@@ -68,27 +78,61 @@
     /// Builds fresh keys and certificates.
     internal static func make() throws -> Self {
       let issuerKey = try Self.key(type: kSecAttrKeyTypeECSECPrimeRandom, size: Self.p256KeySize)
+      let tsCaKey = try Self.key(type: kSecAttrKeyTypeECSECPrimeRandom, size: Self.p256KeySize)
       let signerKey = try Self.key(type: kSecAttrKeyTypeRSA, size: Self.rsaKeySize)
       let now = Date()
+      let tsCaName = DebugTimestampAuthority.encodedName(Self.timestampCaCommonName)
+      let tsCaExtensions = [
+        Self.extensionField(
+          SignOids.crlDistributionPoints,
+          critical: false,
+          value: Self.distributionPoint(Self.timestampRevocationListAddress)
+        ),
+        Self.authorityKeyIdentifier(
+          Self.keyIdentifier(try Self.ecSubjectPublicKeyInfo(tsCaKey))
+        ),
+      ]
+      let tsAuthority = try DebugTimestampAuthority.make(
+        issuerKey: tsCaKey,
+        issuerName: tsCaName,
+        additionalExtensions: tsCaExtensions
+      )
       return Self(
-        caCertificate: try Self.issuerCertificate(key: issuerKey, at: now),
+        caCertificate: try Self.issuerCertificate(
+          key: issuerKey,
+          commonName: Self.caCommonName,
+          serial: Self.caSerial,
+          at: now
+        ),
         caKey: issuerKey,
+        timestampCaCertificate: try Self.issuerCertificate(
+          key: tsCaKey,
+          commonName: Self.timestampCaCommonName,
+          serial: Self.timestampCaSerial,
+          at: now
+        ),
+        timestampCaKey: tsCaKey,
         holderCertificate: try Self.signerCertificate(
           key: signerKey, issuerKey: issuerKey, at: now
         ),
         holderKey: signerKey,
-        timestampAuthority: try DebugTimestampAuthority.make()
+        timestampAuthority: tsAuthority
       )
     }
 
     /// The self-signed CA: basic constraints, certificate and CRL
     /// signing, and its key identifier.
-    private static func issuerCertificate(key: SecKey, at now: Date) throws -> Data {
-      let name = DebugTimestampAuthority.encodedName(Self.caCommonName)
+    private static func issuerCertificate(
+      key: SecKey,
+      commonName: String,
+      serial: Int,
+      at now: Date
+    ) throws -> Data {
+      let name = DebugTimestampAuthority.encodedName(commonName)
       let publicKey = try Self.ecSubjectPublicKeyInfo(key)
       return try Self.certificate(
         CertificateFields(
-          serial: Self.caSerial,
+          serial: serial,
           issuer: name,
           subject: name,
           subjectPublicKeyInfo: publicKey,
@@ -180,6 +224,36 @@
         tbs,
         DebugTimestampAuthority.ecdsaSha256Algorithm,
         Self.bitString(try Self.sign(tbs, key: caKey)),
+      ])
+    }
+
+    /// The timestamp CA's current CRL, issued an hour ago and revoking nothing.
+    internal func timestampCaRevocationList() throws -> Data {
+      let now = Date()
+      let tbs = DerEncoder.sequence([
+        DerEncoder.integer(Self.crlVersionTwo),
+        DebugTimestampAuthority.ecdsaSha256Algorithm,
+        DebugTimestampAuthority.encodedName(Self.timestampCaCommonName),
+        Self.generalizedTime(now.addingTimeInterval(-Self.revocationListAge)),
+        Self.generalizedTime(now.addingTimeInterval(Self.revocationListLifetime)),
+        DerEncoder.tlv(
+          DerValues.tagContext0Constructed,
+          DerEncoder.sequence([
+            Self.authorityKeyIdentifier(
+              Self.keyIdentifier(try Self.ecSubjectPublicKeyInfo(timestampCaKey))
+            ),
+            Self.extensionField(
+              Self.crlNumberOid,
+              critical: false,
+              value: DerEncoder.integer(Self.timestampRevocationListNumber)
+            ),
+          ])
+        ),
+      ])
+      return DerEncoder.sequence([
+        tbs,
+        DebugTimestampAuthority.ecdsaSha256Algorithm,
+        Self.bitString(try Self.sign(tbs, key: timestampCaKey)),
       ])
     }
 

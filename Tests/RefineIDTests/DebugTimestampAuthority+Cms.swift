@@ -136,7 +136,7 @@
         attributes: attributes,
         signature: signature,
         certificate: certificate,
-        issuerName: name
+        issuerName: issuerName
       )
       return (
         token,

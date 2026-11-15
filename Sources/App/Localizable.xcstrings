@@ -5446,6 +5446,28 @@
         }
       }
     },
+    "Signatures require an RFC 3161 authority listed on the EU trusted lists.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signatures require an RFC 3161 authority listed on the EU trusted lists."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allekirjoitukset vaativat EU:n luottamuslistalla olevan RFC 3161 -aikaleimapalvelun."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signaturer kräver en RFC 3161-tidsstämpeltjänst som finns på EU:s förteckning över betrodda tjänster."
+          }
+        }
+      }
+    },
     "Signing Service": {
       "localizations": {
         "en": {

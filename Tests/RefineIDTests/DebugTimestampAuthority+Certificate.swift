@@ -41,8 +41,29 @@
       ]
     }
 
-    /// The self-signed X.509 certificate used as the explicit test anchor.
-    internal static func certificate(key: SecKey, name: Data) throws -> Data {
+    /// The X.509 certificate used as the self-signed test authority.
+    internal static func certificate(
+      key: SecKey,
+      name: Data
+    ) throws -> Data {
+      try Self.certificate(
+        key: key,
+        name: name,
+        issuerKey: key,
+        issuerName: name,
+        additionalExtensions: []
+      )
+    }
+
+    /// The X.509 certificate used as the test authority, signed by an issuer authority.
+    internal static func certificate(
+      key: SecKey,
+      name: Data,
+      issuerKey: SecKey,
+      issuerName: Data,
+      additionalExtensions: [Data]
+    ) throws -> Data {
+      let extensions = Self.certificateExtensions + additionalExtensions
       let tbs = DerEncoder.sequence([
         DerEncoder.tlv(
           DerValues.tagContext0Constructed,
@@ -50,18 +71,18 @@
         ),
         DerEncoder.integer(Self.certificateSerial),
         Self.ecdsaSha256Algorithm,
-        name,
+        issuerName,
         Self.validity,
         name,
         try Self.subjectPublicKeyInfo(key),
         DerEncoder.tlv(
           DerValues.tagContext3Constructed,
-          DerEncoder.sequence(Self.certificateExtensions)
+          DerEncoder.sequence(extensions)
         ),
       ])
       let signature = try Self.sign(
         tbs,
-        key: key,
+        key: issuerKey,
         algorithm: .ecdsaSignatureMessageX962SHA256
       )
       return DerEncoder.sequence([

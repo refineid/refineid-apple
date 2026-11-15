@@ -81,9 +81,11 @@ units. A shipped DVV Gov. Root CA G3 or Sectigo Qualified Time Stamping
 Root R45 would therefore anchor nothing a list does not, so neither is
 shipped.
 
-A fresh install has no anchor and verifies a signature only
-after it has fetched the lists once; from then on it works offline from
-the cache. The same evidence is recorded in refineid-core's
+A fresh install has no anchor; signing and verifying both require
+fetching the lists once, because every timestamp token must chain to an
+EU-listed time-stamping service. From then on verification works
+offline from the cache; signing still reaches the authority for the
+token itself. The same evidence is recorded in refineid-core's
 [`crates/doc-sign/src/trust.rs`](https://github.com/refineid/refineid-core/blob/main/crates/doc-sign/src/trust.rs),
 which is the canonical record for the shared policy.
 

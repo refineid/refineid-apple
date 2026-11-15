@@ -564,6 +564,121 @@
         }
       }
     },
+    "error.randomUnavailable" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secure random bytes for the timestamp request could not be made. Nothing was written."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turvallisia satunnaistavuja aikaleimapyyntöön ei voitu luoda. Mitään ei kirjoitettu."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Säkra slumptal för tidsstämpelförfrågan kunde inte genereras. Ingenting skrevs."
+          }
+        }
+      }
+    },
+    "error.timestampDeclined" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The timestamp authority did not grant a timestamp. Nothing was written."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aikaleimapalvelu ei myöntänyt aikaleimaa. Mitään ei kirjoitettu."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tidsstämpeltjänsten beviljade ingen tidsstämpel. Ingenting skrevs."
+          }
+        }
+      }
+    },
+    "error.timestampInvalid" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The timestamp service returned an invalid response. Nothing was written."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aikaleimapalvelu palautti virheellisen vastauksen. Mitään ei kirjoitettu."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tidsstämpeltjänsten returnerade ett ogiltigt svar. Ingenting skrevs."
+          }
+        }
+      }
+    },
+    "error.timestampUntrusted" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The timestamp authority's certificate is not trusted by the EU trusted lists. Nothing was written."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aikaleimapalvelun varmenteeseen ei luoteta EU:n luottamuslistojen perusteella. Mitään ei kirjoitettu."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tidsstämpeltjänstens certifikat är inte betrott enligt EU:s förteckningar över betrodda tjänster. Ingenting skrevs."
+          }
+        }
+      }
+    },
+    "error.trustedListsUnavailable" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No EU trusted lists were available, so the timestamp authority could not be verified. Nothing was written."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EU:n luottamuslistoja ei ollut saatavilla, joten aikaleimapalvelua ei voitu vahvistaa. Mitään ei kirjoitettu."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inga EU-förteckningar över betrodda tjänster fanns tillgängliga, så tidsstämpeltjänsten kunde inte verifieras. Ingenting skrevs."
+          }
+        }
+      }
+    },
     "error.noCard" : {
       "extractionState" : "stale",
       "localizations" : {

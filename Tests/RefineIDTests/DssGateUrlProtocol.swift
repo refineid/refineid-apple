@@ -40,6 +40,9 @@
       case DssGateAuthorities.revocationListAddress:
         return try? authorities.revocationList()
 
+      case DssGateAuthorities.timestampRevocationListAddress:
+        return try? authorities.timestampCaRevocationList()
+
       default:
         return nil
       }

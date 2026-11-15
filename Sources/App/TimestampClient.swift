@@ -12,11 +12,23 @@ import Security
 internal enum TimestampClient {
   /// Why no token could be obtained.
   internal enum Failure: Error, Equatable {
+    /// The authority answered without granting a timestamp.
+    case authorityDeclined
+
     /// The authority declined or failed.
     case authorityDidNotAnswer(String)
 
+    /// The authority answered with a response that does not match the request.
+    case invalidResponse(RfcTimestamp.TokenFailure)
+
+    /// The authority returned a token that failed cryptographic or RFC 3161 verification.
+    case invalidToken(TimestampTokenVerifier.Failure)
+
     /// Secure random bytes for the request could not be made.
     case randomUnavailable
+
+    /// The EU trusted lists could not be read to resolve time-stamping trust anchors.
+    case trustedListsUnavailable
 
     /// The authority response did not chain to trusted time-stamping anchors.
     case untrustedAuthority
@@ -58,30 +70,49 @@ internal enum TimestampClient {
   private static let maximumRetryExponent = 6
 
   #if DEBUG
-    /// Explicit trust anchors injected for hermetic tests.
-    nonisolated(unsafe) internal static var testTrustAnchors: (@Sendable (Date) -> [Data])?
+    /// Explicit trust anchor resolver injected for tests.
+    @TaskLocal internal static var anchorResolver: (@Sendable (Date) async throws -> [Data])?
   #endif
 
-  /// Resolves the trusted time-stamping anchors for a token generated at `instant`.
+  /// Resolves the trusted time-stamping anchors for a token acquired at `instant`.
+  ///
+  /// Absent or stale lists are fetched before the anchors are taken, so
+  /// a withdrawn anchor is not used while the lists can be reached; a
+  /// failed fetch keeps the cache usable.
   internal static func timeStampingAnchors(at instant: Date) async throws -> [Data] {
     #if DEBUG
-      if let testAnchors = testTrustAnchors {
-        let anchors = testAnchors(instant)
+      if let resolver = anchorResolver {
+        let anchors = try await resolver(instant)
         guard !anchors.isEmpty else { throw Failure.untrustedAuthority }
         return anchors
       }
     #endif
     guard
       case .success(let trustAnchors) = await TrustedListStore.shared
-        .verificationAnchors()
+        .signingAnchors()
     else {
-      throw Failure.authorityDidNotAnswer("trusted lists unavailable")
+      throw Failure.trustedListsUnavailable
     }
     let anchors = trustAnchors.certificates(for: .timeStamping, at: instant)
     guard !anchors.isEmpty else {
       throw Failure.untrustedAuthority
     }
     return anchors
+  }
+
+  /// Verifies a raw RFC 3161 token against time-stamping trust anchors resolved at `acquiredAt`.
+  internal static func verifyToken(
+    _ token: Data,
+    acquiredAt: Date
+  ) async throws -> TimestampTokenVerifier.VerifiedToken {
+    let anchors = try await Self.timeStampingAnchors(at: acquiredAt)
+    do {
+      return try TimestampTokenVerifier.verify(token, trustedCertificates: anchors)
+    } catch TimestampTokenVerifier.Failure.untrustedSigner {
+      throw Failure.untrustedAuthority
+    } catch let failure as TimestampTokenVerifier.Failure {
+      throw Failure.invalidToken(failure)
+    }
   }
 
   /// One token over `digest` from the authority.
@@ -107,7 +138,9 @@ internal enum TimestampClient {
   /// The authority first returns its certificate, so the same
   /// signature, certificate profile and chain as an archival token
   /// are verified. Only then is the unsigned CertificateSet removed.
-  internal static func compactToken(over digest: Data) async throws -> Data {
+  internal static func compactToken(
+    over digest: Data
+  ) async throws -> Data {
     do {
       return try await Self.withTransientRetry {
         try await Self.compactToken(over: digest, from: Self.authority)
@@ -147,6 +180,31 @@ internal enum TimestampClient {
     return compact
   }
 
+  /// The token a response carries, bound to the request just sent.
+  ///
+  /// A response that is not a granted token for this request is the
+  /// authority's answer, not a transport failure: a non-granted status
+  /// is reported as the authority declining, and a response that does
+  /// not match the request as an invalid answer.
+  private static func checkedToken(
+    from response: Data,
+    digest: Data,
+    nonce: Data
+  ) throws -> Data {
+    do {
+      return try RfcTimestamp.token(
+        fromResponse: response, digest: digest, nonceBytes: nonce
+      )
+    } catch let failure as RfcTimestamp.TokenFailure {
+      switch failure {
+      case .rejected:
+        throw Failure.authorityDeclined
+      default:
+        throw Failure.invalidResponse(failure)
+      }
+    }
+  }
+
   /// One token from one authority, checked before it is accepted.
   private static func token(
     over digest: Data,
@@ -160,16 +218,10 @@ internal enum TimestampClient {
       contentType: Self.requestContentType,
       endpoint: .authority
     )
-    let token = try RfcTimestamp.token(
-      fromResponse: response, digest: digest, nonceBytes: nonce
+    let token = try Self.checkedToken(
+      from: response, digest: digest, nonce: nonce
     )
-    let generationTime = try RfcTimestamp.generationTime(in: token)
-    let anchors = try await Self.timeStampingAnchors(at: generationTime)
-    do {
-      return try TimestampTokenVerifier.verify(token, trustedCertificates: anchors)
-    } catch {
-      throw Failure.untrustedAuthority
-    }
+    return try await Self.verifyToken(token, acquiredAt: Date())
   }
 
   /// One compact token from one authority, verified before stripping.
@@ -184,16 +236,18 @@ internal enum TimestampClient {
       contentType: Self.requestContentType,
       endpoint: .authority
     )
-    let token = try RfcTimestamp.token(
-      fromResponse: response, digest: digest, nonceBytes: nonce
+    let token = try Self.checkedToken(
+      from: response, digest: digest, nonce: nonce
     )
-    let generationTime = try RfcTimestamp.generationTime(in: token)
-    let anchors = try await Self.timeStampingAnchors(at: generationTime)
-    do {
-      return try Self.verifiedCompactEncoding(token, trustedCertificates: anchors)
-    } catch {
-      throw Failure.untrustedAuthority
+    let verified = try await Self.verifyToken(token, acquiredAt: Date())
+    guard
+      let compact = CmsCertificates.removingCertificates(
+        from: verified.token
+      )
+    else {
+      throw Failure.invalidResponse(.malformed)
     }
+    return compact
   }
 
   /// Repeats the authority after temporary failures until it answers.

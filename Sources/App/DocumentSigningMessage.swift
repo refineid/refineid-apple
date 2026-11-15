@@ -38,10 +38,8 @@ internal enum DocumentSigningMessage {
     case .remote(let detail):
       remoteAnswerMessage(detail)
 
-    case .network:
-      text(
-        "error.network",
-        "A timestamp or revocation service could not be reached. Nothing was written.")
+    case .network(let error):
+      networkMessage(error)
 
     case .validation(let evidence):
       validationMessage(evidence)
@@ -184,6 +182,61 @@ internal enum DocumentSigningMessage {
     default:
       text("error.pdfStructure", "That PDF structure could not be read.")
     }
+  }
+
+  private static func networkMessage(_ error: Error) -> String {
+    if let failure = error as? TimestampClient.Failure {
+      switch failure {
+      case .untrustedAuthority:
+        return text(
+          "error.timestampUntrusted",
+          """
+          The timestamp authority's certificate is not trusted by the EU trusted \
+          lists. Nothing was written.
+          """
+        )
+
+      case .trustedListsUnavailable:
+        return text(
+          "error.trustedListsUnavailable",
+          """
+          No EU trusted lists were available, so the timestamp authority could not \
+          be verified. Nothing was written.
+          """
+        )
+
+      case .invalidToken, .invalidResponse:
+        return text(
+          "error.timestampInvalid",
+          "The timestamp service returned an invalid response. Nothing was written."
+        )
+
+      case .randomUnavailable:
+        return text(
+          "error.randomUnavailable",
+          """
+          Secure random bytes for the timestamp request could not be made. \
+          Nothing was written.
+          """
+        )
+
+      case .authorityDeclined:
+        return text(
+          "error.timestampDeclined",
+          "The timestamp authority did not grant a timestamp. Nothing was written."
+        )
+
+      case .authorityDidNotAnswer:
+        return text(
+          "error.network",
+          "A timestamp or revocation service could not be reached. Nothing was written."
+        )
+      }
+    }
+    return text(
+      "error.network",
+      "A timestamp or revocation service could not be reached. Nothing was written."
+    )
   }
 
   private static func validationMessage(_ failure: Error) -> String {
