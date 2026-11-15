@@ -43,14 +43,14 @@ internal enum PdfPageAnnotationGrowth {
     document: Data
   ) -> Bool {
     guard let number = Int(reference.split(separator: " ").first ?? "") else { return false }
-    guard let body = newest.body(of: number, in: document) else { return false }
+    guard let body = newest.comparisonBody(of: number, in: document) else { return false }
     guard PdfTypeEntry.value(of: "Subtype", in: body) == "/Widget" else { return false }
     let field = parent(of: body, newest: newest, document: document) ?? body
     guard PdfTypeEntry.value(of: "FT", in: field) == "/Sig" else { return false }
     guard
       let value = PdfTypeEntry.value(of: "V", in: field),
       let signature = Int(value.drop(while: \.isWhitespace).prefix(while: \.isNumber)),
-      let signatureBody = newest.body(of: signature, in: document)
+      let signatureBody = newest.comparisonBody(of: signature, in: document)
     else {
       return false
     }
@@ -69,6 +69,6 @@ internal enum PdfPageAnnotationGrowth {
     else {
       return nil
     }
-    return newest.body(of: number, in: document)
+    return newest.comparisonBody(of: number, in: document)
   }
 }

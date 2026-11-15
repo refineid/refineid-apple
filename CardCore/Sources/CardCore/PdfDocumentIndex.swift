@@ -262,26 +262,49 @@ internal struct PdfDocumentIndex {
   }
 
   /// The bytes between `obj` and `endobj` at a direct offset.
-  ///
-  /// A stream's bytes are taken by its `/Length`, not by the first
-  /// `endobj` in the file: stream data is as free as any other bytes to
-  /// contain that word, and reading to it would let a rewrite past it
-  /// look unchanged.
   private static func directBody(at offset: Int, in document: Data) -> String? {
     guard offset < document.count else { return nil }
     let bytes = PdfBytes(document)
-    guard let objRange = bytes.firstRange(of: "obj", from: offset) else { return nil }
+    guard
+      let objRange = bytes.firstRange(of: "obj", from: offset),
+      let endRange = bytes.firstRange(of: "endobj", from: objRange.upperBound)
+    else {
+      return nil
+    }
+    return bytes.text(in: objRange.upperBound..<endRange.lowerBound)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
+  /// One object's bytes for comparison, from a direct offset.
+  private static func comparisonBody(at offset: Int, in document: Data) -> String? {
+    let bytes = PdfBytes(document)
     if let stream = try? PdfStreamObject.parse(in: bytes, at: offset),
       let payload = String(bytes: stream.payload, encoding: .isoLatin1)
     {
       return (stream.dictionary + "\nstream\n" + payload)
         .trimmingCharacters(in: .whitespacesAndNewlines)
     }
-    guard let endRange = bytes.firstRange(of: "endobj", from: objRange.upperBound) else {
+    return Self.directBody(at: offset, in: document)
+  }
+
+  /// One object's bytes for comparing two revisions of a document.
+  ///
+  /// A stream is taken by its `/Length` and unfiltered, not by the
+  /// first `endobj` in the file: stream data is free to spell that word,
+  /// and reading to it would let a rewrite past it look unchanged.
+  internal func comparisonBody(of number: Int, in document: Data) -> String? {
+    switch locations[number] {
+    case .direct(let offset, _):
+      return Self.comparisonBody(at: offset, in: document)
+
+    case .compressed(let container, let position):
+      return compressedBody(
+        of: number, container: container, position: position, in: document
+      )
+
+    case nil:
       return nil
     }
-    return bytes.text(in: objRange.upperBound..<endRange.lowerBound)
-      .trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
   /// One object's body: the bytes between `obj` and `endobj`, or its

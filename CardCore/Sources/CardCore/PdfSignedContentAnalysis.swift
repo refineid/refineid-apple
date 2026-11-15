@@ -92,7 +92,7 @@ internal enum PdfSignedContentAnalysis {
     let context = Context(
       catalogNumber: catalogNumber,
       formNumber: catalogNumber.flatMap { number in
-        after.body(of: number, in: document).flatMap { body in
+        after.comparisonBody(of: number, in: document).flatMap { body in
           PdfDocumentIndex.reference(named: "AcroForm", in: body)
         }
       },
@@ -120,8 +120,8 @@ internal enum PdfSignedContentAnalysis {
         continue
       }
       guard
-        let body = after.body(of: number, in: document),
-        let previous = before.body(of: number, in: signed)
+        let body = after.comparisonBody(of: number, in: document),
+        let previous = before.comparisonBody(of: number, in: signed)
       else {
         changes.insert(.object(number))
         continue
@@ -153,10 +153,10 @@ internal enum PdfSignedContentAnalysis {
     document: Data,
     signed: Data
   ) -> Set<SignedContentChange> {
-    guard let added = after.body(of: number, in: document) else {
-      return before.body(of: number, in: signed) == nil ? [] : [.object(number)]
+    guard let added = after.comparisonBody(of: number, in: document) else {
+      return before.comparisonBody(of: number, in: signed) == nil ? [] : [.object(number)]
     }
-    guard before.body(of: number, in: signed) == nil else { return [] }
+    guard before.comparisonBody(of: number, in: signed) == nil else { return [] }
     return additionIsAllowed(added) ? [] : [.object(number)]
   }
 
@@ -271,7 +271,7 @@ internal enum PdfSignedContentAnalysis {
     return grown.dropFirst(kept.count).allSatisfy { reference in
       guard
         let number = Int(reference.split(separator: " ").first ?? ""),
-        let field = context.newest.body(of: number, in: context.document)
+        let field = context.newest.comparisonBody(of: number, in: context.document)
       else {
         return false
       }
