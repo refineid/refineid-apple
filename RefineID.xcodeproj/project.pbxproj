@@ -100,7 +100,6 @@
 		2D0000000000000000000002 /* RefineIDTokenExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RefineIDTokenExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		2D0000000000000000000003 /* CryptoTokenKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CryptoTokenKit.framework; path = System/Library/Frameworks/CryptoTokenKit.framework; sourceTree = SDKROOT; };
 		2D0000000000000000000005 /* TokenExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TokenExtension.entitlements; sourceTree = "<group>"; };
-		2D0000000000000000000006 /* RefineID-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "RefineID-Info.plist"; sourceTree = "<group>"; };
 		2D0000000000000000000007 /* TokenExtension-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "TokenExtension-Info.plist"; sourceTree = "<group>"; };
 		2D0000000000000000000008 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		2D0000000000000000000009 /* CardCoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CardCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -112,7 +111,6 @@
 		2D000000000000000000000F /* Sources/Settings.bundle */ = {isa = PBXFileReference; lastKnownFileType = wrapper.cfbundle; path = Sources/Settings.bundle; sourceTree = SOURCE_ROOT; };
 		2D0000000000000000000013 /* Version.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Version.xcconfig; sourceTree = "<group>"; };
 		2D0000000000000000000014 /* RefineID-iOS-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "RefineID-iOS-Info.plist"; sourceTree = "<group>"; };
-		3D00000000000000000000AB /* RefineID-iOS-Store-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "RefineID-iOS-Store-Info.plist"; sourceTree = "<group>"; };
 		5ADED64532B13872419C7B30 /* RefineIDRappTokenExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RefineIDRappTokenExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		BC0000000000000000000002 /* Sources/TokenExtension/SmartCardTransmit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/TokenExtension/SmartCardTransmit.swift; sourceTree = SOURCE_ROOT; };
 		BC0000000000000000000004 /* Samples/NFCCardTiming/Sources/CardTimingProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Samples/NFCCardTiming/Sources/CardTimingProbe.swift; sourceTree = SOURCE_ROOT; };
@@ -275,9 +273,7 @@
 		1D0000000000000000000005 /* Config */ = {
 			isa = PBXGroup;
 			children = (
-				2D0000000000000000000006 /* RefineID-Info.plist */,
 				2D0000000000000000000014 /* RefineID-iOS-Info.plist */,
-				3D00000000000000000000AB /* RefineID-iOS-Store-Info.plist */,
 				2D0000000000000000000005 /* TokenExtension.entitlements */,
 				2D0000000000000000000007 /* TokenExtension-Info.plist */,
 				2D000000000000000000000B /* DiscoveryExtension-Info.plist */,
