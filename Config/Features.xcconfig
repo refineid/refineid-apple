@@ -37,7 +37,7 @@
 // by the configured authority, or the qualified Sectigo server
 // (http://timestamp.sectigo.com/qualified) until one is set.
 
-REFINEID_FEATURES = FEATURE_CONTACTLESS FEATURE_TIMESTAMP_CONFIG
+REFINEID_FEATURES = FEATURE_CONTACTLESS FEATURE_TIMESTAMP_CONFIG FEATURE_PDF_STAMP
 
 // The local card: this build talks to a card the device itself holds,
 // over its own antenna. On by default, because every shipping iPhone

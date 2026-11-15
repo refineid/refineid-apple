@@ -419,11 +419,13 @@ dropped again.
 
 ## Settings
 
-The Settings window holds two panes, each behind its flag. The Time
+The Settings window holds three panes, each behind its flag. The Time
 Stamp pane (`FEATURE_TIMESTAMP_CONFIG`) holds the one RFC 3161
 authority signatures ask, prefilled with the shipped qualified Sectigo
 service; "Restore Defaults" puts that service back, and an address the
-app could not ask is marked and never asked. The Signing Service pane
+app could not ask is marked and never asked. The Stamp pane
+(`FEATURE_PDF_STAMP`) holds the toggle to place a visible electronic
+signature stamp at the bottom of signed PDF documents. The Signing Service pane
 (`FEATURE_SCS`, set by no configuration) holds the Signature Creation
 Service switch. The window itself exists only while at least one pane
 is compiled in.

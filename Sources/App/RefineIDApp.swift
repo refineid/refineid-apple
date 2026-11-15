@@ -141,7 +141,7 @@ internal struct RefineIDApp: App {
 
       PinCodesWindow()
 
-      #if FEATURE_SCS || FEATURE_TIMESTAMP_CONFIG
+      #if FEATURE_SCS || FEATURE_TIMESTAMP_CONFIG || FEATURE_PDF_STAMP
         Settings {
           RefineIDSettingsView()
             .writingToolsBehavior(.disabled)

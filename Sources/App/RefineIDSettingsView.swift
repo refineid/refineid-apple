@@ -1,6 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-#if os(macOS) && (FEATURE_SCS || FEATURE_TIMESTAMP_CONFIG)
+#if os(macOS) && (FEATURE_SCS || FEATURE_TIMESTAMP_CONFIG || FEATURE_PDF_STAMP)
 
   import SwiftUI
 
@@ -9,6 +9,9 @@
     private enum Pane: Hashable {
       #if FEATURE_TIMESTAMP_CONFIG
         case timeStamp
+      #endif
+      #if FEATURE_PDF_STAMP
+        case stamp
       #endif
       #if FEATURE_SCS
         case webSigning
@@ -20,6 +23,8 @@
 
     #if FEATURE_TIMESTAMP_CONFIG
       @State private var pane = Pane.timeStamp
+    #elseif FEATURE_PDF_STAMP
+      @State private var pane = Pane.stamp
     #elseif FEATURE_SCS
       @State private var pane = Pane.webSigning
     #endif
@@ -32,6 +37,13 @@
               Label(String(localized: "Time Stamp"), systemImage: "clock.badge.checkmark")
             }
             .tag(Pane.timeStamp)
+        #endif
+        #if FEATURE_PDF_STAMP
+          StampSettingsView()
+            .tabItem {
+              Label(String(localized: "Stamp"), systemImage: "signature")
+            }
+            .tag(Pane.stamp)
         #endif
         #if FEATURE_SCS
           ScsSettingsView()
