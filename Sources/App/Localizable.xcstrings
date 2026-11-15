@@ -5446,24 +5446,24 @@
         }
       }
     },
-    "Adds a visible stamp to the bottom of the signed PDF document advising verification of the electronic signature.": {
+    "Add a verification stamp to the PDF file.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Adds a visible stamp to the bottom of the signed PDF document advising verification of the electronic signature."
+            "value": "Add a verification stamp to the PDF file."
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lisää allekirjoitetun PDF-asiakirjan alalaitaan näkyvän leiman, joka kehottaa tarkistamaan sähköisen allekirjoituksen."
+            "value": "Lisää PDF-tiedostoon tarkistusleima."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lägger till en synlig stämpel i nederkanten av det signerade PDF-dokumentet som uppmanar till att verifiera den elektroniska signaturen."
+            "value": "Lägg till en verifieringsstämpel i PDF-filen."
           }
         }
       }
