@@ -10,7 +10,7 @@ client-certificate identity.
 |---|---|---|---|
 | Contact / PC-SC reader | macOS, iPadOS, iOS (USB-C) | contact | PIN1 |
 | Phone antenna (NFC) | iOS 26+, iPadOS 26+ | contactless | CAN, then PIN1 |
-| Remote proxy (RAPP) | macOS (requester) via iOS 26+ (proxy) | contact or contactless on phone | PIN1 prompted natively on phone |
+| Remote proxy (RAPP) | iPadOS (requester) via iOS 26+ (proxy); macOS gated off for the MVP (decisions 2026-11-14) | contact or contactless on phone | PIN1 prompted natively on phone |
 
 Both local transports are production features on iPhone. Its TestFlight and App
 Store builds must include the built-in NFC path. NFC is not a diagnostic

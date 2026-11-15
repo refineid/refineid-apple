@@ -5,6 +5,39 @@ controls iPhone scope. `Documentation/release-plan.md` controls
 macOS scope and shared security behavior. This file records the concrete
 values chosen under them.
 
+## 2026-11-14 macOS MVP ships the local card only; the remote card is gated off
+
+Maintainer's decision: "I have decided to release macOS version without
+RAPP for now as MVP". The macOS build carries local card
+authentication, management and document signing only; pairing with a
+phone, the remote-use switch, remote signing, and the remote-card
+CryptoTokenKit extension are compiled out. This supersedes the RAPP
+part of the 2026-10-10 entry and the macOS Bluetooth grant of the
+2026-11-08 entry; the iPhone and the iPad keep the remote card.
+
+- `REFINEID_REMOTE_CARD` stays the one gate
+  (`Config/Features.xcconfig`), and macOS sets it in no
+  configuration: the `sdk=macosx*` stanza, including the TestFlight
+  and Release spellings, is empty. The shared code beneath stays
+  built and its RAPP tests keep running; only the Mac-only switch
+  and its tests compile away.
+- The Mac archive embeds no RAPP extension (`platformFilter = ios`
+  on its embed, as the discovery extension already does), the store
+  entitlements grant no Bluetooth, and the macOS plists declare no
+  Bonjour service and no local-network or Bluetooth prompt.
+  Outbound network access stays for timestamps and revocation
+  checks. `inspect-archive` holds the Mac candidate to this shape.
+- Only RAPP uses Bluetooth, so Bluetooth follows the same gate: the
+  CoreBluetooth sources compile out on macOS, the app's seams close
+  behind `REFINEID_REMOTE_CARD`, and `inspect-archive` fails a Mac
+  candidate whose binaries link CoreBluetooth (ITMS-90683). The
+  engine's Bluetooth tests run on the iOS simulator instead.
+- Stored pairings are left exactly as they are; a gated build never
+  browses, dials, or offers the phone's identity, and the identity
+  row asks for the reader where it used to name the switch.
+  Bringing the remote card back is the flag, the embed, the
+  declarations, and the archive policy together.
+
 ## 2026-11-13 Proven card access number is kept for cards awaiting activation
 
 Maintainer's decision (2026-10-24, #270): on iPhone, once PACE has

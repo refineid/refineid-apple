@@ -278,10 +278,10 @@ private func releaseArchiveLayout(at archive: URL) -> ReleaseArchiveLayout {
       rappPlist: rappBundle.appendingPathComponent("Contents/Info.plist"),
       discoveryPlist: discoveryBundle.appendingPathComponent("Contents/Info.plist"),
       expectedArchitectures: ["arm64"],
-      // macOS carries the remote card as a requester that only dials out
-      // (decisions 2026-10-10): the RAPP extension and the local-network
-      // declarations ship, and nothing listens.
-      hasRapp: true,
+      // macOS ships the local card only (decisions 2026-11-14): the
+      // RAPP extension stays out of the archive with the remote card
+      // gated off, and nothing listens.
+      hasRapp: false,
       hasDiscovery: false
     )
   }
@@ -338,6 +338,13 @@ private func releaseEntitlements(of url: URL) -> [String: Any] {
     return value
   } catch {
     releaseFail("\(url.path): entitlements are not readable as a property list")
+  }
+}
+
+private func releaseLinksBluetooth(_ binary: URL) -> Bool {
+  let result = releaseRun("/usr/bin/otool", ["-L", binary.path], capture: true)
+  return result.stdout.split(whereSeparator: \.isNewline).contains {
+    $0.contains("CoreBluetooth")
   }
 }
 
@@ -550,15 +557,17 @@ private func inspectReleaseArchive(_ archive: URL) {
     // the remote card, the dial to the paired phone; Bluetooth carries
     // the pairing and the session where no network is shared. A Mac
     // never listens, so no macOS bundle carries the server side.
-    let appEntitlements: Set<String> = [
+    var appEntitlements: Set<String> = [
       "com.apple.security.app-sandbox",
       "com.apple.security.application-groups",
-      "com.apple.security.device.bluetooth",
       "com.apple.security.files.user-selected.read-write",
       "com.apple.security.network.client",
       "com.apple.security.smartcard",
       "keychain-access-groups",
     ]
+    if layout.hasRapp {
+      appEntitlements.insert("com.apple.security.device.bluetooth")
+    }
     var rules: [(bundle: URL, allowed: Set<String>, required: Set<String>)] = [
       (
         layout.app,
@@ -680,6 +689,9 @@ private func inspectReleaseArchive(_ archive: URL) {
       guard appEntitlements["com.apple.security.network.server"] == nil else {
         releaseFail("network.server entitlement present without the remote card")
       }
+      guard appEntitlements["com.apple.security.device.bluetooth"] == nil else {
+        releaseFail("bluetooth entitlement present without the remote card")
+      }
       releaseNote("no server entitlement; the remote card is gated off")
     }
   }
@@ -745,8 +757,20 @@ private func inspectReleaseArchive(_ archive: URL) {
     guard appPlist["NSLocalNetworkUsageDescription"] == nil else {
       releaseFail("NSLocalNetworkUsageDescription present without the remote card")
     }
+    guard appPlist["NSBluetoothAlwaysUsageDescription"] == nil else {
+      releaseFail("NSBluetoothAlwaysUsageDescription present without the remote card")
+    }
     guard appPlist["NSBonjourServices"] == nil else {
       releaseFail("NSBonjourServices present without the remote card")
+    }
+    // Only RAPP uses Bluetooth, so a build without it must not link
+    // CoreBluetooth anywhere: a reference rejects the upload
+    // (ITMS-90683) even with the declarations gone.
+    let bluetoothBinaries = executables.filter(releaseLinksBluetooth)
+    guard bluetoothBinaries.isEmpty else {
+      releaseFail(
+        "CoreBluetooth linked without the remote card: "
+          + bluetoothBinaries.map(\.lastPathComponent).joined(separator: ", "))
     }
     releaseNote("no local-network or Bonjour declarations; the remote card is gated off")
   }
@@ -1468,8 +1492,8 @@ private enum StorePlatform: String, CaseIterable {
       [
         StoreScreen(asset: "window-card", arguments: ["--virtual-card", "activated-reader"]),
         StoreScreen(
-          asset: "window-phone",
-          arguments: ["--virtual-card", "activated-reader", "--mock-remote-connected"]),
+          asset: "window-signing",
+          arguments: ["--virtual-card", "activated-reader", "--open-document-signing"]),
       ]
     case .ios:
       [

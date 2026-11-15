@@ -210,8 +210,15 @@
           .frame(maxWidth: .infinity, alignment: .leading)
 
       case .connectReader:
-        Text("Turn on remote use from the top right corner.")
-          .foregroundStyle(.secondary)
+        #if REFINEID_REMOTE_CARD
+          Text("Turn on remote use from the top right corner.")
+            .foregroundStyle(.secondary)
+        #else
+          // The remote card is gated off, so no switch offers itself
+          // from the top right corner: the row asks for a reader.
+          Text("Connect a card reader.")
+            .foregroundStyle(.secondary)
+        #endif
 
       case .insertCard:
         Text("Insert the card into the reader.")

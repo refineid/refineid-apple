@@ -22,19 +22,16 @@ in its TestFlight and App Store builds. Its scope is controlled by
 
 Ship a small, trustworthy macOS App Store product named **RefineID**.
 
-The macOS release carries the local card and the remote card (owner
-decisions 2026-09-30 and 2026-10-10). It includes the CryptoTokenKit
-smart-card extension, contact and contactless reading, authentication, card
-activation, PIN management, local document signing, and RAPP v26.11.8
-pairing with a phone that holds the card: the Mac types the code the phone
-shows, and afterwards signs documents and authenticates through the phone,
-including from Safari through the remote-card CryptoTokenKit extension. The
-Mac is always the requester and only dials out. SCS is excluded from every
-macOS build configuration. iOS retains its existing features. The first
-candidate is for TestFlight; App Review submission remains a separate
-release action. App Store and TestFlight stay the main channel; Xcode
-Cloud builds come later, and a notarized DMG with a Homebrew cask only
-if someone asks.
+The macOS release carries the local card only (owner decisions
+2026-09-30 and 2026-11-14): the remote card over RAPP is gated off for
+the MVP. It includes the CryptoTokenKit smart-card extension, contact
+and contactless reading, authentication, card activation, PIN
+management, and local document signing. SCS is excluded from every
+macOS build configuration. iOS retains its existing features,
+including the remote card. The first candidate is for TestFlight; App
+Review submission remains a separate release action. App Store and
+TestFlight stay the main channel; Xcode Cloud builds come later, and a
+notarized DMG with a Homebrew cask only if someone asks.
 
 User story is:
 
@@ -44,14 +41,6 @@ User story is:
 4. See PIN1, PIN2, and PUK retry state.
 5. Use the card's authentication certificate in a system CryptoTokenKit client.
 6. Enter PIN1 through the system authentication flow when required.
-
-Remote-card user story:
-
-1. Open Remote Access on the phone that holds the card; it shows a code.
-2. Type the code in RefineID on the Mac once.
-3. Later, with RefineID closed or after a restart, sign in on a website in
-   Safari: the phone asks for consent, the card, and PIN 1, and the login
-   completes.
 
 ## Product
 
@@ -80,6 +69,9 @@ Remote-card user story:
 ### Excluded
 
 - SCS loopback signing service, certificate trust setup, and settings.
+- The remote card over RAPP: pairing, the remote-use switch, remote
+  signing, the remote-card extension, Bluetooth, and the local-network
+  and Bonjour declarations.
 - Any listening socket: the Mac never accepts a connection, so no build
   carries the network-server entitlement.
 
@@ -92,11 +84,11 @@ Remote-card user story:
 
 ### Remote card
 
-RAPP ships on macOS as the requester (owner decision 2026-10-10): pairing
-in the app, document signing through the phone, and the remote-card
-CryptoTokenKit extension that ctkd starts on demand. The independent RAPP
-security review remains a release gate for this candidate. SCS remains
-implemented for future qualification.
+RAPP stays out of the macOS MVP (owner decision 2026-11-14): no pairing,
+no remote-use switch, no remote signing, and no remote-card extension.
+It ships on macOS as the requester when it returns; until then the independent
+RAPP security review gates the iPhone work, not this candidate. SCS
+remains implemented for future qualification.
 
 ### Release evidence reconciliation
 
@@ -134,19 +126,18 @@ the release owner on September 27. This is established policy, not an open gate.
 
 ## Architecture
 
-The shipping macOS archive embeds the local smart-card token extension and
-the remote-card persistent-token extension:
+The shipping macOS archive embeds the local smart-card token extension
+only; the remote-card extension returns with the remote card:
 
 ```text
 RefineID.app
 |-- Contents/MacOS/RefineID
 |-- Contents/PlugIns/RefineIDTokenExtension.appex
-|-- Contents/PlugIns/RefineIDRappTokenExtension.appex
 `-- Contents/Resources/...
 ```
 
-The app and the remote-card extension are network clients only; the
-direct-reader extension has no network access at all.
+The app is a network client only, for timestamps and revocation checks;
+the direct-reader extension has no network access at all.
 
 The repository keeps a stable Xcode project or workspace in version control.
 It must not depend on a project generator during Xcode Cloud onboarding or

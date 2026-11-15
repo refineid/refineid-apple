@@ -11,7 +11,9 @@
     internal final class Link: @unchecked Sendable {
       private let browser = OSAllocatedUnfairLock<StreamRelayBrowser?>(initialState: nil)
       private let dialer = OSAllocatedUnfairLock<StreamRelaySession?>(initialState: nil)
-      private let central = OSAllocatedUnfairLock<RappBleGattCentral?>(initialState: nil)
+      #if !os(macOS)
+        private let central = OSAllocatedUnfairLock<RappBleGattCentral?>(initialState: nil)
+      #endif
 
       internal func browse(with found: StreamRelayBrowser) {
         browser.withLock { $0 = found }
@@ -26,15 +28,19 @@
         }
       }
 
-      internal func carry(over made: RappBleGattCentral) {
-        central.withLock { $0 = made }
-      }
+      #if !os(macOS)
+        internal func carry(over made: RappBleGattCentral) {
+          central.withLock { $0 = made }
+        }
+      #endif
 
       internal func send(_ frame: Data) async throws {
-        if let link = central.withLock({ $0 }) {
-          try await link.send(frame)
-          return
-        }
+        #if !os(macOS)
+          if let link = central.withLock({ $0 }) {
+            try await link.send(frame)
+            return
+          }
+        #endif
         guard let link = dialer.withLock({ $0 }) else { throw RappRequesterClientError.transport }
         try await link.send(frame)
       }
@@ -42,7 +48,9 @@
       internal func cancel() {
         browser.withLock { $0 }?.cancel()
         dialer.withLock { $0 }?.cancel()
-        central.withLock { $0 }?.cancel()
+        #if !os(macOS)
+          central.withLock { $0 }?.cancel()
+        #endif
       }
     }
   }

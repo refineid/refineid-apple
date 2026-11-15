@@ -31,16 +31,20 @@ internal enum PairingCandidateLink {
     ) { service in
       gathering.found(.stream(service))
     }
-    let scanner = RappBleAppearanceWatcher { peripheral in
-      guard peripheral != sessionPeer else { return }
-      gathering.found(.bluetooth(peripheral))
-    }
+    #if REFINEID_REMOTE_CARD
+      let scanner = RappBleAppearanceWatcher { peripheral in
+        guard peripheral != sessionPeer else { return }
+        gathering.found(.bluetooth(peripheral))
+      }
+    #endif
     browser.start()
     // A requester looks over Bluetooth only where it dials its sessions
     // over Bluetooth.
-    if PersistentTokenRegistry.dialsOverBluetooth {
-      scanner.start()
-    }
+    #if REFINEID_REMOTE_CARD
+      if PersistentTokenRegistry.dialsOverBluetooth {
+        scanner.start()
+      }
+    #endif
     let release = Task {
       guard (try? await Task.sleep(for: .milliseconds(gatherMilliseconds))) != nil else { return }
       gathering.release()
@@ -50,7 +54,9 @@ internal enum PairingCandidateLink {
       {
         release.cancel()
         browser.cancel()
-        scanner.cancel()
+        #if REFINEID_REMOTE_CARD
+          scanner.cancel()
+        #endif
         sink.finish()
       }
     )
@@ -60,16 +66,21 @@ internal enum PairingCandidateLink {
   internal static func dial(_ endpoint: PairingEndpoint) -> RappPairingConnection {
     switch endpoint {
     case .stream(let service):
-      .stream(to: service)
+      return RappPairingConnection.stream(to: service)
 
     case .bluetooth(let peripheral):
-      .bluetooth(to: peripheral) { step in
-        #if DEBUG
-          if case .ended(let failure) = step, failure != .cancelled, failure != .disconnected {
-            DevErrorLog.report("pairing over Bluetooth: \(step.line)", source: .app)
-          }
-        #endif
-      }
+      #if REFINEID_REMOTE_CARD
+        return RappPairingConnection.bluetooth(to: peripheral) { step in
+          #if DEBUG
+            if case .ended(let failure) = step, failure != .cancelled, failure != .disconnected {
+              DevErrorLog.report("pairing over Bluetooth: \(step.line)", source: .app)
+            }
+          #endif
+        }
+      #else
+        _ = peripheral
+        preconditionFailure("Bluetooth endpoints never occur without the remote card")
+      #endif
     }
   }
 }

@@ -2,7 +2,7 @@
 
 import Foundation
 
-#if canImport(CoreBluetooth)
+#if canImport(CoreBluetooth) && !os(macOS)
   import CoreBluetooth
 #endif
 
@@ -13,7 +13,7 @@ public struct BleRelayEndpoint: Sendable, Equatable {
   /// The optional L2CAP PSM if statically assigned or known ahead of time.
   public let psm: UInt16?
 
-  #if canImport(CoreBluetooth)
+  #if canImport(CoreBluetooth) && !os(macOS)
     /// The parsed CoreBluetooth CBUUID.
     public var cbuuid: CBUUID {
       CBUUID(string: serviceUUIDString)

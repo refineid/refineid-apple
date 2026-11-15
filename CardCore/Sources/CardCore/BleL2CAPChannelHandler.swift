@@ -2,7 +2,7 @@
 
 import Foundation
 
-#if canImport(CoreBluetooth)
+#if canImport(CoreBluetooth) && !os(macOS)
   import CoreBluetooth
 
   /// Wraps a `CBL2CAPChannel` into the `RappFrameTransport` contract.

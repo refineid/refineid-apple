@@ -54,12 +54,11 @@ PIN changes and resets, retry floor refusal, and qualified signing of
 a dropped or supplied PDF with fictional credentials and no hardware.
 
 The macOS notes describe local authentication, activation, PIN management,
-and document signing, and the remote card: pairing with a phone that holds
-the card by typing the code the phone shows, then signing and Safari
-sign-in through the phone. The Mac only dials out to the paired phone on
-the local network, which is what the local-network prompt and the Bonjour
-declaration are for; it never listens. SCS is excluded. Outbound timestamp
-and revocation requests support archival document signatures.
+and document signing only: the remote card is gated off for the MVP
+(decisions 2026-11-14), so the Mac declares no Bluetooth, no
+local-network prompt, and no Bonjour service, and never listens. SCS is
+excluded. Outbound timestamp and revocation requests support archival
+document signatures.
 
 ## Where the notes live
 
@@ -73,9 +72,9 @@ went stale, so the text is not repeated: read it there.
 
 - Export compliance rationale: `Documentation/export-compliance.md`.
 - Sandbox and entitlements: `Config/RefineID-Store.entitlements`, the
-  macOS app's entitlements in every configuration. Bluetooth reaches the
-  paired phone where no network is shared; a Mac never listens, so no
-  server entitlement.
+  macOS app's entitlements in every configuration. With the remote card
+  gated off for the MVP the Mac carries no Bluetooth; it never listens,
+  so no server entitlement.
 - ATS rationale: comments above `NSAppTransportSecurity` in all four
   application plists (`Config/RefineID-Info.plist`,
   `Config/RefineID-Store-Info.plist`,

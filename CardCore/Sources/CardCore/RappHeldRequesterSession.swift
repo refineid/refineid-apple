@@ -171,7 +171,12 @@
         startStream()
 
       case .bluetooth(let peers):
-        startBluetooth(peers)
+        #if !os(macOS)
+          startBluetooth(peers)
+        #else
+          _ = peers
+          finish(.transportFailure)
+        #endif
       }
       let discoveryTimeout = policy.discoveryTimeout
       Task { [weak self] in

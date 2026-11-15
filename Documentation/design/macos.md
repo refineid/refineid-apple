@@ -43,6 +43,11 @@ with the six-box access number entry.
 
 ## Remote use
 
+Gated off in the macOS MVP (decisions 2026-11-14): the switch, the
+pairing, and everything below compile out, and the identity row says
+"Connect a card reader." where it used to name the switch. The design
+stands for the remote card's return.
+
 One toolbar button is the switch for all remote use: Bluetooth and
 local-network discovery, sessions with the phone, and the phone's identity
 (`RemoteUseSwitch`, `RemoteUseButton`; hierarchy specification §5.2). The

@@ -32,10 +32,10 @@ let macosCatalog: [String: [SlideData]] = [
             assetName: "window-card-fi.png"
         ),
         SlideData(
-            filename: "02-phone.png",
-            title: "Käytä puhelinta kortinlukijana",
-            subtitle: nil,
-            assetName: "window-phone-fi.png"
+            filename: "02-documents.png",
+            title: "Allekirjoita asiakirjoja",
+            subtitle: "Luo ja tarkasta hyväksyttyjä sähköisiä allekirjoituksia.",
+            assetName: "window-signing-fi.png"
         )
     ],
     "en-US": [
@@ -46,10 +46,10 @@ let macosCatalog: [String: [SlideData]] = [
             assetName: "window-card-en.png"
         ),
         SlideData(
-            filename: "02-phone.png",
-            title: "Use your phone as a card reader",
-            subtitle: nil,
-            assetName: "window-phone-en.png"
+            filename: "02-documents.png",
+            title: "Sign documents",
+            subtitle: "Create and verify qualified electronic signatures.",
+            assetName: "window-signing-en.png"
         )
     ],
     "sv": [
@@ -60,10 +60,10 @@ let macosCatalog: [String: [SlideData]] = [
             assetName: "window-card-sv.png"
         ),
         SlideData(
-            filename: "02-phone.png",
-            title: "Använd telefonen som kortläsare",
-            subtitle: nil,
-            assetName: "window-phone-sv.png"
+            filename: "02-documents.png",
+            title: "Underteckna dokument",
+            subtitle: "Skapa och granska kvalificerade elektroniska underskrifter.",
+            assetName: "window-signing-sv.png"
         )
     ]
 ]

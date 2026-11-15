@@ -2,7 +2,7 @@
 
 import Foundation
 
-#if canImport(CoreBluetooth)
+#if canImport(CoreBluetooth) && !os(macOS)
   import CoreBluetooth
 
   /// Manages a Bluetooth Low Energy RAPP session under the `fi.refineid.ble.v1` profile.

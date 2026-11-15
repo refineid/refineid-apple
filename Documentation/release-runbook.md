@@ -199,14 +199,13 @@ for the intended next action.
 ### macOS scope
 
 The candidate ships local card authentication, activation, PIN management and
-document signing, and the remote card over RAPP, with the Mac as a requester
-that only dials the paired phone: `REFINEID_REMOTE_CARD` is set for the
-TestFlight and Release configurations in `Config/Features.xcconfig`. SCS is in
-no macOS build; verify a saved SCS opt-in cannot start a listener or request
-certificate trust. The archive carries the local token extension and the
-remote card's token extension, each with its own entitlements, no server
-entitlement, and the local-network and Bonjour declarations the remote card
-needs; `inspect-archive` checks these. iOS scope is unchanged.
+document signing only: the remote card over RAPP is gated off for the MVP
+(decisions 2026-11-14), so `REFINEID_REMOTE_CARD` is set in no macOS
+configuration in `Config/Features.xcconfig`. SCS is in no macOS build;
+verify a saved SCS opt-in cannot start a listener or request certificate
+trust. The archive carries the local token extension only, with no server
+entitlement, no Bluetooth, and no local-network or Bonjour declarations;
+`inspect-archive` checks these. iOS scope is unchanged.
 
 ### Screenshot visibility
 
