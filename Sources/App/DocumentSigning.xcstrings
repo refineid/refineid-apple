@@ -570,19 +570,42 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Secure random bytes for the timestamp request could not be made."
+            "value" : "Secure random bytes for the timestamp request could not be made. Nothing was written."
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Turvallisia satunnaistavuja aikaleimapyyntöön ei voitu luoda."
+            "value" : "Turvallisia satunnaistavuja aikaleimapyyntöön ei voitu luoda. Mitään ei kirjoitettu."
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Säkra slumptal för tidsstämpelförfrågan kunde inte genereras."
+            "value" : "Säkra slumptal för tidsstämpelförfrågan kunde inte genereras. Ingenting skrevs."
+          }
+        }
+      }
+    },
+    "error.timestampDeclined" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The timestamp authority did not grant a timestamp. Nothing was written."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aikaleimapalvelu ei myöntänyt aikaleimaa. Mitään ei kirjoitettu."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tidsstämpeltjänsten beviljade ingen tidsstämpel. Ingenting skrevs."
           }
         }
       }
@@ -593,19 +616,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The timestamp service returned an invalid response."
+            "value" : "The timestamp service returned an invalid response. Nothing was written."
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aikaleimapalvelu palautti virheellisen vastauksen."
+            "value" : "Aikaleimapalvelu palautti virheellisen vastauksen. Mitään ei kirjoitettu."
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tidsstämpeltjänsten returnerade ett ogiltigt svar."
+            "value" : "Tidsstämpeltjänsten returnerade ett ogiltigt svar. Ingenting skrevs."
           }
         }
       }
@@ -616,19 +639,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The timestamp authority is not on the EU trusted lists."
+            "value" : "The timestamp authority's certificate is not trusted by the EU trusted lists. Nothing was written."
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aikaleimapalvelu ei ole EU:n luottamuslistalla."
+            "value" : "Aikaleimapalvelun varmenteeseen ei luoteta EU:n luottamuslistojen perusteella. Mitään ei kirjoitettu."
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tidsstämpeltjänsten finns inte på EU:s förteckning över betrodda tjänster."
+            "value" : "Tidsstämpeltjänstens certifikat är inte betrott enligt EU:s förteckningar över betrodda tjänster. Ingenting skrevs."
           }
         }
       }
@@ -639,19 +662,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The EU trusted lists have not been fetched yet, so no timestamp authority could be verified."
+            "value" : "No EU trusted lists were available, so the timestamp authority could not be verified. Nothing was written."
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "EU:n luottamuslistoja ei ole vielä haettu, joten aikaleimapalvelua ei voitu vahvistaa."
+            "value" : "EU:n luottamuslistoja ei ollut saatavilla, joten aikaleimapalvelua ei voitu vahvistaa. Mitään ei kirjoitettu."
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "EU:s förteckning över betrodda tjänster har inte hämtats ännu, så ingen tidsstämpeltjänst kunde verifieras."
+            "value" : "Inga EU-förteckningar över betrodda tjänster fanns tillgängliga, så tidsstämpeltjänsten kunde inte verifieras. Ingenting skrevs."
           }
         }
       }

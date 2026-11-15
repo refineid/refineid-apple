@@ -102,6 +102,9 @@
       let networkFailure = DocumentSigner.Failure.network(
         TimestampClient.Failure.authorityDidNotAnswer("offline")
       )
+      let declinedFailure = DocumentSigner.Failure.network(
+        TimestampClient.Failure.authorityDeclined
+      )
       let untrustedFailure = DocumentSigner.Failure.network(
         TimestampClient.Failure.untrustedAuthority
       )
@@ -111,11 +114,15 @@
       let invalidFailure = DocumentSigner.Failure.network(
         TimestampClient.Failure.invalidToken(.invalidSignature)
       )
+      let invalidResponseFailure = DocumentSigner.Failure.network(
+        TimestampClient.Failure.invalidResponse(.nonceMismatch)
+      )
       let randomFailure = DocumentSigner.Failure.network(
         TimestampClient.Failure.randomUnavailable
       )
       let failures = [
         networkFailure,
+        declinedFailure,
         untrustedFailure,
         listsUnavailableFailure,
         invalidFailure,
@@ -125,6 +132,10 @@
       #expect(Set(messages).count == messages.count)
       #expect(DocumentSigningMessage.message(for: untrustedFailure).contains("EU"))
       #expect(DocumentSigningMessage.message(for: listsUnavailableFailure).contains("EU"))
+      #expect(
+        DocumentSigningMessage.message(for: invalidResponseFailure)
+          == DocumentSigningMessage.message(for: invalidFailure)
+      )
     }
 
     @Test

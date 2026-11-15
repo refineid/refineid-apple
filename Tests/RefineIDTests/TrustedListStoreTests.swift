@@ -269,4 +269,38 @@ internal struct TrustedListStoreTests {
     #expect(second.lastRefreshFailure == .offline)
     #expect(second.anchors?.fetchedAt == Self.fetchedAt, "the cache stays when offline")
   }
+
+  /// A signature's timestamp anchors refresh a stale cache first and
+  /// fall back to it when that fetch fails.
+  @Test
+  internal func signingAnchorsRefreshAStaleCacheAndKeepItWhenThatFails() async throws {
+    let directory = try Self.directory()
+    let reader = Self.reader()
+    let first = TrustedListStore(
+      dependencies: Self.dependencies(
+        network: Self.served(), reader: reader, directory: directory, now: Self.fetchedAt))
+    await first.refreshIfNeeded()
+
+    let fresh = TrustedListFakeNetwork(served: [:], offline: false)
+    let freshStore = TrustedListStore(
+      dependencies: Self.dependencies(
+        network: fresh, reader: reader, directory: directory, now: Self.fetchedAt))
+    #expect(try await freshStore.signingAnchors().get().fetchedAt == Self.fetchedAt)
+    #expect(fresh.fetches.isEmpty, "a current cache is not fetched again to sign")
+
+    let offline = TrustedListFakeNetwork(served: [:], offline: false)
+    let later = Self.nextUpdate.addingTimeInterval(1)
+    let stale = TrustedListStore(
+      dependencies: Self.dependencies(
+        network: offline, reader: reader, directory: directory, now: later))
+    #expect(try await stale.signingAnchors().get().fetchedAt == Self.fetchedAt)
+    #expect(offline.fetches == [TrustedLists.listOfTheListsLocation], "a stale cache is fetched")
+    #expect(stale.lastRefreshFailure == .unavailable)
+
+    let online = Self.served()
+    let refreshed = TrustedListStore(
+      dependencies: Self.dependencies(
+        network: online, reader: reader, directory: directory, now: later))
+    #expect(try await refreshed.signingAnchors().get().fetchedAt == later)
+  }
 }

@@ -1,6 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-#if os(macOS)
+#if DEBUG && os(macOS)
 
   import CardCore
   import Foundation
@@ -57,6 +57,9 @@
       """
     )
 
+    /// The bit flipped in the token's last signature octet to tamper with it.
+    private static let signatureTailMask: UInt8 = 1
+
     /// Base64 fixture text with line breaks ignored.
     private static func decode(_ encoded: String) -> Data {
       Data(base64Encoded: encoded, options: .ignoreUnknownCharacters) ?? Data()
@@ -95,7 +98,7 @@
     internal func tamperedTokenIsNeverCompacted() {
       var changed = Self.token
       if let last = changed.indices.last {
-        changed[last] ^= 1
+        changed[last] ^= Self.signatureTailMask
       }
 
       #expect(throws: TimestampTokenVerifier.Failure.invalidSignature) {
@@ -141,7 +144,7 @@
     internal func invalidSignatureFailsAsInvalidToken() async {
       var changed = Self.token
       if let last = changed.indices.last {
-        changed[last] ^= 1
+        changed[last] ^= Self.signatureTailMask
       }
       let resolver: @Sendable (Date) -> [Data] = { _ in [Self.signer] }
       await #expect(

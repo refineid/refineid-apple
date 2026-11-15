@@ -190,25 +190,40 @@ internal enum DocumentSigningMessage {
       case .untrustedAuthority:
         return text(
           "error.timestampUntrusted",
-          "The timestamp authority is not on the EU trusted lists."
+          """
+          The timestamp authority's certificate is not trusted by the EU trusted \
+          lists. Nothing was written.
+          """
         )
 
       case .trustedListsUnavailable:
         return text(
           "error.trustedListsUnavailable",
-          "The EU trusted lists have not been fetched yet, so no timestamp authority could be verified."
+          """
+          No EU trusted lists were available, so the timestamp authority could not \
+          be verified. Nothing was written.
+          """
         )
 
-      case .invalidToken:
+      case .invalidToken, .invalidResponse:
         return text(
           "error.timestampInvalid",
-          "The timestamp service returned an invalid response."
+          "The timestamp service returned an invalid response. Nothing was written."
         )
 
       case .randomUnavailable:
         return text(
           "error.randomUnavailable",
-          "Secure random bytes for the timestamp request could not be made."
+          """
+          Secure random bytes for the timestamp request could not be made. \
+          Nothing was written.
+          """
+        )
+
+      case .authorityDeclined:
+        return text(
+          "error.timestampDeclined",
+          "The timestamp authority did not grant a timestamp. Nothing was written."
         )
 
       case .authorityDidNotAnswer:

@@ -12,8 +12,14 @@ import Security
 internal enum TimestampClient {
   /// Why no token could be obtained.
   internal enum Failure: Error, Equatable {
+    /// The authority answered without granting a timestamp.
+    case authorityDeclined
+
     /// The authority declined or failed.
     case authorityDidNotAnswer(String)
+
+    /// The authority answered with a response that does not match the request.
+    case invalidResponse(RfcTimestamp.TokenFailure)
 
     /// The authority returned a token that failed cryptographic or RFC 3161 verification.
     case invalidToken(TimestampTokenVerifier.Failure)
@@ -63,19 +69,27 @@ internal enum TimestampClient {
   /// Exponent at which the one-second progression reaches its cap.
   private static let maximumRetryExponent = 6
 
-  /// Explicit trust anchor resolver injected for tests.
-  @TaskLocal internal static var anchorResolver: (@Sendable (Date) async throws -> [Data])?
+  #if DEBUG
+    /// Explicit trust anchor resolver injected for tests.
+    @TaskLocal internal static var anchorResolver: (@Sendable (Date) async throws -> [Data])?
+  #endif
 
   /// Resolves the trusted time-stamping anchors for a token acquired at `instant`.
+  ///
+  /// Absent or stale lists are fetched before the anchors are taken, so
+  /// a withdrawn anchor is not used while the lists can be reached; a
+  /// failed fetch keeps the cache usable.
   internal static func timeStampingAnchors(at instant: Date) async throws -> [Data] {
-    if let resolver = anchorResolver {
-      let anchors = try await resolver(instant)
-      guard !anchors.isEmpty else { throw Failure.untrustedAuthority }
-      return anchors
-    }
+    #if DEBUG
+      if let resolver = anchorResolver {
+        let anchors = try await resolver(instant)
+        guard !anchors.isEmpty else { throw Failure.untrustedAuthority }
+        return anchors
+      }
+    #endif
     guard
       case .success(let trustAnchors) = await TrustedListStore.shared
-        .verificationAnchors()
+        .signingAnchors()
     else {
       throw Failure.trustedListsUnavailable
     }
@@ -166,6 +180,31 @@ internal enum TimestampClient {
     return compact
   }
 
+  /// The token a response carries, bound to the request just sent.
+  ///
+  /// A response that is not a granted token for this request is the
+  /// authority's answer, not a transport failure: a non-granted status
+  /// is reported as the authority declining, and a response that does
+  /// not match the request as an invalid answer.
+  private static func checkedToken(
+    from response: Data,
+    digest: Data,
+    nonce: Data
+  ) throws -> Data {
+    do {
+      return try RfcTimestamp.token(
+        fromResponse: response, digest: digest, nonceBytes: nonce
+      )
+    } catch let failure as RfcTimestamp.TokenFailure {
+      switch failure {
+      case .rejected:
+        throw Failure.authorityDeclined
+      default:
+        throw Failure.invalidResponse(failure)
+      }
+    }
+  }
+
   /// One token from one authority, checked before it is accepted.
   private static func token(
     over digest: Data,
@@ -179,8 +218,8 @@ internal enum TimestampClient {
       contentType: Self.requestContentType,
       endpoint: .authority
     )
-    let token = try RfcTimestamp.token(
-      fromResponse: response, digest: digest, nonceBytes: nonce
+    let token = try Self.checkedToken(
+      from: response, digest: digest, nonce: nonce
     )
     return try await Self.verifyToken(token, acquiredAt: Date())
   }
@@ -197,8 +236,8 @@ internal enum TimestampClient {
       contentType: Self.requestContentType,
       endpoint: .authority
     )
-    let token = try RfcTimestamp.token(
-      fromResponse: response, digest: digest, nonceBytes: nonce
+    let token = try Self.checkedToken(
+      from: response, digest: digest, nonce: nonce
     )
     let verified = try await Self.verifyToken(token, acquiredAt: Date())
     guard
@@ -206,7 +245,7 @@ internal enum TimestampClient {
         from: verified.token
       )
     else {
-      throw RfcTimestamp.TokenFailure.malformed
+      throw Failure.invalidResponse(.malformed)
     }
     return compact
   }

@@ -126,6 +126,14 @@ internal final class TrustedListStore: ObservableObject {
     return .success(anchors)
   }
 
+  /// The anchors to timestamp a signature under: absent or stale lists
+  /// are fetched first, and a failed fetch leaves the cache usable.
+  internal func signingAnchors() async -> Result<TrustAnchors, RefreshFailure> {
+    await refreshIfNeeded()
+    guard let anchors else { return .failure(lastRefreshFailure ?? .unavailable) }
+    return .success(anchors)
+  }
+
   /// Reads the cache once; later calls wait for that read.
   internal func loadCache() async {
     if cacheLoad == nil {
