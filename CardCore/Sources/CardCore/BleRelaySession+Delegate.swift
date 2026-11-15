@@ -2,7 +2,7 @@
 
 import Foundation
 
-#if canImport(CoreBluetooth)
+#if canImport(CoreBluetooth) && !os(macOS)
   import CoreBluetooth
 
   // MARK: - CoreBluetooth Delegates

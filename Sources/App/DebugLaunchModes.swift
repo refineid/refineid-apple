@@ -77,17 +77,17 @@
     internal static func runBeforeScene() {
       guard let mode = Self.selected(), !mode.needsScene else { return }
       if mode == .bleSpike {
-        #if canImport(CoreBluetooth)
+        #if canImport(CoreBluetooth) && REFINEID_REMOTE_CARD
           Task { @MainActor in
             let report = await DebugBleSpike.run()
             DebugConsole.emit(report.lines)
             DebugConsole.finish(succeeded: report.succeeded)
           }
+          return
         #else
           DebugConsole.emit("ble-spike: no CoreBluetooth")
           DebugConsole.finish(succeeded: false)
         #endif
-        return
       }
       let report = Self.report(for: mode)
       DebugConsole.emit(report.lines)

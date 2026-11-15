@@ -99,14 +99,19 @@ case "${mode}" in
     xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -destination 'platform=macOS' -only-testing:CardCoreTests/RappIntegrationTests -quiet \
       || fail "RAPP integration tests failed."
 
-    step "9. Judging the Swift signers' documents with EU DSS (Scripts/dss-gate.sh)"
+    step "9. Running Bluetooth-gated engine tests on the iOS simulator"
+    sim_name="$(xcrun simctl list devices available -j | python3 -c "import json,sys; ds=json.load(sys.stdin)['devices']; print(next(d['name'] for vs in ds.values() for d in vs if 'iPhone' in d['name']))")"
+    xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -destination "platform=iOS Simulator,name=${sim_name}" -only-testing:CardCoreTests/RappBleAppearanceWatcherTests -quiet \
+      || fail "Bluetooth-gated engine tests failed."
+
+    step "10. Judging the Swift signers' documents with EU DSS (Scripts/dss-gate.sh)"
     Scripts/dss-gate.sh \
       || fail "A Swift signer's document is below the release level in DSS."
 
     Scripts/QualityReceipt.py verify-head "${checked_head}" "${checked_tree}" \
       || fail "The checked-out commit changed during push checks."
 
-    printf '\nPR gate passed: gate tests, lint, CardCore and PKCS11Bridge package tests, iOS build, RefineIDTests, CardCoreTests, RappIntegrationTests, and the DSS gate.\n'
+    printf '\nPR gate passed: gate tests, lint, CardCore and PKCS11Bridge package tests, iOS build, RefineIDTests, CardCoreTests, RappIntegrationTests, simulator Bluetooth tests, and the DSS gate.\n'
     ;;
 
   nfc-signing)

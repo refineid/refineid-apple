@@ -98,18 +98,22 @@
       guard !pairings.isEmpty else {
         revocationBacklog?.cancel()
         revocationBacklog = nil
-        revocationBluetoothWatch?.cancel()
-        revocationBluetoothWatch = nil
+        #if REFINEID_REMOTE_CARD
+          revocationBluetoothWatch?.cancel()
+          revocationBluetoothWatch = nil
+        #endif
         return
       }
-      if Self.dialsOverBluetooth, revocationBluetoothWatch == nil {
-        let watch = RappBleAppearanceWatcher(
-          onAppeared: Self.bluetoothAppearanceHandler(in: vault))
-        revocationBluetoothWatch = watch
-        if Self.backlogBrowses {
-          watch.start()
+      #if REFINEID_REMOTE_CARD
+        if Self.dialsOverBluetooth, revocationBluetoothWatch == nil {
+          let watch = RappBleAppearanceWatcher(
+            onAppeared: Self.bluetoothAppearanceHandler(in: vault))
+          revocationBluetoothWatch = watch
+          if Self.backlogBrowses {
+            watch.start()
+          }
         }
-      }
+      #endif
       let keys = Set(pairings.map(\.key))
       let classify = Self.backlogClassifier(among: pairings)
       let appeared = Self.backlogAppearanceHandler(

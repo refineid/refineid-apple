@@ -237,9 +237,11 @@
     /// while any waits (RAPP v26.11.8 §4.6 item 6); nil while none does.
     internal var revocationBacklog: RappRevocationBacklogBrowser?
 
-    /// Scans for RAPP peripherals over Bluetooth while a forgotten pairing
-    /// waits, so a phone that appears only there hears its close too.
-    internal var revocationBluetoothWatch: RappBleAppearanceWatcher?
+    #if REFINEID_REMOTE_CARD
+      /// Scans for RAPP peripherals over Bluetooth while a forgotten pairing
+      /// waits, so a phone that appears only there hears its close too.
+      internal var revocationBluetoothWatch: RappBleAppearanceWatcher?
+    #endif
 
     /// The forgotten pairings whose close a session is delivering now.
     internal var revocationDeliveries: Set<Data> = []

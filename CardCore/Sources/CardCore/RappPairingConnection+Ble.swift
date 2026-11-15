@@ -1,6 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-#if canImport(RappEngine) && canImport(CoreBluetooth)
+#if canImport(RappEngine) && !os(macOS)
   import Foundation
   import os
   import RappEngine

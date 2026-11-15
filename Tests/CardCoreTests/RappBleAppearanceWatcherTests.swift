@@ -5,10 +5,13 @@ import Testing
 
 @testable import CardCore
 
-#if canImport(CoreBluetooth) && canImport(RappEngine)
+#if canImport(CoreBluetooth) && canImport(RappEngine) && !os(macOS)
   /// What counts as a RAPP peripheral appearing over Bluetooth (RAPP
   /// v26.11.8 §4.6 item 6): the first sighting, or one after the loss hold,
   /// never a sighting while it stays in sight.
+  ///
+  /// Off macOS with Bluetooth itself; the iOS-simulator gate run keeps
+  /// it covered.
   @Suite("RAPP BLE appearance watcher")
   internal struct RappBleAppearanceWatcherTests {
     /// The appearances a watcher reported.

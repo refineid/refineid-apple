@@ -204,6 +204,7 @@ internal struct RappShippingConfigurationTests {
     #expect(source.contains("NSBluetoothAlwaysUsageDescription present without the remote card"))
     #expect(source.contains("network.server entitlement present without the remote card"))
     #expect(source.contains("bluetooth entitlement present without the remote card"))
+    #expect(source.contains("CoreBluetooth linked without the remote card"))
     #expect(source.contains("iPhone-only artifact requiring iOS 26.0 and an NFC antenna"))
   }
 

@@ -2,7 +2,7 @@
 
 import Foundation
 
-#if canImport(CoreBluetooth) && canImport(RappEngine)
+#if canImport(CoreBluetooth) && canImport(RappEngine) && !os(macOS)
   @preconcurrency import CoreBluetooth
 
   extension RappBleGattPeripheral: CBPeripheralManagerDelegate {

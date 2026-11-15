@@ -25,20 +25,24 @@ internal struct AsicContainerTests {
   }
 
   /// One `unzip` run against the scratch directory.
-  private static func unzip(_ arguments: [String]) throws -> String {
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
-    process.arguments = arguments
-    let pipe = Pipe()
-    process.standardOutput = pipe
-    try process.run()
-    process.waitUntilExit()
-    let report = try Self.text(
-      pipe.fileHandleForReading.readDataToEndOfFile()
-    )
-    try #require(process.terminationStatus == 0, "unzip failed: \(report)")
-    return report
-  }
+  ///
+  /// macOS only: a simulator has no process spawning.
+  #if os(macOS)
+    private static func unzip(_ arguments: [String]) throws -> String {
+      let process = Process()
+      process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+      process.arguments = arguments
+      let pipe = Pipe()
+      process.standardOutput = pipe
+      try process.run()
+      process.waitUntilExit()
+      let report = try Self.text(
+        pipe.fileHandleForReading.readDataToEndOfFile()
+      )
+      try #require(process.terminationStatus == 0, "unzip failed: \(report)")
+      return report
+    }
+  #endif
 
   /// One file under a given name, with content that does not matter.
   private static func named(_ name: String) -> AsicContainer.DataObject {
@@ -157,51 +161,55 @@ internal struct AsicContainerTests {
   ///
   /// `unzip` walks the central directory, checks every CRC, and
   /// extracts. If it agrees, the offsets and checksums are right.
-  @Test
-  internal func unzipReadsAndVerifiesTheContainer() throws {
-    let directory = FileManager.default.temporaryDirectory
-      .appendingPathComponent("asic-container-tests-\(UUID().uuidString)")
-    try FileManager.default.createDirectory(
-      at: directory, withIntermediateDirectories: true
-    )
-    defer { try? FileManager.default.removeItem(at: directory) }
-
-    let dossier = Data("RefineID ASiC interoperability dossier".utf8)
-    let objects = [
-      AsicContainer.DataObject(
-        name: "dossier.pdf", mimeType: "application/pdf", content: dossier
-      ),
-      AsicContainer.DataObject(
-        name: "annex.txt",
-        mimeType: "text/plain",
-        content: Data("annex one, completed and signed".utf8)
-      ),
-    ]
-    let archive = try #require(
-      AsicContainer.container(
-        objects: objects, signatureXml: Data("placeholder".utf8)
+  ///
+  /// macOS only: it shells out to `unzip`.
+  #if os(macOS)
+    @Test
+    internal func unzipReadsAndVerifiesTheContainer() throws {
+      let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent("asic-container-tests-\(UUID().uuidString)")
+      try FileManager.default.createDirectory(
+        at: directory, withIntermediateDirectories: true
       )
-    )
-    let container = directory.appendingPathComponent("out.asice")
-    try archive.write(to: container)
+      defer { try? FileManager.default.removeItem(at: directory) }
 
-    // Every CRC and every offset, checked by an outside reader.
-    let report = try Self.unzip(["-t", container.path])
-    #expect(report.contains("No errors detected"), "\(report)")
-
-    // The entries come back byte-identical.
-    _ = try Self.unzip(["-o", "-q", container.path, "-d", directory.path])
-    let extracted = try Data(
-      contentsOf: directory.appendingPathComponent("dossier.pdf")
-    )
-    #expect(extracted == dossier)
-    let mimetype = try Data(
-      contentsOf: directory.appendingPathComponent(
-        AsicContainer.mimetypeEntryName
+      let dossier = Data("RefineID ASiC interoperability dossier".utf8)
+      let objects = [
+        AsicContainer.DataObject(
+          name: "dossier.pdf", mimeType: "application/pdf", content: dossier
+        ),
+        AsicContainer.DataObject(
+          name: "annex.txt",
+          mimeType: "text/plain",
+          content: Data("annex one, completed and signed".utf8)
+        ),
+      ]
+      let archive = try #require(
+        AsicContainer.container(
+          objects: objects, signatureXml: Data("placeholder".utf8)
+        )
       )
-    )
-    #expect(mimetype == Data(AsicContainer.mimeType.utf8))
-  }
+      let container = directory.appendingPathComponent("out.asice")
+      try archive.write(to: container)
+
+      // Every CRC and every offset, checked by an outside reader.
+      let report = try Self.unzip(["-t", container.path])
+      #expect(report.contains("No errors detected"), "\(report)")
+
+      // The entries come back byte-identical.
+      _ = try Self.unzip(["-o", "-q", container.path, "-d", directory.path])
+      let extracted = try Data(
+        contentsOf: directory.appendingPathComponent("dossier.pdf")
+      )
+      #expect(extracted == dossier)
+      let mimetype = try Data(
+        contentsOf: directory.appendingPathComponent(
+          AsicContainer.mimetypeEntryName
+        )
+      )
+      #expect(mimetype == Data(AsicContainer.mimeType.utf8))
+    }
+  #endif
 
   /// Ordinary names, including a subfolder, are carried as they are.
   @Test

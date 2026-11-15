@@ -21,20 +21,22 @@
       found.start()
     }
 
-    internal func startBluetooth(_ peers: RappBleCentralPeers) {
-      guard
-        let preamble = try? pair.sessionPreamble(transportProfile: RappBleGattProfile.name)
-      else {
-        finish(.transportFailure)
-        return
+    #if !os(macOS)
+      internal func startBluetooth(_ peers: RappBleCentralPeers) {
+        guard
+          let preamble = try? pair.sessionPreamble(transportProfile: RappBleGattProfile.name)
+        else {
+          finish(.transportFailure)
+          return
+        }
+        let central = RappBleGattCentral(purpose: .session(preamble: preamble), peers: peers) {
+          [weak self] event in
+          self?.receive(event)
+        }
+        link.carry(over: central)
+        central.start()
       }
-      let central = RappBleGattCentral(purpose: .session(preamble: preamble), peers: peers) {
-        [weak self] event in
-        self?.receive(event)
-      }
-      link.carry(over: central)
-      central.start()
-    }
+    #endif
 
     private func dial(_ endpoint: NWEndpoint) {
       guard
@@ -50,34 +52,36 @@
       made.start()
     }
 
-    private func receive(_ event: RappBleGattEvent) {
-      switch event {
-      case .peer(let peer):
-        state.withLock { $0.bluetoothPeer = peer }
+    #if !os(macOS)
+      private func receive(_ event: RappBleGattEvent) {
+        switch event {
+        case .peer(let peer):
+          state.withLock { $0.bluetoothPeer = peer }
 
-      case .connected:
-        if let peer = state.withLock({ $0.bluetoothPeer }) {
-          report(.bluetoothPeer(peer, routed: true))
+        case .connected:
+          if let peer = state.withLock({ $0.bluetoothPeer }) {
+            report(.bluetoothPeer(peer, routed: true))
+          }
+          receive(PersistentRelayEvent.connected)
+
+        case .frame(let frame):
+          receive(PersistentRelayEvent.frame(frame))
+
+        case .closed(let failure):
+          if failure == .routingRefused, let peer = state.withLock({ $0.bluetoothPeer }) {
+            report(.bluetoothPeer(peer, routed: false))
+          }
+          receive(PersistentRelayEvent.closed(.disconnected))
+
+        case .trace(let step):
+          report(.bluetoothTrace(step))
+
+        case .attemptRefused, .bootstrap:
+          // A session link never reads the bootstrap characteristic.
+          break
         }
-        receive(PersistentRelayEvent.connected)
-
-      case .frame(let frame):
-        receive(PersistentRelayEvent.frame(frame))
-
-      case .closed(let failure):
-        if failure == .routingRefused, let peer = state.withLock({ $0.bluetoothPeer }) {
-          report(.bluetoothPeer(peer, routed: false))
-        }
-        receive(PersistentRelayEvent.closed(.disconnected))
-
-      case .trace(let step):
-        report(.bluetoothTrace(step))
-
-      case .attemptRefused, .bootstrap:
-        // A session link never reads the bootstrap characteristic.
-        break
       }
-    }
+    #endif
 
     private func receive(_ event: PersistentRelayEvent) {
       switch event {

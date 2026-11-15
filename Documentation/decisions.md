@@ -27,6 +27,11 @@ part of the 2026-10-10 entry and the macOS Bluetooth grant of the
   Bonjour service and no local-network or Bluetooth prompt.
   Outbound network access stays for timestamps and revocation
   checks. `inspect-archive` holds the Mac candidate to this shape.
+- Only RAPP uses Bluetooth, so Bluetooth follows the same gate: the
+  CoreBluetooth sources compile out on macOS, the app's seams close
+  behind `REFINEID_REMOTE_CARD`, and `inspect-archive` fails a Mac
+  candidate whose binaries link CoreBluetooth (ITMS-90683). The
+  engine's Bluetooth tests run on the iOS simulator instead.
 - Stored pairings are left exactly as they are; a gated build never
   browses, dials, or offers the phone's identity, and the identity
   row asks for the reader where it used to name the switch.

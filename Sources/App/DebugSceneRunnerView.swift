@@ -80,9 +80,14 @@
         await runPairingMode(mode)
 
       case .bleOfferRemoteReader, .blePairWithOffer:
-        let report = await bleReport(mode)
-        DebugConsole.emit(report.lines)
-        DebugConsole.finish(succeeded: report.succeeded)
+        #if REFINEID_REMOTE_CARD
+          let report = await bleReport(mode)
+          DebugConsole.emit(report.lines)
+          DebugConsole.finish(succeeded: report.succeeded)
+        #else
+          DebugConsole.emit("\(mode.rawValue): Bluetooth needs the remote card")
+          DebugConsole.finish(succeeded: false)
+        #endif
 
       case .activationProbe:
         #if REFINEID_LOCAL_CARD && os(iOS)
@@ -124,16 +129,18 @@
       }
     }
 
-    /// Runs one of the BLE modes.
-    private static func bleReport(_ mode: DebugLaunchMode) async -> DebugModeReport {
-      switch mode {
-      case .blePairWithOffer:
-        return await DebugBlePairing.pair(code: DebugLaunchModes.offerURI())
+    #if REFINEID_REMOTE_CARD
+      /// Runs one of the BLE modes.
+      private static func bleReport(_ mode: DebugLaunchMode) async -> DebugModeReport {
+        switch mode {
+        case .blePairWithOffer:
+          return await DebugBlePairing.pair(code: DebugLaunchModes.offerURI())
 
-      default:
-        return await DebugBlePairing.offer()
+        default:
+          return await DebugBlePairing.offer()
+        }
       }
-    }
+    #endif
 
     #if os(iOS)
       /// Opens the page named after `--open-safari` and reports whether the
