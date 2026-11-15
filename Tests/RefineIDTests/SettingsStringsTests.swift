@@ -66,9 +66,9 @@
           TranslationRow(key: "Time Stamp", finnish: "Aikaleima", swedish: "Tidsstämpel"),
           TranslationRow(key: "Stamp", finnish: "Leima", swedish: "Stämpel"),
           TranslationRow(
-            key: "Add a verification stamp to the PDF file.",
-            finnish: "Lisää PDF-tiedostoon tarkistusleima.",
-            swedish: "Lägg till en verifieringsstämpel i PDF-filen."
+            key: "Add a stamp to the PDF file",
+            finnish: "Lisää PDF-tiedostoon leima",
+            swedish: "Lägg till en stämpel i PDF-filen"
           ),
           TranslationRow(
             key: "Qualified timestamp server",

@@ -5446,24 +5446,24 @@
         }
       }
     },
-    "Add a verification stamp to the PDF file.": {
+    "Add a stamp to the PDF file": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Add a verification stamp to the PDF file."
+            "value": "Add a stamp to the PDF file"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lisää PDF-tiedostoon tarkistusleima."
+            "value": "Lisää PDF-tiedostoon leima"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lägg till en verifieringsstämpel i PDF-filen."
+            "value": "Lägg till en stämpel i PDF-filen"
           }
         }
       }
