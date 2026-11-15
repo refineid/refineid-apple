@@ -34,7 +34,23 @@
 
 The entries below record historical decisions, their timestamps, and rationale.
 
-### 2026-11-14 macOS MVP ships the local card only; the remote card is gated off
+### 2026-11-16 The unit suite runs on the iOS simulator as well as macOS
+
+The phone's suites compile only where `REFINEID_REMOTE_CARD` is on,
+which is nowhere on macOS, so no gate ran them. `Scripts/test.sh pr`
+now builds and runs `RefineIDTests` a second time on the iOS simulator:
+the same bundle, hosted by `RefineIDTestHost` built for the simulator,
+with its `TEST_HOST` following the SDK.
+
+- The suites that drive AppKit, the Mac identity row or the Mac signing
+  server carry `#if os(macOS)`, so the simulator build is clean; the
+  pairing fixture follows the flag rather than the platform, which lets
+  the custodian, transport and backoff suites run where the phone
+  exists.
+- `RappPairingSearchMessageTests` asserts each platform's own wording
+  for the denied local network and the unreachable phone.
+
+## 2026-11-14 macOS MVP ships the local card only; the remote card is gated off
 
 Maintainer's decision: "I have decided to release macOS version without
 RAPP for now as MVP". The macOS build carries local card

@@ -110,8 +110,8 @@ edit them expecting a behavior change.
 ## Verification
 
 - `Scripts/test.sh pr` — lint, package tests, iOS build,
-  RefineIDTests, CardCoreTests, simulator Bluetooth tests, DSS
-  gate.
+  RefineIDTests on macOS and the iOS simulator, CardCoreTests,
+  simulator Bluetooth tests, DSS gate.
 - `Scripts/apple-app-store-connect-release-manager.swift
   inspect-archive <path-to-xcarchive>` — every reviewed archive
   gate without uploading or changing App Store state.

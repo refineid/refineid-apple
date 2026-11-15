@@ -1691,8 +1691,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.Tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTED_PLATFORMS = "macosx iphonesimulator";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RefineIDTestHost.app/Contents/MacOS/RefineIDTestHost";
+				"TEST_HOST[sdk=iphonesimulator*]" = "$(BUILT_PRODUCTS_DIR)/RefineIDTestHost.app/RefineIDTestHost";
 			};
 			name = Debug;
 		};
@@ -1705,8 +1706,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.Tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTED_PLATFORMS = "macosx iphonesimulator";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RefineIDTestHost.app/Contents/MacOS/RefineIDTestHost";
+				"TEST_HOST[sdk=iphonesimulator*]" = "$(BUILT_PRODUCTS_DIR)/RefineIDTestHost.app/RefineIDTestHost";
 			};
 			name = Profile;
 		};
@@ -1719,8 +1721,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.Tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTED_PLATFORMS = "macosx iphonesimulator";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RefineIDTestHost.app/Contents/MacOS/RefineIDTestHost";
+				"TEST_HOST[sdk=iphonesimulator*]" = "$(BUILT_PRODUCTS_DIR)/RefineIDTestHost.app/RefineIDTestHost";
 			};
 			name = TestFlight;
 		};
@@ -1733,8 +1736,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.Tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTED_PLATFORMS = "macosx iphonesimulator";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RefineIDTestHost.app/Contents/MacOS/RefineIDTestHost";
+				"TEST_HOST[sdk=iphonesimulator*]" = "$(BUILT_PRODUCTS_DIR)/RefineIDTestHost.app/RefineIDTestHost";
 			};
 			name = Release;
 		};
@@ -1763,7 +1767,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.testhost;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
-				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTED_PLATFORMS = "macosx iphonesimulator";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 			};
 			name = Debug;
@@ -1793,7 +1797,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.testhost;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
-				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTED_PLATFORMS = "macosx iphonesimulator";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 			};
@@ -1842,7 +1846,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.testhost;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
-				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTED_PLATFORMS = "macosx iphonesimulator";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 			};
 			name = TestFlight;
@@ -1890,7 +1894,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.testhost;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
-				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTED_PLATFORMS = "macosx iphonesimulator";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 			};
 			name = Release;

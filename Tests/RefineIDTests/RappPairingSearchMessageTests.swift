@@ -17,6 +17,38 @@
 
     private static let notAccepted = String(localized: "The pairing code was not accepted.")
 
+    #if os(macOS)
+      private static let localNetworkDeniedMessage =
+        String(
+          localized: """
+            macOS is blocking RefineID from the local network. Allow it in \
+            System Settings › Privacy & Security › Local Network.
+            """)
+
+      private static let unreachableMessage =
+        String(
+          localized: """
+            Could not connect to the phone. Check that the phone and this Mac \
+            are on the same network and that RefineID is allowed to use the \
+            local network.
+            """)
+    #else
+      private static let localNetworkDeniedMessage =
+        String(
+          localized: """
+            RefineID is not allowed to use the local network. Allow it in \
+            Settings › Privacy & Security › Local Network.
+            """)
+
+      private static let unreachableMessage =
+        String(
+          localized: """
+            Could not connect to the phone. Check that the phone and this \
+            device are on the same network and that RefineID is allowed to \
+            use the local network.
+            """)
+    #endif
+
     private static func assertTranslations(of key: String, finnish: String, swedish: String) throws
     {
       let catalog = URL(fileURLWithPath: #filePath)
@@ -59,24 +91,11 @@
       XCTAssertEqual(RappPairingModel.failure(for: Reason.localNetworkDenied), .localNetworkDenied)
       let denied = RappPairingModel.Failure.localNetworkDenied.message
       XCTAssertNotEqual(denied, missing)
-      XCTAssertEqual(
-        denied,
-        String(
-          localized: """
-            macOS is blocking RefineID from the local network. Allow it in \
-            System Settings › Privacy & Security › Local Network.
-            """))
+      XCTAssertEqual(denied, Self.localNetworkDeniedMessage)
     }
 
     internal func testAnUnreachedPhoneSaysWhatToCheck() {
-      XCTAssertEqual(
-        RappPairingModel.Failure.unreachable.message,
-        String(
-          localized: """
-            Could not connect to the phone. Check that the phone and this Mac \
-            are on the same network and that RefineID is allowed to use the \
-            local network.
-            """))
+      XCTAssertEqual(RappPairingModel.Failure.unreachable.message, Self.unreachableMessage)
     }
 
     internal func testOnlyNetworkFailuresOfferTheSettings() {

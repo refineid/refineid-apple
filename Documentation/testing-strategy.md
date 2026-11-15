@@ -7,7 +7,7 @@ This document defines the tiered testing, formatting, and release quality gates 
 | Tier | When | Gate / Tool | Scope & Objectives |
 | --- | --- | --- | --- |
 | **1. Commit** | Every local commit | `Scripts/test.sh commit` (`pre-commit`) | Checks staged whitespace, exercises the quality receipt gate when its files change, and runs lint against the exact staged Git tree. |
-| **2. Push / PR** | Every local push / PR update | `Scripts/test.sh pr` (`pre-push`) | Requires a clean checkout and checks local gate behavior, lint, CardCore and PKCS11Bridge Swift packages, iOS compilation, `RefineIDTests`, and `CardCoreTests` with `RappIntegrationTests` in its own invocation. |
+| **2. Push / PR** | Every local push / PR update | `Scripts/test.sh pr` (`pre-push`) | Requires a clean checkout and checks local gate behavior, lint, CardCore and PKCS11Bridge Swift packages, iOS compilation, `RefineIDTests` on macOS and the iOS simulator, and `CardCoreTests` with `RappIntegrationTests` in its own invocation. |
 | **3. TestFlight** | Staging candidate builds | `Scripts/apple-app-store-connect-release-manager.swift candidate` | Verifies archive export, provisioning profiles, entitlements, and diagnostic exclusions. Real-device smoke tests on iPhone (NFC card priming) and Mac (USB CCID reader). |
 | **4. App Store** | Public release production | `Scripts/test.sh pr` + `inspect-archive` | Runs the PR floor. macOS UI and device compliance checks remain separate gates. |
 
