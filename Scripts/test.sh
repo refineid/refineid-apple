@@ -6,7 +6,7 @@
 # Usage:
 #   Scripts/test.sh           # default: runs PR tier (lint, package tests, iOS build, app and core unit tests)
 #   Scripts/test.sh commit    # fast pre-commit tier (whitespace check + lint)
-#   Scripts/test.sh pr        # PR / pre-push tier (lint, package tests, iOS build, RefineIDTests, CardCoreTests, DSS gate)
+#   Scripts/test.sh pr        # PR / pre-push tier (lint, package tests, iOS build, RefineIDTests on macOS and iOS, CardCoreTests, DSS gate)
 #   Scripts/test.sh nfc-signing # retained-field lifecycle and PACE regression tests
 #   Scripts/test.sh macos-mvp # localized local-card UI checks
 
@@ -89,29 +89,36 @@ case "${mode}" in
     xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -destination 'platform=macOS' -only-testing:RefineIDTests -quiet \
       || fail "Unit tests failed."
 
+    # The phone's suites compile only where REFINEID_REMOTE_CARD is on, which
+    # is nowhere on macOS: they run on the simulator, in the host whose
+    # module the tests import.
+    step "7. Running unit test suite (RefineIDTests on the iOS simulator)"
+    sim_name="$(xcrun simctl list devices available -j | python3 -c "import json,sys; ds=json.load(sys.stdin)['devices']; print(next(d['name'] for vs in ds.values() for d in vs if 'iPhone' in d['name']))")"
+    xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -destination "platform=iOS Simulator,name=${sim_name}" -only-testing:RefineIDTests -quiet \
+      || fail "Unit tests failed on the iOS simulator."
+
     # RappIntegrationTests runs in its own invocation: a combined run can
     # stall while Xcode finalizes its test record.
-    step "7. Running core test suite (CardCoreTests on macOS, without RAPP integration)"
+    step "8. Running core test suite (CardCoreTests on macOS, without RAPP integration)"
     xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -destination 'platform=macOS' -only-testing:CardCoreTests -skip-testing:CardCoreTests/RappIntegrationTests -quiet \
       || fail "CardCore tests failed."
 
-    step "8. Running RAPP integration tests (CardCoreTests/RappIntegrationTests on macOS)"
+    step "9. Running RAPP integration tests (CardCoreTests/RappIntegrationTests on macOS)"
     xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -destination 'platform=macOS' -only-testing:CardCoreTests/RappIntegrationTests -quiet \
       || fail "RAPP integration tests failed."
 
-    step "9. Running Bluetooth-gated engine tests on the iOS simulator"
-    sim_name="$(xcrun simctl list devices available -j | python3 -c "import json,sys; ds=json.load(sys.stdin)['devices']; print(next(d['name'] for vs in ds.values() for d in vs if 'iPhone' in d['name']))")"
+    step "10. Running Bluetooth-gated engine tests on the iOS simulator"
     xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -destination "platform=iOS Simulator,name=${sim_name}" -only-testing:CardCoreTests/RappBleAppearanceWatcherTests -quiet \
       || fail "Bluetooth-gated engine tests failed."
 
-    step "10. Judging the Swift signers' documents with EU DSS (Scripts/dss-gate.sh)"
+    step "11. Judging the Swift signers' documents with EU DSS (Scripts/dss-gate.sh)"
     Scripts/dss-gate.sh \
       || fail "A Swift signer's document is below the release level in DSS."
 
     Scripts/QualityReceipt.py verify-head "${checked_head}" "${checked_tree}" \
       || fail "The checked-out commit changed during push checks."
 
-    printf '\nPR gate passed: gate tests, lint, CardCore and PKCS11Bridge package tests, iOS build, RefineIDTests, CardCoreTests, RappIntegrationTests, simulator Bluetooth tests, and the DSS gate.\n'
+    printf '\nPR gate passed: gate tests, lint, CardCore and PKCS11Bridge package tests, iOS build, RefineIDTests on macOS and iOS, CardCoreTests, RappIntegrationTests, simulator Bluetooth tests, and the DSS gate.\n'
     ;;
 
   nfc-signing)
