@@ -68,7 +68,7 @@ internal struct RappShippingConfigurationTests {
     #expect(rappAttributes["com.apple.ctk.token-type"] == nil)
   }
 
-  @Test("RAPP extension is a distinct embedded product on both platforms")
+  @Test("RAPP extension is a distinct embedded product on iOS only")
   internal func separateRappExtensionTarget() throws {
     let project = try String(
       contentsOf: Self.root.appending(path: "RefineID.xcodeproj/project.pbxproj"),
@@ -77,12 +77,19 @@ internal struct RappShippingConfigurationTests {
     #expect(project.contains(Self.classID))
     #expect(project.contains("RappTokenExtension"))
     #expect(project.contains("Config/RappTokenExtension-iOS.entitlements"))
+    // The macOS MVP gates the remote card off (decisions 2026-11-14),
+    // so macOS embeds no RAPP extension; the filter below is what
+    // keeps it out of the Mac archive.
+    let embed = try #require(
+      project.split(whereSeparator: \.isNewline).first { line in
+        line.contains("RefineIDRappTokenExtension.appex in Embed Foundation Extensions")
+      })
+    #expect(embed.contains("platformFilter = ios"))
     #expect(!project.contains("RefineIDRappTokenExtension.appex */; platformFilters"))
-    #expect(!project.contains("RefineIDRappTokenExtension.appex */; platformFilter = ios;"))
   }
 
-  @Test("macOS carries the remote card and excludes only SCS")
-  internal func shippingConfigurationsCarryRemoteCard() throws {
+  @Test("macOS carries the local card and excludes RAPP and SCS")
+  internal func macOSShipsTheLocalCardOnly() throws {
     let project = try String(
       contentsOf: Self.root.appending(path: "RefineID.xcodeproj/project.pbxproj"),
       encoding: .utf8)
@@ -91,8 +98,9 @@ internal struct RappShippingConfigurationTests {
         separatedBy:
           "\"INFOPLIST_FILE[sdk=macosx*]\" = \"Config/RefineID-Store-Info.plist\";"
       ).count - 1 == 4)
-    // Every configuration signs macOS with the store entitlements, which
-    // grant Bluetooth for the remote card (decisions 2026-11-08).
+    // Every configuration signs macOS with the store entitlements
+    // (decisions 2026-11-08); with the remote card gated off for the
+    // MVP those grant no Bluetooth (decisions 2026-11-14).
     #expect(
       project.components(
         separatedBy:
@@ -100,25 +108,38 @@ internal struct RappShippingConfigurationTests {
       ).count - 1 == 4)
     #expect(!project.contains("RefineID-Debug.entitlements"))
     let store = try Self.plist("Config/RefineID-Store.entitlements")
-    #expect(store["com.apple.security.device.bluetooth"] as? Bool == true)
+    #expect(store["com.apple.security.device.bluetooth"] == nil)
+    #expect(store["com.apple.security.network.client"] as? Bool == true)
     #expect(store["com.apple.security.network.server"] == nil)
     let features = try String(
       contentsOf: Self.root.appending(path: "Config/Features.xcconfig"), encoding: .utf8)
     #expect(features.contains("REFINEID_FEATURES = FEATURE_CONTACTLESS FEATURE_TIMESTAMP_CONFIG\n"))
     #expect(!features.contains("REFINEID_FEATURES[sdk="))
-    #expect(!features.contains("REFINEID_REMOTE_CARD_FEATURE[sdk=macosx*]"))
-    #expect(features.contains("REFINEID_REMOTE_CARD_FEATURE = REFINEID_REMOTE_CARD"))
+    #expect(features.contains("REFINEID_REMOTE_CARD_FEATURE = REFINEID_REMOTE_CARD\n"))
+    #expect(
+      features.contains(
+        "REFINEID_REMOTE_CARD_FEATURE[config=TestFlight] = REFINEID_REMOTE_CARD\n"))
+    #expect(
+      features.contains(
+        "REFINEID_REMOTE_CARD_FEATURE[config=Release] = REFINEID_REMOTE_CARD\n"))
+    #expect(features.contains("REFINEID_REMOTE_CARD_FEATURE[sdk=macosx*] =\n"))
+    #expect(features.contains("REFINEID_REMOTE_CARD_FEATURE[sdk=macosx*,config=TestFlight] =\n"))
+    #expect(features.contains("REFINEID_REMOTE_CARD_FEATURE[sdk=macosx*,config=Release] =\n"))
     #expect(features.contains("REFINEID_ACTIVATION_FEATURE = FEATURE_CARD_ACTIVATION"))
   }
 
-  @Test("macOS store declarations browse only the services a requester uses")
-  internal func localStoreDeclarations() throws {
-    var full = try Self.plist("Config/RefineID-Info.plist")
-    full.removeValue(forKey: "NSBonjourServices")
-    var store = try Self.plist("Config/RefineID-Store-Info.plist")
-    #expect(
-      store.removeValue(forKey: "NSBonjourServices") as? [String]
-        == [Self.service])
+  @Test("macOS declares no remote-card services or permission prompts")
+  internal func macOSDeclaresNoRemoteCardServices() throws {
+    let full = try Self.plist("Config/RefineID-Info.plist")
+    let store = try Self.plist("Config/RefineID-Store-Info.plist")
+    for (name, plist) in [
+      ("Config/RefineID-Info.plist", full),
+      ("Config/RefineID-Store-Info.plist", store),
+    ] {
+      #expect(plist["NSBonjourServices"] == nil, "\(name)")
+      #expect(plist["NSLocalNetworkUsageDescription"] == nil, "\(name)")
+      #expect(plist["NSBluetoothAlwaysUsageDescription"] == nil, "\(name)")
+    }
     #expect(
       try JSONSerialization.data(withJSONObject: full, options: .sortedKeys)
         == JSONSerialization.data(withJSONObject: store, options: .sortedKeys))
@@ -127,8 +148,6 @@ internal struct RappShippingConfigurationTests {
   @Test("RAPP network declarations are present in shipping containers")
   internal func networkDeclarations() throws {
     for path in [
-      "Config/RefineID-Info.plist",
-      "Config/RefineID-Store-Info.plist",
       "Config/RefineID-iOS-Info.plist",
       "Config/RappTokenExtension-Info.plist",
     ] {
@@ -143,8 +162,10 @@ internal struct RappShippingConfigurationTests {
     #expect(rappIOS["com.apple.security.smartcard"] == nil)
     #expect(rappIOS["com.apple.security.network.client"] == nil)
 
-    // A Mac only dials the paired phone: the shipping app and the RAPP
-    // extension are network clients and never servers.
+    // The shipping Mac keeps outbound network access for timestamps and
+    // revocation checks, and nothing listens. The macOS RAPP extension
+    // entitlements stay a client-only file for its target's macOS build;
+    // the MVP embeds no such extension.
     for path in [
       "Config/RefineID-Store.entitlements",
       "Config/RappTokenExtension.entitlements",
@@ -174,10 +195,15 @@ internal struct RappShippingConfigurationTests {
     #expect(source.contains("fi.refineid.ReFineID.rapp-token"))
     #expect(source.contains("RAPP and direct-reader entitlements are separated"))
     #expect(!source.contains("network entitlements match the gated-relay shape"))
-    #expect(source.components(separatedBy: "hasRapp: true").count - 1 == 2)
+    // Only the iOS archive carries the remote card; the macOS layout
+    // gates it off (decisions 2026-11-14).
+    #expect(source.components(separatedBy: "hasRapp: true").count - 1 == 1)
+    #expect(source.components(separatedBy: "hasRapp: false").count - 1 == 1)
     #expect(source.contains("network.server entitlement; a Mac never listens"))
     #expect(source.contains("NSBonjourServices present without the remote card"))
+    #expect(source.contains("NSBluetoothAlwaysUsageDescription present without the remote card"))
     #expect(source.contains("network.server entitlement present without the remote card"))
+    #expect(source.contains("bluetooth entitlement present without the remote card"))
     #expect(source.contains("iPhone-only artifact requiring iOS 26.0 and an NFC antenna"))
   }
 

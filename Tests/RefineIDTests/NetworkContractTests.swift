@@ -7,8 +7,8 @@ import Testing
 ///
 /// New traffic-capable code, a changed Bluetooth declaration, or a
 /// changed ATS shape fails here on purpose: update the contract in
-/// `Documentation/decisions.md` (2026-09-30, 2026-10-09, 2026-10-22)
-/// first, then this list.
+/// `Documentation/decisions.md` (2026-09-30, 2026-10-09, 2026-10-22,
+/// 2026-11-14) first, then this list.
 @Suite
 internal struct NetworkContractTests {
   private static var root: URL {
@@ -61,9 +61,10 @@ internal struct NetworkContractTests {
   /// `SigningNetwork` also fetches the EU trusted lists; the relay,
   /// discovery, and server files serve remote card and signing
   /// service builds; the probes are debug-only; the detector runs a
-  /// link-local Bonjour self-check; the Mac's permission watch browses
-  /// only once the holder turns remote use on, and reads no record
-  /// (hierarchy specification §5.2, STPA CC-96); the revocation backlog's
+  /// link-local Bonjour self-check; the Mac's permission watch, which
+  /// compiles in only with the remote card, browses only once the
+  /// holder turns remote use on, and reads no record (hierarchy
+  /// specification §5.2, STPA CC-96); the revocation backlog's
   /// browser runs only while a forgotten pairing waits for its phone (RAPP
   /// §4.6 item 6). The local-network probe
   /// opens UDP connections, which send nothing, to the addresses of the
@@ -103,7 +104,8 @@ internal struct NetworkContractTests {
 
   /// A Mac never listens (decisions 2026-10-10).
   ///
-  /// It is always the RAPP requester and dials the paired phone. Every
+  /// The MVP carries no remote card; when the remote card returns, the
+  /// Mac is always its requester and dials the paired phone. Every
   /// place that can accept a connection is pinned here, and each one
   /// compiles away on macOS.
   @Test
@@ -233,8 +235,11 @@ internal struct NetworkContractTests {
   }
 
   /// The one local port a Mac opens, which only members of the app group
-  /// reach: the RAPP token extension handing an operation to the app's
-  /// Bluetooth session (decisions 2026-10-22).
+  /// reach.
+  ///
+  /// The RAPP token extension hands an operation to the app's Bluetooth
+  /// session through it (decisions 2026-10-22). It compiles in only with
+  /// the remote card, so the MVP Mac opens no port at all.
   @Test
   internal func localHandoffPortIsTheOnlyOne() throws {
     let opening = try Self.files(containingAny: ["CFMessagePortCreateLocal"])
@@ -245,13 +250,14 @@ internal struct NetworkContractTests {
       contentsOf: Self.root.appending(path: "Sources/App/HeldSessionHandoffPort.swift"),
       encoding: .utf8)
     #expect(port.contains("#if os(macOS)"))
+    #expect(port.contains("REFINEID_REMOTE_CARD"))
   }
 
   /// Every configuration signs macOS with the store entitlements, and
-  /// they grant Bluetooth: the remote card reaches the phone where no
-  /// network is shared (decisions 2026-11-08).
+  /// with the remote card gated off for the MVP those grant no
+  /// Bluetooth (decisions 2026-11-08, 2026-11-14).
   @Test
-  internal func bluetoothEntitlementInEveryConfiguration() throws {
+  internal func noBluetoothEntitlementWithoutTheRemoteCard() throws {
     let project = try String(
       contentsOf: Self.root.appending(path: "RefineID.xcodeproj/project.pbxproj"),
       encoding: .utf8)
@@ -259,11 +265,12 @@ internal struct NetworkContractTests {
     let store = try String(
       contentsOf: Self.root.appending(path: "Config/RefineID-Store.entitlements"),
       encoding: .utf8)
-    #expect(store.contains("com.apple.security.device.bluetooth"))
+    #expect(!store.contains("com.apple.security.device.bluetooth"))
   }
 
-  /// ATS stays open and Bluetooth carries exactly its one purpose
-  /// string in every app plist.
+  /// ATS stays open, and Bluetooth carries exactly its one purpose
+  /// string in the iPhone plists; the macOS MVP gates the remote card
+  /// off and declares no Bluetooth (decisions 2026-11-14).
   @Test
   internal func applicationPlistsMatchTheContract() throws {
     for path in [
@@ -283,9 +290,13 @@ internal struct NetworkContractTests {
       let sectigo = try #require(exceptions["timestamp.sectigo.com"] as? [String: Any])
       #expect(sectigo["NSExceptionAllowsInsecureHTTPLoads"] as? Bool == true)
       let bluetoothKeys = plist.keys.filter { $0.hasPrefix("NSBluetooth") }
-      #expect(bluetoothKeys == ["NSBluetoothAlwaysUsageDescription"])
-      let purpose = try #require(plist["NSBluetoothAlwaysUsageDescription"] as? String)
-      #expect(!purpose.isEmpty)
+      if path.contains("-iOS") {
+        #expect(bluetoothKeys == ["NSBluetoothAlwaysUsageDescription"])
+        let purpose = try #require(plist["NSBluetoothAlwaysUsageDescription"] as? String)
+        #expect(!purpose.isEmpty)
+      } else {
+        #expect(bluetoothKeys.isEmpty, "\(path) declares Bluetooth")
+      }
       // Only the iPhone shape that carries the remote card serves from the
       // background, and only over Bluetooth (decisions 2026-10-22).
       let modes = plist["UIBackgroundModes"] as? [String]

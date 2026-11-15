@@ -31,11 +31,11 @@
 //       compiled out nothing writes the key and every signature asks
 //       the shipped service.
 //
-// macOS ships local card authentication, management and document signing,
-// and the remote card over RAPP as a requester that only dials out
-// (Documentation/decisions.md, 2026-10-10). Every signature is
-// time-stamped by the configured authority, or the qualified Sectigo
-// server (http://timestamp.sectigo.com/qualified) until one is set.
+// macOS ships local card authentication, management and document signing
+// only (Documentation/decisions.md, 2026-11-14): the remote card over
+// RAPP is gated off until it returns. Every signature is time-stamped
+// by the configured authority, or the qualified Sectigo server
+// (http://timestamp.sectigo.com/qualified) until one is set.
 
 REFINEID_FEATURES = FEATURE_CONTACTLESS FEATURE_TIMESTAMP_CONFIG
 
@@ -46,10 +46,19 @@ REFINEID_LOCAL_CARD_FEATURE = REFINEID_LOCAL_CARD
 
 // REFINEID_REMOTE_CARD
 //     The remote card: pairing this device with another over RAPP, and
-//     everything a pairing makes possible.
+//     everything a pairing makes possible. Off on macOS in every
+//     configuration for the MVP (decisions 2026-11-14); the iPhone and
+//     the iPad keep it.
 REFINEID_REMOTE_CARD_FEATURE = REFINEID_REMOTE_CARD
 REFINEID_REMOTE_CARD_FEATURE[config=TestFlight] = REFINEID_REMOTE_CARD
 REFINEID_REMOTE_CARD_FEATURE[config=Release] = REFINEID_REMOTE_CARD
+// Off on macOS in every configuration for the MVP (decisions
+// 2026-11-14); the iPhone and the iPad keep it. The combined
+// conditions below outrank the config-only ones above wherever both
+// match, so no ordering between the stanzas can re-enable it.
+REFINEID_REMOTE_CARD_FEATURE[sdk=macosx*] =
+REFINEID_REMOTE_CARD_FEATURE[sdk=macosx*,config=TestFlight] =
+REFINEID_REMOTE_CARD_FEATURE[sdk=macosx*,config=Release] =
 
 // FEATURE_CARD_ACTIVATION
 //     Taking a factory-fresh card into use: the activation form.

@@ -5,6 +5,13 @@
 
   @MainActor
   internal final class MacMvpUITests: XCTestCase {
+    /// What VoiceOver reads for the key beside the holder's name.
+    private static let pinCodesLabels = [
+      "en": "PIN Codes",
+      "fi": "PIN-koodit",
+      "sv": "PIN-koder",
+    ]
+
     internal func testEnglishLocalCard() {
       checkLocalCard(language: "en")
     }
@@ -29,9 +36,20 @@
       app.menuItems["RefineID"].click()
       let window = app.windows.firstMatch
       XCTAssertTrue(window.waitForExistence(timeout: UITestApp.appearTimeout))
+      XCTAssertEqual(window.title, "RefineID")
       let identity = app.descendants(matching: .any)["loginIdentityStatus"].firstMatch
       XCTAssertTrue(identity.waitForExistence(timeout: UITestApp.appearTimeout))
+      // The MVP carries no remote card: no pairing field, no switch.
       XCTAssertFalse(app.textFields[UITestIdentifiers.pairingCodeField].exists)
+      XCTAssertFalse(
+        app.descendants(matching: .button)[UITestIdentifiers.remoteUseSwitch].firstMatch.exists)
+      // The key beside the holder's name speaks the window language.
+      let key = app.descendants(matching: .button)[UITestIdentifiers.pinManagementButton]
+        .firstMatch
+      XCTAssertTrue(
+        key.waitForExistence(timeout: UITestApp.appearTimeout),
+        "no key beside the holder's name")
+      XCTAssertEqual(key.label, Self.pinCodesLabels[language])
       let attachment = XCTAttachment(screenshot: window.screenshot())
       attachment.name = "window-card-\(language)"
       attachment.lifetime = .keepAlways

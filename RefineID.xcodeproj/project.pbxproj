@@ -36,7 +36,7 @@
 		CE0000000000000000000006 /* Samples/NFCCardTiming/Sources/PaceTimingCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000008 /* Samples/NFCCardTiming/Sources/PaceTimingCommand.swift */; };
 		CE0000000000000000000007 /* Samples/NFCCardTiming/Sources/Values/PaceTimingValues.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000A /* Samples/NFCCardTiming/Sources/Values/PaceTimingValues.swift */; };
 		CE0000000000000000000008 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2D0000000000000000000008 /* PrivacyInfo.xcprivacy */; };
-		D8D396B5E12DA372E43BD5D3 /* RefineIDRappTokenExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5ADED64532B13872419C7B30 /* RefineIDRappTokenExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		D8D396B5E12DA372E43BD5D3 /* RefineIDRappTokenExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5ADED64532B13872419C7B30 /* RefineIDRappTokenExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DC4E6B27DAEFC74447BC438F /* CardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7298DA08AF9815CC40D89601 /* CardCore */; };
 		FE9FF60F2BD451120817294F /* CryptoTokenKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2D0000000000000000000003 /* CryptoTokenKit.framework */; };
 /* End PBXBuildFile section */

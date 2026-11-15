@@ -217,7 +217,7 @@ internal struct ReaderInstructionStringsTests {
     #expect(!phoneLine.contains("Connecting to the phone"), "no status names the phone")
     #expect(!phoneLine.contains("Button"), "the switch is the only control that forgets")
     let pinCodes = try String(
-      contentsOf: Self.root.appending(path: "Sources/App/RemoteUseButton.swift"),
+      contentsOf: Self.root.appending(path: "Sources/App/PinCodesButton.swift"),
       encoding: .utf8
     )
     #expect(pinCodes.contains("PIN Codes"))

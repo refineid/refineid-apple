@@ -80,16 +80,14 @@
       }
       .padding(Self.padding)
       .frame(minWidth: minimumWidth, alignment: .leading)
-      #if REFINEID_REMOTE_CARD
-        .toolbar {
-          // A card awaiting activation is set up here and nowhere else.
-          if !activation.awaitsActivation {
-            ToolbarItem(placement: .primaryAction) {
-              RemoteUseButton()
-            }
+      .toolbar {
+        // A card awaiting activation is set up here and nowhere else.
+        if !activation.awaitsActivation {
+          ToolbarItem(placement: .primaryAction) {
+            toolbarButton
           }
         }
-      #endif
+      }
       .task {
         #if FEATURE_CONTACTLESS
           SealedCardSection.withdrawOfferedNumber()

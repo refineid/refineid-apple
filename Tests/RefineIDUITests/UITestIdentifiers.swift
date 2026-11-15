@@ -12,12 +12,18 @@
 /// same spelling in `Sources/App/CardCredentialsView.swift`,
 /// `Sources/App/CardRegistrationSections.swift`,
 /// `Sources/App/DiagnosticsView.swift`, the setup actions and the
-/// setup authentication prompt under `Sources/App/`, and the
-/// card-management sections under `Sources/App/`.
+/// setup authentication prompt under `Sources/App/`, the
+/// card-management sections under `Sources/App/`, and the Mac toolbar
+/// buttons `Sources/App/PinCodesButton.swift` and
+/// `Sources/App/RemoteUseButton.swift`.
 /// A UI test drives a separate process and cannot share a constant with
 /// it, so this is the register that keeps the two sides honest.
 
 internal enum UITestIdentifiers {
+  /// The Mac toolbar's remote-use switch, present only with the remote
+  /// card; the macOS MVP gates it off.
+  internal static let remoteUseSwitch = "remoteUseSwitch"
+
   /// The setup action that opens the authentication prompt.
   internal static let setupAuthenticate = "setupAuthenticate"
 

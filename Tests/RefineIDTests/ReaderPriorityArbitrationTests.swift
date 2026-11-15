@@ -44,7 +44,12 @@
 
       // An attempt to publish while a reader card is present is suppressed.
       let outcome = PersistentTokenRegistry.publish(signer.certificate)
-      #expect(outcome == .readerHasPriority)
+      #if REFINEID_REMOTE_CARD
+        #expect(outcome == .readerHasPriority)
+      #else
+        // With the remote card gated off nothing is ever offered.
+        #expect(outcome == .notPublished)
+      #endif
       #expect(PersistentTokenRegistry.shared.certificateDER == nil)
       #expect(PersistentTokenRegistry.shared.holderLine == nil)
     }
@@ -66,7 +71,12 @@
 
       #expect(PersistentTokenRegistry.shared.certificateDER == nil)
       #expect(PersistentTokenRegistry.shared.holderLine == nil)
-      #expect(!PersistentTokenRegistry.shared.holderIsAdvertising)
+      #if REFINEID_REMOTE_CARD
+        // Only the presence browser sets holderIsAdvertising, and it
+        // runs only with the remote card; the withdrawal above leaves
+        // a test-set value alone when the remote card is gated off.
+        #expect(!PersistentTokenRegistry.shared.holderIsAdvertising)
+      #endif
     }
 
     @Test
@@ -111,34 +121,36 @@
       #expect(PersistentTokenRegistry.shared.certificateDER == nil)
     }
 
-    /// A card in this Mac's reader leaves the phone undialled and its
-    /// session unheld; once it leaves, the phone may be dialled again.
-    @Test
-    internal func readerCardLeavesThePhoneSessionUnheld() async {
-      let initialPresence = CardPresence.shared.isReaderCardPresent
-      let registry = PersistentTokenRegistry.shared
-      let initialBluetooth = registry.bluetoothUsable
-      RemoteAccessGate.setEnabled(true)
-      defer {
-        RemoteAccessGate.setEnabled(false)
-        registry.remoteUseChanged(.stopped)
-        CardPresence.shared.setReaderCardPresentForTesting(initialPresence)
-        registry.bluetoothUsable = initialBluetooth
+    #if REFINEID_REMOTE_CARD
+      /// A card in this Mac's reader leaves the phone undialled and its
+      /// session unheld; once it leaves, the phone may be dialled again.
+      @Test
+      internal func readerCardLeavesThePhoneSessionUnheld() async {
+        let initialPresence = CardPresence.shared.isReaderCardPresent
+        let registry = PersistentTokenRegistry.shared
+        let initialBluetooth = registry.bluetoothUsable
+        RemoteAccessGate.setEnabled(true)
+        defer {
+          RemoteAccessGate.setEnabled(false)
+          registry.remoteUseChanged(.stopped)
+          CardPresence.shared.setReaderCardPresentForTesting(initialPresence)
+          registry.bluetoothUsable = initialBluetooth
+        }
+        registry.bluetoothUsable = true
+
+        CardPresence.shared.setReaderCardPresentForTesting(true)
+        #expect(registry.transportPolicy.nextDial == nil)
+        registry.openHolderSession()
+        #expect(registry.holderSession == nil)
+        #expect(!registry.holderInSight)
+        let handoff = RappHeldSessionHandoff.Request(
+          pairID: nil, operation: .readAuthenticationCertificate)
+        #expect(await registry.carry(handoff) == .failed(.peerNotFound))
+
+        CardPresence.shared.setReaderCardPresentForTesting(false)
+        #expect(registry.transportPolicy.nextDial == .bluetooth)
       }
-      registry.bluetoothUsable = true
-
-      CardPresence.shared.setReaderCardPresentForTesting(true)
-      #expect(registry.transportPolicy.nextDial == nil)
-      registry.openHolderSession()
-      #expect(registry.holderSession == nil)
-      #expect(!registry.holderInSight)
-      let handoff = RappHeldSessionHandoff.Request(
-        pairID: nil, operation: .readAuthenticationCertificate)
-      #expect(await registry.carry(handoff) == .failed(.peerNotFound))
-
-      CardPresence.shared.setReaderCardPresentForTesting(false)
-      #expect(registry.transportPolicy.nextDial == .bluetooth)
-    }
+    #endif
 
     @Test
     internal func displacedRemoteCardConfigurationIDsIdentification() {
