@@ -38,8 +38,10 @@ internal struct DiagnosticsSnapshot: Sendable {
   /// What is printed for a section that found nothing.
   private static let nothing = "(none)"
 
-  /// Enough of an identifier to tell two pairings apart.
-  private static let identifierPrefixLength = 4
+  #if REFINEID_REMOTE_CARD
+    /// Enough of an identifier to tell two pairings apart.
+    private static let identifierPrefixLength = 4
+  #endif
 
   /// Every error the development error log holds, oldest first.
   internal let errors: [DevErrorLog.Entry]
@@ -227,14 +229,14 @@ internal struct DiagnosticsSnapshot: Sendable {
       }
       return Section(title: "Pairings", lines: lines)
     }
-  #endif
 
-  /// The leading bytes of an identifier, which is enough to tell two apart.
-  private static func shortIdentifier(_ identifier: Data) -> String {
-    identifier.prefix(Self.identifierPrefixLength)
-      .map { String(format: "%02x", $0) }
-      .joined()
-  }
+    /// The leading bytes of an identifier, which is enough to tell two apart.
+    private static func shortIdentifier(_ identifier: Data) -> String {
+      identifier.prefix(Self.identifierPrefixLength)
+        .map { String(format: "%02x", $0) }
+        .joined()
+    }
+  #endif
 
   /// How a contactless signature obtains PIN1.
   ///
