@@ -12,6 +12,10 @@ import Testing
 /// names one of those types on a line the macOS build compiles, without
 /// the flag over it, fails here: wrap it in the flag, or add the file to
 /// the reviewed list below with the reason it is shared.
+///
+/// The list is empty now that the identity row's phone cases follow the
+/// flag; it stays so a shared file can be named with its reason rather
+/// than loosening the rule.
 @Suite
 internal struct RappGatingContractTests {
   /// One conditional-compilation branch a line sits under.
@@ -39,23 +43,10 @@ internal struct RappGatingContractTests {
 
   /// Shared sources that name the phone without being RAPP code.
   ///
-  /// Each is the Mac's own identity row or its wording: the phone cases
-  /// there are reached only through facts the flag-off build leaves empty,
-  /// and none of them holds pairing state, a key or a protocol message.
-  private static let shared: [String: String] = [
-    "Sources/App/IdentityLine.swift":
-      "The Mac identity row's lines; its phone cases are derived from facts that stay empty without the flag.",
-    "Sources/App/IdentityStateView.swift":
-      "The row's view; it renders the phone line from those same facts and asks for a reader when no phone is paired.",
-    "Sources/App/PairedPhoneLine.swift":
-      "The row's phone line, reached only through IdentityLine's paired case.",
-    "Sources/App/PhoneCardRequest.swift":
-      "Turns the phone's card status into the row's prompt; it reads no pairing and holds no secret.",
-    "Sources/App/PhoneCardRequestLine.swift":
-      "The row's wording for PhoneCardRequest.",
-    "Sources/App/RequesterFacts.swift":
-      "The row's inputs; its phone fields stay empty without the flag.",
-  ]
+  /// Empty: every source in `Sources/App` that names the remote card now
+  /// compiles only where the flag is on. A file added here needs the
+  /// reason it is shared, and the reason has to hold.
+  private static let shared: [String: String] = [:]
 
   /// The remote card's own names: the engine's, the pairing's, the
   /// vault's, and the phone's card.

@@ -29,7 +29,7 @@
     /// Whether a card is in this Mac's reader, or in a demonstration's
     /// virtual one.
     private var readerCardIsPresent: Bool {
-      #if DEBUG
+      #if DEBUG && REFINEID_REMOTE_CARD
         if DemoPairedPhone.isShown { return false }
       #endif
       return demoMode.isActive ? demoMode.isReaderCardPresent : cardPresence.isReaderCardPresent
