@@ -67,7 +67,8 @@
       return try await DocumentSigner.longTerm(
         timestamped,
         signerCertificate: authorities.holderCertificate,
-        timestampTokens: [token]
+        timestampTokens: [token],
+        policy: .longTermOnly
       ).bytes
     }
 

@@ -64,7 +64,8 @@
       /// The cause of a failed stage above the signature timestamp.
       internal init(afterTimestamp error: Error) {
         switch error {
-        case DocumentSigner.Failure.network:
+        case DocumentSigner.Failure.network,
+          DocumentSigner.Failure.archiveTimestampUncovered:
           self = .archiveTimestamp
 
         case DocumentSigner.Failure.validation(let evidence):

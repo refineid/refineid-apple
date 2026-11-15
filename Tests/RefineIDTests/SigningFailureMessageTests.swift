@@ -139,6 +139,19 @@
     }
 
     @Test
+    internal func anUncoveredArchiveTimestampIsNamedNotGeneric() {
+      let pades = DocumentSigningMessage.message(
+        for: DocumentSigner.Failure.archiveTimestampUncovered
+      )
+      let asic = DocumentSigningMessage.message(
+        for: AsicSigner.Failure.archiveTimestampUncovered
+      )
+      let generic = DocumentSigningMessage.message(for: URLError(.timedOut))
+      #expect(pades == asic)
+      #expect(pades != generic)
+    }
+
+    @Test
     @MainActor
     internal func aFailureWaitsUntilAcknowledged() {
       let model = SignDocumentModel()

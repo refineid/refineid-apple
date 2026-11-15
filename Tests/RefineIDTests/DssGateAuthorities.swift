@@ -197,6 +197,20 @@
       )
     }
 
+    /// The same authorities, answering time-stamp requests with another
+    /// signer certificate issued by the timestamp CA.
+    internal func answeringTimestamps(with authority: DebugTimestampAuthority) -> Self {
+      Self(
+        caCertificate: caCertificate,
+        caKey: caKey,
+        timestampCaCertificate: timestampCaCertificate,
+        timestampCaKey: timestampCaKey,
+        holderCertificate: holderCertificate,
+        holderKey: holderKey,
+        timestampAuthority: authority
+      )
+    }
+
     /// The CA's current CRL, issued an hour ago and revoking nothing.
     internal func revocationList() throws -> Data {
       let now = Date()

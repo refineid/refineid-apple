@@ -29,6 +29,12 @@ internal enum DocumentSigningMessage {
 
   private static func documentSignerMessage(_ failure: DocumentSigner.Failure) -> String {
     switch failure {
+    case .archiveTimestampUncovered:
+      text(
+        "error.archiveTimestampUncovered",
+        "The archive timestamp could not be verified from the signature's evidence. Nothing was written."
+      )
+
     case .card(let outcome):
       cardMessage(outcome)
 
