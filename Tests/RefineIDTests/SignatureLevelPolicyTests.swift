@@ -83,6 +83,10 @@
         Cause(afterTimestamp: DocumentSigner.Failure.network(URLError(.timedOut)))
           == .archiveTimestamp
       )
+      #expect(
+        Cause(afterTimestamp: DocumentSigner.Failure.archiveTimestampUncovered)
+          == .archiveTimestamp
+      )
     }
 
     @Test

@@ -21,6 +21,10 @@ internal enum DocumentSigner {
 
   /// Why a document could not be signed.
   internal enum Failure: Error {
+    /// The archive timestamp's signer path is not among the
+    /// certificates already written to the `/DSS`.
+    case archiveTimestampUncovered
+
     /// The card refused, or its qualified slot is unusable.
     case card(CardMaintenance.Outcome)
 
@@ -160,7 +164,8 @@ internal enum DocumentSigner {
       return try await Self.longTerm(
         timestamped,
         signerCertificate: material.certificate,
-        timestampTokens: verifiedTokens
+        timestampTokens: verifiedTokens,
+        policy: .forBuild
       )
     } catch {
       #if DEBUG

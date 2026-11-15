@@ -16,6 +16,10 @@
     /// The authorities answering; set for the gate's duration.
     nonisolated(unsafe) internal static var authorities: DssGateAuthorities?
 
+    /// The authorities answering time-stamp requests, when a test
+    /// needs an authority other than the one publishing the evidence.
+    nonisolated(unsafe) internal static var timestampAuthorities: DssGateAuthorities?
+
     private static let okStatus = 200
     private static let notFoundStatus = 404
     private static let httpVersion = "HTTP/1.1"
@@ -35,7 +39,7 @@
       guard let authorities = Self.authorities else { return nil }
       switch address {
       case TimestampClient.authority:
-        return try? authorities.timestampResponse(to: body)
+        return try? (Self.timestampAuthorities ?? authorities).timestampResponse(to: body)
 
       case DssGateAuthorities.revocationListAddress:
         return try? authorities.revocationList()

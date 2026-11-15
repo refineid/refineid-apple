@@ -232,7 +232,9 @@ second case and everything that saves below the long-term level.
   already in exclusive canonical form, so the octets are digested where
   they stand; refineid-core writes the same bytes. A container whose
   archive timestamp fails, or whose authority path is not entirely in
-  the `CertificateValues` already written, is refused. A signer
+  the `CertificateValues` already written, is refused. A PDF whose
+  document timestamp fails, or whose authority path is not entirely in
+  the `/DSS` already written, is refused. A signer
   certificate whose path has no approved anchor (no issuing certificate
   from the card in the cache) is refused before PIN 2: inside the card
   session after the certificate read and before VERIFY, and on the RAPP
@@ -240,10 +242,9 @@ second case and everything that saves below the long-term level.
   signer path, because the evidence walk anchors on the same lookup. A
   missing issuer elsewhere, a revocation answer or a timestamp failure is
   only known after the card signed.
-- Debug: the highest level reached is saved: for a PDF, B-T when the
-  evidence or the archive timestamp failed; for a container, B-LT when
-  only the archive timestamp failed and B-T when the evidence failed; B-B
-  when the signature timestamp failed. The holder is told it is a
+- Debug: the highest level reached is saved: for a PDF and a container,
+  B-LT when only the archive timestamp failed and B-T when the evidence
+  failed; B-B when the signature timestamp failed. The holder is told it is a
   development-build document, at which level, what it lacks (long-term
   validation material, or for B-LT the archive timestamp), and why. The
   name carries `-dev-B-LT`, `-dev-B-T` or `-dev-B-B` after the signing
