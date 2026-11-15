@@ -138,18 +138,18 @@ internal struct NetworkContractTests {
       // The signing service starts only with FEATURE_SCS, which macOS
       // never sets, and the store sandbox grants no server side.
       "Sources/App/ScsServer.swift": "#if FEATURE_SCS",
-      // The card holder's half of a pairing.
-      "Sources/App/PairingRelay.swift": "#if os(iOS)\n"
-        + "      guard SupportedCardTransports.servesRemoteCards else {\n"
-        + "        onEvent(.closed(.startup(\"only a phone serves its card\")))\n"
-        + "        return\n"
-        + "      }\n"
-        + "      let made = StreamRelayListener",
+      // The card holder's half of a pairing, compiled only with the
+      // remote card.
+      "Sources/App/PairingRelay.swift": "#if REFINEID_REMOTE_CARD\n",
     ]
     for (file, gate) in gates {
       let text = try String(contentsOf: Self.root.appending(path: file), encoding: .utf8)
       #expect(text.contains(gate), "\(file) lost its macOS listener gate")
     }
+    // The holder still refuses to serve a card without the transport.
+    let relay = try String(
+      contentsOf: Self.root.appending(path: "Sources/App/PairingRelay.swift"), encoding: .utf8)
+    #expect(relay.contains("guard SupportedCardTransports.servesRemoteCards"))
   }
 
   /// What is advertised on the local network names no device or person.
