@@ -24,7 +24,7 @@ internal enum PdfDocumentSecurityStore {
     let bytes = PdfBytes(document)
     func payloads(_ references: [PdfValidationStore.StoreReference]) -> [Data] {
       references.compactMap { reference in
-        guard case .direct(let offset) = index.locations[reference.number] else {
+        guard case .direct(let offset, _) = index.locations[reference.number] else {
           return nil
         }
         return try? PdfStreamObject.parse(in: bytes, at: offset).payload

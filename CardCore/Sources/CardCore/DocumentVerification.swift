@@ -71,6 +71,16 @@ public enum DocumentVerification {
     /// Whether the signature's byte ranges cover the whole file.
     public let coversWholeDocument: Bool
 
+    /// What the revisions after this signature changed, which signing
+    /// and long-term validation material may not.
+    ///
+    /// Empty when the file read is the file the signer saw, plus what a
+    /// later revision may add (a document security store, its material,
+    /// a document timestamp). A revision that changed a page, the
+    /// structure or any other object leaves a change here, and the
+    /// verdict is not valid.
+    public let changesAfterSigning: [SignedContentChange]
+
     /// Whether the signer is fit to sign and anchored.
     public var chainVerified: Bool { chain.isAnchored }
 
@@ -87,8 +97,13 @@ public enum DocumentVerification {
     }
 
     /// The one-line verdict of the facts above.
+    ///
+    /// A file changed after signing is not valid even when the signed
+    /// bytes are intact and the signature verifies: the signature speaks
+    /// for the revision it covers, not for what was appended to it.
     public var isValid: Bool {
       documentIntact && signatureValid && chainVerified
+        && changesAfterSigning.isEmpty
         && !revocation.invalidates(proofOfExistence: proofOfExistence)
     }
 
@@ -146,7 +161,8 @@ public enum DocumentVerification {
         level: level,
         validationTime: validationTime,
         revocationLinks: links,
-        coversWholeDocument: coversWholeDocument
+        coversWholeDocument: coversWholeDocument,
+        changesAfterSigning: changesAfterSigning
       )
     }
   }
@@ -210,6 +226,9 @@ public enum DocumentVerification {
     internal let creditedProofs: [ProvenTime]
     internal let coversWholeDocument: Bool
 
+    /// What the revisions after the signature changed.
+    internal let changesAfterSigning: [SignedContentChange]
+
     /// The archive timestamps over the signature, each with the
     /// revocation values the revision it covers keeps.
     internal let archiveTimestamps: [ArchiveCandidate]
@@ -240,6 +259,31 @@ public enum DocumentVerification {
     return try Self.verifyPdf(document, anchors: anchors, now: now)
   }
 
+  /// The signer's path to a certificate-issuing anchor at `date`, and
+  /// whether that path is anchored and fit to sign.
+  private static func pathAndChain(
+    of signerCertificate: Data,
+    evidence: ValidationEvidence,
+    anchors: TrustAnchors,
+    at date: Date
+  ) -> (path: [Data], chain: ChainStatus) {
+    let path = CertificatePath.anchored(
+      signerCertificate,
+      candidates: evidence.certificates,
+      anchors: anchors.certificates(for: .certificateIssuing, at: date),
+      at: date
+    )
+    guard !path.isEmpty, CertificatePath.isFitToSign(signerCertificate) else {
+      return (
+        path,
+        .unanchored(
+          directIssuer: CertificatePath.directIssuer(
+            of: signerCertificate, candidates: evidence.certificates, at: date))
+      )
+    }
+    return (path, .anchored(path: path))
+  }
+
   /// Judges the chain and revocation of one signature whose other
   /// facts are known.
   internal static func report(
@@ -260,19 +304,12 @@ public enum DocumentVerification {
       ocspResponses: documentEvidence.ocspResponses,
       revocationLists: documentEvidence.revocationLists
     )
-    let path = CertificatePath.anchored(
-      facts.signerCertificate,
-      candidates: evidence.certificates,
-      anchors: anchors.certificates(for: .certificateIssuing, at: validationTime.date),
+    let resolved = Self.pathAndChain(
+      of: facts.signerCertificate, evidence: evidence, anchors: anchors,
       at: validationTime.date
     )
-    let chain: ChainStatus =
-      !path.isEmpty && CertificatePath.isFitToSign(facts.signerCertificate)
-      ? .anchored(path: path)
-      : .unanchored(
-        directIssuer: CertificatePath.directIssuer(
-          of: facts.signerCertificate, candidates: evidence.certificates,
-          at: validationTime.date))
+    let path = resolved.path
+    let chain = resolved.chain
     let links =
       chain.isAnchored
       ? RevocationJudge.links(
@@ -296,7 +333,8 @@ public enum DocumentVerification {
         facts, archives: archives, proven: validationTime.proofOfExistence != nil),
       validationTime: validationTime,
       revocationLinks: links,
-      coversWholeDocument: facts.coversWholeDocument
+      coversWholeDocument: facts.coversWholeDocument,
+      changesAfterSigning: facts.changesAfterSigning
     )
   }
 }

@@ -15,11 +15,22 @@ internal struct PdfDocumentIndex {
   /// Where one live object's bytes sit.
   internal enum ObjectLocation: Equatable {
     /// At a byte offset in the file, written as `N G obj`.
-    case direct(offset: Int)
+    case direct(offset: Int, generation: Int)
 
     /// Inside an object stream: the stream's object number and this
     /// object's position among its contents (ISO 32000-1 §7.5.7).
     case compressed(container: Int, position: Int)
+
+    /// The generation the record names; an object in a stream is
+    /// generation zero.
+    internal var generation: Int {
+      switch self {
+      case .direct(_, let generation):
+        return generation
+      case .compressed:
+        return 0
+      }
+    }
   }
 
   /// One object a section accounts for.
@@ -46,6 +57,9 @@ internal struct PdfDocumentIndex {
     /// Whether the section is a cross-reference stream.
     internal let isStream: Bool
   }
+
+  /// The `stream` keyword that opens a stream's bytes.
+  private static let streamKeyword = "stream"
 
   /// Maximum /Prev hops followed before the chain is called broken.
   private static let maximumChainDepth = 64
@@ -232,10 +246,13 @@ internal struct PdfDocumentIndex {
       for entry in 0..<count
       where index + PdfValues.entryTokens <= tokens.count {
         let flag = tokens[index + PdfValues.entryFlagIndex]
-        if flag == PdfValues.inUseFlag, let position = Int(tokens[index]) {
+        if flag == PdfValues.inUseFlag, let position = Int(tokens[index]),
+          let generation = Int(tokens[index + 1])
+        {
           found.append(
             SectionRecord(
-              number: first + entry, location: .direct(offset: position)
+              number: first + entry,
+              location: .direct(offset: position, generation: generation)
             )
           )
         } else if flag == PdfValues.freeFlag {
@@ -261,11 +278,58 @@ internal struct PdfDocumentIndex {
       .trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
+  /// One object's bytes for comparison, from a direct offset.
+  ///
+  /// Only an object whose own dictionary is followed by `stream` has a
+  /// stream; the word further on in the file belongs to another object.
+  private static func comparisonBody(at offset: Int, in document: Data) -> String? {
+    guard offset < document.count else { return nil }
+    let bytes = PdfBytes(document)
+    guard
+      let objRange = bytes.firstRange(of: "obj", from: offset),
+      let endRange = bytes.firstRange(of: "endobj", from: objRange.upperBound)
+    else {
+      return nil
+    }
+    let raw = bytes.text(in: objRange.upperBound..<endRange.lowerBound)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    guard
+      let dictionary = bytes.balancedDictionary(from: objRange.upperBound),
+      bytes.hasKeyword(Self.streamKeyword, at: bytes.skippingWhitespace(from: dictionary.end)),
+      let stream = try? PdfStreamObject.parse(in: bytes, at: offset),
+      let payload = String(bytes: stream.payload, encoding: .isoLatin1)
+    else {
+      return raw
+    }
+    return (stream.dictionary + "\nstream\n" + payload)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
+  /// One object's bytes for comparing two revisions of a document.
+  ///
+  /// A stream is taken by its `/Length` and unfiltered, not by the
+  /// first `endobj` in the file: stream data is free to spell that word,
+  /// and reading to it would let a rewrite past it look unchanged.
+  internal func comparisonBody(of number: Int, in document: Data) -> String? {
+    switch locations[number] {
+    case .direct(let offset, _):
+      return Self.comparisonBody(at: offset, in: document)
+
+    case .compressed(let container, let position):
+      return compressedBody(
+        of: number, container: container, position: position, in: document
+      )
+
+    case nil:
+      return nil
+    }
+  }
+
   /// One object's body: the bytes between `obj` and `endobj`, or its
   /// slice of the object stream carrying it.
   internal func body(of number: Int, in document: Data) -> String? {
     switch locations[number] {
-    case .direct(let offset):
+    case .direct(let offset, _):
       return Self.directBody(at: offset, in: document)
 
     case .compressed(let container, let position):

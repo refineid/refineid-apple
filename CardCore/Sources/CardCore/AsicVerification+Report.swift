@@ -138,6 +138,7 @@ extension AsicVerification {
         timestamps: timestamps,
         creditedProofs: [],
         coversWholeDocument: integrity.coversWholeDocument,
+        changesAfterSigning: [],
         archiveTimestamps: archiveTimestamps.map { judged in
           DocumentVerification.ArchiveCandidate(
             state: judged.state, covered: nil, validUntil: judged.validUntil)

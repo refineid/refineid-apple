@@ -1764,6 +1764,28 @@
         }
       }
     },
+    "verify.changedAfterSigning" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changed after signing"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muutettu allekirjoituksen jälkeen"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ändrat efter signering"
+          }
+        }
+      }
+    },
     "verify.choose" : {
       "extractionState" : "stale",
       "localizations" : {

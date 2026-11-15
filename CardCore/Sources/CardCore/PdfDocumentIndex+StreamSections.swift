@@ -93,7 +93,10 @@ extension PdfDocumentIndex {
     case PdfValues.directEntryType:
       return SectionRecord(
         number: number,
-        location: .direct(offset: fields[PdfValues.entryFirstField])
+        location: .direct(
+          offset: fields[PdfValues.entryFirstField],
+          generation: fields[PdfValues.entrySecondField]
+        )
       )
 
     case PdfValues.compressedEntryType:
@@ -159,7 +162,7 @@ extension PdfDocumentIndex {
     position: Int,
     in document: Data
   ) -> String? {
-    guard case .direct(let offset) = locations[container] else {
+    guard case .direct(let offset, _) = locations[container] else {
       return nil
     }
     let bytes = PdfBytes(document)

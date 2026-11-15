@@ -124,7 +124,7 @@ public enum PdfSignatureReader {
     location: PdfDocumentIndex.ObjectLocation?,
     in document: Data
   ) throws -> Range<Int> {
-    guard case .direct(let offset) = location else {
+    guard case .direct(let offset, _) = location else {
       throw Failure.malformedContents
     }
     let bytes = PdfBytes(document)

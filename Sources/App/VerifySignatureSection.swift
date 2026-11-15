@@ -204,6 +204,10 @@ internal struct VerifySignatureSection: View {
       Self.row(VerifyText.text("verify.intact", "Document intact"), holds: report.documentIntact)
       Self.row(VerifyText.text("verify.signature", "Signature"), holds: report.signatureValid)
       Self.row(VerifyText.text("verify.chain", "Certificate chain"), holds: report.chainVerified)
+      if !report.changesAfterSigning.isEmpty {
+        Self.row(
+          VerifyText.text("verify.changedAfterSigning", "Changed after signing"), holds: false)
+      }
       timeAndStatusRows(report)
     } header: {
       Self.header
