@@ -118,19 +118,40 @@
     /// When test trust anchors are configured, they are resolved.
     @Test
     internal func testTrustAnchorsAreUsedWhenConfigured() async throws {
-      TimestampClient.testTrustAnchors = { _ in [Self.signer] }
-      defer { TimestampClient.testTrustAnchors = nil }
-      let anchors = try await TimestampClient.timeStampingAnchors(at: Date())
-      #expect(anchors == [Self.signer])
+      let resolver: @Sendable (Date) -> [Data] = { _ in [Self.signer] }
+      try await TimestampClient.$anchorResolver.withValue(resolver) {
+        let anchors = try await TimestampClient.timeStampingAnchors(at: Date())
+        #expect(anchors == [Self.signer])
+      }
     }
 
     /// When test trust anchors are empty, untrustedAuthority is thrown.
     @Test
-    internal func emptyAnchorsFailAsUntrustedAuthority() async {
-      TimestampClient.testTrustAnchors = { _ in [] }
-      defer { TimestampClient.testTrustAnchors = nil }
+    internal func emptyAnchorsFailAsUntrustedAuthority() async throws {
+      let emptyResolver: @Sendable (Date) -> [Data] = { _ in [] }
       await #expect(throws: TimestampClient.Failure.untrustedAuthority) {
-        _ = try await TimestampClient.timeStampingAnchors(at: Date())
+        try await TimestampClient.$anchorResolver.withValue(emptyResolver) {
+          _ = try await TimestampClient.timeStampingAnchors(at: Date())
+        }
+      }
+    }
+
+    /// Corrupt token signature is reported as invalidToken rather than untrustedAuthority.
+    @Test
+    internal func invalidSignatureFailsAsInvalidToken() async {
+      var changed = Self.token
+      if let last = changed.indices.last {
+        changed[last] ^= 1
+      }
+      let resolver: @Sendable (Date) -> [Data] = { _ in [Self.signer] }
+      await #expect(
+        throws: TimestampClient.Failure.invalidToken(
+          TimestampTokenVerifier.Failure.invalidSignature
+        )
+      ) {
+        _ = try await TimestampClient.$anchorResolver.withValue(resolver) {
+          try await TimestampClient.verifyToken(changed, acquiredAt: Date())
+        }
       }
     }
 

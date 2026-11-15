@@ -55,7 +55,10 @@
     /// Its exact issuer and subject name.
     internal let name: Data
 
-    /// Creates a fresh P-256 key and timestamping-only certificate.
+    /// Its exact issuer name.
+    internal let issuerName: Data
+
+    /// Creates a fresh P-256 key and self-signed timestamping-only certificate.
     internal static func make() throws -> Self {
       let attributes: [CFString: Any] = [
         kSecAttrKeyType: kSecAttrKeyTypeECSECPrimeRandom,
@@ -84,7 +87,49 @@
       return Self(
         certificate: encodedCertificate,
         key: generatedKey,
-        name: encodedName
+        name: encodedName,
+        issuerName: encodedName
+      )
+    }
+
+    /// Creates a fresh P-256 key and timestamping-only certificate signed by an authority.
+    internal static func make(
+      issuerKey: SecKey,
+      issuerName: Data,
+      additionalExtensions: [Data]
+    ) throws -> Self {
+      let attributes: [CFString: Any] = [
+        kSecAttrKeyType: kSecAttrKeyTypeECSECPrimeRandom,
+        kSecAttrKeySizeInBits: Self.p256KeySize,
+      ]
+      var error: Unmanaged<CFError>?
+      guard
+        let generatedKey = SecKeyCreateRandomKey(
+          attributes as CFDictionary,
+          &error
+        )
+      else {
+        _ = error?.takeRetainedValue()
+        throw Failure.key
+      }
+      let encodedName = Self.encodedName(Self.commonName)
+      let encodedCertificate = try Self.certificate(
+        key: generatedKey,
+        name: encodedName,
+        issuerKey: issuerKey,
+        issuerName: issuerName,
+        additionalExtensions: additionalExtensions
+      )
+      guard
+        SecCertificateCreateWithData(nil, encodedCertificate as CFData) != nil
+      else {
+        throw Failure.certificate
+      }
+      return Self(
+        certificate: encodedCertificate,
+        key: generatedKey,
+        name: encodedName,
+        issuerName: issuerName
       )
     }
 

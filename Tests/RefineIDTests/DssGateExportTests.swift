@@ -31,6 +31,8 @@
 
     private static let containedFileName = "terms.txt"
     private static let containedFileText = "Terms agreed under the DSS gate."
+    private static let testDigestByteCount = 48
+    private static let testDigestPattern: UInt8 = 0x42
 
     /// The PDF as `DocumentSigner.sign` finishes it after the card.
     private static func signedPdf(_ authorities: DssGateAuthorities) async throws -> Data {
@@ -113,18 +115,13 @@
     override internal func setUp() async throws {
       try await super.setUp()
       let authorities = try DssGateAuthorities.make()
-      let timestampCertificate = authorities.timestampAuthority.certificate
       DssGateUrlProtocol.authorities = authorities
       DssGateSessionHook.toggle()
-      TimestampClient.testTrustAnchors = { _ in
-        [timestampCertificate]
-      }
       TrustRootsCache.shared.reset()
       TrustRootsCache.shared.register(authorities.caCertificate)
     }
 
     override internal func tearDown() async throws {
-      TimestampClient.testTrustAnchors = nil
       DssGateSessionHook.toggle()
       DssGateUrlProtocol.authorities = nil
       TrustRootsCache.shared.reset()
@@ -135,18 +132,63 @@
     /// DSS is to trust.
     internal func testExportsPdfAndAsicSignaturesForDss() async throws {
       let authorities = try XCTUnwrap(DssGateUrlProtocol.authorities)
-      let directory = Self.exportDirectory
-      try? FileManager.default.removeItem(at: directory)
-      try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-      try authorities.caCertificate.write(to: directory.appending(path: "anchor-ca.der"))
-      try authorities.timestampAuthority.certificate.write(
-        to: directory.appending(path: "anchor-tsa.der")
+      let tsCaCertificate = authorities.timestampCaCertificate
+      let resolver: @Sendable (Date) -> [Data] = { _ in [tsCaCertificate] }
+      try await TimestampClient.$anchorResolver.withValue(resolver) {
+        let directory = Self.exportDirectory
+        try? FileManager.default.removeItem(at: directory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try authorities.caCertificate.write(to: directory.appending(path: "anchor-ca.der"))
+        try authorities.timestampCaCertificate.write(
+          to: directory.appending(path: "anchor-tsa.der")
+        )
+        let pdf = try await Self.signedPdf(authorities)
+        try pdf.write(to: directory.appending(path: "swift-pades.pdf"))
+        let container = try await Self.signedContainer(authorities)
+        try container.write(to: directory.appending(path: "swift-asic-e.asice"))
+        print("DSS gate export: \(directory.path)")
+      }
+    }
+
+    /// Live token(over:) verifies a signer chained to a separate CA anchor.
+    internal func testLiveTokenOverAuthenticatesSignerChainedToCaAnchor() async throws {
+      let authorities = try XCTUnwrap(DssGateUrlProtocol.authorities)
+      let digest = Data(repeating: Self.testDigestPattern, count: Self.testDigestByteCount)
+      let tsCaCertificate = authorities.timestampCaCertificate
+      let resolver: @Sendable (Date) -> [Data] = { _ in [tsCaCertificate] }
+      let verified = try await TimestampClient.$anchorResolver.withValue(resolver) {
+        try await TimestampClient.token(over: digest)
+      }
+      XCTAssertEqual(verified.signerCertificate, authorities.timestampAuthority.certificate)
+      XCTAssertEqual(verified.trustedCertificate, authorities.timestampCaCertificate)
+      XCTAssertEqual(
+        verified.verifiedCertificateChain,
+        [
+          authorities.timestampAuthority.certificate,
+          authorities.timestampCaCertificate,
+        ]
       )
-      let pdf = try await Self.signedPdf(authorities)
-      try pdf.write(to: directory.appending(path: "swift-pades.pdf"))
-      let container = try await Self.signedContainer(authorities)
-      try container.write(to: directory.appending(path: "swift-asic-e.asice"))
-      print("DSS gate export: \(directory.path)")
+    }
+
+    /// Live token(over:) rejects a timestamp signer not anchored at the trusted CA.
+    internal func testLiveTokenOverRejectsSignerNotAnchoredAtCa() async throws {
+      let authorities = try XCTUnwrap(DssGateUrlProtocol.authorities)
+      let digest = Data(repeating: Self.testDigestPattern, count: Self.testDigestByteCount)
+      let caCertificate = authorities.caCertificate
+      let resolver: @Sendable (Date) -> [Data] = { _ in [caCertificate] }
+      do {
+        _ = try await TimestampClient.$anchorResolver.withValue(resolver) {
+          try await TimestampClient.token(over: digest)
+        }
+        XCTFail("Expected untrustedAuthority failure")
+      } catch let error as TimestampClient.Failure {
+        guard case .untrustedAuthority = error else {
+          XCTFail("Expected .untrustedAuthority but got \(error)")
+          return
+        }
+      } catch {
+        XCTFail("Unexpected error: \(error)")
+      }
     }
 
     /// The verifier the Mac's Verify button runs reads both release
@@ -154,13 +196,23 @@
     /// archive timestamp anchored after the signature timestamp.
     internal func testOwnVerifierReadsBothAtLongTermArchival() async throws {
       let authorities = try XCTUnwrap(DssGateUrlProtocol.authorities)
+      let tsCaCertificate = authorities.timestampCaCertificate
+      let resolver: @Sendable (Date) -> [Data] = { _ in [tsCaCertificate] }
+      try await TimestampClient.$anchorResolver.withValue(resolver) {
+        try await self.assertDocumentsReadAtLongTermArchival(authorities: authorities)
+      }
+    }
+
+    private func assertDocumentsReadAtLongTermArchival(
+      authorities: DssGateAuthorities
+    ) async throws {
       let anchors = TrustAnchors(
         anchors: [
           TrustAnchor(
             certificate: authorities.caCertificate, role: .certificateIssuing,
             granted: [.unbounded]),
           TrustAnchor(
-            certificate: authorities.timestampAuthority.certificate, role: .timeStamping,
+            certificate: authorities.timestampCaCertificate, role: .timeStamping,
             granted: [.unbounded]),
         ].compactMap(\.self),
         fetchedAt: nil,

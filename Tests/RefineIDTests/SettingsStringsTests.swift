@@ -40,6 +40,11 @@
         ("Restore Defaults", "Palauta oletukset", "Återställ standardvärden"),
         ("Not a usable address", "Osoite ei ole käyttökelpoinen", "Adressen kan inte användas"),
         (
+          "Signatures require an RFC 3161 authority listed on the EU trusted lists.",
+          "Allekirjoitukset vaativat EU:n luottamuslistalla olevan RFC 3161 -aikaleimapalvelun.",
+          "Signaturer kräver en RFC 3161-tidsstämpeltjänst som finns på EU:s förteckning över betrodda tjänster."
+        ),
+        (
           "Signing Service", "Allekirjoituspalvelu",
           "Signeringstjänst"
         ),

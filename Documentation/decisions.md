@@ -118,10 +118,12 @@ server as configurable option in setting with current one refilled."
   address under the same key, prefilled with the same default. Either
   platform reads through `TimestampAuthorityStore`, which answers the
   shipped service until something usable is stored.
-- Every token is verified as before, whoever names the authority; a
-  configured authority changes no trust decision. SCS stays out of
-  every shipping configuration and the store entitlements keep no
-  server side, so "SCS is excluded" still holds for review.
+- Every token is cryptographically verified and anchored against the
+  EU trusted lists, whoever names the authority; an authority that
+  answers but does not chain to an EU-listed time-stamping service is
+  refused. SCS stays out of every shipping configuration and the store
+  entitlements keep no server side, so "SCS is excluded" still holds for
+  review.
 
 ## 2026-11-08 The Mac App Store build reaches the phone over Bluetooth
 

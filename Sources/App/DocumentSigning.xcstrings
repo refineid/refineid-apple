@@ -564,6 +564,98 @@
         }
       }
     },
+    "error.randomUnavailable" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secure random bytes for the timestamp request could not be made."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turvallisia satunnaistavuja aikaleimapyyntöön ei voitu luoda."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Säkra slumptal för tidsstämpelförfrågan kunde inte genereras."
+          }
+        }
+      }
+    },
+    "error.timestampInvalid" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The timestamp service returned an invalid response."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aikaleimapalvelu palautti virheellisen vastauksen."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tidsstämpeltjänsten returnerade ett ogiltigt svar."
+          }
+        }
+      }
+    },
+    "error.timestampUntrusted" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The timestamp authority is not on the EU trusted lists."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aikaleimapalvelu ei ole EU:n luottamuslistalla."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tidsstämpeltjänsten finns inte på EU:s förteckning över betrodda tjänster."
+          }
+        }
+      }
+    },
+    "error.trustedListsUnavailable" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The EU trusted lists have not been fetched yet, so no timestamp authority could be verified."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EU:n luottamuslistoja ei ole vielä haettu, joten aikaleimapalvelua ei voitu vahvistaa."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EU:s förteckning över betrodda tjänster har inte hämtats ännu, så ingen tidsstämpeltjänst kunde verifieras."
+          }
+        }
+      }
+    },
     "error.noCard" : {
       "extractionState" : "stale",
       "localizations" : {
