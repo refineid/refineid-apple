@@ -347,7 +347,13 @@ private func notarizeDmg(
 
   if status.status != 0 {
     let notaryOutput = status.stderr.isEmpty ? status.stdout : status.stderr
-    fail("notarytool submission failed: \(notaryOutput)")
+    let help = """
+
+      To create a keychain profile (default name: RefineID-notary, team: 4ZJC3SFJR2, Apple ID: petri.koistinen@refineid.fi), run in your terminal:
+        xcrun notarytool store-credentials "RefineID-notary" --apple-id "petri.koistinen@refineid.fi" --team-id 4ZJC3SFJR2
+      Then rerun this tool with --notary-profile "RefineID-notary" (or omit it to use the default).
+      """
+    fail("notarytool submission failed: \(notaryOutput)\(help)")
   }
 }
 
