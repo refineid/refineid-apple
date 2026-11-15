@@ -22,6 +22,13 @@ extension DocumentVerification {
     let storeValues: RevocationValues
   }
 
+  /// What one PDF signature is judged with, besides its own bytes.
+  private struct SignatureCandidates {
+    let creditedProofs: [ProvenTime]
+    let archiveTimestamps: [ArchiveCandidate]
+    let changesAfterSigning: [SignedContentChange]
+  }
+
   /// The revocation values of a document security store.
   private static func revocationValues(_ store: PdfValidationStore.Material) -> RevocationValues {
     RevocationValues(ocspResponses: store.ocspResponses, revocationLists: store.revocationLists)
@@ -65,30 +72,43 @@ extension DocumentVerification {
       signature.subFilter != .rfc3161
     }
     .map { signature in
-      let covering = documentTimestamps.filter { stamp in
-        signature.signedSpans.document.count <= stamp.rangeStart
-      }
-      let credited = covering.compactMap(\.state.provenTime)
-      let archives = covering.map { stamp in
-        ArchiveCandidate(
-          state: stamp.state, covered: stamp.coveredValues, validUntil: stamp.judged.validUntil)
-      }
-      guard
-        let profile = Self.profile(ofSubFilter: signature.subFilter),
-        signature.endsRevision,
-        let report = Self.report(
-          of: signature, profile: profile, creditedProofs: credited,
-          archiveTimestamps: archives, judgement
-        )
-      else {
-        return .unsupported
-      }
-      return .judged(report)
+      Self.entry(
+        of: signature, document: document, judgement: judgement,
+        documentTimestamps: documentTimestamps)
     }
     return DocumentReport(
       signatures: signatures,
       documentTimestamps: documentTimestamps.map(\.state)
     )
+  }
+
+  /// The row one signature dictionary makes.
+  private static func entry(
+    of signature: PdfSignatureReader.FoundSignature,
+    document: Data,
+    judgement: PdfJudgement,
+    documentTimestamps: [DocumentTimestamp]
+  ) -> SignatureEntry {
+    let covering = documentTimestamps.filter { stamp in
+      signature.signedSpans.document.count <= stamp.rangeStart
+    }
+    let candidates = SignatureCandidates(
+      creditedProofs: covering.compactMap(\.state.provenTime),
+      archiveTimestamps: covering.map { stamp in
+        ArchiveCandidate(
+          state: stamp.state, covered: stamp.coveredValues, validUntil: stamp.judged.validUntil)
+      },
+      changesAfterSigning: PdfSignedContentAnalysis.changes(
+        document: document, signedEnd: signature.signedSpans.document.count)
+    )
+    guard
+      let profile = Self.profile(ofSubFilter: signature.subFilter),
+      signature.endsRevision,
+      let report = Self.report(of: signature, profile: profile, candidates, judgement)
+    else {
+      return .unsupported
+    }
+    return .judged(report)
   }
 
   /// Every document timestamp of the found signatures, in document
@@ -163,8 +183,7 @@ extension DocumentVerification {
   private static func report(
     of signature: PdfSignatureReader.FoundSignature,
     profile: CmsSignerVerification.Profile,
-    creditedProofs: [ProvenTime],
-    archiveTimestamps: [ArchiveCandidate],
+    _ candidates: SignatureCandidates,
     _ judgement: PdfJudgement
   ) -> SignatureReport? {
     let anchors = judgement.anchors
@@ -200,9 +219,10 @@ extension DocumentVerification {
         documentIntact: outcome.documentIntact,
         signatureValid: outcome.signatureValid,
         timestamps: timestamps,
-        creditedProofs: creditedProofs,
+        creditedProofs: candidates.creditedProofs,
         coversWholeDocument: signature.coversWholeDocument,
-        archiveTimestamps: archiveTimestamps,
+        changesAfterSigning: candidates.changesAfterSigning,
+        archiveTimestamps: candidates.archiveTimestamps,
         longTermValues: judgement.storeValues
       ),
       evidence: evidence,

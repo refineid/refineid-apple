@@ -74,7 +74,8 @@ internal enum VerifyDocumentModelFixture {
         RevocationJudge.Link(
           certificate: Self.certificate, issuer: Self.issuerCertificate, state: .unavailable)
       ],
-      coversWholeDocument: true
+      coversWholeDocument: true,
+      changesAfterSigning: []
     )
   }
 
