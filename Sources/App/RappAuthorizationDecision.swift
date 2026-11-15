@@ -1,6 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-#if os(iOS) || os(macOS)
+#if REFINEID_REMOTE_CARD
   import CardCore
 
   internal enum RappAuthorizationDecision: Sendable, CustomReflectable {
