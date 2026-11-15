@@ -75,11 +75,9 @@ went stale, so the text is not repeated: read it there.
   macOS app's entitlements in every configuration. With the remote card
   gated off for the MVP the Mac carries no Bluetooth; it never listens,
   so no server entitlement.
-- ATS rationale: comments above `NSAppTransportSecurity` in all four
-  application plists (`Config/RefineID-Info.plist`,
-  `Config/RefineID-Store-Info.plist`,
-  `Config/RefineID-iOS-Info.plist`,
-  `Config/RefineID-iOS-Store-Info.plist`). Every binary makes network
+- ATS rationale: comments above `NSAppTransportSecurity` in both
+  application plists (`Config/RefineID-Store-Info.plist`,
+  `Config/RefineID-iOS-Info.plist`). Every binary makes network
   requests when signing a document: the time-stamp authority and
   revocation endpoints an archival signature needs.
 

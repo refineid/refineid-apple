@@ -132,19 +132,10 @@ internal struct RappShippingConfigurationTests {
 
   @Test("macOS declares no remote-card services or permission prompts")
   internal func macOSDeclaresNoRemoteCardServices() throws {
-    let full = try Self.plist("Config/RefineID-Info.plist")
     let store = try Self.plist("Config/RefineID-Store-Info.plist")
-    for (name, plist) in [
-      ("Config/RefineID-Info.plist", full),
-      ("Config/RefineID-Store-Info.plist", store),
-    ] {
-      #expect(plist["NSBonjourServices"] == nil, "\(name)")
-      #expect(plist["NSLocalNetworkUsageDescription"] == nil, "\(name)")
-      #expect(plist["NSBluetoothAlwaysUsageDescription"] == nil, "\(name)")
-    }
-    #expect(
-      try JSONSerialization.data(withJSONObject: full, options: .sortedKeys)
-        == JSONSerialization.data(withJSONObject: store, options: .sortedKeys))
+    #expect(store["NSBonjourServices"] == nil)
+    #expect(store["NSLocalNetworkUsageDescription"] == nil)
+    #expect(store["NSBluetoothAlwaysUsageDescription"] == nil)
   }
 
   @Test("RAPP network declarations are present in shipping containers")

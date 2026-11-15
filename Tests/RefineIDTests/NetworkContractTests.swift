@@ -269,15 +269,13 @@ internal struct NetworkContractTests {
   }
 
   /// ATS stays open, and Bluetooth carries exactly its one purpose
-  /// string in the iPhone plists; the macOS MVP gates the remote card
-  /// off and declares no Bluetooth (decisions 2026-11-14).
+  /// string in the iPhone plist; the macOS plist declares no
+  /// Bluetooth.
   @Test
   internal func applicationPlistsMatchTheContract() throws {
     for path in [
-      "Config/RefineID-Info.plist",
       "Config/RefineID-Store-Info.plist",
       "Config/RefineID-iOS-Info.plist",
-      "Config/RefineID-iOS-Store-Info.plist",
     ] {
       let data = try Data(contentsOf: Self.root.appending(path: path))
       let plist = try #require(

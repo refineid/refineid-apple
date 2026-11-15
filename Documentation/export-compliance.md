@@ -11,7 +11,7 @@ supporting detail.
 
 ## What is declared
 
-`Config/RefineID-Info.plist` (macOS) and
+`Config/RefineID-Store-Info.plist` (macOS) and
 `Config/RefineID-iOS-Info.plist` (iOS) both carry:
 
     ITSAppUsesNonExemptEncryption = false
@@ -457,7 +457,7 @@ liability there.
 2. That attestation attached to App Encryption Documentation in App
    Store Connect.
 3. The code Apple issues in return, added to both
-   `Config/RefineID-Info.plist` and `Config/RefineID-iOS-Info.plist`
+   `Config/RefineID-Store-Info.plist` and `Config/RefineID-iOS-Info.plist`
    as `ITSEncryptionExportComplianceCode`, with
    `ITSAppUsesNonExemptEncryption` flipped to `true` in both files in
    the same commit.
