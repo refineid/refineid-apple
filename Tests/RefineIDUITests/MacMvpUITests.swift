@@ -80,6 +80,10 @@
         waitForExpectations(timeout: UITestApp.appearTimeout)
       }
       XCTAssertFalse(restore.exists)
+      // The shipped authority is never probed: past the debounce the
+      // badge still shows untested.
+      sleep(3)
+      XCTAssertEqual(badge.label, "Ei testattu")
       // A fresh refused port per run: no recorded verdict can answer
       // for the probe, so the badge proves the automatic test ran.
       let port = 20_000 + Int(Date().timeIntervalSince1970) % 20_000
