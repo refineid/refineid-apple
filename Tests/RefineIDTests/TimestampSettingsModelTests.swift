@@ -178,6 +178,24 @@
       #expect(targets == ["http://tsa.example.com/tsa"])
     }
 
+    /// The shipped authority is never probed and shows no verdict.
+    @Test
+    internal func defaultAddressIsNeverProbed() async throws {
+      let defaults = try Self.freshDefaults()
+      let log = TimestampSettingsProbeDoubles.CallLog()
+      let model = TimestampSettingsModel(
+        defaults: defaults,
+        prober: { target in await log.record(target) },
+        autoTestDelay: .milliseconds(20)
+      )
+      #expect(model.draft == TimestampAuthorityStore.defaultAuthority)
+      model.draftChanged()
+      try await Task.sleep(for: .milliseconds(300))
+      let targets = await log.targets
+      #expect(targets.isEmpty)
+      #expect(model.verification == nil)
+    }
+
     /// Whitespace around the draft is trimmed, not probed.
     @Test
     internal func draftChangedTrimsWhitespace() throws {
@@ -188,6 +206,9 @@
         autoTestDelay: .seconds(30)
       )
       model.draft = "  http://tsa.example.com/tsa\n"
+      model.draftChanged()
+      #expect(model.draft == "http://tsa.example.com/tsa")
+      model.draft = "\u{FEFF}http://tsa.example.com/tsa\u{200B}"
       model.draftChanged()
       #expect(model.draft == "http://tsa.example.com/tsa")
     }

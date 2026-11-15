@@ -17,6 +17,12 @@
     /// Pause after the last keystroke before the draft is probed, in seconds.
     private static let autoTestDelaySeconds = 1
 
+    /// Characters trimmed from the draft: whitespace plus the
+    /// invisible format characters web copy-paste smuggles in.
+    private static let ignorableCharacters = CharacterSet.whitespacesAndNewlines.union(
+      CharacterSet(charactersIn: "\u{200B}\u{200C}\u{200D}\u{FEFF}")
+    )
+
     /// The address being edited; stored only after a passed probe.
     @Published internal var draft: String
 
@@ -75,15 +81,21 @@
 
     /// The draft changed: trim it, show any verdict for it, then
     /// probe it after a pause.
+    ///
+    /// The shipped authority is never probed: it is known good, and
+    /// a failure there is nothing the holder could act on.
     internal func draftChanged() {
       cancelProbe()
       generation += 1
-      let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+      let trimmed = draft.trimmingCharacters(in: Self.ignorableCharacters)
       if trimmed != draft {
         draft = trimmed
         return
       }
-      guard let target = TimestampAuthorityStore.resolvedRequestAddress(draft) else {
+      guard
+        let target = TimestampAuthorityStore.resolvedRequestAddress(draft),
+        target != TimestampAuthorityStore.defaultAuthority
+      else {
         verification = nil
         return
       }
@@ -118,7 +130,9 @@
     internal func dismissPane() {
       cancelProbe()
       revertToStored()
-      if let target = TimestampAuthorityStore.resolvedRequestAddress(draft) {
+      if let target = TimestampAuthorityStore.resolvedRequestAddress(draft),
+        target != TimestampAuthorityStore.defaultAuthority
+      {
         verification = TimestampAuthorityStore.verification(for: target, in: defaults)
       } else {
         verification = nil
