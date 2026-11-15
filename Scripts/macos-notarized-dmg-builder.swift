@@ -284,6 +284,9 @@ private func createDmg(sourceApp: URL, outputDmg: URL) {
   let stagingDmg = outputDmg.deletingLastPathComponent()
     .appendingPathComponent("staging.dmg")
 
+  try? FileManager.default.removeItem(at: stagingDmg)
+  try? FileManager.default.removeItem(at: outputDmg)
+
   let create = run(
     "/usr/bin/hdiutil",
     [
