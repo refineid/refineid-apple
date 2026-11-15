@@ -152,13 +152,15 @@ internal struct CustodianUnlockGateTests {
     #expect(await log.count(of: Self.progress) == 0)
   }
 
-  @Test("The lock-screen notice names the computer")
-  internal func noticeNamesTheComputer() {
-    let computer = "Workstation"
-    #expect(
-      RappAuthorizationPrompt.unlockAuthenticationMessage(computer: computer).contains(computer))
-    #expect(RappAuthorizationPrompt.unlockSignatureMessage(computer: computer).contains(computer))
-  }
+  #if REFINEID_REMOTE_CARD
+    @Test("The lock-screen notice names the computer")
+    internal func noticeNamesTheComputer() {
+      let computer = "Workstation"
+      #expect(
+        RappAuthorizationPrompt.unlockAuthenticationMessage(computer: computer).contains(computer))
+      #expect(RappAuthorizationPrompt.unlockSignatureMessage(computer: computer).contains(computer))
+    }
+  #endif
 
   @Test(
     "The lock-screen notice says the full PIN name in every language",

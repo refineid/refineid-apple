@@ -90,7 +90,7 @@ internal final class CardPresence: ObservableObject {
       #if os(iOS) && REFINEID_LOCAL_CARD
         HolderCardServing.availabilityChanged()
       #endif
-      #if os(macOS)
+      #if os(macOS) && REFINEID_REMOTE_CARD
         if isReaderCardPresent {
           PersistentTokenRegistry.shared.readerCardPresenceChanged(isReaderCardPresent: true)
         }
@@ -168,7 +168,7 @@ internal final class CardPresence: ObservableObject {
         }
         HolderCardServing.availabilityChanged()
       #endif
-      #if os(macOS)
+      #if os(macOS) && REFINEID_REMOTE_CARD
         PersistentTokenRegistry.shared.readerCardPresenceChanged(isReaderCardPresent: readerPresent)
       #endif
     }
@@ -193,7 +193,7 @@ internal final class CardPresence: ObservableObject {
     return true
   }
 
-  #if DEBUG
+  #if DEBUG && REFINEID_REMOTE_CARD
     internal func setReaderCardPresentForTesting(_ present: Bool) {
       isReaderCardPresent = present
       PersistentTokenRegistry.shared.readerCardPresenceChanged(isReaderCardPresent: present)

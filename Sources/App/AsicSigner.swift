@@ -101,9 +101,11 @@ internal enum AsicSigner {
     guard !objects.isEmpty, AsicContainer.areNamesUsable(objects) else {
       throw Failure.unusableName
     }
-    if await MainActor.run(body: { DocumentSigner.usesRappSigning }) {
-      return try await Self.signRemotely(objects)
-    }
+    #if REFINEID_REMOTE_CARD
+      if await MainActor.run(body: { DocumentSigner.usesRappSigning }) {
+        return try await Self.signRemotely(objects)
+      }
+    #endif
     guard let pin2 else {
       throw DocumentSigner.Failure.card(.invalidEntry)
     }
@@ -136,44 +138,46 @@ internal enum AsicSigner {
     }
   }
 
-  /// Signs canonical XAdES bytes through the selected phone.
-  ///
-  /// PIN 2 is entered on the authorizer and never crosses the RAPP
-  /// boundary.
-  private static func signRemotely(
-    _ objects: [AsicContainer.DataObject]
-  ) async throws -> Product {
-    let signedAt = Date()
-    // The package's own name is the one it is proposed under; its files
-    // are listed in container order (RAPP v26.11.8 §9.3).
-    let packageName = SignedDocumentName.suggested(
-      sourceNames: objects.map(\.name),
-      format: .asice,
-      at: signedAt,
-      marker: SignedDocumentName.longTermMarker)
-    #if DEBUG
-      logger.notice(
-        "[AsicSigner] signRemotely: signing \(objects.count, privacy: .public) objects"
-      )
-    #endif
-    let product = try await DocumentSigner.remoteQualifiedSignature(
-      documentName: packageName,
-      containedFiles: objects.map(\.name),
-      expectedCertificate: nil
-    ) { certificate in
-      Self.plannedSignedInfo(
-        objects: objects, certificate: certificate, signedAt: signedAt
+  #if REFINEID_REMOTE_CARD
+    /// Signs canonical XAdES bytes through the selected phone.
+    ///
+    /// PIN 2 is entered on the authorizer and never crosses the RAPP
+    /// boundary.
+    private static func signRemotely(
+      _ objects: [AsicContainer.DataObject]
+    ) async throws -> Product {
+      let signedAt = Date()
+      // The package's own name is the one it is proposed under; its files
+      // are listed in container order (RAPP v26.11.8 §9.3).
+      let packageName = SignedDocumentName.suggested(
+        sourceNames: objects.map(\.name),
+        format: .asice,
+        at: signedAt,
+        marker: SignedDocumentName.longTermMarker)
+      #if DEBUG
+        logger.notice(
+          "[AsicSigner] signRemotely: signing \(objects.count, privacy: .public) objects"
+        )
+      #endif
+      let product = try await DocumentSigner.remoteQualifiedSignature(
+        documentName: packageName,
+        containedFiles: objects.map(\.name),
+        expectedCertificate: nil
+      ) { certificate in
+        Self.plannedSignedInfo(
+          objects: objects, certificate: certificate, signedAt: signedAt
+        )
+      }
+      #if DEBUG
+        logger.notice(
+          "[AsicSigner] signRemotely: received remote signature product, assembling container"
+        )
+      #endif
+      return try await Self.assembled(
+        from: product, objects: objects, signedAt: signedAt
       )
     }
-    #if DEBUG
-      logger.notice(
-        "[AsicSigner] signRemotely: received remote signature product, assembling container"
-      )
-    #endif
-    return try await Self.assembled(
-      from: product, objects: objects, signedAt: signedAt
-    )
-  }
+  #endif
 
   /// Checks that the card signed the planned octets, then completes
   /// the container.

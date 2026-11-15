@@ -32,7 +32,9 @@
     @ObservedObject internal var retryHealth = CredentialRetryHealth.shared
     @ObservedObject internal var cardPresence = CardPresence.shared
     @ObservedObject private var demoMode = DemoMode.shared
-    internal let remoteRegistry = PersistentTokenRegistry.shared
+    #if REFINEID_REMOTE_CARD
+      internal let remoteRegistry = PersistentTokenRegistry.shared
+    #endif
     @State private var signing = SignDocumentModel()
 
     /// The cards in this Mac's readers and the one the holder chose.

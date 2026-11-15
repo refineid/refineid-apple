@@ -1,61 +1,64 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-import Foundation
+#if REFINEID_REMOTE_CARD
 
-/// The words of the phone's PIN prompt for a paired computer's request: a
-/// title naming the act, and one sentence naming the computer and, for a
-/// signature, the documents.
-///
-/// The computer's display name and the document names are shown as given;
-/// they were refined where they entered.
-internal enum RappAuthorizationPrompt {
-  internal static let authenticationTitle = String(localized: "Authentication")
+  import Foundation
 
-  internal static let signatureTitle = String(localized: "Signature")
-
-  internal static func authenticationMessage(computer: String) -> String {
-    String(localized: "\(computer) asks you to authenticate.")
-  }
-
-  /// The lock-screen notice of an authentication waiting for the unlock
-  /// (RAPP v26.11.8 §8.2 item 3).
-  internal static func unlockAuthenticationMessage(computer: String) -> String {
-    String(localized: "\(computer) asks you to authenticate with Basic PIN 1. Unlock your phone.")
-  }
-
-  /// The lock-screen notice of a signature waiting for the unlock (RAPP
-  /// v26.11.8 §8.2 item 3).
-  internal static func unlockSignatureMessage(computer: String) -> String {
-    String(localized: "\(computer) asks you to sign with Signature PIN 2. Unlock your phone.")
-  }
-
-  /// The prompt for a package.
+  /// The words of the phone's PIN prompt for a paired computer's request: a
+  /// title naming the act, and one sentence naming the computer and, for a
+  /// signature, the documents.
   ///
-  /// It names the package and every file it holds, in container order
-  /// (RAPP v26.11.8 §9.3, §11 item 1).
-  internal static func packageMessage(computer: String, package: String, files: [String])
-    -> String
-  {
-    let named = ListFormatter.localizedString(byJoining: files)
-    return String(
-      localized: "\(computer) asks you to sign the package \(package) holding \(named).")
-  }
+  /// The computer's display name and the document names are shown as given;
+  /// they were refined where they entered.
+  internal enum RappAuthorizationPrompt {
+    internal static let authenticationTitle = String(localized: "Authentication")
 
-  /// The prompt for a signature.
-  ///
-  /// One document by its name, a batch as a list in signing order, and a
-  /// request that names none without a document.
-  internal static func signatureMessage(computer: String, documents: [String]) -> String {
-    switch documents.count {
-    case 0:
-      return String(localized: "\(computer) asks you to sign.")
+    internal static let signatureTitle = String(localized: "Signature")
 
-    case 1:
-      return String(localized: "\(computer) asks you to sign \(documents[0]).")
+    internal static func authenticationMessage(computer: String) -> String {
+      String(localized: "\(computer) asks you to authenticate.")
+    }
 
-    default:
-      let named = ListFormatter.localizedString(byJoining: documents)
-      return String(localized: "\(computer) asks you to sign the documents \(named).")
+    /// The lock-screen notice of an authentication waiting for the unlock
+    /// (RAPP v26.11.8 §8.2 item 3).
+    internal static func unlockAuthenticationMessage(computer: String) -> String {
+      String(localized: "\(computer) asks you to authenticate with Basic PIN 1. Unlock your phone.")
+    }
+
+    /// The lock-screen notice of a signature waiting for the unlock (RAPP
+    /// v26.11.8 §8.2 item 3).
+    internal static func unlockSignatureMessage(computer: String) -> String {
+      String(localized: "\(computer) asks you to sign with Signature PIN 2. Unlock your phone.")
+    }
+
+    /// The prompt for a package.
+    ///
+    /// It names the package and every file it holds, in container order
+    /// (RAPP v26.11.8 §9.3, §11 item 1).
+    internal static func packageMessage(computer: String, package: String, files: [String])
+      -> String
+    {
+      let named = ListFormatter.localizedString(byJoining: files)
+      return String(
+        localized: "\(computer) asks you to sign the package \(package) holding \(named).")
+    }
+
+    /// The prompt for a signature.
+    ///
+    /// One document by its name, a batch as a list in signing order, and a
+    /// request that names none without a document.
+    internal static func signatureMessage(computer: String, documents: [String]) -> String {
+      switch documents.count {
+      case 0:
+        return String(localized: "\(computer) asks you to sign.")
+
+      case 1:
+        return String(localized: "\(computer) asks you to sign \(documents[0]).")
+
+      default:
+        let named = ListFormatter.localizedString(byJoining: documents)
+        return String(localized: "\(computer) asks you to sign the documents \(named).")
+      }
     }
   }
-}
+#endif

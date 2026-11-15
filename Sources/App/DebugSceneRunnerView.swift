@@ -176,7 +176,7 @@
     /// A probe blocks on the relay and hops to the main queue to publish, so
     /// running it on the main thread deadlocks the hop.
     private static func runRelayProbe(_ mode: DebugLaunchMode) async {
-      #if os(iOS) || os(macOS)
+      #if os(iOS) || os(macOS) && REFINEID_REMOTE_CARD
         let work: @Sendable () -> DebugModeReport =
           mode == .remoteIdentityProbe
           ? DebugRemoteIdentityProbe.report
@@ -203,15 +203,17 @@
         DebugConsole.emit(report.lines)
         DebugConsole.finish(succeeded: report.succeeded)
 
-      case .offerRemoteReader:
-        let report = await DebugPairWithOffer.offer()
-        DebugConsole.emit(report.lines)
-        DebugConsole.finish(succeeded: report.succeeded)
+      #if REFINEID_REMOTE_CARD
+        case .offerRemoteReader:
+          let report = await DebugPairWithOffer.offer()
+          DebugConsole.emit(report.lines)
+          DebugConsole.finish(succeeded: report.succeeded)
 
-      case .pairWithOffer:
-        let report = await DebugPairWithOffer.run(offerURI: DebugLaunchModes.offerURI())
-        DebugConsole.emit(report.lines)
-        DebugConsole.finish(succeeded: report.succeeded)
+        case .pairWithOffer:
+          let report = await DebugPairWithOffer.run(offerURI: DebugLaunchModes.offerURI())
+          DebugConsole.emit(report.lines)
+          DebugConsole.finish(succeeded: report.succeeded)
+      #endif
 
       default:
         DebugConsole.emit(mode.rawValue + ": not a pairing mode")
