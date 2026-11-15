@@ -77,7 +77,9 @@
     /// A full token is authenticated before only its certificates are removed.
     @Test
     internal func verifiedTokenBecomesCertificateFree() throws {
-      let compact = try TimestampClient.verifiedCompactEncoding(Self.token)
+      let compact = try TimestampClient.verifiedCompactEncoding(
+        Self.token, trustedCertificates: [Self.signer]
+      )
 
       #expect(CmsCertificates.inside(Self.token).contains(Self.signer))
       #expect(CmsCertificates.inside(compact).isEmpty)
@@ -97,7 +99,38 @@
       }
 
       #expect(throws: TimestampTokenVerifier.Failure.invalidSignature) {
-        _ = try TimestampClient.verifiedCompactEncoding(changed)
+        _ = try TimestampClient.verifiedCompactEncoding(
+          changed, trustedCertificates: [Self.signer]
+        )
+      }
+    }
+
+    /// A token whose signer does not chain to supplied trust anchors is rejected.
+    @Test
+    internal func unanchoredTokenIsRejectedBeforeCompaction() {
+      #expect(throws: TimestampTokenVerifier.Failure.untrustedSigner) {
+        _ = try TimestampClient.verifiedCompactEncoding(
+          Self.token, trustedCertificates: [Data("foreign-anchor".utf8)]
+        )
+      }
+    }
+
+    /// When test trust anchors are configured, they are resolved.
+    @Test
+    internal func testTrustAnchorsAreUsedWhenConfigured() async throws {
+      TimestampClient.testTrustAnchors = { _ in [Self.signer] }
+      defer { TimestampClient.testTrustAnchors = nil }
+      let anchors = try await TimestampClient.timeStampingAnchors(at: Date())
+      #expect(anchors == [Self.signer])
+    }
+
+    /// When test trust anchors are empty, untrustedAuthority is thrown.
+    @Test
+    internal func emptyAnchorsFailAsUntrustedAuthority() async {
+      TimestampClient.testTrustAnchors = { _ in [] }
+      defer { TimestampClient.testTrustAnchors = nil }
+      await #expect(throws: TimestampClient.Failure.untrustedAuthority) {
+        _ = try await TimestampClient.timeStampingAnchors(at: Date())
       }
     }
 

@@ -113,13 +113,18 @@
     override internal func setUp() async throws {
       try await super.setUp()
       let authorities = try DssGateAuthorities.make()
+      let timestampCertificate = authorities.timestampAuthority.certificate
       DssGateUrlProtocol.authorities = authorities
       DssGateSessionHook.toggle()
+      TimestampClient.testTrustAnchors = { _ in
+        [timestampCertificate]
+      }
       TrustRootsCache.shared.reset()
       TrustRootsCache.shared.register(authorities.caCertificate)
     }
 
     override internal func tearDown() async throws {
+      TimestampClient.testTrustAnchors = nil
       DssGateSessionHook.toggle()
       DssGateUrlProtocol.authorities = nil
       TrustRootsCache.shared.reset()
