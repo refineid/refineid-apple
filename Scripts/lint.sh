@@ -90,6 +90,7 @@ typecheck() {
 }
 
 typecheck "release manager" Scripts/apple-app-store-connect-release-manager.swift
+typecheck "macOS notarized DMG builder" Scripts/macos-notarized-dmg-builder.swift
 typecheck "store screenshots" Scripts/generate-store-screenshots.swift
 typecheck "card logins" Scripts/test-card-logins.swift
 typecheck "icon" Scripts/generate-icon.swift
