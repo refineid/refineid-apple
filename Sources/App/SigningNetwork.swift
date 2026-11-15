@@ -37,8 +37,20 @@ internal enum SigningNetwork {
   /// published document rather than a per-request answer.
   private static let maximumListBytes = 1_048_576
 
-  /// Seconds any one exchange may take.
-  private static let timeout: TimeInterval = 30
+  /// Seconds one small exchange (timestamp, OCSP) may take.
+  ///
+  /// Working services answer in well under a second; an exchange
+  /// still silent after ten seconds is not going to produce a
+  /// signature anyone waited for. The probe shares this with
+  /// signing so a test never disagrees with signing.
+  private static let exchangeTimeout: TimeInterval = 10
+
+  /// Seconds one bulk download (trust lists, CRLs, certificates)
+  /// may take.
+  ///
+  /// Downloads carry up to a megabyte over slow links; they keep
+  /// the previous allowance while small exchanges fail fast.
+  private static let materialTimeout: TimeInterval = 30
 
   /// Seconds the DNSSEC-validated attempt may take.
   ///
@@ -169,7 +181,8 @@ internal enum SigningNetwork {
     return try await Self.perform(
       protected,
       limit: Self.maximumResponseBytes,
-      endpoint: endpoint
+      endpoint: endpoint,
+      allowance: Self.exchangeTimeout
     )
   }
 
@@ -184,7 +197,7 @@ internal enum SigningNetwork {
     endpoint: Endpoint
   ) throws -> URLRequest {
     let url = try Self.httpUrl(address, for: endpoint)
-    var request = URLRequest(url: url, timeoutInterval: Self.timeout)
+    var request = URLRequest(url: url, timeoutInterval: Self.exchangeTimeout)
     request.httpMethod = "POST"
     request.setValue(contentType, forHTTPHeaderField: "Content-Type")
     request.httpBody = body
@@ -202,8 +215,7 @@ internal enum SigningNetwork {
     endpoint: Endpoint
   ) async throws -> Data {
     guard maximumBytes > 0 else { throw Failure.unusableBody }
-    let url = try Self.httpUrl(address, for: endpoint)
-    let request = URLRequest(url: url, timeoutInterval: Self.timeout)
+    let request = try Self.getRequest(address, endpoint: endpoint)
     let protected = try Self.protectedRequest(
       of: request,
       for: endpoint
@@ -211,8 +223,21 @@ internal enum SigningNetwork {
     return try await Self.perform(
       protected,
       limit: maximumBytes,
-      endpoint: endpoint
+      endpoint: endpoint,
+      allowance: Self.materialTimeout
     )
+  }
+
+  /// Builds one material download without sending it.
+  ///
+  /// Kept as a direct test boundary for the timeout the bulk
+  /// downloads carry.
+  internal static func getRequest(
+    _ address: String,
+    endpoint: Endpoint
+  ) throws -> URLRequest {
+    let url = try Self.httpUrl(address, for: endpoint)
+    return URLRequest(url: url, timeoutInterval: Self.materialTimeout)
   }
 
   /// GETs certificate or revocation material with its existing size cap.
@@ -238,14 +263,16 @@ internal enum SigningNetwork {
   private static func perform(
     _ request: URLRequest,
     limit: Int,
-    endpoint: Endpoint
+    endpoint: Endpoint,
+    allowance: TimeInterval
   ) async throws -> Data {
     let attempt: @Sendable (Bool) async throws -> Data = { validating in
       try await Self.perform(
         request,
         limit: limit,
         endpoint: endpoint,
-        validating: validating
+        validating: validating,
+        allowance: allowance
       )
     }
     if Self.validationMemory.skipsValidation(at: .now) {
@@ -267,7 +294,8 @@ internal enum SigningNetwork {
     _ request: URLRequest,
     limit: Int,
     endpoint: Endpoint,
-    validating: Bool
+    validating: Bool,
+    allowance: TimeInterval
   ) async throws -> Data {
     let configuration = Self.validatedSessionConfiguration(
       validating: validating
@@ -275,9 +303,9 @@ internal enum SigningNetwork {
     configuration.httpCookieStorage = nil
     configuration.urlCache = nil
     configuration.httpAdditionalHeaders = ["Accept": "*/*"]
-    let allowance = validating ? Self.validatedAttemptTimeout : Self.timeout
-    configuration.timeoutIntervalForRequest = allowance
-    configuration.timeoutIntervalForResource = allowance
+    let budget = validating ? Self.validatedAttemptTimeout : allowance
+    configuration.timeoutIntervalForRequest = budget
+    configuration.timeoutIntervalForResource = budget
     let collector = BoundedResponseCollector(
       initial: request,
       endpoint: endpoint,

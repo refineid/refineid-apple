@@ -221,6 +221,99 @@
     internal func clientAuthorityIsUsable() {
       #expect(TimestampAuthorityStore.isUsable(TimestampClient.authority))
     }
+
+    /// No probe means no verdict.
+    @Test
+    internal func verificationIsNilBeforeAnyProbe() throws {
+      #expect(
+        TimestampAuthorityStore.verification(
+          for: TimestampAuthorityStore.defaultAuthority,
+          in: try Self.freshDefaults()
+        ) == nil
+      )
+    }
+
+    /// A recorded verdict reads back for the probed address.
+    @Test
+    internal func verificationRoundTripsForTheProbedAddress() throws {
+      let defaults = try Self.freshDefaults()
+      let date = Date(timeIntervalSince1970: 1_800_000_000)
+      let failure = TimestampClient.Failure.authorityDidNotAnswer("refused")
+      TimestampAuthorityStore.recordVerification(
+        address: "http://tsa.example.com/tsa",
+        failure: failure,
+        date: date,
+        in: defaults
+      )
+      #expect(
+        TimestampAuthorityStore.verification(for: "http://tsa.example.com/tsa", in: defaults)
+          == TimestampAuthorityStore.Verification(
+            address: "http://tsa.example.com/tsa",
+            date: date,
+            succeeded: false,
+            reason: failure.settingsReason,
+            badge: failure.badgeSymbol
+          )
+      )
+    }
+
+    /// A verdict for another address is no verdict.
+    @Test
+    internal func verificationIsNilForAnotherAddress() throws {
+      let defaults = try Self.freshDefaults()
+      TimestampAuthorityStore.recordVerification(
+        address: "http://tsa.example.com/tsa",
+        failure: nil,
+        date: Date(),
+        in: defaults
+      )
+      #expect(
+        TimestampAuthorityStore.verification(for: "http://other.example.org/tsa", in: defaults)
+          == nil
+      )
+    }
+
+    /// Storing the draft stores the validated address.
+    @Test
+    internal func storingDraftEqualsStoringTarget() throws {
+      let defaults = try Self.freshDefaults()
+      for draft in [
+        "tsa.example.com/tsa",
+        "http://tsa.example.com/tsa",
+        "HTTP://tsa.example.com/tsa",
+        "https://tsa.example.com/tsa",
+        "  http://tsa.example.com/tsa\n",
+      ] {
+        let target = try #require(TimestampAuthorityStore.resolvedRequestAddress(draft))
+        TimestampAuthorityStore.store(draft, in: defaults)
+        let fromDraft = TimestampAuthorityStore.configured(in: defaults)
+        TimestampAuthorityStore.store(target, in: defaults)
+        let fromTarget = TimestampAuthorityStore.configured(in: defaults)
+        #expect(fromDraft == fromTarget, Comment(rawValue: draft))
+      }
+    }
+
+    /// Every failure names a settings reason; the two invalid
+    /// answers share one.
+    @Test
+    internal func everyFailureNamesASettingsReason() {
+      let reasons = [
+        TimestampClient.Failure.untrustedAuthority,
+        .trustedListsUnavailable,
+        .invalidResponse(.malformed),
+        .invalidToken(.untrustedSigner),
+        .noNetworkConnection,
+        .randomUnavailable,
+        .authorityDeclined,
+        .authorityDidNotAnswer("refused"),
+      ].map(\.settingsReason)
+      #expect(reasons.allSatisfy { !$0.isEmpty })
+      #expect(Set(reasons).count == reasons.count - 1)
+      #expect(
+        TimestampClient.Failure.invalidResponse(.malformed).settingsReason
+          == TimestampClient.Failure.invalidToken(.untrustedSigner).settingsReason
+      )
+    }
   }
 
 #endif

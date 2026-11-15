@@ -147,6 +147,7 @@ internal struct RefineIDApp: App {
             .writingToolsBehavior(.disabled)
             .windowFullScreenBehavior(.disabled)
         }
+        .windowResizability(.contentSize)
       #endif
 
       // Development builds only: the release configurations exclude the

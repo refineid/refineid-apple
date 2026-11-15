@@ -1,6 +1,7 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 import CardCore
+import CryptoKit
 import Foundation
 import Security
 
@@ -24,6 +25,9 @@ internal enum TimestampClient {
     /// The authority returned a token that failed cryptographic or RFC 3161 verification.
     case invalidToken(TimestampTokenVerifier.Failure)
 
+    /// The device had no usable network connection to ask with.
+    case noNetworkConnection
+
     /// Secure random bytes for the request could not be made.
     case randomUnavailable
 
@@ -32,6 +36,54 @@ internal enum TimestampClient {
 
     /// The authority response did not chain to trusted time-stamping anchors.
     case untrustedAuthority
+
+    /// The settings badge for a verified authority.
+    internal static let verifiedBadgeSymbol = "clock.badge.checkmark"
+
+    /// The settings badge for a failure no recorded badge names.
+    internal static let unclearBadgeSymbol = "clock.badge.exclamationmark"
+
+    /// The settings badge for a refused or silent authority.
+    internal static let unansweredBadgeSymbol = "clock.badge.xmark"
+
+    /// The settings badge without a network connection.
+    internal static let offlineBadgeSymbol = "clock.badge.questionmark"
+
+    /// The settings status line for this failure.
+    internal var settingsReason: String {
+      switch self {
+      case .untrustedAuthority:
+        String(localized: "Not on the EU trusted lists")
+      case .trustedListsUnavailable:
+        String(localized: "EU trusted lists unavailable")
+      case .invalidResponse, .invalidToken:
+        String(localized: "Invalid timestamp response")
+      case .noNetworkConnection:
+        String(localized: "No network connection")
+      case .randomUnavailable:
+        String(localized: "Secure random bytes unavailable")
+      case .authorityDeclined:
+        String(localized: "Timestamp declined")
+      case .authorityDidNotAnswer:
+        String(localized: "Service unreachable")
+      }
+    }
+
+    /// The settings badge for this failure.
+    ///
+    /// A refusal or silence is a cross; a missing connection is a
+    /// question; anything subtler is an exclamation.
+    internal var badgeSymbol: String {
+      switch self {
+      case .authorityDeclined, .authorityDidNotAnswer:
+        Self.unansweredBadgeSymbol
+      case .noNetworkConnection:
+        Self.offlineBadgeSymbol
+      case .invalidResponse, .invalidToken, .randomUnavailable,
+        .trustedListsUnavailable, .untrustedAuthority:
+        Self.unclearBadgeSymbol
+      }
+    }
   }
 
   /// The RFC 3161 time-stamp service every signature asks.
@@ -154,32 +206,6 @@ internal enum TimestampClient {
     }
   }
 
-  /// The compact exchange still asks the authority for its certificate.
-  internal static func compactRequest(
-    digest: Data,
-    nonceBytes: Data
-  ) -> Data {
-    RfcTimestamp.request(digest: digest, nonceBytes: nonceBytes)
-  }
-
-  /// Verifies a full token before removing only its CertificateSet.
-  internal static func verifiedCompactEncoding(
-    _ token: Data,
-    trustedCertificates: [Data]
-  ) throws -> Data {
-    let verified = try TimestampTokenVerifier.verify(
-      token, trustedCertificates: trustedCertificates
-    )
-    guard
-      let compact = CmsCertificates.removingCertificates(
-        from: verified.token
-      )
-    else {
-      throw RfcTimestamp.TokenFailure.malformed
-    }
-    return compact
-  }
-
   /// The token a response carries, bound to the request just sent.
   ///
   /// A response that is not a granted token for this request is the
@@ -206,7 +232,7 @@ internal enum TimestampClient {
   }
 
   /// One token from one authority, checked before it is accepted.
-  private static func token(
+  internal static func token(
     over digest: Data,
     from authority: String
   ) async throws -> TimestampTokenVerifier.VerifiedToken {

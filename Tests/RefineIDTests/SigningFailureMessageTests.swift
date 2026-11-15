@@ -136,6 +136,11 @@
         DocumentSigningMessage.message(for: invalidResponseFailure)
           == DocumentSigningMessage.message(for: invalidFailure)
       )
+      #expect(
+        DocumentSigningMessage.message(
+          for: DocumentSigner.Failure.network(TimestampClient.Failure.noNetworkConnection)
+        ) == DocumentSigningMessage.message(for: networkFailure)
+      )
     }
 
     @Test
