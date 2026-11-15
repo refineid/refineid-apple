@@ -335,7 +335,8 @@ private func notarizationSetupInstructions(for profile: String) -> String {
   Notarization credentials not found. Do this once:
 
   1. Create an app-specific password (not your Apple ID password):
-     https://appleid.apple.com → Sign-In and Security → App-Specific Passwords
+     https://account.apple.com → Sign-In and Security → App-Specific Passwords
+     (This is an Apple Account app-specific password, not App Store Connect.)
 
   2. Store it in your Keychain as profile "\(profile)":
      xcrun notarytool store-credentials "\(profile)" --apple-id "petri.koistinen@refineid.fi" --team-id 4ZJC3SFJR2
