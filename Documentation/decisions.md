@@ -1,11 +1,40 @@
-# Recorded decisions
+# Recorded Decisions
 
-Decisions with dates and rationale. `Documentation/ios-product-plan.md`
-controls iPhone scope. `Documentation/release-plan.md` controls
-macOS scope and shared security behavior. This file records the concrete
-values chosen under them.
+> [!IMPORTANT]
+> **Living architecture rules belong in `Documentation/design/`, not in this file.**
+> Per [AGENTS.md](../AGENTS.md), active system rules, UI constraints, and
+> architectural specifications must be maintained in their respective topic
+> documents under `Documentation/design/`. `Documentation/ios-product-plan.md`
+> controls iPhone scope milestones; `Documentation/release-plan.md` controls
+> macOS scope and shared security behavior. Do not append operational design
+> invariants to this file as an append-only diary. This file is retained as
+> a historical provenance and ADR audit log for past milestone dates. Where
+> an older historical entry below contradicts a canonical design document,
+> the document in `Documentation/design/` governs.
 
-## 2026-11-14 macOS MVP ships the local card only; the remote card is gated off
+## Canonical Architecture Index
+
+> [!NOTE]
+> The table below provides non-normative navigation pointers. The authoritative
+> specifications live in `Documentation/design/` (and `Documentation/virtual-id-card.md`).
+
+| Domain | Authoritative Specification | Scope & Topic Summary |
+|---|---|---|
+| **macOS App & MVP** | [macos.md](design/macos.md) | Single window, local card reader only (USB contact and contactless), single plist (`RefineID-Store-Info.plist`), RAPP and SCS compiled out. |
+| **iPhone & iPad App** | [ios.md](design/ios.md) | Built-in NFC, on-device CAN OCR and manual entry, single plist (`RefineID-iOS-Info.plist`), Remote Access (RAPP) background BLE and Bonjour serving. |
+| **Network & Transport** | [network-contract.md](design/network-contract.md) | Outbound-only traffic (TSA, OCSP/CRL/AIA, LOTL), `SigningNetwork` public IP gate, ATS configuration, zero inbound listeners on macOS. |
+| **PIN & Credentials** | [pin-and-credentials.md](design/pin-and-credentials.md) | Rules #1, #2, and #4, PIN 1 5-try custody floor & recovery, on-device PIN 2 prompt & memory-only pile caching, hardware retry floors & PUK handling, CAN storage. |
+| **Document Verification** | [document-verification.md](design/document-verification.md) | EU Trusted Lists (ETSI TS 119 612), LOTL bootstrap certificates, PAdES and XAdES verification without hardcoded vendor roots. |
+| **UI Principles** | [ui.md](design/ui.md) | Result and errors only, decide before drawing, no explainer copy or jargon, status and progress indicators. |
+| **Virtual ID Card** | [virtual-id-card.md](virtual-id-card.md) | Card state editor and test fixture generator for App Store Review and automated test harnesses. |
+
+---
+
+## Historical Decision Log
+
+The entries below record historical decisions, their timestamps, and rationale.
+
+### 2026-11-14 macOS MVP ships the local card only; the remote card is gated off
 
 Maintainer's decision: "I have decided to release macOS version without
 RAPP for now as MVP". The macOS build carries local card
@@ -38,7 +67,7 @@ part of the 2026-10-10 entry and the macOS Bluetooth grant of the
   Bringing the remote card back is the flag, the embed, the
   declarations, and the archive policy together.
 
-## 2026-11-13 Proven card access number is kept for cards awaiting activation
+### 2026-11-13 Proven card access number is kept for cards awaiting activation
 
 Maintainer's decision (2026-10-24, #270): on iPhone, once PACE has
 proven the card access number against the card, the number is kept
@@ -53,7 +82,7 @@ This aligns Apple with Android ADR 0044.
   Safari token publication remain strictly withheld until activation
   succeeds; an unactivated card is never offered to a browser or over RAPP.
 
-## 2026-11-13 Organization cards are gated off in every build
+### 2026-11-13 Organization cards are gated off in every build
 
 Maintainer's decision: organization cards stand behind a dedicated
 build-time gate, `FEATURE_ORGANIZATION_CARD`
@@ -86,7 +115,7 @@ stays built and tested.
   response, landed as a wire change with regenerated conformance
   vectors in both implementations; it is not in this change, and
   personal-card pairing is not disabled over it.
-## 2026-11-12 PIN 1 custody starts and continues only at the five-try limit
+### 2026-11-12 PIN 1 custody starts and continues only at the five-try limit
 
 Maintainer's decision (2026-11-08): a PIN 1 hold starts only when the
 PIN 1 counter read before VERIFY (or reported by `MSE:Set AT` before a
@@ -101,7 +130,7 @@ extension (`Pin1Memory`, #257 and #394) and the phone RAPP custodian
 This supersedes the 2026-07-28 entry's statement that holding had no
 counter prerequisite.
 
-## 2026-11-10 Settings return: the time-stamp authority is configurable, SCS stays gated
+### 2026-11-10 Settings return: the time-stamp authority is configurable, SCS stays gated
 
 Maintainer's decision: "I think I would like to have SCS and option to
 change timestamp server as option on macOS. iOS should have timestamp
@@ -125,7 +154,7 @@ server as configurable option in setting with current one refilled."
   entitlements keep no server side, so "SCS is excluded" still holds for
   review.
 
-## 2026-11-08 The Mac App Store build reaches the phone over Bluetooth
+### 2026-11-08 The Mac App Store build reaches the phone over Bluetooth
 
 Maintainer's decision: "I want Mac to use bluetooth also, naturally."
 Every macOS configuration now signs the app with
@@ -139,7 +168,7 @@ Bluetooth on the macOS app; the token extensions stay without it. This
 supersedes the 2026-10-22 entry's last bullet and the 2026-10-09 entry
 for macOS signing.
 
-## 2026-11-08 A phone pairs over Bluetooth too
+### 2026-11-08 A phone pairs over Bluetooth too
 
 Maintainer's decision, after an iPhone reachable only over Bluetooth could
 not be paired (#402): pairing over `fi.refineid.rapp.ble` joins the
@@ -168,7 +197,7 @@ product. It supersedes the 2026-10-09 and 2026-10-22 entries for pairing.
 - The pairing binds the transport it was made on; sessions run over
   either transport as before.
 
-## 2026-11-08 A forgotten pairing waits for the phone's echo; RAPP wire version 26.11.8
+### 2026-11-08 A forgotten pairing waits for the phone's echo; RAPP wire version 26.11.8
 
 Maintainer's decision: "list of terminated pairings in store for 30 days.
 When the iPhone presents a used-to-be-valid pairing, we say we used to
@@ -210,7 +239,7 @@ iPhone listed the Mac until its idle expiry.
 
 STPA: core's story 2, UCA-123, CC-118, CC-123 and R-2 (`doc/security/stpa-rapp.md`).
 
-## 2026-11-08 Release builds make only long-term signatures
+### 2026-11-08 Release builds make only long-term signatures
 
 Maintainer's rule, for every platform: "dev version can make non-LTA PDF
 documents but production version will only make LTA". `SignatureLevelPolicy`
@@ -258,7 +287,7 @@ or a development document passes for a long-term one. CC: release refuses
 below the long-term level, before PIN 2 where the certificate decides it;
 a development document names its level in its file name and in the notice.
 
-## 2026-11-07 The pairing's keys stay in the vault, and no notice ends a pairing
+### 2026-11-07 The pairing's keys stay in the vault, and no notice ends a pairing
 
 The token configuration holds only the 16-byte pair identifier, on every
 path, and the extension refuses anything else. `ctkd` stores configuration
@@ -311,7 +340,7 @@ These identifiers are local to this entry; core's record
 (`doc/security/stpa-rapp.md`) takes them under its own numbers when this
 change is public.
 
-## 2026-11-07 Document verification anchors on the EU trusted lists
+### 2026-11-07 Document verification anchors on the EU trusted lists
 
 The software ships the six Official Journal list-signing certificates
 (OJ C, C/2026/1944) and no CA root. `TrustedLists` in CardCore is the
@@ -348,7 +377,7 @@ signed by an entitled certificate (UCA-112, CC-116); it anchors outside
 a granted period (UCA-114, CC-118); it follows pointers without bound
 (UCA-115, CC-119).
 
-## 2026-11-07 RAPP wire version 26.11.7: the unlock event
+### 2026-11-07 RAPP wire version 26.11.7: the unlock event
 
 The wire version triple in channel envelopes, the pairing context, the
 handshake prologues and the offer is `[26, 11, 7]`; the document keeps
@@ -374,7 +403,7 @@ of security.
 - The phone sends the event from the locked-phone flow; see the entry
   below.
 
-## 2026-11-07 A locked iPhone serves no credential operation
+### 2026-11-07 A locked iPhone serves no credential operation
 
 The rule is the maintainer's, recorded in refineid-core:
 `doc/security/credential-custody.md` ("A locked phone serves nothing"),
@@ -400,7 +429,7 @@ The rule is the maintainer's, recorded in refineid-core:
 - Admission, `card.status` and reads are not credential use. The primed
   card's remembered fingerprint (CC-70) stays.
 
-## 2026-11-07 One retry floor: a blocked PIN goes to the card too
+### 2026-11-07 One retry floor: a blocked PIN goes to the card too
 
 The maintainer's rule, as refineid-core #311 implements it: one rule for
 PIN 1, PIN 2, the PUK and the activation PIN. A command that could spend a
@@ -422,7 +451,7 @@ PIN opens is floored on MSE:Set AT's answer before the first GENERAL
 AUTHENTICATE and sends no VERIFY status probe; at `63C0` the handshake goes
 on and the card answers, and `6983` on MSE:Set AT is itself the answer.
 
-## 2026-11-07 The PUK at no tries left goes to the card
+### 2026-11-07 The PUK at no tries left goes to the card
 
 Before presenting the PUK - a PIN reset, the organization card's PUK
 verify, and activation on a card whose activation PIN is the PUK - the
@@ -441,7 +470,7 @@ refineid-core already does. Card management no longer has an
 "unrecoverable" state; a PUK read as blocked is shown in the attempts
 row and disables nothing, and neither does a blocked preset PIN.
 
-## 2026-11-02 The Apple apps speak RAPP v26.11.2
+### 2026-11-02 The Apple apps speak RAPP v26.11.2
 
 Every pairing and session on iPhone, iPad and Mac runs RAPP v26.11.2; the
 wire version in the Noise prologue refuses a v26.10.29 peer, and a pair
@@ -468,7 +497,7 @@ that last changed its layout) is dropped, not converted.
 The vendored specification, state model, corpus and vectors are the
 v26.11.2 set from the reference repository.
 
-## 2026-10-29 The Apple apps speak RAPP v26.10.29
+### 2026-10-29 The Apple apps speak RAPP v26.10.29
 
 Every pairing and session on iPhone, iPad and Mac runs RAPP v26.10.29; the
 wire version in the Noise prologue refuses a v26.10.22 peer.
@@ -496,7 +525,7 @@ wire version in the Noise prologue refuses a v26.10.22 peer.
 The vendored specification, state model, corpus and vectors are the
 v26.10.29 set from the reference repository.
 
-## 2026-10-22 The phone serves every computer at once
+### 2026-10-22 The phone serves every computer at once
 
 The iPhone serves every routed connection as a session of its own, on the
 stream and over Bluetooth, as RAPP v26.10.22 §2.2.2 and §8.3 say and STPA
@@ -531,7 +560,7 @@ are gone, and no session is ever displaced.
   wait that doubles from 2 to 32 seconds; a session that comes up, or the
   phone newly seen on Bonjour, starts it over.
 
-## 2026-10-22 The phone serves over Bluetooth from the background
+### 2026-10-22 The phone serves over Bluetooth from the background
 
 The iPhone serves RAPP sessions over `fi.refineid.rapp.ble` (RAPP v26.10.22
 §5) beside the stream, under the same gates: Remote Access on, an NFC
@@ -584,7 +613,7 @@ phase 4); no Bluetooth pairing exists in the product.
   `com.apple.security.device.bluetooth`; there the Mac reaches the phone
   over the stream only, since Bluetooth reports itself unauthorized.
 
-## 2026-10-22 The Apple apps speak RAPP v26.10.22
+### 2026-10-22 The Apple apps speak RAPP v26.10.22
 
 Every pairing and session on iPhone, iPad and Mac runs RAPP v26.10.22; the
 wire version in the Noise prologue refuses a v26.10.21 peer. The revision
@@ -636,7 +665,7 @@ reading, and keeps every device's view of the card eventually consistent.
 The vendored specification, state model, corpus and vectors are the
 v26.10.22 set from the reference repository.
 
-## 2026-10-22 The Apple apps speak RAPP v26.10.21
+### 2026-10-22 The Apple apps speak RAPP v26.10.21
 
 Every pairing and session on iPhone, iPad and Mac runs RAPP v26.10.21;
 the wire version in the Noise prologue refuses a v26.10.18 peer. The
@@ -685,7 +714,7 @@ The Mac's identity offering, the phone's presence after an unanswered
 operation and the consent view were superseded on 2026-10-22 by RAPP
 v26.10.22, recorded above.
 
-## 2026-10-18 The Apple apps speak RAPP v26.10.18
+### 2026-10-18 The Apple apps speak RAPP v26.10.18
 
 Every pairing and session on iPhone, iPad and Mac runs RAPP v26.10.18;
 the wire version in the Noise prologue refuses a v26.10.10 peer. The
@@ -746,7 +775,7 @@ that does not decode is revoked and a journal that does not decode is
 dropped.
 Superseded on 2026-10-22 by RAPP v26.10.21, recorded above.
 
-## 2026-10-18 The remote card has no pause row
+### 2026-10-18 The remote card has no pause row
 
 The token extension still backs off after a browser request ends
 without a card or without the holder's approval, so a retrying browser
@@ -760,7 +789,7 @@ deleted, because a requester offers a phone's identity only while a
 session to that phone reports a card, so a browser is not offered a
 card that cannot answer.
 
-## 2026-10-18 The phone holds the card session across requests
+### 2026-10-18 The phone holds the card session across requests
 
 A remote operation on the phone no longer opens the field and runs
 PACE for itself alone. The near-field and reader holders keep the
@@ -776,7 +805,7 @@ which kept the field on after a result without keeping the channel,
 is gone. Debug and Profile builds stamp each operation's phases into
 the diagnostics trace in milliseconds since the request arrived.
 
-## 2026-10-18 Paired devices are shown by the name they gave
+### 2026-10-18 Paired devices are shown by the name they gave
 
 A pairing is listed and chosen by the `display_name` its peer sent in
 the RAPP pairing hello (v26.10.18 section 7.1). The app keeps no
@@ -794,7 +823,7 @@ the key enters `Config/RefineID-iOS.entitlements` and the device name
 replaces the model (the naming rule is in design/ui.md). Android sends the
 name set in its system settings and already appears by it.
 
-## 2026-10-09 Bluetooth is declared, and stays unwired
+### 2026-10-09 Bluetooth is declared, and stays unwired
 
 RAPP v26.10.1 adopted the Bluetooth Low Energy transport profile, and
 its relay code in CardCore links into every application binary. App
@@ -807,7 +836,7 @@ files as unwired and now pins the one declaration instead of its
 absence. Superseded on 2026-10-22: the phone serves over Bluetooth,
 recorded above.
 
-## 2026-10-09 The RAPP BLE profile is driven by development builds only
+### 2026-10-09 The RAPP BLE profile is driven by development builds only
 
 `fi.refineid.rapp.ble.v1` (RAPP v26.10.9 §4.2, §5) is implemented: the
 §5.3 segmentation and reassembly layer in `RappEngine` with its own
@@ -826,7 +855,7 @@ wiring the profile into the product wait for a product decision.
 Superseded on 2026-10-22 for sessions, recorded above; pairing over
 Bluetooth stays a development mode.
 
-## 2026-09-30 App Transport Security stays open under a documented contract
+### 2026-09-30 App Transport Security stays open under a documented contract
 
 `NSAllowsArbitraryLoads` remains true in the macOS and iOS application
 property lists. An archival (LTA) signature needs the timestamp
@@ -851,7 +880,7 @@ the Sectigo exception) and the absence of Bluetooth declarations.
 Bluetooth radio code ships but is unwired and undeclared: no
 `NSBluetooth*` key may exist until remote-card work activates it.
 
-## 2026-09-27 App Store marketing screenshot design system and top-anchored layout
+### 2026-09-27 App Store marketing screenshot design system and top-anchored layout
 
 Marketing screenshots across macOS (2880×1800), iPhone 6.7" (1290×2796), and
 iPad Pro 12.9" 3rd Gen (2048×2732) follow a unified dark aesthetic with
@@ -882,14 +911,14 @@ positioning.
    attaches the verified build to the App Store version, ensuring TestFlight
    previews reflect the latest marketing assets immediately upon distribution.
 
-## 2026-09-26 Time stamp configuration feature gated in Settings
+### 2026-09-26 Time stamp configuration feature gated in Settings
 
 For the initial App Store release, the "Time Stamp" authority settings pane
 is feature gated behind `FEATURE_TIMESTAMP_CONFIG`. The hardcoded qualified
 Sectigo timestamp server (`http://timestamp.sectigo.com/qualified`) is used
 as the single trusted authority.
 
-## 2026-09-13 Technical identifiers keep the ReFineID spelling
+### 2026-09-13 Technical identifiers keep the ReFineID spelling
 
 The product rename to RefineID covers display strings, docs, comments,
 and file names. Bundle IDs, the CryptoTokenKit class-id, and the
@@ -903,7 +932,7 @@ two names. The app group already uses the new spelling
 (`group.fi.refineid.RefineID`). A full rename needs a new App Store SKU
 with credential migration and is not planned.
 
-## 2026-09-10 First full version: TestFlight and Release ship every feature
+### 2026-09-10 First full version: TestFlight and Release ship every feature
 
 The month since the iPhone MVP proved the pieces live: RAPP proxy web
 authentication from Mac via iPhone, reader priority, native iOS PIN
@@ -918,7 +947,7 @@ cross to the Mac, and activation never spends a card's last attempt.
 Phase E physical qualification now runs against the exact shipping
 topology and gates TestFlight distribution, not re-enabling.
 
-## 2026-09-05 Silent iPhone HSM mode for resting card operations and conditional feedback
+### 2026-09-05 Silent iPhone HSM mode for resting card operations and conditional feedback
 
 When an iPhone acts as a remote card proxy/HSM and a Finnish ID card is already
 resting under the phone, all RAPP signing operations execute silently and as fast
@@ -931,7 +960,7 @@ success. In case of an error, failure feedback is always reported. Furthermore, 
 session burst grace period is set to 3.5 seconds to retain the active RF session across
 multi-handshake mTLS bursts.
 
-## 2026-09-05 Physical smart card reader takes priority over wireless presence on RAPP proxy
+### 2026-09-05 Physical smart card reader takes priority over wireless presence on RAPP proxy
 
 When an iPhone acts as a RAPP authorization proxy and has a physical CCID
 smart card reader attached (via USB-C or Lightning), the card in the physical
@@ -940,7 +969,7 @@ NFC presence. This prevents race conditions where the app might poll for
 contactless NFC when an inserted contact card is already present and ready
 for immediate operation.
 
-## 2026-09-05 Native iOS PIN1 prompt on iPhone for RAPP proxy web authentication
+### 2026-09-05 Native iOS PIN1 prompt on iPhone for RAPP proxy web authentication
 
 During remote web authentication initiated from a Mac via RAPP, PIN 1 is
 prompted natively and interactively on the iPhone screen. PIN 1 never leaves
@@ -951,7 +980,7 @@ PIN 1 exists only in volatile memory during the active insertion session.
 Upon physical card disconnection or reader detachment, all cached PIN 1 state
 on the phone is immediately zeroized.
 
-## 2026-09-05 Restrict macOS CryptoTokenKit browser identities to PIN 1 authentication
+### 2026-09-05 Restrict macOS CryptoTokenKit browser identities to PIN 1 authentication
 
 On macOS, Safari and other WebKit consumers evaluate available client identities
 from CryptoTokenKit tokens. Exposing both PIN 1 (authentication) and PIN 2
@@ -961,7 +990,7 @@ holder unexpectedly for a signing PIN during a login flow. PIN 2 identities are
 therefore excluded from the system browser client certificate list, preserving
 PIN 2 strictly for explicit in-app document signing.
 
-## 2026-09-05 Encrypted in-band departure signaling for card removal
+### 2026-09-05 Encrypted in-band departure signaling for card removal
 
 When a card is removed from an iPhone's reader during an active RAPP proxy session,
 the event is communicated immediately to the connected Mac using an encrypted,
@@ -972,7 +1001,7 @@ inferring the physical presence or absence of citizen cards via traffic analysis
 while allowing the Mac browser UI to recover cleanly without hanging until timeout.
 See `Documentation/card-departure-privacy-and-signaling-plan.md`.
 
-## 2026-09-05 Drop iOS 16 backport; floor remains iOS 26 and macOS 26
+### 2026-09-05 Drop iOS 16 backport; floor remains iOS 26 and macOS 26
 
 The experimental backport of `CardCore` to iOS 16 for legacy iPad requester
 hardware was evaluated and deemed infeasible. Shimming modern concurrency,
@@ -981,7 +1010,7 @@ paths that could compromise safety and auditability. The local branch `ipad-ios1
 was deleted, and the project's strict deployment floor remains iOS 26.0 and
 macOS 26.0 across all configurations.
 
-## 2026-08-23 PIN1 lives on the token, not on a timer
+### 2026-08-23 PIN1 lives on the token, not on a timer
 
 A reader PIN1 the card has accepted is cached on that live CryptoTokenKit
 token. There is no 15-minute window and no other timeout. Pulling the
@@ -989,7 +1018,7 @@ card or unplugging the reader ends the token, and the PIN goes with it.
 The token extension process may stay up; the cache must not. NFC still
 uses the durable store the holder wrote at Enable.
 
-## 2026-08-23 Pairing outlives the card; tokens do not
+### 2026-08-23 Pairing outlives the card; tokens do not
 
 This repository is the change controller for the Remote Authorization
 Proxy Protocol as RefineID ships it. When product behaviour needs a
@@ -1013,7 +1042,7 @@ does not name the client that asked for a token: Mail listing
 identities and Safari signing both mint a registered contactless
 token, which is the Ready to Scan sheet. The driver cannot refuse Mail.
 
-## 2026-08-23 Floor is iOS 26 and macOS 26
+### 2026-08-23 Floor is iOS 26 and macOS 26
 
 Debug, Profile, TestFlight, and Release share one floor: 26.0. The
 NFC smart-card APIs arrived in 26.0; later 26.x point releases are
@@ -1021,7 +1050,7 @@ the same product. The iOS 16 Debug path is gone. An iPad without an
 antenna can still be a requester on iPadOS 26 with
 `REFINEID_LOCAL_CARD` off.
 
-## 2026-08-23 6-character pairing code and persistent Diffie-Hellman reconnection
+### 2026-08-23 6-character pairing code and persistent Diffie-Hellman reconnection
 
 The pairing ceremony and connection lifecycle between borrowing devices
 (iPad, Mac) and provider devices (iPhone) are improved for usability and
@@ -1041,7 +1070,7 @@ mDNS rendezvous tokens, restoring connections automatically without user
 prompts. Full details are documented in
 `Documentation/pairing-and-connection-improvement-plan.md`.
 
-## 2026-08-22 macOS ships with the remote card gated off
+### 2026-08-22 macOS ships with the remote card gated off
 
 The macOS app goes to the App Store carrying the same gates as the
 iPhone release below: the remote card (RAPP) and activation stay
@@ -1063,7 +1092,7 @@ inspector now expects the gated shape from a macOS candidate too
 wiring and the store files' word-for-word relationship to the
 development ones.
 
-## 2026-08-21 The first App Store release is an iPhone MVP on iOS 26
+### 2026-08-21 The first App Store release is an iPhone MVP on iOS 26
 
 The first public release is the iPhone app alone, and it requires
 iOS 26. It carries exactly what real cards have verified: one-step NFC
@@ -1093,7 +1122,7 @@ The floor is iOS 26.0 and macOS 26.0 in every configuration. The
 iPad-requester path still exists as a Debug/Profile family, but it
 runs on iPadOS 26, not iOS 16.
 
-## 2026-08-13 A demonstration mode ships on iPhone, for one launch only
+### 2026-08-13 A demonstration mode ships on iPhone, for one launch only
 
 The iOS submission was rejected under guideline 2.1(a) asking for a
 demo account or a demonstration mode. There is no account to give, and
@@ -1132,7 +1161,7 @@ entirely: `DiagnosticsView.swift` and its collaborators are named in
 `EXCLUDED_SOURCE_FILE_NAMES` for the TestFlight and Release
 configurations.
 
-## 2026-08-11 Contactless card reading is out of the first macOS release
+### 2026-08-11 Contactless card reading is out of the first macOS release
 
 macOS is contact-reader only in the first App Store release.
 Contactless reading is compile-gated behind `FEATURE_CONTACTLESS`,
@@ -1159,7 +1188,7 @@ When contactless returns to macOS it ships as the holder's Settings
 toggle, off by default, with the entitlement restored on both
 targets. Roadmap: TASKS.md section 15.
 
-## 2026-08-11 PIN 2 is briefly remembered for a pile of documents
+### 2026-08-11 PIN 2 is briefly remembered for a pile of documents
 
 Signing several documents in one pass remembers the PIN 2 for one
 minute, so a pile of dropped documents signs with one entry. This
@@ -1184,7 +1213,7 @@ copy the PIN ever had.
 Superseded on 2026-10-22: PIN 2 is asked for every signature or batch
 and kept no longer (RAPP v26.10.22 §11 item 2).
 
-## 2026-08-11 The SCS is out of the first App Store release
+### 2026-08-11 The SCS is out of the first App Store release
 
 The Signature Creation Service (the loopback HTTPS server web pages
 sign through) does not ship in the first App Store release. It is
@@ -1210,7 +1239,9 @@ When the SCS does ship, it ships as a setting the holder explicitly
 activates, so the trust prompt happens in context on opt-in rather
 than at first launch. Post-MVP roadmap: TASKS.md section 15.
 
-## 2026-08-10 The ATS exception is macOS-only
+### 2026-08-10 The ATS exception is macOS-only
+
+*(Superseded 2026-09-30 when iOS gained outbound timestamping, revocation, and EU Trusted List retrieval; both macOS and iOS plists now configure ATS for dynamic certificate endpoints per [network-contract.md](design/network-contract.md).)*
 
 The app's Info.plist is split per SDK, the same way its entitlements
 already were: `Config/RefineID-iOS-Info.plist` is the base
@@ -1239,7 +1270,7 @@ code (the 2026-08-07 entry below) must land in both in the same
 commit. The release manager's `inspect-archive` command checks the built product's plist, so
 either platform's archive still fails if its copy is wrong.
 
-## 2026-08-09 Built-in NFC ships in production on iPhone
+### 2026-08-09 Built-in NFC ships in production on iPhone
 
 The built-in NFC transport is a required production iPhone feature. Its
 TestFlight and App Store builds ship the complete priming, registration,
@@ -1260,7 +1291,7 @@ records the architecture. Apple's CryptoTokenKit and CoreNFC references in
 `Documentation/references.md` prove the platform API surface; they do not decide this
 product's shipping scope. This entry does.
 
-## 2026-08-04 Card management and PIN2 signing enter scope, macOS first
+### 2026-08-04 Card management and PIN2 signing enter scope, macOS first
 
 The full credential set - activation, PIN1/PIN2 change, PUK unblock,
 and PIN2 qualified signatures - is required on macOS, iPadOS and iOS;
@@ -1284,7 +1315,7 @@ CryptoTokenKit lets every system client request a qualified signature.
 Direct in-app operations remain the fallback if hardware validation
 shows ctkd cannot carry per-signature PIN2 semantics.
 
-## 2026-08-01 The PACE suite stays fixed, now for a measured reason
+### 2026-08-01 The PACE suite stays fixed, now for a measured reason
 
 `PaceCommand.securityEnvironment()` sends
 id-PACE-ECDH-GM-AES-CBC-CMAC-256 over brainpoolP384r1 without asking
@@ -1303,7 +1334,7 @@ to negotiate with. `CardAccessFile` and the diagnostics probe remain,
 because the next card generation is the thing that would change this
 answer and re-asking should cost one hold rather than a rewrite.
 
-## 2026-08-01 A set identity is the whole screen
+### 2026-08-01 A set identity is the whole screen
 
 Once an identity is set there is nothing left to configure, so nothing
 about configuring it is shown. The setup header and the two credential
@@ -1326,7 +1357,7 @@ confirmation dialog as a popover anchored to its source; the popover
 form drops the cancel action, and it was measured landing across the
 navigation bar far from the button that opened it.
 
-## 2026-08-01 No gate stands in front of storing PIN1
+### 2026-08-01 No gate stands in front of storing PIN1
 
 The app-side biometric prompt guarded only the act of writing a PIN the
 holder had just typed. The token extension reads the stored value
@@ -1343,7 +1374,7 @@ This supersedes the app-code half of the 2026-07-27 gate decision.
 The keychain item is unchanged: `WhenUnlockedThisDeviceOnly`,
 non-synchronizable, never displayed, never in a backup or iCloud.
 
-## 2026-08-01 One NFC field primes and registers
+### 2026-08-01 One NFC field primes and registers
 
 Priming opened two consecutive system NFC fields: a Core NFC read for
 PACE and the certificate, then a CryptoTokenKit slot that existed only
@@ -1380,7 +1411,7 @@ mint read `registration=true` and took no card session, and
 2026-07-28 build-16 trace left open: PACE inside a CryptoTokenKit field
 completes when the app owns that field.
 
-## 2026-08-03 iPad is supported, and asks the device rather than the build
+### 2026-08-03 iPad is supported, and asks the device rather than the build
 
 The device family becomes iPhone and iPad. An iPad reaches the card the
 only way it can, through a USB-C reader, which is a transport this app
@@ -1399,7 +1430,7 @@ A device with no antenna is told the one thing that helps -- connect a
 reader and insert the card -- instead of being shown a setup form it
 cannot use.
 
-## 2026-08-03 Export compliance is declared as non-exempt
+### 2026-08-03 Export compliance is declared as non-exempt
 
 `ITSAppUsesNonExemptEncryption` is `true` in the app's Info.plist.
 
@@ -1438,7 +1469,7 @@ What was submitted, the cryptography it describes, and why the
 authentication-only exemption was not taken:
 `Documentation/export-compliance.md`.
 
-## 2026-08-03 Diagnostics is a development tool, on both platforms
+### 2026-08-03 Diagnostics is a development tool, on both platforms
 
 TestFlight is a shipped build. It reaches people who are not us, on
 their own phones and Macs, with their own cards -- so it carries no
@@ -1461,7 +1492,7 @@ no trace file path. The one `createToken` hit in an extension is
 `tokenDriver:createTokenForSmartCard:AID:error:`, which is
 CryptoTokenKit's own selector and not ours to remove.
 
-## 2026-07-30 A shipped build says nothing
+### 2026-07-30 A shipped build says nothing
 
 TestFlight and App Store builds carry no diagnostics and write no log of
 any kind: no `os.Logger` line, no file in the extension container, no
@@ -1502,7 +1533,7 @@ file; the Profile token extension still contains 23. The release manager's
 `inspect-archive` command now fails an archive in which any of them reappear, and rejects the
 Profile bundle when pointed at it.
 
-## 2026-07-29 Every connected reader card is published; Safari selects
+### 2026-07-29 Every connected reader card is published; Safari selects
 
 CryptoTokenKit creates and retains a live token for every supported card
 inserted in a connected reader. Every live token publishes its signed
@@ -1520,7 +1551,7 @@ This is the smallest and most compatible boundary: CryptoTokenKit publishes
 the identities, Safari selects one, and the app reports only whether one or
 several usable USB-C reader tokens are live.
 
-## 2026-07-29 Engineering diagnostics are not product functionality
+### 2026-07-29 Engineering diagnostics are not product functionality
 
 The interactive diagnostics report, shared-trace controls, and support
 disclosure row are present in Debug and Profile builds only. TestFlight and
@@ -1534,7 +1565,7 @@ must not contain dormant engineering screens, while the optimized Profile
 configuration used for live card development still needs the same
 instruments that made the NFC path measurable.
 
-## 2026-07-29 A reader mint supersedes every RefineID NFC identity
+### 2026-07-29 A reader mint supersedes every RefineID NFC identity
 
 On iOS, successfully minting a token for a card in a connected reader
 removes every stored RefineID contactless prime and synchronously
@@ -1553,7 +1584,7 @@ minted live reader token remains published. If the holder later wants NFC
 again, "Set identity" performs the deliberate one-time contactless setup
 again.
 
-## 2026-07-29 An ended NFC field is an absent token
+### 2026-07-29 An ended NFC field is an absent token
 
 The iOS token session maps only `CardOperationError.sessionUnavailable`
 to CryptoTokenKit `tokenNotFound` (`-7`). That error means the token
@@ -1575,7 +1606,7 @@ consume the first field before the signature request exists. Once Safari
 remembers that choice, a repeat reaches the signature while its fresh
 field is alive. The extension cannot preselect or accept the certificate.
 
-## 2026-07-29 A mismatched card family is refused before PACE
+### 2026-07-29 A mismatched card family is refused before PACE
 
 An iOS prime is looked up by the SHA-256 fingerprint of the card's ATR.
 When a registered generation-05 identity was offered a generation-04
@@ -1588,7 +1619,7 @@ of the same model can share an ATR, and the unique printed serial is not
 available until after PACE. Code and user-facing claims must preserve
 that distinction.
 
-## 2026-07-29 Resolve known issuing CAs before reading the card
+### 2026-07-29 Resolve known issuing CAs before reading the card
 
 Identity creation reads the authentication leaf and card serial once. It
 resolves the leaf's issuing CA from the app's bundled public FINEID
@@ -1615,7 +1646,7 @@ This is a preference, not an assumption. Unknown future issuers still take
 the existing on-card fallback and are stored with the prime, so every later
 login remains independent of the app bundle and does no certificate read.
 
-## 2026-07-28 Authentication observes PIN1, not unrelated credentials
+### 2026-07-28 Authentication observes PIN1, not unrelated credentials
 
 Normal identity minting does not read any retry counter. Reader authentication
 reads one side-effect-free PIN1 retry result immediately before VERIFY PIN1 and
@@ -1646,7 +1677,7 @@ registration. Only the card's PIN rejection or blocked response triggers that
 revocation; radio loss, PACE failure, bad signature shape, and TLS failure do
 not.
 
-## 2026-07-28 A card directory replaces the single stored number
+### 2026-07-28 A card directory replaces the single stored number
 
 Every known card is an entry -- serial, model key, display name, and
 its card access number -- newest first, stored as one JSON blob in the
@@ -1658,7 +1689,7 @@ typed number against the present card before recording the pair. The
 single unbound number remains as the last candidate and the status
 row's quick entry path.
 
-## 2026-07-28 The card access number is holder-visible
+### 2026-07-28 The card access number is holder-visible
 
 The store's original rule -- never hand a stored value back for display
 -- treated the card access number like PIN1. They are not alike: the
@@ -1675,7 +1706,7 @@ the item stays `WhenUnlockedThisDeviceOnly` and non-synchronizable,
 so the number is never written into a backup and never sent to
 iCloud.
 
-## 2026-07-28 Stored PIN1 is directly available to the iOS token extension
+### 2026-07-28 Stored PIN1 is directly available to the iOS token extension
 
 The fifteen-minute software signing window is removed from the iOS
 contactless path. If the holder explicitly stores PIN1, the token extension
@@ -1697,7 +1728,7 @@ be preselected by it.
 
 Superseded on 2026-10-22: no PIN is stored (RAPP v26.10.22 §11 item 2).
 
-## 2026-07-28 Status and diagnostics must not enumerate token identities
+### 2026-07-28 Status and diagnostics must not enumerate token identities
 
 `SecItemCopyMatching` against the `com.apple.token` identity group is not a
 passive readiness check on iOS. It can cause ctkd to create a token and
@@ -1709,7 +1740,7 @@ Status now observes already-published token IDs through `TKTokenWatcher`.
 Diagnostics reports the typed application stores and watcher state, and
 states that token keychain counts were intentionally not queried.
 
-## 2026-07-27 Split the CryptoTokenKit driver into discovery and minting
+### 2026-07-27 Split the CryptoTokenKit driver into discovery and minting
 
 Two app extensions, not one, because the two roles are mutually exclusive
 in a single driver.
@@ -1750,7 +1781,7 @@ which the AID is on the wrong extension. The iOS discovery file later
 gained one keychain group, for one write - see "Where the diagnostics
 trace lives" below.
 
-## 2026-07-27 Where the diagnostics trace lives
+### 2026-07-27 Where the diagnostics trace lives
 
 The three binaries cannot see each other's logs. On iOS 26
 `log stream --device` is gone, `log collect` fails, and the file
@@ -1788,7 +1819,7 @@ is left alone: it has `log stream`, and widening the reviewed allowlist
 in the release manager's `inspect-archive` command for a diagnostic would be the wrong
 trade.
 
-## 2026-07-27 The biometric gate is in app code, not in the keychain item
+### 2026-07-27 The biometric gate is in app code, not in the keychain item
 
 PIN1 briefly carried a `SecAccessControl` with `.biometryCurrentSet`, on
 the principle that policy enforced by the Security framework cannot be
@@ -1808,7 +1839,7 @@ of PIN1 storage until 2026-08-01, when it was removed; see the entry
 below. The keychain-item half of this decision stands: neither item
 carries a `SecAccessControl`, for the reasons measured above.
 
-## 2026-07-27 One keychain group for the app and its minting extension
+### 2026-07-27 One keychain group for the app and its minting extension
 
 The contactless path is a handover between two processes. The app primes
 a card and writes what it read; the token extension is asked for a token
@@ -1840,7 +1871,7 @@ no NFC slot to prime for, and adding a group there would widen the
 reviewed allowlist in
 the release manager's `inspect-archive` command for no working feature.
 
-## 2026-07-28 Select the available card transport automatically
+### 2026-07-28 Select the available card transport automatically
 
 RefineID reaches the card over a contact/PC-SC reader and, on iOS 26+,
 over the phone's own NFC antenna. Native CryptoTokenKit mTLS over NFC was
@@ -1858,7 +1889,7 @@ necessarily contact.
 Architecture and the four implementation rules that the NFC path must not
 violate: `Documentation/card-transports.md`.
 
-## 2026-07-22 iOS core: minimal pure-Swift Safari driver
+### 2026-07-22 iOS core: minimal pure-Swift Safari driver
 
 The Rust core remains the reference oracle for differential testing and
 the engine for future heavy flows (in-app NFC login with PACE/SM, the
@@ -1866,7 +1897,7 @@ relay), which move to v1.x or later. The same minimal Swift driver on
 CardCore is the macOS product's M2 card core: one driver, two
 platforms.
 
-## 2026-07-22 Calendar versioning
+### 2026-07-22 Calendar versioning
 
 `YY.M.D` version, HHMM UTC build number, tags carry the exact build
 number. Full scheme: release plan, "Calendar versioning".
@@ -1878,7 +1909,7 @@ automation; dev builds keep the last release's committed version. The
 `v0.9.x` git tags are informal milestone markers, separate from the
 calendar release/tag scheme.
 
-## 2026-07-22 Bundle identifiers (decided; registration pending)
+### 2026-07-22 Bundle identifiers (decided; registration pending)
 
 - Application: `fi.refineid.ReFineID`
 - Token extension: `fi.refineid.ReFineID.token`
@@ -1899,14 +1930,14 @@ identifier is stable; changing it is not a runtime recovery mechanism.
 The P0 task remains open until all identifiers are registered as explicit
 App IDs on the release team.
 
-## 2026-07-22 Minimum supported macOS: 26.0
+### 2026-07-22 Minimum supported macOS: 26.0
 
 Matches the only hardware evidence the project can currently produce.
 Smallest possible v1.0 test matrix; every additionally supported major
 version would need its own hardware-matrix pass. Lowering later is possible;
 raising after release is disruptive.
 
-## 2026-07-22 Entitlements (complete list, per target)
+### 2026-07-22 Entitlements (complete list, per target)
 
 Application (`Config/RefineID.entitlements`):
 
@@ -1924,7 +1955,7 @@ Token extension (`Config/TokenExtension.entitlements`):
 No other entitlement is approved. The release manager's `inspect-archive` command fails the
 archive if any other entitlement appears.
 
-## 2026-07-22 Source layout
+### 2026-07-22 Source layout
 
 - `CardCore/` is a local Swift package (platform-independent protocol model;
   no UI, no CryptoTokenKit). The app and extension consume its library
@@ -1937,7 +1968,7 @@ archive if any other entitlement appears.
 - The Xcode project is hand-maintained (`objectVersion 77`, folder-
   synchronized groups). No project generator is used at any point.
 
-## 2026-08-07 The plist answers Apple's question, not the EAR's
+### 2026-08-07 The plist answers Apple's question, not the EAR's
 
 `ITSAppUsesNonExemptEncryption` is `false` until the ANSSI attestation
 exists, then `true` together with the code Apple issues.
@@ -1955,7 +1986,7 @@ upload.
 The reviewed-source point stands: the answer stays in the bundle, and
 the release manager's `inspect-archive` command still refuses `true` without a code.
 
-## 2026-08-25 Why registered contactless smartcards cause unsolicited NFC prompts on iOS
+### 2026-08-25 Why registered contactless smartcards cause unsolicited NFC prompts on iOS
 
 `TKSmartCardTokenRegistrationManager.registerSmartCard` registers an NFC
 token into the global iOS Keychain. On iOS, `ctkd` assumes that any query
@@ -1980,7 +2011,7 @@ The architectural solution across European eID ecosystems on iOS is
 schemes, and the Remote Authentication & Proxy Protocol / RAPP) so that NFC
 hardware sessions are opened solely during explicit user-initiated actions.
 
-## 2026-09-03 Cross-platform RAPP token stability and mDNS presence hold on macOS
+### 2026-09-03 Cross-platform RAPP token stability and mDNS presence hold on macOS
 
 Live testing of RAPP browser authentication from macOS Safari to an Android
 phone acting as a contactless card reader revealed two timing interactions:
@@ -2002,7 +2033,7 @@ phone acting as a contactless card reader revealed two timing interactions:
    exercising the exact relay and token extension path without requiring manual
    scene setup.
 
-## 2026-09-11: 6-Digit Pairing Standard, Cross-Platform Qualification, and macOS Store Gates
+### 2026-09-11: 6-Digit Pairing Standard, Cross-Platform Qualification, and macOS Store Gates
 
 1. **6-Digit Pairing Standard**: QR code pairing is deprecated and removed from
    documentation. Device pairing uses a clean 6-digit numeric code (Noise XXpsk3)
@@ -2022,7 +2053,7 @@ phone acting as a contactless card reader revealed two timing interactions:
 
 
 
-## 2026-09-30 - macOS local-card MVP
+### 2026-09-30 - macOS local-card MVP
 
 The release owner chose a smaller macOS App Store release, first tested as a
 TestFlight release candidate. Local card authentication, contact/contactless
@@ -2033,7 +2064,7 @@ The macOS store listing uses one local-card screenshot per localization.
 This supersedes the earlier full-version macOS scope; deferred features retain
 their qualification requirements before they can ship later.
 
-## 2026-10-10 - RAPP v26.10.9 local choices
+### 2026-10-10 - RAPP v26.10.9 local choices
 
 The Swift engine follows RAPP v26.10.9, which settles the offer bootstrap
 on every transport, the KC2 context, the session suite, the algorithm
@@ -2047,7 +2078,7 @@ registry, and the error vocabulary. Two choices remain local:
    validity dates as issuance and expiration; the phone reads no separate
    card file for them.
 
-## 2026-10-09 - Session discovery publishes nothing token-derived
+### 2026-10-09 - Session discovery publishes nothing token-derived
 
 Stored pairings no longer meet under a name derived from the rendezvous
 token. The phone runs one session listener under a fresh random
@@ -2062,7 +2093,7 @@ browses by these hints for its pairing and for presence; a minimal record
 without hints stands for the only pairing, or for an unknown one when several
 are stored.
 
-## 2026-10-10 RAPP returns to macOS, as a requester that only dials
+### 2026-10-10 RAPP returns to macOS, as a requester that only dials
 
 The release owner put the remote card back into the macOS App Store build:
 pairing with a phone that holds the card, document signing through it, and

@@ -7,46 +7,74 @@ The Mac app is one window. It says whose card can log in and signs
 documents with it. There is no Help menu. The app menu holds About,
 which links the site, and Settings. The View menu holds Demo Mode.
 
+## Scope and macOS MVP Architecture
+
+The macOS MVP release delivers local smart card reader support only.
+
+- **Local card only.** The Mac app communicates directly with smart cards
+  inserted into connected contact or contactless USB/CCID readers via
+  CryptoTokenKit (`TokenExtension`). Contactless reading and CAN entry are
+  enabled via `FEATURE_CONTACTLESS` in `Config/Features.xcconfig`.
+- **Remote Access (RAPP) compiled out.** Remote use (`REFINEID_REMOTE_CARD` in
+  `Config/Features.xcconfig`), served over the Remote Authentication & Proxy
+  Protocol (RAPP), is compiled out across all macOS configurations (Debug,
+  TestFlight, and Release). The Mac embeds no RAPP extension, declares no
+  Bluetooth or Bonjour permissions, and never connects to or dials a phone.
+- **Signature Creation Service (SCS) compiled out.** The loopback HTTPS
+  service for browser extensions (`refineid-core/crates/scs`) is out of scope
+  and compiled out for the macOS MVP.
+- **Outbound network contract.** The Mac carries no network listeners and no
+  incoming ports. Outbound network traffic is limited strictly to qualified
+  timestamp authority (TSA) requests, certificate revocation checks (OCSP/CRL),
+  Authority Information Access (AIA) `caIssuers` certificate fetches, and
+  periodic EU Trusted Lists (LOTL) retrieval routed through `SigningNetwork`
+  (`PublicEndpointURLSession`) to public IP addresses only. See
+  [network-contract.md](network-contract.md).
+- **Single application plist.** macOS uses `Config/RefineID-Store-Info.plist`
+  across all build configurations.
+
 ## The window
 
-The status window (`StatusView`) is sized to its content. Its toolbar,
-in the title bar, holds one control: the remote-use switch at the right
-end, where it takes no room from the content. From the top, the window
-shows:
+The status window (`StatusView`) is sized to its content. In the macOS MVP,
+the window title bar carries no toolbar controls (`REFINEID_REMOTE_CARD` is
+gated off). When remote card capability returns in post-MVP builds, the
+toolbar holds one control at the right end: the remote-use switch. From the
+top, the window shows:
 
 1. The status row, where the app talks to the holder. It shows the
-   identity line, except while documents are waiting and no card or
-   phone can sign: the holder is there to verify, so the window does
-   not ask for a reader. It returns with the holder's name as soon as a
-   card or phone can sign. While a document is signed the row says the
-   step, with a progress indicator ("Signing document…",
-   "Timestamping…", and so on). A failure, in plain words, replaces the
-   step at once and is announced; until "OK" is pressed it holds the
-   default action and "Sign…" is disabled, so Return cannot sign again
-   unread. After that the row says what the action left: "Signed and
-   saved." ("Signed and saved 3 documents." for a pile) with "Show in
-   Finder", which selects every file written, and any notice beside it.
-   "OK" puts the outcome away, and so does a change to the documents; the
-   row then shows the identity again.
+   identity line ("Connect a card reader." when no reader or card is
+   present), except while documents are waiting and no card can sign:
+   the holder is there to verify, so the window does not ask for a
+   reader. It returns with the holder's name as soon as a card is ready.
+   While a document is being signed, the row displays the active step with
+   a progress indicator ("Signing document…", "Timestamping…", and so on).
+   A failure, in plain words, replaces the step at once and is announced;
+   until "OK" is pressed it holds the default action and "Sign…" is
+   disabled, so Return cannot sign again unread. After that the row says
+   what the action left: "Signed and saved." ("Signed and saved 3 documents."
+   for a pile) with "Show in Finder", which selects every file written,
+   and any notice beside it. "OK" puts the outcome away, and so does a
+   change to the documents; the row then shows the identity again.
 2. The document drop area, with the list of waiting documents.
-3. The signing configuration, only while a card or phone can sign or a
-   signature is in flight: the format and PIN 2.
-4. The button bar, centred below every panel: "Verify…", and the
-   default "Sign…" while a card or phone can sign. The bar appears
-   only once a document is listed: with nothing to act on, neither
-   button is shown.
+3. The signing configuration, only while a card can sign or a signature is
+   in flight: the format and PIN 2.
+4. The button bar, centred below every panel: "Verify…", and the default
+   "Sign…" while a card can sign. The bar appears only once a document is
+   listed: with nothing to act on, neither button is shown.
 
 A card waiting to be taken into use replaces these with the activation
 form, and the window has no toolbar button while it does: activation is
-the one thing to do with the card, in this window only. A contactless personal card that needs its access number replaces them
-with the six-box access number entry.
+the one thing to do with the card, in this window only. A contactless
+personal card that needs its access number replaces them with the six-box
+access number entry.
 
-## Remote use
+## Remote use (post-MVP design)
 
-Gated off in the macOS MVP (decisions 2026-11-14): the switch, the
-pairing, and everything below compile out, and the identity row says
-"Connect a card reader." where it used to name the switch. The design
-stands for the remote card's return.
+In the macOS MVP, remote card access is gated off: the switch, the pairing,
+and all remote communication compile out behind `REFINEID_REMOTE_CARD`. The
+status row displays "Connect a card reader." when no local reader or card is
+found. The architecture below specifies remote card behavior for builds where
+`REFINEID_REMOTE_CARD` is enabled.
 
 One toolbar button is the switch for all remote use: Bluetooth and
 local-network discovery, sessions with the phone, and the phone's identity
