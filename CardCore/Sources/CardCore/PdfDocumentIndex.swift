@@ -15,11 +15,22 @@ internal struct PdfDocumentIndex {
   /// Where one live object's bytes sit.
   internal enum ObjectLocation: Equatable {
     /// At a byte offset in the file, written as `N G obj`.
-    case direct(offset: Int)
+    case direct(offset: Int, generation: Int)
 
     /// Inside an object stream: the stream's object number and this
     /// object's position among its contents (ISO 32000-1 §7.5.7).
     case compressed(container: Int, position: Int)
+
+    /// The generation the record names; an object in a stream is
+    /// generation zero.
+    internal var generation: Int {
+      switch self {
+      case .direct(_, let generation):
+        return generation
+      case .compressed:
+        return 0
+      }
+    }
   }
 
   /// One object a section accounts for.
@@ -232,10 +243,13 @@ internal struct PdfDocumentIndex {
       for entry in 0..<count
       where index + PdfValues.entryTokens <= tokens.count {
         let flag = tokens[index + PdfValues.entryFlagIndex]
-        if flag == PdfValues.inUseFlag, let position = Int(tokens[index]) {
+        if flag == PdfValues.inUseFlag, let position = Int(tokens[index]),
+          let generation = Int(tokens[index + 1])
+        {
           found.append(
             SectionRecord(
-              number: first + entry, location: .direct(offset: position)
+              number: first + entry,
+              location: .direct(offset: position, generation: generation)
             )
           )
         } else if flag == PdfValues.freeFlag {
@@ -248,13 +262,22 @@ internal struct PdfDocumentIndex {
   }
 
   /// The bytes between `obj` and `endobj` at a direct offset.
+  ///
+  /// A stream's bytes are taken by its `/Length`, not by the first
+  /// `endobj` in the file: stream data is as free as any other bytes to
+  /// contain that word, and reading to it would let a rewrite past it
+  /// look unchanged.
   private static func directBody(at offset: Int, in document: Data) -> String? {
     guard offset < document.count else { return nil }
     let bytes = PdfBytes(document)
-    guard
-      let objRange = bytes.firstRange(of: "obj", from: offset),
-      let endRange = bytes.firstRange(of: "endobj", from: objRange.upperBound)
-    else {
+    guard let objRange = bytes.firstRange(of: "obj", from: offset) else { return nil }
+    if let stream = try? PdfStreamObject.parse(in: bytes, at: offset),
+      let payload = String(bytes: stream.payload, encoding: .isoLatin1)
+    {
+      return (stream.dictionary + "\nstream\n" + payload)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    guard let endRange = bytes.firstRange(of: "endobj", from: objRange.upperBound) else {
       return nil
     }
     return bytes.text(in: objRange.upperBound..<endRange.lowerBound)
@@ -265,7 +288,7 @@ internal struct PdfDocumentIndex {
   /// slice of the object stream carrying it.
   internal func body(of number: Int, in document: Data) -> String? {
     switch locations[number] {
-    case .direct(let offset):
+    case .direct(let offset, _):
       return Self.directBody(at: offset, in: document)
 
     case .compressed(let container, let position):

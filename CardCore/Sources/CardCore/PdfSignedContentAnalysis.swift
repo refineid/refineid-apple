@@ -6,17 +6,41 @@ import Foundation
 ///
 /// The signed revision is indexed on its own and compared with the
 /// newest view of the document, object by object, number by number. An
-/// object whose body is the same in both views is untouched. A later
-/// revision may, without changing what the signer saw, add a document
-/// security store, certificates, OCSP responses and CRLs for it, a
-/// signature or document timestamp and the widgets they need, metadata,
-/// and cross-reference or object streams; it may give the catalog
-/// `/DSS`, `/AcroForm` or `/Metadata`, append signature fields to the
-/// form, and append annotations to a page.
+/// object whose body is the same in both views, at the same generation,
+/// is untouched. A later revision may, without changing what the signer
+/// saw, add a document security store, certificates, OCSP responses and
+/// CRLs for it, a signature or document timestamp and the widgets they
+/// need, metadata, and cross-reference or object streams; it may give
+/// the catalog `/DSS`, `/AcroForm` or `/Metadata`, append signed
+/// signature fields to the form, and append their widgets to a page.
 ///
 /// Every other change is reported. A document that cannot be indexed is
 /// reported as changed rather than trusted.
 internal enum PdfSignedContentAnalysis {
+  /// What one object comparison needs besides the two bodies.
+  private struct Context {
+    /// The newest catalog's object number.
+    let catalogNumber: Int?
+
+    /// The newest interactive form's object number.
+    let formNumber: Int?
+
+    /// The newest view of the document.
+    let newest: PdfDocumentIndex
+
+    /// The document itself, for reading an object's body.
+    let document: Data
+  }
+
+  /// What the rules say about one rewritten object.
+  private enum Verdict {
+    /// The changes the object makes.
+    case changes(Set<SignedContentChange>)
+
+    /// No rule names the object, so what it is decides.
+    case unnamed
+  }
+
   /// The entry names that differ between two dictionaries, and whether
   /// both could be read at all.
   private struct EntryDifferences {
@@ -26,17 +50,6 @@ internal enum PdfSignedContentAnalysis {
     /// Whether both dictionaries could be parsed.
     let isReadable: Bool
   }
-
-  /// The type markers an added object may carry.
-  private static let allowedAdditionMarkers = [
-    "/Type /XRef",
-    "/Type /ObjStm",
-    "/Type /DSS",
-    "/Type /Metadata",
-    "/Type /DocTimeStamp",
-    "/ByteRange",
-    "/Subtype /Widget",
-  ]
 
   /// The catalog keys a later revision may add or change.
   private static let catalogKeys: Set<String> = ["DSS", "AcroForm", "Extensions", "Metadata"]
@@ -56,11 +69,10 @@ internal enum PdfSignedContentAnalysis {
   /// The field keys a later revision may give a signature field.
   private static let signatureFieldKeys: Set<String> = ["V", "AP", "AS"]
 
-  /// The store's arrays of object references.
-  private static let storeArrayKeys: Set<String> = ["Certs", "OCSPs", "CRLs"]
-
-  /// The document security store keys a later revision may grow.
-  private static let storeKeys: Set<String> = ["Certs", "OCSPs", "CRLs", "VRI"]
+  /// The types an object added after signing may have.
+  private static let addedTypes: Set<String> = [
+    "/XRef", "/ObjStm", "/DSS", "/Metadata", "/DocTimeStamp",
+  ]
 
   /// Every change a revision after the signed one made.
   ///
@@ -76,43 +88,46 @@ internal enum PdfSignedContentAnalysis {
       // A view that cannot be indexed cannot be shown to be unchanged.
       return [.documentStructure]
     }
-    var changes: Set<SignedContentChange> = []
     let catalogNumber = PdfDocumentIndex.reference(named: "/Root", in: after.trailer)
+    let context = Context(
+      catalogNumber: catalogNumber,
+      formNumber: catalogNumber.flatMap { number in
+        after.body(of: number, in: document).flatMap { body in
+          PdfDocumentIndex.reference(named: "AcroForm", in: body)
+        }
+      },
+      newest: after,
+      document: document
+    )
+    var changes: Set<SignedContentChange> = []
     if catalogNumber != PdfDocumentIndex.reference(named: "/Root", in: before.trailer) {
       changes.insert(.documentStructure)
     }
-    let formNumber = catalogNumber.flatMap { number in
-      after.body(of: number, in: document).flatMap { body in
-        PdfDocumentIndex.reference(named: "AcroForm", in: body)
-      }
-    }
     let numbers = Set(after.locations.keys).union(before.locations.keys)
     for number in numbers.sorted() {
-      guard
-        let body = after.body(of: number, in: document),
-        let previous = before.body(of: number, in: signed)
-      else {
+      guard let newer = after.locations[number], let older = before.locations[number] else {
         changes.formUnion(
           changeOfAbsentObject(
-            number,
-            absentFromSignedView: before,
-            after: after,
-            document: document,
-            signed: signed
+            number, absentFromSignedView: before, after: after, document: document, signed: signed
           )
         )
         continue
       }
+      // A reused number at a higher generation frees what the signed
+      // revision's references named, whatever the new body says.
+      guard newer.generation == older.generation else {
+        changes.insert(.object(number))
+        continue
+      }
+      guard
+        let body = after.body(of: number, in: document),
+        let previous = before.body(of: number, in: signed)
+      else {
+        changes.insert(.object(number))
+        continue
+      }
       guard body != previous else { continue }
-      changes.formUnion(
-        changeOf(
-          number,
-          from: previous,
-          to: body,
-          catalogNumber: catalogNumber,
-          formNumber: formNumber
-        )
-      )
+      changes.formUnion(changeOf(number, previous: previous, body: body, context: context))
     }
     return changes.sorted { lhs, rhs in order(lhs) < order(rhs) }
   }
@@ -138,12 +153,10 @@ internal enum PdfSignedContentAnalysis {
     document: Data,
     signed: Data
   ) -> Set<SignedContentChange> {
-    let added = after.body(of: number, in: document)
-    let removed = before.body(of: number, in: signed)
-    guard let added else {
-      return removed == nil ? [] : [.object(number)]
+    guard let added = after.body(of: number, in: document) else {
+      return before.body(of: number, in: signed) == nil ? [] : [.object(number)]
     }
-    guard removed == nil else { return [] }
+    guard before.body(of: number, in: signed) == nil else { return [] }
     return additionIsAllowed(added) ? [] : [.object(number)]
   }
 
@@ -154,46 +167,143 @@ internal enum PdfSignedContentAnalysis {
   /// signing and validation material make. A page, a page tree node, a
   /// font or any other typed object is not.
   private static func additionIsAllowed(_ body: String) -> Bool {
-    for marker in allowedAdditionMarkers where body.contains(marker) {
+    if let type = PdfTypeEntry.value(of: "Type", in: body), addedTypes.contains(type) {
       return true
     }
-    guard body.contains("stream") else { return false }
-    return !body.contains("/Type")
+    if PdfTypeEntry.value(of: "Subtype", in: body) == "/Widget" { return true }
+    if PdfTypeEntry.value(of: "FT", in: body) == "/Sig" { return true }
+    if PdfTypeEntry.value(of: "ByteRange", in: body) != nil { return true }
+    // An appearance or data stream: bytes no dictionary types.
+    return body.contains("stream") && PdfTypeEntry.value(of: "Type", in: body) == nil
   }
 
   /// The change one redefined object makes.
   private static func changeOf(
     _ number: Int,
-    from previous: String,
-    to body: String,
-    catalogNumber: Int?,
-    formNumber: Int?
+    previous: String,
+    body: String,
+    context: Context
   ) -> Set<SignedContentChange> {
     let differences = differingNames(from: previous, to: body)
     guard differences.isReadable else { return [.object(number)] }
     guard !differences.names.isEmpty else { return [] }
-    if number == catalogNumber {
-      return differences.names.isSubset(of: catalogKeys) ? [] : [.documentStructure]
+    switch namedVerdict(number, previous, body, differences, context) {
+    case .changes(let verdict):
+      return verdict
+    case .unnamed:
+      return redefinedVerdict(number, previous: previous, body: body, differences)
     }
-    if body.contains("/Type /Page"), !body.contains("/Type /Pages") {
-      return differences.names.isSubset(of: pageKeys) ? [] : [.pageContent]
+  }
+
+  /// The verdict for an object the revision rules name by kind, or
+  /// unnamed when no rule knows it.
+  private static func namedVerdict(
+    _ number: Int,
+    _ previous: String,
+    _ body: String,
+    _ differences: EntryDifferences,
+    _ context: Context
+  ) -> Verdict {
+    if number == context.catalogNumber {
+      return .changes(differences.names.isSubset(of: catalogKeys) ? [] : [.documentStructure])
     }
-    if body.contains("/Type /Pages") || body.contains("/Type /Catalog") {
+    if PdfTypeEntry.value(of: "Type", in: body) == "/Page" {
+      return .changes(pageVerdict(previous, body, differences, context))
+    }
+    if let type = PdfTypeEntry.value(of: "Type", in: body), type == "/Pages" || type == "/Catalog" {
+      return .changes([.pageContent])
+    }
+    if number == context.formNumber {
+      return .changes(formVerdict(previous, body, differences, context))
+    }
+    guard PdfTypeEntry.value(of: "Type", in: body) == "/DSS" else { return .unnamed }
+    return .changes(
+      PdfValidationStoreGrowth.growsOnly(from: previous, to: body)
+        ? [] : [.documentStructure])
+  }
+
+  /// The verdict for a rewritten page, which may gain signed signature
+  /// widgets and nothing else.
+  private static func pageVerdict(
+    _ previous: String,
+    _ body: String,
+    _ differences: EntryDifferences,
+    _ context: Context
+  ) -> Set<SignedContentChange> {
+    guard differences.names.isSubset(of: pageKeys) else { return [.pageContent] }
+    guard differences.names.contains("Annots") else { return [] }
+    guard
+      PdfPageAnnotationGrowth.annotationsGrowOnly(
+        from: previous, to: body, newest: context.newest, document: context.document)
+    else {
       return [.pageContent]
     }
-    if number == formNumber {
-      return differences.names.isSubset(of: formKeys) ? [] : [.documentStructure]
+    return []
+  }
+
+  /// The verdict for a rewritten interactive form, which may only gain
+  /// signed signature fields.
+  private static func formVerdict(
+    _ previous: String,
+    _ body: String,
+    _ differences: EntryDifferences,
+    _ context: Context
+  ) -> Set<SignedContentChange> {
+    guard differences.names.isSubset(of: formKeys) else { return [.documentStructure] }
+    guard differences.names.contains("Fields") else { return [] }
+    guard formFieldsGrowOnly(from: previous, to: body, context: context) else {
+      return [.documentStructure]
     }
-    if body.contains("/Type /DSS") {
-      return growsOnly(from: previous, to: body) ? [] : [.documentStructure]
+    return []
+  }
+
+  /// Whether a form's fields still name every node they named and only
+  /// add signature fields.
+  private static func formFieldsGrowOnly(
+    from previous: String,
+    to body: String,
+    context: Context
+  ) -> Bool {
+    let kept = PdfObjectReferences.references(
+      in: PdfTypeEntry.value(of: "Fields", in: previous) ?? "")
+    let grown = PdfObjectReferences.references(in: PdfTypeEntry.value(of: "Fields", in: body) ?? "")
+    guard Array(grown.prefix(kept.count)) == kept else { return false }
+    return grown.dropFirst(kept.count).allSatisfy { reference in
+      guard
+        let number = Int(reference.split(separator: " ").first ?? ""),
+        let field = context.newest.body(of: number, in: context.document)
+      else {
+        return false
+      }
+      return PdfTypeEntry.value(of: "FT", in: field) == "/Sig"
     }
-    if body.contains("/FT /Sig"), differences.names.isSubset(of: signatureFieldKeys) {
+  }
+
+  /// The verdict for an object no rule names by kind.
+  private static func redefinedVerdict(
+    _ number: Int,
+    previous: String,
+    body: String,
+    _ differences: EntryDifferences
+  ) -> Set<SignedContentChange> {
+    switch PdfTypeEntry.value(of: "Type", in: body) {
+    case "/ObjStm", "/XRef":
+      // The objects they carry are compared on their own, by number.
       return []
-    }
-    if body.contains("/Type /Metadata") {
+    case "/Metadata":
       return []
+    default:
+      break
     }
-    if body.contains("/ByteRange") {
+    if PdfTypeEntry.value(of: "FT", in: body) == "/Sig",
+      differences.names.isSubset(of: signatureFieldKeys)
+    {
+      // A field may be filled once: one that carried a value may not be
+      // refilled under a signature.
+      guard differences.names.contains("V") else { return [] }
+      return PdfTypeEntry.value(of: "V", in: previous) == nil ? [] : [.documentStructure]
+    }
+    if PdfTypeEntry.value(of: "ByteRange", in: body) != nil {
       // A signature dictionary does not change after it is taken.
       return [.documentStructure]
     }
@@ -203,8 +313,9 @@ internal enum PdfSignedContentAnalysis {
   /// The entry names whose value differs between two dictionaries.
   private static func differingNames(from previous: String, to body: String) -> EntryDifferences {
     guard
-      let before = try? PdfValidationStore.DictionarySyntax(previous),
-      let after = try? PdfValidationStore.DictionarySyntax(body)
+      let before = try? PdfValidationStore.DictionarySyntax(
+        PdfTypeEntry.dictionary(of: previous)),
+      let after = try? PdfValidationStore.DictionarySyntax(PdfTypeEntry.dictionary(of: body))
     else {
       return EntryDifferences(names: [], isReadable: false)
     }
@@ -214,69 +325,5 @@ internal enum PdfSignedContentAnalysis {
         != after.entry(named: name).map { after.value(of: $0) }
     }
     return EntryDifferences(names: differing, isReadable: true)
-  }
-
-  /// Whether a store change only adds material.
-  ///
-  /// A store that loses a certificate, an answer or a CRL loses the
-  /// evidence a validator needs, so a revision may grow it but never
-  /// shrink or rewrite it.
-  private static func growsOnly(from previous: String, to body: String) -> Bool {
-    let differences = differingNames(from: previous, to: body)
-    guard differences.isReadable, differences.names.isSubset(of: storeKeys) else { return false }
-    guard
-      let before = try? PdfValidationStore.DictionarySyntax(previous),
-      let after = try? PdfValidationStore.DictionarySyntax(body)
-    else {
-      return false
-    }
-    for key in storeArrayKeys where differences.names.contains(key) {
-      guard
-        let previousEntry = before.entry(named: key),
-        let entry = after.entry(named: key),
-        Set(references(in: before.value(of: previousEntry)))
-          .isSubset(of: Set(references(in: after.value(of: entry))))
-      else {
-        return false
-      }
-    }
-    if differences.names.contains("VRI") {
-      guard
-        let previousEntry = before.entry(named: "VRI"),
-        let entry = after.entry(named: "VRI"),
-        let previousList = try? PdfValidationStore.DictionarySyntax(
-          before.value(of: previousEntry)),
-        let list = try? PdfValidationStore.DictionarySyntax(after.value(of: entry)),
-        Set(previousList.entries.map(\.name)).isSubset(of: Set(list.entries.map(\.name)))
-      else {
-        return false
-      }
-    }
-    return true
-  }
-
-  /// The `N G R` references an array value carries, as written.
-  private static func references(in value: String) -> [String] {
-    let tokens = value.split(whereSeparator: \.isWhitespace)
-    var found: [String] = []
-    var index = tokens.startIndex
-    while index < tokens.endIndex {
-      let number = tokens[index]
-      let generation = tokens.index(after: index)
-      let marker = generation < tokens.endIndex ? tokens.index(after: generation) : generation
-      guard
-        number.allSatisfy(\.isNumber),
-        generation < tokens.endIndex,
-        tokens[generation].allSatisfy(\.isNumber),
-        marker < tokens.endIndex,
-        tokens[marker] == "R"
-      else {
-        index = generation
-        continue
-      }
-      found.append("\(number) \(tokens[generation])")
-      index = tokens.index(after: marker)
-    }
-    return found
   }
 }

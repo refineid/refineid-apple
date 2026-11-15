@@ -106,6 +106,36 @@
       #expect(!after.isValid)
     }
 
+    /// An annotation draws over the page, so one added after signing
+    /// changes what the signature stands for.
+    @Test
+    internal func anAnnotationAddedAfterSigningIsAChange() throws {
+      let fixture = try DocumentTrustFixture()
+      let signed = try fixture.document(.init(cmsCertificates: [fixture.issuing]))
+      let page = try Self.pageNumber(in: signed)
+      let index = try PdfDocumentIndex.parse(signed)
+      let pageBody = try #require(index.body(of: page, in: signed))
+      let size = try #require(PdfDocumentIndex.integer(named: "/Size", in: index.trailer))
+      try #require(pageBody.hasSuffix(">>"))
+      let stamped = try Self.revision(
+        redefining: size,
+        with: "<< /Type /Annot /Subtype /Text /Rect [0 0 200 50] /Contents (Approved) >>",
+        in: signed
+      )
+      let annotated = try Self.revision(
+        redefining: page,
+        with: String(pageBody.dropLast(2)) + " /Annots [\(size) 0 R] >>",
+        in: stamped
+      )
+      let now = try DocumentTrustFixture.instant(Self.currentTime)
+      let anchors = fixture.anchors(anchorsAuthority: true)
+
+      let after = try DocumentTrustFixture.report(annotated, anchors: anchors, now: now)
+
+      #expect(after.changesAfterSigning.contains(.pageContent))
+      #expect(!after.isValid)
+    }
+
     /// A new page object is not what signing may add, whatever it draws.
     @Test
     internal func aPageAddedAfterSigningIsAChange() throws {
