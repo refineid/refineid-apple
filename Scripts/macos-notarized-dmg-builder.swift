@@ -236,6 +236,50 @@ private func buildApp(
   return products
 }
 
+private func resolvedEntitlements(templatePath: String, teamId: String) -> URL? {
+  let templateURL = repositoryRoot.appendingPathComponent(templatePath)
+  guard let data = try? Data(contentsOf: templateURL),
+        var text = String(data: data, encoding: .utf8) else {
+    return nil
+  }
+  text = text.replacingOccurrences(of: "$(AppIdentifierPrefix)", with: "\(teamId).")
+  let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent(UUID().uuidString + "-" + (templateURL.lastPathComponent))
+  do {
+    try text.write(to: tempURL, atomically: true, encoding: .utf8)
+    return tempURL
+  } catch {
+    return nil
+  }
+}
+
+private func codesignItem(
+  _ path: URL,
+  identity: String,
+  entitlements: URL? = nil
+) {
+  var arguments = [
+    "--force",
+    "--sign", identity,
+    "--timestamp",
+    "--options", "runtime"
+  ]
+  if let entitlements = entitlements {
+    arguments += ["--entitlements", entitlements.path]
+  }
+  arguments.append(path.path)
+
+  let status = run(
+    "/usr/bin/codesign",
+    arguments,
+    directory: path.deletingLastPathComponent()
+  )
+  if status.status != 0 {
+    let output = status.stderr.isEmpty ? status.stdout : status.stderr
+    fail("codesign failed for \(path.path):\n\(output)")
+  }
+}
+
 private func signApp(
   app: URL,
   signingIdentity: String,
@@ -243,36 +287,48 @@ private func signApp(
 ) {
   note("signing with Developer ID Application")
 
-  let codesignArgs = [
-    "--force",
-    "--sign", signingIdentity,
-    "--timestamp",
-    "--options", "runtime",
-    app.path
-  ]
-
-  let status = run(
-    "/usr/bin/codesign",
-    codesignArgs,
-    directory: app.deletingLastPathComponent()
-  )
-  if status.status != 0 {
-    let signOutput = status.stderr.isEmpty ? status.stdout : status.stderr
-    fail("codesign failed for \(app.path); args: \(codesignArgs); output:\n\(signOutput)")
+  let tokenEntitlements = resolvedEntitlements(templatePath: "Config/TokenExtension.entitlements", teamId: teamId)
+  let appEntitlements = resolvedEntitlements(templatePath: "Config/RefineID-Store.entitlements", teamId: teamId)
+  defer {
+    if let tokenEntitlements { try? FileManager.default.removeItem(at: tokenEntitlements) }
+    if let appEntitlements { try? FileManager.default.removeItem(at: appEntitlements) }
   }
+
+  // Sign nested components inside-out before signing bundles and the app.
+  let nestedBundles: [URL] = [
+    app.appendingPathComponent("Contents/PlugIns/RefineIDTokenExtension.appex/Contents/Resources/CardCore_CardCore.bundle"),
+    app.appendingPathComponent("Contents/Resources/CardCore_CardCore.bundle"),
+  ].filter { FileManager.default.fileExists(atPath: $0.path) }
+
+  let tokenExecutable = app.appendingPathComponent("Contents/PlugIns/RefineIDTokenExtension.appex/Contents/MacOS/RefineIDTokenExtension")
+  let tokenAppEx = app.appendingPathComponent("Contents/PlugIns/RefineIDTokenExtension.appex")
+  let mainExecutable = app.appendingPathComponent("Contents/MacOS/RefineID")
+
+  for bundle in nestedBundles {
+    codesignItem(bundle, identity: signingIdentity)
+  }
+
+  if FileManager.default.fileExists(atPath: tokenExecutable.path) {
+    codesignItem(tokenExecutable, identity: signingIdentity, entitlements: tokenEntitlements)
+  }
+  if FileManager.default.fileExists(atPath: tokenAppEx.path) {
+    codesignItem(tokenAppEx, identity: signingIdentity)
+  }
+  if FileManager.default.fileExists(atPath: mainExecutable.path) {
+    codesignItem(mainExecutable, identity: signingIdentity, entitlements: appEntitlements)
+  }
+
+  codesignItem(app, identity: signingIdentity)
 
   let verify = run(
     "/usr/bin/codesign",
-    ["--verify", "--deep", app.path],
+    ["--verify", "--deep", "--strict", app.path],
     directory: app.deletingLastPathComponent()
   )
 
   if verify.status != 0 {
-    let stderrText = verify.stderr.isEmpty ? verify.stdout : verify.stderr
-    if !stderrText.contains("code has no resources but signature indicates they must be present") {
-      let stderrFallback = verify.stderr.isEmpty ? verify.stdout : verify.stderr
-      fail("codesign verification failed for \(app.path): \(stderrFallback)")
-    }
+    let output = verify.stderr.isEmpty ? verify.stdout : verify.stderr
+    fail("codesign verification failed for \(app.path):\n\(output)")
   }
 
   note("app signed and verified")
@@ -407,21 +463,6 @@ private func notarizeDmg(
   }
 }
 
-private func verifyDmgSignature(dmg: URL) {
-  note("verifying DMG signature with codesign")
-
-  let verify = run(
-    "/usr/bin/codesign",
-    ["--verify", "--deep", "--strict", dmg.path],
-    directory: dmg.deletingLastPathComponent()
-  )
-
-  if verify.status != 0 {
-    let verifyOutput = verify.stderr.isEmpty ? verify.stdout : verify.stderr
-    fail("DMG codesign verification failed: \(verifyOutput)")
-  }
-}
-
 private func stapleDmg(dmg: URL) {
   note("stapling \(dmg.lastPathComponent)")
 
@@ -446,17 +487,8 @@ private func validateDmg(dmg: URL) {
   )
 
   if stapleValidate.status != 0 {
-    fail("stapler validate failed for \(dmg.path)")
-  }
-
-  let codesignVerify = run(
-    "/usr/bin/codesign",
-    ["--verify", "--deep", "--strict", dmg.path],
-    directory: dmg.deletingLastPathComponent()
-  )
-
-  if codesignVerify.status != 0 {
-    fail("codesign verification failed for \(dmg.path)")
+    let output = stapleValidate.stderr.isEmpty ? stapleValidate.stdout : stapleValidate.stderr
+    fail("stapler validate failed for \(dmg.path): \(output)")
   }
 }
 
@@ -525,7 +557,7 @@ private func main() {
     notaryProfile: options.notaryProfile
   )
   stapleDmg(dmg: dmg)
-  verifyDmgSignature(dmg: dmg)
+  validateDmg(dmg: dmg)
   writeChecksumFile(for: dmg)
 
   note("done: \(dmg.path)")
