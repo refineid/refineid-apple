@@ -45,6 +45,11 @@
       return out
     }
 
+    /// One object's bytes, as the revision comparison reads them.
+    private static func objectBody(_ number: Int, in document: Data) -> String? {
+      (try? PdfDocumentIndex.parse(document))?.comparisonBody(of: number, in: document)
+    }
+
     /// The number of the fixture's one page object.
     private static func pageNumber(in document: Data) throws -> Int {
       let index = try PdfDocumentIndex.parse(document)
@@ -126,6 +131,64 @@
         redefining: page,
         with: String(pageBody.dropLast(2)) + " /Annots [\(size) 0 R] >>",
         in: stamped
+      )
+      let now = try DocumentTrustFixture.instant(Self.currentTime)
+      let anchors = fixture.anchors(anchorsAuthority: true)
+
+      let after = try DocumentTrustFixture.report(annotated, anchors: anchors, now: now)
+
+      #expect(after.changesAfterSigning.contains(.pageContent))
+      #expect(!after.isValid)
+    }
+
+    /// A stream's dictionary can stay the same while what it draws
+    /// changes, so a rewritten payload is a change of its own.
+    @Test
+    internal func aStreamRewrittenUnderTheSameDictionaryIsAChange() throws {
+      let number = 4
+      let signed = StorePdf.document(
+        catalog: StorePdf.catalog(),
+        extraObjects: [number: StorePdf.stream("q 1 0 0 1 0 0 cm Q")]
+      )
+      let rewritten = try Self.revision(
+        redefining: number,
+        with: StorePdf.stream("q 1 0 0 1 0 0 cm R"),
+        in: signed
+      )
+
+      let changes = PdfSignedContentAnalysis.changes(
+        document: rewritten,
+        signedEnd: signed.count
+      )
+
+      #expect(changes == [.object(number)])
+    }
+
+    /// A widget that borrows the signature already in the file could
+    /// carry any appearance over the signed page, so it is a change.
+    @Test
+    internal func aWidgetWearingTheOriginalSignatureIsAPageChange() throws {
+      let fixture = try DocumentTrustFixture()
+      let signed = try fixture.document(.init(cmsCertificates: [fixture.issuing]))
+      let index = try PdfDocumentIndex.parse(signed)
+      let page = try Self.pageNumber(in: signed)
+      let pageBody = try #require(Self.objectBody(page, in: signed))
+      let signature = try #require(
+        index.locations.keys.sorted().first { number in
+          Self.objectBody(number, in: signed)?.contains("/ByteRange") == true
+        })
+      let size = try #require(PdfDocumentIndex.integer(named: "/Size", in: index.trailer))
+      try #require(pageBody.hasSuffix(">>"))
+      let widget = try Self.revision(
+        redefining: size,
+        with: "<< /Type /Annot /Subtype /Widget /FT /Sig /V \(signature) 0 R"
+          + " /Rect [0 0 200 200] /F 4 >>",
+        in: signed
+      )
+      let annotated = try Self.revision(
+        redefining: page,
+        with: String(pageBody.dropLast(2)) + " /Annots [\(size) 0 R] >>",
+        in: widget
       )
       let now = try DocumentTrustFixture.instant(Self.currentTime)
       let anchors = fixture.anchors(anchorsAuthority: true)

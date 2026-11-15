@@ -17,19 +17,35 @@ import Foundation
 /// Every other change is reported. A document that cannot be indexed is
 /// reported as changed rather than trusted.
 internal enum PdfSignedContentAnalysis {
-  /// What one object comparison needs besides the two bodies.
+  /// Both views of the document, and what a rule needs to read them.
   private struct Context {
+    /// The newest view.
+    let newest: PdfDocumentIndex
+
+    /// The document itself, for reading an object's body.
+    let document: Data
+
+    /// The view the signature covers.
+    let signed: PdfDocumentIndex
+
+    /// The signed revision on its own, for reading an object's body.
+    let signedDocument: Data
+
     /// The newest catalog's object number.
     let catalogNumber: Int?
 
     /// The newest interactive form's object number.
     let formNumber: Int?
 
-    /// The newest view of the document.
-    let newest: PdfDocumentIndex
+    /// An object's body in the newest view.
+    func body(of number: Int) -> String? {
+      newest.comparisonBody(of: number, in: document)
+    }
 
-    /// The document itself, for reading an object's body.
-    let document: Data
+    /// An object's body in the signed view.
+    func signedBody(of number: Int) -> String? {
+      signed.comparisonBody(of: number, in: signedDocument)
+    }
   }
 
   /// What the rules say about one rewritten object.
@@ -52,7 +68,7 @@ internal enum PdfSignedContentAnalysis {
   }
 
   /// The catalog keys a later revision may add or change.
-  private static let catalogKeys: Set<String> = ["DSS", "AcroForm", "Extensions", "Metadata"]
+  private static let catalogKeys: Set<String> = ["DSS", "AcroForm", "Metadata"]
 
   /// The interactive form keys a later revision may change.
   private static let formKeys: Set<String> = ["Fields", "SigFlags"]
@@ -70,9 +86,16 @@ internal enum PdfSignedContentAnalysis {
   private static let signatureFieldKeys: Set<String> = ["V", "AP", "AS"]
 
   /// The types an object added after signing may have.
-  private static let addedTypes: Set<String> = [
-    "/XRef", "/ObjStm", "/DSS", "/Metadata", "/DocTimeStamp",
-  ]
+  private static let addedTypes: Set<String> = ["/XRef", "/ObjStm", "/DSS", "/Metadata"]
+
+  /// The types no revision may give an object it did not already have.
+  ///
+  /// A content stream relabelled into one of these would be waved
+  /// through by the rule that handles it.
+  private static let fixedTypes: Set<String> = ["/XRef", "/ObjStm", "/Metadata"]
+
+  /// The types that only decide how a page tree reads.
+  private static let treeTypes: Set<String> = ["/Pages", "/Catalog"]
 
   /// Every change a revision after the signed one made.
   ///
@@ -80,37 +103,35 @@ internal enum PdfSignedContentAnalysis {
   /// followed the signed revision.
   internal static func changes(document: Data, signedEnd: Int) -> [SignedContentChange] {
     guard signedEnd > 0, signedEnd < document.count else { return [] }
-    let signed = Data(document.prefix(signedEnd))
+    let signedDocument = Data(document.prefix(signedEnd))
     guard
-      let before = try? PdfDocumentIndex.parse(signed),
-      let after = try? PdfDocumentIndex.parse(document)
+      let signed = try? PdfDocumentIndex.parse(signedDocument),
+      let newest = try? PdfDocumentIndex.parse(document)
     else {
       // A view that cannot be indexed cannot be shown to be unchanged.
       return [.documentStructure]
     }
-    let catalogNumber = PdfDocumentIndex.reference(named: "/Root", in: after.trailer)
+    let catalogNumber = PdfDocumentIndex.reference(named: "/Root", in: newest.trailer)
     let context = Context(
+      newest: newest,
+      document: document,
+      signed: signed,
+      signedDocument: signedDocument,
       catalogNumber: catalogNumber,
       formNumber: catalogNumber.flatMap { number in
-        after.comparisonBody(of: number, in: document).flatMap { body in
+        newest.comparisonBody(of: number, in: document).flatMap { body in
           PdfDocumentIndex.reference(named: "AcroForm", in: body)
         }
-      },
-      newest: after,
-      document: document
+      }
     )
     var changes: Set<SignedContentChange> = []
-    if catalogNumber != PdfDocumentIndex.reference(named: "/Root", in: before.trailer) {
+    if catalogNumber != PdfDocumentIndex.reference(named: "/Root", in: signed.trailer) {
       changes.insert(.documentStructure)
     }
-    let numbers = Set(after.locations.keys).union(before.locations.keys)
+    let numbers = Set(newest.locations.keys).union(signed.locations.keys)
     for number in numbers.sorted() {
-      guard let newer = after.locations[number], let older = before.locations[number] else {
-        changes.formUnion(
-          changeOfAbsentObject(
-            number, absentFromSignedView: before, after: after, document: document, signed: signed
-          )
-        )
+      guard let newer = newest.locations[number], let older = signed.locations[number] else {
+        changes.formUnion(changeOfAbsentObject(number, context))
         continue
       }
       // A reused number at a higher generation frees what the signed
@@ -120,14 +141,14 @@ internal enum PdfSignedContentAnalysis {
         continue
       }
       guard
-        let body = after.comparisonBody(of: number, in: document),
-        let previous = before.comparisonBody(of: number, in: signed)
+        let body = context.body(of: number),
+        let previous = context.signedBody(of: number)
       else {
         changes.insert(.object(number))
         continue
       }
       guard body != previous else { continue }
-      changes.formUnion(changeOf(number, previous: previous, body: body, context: context))
+      changes.formUnion(changeOf(number, previous: previous, body: body, context))
     }
     return changes.sorted { lhs, rhs in order(lhs) < order(rhs) }
   }
@@ -148,15 +169,12 @@ internal enum PdfSignedContentAnalysis {
   /// comparison.
   private static func changeOfAbsentObject(
     _ number: Int,
-    absentFromSignedView before: PdfDocumentIndex,
-    after: PdfDocumentIndex,
-    document: Data,
-    signed: Data
+    _ context: Context
   ) -> Set<SignedContentChange> {
-    guard let added = after.comparisonBody(of: number, in: document) else {
-      return before.comparisonBody(of: number, in: signed) == nil ? [] : [.object(number)]
+    guard let added = context.body(of: number) else {
+      return context.signedBody(of: number) == nil ? [] : [.object(number)]
     }
-    guard before.comparisonBody(of: number, in: signed) == nil else { return [] }
+    guard context.signedBody(of: number) == nil else { return [] }
     return additionIsAllowed(added) ? [] : [.object(number)]
   }
 
@@ -165,7 +183,8 @@ internal enum PdfSignedContentAnalysis {
   /// Signatures, document timestamps, widgets, appearance streams,
   /// metadata, the store and the data blobs it points at are additions
   /// signing and validation material make. A page, a page tree node, a
-  /// font or any other typed object is not.
+  /// font or any other typed object is not: a new object changes what a
+  /// reader draws only once something the rules check points at it.
   private static func additionIsAllowed(_ body: String) -> Bool {
     if let type = PdfTypeEntry.value(of: "Type", in: body), addedTypes.contains(type) {
       return true
@@ -182,17 +201,26 @@ internal enum PdfSignedContentAnalysis {
     _ number: Int,
     previous: String,
     body: String,
-    context: Context
+    _ context: Context
   ) -> Set<SignedContentChange> {
     let differences = differingNames(from: previous, to: body)
     guard differences.isReadable else { return [.object(number)] }
-    guard !differences.names.isEmpty else { return [] }
+    guard !differences.names.isEmpty else {
+      // The dictionaries match, so what differs is a stream's bytes -
+      // which is what it draws or carries - or only whitespace.
+      return isStream(previous) || isStream(body) ? [.object(number)] : []
+    }
     switch namedVerdict(number, previous, body, differences, context) {
     case .changes(let verdict):
       return verdict
     case .unnamed:
       return redefinedVerdict(number, previous: previous, body: body, differences)
     }
+  }
+
+  /// Whether a body carries a stream.
+  private static func isStream(_ body: String) -> Bool {
+    body.contains("stream")
   }
 
   /// The verdict for an object the revision rules name by kind, or
@@ -204,19 +232,23 @@ internal enum PdfSignedContentAnalysis {
     _ differences: EntryDifferences,
     _ context: Context
   ) -> Verdict {
+    let type = PdfTypeEntry.value(of: "Type", in: body)
     if number == context.catalogNumber {
       return .changes(differences.names.isSubset(of: catalogKeys) ? [] : [.documentStructure])
     }
-    if PdfTypeEntry.value(of: "Type", in: body) == "/Page" {
+    if type == "/Page" {
       return .changes(pageVerdict(previous, body, differences, context))
     }
-    if let type = PdfTypeEntry.value(of: "Type", in: body), type == "/Pages" || type == "/Catalog" {
+    if let type, treeTypes.contains(type) {
       return .changes([.pageContent])
     }
     if number == context.formNumber {
       return .changes(formVerdict(previous, body, differences, context))
     }
-    guard PdfTypeEntry.value(of: "Type", in: body) == "/DSS" else { return .unnamed }
+    guard type == "/DSS" else { return .unnamed }
+    guard PdfTypeEntry.value(of: "Type", in: previous) == "/DSS" else {
+      return .changes([.documentStructure])
+    }
     return .changes(
       PdfValidationStoreGrowth.growsOnly(from: previous, to: body)
         ? [] : [.documentStructure])
@@ -234,7 +266,12 @@ internal enum PdfSignedContentAnalysis {
     guard differences.names.contains("Annots") else { return [] }
     guard
       PdfPageAnnotationGrowth.annotationsGrowOnly(
-        from: previous, to: body, newest: context.newest, document: context.document)
+        from: previous,
+        to: body,
+        newest: context.newest,
+        document: context.document,
+        signed: context.signed
+      )
     else {
       return [.pageContent]
     }
@@ -271,7 +308,7 @@ internal enum PdfSignedContentAnalysis {
     return grown.dropFirst(kept.count).allSatisfy { reference in
       guard
         let number = Int(reference.split(separator: " ").first ?? ""),
-        let field = context.newest.comparisonBody(of: number, in: context.document)
+        let field = context.body(of: number)
       else {
         return false
       }
@@ -286,16 +323,16 @@ internal enum PdfSignedContentAnalysis {
     body: String,
     _ differences: EntryDifferences
   ) -> Set<SignedContentChange> {
-    switch PdfTypeEntry.value(of: "Type", in: body) {
-    case "/ObjStm", "/XRef":
-      // The objects they carry are compared on their own, by number.
+    if let type = PdfTypeEntry.value(of: "Type", in: body), fixedTypes.contains(type) {
+      // The objects an object stream or an xref stream carries are
+      // compared on their own, and a metadata stream is not drawn.
+      guard PdfTypeEntry.value(of: "Type", in: previous) == type else {
+        return [.object(number)]
+      }
       return []
-    case "/Metadata":
-      return []
-    default:
-      break
     }
     if PdfTypeEntry.value(of: "FT", in: body) == "/Sig",
+      PdfTypeEntry.value(of: "FT", in: previous) == "/Sig",
       differences.names.isSubset(of: signatureFieldKeys)
     {
       // A field may be filled once: one that carried a value may not be

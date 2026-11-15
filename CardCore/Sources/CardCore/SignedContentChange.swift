@@ -13,7 +13,8 @@ public enum SignedContentChange: Equatable, Hashable, Sendable {
   /// no later revision may touch.
   case documentStructure
 
-  /// An object the rules do not name was added, redefined or removed.
+  /// An object the rules do not name was added, redefined or removed,
+  /// or a stream's bytes were rewritten under the same dictionary.
   case object(Int)
 
   /// A page, or something a page draws, changed in a way that alters

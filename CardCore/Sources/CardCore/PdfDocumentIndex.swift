@@ -58,6 +58,9 @@ internal struct PdfDocumentIndex {
     internal let isStream: Bool
   }
 
+  /// The `stream` keyword that opens a stream's bytes.
+  private static let streamKeyword = "stream"
+
   /// Maximum /Prev hops followed before the chain is called broken.
   private static let maximumChainDepth = 64
 
@@ -276,15 +279,30 @@ internal struct PdfDocumentIndex {
   }
 
   /// One object's bytes for comparison, from a direct offset.
+  ///
+  /// Only an object whose own dictionary is followed by `stream` has a
+  /// stream; the word further on in the file belongs to another object.
   private static func comparisonBody(at offset: Int, in document: Data) -> String? {
+    guard offset < document.count else { return nil }
     let bytes = PdfBytes(document)
-    if let stream = try? PdfStreamObject.parse(in: bytes, at: offset),
-      let payload = String(bytes: stream.payload, encoding: .isoLatin1)
-    {
-      return (stream.dictionary + "\nstream\n" + payload)
-        .trimmingCharacters(in: .whitespacesAndNewlines)
+    guard
+      let objRange = bytes.firstRange(of: "obj", from: offset),
+      let endRange = bytes.firstRange(of: "endobj", from: objRange.upperBound)
+    else {
+      return nil
     }
-    return Self.directBody(at: offset, in: document)
+    let raw = bytes.text(in: objRange.upperBound..<endRange.lowerBound)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    guard
+      let dictionary = bytes.balancedDictionary(from: objRange.upperBound),
+      bytes.hasKeyword(Self.streamKeyword, at: bytes.skippingWhitespace(from: dictionary.end)),
+      let stream = try? PdfStreamObject.parse(in: bytes, at: offset),
+      let payload = String(bytes: stream.payload, encoding: .isoLatin1)
+    else {
+      return raw
+    }
+    return (stream.dictionary + "\nstream\n" + payload)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
   /// One object's bytes for comparing two revisions of a document.
