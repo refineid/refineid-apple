@@ -41,7 +41,7 @@
         #if FEATURE_PDF_STAMP
           StampSettingsView()
             .tabItem {
-              Label(String(localized: "Stamp"), systemImage: "signature")
+              Label(String(localized: "Stamp"), systemImage: "checkmark.seal.text.page")
             }
             .tag(Pane.stamp)
         #endif

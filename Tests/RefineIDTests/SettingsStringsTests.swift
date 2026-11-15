@@ -66,15 +66,9 @@
           TranslationRow(key: "Time Stamp", finnish: "Aikaleima", swedish: "Tidsstämpel"),
           TranslationRow(key: "Stamp", finnish: "Leima", swedish: "Stämpel"),
           TranslationRow(
-            key:
-              "Adds a visible stamp to the bottom of the signed PDF document "
-              + "advising verification of the electronic signature.",
-            finnish:
-              "Lisää allekirjoitetun PDF-asiakirjan alalaitaan näkyvän leiman, "
-              + "joka kehottaa tarkistamaan sähköisen allekirjoituksen.",
-            swedish:
-              "Lägger till en synlig stämpel i nederkanten av det signerade PDF-dokumentet "
-              + "som uppmanar till att verifiera den elektroniska signaturen."
+            key: "Add a verification stamp to the PDF file.",
+            finnish: "Lisää PDF-tiedostoon tarkistusleima.",
+            swedish: "Lägg till en verifieringsstämpel i PDF-filen."
           ),
           TranslationRow(
             key: "Qualified timestamp server",

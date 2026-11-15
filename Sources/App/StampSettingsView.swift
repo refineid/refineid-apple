@@ -8,29 +8,15 @@
   internal struct StampSettingsView: View {
     @State private var isStampEnabled = StampStore.isEnabled()
 
-    private var footerView: some View {
-      Text(
-        String(
-          localized: """
-            Adds a visible stamp to the bottom of the signed PDF document \
-            advising verification of the electronic signature.
-            """
-        )
-      )
-      .font(.footnote)
-      .foregroundStyle(.secondary)
-    }
-
     internal var body: some View {
       Form {
-        Section {
-          Toggle(String(localized: "Stamp"), isOn: $isStampEnabled)
-            .accessibilityIdentifier("stampEnabledToggle")
-            .onChange(of: isStampEnabled) { _, newValue in
-              StampStore.setEnabled(newValue)
-            }
-        } footer: {
-          footerView
+        Toggle(
+          String(localized: "Add a verification stamp to the PDF file."),
+          isOn: $isStampEnabled
+        )
+        .accessibilityIdentifier("stampEnabledToggle")
+        .onChange(of: isStampEnabled) { _, newValue in
+          StampStore.setEnabled(newValue)
         }
       }
       .formStyle(.grouped)
