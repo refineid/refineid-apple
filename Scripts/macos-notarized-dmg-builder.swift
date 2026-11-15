@@ -329,11 +329,15 @@ private func notarizationSetupHelp(notaryOutput: String) -> String {
   let help = """
 
     Notarization credentials not found. Do this once:
+
     1. Create an app-specific password (not your Apple ID password):
        https://appleid.apple.com → Sign-In and Security → App-Specific Passwords
+
     2. Store it in your Keychain as profile "RefineID-notary":
        xcrun notarytool store-credentials "RefineID-notary" --apple-id "petri.koistinen@refineid.fi" --team-id 4ZJC3SFJR2
+
     3. When prompted, paste the app-specific password.
+
     4. Rerun: swift Scripts/macos-notarized-dmg-builder.swift --configuration Release
     """
   return "notarytool submission failed: \(notaryOutput)\(help)"
