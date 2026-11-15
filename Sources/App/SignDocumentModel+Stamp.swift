@@ -9,15 +9,19 @@
   extension SignDocumentModel {
     /// The placed mark advising verification of the electronic signature.
     internal func visibleStamp(on document: Data) -> DocumentSigner.VisibleStamp? {
-      guard let state = stampState else { return nil }
-      let rendered = PdfStampRenderer.stampMark()
-      guard let placed = StampPlacement.placed(rendered, on: document) else {
+      #if FEATURE_PDF_STAMP
+        guard let state = stampState else { return nil }
+        let rendered = PdfStampRenderer.stampMark()
+        guard let placed = StampPlacement.placed(rendered, on: document) else {
+          return nil
+        }
+        return DocumentSigner.VisibleStamp(
+          mark: placed,
+          signerCertificate: state.signerCertificate
+        )
+      #else
         return nil
-      }
-      return DocumentSigner.VisibleStamp(
-        mark: placed,
-        signerCertificate: state.signerCertificate
-      )
+      #endif
     }
 
     /// One PAdES signature, with the optional visible stamp.
@@ -29,10 +33,20 @@
       // The card is read for the mark here, where the holder has
       // asked for a signature - not while they were still typing the
       // number that unlocks it.
-      await readStamp(accessNumber: accessNumber)
+      #if FEATURE_PDF_STAMP
+        let visibleStamp: DocumentSigner.VisibleStamp?
+        if StampStore.isEnabled() {
+          await readStamp(accessNumber: accessNumber)
+          let document = try Data(contentsOf: source)
+          visibleStamp = self.visibleStamp(on: document)
+        } else {
+          visibleStamp = nil
+        }
+      #else
+        let visibleStamp: DocumentSigner.VisibleStamp? = nil
+      #endif
       let document = try Data(contentsOf: source)
       let signedAt = Date()
-      let visibleStamp = self.visibleStamp(on: document)
       let pdfClaim = PdfIncrementalSigner.SignatureClaim(
         signedAt: signedAt,
         reason: nil,

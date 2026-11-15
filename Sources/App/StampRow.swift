@@ -7,10 +7,10 @@
 
   /// The card access number, and what it unlocked.
   ///
-  /// The number is the whole of the setting: give one and the document
-  /// is stamped with the certificate identity and, when present, the
-  /// handwritten signature the card carries; leave it empty and the
-  /// document is not visibly stamped. Nothing is remembered - the number
+  /// When Stamp is enabled in Settings, giving a CAN stamps the document
+  /// with the certificate identity and, when present, the handwritten
+  /// signature the card carries. If left empty, the document is stamped
+  /// with the default verification advice. Nothing is remembered - the number
   /// unlocks reading the card, so storing it would be keeping a key to
   /// the holder's own card for no reason.
   internal struct StampRow: View {

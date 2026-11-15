@@ -5446,6 +5446,28 @@
         }
       }
     },
+    "Adds a visible stamp to the bottom of the signed PDF document advising verification of the electronic signature.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adds a visible stamp to the bottom of the signed PDF document advising verification of the electronic signature."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lisää allekirjoitetun PDF-asiakirjan alalaitaan näkyvän leiman, joka kehottaa tarkistamaan sähköisen allekirjoituksen."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lägger till en synlig stämpel i nederkanten av det signerade PDF-dokumentet som uppmanar till att verifiera den elektroniska signaturen."
+          }
+        }
+      }
+    },
     "Signing Service": {
       "localizations": {
         "en": {
@@ -6266,6 +6288,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tidsstämpel"
+          }
+        }
+      }
+    },
+    "Stamp": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stamp"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leima"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stämpel"
           }
         }
       }

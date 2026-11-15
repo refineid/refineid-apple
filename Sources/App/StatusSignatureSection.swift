@@ -47,7 +47,7 @@
             .disabled(!acceptsEntry)
           }
           #if FEATURE_PDF_STAMP
-            if format == .pades {
+            if format == .pades, StampStore.isEnabled() {
               StampRow(signing: signing, accessNumber: $accessNumber)
                 .disabled(!acceptsEntry)
             }

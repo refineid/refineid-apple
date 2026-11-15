@@ -70,7 +70,8 @@ from the same HTTP endpoint. Existing HTTP drafts are shown in that
 editing form when the app becomes active. Timestamp token and trusted-list
 verification are unchanged.
 
-The authority and Card group titles come from `Settings.bundle/Root.plist`.
+The authority, Card, and Stamp group titles come from
+`Settings.bundle/Root.plist`.
 The "RefineID Settings" prefix is supplied by iOS, as observed in the native
 Settings renderer; it is not application copy. Apple's
 [Settings bundle schema](https://developer.apple.com/documentation/foundation/building-a-settings-bundle-for-your-app#Specify-the-contents-of-each-settings-page)

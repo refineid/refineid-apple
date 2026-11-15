@@ -16,6 +16,7 @@
       let authority: String
       let card: String
       let organization: String
+      let stamp: String
     }
 
     /// One key's expected Finnish and Swedish words.
@@ -63,6 +64,18 @@
       try Self.check(
         [
           TranslationRow(key: "Time Stamp", finnish: "Aikaleima", swedish: "Tidsstämpel"),
+          TranslationRow(key: "Stamp", finnish: "Leima", swedish: "Stämpel"),
+          TranslationRow(
+            key:
+              "Adds a visible stamp to the bottom of the signed PDF document "
+              + "advising verification of the electronic signature.",
+            finnish:
+              "Lisää allekirjoitetun PDF-asiakirjan alalaitaan näkyvän leiman, "
+              + "joka kehottaa tarkistamaan sähköisen allekirjoituksen.",
+            swedish:
+              "Lägger till en synlig stämpel i nederkanten av det signerade PDF-dokumentet "
+              + "som uppmanar till att verifiera den elektroniska signaturen."
+          ),
           TranslationRow(
             key: "Qualified timestamp server",
             finnish: "Hyväksytty aikaleimapalvelin",
@@ -184,19 +197,22 @@
           language: "en",
           authority: "Qualified Time Stamping Authority",
           card: "Card",
-          organization: "Organization Card"
+          organization: "Organization Card",
+          stamp: "Stamp"
         ),
         TitleRow(
           language: "fi",
           authority: "Hyväksytty aikaleimavarmentaja",
           card: "Kortti",
-          organization: "Organisaatiokortti"
+          organization: "Organisaatiokortti",
+          stamp: "Leima"
         ),
         TitleRow(
           language: "sv",
           authority: "Kvalificerad tidsstämplingsauktoritet",
           card: "Kort",
-          organization: "Organisationskort"
+          organization: "Organisationskort",
+          stamp: "Stämpel"
         ),
       ] {
         let strings = bundle.appending(path: "\(row.language).lproj/Root.strings")
@@ -207,6 +223,7 @@
         #expect(table["Qualified Time Stamping Authority"] == row.authority)
         #expect(table["Card"] == row.card)
         #expect(table["Organization Card"] == row.organization)
+        #expect(table["Stamp"] == row.stamp)
         #expect(table["Address"] == nil)
       }
     }
@@ -239,6 +256,16 @@
         // offers no switch for them; a value stored earlier stays
         // stored and gated, not deleted.
         #expect(organizationToggles.isEmpty)
+      #endif
+      let stampToggles = specifiers.filter { specifier in
+        specifier["Key"] as? String == StampStore.key
+      }
+      #if FEATURE_PDF_STAMP
+        #expect(stampToggles.count == 1)
+        let stampToggle = try #require(stampToggles.first)
+        #expect(stampToggle["DefaultValue"] as? Bool == false)
+      #else
+        #expect(stampToggles.isEmpty)
       #endif
     }
   }

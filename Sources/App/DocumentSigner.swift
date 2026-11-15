@@ -187,7 +187,7 @@ internal enum DocumentSigner {
     access: SigningAccess
   ) async throws -> CardMaterial {
     let prepared: PdfSignaturePlaceholder
-    let stampMark = stamp?.mark ?? PdfStampRenderer.stampMark()
+    let stampMark = Self.resolveStampMark(for: document, stamp: stamp)
     do {
       prepared = try PdfIncrementalSigner.prepare(
         document, revision: .signature(claim), appending: stampMark
@@ -254,4 +254,29 @@ internal enum DocumentSigner {
       throw Failure.network(error)
     }
   }
+
+  /// Resolves the visible stamp mark for the document if the feature and preference allow.
+  private static func resolveStampMark(for document: Data, stamp: VisibleStamp?) -> StampMark? {
+    #if FEATURE_PDF_STAMP
+      guard StampStore.isEnabled() else { return nil }
+      if let stamp {
+        return stamp.mark
+      }
+      return Self.defaultStampMark(for: document)
+    #else
+      return nil
+    #endif
+  }
+
+  #if FEATURE_PDF_STAMP
+    /// Renders the default stamp advising verification and places it on the document.
+    private static func defaultStampMark(for document: Data) -> StampMark {
+      let rendered = PdfStampRenderer.stampMark()
+      #if os(macOS)
+        return StampPlacement.placed(rendered, on: document) ?? rendered
+      #else
+        return rendered
+      #endif
+    }
+  #endif
 }
