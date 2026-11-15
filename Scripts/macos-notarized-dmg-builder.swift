@@ -325,6 +325,41 @@ private func createDmg(sourceApp: URL, outputDmg: URL) {
   try? FileManager.default.removeItem(at: stagingDmg)
 }
 
+private func notarizationSetupHelp(notaryOutput: String) -> String {
+  let help = """
+
+    Notarization credentials not found. Do this once:
+    1. Create an app-specific password (not your Apple ID password):
+       https://appleid.apple.com → Sign-In and Security → App-Specific Passwords
+    2. Store it in your Keychain as profile "RefineID-notary":
+       xcrun notarytool store-credentials "RefineID-notary" --apple-id "petri.koistinen@refineid.fi" --team-id 4ZJC3SFJR2
+    3. When prompted, paste the app-specific password.
+    4. Rerun: swift Scripts/macos-notarized-dmg-builder.swift --configuration Release
+    """
+  return "notarytool submission failed: \(notaryOutput)\(help)"
+}
+
+private func preflightNotaryProfile(_ notaryProfile: String) {
+  if notaryProfile.isEmpty {
+    fail("no notarization credential: set --notary-profile (use a notarytool keychain profile)")
+  }
+
+  note("checking notarization keychain profile '\(notaryProfile)'")
+  let status = run(
+    xcodeNotarytool,
+    ["history", "--keychain-profile", notaryProfile],
+    directory: repositoryRoot
+  )
+
+  if status.status != 0 {
+    let output = status.stderr.isEmpty ? status.stdout : status.stderr
+    if output.contains("No Keychain password item found") || output.contains("Could not find") || status.status == 69 {
+      fail(notarizationSetupHelp(notaryOutput: output))
+    }
+    fail("notarytool profile check failed for '\(notaryProfile)': \(output)")
+  }
+}
+
 private func notarizeDmg(
   dmg: URL,
   teamId _: String,
@@ -350,17 +385,7 @@ private func notarizeDmg(
 
   if status.status != 0 {
     let notaryOutput = status.stderr.isEmpty ? status.stdout : status.stderr
-    let help = """
-
-      Notarization credentials not found. Do this once:
-      1. Create an app-specific password (not your Apple ID password):
-         https://appleid.apple.com → Sign-In and Security → App-Specific Passwords
-      2. Store it in your Keychain as profile "RefineID-notary":
-         xcrun notarytool store-credentials "RefineID-notary" --apple-id "petri.koistinen@refineid.fi" --team-id 4ZJC3SFJR2
-      3. When prompted, paste the app-specific password.
-      4. Rerun: swift Scripts/macos-notarized-dmg-builder.swift --configuration Release
-      """
-    fail("notarytool submission failed: \(notaryOutput)\(help)")
+    fail(notarizationSetupHelp(notaryOutput: notaryOutput))
   }
 }
 
@@ -448,6 +473,8 @@ private func main() {
   if options.appName.isEmpty {
     fail("--app-name is required")
   }
+
+  preflightNotaryProfile(options.notaryProfile)
 
   let signingIdentity = signingIdentityName(
     named: options.signingIdentityName,
