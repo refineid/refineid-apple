@@ -54,16 +54,20 @@ extension DocumentSigner {
   @MainActor
   internal static func prepareRemoteSigning() {
     guard Self.usesRappSigning else { return }
-    Task.detached(priority: .utility) {
-      _ = try? await Self.remoteSignatureCertificate()
-    }
+    #if REFINEID_REMOTE_CARD
+      Task.detached(priority: .utility) {
+        _ = try? await Self.remoteSignatureCertificate()
+      }
+    #endif
   }
 
-  /// The paired phone's signature certificate, read once per pairing.
-  internal static func remoteSignatureCertificate() async throws -> Data {
-    let pairID = try? RappDeviceVault().selectedPairID()
-    return try await Self.remoteCertificates.certificate(for: pairID) {
-      try await Self.fetchRemoteSignatureCertificate()
+  #if REFINEID_REMOTE_CARD
+    /// The paired phone's signature certificate, read once per pairing.
+    internal static func remoteSignatureCertificate() async throws -> Data {
+      let pairID = try? RappDeviceVault().selectedPairID()
+      return try await Self.remoteCertificates.certificate(for: pairID) {
+        try await Self.fetchRemoteSignatureCertificate()
+      }
     }
-  }
+  #endif
 }

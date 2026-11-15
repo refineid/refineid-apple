@@ -69,7 +69,7 @@ internal enum CardStateReset {
     let revoked = Self.revokeEveryPairing()
     lines.append("RefineID pairings revoked: \(revoked)")
 
-    #if os(macOS) || os(iOS)
+    #if REFINEID_REMOTE_CARD
       Task { @MainActor in
         PersistentTokenRegistry.withdrawPublishedIdentity()
         PersistentTokenRegistry.shared.stopWatchingPresence()

@@ -196,14 +196,16 @@ internal enum DocumentSigner {
       throw Failure.document(error)
     }
     let digest = prepared.digest(QualifiedDocumentCms.signingDigestAlgorithm)
-    if await MainActor.run(body: { Self.usesRappSigning }) {
-      return try await Self.remoteCardMaterial(
-        prepared: prepared,
-        documentName: name,
-        byteRangeDigest: digest,
-        expectedCertificate: stamp?.signerCertificate
-      )
-    }
+    #if REFINEID_REMOTE_CARD
+      if await MainActor.run(body: { Self.usesRappSigning }) {
+        return try await Self.remoteCardMaterial(
+          prepared: prepared,
+          documentName: name,
+          byteRangeDigest: digest,
+          expectedCertificate: stamp?.signerCertificate
+        )
+      }
+    #endif
     guard let pin2 = access.pin2 else {
       throw Failure.card(.invalidEntry)
     }

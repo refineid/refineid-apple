@@ -72,7 +72,11 @@
     /// Used when the keychain has not yet listed the borrowed token
     /// the registry just published.
     private var borrowedHolderLine: String? {
-      PersistentTokenRegistry.shared.holderLine
+      #if REFINEID_REMOTE_CARD
+        PersistentTokenRegistry.shared.holderLine
+      #else
+        nil
+      #endif
     }
 
     /// The event which can change the row's asynchronous contents.
@@ -101,7 +105,9 @@
           // The phone just paired is shown by its identity now: the
           // connecting line has done its work (RAPP v26.11.8 §4.7).
           if case .paired = line, !DemoMode.shared.isActive {
-            PersistentTokenRegistry.shared.connectedAfterPairing()
+            #if REFINEID_REMOTE_CARD
+              PersistentTokenRegistry.shared.connectedAfterPairing()
+            #endif
           }
         }
     }
@@ -152,19 +158,36 @@
           phoneCardStatus: nil
         )
       }
-      let registry = PersistentTokenRegistry.shared
-      return RequesterFacts(
-        availability: availability,
-        warnsUnavailableCard: warnsUnavailableCard,
-        readerConnected: cardPresence.isReaderConnected,
-        cardPresent: cardPresence.isCardPresent,
-        remoteUse: remoteUse,
-        phonePaired: registry.pairedPhoneID != nil,
-        phoneThatForgot: registry.phoneThatForgot,
-        phoneJustPaired: registry.phoneJustPaired,
-        localNetworkDenied: localNetworkDenied,
-        phoneCardStatus: registry.holderCardStatus
-      )
+      #if REFINEID_REMOTE_CARD
+        let registry = PersistentTokenRegistry.shared
+        return RequesterFacts(
+          availability: availability,
+          warnsUnavailableCard: warnsUnavailableCard,
+          readerConnected: cardPresence.isReaderConnected,
+          cardPresent: cardPresence.isCardPresent,
+          remoteUse: remoteUse,
+          phonePaired: registry.pairedPhoneID != nil,
+          phoneThatForgot: registry.phoneThatForgot,
+          phoneJustPaired: registry.phoneJustPaired,
+          localNetworkDenied: localNetworkDenied,
+          phoneCardStatus: registry.holderCardStatus
+        )
+      #else
+        // With the remote card compiled out no phone can be paired, so the
+        // row speaks only of the card in this Mac's reader.
+        return RequesterFacts(
+          availability: availability,
+          warnsUnavailableCard: warnsUnavailableCard,
+          readerConnected: cardPresence.isReaderConnected,
+          cardPresent: cardPresence.isCardPresent,
+          remoteUse: false,
+          phonePaired: false,
+          phoneThatForgot: nil,
+          phoneJustPaired: nil,
+          localNetworkDenied: false,
+          phoneCardStatus: nil
+        )
+      #endif
     }
 
     private var readingLine: some View {
@@ -232,7 +255,11 @@
           .foregroundStyle(.secondary)
 
       case .pairPhone:
-        RemotePairingPromptView()
+        #if REFINEID_REMOTE_CARD
+          RemotePairingPromptView()
+        #else
+          EmptyView()
+        #endif
 
       case .localNetworkDenied:
         LocalNetworkNotice(message: LocalNetworkSettings.deniedMessage)

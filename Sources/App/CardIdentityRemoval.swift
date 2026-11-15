@@ -12,10 +12,18 @@ internal enum CardIdentityRemoval {
   }
 
   internal static func perform() async -> CardStateReset.Outcome {
-    await perform(
-      reset: CardStateReset.perform,
-      forgetCredentials: CardCredentialStore.forgetCardAccessNumber,
-      removeRemoteConfiguration: removeAllRemoteConfiguration)
+    #if REFINEID_REMOTE_CARD
+      await perform(
+        reset: CardStateReset.perform,
+        forgetCredentials: CardCredentialStore.forgetCardAccessNumber,
+        removeRemoteConfiguration: removeAllRemoteConfiguration)
+    #else
+      // With the remote card compiled out no pairing can exist to remove.
+      await perform(
+        reset: CardStateReset.perform,
+        forgetCredentials: CardCredentialStore.forgetCardAccessNumber,
+        removeRemoteConfiguration: { ConfigurationRemoval(succeeded: true, failures: []) })
+    #endif
   }
 
   internal static func perform(
@@ -35,35 +43,37 @@ internal enum CardIdentityRemoval {
   ///
   /// With every pairing gone the phone has nothing to serve, so Remote
   /// Access turns off as well; turning it back on starts a new pairing.
-  private static func removeAllRemoteConfiguration() async -> ConfigurationRemoval {
-    #if os(iOS)
-      RemoteAccessServing.setEnabled(false)
-    #endif
-    defer {
-      NotificationCenter.default.post(
-        name: RappPairingModel.pairingsDidChangeNotification, object: nil)
-    }
-    let vault = RappDeviceVault()
-    let catalog = RappPairCatalog(vault: vault)
-    if let pairs = try? await catalog.activePairs() {
-      for pair in pairs {
-        try? await catalog.revoke(pairID: pair.pairID)
+  #if REFINEID_REMOTE_CARD
+    private static func removeAllRemoteConfiguration() async -> ConfigurationRemoval {
+      #if os(iOS)
+        RemoteAccessServing.setEnabled(false)
+      #endif
+      defer {
+        NotificationCenter.default.post(
+          name: RappPairingModel.pairingsDidChangeNotification, object: nil)
       }
-    }
-    try? vault.clearSelectedPair()
-    return await Task.detached(priority: .userInitiated) {
-      do {
-        _ = try RappDeviceVault().deleteServiceNamespace()
-        return ConfigurationRemoval(succeeded: true, failures: [])
-      } catch RappDeviceVault.Failure.unavailable(let status) {
-        return ConfigurationRemoval(
-          succeeded: false,
-          failures: ["Cleanup failure: keychain namespace (OSStatus=\(status))"])
-      } catch {
-        return ConfigurationRemoval(
-          succeeded: false,
-          failures: ["Cleanup failure: keychain namespace (unexpected storage error)"])
+      let vault = RappDeviceVault()
+      let catalog = RappPairCatalog(vault: vault)
+      if let pairs = try? await catalog.activePairs() {
+        for pair in pairs {
+          try? await catalog.revoke(pairID: pair.pairID)
+        }
       }
-    }.value
-  }
+      try? vault.clearSelectedPair()
+      return await Task.detached(priority: .userInitiated) {
+        do {
+          _ = try RappDeviceVault().deleteServiceNamespace()
+          return ConfigurationRemoval(succeeded: true, failures: [])
+        } catch RappDeviceVault.Failure.unavailable(let status) {
+          return ConfigurationRemoval(
+            succeeded: false,
+            failures: ["Cleanup failure: keychain namespace (OSStatus=\(status))"])
+        } catch {
+          return ConfigurationRemoval(
+            succeeded: false,
+            failures: ["Cleanup failure: keychain namespace (unexpected storage error)"])
+        }
+      }.value
+    }
+  #endif
 }

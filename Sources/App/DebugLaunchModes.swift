@@ -127,7 +127,7 @@
         Self.selectPairReport()
 
       case .remoteIdentityProbe:
-        #if os(iOS) || os(macOS)
+        #if os(iOS) || os(macOS) && REFINEID_REMOTE_CARD
           DebugRemoteIdentityProbe.report()
         #else
           DebugModeReport(

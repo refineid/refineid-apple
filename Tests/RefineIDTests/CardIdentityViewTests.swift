@@ -1,49 +1,52 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-import CardCore
-import Foundation
-import SwiftUI
-import Testing
+#if REFINEID_REMOTE_CARD
 
-@testable import RefineIDTestHost
+  import CardCore
+  import Foundation
+  import SwiftUI
+  import Testing
 
-@Suite
-internal struct CardIdentityViewTests {
-  private static let maxPersonNameLength = 54
+  @testable import RefineIDTestHost
 
-  @Test
-  @MainActor
-  internal func fiftyFourCharacterNameInCardIdentitySection() {
-    let longName = "MÖTTÖNEN-KUMPULAINEN-AALTONEN VELI-MATTI-ANTERO-KALEVI"
-    #expect(longName.count == Self.maxPersonNameLength)
+  @Suite
+  internal struct CardIdentityViewTests {
+    private static let maxPersonNameLength = 54
 
-    var didRemove = false
-    let section = CardIdentitySection(holder: longName) {
-      didRemove = true
-    }
-    _ = section.body
-    #expect(section.holder == longName)
-    section.onRemove()
-    #expect(didRemove)
-  }
-
-  #if REFINEID_LOCAL_CARD && os(iOS)
     @Test
     @MainActor
-    internal func fiftyFourCharacterNameInCardReaderIdentitySection() {
+    internal func fiftyFourCharacterNameInCardIdentitySection() {
       let longName = "MÖTTÖNEN-KUMPULAINEN-AALTONEN VELI-MATTI-ANTERO-KALEVI"
       #expect(longName.count == Self.maxPersonNameLength)
 
-      let section = CardReaderIdentitySection(holders: [longName])
+      var didRemove = false
+      let section = CardIdentitySection(holder: longName) {
+        didRemove = true
+      }
       _ = section.body
-      #expect(section.holders.first == longName)
+      #expect(section.holder == longName)
+      section.onRemove()
+      #expect(didRemove)
     }
-  #endif
 
-  @Test
-  @MainActor
-  internal func rappPairingViewRendersCardRemoteAccess() {
-    let pairingView = RappPairingView()
-    _ = pairingView.body
+    #if REFINEID_LOCAL_CARD && os(iOS)
+      @Test
+      @MainActor
+      internal func fiftyFourCharacterNameInCardReaderIdentitySection() {
+        let longName = "MÖTTÖNEN-KUMPULAINEN-AALTONEN VELI-MATTI-ANTERO-KALEVI"
+        #expect(longName.count == Self.maxPersonNameLength)
+
+        let section = CardReaderIdentitySection(holders: [longName])
+        _ = section.body
+        #expect(section.holders.first == longName)
+      }
+    #endif
+
+    @Test
+    @MainActor
+    internal func rappPairingViewRendersCardRemoteAccess() {
+      let pairingView = RappPairingView()
+      _ = pairingView.body
+    }
   }
-}
+#endif

@@ -1,188 +1,191 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-import CardCore
-import Foundation
-import RappEngine
-import Security
-import SwiftUI
+#if REFINEID_REMOTE_CARD
 
-/// What the model does with each event the pairing ceremony reports.
-extension RappPairingModel {
-  /// What the requester tells its user when the search ends without a
-  /// pairing; nothing when it was closed here.
-  ///
-  /// No message names a custodian (STPA CC-84), and the code is called not
-  /// accepted only when every custodian tried refused it (CC-83).
-  nonisolated internal static func failure(
-    for reason: RappPairingSearch<PairingEndpoint>.CloseReason
-  ) -> Failure? {
-    switch reason {
-    case .ceremonyEnded(.outOfSpace):
-      .reported(DiskFullMessage.text)
+  import CardCore
+  import Foundation
+  import RappEngine
+  import Security
+  import SwiftUI
 
-    case .ceremonyEnded(.persistenceFailure(let status)):
-      .reported(notStoredMessage(status: status))
+  /// What the model does with each event the pairing ceremony reports.
+  extension RappPairingModel {
+    /// What the requester tells its user when the search ends without a
+    /// pairing; nothing when it was closed here.
+    ///
+    /// No message names a custodian (STPA CC-84), and the code is called not
+    /// accepted only when every custodian tried refused it (CC-83).
+    nonisolated internal static func failure(
+      for reason: RappPairingSearch<PairingEndpoint>.CloseReason
+    ) -> Failure? {
+      switch reason {
+      case .ceremonyEnded(.outOfSpace):
+        .reported(DiskFullMessage.text)
 
-    case .ceremonyEnded:
-      .reported(String(localized: "Pairing ended before it was completed."))
+      case .ceremonyEnded(.persistenceFailure(let status)):
+        .reported(notStoredMessage(status: status))
 
-    case .interrupted, .localRequest:
-      nil
+      case .ceremonyEnded:
+        .reported(String(localized: "Pairing ended before it was completed."))
 
-    case .localNetworkDenied:
-      .localNetworkDenied
+      case .interrupted, .localRequest:
+        nil
 
-    case .noneInPairingMode:
-      .reported(String(localized: "No phone in pairing mode was found."))
+      case .localNetworkDenied:
+        .localNetworkDenied
 
-    case .notAccepted:
-      .reported(String(localized: "The pairing code was not accepted."))
+      case .noneInPairingMode:
+        .reported(String(localized: "No phone in pairing mode was found."))
 
-    case .unreachable:
-      .unreachable
-    }
-  }
+      case .notAccepted:
+        .reported(String(localized: "The pairing code was not accepted."))
 
-  /// What the holder is told when the keychain did not store a pairing,
-  /// with the cause the system gives (RAPP v26.11.8 §4.3 item 4).
-  nonisolated internal static func notStoredMessage(status: OSStatus?) -> String {
-    guard let status, let cause = SecCopyErrorMessageString(status, nil) as String? else {
-      return String(localized: "The pairing could not be stored.")
-    }
-    return String(localized: "The pairing could not be stored. \(cause)")
-  }
-
-  /// What the custodian's ceremony reports.
-  internal func receive(
-    _ event: RappPairingCoordinator.Event,
-    from coordinator: RappPairingCoordinator
-  ) {
-    guard self.coordinator === coordinator else { return }
-    switch event {
-    case .offerRestored:
-      restoreCustodianOffer(coordinator: coordinator)
-
-    case .keyConfirmed, .peerIntroduced:
-      // The peer's name arrives in the stored pair.
-      break
-
-    case .paired(let pair):
-      handlePaired(pair)
-
-    case .closed(let reason):
-      guard !isFinished else { return }
-      handleClosed(reason)
-    }
-  }
-
-  /// What the requester's search reports.
-  internal func receive(
-    _ event: RappPairingSearch<PairingEndpoint>.Event,
-    from search: RappPairingSearch<PairingEndpoint>
-  ) {
-    guard self.search === search else { return }
-    switch event {
-    case .declined(let refusal):
-      #if DEBUG
-        DevErrorLog.report(
-          "pairing: a phone in pairing mode did not take the code: "
-            + DevErrorLog.caseName(of: refusal),
-          source: .app)
-      #endif
-
-    case .peerIntroduced:
-      // The peer's name arrives in the stored pair.
-      break
-
-    case .paired(let pair):
-      handlePaired(pair)
-
-    case .closed(.interrupted):
-      // The code entry is offered afresh once remote use resumes.
-      resetAttempt()
-
-    case .closed(let reason):
-      guard !isFinished, let failure = Self.failure(for: reason) else { return }
-      #if DEBUG
-        DevErrorLog.report(
-          "pairing ended: " + DevErrorLog.caseName(of: reason), source: .app)
-      #endif
-      fail(failure)
-      if failure == .localNetworkDenied {
-        PersistentTokenRegistry.shared.localNetworkDenied = true
+      case .unreachable:
+        .unreachable
       }
     }
-  }
 
-  private func handleClosed(_ reason: RappPairingCoordinator.CloseReason) {
-    switch reason {
-    case .offerExpired:
-      // An unused code lapses with its offer after five minutes; the next one follows.
-      createOffer()
-
-    case .outOfSpace:
-      // A next offer could not be stored either.
-      fail(.reported(DiskFullMessage.text))
-
-    case .persistenceFailure(let status):
-      // A next offer could not be stored either.
-      #if DEBUG
-        DevErrorLog.report(
-          "pairing not stored: keychain status \(status.map(String.init) ?? "none")",
-          source: .app)
-      #endif
-      fail(.reported(Self.notStoredMessage(status: status)))
-
-    case .attemptTimedOut, .custodianBusy, .localRequest,
-      .protocolFailure, .storageUnconfirmed, .transportFailure:
-      ceremonyEnded(String(localized: "Pairing ended before it was completed."))
+    /// What the holder is told when the keychain did not store a pairing,
+    /// with the cause the system gives (RAPP v26.11.8 §4.3 item 4).
+    nonisolated internal static func notStoredMessage(status: OSStatus?) -> String {
+      guard let status, let cause = SecCopyErrorMessageString(status, nil) as String? else {
+        return String(localized: "The pairing could not be stored.")
+      }
+      return String(localized: "The pairing could not be stored. \(cause)")
     }
-  }
 
-  /// Selects the new pair.
-  ///
-  /// The pair carries the name its peer gave (RAPP v26.11.8 §4.3 item 3).
-  /// A phone that offered lists the new computer and shows the next code.
-  private func handlePaired(_ pair: RappPairingCoordinator.PairSummary) {
-    do {
-      try vault.selectPair(pairID: pair.pairID)
-      selectedPairID = pair.pairID
-      refresh()
-      serveNewPairing()
-      Task { await RemoteAccessPermissions.requestNotificationsIfUndecided() }
-      #if os(iOS)
-        if isOffering {
-          createOffer()
-          return
+    /// What the custodian's ceremony reports.
+    internal func receive(
+      _ event: RappPairingCoordinator.Event,
+      from coordinator: RappPairingCoordinator
+    ) {
+      guard self.coordinator === coordinator else { return }
+      switch event {
+      case .offerRestored:
+        restoreCustodianOffer(coordinator: coordinator)
+
+      case .keyConfirmed, .peerIntroduced:
+        // The peer's name arrives in the stored pair.
+        break
+
+      case .paired(let pair):
+        handlePaired(pair)
+
+      case .closed(let reason):
+        guard !isFinished else { return }
+        handleClosed(reason)
+      }
+    }
+
+    /// What the requester's search reports.
+    internal func receive(
+      _ event: RappPairingSearch<PairingEndpoint>.Event,
+      from search: RappPairingSearch<PairingEndpoint>
+    ) {
+      guard self.search === search else { return }
+      switch event {
+      case .declined(let refusal):
+        #if DEBUG
+          DevErrorLog.report(
+            "pairing: a phone in pairing mode did not take the code: "
+              + DevErrorLog.caseName(of: refusal),
+            source: .app)
+        #endif
+
+      case .peerIntroduced:
+        // The peer's name arrives in the stored pair.
+        break
+
+      case .paired(let pair):
+        handlePaired(pair)
+
+      case .closed(.interrupted):
+        // The code entry is offered afresh once remote use resumes.
+        resetAttempt()
+
+      case .closed(let reason):
+        guard !isFinished, let failure = Self.failure(for: reason) else { return }
+        #if DEBUG
+          DevErrorLog.report(
+            "pairing ended: " + DevErrorLog.caseName(of: reason), source: .app)
+        #endif
+        fail(failure)
+        if failure == .localNetworkDenied {
+          PersistentTokenRegistry.shared.localNetworkDenied = true
         }
-      #endif
-      phase = .paired(pair)
-      finishAttempt()
-      if pair.role == .requester {
-        PersistentTokenRegistry.shared.forgetReplacedPairings(
-          keeping: pair.pairID, in: vault)
       }
-      #if os(macOS)
-        PersistentTokenRegistry.shared.followJustPaired(
-          phone: pair.peerDisplayName, peripheral: lastDialed?.peripheral)
-      #endif
-    } catch  where StorageFailure.isOutOfSpace(error) {
-      fail(.reported(DiskFullMessage.text))
-    } catch {
-      ceremonyEnded(String(localized: "The paired device could not be selected."))
+    }
+
+    private func handleClosed(_ reason: RappPairingCoordinator.CloseReason) {
+      switch reason {
+      case .offerExpired:
+        // An unused code lapses with its offer after five minutes; the next one follows.
+        createOffer()
+
+      case .outOfSpace:
+        // A next offer could not be stored either.
+        fail(.reported(DiskFullMessage.text))
+
+      case .persistenceFailure(let status):
+        // A next offer could not be stored either.
+        #if DEBUG
+          DevErrorLog.report(
+            "pairing not stored: keychain status \(status.map(String.init) ?? "none")",
+            source: .app)
+        #endif
+        fail(.reported(Self.notStoredMessage(status: status)))
+
+      case .attemptTimedOut, .custodianBusy, .localRequest,
+        .protocolFailure, .storageUnconfirmed, .transportFailure:
+        ceremonyEnded(String(localized: "Pairing ended before it was completed."))
+      }
+    }
+
+    /// Selects the new pair.
+    ///
+    /// The pair carries the name its peer gave (RAPP v26.11.8 §4.3 item 3).
+    /// A phone that offered lists the new computer and shows the next code.
+    private func handlePaired(_ pair: RappPairingCoordinator.PairSummary) {
+      do {
+        try vault.selectPair(pairID: pair.pairID)
+        selectedPairID = pair.pairID
+        refresh()
+        serveNewPairing()
+        Task { await RemoteAccessPermissions.requestNotificationsIfUndecided() }
+        #if os(iOS)
+          if isOffering {
+            createOffer()
+            return
+          }
+        #endif
+        phase = .paired(pair)
+        finishAttempt()
+        if pair.role == .requester {
+          PersistentTokenRegistry.shared.forgetReplacedPairings(
+            keeping: pair.pairID, in: vault)
+        }
+        #if os(macOS)
+          PersistentTokenRegistry.shared.followJustPaired(
+            phone: pair.peerDisplayName, peripheral: lastDialed?.peripheral)
+        #endif
+      } catch  where StorageFailure.isOutOfSpace(error) {
+        fail(.reported(DiskFullMessage.text))
+      } catch {
+        ceremonyEnded(String(localized: "The paired device could not be selected."))
+      }
+    }
+
+    /// Keeps showing the same code after a failed attempt, for the next
+    /// connection on either transport; a stream attempt that closed its
+    /// listener is followed by a fresh one.
+    private func restoreCustodianOffer(coordinator: RappPairingCoordinator) {
+      guard relay?.isCancelled != false else { return }
+      // The closed listener reports no more; its connection's claim ends here.
+      claim?.release(.stream)
+      let replacement = makeRelay()
+      replacement.busyAnswer = { coordinator.busyAnswer() }
+      relay = replacement
+      replacement.start()
     }
   }
-
-  /// Keeps showing the same code after a failed attempt, for the next
-  /// connection on either transport; a stream attempt that closed its
-  /// listener is followed by a fresh one.
-  private func restoreCustodianOffer(coordinator: RappPairingCoordinator) {
-    guard relay?.isCancelled != false else { return }
-    // The closed listener reports no more; its connection's claim ends here.
-    claim?.release(.stream)
-    let replacement = makeRelay()
-    replacement.busyAnswer = { coordinator.busyAnswer() }
-    relay = replacement
-    replacement.start()
-  }
-}
+#endif

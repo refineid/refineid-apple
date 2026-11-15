@@ -36,206 +36,218 @@ extension DocumentSigner {
     #endif
   }
 
-  /// Builds the same locally verified card material as the reader path while
-  /// delegating only the certificate read and PIN 2 card signature to the
-  /// explicitly paired phone.
-  internal static func remoteCardMaterial(
-    prepared: PdfSignaturePlaceholder,
-    documentName: String,
-    byteRangeDigest: Data,
-    expectedCertificate: Data?
-  ) async throws -> CardMaterial {
-    let product = try await Self.remoteQualifiedSignature(
-      documentName: documentName,
-      containedFiles: [],
-      expectedCertificate: expectedCertificate
-    ) { certificate in
-      QualifiedDocumentCms.signedAttributes(
-        byteRangeDigest: byteRangeDigest,
-        signerCertificate: certificate
+  #if REFINEID_REMOTE_CARD
+    /// Builds the same locally verified card material as the reader path while
+    /// delegating only the certificate read and PIN 2 card signature to the
+    /// explicitly paired phone.
+    internal static func remoteCardMaterial(
+      prepared: PdfSignaturePlaceholder,
+      documentName: String,
+      byteRangeDigest: Data,
+      expectedCertificate: Data?
+    ) async throws -> CardMaterial {
+      let product = try await Self.remoteQualifiedSignature(
+        documentName: documentName,
+        containedFiles: [],
+        expectedCertificate: expectedCertificate
+      ) { certificate in
+        QualifiedDocumentCms.signedAttributes(
+          byteRangeDigest: byteRangeDigest,
+          signerCertificate: certificate
+        )
+      }
+      return CardMaterial(
+        placeholder: prepared,
+        signedAttributes: product.content,
+        signature: product.signature,
+        certificate: product.certificate,
+        profile: product.profile
       )
     }
-    return CardMaterial(
-      placeholder: prepared,
-      signedAttributes: product.content,
-      signature: product.signature,
-      certificate: product.certificate,
-      profile: product.profile
-    )
-  }
+  #endif
 
-  /// Fetches the qualified signature certificate from the paired phone
-  /// with retries, leaving the phone a moment before the next request.
-  internal static func fetchRemoteSignatureCertificate() async throws -> Data {
-    var certificate: Data?
-    var certificateError: Error?
-    for attempt in 1...RemoteSigningPolicy.maximumCertificateAttempts {
-      do {
-        let certificateResponse = try await Self.askPhone(.readSignatureCertificate)
-        if case .signatureCertificate(let cert) = certificateResponse {
-          certificate = cert
-          break
-        }
-      } catch let error as RappRequesterClientError {
-        certificateError = error
-        guard Self.isRecoverableRemoteError(error),
-          attempt < RemoteSigningPolicy.maximumCertificateAttempts
-        else {
+  #if REFINEID_REMOTE_CARD
+    /// Fetches the qualified signature certificate from the paired phone
+    /// with retries, leaving the phone a moment before the next request.
+    internal static func fetchRemoteSignatureCertificate() async throws -> Data {
+      var certificate: Data?
+      var certificateError: Error?
+      for attempt in 1...RemoteSigningPolicy.maximumCertificateAttempts {
+        do {
+          let certificateResponse = try await Self.askPhone(.readSignatureCertificate)
+          if case .signatureCertificate(let cert) = certificateResponse {
+            certificate = cert
+            break
+          }
+        } catch let error as RappRequesterClientError {
+          certificateError = error
+          guard Self.isRecoverableRemoteError(error),
+            attempt < RemoteSigningPolicy.maximumCertificateAttempts
+          else {
+            throw error
+          }
+          try? await Task.sleep(for: .seconds(RemoteSigningPolicy.retryDelaySeconds))
+        } catch {
           throw error
         }
-        try? await Task.sleep(for: .seconds(RemoteSigningPolicy.retryDelaySeconds))
-      } catch {
-        throw error
+      }
+      guard let certificate else {
+        throw certificateError ?? Failure.remote(.noSignature)
+      }
+      try? await Task.sleep(for: .seconds(RemoteSigningPolicy.settleDelaySeconds))
+      return certificate
+    }
+  #endif
+
+  #if REFINEID_REMOTE_CARD
+    /// Runs `operation` on the paired phone over this computer's one session
+    /// with it, so signing never opens a second session beside it.
+    private static func askPhone(
+      _ operation: RappRequesterOperation
+    ) async throws -> RappRequesterResponse {
+      try await PersistentTokenRegistry.shared.perform(operation)
+    }
+  #endif
+
+  #if REFINEID_REMOTE_CARD
+    /// Performs one remote qualified-signature operation.
+    ///
+    /// The requester sends only the digest and public algorithm metadata;
+    /// PIN 2 exists solely in the phone authorization UI and its NFC card
+    /// session.
+    ///
+    /// For a package, `documentName` is the package's own name and
+    /// `containedFiles` the names of the files it holds, in container order
+    /// (RAPP v26.11.8 §9.3); empty for a single document.
+    internal static func remoteQualifiedSignature(
+      documentName: String,
+      containedFiles: [String],
+      expectedCertificate: Data?,
+      content: @escaping @Sendable (Data) -> Data
+    ) async throws -> CardMaintenance.QualifiedProduct {
+      Self.report(.phone)
+      let certificate: Data
+      if let expectedCertificate {
+        certificate = expectedCertificate
+      } else {
+        certificate = try await Self.remoteSignatureCertificate()
+      }
+      guard
+        CardMaintenance.qualifiedCertificate(
+          certificate, matches: expectedCertificate
+        )
+      else {
+        throw Failure.stampSignerChanged
+      }
+      // Judged before the phone is asked, so its PIN 2 prompt never
+      // appears for a signature this build would refuse.
+      if let refusal = Self.signerRefusal(certificate) {
+        throw Failure.validation(refusal)
+      }
+      do {
+        return try await Self.executeRemoteQualifiedSignature(
+          documentName: documentName,
+          containedFiles: containedFiles,
+          certificate: certificate,
+          content: content)
+      } catch Failure.remote(.unverifiedSignature) {
+        // The card on the phone is not the one the certificate was read
+        // from; the next signature reads it again.
+        await Self.remoteCertificates.forget()
+        throw Failure.remote(.unverifiedSignature)
       }
     }
-    guard let certificate else {
-      throw certificateError ?? Failure.remote(.noSignature)
-    }
-    try? await Task.sleep(for: .seconds(RemoteSigningPolicy.settleDelaySeconds))
-    return certificate
-  }
+  #endif
 
-  /// Runs `operation` on the paired phone over this computer's one session
-  /// with it, so signing never opens a second session beside it.
-  private static func askPhone(
-    _ operation: RappRequesterOperation
-  ) async throws -> RappRequesterResponse {
-    try await PersistentTokenRegistry.shared.perform(operation)
-  }
+  #if REFINEID_REMOTE_CARD
+    private static func executeRemoteQualifiedSignature(
+      documentName: String,
+      containedFiles: [String],
+      certificate: Data,
+      content: (Data) -> Data
+    ) async throws -> CardMaintenance.QualifiedProduct {
+      guard
+        let securityCertificate = SecCertificateCreateWithData(
+          nil, certificate as CFData
+        ),
+        let publicKey = SecCertificateCopyKey(securityCertificate),
+        let profile = CardKeyProfile.resolve(fromPublicKey: publicKey)
+      else {
+        throw Failure.remote(.unusableCertificate)
+      }
 
-  /// Performs one remote qualified-signature operation.
-  ///
-  /// The requester sends only the digest and public algorithm metadata;
-  /// PIN 2 exists solely in the phone authorization UI and its NFC card
-  /// session.
-  ///
-  /// For a package, `documentName` is the package's own name and
-  /// `containedFiles` the names of the files it holds, in container order
-  /// (RAPP v26.11.8 §9.3); empty for a single document.
-  internal static func remoteQualifiedSignature(
-    documentName: String,
-    containedFiles: [String],
-    expectedCertificate: Data?,
-    content: @escaping @Sendable (Data) -> Data
-  ) async throws -> CardMaintenance.QualifiedProduct {
-    Self.report(.phone)
-    let certificate: Data
-    if let expectedCertificate {
-      certificate = expectedCertificate
-    } else {
-      certificate = try await Self.remoteSignatureCertificate()
-    }
-    guard
-      CardMaintenance.qualifiedCertificate(
-        certificate, matches: expectedCertificate
-      )
-    else {
-      throw Failure.stampSignerChanged
-    }
-    // Judged before the phone is asked, so its PIN 2 prompt never
-    // appears for a signature this build would refuse.
-    if let refusal = Self.signerRefusal(certificate) {
-      throw Failure.validation(refusal)
-    }
-    do {
-      return try await Self.executeRemoteQualifiedSignature(
+      let signedContent = content(certificate)
+      let digest = Data(SHA384.hash(data: signedContent))
+      guard
+        let request = profile.qualifiedDocumentRequest(digest: digest),
+        let remoteAlgorithm = RappOperationDriver.SignatureAlgorithm(request.algorithm)
+      else {
+        throw Failure.remote(.unusableCertificate)
+      }
+
+      let signature = try await Self.executeRemoteDocumentSigning(
         documentName: documentName,
         containedFiles: containedFiles,
+        keyProfile: RappOperationDriver.KeyProfile(profile),
+        algorithm: remoteAlgorithm,
+        digest: digest
+      )
+      guard let wireSignature = request.verifiedRemoteSignature(signature, from: publicKey) else {
+        throw Failure.remote(.unverifiedSignature)
+      }
+      return CardMaintenance.QualifiedProduct(
+        signature: wireSignature,
+        content: signedContent,
         certificate: certificate,
-        content: content)
-    } catch Failure.remote(.unverifiedSignature) {
-      // The card on the phone is not the one the certificate was read
-      // from; the next signature reads it again.
-      await Self.remoteCertificates.forget()
-      throw Failure.remote(.unverifiedSignature)
+        profile: profile
+      )
     }
-  }
+  #endif
 
-  private static func executeRemoteQualifiedSignature(
-    documentName: String,
-    containedFiles: [String],
-    certificate: Data,
-    content: (Data) -> Data
-  ) async throws -> CardMaintenance.QualifiedProduct {
-    guard
-      let securityCertificate = SecCertificateCreateWithData(
-        nil, certificate as CFData
-      ),
-      let publicKey = SecCertificateCopyKey(securityCertificate),
-      let profile = CardKeyProfile.resolve(fromPublicKey: publicKey)
-    else {
-      throw Failure.remote(.unusableCertificate)
-    }
-
-    let signedContent = content(certificate)
-    let digest = Data(SHA384.hash(data: signedContent))
-    guard
-      let request = profile.qualifiedDocumentRequest(digest: digest),
-      let remoteAlgorithm = RappOperationDriver.SignatureAlgorithm(request.algorithm)
-    else {
-      throw Failure.remote(.unusableCertificate)
-    }
-
-    let signature = try await Self.executeRemoteDocumentSigning(
-      documentName: documentName,
-      containedFiles: containedFiles,
-      keyProfile: RappOperationDriver.KeyProfile(profile),
-      algorithm: remoteAlgorithm,
-      digest: digest
-    )
-    guard let wireSignature = request.verifiedRemoteSignature(signature, from: publicKey) else {
-      throw Failure.remote(.unverifiedSignature)
-    }
-    return CardMaintenance.QualifiedProduct(
-      signature: wireSignature,
-      content: signedContent,
-      certificate: certificate,
-      profile: profile
-    )
-  }
-
-  /// Sends the document signing request to the paired phone, retrying transparently
-  /// when the transport connection drops or the peer was not found before authorization.
-  private static func executeRemoteDocumentSigning(
-    documentName: String,
-    containedFiles: [String],
-    keyProfile: RappOperationDriver.KeyProfile,
-    algorithm: RappOperationDriver.SignatureAlgorithm,
-    digest: Data
-  ) async throws -> Data {
-    var signingError: Error?
-    for attempt in 1...RemoteSigningPolicy.maximumSigningAttempts {
-      do {
-        trace("remote signing attempt \(attempt)/\(RemoteSigningPolicy.maximumSigningAttempts)")
-        let signatureResponse = try await Self.askPhone(
-          .documentSigning(
-            document: RappSigningDocument(name: documentName, containedFiles: containedFiles),
-            keyProfile: keyProfile,
-            algorithm: algorithm,
-            digest: digest
-          ))
-        if case .signature(let signature) = signatureResponse {
-          trace("remote signing succeeded: \(signature.count) bytes")
-          return signature
-        }
-        throw Failure.remote(.noSignature)
-      } catch let error as RappRequesterClientError {
-        signingError = error
-        trace("attempt \(attempt) failed: \(error)")
-        guard Self.isRecoverableRemoteError(error),
-          attempt < RemoteSigningPolicy.maximumSigningAttempts
-        else {
+  #if REFINEID_REMOTE_CARD
+    /// Sends the document signing request to the paired phone, retrying transparently
+    /// when the transport connection drops or the peer was not found before authorization.
+    private static func executeRemoteDocumentSigning(
+      documentName: String,
+      containedFiles: [String],
+      keyProfile: RappOperationDriver.KeyProfile,
+      algorithm: RappOperationDriver.SignatureAlgorithm,
+      digest: Data
+    ) async throws -> Data {
+      var signingError: Error?
+      for attempt in 1...RemoteSigningPolicy.maximumSigningAttempts {
+        do {
+          trace("remote signing attempt \(attempt)/\(RemoteSigningPolicy.maximumSigningAttempts)")
+          let signatureResponse = try await Self.askPhone(
+            .documentSigning(
+              document: RappSigningDocument(name: documentName, containedFiles: containedFiles),
+              keyProfile: keyProfile,
+              algorithm: algorithm,
+              digest: digest
+            ))
+          if case .signature(let signature) = signatureResponse {
+            trace("remote signing succeeded: \(signature.count) bytes")
+            return signature
+          }
+          throw Failure.remote(.noSignature)
+        } catch let error as RappRequesterClientError {
+          signingError = error
+          trace("attempt \(attempt) failed: \(error)")
+          guard Self.isRecoverableRemoteError(error),
+            attempt < RemoteSigningPolicy.maximumSigningAttempts
+          else {
+            throw error
+          }
+          try? await Task.sleep(for: .seconds(RemoteSigningPolicy.retryDelaySeconds))
+        } catch {
+          trace("attempt \(attempt) non-client error: \(error)")
           throw error
         }
-        try? await Task.sleep(for: .seconds(RemoteSigningPolicy.retryDelaySeconds))
-      } catch {
-        trace("attempt \(attempt) non-client error: \(error)")
-        throw error
       }
+      guard let signingError else { throw Failure.remote(.noSignature) }
+      throw signingError
     }
-    guard let signingError else { throw Failure.remote(.noSignature) }
-    throw signingError
-  }
+  #endif
 
   /// Debug builds trace the remote exchange; release builds say nothing.
   private static func trace(_ message: String) {
