@@ -349,10 +349,9 @@ private func notarizeDmg(
     let notaryOutput = status.stderr.isEmpty ? status.stdout : status.stderr
     let help = """
 
-      To create a keychain profile (default name: RefineID-notary, team: 4ZJC3SFJR2, Apple ID: petri.koistinen@refineid.fi), run in your terminal:
+      Create keychain profile "RefineID-notary" (team 4ZJC3SFJR2, petri.koistinen@refineid.fi):
         xcrun notarytool store-credentials "RefineID-notary" --apple-id "petri.koistinen@refineid.fi" --team-id 4ZJC3SFJR2
-      When prompted, use an app-specific password (not your Apple ID password). Apple requires an app-specific password for tools like notarytool; your normal Apple ID login/password will not work here. Generate one at https://appleid.apple.com (Sign-In and Security → App-Specific Passwords), then paste it when prompted. The credential is stored securely in your Keychain under the profile name.
-      Then rerun this tool with --notary-profile "RefineID-notary" (or omit it to use the default).
+      At the prompt use an app-specific password (not your Apple ID password): https://appleid.apple.com → Sign-In and Security → App-Specific Passwords. Then rerun this tool.
       """
     fail("notarytool submission failed: \(notaryOutput)\(help)")
   }
