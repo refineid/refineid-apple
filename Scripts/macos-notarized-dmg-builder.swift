@@ -64,6 +64,37 @@ private let repositoryRoot = URL(fileURLWithPath: #filePath)
 
 private let xcodeNotarytool = "/Applications/Xcode.app/Contents/Developer/usr/bin/notarytool"
 
+private func marketingVersion() -> String {
+  let versionFile = repositoryRoot.appendingPathComponent("Version.xcconfig")
+  guard let contents = try? String(contentsOf: versionFile, encoding: .utf8) else {
+    fail("could not read marketing version from \(versionFile.path)")
+  }
+
+  for line in contents.components(separatedBy: .newlines) {
+    let trimmed = line.trimmingCharacters(in: .whitespaces)
+    guard trimmed.hasPrefix("MARKETING_VERSION") else { continue }
+    guard let equals = trimmed.firstIndex(of: "=") else { continue }
+    let value = trimmed[trimmed.index(after: equals)...].trimmingCharacters(in: .whitespaces)
+    if !value.isEmpty {
+      return value
+    }
+  }
+
+  fail("MARKETING_VERSION not found in \(versionFile.path)")
+}
+
+private func utcBuildTimeStamp() -> String {
+  let formatter = DateFormatter()
+  formatter.locale = Locale(identifier: "en_US_POSIX")
+  formatter.timeZone = TimeZone(secondsFromGMT: 0)
+  formatter.dateFormat = "HHmm"
+  return formatter.string(from: Date())
+}
+
+private func dmgFileName(appName: String) -> String {
+  "\(appName)-v\(marketingVersion()).\(utcBuildTimeStamp()).dmg"
+}
+
 private enum BuildConfiguration {
   case release
   case debug
@@ -547,7 +578,7 @@ private func main() {
   let outputDirectory = repositoryRoot.appendingPathComponent(options.outputDirectory)
   try? FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
 
-  let dmgName = "\(options.appName)-macOS.dmg"
+  let dmgName = dmgFileName(appName: options.appName)
   let dmg = outputDirectory.appendingPathComponent(dmgName)
 
   createDmg(sourceApp: app, outputDmg: dmg)
