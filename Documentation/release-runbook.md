@@ -16,7 +16,7 @@ There are three different artifacts. Do not confuse them.
 | --- | --- | --- |
 | Local macOS build | `Scripts/apple-app-store-connect-release-manager.swift install-macos --configuration Release` | Install an optimized development-signed build on this Mac. |
 | App Store candidate | `Scripts/apple-app-store-connect-release-manager.swift candidate macos --upload` | Archive, inspect, export, and upload the production candidate to App Store Connect. |
-| Direct download | No supported command | Developer ID signing, notarization, and stapling are not currently a release path for this product. |
+| Direct download | `Scripts/macos-notarized-dmg-builder.swift --configuration Release` | Build a Developer ID–signed, notarized, and stapled macOS DMG for direct distribution (separate from the App Store path). |
 
 The App Store candidate uses the `TestFlight` configuration, not `Release`.
 `TestFlight` excludes diagnostics and is inspected before export. A local
@@ -25,6 +25,24 @@ must not be uploaded or described as an App Store production artifact.
 
 App Store distribution does not use `notarytool` or `stapler`. Apple performs
 the Store trust and distribution processing.
+
+## Direct Developer ID distribution
+
+`Scripts/macos-notarized-dmg-builder.swift` is the direct-download path. It is
+separate from `Scripts/apple-app-store-connect-release-manager.swift` and does
+not upload to App Store Connect.
+
+It builds the macOS app, signs nested components inside out with a Developer ID
+Application identity, packages a DMG named
+`RefineID-v<MARKETING_VERSION>.<UTC-HHMM>.dmg` (version from `Version.xcconfig`,
+build time in UTC), submits it for notarization with `notarytool` using a
+keychain profile (default `RefineID-notary`), staples and validates the ticket,
+and writes checksums next to the DMG.
+
+Stamp `Version.xcconfig` to the intended release/build version before building
+(for example `Scripts/apple-app-store-connect-release-manager.swift stamp`), so
+the app version and artifact name match the release. Publishing the DMG (for
+example to bob.refineid.fi) is a separate step.
 
 ## Authoritative entry points
 
