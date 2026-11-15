@@ -334,7 +334,7 @@ private func notarizationSetupInstructions(for profile: String) -> String {
 
   Notarization credentials not found. Do this once:
 
-  1. Create an app-specific password (not your Apple ID password):
+  1. Create an app-specific password named "RefineID-notary" (not your Apple ID password):
      https://account.apple.com/account/manage → App-Specific Passwords
      (Apple Account app-specific password, not App Store Connect.)
 
