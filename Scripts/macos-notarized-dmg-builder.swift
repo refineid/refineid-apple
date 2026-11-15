@@ -74,7 +74,7 @@ private struct Options {
   var appName: String = "RefineID"
   var teamId: String = "4ZJC3SFJR2"
   var outputDirectory: String = "build/macos-notarized-dmg"
-  var notaryProfile: String? = nil
+  var notaryProfile: String = "RefineID-notary"
   var signingIdentityName: String? = nil
 }
 
@@ -325,19 +325,18 @@ private func createDmg(sourceApp: URL, outputDmg: URL) {
 private func notarizeDmg(
   dmg: URL,
   teamId _: String,
-  notaryProfile: String?
+  notaryProfile: String
 ) {
-  note("notarizing \(dmg.lastPathComponent)")
+  note("notarizing \(dmg.lastPathComponent) with keychain profile '\(notaryProfile)'")
 
-  guard let profile = notaryProfile, !profile.isEmpty else {
-    fail("no notarization credential: set --notary-profile (use a notarytool keychain profile; Apple ID/password must not be passed on the command line)")
+  if notaryProfile.isEmpty {
+    fail("no notarization credential: set --notary-profile (use a notarytool keychain profile)")
   }
 
   let arguments = [
     "submit", dmg.path,
     "--wait",
-    "--keychain-profile", profile,
-    "--output-log", dmg.path + ".notarytool.log"
+    "--keychain-profile", notaryProfile
   ]
 
   let status = run(
