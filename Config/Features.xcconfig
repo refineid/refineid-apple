@@ -48,14 +48,12 @@ REFINEID_LOCAL_CARD_FEATURE = REFINEID_LOCAL_CARD
 //     The remote card: pairing this device with another over RAPP, and
 //     everything a pairing makes possible. Off on macOS in every
 //     configuration for the MVP (decisions 2026-11-14); the iPhone and
-//     the iPad keep it.
+//     the iPad keep it. The combined conditions below outrank the
+//     config-only ones above wherever both match, so no ordering
+//     between the stanzas can re-enable it.
 REFINEID_REMOTE_CARD_FEATURE = REFINEID_REMOTE_CARD
 REFINEID_REMOTE_CARD_FEATURE[config=TestFlight] = REFINEID_REMOTE_CARD
 REFINEID_REMOTE_CARD_FEATURE[config=Release] = REFINEID_REMOTE_CARD
-// Off on macOS in every configuration for the MVP (decisions
-// 2026-11-14); the iPhone and the iPad keep it. The combined
-// conditions below outrank the config-only ones above wherever both
-// match, so no ordering between the stanzas can re-enable it.
 REFINEID_REMOTE_CARD_FEATURE[sdk=macosx*] =
 REFINEID_REMOTE_CARD_FEATURE[sdk=macosx*,config=TestFlight] =
 REFINEID_REMOTE_CARD_FEATURE[sdk=macosx*,config=Release] =

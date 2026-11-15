@@ -341,6 +341,13 @@ private func releaseEntitlements(of url: URL) -> [String: Any] {
   }
 }
 
+private func releaseLinksBluetooth(_ binary: URL) -> Bool {
+  let result = releaseRun("/usr/bin/otool", ["-L", binary.path], capture: true)
+  return result.stdout.split(whereSeparator: \.isNewline).contains {
+    $0.contains("CoreBluetooth")
+  }
+}
+
 private func releaseTeamIdentifier(of url: URL) -> String {
   let result = releaseRun(
     "/usr/bin/codesign",
@@ -755,6 +762,15 @@ private func inspectReleaseArchive(_ archive: URL) {
     }
     guard appPlist["NSBonjourServices"] == nil else {
       releaseFail("NSBonjourServices present without the remote card")
+    }
+    // Only RAPP uses Bluetooth, so a build without it must not link
+    // CoreBluetooth anywhere: a reference rejects the upload
+    // (ITMS-90683) even with the declarations gone.
+    let bluetoothBinaries = executables.filter(releaseLinksBluetooth)
+    guard bluetoothBinaries.isEmpty else {
+      releaseFail(
+        "CoreBluetooth linked without the remote card: "
+          + bluetoothBinaries.map(\.lastPathComponent).joined(separator: ", "))
     }
     releaseNote("no local-network or Bonjour declarations; the remote card is gated off")
   }
@@ -1476,8 +1492,8 @@ private enum StorePlatform: String, CaseIterable {
       [
         StoreScreen(asset: "window-card", arguments: ["--virtual-card", "activated-reader"]),
         StoreScreen(
-          asset: "window-phone",
-          arguments: ["--virtual-card", "activated-reader", "--mock-remote-connected"]),
+          asset: "window-signing",
+          arguments: ["--virtual-card", "activated-reader", "--open-document-signing"]),
       ]
     case .ios:
       [

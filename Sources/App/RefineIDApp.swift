@@ -357,13 +357,14 @@ internal struct RefineIDApp: App {
         }
       #endif
       DemoMode.shared.activateFromLaunchArguments()
-      #if os(iOS)
-        if args.contains("--open-document-signing") {
-          var state = DemoMode.shared.state
-          state.device.pendingSigningRequest = true
-          DemoMode.shared.replace(with: state)
-        }
-      #endif
+      if args.contains("--open-document-signing") {
+        // A requested signature with no card touches: the phone opens
+        // its signing screen with the fictional document, the Mac seeds
+        // its pile with it.
+        var state = DemoMode.shared.state
+        state.device.pendingSigningRequest = true
+        DemoMode.shared.replace(with: state)
+      }
     #endif
   }
 }

@@ -24,6 +24,33 @@
       checkLocalCard(language: "sv")
     }
 
+    internal func testNoCardShowsReaderInstructionAndNoRemoteUI() {
+      let app = UITestApp.launch(arguments: [
+        "--virtual-card", "absent", "--hide-diagnostics", UITestApp.remoteUseOnArgument,
+      ])
+      defer { app.terminate() }
+      let windowMenu = app.menuBars.menuBarItems.containing(.menuItem, identifier: "RefineID")
+        .firstMatch
+      XCTAssertTrue(windowMenu.waitForExistence(timeout: UITestApp.appearTimeout))
+      windowMenu.click()
+      app.menuItems["RefineID"].click()
+      let window = app.windows.firstMatch
+      XCTAssertTrue(window.waitForExistence(timeout: UITestApp.appearTimeout))
+      // With no card and no remote card, the row asks for a reader:
+      // no pairing field, no switch, and no key.
+      let identity = app.descendants(matching: .any)["loginIdentityStatus"].firstMatch
+      XCTAssertTrue(identity.waitForExistence(timeout: UITestApp.appearTimeout))
+      XCTAssertTrue(
+        window.staticTexts["Connect a card reader."].waitForExistence(
+          timeout: UITestApp.appearTimeout))
+      XCTAssertFalse(app.textFields[UITestIdentifiers.pairingCodeField].exists)
+      XCTAssertFalse(
+        app.descendants(matching: .button)[UITestIdentifiers.remoteUseSwitch].firstMatch.exists)
+      XCTAssertFalse(
+        app.descendants(matching: .button)[UITestIdentifiers.pinManagementButton].firstMatch
+          .exists)
+    }
+
     private func checkLocalCard(language: String) {
       let app = UITestApp.launch(
         language: language,

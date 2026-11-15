@@ -13,7 +13,9 @@
   /// in an Applications folder. macOS announces the addition itself and
   /// lists the app under General > Login Items, where the holder can
   /// remove it. A removal stands: once a registration has existed, the
-  /// app never registers again.
+  /// app never registers again. Only builds with the remote card
+  /// register: reaching a paired phone is what starting with the
+  /// session is for.
   internal enum LoginItem {
     /// What a launch does about the registration.
     internal enum Action: Equatable {
@@ -101,37 +103,40 @@
     /// Registers the app when this launch calls for it.
     ///
     /// Service Management answers over XPC, so this leaves the main
-    /// actor before asking.
+    /// actor before asking. Without the remote card there is nothing
+    /// to reach at login, so the check and the registration both go.
     internal static func registerIfDue() {
-      let automated = Self.launchIsAutomated
-      Task.detached(priority: .utility) {
-        let defaults = UserDefaults.standard
-        let service = SMAppService.mainApp
-        let action = Self.action(
-          automated: automated,
-          installed: Self.runsFromApplicationsFolder,
-          registeredBefore: defaults.bool(forKey: Self.registeredKey),
-          status: service.status
-        )
-        switch action {
-        case .register:
-          do {
-            try service.register()
+      #if REFINEID_REMOTE_CARD
+        let automated = Self.launchIsAutomated
+        Task.detached(priority: .utility) {
+          let defaults = UserDefaults.standard
+          let service = SMAppService.mainApp
+          let action = Self.action(
+            automated: automated,
+            installed: Self.runsFromApplicationsFolder,
+            registeredBefore: defaults.bool(forKey: Self.registeredKey),
+            status: service.status
+          )
+          switch action {
+          case .register:
+            do {
+              try service.register()
+              defaults.set(true, forKey: Self.registeredKey)
+            } catch {
+              #if DEBUG
+                DevErrorLog.report(
+                  "login item: registration failed: \(DevErrorLog.reason(error))", source: .app)
+              #endif
+            }
+
+          case .recordRegistration:
             defaults.set(true, forKey: Self.registeredKey)
-          } catch {
-            #if DEBUG
-              DevErrorLog.report(
-                "login item: registration failed: \(DevErrorLog.reason(error))", source: .app)
-            #endif
+
+          case .nothing:
+            break
           }
-
-        case .recordRegistration:
-          defaults.set(true, forKey: Self.registeredKey)
-
-        case .nothing:
-          break
         }
-      }
+      #endif
     }
   }
 

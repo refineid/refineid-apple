@@ -57,8 +57,11 @@
     @Test
     internal func readerCardPresenceWithdrawsActiveRemoteIdentity() {
       let initialPresence = CardPresence.shared.isReaderCardPresent
+      let registry = PersistentTokenRegistry.shared
+      let initialAdvertising = registry.holderIsAdvertising
       defer {
         CardPresence.shared.setReaderCardPresentForTesting(initialPresence)
+        registry.holderIsAdvertising = initialAdvertising
       }
 
       // Simulate a primed remote identity state

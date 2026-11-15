@@ -41,35 +41,42 @@
     }
 
     internal var body: some View {
-      if readerCardIsPresent {
-        Button {
-          openWindow(id: PinCodesWindow.windowID)
-        } label: {
-          Image(systemName: Self.pinCodesSymbol)
-            .foregroundStyle(Self.cardStyle(needsReset: cardNeedsReset))
-            .replacingSymbol()
-        }
-        // The PIN codes belong to one card; with several, to the one chosen.
-        .disabled(selection.awaitsChoice)
-        .help(Text("PIN Codes"))
-        .accessibilityLabel(Text("PIN Codes"))
-        .accessibilityValue(Self.cardValue(needsReset: cardNeedsReset))
-        .onValueChange(of: cardNeedsReset) { needsReset in
-          if needsReset, !openedForCard {
-            openedForCard = true
+      // The observers sit outside the card branch: they must see the
+      // insertion that mounts the key, and the removal that takes it
+      // away with them.
+      Group {
+        if readerCardIsPresent {
+          Button {
             openWindow(id: PinCodesWindow.windowID)
+          } label: {
+            Image(systemName: Self.pinCodesSymbol)
+              .foregroundStyle(Self.cardStyle(needsReset: cardNeedsReset))
+              .replacingSymbol()
           }
+          // The PIN codes belong to one card; with several, to the one chosen.
+          .disabled(selection.awaitsChoice)
+          .help(Text("PIN Codes"))
+          .accessibilityLabel(Text("PIN Codes"))
+          .accessibilityValue(Self.cardValue(needsReset: cardNeedsReset))
+          .accessibilityIdentifier("manageCard")
         }
-        .onValueChange(of: selection.target) { _ in
-          // The keys show the attempts of the card now used.
+      }
+      .onChange(of: cardNeedsReset, initial: true) { _, needsReset in
+        if needsReset, !openedForCard {
+          openedForCard = true
+          openWindow(id: PinCodesWindow.windowID)
+        }
+      }
+      .onChange(of: selection.target) {
+        // The keys show the attempts of the card now used.
+        if readerCardIsPresent {
           retryHealth.refreshFromReader()
         }
-        .onValueChange(of: readerCardIsPresent) { present in
-          if !present {
-            openedForCard = false
-          }
+      }
+      .onChange(of: readerCardIsPresent) { _, present in
+        if !present {
+          openedForCard = false
         }
-        .accessibilityIdentifier("manageCard")
       }
     }
 

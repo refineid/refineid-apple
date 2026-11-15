@@ -7,13 +7,14 @@
   /// Keeps the Mac app running with no window, and opens none at a
   /// login launch.
   ///
-  /// The app holds the one Bluetooth link to the paired phone, and the
-  /// remote card's token extension reaches the phone through it, so the
-  /// app outlives its window: closing the window leaves it in the Dock,
-  /// and only quitting ends it. Clicking the Dock icon or opening the
-  /// app again brings the window back through SwiftUI's own reopen
-  /// handling, which presents the status scene when no window is
-  /// visible.
+  /// The holder opens the window, signs, and closes it many times a
+  /// day, so the app outlives its window: closing the window leaves it
+  /// in the Dock, and only quitting ends it. Clicking the Dock icon or
+  /// opening the app again brings the window back through SwiftUI's own
+  /// reopen handling, which presents the status scene when no window is
+  /// visible. With the remote card the app additionally holds the one
+  /// Bluetooth link to the paired phone, which the remote card's token
+  /// extension reaches through it.
   ///
   /// SwiftUI presents the status window before the launch event is
   /// readable, so a login launch closes it here, in the same turn of
@@ -25,7 +26,8 @@
   /// the app exits once the session's `service_withdrawn` close has left or
   /// ``QuitWithdrawal/bound`` has passed (RAPP v26.11.8 §4.5 item 8). A
   /// quit during the holder's click off waits for its pairings to be
-  /// destroyed first (§4.6 item 6).
+  /// destroyed first (§4.6 item 6). With the remote card gated off the
+  /// app terminates at once.
   @MainActor
   internal final class MacAppDelegate: NSObject, NSApplicationDelegate {
     internal func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {

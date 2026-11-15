@@ -215,9 +215,8 @@
             .foregroundStyle(.secondary)
         #else
           // The remote card is gated off, so no switch offers itself
-          // from the top right corner: the row asks for the reader as
-          // it does with one attached but empty.
-          Text("Insert the card into the reader.")
+          // from the top right corner: the row asks for a reader.
+          Text("Connect a card reader.")
             .foregroundStyle(.secondary)
         #endif
 

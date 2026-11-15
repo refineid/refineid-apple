@@ -20,6 +20,7 @@ internal struct VoiceOverStringsTests {
     "Sources/App/DocumentSigning.xcstrings",
     "Sources/App/VirtualIDCard.xcstrings",
     "Sources/App/InfoPlist.xcstrings",
+    "Sources/TokenExtension/Localizable.xcstrings",
   ]
 
   /// The languages the app ships besides English.
@@ -104,6 +105,10 @@ internal struct VoiceOverStringsTests {
       "A PIN code needs a reset": [
         "fi": "PIN-koodi on palautettava",
         "sv": "En PIN-kod måste återställas",
+      ],
+      "Connect a card reader.": [
+        "fi": "Liitä kortinlukija.",
+        "sv": "Anslut en kortläsare.",
       ],
     ]
     for (key, translations) in words {
