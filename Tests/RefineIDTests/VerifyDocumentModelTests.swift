@@ -138,4 +138,37 @@ internal struct VerifyDocumentModelTests {
     }
     #expect(model.documentName.isEmpty)
   }
+
+  /// Offline without a cache, a document without signatures still says
+  /// so: that needs no trusted list.
+  @Test
+  internal func offlineWithoutACacheAnUnsignedDocumentSaysUnsigned() async throws {
+    let directory = FileManager.default.temporaryDirectory.appending(
+      path: "VerifyUnsignedOffline-\(UUID().uuidString)", directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let now = Date(timeIntervalSince1970: 1_780_272_000)
+    let store = TrustedListStore(
+      dependencies: TrustedListStore.Dependencies(
+        fetch: { _ in throw URLError(.notConnectedToInternet) },
+        directory: directory,
+        reader: TrustedListFakeReader(
+          listOfTheListsBytes: Data("list of the lists".utf8),
+          nationalBytes: Data("national list".utf8), nextUpdate: nil),
+        now: { now }))
+    let model = VerifyDocumentModel(
+      dependencies: VerifyDocumentModel.Dependencies(
+        anchors: { await store.verificationAnchors() },
+        verify: { document, anchors in
+          try DocumentVerification.verify(document: document, anchors: anchors)
+        },
+        liveStatus: { _ in nil },
+        now: { now }))
+    model.verify(document: Data("An unsigned note.".utf8), name: "document.pdf")
+    await model.verification?.value
+    guard case .failed(let message) = model.phase else {
+      Issue.record("The verification did not fail")
+      return
+    }
+    #expect(message == VerifyDocumentModel.noSignaturesMessage)
+  }
 }

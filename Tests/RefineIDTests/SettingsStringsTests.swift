@@ -18,6 +18,13 @@
       let organization: String
     }
 
+    /// One key's expected Finnish and Swedish words.
+    private struct TranslationRow {
+      let key: String
+      let finnish: String
+      let swedish: String
+    }
+
     private static var catalog: URL {
       URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
@@ -26,43 +33,141 @@
         .appending(path: "Sources/App/Localizable.xcstrings")
     }
 
-    /// Each Settings key carries its Finnish and Swedish words.
-    @Test
-    internal func settingsKeysAreTranslated() throws {
+    /// Each expected key carries its Finnish and Swedish words.
+    private static func check(
+      _ expected: [TranslationRow],
+      in strings: [String: Any]
+    ) throws {
+      for row in expected {
+        let entry = try #require(strings[row.key] as? [String: Any])
+        let localizations = try #require(entry["localizations"] as? [String: Any])
+        for (language, value) in [("fi", row.finnish), ("sv", row.swedish)] {
+          let localization = try #require(localizations[language] as? [String: Any])
+          let unit = try #require(localization["stringUnit"] as? [String: Any])
+          #expect(unit["value"] as? String == value, "\(row.key) in \(language)")
+        }
+      }
+    }
+
+    private static func catalogStrings() throws -> [String: Any] {
       let data = try Data(contentsOf: Self.catalog)
       let json = try #require(
         JSONSerialization.jsonObject(with: data) as? [String: Any]
       )
-      let strings = try #require(json["strings"] as? [String: Any])
-      let expected = [
-        ("Time Stamp", "Aikaleima", "Tidsstämpel"),
-        ("Address", "Osoite", "Adress"),
-        ("Restore Defaults", "Palauta oletukset", "Återställ standardvärden"),
-        ("Not a usable address", "Osoite ei ole käyttökelpoinen", "Adressen kan inte användas"),
-        (
-          "Signatures require an RFC 3161 authority listed on the EU trusted lists.",
-          "Allekirjoitukset vaativat EU:n luottamuslistalla olevan RFC 3161 -aikaleimapalvelun.",
-          "Signaturer kräver en RFC 3161-tidsstämpeltjänst som finns på EU:s förteckning över betrodda tjänster."
-        ),
-        (
-          "Signing Service", "Allekirjoituspalvelu",
-          "Signeringstjänst"
-        ),
-        (
-          "Signature Creation Service",
-          "Allekirjoituspalvelu (Signature Creation Service)",
-          "Signeringstjänst (Signature Creation Service)"
-        ),
-      ]
-      for (key, finnish, swedish) in expected {
-        let entry = try #require(strings[key] as? [String: Any])
-        let localizations = try #require(entry["localizations"] as? [String: Any])
-        for (language, value) in [("fi", finnish), ("sv", swedish)] {
-          let localization = try #require(localizations[language] as? [String: Any])
-          let unit = try #require(localization["stringUnit"] as? [String: Any])
-          #expect(unit["value"] as? String == value, "\(key) in \(language)")
-        }
-      }
+      return try #require(json["strings"] as? [String: Any])
+    }
+
+    /// Each Settings key carries its Finnish and Swedish words.
+    @Test
+    internal func settingsKeysAreTranslated() throws {
+      try Self.check(
+        [
+          TranslationRow(key: "Time Stamp", finnish: "Aikaleima", swedish: "Tidsstämpel"),
+          TranslationRow(
+            key: "Qualified timestamp server",
+            finnish: "Hyväksytty aikaleimapalvelin",
+            swedish: "Kvalificerad tidsstämpelserver"
+          ),
+          TranslationRow(
+            key: "Restore Defaults",
+            finnish: "Palauta oletukset",
+            swedish: "Återställ standardvärden"
+          ),
+          TranslationRow(
+            key: "Not a usable address",
+            finnish: "Osoite ei ole käyttökelpoinen",
+            swedish: "Adressen kan inte användas"
+          ),
+          TranslationRow(
+            key: "Signing Service",
+            finnish: "Allekirjoituspalvelu",
+            swedish: "Signeringstjänst"
+          ),
+          TranslationRow(
+            key: "Signature Creation Service",
+            finnish: "Allekirjoituspalvelu (Signature Creation Service)",
+            swedish: "Signeringstjänst (Signature Creation Service)"
+          ),
+        ],
+        in: try Self.catalogStrings()
+      )
+    }
+
+    /// Each timestamp Test key carries its Finnish and Swedish words.
+    @Test
+    internal func timestampStatusKeysAreTranslated() throws {
+      try Self.check(
+        [
+          TranslationRow(key: "Not tested", finnish: "Ei testattu", swedish: "Ej testad"),
+          TranslationRow(key: "Testing…", finnish: "Testataan…", swedish: "Testar…"),
+          TranslationRow(
+            key: "Verified %@",
+            finnish: "Vahvistettu %1$@",
+            swedish: "Verifierad %1$@"
+          ),
+          TranslationRow(
+            key: "Failed %@",
+            finnish: "Epäonnistui %1$@",
+            swedish: "Misslyckades %1$@"
+          ),
+          TranslationRow(
+            key: "Failed %@: %@",
+            finnish: "Epäonnistui %1$@: %2$@",
+            swedish: "Misslyckades %1$@: %2$@"
+          ),
+        ],
+        in: try Self.catalogStrings()
+      )
+    }
+
+    /// Each timestamp failure reason carries its Finnish and Swedish words.
+    @Test
+    internal func timestampReasonKeysAreTranslated() throws {
+      try Self.check(
+        [
+          TranslationRow(
+            key: "Not on the EU trusted lists",
+            finnish: "Ei EU:n luottamuslistoilla",
+            swedish: "Inte på EU:s förteckning över betrodda tjänster"
+          ),
+          TranslationRow(
+            key: "EU trusted lists unavailable",
+            finnish: "EU:n luottamuslistat eivät olleet saatavilla",
+            swedish: "EU:s förteckningar över betrodda tjänster var inte tillgängliga"
+          ),
+          TranslationRow(
+            key: "Invalid timestamp response",
+            finnish: "Virheellinen aikaleimavastaus",
+            swedish: "Ogiltigt tidsstämpelsvar"
+          ),
+          TranslationRow(
+            key: "Secure random bytes unavailable",
+            finnish: "Suojattuja satunnaislukuja ei saatu",
+            swedish: "Säkra slumptal kunde inte skapas"
+          ),
+          TranslationRow(
+            key: "Timestamp declined",
+            finnish: "Aikaleima evätty",
+            swedish: "Tidsstämpel nekad"
+          ),
+          TranslationRow(
+            key: "Service unreachable",
+            finnish: "Palvelimeen ei saatu yhteyttä",
+            swedish: "Tjänsten kunde inte nås"
+          ),
+          TranslationRow(
+            key: "No network connection",
+            finnish: "Ei verkkoyhteyttä",
+            swedish: "Ingen nätverksanslutning"
+          ),
+          TranslationRow(
+            key: "Check the address and test again.",
+            finnish: "Tarkista osoite ja testaa uudelleen.",
+            swedish: "Kontrollera adressen och testa igen."
+          ),
+        ],
+        in: try Self.catalogStrings()
+      )
     }
 
     /// Each Settings language carries the group titles.

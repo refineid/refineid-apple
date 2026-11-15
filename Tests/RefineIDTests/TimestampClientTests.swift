@@ -2,6 +2,7 @@
 
 #if DEBUG && os(macOS)
 
+  import AppKit
   import CardCore
   import Foundation
   import Testing
@@ -198,6 +199,87 @@
 
       #expect(attempts == 1)
       #expect(!waited)
+    }
+
+    /// A probe at a refused loopback port fails as unanswered,
+    /// without retrying behind the settings Test button.
+    @Test
+    internal func probeReportsARefusedPortWithoutRetrying() async {
+      do {
+        try await TimestampClient.probe("http://127.0.0.1:9/tsa")
+        Issue.record("A refused port must not answer a probe.")
+      } catch let failure as TimestampClient.Failure {
+        guard case .authorityDidNotAnswer = failure else {
+          Issue.record("Wrong failure for a refused port.")
+          return
+        }
+      } catch {
+        Issue.record("Unexpected probe error.")
+      }
+    }
+
+    /// A probe without a connection blames the connection, not the authority.
+    @Test
+    internal func probeFailureNamesAMissingConnection() {
+      #expect(
+        TimestampClient.probeFailure(from: URLError(.notConnectedToInternet))
+          == TimestampClient.Failure.noNetworkConnection
+      )
+      #expect(
+        TimestampClient.probeFailure(from: URLError(.networkConnectionLost))
+          == TimestampClient.Failure.noNetworkConnection
+      )
+    }
+
+    /// A probe a transport error stops blames the authority.
+    @Test
+    internal func probeFailureNamesASilentAuthority() {
+      for error: Error in [
+        URLError(.timedOut),
+        URLError(.cannotFindHost),
+        NSError(domain: "TimestampClientTests", code: 1),
+      ] {
+        guard case .authorityDidNotAnswer(let detail) = TimestampClient.probeFailure(from: error)
+        else {
+          Issue.record("A transport error must read as unanswered.")
+          return
+        }
+        #expect(!detail.isEmpty)
+      }
+    }
+
+    /// Every failure names its settings badge.
+    @Test
+    internal func everyFailureNamesASettingsBadge() {
+      let badges: [(TimestampClient.Failure, String)] = [
+        (.authorityDeclined, TimestampClient.Failure.unansweredBadgeSymbol),
+        (.authorityDidNotAnswer("refused"), TimestampClient.Failure.unansweredBadgeSymbol),
+        (.noNetworkConnection, TimestampClient.Failure.offlineBadgeSymbol),
+        (.invalidResponse(.malformed), TimestampClient.Failure.unclearBadgeSymbol),
+        (.invalidToken(.untrustedSigner), TimestampClient.Failure.unclearBadgeSymbol),
+        (.randomUnavailable, TimestampClient.Failure.unclearBadgeSymbol),
+        (.trustedListsUnavailable, TimestampClient.Failure.unclearBadgeSymbol),
+        (.untrustedAuthority, TimestampClient.Failure.unclearBadgeSymbol),
+      ]
+      for (failure, badge) in badges {
+        #expect(failure.badgeSymbol == badge)
+      }
+    }
+
+    /// The settings badges name real symbols.
+    @Test
+    internal func settingsBadgesExist() {
+      for symbol in [
+        TimestampClient.Failure.verifiedBadgeSymbol,
+        TimestampClient.Failure.unansweredBadgeSymbol,
+        TimestampClient.Failure.offlineBadgeSymbol,
+        TimestampClient.Failure.unclearBadgeSymbol,
+      ] {
+        #expect(
+          NSImage(systemSymbolName: symbol, accessibilityDescription: nil) != nil,
+          Comment(rawValue: symbol)
+        )
+      }
     }
   }
 

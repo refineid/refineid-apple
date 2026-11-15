@@ -12,9 +12,10 @@ import Foundation
 /// pointers' certificates. The raw bytes of every list that read are
 /// kept with their fetch time in the app's own Application Support
 /// container, so an offline start verifies from the cache, every
-/// signature checked again. The lists are fetched again when nothing is
-/// cached, when a cached list is past its `NextUpdate`, when the cache
-/// is older than `maximumAge`, and when the holder asks.
+/// signature checked again. The lists are fetched again when nothing
+/// is cached, when what is cached holds no anchors, when a cached
+/// list is past its `NextUpdate`, when the cache is older than
+/// `maximumAge`, and when the holder asks.
 ///
 /// Verification of a list, which parses megabytes of XML, runs off the
 /// main actor; this object publishes the outcome.
@@ -149,15 +150,18 @@ internal final class TrustedListStore: ObservableObject {
     await cacheLoad?.value
   }
 
-  /// Reads the cache, then fetches when nothing is cached, a list is
-  /// past its next update, or the fetch is older than `maximumAge`.
+  /// Reads the cache, then fetches when nothing is cached, what is
+  /// cached holds no anchors, a list is past its next update, or the
+  /// fetch is older than `maximumAge`.
   internal func refreshIfNeeded() async {
     await loadCache()
     let now = dependencies.now()
     let aged = anchors?.fetchedAt.map { fetched in
       now.timeIntervalSince(fetched) > Self.maximumAge
     }
-    if anchors == nil || anchors?.isStale(at: now) == true || aged != false {
+    if anchors == nil || anchors?.anchors.isEmpty == true || anchors?.isStale(at: now) == true
+      || aged != false
+    {
       await refreshNow()
     }
   }

@@ -38,7 +38,11 @@ internal enum SigningNetwork {
   private static let maximumListBytes = 1_048_576
 
   /// Seconds any one exchange may take.
-  private static let timeout: TimeInterval = 30
+  ///
+  /// Working timestamp services answer in well under a second; an
+  /// exchange still silent after ten seconds is not going to
+  /// produce a signature anyone waited for.
+  private static let timeout: TimeInterval = 10
 
   /// Seconds the DNSSEC-validated attempt may take.
   ///

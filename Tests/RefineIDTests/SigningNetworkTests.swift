@@ -119,6 +119,19 @@ internal struct SigningNetworkTests {
     #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
   }
 
+  /// One exchange may take ten seconds, probe and signing alike.
+  @Test
+  internal func requestTimeoutIsTenSeconds() throws {
+    let request = try SigningNetwork.postRequest(
+      Data("request".utf8),
+      to: "http://timestamp.example/path",
+      contentType: "application/timestamp-query",
+      endpoint: .authority
+    )
+
+    #expect(request.timeoutInterval == 10)
+  }
+
   /// HTTPS carries the exact body and type the caller supplied.
   @Test
   internal func httpsRequestCarriesBodyAndType() throws {

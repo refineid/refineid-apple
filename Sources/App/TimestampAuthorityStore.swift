@@ -11,6 +11,27 @@ import Foundation
 /// iOS by the Settings app. Nothing usable stored means the shipped
 /// qualified service.
 internal enum TimestampAuthorityStore: Sendable {
+  /// The last Test verdict: what was probed, when, and whether a
+  /// verified token came back.
+  internal struct Verification: Equatable, Sendable {
+    /// The request address that was probed, scheme included.
+    internal let address: String
+
+    /// When the probe ran.
+    internal let date: Date
+
+    /// Whether a verified token came back.
+    internal let succeeded: Bool
+
+    /// The failure's settings reason as shown, nil when the probe
+    /// succeeded.
+    internal let reason: String?
+
+    /// The failure's settings badge as shown, nil when the probe
+    /// succeeded or the verdict predates badges.
+    internal let badge: String?
+  }
+
   /// The shipped qualified service, asked until one is configured.
   internal static let defaultAuthority = httpPrefix + defaultAddress
 
@@ -23,11 +44,14 @@ internal enum TimestampAuthorityStore: Sendable {
   /// The preferences key holding the configured address.
   internal static let key = "timestampAuthority"
 
+  /// The preferences key holding the last Test verdict.
+  private static let verificationKey = "timestampAuthorityVerification"
+
   /// The configured address when one usable is stored, else the default.
   internal static func load(from defaults: UserDefaults) -> String {
     guard
       let configured = Self.configured(in: defaults),
-      let resolved = Self.requestAddress(configured)
+      let resolved = Self.resolvedRequestAddress(configured)
     else {
       return Self.defaultAuthority
     }
@@ -57,7 +81,54 @@ internal enum TimestampAuthorityStore: Sendable {
   /// HTTP and several qualified authorities publish exactly that, so
   /// insisting on one scheme would refuse real services.
   internal static func isUsable(_ address: String) -> Bool {
-    requestAddress(address) != nil
+    resolvedRequestAddress(address) != nil
+  }
+
+  /// Records a Test verdict for the probed request address.
+  ///
+  /// A nil failure is a verified token; anything else records the
+  /// failure's reason and badge as shown.
+  internal static func recordVerification(
+    address: String,
+    failure: TimestampClient.Failure?,
+    date: Date,
+    in defaults: UserDefaults
+  ) {
+    var record: [String: Any] = [
+      "address": address,
+      "at": date,
+      "ok": failure == nil,
+    ]
+    record["reason"] = failure?.settingsReason
+    record["badge"] = failure?.badgeSymbol
+    defaults.set(record, forKey: Self.verificationKey)
+  }
+
+  /// The Test verdict for this request address, when the last probe
+  /// ran against exactly it.
+  ///
+  /// A verdict for another address is no verdict: the pane shows
+  /// "not tested" instead of vouching for an address it never probed.
+  internal static func verification(
+    for address: String,
+    in defaults: UserDefaults
+  ) -> Verification? {
+    guard
+      let record = defaults.dictionary(forKey: Self.verificationKey),
+      let recorded = record["address"] as? String,
+      recorded == address,
+      let date = record["at"] as? Date,
+      let succeeded = record["ok"] as? Bool
+    else {
+      return nil
+    }
+    return Verification(
+      address: recorded,
+      date: date,
+      succeeded: succeeded,
+      reason: record["reason"] as? String,
+      badge: record["badge"] as? String
+    )
   }
 
   /// Stores the address as the service signatures ask.
@@ -90,7 +161,7 @@ internal enum TimestampAuthorityStore: Sendable {
   ///
   /// A bare host and path use HTTP, as the shipped authority does.
   /// Explicit HTTPS stays HTTPS; other explicit schemes remain unusable.
-  private static func requestAddress(_ address: String) -> String? {
+  internal static func resolvedRequestAddress(_ address: String) -> String? {
     let trimmed = address.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty else { return nil }
     let resolved = hasExplicitScheme(trimmed) ? trimmed : httpPrefix + trimmed

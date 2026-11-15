@@ -11,7 +11,8 @@ extension TrustedListStore {
   /// Fetches and reads every list, stores the ones that read, and
   /// returns them; offline when the list of the lists could not be
   /// fetched for want of a connection, unavailable when it otherwise
-  /// does not arrive or does not read.
+  /// does not arrive or does not read, and unavailable when no
+  /// national list reads: a husk must never pose as fresh lists.
   nonisolated internal static func fetchLists(
     _ dependencies: Dependencies
   ) async -> Result<TrustedLists, RefreshFailure> {
@@ -47,6 +48,13 @@ extension TrustedListStore {
       if case .failure(let failure) = list.outcome, failure != .notFetched {
         Self.reportFetchFailure(list.territory, failure)
       }
+    }
+    let nationalRead = reading.lists.national.contains { list in
+      guard case .success = list.outcome else { return false }
+      return true
+    }
+    guard nationalRead else {
+      return .failure(.unavailable)
     }
     Self.store(reading.cache, in: dependencies.directory)
     return .success(reading.lists)

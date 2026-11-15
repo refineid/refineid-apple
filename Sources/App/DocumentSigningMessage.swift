@@ -232,7 +232,7 @@ internal enum DocumentSigningMessage {
           "The timestamp authority did not grant a timestamp. Nothing was written."
         )
 
-      case .authorityDidNotAnswer:
+      case .authorityDidNotAnswer, .noNetworkConnection:
         return text(
           "error.network",
           "A timestamp or revocation service could not be reached. Nothing was written."
