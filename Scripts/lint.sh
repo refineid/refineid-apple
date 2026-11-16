@@ -57,6 +57,7 @@ format_paths=(
   CardCore/Tests CardCore/Package.swift
   PKCS11Bridge/Sources PKCS11Bridge/Tests PKCS11Bridge/Package.swift
   Scripts/PaceCurveBenchmark.swift Scripts/macos-notarized-dmg-builder.swift
+  Scripts/TestMacosNotarizedDmgBuilder.swift
 )
 
 format_log=$(
@@ -91,6 +92,7 @@ typecheck() {
 
 typecheck "release manager" Scripts/apple-app-store-connect-release-manager.swift
 typecheck "macOS notarized DMG builder" Scripts/macos-notarized-dmg-builder.swift
+typecheck "macOS notarized DMG builder tests" Scripts/TestMacosNotarizedDmgBuilder.swift
 typecheck "store screenshots" Scripts/generate-store-screenshots.swift
 typecheck "card logins" Scripts/test-card-logins.swift
 typecheck "icon" Scripts/generate-icon.swift
