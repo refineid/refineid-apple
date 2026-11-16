@@ -128,8 +128,16 @@ private func releaseRun(
 
 private let releaseFileManager = FileManager.default
 private let releaseRepositoryRoot = URL(fileURLWithPath: #filePath)
+  .resolvingSymlinksInPath()
   .deletingLastPathComponent()
   .deletingLastPathComponent()
+private let bundleID = "fi.refineid.ReFineID"
+
+// What this file is called, read from how it was invoked so a rename
+// cannot leave a message naming something that no longer exists.
+private let toolName = URL(fileURLWithPath: CommandLine.arguments.first ?? "release")
+  .deletingPathExtension()
+  .lastPathComponent
 
 private func releaseReplace(_ destination: URL, with source: URL) {
   do {
@@ -143,27 +151,6 @@ private func releaseReplace(_ destination: URL, with source: URL) {
     try releaseFileManager.moveItem(at: source, to: destination)
   } catch {
     releaseFail("could not replace \(destination.path): \(error.localizedDescription)")
-  }
-}
-
-private func rappCargoTargetDirectory(at rustRoot: URL) -> URL {
-  let result = releaseRun(
-    "/usr/bin/env",
-    ["cargo", "metadata", "--format-version", "1", "--no-deps"],
-    currentDirectory: rustRoot,
-    capture: true
-  )
-  do {
-    guard
-      let object = try JSONSerialization.jsonObject(with: Data(result.stdout.utf8))
-        as? [String: Any],
-      let path = object["target_directory"] as? String
-    else {
-      releaseFail("cargo metadata did not contain target_directory")
-    }
-    return URL(fileURLWithPath: path)
-  } catch {
-    releaseFail("could not read cargo metadata: \(error.localizedDescription)")
   }
 }
 
@@ -938,17 +925,45 @@ private enum ReleaseCandidatePlatform: String {
   }
 }
 
-private struct ReleaseUploadCredentials {
+private struct ReleaseUploadCredentials: Equatable {
   let keyID: String
   let issuerID: String
   let privateKeyPath: String
 }
 
+private let ascAPIBase = "https://api.appstoreconnect.apple.com"
+private let ascTokenLifetimeSeconds = 1_200
+private let ascTokenRefreshMarginSeconds = 60
+private let httpSuccessStatusRange = 200..<300
+
+private func releaseHomeDirectory(
+  environment: [String: String] = ProcessInfo.processInfo.environment
+) -> URL {
+  if let override = environment["HOME"], !override.isEmpty {
+    return URL(fileURLWithPath: override, isDirectory: true)
+  }
+  return releaseFileManager.homeDirectoryForCurrentUser
+}
+
+private func releaseExpandHome(_ value: String, home: String) -> String {
+  let expanded = value.replacingOccurrences(of: "$HOME", with: home)
+  if expanded == "~" {
+    return home
+  }
+  if expanded.hasPrefix("~/") {
+    return home + expanded.dropFirst()
+  }
+  return expanded
+}
+
+// Loads ProcessInfo.processInfo.environment and fills in unset variables from
+// ~/.appstoreconnect/env. Explicit caller environment variables take precedence.
 private func releaseEnvironment() -> [String: String] {
-  var environment = ProcessInfo.processInfo.environment
-  let home = releaseFileManager.homeDirectoryForCurrentUser.path
-  let envURL = releaseFileManager.homeDirectoryForCurrentUser
-    .appendingPathComponent(".appstoreconnect/env")
+  let callerEnvironment = ProcessInfo.processInfo.environment
+  var environment = callerEnvironment
+  let homeDirectory = releaseHomeDirectory(environment: callerEnvironment)
+  let home = homeDirectory.path
+  let envURL = homeDirectory.appendingPathComponent(".appstoreconnect/env")
   guard let contents = try? String(contentsOf: envURL, encoding: .utf8) else {
     return environment
   }
@@ -957,11 +972,15 @@ private func releaseEnvironment() -> [String: String] {
     var line = originalLine.trimmingCharacters(in: .whitespaces)
     if line.hasPrefix("export ") {
       line.removeFirst("export ".count)
+      line = line.trimmingCharacters(in: .whitespaces)
     }
     guard !line.isEmpty, !line.hasPrefix("#"), let separator = line.firstIndex(of: "=") else {
       continue
     }
     let key = line[..<separator].trimmingCharacters(in: .whitespaces)
+    guard !key.isEmpty, callerEnvironment[key] == nil else {
+      continue
+    }
     var value = line[line.index(after: separator)...]
       .trimmingCharacters(in: .whitespaces)
     if value.count >= 2,
@@ -971,17 +990,27 @@ private func releaseEnvironment() -> [String: String] {
       value.removeFirst()
       value.removeLast()
     }
-    environment[key] =
-      value
-      .replacingOccurrences(of: "$HOME", with: home)
-      .replacingOccurrences(of: "~", with: home, options: [.anchored])
+    environment[key] = releaseExpandHome(value, home: home)
   }
   return environment
 }
 
+private func releasePrivateKeyPath(
+  environment: [String: String],
+  keyID: String
+) -> String {
+  let homeDirectory = releaseHomeDirectory(environment: environment)
+  if let configured = environment["ASC_PRIVATE_KEY_PATH"], !configured.isEmpty {
+    return releaseExpandHome(configured, home: homeDirectory.path)
+  }
+  return homeDirectory
+    .appendingPathComponent(".appstoreconnect/private_keys/AuthKey_\(keyID).p8")
+    .path
+}
+
 /// The credentials when the environment carries a complete set, nil
 /// otherwise. Profile assurance wants them even on a local export;
-/// only an upload hard-requires them.
+/// only an upload or store call hard-requires them.
 private func releaseUploadCredentialsIfAvailable() -> ReleaseUploadCredentials? {
   let environment = releaseEnvironment()
   guard let keyID = environment["ASC_KEY_ID"], !keyID.isEmpty,
@@ -989,10 +1018,7 @@ private func releaseUploadCredentialsIfAvailable() -> ReleaseUploadCredentials? 
   else {
     return nil
   }
-  let defaultPath = releaseFileManager.homeDirectoryForCurrentUser
-    .appendingPathComponent(".appstoreconnect/private_keys/AuthKey_\(keyID).p8")
-    .path
-  let privateKeyPath = environment["ASC_PRIVATE_KEY_PATH"] ?? defaultPath
+  let privateKeyPath = releasePrivateKeyPath(environment: environment, keyID: keyID)
   guard releaseFileManager.fileExists(atPath: privateKeyPath) else {
     return nil
   }
@@ -1004,21 +1030,41 @@ private func releaseUploadCredentialsIfAvailable() -> ReleaseUploadCredentials? 
 }
 
 private func releaseUploadCredentials() -> ReleaseUploadCredentials {
-  guard let credentials = releaseUploadCredentialsIfAvailable() else {
-    releaseFail(
-      "ASC_KEY_ID, ASC_ISSUER_ID and the .p8 under "
-        + "~/.appstoreconnect/private_keys are required for --upload")
+  if let credentials = releaseUploadCredentialsIfAvailable() {
+    return credentials
   }
-  return credentials
+  let environment = releaseEnvironment()
+  guard let keyID = environment["ASC_KEY_ID"], !keyID.isEmpty else {
+    releaseFail("ASC_KEY_ID is not set")
+  }
+  guard let issuerID = environment["ASC_ISSUER_ID"], !issuerID.isEmpty else {
+    releaseFail("ASC_ISSUER_ID is not set")
+  }
+  let privateKeyPath = releasePrivateKeyPath(environment: environment, keyID: keyID)
+  releaseFail("no key at \(privateKeyPath); download the .p8 from App Store Connect")
 }
 
-// MARK: - App Store Connect calls for release engineering
+// MARK: - App Store Connect API client
 
-/// A short-lived ES256 token for the team API key.
+nonisolated(unsafe) private var cachedAPIToken:
+  (credentials: ReleaseUploadCredentials, token: String, expiresAt: Int)?
+
+/// A 20-minute ES256 token for the team API key, minted with CryptoKit and
+/// reused across calls in this invocation until its refresh margin. The .p8 is
+/// a PKCS#8 P-256 private key; CryptoKit's raw signature is r||s, which is the
+/// ES256 JWS form.
 private func releaseAPIToken(_ credentials: ReleaseUploadCredentials) -> String {
-  guard let pem = try? String(contentsOfFile: credentials.privateKeyPath, encoding: .utf8),
-    let key = try? P256.Signing.PrivateKey(pemRepresentation: pem)
-  else {
+  let now = Int(Date().timeIntervalSince1970)
+  if let cached = cachedAPIToken,
+    cached.credentials == credentials,
+    now + ascTokenRefreshMarginSeconds < cached.expiresAt
+  {
+    return cached.token
+  }
+  guard let pem = try? String(contentsOfFile: credentials.privateKeyPath, encoding: .utf8) else {
+    releaseFail("no key at \(credentials.privateKeyPath); download the .p8 from App Store Connect")
+  }
+  guard let key = try? P256.Signing.PrivateKey(pemRepresentation: pem) else {
     releaseFail("the .p8 at \(credentials.privateKeyPath) is not a readable P-256 key")
   }
   func base64URL(_ data: Data) -> String {
@@ -1027,52 +1073,118 @@ private func releaseAPIToken(_ credentials: ReleaseUploadCredentials) -> String 
       .replacingOccurrences(of: "/", with: "_")
       .replacingOccurrences(of: "=", with: "")
   }
-  let now = Int(Date().timeIntervalSince1970)
+  let expiresAt = now + ascTokenLifetimeSeconds
   let header = ["alg": "ES256", "kid": credentials.keyID, "typ": "JWT"]
   let payload: [String: Any] = [
-    "iss": credentials.issuerID, "iat": now, "exp": now + 1200,
+    "iss": credentials.issuerID,
+    "iat": now,
+    "exp": expiresAt,
     "aud": "appstoreconnect-v1",
   ]
-  let headerData = try! JSONSerialization.data(withJSONObject: header)
-  let payloadData = try! JSONSerialization.data(withJSONObject: payload)
+  guard
+    let headerData = try? JSONSerialization.data(withJSONObject: header),
+    let payloadData = try? JSONSerialization.data(withJSONObject: payload)
+  else {
+    releaseFail("could not serialize App Store Connect JWT claims")
+  }
   let signingInput = "\(base64URL(headerData)).\(base64URL(payloadData))"
-  let signature = try! key.signature(for: Data(signingInput.utf8))
-  return "\(signingInput).\(base64URL(signature.rawRepresentation))"
+  guard let signature = try? key.signature(for: Data(signingInput.utf8)) else {
+    releaseFail("could not sign App Store Connect JWT with \(credentials.privateKeyPath)")
+  }
+  let minted = "\(signingInput).\(base64URL(signature.rawRepresentation))"
+  cachedAPIToken = (credentials, minted, expiresAt)
+  return minted
 }
 
-/// One synchronous JSON call; anything but success fails the release.
-private func releaseAPI(
+private func ascAPIToken(_ credentials: ReleaseUploadCredentials? = nil) -> String {
+  if let credentials {
+    return releaseAPIToken(credentials)
+  }
+  let now = Int(Date().timeIntervalSince1970)
+  if let cached = cachedAPIToken, now + ascTokenRefreshMarginSeconds < cached.expiresAt {
+    return cached.token
+  }
+  return releaseAPIToken(releaseUploadCredentials())
+}
+
+private struct ReleaseAPIResponse {
+  let status: Int
+  let data: Data
+  let body: [String: Any]
+  let text: String
+}
+
+/// One synchronous App Store Connect API call: its HTTP status, raw bytes,
+/// parsed JSON body (empty when the response body is empty), and UTF-8 text.
+/// Brackets in query parameters (filter[bundleId]) are percent-encoded.
+private func apiResponse(
   _ method: String,
   _ path: String,
   body: [String: Any]? = nil,
-  credentials: ReleaseUploadCredentials
-) -> [String: Any] {
-  var request = URLRequest(
-    url: URL(string: "https://api.appstoreconnect.apple.com\(path)")!)
-  request.httpMethod = method
-  request.setValue(
-    "Bearer \(releaseAPIToken(credentials))", forHTTPHeaderField: "Authorization")
-  if let body {
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.httpBody = try! JSONSerialization.data(withJSONObject: body)
-  }
-  let waiter = DispatchSemaphore(value: 0)
-  var received: (data: Data?, status: Int) = (nil, 0)
-  URLSession.shared.dataTask(with: request) { data, response, _ in
-    received = (data, (response as? HTTPURLResponse)?.statusCode ?? 0)
-    waiter.signal()
-  }.resume()
-  waiter.wait()
-  guard (200..<300).contains(received.status) else {
-    let detail = received.data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
-    releaseFail("HTTP \(received.status) on \(method) \(path): \(detail)")
-  }
-  guard let data = received.data, !data.isEmpty,
-    let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+  credentials: ReleaseUploadCredentials? = nil
+) -> ReleaseAPIResponse {
+  let encoded =
+    path
+    .replacingOccurrences(of: "[", with: "%5B")
+    .replacingOccurrences(of: "]", with: "%5D")
+  let target =
+    encoded.hasPrefix("\(ascAPIBase)/")
+    ? encoded
+    : (encoded.hasPrefix("/") ? ascAPIBase + encoded : "")
+  guard !target.isEmpty,
+    let url = URL(string: target),
+    url.scheme == "https",
+    url.host == "api.appstoreconnect.apple.com"
   else {
-    return [:]
+    releaseFail("bad path: \(path)")
   }
-  return object
+  var request = URLRequest(url: url)
+  request.httpMethod = method
+  request.setValue("Bearer \(ascAPIToken(credentials))", forHTTPHeaderField: "Authorization")
+  if let body {
+    guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else {
+      releaseFail("could not serialize request body for \(method) \(path)")
+    }
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.httpBody = bodyData
+  }
+  let semaphore = DispatchSemaphore(value: 0)
+  var data = Data()
+  var status = 0
+  var transportError: Error?
+  URLSession.shared.dataTask(with: request) { responseData, response, error in
+    data = responseData ?? Data()
+    status = (response as? HTTPURLResponse)?.statusCode ?? 0
+    transportError = error
+    semaphore.signal()
+  }.resume()
+  semaphore.wait()
+  let parsed =
+    data.isEmpty
+    ? [:]
+    : (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+  let decodedText = String(data: data, encoding: .utf8) ?? ""
+  let text =
+    decodedText.isEmpty && status == 0
+    ? (transportError?.localizedDescription ?? "")
+    : decodedText
+  return ReleaseAPIResponse(status: status, data: data, body: parsed, text: text)
+}
+
+/// One synchronous App Store Connect API call. Returns the parsed body, or
+/// fails the run with the API's own error on any non-2xx response.
+@discardableResult
+private func api(
+  _ method: String,
+  _ path: String,
+  body: [String: Any]? = nil,
+  credentials: ReleaseUploadCredentials? = nil
+) -> [String: Any] {
+  let response = apiResponse(method, path, body: body, credentials: credentials)
+  guard httpSuccessStatusRange.contains(response.status) else {
+    releaseFail("HTTP \(response.status) on \(method) \(path): \(response.text)")
+  }
+  return response.body
 }
 
 /// The app's and every embedded extension's bundle identifier.
@@ -1125,7 +1237,7 @@ private func releaseEnsureProfiles(
 ) -> [String: String] {
   let identifiers = releaseBundleIdentifiers(inArchive: archive)
   let profileType = platform == .ios ? "IOS_APP_STORE" : "MAC_APP_STORE"
-  let listing = releaseAPI(
+  let listing = api(
     "GET",
     "/v1/profiles?filter[profileType]=\(profileType)&include=bundleId"
       + "&fields[bundleIds]=identifier"
@@ -1164,7 +1276,7 @@ private func releaseEnsureProfiles(
     if state == "ACTIVE", let identifier, !uuid.isEmpty, !content.isEmpty {
       existing[identifier] = StoredProfile(name: name, uuid: uuid, content: content)
     } else if !profileID.isEmpty {
-      _ = releaseAPI("DELETE", "/v1/profiles/\(profileID)", credentials: credentials)
+      api("DELETE", "/v1/profiles/\(profileID)", credentials: credentials)
       releaseNote("deleted stale/invalid profile \(name) (\(profileID))")
     }
   }
@@ -1173,7 +1285,7 @@ private func releaseEnsureProfiles(
   func distributionCertificate() -> String {
     if let certificateID { return certificateID }
     let certificates =
-      releaseAPI(
+      api(
         "GET", "/v1/certificates?filter[certificateType]=DISTRIBUTION&limit=1",
         credentials: credentials)["data"] as? [[String: Any]] ?? []
     guard let id = certificates.first?["id"] as? String else {
@@ -1185,7 +1297,7 @@ private func releaseEnsureProfiles(
 
   func ensureBundleRecord(_ identifier: String) -> String {
     let matches =
-      releaseAPI(
+      api(
         "GET", "/v1/bundleIds?filter[identifier]=\(identifier)",
         credentials: credentials)["data"] as? [[String: Any]] ?? []
     if let record = matches.first(where: {
@@ -1195,7 +1307,7 @@ private func releaseEnsureProfiles(
     }
     let name = identifier.map { $0.isLetter || $0.isNumber ? $0 : " " }
       .reduce(into: "") { $0.append($1) }
-    let created = releaseAPI(
+    let created = api(
       "POST", "/v1/bundleIds",
       body: [
         "data": [
@@ -1223,7 +1335,7 @@ private func releaseEnsureProfiles(
     }
     let record = ensureBundleRecord(identifier)
     let profileName = "RefineID \(platform == .ios ? "iOS" : "Mac") App Store \(identifier)"
-    let created = releaseAPI(
+    let created = api(
       "POST", "/v1/profiles",
       body: [
         "data": [
@@ -3132,168 +3244,56 @@ private func printReleaseManagerUsage() {
   )
 }
 
-let bundleID = "fi.refineid.ReFineID"
-let apiBase = "https://api.appstoreconnect.apple.com"
-let platforms = ["ios": "IOS", "macos": "MAC_OS"]
-
-// What this file is called, read from how it was invoked so a rename
-// cannot leave a failure naming something that no longer exists.
-let toolName = URL(fileURLWithPath: CommandLine.arguments.first ?? "release")
-  .deletingPathExtension().lastPathComponent
-
-func die(_ message: String) -> Never {
-  FileHandle.standardError.write(Data("\(toolName): \(message)\n".utf8))
-  exit(1)
-}
-
-// The key and issuer ids, from the environment or the file beside the
-// .p8, so an upload does not need them exported by hand.
-func loadEnvironment() -> [String: String] {
-  var values = ProcessInfo.processInfo.environment
-  let path = ("~/.appstoreconnect/env" as NSString).expandingTildeInPath
-  guard let text = try? String(contentsOfFile: path, encoding: .utf8) else {
-    return values
-  }
-  for var line in text.split(separator: "\n").map(String.init) {
-    line = line.trimmingCharacters(in: .whitespaces)
-    if line.hasPrefix("export ") { line.removeFirst("export ".count) }
-    guard !line.hasPrefix("#"), let equals = line.firstIndex(of: "=") else { continue }
-    let key = String(line[..<equals]).trimmingCharacters(in: .whitespaces)
-    let value = String(line[line.index(after: equals)...]).trimmingCharacters(in: .whitespaces)
-    if values[key] == nil { values[key] = value }
-  }
-  return values
-}
-
-let environment = loadEnvironment()
-func required(_ name: String) -> String {
-  guard let value = environment[name], !value.isEmpty else { die("\(name) is not set") }
-  return value
-}
-
-extension Data {
-  var base64URL: String {
-    base64EncodedString()
-      .replacingOccurrences(of: "+", with: "-")
-      .replacingOccurrences(of: "/", with: "_")
-      .replacingOccurrences(of: "=", with: "")
-  }
-}
-
-// The API token, minted once with CryptoKit and reused. The .p8 is a
-// PKCS#8 P-256 private key; a P-256 signature's raw representation is
-// r||s, which is exactly the ES256 JWS form.
-let token: String = {
-  let keyID = required("ASC_KEY_ID")
-  let issuer = required("ASC_ISSUER_ID")
-  let keyPath = ("~/.appstoreconnect/private_keys/AuthKey_\(keyID).p8" as NSString)
-    .expandingTildeInPath
-  guard let pem = try? String(contentsOfFile: keyPath, encoding: .utf8) else {
-    die("no key at \(keyPath); download the .p8 from App Store Connect")
-  }
-  guard let key = try? P256.Signing.PrivateKey(pemRepresentation: pem) else {
-    die("the .p8 at \(keyPath) is not a readable P-256 key")
-  }
-  let now = Int(Date().timeIntervalSince1970)
-  let header = ["alg": "ES256", "kid": keyID, "typ": "JWT"]
-  let payload: [String: Any] = [
-    "iss": issuer, "iat": now, "exp": now + 1200, "aud": "appstoreconnect-v1",
-  ]
-  let headerData = try! JSONSerialization.data(withJSONObject: header)
-  let payloadData = try! JSONSerialization.data(withJSONObject: payload)
-  let signingInput = "\(headerData.base64URL).\(payloadData.base64URL)"
-  let signature = try! key.signature(for: Data(signingInput.utf8))
-  return "\(signingInput).\(signature.rawRepresentation.base64URL)"
-}()
-
-// One API call: its HTTP status and parsed body. Brackets in a path
-// (filter[bundleId]) are percent-encoded, which URL rejects unencoded.
-func apiResponse(
-  _ method: String, _ path: String, body: [String: Any]? = nil
-) -> (status: Int, body: [String: Any], text: String) {
-  let encoded = path.replacingOccurrences(of: "[", with: "%5B")
-    .replacingOccurrences(of: "]", with: "%5D")
-  guard let url = URL(string: apiBase + encoded) else { die("bad path: \(path)") }
-  var request = URLRequest(url: url)
-  request.httpMethod = method
-  request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-  if let body {
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.httpBody = try! JSONSerialization.data(withJSONObject: body)
-  }
-  let semaphore = DispatchSemaphore(value: 0)
-  var data = Data()
-  var status = 0
-  URLSession.shared.dataTask(with: request) { responseData, response, _ in
-    data = responseData ?? Data()
-    status = (response as? HTTPURLResponse)?.statusCode ?? 0
-    semaphore.signal()
-  }.resume()
-  semaphore.wait()
-  let parsed =
-    data.isEmpty ? [:] : (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
-  return (status, parsed, String(data: data, encoding: .utf8) ?? "")
-}
+private let platforms = ["ios": "IOS", "macos": "MAC_OS"]
 
 // The error codes App Store Connect answered with.
-func apiErrorCodes(_ body: [String: Any]) -> [String] {
+private func apiErrorCodes(_ body: [String: Any]) -> [String] {
   (body["errors"] as? [[String: Any]] ?? []).compactMap { $0["code"] as? String }
 }
 
-// One API call. Returns the parsed body, or exits with the API's own
-// error on a non-2xx response.
-@discardableResult
-func api(_ method: String, _ path: String, body: [String: Any]? = nil) -> [String: Any] {
-  let response = apiResponse(method, path, body: body)
-  guard (200..<300).contains(response.status) else {
-    die("HTTP \(response.status) on \(method) \(path): \(response.text)")
-  }
-  return response.body
-}
-
 // Prints a response the way a person reads it.
-func printJSON(_ object: [String: Any]) {
+private func printJSON(_ object: [String: Any]) {
   guard !object.isEmpty else { return }
-  let pretty = try! JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted])
+  guard let pretty = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted])
+  else {
+    releaseFail("could not format JSON response")
+  }
   print(String(data: pretty, encoding: .utf8) ?? "")
 }
 
 // A request body from an argument, or from stdin when it is "-".
-//
-// The one-off calls a release needs - reading what an endpoint holds,
-// patching an attribute the named commands do not cover - used to go
-// through a shell wrapper around curl and a Ruby token minter. They are
-// the same call this file already makes, so they are made here.
-func readBody(_ argument: String) -> [String: Any] {
+private func readBody(_ argument: String) -> [String: Any] {
   let text =
     argument == "-"
     ? String(data: FileHandle.standardInput.readDataToEndOfFile(), encoding: .utf8) ?? ""
     : argument
   guard let object = try? JSONSerialization.jsonObject(with: Data(text.utf8)),
     let body = object as? [String: Any]
-  else { die("the body is not a JSON object") }
+  else { releaseFail("the body is not a JSON object") }
   return body
 }
 
-func apiPlatform(_ name: String) -> String {
-  guard let value = platforms[name] else { die("platform is ios or macos, not '\(name)'") }
+private func apiPlatform(_ name: String) -> String {
+  guard let value = platforms[name] else {
+    releaseFail("platform is ios or macos, not '\(name)'")
+  }
   return value
 }
 
-func dataArray(_ object: [String: Any]) -> [[String: Any]] {
+private func dataArray(_ object: [String: Any]) -> [[String: Any]] {
   object["data"] as? [[String: Any]] ?? []
 }
 
-func appID() -> String {
+private func appID() -> String {
   let data = dataArray(api("GET", "/v1/apps?filter[bundleId]=\(bundleID)"))
   guard let first = data.first, let id = first["id"] as? String else {
-    die("app \(bundleID) not found on this account")
+    releaseFail("app \(bundleID) not found on this account")
   }
   return id
 }
 
 // The id and version string of the platform's editable version, or nil.
-func findVersion(_ platform: String) -> (id: String, version: String)? {
+private func findVersion(_ platform: String) -> (id: String, version: String)? {
   let path =
     "/v1/apps/\(appID())/appStoreVersions?filter[platform]=\(platform)"
     + "&filter[appStoreState]=PREPARE_FOR_SUBMISSION,DEVELOPER_REJECTED,REJECTED,METADATA_REJECTED,WAITING_FOR_REVIEW"
@@ -3308,7 +3308,7 @@ func findVersion(_ platform: String) -> (id: String, version: String)? {
 
 // The id of the version for a platform and string, created if absent.
 // A platform's one editable version is renamed rather than duplicated.
-func ensureVersion(_ platformName: String, _ version: String) -> String {
+private func ensureVersion(_ platformName: String, _ version: String) -> String {
   let platform = apiPlatform(platformName)
   if let existing = findVersion(platform) {
     if existing.version == version { return existing.id }
@@ -3332,18 +3332,18 @@ func ensureVersion(_ platformName: String, _ version: String) -> String {
       ]
     ])
   guard let data = created["data"] as? [String: Any], let id = data["id"] as? String else {
-    die("could not create the version")
+    releaseFail("could not create the version")
   }
   return id
 }
 
-func attachBuild(_ platformName: String, _ version: String, _ number: String) {
+private func attachBuild(_ platformName: String, _ version: String, _ number: String) {
   let platform = apiPlatform(platformName)
   let versionID = ensureVersion(platformName, version)
   let path =
     "/v1/builds?filter[app]=\(appID())&filter[version]=\(number)&filter[preReleaseVersion.platform]=\(platform)&limit=1"
   guard let build = dataArray(api("GET", path)).first, let buildID = build["id"] as? String else {
-    die("build \(number) for \(platformName) not found; has it finished processing?")
+    releaseFail("build \(number) for \(platformName) not found; has it finished processing?")
   }
   api(
     "PATCH", "/v1/appStoreVersions/\(versionID)/relationships/build",
@@ -3351,21 +3351,16 @@ func attachBuild(_ platformName: String, _ version: String, _ number: String) {
   print("attached build \(number) to \(platformName) \(version)")
 }
 
-// The repository root, from this script's own location (Scripts/..),
-// so Metadata/ is found however the tool is invoked.
-let repository = URL(fileURLWithPath: #filePath)
-  .resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
-
 // The submission details, defined in one place - Metadata/appstore.json
 // - and the locale map inside it, locale to its fields.
-let metadata: [String: Any] = {
-  let url = repository.appendingPathComponent("Metadata/appstore.json")
+private let metadata: [String: Any] = {
+  let url = releaseRepositoryRoot.appendingPathComponent("Metadata/appstore.json")
   guard let data = try? Data(contentsOf: url),
     let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-  else { die("could not read Metadata/appstore.json") }
+  else { releaseFail("could not read Metadata/appstore.json") }
   return json
 }()
-let localizations = metadata["localizations"] as? [String: Any] ?? [:]
+private let localizations = metadata["localizations"] as? [String: Any] ?? [:]
 
 // The existing localizations of a resource, locale to its id, so a
 // push updates what is present and creates what is not.
@@ -3457,13 +3452,13 @@ func pushMetadata(_ platformName: String, _ version: String) {
 }
 
 // The app-level info record that carries name, subtitle and category.
-func appInfoID() -> String {
+private func appInfoID() -> String {
   let infos = dataArray(api("GET", "/v1/apps/\(appID())/appInfos"))
   for info in infos {
     let state = (info["attributes"] as? [String: Any])?["state"] as? String
     if state == "PREPARE_FOR_SUBMISSION", let id = info["id"] as? String { return id }
   }
-  guard let id = infos.first?["id"] as? String else { die("no app info record") }
+  guard let id = infos.first?["id"] as? String else { releaseFail("no app info record") }
   return id
 }
 
@@ -3577,7 +3572,7 @@ func reviewContact(_ platformName: String, _ version: String) {
 func pushAgeRating() {
   let declaration = api("GET", "/v1/appInfos/\(appInfoID())/ageRatingDeclaration")
   guard let id = (declaration["data"] as? [String: Any])?["id"] as? String
-  else { die("no age rating declaration on the app info record") }
+  else { releaseFail("no age rating declaration on the app info record") }
   let none = "NONE"
   let attributes: [String: Any] = [
     "alcoholTobaccoOrDrugUseOrReferences": none,
@@ -3616,12 +3611,14 @@ func pushAgeRating() {
 // signs with the card, and does not itself ship an encryption product.
 func pushExportCompliance(_ platformName: String) {
   let platform = apiPlatform(platformName)
-  guard let versionInfo = findVersion(platform) else { die("no version for \(platformName)") }
+  guard let versionInfo = findVersion(platform) else {
+    releaseFail("no version for \(platformName)")
+  }
   let response = api("GET", "/v1/appStoreVersions/\(versionInfo.id)?include=build")
   guard
     let build = (response["included"] as? [[String: Any]])?
       .first(where: { $0["type"] as? String == "builds" }), let buildID = build["id"] as? String
-  else { die("no build attached to \(platformName) \(versionInfo.version)") }
+  else { releaseFail("no build attached to \(platformName) \(versionInfo.version)") }
   let usesNonExempt = metadata["usesNonExemptEncryption"] as? Bool ?? false
   // A build that shipped with ITSAppUsesNonExemptEncryption in its
   // Info.plist already carries the answer and cannot be overwritten.
@@ -3654,7 +3651,7 @@ func pushExportCompliance(_ platformName: String) {
 // default is not.
 func pushPricing() {
   guard (metadata["pricing"] as? String) == "free" else {
-    die(
+    releaseFail(
       "only free pricing is supported; 'pricing' says "
         + "\(metadata["pricing"] ?? "nothing")")
   }
@@ -3668,7 +3665,7 @@ func pushPricing() {
       let price = ($0["attributes"] as? [String: Any])?["customerPrice"] as? String
       return price.flatMap(Double.init) == 0
     })?["id"] as? String
-  else { die("no free price point for \(base)") }
+  else { releaseFail("no free price point for \(base)") }
   let temporary = "${free-price}"
   api(
     "POST", "/v1/appPriceSchedules",
@@ -3761,7 +3758,7 @@ func submit(_ platformName: String, _ version: String) {
         ]
       ])
     guard let id = (created["data"] as? [String: Any])?["id"] as? String
-    else { die("could not create a review submission") }
+    else { releaseFail("could not create a review submission") }
     submissionID = id
   }
   api(
@@ -3792,7 +3789,7 @@ func submit(_ platformName: String, _ version: String) {
 func putChunk(_ operation: [String: Any], _ data: Data) {
   guard let urlString = operation["url"] as? String, let url = URL(string: urlString),
     let offset = operation["offset"] as? Int, let length = operation["length"] as? Int
-  else { die("malformed upload operation") }
+  else { releaseFail("malformed upload operation") }
   var request = URLRequest(url: url)
   request.httpMethod = operation["method"] as? String ?? "PUT"
   for header in operation["requestHeaders"] as? [[String: Any]] ?? [] {
@@ -3808,7 +3805,9 @@ func putChunk(_ operation: [String: Any], _ data: Data) {
     semaphore.signal()
   }.resume()
   semaphore.wait()
-  guard (200..<300).contains(status) else { die("HTTP \(status) uploading a screenshot chunk") }
+  guard httpSuccessStatusRange.contains(status) else {
+    releaseFail("HTTP \(status) uploading a screenshot chunk")
+  }
 }
 
 // The screenshot set for a version localization and display type, its
@@ -3843,7 +3842,7 @@ func screenshotSet(localizationID: String, displayType: String) -> String {
         ]
       ])
     guard let id = (created["data"] as? [String: Any])?["id"] as? String
-    else { die("no screenshot set id") }
+    else { releaseFail("no screenshot set id") }
     setID = id
   }
   return setID
@@ -3851,7 +3850,7 @@ func screenshotSet(localizationID: String, displayType: String) -> String {
 
 // Reserves, uploads and commits one screenshot into a set.
 func uploadScreenshot(setID: String, file: URL) {
-  guard let data = try? Data(contentsOf: file) else { die("cannot read \(file.path)") }
+  guard let data = try? Data(contentsOf: file) else { releaseFail("cannot read \(file.path)") }
   let reservation = api(
     "POST", "/v1/appScreenshots",
     body: [
@@ -3868,7 +3867,7 @@ func uploadScreenshot(setID: String, file: URL) {
   guard let reserved = reservation["data"] as? [String: Any], let id = reserved["id"] as? String,
     let operations = (reserved["attributes"] as? [String: Any])?["uploadOperations"]
       as? [[String: Any]]
-  else { die("no upload operations for \(file.lastPathComponent)") }
+  else { releaseFail("no upload operations for \(file.lastPathComponent)") }
   for operation in operations { putChunk(operation, data) }
   let checksum = Insecure.MD5.hash(data: data).map { String(format: "%02x", $0) }.joined()
   api(
@@ -3905,8 +3904,8 @@ func pushScreenshots(_ platformName: String, _ version: String) {
   let versionID = ensureVersion(platformName, version)
   let versionLocalizations = existingLocalizations(
     "/v1/appStoreVersions/\(versionID)/appStoreVersionLocalizations?limit=50")
-  let root = repository.appendingPathComponent("Metadata/screenshots")
-  let fileManager = FileManager.default
+  let root = releaseRepositoryRoot.appendingPathComponent("Metadata/screenshots")
+  let fileManager = releaseFileManager
   for (locale, localizationID) in versionLocalizations.sorted(by: { $0.key < $1.key }) {
     let localeDir = root.appendingPathComponent(locale)
     guard
@@ -3984,18 +3983,18 @@ func distribute(_ platformName: String, _ groupName: String, _ candidateID: Stri
   let selected = candidateID.map { id in candidates.first { $0["id"] as? String == id } }
     ?? candidates.first
   guard let build = selected, let buildID = build["id"] as? String
-  else { die("no \(platformName) build to distribute") }
+  else { releaseFail("no \(platformName) build to distribute") }
   let attributes = build["attributes"] as? [String: Any] ?? [:]
   guard attributes["processingState"] as? String == "VALID",
     attributes["expired"] as? Bool != true
-  else { die("candidate must finish processing and must not be expired") }
+  else { releaseFail("candidate must finish processing and must not be expired") }
   pushWhatToTest(platformName, buildID)
   let groups = dataArray(api("GET", "/v1/apps/\(appID())/betaGroups?limit=50"))
   guard
     let group = groups.first(where: {
       ($0["attributes"] as? [String: Any])?["name"] as? String == groupName
     }), let groupID = group["id"] as? String
-  else { die("no beta group named '\(groupName)'") }
+  else { releaseFail("no beta group named '\(groupName)'") }
   let groupAttributes = group["attributes"] as? [String: Any] ?? [:]
   // An internal group with access to all builds takes every build that
   // finished processing; App Store Connect refuses adding one by hand.
@@ -4025,7 +4024,7 @@ func distribute(_ platformName: String, _ groupName: String, _ candidateID: Stri
         "relationships": ["build": ["data": ["type": "builds", "id": buildID]]],
       ]
     ])
-  if (200..<300).contains(submission.status) {
+  if httpSuccessStatusRange.contains(submission.status) {
     print("submitted \(platformName) build for beta review")
   } else if apiErrorCodes(submission.body).contains(anotherBuildInReview) {
     // One build of a version is in beta review at a time; this one waits
@@ -4034,7 +4033,8 @@ func distribute(_ platformName: String, _ groupName: String, _ candidateID: Stri
       "another \(platformName) build of this version is in beta review; "
         + "run distribute again once it ends to submit this one")
   } else {
-    die("HTTP \(submission.status) on POST /v1/betaAppReviewSubmissions: \(submission.text)")
+    releaseFail(
+      "HTTP \(submission.status) on POST /v1/betaAppReviewSubmissions: \(submission.text)")
   }
 }
 
@@ -4051,7 +4051,7 @@ func pushWhatToTest(_ platformName: String, _ buildID: String) {
   guard let notesVersion = metadata["whatToTestVersion"] as? String,
     notesVersion == buildVersion
   else {
-    die(
+    releaseFail(
       "What to Test in Metadata/appstore.json is for version "
         + "\(metadata["whatToTestVersion"] as? String ?? "none"), the build is "
         + "\(buildVersion ?? "unknown"): write the notes for this version and set "
@@ -4063,7 +4063,7 @@ func pushWhatToTest(_ platformName: String, _ buildID: String) {
     return text?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false
   }
   guard missing.isEmpty else {
-    die(
+    releaseFail(
       "What to Test for \(platformName) is missing in "
         + "\(missing.joined(separator: ", ")) in Metadata/appstore.json")
   }
@@ -4108,7 +4108,7 @@ func addTester(_ email: String, _ groupName: String) {
     let groupID = groups.first(where: {
       ($0["attributes"] as? [String: Any])?["name"] as? String == groupName
     })?["id"] as? String
-  else { die("no beta group named '\(groupName)'") }
+  else { releaseFail("no beta group named '\(groupName)'") }
   api(
     "POST", "/v1/betaTesters",
     body: [
@@ -4130,10 +4130,10 @@ func removeTester(_ email: String, _ groupName: String) {
     let groupID = groups.first(where: {
       ($0["attributes"] as? [String: Any])?["name"] as? String == groupName
     })?["id"] as? String
-  else { die("no beta group named '\(groupName)'") }
+  else { releaseFail("no beta group named '\(groupName)'") }
   let testers = dataArray(api("GET", "/v1/betaTesters?filter[email]=\(email)"))
   guard let testerID = testers.first?["id"] as? String else {
-    die("no beta tester with email \(email)")
+    releaseFail("no beta tester with email \(email)")
   }
   api(
     "DELETE", "/v1/betaGroups/\(groupID)/relationships/betaTesters",
@@ -4149,7 +4149,7 @@ func removeTester(_ email: String, _ groupName: String) {
 func invite(_ email: String) {
   let testers = dataArray(api("GET", "/v1/betaTesters?filter[email]=\(email)"))
   guard let testerID = testers.first?["id"] as? String else {
-    die("no beta tester with email \(email); add them to a group first")
+    releaseFail("no beta tester with email \(email); add them to a group first")
   }
   api(
     "POST", "/v1/betaTesterInvitations",
@@ -4202,7 +4202,9 @@ if arguments.isEmpty || ["help", "--help", "-h"].contains(arguments[0]) {
   printReleaseManagerUsage()
   exit(0)
 }
-guard let command = arguments.first else { die("a command is required; see the header") }
+guard let command = arguments.first else {
+  releaseFail("a command is required; see the header")
+}
 let rest = Array(arguments.dropFirst())
 
 switch (command, rest.count) {
@@ -4254,5 +4256,5 @@ case ("export-compliance", 1): pushExportCompliance(rest[0])
 case ("pricing", 0): pushPricing()
 case ("submissions", 0): submissions()
 case ("submit", 2): submit(rest[0], rest[1])
-default: die("unknown command or wrong arguments: '\(command)'; see the header")
+default: releaseFail("unknown command or wrong arguments: '\(command)'; see the header")
 }

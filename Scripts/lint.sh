@@ -91,6 +91,7 @@ typecheck() {
 }
 
 typecheck "release manager" Scripts/apple-app-store-connect-release-manager.swift
+typecheck "release manager tests" Scripts/TestAppleAppStoreConnectReleaseManager.swift
 typecheck "macOS notarized DMG builder" Scripts/macos-notarized-dmg-builder.swift
 typecheck "macOS notarized DMG builder tests" Scripts/TestMacosNotarizedDmgBuilder.swift
 typecheck "store screenshots" Scripts/generate-store-screenshots.swift
