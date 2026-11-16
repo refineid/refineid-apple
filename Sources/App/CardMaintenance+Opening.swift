@@ -122,7 +122,11 @@ extension CardMaintenance {
       guard let channelPin else { return .unavailable }
       return pinOpenedUnlessUnsupported(over: channel, pin: channelPin)
     } catch {
-      return canOpenedOperations(over: channel, cardAccessNumber: cardAccessNumber)
+      #if FEATURE_CONTACTLESS
+        return canOpenedOperations(over: channel, cardAccessNumber: cardAccessNumber)
+      #else
+        return .unavailable
+      #endif
     }
   }
 
@@ -136,8 +140,12 @@ extension CardMaintenance {
   ) -> Opening {
     switch kind {
     case .personal:
-      try? CardOperations(channel: channel).selectMainFile()
-      return canOpenedOperations(over: channel, cardAccessNumber: opener.cardAccessNumber)
+      #if FEATURE_CONTACTLESS
+        try? CardOperations(channel: channel).selectMainFile()
+        return canOpenedOperations(over: channel, cardAccessNumber: opener.cardAccessNumber)
+      #else
+        return .unavailable
+      #endif
     case .organization:
       guard let pin = opener.channelPin else {
         #if DEBUG
@@ -149,56 +157,58 @@ extension CardMaintenance {
     }
   }
 
-  /// The card access number a citizen card on an antenna is opened with.
-  ///
-  /// The one the operation offers; else the first of the numbers the
-  /// token driver tries, the app's own and the per-card library the
-  /// driver fills as cards open (``CardCredentialStore/cardAccessNumberCandidates()``),
-  /// so the window opens a card with the number its login used; else the
-  /// one a prime holds. A card answers with no identifier before PACE, so
-  /// the first is tried, and a refusal forgets them all.
-  internal static func offeredAccessNumber(_ digits: String?) -> CardCanOffer.Candidate? {
-    if let digits, let number = CardAccessNumber(digits: digits) {
-      return CardCanOffer.Candidate(digits: digits, number: number)
+  #if FEATURE_CONTACTLESS
+    /// The card access number a citizen card on an antenna is opened with.
+    ///
+    /// The one the operation offers; else the first of the numbers the
+    /// token driver tries, the app's own and the per-card library the
+    /// driver fills as cards open (``CardCredentialStore/cardAccessNumberCandidates()``),
+    /// so the window opens a card with the number its login used; else the
+    /// one a prime holds. A card answers with no identifier before PACE, so
+    /// the first is tried, and a refusal forgets them all.
+    internal static func offeredAccessNumber(_ digits: String?) -> CardCanOffer.Candidate? {
+      if let digits, let number = CardAccessNumber(digits: digits) {
+        return CardCanOffer.Candidate(digits: digits, number: number)
+      }
+      if let first = CardCredentialStore.cardAccessNumberCandidates().first {
+        return first
+      }
+      guard
+        let primed = PrimeStore.storedIdentities().first?.can,
+        let number = CardAccessNumber(digits: primed)
+      else {
+        return nil
+      }
+      return CardCanOffer.Candidate(digits: primed, number: number)
     }
-    if let first = CardCredentialStore.cardAccessNumberCandidates().first {
-      return first
-    }
-    guard
-      let primed = PrimeStore.storedIdentities().first?.can,
-      let number = CardAccessNumber(digits: primed)
-    else {
-      return nil
-    }
-    return CardCanOffer.Candidate(digits: primed, number: number)
-  }
 
-  /// PACE with the card access number ``offeredAccessNumber(_:)`` names.
-  private static func canOpenedOperations(
-    over channel: any CardChannel,
-    cardAccessNumber: String?
-  ) -> Opening {
-    guard let offered = offeredAccessNumber(cardAccessNumber) else { return .unavailable }
-    let keys: PaceSessionKeys
-    do {
-      keys = try PaceEstablishment(channel: channel)
-        .establish(with: PacePassword(cardAccessNumber: offered.number)).keys
-    } catch PaceEstablishment.Failure.authenticationTokenMismatch {
-      CardCredentialStore.forgetEveryCardAccessNumber()
-      return .unavailable
-    } catch PaceEstablishment.Failure.cardRejected(.authenticationFailed) {
-      CardCredentialStore.forgetEveryCardAccessNumber()
-      return .unavailable
-    } catch {
-      return .unavailable
+    /// PACE with the card access number ``offeredAccessNumber(_:)`` names.
+    private static func canOpenedOperations(
+      over channel: any CardChannel,
+      cardAccessNumber: String?
+    ) -> Opening {
+      guard let offered = offeredAccessNumber(cardAccessNumber) else { return .unavailable }
+      let keys: PaceSessionKeys
+      do {
+        keys = try PaceEstablishment(channel: channel)
+          .establish(with: PacePassword(cardAccessNumber: offered.number)).keys
+      } catch PaceEstablishment.Failure.authenticationTokenMismatch {
+        CardCredentialStore.forgetEveryCardAccessNumber()
+        return .unavailable
+      } catch PaceEstablishment.Failure.cardRejected(.authenticationFailed) {
+        CardCredentialStore.forgetEveryCardAccessNumber()
+        return .unavailable
+      } catch {
+        return .unavailable
+      }
+      let secure = SecureMessagingChannel(wrapping: channel, sessionKeys: keys)
+      let secureOperations = CardOperations(channel: secure)
+      guard (try? secureOperations.selectFineidApplication()) != nil else {
+        return .unavailable
+      }
+      return .opened(secureOperations)
     }
-    let secure = SecureMessagingChannel(wrapping: channel, sessionKeys: keys)
-    let secureOperations = CardOperations(channel: secure)
-    guard (try? secureOperations.selectFineidApplication()) != nil else {
-      return .unavailable
-    }
-    return .opened(secureOperations)
-  }
+  #endif
 
   /// The opened card, or no channel when an organization card meets a
   /// build without organization-card support.

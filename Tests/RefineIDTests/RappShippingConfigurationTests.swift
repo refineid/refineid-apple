@@ -77,9 +77,8 @@ internal struct RappShippingConfigurationTests {
     #expect(project.contains(Self.classID))
     #expect(project.contains("RappTokenExtension"))
     #expect(project.contains("Config/RappTokenExtension-iOS.entitlements"))
-    // The macOS MVP gates the remote card off (decisions 2026-11-14),
-    // so macOS embeds no RAPP extension; the filter below is what
-    // keeps it out of the Mac archive.
+    // With the remote card gated off, macOS embeds no RAPP extension;
+    // the filter below is what keeps it out of the Mac archive.
     let embed = try #require(
       project.split(whereSeparator: \.isNewline).first { line in
         line.contains("RefineIDRappTokenExtension.appex in Embed Foundation Extensions")
@@ -99,8 +98,8 @@ internal struct RappShippingConfigurationTests {
           "\"INFOPLIST_FILE[sdk=macosx*]\" = \"Config/RefineID-Store-Info.plist\";"
       ).count - 1 == 4)
     // Every configuration signs macOS with the store entitlements
-    // (decisions 2026-11-08); with the remote card gated off for the
-    // MVP those grant no Bluetooth (decisions 2026-11-14).
+    // (decisions 2026-11-08), which grant no Bluetooth without the
+    // remote card.
     #expect(
       project.components(
         separatedBy:
@@ -131,7 +130,7 @@ internal struct RappShippingConfigurationTests {
       .filter { !$0.hasPrefix("//") }
     #expect(
       assignments.filter { $0.hasPrefix("REFINEID_FEATURES[sdk=macosx*] =") }
-        == ["REFINEID_FEATURES[sdk=macosx*] = FEATURE_CONTACTLESS"])
+        == ["REFINEID_FEATURES[sdk=macosx*] ="])
     #expect(features.contains("REFINEID_REMOTE_CARD_FEATURE = REFINEID_REMOTE_CARD\n"))
     #expect(
       features.contains(
@@ -218,8 +217,7 @@ internal struct RappShippingConfigurationTests {
     #expect(source.contains("fi.refineid.ReFineID.rapp-token"))
     #expect(source.contains("RAPP and direct-reader entitlements are separated"))
     #expect(!source.contains("network entitlements match the gated-relay shape"))
-    // Only the iOS archive carries the remote card; the macOS layout
-    // gates it off (decisions 2026-11-14).
+    // Only the iOS archive carries the remote card.
     #expect(source.components(separatedBy: "hasRapp: true").count - 1 == 1)
     #expect(source.components(separatedBy: "hasRapp: false").count - 1 == 1)
     #expect(source.contains("network.server entitlement; a Mac never listens"))

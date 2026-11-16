@@ -2,9 +2,12 @@
 //
 // REFINEID_FEATURES feeds SWIFT_ACTIVE_COMPILATION_CONDITIONS through
 // Version.xcconfig, which every configuration inherits. A flag absent
-// here compiles its UI entry points away; the code beneath them stays
-// built and tested either way, so turning a feature back on is this
-// flag plus the matching project packaging and archive inspection policy.
+// here defines its feature away: everything the feature exclusively
+// uses compiles out, so none of it ships; shared transports stay.
+// Turning a feature back on is this flag plus the matching project
+// packaging and archive inspection policy. Targets outside Xcode
+// (SwiftPM packages) cannot see these flags and gate the same split
+// by platform instead.
 //
 //   FEATURE_CONTACTLESS
 //       Contactless card reading on macOS: the CAN entry.
@@ -41,22 +44,20 @@
 //       Off on macOS in every configuration for the MVP; the iPhone
 //       and iPad keep the Settings-app address.
 //
-// macOS ships local card authentication, management and document signing
-// only (Documentation/decisions.md, 2026-11-14 and 2026-11-16): the
-// remote card over RAPP and signed document verification are gated off
-// until they return. Every macOS signature is
-// time-stamped by the qualified Sectigo server
+// macOS ships contact-card authentication, management and document
+// signing only: no remote card over RAPP, no contactless reader, no
+// signed document verification, and no Settings panes. Every macOS
+// signature is time-stamped by the qualified Sectigo server
 // (http://timestamp.sectigo.com/qualified) and carries no visible stamp.
-// The iPhone and iPad keep verification, their configurable authority,
-// and the stamp.
+// The iPhone and iPad keep built-in NFC, remote access, verification,
+// their configurable authority, and the stamp. To ship any of the gated
+// features on macOS again, set its flag for macosx* below.
 
 REFINEID_FEATURES = FEATURE_CONTACTLESS FEATURE_TIMESTAMP_CONFIG FEATURE_PDF_STAMP FEATURE_DOCUMENT_VERIFICATION
 
-// The macOS MVP compiles out document verification and every Settings
-// pane: the time-stamp authority is the shipped Sectigo service and
-// signatures are invisible, so no feature needs a Settings window or its
-// menu item.
-REFINEID_FEATURES[sdk=macosx*] = FEATURE_CONTACTLESS
+// macOS compiles out contactless reading, document verification, and
+// every Settings pane.
+REFINEID_FEATURES[sdk=macosx*] =
 
 // The local card: this build talks to a card the device itself holds,
 // over its own antenna. On by default, because every shipping iPhone
@@ -65,11 +66,12 @@ REFINEID_LOCAL_CARD_FEATURE = REFINEID_LOCAL_CARD
 
 // REFINEID_REMOTE_CARD
 //     The remote card: pairing this device with another over RAPP, and
-//     everything a pairing makes possible. Off on macOS in every
-//     configuration for the MVP (decisions 2026-11-14); the iPhone and
-//     the iPad keep it. The combined conditions below outrank the
-//     config-only ones above wherever both match, so no ordering
-//     between the stanzas can re-enable it.
+//     everything a pairing makes possible. Empty on macOS in every
+//     configuration; the iPhone and the iPad set it. The combined
+//     conditions below outrank the config-only ones above wherever both
+//     match, so no ordering between the stanzas can re-enable it. To
+//     ship the remote card on macOS, delete the macosx* stanzas and
+//     restore the embed, the declarations, and the archive policy.
 REFINEID_REMOTE_CARD_FEATURE = REFINEID_REMOTE_CARD
 REFINEID_REMOTE_CARD_FEATURE[config=TestFlight] = REFINEID_REMOTE_CARD
 REFINEID_REMOTE_CARD_FEATURE[config=Release] = REFINEID_REMOTE_CARD

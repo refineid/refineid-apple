@@ -44,13 +44,15 @@ internal final class CardPresence: ObservableObject {
   /// hints supplied by the view that opened card management.
   @Published internal private(set) var hasCompletedInitialScan = false
 
-  /// Whether any of those cards is on a contactless interface.
-  ///
-  /// Read from the slot's synthesized answer to reset, so it costs
-  /// no card I/O and is known the moment the card lands on the
-  /// antenna. Only this certainty makes the access-number entry
-  /// appear: a contact card never needs one.
-  @Published internal private(set) var isContactlessCardPresent = false
+  #if FEATURE_CONTACTLESS
+    /// Whether any of those cards is on a contactless interface.
+    ///
+    /// Read from the slot's synthesized answer to reset, so it costs
+    /// no card I/O and is known the moment the card lands on the
+    /// antenna. Only this certainty makes the access-number entry
+    /// appear: a contact card never needs one.
+    @Published internal private(set) var isContactlessCardPresent = false
+  #endif
 
   /// The slots being watched, by name.
   private var slots: [String: TKSmartCardSlot] = [:]
@@ -149,9 +151,6 @@ internal final class CardPresence: ObservableObject {
       CardTransport.transport(forSlotNamed: name) == .reader
         && slot.state == .validCard
     }
-    let contactless = occupied.values.contains { slot in
-      slot.atr.map { AnswerToReset.indicatesContactlessInterface(bytes: $0.bytes) } ?? false
-    }
     // The reader's attachment is settled before a departing card is
     // reported, so a reader unplugged with its card in it reaches the
     // requester as one word: no card, no reader.
@@ -159,9 +158,9 @@ internal final class CardPresence: ObservableObject {
     if present != isCardPresent {
       isCardPresent = present
     }
-    if contactless != isContactlessCardPresent {
-      isContactlessCardPresent = contactless
-    }
+    #if FEATURE_CONTACTLESS
+      syncContactlessPresence(from: occupied)
+    #endif
     if readerPresent != isReaderCardPresent {
       isReaderCardPresent = readerPresent
       #if os(iOS) && REFINEID_LOCAL_CARD
@@ -185,6 +184,19 @@ internal final class CardPresence: ObservableObject {
       }
     #endif
   }
+
+  #if FEATURE_CONTACTLESS
+    /// Follows whether any occupied slot is a contactless interface,
+    /// read from the slot's synthesized answer to reset.
+    private func syncContactlessPresence(from occupied: [String: TKSmartCardSlot]) {
+      let contactless = occupied.values.contains { slot in
+        slot.atr.map { AnswerToReset.indicatesContactlessInterface(bytes: $0.bytes) } ?? false
+      }
+      if contactless != isContactlessCardPresent {
+        isContactlessCardPresent = contactless
+      }
+    }
+  #endif
 
   /// Follows whether a contact reader is connected; true when that
   /// changed.

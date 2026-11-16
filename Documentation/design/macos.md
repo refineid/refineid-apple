@@ -11,10 +11,11 @@ which links the site, and Settings. The View menu holds Demo Mode.
 
 The macOS MVP release delivers local smart card reader support only.
 
-- **Local card only.** The Mac app communicates directly with smart cards
-  inserted into connected contact or contactless USB/CCID readers via
-  CryptoTokenKit (`TokenExtension`). Contactless reading and CAN entry are
-  enabled via `FEATURE_CONTACTLESS` in `Config/Features.xcconfig`.
+- **Contact card reader only.** The Mac app communicates directly with smart
+  cards inserted into connected contact USB/CCID readers via CryptoTokenKit
+  (`TokenExtension`). Contactless reader support and CAN entry
+  (`FEATURE_CONTACTLESS` in `Config/Features.xcconfig`) are compiled out across
+  all macOS configurations for the MVP.
 - **Remote Access (RAPP) compiled out.** Remote use (`REFINEID_REMOTE_CARD` in
   `Config/Features.xcconfig`), served over the Remote Authentication & Proxy
   Protocol (RAPP), is compiled out across all macOS configurations (Debug,
@@ -81,17 +82,16 @@ top, the window shows:
 
 A card waiting to be taken into use replaces these with the activation
 form, and the window has no toolbar button while it does: activation is
-the one thing to do with the card, in this window only. A contactless
-personal card that needs its access number replaces them with the six-box
-access number entry.
+the one thing to do with the card, in this window only. In builds with
+`FEATURE_CONTACTLESS` enabled, a contactless personal card that needs its
+access number replaces them with the six-box access number entry.
 
 ## Remote use (post-MVP design)
 
-In the macOS MVP, remote card access is gated off: the switch, the pairing,
-and all remote communication compile out behind `REFINEID_REMOTE_CARD`. The
-status row displays "Connect a card reader." when no local reader or card is
-found. The architecture below specifies remote card behavior for builds where
-`REFINEID_REMOTE_CARD` is enabled.
+Not in macOS builds: the switch, the pairing, and everything below
+compile out behind `REFINEID_REMOTE_CARD`, and the identity row says
+"Connect a card reader." where it used to name the switch. The design
+stands for the remote card's return.
 
 One toolbar button is the switch for all remote use: Bluetooth and
 local-network discovery, sessions with the phone, and the phone's identity

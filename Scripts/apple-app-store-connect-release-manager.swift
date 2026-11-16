@@ -265,9 +265,9 @@ private func releaseArchiveLayout(at archive: URL) -> ReleaseArchiveLayout {
       rappPlist: rappBundle.appendingPathComponent("Contents/Info.plist"),
       discoveryPlist: discoveryBundle.appendingPathComponent("Contents/Info.plist"),
       expectedArchitectures: ["arm64"],
-      // macOS ships the local card only (decisions 2026-11-14): the
-      // RAPP extension stays out of the archive with the remote card
-      // gated off, and nothing listens.
+      // macOS ships the local card only: the RAPP extension stays out
+      // of the archive with the remote card gated off, and nothing
+      // listens.
       hasRapp: false,
       hasDiscovery: false
     )

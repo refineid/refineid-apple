@@ -64,7 +64,7 @@ public enum CardCredentialStore {
   /// Stores the card access number, replacing any previous one.
   ///
   /// Also hands it to the token driver, which on macOS cannot read the
-  /// keychain item this just wrote. See `publishCardAccessNumberToDriver`.
+  /// keychain item this just wrote.
   @discardableResult
   public static func save(cardAccessNumber digits: String) -> OSStatus {
     guard CardAccessNumber(digits: digits) != nil else { return errSecParam }
@@ -75,63 +75,71 @@ public enum CardCredentialStore {
     return status
   }
 
-  /// An opaque name for the stored number: equal when the number is,
-  /// never convertible back to digits.
-  ///
-  /// Lets the token driver remember "this exact number was refused by
-  /// this card" across offers without holding digits, which is what
-  /// stops a wrong number from being retried against the card for as
-  /// long as it rests on the antenna.
-  public static func cardAccessNumberFingerprint() -> Data? {
-    var digits = read(account: cardAccessNumberAccount).map { Data($0.utf8) }
-    #if os(macOS)
-      if digits == nil {
-        digits = CardCanOffer.offeredDigits().map { Data($0.utf8) }
-      }
-    #endif
-    guard let digits else { return nil }
-    return Data(SHA256.hash(data: digits))
-  }
+  #if !os(macOS)
+    /// An opaque name for the stored number: equal when the number is,
+    /// never convertible back to digits.
+    ///
+    /// Lets the token driver remember "this exact number was refused by
+    /// this card" across offers without holding digits, which is what
+    /// stops a wrong number from being retried against the card for as
+    /// long as it rests on the antenna.
+    public static func cardAccessNumberFingerprint() -> Data? {
+      var digits = read(account: cardAccessNumberAccount).map { Data($0.utf8) }
+      #if os(macOS)
+        if digits == nil {
+          digits = CardCanOffer.offeredDigits().map { Data($0.utf8) }
+        }
+      #endif
+      guard let digits else { return nil }
+      return Data(SHA256.hash(data: digits))
+    }
+  #endif
 
-  /// The opaque fingerprint of one number, for refusal latching.
-  ///
-  /// Never convertible back to digits, which is what stops a wrong
-  /// number from being retried against the card for as long as it
-  /// rests on the antenna.
-  public static func fingerprint(canDigits: String) -> Data {
-    Data(SHA256.hash(data: Data(canDigits.utf8)))
-  }
+  #if !os(macOS)
+    /// The opaque fingerprint of one number, for refusal latching.
+    ///
+    /// Never convertible back to digits, which is what stops a wrong
+    /// number from being retried against the card for as long as it
+    /// rests on the antenna.
+    public static func fingerprint(canDigits: String) -> Data {
+      Data(SHA256.hash(data: Data(canDigits.utf8)))
+    }
+  #endif
 
-  /// Hands the stored card access number to the token driver, for the
-  /// platform where it cannot read the keychain item itself.
-  ///
-  /// Called by the app when it starts, not only when the number is
-  /// entered: a number stored before this channel existed, or by a
-  /// previous version, would otherwise stay invisible to the driver
-  /// until the holder happened to type it again.
-  ///
-  /// Answers whether anything was published, so a caller can say so.
-  /// False covers both nothing stored and a process that is not the
-  /// driver's hosting application, neither of which is an error.
-  @discardableResult
-  public static func publishCardAccessNumberToDriver() -> Bool {
-    guard let digits = read(account: cardAccessNumberAccount) else { return false }
-    return publishToDriver(digits: digits)
-  }
+  #if !os(macOS)
+    /// Hands the stored card access number to the token driver, for the
+    /// platform where it cannot read the keychain item itself.
+    ///
+    /// Called by the app when it starts, not only when the number is
+    /// entered: a number stored before this channel existed, or by a
+    /// previous version, would otherwise stay invisible to the driver
+    /// until the holder happened to type it again.
+    ///
+    /// Answers whether anything was published, so a caller can say so.
+    /// False covers both nothing stored and a process that is not the
+    /// driver's hosting application, neither of which is an error.
+    @discardableResult
+    public static func publishCardAccessNumberToDriver() -> Bool {
+      guard let digits = read(account: cardAccessNumberAccount) else { return false }
+      return publishToDriver(digits: digits)
+    }
+  #endif
 
-  /// Publishes a just-typed card access number for the driver's next
-  /// unseal, keeping it nowhere else.
-  ///
-  /// This is the macOS route for a sealed contactless card: the holder
-  /// types the number where the card appeared, the driver reads it for
-  /// the mint, and `withdrawCardAccessNumberFromDriver` takes it back
-  /// once the card is published or gone. Nothing is written to the
-  /// keychain, so nothing survives to be a previously saved number.
-  @discardableResult
-  public static func publishCardAccessNumberToDriver(digits: String) -> Bool {
-    guard CardAccessNumber(digits: digits) != nil else { return false }
-    return publishToDriver(digits: digits)
-  }
+  #if !os(macOS)
+    /// Publishes a just-typed card access number for the driver's next
+    /// unseal, keeping it nowhere else.
+    ///
+    /// This is the macOS route for a sealed contactless card: the holder
+    /// types the number where the card appeared, the driver reads it for
+    /// the mint, and `withdrawCardAccessNumberFromDriver` takes it back
+    /// once the card is published or gone. Nothing is written to the
+    /// keychain, so nothing survives to be a previously saved number.
+    @discardableResult
+    public static func publishCardAccessNumberToDriver(digits: String) -> Bool {
+      guard CardAccessNumber(digits: digits) != nil else { return false }
+      return publishToDriver(digits: digits)
+    }
+  #endif
 
   /// Withdraws the published number, and the configuration-store
   /// entry earlier versions published, which must not outlive them.
@@ -142,23 +150,27 @@ public enum CardCredentialStore {
     #endif
   }
 
-  /// Records that the card refused the offered number, where the
-  /// window that offered it can see - the token driver has no window
-  /// of its own to say so in.
-  public static func recordOfferedNumberRefusal() {
-    #if os(macOS)
-      CardCanOffer.recordRefusal()
-    #endif
-  }
+  #if !os(macOS)
+    /// Records that the card refused the offered number, where the
+    /// window that offered it can see - the token driver has no window
+    /// of its own to say so in.
+    public static func recordOfferedNumberRefusal() {
+      #if os(macOS)
+        CardCanOffer.recordRefusal()
+      #endif
+    }
+  #endif
 
-  /// Whether the offered number stands refused by the card.
-  public static func offeredNumberWasRefused() -> Bool {
-    #if os(macOS)
-      return CardCanOffer.refusalRecorded()
-    #else
-      return false
-    #endif
-  }
+  #if !os(macOS)
+    /// Whether the offered number stands refused by the card.
+    public static func offeredNumberWasRefused() -> Bool {
+      #if os(macOS)
+        return CardCanOffer.refusalRecorded()
+      #else
+        return false
+      #endif
+    }
+  #endif
 
   /// Records what the card on the antenna needs, where the window can
   /// see - the driver has no window of its own to say so in.
@@ -168,14 +180,16 @@ public enum CardCredentialStore {
     #endif
   }
 
-  /// What the card on the antenna needs, when the driver learnt it.
-  public static func cardAsk() -> CardDriverAsk? {
-    #if os(macOS)
-      return CardCanOffer.recordedAsk()
-    #else
-      return nil
-    #endif
-  }
+  #if !os(macOS)
+    /// What the card on the antenna needs, when the driver learnt it.
+    public static func cardAsk() -> CardDriverAsk? {
+      #if os(macOS)
+        return CardCanOffer.recordedAsk()
+      #else
+        return nil
+      #endif
+    }
+  #endif
 
   /// Clears the ask, for a card that left the antenna.
   public static func clearCardAsk() {
@@ -184,12 +198,14 @@ public enum CardCredentialStore {
     #endif
   }
 
-  /// Clears a recorded refusal, for the offer that succeeded.
-  public static func clearOfferedNumberRefusal() {
-    #if os(macOS)
-      CardCanOffer.clearRefusal()
-    #endif
-  }
+  #if !os(macOS)
+    /// Clears a recorded refusal, for the offer that succeeded.
+    public static func clearOfferedNumberRefusal() {
+      #if os(macOS)
+        CardCanOffer.clearRefusal()
+      #endif
+    }
+  #endif
 
   /// The stored card access number, for the holder to see.
   ///
@@ -222,63 +238,67 @@ public enum CardCredentialStore {
     #endif
   }
 
-  /// The keychain's own answer to "could the card access number be read
-  /// from this process?", for when it could not.
-  ///
-  /// `cardAccessNumber()` answers nil for every reason there is, and the
-  /// reasons want different things done about them: `errSecItemNotFound`
-  /// is setup that has not happened, while a refusal is one process
-  /// being unable to read what another one wrote. A caller that has
-  /// already failed can say which it hit instead of guessing.
-  /// Asks for the value, not merely the item: on macOS the two are
-  /// different questions, because finding an item needs no authorization
-  /// while reading its data is what the access control governs. A probe
-  /// that omitted the data reported success for an item it could not
-  /// actually read.
-  public static func cardAccessNumberReadStatus() -> OSStatus {
-    #if DEBUG
-      if TestCredentialEnvironment.isTestMode {
-        return read(account: cardAccessNumberAccount) != nil ? errSecSuccess : errSecItemNotFound
-      }
-    #endif
-    var query = self.query(account: cardAccessNumberAccount)
-    query[kSecMatchLimit as String] = kSecMatchLimitOne
-    query[kSecReturnData as String] = true
-    var item: CFTypeRef?
-    return SecItemCopyMatching(query as CFDictionary, &item)
-  }
-
-  /// The primed identity for a card that was just read, built around the
-  /// stored card access number.
-  ///
-  /// The prime store needs the six digits, and this type is where they
-  /// live. Handing them out so a caller could assemble the record itself
-  /// would put a card access number in a `String` in the app, in the
-  /// extension, and in every caller added later; assembling the record
-  /// here means the digits go from the keychain into the prime without
-  /// passing through any other file. Returns nil when nothing is stored
-  /// or the record would not validate.
-  public static func primedIdentity(
-    certificate: Data,
-    issuer: Data?,
-    chipSerial: ChipSerial,
-    activationCheck: PrimedIdentity.ActivationCheck,
-    signatureCertificate: Data? = nil
-  ) -> PrimedIdentity? {
-    guard let digits = read(account: cardAccessNumberAccount) else {
-      return nil
+  #if !os(macOS)
+    /// The keychain's own answer to "could the card access number be read
+    /// from this process?", for when it could not.
+    ///
+    /// `cardAccessNumber()` answers nil for every reason there is, and the
+    /// reasons want different things done about them: `errSecItemNotFound`
+    /// is setup that has not happened, while a refusal is one process
+    /// being unable to read what another one wrote. A caller that has
+    /// already failed can say which it hit instead of guessing.
+    /// Asks for the value, not merely the item: on macOS the two are
+    /// different questions, because finding an item needs no authorization
+    /// while reading its data is what the access control governs. A probe
+    /// that omitted the data reported success for an item it could not
+    /// actually read.
+    public static func cardAccessNumberReadStatus() -> OSStatus {
+      #if DEBUG
+        if TestCredentialEnvironment.isTestMode {
+          return read(account: cardAccessNumberAccount) != nil ? errSecSuccess : errSecItemNotFound
+        }
+      #endif
+      var query = self.query(account: cardAccessNumberAccount)
+      query[kSecMatchLimit as String] = kSecMatchLimitOne
+      query[kSecReturnData as String] = true
+      var item: CFTypeRef?
+      return SecItemCopyMatching(query as CFDictionary, &item)
     }
-    return PrimedIdentity(
-      can: digits,
-      certificate: certificate,
-      issuer: issuer,
-      chipSerial: chipSerial,
-      activationCheck: activationCheck,
-      signatureCertificate: signatureCertificate)
-  }
+  #endif
+
+  #if !os(macOS)
+    /// The primed identity for a card that was just read, built around the
+    /// stored card access number.
+    ///
+    /// The prime store needs the six digits, and this type is where they
+    /// live. Handing them out so a caller could assemble the record itself
+    /// would put a card access number in a `String` in the app, in the
+    /// extension, and in every caller added later; assembling the record
+    /// here means the digits go from the keychain into the prime without
+    /// passing through any other file. Returns nil when nothing is stored
+    /// or the record would not validate.
+    public static func primedIdentity(
+      certificate: Data,
+      issuer: Data?,
+      chipSerial: ChipSerial,
+      activationCheck: PrimedIdentity.ActivationCheck,
+      signatureCertificate: Data? = nil
+    ) -> PrimedIdentity? {
+      guard let digits = read(account: cardAccessNumberAccount) else {
+        return nil
+      }
+      return PrimedIdentity(
+        can: digits,
+        certificate: certificate,
+        issuer: issuer,
+        chipSerial: chipSerial,
+        activationCheck: activationCheck,
+        signatureCertificate: signatureCertificate)
+    }
+  #endif
 
   /// Removes every card access number this process can reach: the
-  /// app's own copy, the offer and the per-card library.
+  /// app's own copy, plus on macOS the offer and the per-card library.
   ///
   /// What a refused CAN costs: the card answers with no identifier
   /// before PACE, so every CAN in memory goes and the holder types the

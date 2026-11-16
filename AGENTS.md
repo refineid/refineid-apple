@@ -197,6 +197,23 @@ subject.
   unavailable, preserve a sanitized finding locally and report that it was
   not filed; never silently discard it.
 
+## Comments and decisions describe the present
+
+- Rule #3 covers code: comments explain what the code does now and the
+  constraints it honors. Past bugs, previous implementations, decision
+  dates, and explanations of what a change changed belong in commit
+  messages, not source comments. A feature flag's comment names the
+  current behavior on each platform and how to flip it, never the
+  meeting that flipped it last.
+- `Documentation/decisions.md` records lasting architectural and
+  security rationale only: crypto and protocol choices, PIN custody,
+  trust anchors, privacy postures. Feature scope and release contents
+  live in `Documentation/release-plan.md` as current state, and their
+  history lives in git log. Do not add a dated entry for scoping a
+  feature in or out.
+- An entry a later change supersedes gets a one-line superseded note
+  at its top, so the log never claims false current state.
+
 ## Two implementations on purpose
 
 `CardCore` and `RappEngine` implement the card stack and the RAPP

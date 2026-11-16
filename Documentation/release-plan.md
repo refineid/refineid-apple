@@ -22,15 +22,15 @@ in its TestFlight and App Store builds. Its scope is controlled by
 
 Ship a small, trustworthy macOS App Store product named **RefineID**.
 
-The macOS release carries the local card and document signing only (owner
-decisions 2026-09-30, 2026-11-14, and 2026-11-16): the remote card over
-RAPP and signed document verification are gated off for the MVP. It
-includes the CryptoTokenKit smart-card extension, contact
-and contactless reading, authentication, card activation, PIN
-management, and local document signing. SCS is excluded from every
-macOS build configuration. iOS retains its existing features,
-including the remote card and signed document verification. The first candidate is for TestFlight; App
-Review submission remains a separate release action. App Store and
+The macOS release carries contact-card authentication, management, and
+document signing only: no remote card over RAPP, no contactless reader,
+and no signed document verification. It includes the CryptoTokenKit
+smart-card extension, contact reading through an attached reader,
+authentication, card activation, PIN management, and local document
+signing. SCS is excluded from every macOS build configuration. iOS
+retains its existing features, including built-in NFC, the remote card,
+and signed document verification. The first candidate is for TestFlight;
+App Review submission remains a separate release action. App Store and
 TestFlight stay the main channel; Xcode Cloud builds come later, and a
 notarized DMG with a Homebrew cask only if someone asks.
 
@@ -49,7 +49,7 @@ User story is:
 
 - A sandboxed, native Swift macOS application.
 - A native Swift CryptoTokenKit smart-card token extension embedded in the app.
-- Contactless card reading on a reader's contactless antenna.
+- Contact card reading through an attached reader.
 - Card activation for factory-fresh cards.
 - Virtual ID Card demonstration mode, entered from the View menu, enabling App Reviewers to exercise all card management and signing flows without physical hardware.
 - Supported-card, reader, extension, and application version status.
@@ -80,6 +80,9 @@ User story is:
 - The remote card over RAPP: pairing, the remote-use switch, remote
   signing, the remote-card extension, Bluetooth, and the local-network
   and Bonjour declarations.
+- Contactless reading on a reader's antenna: CAN entry, the access
+  number, the card-ask watch, and the slot prompt. An unreadable card
+  shows the generic card state.
 - Any listening socket: the Mac never accepts a connection, so no build
   carries the network-server entitlement.
 
@@ -92,11 +95,11 @@ User story is:
 
 ### Remote card
 
-RAPP stays out of the macOS MVP (owner decision 2026-11-14): no pairing,
-no remote-use switch, no remote signing, and no remote-card extension.
-It ships on macOS as the requester when it returns; until then the independent
-RAPP security review gates the iPhone work, not this candidate. SCS
-remains implemented for future qualification.
+RAPP stays out of the macOS MVP: no pairing, no remote-use switch,
+no remote signing, and no remote-card extension. It ships on macOS as
+the requester when it returns; until then the independent RAPP
+security review gates the iPhone work, not this candidate. SCS remains
+implemented for future qualification.
 
 ### Release evidence reconciliation
 
