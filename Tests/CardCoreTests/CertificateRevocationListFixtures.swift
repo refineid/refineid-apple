@@ -223,6 +223,12 @@ internal enum CertificateRevocationListFixtures {
 
     /// The positive certificate serial magnitude.
     internal let serial: Data
+
+    /// Optional explicit BIT STRING content overriding the default KeyUsage bits.
+    internal var customKeyUsageContent: Data?
+
+    /// Extra encoded Extension SEQUENCE values appended to TBSCertificate.extensions.
+    internal var additionalExtensions: [Data] = []
   }
 
   /// Errors produced only while constructing test material.

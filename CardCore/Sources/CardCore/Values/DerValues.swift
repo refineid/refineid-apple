@@ -118,6 +118,12 @@ public enum DerValues {
   /// Explicit Certificate version value for v3.
   internal static let certificateVersionThree: UInt8 = 2
 
+  /// digitalSignature in the first payload octet of an RFC 5280 KeyUsage.
+  internal static let keyUsageDigitalSignatureBit: UInt8 = 0x80
+
+  /// contentCommitment (nonRepudiation) in the first payload octet of an RFC 5280 KeyUsage.
+  internal static let keyUsageContentCommitmentBit: UInt8 = 0x40
+
   /// keyCertSign in the first payload octet of an RFC 5280 KeyUsage.
   internal static let keyUsageCertificateSigningBit: UInt8 = 0x04
 

@@ -37,6 +37,19 @@ extension CertificateIssuer {
   /// Fixed SEQUENCE fields from signature through SubjectPublicKeyInfo.
   private static let certificateSequencesAfterSerial = 5
 
+  /// KeyUsage bits that authorize a leaf document signature (RFC 5280 §4.2.1.3; EN 319 412-2 §4.3.2).
+  private static let documentSigningKeyUsageMask =
+    DerValues.keyUsageDigitalSignatureBit | DerValues.keyUsageContentCommitmentBit
+
+  /// ExtendedKeyUsage OIDs compatible with document signing when EKU is present (RFC 5280 §4.2.1.12; RFC 9336).
+  private static let documentSigningPurposes: Set<Data> = [
+    DerEncoder.objectIdentifier(SignOids.anyExtendedKeyUsage),
+    DerEncoder.objectIdentifier(SignOids.emailProtection),
+    DerEncoder.objectIdentifier(SignOids.documentSigning),
+    DerEncoder.objectIdentifier(SignOids.adobePdfSigning),
+    DerEncoder.objectIdentifier(SignOids.microsoftDocumentSigning),
+  ]
+
   /// Whether normalized X.509 names link the certificate to the issuer.
   internal static func namesMatch(subject: Parsed, issuer: Parsed) -> Bool {
     let subjectIssuer =
@@ -56,45 +69,27 @@ extension CertificateIssuer {
 
   /// Whether the revoked subject has unambiguous end-entity semantics.
   internal static func isPermittedEndEntity(_ subject: Parsed) -> Bool {
-    guard let extensions = try? Self.certificateExtensions(subject) else {
+    Self.satisfiesEndEntityProfile(subject, requireDocumentSigning: false)
+  }
+
+  /// Whether `subject` satisfies document-signer BasicConstraints, KeyUsage, and ExtendedKeyUsage rules.
+  internal static func isPermittedDocumentSigner(_ subject: Parsed) -> Bool {
+    Self.satisfiesEndEntityProfile(subject, requireDocumentSigning: true)
+  }
+
+  /// Whether a subordinate CA certificate's ExtendedKeyUsage, when present, permits document signing.
+  internal static func permitsDocumentSigningIssuance(_ certificate: Data) -> Bool {
+    guard
+      let parsed = Self.parsed(certificate),
+      let extensions = try? Self.certificateExtensions(parsed)
+    else {
       return false
     }
-    var basicConstraintsSeen = false
-    var extendedKeyUsageSeen = false
-    var keyUsageSeen = false
-    for extensionValue in extensions {
-      switch extensionValue.identifier {
-      case DerEncoder.objectIdentifier(SignOids.basicConstraints):
-        guard
-          !basicConstraintsSeen,
-          Self.basicConstraints(extensionValue.value) == .endEntity
-        else {
-          return false
-        }
-        basicConstraintsSeen = true
-
-      case DerEncoder.objectIdentifier(SignOids.extendedKeyUsage):
-        guard
-          !extendedKeyUsageSeen,
-          Self.extendedKeyUsageIsValid(extensionValue.value)
-        else {
-          return false
-        }
-        extendedKeyUsageSeen = true
-
-      case DerEncoder.objectIdentifier(SignOids.keyUsage):
-        guard
-          !keyUsageSeen,
-          let firstUsageByte = Self.keyUsageBits(extensionValue.value),
-          firstUsageByte & DerValues.keyUsageCertificateSigningBit == 0,
-          firstUsageByte & DerValues.keyUsageCrlSigningBit == 0
-        else {
-          return false
-        }
-        keyUsageSeen = true
-
-      default:
-        if extensionValue.critical { return false }
+    let ekuIdentifier = DerEncoder.objectIdentifier(SignOids.extendedKeyUsage)
+    for extensionValue in extensions where extensionValue.identifier == ekuIdentifier {
+      let purposes = Self.extendedKeyUsagePurposes(extensionValue.value)
+      guard !purposes.isEmpty, !purposes.isDisjoint(with: Self.documentSigningPurposes) else {
+        return false
       }
     }
     return true
@@ -102,9 +97,7 @@ extension CertificateIssuer {
 
   /// Whether BasicConstraints and KeyUsage authorize certificate signing.
   internal static func canIssueCertificates(_ issuer: Parsed) -> Bool {
-    guard let extensions = try? Self.certificateExtensions(issuer) else {
-      return false
-    }
+    guard let extensions = try? Self.certificateExtensions(issuer) else { return false }
     var basicConstraintsSeen = false
     var isCertificateAuthority = false
     var keyUsageAllowsSigning = true
@@ -116,60 +109,93 @@ extension CertificateIssuer {
         basicConstraintsSeen = true
         isCertificateAuthority =
           extensionValue.critical
-          && Self.basicConstraints(extensionValue.value)
-            == .certificateAuthority
+          && Self.basicConstraints(extensionValue.value) == .certificateAuthority
 
       case DerEncoder.objectIdentifier(SignOids.keyUsage):
         guard !keyUsageSeen else { return false }
         keyUsageSeen = true
-        keyUsageAllowsSigning = Self.keyUsageAllowsCertificateSigning(
-          extensionValue.value
-        )
+        keyUsageAllowsSigning = Self.keyUsageAllowsCertificateSigning(extensionValue.value)
 
       default:
         if extensionValue.critical { return false }
       }
     }
-    return basicConstraintsSeen && isCertificateAuthority
-      && keyUsageAllowsSigning
+    return basicConstraintsSeen && isCertificateAuthority && keyUsageAllowsSigning
+  }
+
+  /// Evaluates end-entity extensions, optionally requiring document-signing KeyUsage and EKU compatibility.
+  private static func satisfiesEndEntityProfile(
+    _ subject: Parsed,
+    requireDocumentSigning: Bool
+  ) -> Bool {
+    guard let extensions = try? Self.certificateExtensions(subject) else { return false }
+    var basicConstraintsSeen = false
+    var extendedKeyUsageSeen = false
+    var keyUsageSeen = false
+    for extensionValue in extensions {
+      switch extensionValue.identifier {
+      case DerEncoder.objectIdentifier(SignOids.basicConstraints):
+        guard !basicConstraintsSeen, Self.basicConstraints(extensionValue.value) == .endEntity
+        else { return false }
+        basicConstraintsSeen = true
+
+      case DerEncoder.objectIdentifier(SignOids.extendedKeyUsage):
+        let purposes = Self.extendedKeyUsagePurposes(extensionValue.value)
+        guard
+          !extendedKeyUsageSeen,
+          !purposes.isEmpty,
+          !requireDocumentSigning || !purposes.isDisjoint(with: Self.documentSigningPurposes)
+        else { return false }
+        extendedKeyUsageSeen = true
+
+      case DerEncoder.objectIdentifier(SignOids.keyUsage):
+        guard
+          !keyUsageSeen,
+          Self.isAcceptableEndEntityKeyUsage(
+            extensionValue.value, requireSigningBit: requireDocumentSigning)
+        else { return false }
+        keyUsageSeen = true
+
+      default:
+        if extensionValue.critical { return false }
+      }
+    }
+    return !requireDocumentSigning || keyUsageSeen
+  }
+
+  /// Checks non-CA `KeyUsage` bits, optionally requiring `digitalSignature` or `contentCommitment`.
+  private static func isAcceptableEndEntityKeyUsage(
+    _ encoded: Data,
+    requireSigningBit: Bool
+  ) -> Bool {
+    guard
+      let firstUsageByte = Self.keyUsageBits(encoded),
+      firstUsageByte & DerValues.keyUsageCertificateSigningBit == 0,
+      firstUsageByte & DerValues.keyUsageCrlSigningBit == 0
+    else { return false }
+    return !requireSigningBit || (firstUsageByte & Self.documentSigningKeyUsageMask != 0)
   }
 
   /// Walks from TBSCertificate's fixed fields to its extensions block.
-  private static func certificateExtensions(
-    _ certificate: Parsed
-  ) throws -> [CertificateExtension] {
+  private static func certificateExtensions(_ certificate: Parsed) throws -> [CertificateExtension]
+  {
     var reader = DerReader(certificate.encoded, within: certificate.tbs)
-    guard var serial = Self.nextElement(from: &reader, in: certificate.encoded)
-    else {
+    guard var serial = Self.nextElement(from: &reader, in: certificate.encoded) else {
       throw ExtensionFailure.malformed
     }
     if serial.tag == DerValues.tagContext0Constructed {
-      guard
-        let following = Self.nextElement(
-          from: &reader, in: certificate.encoded
-        )
-      else {
+      guard let following = Self.nextElement(from: &reader, in: certificate.encoded) else {
         throw ExtensionFailure.malformed
       }
       serial = following
     }
-    guard serial.tag == DerValues.tagInteger else {
-      throw ExtensionFailure.malformed
-    }
+    guard serial.tag == DerValues.tagInteger else { throw ExtensionFailure.malformed }
     for _ in 0..<Self.certificateSequencesAfterSerial {
       guard
-        Self.nextElement(
-          from: &reader,
-          in: certificate.encoded,
-          tag: DerValues.tagSequence
-        ) != nil
-      else {
-        throw ExtensionFailure.malformed
-      }
+        Self.nextElement(from: &reader, in: certificate.encoded, tag: DerValues.tagSequence) != nil
+      else { throw ExtensionFailure.malformed }
     }
-    return try Self.trailingExtensions(
-      certificate.encoded, reader: &reader
-    )
+    return try Self.trailingExtensions(certificate.encoded, reader: &reader)
   }
 
   /// Parses optional unique identifiers and one extensions wrapper.
@@ -204,30 +230,19 @@ extension CertificateIssuer {
     var wrapperReader = DerReader(encoded, within: wrapper)
     guard
       let sequence = Self.nextElement(
-        from: &wrapperReader,
-        in: encoded,
-        tag: DerValues.tagSequence
-      ),
+        from: &wrapperReader, in: encoded, tag: DerValues.tagSequence),
       wrapperReader.isAtEnd
-    else {
-      throw ExtensionFailure.malformed
-    }
+    else { throw ExtensionFailure.malformed }
     var reader = DerReader(encoded, within: sequence)
     var result: [CertificateExtension] = []
     var identifiers: Set<Data> = []
     while let entry = Self.nextElement(from: &reader, in: encoded) {
-      guard entry.tag == DerValues.tagSequence else {
-        throw ExtensionFailure.malformed
-      }
+      guard entry.tag == DerValues.tagSequence else { throw ExtensionFailure.malformed }
       let parsed = try Self.extensionValue(in: encoded, entry: entry)
-      guard identifiers.insert(parsed.identifier).inserted else {
-        throw ExtensionFailure.malformed
-      }
+      guard identifiers.insert(parsed.identifier).inserted else { throw ExtensionFailure.malformed }
       result.append(parsed)
     }
-    guard reader.isAtEnd, !result.isEmpty else {
-      throw ExtensionFailure.malformed
-    }
+    guard reader.isAtEnd, !result.isEmpty else { throw ExtensionFailure.malformed }
     return result
   }
 
@@ -239,22 +254,15 @@ extension CertificateIssuer {
     var reader = DerReader(encoded, within: entry)
     guard
       let identifier = Self.nextElement(
-        from: &reader,
-        in: encoded,
-        tag: DerValues.tagObjectIdentifier
-      ),
+        from: &reader, in: encoded, tag: DerValues.tagObjectIdentifier),
       var value = Self.nextElement(from: &reader, in: encoded)
-    else {
-      throw ExtensionFailure.malformed
-    }
+    else { throw ExtensionFailure.malformed }
     var critical = false
     if value.tag == DerValues.tagBoolean {
       guard
         reader.contentData(of: value) == Data([DerValues.booleanTrue]),
         let following = Self.nextElement(from: &reader, in: encoded)
-      else {
-        throw ExtensionFailure.malformed
-      }
+      else { throw ExtensionFailure.malformed }
       critical = true
       value = following
     }
@@ -269,21 +277,15 @@ extension CertificateIssuer {
   }
 
   /// Reads BasicConstraints and validates any nonnegative path length.
-  private static func basicConstraints(
-    _ encoded: Data
-  ) -> BasicConstraintsVerdict {
-    guard
-      let sequence = Self.onlyElement(in: encoded, tag: DerValues.tagSequence)
-    else {
+  private static func basicConstraints(_ encoded: Data) -> BasicConstraintsVerdict {
+    guard let sequence = Self.onlyElement(in: encoded, tag: DerValues.tagSequence) else {
       return .invalid
     }
     var reader = DerReader(encoded, within: sequence)
     guard let first = Self.nextElement(from: &reader, in: encoded) else {
       return reader.isAtEnd ? .endEntity : .invalid
     }
-    guard first.tag == DerValues.tagBoolean else {
-      return .invalid
-    }
+    guard first.tag == DerValues.tagBoolean else { return .invalid }
     let authority = reader.contentData(of: first)
     if authority == Data([DerValues.booleanFalse]) {
       // Narrow compatibility exception: G4R signers encode this DEFAULT.
@@ -293,22 +295,17 @@ extension CertificateIssuer {
     if let pathLength = Self.nextElement(from: &reader, in: encoded) {
       guard
         pathLength.tag == DerValues.tagInteger,
-        (try? CertificateRevocationList.unsignedIntegerContent(
-          reader.contentData(of: pathLength)
-        )) != nil
-      else {
-        return .invalid
-      }
+        (try? CertificateRevocationList.unsignedIntegerContent(reader.contentData(of: pathLength)))
+          != nil
+      else { return .invalid }
     }
     return reader.isAtEnd ? .certificateAuthority : .invalid
   }
 
-  /// Validates a nonempty sequence of unique extended-key-usage OIDs.
-  private static func extendedKeyUsageIsValid(_ encoded: Data) -> Bool {
-    guard
-      let sequence = Self.onlyElement(in: encoded, tag: DerValues.tagSequence)
-    else {
-      return false
+  /// Parses a nonempty sequence of unique extended-key-usage OIDs, or returns empty when invalid.
+  private static func extendedKeyUsagePurposes(_ encoded: Data) -> Set<Data> {
+    guard let sequence = Self.onlyElement(in: encoded, tag: DerValues.tagSequence) else {
+      return []
     }
     var reader = DerReader(encoded, within: sequence)
     var purposes: Set<Data> = []
@@ -316,11 +313,9 @@ extension CertificateIssuer {
       guard
         purpose.tag == DerValues.tagObjectIdentifier,
         purposes.insert(reader.data(of: purpose)).inserted
-      else {
-        return false
-      }
+      else { return [] }
     }
-    return reader.isAtEnd && !purposes.isEmpty
+    return reader.isAtEnd ? purposes : []
   }
 
   /// Validates a KeyUsage BIT STRING and returns its first payload octet.

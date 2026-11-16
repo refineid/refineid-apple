@@ -140,8 +140,26 @@ internal enum SignOids {
   /// X.509 subjectAltName extension.
   internal static let subjectAltName = "2.5.29.17"
 
-  /// Extended key usage: TLS server authentication.
+  /// Extended key usage: anyExtendedKeyUsage (RFC 5280 §4.2.1.12).
+  internal static let anyExtendedKeyUsage = "2.5.29.37.0"
+
+  /// Extended key usage: TLS server authentication (RFC 5280 §4.2.1.12).
   internal static let serverAuthentication = "1.3.6.1.5.5.7.3.1"
+
+  /// Extended key usage: TLS client authentication (RFC 5280 §4.2.1.12).
+  internal static let clientAuthentication = "1.3.6.1.5.5.7.3.2"
+
+  /// Extended key usage: S/MIME email protection (RFC 5280 §4.2.1.12).
+  internal static let emailProtection = "1.3.6.1.5.5.7.3.4"
+
+  /// Extended key usage: X.509 document signing (RFC 9336 §3).
+  internal static let documentSigning = "1.3.6.1.5.5.7.3.36"
+
+  /// Extended key usage: Adobe PDF signing (`id-kp-pdfSigning`).
+  internal static let adobePdfSigning = "1.2.840.113583.1.1.5"
+
+  /// Extended key usage: Microsoft document signing (`szOID_KP_DOCUMENT_SIGNING`).
+  internal static let microsoftDocumentSigning = "1.3.6.1.4.1.311.10.3.12"
 
   /// Elliptic-curve public key (SPKI algorithm).
   internal static let ecPublicKey = "1.2.840.10045.2.1"
