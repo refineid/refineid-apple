@@ -77,6 +77,9 @@ internal enum PdfValues {
   /// The object keyword opening an indirect object's body.
   internal static let objectKeyword = "obj"
 
+  /// The object keyword closing an indirect object's body.
+  internal static let endObjectKeyword = "endobj"
+
   /// The keyword opening a stream's payload (ISO 32000-1 §7.3.8.1).
   internal static let streamKeyword = "stream"
 
@@ -239,4 +242,28 @@ internal enum PdfValues {
   /// The angle brackets around the hex string, which the byte ranges
   /// exclude along with the hex itself.
   internal static let hexDelimiterCount: Int = 2
+
+  /// The most cross-reference entries one section may declare before the
+  /// table or stream is refused as malformed.
+  internal static let maximumCrossReferenceEntries: Int = 262_144
+
+  /// Maximum width in bytes of one cross-reference stream field.
+  internal static let maximumXrefFieldWidth: Int = 8
+
+  /// The DocMDP `/P` value forbidding changes to the document after the
+  /// certification signature (ISO 32000-1 Table 254).
+  internal static let docMdpNoChangesPermission: Int = 1
+
+  /// Largest fraction of a page's `/MediaBox` area a visible signature
+  /// widget added after an earlier signature may cover.
+  internal static let maximumPostSignatureWidgetPageFraction: Double = 0.20
+
+  /// The octets PDF treats as token delimiters (ISO 32000-1 Table 2).
+  internal static let delimiterBytes: Set<UInt8> = [
+    UInt8(ascii: "("), UInt8(ascii: ")"),
+    UInt8(ascii: "<"), UInt8(ascii: ">"),
+    UInt8(ascii: "["), UInt8(ascii: "]"),
+    UInt8(ascii: "{"), UInt8(ascii: "}"),
+    UInt8(ascii: "/"), UInt8(ascii: "%"),
+  ]
 }

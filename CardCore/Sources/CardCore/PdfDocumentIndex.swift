@@ -13,24 +13,35 @@ import Foundation
 /// would then be short by the number of line endings before it.
 internal struct PdfDocumentIndex {
   /// Where one live object's bytes sit.
-  internal enum ObjectLocation: Equatable {
-    /// At a byte offset in the file, written as `N G obj`.
-    case direct(offset: Int, generation: Int)
-
+  internal enum ObjectLocation: Equatable, Hashable, Sendable {
     /// Inside an object stream: the stream's object number and this
     /// object's position among its contents (ISO 32000-1 §7.5.7).
     case compressed(container: Int, position: Int)
+
+    /// At a byte offset in the file, written as `N G obj`.
+    case direct(offset: Int, generation: Int)
 
     /// The generation the record names; an object in a stream is
     /// generation zero.
     internal var generation: Int {
       switch self {
-      case .direct(_, let generation):
-        return generation
       case .compressed:
         return 0
+      case .direct(_, let generation):
+        return generation
       }
     }
+  }
+
+  /// One historical in-use object entry observed anywhere in the
+  /// cross-reference chain, retained even when a newer revision frees
+  /// or redefines the object number.
+  internal struct HistoricalObject: Equatable, Hashable, Sendable {
+    /// The indirect object's number.
+    internal let number: Int
+
+    /// Where that revision placed the object.
+    internal let location: ObjectLocation
   }
 
   /// One object a section accounts for.
@@ -58,14 +69,15 @@ internal struct PdfDocumentIndex {
     internal let isStream: Bool
   }
 
-  /// The `stream` keyword that opens a stream's bytes.
-  private static let streamKeyword = "stream"
-
   /// Maximum /Prev hops followed before the chain is called broken.
   private static let maximumChainDepth = 64
 
   /// Object number to location, newest section winning.
   internal let locations: [Int: ObjectLocation]
+
+  /// All distinct in-use `(number, location)` entries across the entire
+  /// `/Prev` chain, ordered by object number and then oldest to newest.
+  internal let historicalObjects: [HistoricalObject]
 
   /// The newest trailer dictionary, as written.
   internal let trailer: String
@@ -78,46 +90,62 @@ internal struct PdfDocumentIndex {
   /// already committed to following streams (ISO 32000-1 §7.5.8).
   internal let newestSectionIsStream: Bool
 
-  /// An integer value of a trailer key, when present.
+  /// An unsigned integer value of a dictionary key, when present.
   internal static func integer(named key: String, in dictionary: String) -> Int? {
-    guard let range = dictionary.range(of: key) else { return nil }
-    let rest = dictionary[range.upperBound...].drop(while: \.isWhitespace)
-    return Int(rest.prefix(while: \.isNumber))
+    guard
+      let syntax = try? PdfValidationStore.DictionarySyntax.loose(dictionary),
+      let entry = syntax.entry(named: Self.normalizedKey(key))
+    else {
+      return nil
+    }
+    return PdfValidationStore.TypedValues.unsignedInteger(
+      in: syntax.value(of: entry)
+    )
   }
 
   /// The object number of an indirect reference value, when the key
-  /// holds one.
+  /// holds a complete `N G R` reference.
   internal static func reference(
     named key: String,
     in dictionary: String
   ) -> Int? {
-    guard let range = dictionary.range(of: key) else { return nil }
-    let rest = dictionary[range.upperBound...].drop(while: \.isWhitespace)
-    guard rest.first?.isNumber == true else { return nil }
-    return Int(rest.prefix(while: \.isNumber))
+    Self.fullReference(named: key, in: dictionary)?.number
   }
 
-  /// The integer array value of a trailer key, empty when the key is
+  /// The `(number, generation)` pair of an indirect reference value,
+  /// when the key holds a complete `N G R` reference.
+  internal static func fullReference(
+    named key: String,
+    in dictionary: String
+  ) -> PdfValidationStore.StoreReference? {
+    guard
+      let syntax = try? PdfValidationStore.DictionarySyntax.loose(dictionary),
+      let entry = syntax.entry(named: Self.normalizedKey(key)),
+      let parsed = try? PdfValidationStore.ValueParser.reference(
+        in: syntax.value(of: entry)
+      )
+    else {
+      return nil
+    }
+    return parsed
+  }
+
+  /// The integer array value of a dictionary key, empty when the key is
   /// absent or its value is not an array of unsigned decimal integers
   /// that each fit in `Int`.
   internal static func integerArray(
     named key: String,
     in dictionary: String
   ) -> [Int] {
-    guard let range = dictionary.range(of: key) else { return [] }
-    let rest = dictionary[range.upperBound...].drop(while: \.isWhitespace)
-    guard rest.first == "[", let close = rest.firstIndex(of: "]") else {
+    guard
+      let syntax = try? PdfValidationStore.DictionarySyntax.loose(dictionary),
+      let entry = syntax.entry(named: Self.normalizedKey(key))
+    else {
       return []
     }
-    let body = rest[rest.index(after: rest.startIndex)..<close]
-    var values: [Int] = []
-    for token in body.split(whereSeparator: \.isWhitespace) {
-      guard token.allSatisfy({ $0.isASCII && $0.isNumber }), let value = Int(token) else {
-        return []
-      }
-      values.append(value)
-    }
-    return values
+    return PdfValidationStore.TypedValues.unsignedIntegerArray(
+      in: syntax.value(of: entry)
+    )
   }
 
   /// Parses the chain from the end of the file.
@@ -126,44 +154,43 @@ internal struct PdfDocumentIndex {
     guard bytes.starts(with: PdfValues.filePrefix) else {
       throw PdfSigningError.notAPdf
     }
-    guard let startXref = Self.startXref(in: bytes) else {
+    guard
+      let startXref = Self.startXref(in: bytes),
+      startXref >= 0,
+      startXref < bytes.count
+    else {
       throw PdfSigningError.structureUnreadable
     }
-    var collected: [Int: ObjectLocation] = [:]
-    var claimed: Set<Int> = []
-    var newestTrailer: String?
-    var newestIsStream = false
-    var offset: Int? = startXref
-    var visited: Set<Int> = []
-    var depth = 0
-    while let current = offset, depth < Self.maximumChainDepth {
-      guard visited.insert(current).inserted else { break }
-      depth += 1
-      let section = try Self.section(in: bytes, at: current)
-      if newestTrailer == nil {
-        newestTrailer = section.trailer
-        newestIsStream = section.isStream
-      }
-      for record in section.records
-      where claimed.insert(record.number).inserted {
-        if let location = record.location {
-          collected[record.number] = location
-        }
-      }
-      offset = Self.integer(named: "/Prev", in: section.trailer)
-    }
-    guard let newest = newestTrailer else {
+    let sections = try Self.sectionsChain(
+      in: bytes, startingAt: startXref, limit: Self.maximumChainDepth
+    )
+    guard let newest = sections.first else {
       throw PdfSigningError.structureUnreadable
     }
-    guard !newest.contains(PdfValues.encryptKey) else {
-      throw PdfSigningError.encrypted
-    }
+    let collected = Self.liveLocations(in: sections)
+    let history = try Self.historicalRecords(in: sections)
     return Self(
       locations: collected,
-      trailer: newest,
+      historicalObjects: history,
+      trailer: newest.trailer,
       previousStartXref: startXref,
-      newestSectionIsStream: newestIsStream
+      newestSectionIsStream: newest.isStream
     )
+  }
+
+  /// Strips a leading slash so callers may pass either `"/Root"` or
+  /// `"Root"`.
+  internal static func normalizedKey(_ key: String) -> String {
+    key.hasPrefix("/") ? String(key.dropFirst()) : key
+  }
+
+  /// Refuses any trailer or cross-reference dictionary carrying `/Encrypt`.
+  internal static func rejectIfEncrypted(in dictionary: String) throws {
+    let syntax = try PdfValidationStore.DictionarySyntax(dictionary)
+    guard syntax.entry(named: Self.normalizedKey(PdfValues.encryptKey)) == nil
+    else {
+      throw PdfSigningError.encrypted
+    }
   }
 
   /// The byte offset the last `startxref` names.
@@ -172,173 +199,5 @@ internal struct PdfDocumentIndex {
       return nil
     }
     return bytes.decimal(at: bytes.skippingWhitespace(from: found.upperBound))
-  }
-
-  /// One cross-reference section, whichever shape it takes: the
-  /// classic table, or the stream that replaced it in PDF 1.5.
-  private static func section(
-    in bytes: PdfBytes,
-    at offset: Int
-  ) throws -> Section {
-    guard offset < bytes.count else {
-      throw PdfSigningError.structureUnreadable
-    }
-    let start = bytes.skippingWhitespace(from: offset)
-    guard bytes.hasKeyword(PdfValues.xrefKeyword, at: start) else {
-      return try Self.streamSection(in: bytes, at: start)
-    }
-    return try Self.tableSection(in: bytes, at: start)
-  }
-
-  /// One classic table section: its records and its trailer
-  /// (ISO 32000-1 §7.5.4).
-  private static func tableSection(
-    in bytes: PdfBytes,
-    at start: Int
-  ) throws -> Section {
-    guard
-      let trailerRange = bytes.firstRange(
-        of: PdfValues.trailerKeyword, from: start
-      )
-    else {
-      throw PdfSigningError.structureUnreadable
-    }
-    let entriesStart = start + PdfValues.xrefKeyword.utf8.count
-    var records = Self.records(
-      in: bytes.text(in: entriesStart..<trailerRange.lowerBound)
-    )
-    guard
-      let dictionary = bytes.balancedDictionary(
-        from: trailerRange.upperBound
-      )
-    else {
-      throw PdfSigningError.structureUnreadable
-    }
-    // A hybrid revision keeps the authoritative copy of its entries
-    // in the stream its trailer names; the table is the fallback for
-    // readers that predate streams (ISO 32000-1 §7.5.8.4).
-    if let hybrid = Self.integer(
-      named: PdfValues.hybridStreamKey, in: dictionary.text
-    ) {
-      let stream = try Self.streamSection(
-        in: bytes, at: bytes.skippingWhitespace(from: hybrid)
-      )
-      records = stream.records + records
-    }
-    return Section(
-      records: records, trailer: dictionary.text, isStream: false
-    )
-  }
-
-  /// The records of one classic table section.
-  ///
-  /// Subsections are `first count` followed by that many
-  /// `offset generation flag` triples (ISO 32000-1 §7.5.4).
-  private static func records(in text: String) -> [SectionRecord] {
-    var found: [SectionRecord] = []
-    let tokens = text.split(whereSeparator: \.isWhitespace)
-    var index = 0
-    while index + PdfValues.subsectionHeaderTokens <= tokens.count,
-      let first = Int(tokens[index]),
-      let count = Int(tokens[index + 1])
-    {
-      index += PdfValues.subsectionHeaderTokens
-      for entry in 0..<count
-      where index + PdfValues.entryTokens <= tokens.count {
-        let flag = tokens[index + PdfValues.entryFlagIndex]
-        if flag == PdfValues.inUseFlag, let position = Int(tokens[index]),
-          let generation = Int(tokens[index + 1])
-        {
-          found.append(
-            SectionRecord(
-              number: first + entry,
-              location: .direct(offset: position, generation: generation)
-            )
-          )
-        } else if flag == PdfValues.freeFlag {
-          found.append(SectionRecord(number: first + entry, location: nil))
-        }
-        index += PdfValues.entryTokens
-      }
-    }
-    return found
-  }
-
-  /// The bytes between `obj` and `endobj` at a direct offset.
-  private static func directBody(at offset: Int, in document: Data) -> String? {
-    guard offset < document.count else { return nil }
-    let bytes = PdfBytes(document)
-    guard
-      let objRange = bytes.firstRange(of: "obj", from: offset),
-      let endRange = bytes.firstRange(of: "endobj", from: objRange.upperBound)
-    else {
-      return nil
-    }
-    return bytes.text(in: objRange.upperBound..<endRange.lowerBound)
-      .trimmingCharacters(in: .whitespacesAndNewlines)
-  }
-
-  /// One object's bytes for comparison, from a direct offset.
-  ///
-  /// Only an object whose own dictionary is followed by `stream` has a
-  /// stream; the word further on in the file belongs to another object.
-  private static func comparisonBody(at offset: Int, in document: Data) -> String? {
-    guard offset < document.count else { return nil }
-    let bytes = PdfBytes(document)
-    guard
-      let objRange = bytes.firstRange(of: "obj", from: offset),
-      let endRange = bytes.firstRange(of: "endobj", from: objRange.upperBound)
-    else {
-      return nil
-    }
-    let raw = bytes.text(in: objRange.upperBound..<endRange.lowerBound)
-      .trimmingCharacters(in: .whitespacesAndNewlines)
-    guard
-      let dictionary = bytes.balancedDictionary(from: objRange.upperBound),
-      bytes.hasKeyword(Self.streamKeyword, at: bytes.skippingWhitespace(from: dictionary.end)),
-      let stream = try? PdfStreamObject.parse(in: bytes, at: offset),
-      let payload = String(bytes: stream.payload, encoding: .isoLatin1)
-    else {
-      return raw
-    }
-    return (stream.dictionary + "\nstream\n" + payload)
-      .trimmingCharacters(in: .whitespacesAndNewlines)
-  }
-
-  /// One object's bytes for comparing two revisions of a document.
-  ///
-  /// A stream is taken by its `/Length` and unfiltered, not by the
-  /// first `endobj` in the file: stream data is free to spell that word,
-  /// and reading to it would let a rewrite past it look unchanged.
-  internal func comparisonBody(of number: Int, in document: Data) -> String? {
-    switch locations[number] {
-    case .direct(let offset, _):
-      return Self.comparisonBody(at: offset, in: document)
-
-    case .compressed(let container, let position):
-      return compressedBody(
-        of: number, container: container, position: position, in: document
-      )
-
-    case nil:
-      return nil
-    }
-  }
-
-  /// One object's body: the bytes between `obj` and `endobj`, or its
-  /// slice of the object stream carrying it.
-  internal func body(of number: Int, in document: Data) -> String? {
-    switch locations[number] {
-    case .direct(let offset, _):
-      return Self.directBody(at: offset, in: document)
-
-    case .compressed(let container, let position):
-      return compressedBody(
-        of: number, container: container, position: position, in: document
-      )
-
-    case nil:
-      return nil
-    }
   }
 }
