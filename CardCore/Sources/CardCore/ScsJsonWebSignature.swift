@@ -26,14 +26,18 @@ public enum ScsJsonWebSignature {
     signature: Data,
     at now: Date
   ) -> ScsTransactionError? {
-    if let validityRefusal = Self.validityRefusal(certificateDer: certificateDer, at: now) {
-      return validityRefusal
-    }
+    var outer = DerReader(certificateDer)
     guard
+      let outerElement = outer.next(),
+      outerElement.tag == DerValues.tagSequence,
+      outer.isAtEnd,
       let certificate = SecCertificateCreateWithData(nil, certificateDer as CFData),
       let publicKey = SecCertificateCopyKey(certificate)
     else {
       return .badRequest("serverCert is not DER X.509")
+    }
+    if let validityRefusal = Self.validityRefusal(certificate: certificate, at: now) {
+      return validityRefusal
     }
     let secAlgorithm: SecKeyAlgorithm
     var wireSignature = signature
@@ -68,52 +72,15 @@ public enum ScsJsonWebSignature {
     return nil
   }
 
-  /// Why the certificate's validity window refuses `now`, or nil.
-  ///
-  /// The window is the two Time fields of TBSCertificate (RFC 5280
-  /// section 4.1.2.5), located positionally: optional version,
-  /// serial, signature algorithm, issuer, then validity.
+  /// Why the certificate's RFC 5280 validity window refuses `now`, or nil.
   private static func validityRefusal(
-    certificateDer: Data,
+    certificate: SecCertificate,
     at now: Date
   ) -> ScsTransactionError? {
-    var outer = DerReader(certificateDer)
-    guard let certificate = outer.next() else {
-      return .badRequest("serverCert is not DER X.509")
-    }
-    var certificateReader = DerReader(certificateDer, within: certificate)
-    guard let tbs = certificateReader.next() else {
-      return .badRequest("serverCert is not DER X.509")
-    }
-    var tbsReader = DerReader(certificateDer, within: tbs)
-    guard var element = tbsReader.next() else {
-      return .badRequest("serverCert is not DER X.509")
-    }
-    if element.tag == DerValues.tagContext0Constructed {
-      guard let serial = tbsReader.next() else {
-        return .badRequest("serverCert is not DER X.509")
-      }
-      element = serial
-    }
-    guard
-      tbsReader.next() != nil,
-      tbsReader.next() != nil,
-      let validity = tbsReader.next()
-    else {
-      return .badRequest("serverCert is not DER X.509")
-    }
-    var validityReader = DerReader(certificateDer, within: validity)
-    guard
-      let notBeforeElement = validityReader.next(),
-      let notAfterElement = validityReader.next(),
-      let notBefore = try? CertificateRevocationList.time(
-        in: certificateDer, element: notBeforeElement),
-      let notAfter = try? CertificateRevocationList.time(
-        in: certificateDer, element: notAfterElement)
-    else {
+    guard let window = CertificateValidity.window(of: certificate) else {
       return .badRequest("serverCert has no readable validity window")
     }
-    guard now >= notBefore, now <= notAfter else {
+    guard now >= window.notBefore, now <= window.notAfter else {
       return .forbidden("serverCert is not currently valid")
     }
     return nil

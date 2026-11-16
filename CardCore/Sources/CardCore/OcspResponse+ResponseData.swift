@@ -55,12 +55,13 @@ extension OcspResponse {
       next = try Self.requiredElement(from: &reader)
     }
     let responderId = try Self.responderId(in: encoded, element: next)
+    let producedAtElement = try Self.requiredElement(
+      from: &reader,
+      tag: DerValues.tagGeneralizedTime
+    )
     let producedAt = try Self.generalizedTime(
-      in: encoded,
-      element: try Self.requiredElement(
-        from: &reader,
-        tag: DerValues.tagGeneralizedTime
-      )
+      in: reader,
+      element: producedAtElement
     )
     let responses = try Self.requiredElement(from: &reader, tag: DerValues.tagSequence)
     return ResponseDataHeader(
@@ -130,12 +131,13 @@ extension OcspResponse {
       try Self.requiredElement(from: &reader),
       in: encoded
     )
+    let thisUpdateElement = try Self.requiredElement(
+      from: &reader,
+      tag: DerValues.tagGeneralizedTime
+    )
     let thisUpdate = try Self.generalizedTime(
-      in: encoded,
-      element: try Self.requiredElement(
-        from: &reader,
-        tag: DerValues.tagGeneralizedTime
-      )
+      in: reader,
+      element: thisUpdateElement
     )
     let nextUpdate = try Self.optionalSingleResponseFields(
       in: encoded,
@@ -200,7 +202,7 @@ extension OcspResponse {
         from: &reader,
         tag: DerValues.tagGeneralizedTime
       )
-      let revokedAt = try Self.generalizedTime(in: encoded, element: revocationTime)
+      let revokedAt = try Self.generalizedTime(in: reader, element: revocationTime)
       let reason = try Self.optionalRevocationReason(in: encoded, reader: &reader)
       guard reader.isAtEnd else { throw ValidationFailure.malformed }
       return .revoked(revokedAt: revokedAt, reason: reason)

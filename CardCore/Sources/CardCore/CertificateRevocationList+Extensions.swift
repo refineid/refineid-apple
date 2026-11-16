@@ -124,7 +124,14 @@ extension CertificateRevocationList {
         in: extensionValue.value,
         tag: DerValues.tagGeneralizedTime
       )
-      _ = try Self.time(in: extensionValue.value, element: date)
+      guard
+        DerTime.rfc5280GeneralizedTime(
+          in: DerReader(extensionValue.value),
+          element: date
+        ) != nil
+      else {
+        throw ValidationFailure.malformed
+      }
       try Self.rejectCritical(extensionValue)
       return nil
 

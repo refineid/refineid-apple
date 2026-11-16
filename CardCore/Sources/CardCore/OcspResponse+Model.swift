@@ -178,37 +178,4 @@ extension OcspResponse {
     /// The matched response's status freshness start.
     internal let thisUpdate: Date
   }
-
-  /// Named positions in a YYYYMMDDHHMMSSZ GeneralizedTime.
-  internal enum TimeLayout {
-    /// The day component's byte range.
-    internal static let day = 6..<8
-
-    /// The hour component's byte range.
-    internal static let hour = 8..<10
-
-    /// The minute component's byte range.
-    internal static let minute = 10..<12
-
-    /// The month component's byte range.
-    internal static let month = 4..<6
-
-    /// The decimal radix of a GeneralizedTime component.
-    internal static let radix = 10
-
-    /// The second component's byte range.
-    internal static let second = 12..<14
-
-    /// The bytes occupied by the trailing UTC marker.
-    internal static let suffixLength = 1
-
-    /// The exact UTC GeneralizedTime byte count.
-    internal static let totalLength = 15
-
-    /// UTC's offset in seconds.
-    internal static let utcOffsetSeconds = 0
-
-    /// The year component's byte range.
-    internal static let year = 0..<4
-  }
 }

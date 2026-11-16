@@ -161,27 +161,6 @@ public enum CertificateRevocationList {
     internal let value: Data
   }
 
-  /// The calendar fields extracted from an RFC 5280 Time.
-  internal struct TimeFields {
-    /// Four-digit Gregorian year.
-    internal let year: Int
-
-    /// Gregorian month number.
-    internal let month: Int
-
-    /// Gregorian day of month.
-    internal let day: Int
-
-    /// UTC hour.
-    internal let hour: Int
-
-    /// UTC minute.
-    internal let minute: Int
-
-    /// UTC second.
-    internal let second: Int
-  }
-
   /// Validates a DER or standard `X509 CRL` PEM response.
   ///
   /// `currentTime` is explicit so evidence collection never changes meaning

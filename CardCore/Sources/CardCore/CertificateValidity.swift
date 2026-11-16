@@ -8,14 +8,13 @@ import Security
 /// The window is read from the certificate's own DER rather than through
 /// `SecCertificateCopyNotValidBeforeDate`, which Security introduced in a
 /// release later than the oldest system this module supports. Both read the
-/// same RFC 5280 field, and the time forms are parsed by the same code the
-/// revocation list uses.
+/// same RFC 5280 field, and the time forms are parsed through `DerTime`.
 internal enum CertificateValidity {
   /// The window of a certificate Security has already accepted.
   internal static func window(
     of certificate: SecCertificate
   ) -> (notBefore: Date, notAfter: Date)? {
-    window(inDer: SecCertificateCopyData(certificate) as Data)
+    Self.window(inDer: SecCertificateCopyData(certificate) as Data)
   }
 
   /// The window of an encoded certificate, or nil when it carries no
@@ -23,13 +22,13 @@ internal enum CertificateValidity {
   internal static func window(
     inDer der: Data
   ) -> (notBefore: Date, notAfter: Date)? {
-    guard let validity = validityElement(in: der) else { return nil }
+    guard let validity = Self.validityElement(in: der) else { return nil }
     var reader = DerReader(der, within: validity)
     guard
       let notBefore = reader.next(),
       let notAfter = reader.next(),
-      let start = try? CertificateRevocationList.time(in: der, element: notBefore),
-      let end = try? CertificateRevocationList.time(in: der, element: notAfter)
+      let start = DerTime.rfc5280Time(in: reader, element: notBefore),
+      let end = DerTime.rfc5280Time(in: reader, element: notAfter)
     else {
       return nil
     }
