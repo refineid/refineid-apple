@@ -5,16 +5,18 @@ import Foundation
 /// One parsed SCS request head.
 ///
 /// The SCS serves exactly one request per connection and closes it, so
-/// the head plus a `Content-Length` body is the whole exchange. That
-/// is a local framing choice rather than a specified one: the
-/// specification's own examples use `Connection: keep-alive` (v1.3
-/// §2.4), and single-use connections remove any question of one
-/// request's bytes being read as another's. Only the fields the
-/// protocol acts on are kept: the method and path route, the Origin
-/// binds challenges and CORS answers, the content type selects the
-/// JSON or JWT branch.
+/// the head plus a `Content-Length` body is the whole exchange. Every
+/// parsed wire request validates its `Host` header against the loopback
+/// allowlist (`127.0.0.1` or `localhost`, optional `:53952`) and
+/// rejects duplicate framing or routing headers.
 public struct ScsHttpRequest: Equatable, Sendable {
-  /// A request line names at least a method and a target.
+  private struct ParsedHeaders {
+    var host: String?
+    var origin: String?
+    var contentType: String?
+    var length: Int?
+  }
+
   private static let requestLineMinimumParts = 2
 
   /// The request method, verbatim.
@@ -31,6 +33,34 @@ public struct ScsHttpRequest: Equatable, Sendable {
 
   /// The Content-Length header, parsed; zero when absent.
   public let bodyLength: Int
+
+  /// Lowercase media-type essence before any `;` parameter.
+  public var contentTypeEssence: String? {
+    guard let contentType else { return nil }
+    let essence =
+      contentType
+      .split(separator: ";", maxSplits: 1, omittingEmptySubsequences: false)
+      .first?
+      .trimmingCharacters(in: .whitespaces)
+      .lowercased()
+    guard let essence, !essence.isEmpty else { return nil }
+    return essence
+  }
+
+  /// Whether the request can be answered immediately without entering
+  /// the serial card-signing queue.
+  public var isStatelessFastPath: Bool {
+    if let origin, ScsOriginPolicy.refusal(forPresentOrigin: origin) != nil {
+      return true
+    }
+    guard method == "POST", path == "/sign" else {
+      return true
+    }
+    guard let essence = contentTypeEssence else {
+      return true
+    }
+    return essence != "application/json" && essence != "application/jwt"
+  }
 
   /// Builds a request head for tests and local callers.
   public init(
@@ -49,8 +79,9 @@ public struct ScsHttpRequest: Equatable, Sendable {
 
   /// Parses one head block (the bytes before the blank line).
   ///
-  /// Returns nil when the block is not ASCII/UTF-8 or has no request
-  /// line; unknown headers are ignored.
+  /// Returns nil when the block is not UTF-8, lacks a valid request
+  /// line, omits or duplicates `Host`, names a non-loopback `Host`, or
+  /// carries duplicate framing headers.
   public static func parse(head: Data) -> Self? {
     guard let text = String(data: head, encoding: .utf8) else { return nil }
     var lines = text.components(separatedBy: "\r\n")
@@ -62,33 +93,61 @@ public struct ScsHttpRequest: Equatable, Sendable {
     let requestTarget = String(requestParts[1])
     let parsedPath =
       requestTarget.split(separator: "?").first.map(String.init) ?? requestTarget
-
-    var parsedOrigin: String?
-    var parsedContentType: String?
-    var parsedLength = 0
-    for line in lines {
-      guard let separator = line.firstIndex(of: ":") else { continue }
-      let name = line[line.startIndex..<separator].trimmingCharacters(in: .whitespaces)
-      let value = line[line.index(after: separator)...].trimmingCharacters(in: .whitespaces)
-      if name.caseInsensitiveCompare("Origin") == .orderedSame {
-        parsedOrigin = value
-      } else if name.caseInsensitiveCompare("Content-Type") == .orderedSame {
-        parsedContentType = value
-      } else if name.caseInsensitiveCompare("Content-Length") == .orderedSame {
-        // A declared length that is not a non-negative integer is a
-        // malformed head: falling back to zero would accept garbage or an
-        // overflowing number as a valid empty body, and a negative count
-        // would reach the body assembly.
-        guard let declared = Int(value), declared >= 0 else { return nil }
-        parsedLength = declared
-      }
-    }
+    guard let headers = parseHeaders(lines) else { return nil }
     return Self(
       method: parsedMethod,
       path: parsedPath,
-      origin: parsedOrigin,
-      contentType: parsedContentType,
-      bodyLength: parsedLength
+      origin: headers.origin,
+      contentType: headers.contentType,
+      bodyLength: headers.length ?? 0
     )
+  }
+
+  private static func parseHeaders(_ lines: [String]) -> ParsedHeaders? {
+    var headers = ParsedHeaders()
+    for line in lines where !line.isEmpty {
+      guard let separator = line.firstIndex(of: ":") else { return nil }
+      let name = line[line.startIndex..<separator].trimmingCharacters(in: .whitespaces)
+      let value = line[line.index(after: separator)...].trimmingCharacters(in: .whitespaces)
+      guard applyHeader(name: name, value: value, into: &headers) else {
+        return nil
+      }
+    }
+    guard headers.host != nil else { return nil }
+    return headers
+  }
+
+  private static func applyHeader(
+    name: String,
+    value: String,
+    into headers: inout ParsedHeaders
+  ) -> Bool {
+    switch name.lowercased() {
+    case "host":
+      guard headers.host == nil, ScsOriginPolicy.isAllowedHostHeader(value) else { return false }
+      headers.host = value
+      return true
+
+    case "origin":
+      guard headers.origin == nil else { return false }
+      headers.origin = value
+      return true
+
+    case "content-type":
+      guard headers.contentType == nil else { return false }
+      headers.contentType = value
+      return true
+
+    case "content-length":
+      guard headers.length == nil, let declared = Int(value), declared >= 0 else { return false }
+      headers.length = declared
+      return true
+
+    case "transfer-encoding":
+      return false
+
+    default:
+      return true
+    }
   }
 }

@@ -1,38 +1,29 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-#if os(macOS)
+#if os(macOS) && FEATURE_SCS
   import OSLog
 
-  /// Diagnostic logging for the localhost SCS.
+  /// Diagnostic and operational logging for the localhost SCS.
   ///
-  /// Follows the token extension's line twice over: lengths, status
-  /// words and control flow only - never a PIN, a document, or a
-  /// signature value - and development builds only. A production
-  /// build writes no diagnostics; the autoclosure keeps it from even
-  /// building the line.
+  /// Never logs a PIN, PIN length, card serial, document body, or
+  /// signature value. Ordinary flow logs in development builds only;
+  /// listener, port-conflict, and identity errors log in every build so
+  /// a squatted port or failed TLS startup is never silent.
   internal enum ScsLog {
-    #if DEBUG
-      private static let logger = Logger(subsystem: "fi.refineid.ReFineID", category: "scs")
-    #endif
+    private static let logger = Logger(subsystem: "fi.refineid.ReFineID", category: "scs")
 
-    /// Records ordinary control flow.
+    /// Records ordinary control flow in development builds.
     internal static func info(_ message: @autoclosure () -> String) {
       #if DEBUG
-        // Evaluated once into a local: os.Logger's own interpolation
-        // is an escaping autoclosure, and a non-escaping one cannot
-        // be called inside it.
         let text = message()
         Self.logger.info("\(text, privacy: .public)")
       #endif
     }
 
-    /// Records a failure worth investigating.
+    /// Records an operational or security failure in all builds.
     internal static func error(_ message: @autoclosure () -> String) {
-      #if DEBUG
-        // Same evaluation rule as above.
-        let text = message()
-        Self.logger.error("\(text, privacy: .public)")
-      #endif
+      let text = message()
+      Self.logger.error("\(text, privacy: .public)")
     }
   }
 #endif

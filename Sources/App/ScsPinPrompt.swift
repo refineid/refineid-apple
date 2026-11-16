@@ -1,157 +1,138 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-#if os(macOS)
+#if os(macOS) && FEATURE_SCS
   import AppKit
   import CardCore
   import Foundation
 
-  /// The PIN prompt the localhost SCS presents.
+  /// The native PIN prompt the localhost SCS presents.
   ///
-  /// SCS signs arrive from a web page, not from CryptoTokenKit, so
-  /// the app itself asks for the credential. The prompt runs on the
-  /// main thread and blocks the SCS worker until the holder answers;
-  /// cancelling refuses the sign without touching the card.
-  ///
-  /// The prompt names the requesting origin, the kind of request,
-  /// and the certificate holder whose key answers: the context a
-  /// holder can act on. The specification requires the origin
-  /// (DVV SCS specification v1.3 §2.1); the button confirms the
-  /// named action.
+  /// Displays the sanitized `Origin`, action, holder name, and SHA-256
+  /// digest without stealing focus from other apps, clears the secure
+  /// text field immediately on dismissal, and aborts if the calling
+  /// connection disconnects or the SCS stops.
   internal enum ScsPinPrompt {
+    /// Display fields describing one consent and PIN ceremony.
+    internal struct Context: Sendable {
+      internal let role: CredentialRole
+      internal let origin: String?
+      internal let purpose: ScsSignPurpose
+      internal let signerName: String?
+      internal let sha256Hex: String
+    }
+
+    private final class Box<Value: ~Copyable>: @unchecked Sendable {
+      var value: Value
+
+      init(_ value: consuming Value) {
+        self.value = value
+      }
+    }
+
     private static let fieldWidth: CGFloat = 220
     private static let fieldHeight: CGFloat = 24
+    @MainActor private static var modalActive = false
 
-    /// Asks for the named credential; nil when the holder cancels.
+    /// Requests the credential for `context`, tied to `cancellation`.
     internal static func request(
-      role: CredentialRole,
-      origin: String?,
-      purpose: ScsSignPurpose,
-      signerName: String?
-    ) -> String? {
-      var answer: String?
+      context: Context,
+      cancellation: ScsPromptCancellationToken
+    ) -> ScsEnteredPin {
+      guard !cancellation.isCancelled else { return .cancelled }
+      let box = Box<ScsEnteredPin>(.cancelled)
       DispatchQueue.main.sync {
         MainActor.assumeIsolated {
-          answer = Self.presentPrompt(
-            role: role, origin: origin, purpose: purpose, signerName: signerName)
+          box.value = Self.presentPrompt(context: context, cancellation: cancellation)
         }
       }
-      return answer
+      var taken: ScsEnteredPin = .cancelled
+      swap(&taken, &box.value)
+      return taken
     }
 
-    /// What the holder is told about the request: the Origin header
-    /// exactly as it arrived, what the key is asked to do, and whose
-    /// certificate holds the key.
-    ///
-    /// The origin is printed verbatim rather than reduced to a host
-    /// name, because §2.1 asks for the header's content and the
-    /// scheme and port are part of what identifies the requester. A
-    /// request that carried no Origin says so in as many words rather
-    /// than leaving the line blank: a browser always sends Origin on a
-    /// CORS request, so its absence means the requester is not a page,
-    /// which the holder needs to see before typing a PIN. A signer
-    /// the card could not name omits its line rather than printing a
-    /// placeholder the holder might mistake for a name.
-    internal static func consentDetails(
-      origin: String?,
-      purpose: ScsSignPurpose,
-      signerName: String?,
-      bundle: Bundle
-    ) -> String {
-      var lines = [
-        originLine(origin: origin, bundle: bundle),
-        actionLine(purpose: purpose, bundle: bundle),
-      ]
-      if let signerName {
-        lines.append(signerLine(purpose: purpose, signerName: signerName, bundle: bundle))
-      }
-      return lines.joined(separator: "\n")
-    }
-
-    /// The requesting origin, verbatim, or the stated absence.
-    private static func originLine(origin: String?, bundle: Bundle) -> String {
-      origin
-        .map { String(localized: "Origin: \($0)", bundle: bundle) }
-        ?? String(
-          localized: "Origin: (none - the request sent no Origin header)", bundle: bundle)
-    }
-
-    /// What the key is asked to do, in the holder's words: an
-    /// authentication request logs in, a qualified request signs.
-    private static func actionLine(purpose: ScsSignPurpose, bundle: Bundle) -> String {
-      switch purpose {
-      case .authentication:
-        String(localized: "Action: Log in", bundle: bundle)
-
-      case .qualified:
-        String(localized: "Action: Sign document", bundle: bundle)
-      }
-    }
-
-    /// The holder named as the actor of the request: logging in is
-    /// not signing, so the two word the name differently.
-    private static func signerLine(
-      purpose: ScsSignPurpose,
-      signerName: String,
-      bundle: Bundle
-    ) -> String {
-      switch purpose {
-      case .authentication:
-        String(localized: "Logging in as: \(signerName)", bundle: bundle)
-
-      case .qualified:
-        String(localized: "Signing as: \(signerName)", bundle: bundle)
-      }
-    }
-
-    /// Builds the localized prompt with its consent details.
+    /// Builds the localized prompt with its consent details and SHA-256
+    /// fingerprint.
     @MainActor
     internal static func makeAlert(
-      role: CredentialRole,
-      origin: String?,
-      purpose: ScsSignPurpose,
-      signerName: String?,
+      context: Context,
       bundle: Bundle
     ) -> NSAlert {
       let alert = NSAlert()
-      alert.messageText = CredentialLabels.entryPrompt(for: role, bundle: bundle)
-      alert.informativeText = consentDetails(
-        origin: origin, purpose: purpose, signerName: signerName, bundle: bundle)
+      alert.messageText = CredentialLabels.entryPrompt(for: context.role, bundle: bundle)
+      alert.informativeText = ScsConsentDetails.format(
+        origin: context.origin,
+        purpose: context.purpose,
+        signerName: context.signerName,
+        sha256Hex: context.sha256Hex,
+        bundle: bundle
+      )
       let field = NSSecureTextField(
         frame: NSRect(x: 0, y: 0, width: Self.fieldWidth, height: Self.fieldHeight))
       alert.accessoryView = field
-      alert.addButton(withTitle: confirmTitle(purpose: purpose, bundle: bundle))
+      alert.addButton(
+        withTitle: ScsConsentDetails.confirmTitle(purpose: context.purpose, bundle: bundle))
       alert.addButton(withTitle: String(localized: "Cancel", bundle: bundle))
       alert.window.initialFirstResponder = field
       return alert
     }
 
-    /// The confirmation names the action: a login must not ask the
-    /// holder to click Sign.
-    private static func confirmTitle(purpose: ScsSignPurpose, bundle: Bundle) -> String {
-      switch purpose {
-      case .authentication:
-        String(localized: "Log in", bundle: bundle)
-
-      case .qualified:
-        String(localized: "Sign", bundle: bundle)
-      }
-    }
-
-    /// Runs the modal prompt; cancellation returns no credential.
     @MainActor
     private static func presentPrompt(
-      role: CredentialRole,
-      origin: String?,
-      purpose: ScsSignPurpose,
-      signerName: String?
-    ) -> String? {
-      NSApp.activate(ignoringOtherApps: true)
-      let alert = makeAlert(
-        role: role, origin: origin, purpose: purpose, signerName: signerName, bundle: .main)
-      guard alert.runModal() == .alertFirstButtonReturn,
-        let field = alert.accessoryView as? NSSecureTextField
-      else { return nil }
-      return field.stringValue
+      context: Context,
+      cancellation: ScsPromptCancellationToken
+    ) -> ScsEnteredPin {
+      guard !modalActive else { return .busy }
+      guard !cancellation.isCancelled else { return .cancelled }
+      modalActive = true
+      ScsService.shared.setPendingRequest(origin: context.origin)
+      defer {
+        modalActive = false
+        ScsService.shared.clearPendingRequest()
+      }
+      let alert = makeAlert(context: context, bundle: .main)
+      guard let field = alert.accessoryView as? NSSecureTextField else {
+        return .cancelled
+      }
+      defer { field.stringValue = "" }
+      guard
+        cancellation.installAbort({
+          CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) {
+            MainActor.assumeIsolated {
+              NSApp.abortModal()
+            }
+          }
+          CFRunLoopWakeUp(CFRunLoopGetMain())
+        })
+      else {
+        return .cancelled
+      }
+      defer { cancellation.clearAbort() }
+      _ = NSApp.requestUserAttention(.informationalRequest)
+      let modalResponse = alert.runModal()
+      let rawDigits = field.stringValue
+      field.stringValue = ""
+      guard modalResponse == .alertFirstButtonReturn, !cancellation.isCancelled else {
+        return .cancelled
+      }
+      return parseEnteredDigits(rawDigits, role: context.role)
+    }
+
+    private static func parseEnteredDigits(
+      _ digits: String,
+      role: CredentialRole
+    ) -> ScsEnteredPin {
+      switch role {
+      case .pin1:
+        guard let pin = Pin1(digits: digits) else { return .invalidFormat }
+        return .pin1(pin)
+
+      case .pin2:
+        guard let pin = Pin2(digits: digits) else { return .invalidFormat }
+        return .pin2(pin)
+
+      default:
+        return .invalidFormat
+      }
     }
   }
 #endif

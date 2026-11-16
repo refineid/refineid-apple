@@ -1,22 +1,18 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-#if os(macOS)
+#if os(macOS) && FEATURE_SCS
   import CardCore
   import CryptoKit
   import Foundation
+  import os
   import Security
 
   /// The production SCS signing backend: one card session per
-  /// operation, the retry floor before any credential, and the app's
-  /// own PIN prompt.
-  ///
-  /// `@unchecked Sendable` is the audit, not a shrug: every call
-  /// arrives on the SCS server's one serial queue, so the leaf
-  /// caches are never touched concurrently.
-  internal final class ScsCardBackend: ScsSigningBackend, @unchecked Sendable {
-    /// Carries a value across the semaphore boundary; sound because
-    /// the semaphore serialises the write before the wait returns.
-    private final class Box<Value>: @unchecked Sendable {
+  /// operation, serial-bound leaf caching, per-origin prompt rate
+  /// limiting, the retry floor before any credential, and a prompt
+  /// naming the live cardholder and SHA-256 fingerprint.
+  internal final class ScsCardBackend: ScsSigningBackend, Sendable {
+    private final class Box<Value: Sendable>: @unchecked Sendable {
       var value: Value
 
       init(_ value: Value) {
@@ -24,286 +20,121 @@
       }
     }
 
-    /// Everything `sign` resolves before the card session opens.
-    ///
-    /// The bytes to sign, how to sign them, and the name the prompt
-    /// shows, resolved on the SCS serial queue with the leaf caches.
-    private struct PreparedSign {
-      let digest: Data
-      let algorithm: SigningAlgorithm
-      let expectedSignatureLength: ExpectedResponseLength?
-      let signerName: String?
-    }
+    internal static let readTimeoutSeconds: Double = 15
+    internal static let signTimeoutSeconds: Double = 125
 
-    private var authenticationLeaf: Data?
-    private var qualifiedLeaf: Data?
+    internal let leafCache = OSAllocatedUnfairLock(initialState: ScsLeafCache())
+    internal let rateLimiter = ScsPromptRateLimiter()
+    private let activeCancellation = OSAllocatedUnfairLock<ScsPromptCancellationToken?>(
+      initialState: nil)
 
-    /// One floor-guarded, PIN-prompted sign inside an open session.
-    private static func performSign(
-      _ operations: CardOperations,
-      request: ScsSignRequest,
-      prepared: PreparedSign
-    ) -> Result<Data, ScsBackendFailure> {
-      let purpose = request.purpose
-      if let refused = contextRefusal(operations, purpose: purpose) {
-        return .failure(refused)
-      }
-      let entered: String
-      switch authorizedPin(operations, request: request, signerName: prepared.signerName) {
-      case .success(let pin):
-        entered = pin
-
-      case .failure(let refusal):
-        return .failure(refusal)
-      }
-      do {
-        switch purpose {
-        case .authentication:
-          guard let pin = Pin1(digits: entered) else {
-            return .failure(.credentialRefused("PIN format invalid"))
-          }
-          try operations.verifyPin1(pin.consumeForSingleTransmission())
-          return .success(
-            try operations.computeAuthenticationSignature(
-              overDigest: prepared.digest,
-              algorithm: prepared.algorithm,
-              expectedSignatureLength: prepared.expectedSignatureLength
-            )
-          )
-
-        case .qualified:
-          guard let pin = Pin2(digits: entered) else {
-            return .failure(.credentialRefused("PIN format invalid"))
-          }
-          try operations.verifyPin2(pin.consumeForSingleTransmission())
-          return .success(
-            try operations.computeQualifiedSignature(
-              overDigest: prepared.digest,
-              algorithm: prepared.algorithm,
-              expectedSignatureLength: prepared.expectedSignatureLength
-            )
-          )
-        }
-      } catch {
-        return .failure(refusal(from: error))
+    private static func computeDigest(of data: Data, hash: SigningHash) -> Data? {
+      switch hash {
+      case .sha256:
+        Data(SHA256.hash(data: data))
+      case .sha384:
+        Data(SHA384.hash(data: data))
+      case .sha512:
+        Data(SHA512.hash(data: data))
+      case .sha1, .sha224:
+        nil
       }
     }
 
-    /// The holder's answer, once the card can still afford to sign and
-    /// the request has been shown for what it is.
-    ///
-    /// The floor probe runs before the prompt so a refused credential
-    /// never costs the holder a PIN entry, and the prompt names the
-    /// requesting origin, the kind of request, and the certificate
-    /// holder. A blocked credential goes on: the card answers its
-    /// VERIFY.
-    private static func authorizedPin(
-      _ operations: CardOperations,
-      request: ScsSignRequest,
-      signerName: String?
-    ) -> Result<String, ScsBackendFailure> {
-      let role: CredentialRole = request.purpose == .authentication ? .pin1 : .pin2
-      guard
-        let probe = try? operations.probeRetryCounter(role: role),
-        RetryFloor.evaluate(probeOutcome: probe) == .proceed
-      else {
-        return .failure(.credentialRefused("credential retry state refuses the sign"))
-      }
-      guard
-        let entered = ScsPinPrompt.request(
-          role: role,
-          origin: request.origin,
-          purpose: request.purpose,
-          signerName: signerName
-        )
-      else {
-        return .failure(.credentialRefused("PIN entry was cancelled"))
-      }
-      return .success(entered)
+    /// Installs `token` for the active `signQueue` execution and clears
+    /// it on exit.
+    internal func withCancellation<Answer>(
+      _ token: ScsPromptCancellationToken,
+      _ body: () -> Answer
+    ) -> Answer {
+      activeCancellation.withLock { $0 = token }
+      defer { activeCancellation.withLock { $0 = nil } }
+      return body()
     }
 
-    /// Enters the directory the sign must run in, when the card has
-    /// one.
-    ///
-    /// The organization card's qualified-signature service lives in
-    /// DF.ESIGN (S4-2 v4.0 §4.6.21): the ceremony enters it before
-    /// the floor probe so PIN SIG is verified and spent in the
-    /// context the signature runs in.
-    private static func contextRefusal(
-      _ operations: CardOperations,
-      purpose: ScsSignPurpose
-    ) -> ScsBackendFailure? {
-      guard (try? operations.resolveCredentialReferences()) == .organization else {
-        return nil
-      }
-      guard OrganizationCardSupport.isEnabled else {
-        return .signingUnavailable("organization card not supported in this build")
-      }
-      guard purpose == .qualified else {
-        return nil
-      }
-      do {
-        try operations.selectEsignDirectory()
-        return nil
-      } catch {
-        ScsLog.error("backend: signature directory unavailable (\(error))")
-        return .signingUnavailable("signature directory unavailable")
-      }
-    }
-
-    /// The certificate holder's name for the prompt.
-    ///
-    /// The subject summary with control characters stripped, nil
-    /// when nothing printable remains. A subject is card data, and
-    /// a prompt line break in it would redraw the consent the
-    /// holder reads.
-    private static func sanitizedSummary(of certificate: SecCertificate) -> String? {
-      guard let summary = SecCertificateCopySubjectSummary(certificate) as String? else {
-        return nil
-      }
-      let printable = summary.unicodeScalars.filter { !CharacterSet.controlCharacters.contains($0) }
-      let name = String(String.UnicodeScalarView(printable)).trimmingCharacters(in: .whitespaces)
-      return name.isEmpty ? nil : name
-    }
-
-    /// Maps a refused verify or sign to the backend's failure pair,
-    /// logging the card's own answer for the unexpected class.
-    private static func refusal(from error: any Error) -> ScsBackendFailure {
-      switch error {
-      case CardOperationError.pinRejected(let remaining):
-        return .credentialRefused(
-          "PIN rejected; \(remaining.attemptsRemaining) attempts left")
-
-      case CardOperationError.pinBlocked:
-        return .credentialRefused("credential blocked")
-
-      case CardOperationError.credentialInvalidated:
-        return .credentialRefused("credential invalidated")
-
-      default:
-        ScsLog.error("backend: sign chain failed (\(error))")
-        return .signingUnavailable("sign chain failed")
-      }
+    /// Clears cached card leaves and prompt rate-limit buckets on
+    /// server stop.
+    internal func resetSessionState() {
+      leafCache.withLock { $0.invalidate() }
+      rateLimiter.reset()
     }
 
     internal func certificateChain(for purpose: ScsSignPurpose) -> [Data] {
-      guard let leaf = leaf(for: purpose) else { return [] }
+      guard let leaf = currentLeaf(for: purpose) else { return [] }
       return [leaf]
     }
 
     internal func keyAlgorithm(for purpose: ScsSignPurpose) -> ScsKeyAlgorithm {
-      guard let profile = profile(for: purpose) else { return .rsa }
-      switch profile {
-      case .ecdsaP256, .ecdsaP384:
-        return .ecdsa
-
-      case .rsa2048, .rsa3072:
+      guard
+        let leaf = currentLeaf(for: purpose),
+        let cert = SecCertificateCreateWithData(nil, leaf as CFData),
+        let profile = CardKeyProfile.resolve(fromCertificate: cert)
+      else {
         return .rsa
+      }
+      return switch profile {
+      case .ecdsaP256, .ecdsaP384:
+        .ecdsa
+      case .rsa2048, .rsa3072:
+        .rsa
       }
     }
 
     internal func sign(_ request: ScsSignRequest) throws -> Data {
-      let digest: Data
-      switch request.hash {
-      case .sha1, .sha224:
+      guard let digest = Self.computeDigest(of: request.data, hash: request.hash) else {
         throw ScsBackendFailure.signingUnavailable("unsupported digest")
-
-      case .sha256:
-        digest = Data(SHA256.hash(data: request.data))
-
-      case .sha384:
-        digest = Data(SHA384.hash(data: request.data))
-
-      case .sha512:
-        digest = Data(SHA512.hash(data: request.data))
       }
-      let purpose = request.purpose
-      guard
-        let certificate = certificate(for: purpose),
-        let profile = CardKeyProfile.resolve(fromCertificate: certificate)
-      else {
-        throw ScsBackendFailure.signingUnavailable("card certificate unavailable")
-      }
-      let scheme: SigningScheme
-      switch profile {
-      case .ecdsaP256, .ecdsaP384:
-        scheme = .ecdsa
-
-      case .rsa2048, .rsa3072:
-        scheme = .rsaPkcs1
-      }
-      let algorithm = SigningAlgorithm(hash: request.hash, scheme: scheme)
-      let prepared = PreparedSign(
-        digest: digest,
-        algorithm: algorithm,
-        expectedSignatureLength: profile.expectedSignatureLength,
-        signerName: Self.sanitizedSummary(of: certificate)
-      )
-      let outcome: Result<Data, ScsBackendFailure>? = withCard { operations in
-        Self.performSign(
+      let cancellation = activeCancellation.withLock { $0 } ?? ScsPromptCancellationToken()
+      let outcome: Result<Data, ScsBackendFailure>? = withCard(
+        timeoutSeconds: Self.signTimeoutSeconds
+      ) { [self] operations in
+        performSign(
           operations,
           request: request,
-          prepared: prepared
+          digest: digest,
+          cancellation: cancellation
         )
       }
       guard let outcome else {
+        leafCache.withLock { $0.invalidate() }
         throw ScsBackendFailure.signingUnavailable("no card session")
       }
       return try outcome.get()
     }
 
-    /// The cached leaf for `purpose`, read from the card on first
-    /// use.
-    private func leaf(for purpose: ScsSignPurpose) -> Data? {
-      switch purpose {
-      case .authentication:
-        if authenticationLeaf == nil {
-          authenticationLeaf = readLeaf(slot: .authentication)
-        }
-        return authenticationLeaf
-
-      case .qualified:
-        if qualifiedLeaf == nil {
-          qualifiedLeaf = readLeaf(slot: .qualifiedSignature)
-        }
-        return qualifiedLeaf
-      }
-    }
-
-    /// The cached leaf as a certificate, parsed once per caller.
-    private func certificate(for purpose: ScsSignPurpose) -> SecCertificate? {
-      guard let leaf = leaf(for: purpose) else {
-        return nil
-      }
-      return SecCertificateCreateWithData(nil, leaf as CFData)
-    }
-
-    private func profile(for purpose: ScsSignPurpose) -> CardKeyProfile? {
-      guard let certificate = certificate(for: purpose) else {
-        return nil
-      }
-      return CardKeyProfile.resolve(fromCertificate: certificate)
-    }
-
-    private func readLeaf(slot: CertificateSlot) -> Data? {
-      withCard { operations in
-        try? operations.readCertificate(slot)
-      }
-    }
-
-    /// Bridges the synchronous backend to the app's async card
-    /// session, blocking the SCS worker - never the main thread -
-    /// until the card answers.
-    private func withCard<Answer: Sendable>(
+    internal func withCard<Answer: Sendable>(
+      timeoutSeconds: Double,
       _ work: @escaping @Sendable (CardOperations) -> Answer?
     ) -> Answer? {
       let semaphore = DispatchSemaphore(value: 0)
       let box = Box<Answer?>(nil)
-      Task {
-        box.value = await CardMaintenance.onReader(work)
-        semaphore.signal()
+      let finished = OSAllocatedUnfairLock(initialState: false)
+      let task = Task {
+        let answer = await CardMaintenance.onReader(work)
+        let shouldWrite = finished.withLock { timedOut -> Bool in
+          guard !timedOut else { return false }
+          timedOut = true
+          return true
+        }
+        if shouldWrite {
+          box.value = answer
+          semaphore.signal()
+        }
       }
-      semaphore.wait()
+      let waitOutcome = semaphore.wait(timeout: .now() + timeoutSeconds)
+      if waitOutcome == .timedOut {
+        let wonRace = finished.withLock { timedOut -> Bool in
+          guard !timedOut else { return false }
+          timedOut = true
+          return true
+        }
+        if wonRace {
+          task.cancel()
+          ScsLog.error("backend: card session timed out")
+          return nil
+        }
+        semaphore.wait()
+      }
       return box.value
     }
   }

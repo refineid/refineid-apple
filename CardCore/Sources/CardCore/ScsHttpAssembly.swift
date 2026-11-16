@@ -5,10 +5,10 @@ import Foundation
 /// Incremental assembly of one SCS HTTP exchange from transport bytes.
 ///
 /// The transport hands over whatever it has read so far; assembly
-/// answers whether the buffer already holds the complete request. The
-/// caller keeps accumulating until `complete` or `invalid` - one
-/// request per connection, which this implementation chooses so a
-/// connection's bytes can only ever form one request.
+/// answers whether the buffer already holds the complete request. Both
+/// head and body are strictly bounded (64 KiB head, 100 MiB body per
+/// DVV SCS specification v1.3 §2.1) and trailing pipelined bytes after
+/// `Content-Length` are refused.
 public enum ScsHttpAssembly: Equatable, Sendable {
   /// The buffer holds a complete request head and body.
   case complete(ScsHttpExchange)
@@ -20,6 +20,18 @@ public enum ScsHttpAssembly: Equatable, Sendable {
   /// The buffer is a valid prefix; read more bytes.
   case needMoreData
 
+  /// Whether appending `incomingCount` bytes to `bufferedCount` would
+  /// exceed the combined HTTP head plus 100 MiB body ceiling.
+  public static func exceedsReceiveCeiling(
+    bufferedCount: Int,
+    incomingCount: Int
+  ) -> Bool {
+    guard bufferedCount >= 0, incomingCount >= 0 else { return true }
+    let maximumTotal = ScsValues.httpHeadMaximumLength + ScsValues.httpBodyMaximumLength
+    let (sum, overflow) = bufferedCount.addingReportingOverflow(incomingCount)
+    return overflow || sum > maximumTotal
+  }
+
   /// Classifies the buffer as read so far.
   public static func assemble(buffer: Data) -> Self {
     let headEnd = Data("\r\n\r\n".utf8)
@@ -27,6 +39,8 @@ public enum ScsHttpAssembly: Equatable, Sendable {
       guard buffer.count <= ScsValues.httpHeadMaximumLength else { return .invalid }
       return .needMoreData
     }
+    let headLength = buffer.distance(from: buffer.startIndex, to: boundary.lowerBound)
+    guard headLength <= ScsValues.httpHeadMaximumLength else { return .invalid }
     guard let request = ScsHttpRequest.parse(head: buffer[..<boundary.lowerBound]) else {
       return .invalid
     }
@@ -34,8 +48,10 @@ public enum ScsHttpAssembly: Equatable, Sendable {
       return .invalid
     }
     let body = buffer[boundary.upperBound...]
-    guard body.count >= request.bodyLength else { return .needMoreData }
-    return .complete(
-      ScsHttpExchange(request: request, body: Data(body.prefix(request.bodyLength))))
+    if body.count > request.bodyLength {
+      return .invalid
+    }
+    guard body.count == request.bodyLength else { return .needMoreData }
+    return .complete(ScsHttpExchange(request: request, body: Data(body)))
   }
 }

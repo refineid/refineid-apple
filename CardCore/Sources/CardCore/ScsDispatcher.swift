@@ -6,10 +6,9 @@ import Foundation
 /// full HTTP response bytes.
 ///
 /// The surface is the DVV SCS specification v1.3: `GET /version`,
-/// `POST /sign` (JSON, or the JWT transaction flow selected by its
-/// content type), and the CORS preflight. Sign outcomes always ride
-/// in an HTTP 200 whose JSON reason triple carries the result (v1.3
-/// §3); only an unknown route answers 404.
+/// `POST /sign` (`application/json` or `application/jwt`), and CORS
+/// preflights on those two paths. Non-`https://` `Origin` headers are
+/// refused before any card or transaction work (v1.3 §2.1).
 public enum ScsDispatcher {
   /// The one TCP port the specification names (v1.3 §2.2), for the
   /// platform listener to bind.
@@ -22,10 +21,26 @@ public enum ScsDispatcher {
     backend: any ScsSigningBackend,
     transactions: ScsTransactionManager
   ) -> Data {
-    if request.method == "OPTIONS" {
-      return ScsHttpResponse.preflight(origin: request.origin)
+    if let origin = request.origin,
+      let refusal = ScsOriginPolicy.refusal(forPresentOrigin: origin)
+    {
+      if request.method == "POST", request.path == "/sign" {
+        return signError(
+          reasonCode: ScsValues.reasonForbidden,
+          reasonText: "Forbidden: " + refusal,
+          origin: nil
+        )
+      }
+      return ScsHttpResponse.text(
+        status: ScsValues.httpForbidden,
+        body: "Forbidden: " + refusal,
+        origin: nil
+      )
     }
     switch (request.method, request.path) {
+    case ("OPTIONS", "/version"), ("OPTIONS", "/sign"):
+      return ScsHttpResponse.preflight(origin: request.origin)
+
     case ("GET", "/version"):
       return ScsHttpResponse.json(
         status: ScsValues.httpOk,
@@ -42,7 +57,16 @@ public enum ScsDispatcher {
     }
   }
 
-  /// Encodes one response document with stable key order.
+  /// Answer returned when a second `POST /sign` arrives while one is
+  /// already awaiting holder approval or card execution.
+  public static func busySignResponse(origin: String?) -> Data {
+    signError(
+      reasonCode: ScsValues.reasonForbidden,
+      reasonText: "Forbidden: another signature request is already active",
+      origin: origin
+    )
+  }
+
   private static func encoded<Document: Encodable>(_ document: Document) -> Data {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
@@ -52,7 +76,6 @@ public enum ScsDispatcher {
     return data
   }
 
-  /// A failed sign, as the specification's always-200 JSON form.
   private static func signError(
     reasonCode: Int,
     reasonText: String,
@@ -66,32 +89,38 @@ public enum ScsDispatcher {
     )
   }
 
-  /// Handles `POST /sign`: the JWT transaction branch by content
-  /// type, otherwise the JSON form.
   private static func sign(
     request: ScsHttpRequest,
     body: Data,
     backend: any ScsSigningBackend,
     transactions: ScsTransactionManager
   ) -> Data {
-    if request.contentType?.contains("application/jwt") == true {
+    switch request.contentTypeEssence {
+    case "application/jwt":
       return signTransaction(
         request: request, body: body, backend: backend, transactions: transactions)
-    }
-    guard
-      let document = try? JSONDecoder().decode(ScsSignRequestDocument.self, from: body)
-    else {
+
+    case "application/json":
+      guard
+        let document = try? JSONDecoder().decode(ScsSignRequestDocument.self, from: body)
+      else {
+        return signError(
+          reasonCode: ScsValues.reasonBadRequest,
+          reasonText: "Bad request: invalid JSON",
+          origin: request.origin
+        )
+      }
+      return signJson(document: document, origin: request.origin, backend: backend)
+
+    default:
       return signError(
         reasonCode: ScsValues.reasonBadRequest,
-        reasonText: "Bad request: invalid JSON",
+        reasonText: "Bad request: Content-Type must be application/json or application/jwt",
         origin: request.origin
       )
     }
-    return signJson(document: document, origin: request.origin, backend: backend)
   }
 
-  /// The JWT transaction branch: a compact JWS begins, a compact JWE
-  /// executes; the dot count tells them apart.
   private static func signTransaction(
     request: ScsHttpRequest,
     body: Data,
@@ -126,9 +155,6 @@ public enum ScsDispatcher {
     }
   }
 
-  /// The JSON `/sign` form: card-side hashing of `data` content,
-  /// with the origin-bound challenge enforced for the
-  /// authentication key.
   private static func signJson(
     document: ScsSignRequestDocument,
     origin: String?,
@@ -151,7 +177,7 @@ public enum ScsDispatcher {
     guard document.contentType == "data" else {
       return signError(
         reasonCode: ScsValues.reasonBadRequest,
-        reasonText: "Bad request: unsupported contentType \(document.contentType)",
+        reasonText: "Bad request: unsupported contentType",
         origin: origin
       )
     }

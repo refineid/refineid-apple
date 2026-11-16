@@ -50,6 +50,10 @@ internal enum ScsValues {
   /// triple carries the outcome (v1.3 §3).
   internal static let httpOk = 200
 
+  /// HTTP status: Forbidden, answered when CORS or Origin policy
+  /// refuses a non-sign request before route handling.
+  internal static let httpForbidden = 403
+
   /// HTTP status: no route.
   internal static let httpNotFound = 404
 
@@ -57,11 +61,32 @@ internal enum ScsValues {
   /// well-formed SCS exchange.
   internal static let httpHeadMaximumLength = 65_536
 
-  /// Longest accepted HTTP body, in bytes.
-  ///
-  /// Documents ride inline as base64, so the cap is generous but
-  /// present.
-  internal static let httpBodyMaximumLength = 16_777_216
+  /// Longest accepted HTTP body, in bytes: 100 MiB (v1.3 §2.1).
+  internal static let httpBodyMaximumLength = 104_857_600
+
+  /// CORS preflight cache lifetime, in seconds.
+  internal static let preflightMaxAgeSeconds = 600
+
+  /// Maximum lifetime of an agreed transaction awaiting `execute`, in
+  /// seconds.
+  internal static let transactionTimeToLiveSeconds: Double = 60
+
+  /// Sliding-window length for per-origin prompt throttling, in
+  /// seconds.
+  internal static let promptWindowSeconds: Double = 60
+
+  /// Maximum PIN prompts one origin may trigger inside one window.
+  internal static let promptMaximumPerWindow = 5
+
+  /// Cooldown imposed on an origin after a cancelled or refused PIN
+  /// prompt, in seconds.
+  internal static let promptRefusalCooldownSeconds: Double = 10
+
+  /// Maximum distinct origin buckets held in the prompt rate limiter.
+  internal static let promptMaxTrackedOrigins = 128
+
+  /// Maximum characters displayed for an Origin in the consent prompt.
+  internal static let originDisplayMaximumCharacters = 96
 
   /// Compact JWS segment count: header, payload, signature.
   internal static let jwsSegmentCount = 3
@@ -82,15 +107,57 @@ internal enum ScsValues {
   /// Compact JWE segment index of the authentication tag.
   internal static let jweTagIndex = 4
 
-  /// KeyUsage bits of the localhost server certificate:
+  /// KeyUsage bits of the localhost server leaf certificate:
   /// digitalSignature and keyEncipherment (v1.3 §2.3).
   internal static let serverKeyUsageBits: UInt8 = 0xA0
 
-  /// Unused trailing bits in the KeyUsage BIT STRING above.
+  /// Unused trailing bits in the server leaf KeyUsage BIT STRING.
   internal static let serverKeyUsageUnusedBits: UInt8 = 5
+
+  /// KeyUsage bits of the offline localhost root CA certificate:
+  /// keyCertSign and cRLSign (RFC 5280 §4.2.1.3).
+  internal static let rootKeyUsageBits: UInt8 = 0x06
+
+  /// Unused trailing bits in the root CA KeyUsage BIT STRING.
+  internal static let rootKeyUsageUnusedBits: UInt8 = 1
+
+  /// Full-host subnet mask octet in RFC 5280 NameConstraints.
+  private static let fullMaskOctet: UInt8 = 0xFF
 
   /// High octet of the IPv4 loopback address.
   private static let loopbackHighOctet: UInt8 = 0x7F
+
+  /// IPv6 zero prefix length before the loopback low byte.
+  private static let ipv6LoopbackLeadingZeros = 15
+
+  /// IPv6 address octet count.
+  private static let ipv6AddressOctetCount = 16
+
+  /// Serial number entropy length, in octets.
+  internal static let serialOctetCount = 16
+
+  /// High-bit mask cleared on the leading serial-number octet.
+  internal static let serialPositiveMask: UInt8 = 0x7F
+
+  /// Fallback low bit set when random serial octets are all zero.
+  internal static let serialNonZeroBit: UInt8 = 0x01
+
+  /// How long a generated offline root CA certificate stays valid, in
+  /// years.
+  internal static let rootCertificateValidityYears = 10
+
+  /// How long a generated localhost server leaf stays valid, in days.
+  internal static let leafCertificateValidityDays = 397
+
+  /// Remaining leaf validity below which the server rotates its
+  /// localhost chain, in seconds (30 days).
+  internal static let leafRotationMarginSeconds: Double = 2_592_000
+
+  /// Clock-skew allowance subtracted from `notBefore`, in seconds.
+  internal static let notBeforeClockSkewSeconds: Double = 60
+
+  /// RFC 5280 §4.1.2.5 year at which GeneralizedTime replaces UTCTime.
+  internal static let generalizedTimeCutoffYear = 2_050
 
   /// The loopback address named in the certificate's
   /// subjectAltName (v1.3 §2.3): 127.0.0.1.
@@ -98,7 +165,34 @@ internal enum ScsValues {
     [Self.loopbackHighOctet, 0, 0, 1]
   }
 
-  /// How long a generated localhost certificate stays valid; it is
-  /// persisted and reused, so trust survives restarts.
-  internal static let certificateValidityYears = 10
+  /// The IPv4 NameConstraints subtree `127.0.0.1/32` (RFC 5280
+  /// §4.2.1.10).
+  internal static var loopbackNameConstraint: [UInt8] {
+    Self.loopbackAddress + Array(repeating: Self.fullMaskOctet, count: 4)
+  }
+
+  /// The IPv6 NameConstraints subtree `::1/128` (RFC 5280 §4.2.1.10).
+  internal static var ipv6LoopbackNameConstraint: [UInt8] {
+    Array(repeating: UInt8(0), count: Self.ipv6LoopbackLeadingZeros)
+      + [1]
+      + Array(repeating: Self.fullMaskOctet, count: Self.ipv6AddressOctetCount)
+  }
+
+  /// Whether a Unicode scalar value is a control, line-break, zero-width,
+  /// or bidirectional-override character excluded from displayed Origins.
+  internal static func isForbiddenOriginScalar(_ value: UInt32) -> Bool {
+    switch value {
+    case 0x0000...0x001F,
+      0x007F...0x009F,
+      0x061C,
+      0x200B...0x200F,
+      0x2028...0x202E,
+      0x2060...0x2069,
+      0xFEFF:
+      true
+
+    default:
+      false
+    }
+  }
 }

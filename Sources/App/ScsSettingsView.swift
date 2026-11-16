@@ -16,6 +16,28 @@
           )
         )
         .accessibilityIdentifier("scsEnabled")
+
+        if let statusError = service.statusError {
+          Text(statusError)
+            .foregroundStyle(.red)
+            .accessibilityIdentifier("scsStatusError")
+        }
+
+        if let pendingOrigin = service.pendingRequestOrigin {
+          Text(
+            String(
+              localized: "Signature request waiting for approval: \(pendingOrigin)"
+            )
+          )
+          .foregroundStyle(.secondary)
+          .accessibilityIdentifier("scsPendingRequest")
+        }
+
+        if let holderNotice = service.holderNotice {
+          Text(holderNotice)
+            .foregroundStyle(.secondary)
+            .accessibilityIdentifier("scsHolderNotice")
+        }
       }
       .formStyle(.grouped)
     }

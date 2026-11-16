@@ -494,16 +494,25 @@ Signature Creation Service switch.
 
 ## Web signing (SCS)
 
-The Signature Creation Service is a loopback HTTPS server that web pages
-sign through. It is planned and stays in the code behind `FEATURE_SCS`,
-which no build configuration sets until it ships. It is not dead code:
-cleanups keep the server, its card backend, its transaction manager, its
-opt-in and their tests.
+The Signature Creation Service is a loopback HTTPS server (`127.0.0.1:53952`)
+that web pages sign through. Its app-side listener, keychain identity store,
+card backend, native PIN prompt, service coordinator and Settings pane are
+compile-gated behind `FEATURE_SCS`, which no build configuration sets until
+shipment; its pure protocol, PKI, origin, consent, rate-limit and opt-in
+state models live in `CardCore` so their unit suites run on every build.
 
-The Signing Service pane is the setting the holder turns on. The server
-starts only after that opt-in, so the certificate trust prompt it needs
-appears when the holder first turns it on. A launch with the opt-in
-stored starts the server again.
+The Signing Service pane is the setting the holder turns on. Turning it on
+mints the localhost TLS chain on first use, requests constrained user trust
+for the root authority, and binds TCP port `53952` without endpoint reuse.
+Only one DVV SCS implementation can own `127.0.0.1:53952` at a time: if
+another local process or vendor SCS already holds port `53952`, the listener
+fails immediately, logs an always-on error to the unified log (`fi.refineid.ReFineID`,
+category `scs`), and surfaces the port conflict in the Signing Service pane
+rather than failing silently. Turning the setting off stops the listener,
+cancels any in-flight connection or PIN prompt, clears pending transactions
+and card-leaf caches, and removes the server private key, leaf certificate,
+root certificate, chain record and user-domain SSL trust settings from
+Keychain (leaving only `fi.refineid.scs.enabled = false` in `UserDefaults`).
 
 It implements the DVV specification
 [`dvv_scs_v1_3`](../references.md#dvv_scs_v1_3). Chapter 2 is normative;
@@ -511,10 +520,16 @@ chapter 3 is advice.
 
 | Section | Requirement | The server |
 | --- | --- | --- |
-| §2.1 | A certificate selection dialog on every signature request; the holder is shown the request's Origin. | Shows a PIN prompt on every request that reaches signing, naming the Origin and the digest. It has no certificate selection step: the request's purpose picks the certificate. |
-| §3.5 | Never sign silently. | Every request that reaches signing asks for the PIN; one the card's retry floor refuses ends without a prompt. A remembered PIN 1 is never used. |
-| §3.7 | Show the signed content where possible; signing unseen content is allowed. | Shows the digest, never the content. |
-| §3.10 | Any local application can send requests; an authorization token with a cookie is suggested, not required. | Serves one request at a time, so one prompt is on screen. No authorization token. |
+| §2.1 | HTTPS `Origin` only (`http://` `SHALL NOT` be processed); bodies up to 100 MiB; holder shown the request's `Origin`. | Refuses any non-`https://` or malformed `Origin` with `403` before touching the card or UI, bounds request bodies to 100 MiB without buffering past the ceiling, allowlists `Host` to `127.0.0.1`/`localhost` (optional `:53952`), scopes CORS preflights to `/version` and `/sign` (`Max-Age: 600`), and requires preflighted `Content-Type` essence (`application/json` or `application/jwt`) on `POST /sign`. |
+| §2.3 | Offline root CA (private key deleted after issuance) plus short-lived server leaf (`CN=127.0.0.1`, SAN `localhost` and `127.0.0.1`), chain served over TLS. | Generates an ephemeral P-256 root key in memory (`cA=TRUE, pathLen=0`, critical `NameConstraints` permitted only to `DNS:localhost`, `127.0.0.1/32` and `::1/128`), signs a 397-day non-CA server leaf over a non-extractable Keychain P-256 key bound by application tag and public key bytes, discards the root key on return, serves `[leaf, root]` over TLS, rotates within 30 days of expiry, and constrains user trust settings to SSL policy on `127.0.0.1` and `localhost`. |
+| §3.5 | Never sign silently. | Every request that reaches signing asks for a fresh PIN in a single-use zeroizing store (`Pin1`/`Pin2`), clearing the `NSSecureTextField` immediately; remembered PIN 1 is never used, and retry-floor refusals end before prompting. Caller responses report generic `"PIN rejected"` without leaking remaining attempt counts (attempt counts appear only in holder UI). |
+| §3.7 | Show the signed content where possible; signing unseen content is allowed. | Shows the bidi-sanitized and length-bounded `Origin` (or explicit missing-Origin warning), action, holder name read from the `ChipSerial`-bound card session, and the SHA-256 hex digest of the exact to-be-signed bytes. Plain JSON authentication challenges forbid `;` in the nonce so they cannot forge three-field transaction challenges. |
+| §3.10 | Any local application can send requests; a pairing token with a permanent cookie is suggested, not required. | Uses PIN-plus-hardened-consent rather than §3.10 cookies: unmodified DVV SCS 1.3 relying services issue credential-less `fetch` calls without `credentials: "include"`, and browser cross-site cookie partitioning / Safari ITP blocks third-party cookies to `https://127.0.0.1:53952` from relying-party pages. Browser callers are constrained by HTTPS `Origin`, `Host`, preflighted `Content-Type`, per-origin prompt rate limiting with post-refusal cooldown, non-focus-stealing attention requests (`requestUserAttention`), a pending-request indicator, one active sign at a time (`GET /version` remains non-blocking), and prompt cancellation on disconnect, timeout or stop. |
+
+Accepted protocol and local-process residuals:
+
+- A same-UID local process can connect to `127.0.0.1:53952` with a forged `https://` `Origin` header; protection against local forgery rests on the non-focus-stealing prompt, per-origin rate limiting, visible SHA-256 digest of the exact bytes being signed, and physical smart-card PIN entry.
+- DVV SCS 1.3 §2.7.2 fixes the transaction JWE key as the raw P-256 ECDH shared secret (`SymmetricKey(data: shared)`) without an HKDF step, and carries a self-asserted `serverCert` inside the `begin` JWS with no public CA profile. Both wire choices are retained for DVV SCS 1.3 interoperability: ECDH key pairs are fresh single-transaction keys with a 60-second pending TTL cleared on stop, and relying-service authenticity for browser callers rests on the browser-enforced `Origin` header, challenge binding (`origin;nonce;serverKey`), ECDH confidentiality, and holder PIN approval.
 
 ## Development builds
 

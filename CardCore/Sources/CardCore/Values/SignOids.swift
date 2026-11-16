@@ -137,6 +137,12 @@ internal enum SignOids {
   /// id-ce-subjectKeyIdentifier (RFC 5280 §4.2.1.2).
   internal static let subjectKeyIdentifier = "2.5.29.14"
 
+  /// id-ce-nameConstraints (RFC 5280 §4.2.1.10).
+  internal static let nameConstraints = "2.5.29.30"
+
+  /// id-ce-authorityKeyIdentifier (RFC 5280 §4.2.1.1).
+  internal static let authorityKeyIdentifier = "2.5.29.35"
+
   /// X.509 subjectAltName extension.
   internal static let subjectAltName = "2.5.29.17"
 

@@ -47,7 +47,7 @@ internal enum ScsTransactionBegin {
       return .failure(error)
     }
     guard payload.version == ScsValues.version else {
-      return .failure(.badRequest("unsupported transaction version \(payload.version)"))
+      return .failure(.badRequest("unsupported transaction version"))
     }
     guard let certificate = Data(base64Encoded: payload.serverCert) else {
       return .failure(.badRequest("serverCert is not base64"))
@@ -65,13 +65,14 @@ internal enum ScsTransactionBegin {
     ) {
       return .failure(refusal)
     }
-    return agreed(payload: payload, origin: origin, backend: backend)
+    return agreed(payload: payload, origin: origin, at: now, backend: backend)
   }
 
   /// The key-agreement half, after JWS verification.
   private static func agreed(
     payload: ScsBeginDocument,
     origin: String,
+    at now: Date,
     backend: any ScsSigningBackend
   ) -> Result<Outcome, ScsTransactionError> {
     let purpose: ScsSignPurpose
@@ -115,18 +116,13 @@ internal enum ScsTransactionBegin {
       key: SymmetricKey(data: shared),
       origin: origin,
       purpose: purpose,
-      serverKey: payload.serverKey
+      serverKey: payload.serverKey,
+      createdAt: now
     )
     return signed(response: response, purpose: purpose, backend: backend, state: state)
   }
 
   /// Signs the response JWT with the card.
-  ///
-  /// The JWS algorithm follows the card key: RS256 over SHA-256 for
-  /// an RSA key, ES384 over SHA-384 for the P-384 key - the digest
-  /// each card's qualified key actually serves (RFC 7518 section
-  /// 3.1; the raw `r || s` card signature is already the ES384 JWS
-  /// form).
   private static func signed(
     response: ScsBeginResponseDocument,
     purpose: ScsSignPurpose,

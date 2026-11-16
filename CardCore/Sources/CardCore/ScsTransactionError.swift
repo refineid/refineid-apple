@@ -32,11 +32,12 @@ public struct ScsTransactionError: Error, Equatable, Sendable {
     Self(code: ScsValues.reasonNotImplemented, message: message)
   }
 
-  /// Wraps a signing-backend refusal in its specification reason
-  /// pair; anything else is an internal failure.
+  /// Wraps a signing-backend refusal in its specification reason pair;
+  /// unexpected internal errors return a constant message rather than
+  /// interpolating internal error details to unauthenticated callers.
   internal static func wrapping(_ error: any Error) -> Self {
     guard let failure = error as? ScsBackendFailure else {
-      return .internalError("\(error)")
+      return .internalError("internal signing error")
     }
     return Self(code: failure.reasonCode, message: failure.reasonText)
   }

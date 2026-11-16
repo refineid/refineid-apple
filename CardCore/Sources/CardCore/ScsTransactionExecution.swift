@@ -1,5 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
+import CryptoKit
 import Foundation
 
 /// The `execute` step's validation, signing, and response rules
@@ -28,8 +29,8 @@ internal enum ScsTransactionExecution {
     }
     let produced: Data
     switch signature(
+      payload: payload,
       content: content,
-      signatureType: payload.signatureType,
       hash: hash,
       state: state,
       backend: backend
@@ -68,21 +69,20 @@ internal enum ScsTransactionExecution {
     origin: String
   ) -> ScsTransactionError? {
     guard payload.version == ScsValues.version else {
-      return .badRequest("unsupported transaction version \(payload.version)")
+      return .badRequest("unsupported transaction version")
     }
     guard ScsKeyAlgorithm.hash(named: payload.hashAlgorithm) != nil else {
-      return .notImplemented("unsupported hash algorithm \(payload.hashAlgorithm)")
+      return .notImplemented("unsupported hash algorithm")
     }
     guard
       payload.signatureAlgorithm == "RSA" || payload.signatureAlgorithm == "ECDSA"
     else {
-      return .notImplemented(
-        "unsupported signature algorithm \(payload.signatureAlgorithm)")
+      return .notImplemented("unsupported signature algorithm")
     }
     guard
       payload.signatureType == "signature" || payload.signatureType == "cms-pades"
     else {
-      return .notImplemented("unsupported signature type \(payload.signatureType)")
+      return .notImplemented("unsupported signature type")
     }
     switch payload.contentType {
     case "data":
@@ -97,8 +97,8 @@ internal enum ScsTransactionExecution {
     case "digest":
       return .notImplemented("pre-hashed raw card signing is not implemented")
 
-    case let other:
-      return .badRequest("unsupported content type \(other)")
+    default:
+      return .badRequest("unsupported content type")
     }
     guard purpose == .authentication else { return nil }
     return challengeRefusal(content: payload.content, serverKey: serverKey, origin: origin)
@@ -106,14 +106,14 @@ internal enum ScsTransactionExecution {
 
   /// Produces the signature bytes for one validated `execute`.
   internal static func signature(
+    payload: ScsExecuteDocument,
     content: Data,
-    signatureType: String,
     hash: SigningHash,
     state: ScsAgreedTransaction,
     backend: any ScsSigningBackend
   ) -> Result<Data, ScsTransactionError> {
     let purpose = state.purpose
-    guard signatureType == "cms-pades" else {
+    guard payload.signatureType == "cms-pades" else {
       do {
         return .success(
           try backend.sign(
@@ -123,9 +123,18 @@ internal enum ScsTransactionExecution {
         return .failure(.wrapping(error))
       }
     }
+    let messageDigest: Data
+    if payload.contentType == "data" {
+      guard let hashed = computeDigest(of: content, hash: hash) else {
+        return .failure(.notImplemented("unsupported hash algorithm"))
+      }
+      messageDigest = hashed
+    } else {
+      messageDigest = content
+    }
     let cms: ScsDetachedCms
     switch ScsDetachedCms.prepare(
-      digest: content,
+      digest: messageDigest,
       certificates: backend.certificateChain(for: purpose),
       hashName: ScsKeyAlgorithm.scsName(hash: hash)
     ) {
@@ -138,16 +147,35 @@ internal enum ScsTransactionExecution {
     do {
       let cardSignature = try backend.sign(
         ScsSignRequest(
-          purpose: purpose, hash: hash, data: cms.signedAttributes, origin: state.origin))
+          purpose: purpose,
+          hash: hash,
+          data: cms.signedAttributes,
+          origin: state.origin,
+          consentDigest: messageDigest
+        )
+      )
       return .success(cms.signedData(signature: cardSignature))
     } catch {
       return .failure(.wrapping(error))
     }
   }
 
-  /// The transaction form of the origin-bound challenge: the content
-  /// must be `origin;nonce;serverKey`, binding the sign to both the
-  /// caller and the key agreement (v1.3 §2.7.3).
+  private static func computeDigest(of content: Data, hash: SigningHash) -> Data? {
+    switch hash {
+    case .sha256:
+      Data(SHA256.hash(data: content))
+
+    case .sha384:
+      Data(SHA384.hash(data: content))
+
+    case .sha512:
+      Data(SHA512.hash(data: content))
+
+    case .sha1, .sha224:
+      nil
+    }
+  }
+
   private static func challengeRefusal(
     content: String,
     serverKey: String,
@@ -161,12 +189,19 @@ internal enum ScsTransactionExecution {
     }
     let prefix = origin + ";"
     let suffix = ";" + serverKey
-    guard challenge.hasPrefix(prefix), challenge.hasSuffix(suffix) else {
+    guard
+      challenge.utf8.count >= prefix.utf8.count + suffix.utf8.count,
+      challenge.hasPrefix(prefix),
+      challenge.hasSuffix(suffix)
+    else {
       return .forbidden(
         "transaction authentication challenge is not bound to Origin and serverKey")
     }
     let nonce = challenge.dropFirst(prefix.count).dropLast(suffix.count)
-    guard nonce.count >= ScsValues.nonceMinimumLength else {
+    guard !nonce.contains(";") else {
+      return .badRequest("authentication challenge nonce must not contain ;")
+    }
+    guard nonce.utf8.count >= ScsValues.nonceMinimumLength else {
       return .badRequest("authentication challenge nonce is shorter than 64 octets")
     }
     return nil
