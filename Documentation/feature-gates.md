@@ -48,7 +48,7 @@ that machine only. There is no other override mechanism.
 | `REFINEID_REMOTE_CARD` | On except macOS, in every macOS configuration | Pairing over RAPP and everything a pairing enables |
 | `FEATURE_CARD_ACTIVATION` | On everywhere | The activation form for factory-fresh cards |
 | `FEATURE_CONTACTLESS` | On | The CAN entry for contactless cards on macOS (iPhone NFC is not gated) |
-| `FEATURE_TIMESTAMP_CONFIG` | Off on macOS in every configuration; iOS Settings app keeps the address | The Time Stamp Settings pane on macOS |
+| `FEATURE_TIMESTAMP_CONFIG` | Off on macOS in every configuration; set for iPhone and iPad, whose Settings app holds the address | The Time Stamp Settings pane on macOS; off, the macOS store ignores a stored address and every signature asks the shipped service |
 | `FEATURE_PDF_STAMP` | Off on macOS in every configuration; on for iPhone and iPad | The visible stamp; off means invisible signatures |
 | `FEATURE_SCS` | Off, set by no configuration | The loopback HTTPS signing service and its Settings pane |
 | `FEATURE_ORGANIZATION_CARD` | Off, set by no configuration | Organization cards end to end |

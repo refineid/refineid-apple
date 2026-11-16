@@ -219,7 +219,7 @@
     /// The client asks a usable service, configured or shipped.
     @Test
     internal func clientAuthorityIsUsable() {
-      #expect(TimestampAuthorityStore.isUsable(TimestampClient.authority))
+      #expect(TimestampAuthorityStore.isUsable(TimestampClient.authority(in: .standard)))
     }
 
     /// No probe means no verdict.

@@ -83,6 +83,7 @@ moved whole. The app, the test host and the test bundle link the product.
 - The identity suites opened in #467 now run where the phone exists:
   `IdentityLineTests` in both tiers, the phone, just-paired and remote-use
   suites on the simulator.
+
 ### 2026-11-16 The macOS MVP fixes the timestamp authority and ships invisible signatures
 
 Maintainer's decision: the macOS MVP uses
@@ -97,8 +98,8 @@ electronic signatures need no visual mark for the MVP.
 - With the Time Stamp pane compiled out, `TimestampAuthorityStore`
   ignores any stored macOS address and `TimestampClient` asks the
   shipped qualified Sectigo service. With the Stamp pane compiled out,
-  `DocumentSigner` resolves no stamp mark and the signing surface
-  offers no stamp control.
+  `SignDocumentModel.visibleStamp` resolves nil and `DocumentSigner`
+  places no mark, so the signing surface offers no stamp control.
 - The Settings scene is compiled only while `FEATURE_SCS`,
   `FEATURE_TIMESTAMP_CONFIG`, or `FEATURE_PDF_STAMP` is on. With all
   three off on macOS, the app has no Settings window and no Settings

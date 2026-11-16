@@ -454,8 +454,10 @@ shipped qualified Sectigo authority with no visible stamp.
 
 The panes, kept behind their flags: the Time Stamp pane
 (`FEATURE_TIMESTAMP_CONFIG`) holds the one RFC 3161 authority signatures
-ask, prefilled with the shipped qualified Sectigo service, and
-"Restore Defaults" puts that service back. The Stamp pane
+ask, prefilled with the shipped qualified Sectigo service; "Restore
+Defaults" puts that service back, and an address the app could not ask is
+marked and never asked. With the pane compiled out, the store ignores any
+stored address and every signature asks the shipped service. The Stamp pane
 (`FEATURE_PDF_STAMP`) holds the toggle to place a visible electronic
 signature stamp at the bottom of signed PDF documents. The Signing
 Service pane (`FEATURE_SCS`, set by no configuration) holds the

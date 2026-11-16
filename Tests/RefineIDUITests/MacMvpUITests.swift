@@ -12,8 +12,21 @@
       "sv": "PIN-koder",
     ]
 
-    /// The prefix a Settings item carries when a pane needs one.
-    private static let settingsItemTitlePrefix = "Settings"
+    /// The languages the app ships, in the order the tests ask for them.
+    private static let languages = pinCodesLabels.keys.sorted()
+
+    /// The prefixes a Settings item carries in the app's shipped
+    /// languages, ASCII only: matching ignores case and diacritics.
+    private static let settingsItemTitles = ["Settings", "Asetukset", "Installningar"]
+
+    /// Matches a Settings item whatever shipped language the app speaks.
+    private static let settingsItemPredicate = NSPredicate(
+      format: "title BEGINSWITH[cd] %@ OR title BEGINSWITH[cd] %@ OR title BEGINSWITH[cd] %@",
+      argumentArray: settingsItemTitles
+    )
+
+    /// The menu bar lists the Apple menu first, then the application's.
+    private static let applicationMenuItemOrdinal = 1
 
     internal func testEnglishLocalCard() {
       checkLocalCard(language: "en")
@@ -54,21 +67,30 @@
           .exists)
     }
 
-    /// No pane is compiled in, so the app menu carries no Settings item
-    /// and the app has no window for one.
+    /// No pane is compiled in, so the application menu carries no
+    /// Settings item and the command that would open one opens no
+    /// window, in every language the app ships.
     internal func testNoSettingsItemWithoutASettingsPane() {
-      let app = UITestApp.launch(
-        arguments: ["--virtual-card", "absent", "--hide-diagnostics"])
-      defer { app.terminate() }
-      let windowMenu = app.menuBars.menuBarItems.containing(.menuItem, identifier: "RefineID")
-        .firstMatch
-      XCTAssertTrue(windowMenu.waitForExistence(timeout: UITestApp.appearTimeout))
-      windowMenu.click()
-      let settingsItems = app.menuItems.matching(
-        NSPredicate(
-          format: "title BEGINSWITH[c] %@ OR title BEGINSWITH[c] %@",
-          Self.settingsItemTitlePrefix, "Asetukset"))
-      XCTAssertEqual(settingsItems.count, 0)
+      for language in Self.languages {
+        let app = UITestApp.launch(
+          language: language,
+          arguments: ["--virtual-card", "absent", "--hide-diagnostics"])
+        defer { app.terminate() }
+        let applicationMenu = app.menuBars.menuBarItems
+          .element(boundBy: Self.applicationMenuItemOrdinal)
+        XCTAssertTrue(
+          applicationMenu.waitForExistence(timeout: UITestApp.appearTimeout),
+          "no application menu in \(language)")
+        applicationMenu.click()
+        XCTAssertFalse(
+          app.menuItems.matching(Self.settingsItemPredicate).firstMatch.exists,
+          "a Settings item appears in \(language)")
+        let windows = app.windows.count
+        app.typeKey(",", modifierFlags: [.command])
+        XCTAssertEqual(
+          app.windows.count, windows,
+          "the Settings command opened a window in \(language)")
+      }
     }
 
     private func openMainWindow(_ app: XCUIApplication) {

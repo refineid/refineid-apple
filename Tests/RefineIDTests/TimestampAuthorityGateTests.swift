@@ -32,7 +32,12 @@
         TimestampAuthorityStore.load(from: defaults)
           == TimestampAuthorityStore.defaultAuthority
       )
-      #expect(TimestampClient.authority == TimestampAuthorityStore.defaultAuthority)
+      // The client reads the same store through this domain: a stored
+      // address cannot steer it either.
+      #expect(
+        TimestampClient.authority(in: defaults)
+          == TimestampAuthorityStore.defaultAuthority
+      )
     }
 
     @Test
@@ -41,7 +46,7 @@
         TimestampAuthorityStore.defaultAuthority
           == "http://timestamp.sectigo.com/qualified"
       )
-      #expect(TimestampAuthorityStore.isUsable(TimestampClient.authority))
+      #expect(TimestampAuthorityStore.isUsable(TimestampClient.authority(in: .standard)))
     }
   }
 

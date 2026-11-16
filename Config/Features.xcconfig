@@ -29,9 +29,10 @@
 //       The Time Stamp Settings pane on macOS: the holder reads and
 //       changes the RFC 3161 time-stamp authority signatures ask.
 //       The store beneath stays built either way; with the pane
-//       compiled out nothing writes the key and every signature asks
-//       the shipped service. Off on macOS in every configuration for
-//       the MVP; the iPhone and iPad keep the Settings-app address.
+//       compiled out nothing writes the key, the store ignores a value
+//       stored earlier, and every signature asks the shipped service.
+//       Off on macOS in every configuration for the MVP; the iPhone
+//       and iPad keep the Settings-app address.
 //
 // macOS ships local card authentication, management and document signing
 // only (Documentation/decisions.md, 2026-11-14): the remote card over
