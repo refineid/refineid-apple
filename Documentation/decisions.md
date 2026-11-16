@@ -34,6 +34,30 @@
 
 The entries below record historical decisions, their timestamps, and rationale.
 
+### 2026-11-16 The forgetting follows the vault through an interface
+
+`RemoteUseForgetting` moved into `RappRequester` with the vault behind
+`PairingVault`: the five questions the forgetting asks of it, and
+`PairingVaultError` for its refusals, so the decisions the module makes stay
+the ones it made before - a record that cannot be read is destroyed, one
+the vault lost is passed over, a refusal keeps the click for the next
+attempt. `VaultPairingVault` answers them over `RappDeviceVault`,
+`RappPairRecord` and `RappPairRevocation`, which stay in `CardCore`, since a
+target in that package cannot depend on it without moving the resource
+bundle out of `CardCoreTests`' reach.
+
+The switch follows `RemoteUseFollowing` rather than a closure: the token
+registry conforms on macOS, so a move reaches it as before, and a test
+records the moves instead. `RemoteUseForgettingTests` runs in both tiers
+against a fake vault - nine tests over the stored click, the click's time,
+a pairing made after it, an unlistable vault, a refused forget, an
+unreadable record, a lost one, and a second click extending the first.
+
+The registry's own integration suites (`RemoteUseSwitchTests` and its five
+`+` files) still need the session, the browse and the vault together, so
+they remain behind the gate; what they assert of the forgetting now runs
+where they cannot.
+
 ### 2026-11-16 The remote card has no macOS build, and the module no longer hides it
 
 A macOS build with `REFINEID_REMOTE_CARD` on does not compile. Setting the

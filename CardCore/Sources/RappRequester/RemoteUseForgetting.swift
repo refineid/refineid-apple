@@ -1,0 +1,223 @@
+// Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
+
+import Foundation
+import os
+
+/// The holder's click turning remote use off, kept until every pairing it
+/// forgets is stored forgotten (RAPP v26.11.8 §4.6 item 6, STPA CC-100,
+/// CC-118).
+///
+/// The click is stored with its wall-clock time and the pairings it forgets
+/// before anything else happens. Those pairings are then marked forgotten at
+/// the click's time: each serves nothing more and keeps its key only for the
+/// `pairing_revoked` close, in the revocation backlog, which destroys it on
+/// the phone's echo or at its idle expiry. A pairing made after the click
+/// stays. What the vault does not let go stays under the stored click, which
+/// turning remote use on and the next launch finish first, so no launch
+/// restores remote use on after the holder turned it off. A click is cleared
+/// only by the attempt that finished it, never one stored after it.
+public enum RemoteUseForgetting {
+  /// What one attempt to finish the forgetting did.
+  public struct Outcome: Equatable, Sendable {
+    /// The pairings stored forgotten, or destroyed when the vault held a
+    /// record it could not read.
+    public var forgotten: [Data] = []
+
+    /// How many pairings, or listings of them, the vault refused; each is
+    /// tried again by the next attempt.
+    public var failures = 0
+
+    /// An attempt that did nothing.
+    public init() {
+      // Every count starts at zero.
+    }
+
+    /// An attempt that did `forgotten` and met `failures`.
+    public init(forgotten: [Data], failures: Int) {
+      self.forgotten = forgotten
+      self.failures = failures
+    }
+  }
+
+  /// The stored click: when it was made, and the pairings it forgets.
+  public struct Request: Codable, Equatable, Sendable {
+    /// When the holder clicked, in milliseconds since the Unix epoch.
+    public var clickedAtMs: UInt64
+
+    /// The pairings the click forgets, listed before any is forgotten.
+    public var pairIDs: [Data]
+
+    /// Whether the vault could not be listed when the click was stored: the
+    /// next attempt lists the pairings made up to the click before it forgets
+    /// any.
+    public var needsListing: Bool
+  }
+
+  /// Where the click is kept: the app's defaults, or a suite of their own.
+  public struct Store: Sendable {
+    /// The app's defaults.
+    public static let standard = Self(suiteName: nil)
+
+    /// The defaults suite, or nil for the app's own.
+    public let suiteName: String?
+
+    fileprivate var defaults: UserDefaults {
+      suiteName.flatMap(UserDefaults.init(suiteName:)) ?? .standard
+    }
+
+    /// A store over the defaults suite `suiteName`, or the app's own.
+    public init(suiteName: String?) {
+      self.suiteName = suiteName
+    }
+  }
+
+  /// The defaults key the click is stored under.
+  public static let requestKey = "fi.refineid.rapp.remote-use-off-request"
+
+  /// Serialises each read, compare and write of the stored click.
+  private static let lock = OSAllocatedUnfairLock()
+
+  /// The click whose forgetting is not finished; nil when none is pending.
+  public static func pending(in store: Store) -> Request? {
+    lock.withLock { read(store) }
+  }
+
+  /// Stores the holder's click at `clickedAtMs`, forgetting the pairings
+  /// `vault` holds, before the forgetting starts.
+  public static func request(
+    at clickedAtMs: UInt64, listing vault: any PairingVault, in store: Store
+  ) {
+    do {
+      request(at: clickedAtMs, forgetting: try vault.activePairIDs(), listed: true, in: store)
+    } catch {
+      request(at: clickedAtMs, forgetting: [], listed: false, in: store)
+    }
+  }
+
+  /// Stores the holder's click at `clickedAtMs` before the forgetting starts.
+  ///
+  /// It forgets `pairIDs`, and, when the vault was not `listed`, whatever it
+  /// holds from up to the click. A click still pending is covered: its
+  /// pairings stay listed, and the later time counts.
+  public static func request(
+    at clickedAtMs: UInt64, forgetting pairIDs: [Data], listed: Bool, in store: Store
+  ) {
+    lock.withLock {
+      let earlier = read(store)
+      write(
+        Request(
+          clickedAtMs: max(earlier?.clickedAtMs ?? clickedAtMs, clickedAtMs),
+          pairIDs: merged((earlier?.pairIDs ?? []) + pairIDs),
+          needsListing: !listed || earlier?.needsListing == true),
+        to: store)
+    }
+  }
+
+  /// Stores forgotten the pairings the pending click forgets and clears that
+  /// click once each is; nothing without a click.
+  ///
+  /// Runs off the main thread: quitting waits on it while the main thread
+  /// answers the quit. A click stored while it ran stays for the next attempt.
+  public static func finish(in vault: any PairingVault, store: Store) -> Outcome {
+    guard var request = pending(in: store) else { return Outcome() }
+    if request.needsListing {
+      let listed: [Data]
+      do {
+        listed = try listPairings(in: vault, madeBy: request.clickedAtMs)
+      } catch {
+        return Outcome(forgotten: [], failures: 1)
+      }
+      var updated = request
+      updated.pairIDs = merged(request.pairIDs + listed)
+      updated.needsListing = false
+      guard replace(request, with: updated, in: store) else {
+        return Outcome()
+      }
+      request = updated
+    }
+    let outcome = forget(request.pairIDs, at: request.clickedAtMs, in: vault)
+    if outcome.failures == 0 {
+      clear(request, in: store)
+    }
+    return outcome
+  }
+
+  /// `pairIDs` once each, in a stable order.
+  private static func merged(_ pairIDs: [Data]) -> [Data] {
+    Array(Set(pairIDs)).sorted { first, second in first.lexicographicallyPrecedes(second) }
+  }
+
+  /// The pairings `vault` holds that were made up to `madeBy`.
+  ///
+  /// - Throws: What the vault throws when it cannot be listed.
+  private static func listPairings(in vault: any PairingVault, madeBy clickedAtMs: UInt64)
+    throws -> [Data]
+  {
+    try vault.activePairIDs().filter { pairID in
+      let created = try? vault.createdAtMs(of: pairID)
+      return (created ?? clickedAtMs) <= clickedAtMs
+    }
+  }
+
+  /// Stores forgotten at `clickedAtMs` every pairing `pairIDs` names that
+  /// `vault` still holds; one already forgotten keeps its first time, and a
+  /// record the vault holds but cannot read, which can deliver no close, is
+  /// destroyed.
+  private static func forget(
+    _ pairIDs: [Data],
+    at clickedAtMs: UInt64,
+    in vault: any PairingVault
+  ) -> Outcome {
+    var outcome = Outcome()
+    let held = Set((try? vault.activePairIDs()) ?? pairIDs)
+    for pairID in pairIDs where held.contains(pairID) {
+      do {
+        if try vault.forgottenAtMs(of: pairID) == nil {
+          try vault.forget(pairID, at: clickedAtMs)
+        }
+      } catch PairingVaultError.malformed {
+        do {
+          try vault.destroy(pairID)
+        } catch {
+          outcome.failures += 1
+          continue
+        }
+      } catch PairingVaultError.notFound {
+        continue
+      } catch {
+        outcome.failures += 1
+        continue
+      }
+      outcome.forgotten.append(pairID)
+    }
+    return outcome
+  }
+
+  /// Writes `updated` over `request` while it is still the stored click;
+  /// false when another was stored meanwhile.
+  private static func replace(_ request: Request, with updated: Request, in store: Store) -> Bool {
+    lock.withLock {
+      guard read(store) == request else { return false }
+      write(updated, to: store)
+      return true
+    }
+  }
+
+  /// Clears `request` while it is still the stored click.
+  private static func clear(_ request: Request, in store: Store) {
+    lock.withLock {
+      guard read(store) == request else { return }
+      store.defaults.removeObject(forKey: requestKey)
+    }
+  }
+
+  private static func read(_ store: Store) -> Request? {
+    guard let data = store.defaults.data(forKey: requestKey) else { return nil }
+    return try? JSONDecoder().decode(Request.self, from: data)
+  }
+
+  private static func write(_ request: Request, to store: Store) {
+    guard let data = try? JSONEncoder().encode(request) else { return }
+    store.defaults.set(data, forKey: requestKey)
+  }
+}
