@@ -101,9 +101,15 @@ internal enum TimestampClient {
   /// Exponent at which the one-second progression reaches its cap.
   private static let maximumRetryExponent = 6
 
+  /// Active per-document timestamp session shared by stages of one signature.
+  @TaskLocal internal static var documentSession: TimestampThrottle.DocumentSession?
+
   #if DEBUG
     /// Explicit trust anchor resolver injected for tests.
     @TaskLocal internal static var anchorResolver: (@Sendable (Date) async throws -> [Data])?
+
+    /// Explicit timestamp throttle injected for tests.
+    @TaskLocal internal static var throttle: TimestampThrottle?
   #endif
 
   /// The RFC 3161 time-stamp service every signature asks.
@@ -171,9 +177,12 @@ internal enum TimestampClient {
   internal static func token(
     over digest: Data
   ) async throws -> TimestampTokenVerifier.VerifiedToken {
+    let session = Self.activeDocumentSession()
     do {
       return try await Self.withTransientRetry {
-        try await Self.token(over: digest, from: Self.authority(in: .standard))
+        try await session.perform {
+          try await Self.token(over: digest, from: Self.authority(in: .standard))
+        }
       }
     } catch is CancellationError {
       throw CancellationError()
@@ -193,9 +202,12 @@ internal enum TimestampClient {
   internal static func compactToken(
     over digest: Data
   ) async throws -> Data {
+    let session = Self.activeDocumentSession()
     do {
       return try await Self.withTransientRetry {
-        try await Self.compactToken(over: digest, from: Self.authority(in: .standard))
+        try await session.perform {
+          try await Self.compactToken(over: digest, from: Self.authority(in: .standard))
+        }
       }
     } catch is CancellationError {
       throw CancellationError()

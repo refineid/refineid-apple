@@ -20,6 +20,13 @@ The application initiates outbound connections for three purposes only:
    - The timestamp authority URL is configurable in Settings when
      `FEATURE_TIMESTAMP_CONFIG` is enabled; the macOS MVP compiles that
      pane out and always asks the shipped qualified service.
+   - Per-document spacing: `TimestampClient` spaces initial (and retried)
+     timestamp requests for separate documents and containers by at least 15
+     monotonic seconds (`TimestampThrottle.minimumDocumentSpacing`) to honor
+     the authority's fair-use policy, while allowing follow-up timestamps on
+     the same document (such as an archive timestamp after a signature
+     timestamp) without intra-document delay. Single user-initiated Settings
+     probes are unthrottled.
 2. **Revocation and certificate chain checking (OCSP, CRL, caIssuers)**
    - RFC 6960 Online Certificate Status Protocol (OCSP), RFC 5280
      Certificate Revocation List (CRL) checks, and Authority Information
