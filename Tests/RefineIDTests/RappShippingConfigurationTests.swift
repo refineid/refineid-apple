@@ -107,6 +107,13 @@ internal struct RappShippingConfigurationTests {
           "\"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]\" = \"Config/RefineID-Store.entitlements\";"
       ).count - 1 == 4)
     #expect(!project.contains("RefineID-Debug.entitlements"))
+    #expect(!project.contains("Sources/Settings.bundle in Resources"))
+    let settingsCopy = try #require(
+      project.split(whereSeparator: \.isNewline).first { line in
+        line.contains("Sources/Settings.bundle in Copy iOS Resources")
+      })
+    #expect(settingsCopy.contains("platformFilter = ios"))
+    #expect(!settingsCopy.contains("platformFilters"))
     let store = try Self.plist("Config/RefineID-Store.entitlements")
     #expect(store["com.apple.security.device.bluetooth"] == nil)
     #expect(store["com.apple.security.network.client"] as? Bool == true)
@@ -225,6 +232,8 @@ internal struct RappShippingConfigurationTests {
       source.contains("CFBundleDocumentTypes present on macOS without document verification"))
     #expect(source.contains("ee.ria.bdoc UTI declared on macOS without document verification"))
     #expect(source.contains("org.etsi.asic-e UTI missing on macOS; ASiC-E signing needs it"))
+    #expect(source.contains("Settings.bundle present on macOS"))
+    #expect(source.contains("Settings.bundle missing from the iOS app"))
     #expect(source.contains("iPhone-only artifact requiring iOS 26.0 and an NFC antenna"))
   }
 

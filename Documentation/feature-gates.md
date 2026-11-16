@@ -32,9 +32,10 @@ Changing one without the others is a broken gate.
    registry, the browse and the vault together are gone with the Mac
    requester they tested.
 2. Packaging. `RefineID.xcodeproj/project.pbxproj` assigns
-   per-SDK entitlements and Info.plist files and embeds the
-   extensions, with platform filters where an extension ships on
-   one platform only.
+   per-SDK entitlements and Info.plist files and places extensions and
+   single-platform resources (`Sources/Settings.bundle`) in copy phases
+   with `platformFilter`, since `PBXResourcesBuildPhase` does not honor
+   `platformFilter`.
 3. Inspection. `inspect-archive` in
    `Scripts/apple-app-store-connect-release-manager.swift` holds
    every shipping candidate to the reviewed shape: exact
@@ -106,6 +107,7 @@ configuration, with `sdk=macosx*` overrides:
 | Token extension entitlements | `Config/TokenExtension-iOS.entitlements` (keychain) | `Config/TokenExtension.entitlements` (sandbox, smartcard, app group, keychain; no network) |
 | RAPP extension entitlements | `Config/RappTokenExtension-iOS.entitlements` (keychain) | `Config/RappTokenExtension.entitlements` (sandbox, network client, app group, keychain; no smartcard) — unused while the embed is iOS-only |
 | Discovery extension entitlements | `Config/DiscoveryExtension-iOS.entitlements` (keychain) | `Config/DiscoveryExtension.entitlements` — unused while the embed is iOS-only |
+| Settings bundle | `Sources/Settings.bundle` (copy phase, `platformFilter = ios`) | None |
 | Embeds | Token, RAPP, discovery | Token only |
 
 Only the files above take part in the build. Other files under
