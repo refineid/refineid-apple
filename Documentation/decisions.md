@@ -34,6 +34,29 @@
 
 The entries below record historical decisions, their timestamps, and rationale.
 
+### 2026-11-16 The remote card has no macOS build, and the module no longer hides it
+
+A macOS build with `REFINEID_REMOTE_CARD` on does not compile. Setting the
+flag in `Config/LocalFeatures.xcconfig` and building the Mac destination
+stops at one symbol: `RappBleAppearanceWatcher`, which
+`CardCore/Sources/CardCore/RappBleAppearanceWatcher.swift` gates
+`#if canImport(CoreBluetooth) && canImport(RappEngine) && !os(macOS)`. That
+gate came with 2026-11-14's decision to gate the remote card off the macOS
+MVP (#439): a package cannot see the flag, and the macOS app must not link
+CoreBluetooth while the feature is off, so the package keeps the
+Bluetooth-driven types on the platforms that ship them. The consequence is
+that the Mac requester's registry and pairing code have no build at all -
+not a new break, and not one this module can fix.
+
+`RappRequester` now carries the whole decision layer on both platforms, so
+it is no longer a second reason the configuration fails: with the flag on,
+the only error left is the Bluetooth one. The remote-use switch moved there
+with its decision core behind two interfaces: `RemoteUseWatch` for the two
+watches that ask for the permissions, and `RemoteUseSetting` for the choice
+`RemoteAccessGate` persists. The app keeps the shared instance, the two
+platform watches and the words; `RemoteUseSwitchDecisionTests` drives every
+transition through test doubles in both tiers.
+
 ### 2026-11-16 The requester's decisions live in a module both platforms build
 
 The identity line and the phone's card request sat in `Sources/App` behind
@@ -44,9 +67,9 @@ decisions only, with no views, no strings and no platform API.
 module's type; `RequesterFacts`, `IdentityLine` and `PhoneCardRequest`
 moved whole. The app, the test host and the test bundle link the product.
 
-- The module cannot see `REFINEID_REMOTE_CARD`, so it keeps the same split
-  by platform: the phone's facts and cases are `#if os(iOS)`, which is
-  exactly the configurations the flag is on for.
+- The module cannot see `REFINEID_REMOTE_CARD`, so it carries the phone's
+  facts and cases on every platform; a build that leaves the phone out
+  never fills them, and every reader of them in the app is behind the flag.
 - `RequesterFacts` takes the four local facts in its initializer and the
   phone's fields are set one by one, which keeps the parameters in hand.
 - The identity suites opened in #467 now run where the phone exists:

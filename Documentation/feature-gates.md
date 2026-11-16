@@ -18,8 +18,13 @@ Changing one without the others is a broken gate.
    stays in the tree behind the switch, and re-enabling is the
    flag back, never resuscitated dead code. Targets outside Xcode
    (SwiftPM packages) cannot see these flags and gate the same
-   split by platform instead: `RappRequester` keeps the phone's
-   facts and cases behind `#if os(iOS)` for that reason.
+   split by platform instead. `CardCore` keeps the Bluetooth-driven
+   remote-card types off macOS for that reason, and the consequence is
+   recorded: a macOS build with `REFINEID_REMOTE_CARD` on does not
+   compile, so the Mac requester is verified through the package's
+   decisions rather than a Mac binary. `RappRequester` carries the phone's
+   decisions on every platform, because leaving them out of macOS is what
+   would make a flag-on macOS build fail there too.
 2. Packaging. `RefineID.xcodeproj/project.pbxproj` assigns
    per-SDK entitlements and Info.plist files and embeds the
    extensions, with platform filters where an extension ships on

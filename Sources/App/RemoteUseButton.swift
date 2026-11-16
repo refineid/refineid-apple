@@ -2,6 +2,7 @@
 
 #if os(macOS) && REFINEID_REMOTE_CARD
 
+  import RappRequester
   import SwiftUI
 
   /// The button at the right end of the window's toolbar, in the title bar.

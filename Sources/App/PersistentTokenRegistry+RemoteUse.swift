@@ -4,6 +4,7 @@
   import CardCore
   import Foundation
   import RappEngine
+  import RappRequester
 
   /// The registry's gate on remote use, and on the Mac its answer to the
   /// remote-use switch, which is the pairing (hierarchy specification §5.2).

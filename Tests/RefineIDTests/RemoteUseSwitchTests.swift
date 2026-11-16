@@ -9,6 +9,7 @@
   import Foundation
   import Network
   import RappEngine
+  import RappRequester
   import Testing
 
   @testable import RefineIDTestHost
