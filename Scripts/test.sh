@@ -133,9 +133,11 @@ case "${mode}" in
     Scripts/dss-gate.sh \
       || fail "A Swift signer's document is below the release level in DSS."
 
-    step "12. Running the direct-download DMG builder command-line tests"
+    step "12. Running the direct-download DMG builder and release manager command-line tests"
     swift Scripts/TestMacosNotarizedDmgBuilder.swift \
       || fail "The direct-download DMG builder command-line tests failed."
+    swift Scripts/TestAppleAppStoreConnectReleaseManager.swift \
+      || fail "The App Store Connect release manager command-line tests failed."
 
     Scripts/QualityReceipt.py verify-head "${checked_head}" "${checked_tree}" \
       || fail "The checked-out commit changed during push checks."
