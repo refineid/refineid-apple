@@ -91,11 +91,13 @@ internal enum CertificatePath {
     }
   }
 
-  /// Whether a document signer may sign: no CA, a Key Usage without
-  /// certificate or CRL signing, and no critical extension this
-  /// verifier does not process (RFC 5280 sections 4.2.1.3, 4.2.1.9).
+  /// Whether a document signer may sign: end-entity BasicConstraints,
+  /// KeyUsage asserting digitalSignature or contentCommitment without
+  /// certificate or CRL signing, compatible ExtendedKeyUsage when
+  /// present, and no unrecognized critical extension (RFC 5280
+  /// sections 4.2.1.3, 4.2.1.9, 4.2.1.12; EN 319 412-2 clause 4.3.2).
   internal static func isFitToSign(_ certificate: Data) -> Bool {
     guard let parsed = CertificateIssuer.parsed(certificate) else { return false }
-    return CertificateIssuer.isPermittedEndEntity(parsed)
+    return CertificateIssuer.isPermittedDocumentSigner(parsed)
   }
 }

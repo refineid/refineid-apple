@@ -273,9 +273,13 @@ public enum DocumentVerification {
       anchors: anchors.certificates(for: .certificateIssuing, at: date),
       at: date
     )
-    guard !path.isEmpty, CertificatePath.isFitToSign(signerCertificate) else {
+    guard
+      !path.isEmpty,
+      CertificatePath.isFitToSign(signerCertificate),
+      path.dropFirst().dropLast().allSatisfy(CertificateIssuer.permitsDocumentSigningIssuance)
+    else {
       return (
-        path,
+        [],
         .unanchored(
           directIssuer: CertificatePath.directIssuer(
             of: signerCertificate, candidates: evidence.certificates, at: date))

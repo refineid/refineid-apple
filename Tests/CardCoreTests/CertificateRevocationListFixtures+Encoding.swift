@@ -210,7 +210,9 @@ extension CertificateRevocationListFixtures {
     }
     let constraints = DerEncoder.sequence(constraintFields)
     let usage: Data
-    if description.malformedKeyUsage {
+    if let customKeyUsageContent = description.customKeyUsageContent {
+      usage = customKeyUsageContent
+    } else if description.malformedKeyUsage {
       usage = Self.malformedIssuerKeyUsage
     } else if description.isCertificateAuthority {
       usage =
@@ -237,6 +239,7 @@ extension CertificateRevocationListFixtures {
         )
       )
     }
+    extensions.append(contentsOf: description.additionalExtensions)
     return DerEncoder.sequence(extensions)
   }
 
