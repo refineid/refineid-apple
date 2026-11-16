@@ -93,7 +93,7 @@ public final class RemoteUseSwitch {
   public init(
     bluetooth: any RemoteUseWatch,
     localNetwork: any RemoteUseWatch,
-    setting: any RemoteUseSetting = PersistedRemoteUseSetting(),
+    setting: any RemoteUseSetting,
     follow: @escaping @MainActor (Move) -> Void
   ) {
     isOn = setting.isEnabled

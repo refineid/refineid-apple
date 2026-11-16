@@ -40,7 +40,7 @@ private let package = Package(
     // the phone's cases are compiled where REFINEID_REMOTE_CARD is on.
     .target(
       name: "RappRequester",
-      dependencies: ["CardCore", "RappEngine"],
+      dependencies: ["RappEngine"],
       path: "Sources/RappRequester"),
     // Tests live in the Xcode project's Tests/CardCoreTests bundle target
     // so one scheme runs them locally and in Xcode Cloud.

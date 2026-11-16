@@ -57,6 +57,14 @@ watches that ask for the permissions, and `RemoteUseSetting` for the choice
 platform watches and the words; `RemoteUseSwitchDecisionTests` drives every
 transition through test doubles in both tiers.
 
+`RappRequester` depends on `RappEngine` alone. A target that also depended
+on `CardCore` made Xcode place the `CardCore_CardCore` resource bundle
+where `CardCoreTests` could not find it, and every test in that bundle
+died on `unable to find bundle named CardCore_CardCore`. The persisted
+choice therefore belongs to the app: the module declares
+`RemoteUseSetting`, and `RemoteUseGateSetting` implements it over
+`RemoteAccessGate` beside the app's other platform code.
+
 ### 2026-11-16 The requester's decisions live in a module both platforms build
 
 The identity line and the phone's card request sat in `Sources/App` behind

@@ -9,7 +9,8 @@
     /// and the registry that follows the paired phone.
     @MainActor internal static let shared = RemoteUseSwitch(
       bluetooth: BluetoothReadinessWatch(),
-      localNetwork: LocalNetworkPermissionWatch()
+      localNetwork: LocalNetworkPermissionWatch(),
+      setting: RemoteUseGateSetting()
     ) { move in
       PersistentTokenRegistry.shared.remoteUseChanged(move)
     }
