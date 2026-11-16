@@ -75,6 +75,21 @@ internal struct VoiceOverStringsTests {
     return dict.values.allSatisfy(leavesComplete)
   }
 
+  /// Every spoken string inside a localization entry, including plural leaves.
+  private static func spokenStrings(in node: Any) -> [String] {
+    guard let dict = node as? [String: Any] else {
+      return []
+    }
+    if let unit = dict["stringUnit"] as? [String: Any],
+      let value = unit["value"] as? String
+    {
+      return [value]
+    }
+    return dict.keys.sorted().flatMap { key in
+      spokenStrings(in: dict[key] as Any)
+    }
+  }
+
   @Test("Every catalog key speaks Finnish and Swedish")
   internal func everyKeySpeaksFinnishAndSwedish() throws {
     for path in Self.catalogs {
@@ -103,7 +118,7 @@ internal struct VoiceOverStringsTests {
         "fi": "Pudota asiakirjat tähän allekirjoitettavaksi.",
         "sv": "Släpp dokument här för att underteckna dem.",
       ],
-      "Sign…": ["fi": "Allekirjoita…", "sv": "Signera…"],
+      "Sign…": ["fi": "Allekirjoita…", "sv": "Underteckna…"],
       "PIN Codes": ["fi": "PIN-koodit", "sv": "PIN-koder"],
       "A PIN code needs a reset": [
         "fi": "PIN-koodi on palautettava",
@@ -134,7 +149,7 @@ internal struct VoiceOverStringsTests {
       "Reading the card…": ["fi": "Luetaan korttia…", "sv": "Läser kortet…"],
       "The signed document cannot replace the original.": [
         "fi": "Allekirjoitettu asiakirja ei voi korvata alkuperäistä.",
-        "sv": "Det signerade dokumentet kan inte ersätta originalet.",
+        "sv": "Det undertecknade dokumentet kan inte ersätta originalet.",
       ],
     ]
     for (key, translations) in words {
@@ -169,6 +184,31 @@ internal struct VoiceOverStringsTests {
         #expect(
           try Self.value(for: key, language: language, in: strings) == text,
           "\(key) \(language)")
+      }
+    }
+  }
+
+  /// Finland-Swedish legal and administrative text uses the `underteckna` /
+  /// `underskrift` family (Finlex, EU Regulation 910/2014 Swedish text, Kotus
+  /// Sprakbruk) rather than the `signera` / `signering` stem.
+  @Test("Every Swedish catalog string uses underteckna/underskrift terminology")
+  internal func swedishCatalogStringsAvoidSigneraStem() throws {
+    for path in Self.catalogs {
+      let strings = try Self.catalog(at: path)
+      for (key, entry) in strings.sorted(by: { $0.key < $1.key }) {
+        let localizations = try #require(
+          (entry as? [String: Any])?["localizations"] as? [String: Any],
+          "\(path) \(key)")
+        let swedish = try #require(
+          localizations["sv"] as? [String: Any],
+          "\(path) \(key) has no sv")
+        let values = Self.spokenStrings(in: swedish)
+        #expect(!values.isEmpty, "\(path) \(key) sv")
+        for text in values {
+          #expect(
+            text.range(of: "signer", options: .caseInsensitive) == nil,
+            "\(path) \(key) sv uses signer- stem: \(text)")
+        }
       }
     }
   }

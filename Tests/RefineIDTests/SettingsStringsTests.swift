@@ -88,12 +88,12 @@
           TranslationRow(
             key: "Signing Service",
             finnish: "Allekirjoituspalvelu",
-            swedish: "Signeringstjänst"
+            swedish: "Underskriftstjänst"
           ),
           TranslationRow(
             key: "Signature Creation Service",
             finnish: "Allekirjoituspalvelu (Signature Creation Service)",
-            swedish: "Signeringstjänst (Signature Creation Service)"
+            swedish: "Underskriftstjänst (Signature Creation Service)"
           ),
         ],
         in: try Self.catalogStrings()

@@ -504,7 +504,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Signera dokument"
+            "value": "Underteckna dokument"
           }
         }
       }
@@ -795,7 +795,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Den signerade filen har inte sparats."
+            "value": "Den undertecknade filen har inte sparats."
           }
         }
       }
@@ -812,7 +812,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "De signerade filerna har inte sparats."
+            "value": "De undertecknade filerna har inte sparats."
           }
         }
       }
@@ -1229,7 +1229,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ signerat"
+            "value": "%@ undertecknat"
           }
         }
       }
@@ -2805,7 +2805,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dokumentsignering"
+            "value": "Undertecknande av dokument"
           }
         }
       }
@@ -2821,7 +2821,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dokument att signera"
+            "value": "Dokument att underteckna"
           }
         }
       }
@@ -2904,7 +2904,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dra ett dokument hit för att signera det"
+            "value": "Dra ett dokument hit för att underteckna det"
           }
         }
       }
@@ -5417,7 +5417,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Signera"
+            "value": "Underteckna"
           }
         }
       }
@@ -5439,7 +5439,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Signeringstjänst (Signature Creation Service)"
+            "value": "Underskriftstjänst (Signature Creation Service)"
           }
         }
       }
@@ -5505,7 +5505,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Signeringstjänst"
+            "value": "Underskriftstjänst"
           }
         }
       }
@@ -5537,7 +5537,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Signera…"
+            "value": "Underteckna…"
           }
         }
       }
@@ -6188,7 +6188,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Den signerade ASiC-E-filen kan inte ersätta en av originalfilerna."
+            "value": "Den undertecknade ASiC-E-filen kan inte ersätta en av originalfilerna."
           }
         }
       }
@@ -6204,7 +6204,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Det signerade dokumentet kan inte ersätta originalet."
+            "value": "Det undertecknade dokumentet kan inte ersätta originalet."
           }
         }
       }
@@ -6626,7 +6626,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Var det signerade dokumentet ska sparas."
+            "value": "Var det undertecknade dokumentet ska sparas."
           }
         }
       }
@@ -6642,7 +6642,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Var de signerade dokumenten ska sparas."
+            "value": "Var de undertecknade dokumenten ska sparas."
           }
         }
       }
@@ -6658,7 +6658,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Var den signerade ASiC-E-filen ska sparas."
+            "value": "Var den undertecknade ASiC-E-filen ska sparas."
           }
         }
       }
@@ -6674,7 +6674,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skriv ett namn framför signeringstiden."
+            "value": "Skriv ett namn framför underskriftstiden."
           }
         }
       }
@@ -7662,7 +7662,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Signerat och sparat."
+            "value": "Undertecknat och sparat."
           }
         }
       }
@@ -7694,7 +7694,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld dokument signerade och sparade."
+            "value": "%lld dokument undertecknade och sparade."
           }
         }
       }

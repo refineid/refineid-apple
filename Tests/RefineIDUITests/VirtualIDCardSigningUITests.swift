@@ -91,7 +91,7 @@
     internal func testSigningScreenIsLocalizedInSwedish() {
       assertSigningLocalization(
         language: "sv",
-        labels: ["Signeringssätt", "Separat (PDF)", "Som paket (ASiC-E)"])
+        labels: ["Underskriftssätt", "Separat (PDF)", "Som paket (ASiC-E)"])
     }
   }
 #endif

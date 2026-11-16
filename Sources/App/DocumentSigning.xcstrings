@@ -42,7 +42,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Det virtuella kortet godkände signeringsbegäran"
+            "value" : "Det virtuella kortet godkände underskriftsbegäran"
           }
         }
       }
@@ -308,7 +308,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signeringskortet byttes. Ingenting skrevs."
+            "value" : "Underskriftskortet byttes. Ingenting skrevs."
           }
         }
       }
@@ -330,7 +330,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kortet slutförde inte signeringen."
+            "value" : "Kortet slutförde inte underskriften."
           }
         }
       }
@@ -353,7 +353,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kortet är spärrat och kan inte signera."
+            "value" : "Kortet är spärrat och kan inte underteckna."
           }
         }
       }
@@ -399,7 +399,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Den signerade ASiC-E-filen kunde inte skrivas."
+            "value" : "Den undertecknade ASiC-E-filen kunde inte skrivas."
           }
         }
       }
@@ -445,7 +445,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Den signerade filen kunde inte sparas."
+            "value" : "Den undertecknade filen kunde inte sparas."
           }
         }
       }
@@ -468,7 +468,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dokumenten kunde inte signeras."
+            "value" : "Dokumenten kunde inte undertecknas."
           }
         }
       }
@@ -925,7 +925,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signeringsbegäran avbröts."
+            "value" : "Underskriftsbegäran avbröts."
           }
         }
       }
@@ -947,7 +947,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kortet togs bort före signeringen."
+            "value" : "Kortet togs bort före undertecknandet."
           }
         }
       }
@@ -969,7 +969,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Certifikatet på telefonens kort kan inte användas för signering."
+            "value" : "Certifikatet på telefonens kort kan inte användas för undertecknande."
           }
         }
       }
@@ -991,7 +991,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signeringsbegäran avböjdes på telefonen."
+            "value" : "Underskriftsbegäran avböjdes på telefonen."
           }
         }
       }
@@ -1236,7 +1236,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signeringen misslyckades"
+            "value" : "Undertecknandet misslyckades"
           }
         }
       }
@@ -1258,7 +1258,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Inget signerat dokument skapades: inget betrott rotcertifikat fanns tillgängligt för kortets certifikat, så materialet för långtidsvalidering kunde inte samlas in. Kortet ombads inte att signera med signaturkod 2."
+            "value" : "Inget undertecknat dokument skapades: inget betrott rotcertifikat fanns tillgängligt för kortets certifikat, så materialet för långtidsvalidering kunde inte samlas in. Kortet ombads inte att underteckna med signaturkod 2."
           }
         }
       }
@@ -1281,7 +1281,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kortet signerade oväntade data. Ingenting skrevs."
+            "value" : "Kortet undertecknade oväntade data. Ingenting skrevs."
           }
         }
       }
@@ -1486,7 +1486,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signera dokument"
+            "value" : "Underteckna dokument"
           }
         }
       }
@@ -1509,7 +1509,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signera dokument"
+            "value" : "Underteckna dokument"
           }
         }
       }
@@ -1554,7 +1554,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signeringssätt"
+            "value" : "Underskriftssätt"
           }
         }
       }
@@ -1600,7 +1600,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signerar"
+            "value" : "Undertecknar"
           }
         }
       }
@@ -1669,7 +1669,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dokumenten är signerade"
+            "value" : "Dokumenten är undertecknade"
           }
         }
       }
@@ -1691,7 +1691,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signera"
+            "value" : "Underteckna"
           }
         }
       }
@@ -1781,7 +1781,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ändrat efter signering"
+            "value" : "Ändrat efter undertecknandet"
           }
         }
       }
@@ -1804,7 +1804,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Välj ett signerat dokument"
+            "value" : "Välj ett undertecknat dokument"
           }
         }
       }
@@ -2298,7 +2298,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signeringstid"
+            "value" : "Underskriftstid"
           }
         }
       }
