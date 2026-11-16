@@ -65,31 +65,6 @@ live OCSP/CRL/AIA material for the signature's long-term validation store, and
 the EU trusted lists to anchor the timestamp authority's certificate (under
 2026-11-07's no-shipped-CA-root rule).
 
-### 2026-11-16 The remote card's macOS question is settled
-
-The answer to #478: the remote card over RAPP ships in a later release, and
-until then the configuration that must build and stay clean is the local
-macOS one, the flag off in every macOS configuration. Nothing is done to
-bring the Mac requester back now - no CoreBluetooth linkage, no RAPP
-entitlement or plist key, no Settings pane - so the gate's "no trace" rule
-stands as written. Reopening it is the release, which is the flag, the Mac
-app's Bluetooth entitlement, and the `!os(macOS)` gate lifted off the
-Bluetooth types.
-
-What followed in the tree: the six `RemoteUseSwitchTests` files drove
-`PersistentTokenRegistry`, the keychain vault and the CoreBluetooth watch
-together, compiled in no configuration, and called interfaces the switch's
-seam replaced. They are retired rather than kept as text no build reads.
-What they asserted at the decision level already runs in `RappRequester` -
-the launch, click, quit and blockage decisions in
-`RemoteUseSwitchDecisionTests`, the forgetting in
-`RemoteUseForgettingTests` - and three cases the decision suite lacked were
-ported there: a launch with a card already in the reader starting
-suspended, a quit while suspended that turns off and starts nothing when
-the card leaves, and the holder's click off while suspended. The rest was
-session, browse, backlog and vault integration for a feature that does not
-ship on macOS; reopening it starts from those suites in the history.
-
 ### 2026-11-16 The forgetting follows the vault through an interface
 
 `RemoteUseForgetting` moved into `RappRequester` with the vault behind
@@ -109,41 +84,18 @@ against a fake vault - nine tests over the stored click, the click's time,
 a pairing made after it, an unlistable vault, a refused forget, an
 unreadable record, a lost one, and a second click extending the first.
 
-The registry's own integration suites (`RemoteUseSwitchTests` and its five
-`+` files) needed the session, the browse and the vault together, compiled
-in no configuration, and called interfaces this slice replaced. They were
-retired the same day; the entry below records what was ported out of them.
-
-### 2026-11-16 The remote card has no macOS build, and the module no longer hides it
-
-A macOS build with `REFINEID_REMOTE_CARD` on does not compile. Setting the
-flag in `Config/LocalFeatures.xcconfig` and building the Mac destination
-stops at one symbol: `RappBleAppearanceWatcher`, which
-`CardCore/Sources/CardCore/RappBleAppearanceWatcher.swift` gates
-`#if canImport(CoreBluetooth) && canImport(RappEngine) && !os(macOS)`. That
-gate came with 2026-11-14's decision to gate the remote card off the macOS
-MVP (#439): a package cannot see the flag, and the macOS app must not link
-CoreBluetooth while the feature is off, so the package keeps the
-Bluetooth-driven types on the platforms that ship them. The consequence is
-that the Mac requester's registry and pairing code have no build at all -
-not a new break, and not one this module can fix.
-
-`RappRequester` now carries the whole decision layer on both platforms, so
-it is no longer a second reason the configuration fails: with the flag on,
-the only error left is the Bluetooth one. The remote-use switch moved there
-with its decision core behind two interfaces: `RemoteUseWatch` for the two
-watches that ask for the permissions, and `RemoteUseSetting` for the choice
-`RemoteAccessGate` persists. The app keeps the shared instance, the two
-platform watches and the words; `RemoteUseSwitchDecisionTests` drives every
-transition through test doubles in both tiers.
+The platform split that keeps the package honest: a package cannot see
+`REFINEID_REMOTE_CARD`, and the macOS app must not link CoreBluetooth while
+the feature is off, so `CardCore` keeps its Bluetooth-driven types off macOS
+and `RappRequester` carries the requester's decisions on every platform.
 
 `RappRequester` depends on `RappEngine` alone. A target that also depended
 on `CardCore` made Xcode place the `CardCore_CardCore` resource bundle
 where `CardCoreTests` could not find it, and every test in that bundle
 died on `unable to find bundle named CardCore_CardCore`. The persisted
-choice therefore belongs to the app: the module declares
-`RemoteUseSetting`, and `RemoteUseGateSetting` implements it over
-`RemoteAccessGate` beside the app's other platform code.
+choice and the vault therefore belong to the app: the module declares
+`RemoteUseSetting` and `PairingVault`, and `RemoteUseGateSetting` and
+`VaultPairingVault` implement them beside the app's other platform code.
 
 ### 2026-11-16 The requester's decisions live in a module both platforms build
 

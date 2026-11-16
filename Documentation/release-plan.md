@@ -97,9 +97,11 @@ User story is:
 
 RAPP stays out of the macOS MVP: no pairing, no remote-use switch,
 no remote signing, and no remote-card extension. It ships on macOS as
-the requester when it returns; until then the independent RAPP
-security review gates the iPhone work, not this candidate. SCS remains
-implemented for future qualification.
+the requester in a later release, which is the flag, the Mac app's
+Bluetooth entitlement, and the `!os(macOS)` gate lifted off `CardCore`'s
+Bluetooth-driven types; until then the requester's Mac code stays unbuilt,
+and the independent RAPP security review gates the iPhone work, not this
+candidate. SCS remains implemented for future qualification.
 
 ### Release evidence reconciliation
 

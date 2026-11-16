@@ -21,6 +21,10 @@ The macOS MVP release delivers local smart card reader support only.
   Protocol (RAPP), is compiled out across all macOS configurations (Debug,
   TestFlight, and Release). The Mac embeds no RAPP extension, declares no
   Bluetooth or Bonjour permissions, and never connects to or dials a phone.
+  The requester's Mac code - the registry's pairing and session paths, the
+  remote-use switch, the quit withdrawal - therefore has no build in any
+  configuration. The decisions it makes live in `RappRequester`, which
+  builds and is tested on both platforms against doubles.
 - **Signature Creation Service (SCS) compiled out.** The loopback HTTPS
   service for browser extensions (`refineid-core/crates/scs`) is out of scope
   and compiled out for the macOS MVP.
