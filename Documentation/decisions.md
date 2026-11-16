@@ -84,6 +84,30 @@ moved whole. The app, the test host and the test bundle link the product.
   `IdentityLineTests` in both tiers, the phone, just-paired and remote-use
   suites on the simulator.
 
+### 2026-11-16 The macOS MVP fixes the timestamp authority and ships invisible signatures
+
+Maintainer's decision: the macOS MVP uses
+`http://timestamp.sectigo.com/qualified` directly, offers no
+time-stamp server selection, and adds no visible stamp to signed PDFs;
+electronic signatures need no visual mark for the MVP.
+
+- `REFINEID_FEATURES[sdk=macosx*] = FEATURE_CONTACTLESS` compiles the
+  Time Stamp and Stamp Settings panes out of every macOS configuration.
+  `FEATURE_TIMESTAMP_CONFIG` and `FEATURE_PDF_STAMP` stay on for the
+  iPhone and iPad.
+- With the Time Stamp pane compiled out, `TimestampAuthorityStore`
+  ignores any stored macOS address and `TimestampClient` asks the
+  shipped qualified Sectigo service. With the Stamp pane compiled out,
+  `SignDocumentModel.visibleStamp` resolves nil and `DocumentSigner`
+  places no mark, so the signing surface offers no stamp control.
+- The Settings scene is compiled only while `FEATURE_SCS`,
+  `FEATURE_TIMESTAMP_CONFIG`, or `FEATURE_PDF_STAMP` is on. With all
+  three off on macOS, the app has no Settings window and no Settings
+  item in its application menu.
+- This supersedes the macOS part of the 2026-11-10 entry that put the
+  Time Stamp pane on in every configuration; the iPhone and iPad
+  Settings behavior is unchanged.
+
 ### 2026-11-16 The unit suite runs on the iOS simulator as well as macOS
 
 The phone's suites compile only where `REFINEID_REMOTE_CARD` is on,

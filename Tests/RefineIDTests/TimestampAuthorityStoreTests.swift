@@ -1,6 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-#if os(macOS)
+#if !os(macOS) || FEATURE_TIMESTAMP_CONFIG
 
   import Foundation
   import Testing
@@ -219,7 +219,7 @@
     /// The client asks a usable service, configured or shipped.
     @Test
     internal func clientAuthorityIsUsable() {
-      #expect(TimestampAuthorityStore.isUsable(TimestampClient.authority))
+      #expect(TimestampAuthorityStore.isUsable(TimestampClient.authority(in: .standard)))
     }
 
     /// No probe means no verdict.

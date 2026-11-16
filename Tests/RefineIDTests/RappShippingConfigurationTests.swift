@@ -88,7 +88,7 @@ internal struct RappShippingConfigurationTests {
     #expect(!project.contains("RefineIDRappTokenExtension.appex */; platformFilters"))
   }
 
-  @Test("macOS carries the local card and excludes RAPP and SCS")
+  @Test("macOS carries the local card and excludes RAPP, SCS and Settings panes")
   internal func macOSShipsTheLocalCardOnly() throws {
     let project = try String(
       contentsOf: Self.root.appending(path: "RefineID.xcodeproj/project.pbxproj"),
@@ -116,7 +116,14 @@ internal struct RappShippingConfigurationTests {
     #expect(
       features.contains(
         "REFINEID_FEATURES = FEATURE_CONTACTLESS FEATURE_TIMESTAMP_CONFIG FEATURE_PDF_STAMP\n"))
-    #expect(!features.contains("REFINEID_FEATURES[sdk="))
+    // The macOS override is an assignment, not a comment, and there is
+    // exactly one of it.
+    let assignments = features.split(separator: "\n")
+      .map { $0.trimmingCharacters(in: .whitespaces) }
+      .filter { !$0.hasPrefix("//") }
+    #expect(
+      assignments.filter { $0.hasPrefix("REFINEID_FEATURES[sdk=macosx*] =") }
+        == ["REFINEID_FEATURES[sdk=macosx*] = FEATURE_CONTACTLESS"])
     #expect(features.contains("REFINEID_REMOTE_CARD_FEATURE = REFINEID_REMOTE_CARD\n"))
     #expect(
       features.contains(

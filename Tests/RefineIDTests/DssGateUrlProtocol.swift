@@ -28,7 +28,7 @@
     override internal static func canInit(with request: URLRequest) -> Bool {
       guard Self.authorities != nil, let host = request.url?.host else { return false }
       return host == DssGateAuthorities.host
-        || request.url?.absoluteString == TimestampClient.authority
+        || request.url?.absoluteString == TimestampClient.authority(in: .standard)
     }
 
     override internal static func canonicalRequest(for request: URLRequest) -> URLRequest {
@@ -38,7 +38,7 @@
     private static func answer(to address: String, body: Data) -> Data? {
       guard let authorities = Self.authorities else { return nil }
       switch address {
-      case TimestampClient.authority:
+      case TimestampClient.authority(in: .standard):
         return try? (Self.timestampAuthorities ?? authorities).timestampResponse(to: body)
 
       case DssGateAuthorities.revocationListAddress:

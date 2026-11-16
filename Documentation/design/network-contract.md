@@ -18,7 +18,8 @@ The application initiates outbound connections for three purposes only:
      archival signatures (PAdES-B-LTA and XAdES-B-LTA).
    - Default authority: `http://timestamp.sectigo.com/qualified`.
    - The timestamp authority URL is configurable in Settings when
-     `FEATURE_TIMESTAMP_CONFIG` is enabled.
+     `FEATURE_TIMESTAMP_CONFIG` is enabled; the macOS MVP compiles that
+     pane out and always asks the shipped qualified service.
 2. **Revocation and certificate chain checking (OCSP, CRL, caIssuers)**
    - RFC 6960 Online Certificate Status Protocol (OCSP), RFC 5280
      Certificate Revocation List (CRL) checks, and Authority Information

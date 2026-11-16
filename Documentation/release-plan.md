@@ -69,6 +69,9 @@ User story is:
 ### Excluded
 
 - SCS loopback signing service, certificate trust setup, and settings.
+- The time-stamp authority settings pane and the visible PDF signature
+  stamp: macOS signatures are electronic and invisible, and the authority
+  is the shipped qualified Sectigo service.
 - The remote card over RAPP: pairing, the remote-use switch, remote
   signing, the remote-card extension, Bluetooth, and the local-network
   and Bonjour declarations.

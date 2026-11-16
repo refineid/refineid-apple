@@ -86,26 +86,6 @@ internal enum TimestampClient {
     }
   }
 
-  /// The RFC 3161 time-stamp service every signature asks.
-  ///
-  /// The configured one, or the shipped qualified service. Falling
-  /// back from a configured but unusable address is reported, so a
-  /// holder who mistyped the authority can see which service
-  /// actually answered; the address itself is never logged.
-  internal static var authority: String {
-    let effective = TimestampAuthorityStore.load(from: .standard)
-    #if DEBUG
-      if let configured = TimestampAuthorityStore.configured(in: .standard),
-        !TimestampAuthorityStore.isUsable(configured)
-      {
-        DevErrorLog.report(
-          "timestamp: the configured authority is not usable; asking the shipped service",
-          source: .app)
-      }
-    #endif
-    return effective
-  }
-
   /// The content type RFC 3161 defines for a request.
   private static let requestContentType = "application/timestamp-query"
 
@@ -125,6 +105,26 @@ internal enum TimestampClient {
     /// Explicit trust anchor resolver injected for tests.
     @TaskLocal internal static var anchorResolver: (@Sendable (Date) async throws -> [Data])?
   #endif
+
+  /// The RFC 3161 time-stamp service every signature asks.
+  ///
+  /// The configured one, or the shipped qualified service. Falling
+  /// back from a configured but unusable address is reported, so a
+  /// holder who mistyped the authority can see which service
+  /// actually answered; the address itself is never logged.
+  internal static func authority(in defaults: UserDefaults) -> String {
+    let effective = TimestampAuthorityStore.load(from: defaults)
+    #if DEBUG
+      if let configured = TimestampAuthorityStore.configured(in: defaults),
+        !TimestampAuthorityStore.isUsable(configured)
+      {
+        DevErrorLog.report(
+          "timestamp: the configured authority is not usable; asking the shipped service",
+          source: .app)
+      }
+    #endif
+    return effective
+  }
 
   /// Resolves the trusted time-stamping anchors for a token acquired at `instant`.
   ///
@@ -173,7 +173,7 @@ internal enum TimestampClient {
   ) async throws -> TimestampTokenVerifier.VerifiedToken {
     do {
       return try await Self.withTransientRetry {
-        try await Self.token(over: digest, from: Self.authority)
+        try await Self.token(over: digest, from: Self.authority(in: .standard))
       }
     } catch is CancellationError {
       throw CancellationError()
@@ -195,7 +195,7 @@ internal enum TimestampClient {
   ) async throws -> Data {
     do {
       return try await Self.withTransientRetry {
-        try await Self.compactToken(over: digest, from: Self.authority)
+        try await Self.compactToken(over: digest, from: Self.authority(in: .standard))
       }
     } catch is CancellationError {
       throw CancellationError()

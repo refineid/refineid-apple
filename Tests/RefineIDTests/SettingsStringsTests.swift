@@ -251,16 +251,14 @@
         // stored and gated, not deleted.
         #expect(organizationToggles.isEmpty)
       #endif
+      // The Settings bundle ships on iOS only, and iOS keeps the
+      // visible stamp; the macOS build's flag does not govern it.
       let stampToggles = specifiers.filter { specifier in
         specifier["Key"] as? String == StampStore.key
       }
-      #if FEATURE_PDF_STAMP
-        #expect(stampToggles.count == 1)
-        let stampToggle = try #require(stampToggles.first)
-        #expect(stampToggle["DefaultValue"] as? Bool == false)
-      #else
-        #expect(stampToggles.isEmpty)
-      #endif
+      #expect(stampToggles.count == 1)
+      let stampToggle = try #require(stampToggles.first)
+      #expect(stampToggle["DefaultValue"] as? Bool == false)
     }
   }
 
