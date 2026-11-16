@@ -16,7 +16,7 @@ There are three different artifacts. Do not confuse them.
 | --- | --- | --- |
 | Local macOS build | `Scripts/apple-app-store-connect-release-manager.swift install-macos --configuration Release` | Install an optimized development-signed build on this Mac. |
 | App Store candidate | `Scripts/apple-app-store-connect-release-manager.swift candidate macos --upload` | Archive, inspect, export, and upload the production candidate to App Store Connect. |
-| Direct download | No supported command | Developer ID signing, notarization, and stapling are not currently a release path for this product. |
+| Direct download | `Scripts/macos-notarized-dmg-builder.swift --configuration Release` | Build a Developer ID–signed, notarized, and stapled macOS DMG for direct distribution (separate from the App Store path). |
 
 The App Store candidate uses the `TestFlight` configuration, not `Release`.
 `TestFlight` excludes diagnostics and is inspected before export. A local
@@ -26,10 +26,62 @@ must not be uploaded or described as an App Store production artifact.
 App Store distribution does not use `notarytool` or `stapler`. Apple performs
 the Store trust and distribution processing.
 
+## Direct Developer ID distribution
+
+`Scripts/macos-notarized-dmg-builder.swift` is the direct-download path. It is
+separate from `Scripts/apple-app-store-connect-release-manager.swift` and does
+not upload to App Store Connect.
+
+It builds the macOS app, signs nested components inside out with a Developer ID
+Application identity, packages a DMG named
+`RefineID-v<MARKETING_VERSION>.<UTC-HHMM>.dmg` (version from `Version.xcconfig`,
+build time in UTC), submits it for notarization with `notarytool` using a
+keychain profile (default `RefineID-notary`), staples and validates the ticket,
+and writes checksums next to the DMG.
+
+Stamp `Version.xcconfig` to the intended release/build version before building
+(for example `Scripts/apple-app-store-connect-release-manager.swift stamp`), so
+the app version and artifact name match the release. Publishing the DMG (for
+example to bob.refineid.fi) is a separate step.
+
+Details that matter when running it:
+
+- The DMG holds `RefineID.app` and an `Applications` link, so installing is a
+drag onto `/Applications` and removing the app is a delete from there.
+- The build is arm64 only. There is no universal or Intel artifact.
+- The signing team comes from `DEVELOPMENT_TEAM` in `Version.xcconfig`, so the
+  build signs under the team the checkout declares. `--team-id` overrides it,
+  and an empty value is rejected before any build or signing work.
+- A cached app under `build/macos-notarized-dmg-deriveddata` is reused only
+  while no build input is newer than the build stamp recorded by the last
+  successful build (`build-input-stamp` in that directory); otherwise the
+  builder rebuilds. `--force-rebuild` rebuilds unconditionally.
+- An existing DMG of the same name is never replaced silently. The builder
+  stops and asks for `--overwrite`, because the name already identifies a
+  published artifact.
+- Notarization credentials are an App Store Connect API key (`.p8` with Key ID
+  and Issuer ID) stored in a `notarytool` keychain profile. No Apple ID or
+  app-specific password is used.
+- The direct-download build reuses the App Store entitlement templates with the
+  team prefix resolved, so the signed app carries the same capabilities as the
+  Store build. The entitlements go on the executables and on the bundles,
+  because signing a bundle re-signs its main executable; the builder then reads
+  them back and fails if the app or the extension lost them.
+- This path commits the stamp it built from (`Version.xcconfig` and
+  `PKCS11Bridge/Sources/PKCS11Bridge/ModuleVersion.swift`). App Store installs
+  continue to stamp and restore `Version.xcconfig`, so no other stamp reaches a
+  commit. Record the version and UTC time of a published DMG when uploading it.
+
 ## Authoritative entry points
 
-- `Scripts/apple-app-store-connect-release-manager.swift` is the sole public
-  release CLI. Release shell entry points are not supported.
+- `Scripts/apple-app-store-connect-release-manager.swift` is the public release
+  CLI for App Store work and owns App Store signing, archiving, export,
+  installation, and version stamps. Release shell entry points are not
+  supported.
+- `Scripts/macos-notarized-dmg-builder.swift` is the public release CLI for the
+  direct-download DMG only: Developer ID signing, notarization, stapling, and
+  checksums. It never contacts App Store Connect. Its separate signing path is
+  the owner's decision for direct distribution.
 - Its `candidate` command owns archive, inspection, export, and optional upload.
 - Its `inspect-archive` command is the executable archive gate. `candidate`
   always invokes it before export.

@@ -133,10 +133,14 @@ case "${mode}" in
     Scripts/dss-gate.sh \
       || fail "A Swift signer's document is below the release level in DSS."
 
+    step "12. Running the direct-download DMG builder command-line tests"
+    swift Scripts/TestMacosNotarizedDmgBuilder.swift \
+      || fail "The direct-download DMG builder command-line tests failed."
+
     Scripts/QualityReceipt.py verify-head "${checked_head}" "${checked_tree}" \
       || fail "The checked-out commit changed during push checks."
 
-    printf '\nPR gate passed: gate tests, lint, CardCore and PKCS11Bridge package tests, iOS build, RefineIDTests on macOS and iOS, CardCoreTests, RappIntegrationTests, simulator Bluetooth tests, and the DSS gate.\n'
+    printf '\nPR gate passed: gate tests, lint, DMG builder tests, CardCore and PKCS11Bridge package tests, iOS build, RefineIDTests on macOS and iOS, CardCoreTests, RappIntegrationTests, simulator Bluetooth tests, and the DSS gate.\n'
     ;;
 
   nfc-signing)
