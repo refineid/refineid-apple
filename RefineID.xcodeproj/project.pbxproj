@@ -22,7 +22,6 @@
 		6D000000000000000000000B /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2D0000000000000000000008 /* PrivacyInfo.xcprivacy */; };
 		6D000000000000000000000C /* CardCore in Frameworks */ = {isa = PBXBuildFile; productRef = AD0000000000000000000005 /* CardCore */; };
 		6D000000000000000000000E /* Sources/Settings.bundle in Copy iOS Resources */ = {isa = PBXBuildFile; fileRef = 2D000000000000000000000F /* Sources/Settings.bundle */; platformFilter = ios; };
-		BC0000000000000000000001 /* Sources/TokenExtension/SmartCardTransmit.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000002 /* Sources/TokenExtension/SmartCardTransmit.swift */; };
 		BC0000000000000000000003 /* Samples/NFCCardTiming/Sources/CardTimingProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000004 /* Samples/NFCCardTiming/Sources/CardTimingProbe.swift */; };
 		BC0000000000000000000005 /* Samples/NFCCardTiming/Sources/CardTimingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000006 /* Samples/NFCCardTiming/Sources/CardTimingView.swift */; };
 		BC0000000000000000000007 /* Samples/NFCCardTiming/Sources/PaceTimingCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000008 /* Samples/NFCCardTiming/Sources/PaceTimingCommand.swift */; };
@@ -32,6 +31,7 @@
 		BC000000000000000000000F /* Sources/App/ExtensionTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000E /* Sources/App/ExtensionTrace.swift */; };
 		BC0000000000000000000010 /* Sources/App/ExtensionTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000E /* Sources/App/ExtensionTrace.swift */; };
 		BC0000000000000000000011 /* Sources/App/ExtensionTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC000000000000000000000E /* Sources/App/ExtensionTrace.swift */; };
+		BC0000000000000000000013 /* Sources/App/OrganizationCardSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000012 /* Sources/App/OrganizationCardSupport.swift */; };
 		BD0000000000000000000008 /* CardCore in Frameworks */ = {isa = PBXBuildFile; productRef = AD0000000000000000000006 /* CardCore */; };
 		CE0000000000000000000002 /* CardCore in Frameworks */ = {isa = PBXBuildFile; productRef = CE0000000000000000000003 /* CardCore */; };
 		CE0000000000000000000004 /* Samples/NFCCardTiming/Sources/CardTimingProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000000000000000000004 /* Samples/NFCCardTiming/Sources/CardTimingProbe.swift */; };
@@ -126,13 +126,13 @@
 		2D0000000000000000000013 /* Version.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Version.xcconfig; sourceTree = "<group>"; };
 		2D0000000000000000000014 /* RefineID-iOS-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "RefineID-iOS-Info.plist"; sourceTree = "<group>"; };
 		5ADED64532B13872419C7B30 /* RefineIDRappTokenExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RefineIDRappTokenExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		BC0000000000000000000002 /* Sources/TokenExtension/SmartCardTransmit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/TokenExtension/SmartCardTransmit.swift; sourceTree = SOURCE_ROOT; };
 		BC0000000000000000000004 /* Samples/NFCCardTiming/Sources/CardTimingProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Samples/NFCCardTiming/Sources/CardTimingProbe.swift; sourceTree = SOURCE_ROOT; };
 		BC0000000000000000000006 /* Samples/NFCCardTiming/Sources/CardTimingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Samples/NFCCardTiming/Sources/CardTimingView.swift; sourceTree = SOURCE_ROOT; };
 		BC0000000000000000000008 /* Samples/NFCCardTiming/Sources/PaceTimingCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Samples/NFCCardTiming/Sources/PaceTimingCommand.swift; sourceTree = SOURCE_ROOT; };
 		BC000000000000000000000A /* Samples/NFCCardTiming/Sources/Values/PaceTimingValues.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Samples/NFCCardTiming/Sources/Values/PaceTimingValues.swift; sourceTree = SOURCE_ROOT; };
 		BC000000000000000000000C /* Sources/App/DevErrorLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/App/DevErrorLog.swift; sourceTree = SOURCE_ROOT; };
 		BC000000000000000000000E /* Sources/App/ExtensionTrace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/App/ExtensionTrace.swift; sourceTree = SOURCE_ROOT; };
+		BC0000000000000000000012 /* Sources/App/OrganizationCardSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/App/OrganizationCardSupport.swift; sourceTree = SOURCE_ROOT; };
 		BD0000000000000000000001 /* RefineIDTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RefineIDTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CE0000000000000000000001 /* RefineIDTestHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RefineIDTestHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -275,13 +275,13 @@
 				3D0000000000000000000002 /* TokenExtension */,
 				3D0000000000000000000004 /* DiscoveryExtension */,
 				721332542F5154E8E8C01D4B /* RappTokenExtension */,
-				BC0000000000000000000002 /* Sources/TokenExtension/SmartCardTransmit.swift */,
 				BC0000000000000000000004 /* Samples/NFCCardTiming/Sources/CardTimingProbe.swift */,
 				BC0000000000000000000006 /* Samples/NFCCardTiming/Sources/CardTimingView.swift */,
 				BC0000000000000000000008 /* Samples/NFCCardTiming/Sources/PaceTimingCommand.swift */,
 				BC000000000000000000000A /* Samples/NFCCardTiming/Sources/Values/PaceTimingValues.swift */,
 				BC000000000000000000000C /* Sources/App/DevErrorLog.swift */,
 				BC000000000000000000000E /* Sources/App/ExtensionTrace.swift */,
+				BC0000000000000000000012 /* Sources/App/OrganizationCardSupport.swift */,
 				2D000000000000000000000F /* Sources/Settings.bundle */,
 			);
 			path = Sources;
@@ -639,6 +639,7 @@
 			files = (
 				BC000000000000000000000B /* Sources/App/DevErrorLog.swift in Sources */,
 				BC000000000000000000000F /* Sources/App/ExtensionTrace.swift in Sources */,
+				BC0000000000000000000013 /* Sources/App/OrganizationCardSupport.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -668,7 +669,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BC0000000000000000000001 /* Sources/TokenExtension/SmartCardTransmit.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
