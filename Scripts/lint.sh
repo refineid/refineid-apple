@@ -56,7 +56,7 @@ format_paths=(
   CardCore/Sources/CardCore CardCore/Sources/RappEngine
   CardCore/Tests CardCore/Package.swift
   PKCS11Bridge/Sources PKCS11Bridge/Tests PKCS11Bridge/Package.swift
-  Scripts/PaceCurveBenchmark.swift
+  Scripts/PaceCurveBenchmark.swift Scripts/macos-notarized-dmg-builder.swift
 )
 
 format_log=$(
