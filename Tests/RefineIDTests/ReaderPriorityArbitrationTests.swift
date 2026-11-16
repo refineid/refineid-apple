@@ -128,7 +128,7 @@
       /// A card in this Mac's reader leaves the phone undialled and its
       /// session unheld; once it leaves, the phone may be dialled again.
       @Test
-      internal func readerCardLeavesThePhoneSessionUnheld() async {
+      internal func readerCardLeavesThePhoneSessionUnheld() async throws {
         let initialPresence = CardPresence.shared.isReaderCardPresent
         let registry = PersistentTokenRegistry.shared
         let initialBluetooth = registry.bluetoothUsable
@@ -146,8 +146,14 @@
         registry.openHolderSession()
         #expect(registry.holderSession == nil)
         #expect(!registry.holderInSight)
-        let handoff = RappHeldSessionHandoff.Request(
-          pairID: nil, operation: .readAuthenticationCertificate)
+        let handoff = try #require(
+          RappHeldSessionHandoff.Request(
+            pairID: Data(repeating: 1, count: RappHeldSessionHandoff.pairIdentifierByteCount),
+            keyProfile: .ecdsaP256,
+            algorithm: .ecdsaSHA256,
+            digest: Data([1])
+          )
+        )
         #expect(await registry.carry(handoff) == .failed(.peerNotFound))
 
         CardPresence.shared.setReaderCardPresentForTesting(false)

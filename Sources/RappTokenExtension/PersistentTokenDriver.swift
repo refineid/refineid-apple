@@ -188,13 +188,11 @@ internal final class PersistentTokenDriver: TKTokenDriver,
             "performRelaySign: starting algorithm=\(algorithm), digest=\(request.digest.count) bytes"
           )
         #endif
-        let operation = RappRequesterOperation.browserAuthentication(
-          displayContext: Self.displayContext,
+        let response = try perform(
           keyProfile: RappOperationDriver.KeyProfile(persistentToken.profile),
           algorithm: algorithm,
           digest: request.digest
         )
-        let response = try perform(operation)
         guard case .signature(let receivedSignature) = response else {
           throw RappRequesterClientError.unexpectedResult
         }
@@ -235,55 +233,55 @@ internal final class PersistentTokenDriver: TKTokenDriver,
     /// does this extension dial the phone itself. The identity stays offered
     /// between sessions: with none open the request dials and waits for the
     /// phone within its own wait (RAPP v26.11.8 §8.4 item 3).
-    private func perform(_ operation: RappRequesterOperation) throws -> RappRequesterResponse {
+    private func perform(
+      keyProfile: RappOperationDriver.KeyProfile,
+      algorithm: RappOperationDriver.SignatureAlgorithm,
+      digest: Data
+    ) throws -> RappRequesterResponse {
       #if os(macOS)
-        let handoff = RappHeldSessionHandoff.Request(
-          pairID: persistentToken.pairing.pairID, operation: operation)
-        switch RappHeldSessionHandoff.ask(handoff) {
-        case .response(let response):
-          Self.say("rapp sign carried by the app")
-          return response
-
-        case .failed(let error):
-          throw error
-
-        case nil:
-          Self.say("rapp sign: no app holds the handoff port")
+        guard
+          let handoff = RappHeldSessionHandoff.Request(
+            pairID: persistentToken.pairing.pairID, keyProfile: keyProfile,
+            algorithm: algorithm, digest: digest)
+        else { throw RappRequesterClientError.protocolFailure }
+        if let answer = RappHeldSessionHandoff.ask(handoff) {
+          if case .failed(let error) = answer { throw error }
+          if case .response(let response) = answer {
+            Self.say("rapp sign carried by the app")
+            return response
+          }
         }
+        Self.say("rapp sign: no verified app holds the handoff listener")
       #endif
       return try RappPersistentRequesterClient(
-        policy: .offeredIdentity,
-        pairing: persistentToken.pairing
-      ).perform(operation)
+        policy: .offeredIdentity, pairing: persistentToken.pairing
+      ).perform(
+        .browserAuthentication(
+          displayContext: Self.displayContext, keyProfile: keyProfile,
+          algorithm: algorithm, digest: digest))
     }
 
     private func mapErrorToTKError(_ error: Error) -> TKError {
-      if let tkError = error as? TKError {
-        return tkError
+      if let tkError = error as? TKError { return tkError }
+      guard let clientError = error as? RappRequesterClientError else {
+        return TKError(.communicationError)
       }
-      if let clientError = error as? RappRequesterClientError {
-        switch clientError {
-        case .terminal(let reason):
-          switch reason {
-          case .userCancelled, .operationExpired, .cardError:
-            return TKError(.canceledByUser)
-
-          case .retryFloor:
-            return TKError(.authenticationFailed)
-
-          case .busy, .duplicateOperation, .invalidLifetime, .unauthorized,
-            .unsupportedParameter, .operationFailed:
-            return TKError(.corruptedData)
-          }
-
-        case .peerNotFound, .noActivePair, .noSelectedPair:
-          return TKError(.tokenNotFound)
-
-        case .protocolFailure, .transport, .timedOut, .unexpectedResult:
-          return TKError(.communicationError)
+      switch clientError {
+      case .terminal(let reason):
+        switch reason {
+        case .userCancelled, .operationExpired, .cardError:
+          return TKError(.canceledByUser)
+        case .retryFloor:
+          return TKError(.authenticationFailed)
+        case .busy, .duplicateOperation, .invalidLifetime, .unauthorized,
+          .unsupportedParameter, .operationFailed:
+          return TKError(.corruptedData)
         }
+      case .peerNotFound, .noActivePair, .noSelectedPair:
+        return TKError(.tokenNotFound)
+      case .protocolFailure, .transport, .timedOut, .unexpectedResult:
+        return TKError(.communicationError)
       }
-      return TKError(.communicationError)
     }
   }
 
