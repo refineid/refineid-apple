@@ -38,7 +38,7 @@
       case "sv":
         ExpectedLabels(
           basic: "Ange grund PIN 1", signature: "Ange signaturkod 2",
-          sign: "Signera", logIn: "Logga in", cancel: "Avbryt",
+          sign: "Underteckna", logIn: "Logga in", cancel: "Avbryt",
           loginAction: "Åtgärd: Inloggning",
           signAction: "Åtgärd: Dokumentunderskrift",
           loggingInAs: "Loggar in som: Matti Meikäläinen",

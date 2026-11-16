@@ -86,7 +86,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "RefineID läser ditt id-kort för inloggning, dokumentsignering, aktivering av kortet och hantering av PIN-koder."
+            "value" : "RefineID läser ditt id-kort för inloggning, undertecknande av dokument, aktivering av kortet och hantering av PIN-koder."
           }
         }
       }

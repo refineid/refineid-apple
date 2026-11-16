@@ -801,7 +801,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signeringsbegäran väntar"
+            "value" : "Underskriftsbegäran väntar"
           }
         }
       }
@@ -893,7 +893,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kortet tas bort under signeringen"
+            "value" : "Kortet tas bort under undertecknandet"
           }
         }
       }
@@ -1077,7 +1077,7 @@
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Svaret försvinner efter signeringen"
+            "value" : "Svaret försvinner efter undertecknandet"
           }
         }
       }
