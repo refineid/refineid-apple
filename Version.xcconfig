@@ -61,7 +61,7 @@ TARGETED_DEVICE_FAMILY[config=Release] = 1,2
 DEVELOPMENT_TEAM = 4ZJC3SFJR2
 
 MARKETING_VERSION = 26.11.16
-CURRENT_PROJECT_VERSION = 628
+CURRENT_PROJECT_VERSION = 1026
 
 // Where a development install was built from, as branch@commit, set on
 // the xcodebuild command line by the release manager's installs and
