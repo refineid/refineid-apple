@@ -59,7 +59,7 @@ private func run(_ executable: String, _ arguments: [String], directory: URL) ->
 
   return CommandResult(
     status: process.terminationStatus,
-    output: String(decoding: data, as: UTF8.self)
+    output: String(bytes: data, encoding: .utf8) ?? ""
   )
 }
 
