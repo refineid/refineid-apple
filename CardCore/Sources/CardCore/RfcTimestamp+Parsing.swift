@@ -182,65 +182,15 @@ extension RfcTimestamp {
 
   /// The TSTInfo eContent octets inside a token's SignedData.
   internal static func tstInfoContent(in token: Data) throws -> Data {
-    let signedData = try Self.signedData(in: token)
-    var signed = DerReader(token, within: signedData)
     guard
-      signed.next() != nil,
-      signed.next() != nil,
-      let encapsulated = signed.next(),
-      encapsulated.tag == DerValues.tagSequence
+      let signedData = CmsSignedData(in: token),
+      let content = signedData.attachedOctetString(
+        contentType: SignOids.tstInfo,
+        in: token
+      )
     else {
       throw TokenFailure.malformed
     }
-    var info = DerReader(token, within: encapsulated)
-    guard
-      let contentType = info.next(),
-      info.data(of: contentType) == DerEncoder.objectIdentifier(SignOids.tstInfo),
-      let wrapper = info.next(),
-      wrapper.tag == DerValues.tagContext0Constructed,
-      info.isAtEnd
-    else {
-      throw TokenFailure.malformed
-    }
-    var content = DerReader(token, within: wrapper)
-    guard
-      let octets = content.next(),
-      octets.tag == DerValues.tagOctetString,
-      content.isAtEnd
-    else {
-      throw TokenFailure.malformed
-    }
-    return content.contentData(of: octets)
-  }
-
-  /// The SignedData element inside a CMS ContentInfo.
-  private static func signedData(in token: Data) throws -> DerReader.Element {
-    var outer = DerReader(token)
-    guard
-      let contentInfo = outer.next(),
-      contentInfo.tag == DerValues.tagSequence,
-      outer.isAtEnd
-    else {
-      throw TokenFailure.malformed
-    }
-    var info = DerReader(token, within: contentInfo)
-    guard
-      let typeOid = info.next(),
-      info.data(of: typeOid) == DerEncoder.objectIdentifier(SignOids.signedData),
-      let wrapper = info.next(),
-      wrapper.tag == DerValues.tagContext0Constructed,
-      info.isAtEnd
-    else {
-      throw TokenFailure.malformed
-    }
-    var wrapped = DerReader(token, within: wrapper)
-    guard
-      let signedData = wrapped.next(),
-      signedData.tag == DerValues.tagSequence,
-      wrapped.isAtEnd
-    else {
-      throw TokenFailure.malformed
-    }
-    return signedData
+    return content
   }
 }

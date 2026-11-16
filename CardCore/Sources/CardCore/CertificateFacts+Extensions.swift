@@ -9,6 +9,7 @@ extension CertificateFacts {
     internal var issuers: [String] = []
     internal var revocationLists: [String] = []
     internal var responders: [String] = []
+    internal var subjectKeyIdentifier = SubjectKeyIdentifier.absent
     internal var timestampingUsage = TimestampingUsage.absent
     internal var basicConstraints = BasicConstraints.absent
     internal var timestampingKeyUsage = TimestampingKeyUsage.absent
@@ -89,38 +90,71 @@ extension CertificateFacts {
   private static let certificateAuthorityUsageMask =
     Self.certificateSigningKeyUsageBit | Self.crlSigningKeyUsageBit
 
-  /// The AIA and CRL URLs plus timestamping EKU, collected in one pass.
+  /// The AIA, CRL, SubjectKeyIdentifier, and timestamp-profile facts,
+  /// collected in one pass.
   internal static func extensionFacts(
     in der: Data,
     reader: inout DerReader
   ) -> ExtensionFacts {
     var facts = ExtensionFacts()
+    var sawExtensionsBlock = false
     while let element = reader.next() {
       guard element.tag == DerValues.tagContext3Constructed else { continue }
-      var wrapper = DerReader(der, within: element)
-      guard let extensions = wrapper.next() else { continue }
-      var list = DerReader(der, within: extensions)
-      while let entry = list.next() {
-        Self.addAccessFacts(from: entry, der: der, to: &facts)
-        Self.addTimestampingProfileFacts(
-          from: entry, der: der, to: &facts
-        )
-        switch Self.timestampingUsage(of: entry, in: der) {
-        case .different:
-          break
-
-        case .valid where facts.timestampingUsage == .absent:
-          facts.timestampingUsage = .valid
-
-        case .invalid, .valid:
-          facts.timestampingUsage = .invalid
-
-        case .absent:
-          break
-        }
+      if sawExtensionsBlock {
+        facts.subjectKeyIdentifier = .invalid
       }
+      sawExtensionsBlock = true
+      Self.readExtensionsBlock(element, der: der, into: &facts)
+    }
+    if !reader.isAtEnd {
+      facts.subjectKeyIdentifier = .invalid
     }
     return facts
+  }
+
+  /// Reads one explicit `[3]` extensions wrapper into `facts`.
+  private static func readExtensionsBlock(
+    _ element: DerReader.Element,
+    der: Data,
+    into facts: inout ExtensionFacts
+  ) {
+    var wrapper = DerReader(der, within: element)
+    guard
+      let extensions = wrapper.next(),
+      extensions.tag == DerValues.tagSequence,
+      wrapper.isAtEnd
+    else {
+      facts.subjectKeyIdentifier = .invalid
+      return
+    }
+    var list = DerReader(der, within: extensions)
+    while let entry = list.next() {
+      Self.addAccessFacts(from: entry, der: der, to: &facts)
+      Self.addTimestampingProfileFacts(from: entry, der: der, to: &facts)
+      Self.addSubjectKeyIdentifier(from: entry, der: der, to: &facts)
+      Self.addTimestampingUsage(from: entry, der: der, to: &facts)
+    }
+    if !list.isAtEnd {
+      facts.subjectKeyIdentifier = .invalid
+    }
+  }
+
+  /// Records one extension entry's timestamping-EKU verdict.
+  private static func addTimestampingUsage(
+    from entry: DerReader.Element,
+    der: Data,
+    to facts: inout ExtensionFacts
+  ) {
+    switch Self.timestampingUsage(of: entry, in: der) {
+    case .different, .absent:
+      break
+
+    case .valid where facts.timestampingUsage == .absent:
+      facts.timestampingUsage = .valid
+
+    case .invalid, .valid:
+      facts.timestampingUsage = .invalid
+    }
   }
 
   /// Adds BasicConstraints and KeyUsage facts that exclusive anchors might
