@@ -12,6 +12,13 @@
 //       their app-group container. On iPhone, built-in NFC is required
 //       and is not gated by this flag.
 //
+//   FEATURE_DOCUMENT_VERIFICATION
+//       Signed document verification UI: the Verify action, sheet, and
+//       verify-only drop state on macOS, and the Verify routes on iPhone
+//       and iPad. Off on macOS in every configuration for the MVP; the
+//       iPhone and iPad keep it, and the verifier and trusted-list store
+//       beneath stay built and tested on both platforms.
+//
 //   FEATURE_PDF_STAMP
 //       The visible PDF stamp: the CAN-gated mark carrying the
 //       holder's name, SATU and card ink. Off, every signature stays
@@ -35,17 +42,20 @@
 //       and iPad keep the Settings-app address.
 //
 // macOS ships local card authentication, management and document signing
-// only (Documentation/decisions.md, 2026-11-14): the remote card over
-// RAPP is gated off until it returns. Every macOS signature is
+// only (Documentation/decisions.md, 2026-11-14 and 2026-11-16): the
+// remote card over RAPP and signed document verification are gated off
+// until they return. Every macOS signature is
 // time-stamped by the qualified Sectigo server
 // (http://timestamp.sectigo.com/qualified) and carries no visible stamp.
-// The iPhone and iPad keep their configurable authority and stamp.
+// The iPhone and iPad keep verification, their configurable authority,
+// and the stamp.
 
-REFINEID_FEATURES = FEATURE_CONTACTLESS FEATURE_TIMESTAMP_CONFIG FEATURE_PDF_STAMP
+REFINEID_FEATURES = FEATURE_CONTACTLESS FEATURE_TIMESTAMP_CONFIG FEATURE_PDF_STAMP FEATURE_DOCUMENT_VERIFICATION
 
-// The macOS MVP compiles out every Settings pane: the time-stamp
-// authority is the shipped Sectigo service and signatures are
-// invisible, so no feature needs a Settings window or its menu item.
+// The macOS MVP compiles out document verification and every Settings
+// pane: the time-stamp authority is the shipped Sectigo service and
+// signatures are invisible, so no feature needs a Settings window or its
+// menu item.
 REFINEID_FEATURES[sdk=macosx*] = FEATURE_CONTACTLESS
 
 // The local card: this build talks to a card the device itself holds,

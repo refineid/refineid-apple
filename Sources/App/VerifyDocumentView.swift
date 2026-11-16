@@ -1,6 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-#if os(iOS)
+#if os(iOS) && FEATURE_DOCUMENT_VERIFICATION
 
   import CardCore
   import SwiftUI

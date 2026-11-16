@@ -38,7 +38,7 @@ and the validation process are core's.
 | List reader | `Sources/App/TrustedListReader.swift`, `ShippedSignerTrustedListReader.swift` |
 | Card-read path candidates | `CardCore/Sources/CardCore/TrustRootsCache.swift`, `ValidationEvidence.swift` |
 | Fetch and cache | `Sources/App/TrustedListStore.swift`, `TrustedListStore+Fetch.swift`, `TrustedListStore+Cache.swift` |
-| Verify model and screens | `Sources/App/VerifyDocumentModel.swift`, `VerifyDocumentView.swift`, `VerifyQueuedDocumentsView.swift`, `VerifyTrustedListsSection.swift` |
+| Verify model and screens | `Sources/App/VerifyDocumentModel.swift`, `VerifyDocumentView.swift`, `VerifyQueuedDocumentsView.swift`, `VerifyTrustedListsSection.swift` (`FEATURE_DOCUMENT_VERIFICATION` gates the UI entry points; off on macOS MVP, on for iPhone and iPad) |
 
 The Swift verifier keeps core's four borders. The file enters through
 `DocumentVerification.verify`; the anchors enter through `TrustAnchors`;
@@ -249,12 +249,18 @@ carries signatures at all, so an unsigned or unreadable document says
 that first; a signed one says why no trusted list could be read. It
 never presents a verdict from empty anchors.
 
-The iPhone and iPad Verify screen and the Mac verification sheet render
-these facts in the cards and rows described in [ios.md](ios.md#verify)
-and [macos.md](macos.md#document-verification). The trusted-lists
-section appears only when a fetch failed and the stored lists are
-missing or stale, with the fetch time or "Not fetched", the failure
-text, and the retry button.
+The iPhone and iPad Verify screen and (when
+`FEATURE_DOCUMENT_VERIFICATION` is enabled) the Mac verification sheet
+render these facts in the cards and rows described in
+[ios.md](ios.md#verify) and
+[macos.md](macos.md#document-verification-post-mvp-design). The macOS MVP
+compiles the verification UI entry points out while keeping the verifier,
+`VerifyDocumentModel`, `QueuedDocumentVerification`, and
+`TrustedListStore` built and tested on both platforms (archival signing
+uses `TrustedListStore` on macOS as well to validate timestamp tokens).
+The trusted-lists section appears only when a fetch failed and the stored
+lists are missing or stale, with the fetch time or "Not fetched", the
+failure text, and the retry button.
 
 ### Validation status and wording
 

@@ -99,7 +99,10 @@ internal struct VoiceOverStringsTests {
   internal func mvpWindowActionsMatchInEveryLanguage() throws {
     let strings = try Self.catalog(at: "Sources/App/Localizable.xcstrings")
     let words: [String: [String: String]] = [
-      "Verify…": ["fi": "Tarkasta…", "sv": "Granska…"],
+      "Drop documents here to sign them.": [
+        "fi": "Pudota asiakirjat tähän allekirjoitettavaksi.",
+        "sv": "Släpp dokument här för att underteckna dem.",
+      ],
       "Sign…": ["fi": "Allekirjoita…", "sv": "Signera…"],
       "PIN Codes": ["fi": "PIN-koodit", "sv": "PIN-koder"],
       "A PIN code needs a reset": [

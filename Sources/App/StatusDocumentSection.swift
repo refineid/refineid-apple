@@ -35,12 +35,21 @@
           } isTargeted: { targeted in
             isTargeted = targeted
           }
-          .accessibilityLabel(
-            offersSigning ? Text("Documents to sign") : Text("Documents to verify")
-          )
+          .accessibilityLabel(dropAccessibilityLabel)
           .accessibilityValue(StatusView.pileValue(signing.queued))
           .accessibilityIdentifier("documentDropArea")
       }
+    }
+
+    private var dropAccessibilityLabel: Text {
+      #if FEATURE_DOCUMENT_VERIFICATION
+        if offersSigning {
+          return Text("Documents to sign")
+        }
+        return Text("Documents to verify")
+      #else
+        return Text("Documents to sign")
+      #endif
     }
 
     @ViewBuilder private var dropContents: some View {

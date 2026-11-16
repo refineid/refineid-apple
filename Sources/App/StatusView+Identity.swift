@@ -14,7 +14,8 @@
         queued: signingModel.queued,
         signing: signingModel.working,
         readingCard: signingModel.readingStamp,
-        failureShown: signingModel.unacknowledgedFailure != nil
+        failureShown: signingModel.unacknowledgedFailure != nil,
+        offersVerification: StatusDocumentControls.defaultOffersVerification
       )
     }
 

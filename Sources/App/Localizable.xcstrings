@@ -1134,6 +1134,7 @@
       }
     },
     "Verify…": {
+      "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {
@@ -2842,6 +2843,7 @@
       }
     },
     "Documents to verify": {
+      "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {
@@ -2908,6 +2910,7 @@
       }
     },
     "Drop documents here to sign or verify them.": {
+      "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {
@@ -2923,7 +2926,25 @@
         }
       }
     },
+    "Drop documents here to sign them.": {
+      "extractionState": "manual",
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pudota asiakirjat tähän allekirjoitettavaksi."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Släpp dokument här för att underteckna dem."
+          }
+        }
+      }
+    },
     "Drop documents here to verify them.": {
+      "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {

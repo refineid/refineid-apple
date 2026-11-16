@@ -88,7 +88,7 @@ internal struct RappShippingConfigurationTests {
     #expect(!project.contains("RefineIDRappTokenExtension.appex */; platformFilters"))
   }
 
-  @Test("macOS carries the local card and excludes RAPP, SCS and Settings panes")
+  @Test("macOS carries the local card and excludes RAPP, SCS, verification and Settings panes")
   internal func macOSShipsTheLocalCardOnly() throws {
     let project = try String(
       contentsOf: Self.root.appending(path: "RefineID.xcodeproj/project.pbxproj"),
@@ -115,7 +115,8 @@ internal struct RappShippingConfigurationTests {
       contentsOf: Self.root.appending(path: "Config/Features.xcconfig"), encoding: .utf8)
     #expect(
       features.contains(
-        "REFINEID_FEATURES = FEATURE_CONTACTLESS FEATURE_TIMESTAMP_CONFIG FEATURE_PDF_STAMP\n"))
+        "REFINEID_FEATURES = FEATURE_CONTACTLESS FEATURE_TIMESTAMP_CONFIG "
+          + "FEATURE_PDF_STAMP FEATURE_DOCUMENT_VERIFICATION\n"))
     // The macOS override is an assignment, not a comment, and there is
     // exactly one of it.
     let assignments = features.split(separator: "\n")
@@ -143,6 +144,21 @@ internal struct RappShippingConfigurationTests {
     #expect(store["NSBonjourServices"] == nil)
     #expect(store["NSLocalNetworkUsageDescription"] == nil)
     #expect(store["NSBluetoothAlwaysUsageDescription"] == nil)
+  }
+
+  @Test("macOS declares no document-viewer role or BDOC type while keeping ASiC-E for signing")
+  internal func macOSDeclaresNoDocumentViewerOrBdocTypes() throws {
+    let store = try Self.plist("Config/RefineID-Store-Info.plist")
+    #expect(store["CFBundleDocumentTypes"] == nil)
+    let macImported = try #require(store["UTImportedTypeDeclarations"] as? [[String: Any]])
+    #expect(macImported.compactMap { $0["UTTypeIdentifier"] as? String } == ["org.etsi.asic-e"])
+
+    let ios = try Self.plist("Config/RefineID-iOS-Info.plist")
+    #expect(ios["CFBundleDocumentTypes"] is [[String: Any]])
+    let iosImported = try #require(ios["UTImportedTypeDeclarations"] as? [[String: Any]])
+    #expect(
+      iosImported.compactMap { $0["UTTypeIdentifier"] as? String }
+        == ["org.etsi.asic-e", "ee.ria.bdoc"])
   }
 
   @Test("RAPP network declarations are present in shipping containers")
@@ -205,6 +221,9 @@ internal struct RappShippingConfigurationTests {
     #expect(source.contains("network.server entitlement present without the remote card"))
     #expect(source.contains("bluetooth entitlement present without the remote card"))
     #expect(source.contains("CoreBluetooth linked without the remote card"))
+    #expect(
+      source.contains("CFBundleDocumentTypes present on macOS without document verification"))
+    #expect(source.contains("ee.ria.bdoc UTI declared on macOS without document verification"))
     #expect(source.contains("iPhone-only artifact requiring iOS 26.0 and an NFC antenna"))
   }
 

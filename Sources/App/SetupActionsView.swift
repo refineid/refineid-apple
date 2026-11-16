@@ -4,12 +4,12 @@
 
   import SwiftUI
 
-  /// The three actions a fresh install offers, before any card is set up.
+  /// The actions a fresh install offers, before any card is set up.
   ///
   /// Each button names its whole job in short: verifying a document
-  /// needs no card, while signing one and logging in both read the card
-  /// over NFC. Once an identity exists the regular sections take over
-  /// and this is gone.
+  /// needs no card when compiled in, while signing one and logging in
+  /// both read the card over NFC. Once an identity exists the regular
+  /// sections take over and this is gone.
   ///
   /// A plain stack, never form rows: several links in one list row
   /// share the row's tap target and misroute taps, and the row draws
@@ -21,21 +21,25 @@
 
     internal var body: some View {
       VStack(spacing: Layout.stackSpacing) {
-        verifyButton
+        #if FEATURE_DOCUMENT_VERIFICATION
+          verifyButton
+        #endif
         signButton
         authenticateButton
       }
     }
 
-    private var verifyButton: some View {
-      NavigationLink(value: CardCredentialsView.Route.verifyDocuments) {
-        SetupActionLabel(
-          title: String(localized: "Verify document"),
-          systemImage: CardCredentialsView.verificationSymbolName
-        )
+    #if FEATURE_DOCUMENT_VERIFICATION
+      private var verifyButton: some View {
+        NavigationLink(value: CardCredentialsView.Route.verifyDocuments) {
+          SetupActionLabel(
+            title: String(localized: "Verify document"),
+            systemImage: CardCredentialsView.verificationSymbolName
+          )
+        }
+        .accessibilityIdentifier("verifyDocuments")
       }
-      .accessibilityIdentifier("verifyDocuments")
-    }
+    #endif
 
     private var signButton: some View {
       NavigationLink(value: CardCredentialsView.Route.signDocuments) {

@@ -5,16 +5,18 @@ import SwiftUI
 
 extension CardCredentialsView {
   #if os(iOS)
-    private var verifyRow: some View {
-      NavigationLink(value: Route.verifyDocuments) {
-        MenuRow(
-          String(localized: "verify.title", defaultValue: "Verify", table: "DocumentSigning"),
-          systemImage: Self.verificationSymbolName,
-          tint: .accentColor
-        )
+    #if FEATURE_DOCUMENT_VERIFICATION
+      private var verifyRow: some View {
+        NavigationLink(value: Route.verifyDocuments) {
+          MenuRow(
+            String(localized: "verify.title", defaultValue: "Verify", table: "DocumentSigning"),
+            systemImage: Self.verificationSymbolName,
+            tint: .accentColor
+          )
+        }
+        .accessibilityIdentifier("verifyDocuments")
       }
-      .accessibilityIdentifier("verifyDocuments")
-    }
+    #endif
 
     private var signRow: some View {
       Button {
@@ -35,7 +37,9 @@ extension CardCredentialsView {
 
     internal var signingSection: some View {
       Section {
-        verifyRow
+        #if FEATURE_DOCUMENT_VERIFICATION
+          verifyRow
+        #endif
         if signingAvailable {
           signRow
         }
