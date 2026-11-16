@@ -16,6 +16,7 @@
 //   7. Validate the stapled ticket.
 //   8. Assess the artifact with Gatekeeper.
 //   9. Write a checksum file next to the DMG.
+//  10. Remove the artifacts this run supersedes.
 
 import Foundation
 
@@ -866,6 +867,27 @@ private func writeChecksumFile(for dmg: URL) {
   note("wrote \(checksumFile)")
 }
 
+/// Removes the artifacts this run supersedes. The output directory is where a
+/// person picks the image to publish, so it holds the newest DMG and its
+/// checksum only; an older file beside them is the one taken by mistake.
+private func pruneSupersededArtifacts(in directory: URL, keeping dmg: URL) {
+  let kept: Set<String> = [dmg.lastPathComponent, dmg.lastPathComponent + ".checksums"]
+  guard let entries = try? FileManager.default.contentsOfDirectory(atPath: directory.path) else {
+    fail("could not list \(directory.path)")
+  }
+
+  for name in entries.sorted() where name.hasSuffix(".dmg") || name.hasSuffix(".dmg.checksums") {
+    guard !kept.contains(name) else { continue }
+    let path = directory.appendingPathComponent(name)
+    do {
+      try FileManager.default.removeItem(at: path)
+    } catch {
+      fail("could not remove \(path.path): \(error.localizedDescription)")
+    }
+    note("removed superseded \(name)")
+  }
+}
+
 private func main() {
   let args = CommandLine.arguments.dropFirst().map { String($0) }
   let options = parseOptions(from: args)
@@ -912,6 +934,7 @@ private func main() {
   validateDmg(dmg: dmg)
   assessDmg(dmg: dmg)
   writeChecksumFile(for: dmg)
+  pruneSupersededArtifacts(in: outputDirectory, keeping: dmg)
 
   note("done: \(dmg.path)")
 }

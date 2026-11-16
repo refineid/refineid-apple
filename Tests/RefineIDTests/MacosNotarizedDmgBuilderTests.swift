@@ -133,6 +133,20 @@ internal struct MacosNotarizedDmgBuilderTests {
     #expect(runbook.contains("signs the disk image itself"))
   }
 
+  @Test("A successful run leaves only the newest artifact")
+  internal func supersededArtifactsAreRemoved() throws {
+    let source = try Self.builderSource()
+    #expect(source.contains("pruneSupersededArtifacts(in: outputDirectory, keeping: dmg)"))
+    let checksum = try #require(source.range(of: "writeChecksumFile(for: dmg)"))
+    let pruned = try #require(source.range(of: "pruneSupersededArtifacts(in:"))
+    // Removal follows the checksum: a run that stops earlier must not delete
+    // the artifact it has not replaced yet.
+    #expect(checksum.lowerBound < pruned.lowerBound)
+    #expect(source.contains("removed superseded"))
+    let runbook = try Self.text("Documentation/release-runbook.md")
+    #expect(runbook.contains("older artifacts"))
+  }
+
   @Test("The lint gate typechecks the builder and its tests")
   internal func gateCoversTheBuilder() throws {
     let lint = try Self.text("Scripts/lint.sh")

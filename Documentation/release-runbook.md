@@ -42,8 +42,9 @@ DMG.
 
 Stamp `Version.xcconfig` to the intended release/build version before building
 (for example `Scripts/apple-app-store-connect-release-manager.swift stamp`), so
-the app version and artifact name match the release. Publishing the DMG (for
-example to bob.refineid.fi) is a separate step.
+the app version and artifact name match the release. Publish the verified DMG
+with `script/publish-macos-dmg.sh` in `refineid-release`, which replaces the
+published copy on bob.refineid.fi; publication is a separate step from building.
 
 Details that matter when running it:
 
@@ -58,6 +59,9 @@ drag onto `/Applications` and removing the app is a delete from there.
   The builder reads the signature's `TeamIdentifier` back and stops if the image
   is not signed under `DEVELOPMENT_TEAM`, then fails the run unless Gatekeeper
   accepts the stapled image.
+- A successful run leaves only the newest DMG and its checksum in the output
+  directory and removes the older artifacts there, so the file beside the newest
+  one is never an image a later run already superseded.
 - The signing team comes from `DEVELOPMENT_TEAM` in `Version.xcconfig`, so the
   build signs under the team the checkout declares. `--team-id` overrides it,
   and an empty value is rejected before any build or signing work.
