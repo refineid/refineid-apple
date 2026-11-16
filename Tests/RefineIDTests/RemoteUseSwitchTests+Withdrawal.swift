@@ -6,6 +6,7 @@
   import CryptoKit
   import Foundation
   import RappEngine
+  import RappRequester
   import Testing
 
   @testable import RefineIDTestHost

@@ -57,11 +57,13 @@ internal struct RappGatingContractTests {
   private static let pattern =
     #"\b(Rapp(?!Requester)\w*|Noise\w*|Vault\w*|Pairing\w*|Paired\w*|PhoneCard\w*|vault)\b"#
 
-  /// The directories whose sources the macOS build compiles: the app's, and
-  /// the requester decisions the package builds for it.
+  /// The directories the macOS build compiles from the app.
+  ///
+  /// `CardCore/Sources/RappRequester` is not among them: a package cannot
+  /// see the flag, so it keeps the phone's decisions on every platform and
+  /// leaves the gating to the app code that fills the phone's facts.
   private static let sourceDirectories = [
-    "Sources/App",
-    "CardCore/Sources/RappRequester",
+    "Sources/App"
   ]
 
   /// The sources under them, relative to the repository root.

@@ -1,6 +1,7 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 import Foundation
+import RappRequester
 import Testing
 
 /// The no-card instructions say the same thing in every language: with
@@ -202,7 +203,7 @@ internal struct ReaderInstructionStringsTests {
     #expect(notes.contains("RemoteUseSwitch.shared.isOn"))
     #expect(!notes.contains("isReaderConnected"))
     #expect(identity.contains("Turn on remote use from the top right corner."))
-    let remoteUseFiles = try ["RemoteUseState.swift", "RemoteUseBlockage.swift"].map { name in
+    let remoteUseFiles = try ["RemoteUseState.swift", "RemoteUseBlockage+Cause.swift"].map { name in
       try String(contentsOf: Self.root.appending(path: "Sources/App/\(name)"), encoding: .utf8)
     }
     let remoteUse = remoteUseFiles.joined()

@@ -249,6 +249,14 @@
         case .localNetworkDenied:
           LocalNetworkNotice(message: LocalNetworkSettings.deniedMessage)
       #endif
+
+      #if !REFINEID_REMOTE_CARD
+        // The module carries the phone's cases on every platform. With the
+        // remote card compiled out nothing here fills the facts a phone's
+        // case is derived from, so the row falls back to what it can say.
+        default:
+          readingLine
+      #endif
       }
     }
 

@@ -1,97 +1,94 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-#if os(iOS)
+import Foundation
+import RappRequester
+import Testing
 
-  import Foundation
-  import RappRequester
-  import Testing
+@testable import RefineIDTestHost
 
-  @testable import RefineIDTestHost
+/// The identity line with remote use off speaks of this Mac's reader alone
+/// (hierarchy specification §5.2); a card in the reader still shows its
+/// holder.
+@Suite
+internal struct IdentityLineRemoteUseTests {
+  internal struct Case: Sendable, CustomTestStringConvertible {
+    internal let name: String
+    internal let facts: RequesterFacts
+    internal let line: IdentityLine
 
-  /// The identity line with remote use off speaks of this Mac's reader alone
-  /// (hierarchy specification §5.2); a card in the reader still shows its
-  /// holder.
-  @Suite
-  internal struct IdentityLineRemoteUseTests {
-    internal struct Case: Sendable, CustomTestStringConvertible {
-      internal let name: String
-      internal let facts: RequesterFacts
-      internal let line: IdentityLine
-
-      internal var testDescription: String { name }
-    }
-
-    private static let phone = "Alpha iPhone"
-
-    /// Remote use off, nothing here and nothing paired.
-    private static let off = RequesterFacts(
-      availability: .noCard,
-      warnsUnavailableCard: false,
-      readerConnected: false,
-      cardPresent: false
-    )
-
-    internal static let cases: [Case] = [
-      Case(name: "no reader asks for a reader", facts: off, line: .connectReader),
-      Case(
-        name: "an empty reader asks for the card",
-        facts: with { $0.readerConnected = true }, line: .insertCard),
-      Case(
-        name: "a paired phone is not shown",
-        facts: with { $0.phonePaired = true }, line: .connectReader),
-      Case(
-        name: "a paired phone is not shown beside an empty reader",
-        facts: with { facts in
-          facts.readerConnected = true
-          facts.phonePaired = true
-        },
-        line: .insertCard),
-      Case(
-        name: "the phone that forgot this computer is not named",
-        facts: with { $0.phoneThatForgot = phone }, line: .connectReader),
-      Case(
-        name: "a local card shows its holder",
-        facts: with { facts in
-          facts.availability = .ready
-          facts.readerConnected = true
-          facts.cardPresent = true
-        },
-        line: .localHolder),
-      Case(
-        name: "a local card settling shows nothing",
-        facts: with { facts in
-          facts.availability = .cardWithoutIdentity
-          facts.readerConnected = true
-          facts.cardPresent = true
-        },
-        line: .reading),
-      Case(
-        name: "a denied local network is not shown",
-        facts: with { $0.localNetworkDenied = true }, line: .connectReader),
-    ]
-
-    private static func with(_ change: (inout RequesterFacts) -> Void) -> RequesterFacts {
-      var facts = off
-      change(&facts)
-      return facts
-    }
-
-    /// Each combination shows its line.
-    @Test(arguments: cases)
-    internal func derivesTheLine(_ testCase: Case) {
-      #expect(IdentityLine.derive(testCase.facts) == testCase.line)
-    }
-
-    /// Turning remote use on brings the pairing prompt beside an empty
-    /// reader, and a pairing whose phone offers no card yet shows it too.
-    @Test
-    internal func remoteUseOnBringsThePhoneBack() {
-      var facts = Self.with { $0.readerConnected = true }
-      #expect(IdentityLine.derive(facts) == .insertCard)
-      facts.remoteUse = true
-      #expect(IdentityLine.derive(facts) == .pairPhone)
-      facts.phonePaired = true
-      #expect(IdentityLine.derive(facts) == .pairPhone)
-    }
+    internal var testDescription: String { name }
   }
-#endif
+
+  private static let phone = "Alpha iPhone"
+
+  /// Remote use off, nothing here and nothing paired.
+  private static let off = RequesterFacts(
+    availability: .noCard,
+    warnsUnavailableCard: false,
+    readerConnected: false,
+    cardPresent: false
+  )
+
+  internal static let cases: [Case] = [
+    Case(name: "no reader asks for a reader", facts: off, line: .connectReader),
+    Case(
+      name: "an empty reader asks for the card",
+      facts: with { $0.readerConnected = true }, line: .insertCard),
+    Case(
+      name: "a paired phone is not shown",
+      facts: with { $0.phonePaired = true }, line: .connectReader),
+    Case(
+      name: "a paired phone is not shown beside an empty reader",
+      facts: with { facts in
+        facts.readerConnected = true
+        facts.phonePaired = true
+      },
+      line: .insertCard),
+    Case(
+      name: "the phone that forgot this computer is not named",
+      facts: with { $0.phoneThatForgot = phone }, line: .connectReader),
+    Case(
+      name: "a local card shows its holder",
+      facts: with { facts in
+        facts.availability = .ready
+        facts.readerConnected = true
+        facts.cardPresent = true
+      },
+      line: .localHolder),
+    Case(
+      name: "a local card settling shows nothing",
+      facts: with { facts in
+        facts.availability = .cardWithoutIdentity
+        facts.readerConnected = true
+        facts.cardPresent = true
+      },
+      line: .reading),
+    Case(
+      name: "a denied local network is not shown",
+      facts: with { $0.localNetworkDenied = true }, line: .connectReader),
+  ]
+
+  private static func with(_ change: (inout RequesterFacts) -> Void) -> RequesterFacts {
+    var facts = off
+    change(&facts)
+    return facts
+  }
+
+  /// Each combination shows its line.
+  @Test(arguments: cases)
+  internal func derivesTheLine(_ testCase: Case) {
+    #expect(IdentityLine.derive(testCase.facts) == testCase.line)
+  }
+
+  /// Turning remote use on brings the pairing prompt beside an empty
+  /// reader, and a pairing whose phone offers no card yet shows it too.
+  @Test
+  internal func remoteUseOnBringsThePhoneBack() {
+    var facts = Self.with { $0.readerConnected = true }
+    #expect(IdentityLine.derive(facts) == .insertCard)
+    facts.remoteUse = true
+    #expect(IdentityLine.derive(facts) == .pairPhone)
+    facts.phonePaired = true
+    #expect(IdentityLine.derive(facts) == .pairPhone)
+  }
+}

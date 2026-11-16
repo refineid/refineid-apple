@@ -3,6 +3,7 @@
 #if os(macOS) && REFINEID_REMOTE_CARD
 
   @preconcurrency import CoreBluetooth
+  import RappRequester
   import Security
 
   /// Watches this Mac's Bluetooth while remote use is on.

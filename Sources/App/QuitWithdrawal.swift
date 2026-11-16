@@ -4,6 +4,7 @@
 
   import CoreFoundation
   import RappEngine
+  import RappRequester
 
   /// Quitting while remote use is on: this computer's withdrawal (RAPP
   /// v26.11.8 §4.5 item 8, hierarchy specification §5.2).

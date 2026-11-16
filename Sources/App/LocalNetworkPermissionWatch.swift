@@ -5,6 +5,7 @@
   import CardCore
   import dnssd
   import Network
+  import RappRequester
 
   /// Learns whether macOS lets this app use the local network, once remote
   /// use is on.

@@ -4,6 +4,7 @@
   import CardCore
   import Foundation
   import RappEngine
+  import RappRequester
 
   extension PersistentTokenRegistry {
     /// Notified when a physical card in a reader is inserted or removed.

@@ -3,6 +3,7 @@
 #if os(macOS) && REFINEID_REMOTE_CARD
 
   import Foundation
+  import RappRequester
 
   /// The state the remote-use switch shows (STPA CC-95).
   ///
