@@ -116,40 +116,27 @@ extension CmsSignerVerification {
   }
 
   /// The fields of the one SignerInfo of `cms`, nil when the structure
-  /// is not a SignedData with exactly one SignerInfo carrying signed
-  /// attributes.
+  /// is not a detached SignedData with exactly one SignerInfo carrying
+  /// signed attributes.
   internal static func signerFields(in cms: Data) -> SignerFields? {
-    guard let signerInfos = Self.signerInfos(in: cms) else { return nil }
-    var infos = DerReader(cms, within: signerInfos)
     guard
-      let signerInfo = infos.next(),
-      signerInfo.tag == DerValues.tagSequence,
-      infos.isAtEnd
+      let signedData = CmsSignedData(in: cms),
+      Self.isDetachedData(signedData.encapsulatedContentInfo, in: cms),
+      let signerElement = signedData.soleSignerInfoElement(in: cms),
+      let raw = CmsSignedData.signerFields(of: signerElement, in: cms)
     else {
       return nil
     }
-    var fields = DerReader(cms, within: signerInfo)
+    let reader = DerReader(cms)
     guard
-      let version = fields.next(), version.tag == DerValues.tagInteger,
-      let identifier = fields.next(),
-      let digest = fields.next(), digest.tag == DerValues.tagSequence,
-      let signed = fields.next(), signed.tag == DerValues.tagContext0Constructed,
-      let algorithm = fields.next(), algorithm.tag == DerValues.tagSequence,
-      let signature = fields.next(), signature.tag == DerValues.tagOctetString
-    else {
-      return nil
-    }
-    var unsigned: DerReader.Element?
-    if let trailing = fields.next() {
-      guard trailing.tag == DerValues.tagContext1Constructed, fields.isAtEnd else {
-        return nil
-      }
-      unsigned = trailing
-    }
-    guard
-      let signerIdentifier = Self.signerIdentifier(identifier, in: cms),
-      let digestAlgorithm = Digest(algorithmIdentifier: fields.data(of: digest)),
-      let scheme = SignatureScheme(identifier: fields.data(of: algorithm), digest: digestAlgorithm)
+      let signerIdentifier = Self.signerIdentifier(raw.identifier, in: cms),
+      let digestAlgorithm = Digest(
+        algorithmIdentifier: reader.data(of: raw.digestAlgorithm)
+      ),
+      let scheme = SignatureScheme(
+        identifier: reader.data(of: raw.signatureAlgorithm),
+        digest: digestAlgorithm
+      )
     else {
       return nil
     }
@@ -157,9 +144,9 @@ extension CmsSignerVerification {
       identifier: signerIdentifier,
       digest: digestAlgorithm,
       scheme: scheme,
-      signedAttributes: signed,
-      signatureValue: fields.contentData(of: signature),
-      unsignedAttributes: unsigned
+      signedAttributes: raw.signedAttributes,
+      signatureValue: raw.signatureValue,
+      unsignedAttributes: raw.unsignedAttributes
     )
   }
 
@@ -196,42 +183,5 @@ extension CmsSignerVerification {
     var reader = DerReader(cms, within: element)
     guard let type = reader.next(), reader.isAtEnd else { return false }
     return reader.data(of: type) == DerEncoder.objectIdentifier(SignOids.data)
-  }
-
-  /// The SignerInfos SET of the SignedData in `cms`.
-  private static func signerInfos(in cms: Data) -> DerReader.Element? {
-    var outer = DerReader(cms)
-    guard let contentInfo = outer.next(), contentInfo.tag == DerValues.tagSequence,
-      outer.isAtEnd
-    else { return nil }
-    var info = DerReader(cms, within: contentInfo)
-    guard
-      let type = info.next(),
-      info.data(of: type) == DerEncoder.objectIdentifier(SignOids.signedData),
-      let wrapped = info.next(), wrapped.tag == DerValues.tagContext0Constructed,
-      info.isAtEnd
-    else { return nil }
-    var wrapper = DerReader(cms, within: wrapped)
-    guard let signedData = wrapper.next(), signedData.tag == DerValues.tagSequence,
-      wrapper.isAtEnd
-    else { return nil }
-    var reader = DerReader(cms, within: signedData)
-    guard
-      let version = reader.next(), version.tag == DerValues.tagInteger,
-      let digests = reader.next(), digests.tag == DerValues.tagSet,
-      let encapsulated = reader.next(), encapsulated.tag == DerValues.tagSequence,
-      Self.isDetachedData(encapsulated, in: cms),
-      var element = reader.next()
-    else { return nil }
-    if element.tag == DerValues.tagContext0Constructed {
-      guard let following = reader.next() else { return nil }
-      element = following
-    }
-    if element.tag == DerValues.tagContext1Constructed {
-      guard let following = reader.next() else { return nil }
-      element = following
-    }
-    guard element.tag == DerValues.tagSet, reader.isAtEnd else { return nil }
-    return element
   }
 }

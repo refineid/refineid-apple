@@ -7,7 +7,12 @@ extension CmsSigningCertificate {
   internal static func signedAttributes(
     in token: Data
   ) throws -> DerReader.Element {
-    let signer = try Self.signerInfo(in: token)
+    guard
+      let signedData = CmsSignedData(in: token),
+      let signer = signedData.soleSignerInfoElement(in: token)
+    else {
+      throw Failure.malformed
+    }
     var reader = DerReader(token, within: signer)
     guard
       reader.next() != nil,
@@ -19,69 +24,6 @@ extension CmsSigningCertificate {
       throw Failure.malformed
     }
     return attributes
-  }
-
-  /// The sole SignerInfo inside SignedData.
-  private static func signerInfo(in token: Data) throws -> DerReader.Element {
-    let signedData = try Self.signedData(in: token)
-    var signed = DerReader(token, within: signedData)
-    guard signed.next() != nil, signed.next() != nil, signed.next() != nil else {
-      throw Failure.malformed
-    }
-    var candidate = signed.next()
-    if candidate?.tag == DerValues.tagContext0Constructed {
-      candidate = signed.next()
-    }
-    if candidate?.tag == DerValues.tagContext1Constructed {
-      candidate = signed.next()
-    }
-    guard
-      let signerInfos = candidate,
-      signerInfos.tag == DerValues.tagSet,
-      signed.isAtEnd
-    else {
-      throw Failure.malformed
-    }
-    var signers = DerReader(token, within: signerInfos)
-    guard
-      let signer = signers.next(),
-      signer.tag == DerValues.tagSequence,
-      signers.isAtEnd
-    else {
-      throw Failure.malformed
-    }
-    return signer
-  }
-
-  /// The SignedData element inside the token's ContentInfo.
-  private static func signedData(in token: Data) throws -> DerReader.Element {
-    var outer = DerReader(token)
-    guard
-      let contentInfo = outer.next(),
-      contentInfo.tag == DerValues.tagSequence,
-      outer.isAtEnd
-    else {
-      throw Failure.malformed
-    }
-    var info = DerReader(token, within: contentInfo)
-    guard
-      let type = info.next(),
-      info.data(of: type) == DerEncoder.objectIdentifier(SignOids.signedData),
-      let wrapper = info.next(),
-      wrapper.tag == DerValues.tagContext0Constructed,
-      info.isAtEnd
-    else {
-      throw Failure.malformed
-    }
-    var wrapped = DerReader(token, within: wrapper)
-    guard
-      let signedData = wrapped.next(),
-      signedData.tag == DerValues.tagSequence,
-      wrapped.isAtEnd
-    else {
-      throw Failure.malformed
-    }
-    return signedData
   }
 
   /// The first certificate reference in one attribute value.

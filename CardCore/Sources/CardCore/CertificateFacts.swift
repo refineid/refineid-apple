@@ -23,6 +23,11 @@ public struct CertificateFacts {
   /// octet - what an OCSP CertID hashes.
   public let publicKeyBits: Data
 
+  /// The SubjectKeyIdentifier octets, when the certificate carries one
+  /// valid non-critical SubjectKeyIdentifier extension (RFC 5280
+  /// section 4.2.1.2).
+  public let subjectKeyIdentifier: Data?
+
   /// Where the issuer's certificate can be fetched (AIA caIssuers).
   public let issuerCertificateUrls: [String]
 
@@ -106,6 +111,7 @@ public struct CertificateFacts {
     }
     self.publicKeyBits = bits
     let extensions = Self.extensionFacts(in: der, reader: &reader)
+    self.subjectKeyIdentifier = extensions.subjectKeyIdentifier.octets
     self.issuerCertificateUrls = extensions.issuers
     self.ocspUrls = extensions.responders
     self.crlUrls = extensions.revocationLists

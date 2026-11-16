@@ -9,14 +9,6 @@ import Foundation
 /// evidence for those as well as for the signer, so the signing side
 /// has to be able to read them back out of the token it just received.
 public enum CmsCertificates {
-  /// The SignedData fields needed to inspect or remove its CertificateSet.
-  private struct Layout {
-    let contentType: Data
-    let signedData: DerReader.Element
-    let certificates: DerReader.Element?
-    let revocationInformation: DerReader.Element?
-  }
-
   /// The revocation evidence carried in SignedData's `crls [1]` field
   /// (RFC 5652 section 10.2.1).
   public struct RevocationInformation: Equatable, Sendable {
@@ -32,8 +24,8 @@ public enum CmsCertificates {
   /// order written, or an empty array when there are none.
   public static func inside(_ token: Data) -> [Data] {
     guard
-      let layout = Self.layout(in: token),
-      let certificateSet = layout.certificates
+      let signedData = CmsSignedData(in: token),
+      let certificateSet = signedData.certificates
     else { return [] }
     var list = DerReader(token, within: certificateSet)
     var certificates: [Data] = []
@@ -53,8 +45,8 @@ public enum CmsCertificates {
   public static func revocationInformation(in token: Data) -> RevocationInformation {
     let empty = RevocationInformation(revocationLists: [], ocspResponses: [])
     guard
-      let layout = Self.layout(in: token),
-      let choices = layout.revocationInformation
+      let signedData = CmsSignedData(in: token),
+      let choices = signedData.revocationChoices
     else { return empty }
     var list = DerReader(token, within: choices)
     var revocationLists: [Data] = []
@@ -94,94 +86,23 @@ public enum CmsCertificates {
   public static func removingCertificates(from token: Data) -> Data? {
     let encoded = Data(token)
     guard
-      let layout = Self.layout(in: encoded),
-      let certificateSet = layout.certificates
+      let parsed = CmsSignedData(in: encoded),
+      let certificateSet = parsed.certificates
     else { return nil }
     var body = Data(
       encoded[
-        layout.signedData.content.lowerBound..<certificateSet.raw.lowerBound
+        parsed.element.content.lowerBound..<certificateSet.raw.lowerBound
       ]
     )
     body.append(
       encoded[
-        certificateSet.raw.upperBound..<layout.signedData.content.upperBound
+        certificateSet.raw.upperBound..<parsed.element.content.upperBound
       ]
     )
     let signedData = DerEncoder.tlv(DerValues.tagSequence, body)
     return DerEncoder.sequence([
-      layout.contentType,
+      DerEncoder.objectIdentifier(SignOids.signedData),
       DerEncoder.tlv(DerValues.tagContext0Constructed, signedData),
     ])
-  }
-
-  /// Parses one complete SignedData and locates its optional CertificateSet.
-  private static func layout(in token: Data) -> Layout? {
-    guard let content = Self.signedData(in: token) else { return nil }
-    var reader = DerReader(token, within: content.element)
-    // version, digestAlgorithms, encapContentInfo, then optional fields.
-    guard
-      let version = reader.next(),
-      version.tag == DerValues.tagInteger,
-      let algorithms = reader.next(),
-      algorithms.tag == DerValues.tagSet,
-      let encapsulated = reader.next(),
-      encapsulated.tag == DerValues.tagSequence,
-      var candidate = reader.next()
-    else {
-      return nil
-    }
-    let certificates: DerReader.Element?
-    if candidate.tag == DerValues.tagContext0Constructed {
-      certificates = candidate
-      guard let following = reader.next() else { return nil }
-      candidate = following
-    } else {
-      certificates = nil
-    }
-    let revocationInformation: DerReader.Element?
-    if candidate.tag == DerValues.tagContext1Constructed {
-      revocationInformation = candidate
-      guard let following = reader.next() else { return nil }
-      candidate = following
-    } else {
-      revocationInformation = nil
-    }
-    guard candidate.tag == DerValues.tagSet, reader.isAtEnd else { return nil }
-    return Layout(
-      contentType: content.contentType,
-      signedData: content.element,
-      certificates: certificates,
-      revocationInformation: revocationInformation
-    )
-  }
-
-  /// The inner SignedData and the ContentInfo type that named it.
-  private static func signedData(
-    in token: Data
-  ) -> (contentType: Data, element: DerReader.Element)? {
-    var outer = DerReader(token)
-    guard
-      let contentInfo = outer.next(),
-      contentInfo.tag == DerValues.tagSequence,
-      outer.isAtEnd
-    else { return nil }
-    var info = DerReader(token, within: contentInfo)
-    guard
-      let contentType = info.next(),
-      info.data(of: contentType)
-        == DerEncoder.objectIdentifier(SignOids.signedData),
-      let explicitWrap = info.next(),
-      explicitWrap.tag == DerValues.tagContext0Constructed,
-      info.isAtEnd
-    else {
-      return nil
-    }
-    var wrapped = DerReader(token, within: explicitWrap)
-    guard
-      let signedData = wrapped.next(),
-      signedData.tag == DerValues.tagSequence,
-      wrapped.isAtEnd
-    else { return nil }
-    return (info.data(of: contentType), signedData)
   }
 }

@@ -69,10 +69,12 @@ internal enum CmsSignerVerification {
     /// Whether `certificate` is the one this identifier names: equal
     /// issuer and serial, or an equal subjectKeyIdentifier.
     internal func names(_ certificate: Data) -> Bool {
+      guard let facts = CertificateFacts(der: certificate) else {
+        return false
+      }
       switch self {
       case .issuerAndSerialNumber(let issuer, let serial):
         guard
-          let facts = CertificateFacts(der: certificate),
           let magnitude = try? CertificateRevocationList.unsignedIntegerContent(
             facts.serialNumber)
         else {
@@ -81,7 +83,7 @@ internal enum CmsSignerVerification {
         return facts.issuerName == issuer && magnitude == serial
 
       case .subjectKeyIdentifier(let identifier):
-        return TimestampCmsVerifier.subjectKeyIdentifier(in: certificate) == identifier
+        return facts.subjectKeyIdentifier == identifier
       }
     }
   }

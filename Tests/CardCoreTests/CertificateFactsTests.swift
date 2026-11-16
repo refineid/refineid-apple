@@ -11,13 +11,23 @@ internal struct CertificateFactsTests {
   /// Tags used only to assemble a minimal certificate fixture.
   private enum Tag {
     static let bitString: UInt8 = 0x03
+    static let boolean: UInt8 = 0x01
     static let context0: UInt8 = 0xA0
     static let context3: UInt8 = 0xA3
     static let uri: UInt8 = 0x86
   }
 
+  /// BOOLEAN FALSE content octet.
+  private static let booleanFalse: UInt8 = 0x00
+
   /// id-ce-cRLDistributionPoints.
   private static let crlDistributionPoints = "2.5.29.31"
+
+  /// id-ce-subjectKeyIdentifier.
+  private static let subjectKeyIdentifier = "2.5.29.14"
+
+  /// Synthetic SubjectKeyIdentifier payload octets.
+  private static let keyIdentifier = Data("subject-key-identifier".utf8)
 
   /// A self-issued timestamp certificate with no AIA endpoints.
   private static let certificate = Self.decode(
@@ -80,12 +90,81 @@ internal struct CertificateFactsTests {
 
     #expect(!facts.serialNumber.isEmpty)
     #expect(!facts.publicKeyBits.isEmpty)
+    #expect(facts.subjectKeyIdentifier != nil)
     #expect(facts.issuerName == facts.subjectName)
     #expect(facts.isSelfIssued)
     #expect(facts.issuerCertificateUrls.isEmpty)
     #expect(facts.ocspUrls.isEmpty)
     #expect(facts.crlUrls.isEmpty)
     #expect(facts.hasTimestampingExtendedKeyUsage)
+  }
+
+  /// A single non-critical SubjectKeyIdentifier exposes its inner octets,
+  /// and an omitted extension reports nil.
+  @Test
+  internal func subjectKeyIdentifierExtractsValidOctetsAndNilWhenAbsent() throws {
+    let validExtension = DerEncoder.sequence([
+      DerEncoder.objectIdentifier(Self.subjectKeyIdentifier),
+      DerEncoder.octetString(DerEncoder.octetString(Self.keyIdentifier)),
+    ])
+    let present = try #require(
+      CertificateFacts(der: Self.certificate(extensions: [validExtension]))
+    )
+    let absent = try #require(
+      CertificateFacts(der: Self.certificate(extensions: []))
+    )
+
+    #expect(present.subjectKeyIdentifier == Self.keyIdentifier)
+    #expect(absent.subjectKeyIdentifier == nil)
+  }
+
+  /// Critical, malformed, or duplicate SubjectKeyIdentifier extensions fail
+  /// closed to nil without rejecting the surrounding CertificateFacts.
+  @Test
+  internal func subjectKeyIdentifierFailsClosedWhenCriticalMalformedOrDuplicated() throws {
+    let validExtension = DerEncoder.sequence([
+      DerEncoder.objectIdentifier(Self.subjectKeyIdentifier),
+      DerEncoder.octetString(DerEncoder.octetString(Self.keyIdentifier)),
+    ])
+    let criticalTrue = DerEncoder.sequence([
+      DerEncoder.objectIdentifier(Self.subjectKeyIdentifier),
+      DerEncoder.booleanTrue(),
+      DerEncoder.octetString(DerEncoder.octetString(Self.keyIdentifier)),
+    ])
+    let explicitFalse = DerEncoder.sequence([
+      DerEncoder.objectIdentifier(Self.subjectKeyIdentifier),
+      DerEncoder.tlv(Tag.boolean, Data([Self.booleanFalse])),
+      DerEncoder.octetString(DerEncoder.octetString(Self.keyIdentifier)),
+    ])
+    let nonOctetInner = DerEncoder.sequence([
+      DerEncoder.objectIdentifier(Self.subjectKeyIdentifier),
+      DerEncoder.octetString(DerEncoder.null()),
+    ])
+    let trailingInner = DerEncoder.sequence([
+      DerEncoder.objectIdentifier(Self.subjectKeyIdentifier),
+      DerEncoder.octetString(
+        DerEncoder.octetString(Self.keyIdentifier) + DerEncoder.null()
+      ),
+    ])
+    let trailingExtensionField = DerEncoder.sequence([
+      DerEncoder.objectIdentifier(Self.subjectKeyIdentifier),
+      DerEncoder.octetString(DerEncoder.octetString(Self.keyIdentifier)),
+      DerEncoder.null(),
+    ])
+
+    for rejected in [
+      [criticalTrue],
+      [explicitFalse],
+      [nonOctetInner],
+      [trailingInner],
+      [trailingExtensionField],
+      [validExtension, validExtension],
+    ] {
+      let facts = try #require(
+        CertificateFacts(der: Self.certificate(extensions: rejected))
+      )
+      #expect(facts.subjectKeyIdentifier == nil)
+    }
   }
 
   /// Full-name HTTP distribution points are exposed once; unrelated
