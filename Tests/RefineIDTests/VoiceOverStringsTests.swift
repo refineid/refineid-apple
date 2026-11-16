@@ -145,4 +145,31 @@ internal struct VoiceOverStringsTests {
       }
     }
   }
+
+  @Test("Document verification strings match in every language")
+  internal func documentVerificationStringsMatchInEveryLanguage() throws {
+    let strings = try Self.catalog(at: "Sources/App/Localizable.xcstrings")
+    let words: [String: [String: String]] = [
+      "Verify…": ["fi": "Tarkasta…", "sv": "Granska…"],
+      "Documents to verify": [
+        "fi": "Tarkastettavat asiakirjat",
+        "sv": "Dokument att granska",
+      ],
+      "Drop documents here to sign or verify them.": [
+        "fi": "Pudota asiakirjat tähän allekirjoitettavaksi tai tarkastettavaksi.",
+        "sv": "Släpp dokument här för att underteckna eller granska dem.",
+      ],
+      "Drop documents here to verify them.": [
+        "fi": "Pudota asiakirjat tähän tarkastettavaksi.",
+        "sv": "Släpp dokument här för att granska dem.",
+      ],
+    ]
+    for (key, translations) in words {
+      for (language, text) in translations {
+        #expect(
+          try Self.value(for: key, language: language, in: strings) == text,
+          "\(key) \(language)")
+      }
+    }
+  }
 }

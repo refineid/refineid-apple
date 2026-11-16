@@ -788,6 +788,9 @@ private func inspectReleaseArchive(_ archive: URL) {
     guard !importedTypes.contains("ee.ria.bdoc") else {
       releaseFail("ee.ria.bdoc UTI declared on macOS without document verification")
     }
+    guard importedTypes.contains("org.etsi.asic-e") else {
+      releaseFail("org.etsi.asic-e UTI missing on macOS; ASiC-E signing needs it")
+    }
     releaseNote("no document-viewer or BDOC declarations; document verification is gated off")
   }
 

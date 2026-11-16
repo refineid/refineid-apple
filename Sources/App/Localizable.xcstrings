@@ -2927,7 +2927,6 @@
       }
     },
     "Drop documents here to sign them.": {
-      "extractionState": "manual",
       "localizations": {
         "fi": {
           "stringUnit": {

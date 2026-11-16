@@ -157,8 +157,8 @@ internal struct RappShippingConfigurationTests {
     #expect(ios["CFBundleDocumentTypes"] is [[String: Any]])
     let iosImported = try #require(ios["UTImportedTypeDeclarations"] as? [[String: Any]])
     #expect(
-      iosImported.compactMap { $0["UTTypeIdentifier"] as? String }
-        == ["org.etsi.asic-e", "ee.ria.bdoc"])
+      Set(iosImported.compactMap { $0["UTTypeIdentifier"] as? String })
+        == Set(["org.etsi.asic-e", "ee.ria.bdoc"]))
   }
 
   @Test("RAPP network declarations are present in shipping containers")
@@ -224,6 +224,7 @@ internal struct RappShippingConfigurationTests {
     #expect(
       source.contains("CFBundleDocumentTypes present on macOS without document verification"))
     #expect(source.contains("ee.ria.bdoc UTI declared on macOS without document verification"))
+    #expect(source.contains("org.etsi.asic-e UTI missing on macOS; ASiC-E signing needs it"))
     #expect(source.contains("iPhone-only artifact requiring iOS 26.0 and an NFC antenna"))
   }
 

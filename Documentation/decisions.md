@@ -44,12 +44,13 @@ configuration. On macOS the `"Verify…"` action, verification sheet
 `View+VerificationSheet`), and verify-only empty-card window state compile
 out: without a card the window shows `"Connect a card reader."` and hides the
 empty drop area, and with a card the drop area invites `"Drop documents here
-to sign them."` and the action bar offers `"Sign…"` alone. The underlying
-verifier (`DocumentVerification`), `VerifyDocumentModel`,
-`QueuedDocumentVerification`, and `TrustedListStore` stay built and tested on
-both platforms without platform-gated dead test suites, and `StatusDocumentControls`
-takes `offersVerification` as an explicit parameter defaulting to the build's
-flag so both branches stay unit-tested on macOS.
+to sign them."` and, once documents are queued, the action bar offers
+`"Sign…"` alone. The underlying verifier (`DocumentVerification`),
+`VerifyDocumentModel`, `QueuedDocumentVerification`, and `TrustedListStore`
+stay built and tested on both platforms without platform-gated dead test
+suites, and `StatusDocumentControls` takes `offersVerification` explicitly,
+with `StatusView` passing `StatusDocumentControls.defaultOffersVerification`
+so both branches stay unit-tested on macOS.
 
 Packaging and archive inspection follow the feature-gate contract:
 `Config/RefineID-Store-Info.plist` drops `CFBundleDocumentTypes` and the
