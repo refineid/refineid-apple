@@ -1038,6 +1038,190 @@
         }
       }
     },
+    "Digest (SHA-256): %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Digest (SHA-256): %1$@"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiiviste (SHA-256): %1$@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kontrollsumma (SHA-256): %1$@"
+          }
+        }
+      }
+    },
+    "(no Origin header)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(no Origin header)"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(ei Origin-otsaketta)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(ingen Origin-header)"
+          }
+        }
+      }
+    },
+    "Signature request waiting for approval: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signature request waiting for approval: %1$@"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allekirjoituspyyntö odottaa hyväksyntää: %1$@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Underskriftsbegäran väntar på godkännande: %1$@"
+          }
+        }
+      }
+    },
+    "Local signing port 53952 is unavailable; another signing service may be running.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local signing port 53952 is unavailable; another signing service may be running."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paikallinen allekirjoitusportti 53952 ei ole käytettävissä; toinen allekirjoituspalvelu saattaa olla käynnissä."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lokal port 53952 för undertecknande är inte tillgänglig; en annan underteckningstjänst kan vara igång."
+          }
+        }
+      }
+    },
+    "Local signing port 53952 is already in use or unavailable.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local signing port 53952 is already in use or unavailable."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paikallinen allekirjoitusportti 53952 on jo käytössä tai ei ole saatavilla."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lokal port 53952 för undertecknande används redan eller är inte tillgänglig."
+          }
+        }
+      }
+    },
+    "Could not prepare the localhost TLS certificate in Keychain.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not prepare the localhost TLS certificate in Keychain."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paikallista TLS-varmennetta ei voitu valmistella avainnipussa."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunde inte förbereda TLS-certifikatet för localhost i Nyckelhanterare."
+          }
+        }
+      }
+    },
+    "PIN rejected (%lld attempts remaining)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN rejected (%1$lld attempts remaining)"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tunnusluku hylättiin (%1$lld yritystä jäljellä)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN-koden avvisades (%1$lld försök kvar)"
+          }
+        }
+      }
+    },
+    "PIN is blocked on the card": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN is blocked on the card"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tunnusluku on lukittu kortilla"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PIN-koden är spärrad på kortet"
+          }
+        }
+      }
+    },
     "Enter Basic PIN 1": {
       "extractionState": "manual",
       "localizations": {

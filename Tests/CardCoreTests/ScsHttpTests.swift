@@ -4,14 +4,14 @@ import CardCore
 import Foundation
 import Testing
 
-/// The one-request-per-connection HTTP framing this implementation
-/// uses for the SCS exchange.
+/// The one-request-per-connection HTTP framing, loopback `Host`
+/// allowlist, 100 MiB body bound, and header-sanitized CORS responses.
 @Suite
 internal struct ScsHttpTests {
   @Test
-  internal func assemblesAConcatenatedRequest() {
+  internal func assemblesAConcatenatedRequestWithLoopbackHost() {
     let wire =
-      "POST /sign HTTP/1.1\r\nOrigin: https://dvv.fineid.fi\r\n"
+      "POST /sign HTTP/1.1\r\nHost: 127.0.0.1:53952\r\nOrigin: https://dvv.fineid.fi\r\n"
       + "Content-Type: application/json\r\nContent-Length: 4\r\n\r\nbody"
     let assembly = ScsHttpAssembly.assemble(buffer: Data(wire.utf8))
     guard case .complete(let exchange) = assembly else {
@@ -26,41 +26,62 @@ internal struct ScsHttpTests {
   }
 
   @Test
-  internal func refusesANegativeContentLength() {
-    // A declared negative length passed every guard and handed a negative
-    // count to the body assembly, which traps; it must be invalid instead.
-    let wire = "POST /sign HTTP/1.1\r\nContent-Length: -1\r\n\r\n"
-    #expect(ScsHttpAssembly.assemble(buffer: Data(wire.utf8)) == .invalid)
+  internal func enforcesLoopbackHostHeaderAllowlist() {
+    for validHost in ["127.0.0.1", "127.0.0.1:53952", "localhost", "LOCALHOST:53952"] {
+      let wire = "GET /version HTTP/1.1\r\nHost: \(validHost)\r\n\r\n"
+      guard case .complete = ScsHttpAssembly.assemble(buffer: Data(wire.utf8)) else {
+        Issue.record("expected \(validHost) to be accepted")
+        continue
+      }
+    }
+    for rejected in [
+      "GET /version HTTP/1.1\r\n\r\n",
+      "GET /version HTTP/1.1\r\nHost: evil.example\r\n\r\n",
+      "GET /version HTTP/1.1\r\nHost: 127.0.0.1:8080\r\n\r\n",
+      "GET /version HTTP/1.1\r\nHost: 127.0.0.1:53952\r\nHost: localhost:53952\r\n\r\n",
+    ] {
+      #expect(ScsHttpAssembly.assemble(buffer: Data(rejected.utf8)) == .invalid)
+    }
   }
 
   @Test
-  internal func refusesAnUnparseableContentLength() {
-    // Garbage or an overflowing number must not fall back to a valid
-    // empty body.
-    let overflow = "POST /sign HTTP/1.1\r\nContent-Length: 18446744073709551616\r\n\r\n"
-    #expect(ScsHttpAssembly.assemble(buffer: Data(overflow.utf8)) == .invalid)
-    let garbage = "POST /sign HTTP/1.1\r\nContent-Length: many\r\n\r\n"
-    #expect(ScsHttpAssembly.assemble(buffer: Data(garbage.utf8)) == .invalid)
+  internal func refusesInvalidOrSmuggledContentLengthAndTrailingBytes() {
+    for rejected in [
+      "POST /sign HTTP/1.1\r\nHost: 127.0.0.1:53952\r\nContent-Length: -1\r\n\r\n",
+      "POST /sign HTTP/1.1\r\nHost: 127.0.0.1:53952\r\nContent-Length: 18446744073709551616\r\n\r\n",
+      "POST /sign HTTP/1.1\r\nHost: 127.0.0.1:53952\r\nContent-Length: many\r\n\r\n",
+      "POST /sign HTTP/1.1\r\nHost: 127.0.0.1:53952\r\nTransfer-Encoding: chunked\r\n\r\n",
+      "POST /sign HTTP/1.1\r\nHost: 127.0.0.1:53952\r\nContent-Length: 2\r\n\r\nabc",
+    ] {
+      #expect(ScsHttpAssembly.assemble(buffer: Data(rejected.utf8)) == .invalid)
+    }
   }
 
   @Test
-  internal func waitsForTheWholeBody() {
-    let wire = "POST /sign HTTP/1.1\r\nContent-Length: 10\r\n\r\nhalf"
-    #expect(ScsHttpAssembly.assemble(buffer: Data(wire.utf8)) == .needMoreData)
-  }
+  internal func admitsHundredMegabyteCeilingAndRejectsAboveBeforeBuffering() {
+    let atLimit =
+      "POST /sign HTTP/1.1\r\nHost: 127.0.0.1:53952\r\nContent-Length: 104857600\r\n\r\n"
+    #expect(ScsHttpAssembly.assemble(buffer: Data(atLimit.utf8)) == .needMoreData)
 
-  @Test
-  internal func waitsForTheHeadBoundary() {
+    let overLimit =
+      "POST /sign HTTP/1.1\r\nHost: 127.0.0.1:53952\r\nContent-Length: 104857601\r\n\r\n"
+    #expect(ScsHttpAssembly.assemble(buffer: Data(overLimit.utf8)) == .invalid)
     #expect(
-      ScsHttpAssembly.assemble(buffer: Data("GET /version HTTP/1.1\r\n".utf8))
-        == .needMoreData)
+      !ScsHttpAssembly.exceedsReceiveCeiling(bufferedCount: 65_536, incomingCount: 104_857_600))
+    #expect(
+      ScsHttpAssembly.exceedsReceiveCeiling(bufferedCount: 65_537, incomingCount: 104_857_600))
   }
 
   @Test
-  internal func stripsTheQueryString() {
-    let wire = "GET /version?probe=1 HTTP/1.1\r\n\r\n"
-    let assembly = ScsHttpAssembly.assemble(buffer: Data(wire.utf8))
-    guard case .complete(let exchange) = assembly else {
+  internal func waitsForHeadAndBodyAndStripsQueryString() {
+    #expect(
+      ScsHttpAssembly.assemble(buffer: Data("GET /version HTTP/1.1\r\n".utf8)) == .needMoreData)
+    let partial =
+      "POST /sign HTTP/1.1\r\nHost: 127.0.0.1:53952\r\nContent-Length: 10\r\n\r\nhalf"
+    #expect(ScsHttpAssembly.assemble(buffer: Data(partial.utf8)) == .needMoreData)
+
+    let query = "GET /version?probe=1 HTTP/1.1\r\nHost: localhost:53952\r\n\r\n"
+    guard case .complete(let exchange) = ScsHttpAssembly.assemble(buffer: Data(query.utf8)) else {
       Issue.record("expected a complete request")
       return
     }
@@ -68,7 +89,7 @@ internal struct ScsHttpTests {
   }
 
   @Test
-  internal func responsesEchoTheOriginAndClose() throws {
+  internal func responsesSanitizeOriginAndBoundPreflightMaxAge() throws {
     let response = ScsHttpResponse.json(
       status: 200,
       body: Data("{}".utf8),
@@ -77,16 +98,15 @@ internal struct ScsHttpTests {
     let text = try #require(String(data: response, encoding: .utf8))
     #expect(text.hasPrefix("HTTP/1.1 200 OK\r\n"))
     #expect(text.contains("Access-Control-Allow-Origin: https://dvv.fineid.fi\r\n"))
+    #expect(text.contains("Access-Control-Max-Age: 600\r\n"))
     #expect(text.contains("Connection: close\r\n"))
-    #expect(text.contains("Content-Length: 2\r\n"))
     #expect(text.hasSuffix("\r\n\r\n{}"))
-  }
 
-  @Test
-  internal func preflightAnswersOkWithCors() throws {
-    let response = ScsHttpResponse.preflight(origin: "https://dvv.fineid.fi")
-    let text = try #require(String(data: response, encoding: .utf8))
-    #expect(text.hasPrefix("HTTP/1.1 200 OK\r\n"))
-    #expect(text.contains("Access-Control-Allow-Methods: GET, POST\r\n"))
+    let injected = ScsHttpResponse.preflight(
+      origin: "https://evil.example\r\nX-Injected: yes"
+    )
+    let injectedText = try #require(String(data: injected, encoding: .utf8))
+    #expect(!injectedText.contains("X-Injected"))
+    #expect(injectedText.contains("Access-Control-Allow-Origin: null\r\n"))
   }
 }

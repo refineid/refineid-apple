@@ -6,17 +6,7 @@ import os
 
 /// The stateful SCS transaction flow (DVV SCS specification v1.3
 /// §2.7): a signed `begin` establishes an encrypted channel, one
-/// `execute` inside it produces the signature.
-///
-/// `begin` arrives as a compact JWS signed by the relying service's
-/// certificate; its payload carries the service's P-256 agreement
-/// key. This service answers with an ephemeral public key, signed by
-/// the card, and both sides derive the shared transaction key.
-/// `execute` then rides as a direct-encryption A256GCM JWE under that
-/// key, and so does its response. One transaction may be pending at a
-/// time; `execute` consumes it whether it succeeds or not. The step
-/// logic lives in `ScsTransactionBegin` and
-/// `ScsTransactionExecution`; this class owns only the pending slot.
+/// `execute` inside it produces the signature within the bounded TTL.
 public final class ScsTransactionManager: Sendable {
   private let pending = OSAllocatedUnfairLock<ScsAgreedTransaction?>(initialState: nil)
 
@@ -25,22 +15,14 @@ public final class ScsTransactionManager: Sendable {
     // Starts empty by definition: no transaction has begun.
   }
 
-  /// Handles the `begin` JWS: verifies it, agrees the transaction
-  /// key, and answers the card-signed response JWT.
-  public func begin(
-    compactJws: Data,
-    origin: String?,
-    at now: Date,
-    backend: any ScsSigningBackend
-  ) -> Result<String, ScsTransactionError> {
-    let requestOrigin: String
-    switch ScsTransactionCodec.validatedOrigin(origin) {
-    case .success(let validated):
-      requestOrigin = validated
+  private static func isExpired(_ state: ScsAgreedTransaction, at now: Date) -> Bool {
+    now.timeIntervalSince(state.createdAt) > ScsValues.transactionTimeToLiveSeconds
+      || now < state.createdAt.addingTimeInterval(-ScsValues.notBeforeClockSkewSeconds)
+  }
 
-    case .failure(let error):
-      return .failure(error)
-    }
+  private static func compactJwsSegments(
+    _ compactJws: Data
+  ) -> Result<[String], ScsTransactionError> {
     guard let compact = String(data: compactJws, encoding: .utf8) else {
       return .failure(.badRequest("JWT body is not UTF-8"))
     }
@@ -51,7 +33,37 @@ public final class ScsTransactionManager: Sendable {
     else {
       return .failure(.badRequest("begin transaction must be a compact JWS"))
     }
-    if pending.withLock({ current in current != nil }) {
+    return .success(segments)
+  }
+
+  /// Drops any pending agreed transaction, called when the listener
+  /// stops so no agreed key survives across disable and re-enable.
+  public func clear() {
+    pending.withLock { current in
+      current = nil
+    }
+  }
+
+  /// Handles the `begin` JWS: verifies it, agrees the transaction
+  /// key, and answers the card-signed response JWT.
+  public func begin(
+    compactJws: Data,
+    origin: String?,
+    at now: Date,
+    backend: any ScsSigningBackend
+  ) -> Result<String, ScsTransactionError> {
+    guard case .success(let requestOrigin) = ScsTransactionCodec.validatedOrigin(origin) else {
+      return ScsTransactionCodec.validatedOrigin(origin)
+    }
+    let segments: [String]
+    switch Self.compactJwsSegments(compactJws) {
+    case .success(let parsed):
+      segments = parsed
+
+    case .failure(let error):
+      return .failure(error)
+    }
+    guard hasAvailableSlot(at: now) else {
       return .failure(.forbidden("another signature request is already active"))
     }
     let outcome: ScsTransactionBegin.Outcome
@@ -64,27 +76,27 @@ public final class ScsTransactionManager: Sendable {
     case .failure(let error):
       return .failure(error)
     }
-    let raced = pending.withLock { current in
-      if current != nil {
-        return true
-      }
-      current = outcome.state
-      return false
-    }
-    guard !raced else {
+    guard storeAgreed(outcome.state, at: now) else {
       return .failure(.forbidden("another signature request became active"))
     }
     return .success(outcome.response)
   }
 
-  /// Handles the `execute` JWE.
-  ///
-  /// Decrypts it under the pending key, signs, and answers the
-  /// encrypted response; the pending transaction is consumed either
-  /// way.
+  /// Handles the `execute` JWE at the current wall-clock time.
   public func execute(
     compactJwe: Data,
     origin: String?,
+    backend: any ScsSigningBackend
+  ) -> Result<String, ScsTransactionError> {
+    execute(compactJwe: compactJwe, origin: origin, at: Date(), backend: backend)
+  }
+
+  /// Handles the `execute` JWE at `now`, consuming and expiring the
+  /// pending transaction slot either way.
+  public func execute(
+    compactJwe: Data,
+    origin: String?,
+    at now: Date,
     backend: any ScsSigningBackend
   ) -> Result<String, ScsTransactionError> {
     let requestOrigin: String
@@ -104,6 +116,9 @@ public final class ScsTransactionManager: Sendable {
     else {
       return .failure(.badRequest("no active transaction"))
     }
+    guard !Self.isExpired(state, at: now) else {
+      return .failure(.badRequest("transaction expired"))
+    }
     guard state.origin == requestOrigin else {
       return .failure(.forbidden("execute Origin does not match begin Origin"))
     }
@@ -122,5 +137,25 @@ public final class ScsTransactionManager: Sendable {
     }
     return ScsTransactionExecution.respond(
       payload: payload, state: state, backend: backend)
+  }
+
+  private func hasAvailableSlot(at now: Date) -> Bool {
+    pending.withLock { current in
+      if let existing = current, Self.isExpired(existing, at: now) {
+        current = nil
+      }
+      return current == nil
+    }
+  }
+
+  private func storeAgreed(_ state: ScsAgreedTransaction, at now: Date) -> Bool {
+    pending.withLock { current in
+      if let existing = current, Self.isExpired(existing, at: now) {
+        current = nil
+      }
+      guard current == nil else { return false }
+      current = state
+      return true
+    }
   }
 }

@@ -1,51 +1,87 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-#if os(macOS)
+#if os(macOS) && FEATURE_SCS
+  import CardCore
   import SwiftUI
 
-  /// Starts the local signing server only for the holder's stored opt-in.
+  /// Starts the local signing server only for the holder's stored
+  /// opt-in, removes the localhost identity and trust on opt-out, and
+  /// publishes listener errors, pending prompt status, and holder-only
+  /// PIN notices.
   @MainActor
   internal final class ScsService: ObservableObject {
     internal static let shared = ScsService()
 
-    /// Where the holder's opt-in is stored; off by default.
-    internal static let enabledKey = "fi.refineid.scs.enabled"
-
     @Published internal private(set) var isEnabled: Bool
-    private var isRunning = false
-    private let defaults: UserDefaults
-    private let start: () -> Void
-    private let stop: () -> Void
+    @Published internal private(set) var statusError: String?
+    @Published internal private(set) var pendingRequestOrigin: String?
+    @Published internal private(set) var holderNotice: String?
+
+    private let controller: ScsOptInController
 
     private convenience init() {
-      let server = ScsServer()
-      self.init(defaults: .standard, start: { server.start() }, stop: { server.stop() })
+      let server = ScsServer { failure in
+        Task { @MainActor in
+          Self.shared.setStatusError(failure)
+        }
+      }
+      self.init(
+        defaults: .standard,
+        start: { server.start() },
+        stop: { server.stop() },
+        removeIdentity: { ScsIdentityStore.removeAll() }
+      )
     }
 
-    internal init(defaults: UserDefaults, start: @escaping () -> Void, stop: @escaping () -> Void) {
-      self.defaults = defaults
-      self.start = start
-      self.stop = stop
-      isEnabled = defaults.bool(forKey: Self.enabledKey)
+    internal init(
+      defaults: UserDefaults,
+      start: @escaping () -> Void,
+      stop: @escaping () -> Void,
+      removeIdentity: @escaping () -> Void
+    ) {
+      let optIn = ScsOptInController(
+        defaults: defaults,
+        start: start,
+        stop: stop,
+        removeIdentity: removeIdentity
+      )
+      self.controller = optIn
+      self.isEnabled = optIn.isEnabled
     }
 
-    /// Restores an explicit opt-in without creating an identity when disabled.
+    /// Restores an explicit opt-in without creating an identity when
+    /// disabled.
     internal func restore() {
-      guard isEnabled, !isRunning else { return }
-      isRunning = true
-      start()
+      controller.restore()
+      isEnabled = controller.isEnabled
     }
 
     internal func setEnabled(_ enabled: Bool) {
-      guard enabled != isEnabled else { return }
-      defaults.set(enabled, forKey: Self.enabledKey)
-      isEnabled = enabled
-      if enabled {
-        restore()
-      } else {
-        isRunning = false
-        stop()
+      controller.setEnabled(enabled)
+      isEnabled = controller.isEnabled
+      if !enabled {
+        statusError = nil
+        pendingRequestOrigin = nil
+        holderNotice = nil
       }
+    }
+
+    internal func setStatusError(_ error: String?) {
+      statusError = error
+    }
+
+    internal func setPendingRequest(origin: String?) {
+      pendingRequestOrigin =
+        ScsOriginPolicy.sanitizedForDisplay(origin)
+        ?? String(localized: "(no Origin header)")
+    }
+
+    internal func clearPendingRequest() {
+      pendingRequestOrigin = nil
+    }
+
+    internal func setHolderNotice(_ notice: String?) {
+      holderNotice = notice
     }
   }
 #endif

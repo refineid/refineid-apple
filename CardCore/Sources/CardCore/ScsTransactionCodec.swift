@@ -7,15 +7,16 @@ import Foundation
 /// selector gates, JOSE segment coding, and the response key
 /// identifier (DVV SCS specification v1.3 §2.7).
 internal enum ScsTransactionCodec {
-  /// The transaction Origin gate: present and HTTPS (v1.3 §2.7).
+  /// The transaction Origin gate: present and a valid HTTPS web origin
+  /// (v1.3 §2.1, §2.7).
   internal static func validatedOrigin(
     _ origin: String?
   ) -> Result<String, ScsTransactionError> {
     guard let origin else {
       return .failure(.forbidden("missing Origin header"))
     }
-    guard origin.hasPrefix("https://") else {
-      return .failure(.forbidden("transaction Origin must use HTTPS"))
+    if let refusal = ScsOriginPolicy.refusal(forPresentOrigin: origin) {
+      return .failure(.forbidden(refusal))
     }
     return .success(origin)
   }

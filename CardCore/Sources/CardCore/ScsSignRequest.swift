@@ -5,11 +5,9 @@ import Foundation
 /// One signature the SCS has been asked to produce.
 ///
 /// The payload, the key that signs it, and the origin that asked are
-/// bound together because the end user has to be told all three before
-/// a PIN is asked for: which site wants a signature, and what it is
-/// about to sign (DVV SCS specification v1.3 §2.1). Carrying the
-/// origin here rather than passing it alongside keeps the two from
-/// being confused at a call site that signs a derived payload.
+/// bound together because the holder must be shown the requesting
+/// origin and the SHA-256 fingerprint of the exact to-be-signed bytes
+/// before entering a PIN (DVV SCS specification v1.3 §2.1, §3.7).
 public struct ScsSignRequest: Sendable {
   /// The key the sign uses.
   public let purpose: ScsSignPurpose
@@ -17,12 +15,25 @@ public struct ScsSignRequest: Sendable {
   /// The hash applied to `data` before the card signs the digest.
   public let hash: SigningHash
 
-  /// The bytes to be signed.
+  /// The exact bytes to be hashed and signed by the card.
   public let data: Data
 
   /// The Origin header of the request that asked, or nil when the
   /// request carried none.
   public let origin: String?
+
+  /// Optional document digest to display in the consent prompt
+  /// when the payload to be signed by the card is a CMS container
+  /// rather than raw document data.
+  public let consentDigest: Data?
+
+  /// Lowercase hexadecimal SHA-256 fingerprint for the consent prompt.
+  public var sha256Hex: String {
+    if let consentDigest {
+      return ScsConsentDetails.sha256Hex(of: consentDigest)
+    }
+    return ScsConsentDetails.sha256Hex(of: data)
+  }
 
   /// Composes a sign to perform.
   public init(
@@ -31,9 +42,27 @@ public struct ScsSignRequest: Sendable {
     data: Data,
     origin: String?
   ) {
+    self.init(
+      purpose: purpose,
+      hash: hash,
+      data: data,
+      origin: origin,
+      consentDigest: nil
+    )
+  }
+
+  /// Composes a sign to perform with an explicit consent document digest.
+  public init(
+    purpose: ScsSignPurpose,
+    hash: SigningHash,
+    data: Data,
+    origin: String?,
+    consentDigest: Data?
+  ) {
     self.purpose = purpose
     self.hash = hash
     self.data = data
     self.origin = origin
+    self.consentDigest = consentDigest
   }
 }

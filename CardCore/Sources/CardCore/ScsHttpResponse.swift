@@ -4,14 +4,10 @@ import Foundation
 
 /// Builders for the SCS's HTTP responses.
 ///
-/// Every response carries the CORS headers the browser needs to hand
-/// the answer to the calling page. The specification requires the
-/// Access-Control-Allow-Origin header on every response and fixes its
-/// value to "*" (DVV SCS specification v1.3 §2.1); echoing the
-/// request's own Origin instead is a narrowing of that, which is why
-/// `Vary: Origin` accompanies it. The preflight answers 200 with the
-/// headers §2.1 lists, whose example response is the one §2.4 shows.
-/// Connections are single-use: every response closes.
+/// Every response carries sanitized CORS headers and closes its
+/// single-use connection. Reflected `Origin` values pass through
+/// `ScsOriginPolicy.reflectedCorsOrigin`, and every header value strips
+/// control characters before serialization.
 public enum ScsHttpResponse {
   /// A JSON response with CORS headers.
   public static func json(status: Int, body: Data, origin: String?) -> Data {
@@ -40,19 +36,26 @@ public enum ScsHttpResponse {
     )
   }
 
-  /// The CORS preflight acknowledgement.
+  /// The CORS preflight acknowledgement for served routes.
   public static func preflight(origin: String?) -> Data {
     build(status: ScsValues.httpOk, headers: corsHeaders(origin: origin), body: Data())
   }
 
   private static func corsHeaders(origin: String?) -> [(String, String)] {
     [
-      ("Access-Control-Allow-Origin", origin ?? "*"),
+      ("Access-Control-Allow-Origin", ScsOriginPolicy.reflectedCorsOrigin(origin)),
       ("Access-Control-Allow-Methods", "GET, POST"),
       ("Access-Control-Allow-Headers", "Accept, Content-Type"),
-      ("Access-Control-Max-Age", "3600"),
+      ("Access-Control-Max-Age", String(ScsValues.preflightMaxAgeSeconds)),
       ("Vary", "Origin"),
     ]
+  }
+
+  private static func sanitizeHeaderField(_ value: String) -> String {
+    let filtered = value.unicodeScalars.filter { scalar in
+      !CharacterSet.controlCharacters.contains(scalar)
+    }
+    return String(String.UnicodeScalarView(filtered))
   }
 
   private static func build(
@@ -64,7 +67,7 @@ public enum ScsHttpResponse {
     head += "Content-Length: \(body.count)\r\n"
     head += "Connection: close\r\n"
     for (name, value) in headers {
-      head += "\(name): \(value)\r\n"
+      head += "\(sanitizeHeaderField(name)): \(sanitizeHeaderField(value))\r\n"
     }
     head += "\r\n"
     var out = Data(head.utf8)
@@ -76,6 +79,9 @@ public enum ScsHttpResponse {
     switch status {
     case ScsValues.httpOk:
       "OK"
+
+    case ScsValues.httpForbidden:
+      "Forbidden"
 
     case ScsValues.httpNotFound:
       "Not Found"
