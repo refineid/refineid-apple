@@ -7,6 +7,7 @@
   import Foundation
   import Observation
   import RappEngine
+  import RappRequester
   import Security
 
   /// Publishes the paired phone's authentication certificate as a per-user

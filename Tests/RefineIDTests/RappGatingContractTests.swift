@@ -50,14 +50,29 @@ internal struct RappGatingContractTests {
 
   /// The remote card's own names: the engine's, the pairing's, the
   /// vault's, and the phone's card.
+  ///
+  /// `RappRequester` is the shared requester module, whose local-card
+  /// decisions the macOS build links, so naming it is not naming the
+  /// remote card.
   private static let pattern =
-    #"\b(Rapp\w*|Noise\w*|Vault\w*|Pairing\w*|Paired\w*|PhoneCard\w*|vault)\b"#
+    #"\b(Rapp(?!Requester)\w*|Noise\w*|Vault\w*|Pairing\w*|Paired\w*|PhoneCard\w*|vault)\b"#
 
-  /// The application's own sources, relative to the repository root.
-  private static func appSources() throws -> [String] {
-    let directory = root.appending(path: "Sources/App")
-    let names = try FileManager.default.contentsOfDirectory(atPath: directory.path)
-    return names.filter { $0.hasSuffix(".swift") }.map { "Sources/App/" + $0 }.sorted()
+  /// The directories whose sources the macOS build compiles: the app's, and
+  /// the requester decisions the package builds for it.
+  private static let sourceDirectories = [
+    "Sources/App",
+    "CardCore/Sources/RappRequester",
+  ]
+
+  /// The sources under them, relative to the repository root.
+  private static func sources() throws -> [String] {
+    var found: [String] = []
+    for directory in sourceDirectories {
+      let path = root.appending(path: directory)
+      let names = try FileManager.default.contentsOfDirectory(atPath: path.path)
+      found += names.filter { $0.hasSuffix(".swift") }.map { directory + "/" + $0 }
+    }
+    return found.sorted()
   }
 
   /// The first name the line uses, if it uses one.
@@ -185,7 +200,7 @@ internal struct RappGatingContractTests {
   @Test
   internal func remoteCardCodeIsGated() throws {
     var violations: [String] = []
-    for file in try Self.appSources() where Self.shared[file] == nil {
+    for file in try Self.sources() where Self.shared[file] == nil {
       violations.append(contentsOf: try Self.ungated(file))
     }
     #expect(
@@ -201,7 +216,7 @@ internal struct RappGatingContractTests {
   /// The reviewed list names files that still exist and still need it.
   @Test
   internal func sharedListIsCurrent() throws {
-    let sources = Set(try Self.appSources())
+    let sources = Set(try Self.sources())
     for (file, reason) in Self.shared.sorted(by: { $0.key < $1.key }) {
       #expect(sources.contains(file), "\(file) is listed as shared but no longer exists")
       #expect(!reason.isEmpty, "\(file) needs the reason it is shared")

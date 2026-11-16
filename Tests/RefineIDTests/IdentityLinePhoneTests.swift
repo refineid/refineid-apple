@@ -1,8 +1,10 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-#if os(macOS) && REFINEID_REMOTE_CARD
+#if os(iOS)
 
   import Foundation
+  import RappEngine
+  import RappRequester
   import Testing
 
   @testable import RefineIDTestHost
@@ -23,13 +25,16 @@
     internal static let phone = "Alpha iPhone"
 
     /// Remote use on, nothing here and nothing paired.
-    internal static let idle = RequesterFacts(
-      availability: .noCard,
-      warnsUnavailableCard: false,
-      readerConnected: false,
-      cardPresent: false,
-      remoteUse: true
-    )
+    internal static let idle: RequesterFacts = {
+      var facts = RequesterFacts(
+        availability: .noCard,
+        warnsUnavailableCard: false,
+        readerConnected: false,
+        cardPresent: false
+      )
+      facts.remoteUse = true
+      return facts
+    }()
 
     /// The phone's word: no card, a contact reader attached to it.
     internal static let noCardReaderAttached = RappCardStatus(card: .absent, reader: .attached)

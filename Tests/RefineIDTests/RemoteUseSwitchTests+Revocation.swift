@@ -5,6 +5,7 @@
   import CardCore
   import Foundation
   import RappEngine
+  import RappRequester
   import Testing
 
   @testable import RefineIDTestHost

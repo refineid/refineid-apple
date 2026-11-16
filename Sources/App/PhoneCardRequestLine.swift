@@ -2,6 +2,7 @@
 
 #if REFINEID_REMOTE_CARD
 
+  import RappRequester
   import SwiftUI
 
   /// The line that asks for the paired phone's card.

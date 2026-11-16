@@ -3,6 +3,7 @@
 #if os(macOS)
 
   import Foundation
+  import RappRequester
 
   /// Which document controls the Mac window shows.
   ///
@@ -53,7 +54,7 @@
     /// in flight keeps the signing panel through a momentary loss of
     /// the card's publication.
     internal init(
-      availability: LoginIdentityModel.Availability,
+      availability: IdentityAvailability,
       queued: [URL],
       signing working: Bool,
       readingCard readingStamp: Bool,

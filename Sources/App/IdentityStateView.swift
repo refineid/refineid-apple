@@ -4,6 +4,7 @@
 
   import CardCore
   import os.log
+  import RappRequester
   import SwiftUI
 
   /// Who the card says they are, or what to do about it.
@@ -24,7 +25,7 @@
     /// Token-list movement matters only while an identity is published,
     /// because only then is there a holder name to re-read.
     private enum TrackKey: Equatable {
-      case availability(LoginIdentityModel.Availability)
+      case availability(IdentityAvailability)
       case ready(generation: Int, borrowed: String?)
       case demo(revision: Int, cardPresent: Bool)
     }
@@ -40,7 +41,7 @@
     #endif
 
     /// What the login row keys on.
-    internal let availability: LoginIdentityModel.Availability
+    internal let availability: IdentityAvailability
 
     /// A completed activation check and recovery found no usable
     /// identity.
@@ -150,18 +151,19 @@
       }
       #if REFINEID_REMOTE_CARD
         let registry = PersistentTokenRegistry.shared
-        return RequesterFacts(
+        var known = RequesterFacts(
           availability: availability,
           warnsUnavailableCard: warnsUnavailableCard,
           readerConnected: cardPresence.isReaderConnected,
-          cardPresent: cardPresence.isCardPresent,
-          remoteUse: remoteUse,
-          phonePaired: registry.pairedPhoneID != nil,
-          phoneThatForgot: registry.phoneThatForgot,
-          phoneJustPaired: registry.phoneJustPaired,
-          localNetworkDenied: localNetworkDenied,
-          phoneCardStatus: registry.holderCardStatus
+          cardPresent: cardPresence.isCardPresent
         )
+        known.remoteUse = remoteUse
+        known.phonePaired = registry.pairedPhoneID != nil
+        known.phoneThatForgot = registry.phoneThatForgot
+        known.phoneJustPaired = registry.phoneJustPaired
+        known.localNetworkDenied = localNetworkDenied
+        known.phoneCardStatus = registry.holderCardStatus
+        return known
       #else
         // With the remote card compiled out no phone can be paired, so the
         // row speaks only of the card in this Mac's reader.

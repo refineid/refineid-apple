@@ -4,6 +4,7 @@
 
   import AppKit
   import CardCore
+  import RappRequester
   import SwiftUI
   import UniformTypeIdentifiers
 
@@ -237,7 +238,7 @@
 
     /// Clears what a card took with it, and keeps the stored-number flag
     /// current.
-    private func react(to availability: LoginIdentityModel.Availability) {
+    private func react(to availability: IdentityAvailability) {
       refreshStoredNumber()
       switch availability {
       case .ready:

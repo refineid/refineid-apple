@@ -34,6 +34,25 @@
 
 The entries below record historical decisions, their timestamps, and rationale.
 
+### 2026-11-16 The requester's decisions live in a module both platforms build
+
+The identity line and the phone's card request sat in `Sources/App` behind
+`os(macOS)` and then behind the flag, so the suites that pin them compiled
+in no configuration at all. `CardCore` now builds `RappRequester`: the
+decisions only, with no views, no strings and no platform API.
+`IdentityAvailability` left `LoginIdentityModel`, which now returns the
+module's type; `RequesterFacts`, `IdentityLine` and `PhoneCardRequest`
+moved whole. The app, the test host and the test bundle link the product.
+
+- The module cannot see `REFINEID_REMOTE_CARD`, so it keeps the same split
+  by platform: the phone's facts and cases are `#if os(iOS)`, which is
+  exactly the configurations the flag is on for.
+- `RequesterFacts` takes the four local facts in its initializer and the
+  phone's fields are set one by one, which keeps the parameters in hand.
+- The identity suites opened in #467 now run where the phone exists:
+  `IdentityLineTests` in both tiers, the phone, just-paired and remote-use
+  suites on the simulator.
+
 ### 2026-11-16 The unit suite runs on the iOS simulator as well as macOS
 
 The phone's suites compile only where `REFINEID_REMOTE_CARD` is on,

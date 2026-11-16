@@ -3,6 +3,7 @@
 #if os(macOS)
 
   import Foundation
+  import RappRequester
   import Testing
 
   @testable import RefineIDTestHost
@@ -15,7 +16,7 @@
 
     /// The controls for one window state.
     private static func controls(
-      _ availability: LoginIdentityModel.Availability,
+      _ availability: IdentityAvailability,
       queued: [URL],
       signing working: Bool,
       readingCard: Bool = false,
@@ -51,7 +52,7 @@
     /// the signing panel and Verify together.
     @Test
     internal func withACardSigningAndVerifyingAreBothOffered() {
-      for availability in [LoginIdentityModel.Availability.ready, .cardWithoutIdentity] {
+      for availability in [IdentityAvailability.ready, .cardWithoutIdentity] {
         let controls = Self.controls(availability, queued: Self.documents, signing: false)
         #expect(controls.showsIdentity)
         #expect(controls.offersSigning)

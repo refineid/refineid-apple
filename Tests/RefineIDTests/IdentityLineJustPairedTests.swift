@@ -1,9 +1,10 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-#if os(macOS) && REFINEID_REMOTE_CARD
+#if os(iOS)
 
   import Foundation
   import RappEngine
+  import RappRequester
   import Testing
 
   @testable import RefineIDTestHost
@@ -14,15 +15,18 @@
     private static let phone = "Alpha iPhone"
 
     /// Remote use on, nothing here, a phone just paired.
-    private static let justPaired = RequesterFacts(
-      availability: .noCard,
-      warnsUnavailableCard: false,
-      readerConnected: false,
-      cardPresent: false,
-      remoteUse: true,
-      phonePaired: true,
-      phoneJustPaired: phone
-    )
+    private static let justPaired: RequesterFacts = {
+      var facts = RequesterFacts(
+        availability: .noCard,
+        warnsUnavailableCard: false,
+        readerConnected: false,
+        cardPresent: false
+      )
+      facts.remoteUse = true
+      facts.phonePaired = true
+      facts.phoneJustPaired = phone
+      return facts
+    }()
 
     /// The phone's word: a card in its reader.
     private static let cardInReader = RappCertificateFingerprint(
