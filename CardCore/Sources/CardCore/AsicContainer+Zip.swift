@@ -1,6 +1,7 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 import Foundation
+import zlib
 
 /// The minimal ZIP writer the container is assembled with.
 extension AsicContainer {
@@ -37,23 +38,20 @@ extension AsicContainer {
     }
 
     /// CRC-32 as ZIP defines it (IEEE 802.3 polynomial, reflected).
-    ///
-    /// Computed bitwise rather than from a table: this runs once per
-    /// entry over files measured in kilobytes, and a 1 KiB table earns
-    /// nothing here but a thing to get wrong.
     internal static func crc32(_ data: Data) -> UInt32 {
-      var crc = UInt32.max
-      for byte in data {
-        crc ^= UInt32(byte)
-        for _ in 0..<ZipValues.crcBitsPerByte {
-          let carry = crc & 1
-          crc >>= 1
-          if carry != 0 {
-            crc ^= ZipValues.crcPolynomial
-          }
+      data.withUnsafeBytes { raw in
+        guard let base = raw.bindMemory(to: Bytef.self).baseAddress else {
+          return UInt32(zlib.crc32(0, nil, 0))
         }
+        var crc = zlib.crc32(0, nil, 0)
+        var offset = 0
+        while offset < raw.count {
+          let chunk = min(raw.count - offset, Int(uInt.max))
+          crc = zlib.crc32(crc, base.advanced(by: offset), uInt(chunk))
+          offset += chunk
+        }
+        return UInt32(crc)
       }
-      return ~crc
     }
 
     /// Appends one stored entry.

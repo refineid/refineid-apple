@@ -316,8 +316,12 @@ public enum DocumentVerification {
         ofPath: path, evidence: evidence, at: validationTime.date, now: now)
       : []
     let longTerm = LongTermJudgement(
-      path: chain.isAnchored ? path : [], certificates: evidence.certificates,
-      validationTime: validationTime.date, now: now)
+      signerCertificate: facts.signerCertificate,
+      path: chain.isAnchored ? path : [],
+      certificates: evidence.certificates,
+      validationTime: validationTime.date,
+      now: now
+    )
     let archives = longTerm.archives(facts.archiveTimestamps)
     return SignatureReport(
       signerCommonName: DistinguishedName.commonName(inName: subject) ?? "",

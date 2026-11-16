@@ -3,7 +3,7 @@
 import Foundation
 
 /// One element of a parsed `XmlDocument`.
-internal struct XmlElement: Equatable {
+internal struct XmlElement: Equatable, Sendable {
   /// The document the element belongs to.
   internal let document: XmlDocument
 

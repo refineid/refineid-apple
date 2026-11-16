@@ -28,6 +28,14 @@ internal enum XmlSignatureMethod: Sendable {
   private static let ecdsaSha384Uri = "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha384"
   private static let ecdsaSha512Uri = "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha512"
 
+  /// Prime-curve bit widths and fixed coordinate octet widths (RFC 4050 §3.3 / RFC 6931 §2.3.6).
+  private static let p256BitSize = 256
+  private static let p256CoordinateOctets = 32
+  private static let p384BitSize = 384
+  private static let p384CoordinateOctets = 48
+  private static let p521BitSize = 521
+  private static let p521CoordinateOctets = 66
+
   /// The platform algorithm over the whole message.
   private var secKeyAlgorithm: SecKeyAlgorithm {
     switch self {
@@ -95,6 +103,54 @@ internal enum XmlSignatureMethod: Sendable {
     }
   }
 
+  /// Whether `certificate` carries a public key this verifier can load.
+  internal static func hasReadablePublicKey(_ certificate: Data) -> Bool {
+    guard let parsed = SecCertificateCreateWithData(nil, certificate as CFData) else {
+      return false
+    }
+    if SecCertificateCopyKey(parsed) != nil {
+      return true
+    }
+    return Self.rsaPublicKeyFromBits(of: certificate) != nil
+  }
+
+  /// Builds an RSA `SecKey` from `SubjectPublicKeyInfo` bit-string bytes (RFC 4055 §1.2).
+  private static func rsaPublicKeyFromBits(of certificate: Data) -> SecKey? {
+    guard let bits = CertificateFacts(der: certificate)?.publicKeyBits else {
+      return nil
+    }
+    let attributes: [CFString: Any] = [
+      kSecAttrKeyType: kSecAttrKeyTypeRSA,
+      kSecAttrKeyClass: kSecAttrKeyClassPublic,
+    ]
+    return SecKeyCreateWithData(bits as CFData, attributes as CFDictionary, nil)
+  }
+
+  /// Expected fixed coordinate width in octets for an ECDSA `SecKey`, or nil for any other key.
+  private static func ecdsaCoordinateOctets(of key: SecKey) -> Int? {
+    guard
+      let attributes = SecKeyCopyAttributes(key) as? [CFString: Any],
+      let keyType = attributes[kSecAttrKeyType] as? String,
+      keyType == (kSecAttrKeyTypeECSECPrimeRandom as String),
+      let bitSize = attributes[kSecAttrKeySizeInBits] as? Int
+    else {
+      return nil
+    }
+    switch bitSize {
+    case Self.p256BitSize:
+      return Self.p256CoordinateOctets
+
+    case Self.p384BitSize:
+      return Self.p384CoordinateOctets
+
+    case Self.p521BitSize:
+      return Self.p521CoordinateOctets
+
+    default:
+      return nil
+    }
+  }
+
   /// The public key of `certificate`.
   ///
   /// The platform loads no key from a certificate whose
@@ -105,14 +161,8 @@ internal enum XmlSignatureMethod: Sendable {
   private func publicKey(of certificate: Data) -> SecKey? {
     guard let parsed = SecCertificateCreateWithData(nil, certificate as CFData) else { return nil }
     if let key = SecCertificateCopyKey(parsed) { return key }
-    guard self == .rsaPssSha256, let bits = CertificateFacts(der: certificate)?.publicKeyBits else {
-      return nil
-    }
-    let attributes: [CFString: Any] = [
-      kSecAttrKeyType: kSecAttrKeyTypeRSA,
-      kSecAttrKeyClass: kSecAttrKeyClassPublic,
-    ]
-    return SecKeyCreateWithData(bits as CFData, attributes as CFDictionary, nil)
+    guard self == .rsaPssSha256 else { return nil }
+    return Self.rsaPublicKeyFromBits(of: certificate)
   }
 
   /// Whether `signature`, in the XML form, verifies over `message`
@@ -121,7 +171,13 @@ internal enum XmlSignatureMethod: Sendable {
     guard let key = publicKey(of: certificate) else { return false }
     let wire: Data
     if isEcdsa {
-      guard let der = EcdsaSignature.derFromRawConcatenation(signature) else { return false }
+      guard
+        let coordinateOctets = Self.ecdsaCoordinateOctets(of: key),
+        let der = EcdsaSignature.derFromRawConcatenation(
+          signature, coordinateOctets: coordinateOctets)
+      else {
+        return false
+      }
       wire = der
     } else {
       wire = signature

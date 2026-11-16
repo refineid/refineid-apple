@@ -12,11 +12,15 @@ import Testing
 @Suite
 internal struct XadesXmlParserTests {
   private static let signedInfoOpen = "<ds:SignedInfo"
+  private static let signatureClose = "</ds:Signature>"
   private static let signingTimeOpen = "<xades:SigningTime>"
   private static let unsignedSignaturePropertiesClose = "</xades:UnsignedSignatureProperties>"
+  private static let secondSignatureId = "SIG-2"
 
   /// An element whose name extends `ds:SignedInfo`.
   private static let extendedNameElement = "<ds:SignedInfoNote>note</ds:SignedInfoNote>\n"
+  private static let wrappedExtendedNameObject =
+    "<ds:Object><ds:SignedInfoNote>note</ds:SignedInfoNote></ds:Object>\n"
 
   /// Opaque OCSP and CRL stand-ins for the parser, which only carries them.
   private static let ocspStandIn = Data("OCSP response stand-in".utf8)
@@ -33,7 +37,7 @@ internal struct XadesXmlParserTests {
   @Test
   internal func twoSignaturesInOneFileBothVerify() throws {
     let first = try AsicVerificationTests.signedDocument(profile: .ecdsaP384)
-    let second = try AsicVerificationTests.signedDocument(profile: .ecdsaP384)
+    let second = try Self.signedDocument(profile: .ecdsaP384, signatureId: Self.secondSignatureId)
     let document = Self.signaturesFile([
       try Self.signatureElement(of: first.document),
       try Self.signatureElement(of: second.document),
@@ -59,7 +63,7 @@ internal struct XadesXmlParserTests {
   @Test
   internal func tamperedSecondSignedPropertiesFailsOnlyTheSecond() throws {
     let first = try AsicVerificationTests.signedDocument(profile: .ecdsaP384)
-    let second = try AsicVerificationTests.signedDocument(profile: .ecdsaP384)
+    let second = try Self.signedDocument(profile: .ecdsaP384, signatureId: Self.secondSignatureId)
     let secondElement = try Self.signatureElement(of: second.document)
     let opening = try #require(secondElement.range(of: Self.signingTimeOpen))
     var tampered = secondElement
@@ -75,24 +79,30 @@ internal struct XadesXmlParserTests {
     #expect(!report.judged[1].documentIntact)
   }
 
-  /// An element whose name starts with `ds:SignedInfo` is not taken
-  /// for `ds:SignedInfo`.
+  /// An element whose name starts with `ds:SignedInfo` inside `ds:Object` is not taken for
+  /// `ds:SignedInfo`, while an unexpected child directly under `ds:Signature` is rejected.
   @Test
   internal func elementExtendingTheTagNameIsNotPicked() throws {
     let signed = try AsicVerificationTests.signedDocument(profile: .ecdsaP384)
     let plain = try #require(Self.parse(signed.document).first)
-    let decorated = try Self.inserting(
-      Self.extendedNameElement, before: Self.signedInfoOpen, in: signed.document)
+    let inObject = try Self.inserting(
+      Self.wrappedExtendedNameObject, before: Self.signatureClose, in: signed.document)
 
-    let parsed = try #require(Self.parse(decorated).first)
-
+    let parsed = try #require(Self.parse(inObject).first)
     let signedInfo = try #require(parsed.signedInfoRawXml)
     #expect(signedInfo == plain.signedInfoRawXml)
     #expect(!signedInfo.contains(Self.extendedNameElement))
     let report = try AsicVerificationTests.report(
-      try AsicVerificationTests.container(document: decorated))
+      try AsicVerificationTests.container(document: inObject))
     #expect(report.signatureValid)
     #expect(report.documentIntact)
+
+    let directChild = try Self.inserting(
+      Self.extendedNameElement, before: Self.signedInfoOpen, in: signed.document)
+    let rejected = try AsicVerificationTests.report(
+      try AsicVerificationTests.container(document: directChild))
+    #expect(!rejected.signatureValid)
+    #expect(!rejected.documentIntact)
   }
 
   /// A counter-signature leaves the outer signature's fields as they
@@ -100,8 +110,10 @@ internal struct XadesXmlParserTests {
   @Test
   internal func counterSignatureLeavesTheOuterSignatureIntact() throws {
     let authority = try TimestampAuthorityFixture.make()
-    let outer = try Self.stampedDocument(authority: authority)
-    let inner = try Self.stampedDocument(authority: authority)
+    let outer = try Self.stampedDocument(
+      authority: authority, signatureId: XadesSignature.signatureId)
+    let inner = try Self.stampedDocument(
+      authority: authority, signatureId: Self.secondSignatureId)
     let counterSignature =
       "<xades:CounterSignature>\n"
       + (try Self.signatureElement(of: inner.document))

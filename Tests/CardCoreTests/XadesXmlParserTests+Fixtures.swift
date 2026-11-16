@@ -1,5 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
+import CryptoKit
 import Foundation
 import Testing
 
@@ -19,6 +20,73 @@ extension XadesXmlParserTests {
   /// The parsed signatures of a signatures-file text.
   internal static func parse(_ document: String) -> [AsicVerification.ParsedSignature] {
     XadesXmlParser().parse(data: Data(document.utf8))
+  }
+
+  /// Builds a valid signed XAdES document whose element `Id`s use `signatureId`.
+  internal static func signedDocument(
+    profile: CardKeyProfile,
+    signatureId: String
+  ) throws -> AsicVerificationTests.SignedDocument {
+    try Self.signedDocument(profile: profile, signatureId: signatureId) { _, _ in [] }
+  }
+
+  /// Builds a valid signed XAdES document with custom `signatureId` and timestamp tokens.
+  internal static func signedDocument(
+    profile: CardKeyProfile,
+    signatureId: String,
+    timestampTokens: (Data, String) throws -> [Data]
+  ) throws -> AsicVerificationTests.SignedDocument {
+    let objects = AsicVerificationTests.sampleObjects()
+    let identity = try QualifiedDocumentCmsTests.identity(profile)
+    let baseProperties = XadesSignature.signedProperties(
+      objects: objects,
+      certificate: identity.certificate,
+      signedAt: AsicVerificationTests.signedAt
+    )
+    let properties = baseProperties.replacingOccurrences(
+      of: XadesSignature.signatureId, with: signatureId)
+    let propertiesDigest = Data(SHA384.hash(data: Data(properties.utf8)))
+    let baseInfo = XadesSignature.signedInfo(
+      objects: objects,
+      profile: profile,
+      propertiesDigest: propertiesDigest
+    )
+    let info = baseInfo.replacingOccurrences(of: XadesSignature.signatureId, with: signatureId)
+    let plan = XadesSignature.Plan(
+      signedInfoXml: info,
+      signedPropertiesXml: properties,
+      certificateDer: identity.certificate,
+      objectContents: objects.map(\.content)
+    )
+    let signature = try AsicVerificationTests.xmlSignature(
+      over: plan.signedInfo, identity: identity, profile: profile)
+    let sigValueXml = XadesSignature.signatureValueElement(signature)
+      .replacingOccurrences(of: XadesSignature.signatureId, with: signatureId)
+    let tokens = try timestampTokens(signature, sigValueXml)
+    let raw = plan.document(
+      xmlSignature: signature,
+      timestampTokens: tokens,
+      material: PdfValidationStore.Material(
+        certificates: [], ocspResponses: [], revocationLists: []),
+      archiveTimestampToken: nil
+    )
+    return AsicVerificationTests.SignedDocument(
+      document: try Self.relabelingSignatureId(raw, to: signatureId),
+      xmlSignature: signature,
+      identity: identity
+    )
+  }
+
+  private static func relabelingSignatureId(_ raw: Data, to signatureId: String) throws -> String {
+    let decoded = try #require(String(data: raw, encoding: .utf8))
+    let idUpdated = decoded.replacingOccurrences(
+      of: "Id=\"\(XadesSignature.signatureId)",
+      with: "Id=\"\(signatureId)"
+    )
+    return idUpdated.replacingOccurrences(
+      of: "=\"#\(XadesSignature.signatureId)",
+      with: "=\"#\(signatureId)"
+    )
   }
 
   /// The references of a signature whose references all read.
@@ -57,15 +125,15 @@ extension XadesXmlParserTests {
     return out
   }
 
-  /// A signature over the sample objects carrying one SHA-384
-  /// signature time-stamp.
+  /// A signature over the sample objects carrying one SHA-384 signature time-stamp.
   internal static func stampedDocument(
-    authority: TimestampAuthorityFixture
+    authority: TimestampAuthorityFixture,
+    signatureId: String
   ) throws -> AsicVerificationTests.SignedDocument {
-    try AsicVerificationTests.signedDocument(profile: .ecdsaP384) { signature in
+    try Self.signedDocument(profile: .ecdsaP384, signatureId: signatureId) { _, sigValueXml in
       [
         try authority.token(
-          imprint: XadesSignature.timestampDigest(signature),
+          imprint: Data(SHA384.hash(data: Data(sigValueXml.utf8))),
           algorithm: DocumentDigestAlgorithm.sha384.algorithmIdentifier
         )
       ]

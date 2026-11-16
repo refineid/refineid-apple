@@ -102,12 +102,26 @@
     internal func theLastArchiveTimestampInDocumentOrderCounts() throws {
       let laterClock = try Self.instant(Self.dvvReference)
       let earlierClock = try Self.instant(Self.chainEnd)
+      let emptyMaterial = DocumentVerification.RevocationValues(
+        ocspResponses: [], revocationLists: [])
       let first = DocumentVerification.ArchiveCandidate(
-        state: .anchored(laterClock), covered: nil, validUntil: laterClock)
+        state: .anchored(laterClock),
+        covered: emptyMaterial,
+        coveredCertificates: [],
+        validUntil: laterClock
+      )
       let last = DocumentVerification.ArchiveCandidate(
-        state: .anchored(earlierClock), covered: nil, validUntil: earlierClock)
+        state: .anchored(earlierClock),
+        covered: emptyMaterial,
+        coveredCertificates: [],
+        validUntil: earlierClock
+      )
       let unproven = DocumentVerification.ArchiveCandidate(
-        state: .invalid, covered: nil, validUntil: nil)
+        state: .invalid,
+        covered: emptyMaterial,
+        coveredCertificates: [],
+        validUntil: nil
+      )
 
       #expect(
         DocumentVerification.LongTermJudgement.validUntil(of: [first, last, unproven])

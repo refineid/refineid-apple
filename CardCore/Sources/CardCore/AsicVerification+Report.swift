@@ -1,7 +1,6 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 import Foundation
-import Security
 
 /// The rows of one container's XAdES signatures.
 extension AsicVerification {
@@ -28,10 +27,7 @@ extension AsicVerification {
   ) -> [DocumentVerification.SignatureEntry] {
     var rows: [DocumentVerification.SignatureEntry] = []
     for signatureFileName in signatureFiles {
-      guard
-        let signatureXmlData = judgement.entries[signatureFileName],
-        String(data: signatureXmlData, encoding: .utf8) != nil
-      else {
+      guard let signatureXmlData = judgement.entries[signatureFileName] else {
         rows.append(.unsupported)
         continue
       }
@@ -41,17 +37,9 @@ extension AsicVerification {
         rows.append(.unsupported)
         continue
       }
-      // The same signatures in the same document order, as elements an
-      // archive timestamp's input is rebuilt from.
-      let elements = Self.signatureElements(in: signatureXmlData)
-      for (index, parsed) in parsedSignatures.enumerated() {
-        guard
-          !parsed.isCounterSignature,
-          let report = Self.report(
-            of: parsed,
-            element: elements.indices.contains(index) ? elements[index] : nil,
-            judgement: judgement
-          )
+      for parsed in parsedSignatures {
+        guard !parsed.isCounterSignature,
+          let report = Self.report(of: parsed, judgement: judgement)
         else {
           rows.append(.unsupported)
           continue
@@ -62,8 +50,7 @@ extension AsicVerification {
     return rows
   }
 
-  /// The certificates, revocation values and signature timestamps one
-  /// signature carries.
+  /// The certificates, revocation values and signature timestamps one signature carries.
   private static func evidence(of parsed: ParsedSignature) -> ValidationEvidence {
     var evidence = ValidationEvidence()
     evidence.add(certificates: parsed.keyInfoCertificates + parsed.certificateValues)
@@ -74,18 +61,18 @@ extension AsicVerification {
     return evidence
   }
 
-  /// The state of each `xades:SignatureTimeStamp` over the signature
-  /// value.
+  /// The state of each `xades:SignatureTimeStamp` over its canonical `ds:SignatureValue`.
   private static func signatureTimestamps(
     of parsed: ParsedSignature,
     evidence: ValidationEvidence,
     judgement: ContainerJudgement
   ) -> [TimestampState] {
-    parsed.signatureTimestampTokens.map { token in
-      TimestampJudge.state(
-        of: token,
+    parsed.signatureTimestamps.map { stamp in
+      guard let input = stamp.imprintInput else { return .unsupported }
+      return TimestampJudge.state(
+        of: stamp.token,
         imprintMatches: { digest, imprint in
-          matchesSignatureValue(parsed: parsed, digest: digest, imprint: imprint)
+          digest.hash(input) == imprint
         },
         evidence: evidence,
         anchors: judgement.anchors,
@@ -94,17 +81,14 @@ extension AsicVerification {
     }
   }
 
-  /// The report of one XAdES signature, or nil when it carries no
-  /// readable signer.
+  /// The report of one XAdES signature, or nil when it carries no readable signer.
   private static func report(
     of parsed: ParsedSignature,
-    element: XmlElement?,
     judgement: ContainerJudgement
   ) -> DocumentVerification.SignatureReport? {
     guard
       let binding = Self.signerBinding(of: parsed),
-      let secCertificate = SecCertificateCreateWithData(nil, binding.signer as CFData),
-      let signerPublicKey = SecCertificateCopyKey(secCertificate)
+      XmlSignatureMethod.hasReadablePublicKey(binding.signer)
     else {
       return nil
     }
@@ -114,18 +98,19 @@ extension AsicVerification {
       carriedFileNames: judgement.carriedFileNames
     )
     let signatureValid =
-      binding.bindsValidly
+      !parsed.hasStructuralError
+      && binding.bindsValidly
       && verifyCryptographicSignature(
         parsed: parsed,
-        publicKey: signerPublicKey
+        signerCertificate: binding.signer
       )
     let evidence = Self.evidence(of: parsed)
     let timestamps = Self.signatureTimestamps(of: parsed, evidence: evidence, judgement: judgement)
     let archiveTimestamps =
-      element.map { signature in
+      parsed.signatureElement.map { signature in
         Self.archiveTimestamps(
           of: signature,
-          signatureValue: parsed.signatureValueBytes,
+          parsed: parsed,
           evidence: evidence,
           judgement: judgement
         )
@@ -139,10 +124,7 @@ extension AsicVerification {
         creditedProofs: [],
         coversWholeDocument: integrity.coversWholeDocument,
         changesAfterSigning: [],
-        archiveTimestamps: archiveTimestamps.map { judged in
-          DocumentVerification.ArchiveCandidate(
-            state: judged.state, covered: nil, validUntil: judged.validUntil)
-        },
+        archiveTimestamps: archiveTimestamps,
         longTermValues: DocumentVerification.RevocationValues(
           ocspResponses: parsed.ocspValues, revocationLists: parsed.crlValues)
       ),
@@ -152,16 +134,7 @@ extension AsicVerification {
     )
   }
 
-  /// The signer of `parsed` and whether its signing-certificate
-  /// property binds it as EN 319 132-1 clause 5.2.2 requires, or nil
-  /// when no signer is established.
-  ///
-  /// The first `xades:Cert` names the signing certificate; it must name
-  /// a certificate the signature carries, or there is no signer. Without
-  /// the property the first `ds:KeyInfo` certificate is the signer and
-  /// the binding fails. Both SigningCertificate and SigningCertificateV2
-  /// present fail the binding. A digest method this verifier does not
-  /// know, in a reference or a Cert, makes the signature unsupported.
+  /// The signer of `parsed` and whether its signing-certificate property binds it validly.
   private static func signerBinding(
     of parsed: ParsedSignature
   ) -> (signer: Data, bindsValidly: Bool)? {
@@ -171,21 +144,14 @@ extension AsicVerification {
       return parsed.signerCertificateDer.map { signer in (signer, false) }
     }
     let carried = parsed.keyInfoCertificates + parsed.certificateValues
-    guard
-      let signer = carried.first(where: { candidate in Self.names(candidate, first) })
-    else {
+    guard let signer = carried.first(where: { candidate in Self.names(candidate, first) }) else {
       return nil
     }
     let properties = Set(stated.map(\.property))
     return (signer, properties.count == 1)
   }
 
-  /// Whether `reference` names `certificate`: the digest under its own
-  /// method, and the issuer and serial when the Cert states them.
-  ///
-  /// `xades:IssuerSerialV2` is compared in full, issuer name and serial.
-  /// Of `xades:IssuerSerial`, the decimal X509SerialNumber is compared
-  /// with the certificate's serial; the X509IssuerName text is not.
+  /// Whether `reference` names `certificate` by digest and any stated issuer/serial.
   private static func names(
     _ certificate: Data,
     _ reference: SigningCertificateReference
@@ -197,8 +163,11 @@ extension AsicVerification {
     case .der(let encoded):
       return CmsSigningCertificate.matches(issuerSerial: encoded, certificate: facts)
 
-    case .text(_, let serialNumber):
-      return Self.decimal(facts.serialNumber) == serialNumber
+    case .text(let issuerName, let serialNumber):
+      // `xades:IssuerSerial` formats `X509IssuerName` as an RFC 4514 string whose spacing,
+      // escaping, and attribute order vary across signers; `CertDigest` already binds the exact
+      // DER certificate, so require non-empty issuer text and match the decimal serial number.
+      return !issuerName.isEmpty && Self.decimal(facts.serialNumber) == serialNumber
     }
   }
 }

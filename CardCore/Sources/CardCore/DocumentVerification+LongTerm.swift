@@ -19,12 +19,11 @@ extension DocumentVerification {
     internal var isEmpty: Bool { ocspResponses.isEmpty && revocationLists.isEmpty }
   }
 
-  /// One archive timestamp and the revocation values the revision it
-  /// covers keeps; nil when it covers the signature's own long-term
-  /// values, as an XAdES archive timestamp does.
+  /// One archive timestamp and the validation material its imprint covers.
   internal struct ArchiveCandidate {
     internal let state: TimestampState
-    internal let covered: RevocationValues?
+    internal let covered: RevocationValues
+    internal let coveredCertificates: [Data]
 
     /// Until when it keeps proving its time, when anchored.
     internal let validUntil: Date?
@@ -32,11 +31,14 @@ extension DocumentVerification {
 
   /// Judges revocation values alone against one anchored path.
   internal struct LongTermJudgement {
+    /// The signer certificate at the leaf of the path.
+    internal let signerCertificate: Data
+
     /// The anchored path, empty when the chain is not anchored.
     internal let path: [Data]
 
     /// Every certificate the document carries; any of them may issue
-    /// an answer.
+    /// an answer for baseline B-LT.
     internal let certificates: [Data]
 
     /// The validation time.
@@ -54,12 +56,19 @@ extension DocumentVerification {
       archives.last { stamp in stamp.state.provenTime != nil }?.validUntil
     }
 
-    /// Whether `values` alone answer every certificate below the
-    /// anchor as good.
-    internal func answers(_ values: RevocationValues) -> Bool {
+    /// Whether `values` and `candidateCertificates` alone answer every certificate below the anchor as good.
+    internal func answers(_ values: RevocationValues, certificates candidateCertificates: [Data])
+      -> Bool
+    {
       guard !path.isEmpty, !values.isEmpty else { return false }
       var evidence = ValidationEvidence()
-      evidence.add(certificates: certificates)
+      evidence.addCardReadCertificates(issuing: signerCertificate)
+      evidence.add(certificates: candidateCertificates)
+      let coveredCertificates = Set(evidence.certificates)
+      guard path.dropFirst().dropLast().allSatisfy(coveredCertificates.contains) else {
+        return false
+      }
+      evidence.add(certificates: path)
       evidence.add(ocspResponses: values.ocspResponses, revocationLists: values.revocationLists)
       let links = RevocationJudge.links(
         ofPath: path, evidence: evidence, at: validationTime, now: now)
@@ -67,11 +76,11 @@ extension DocumentVerification {
       return true
     }
 
-    /// The archive timestamps that count: each over the signature's own
-    /// long-term values, or over a revision whose values answer the
-    /// path.
+    /// The archive timestamps that count: each over material whose values answer the path.
     internal func archives(_ candidates: [ArchiveCandidate]) -> [ArchiveCandidate] {
-      candidates.filter { candidate in candidate.covered.map(answers) ?? true }
+      candidates.filter { candidate in
+        answers(candidate.covered, certificates: candidate.coveredCertificates)
+      }
     }
 
     /// The level `facts` reach with `archives` counted.
@@ -83,7 +92,7 @@ extension DocumentVerification {
       SignatureLevel.reached(
         verifies: facts.documentIntact && facts.signatureValid,
         timestamped: proven,
-        carriesValidationData: answers(facts.longTermValues),
+        carriesValidationData: answers(facts.longTermValues, certificates: certificates),
         archived: archives.contains { stamp in stamp.state.provenTime != nil }
       )
     }

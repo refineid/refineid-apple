@@ -23,8 +23,8 @@ internal struct AsicContainerReadingTests {
   private static let upperSignatureFileName = "META-INF/Signatures0.xml"
   private static let lowerSignatureFileName = "META-INF/signatures0.xml"
 
-  /// Synthetic extra-field bytes.
-  private static let extraField = "synthetic"
+  /// Synthetic APPNOTE 4.5.1 extra-field record (`id = 0xFFFF`, `size = 0`).
+  private static let extraField = Data([UInt8.max, UInt8.max, UInt8.zero, UInt8.zero])
 
   /// Synthetic signature file content.
   private static let signaturesXml = "<signatures/>"
@@ -143,7 +143,7 @@ internal struct AsicContainerReadingTests {
   @Test
   internal func mimetypeWithLocalExtraFieldIsUnsupported() {
     var mimetype = Self.mimetype(AsicContainer.mimeType)
-    mimetype.localExtra = Data(Self.extraField.utf8)
+    mimetype.localExtra = Self.extraField
     #expect(Self.failure([mimetype, Self.dataObject]) == .unsupportedProfile)
   }
 }

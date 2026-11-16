@@ -217,8 +217,10 @@ internal struct XadesSigningCertificateTests {
       let facts = try #require(CertificateFacts(der: identity.certificate))
       let serial = AsicVerification.decimal(facts.serialNumber)
       return try Self.addingToCert(
-        "<xades:IssuerSerial><ds:X509IssuerName>\(Self.issuerNameText)</ds:X509IssuerName>"
-          + "<ds:X509SerialNumber>\(serial)</ds:X509SerialNumber></xades:IssuerSerial>",
+        #"<xades:IssuerSerial><ds:X509IssuerName xmlns:ds="\#(XadesSignature.namespaceDsig)">"#
+          + "\(Self.issuerNameText)</ds:X509IssuerName>"
+          + #"<ds:X509SerialNumber xmlns:ds="\#(XadesSignature.namespaceDsig)">"#
+          + "\(serial)</ds:X509SerialNumber></xades:IssuerSerial>",
         in: properties)
     }
     let report = try #require(Self.rows(signed.document).judged.first)
@@ -232,8 +234,10 @@ internal struct XadesSigningCertificateTests {
       let facts = try #require(CertificateFacts(der: identity.certificate))
       let serial = AsicVerification.decimal(facts.serialNumber + facts.serialNumber)
       return try Self.addingToCert(
-        "<xades:IssuerSerial><ds:X509IssuerName>\(Self.issuerNameText)</ds:X509IssuerName>"
-          + "<ds:X509SerialNumber>\(serial)</ds:X509SerialNumber></xades:IssuerSerial>",
+        #"<xades:IssuerSerial><ds:X509IssuerName xmlns:ds="\#(XadesSignature.namespaceDsig)">"#
+          + "\(Self.issuerNameText)</ds:X509IssuerName>"
+          + #"<ds:X509SerialNumber xmlns:ds="\#(XadesSignature.namespaceDsig)">"#
+          + "\(serial)</ds:X509SerialNumber></xades:IssuerSerial>",
         in: properties)
     }
 
