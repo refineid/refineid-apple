@@ -48,13 +48,38 @@ internal struct MacosNotarizedDmgBuilderTests {
     #expect(!source.contains("petri.koistinen@"))
   }
 
-  @Test("The artifact name carries the marketing version and the UTC build time")
-  internal func artifactNameIsVersioned() throws {
+  @Test("The artifact is named by the release tag it was cut from")
+  internal func artifactIsNamedByItsTag() throws {
     let source = try Self.builderSource()
-    #expect(source.contains(#""\(appName)-v\(marketingVersion()).\(utcBuildTimeStamp()).dmg""#))
+    #expect(source.contains("\"\\(appName)-\\(tag).dmg\""))
     #expect(source.contains("MARKETING_VERSION"))
-    #expect(source.contains("formatter.timeZone = TimeZone(secondsFromGMT: 0)"))
-    #expect(source.contains(#"formatter.dateFormat = "HHmm""#))
+    #expect(source.contains("--tag is required"))
+    // The time-stamped name identified the run, not the source: two runs on one
+    // day were told apart only by when they happened.
+    #expect(!source.contains("utcBuildTimeStamp"))
+    #expect(!source.contains("HHmm"))
+    let runbook = try Self.text("Documentation/release-runbook.md")
+    #expect(runbook.contains("RefineID-v<MARKETING_VERSION>-<CURRENT_PROJECT_VERSION>-dev.dmg"))
+  }
+
+  @Test("The build is the annotated tag that points at HEAD")
+  internal func buildRequiresTheAnnotatedTagAtHead() throws {
+    let source = try Self.builderSource()
+    #expect(source.contains(#""tag", "--points-at", "HEAD""#))
+    #expect(source.contains(#""cat-file", "-t""#))
+    #expect(source.contains("refs/tags/"))
+    #expect(source.contains("uncommitted changes or untracked files"))
+    // Untracked files are part of that check: a source file the commit does not
+    // contain would be compiled into an image its tag cannot reproduce.
+    #expect(!source.contains("--untracked-files=no"))
+    #expect(source.contains("does not name this build"))
+    #expect(source.contains("not an annotated tag"))
+    // The identity is stamped into the app, so the artifact says where it came from.
+    #expect(source.contains("REFINEID_BUILD_SOURCE="))
+    #expect(source.contains("identity.buildSource"))
+    // A tag moves no file, so the cached app is keyed by the source as well.
+    #expect(source.contains("recordedBuildSource(derivedData:"))
+    #expect(source.contains("build-source-stamp"))
   }
 
   @Test("The signing team comes from the committed configuration")

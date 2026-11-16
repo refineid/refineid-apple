@@ -5,8 +5,9 @@
 //
 // Checks the direct-download DMG builder's command line. Unknown options,
 // missing values, an unsupported configuration, an empty app name, an empty
-// signing team and an empty notarization profile must each stop the run with a
-// clear message before any build, signing, keychain or network work. The
+// signing team, an empty notarization profile, a missing release tag, and a tag
+// that does not name this version, build and channel must each stop the run
+// with a clear message before any build, signing, keychain or network work. The
 // builder is compiled once into a temporary directory and every case runs that
 // binary.
 //
@@ -21,6 +22,11 @@ private let repositoryRoot = URL(fileURLWithPath: #filePath)
 
 private let builderPath = "Scripts/macos-notarized-dmg-builder.swift"
 private let rejectedExitStatus: Int32 = 1
+
+/// A notarization profile that is not empty, so a case reaches the tag check
+/// instead of stopping at the credential check. Nothing is looked up: the tag
+/// check runs before any keychain or network work.
+private let configuredProfile = "RefineID-notary"
 
 private struct CommandResult {
   let status: Int32
@@ -116,6 +122,25 @@ private func rejectionCases() -> [RejectionCase] {
       name: "rebuild and overwrite flags parse",
       arguments: ["--force-rebuild", "--overwrite", "--notary-profile", ""],
       expected: "no notarization credential"
+    ),
+    // A build without a tag would produce an image nobody can trace to source.
+    RejectionCase(
+      name: "missing release tag",
+      arguments: ["--notary-profile", configuredProfile],
+      expected: "--tag is required"
+    ),
+    // The channel is part of the tag, so a store build cannot be cut here.
+    RejectionCase(
+      name: "store channel tag",
+      arguments: ["--notary-profile", configuredProfile, "--tag", "v1.2.3-4-prod"],
+      expected: "does not name this build"
+    ),
+    // The name used to carry the builder's run time; it named the run, not the
+    // source, and is refused now.
+    RejectionCase(
+      name: "time-stamped tag",
+      arguments: ["--notary-profile", configuredProfile, "--tag", "RefineID-v1.2.3.0402"],
+      expected: "does not name this build"
     ),
   ]
 }

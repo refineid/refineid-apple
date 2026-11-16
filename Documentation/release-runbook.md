@@ -34,17 +34,39 @@ not upload to App Store Connect.
 
 It builds the macOS app, signs nested components inside out with a Developer ID
 Application identity, packages a DMG named
-`RefineID-v<MARKETING_VERSION>.<UTC-HHMM>.dmg` (version from `Version.xcconfig`,
-build time in UTC), signs the disk image itself, notarizes it with `notarytool`
-using a keychain profile (default `RefineID-notary`), staples and validates the
-ticket, assesses the artifact with Gatekeeper, and writes checksums next to the
-DMG.
+`RefineID-v<MARKETING_VERSION>-<CURRENT_PROJECT_VERSION>-dev.dmg` (both numbers
+from `Version.xcconfig`), signs the disk image itself, notarizes it with
+`notarytool` using a keychain profile (default `RefineID-notary`), staples and
+validates the ticket, assesses the artifact with Gatekeeper, and writes
+checksums next to the DMG.
 
-Stamp `Version.xcconfig` to the intended release/build version before building
-(for example `Scripts/apple-app-store-connect-release-manager.swift stamp`), so
-the app version and artifact name match the release. Publish the verified DMG
-with `script/publish-macos-dmg.sh` in `refineid-release`, which replaces the
-published copy on bob.refineid.fi; publication is a separate step from building.
+The build's input is the annotated release tag, not the clock. Stamp
+`Version.xcconfig` with the release's version and build number, commit it, tag
+the reviewed commit, and build that tag:
+
+```sh
+git tag -a v26.11.16-1026-dev -m 'RefineID 26.11.16 (1026), dev'
+swift Scripts/macos-notarized-dmg-builder.swift --configuration Release \
+    --tag v26.11.16-1026-dev
+```
+
+The builder refuses a dirty tree, a tag that does not point at `HEAD`, a
+lightweight tag, and a `--tag` that is not
+`v<MARKETING_VERSION>-<CURRENT_PROJECT_VERSION>-dev`. It stamps the tag and
+full commit into the app as `RefineIDBuildSource`, and the file name carries
+the same tag, so the artifact states where it came from.
+
+`dev` is the channel of this path. An App Store artifact is a different build
+of the same commit, uploaded as a beta or a release candidate; this path never
+produces one, and a `-prod` or `-beta` tag is refused here. A tag is built
+once: rebuilding it makes another notarized image under the same name, so cut a
+new tag instead.
+
+Publish the verified DMG with `script/publish-macos-dmg.sh` in
+`refineid-release`. It takes the image path alone, reads the tag and commit out
+of the image, confirms the tag still points at that commit in this repository,
+and replaces the published copy on bob.refineid.fi; publication is a separate
+step from building.
 
 Details that matter when running it:
 
