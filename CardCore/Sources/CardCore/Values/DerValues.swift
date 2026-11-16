@@ -33,6 +33,9 @@ public enum DerValues {
   /// Universal tag: NULL, whose content is always empty.
   internal static let tagNull: UInt8 = 0x05
 
+  /// Universal tag: UTCTime (RFC 5280 section 4.1.2.5.1).
+  internal static let tagUtcTime: UInt8 = 0x17
+
   /// Universal tag: GeneralizedTime.
   internal static let tagGeneralizedTime: UInt8 = 0x18
 
@@ -63,6 +66,9 @@ public enum DerValues {
 
   /// BOOLEAN FALSE content octet.
   internal static let booleanFalse: UInt8 = 0x00
+
+  /// ASCII `.`, the GeneralizedTime fractional-second separator (X.690 section 11.7.4).
+  internal static let asciiPeriod: UInt8 = 0x2E
 
   /// ASCII `0`, the first decimal digit.
   internal static let asciiZero: UInt8 = 0x30

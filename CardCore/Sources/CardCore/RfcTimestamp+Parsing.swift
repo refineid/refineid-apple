@@ -34,21 +34,6 @@ extension RfcTimestamp {
     case tsa
   }
 
-  /// Named positions in a YYYYMMDDHHMMSS GeneralizedTime.
-  private enum TimeLayout {
-    static let day = 6..<8
-    static let digitCount = 14
-    static let fractionDivisor: TimeInterval = 10
-    static let fractionMarkerOffset = 14
-    static let hour = 8..<10
-    static let minute = 10..<12
-    static let month = 4..<6
-    static let radix = 10
-    static let second = 12..<14
-    static let suffixCount = 1
-    static let year = 0..<4
-  }
-
   /// The granted TimeStampToken element from a complete TimeStampResp.
   internal static func encodedToken(inResponse response: Data) throws -> Data {
     var outer = DerReader(response)
@@ -132,8 +117,7 @@ extension RfcTimestamp {
       let serial = reader.next(),
       serial.tag == DerValues.tagInteger,
       let time = reader.next(),
-      time.tag == DerValues.tagGeneralizedTime,
-      let generatedAt = Self.generalizedTime(reader.contentData(of: time))
+      let generatedAt = DerTime.rfc3161GeneralizedTime(in: reader, element: time)
     else {
       throw TokenFailure.malformed
     }
@@ -258,85 +242,5 @@ extension RfcTimestamp {
       throw TokenFailure.malformed
     }
     return signedData
-  }
-
-  /// A DER GeneralizedTime in the UTC form RFC 3161 requires.
-  private static func generalizedTime(_ encoded: Data) -> Date? {
-    let bytes = Array(encoded)
-    let minimum = TimeLayout.digitCount + TimeLayout.suffixCount
-    guard bytes.count >= minimum, bytes.last == UInt8(ascii: "Z") else {
-      return nil
-    }
-    guard
-      let year = Self.decimal(bytes[TimeLayout.year]),
-      let month = Self.decimal(bytes[TimeLayout.month]),
-      let day = Self.decimal(bytes[TimeLayout.day]),
-      let hour = Self.decimal(bytes[TimeLayout.hour]),
-      let minute = Self.decimal(bytes[TimeLayout.minute]),
-      let second = Self.decimal(bytes[TimeLayout.second])
-    else {
-      return nil
-    }
-    let components = DateComponents(
-      year: year,
-      month: month,
-      day: day,
-      hour: hour,
-      minute: minute,
-      second: second
-    )
-    guard
-      let date = Self.date(from: components),
-      let fraction = Self.fraction(in: encoded)
-    else {
-      return nil
-    }
-    return date.addingTimeInterval(fraction)
-  }
-
-  /// The optional decimal fraction of one GeneralizedTime second.
-  private static func fraction(in encoded: Data) -> TimeInterval? {
-    let bytes = Array(encoded)
-    let minimum = TimeLayout.digitCount + TimeLayout.suffixCount
-    guard bytes.count > minimum else { return 0 }
-    let first = TimeLayout.fractionMarkerOffset
-    guard bytes[first] == UInt8(ascii: ".") else { return nil }
-    let range = (first + TimeLayout.suffixCount)..<(bytes.count - TimeLayout.suffixCount)
-    guard let value = Self.decimal(bytes[range]) else { return nil }
-    let places = TimeInterval(range.count)
-    return TimeInterval(value) / pow(TimeLayout.fractionDivisor, places)
-  }
-
-  /// A checked UTC calendar date.
-  private static func date(from components: DateComponents) -> Date? {
-    var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? calendar.timeZone
-    guard let date = calendar.date(from: components) else { return nil }
-    let checked = calendar.dateComponents(
-      [.year, .month, .day, .hour, .minute, .second], from: date
-    )
-    return checked.year == components.year
-      && checked.month == components.month
-      && checked.day == components.day
-      && checked.hour == components.hour
-      && checked.minute == components.minute
-      && checked.second == components.second ? date : nil
-  }
-
-  /// A run of ASCII decimal digits as an integer.
-  private static func decimal(_ bytes: ArraySlice<UInt8>) -> Int? {
-    guard !bytes.isEmpty else { return nil }
-    var value = 0
-    for byte in bytes {
-      guard byte >= UInt8(ascii: "0"), byte <= UInt8(ascii: "9") else {
-        return nil
-      }
-      let digit = Int(byte - UInt8(ascii: "0"))
-      guard value <= (Int.max - digit) / TimeLayout.radix else {
-        return nil
-      }
-      value = value * TimeLayout.radix + digit
-    }
-    return value
   }
 }

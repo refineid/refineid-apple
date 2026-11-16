@@ -75,10 +75,10 @@ extension CertificateRevocationList {
         targetRevocation: nil
       )
     }
-    guard Self.isTimeTag(following.tag) else {
+    guard DerTime.isRfc5280TimeTag(following.tag) else {
       throw ValidationFailure.nextUpdateMissing
     }
-    let nextUpdate = try Self.time(in: encoded, element: following)
+    let nextUpdate = try Self.time(in: reader, element: following)
 
     var targetRevocation: RevokedEntry?
     var trailing = try Self.nextElement(from: &reader, in: encoded)
@@ -140,7 +140,7 @@ extension CertificateRevocationList {
     return TbsHeader(
       signatureAlgorithm: reader.data(of: signature),
       issuerName: reader.data(of: issuer),
-      thisUpdate: try Self.time(in: encoded, element: update),
+      thisUpdate: try Self.time(in: reader, element: update),
       isVersionTwo: isVersionTwo
     )
   }
@@ -168,7 +168,7 @@ extension CertificateRevocationList {
         entryReader.contentData(of: serial)
       )
       let revocationDate = try Self.requiredElement(from: &entryReader, in: encoded)
-      let revokedAt = try Self.time(in: encoded, element: revocationDate)
+      let revokedAt = try Self.time(in: entryReader, element: revocationDate)
       var reason: RevocationReason?
       if let extensions = try Self.nextElement(from: &entryReader, in: encoded) {
         guard extensions.tag == DerValues.tagSequence, isVersionTwo else {
