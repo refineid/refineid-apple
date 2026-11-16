@@ -4,10 +4,11 @@
 // Usage: swift Scripts/TestMacosNotarizedDmgBuilder.swift
 //
 // Checks the direct-download DMG builder's command line. Unknown options,
-// missing values, an unsupported configuration, an empty app name and an empty
-// notarization profile must each stop the run with a clear message before any
-// build, signing, keychain or network work. The builder is compiled once into
-// a temporary directory and every case runs that binary.
+// missing values, an unsupported configuration, an empty app name, an empty
+// signing team and an empty notarization profile must each stop the run with a
+// clear message before any build, signing, keychain or network work. The
+// builder is compiled once into a temporary directory and every case runs that
+// binary.
 //
 // The shebang keeps its own line and a blank line follows it: swift-format
 // joins a comment placed directly under the shebang onto the shebang line.
@@ -98,6 +99,11 @@ private func rejectionCases() -> [RejectionCase] {
       name: "empty app name",
       arguments: ["--app-name", ""],
       expected: "--app-name is required"
+    ),
+    RejectionCase(
+      name: "empty team id",
+      arguments: ["--team-id", ""],
+      expected: "--team-id must not be empty"
     ),
     RejectionCase(
       name: "empty notary profile",

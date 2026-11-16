@@ -49,6 +49,9 @@ Details that matter when running it:
 - The DMG holds `RefineID.app` and an `Applications` link, so installing is a
 drag onto `/Applications` and removing the app is a delete from there.
 - The build is arm64 only. There is no universal or Intel artifact.
+- The signing team comes from `DEVELOPMENT_TEAM` in `Version.xcconfig`, so the
+  build signs under the team the checkout declares. `--team-id` overrides it,
+  and an empty value is rejected before any build or signing work.
 - A cached app under `build/macos-notarized-dmg-deriveddata` is reused only
   while no build input is newer than the build stamp recorded by the last
   successful build (`build-input-stamp` in that directory); otherwise the

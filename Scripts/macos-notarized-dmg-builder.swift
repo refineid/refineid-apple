@@ -24,6 +24,12 @@ private let flagArgumentWidth = 1
 private let valuedArgumentWidth = 2
 private let buildStampFileName = "build-input-stamp"
 
+/// The committed release configuration: the marketing version and the team
+/// the app signs with. Both are public and belong to the checkout.
+private func versionConfigPath() -> URL {
+  repositoryRoot.appendingPathComponent("Version.xcconfig")
+}
+
 private func fail(_ message: String) -> Never {
   FileHandle.standardError.write(Data("ERROR: \(message)\n".utf8))
   exit(1)
@@ -128,15 +134,16 @@ private func resolveNotarytool() -> String {
   fail("could not find notarytool; select an Xcode installation with xcode-select")
 }
 
-private func marketingVersion() -> String {
-  let versionFile = repositoryRoot.appendingPathComponent("Version.xcconfig")
-  guard let contents = try? String(contentsOf: versionFile, encoding: .utf8) else {
-    fail("could not read marketing version from \(versionFile.path)")
+/// Reads a key from `Version.xcconfig`. Returns nil when the key is absent or
+/// empty.
+private func xcconfigValue(_ key: String) -> String? {
+  guard let contents = try? String(contentsOf: versionConfigPath(), encoding: .utf8) else {
+    fail("could not read \(key) from \(versionConfigPath().path)")
   }
 
   for line in contents.components(separatedBy: .newlines) {
     let trimmed = line.trimmingCharacters(in: .whitespaces)
-    guard trimmed.hasPrefix("MARKETING_VERSION") else { continue }
+    guard trimmed.hasPrefix(key) else { continue }
     guard let equals = trimmed.firstIndex(of: "=") else { continue }
     let value = trimmed[trimmed.index(after: equals)...].trimmingCharacters(in: .whitespaces)
     if !value.isEmpty {
@@ -144,7 +151,24 @@ private func marketingVersion() -> String {
     }
   }
 
-  fail("MARKETING_VERSION not found in \(versionFile.path)")
+  return nil
+}
+
+private func marketingVersion() -> String {
+  guard let version = xcconfigValue("MARKETING_VERSION") else {
+    fail("MARKETING_VERSION not found in \(versionConfigPath().path)")
+  }
+  return version
+}
+
+/// The signing team is public and lives in the checkout, so a build signs under
+/// the team the source declares instead of a constant that can drift from it.
+/// `--team-id` overrides this for a temporary certificate or another checkout.
+private func developmentTeam() -> String {
+  guard let team = xcconfigValue("DEVELOPMENT_TEAM") else {
+    fail("DEVELOPMENT_TEAM not found in \(versionConfigPath().path)")
+  }
+  return team
 }
 
 private func utcBuildTimeStamp() -> String {
@@ -167,7 +191,7 @@ private enum BuildConfiguration: String {
 private struct Options {
   var configuration = BuildConfiguration.release
   var appName = "RefineID"
-  var teamId = "4ZJC3SFJR2"
+  var teamId: String?
   var outputDirectory = "build/macos-notarized-dmg"
   var notaryProfile = "RefineID-notary"
   var signingIdentityName: String?
@@ -225,6 +249,9 @@ private func parseOptions(from args: [String]) -> Options {
 
   if options.appName.isEmpty {
     fail("--app-name is required")
+  }
+  if let teamId = options.teamId, teamId.isEmpty {
+    fail("--team-id must not be empty")
   }
 
   return options
@@ -757,13 +784,14 @@ private func writeChecksumFile(for dmg: URL) {
 private func main() {
   let args = CommandLine.arguments.dropFirst().map { String($0) }
   let options = parseOptions(from: args)
+  let teamId = options.teamId ?? developmentTeam()
   let notarytool = resolveNotarytool()
 
   preflightNotaryProfile(options.notaryProfile, notarytool: notarytool)
 
   let signingIdentity = signingIdentityName(
     named: options.signingIdentityName,
-    teamId: options.teamId
+    teamId: teamId
   )
 
   let app = buildApp(
@@ -775,7 +803,7 @@ private func main() {
   signApp(
     app: app,
     signingIdentity: signingIdentity,
-    teamId: options.teamId
+    teamId: teamId
   )
 
   let outputDirectory = repositoryRoot.appendingPathComponent(options.outputDirectory)

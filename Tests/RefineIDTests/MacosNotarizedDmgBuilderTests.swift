@@ -57,6 +57,20 @@ internal struct MacosNotarizedDmgBuilderTests {
     #expect(source.contains(#"formatter.dateFormat = "HHmm""#))
   }
 
+  @Test("The signing team comes from the committed configuration")
+  internal func signingTeamComesFromConfiguration() throws {
+    let source = try Self.builderSource()
+    #expect(source.contains("DEVELOPMENT_TEAM"))
+    #expect(source.contains("developmentTeam()"))
+    // The team is public and committed, so the builder must not keep its own
+    // copy of it that can drift from the checkout.
+    #expect(!source.contains(#"var teamId = "4ZJC3SFJR2""#))
+    let version = try Self.text("Version.xcconfig")
+    #expect(version.contains("DEVELOPMENT_TEAM ="))
+    let runbook = try Self.text("Documentation/release-runbook.md")
+    #expect(runbook.contains("`DEVELOPMENT_TEAM` in `Version.xcconfig`"))
+  }
+
   @Test("A published artifact is not replaced without overwrite")
   internal func publishedArtifactIsNotReplacedSilently() throws {
     let source = try Self.builderSource()
@@ -120,5 +134,6 @@ internal struct MacosNotarizedDmgBuilderTests {
     #expect(runbook.contains("The build is arm64 only."))
     #expect(runbook.contains("`Applications` link"))
     #expect(runbook.contains("build-input-stamp"))
+    #expect(runbook.contains("--team-id"))
   }
 }
