@@ -6,8 +6,10 @@
 /// (`Config/Features.xcconfig`): no configuration sets it right now,
 /// so every build on every platform compiles without organization
 /// cards until it is turned on there. The app and the token
-/// extension derive their answer from the same compilation
-/// condition, so the targets cannot disagree.
+/// extension compile this source under the same compilation
+/// condition, so the targets cannot disagree. A build without it
+/// refuses organization cards before any credential is spent and
+/// leaves stored organization primes unread and untouched.
 internal enum OrganizationCardSupport {
   internal static var isEnabled: Bool {
     #if FEATURE_ORGANIZATION_CARD
