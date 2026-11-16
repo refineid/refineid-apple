@@ -5,18 +5,25 @@
 // distribution. This is a direct-download artifact path only. It is separate
 // from the App Store release manager and does not upload to App Store Connect.
 //
+// The build's input is the annotated release tag, not a time stamp: the tree
+// must be the commit the tag names, and that tag and commit are stamped into
+// the app and carried by the file name. Nothing about the source is typed on
+// the command line, so a published image cannot disagree with the commit it
+// came from.
+//
 // Steps:
-//   1. Build the macOS app from the current checkout, rebuilding whenever a
-//      build input is newer than the last recorded build stamp.
-//   2. Sign it with Developer ID Application.
-//   3. Package it into a DMG that installs by dragging onto /Applications.
-//   4. Sign the disk image itself with Developer ID Application.
-//   5. Notarize the DMG with notarytool.
-//   6. Staple the notarization ticket.
-//   7. Validate the stapled ticket.
-//   8. Assess the artifact with Gatekeeper.
-//   9. Write a checksum file next to the DMG.
-//  10. Remove the artifacts this run supersedes.
+//   1. Refuse a tree that is not the commit an annotated release tag names.
+//   2. Build the macOS app from the current checkout, rebuilding whenever a
+//      build input or the source identity is newer than the last build stamp.
+//   3. Sign it with Developer ID Application.
+//   4. Package it into a DMG that installs by dragging onto /Applications.
+//   5. Sign the disk image itself with Developer ID Application.
+//   6. Notarize the DMG with notarytool.
+//   7. Staple the notarization ticket.
+//   8. Validate the stapled ticket.
+//   9. Assess the artifact with Gatekeeper.
+//  10. Write a checksum file next to the DMG.
+//  11. Remove the artifacts this run supersedes.
 
 import Foundation
 
@@ -26,6 +33,14 @@ private let checksumLengthBytes = 64
 private let flagArgumentWidth = 1
 private let valuedArgumentWidth = 2
 private let buildStampFileName = "build-input-stamp"
+private let buildSourceFileName = "build-source-stamp"
+
+/// The channel a direct-download image carries. This path publishes the
+/// development build on bob.refineid.fi; the App Store artifact is a different
+/// build of the same source, uploaded as a beta or a release candidate. The
+/// channel is part of the tag and of the file name, so it cannot be forgotten
+/// on the command line and a store image cannot be published here by mistake.
+private let releaseChannel = "dev"
 
 /// The committed release configuration: the marketing version and the team
 /// the app signs with. Both are public and belong to the checkout.
@@ -174,16 +189,76 @@ private func developmentTeam() -> String {
   return team
 }
 
-private func utcBuildTimeStamp() -> String {
-  let formatter = DateFormatter()
-  formatter.locale = Locale(identifier: "en_US_POSIX")
-  formatter.timeZone = TimeZone(secondsFromGMT: 0)
-  formatter.dateFormat = "HHmm"
-  return formatter.string(from: Date())
+private func currentBuildNumber() -> String {
+  guard let build = xcconfigValue("CURRENT_PROJECT_VERSION") else {
+    fail("CURRENT_PROJECT_VERSION not found in \(versionConfigPath().path)")
+  }
+  return build
 }
 
-private func dmgFileName(appName: String) -> String {
-  "\(appName)-v\(marketingVersion()).\(utcBuildTimeStamp()).dmg"
+/// The one tag this checkout may build: the version and build number the
+/// configuration defines, on the direct-download channel.
+private func expectedTag() -> String {
+  "v\(marketingVersion())-\(currentBuildNumber())-\(releaseChannel)"
+}
+
+private func dmgFileName(appName: String, tag: String) -> String {
+  "\(appName)-\(tag).dmg"
+}
+
+/// The identity of the build: the annotated tag it was cut from and the commit
+/// that tag names. Both are stamped into the app and carried by the file name,
+/// so a published image can be traced to its source without trusting an
+/// argument that could disagree with it.
+private struct SourceIdentity {
+  let tag: String
+  let commit: String
+
+  var buildSource: String { "\(tag)@\(commit)" }
+}
+
+/// Runs git in the checkout. A git that refuses is an error: a source check
+/// that cannot read the repository must stop the run, not pass it.
+private func gitOutput(_ arguments: [String]) -> String {
+  let result = run("/usr/bin/git", arguments, directory: repositoryRoot)
+  if result.failed {
+    fail("git \(arguments.joined(separator: " ")) failed:\n\(result.message)")
+  }
+  return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
+/// Confirms the tag really is the build's input: it must point at HEAD, the tree
+/// must be clean, and the tag must be annotated. A lightweight tag records no
+/// cutter and no message, and can be moved without a trace, so it is refused.
+private func sourceIdentity(for tag: String) -> SourceIdentity {
+  let commit = gitOutput(["rev-parse", "HEAD"])
+  guard commit.count == fingerprintHexDigitCount else {
+    fail("could not read HEAD as a commit: \(commit)")
+  }
+
+  let dirty = gitOutput(["status", "--porcelain", "--untracked-files=no", "--", "."])
+  if !dirty.isEmpty {
+    fail(
+      "the working tree has uncommitted changes; an image must come from the commit \(tag) names:\n"
+        + dirty
+    )
+  }
+
+  let atHead = gitOutput(["tag", "--points-at", "HEAD"]).split(separator: "\n").map(String.init)
+  guard atHead.contains(tag) else {
+    fail(
+      "HEAD (\(commit)) does not carry \(tag); tag the commit first:\n"
+        + "  git tag -a \(tag) -m 'RefineID \(marketingVersion()) (\(currentBuildNumber()))'\n"
+        + "tags at HEAD: \(atHead.isEmpty ? "none" : atHead.joined(separator: ", "))"
+    )
+  }
+
+  let kind = gitOutput(["cat-file", "-t", "refs/tags/\(tag)"])
+  guard kind == "tag" else {
+    fail("\(tag) is a \(kind) object, not an annotated tag; annotate it with git tag -a")
+  }
+
+  return SourceIdentity(tag: tag, commit: commit)
 }
 
 private enum BuildConfiguration: String {
@@ -198,6 +273,7 @@ private struct Options {
   var outputDirectory = "build/macos-notarized-dmg"
   var notaryProfile = "RefineID-notary"
   var signingIdentityName: String?
+  var releaseTag = ""
   var forceRebuild = false
   var overwrite = false
 }
@@ -219,6 +295,8 @@ private func applyOption(name: String, value: String, to options: inout Options)
     options.notaryProfile = value
   case "--signing-identity":
     options.signingIdentityName = value
+  case "--tag":
+    options.releaseTag = value
   default:
     fail("unknown option: \(name)")
   }
@@ -238,7 +316,7 @@ private func parseOptions(from args: [String]) -> Options {
       options.overwrite = true
       index += flagArgumentWidth
     case "--configuration", "--app-name", "--team-id", "--output-directory",
-      "--notary-profile", "--signing-identity":
+      "--notary-profile", "--signing-identity", "--tag":
       let valueIndex = index + flagArgumentWidth
       guard valueIndex < args.count else {
         fail("missing value for \(name)")
@@ -255,6 +333,19 @@ private func parseOptions(from args: [String]) -> Options {
   }
   if let teamId = options.teamId, teamId.isEmpty {
     fail("--team-id must not be empty")
+  }
+  if options.notaryProfile.isEmpty {
+    fail("no notarization credential: set --notary-profile (use a notarytool keychain profile)")
+  }
+
+  // The tag is checked before any keychain, build or network work, so a wrong
+  // source stops the run in the first second instead of after notarization.
+  let tag = expectedTag()
+  if options.releaseTag.isEmpty {
+    fail("--tag is required: a published image names the annotated tag it was built from, \(tag)")
+  }
+  if options.releaseTag != tag {
+    fail("--tag \(options.releaseTag) does not name this build; expected \(tag)")
   }
 
   return options
@@ -316,6 +407,25 @@ private func recordedBuildInputDate(derivedData: URL) -> Date? {
     return nil
   }
   return Date(timeIntervalSince1970: seconds)
+}
+
+/// The source identity of the cached app. A tag does not change any build
+/// input's modification time, so this record, not the input stamp, decides
+/// whether a cached app still belongs to the tag being built.
+private func recordedBuildSource(derivedData: URL) -> String? {
+  let stampFile = derivedData.appendingPathComponent(buildSourceFileName)
+  guard let text = try? String(contentsOf: stampFile, encoding: .utf8) else { return nil }
+  let source = text.trimmingCharacters(in: .whitespacesAndNewlines)
+  return source.isEmpty ? nil : source
+}
+
+private func recordBuildSource(_ source: String, derivedData: URL) {
+  let stampFile = derivedData.appendingPathComponent(buildSourceFileName)
+  do {
+    try source.write(to: stampFile, atomically: true, encoding: .utf8)
+  } catch {
+    fail("could not write \(stampFile.path): \(error.localizedDescription)")
+  }
 }
 
 private func recordBuildInputDate(derivedData: URL) {
@@ -384,6 +494,7 @@ private func parseFingerprint(from line: String) -> String {
 private func buildApp(
   configuration: BuildConfiguration,
   appName: String,
+  identity: SourceIdentity,
   forceRebuild: Bool
 ) -> URL {
   let derivedData = repositoryRoot.appendingPathComponent("build/macos-notarized-dmg-deriveddata")
@@ -393,16 +504,25 @@ private func buildApp(
     .appendingPathComponent("\(appName).app")
 
   let cached = FileManager.default.fileExists(atPath: products.path)
-  if cached, !forceRebuild, !cachedAppIsStale(derivedData: derivedData) {
-    note("using cached \(products.lastPathComponent)")
+  let cachedSource = recordedBuildSource(derivedData: derivedData)
+  if cached, !forceRebuild, !cachedAppIsStale(derivedData: derivedData),
+    cachedSource == identity.buildSource
+  {
+    note("using cached \(products.lastPathComponent) built from \(identity.tag)")
     return products
   }
   if cached {
-    note(
-      forceRebuild
-        ? "rebuilding \(appName) (--force-rebuild)"
-        : "rebuilding \(appName) (build input is newer than the cached app)"
-    )
+    let reason: String
+    if forceRebuild {
+      reason = "--force-rebuild"
+    } else if cachedSource != identity.buildSource {
+      // A new tag moves no file, so the input stamp alone would reuse an app
+      // stamped with the previous source.
+      reason = "the cached app records \(cachedSource ?? "no source")"
+    } else {
+      reason = "build input is newer than the cached app"
+    }
+    note("rebuilding \(appName) (\(reason))")
   }
 
   note("building \(configuration.rawValue) for macOS")
@@ -418,6 +538,7 @@ private func buildApp(
       "CODE_SIGN_IDENTITY=",
       "CODE_SIGNING_REQUIRED=NO",
       "CODE_SIGNING_ALLOWED=NO",
+      "REFINEID_BUILD_SOURCE=\(identity.buildSource)",
       "CLANG_COVERAGE_MAPPING=NO",
       "ENABLE_CODE_COVERAGE=NO",
       "-quiet",
@@ -435,6 +556,7 @@ private func buildApp(
   }
 
   recordBuildInputDate(derivedData: derivedData)
+  recordBuildSource(identity.buildSource, derivedData: derivedData)
 
   return products
 }
@@ -891,6 +1013,7 @@ private func pruneSupersededArtifacts(in directory: URL, keeping dmg: URL) {
 private func main() {
   let args = CommandLine.arguments.dropFirst().map { String($0) }
   let options = parseOptions(from: args)
+  let identity = sourceIdentity(for: options.releaseTag)
   let teamId = options.teamId ?? developmentTeam()
   let notarytool = resolveNotarytool()
 
@@ -904,6 +1027,7 @@ private func main() {
   let app = buildApp(
     configuration: options.configuration,
     appName: options.appName,
+    identity: identity,
     forceRebuild: options.forceRebuild
   )
 
@@ -920,7 +1044,9 @@ private func main() {
     fail("could not create \(outputDirectory.path): \(error.localizedDescription)")
   }
 
-  let dmg = outputDirectory.appendingPathComponent(dmgFileName(appName: options.appName))
+  let dmg = outputDirectory.appendingPathComponent(
+    dmgFileName(appName: options.appName, tag: identity.tag)
+  )
 
   createDmg(
     sourceApp: app,
@@ -936,7 +1062,7 @@ private func main() {
   writeChecksumFile(for: dmg)
   pruneSupersededArtifacts(in: outputDirectory, keeping: dmg)
 
-  note("done: \(dmg.path)")
+  note("done: \(dmg.path) from \(identity.buildSource)")
 }
 
 main()

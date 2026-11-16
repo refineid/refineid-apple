@@ -34,6 +34,27 @@
 
 The entries below record historical decisions, their timestamps, and rationale.
 
+### 2026-11-16 A direct-download image is named by its release tag
+
+The macOS DMG builder takes `--tag`, an annotated tag of the form
+`v<MARKETING_VERSION>-<CURRENT_PROJECT_VERSION>-dev`, and refuses a dirty tree,
+a tag that does not point at `HEAD`, a lightweight tag, and a tag that names
+another version, build or channel. It stamps `<tag>@<commit>` into
+`RefineIDBuildSource` and names the image `RefineID-<tag>.dmg`. The UTC-time
+name it used before identified the run rather than the source, and nothing in
+the artifact said which commit it came from.
+
+The publisher in `refineid-release` takes no commit argument: it mounts the
+image, reads the identity out of the signed app, checks that the tag still
+peels to that commit in `refineid-apple`, and writes the verified commit into
+`COMMIT`. A mistyped path, a short SHA, an image from another commit and a moved
+tag are all refused before anything is uploaded.
+
+`dev` is the channel of this path. An App Store artifact is a different build of
+the same commit, uploaded as a beta or a release candidate, so a store image
+cannot be named `-dev` and cannot be published to bob by mistake. A tag is built
+once: a rebuild produces another notarized image under the same name.
+
 ### 2026-11-16 Gate signed document verification out of the macOS MVP
 
 `FEATURE_DOCUMENT_VERIFICATION` gates the signed document verification UI
