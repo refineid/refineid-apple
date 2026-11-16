@@ -233,6 +233,16 @@ extension AsicSigner {
       sources: completion.sources,
       policy: completion.policy
     )
+    return try await TimestampClient.forOneDocument {
+      try await Self.completed(draft: draft, signerCertificate: certificate)
+    }
+  }
+
+  /// Runs the timestamp, evidence, and archive-timestamp stages for `draft`.
+  private static func completed(
+    draft: Draft,
+    signerCertificate: Data
+  ) async throws -> Product {
     DocumentSigner.report(.timestamp)
     let token: TimestampTokenVerifier.VerifiedToken
     switch try await draft.signatureTimestamp() {
@@ -244,7 +254,8 @@ extension AsicSigner {
     }
     DocumentSigner.report(.validation)
     let evidence: PdfValidationStore.Material
-    switch try await draft.evidence(signerCertificate: certificate, signatureTimestamp: token) {
+    switch try await draft.evidence(signerCertificate: signerCertificate, signatureTimestamp: token)
+    {
     case .kept(let product):
       return product
 

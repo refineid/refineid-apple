@@ -75,6 +75,19 @@
       return (signatureTimestamped, token)
     }
 
+    /// Runs `operation` with synthetic anchors and zero inter-document sleep
+    /// against the in-memory gate responder.
+    private static func withSyntheticTimestampEnvironment<Value>(
+      anchors: @escaping @Sendable (Date) -> [Data],
+      operation: () async throws -> Value
+    ) async rethrows -> Value {
+      try await TimestampClient.$throttle.withValue(TimestampThrottle(spacing: .zero)) {
+        try await TimestampClient.$anchorResolver.withValue(anchors) {
+          try await operation()
+        }
+      }
+    }
+
     override internal func setUp() async throws {
       try await super.setUp()
       let first = try DssGateAuthorities.make()
@@ -104,16 +117,18 @@
       DssGateUrlProtocol.timestampAuthorities = archive
       let firstAnchor = covered.timestampCaCertificate
       let secondAnchor = archive.timestampCaCertificate
-      let resolver: @Sendable (Date) -> [Data] = { _ in [firstAnchor, secondAnchor] }
       do {
-        _ = try await TimestampClient.$anchorResolver.withValue(resolver) {
-          try await DocumentSigner.longTerm(
-            stage.signature,
-            signerCertificate: covered.holderCertificate,
-            timestampTokens: [stage.token],
-            policy: .longTermOnly
-          )
-        }
+        _ = try await Self.withSyntheticTimestampEnvironment(
+          anchors: { _ in [firstAnchor, secondAnchor] },
+          operation: {
+            try await DocumentSigner.longTerm(
+              stage.signature,
+              signerCertificate: covered.holderCertificate,
+              timestampTokens: [stage.token],
+              policy: .longTermOnly
+            )
+          }
+        )
         XCTFail("Expected the uncovered archive timestamp to be refused")
       } catch let failure as DocumentSigner.Failure {
         guard case .archiveTimestampUncovered = failure else {
@@ -138,16 +153,18 @@
       let stage = try Self.timestamped(covered)
       DssGateUrlProtocol.timestampAuthorities = covered.answeringTimestamps(with: rotated)
       let anchor = covered.timestampCaCertificate
-      let resolver: @Sendable (Date) -> [Data] = { _ in [anchor] }
       do {
-        _ = try await TimestampClient.$anchorResolver.withValue(resolver) {
-          try await DocumentSigner.longTerm(
-            stage.signature,
-            signerCertificate: covered.holderCertificate,
-            timestampTokens: [stage.token],
-            policy: .longTermOnly
-          )
-        }
+        _ = try await Self.withSyntheticTimestampEnvironment(
+          anchors: { _ in [anchor] },
+          operation: {
+            try await DocumentSigner.longTerm(
+              stage.signature,
+              signerCertificate: covered.holderCertificate,
+              timestampTokens: [stage.token],
+              policy: .longTermOnly
+            )
+          }
+        )
         XCTFail("Expected the rotated archive signer to be refused")
       } catch let failure as DocumentSigner.Failure {
         guard case .archiveTimestampUncovered = failure else {
@@ -166,15 +183,17 @@
       DssGateUrlProtocol.timestampAuthorities = archive
       let firstAnchor = covered.timestampCaCertificate
       let secondAnchor = archive.timestampCaCertificate
-      let resolver: @Sendable (Date) -> [Data] = { _ in [firstAnchor, secondAnchor] }
-      let product = try await TimestampClient.$anchorResolver.withValue(resolver) {
-        try await DocumentSigner.longTerm(
-          stage.signature,
-          signerCertificate: covered.holderCertificate,
-          timestampTokens: [stage.token],
-          policy: .highestReached
-        )
-      }
+      let product = try await Self.withSyntheticTimestampEnvironment(
+        anchors: { _ in [firstAnchor, secondAnchor] },
+        operation: {
+          try await DocumentSigner.longTerm(
+            stage.signature,
+            signerCertificate: covered.holderCertificate,
+            timestampTokens: [stage.token],
+            policy: .highestReached
+          )
+        }
+      )
       let shortfall = try XCTUnwrap(product.completion.shortfall)
       XCTAssertEqual(
         shortfall,
@@ -194,15 +213,17 @@
       let stage = try Self.timestamped(covered)
       DssGateUrlProtocol.timestampAuthorities = covered
       let anchor = covered.timestampCaCertificate
-      let resolver: @Sendable (Date) -> [Data] = { _ in [anchor] }
-      let product = try await TimestampClient.$anchorResolver.withValue(resolver) {
-        try await DocumentSigner.longTerm(
-          stage.signature,
-          signerCertificate: covered.holderCertificate,
-          timestampTokens: [stage.token],
-          policy: .longTermOnly
-        )
-      }
+      let product = try await Self.withSyntheticTimestampEnvironment(
+        anchors: { _ in [anchor] },
+        operation: {
+          try await DocumentSigner.longTerm(
+            stage.signature,
+            signerCertificate: covered.holderCertificate,
+            timestampTokens: [stage.token],
+            policy: .longTermOnly
+          )
+        }
+      )
       XCTAssertEqual(product.completion, .archival)
       let bytes = String(bytes: product.bytes, encoding: .isoLatin1) ?? ""
       XCTAssertTrue(bytes.contains("/Type /DocTimeStamp"))

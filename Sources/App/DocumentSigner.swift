@@ -138,6 +138,14 @@ internal enum DocumentSigner {
       stamp: stamp,
       access: access
     )
+    return try await TimestampClient.forOneDocument {
+      try await Self.completed(material)
+    }
+  }
+
+  /// Timestamps `material` and collects archival validation material under one
+  /// document session.
+  private static func completed(_ material: CardMaterial) async throws -> Product {
     Self.report(.timestamp)
     let verifiedTokens: [TimestampTokenVerifier.VerifiedToken]
     do {
