@@ -83,7 +83,7 @@ internal struct MacosNotarizedDmgBuilderTests {
       ))
   }
 
-  @Test("The lint gate typechecks and formats the builder and its tests")
+  @Test("The lint gate typechecks the builder and its tests")
   internal func gateCoversTheBuilder() throws {
     let lint = try Self.text("Scripts/lint.sh")
     #expect(
@@ -94,11 +94,14 @@ internal struct MacosNotarizedDmgBuilderTests {
       lint.contains(
         #"typecheck "macOS notarized DMG builder tests" Scripts/TestMacosNotarizedDmgBuilder.swift"#
       ))
+    // Both files stay outside the swift-format run: the formatter joins a
+    // license comment onto the line above it, which would turn the shebang
+    // into an interpreter line carrying arguments.
     let formatPaths = try #require(
       lint.components(separatedBy: "format_paths=(").last?
         .components(separatedBy: ")").first)
-    #expect(formatPaths.contains(Self.builderPath))
-    #expect(formatPaths.contains(Self.builderTestsPath))
+    #expect(!formatPaths.contains(Self.builderPath))
+    #expect(!formatPaths.contains(Self.builderTestsPath))
   }
 
   @Test("The PR gate runs the builder command-line tests")
