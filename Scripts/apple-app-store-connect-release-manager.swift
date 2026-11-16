@@ -775,6 +775,25 @@ private func inspectReleaseArchive(_ archive: URL) {
     releaseNote("no local-network or Bonjour declarations; the remote card is gated off")
   }
 
+  if layout.platform == "macOS" {
+    // Document verification is gated off on macOS: the app opens no
+    // documents from Finder and claims no BDOC container type; it keeps
+    // only org.etsi.asic-e so the save panel can write .asice containers.
+    guard appPlist["CFBundleDocumentTypes"] == nil else {
+      releaseFail("CFBundleDocumentTypes present on macOS without document verification")
+    }
+    let importedTypes =
+      (appPlist["UTImportedTypeDeclarations"] as? [[String: Any]] ?? [])
+      .compactMap { $0["UTTypeIdentifier"] as? String }
+    guard !importedTypes.contains("ee.ria.bdoc") else {
+      releaseFail("ee.ria.bdoc UTI declared on macOS without document verification")
+    }
+    guard importedTypes.contains("org.etsi.asic-e") else {
+      releaseFail("org.etsi.asic-e UTI missing on macOS; ASiC-E signing needs it")
+    }
+    releaseNote("no document-viewer or BDOC declarations; document verification is gated off")
+  }
+
   let readerConfiguration = releaseExtensionConfiguration(at: layout.tokenPlist)
   guard readerConfiguration.point == "com.apple.ctk-tokens",
     readerConfiguration.attributes["com.apple.ctk.class-id"] as? String

@@ -99,7 +99,10 @@ internal struct VoiceOverStringsTests {
   internal func mvpWindowActionsMatchInEveryLanguage() throws {
     let strings = try Self.catalog(at: "Sources/App/Localizable.xcstrings")
     let words: [String: [String: String]] = [
-      "Verify…": ["fi": "Tarkasta…", "sv": "Granska…"],
+      "Drop documents here to sign them.": [
+        "fi": "Pudota asiakirjat tähän allekirjoitettavaksi.",
+        "sv": "Släpp dokument här för att underteckna dem.",
+      ],
       "Sign…": ["fi": "Allekirjoita…", "sv": "Signera…"],
       "PIN Codes": ["fi": "PIN-koodit", "sv": "PIN-koder"],
       "A PIN code needs a reset": [
@@ -132,6 +135,33 @@ internal struct VoiceOverStringsTests {
       "The signed document cannot replace the original.": [
         "fi": "Allekirjoitettu asiakirja ei voi korvata alkuperäistä.",
         "sv": "Det signerade dokumentet kan inte ersätta originalet.",
+      ],
+    ]
+    for (key, translations) in words {
+      for (language, text) in translations {
+        #expect(
+          try Self.value(for: key, language: language, in: strings) == text,
+          "\(key) \(language)")
+      }
+    }
+  }
+
+  @Test("Document verification strings match in every language")
+  internal func documentVerificationStringsMatchInEveryLanguage() throws {
+    let strings = try Self.catalog(at: "Sources/App/Localizable.xcstrings")
+    let words: [String: [String: String]] = [
+      "Verify…": ["fi": "Tarkasta…", "sv": "Granska…"],
+      "Documents to verify": [
+        "fi": "Tarkastettavat asiakirjat",
+        "sv": "Dokument att granska",
+      ],
+      "Drop documents here to sign or verify them.": [
+        "fi": "Pudota asiakirjat tähän allekirjoitettavaksi tai tarkastettavaksi.",
+        "sv": "Släpp dokument här för att underteckna eller granska dem.",
+      ],
+      "Drop documents here to verify them.": [
+        "fi": "Pudota asiakirjat tähän tarkastettavaksi.",
+        "sv": "Släpp dokument här för att granska dem.",
       ],
     ]
     for (key, translations) in words {

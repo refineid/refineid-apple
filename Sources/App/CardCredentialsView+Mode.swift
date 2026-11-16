@@ -26,7 +26,9 @@ extension CardCredentialsView {
   /// after the system back button, which would cover whatever opens
   /// next.
   internal enum Route: Hashable {
-    case verifyDocuments
+    #if FEATURE_DOCUMENT_VERIFICATION
+      case verifyDocuments
+    #endif
     case remoteAccess
     case authenticate
     case signDocuments

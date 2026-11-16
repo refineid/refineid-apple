@@ -21,11 +21,15 @@
 
     /// What the area invites the holder to do.
     private var invitation: Text {
-      if offersSigning {
-        Text("Drop documents here to sign or verify them.")
-      } else {
-        Text("Drop documents here to verify them.")
-      }
+      #if FEATURE_DOCUMENT_VERIFICATION
+        if offersSigning {
+          Text("Drop documents here to sign or verify them.")
+        } else {
+          Text("Drop documents here to verify them.")
+        }
+      #else
+        Text("Drop documents here to sign them.")
+      #endif
     }
 
     internal var body: some View {

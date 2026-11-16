@@ -20,20 +20,87 @@
       queued: [URL],
       signing working: Bool,
       readingCard: Bool = false,
-      failureShown: Bool = false
+      failureShown: Bool = false,
+      offersVerification: Bool = true
     ) -> StatusDocumentControls {
       StatusDocumentControls(
         availability: availability, queued: queued, signing: working,
-        readingCard: readingCard, failureShown: failureShown)
+        readingCard: readingCard, failureShown: failureShown,
+        offersVerification: offersVerification)
     }
 
-    /// No card, nothing listed: the identity row still asks for a
-    /// reader above the drop area, nothing about signing shows, and
-    /// Verify is there but cannot run.
+    /// The default verification gate matches this build's compile flag.
+    @Test
+    internal func defaultOffersVerificationMatchesBuildFlag() {
+      let controls = StatusDocumentControls(
+        availability: .ready, queued: Self.documents, signing: false,
+        readingCard: false, failureShown: false,
+        offersVerification: StatusDocumentControls.defaultOffersVerification)
+      #if FEATURE_DOCUMENT_VERIFICATION
+        #expect(StatusDocumentControls.defaultOffersVerification)
+        #expect(controls.offersVerification)
+        #expect(controls.actions == [.verify, .sign])
+      #else
+        #expect(!StatusDocumentControls.defaultOffersVerification)
+        #expect(!controls.offersVerification)
+        #expect(controls.actions == [.sign])
+      #endif
+    }
+
+    /// With verification gated off, an absent card hides the empty drop
+    /// area, keeps the reader prompt even when documents wait, and never
+    /// offers Verify.
+    @Test
+    internal func withoutVerificationOnlySigningControlsAppear() {
+      let emptyNoCard = Self.controls(
+        .noCard, queued: [], signing: false, offersVerification: false)
+      #expect(emptyNoCard.showsIdentity)
+      #expect(!emptyNoCard.showsDocuments)
+      #expect(!emptyNoCard.offersSigning)
+      #expect(!emptyNoCard.verifyEnabled)
+      #expect(emptyNoCard.actions.isEmpty)
+
+      let queuedNoCard = Self.controls(
+        .noCard, queued: Self.documents, signing: false, offersVerification: false)
+      #expect(queuedNoCard.showsIdentity)
+      #expect(queuedNoCard.showsDocuments)
+      #expect(!queuedNoCard.offersSigning)
+      #expect(!queuedNoCard.verifyEnabled)
+      #expect(queuedNoCard.actions.isEmpty)
+
+      let emptyReady = Self.controls(
+        .ready, queued: [], signing: false, offersVerification: false)
+      #expect(emptyReady.showsIdentity)
+      #expect(emptyReady.showsDocuments)
+      #expect(emptyReady.offersSigning)
+      #expect(!emptyReady.verifyEnabled)
+      #expect(emptyReady.actions.isEmpty)
+
+      let queuedReady = Self.controls(
+        .ready, queued: Self.documents, signing: false, offersVerification: false)
+      #expect(queuedReady.showsIdentity)
+      #expect(queuedReady.showsDocuments)
+      #expect(queuedReady.offersSigning)
+      #expect(!queuedReady.verifyEnabled)
+      #expect(queuedReady.actions == [.sign])
+
+      let inFlight = Self.controls(
+        .noCard, queued: Self.documents, signing: true, offersVerification: false)
+      #expect(inFlight.showsIdentity)
+      #expect(inFlight.showsDocuments)
+      #expect(inFlight.offersSigning)
+      #expect(!inFlight.verifyEnabled)
+      #expect(inFlight.actions == [.sign])
+    }
+
+    /// No card, nothing listed, verification on: the identity row still
+    /// asks for a reader above the drop area, nothing about signing
+    /// shows, and Verify cannot run yet.
     @Test
     internal func withoutACardAndNothingListedOnlyTheReaderRowAndDropArea() {
       let controls = Self.controls(.noCard, queued: [], signing: false)
       #expect(controls.showsIdentity)
+      #expect(controls.showsDocuments)
       #expect(!controls.offersSigning)
       #expect(!controls.verifyEnabled)
     }

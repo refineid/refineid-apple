@@ -54,6 +54,7 @@ that machine only. There is no other override mechanism.
 | `REFINEID_REMOTE_CARD` | On except macOS, in every macOS configuration | Pairing over RAPP and everything a pairing enables |
 | `FEATURE_CARD_ACTIVATION` | On everywhere | The activation form for factory-fresh cards |
 | `FEATURE_CONTACTLESS` | On | The CAN entry for contactless cards on macOS (iPhone NFC is not gated) |
+| `FEATURE_DOCUMENT_VERIFICATION` | Off on macOS in every configuration; on for iPhone and iPad | Signed document verification UI: the Verify action, sheet, and verify-only drop state on macOS, and the Verify routes on iPhone and iPad; the verifier and trusted-list store beneath stay built and tested on both platforms |
 | `FEATURE_TIMESTAMP_CONFIG` | Off on macOS in every configuration; set for iPhone and iPad, whose Settings app holds the address | The Time Stamp Settings pane on macOS; off, the macOS store ignores a stored address and every signature asks the shipped service |
 | `FEATURE_PDF_STAMP` | Off on macOS in every configuration; on for iPhone and iPad | The visible stamp; off means invisible signatures |
 | `FEATURE_SCS` | Off, set by no configuration | The loopback HTTPS signing service and its Settings pane |
@@ -75,6 +76,7 @@ and the keychain groups serve every configuration.
 |---|---|---|---|
 | Remote card | `device.bluetooth` (Mac app, only when on), time-sensitive notifications (iOS app) | `NSBonjourServices` (`_refineid-stream._tcp`), `NSLocalNetworkUsageDescription`, `NSBluetoothAlwaysUsageDescription` | RAPP extension, iOS only |
 | Local card | `smartcard` (Mac app and token extension), NFC `readersession.formats` (iOS app) | `NFCReaderUsageDescription` (iOS) | Token extension, both platforms; discovery extension, iOS only and ungated |
+| Document verification | None beyond shared outbound network | `CFBundleDocumentTypes` (`com.adobe.pdf`, `org.etsi.asic-e`, `ee.ria.bdoc`), `ee.ria.bdoc` in `UTImportedTypeDeclarations` (`org.etsi.asic-e` stays on macOS so the save panel can write `.asice` containers) | None |
 | SCS | `network.server` when enabled, granted nowhere in shipping configurations | None | None |
 | Contactless macOS | None beyond shared infrastructure | None | None |
 | Stamp, timestamp pane, activation, organization | None | None | None |
@@ -100,7 +102,7 @@ configuration, with `sdk=macosx*` overrides:
 | Bundle | iOS | macOS |
 |---|---|---|
 | App entitlements | `Config/RefineID-iOS.entitlements` (NFC TAG, time-sensitive notifications, keychain) | `Config/RefineID-Store.entitlements` (sandbox, user-selected files, network client, smartcard, app group, keychain; no Bluetooth, no server) |
-| App plist | `Config/RefineID-iOS-Info.plist` (NFC, Bluetooth, Bonjour, local-network declarations) | `Config/RefineID-Store-Info.plist` (none of the RAPP keys) |
+| App plist | `Config/RefineID-iOS-Info.plist` (NFC, Bluetooth, Bonjour, local-network, document-viewer, and ASiC-E/BDOC declarations) | `Config/RefineID-Store-Info.plist` (none of the RAPP keys, no `CFBundleDocumentTypes`, no `ee.ria.bdoc`; keeps `org.etsi.asic-e` for ASiC-E signing) |
 | Token extension entitlements | `Config/TokenExtension-iOS.entitlements` (keychain) | `Config/TokenExtension.entitlements` (sandbox, smartcard, app group, keychain; no network) |
 | RAPP extension entitlements | `Config/RappTokenExtension-iOS.entitlements` (keychain) | `Config/RappTokenExtension.entitlements` (sandbox, network client, app group, keychain; no smartcard) — unused while the embed is iOS-only |
 | Discovery extension entitlements | `Config/DiscoveryExtension-iOS.entitlements` (keychain) | `Config/DiscoveryExtension.entitlements` — unused while the embed is iOS-only |

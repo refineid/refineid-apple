@@ -53,7 +53,7 @@ No step is manual.
 | Platform | Store image | Raw capture | Demonstration state |
 | :--- | :--- | :--- | :--- |
 | macOS | `01-authentication.png` | `window-card-<lang>.png` | Card in this Mac's reader: the holder's name, PIN Codes in the toolbar (`--virtual-card activated-reader`) |
-| macOS | `02-phone.png` | `window-phone-<lang>.png` | Paired phone serving the card, remote use on and connected (`--virtual-card activated-reader --mock-remote-connected`) |
+| macOS | `02-documents.png` | `window-signing-<lang>.png` | Signing a document (`--virtual-card activated-reader --open-document-signing`) |
 | iPhone | `01-app-main.png` | `iphone-main-<lang>.png` | Main screen, remote access connected (`--virtual-card registered-nfc --mock-remote-connected`) |
 | iPhone | `02-documents.png` | `iphone-documents-<lang>.png` | Signing a document (`--virtual-card registered-nfc --open-document-signing`) |
 | iPad | `01-main.png` | `ipad-main-<lang>.png` | Main screen, remote access connected (`--virtual-card activated-reader --mock-remote-connected`) |
@@ -130,13 +130,13 @@ Metadata/screenshots/
 ├── assets/                                      # Raw captures and the wallpaper the composer reads
 │   ├── golden-gate-dark.png                     # Dark Golden Gate wallpaper canvas
 │   ├── window-card-{fi,en,sv}.png               # macOS 01 (card in this Mac's reader)
-│   ├── window-phone-{fi,en,sv}.png              # macOS 02 (paired phone)
+│   ├── window-signing-{fi,en,sv}.png            # macOS 02 (document signing)
 │   ├── iphone-main-{fi,en,sv}.png               # iPhone 01 (main screen)
 │   ├── iphone-documents-{fi,en,sv}.png          # iPhone 02 (document signing)
 │   ├── ipad-main-{fi,en,sv}.png                 # iPad 01 (main screen)
 │   └── ipad-documents-{fi,en,sv}.png            # iPad 02 (document signing)
 ├── fi/                                          # Finnish App Store screenshots
-│   ├── APP_DESKTOP/                             # 2880x1800 macOS (01-authentication, 02-phone)
+│   ├── APP_DESKTOP/                             # 2880x1800 macOS (01-authentication, 02-documents)
 │   ├── APP_IPHONE_67/                           # 1290x2796 iPhone (01-app-main, 02-documents)
 │   └── APP_IPAD_PRO_3GEN_129/                   # 2048x2732 iPad (01-main, 02-documents)
 ├── en-US/                                       # English App Store screenshots (same hierarchy)
@@ -152,11 +152,11 @@ The captions live in `Scripts/generate-store-screenshots.swift`.
 | Platform | Locale | Slide | Title | Subtitle |
 | :--- | :--- | :--- | :--- | :--- |
 | macOS | **fi** | 01 | **Tunnistaudu henkilökortilla verkkopalveluihin** | Liitä kortinlukija Maciin. |
-| macOS | **fi** | 02 | **Käytä puhelinta kortinlukijana** | (none) |
+| macOS | **fi** | 02 | **Allekirjoita asiakirjoja** | Luo hyväksyttyjä sähköisiä allekirjoituksia. |
 | macOS | **en-US** | 01 | **Log in to web services with your identity card** | Connect a card reader to your Mac. |
-| macOS | **en-US** | 02 | **Use your phone as a card reader** | (none) |
+| macOS | **en-US** | 02 | **Sign documents** | Create qualified electronic signatures. |
 | macOS | **sv** | 01 | **Identifiera dig till e-tjänster med identitetskort** | Anslut en kortläsare till din Mac. |
-| macOS | **sv** | 02 | **Använd telefonen som kortläsare** | (none) |
+| macOS | **sv** | 02 | **Underteckna dokument** | Skapa kvalificerade elektroniska underskrifter. |
 | iPhone, iPad | **fi** | 01 | **Tunnistaudu henkilökortilla verkkopalveluihin** | Voit käyttää myös puhelinta langattomana kortinlukijana. |
 | iPhone, iPad | **fi** | 02 | **Allekirjoita asiakirjoja** | Luo ja tarkasta hyväksyttyjä sähköisiä allekirjoituksia. |
 | iPhone, iPad | **en-US** | 01 | **Log in to web services with your identity card** | You can also use your phone as a wireless card reader. |

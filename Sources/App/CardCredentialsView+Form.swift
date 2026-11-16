@@ -59,7 +59,13 @@ extension CardCredentialsView {
 
     /// The screen's mode content: the regular sections.
     @ViewBuilder internal var navigationModeContent: some View {
-      signingSection
+      #if FEATURE_DOCUMENT_VERIFICATION
+        signingSection
+      #else
+        if signingAvailable {
+          signingSection
+        }
+      #endif
       if mode != .remoteOnly {
         cardSection
       }
@@ -243,8 +249,10 @@ extension CardCredentialsView {
     @ViewBuilder
     internal func routeView(_ route: Route) -> some View {
       switch route {
-      case .verifyDocuments:
-        VerifyDocumentView()
+      #if FEATURE_DOCUMENT_VERIFICATION
+        case .verifyDocuments:
+          VerifyDocumentView()
+      #endif
 
       case .remoteAccess:
         RappPairingView()

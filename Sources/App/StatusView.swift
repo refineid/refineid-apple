@@ -168,25 +168,15 @@
     @ViewBuilder private var readySection: some View {
       let controls = documentControls
       statusRow(showsIdentity: controls.showsIdentity)
-      // Shown with no card too: verifying needs no card, only the EU
-      // trusted lists.
-      StatusDocumentSection(
-        signing: signing,
-        format: $format,
-        offersSigning: controls.offersSigning,
-        onChoose: { choose() },
-        onAccept: { urls in accept(urls) }
-      )
+      if controls.showsDocuments {
+        StatusDocumentSection(
+          signing: signing, format: $format, offersSigning: controls.offersSigning,
+          onChoose: choose, onAccept: accept)
+      }
       if controls.offersSigning {
         StatusSignatureSection(
-          signing: signing,
-          format: $format,
-          pin2: $pin2,
-          accessNumber: $accessNumber,
-          asksLocalPin2: asksLocalPin2,
-          target: selection.target,
-          onSign: { sign() }
-        )
+          signing: signing, format: $format, pin2: $pin2, accessNumber: $accessNumber,
+          asksLocalPin2: asksLocalPin2, target: selection.target, onSign: sign)
       }
     }
 

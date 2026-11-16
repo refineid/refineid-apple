@@ -26,10 +26,16 @@ The application initiates outbound connections for three purposes only:
      Access (AIA) `caIssuers` certificate fetches.
    - Endpoints are extracted dynamically from the Authority Information Access
      and CRL Distribution Points extensions within the certificates being
-     validated.
+     validated — both when embedding long-term validation material (`DSS` /
+     `RevocationValues`) into a new `B-LTA` signature and when verifying a
+     document on platforms with `FEATURE_DOCUMENT_VERIFICATION` enabled.
 3. **EU Trusted Lists (ETSI TS 119 612)**
    - Periodic retrieval of the European Commission List of the Lists (LOTL)
      and National Trusted Lists by `TrustedLists` / `TrustedListStore`.
+   - Required by archival document signing as well as document verification:
+     no CA root is shipped, so every RFC 3161 timestamp token `TimestampClient`
+     receives during signing is verified against the `TSA/QTST` anchors from
+     the cached or freshly fetched EU trusted lists.
 
 ### Transport constraints: SigningNetwork
 

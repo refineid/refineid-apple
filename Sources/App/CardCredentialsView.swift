@@ -49,19 +49,21 @@ internal struct CardCredentialsView: View {
 
   // MARK: Static Computed Properties
 
-  /// The seal drawn beside document verification.
-  ///
-  /// A symbol added after the system running this build resolves to
-  /// nothing and leaves the row without its mark, so the newer name is
-  /// used only where it exists.
-  internal static var verificationSymbolName: String {
-    #if os(iOS)
-      UIImage(systemName: "checkmark.seal.text.page") != nil
-        ? "checkmark.seal.text.page" : "checkmark.seal"
-    #else
-      "checkmark.seal.text.page"
-    #endif
-  }
+  #if FEATURE_DOCUMENT_VERIFICATION
+    /// The seal drawn beside document verification.
+    ///
+    /// A symbol added after the system running this build resolves to
+    /// nothing and leaves the row without its mark, so the newer name is
+    /// used only where it exists.
+    internal static var verificationSymbolName: String {
+      #if os(iOS)
+        UIImage(systemName: "checkmark.seal.text.page") != nil
+          ? "checkmark.seal.text.page" : "checkmark.seal"
+      #else
+        "checkmark.seal.text.page"
+      #endif
+    }
+  #endif
 
   // MARK: SwiftUI Properties
 

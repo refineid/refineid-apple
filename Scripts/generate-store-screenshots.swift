@@ -34,7 +34,7 @@ let macosCatalog: [String: [SlideData]] = [
         SlideData(
             filename: "02-documents.png",
             title: "Allekirjoita asiakirjoja",
-            subtitle: "Luo ja tarkasta hyväksyttyjä sähköisiä allekirjoituksia.",
+            subtitle: "Luo hyväksyttyjä sähköisiä allekirjoituksia.",
             assetName: "window-signing-fi.png"
         )
     ],
@@ -48,7 +48,7 @@ let macosCatalog: [String: [SlideData]] = [
         SlideData(
             filename: "02-documents.png",
             title: "Sign documents",
-            subtitle: "Create and verify qualified electronic signatures.",
+            subtitle: "Create qualified electronic signatures.",
             assetName: "window-signing-en.png"
         )
     ],
@@ -62,7 +62,7 @@ let macosCatalog: [String: [SlideData]] = [
         SlideData(
             filename: "02-documents.png",
             title: "Underteckna dokument",
-            subtitle: "Skapa och granska kvalificerade elektroniska underskrifter.",
+            subtitle: "Skapa kvalificerade elektroniska underskrifter.",
             assetName: "window-signing-sv.png"
         )
     ]

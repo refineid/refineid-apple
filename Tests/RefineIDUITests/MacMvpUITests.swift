@@ -65,6 +65,8 @@
       XCTAssertFalse(
         app.descendants(matching: .button)[UITestIdentifiers.pinManagementButton].firstMatch
           .exists)
+      XCTAssertFalse(app.descendants(matching: .any)["documentDropArea"].firstMatch.exists)
+      XCTAssertFalse(app.descendants(matching: .button)["verifyQueuedDocuments"].firstMatch.exists)
     }
 
     /// No pane is compiled in, so the application menu carries no
@@ -118,10 +120,18 @@
       XCTAssertEqual(window.title, "RefineID")
       let identity = app.descendants(matching: .any)["loginIdentityStatus"].firstMatch
       XCTAssertTrue(identity.waitForExistence(timeout: UITestApp.appearTimeout))
-      // The MVP carries no remote card: no pairing field, no switch.
+      // The MVP carries no remote card or document verification: no
+      // pairing field, no switch, and no Verify button.
       XCTAssertFalse(app.textFields[UITestIdentifiers.pairingCodeField].exists)
       XCTAssertFalse(
         app.descendants(matching: .button)[UITestIdentifiers.remoteUseSwitch].firstMatch.exists)
+      XCTAssertFalse(app.descendants(matching: .button)["verifyQueuedDocuments"].firstMatch.exists)
+      XCTAssertTrue(
+        app.descendants(matching: .any)["documentDropArea"].firstMatch.waitForExistence(
+          timeout: UITestApp.appearTimeout))
+      if language == "en" {
+        XCTAssertTrue(window.staticTexts["Drop documents here to sign them."].exists)
+      }
       // The key beside the holder's name speaks the window language.
       let key = app.descendants(matching: .button)[UITestIdentifiers.pinManagementButton]
         .firstMatch

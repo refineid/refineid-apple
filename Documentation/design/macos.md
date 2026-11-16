@@ -23,12 +23,22 @@ The macOS MVP release delivers local smart card reader support only.
 - **Signature Creation Service (SCS) compiled out.** The loopback HTTPS
   service for browser extensions (`refineid-core/crates/scs`) is out of scope
   and compiled out for the macOS MVP.
+- **Signed document verification compiled out.** Document verification UI
+  (`FEATURE_DOCUMENT_VERIFICATION` in `Config/Features.xcconfig`) is compiled
+  out across all macOS configurations for the MVP; iPhone and iPad retain it,
+  and the underlying verifier and trusted-list store stay built and tested on
+  both platforms. `Config/RefineID-Store-Info.plist` omits
+  `CFBundleDocumentTypes` and `ee.ria.bdoc` so the Mac app claims no Finder
+  viewer role for PDFs or signed containers, retaining `org.etsi.asic-e` in
+  `UTImportedTypeDeclarations` so the save panel can write `.asice` containers.
 - **Outbound network contract.** The Mac carries no network listeners and no
   incoming ports. Outbound network traffic is limited strictly to qualified
   timestamp authority (TSA) requests, certificate revocation checks (OCSP/CRL),
   Authority Information Access (AIA) `caIssuers` certificate fetches, and
   periodic EU Trusted Lists (LOTL) retrieval routed through `SigningNetwork`
-  (`PublicEndpointURLSession`) to public IP addresses only. See
+  (`PublicEndpointURLSession`) to public IP addresses only — all three required
+  by archival signing (`B-LTA`) even with verification gated off, because no CA
+  root is shipped and timestamp tokens must chain to an EU-listed TSA. See
   [network-contract.md](network-contract.md).
 - **Single application plist.** macOS uses `Config/RefineID-Store-Info.plist`
   across all build configurations.
@@ -43,9 +53,12 @@ top, the window shows:
 
 1. The status row, where the app talks to the holder. It shows the
    identity line ("Connect a card reader." when no reader or card is
-   present), except while documents are waiting and no card can sign:
-   the holder is there to verify, so the window does not ask for a
-   reader. It returns with the holder's name as soon as a card is ready.
+   present). When `FEATURE_DOCUMENT_VERIFICATION` is enabled in post-MVP
+   builds, the identity line steps aside while documents are waiting and
+   no card can sign, returning with the holder's name as soon as a card
+   is ready; in the macOS MVP (`FEATURE_DOCUMENT_VERIFICATION` off), the
+   identity line always remains shown unless a signing status message
+   replaces it.
    While a document is being signed, the row displays the active step with
    a progress indicator ("Signing document…", "Timestamping…", and so on).
    A failure, in plain words, replaces the step at once and is announced;
@@ -55,12 +68,16 @@ top, the window shows:
    for a pile) with "Show in Finder", which selects every file written,
    and any notice beside it. "OK" puts the outcome away, and so does a
    change to the documents; the row then shows the identity again.
-2. The document drop area, with the list of waiting documents.
+2. The document drop area, with the list of waiting documents. In the
+   macOS MVP (`FEATURE_DOCUMENT_VERIFICATION` off), the empty drop area
+   is shown only while a card can sign (or while documents are already
+   queued); when verification is enabled, it stays open with no card too.
 3. The signing configuration, only while a card can sign or a signature is
    in flight: the format and PIN 2.
-4. The button bar, centred below every panel: "Verify…", and the default
-   "Sign…" while a card can sign. The bar appears only once a document is
-   listed: with nothing to act on, neither button is shown.
+4. The button bar, centred below every panel: the default "Sign…" while a
+   card can sign (preceded by "Verify…" in builds with
+   `FEATURE_DOCUMENT_VERIFICATION` enabled). The bar appears only once a
+   document is listed: with nothing to act on, no button is shown.
 
 A card waiting to be taken into use replaces these with the activation
 form, and the window has no toolbar button while it does: activation is
@@ -424,11 +441,19 @@ app's language, a space, and that instant in UTC with colons replaced by
 hyphens. A container name the holder types keeps the suffix when it is
 still there and gets it appended when typing replaced it.
 
-The drop area reads "Drop documents here to sign or verify them." while a
-card or phone can sign, and "Drop documents here to verify them." while
-none can; then the format row, PIN 2 and "Sign…" are not shown either.
+In the macOS MVP (`FEATURE_DOCUMENT_VERIFICATION` off), the drop area
+reads "Drop documents here to sign them." and is hidden while no card can
+sign and no documents are queued. When `FEATURE_DOCUMENT_VERIFICATION` is
+enabled, the drop area reads "Drop documents here to sign or verify them."
+while a card or phone can sign, and "Drop documents here to verify them."
+while none can; then the format row, PIN 2 and "Sign…" are not shown
+either.
 
-## Document verification
+## Document verification (post-MVP design)
+
+In the macOS MVP, signed document verification is gated off behind
+`FEATURE_DOCUMENT_VERIFICATION`. The architecture below specifies the Mac
+verification UI when `FEATURE_DOCUMENT_VERIFICATION` is enabled.
 
 "Verify…" sits in the button bar at the bottom of the window, with or
 without a card, once a document is listed. It is enabled while documents are waiting and no

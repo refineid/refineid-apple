@@ -22,13 +22,14 @@ in its TestFlight and App Store builds. Its scope is controlled by
 
 Ship a small, trustworthy macOS App Store product named **RefineID**.
 
-The macOS release carries the local card only (owner decisions
-2026-09-30 and 2026-11-14): the remote card over RAPP is gated off for
-the MVP. It includes the CryptoTokenKit smart-card extension, contact
+The macOS release carries the local card and document signing only (owner
+decisions 2026-09-30, 2026-11-14, and 2026-11-16): the remote card over
+RAPP and signed document verification are gated off for the MVP. It
+includes the CryptoTokenKit smart-card extension, contact
 and contactless reading, authentication, card activation, PIN
 management, and local document signing. SCS is excluded from every
 macOS build configuration. iOS retains its existing features,
-including the remote card. The first candidate is for TestFlight; App
+including the remote card and signed document verification. The first candidate is for TestFlight; App
 Review submission remains a separate release action. App Store and
 TestFlight stay the main channel; Xcode Cloud builds come later, and a
 notarized DMG with a Homebrew cask only if someone asks.
@@ -72,6 +73,10 @@ User story is:
 - The time-stamp authority settings pane and the visible PDF signature
   stamp: macOS signatures are electronic and invisible, and the authority
   is the shipped qualified Sectigo service.
+- Signed document verification UI, Finder document-viewer role
+  (`CFBundleDocumentTypes`), and BDOC container UTI (`ee.ria.bdoc`):
+  macOS signs documents and saves `.pdf` and `.asice` outputs, while iOS
+  retains document verification.
 - The remote card over RAPP: pairing, the remote-use switch, remote
   signing, the remote-card extension, Bluetooth, and the local-network
   and Bonjour declarations.
@@ -139,7 +144,8 @@ RefineID.app
 `-- Contents/Resources/...
 ```
 
-The app is a network client only, for timestamps and revocation checks;
+The app is a network client only, for timestamps, revocation material,
+and the EU trusted lists signing uses to validate timestamp tokens;
 the direct-reader extension has no network access at all.
 
 The repository keeps a stable Xcode project or workspace in version control.

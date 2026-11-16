@@ -20,7 +20,7 @@
 
 | Domain | Authoritative Specification | Scope & Topic Summary |
 |---|---|---|
-| **macOS App & MVP** | [macos.md](design/macos.md) | Single window, local card reader only (USB contact and contactless), single plist (`RefineID-Store-Info.plist`), RAPP and SCS compiled out. |
+| **macOS App & MVP** | [macos.md](design/macos.md) | Single window, local card reader and document signing only (USB contact and contactless), single plist (`RefineID-Store-Info.plist`), RAPP, SCS, Settings panes, and document verification compiled out. |
 | **iPhone & iPad App** | [ios.md](design/ios.md) | Built-in NFC, on-device CAN OCR and manual entry, single plist (`RefineID-iOS-Info.plist`), Remote Access (RAPP) background BLE and Bonjour serving. |
 | **Network & Transport** | [network-contract.md](design/network-contract.md) | Outbound-only traffic (TSA, OCSP/CRL/AIA, LOTL), `SigningNetwork` public IP gate, ATS configuration, zero inbound listeners on macOS. |
 | **PIN & Credentials** | [pin-and-credentials.md](design/pin-and-credentials.md) | Rules #1, #2, and #4, PIN 1 5-try custody floor & recovery, on-device PIN 2 prompt & memory-only pile caching, hardware retry floors & PUK handling, CAN storage. |
@@ -33,6 +33,37 @@
 ## Historical Decision Log
 
 The entries below record historical decisions, their timestamps, and rationale.
+
+### 2026-11-16 Gate signed document verification out of the macOS MVP
+
+`FEATURE_DOCUMENT_VERIFICATION` gates the signed document verification UI
+entry points: on for iPhone and iPad in `REFINEID_FEATURES`, and omitted from
+`REFINEID_FEATURES[sdk=macosx*] = FEATURE_CONTACTLESS` across every macOS
+configuration. On macOS the `"Verify…"` action, verification sheet
+(`VerifyQueuedDocumentsView`, `VerifiedDocumentSections`,
+`View+VerificationSheet`), and verify-only empty-card window state compile
+out: without a card the window shows `"Connect a card reader."` and hides the
+empty drop area, and with a card the drop area invites `"Drop documents here
+to sign them."` and, once documents are queued, the action bar offers
+`"Sign…"` alone. The underlying verifier (`DocumentVerification`),
+`VerifyDocumentModel`, `QueuedDocumentVerification`, and `TrustedListStore`
+stay built and tested on both platforms without platform-gated dead test
+suites, and `StatusDocumentControls` takes `offersVerification` explicitly,
+with `StatusView` passing `StatusDocumentControls.defaultOffersVerification`
+so both branches stay unit-tested on macOS.
+
+Packaging and archive inspection follow the feature-gate contract:
+`Config/RefineID-Store-Info.plist` drops `CFBundleDocumentTypes` and the
+verification-only `ee.ria.bdoc` imported UTI (keeping `org.etsi.asic-e` in
+`UTImportedTypeDeclarations` so `NSSavePanel` resolves `.asice` when saving
+signed containers), `inspectReleaseArchive` fails a macOS candidate that
+declares either, and the macOS App Store metadata and screenshot captions
+describe signing without verification. Outbound network access (`network.client`,
+`SigningNetwork`, ATS) remains unchanged because archival `B-LTA` signing
+itself still fetches RFC 3161 timestamps (`http://timestamp.sectigo.com/qualified`),
+live OCSP/CRL/AIA material for the signature's long-term validation store, and
+the EU trusted lists to anchor the timestamp authority's certificate (under
+2026-11-07's no-shipped-CA-root rule).
 
 ### 2026-11-16 The remote card's macOS question is settled
 
