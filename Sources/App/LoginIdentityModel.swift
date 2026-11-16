@@ -5,6 +5,7 @@
   import CardCore
   import CryptoTokenKit
   import os.log
+  import RappRequester
   import SwiftUI
 
   /// Whether the system has a RefineID login identity to offer right now.
@@ -22,20 +23,6 @@
   @MainActor
   @Observable
   internal final class LoginIdentityModel {
-    /// What the login row can truthfully say.
-    internal enum Availability: Equatable {
-      /// A card is in the reader but no identity is offered from it
-      /// - the state after a driver update, until the card is seen
-      /// again.
-      case cardWithoutIdentity
-
-      /// No card in any reader.
-      case noCard
-
-      /// An identity is published and Safari can be offered it.
-      case ready
-    }
-
     #if DEBUG
       /// Watcher outcomes, in development builds only.
       ///
@@ -103,7 +90,7 @@
       cardPresent: Bool,
       holderAdvertising: Bool,
       hasBorrowedCertificate: Bool
-    ) -> Availability {
+    ) -> IdentityAvailability {
       let hasLiveSource = cardPresent || holderAdvertising
       let hasIdentity = tokenPublished || hasBorrowedCertificate
       if hasLiveSource, hasIdentity {

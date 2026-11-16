@@ -6,6 +6,7 @@
   import CryptoTokenKit
   import Foundation
   import Observation
+  import RappRequester
 
   /// Turns CryptoTokenKit's authoritative token events into the status
   /// window's card state without competing for the first card session.
@@ -49,7 +50,7 @@
       self?.settled = expired
     }
 
-    @ObservationIgnored private var latestAvailability = LoginIdentityModel.Availability.noCard
+    @ObservationIgnored private var latestAvailability = IdentityAvailability.noCard
 
     @ObservationIgnored private var paused = false
 
@@ -127,7 +128,7 @@
     }
 
     internal func observe(
-      availability: LoginIdentityModel.Availability,
+      availability: IdentityAvailability,
       paused: Bool,
       identity _: LoginIdentityModel
     ) {

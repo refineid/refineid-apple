@@ -2,6 +2,7 @@
 
 #if os(macOS) && REFINEID_REMOTE_CARD
 
+  import RappRequester
   import SwiftUI
 
   /// The paired phone's line: what the phone says.

@@ -22,7 +22,8 @@ private let package = Package(
     .macOS("26.0"),
   ],
   products: [
-    .library(name: "CardCore", targets: ["CardCore"])
+    .library(name: "CardCore", targets: ["CardCore"]),
+    .library(name: "RappRequester", targets: ["RappRequester"]),
   ],
   targets: [
     // The RAPP protocol engine in Swift: deterministic CBOR, the envelope
@@ -33,6 +34,14 @@ private let package = Package(
     .target(
       name: "RappEngine",
       path: "Sources/RappEngine"),
+    // What the requester decides it shows: the identity row's line, the
+    // phone's card request, and what the row knows. Decisions only - no
+    // views, no strings, no platform API - so both platforms build it and
+    // the phone's cases are compiled where REFINEID_REMOTE_CARD is on.
+    .target(
+      name: "RappRequester",
+      dependencies: ["RappEngine"],
+      path: "Sources/RappRequester"),
     // Tests live in the Xcode project's Tests/CardCoreTests bundle target
     // so one scheme runs them locally and in Xcode Cloud.
     // They exercise the public API only.

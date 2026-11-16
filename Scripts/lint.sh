@@ -54,6 +54,7 @@ fail() {
 format_paths=(
   Sources Tests
   CardCore/Sources/CardCore CardCore/Sources/RappEngine
+  CardCore/Sources/RappRequester
   CardCore/Tests CardCore/Package.swift
   PKCS11Bridge/Sources PKCS11Bridge/Tests PKCS11Bridge/Package.swift
   Scripts/PaceCurveBenchmark.swift

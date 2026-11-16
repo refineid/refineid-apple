@@ -2,6 +2,7 @@
 
 #if DEBUG && os(macOS) && REFINEID_REMOTE_CARD
 
+  import RappRequester
   import Testing
 
   @testable import RefineIDTestHost

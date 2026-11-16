@@ -1,8 +1,9 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-#if os(macOS) && REFINEID_REMOTE_CARD
+#if os(iOS)
 
   import Foundation
+  import RappRequester
   import Testing
 
   @testable import RefineIDTestHost
@@ -27,9 +28,7 @@
       availability: .noCard,
       warnsUnavailableCard: false,
       readerConnected: false,
-      cardPresent: false,
-      remoteUse: false,
-      phonePaired: false
+      cardPresent: false
     )
 
     internal static let cases: [Case] = [

@@ -24,6 +24,22 @@ fail() {
   exit 1
 }
 
+# The name of the first available iPhone simulator, read from the JSON on
+# stdin, or a sentence saying none is installed.
+first_iphone_simulator() {
+  python3 -c '
+import json, sys
+
+for runtime in json.load(sys.stdin)["devices"].values():
+    for device in runtime:
+        if "iPhone" in device["name"]:
+            print(device["name"])
+            raise SystemExit
+
+raise SystemExit("no iPhone simulator is installed")
+'
+}
+
 # Gate builds go into this checkout's own build directory, which leaves
 # with the worktree. Every app bundle the gate built is unregistered from
 # Launch Services on exit: a registered build product carrying the app's
@@ -93,7 +109,9 @@ case "${mode}" in
     # is nowhere on macOS: they run on the simulator, in the host whose
     # module the tests import.
     step "7. Running unit test suite (RefineIDTests on the iOS simulator)"
-    sim_name="$(xcrun simctl list devices available -j | python3 -c "import json,sys; ds=json.load(sys.stdin)['devices']; print(next(d['name'] for vs in ds.values() for d in vs if 'iPhone' in d['name']))")"
+    if ! sim_name="$(xcrun simctl list devices available -j | first_iphone_simulator)"; then
+      fail "No iPhone simulator is available to run RefineIDTests. Install one in Xcode's Settings > Platforms, or run this tier on a Mac that has one."
+    fi
     xcodebuild test -derivedDataPath "${derived_data}" -scheme RefineID -destination "platform=iOS Simulator,name=${sim_name}" -only-testing:RefineIDTests -quiet \
       || fail "Unit tests failed on the iOS simulator."
 

@@ -3,6 +3,7 @@
 #if DEBUG && os(macOS) && REFINEID_REMOTE_CARD
 
   import Foundation
+  import RappRequester
 
   /// A demonstration's paired phone: the virtual card served by a phone
   /// over an open session, with remote use on.
@@ -27,19 +28,17 @@
 
     /// The requester's facts with the virtual card in the paired phone.
     internal static func facts(
-      availability: LoginIdentityModel.Availability
+      availability: IdentityAvailability
     ) -> RequesterFacts {
-      RequesterFacts(
+      var facts = RequesterFacts(
         availability: availability,
         warnsUnavailableCard: false,
         readerConnected: false,
-        cardPresent: false,
-        remoteUse: true,
-        phonePaired: true,
-        phoneThatForgot: nil,
-        phoneJustPaired: nil,
-        phoneCardStatus: nil
+        cardPresent: false
       )
+      facts.remoteUse = true
+      facts.phonePaired = true
+      return facts
     }
   }
 

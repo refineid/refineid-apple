@@ -4,6 +4,7 @@
 
   import CardCore
   import Foundation
+  import RappRequester
   import SwiftUI
 
   /// The two questions the window asks about text rather than about the
@@ -19,7 +20,7 @@
     /// slot's physical answer - so the row moves the moment either
     /// does. Here rather than in the view body only for the view
     /// type's length; it reads shared state, no private field.
-    internal var availability: LoginIdentityModel.Availability {
+    internal var availability: IdentityAvailability {
       if DemoMode.shared.isActive {
         return DemoMode.shared.state.card.cardPresent ? .ready : .noCard
       }

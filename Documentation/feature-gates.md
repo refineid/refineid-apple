@@ -18,7 +18,8 @@ Changing one without the others is a broken gate.
    stays in the tree behind the switch, and re-enabling is the
    flag back, never resuscitated dead code. Targets outside Xcode
    (SwiftPM packages) cannot see these flags and gate the same
-   split by platform instead.
+   split by platform instead: `RappRequester` keeps the phone's
+   facts and cases behind `#if os(iOS)` for that reason.
 2. Packaging. `RefineID.xcodeproj/project.pbxproj` assigns
    per-SDK entitlements and Info.plist files and embeds the
    extensions, with platform filters where an extension ships on
