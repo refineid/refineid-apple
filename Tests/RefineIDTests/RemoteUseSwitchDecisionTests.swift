@@ -5,8 +5,8 @@ import Testing
 
 /// The remote-use switch's decision core against recording watches and a
 /// recording choice: restoration at launch, the holder's click, the
-/// suspension a card makes, and what blocks remote use (hierarchy
-/// specification §5.2, STPA CC-95, CC-101, CC-102).
+/// suspension a card makes - at a launch and while running - and what blocks
+/// remote use (hierarchy specification §5.2, STPA CC-95, CC-101, CC-102).
 @Suite
 @MainActor
 internal struct RemoteUseSwitchDecisionTests {
@@ -151,6 +151,52 @@ internal struct RemoteUseSwitchDecisionTests {
 
     #expect(!rig.remoteUse.isOn)
     #expect(rig.moves.value == [.stopped])
+  }
+
+  @Test
+  internal func aLaunchWithACardInTheReaderStartsSuspended() {
+    let rig = Self.rig(isOn: false)
+    rig.remoteUse.start(pairingRemains: true, suspended: true)
+
+    #expect(rig.remoteUse.isOn)
+    #expect(rig.remoteUse.isSuspended)
+    #expect(rig.bluetooth.starts == 0)
+    #expect(rig.localNetwork.starts == 0)
+
+    rig.remoteUse.suspend(false)
+
+    #expect(rig.bluetooth.starts == 1)
+    #expect(rig.localNetwork.starts == 1)
+  }
+
+  @Test
+  internal func aQuitWhileSuspendedTurnsOffAndStartsNothingWhenTheCardLeaves() {
+    let rig = Self.rig(isOn: false)
+    rig.remoteUse.start(pairingRemains: true, suspended: true)
+    rig.remoteUse.stop()
+
+    #expect(!rig.remoteUse.isOn)
+    #expect(rig.moves.value == [.stopped])
+
+    rig.remoteUse.suspend(false)
+
+    #expect(rig.bluetooth.starts == 0)
+    #expect(rig.localNetwork.starts == 0)
+  }
+
+  @Test
+  internal func theHoldersClickOffWhileSuspendedForgets() {
+    let rig = Self.rig(isOn: false)
+    rig.remoteUse.start(pairingRemains: true, suspended: true)
+    rig.remoteUse.toggle()
+
+    #expect(!rig.remoteUse.isOn)
+    #expect(rig.moves.value == [.forgetting])
+    #expect(!rig.setting.isEnabled)
+
+    rig.remoteUse.suspend(false)
+
+    #expect(rig.bluetooth.starts == 0)
   }
 
   @Test

@@ -34,6 +34,31 @@
 
 The entries below record historical decisions, their timestamps, and rationale.
 
+### 2026-11-16 The remote card's macOS question is settled
+
+The answer to #478: the remote card over RAPP ships in a later release, and
+until then the configuration that must build and stay clean is the local
+macOS one, the flag off in every macOS configuration. Nothing is done to
+bring the Mac requester back now - no CoreBluetooth linkage, no RAPP
+entitlement or plist key, no Settings pane - so the gate's "no trace" rule
+stands as written. Reopening it is the release, which is the flag, the Mac
+app's Bluetooth entitlement, and the `!os(macOS)` gate lifted off the
+Bluetooth types.
+
+What followed in the tree: the six `RemoteUseSwitchTests` files drove
+`PersistentTokenRegistry`, the keychain vault and the CoreBluetooth watch
+together, compiled in no configuration, and called interfaces the switch's
+seam replaced. They are retired rather than kept as text no build reads.
+What they asserted at the decision level already runs in `RappRequester` -
+the launch, click, quit and blockage decisions in
+`RemoteUseSwitchDecisionTests`, the forgetting in
+`RemoteUseForgettingTests` - and three cases the decision suite lacked were
+ported there: a launch with a card already in the reader starting
+suspended, a quit while suspended that turns off and starts nothing when
+the card leaves, and the holder's click off while suspended. The rest was
+session, browse, backlog and vault integration for a feature that does not
+ship on macOS; reopening it starts from those suites in the history.
+
 ### 2026-11-16 The forgetting follows the vault through an interface
 
 `RemoteUseForgetting` moved into `RappRequester` with the vault behind
@@ -54,9 +79,9 @@ a pairing made after it, an unlistable vault, a refused forget, an
 unreadable record, a lost one, and a second click extending the first.
 
 The registry's own integration suites (`RemoteUseSwitchTests` and its five
-`+` files) still need the session, the browse and the vault together, so
-they remain behind the gate; what they assert of the forgetting now runs
-where they cannot.
+`+` files) needed the session, the browse and the vault together, compiled
+in no configuration, and called interfaces this slice replaced. They were
+retired the same day; the entry below records what was ported out of them.
 
 ### 2026-11-16 The remote card has no macOS build, and the module no longer hides it
 
