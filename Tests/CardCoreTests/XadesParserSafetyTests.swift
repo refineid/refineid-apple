@@ -5,11 +5,12 @@ import Testing
 
 @testable import CardCore
 
-/// Element spans, nesting and refused documents in the XAdES parser.
+/// Element bounds, nesting, and refused documents in the XAdES parser.
 @Suite
 internal struct XadesParserSafetyTests {
   private static let xmlDeclarationClose = "?>"
   private static let referenceOpen = "<ds:Reference "
+  private static let secondSignatureId = "SIG-2"
   private static let internalEntity =
     "\n<!DOCTYPE asic:XAdESSignatures [<!ENTITY stand \"in\">]>"
   private static let unreferencedFile = AsicContainer.DataObject(
@@ -19,24 +20,22 @@ internal struct XadesParserSafetyTests {
   )
 
   @Test
-  internal func selfClosingTagsWithWhitespaceOrAttributesClose() {
+  internal func selfClosingTagsWithWhitespaceOrAttributesParse() throws {
     let document = #"<root><empty /><marked kind="x"/><plain/></root>"#
-    let spans = XmlElementSpans(Data(document.utf8))
+    let parsed = try XmlDocument(Data(document.utf8))
 
-    #expect(spans.isReadable)
-    #expect(spans.text(ofElement: 0, named: "root") == document)
-    #expect(spans.text(ofElement: 1, named: "empty") == "<empty />")
-    #expect(spans.text(ofElement: 2, named: "marked") == #"<marked kind="x"/>"#)
-    #expect(spans.text(ofElement: 3, named: "plain") == "<plain/>")
+    #expect(parsed.elementCount == 4)
+    #expect(parsed.root.children.map(\.localName) == ["empty", "marked", "plain"])
+    #expect(parsed.root.children[1].attribute("kind") == "x")
   }
 
   @Test
   internal func elementCountAboveTheCeilingIsRefused() {
-    let inner = String(repeating: "<e/>", count: XmlElementSpans.maximumElementCount)
-    let spans = XmlElementSpans(Data("<root>\(inner)</root>".utf8))
+    let inner = String(repeating: "<e/>", count: XmlParser.maximumNodes)
+    let parser = XadesXmlParser()
 
-    #expect(!spans.isReadable)
-    #expect(spans.text(ofElement: 0, named: "root") == nil)
+    #expect(parser.parse(data: Data("<root>\(inner)</root>".utf8)).isEmpty)
+    #expect(!parser.parsedWholeDocument)
   }
 
   @Test
@@ -56,12 +55,14 @@ internal struct XadesParserSafetyTests {
   }
 
   /// A `ds:Signature` nested inside the outer signature's
-  /// `ds:Reference` leaves the outer's references as they were.
+  /// `ds:Reference` leaves the outer's references as they were, while marking the outer invalid.
   @Test
   internal func signatureNestedInAReferenceLeavesTheOuterReferences() throws {
     let outer = try AsicVerificationTests.signedDocument(profile: .ecdsaP384).document
     let inner = try XadesXmlParserTests.signatureElement(
-      of: AsicVerificationTests.signedDocument(profile: .ecdsaP384).document)
+      of: XadesXmlParserTests.signedDocument(
+        profile: .ecdsaP384, signatureId: Self.secondSignatureId
+      ).document)
     let reference = try #require(outer.range(of: Self.referenceOpen))
     let tagEnd = try #require(outer.range(of: ">", range: reference.upperBound..<outer.endIndex))
     var nested = outer
@@ -77,6 +78,7 @@ internal struct XadesParserSafetyTests {
     #expect(actual.map(\.digestValue) == expected.map(\.digestValue))
     #expect(actual.map(\.transforms) == expected.map(\.transforms))
     #expect(!parsed[0].isCounterSignature)
+    #expect(parsed[0].hasStructuralError)
     #expect(parsed[1].isCounterSignature)
   }
 

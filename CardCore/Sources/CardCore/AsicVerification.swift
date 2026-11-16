@@ -2,19 +2,26 @@
 
 import CryptoKit
 import Foundation
-import Security
 
 /// Offline verification for ASiC-E / BDOC containers and embedded XAdES signatures.
 public enum AsicVerification {
-  /// One parsed reference inside ds:SignedInfo.
+  /// One parsed reference inside `ds:SignedInfo`.
   internal struct ParsedReference: Sendable {
     internal let identifier: String?
     internal let uri: String
     internal let type: String?
     /// The `Algorithm` of each `ds:Transform`, in document order.
     internal let transforms: [String]
+    /// The `ds:Transform` elements, in document order.
+    internal let transformElements: [XmlElement]
     internal let digestMethod: XmlDigestMethod
     internal let digestValue: Data
+  }
+
+  /// One `xades:EncapsulatedTimeStamp` inside `xades:SignatureTimeStamp` and its canonical input.
+  internal struct ParsedSignatureTimestamp: Sendable {
+    internal let token: Data
+    internal let imprintInput: Data?
   }
 
   /// A `ds:DigestMethod` this verifier computes (RFC 6931 section 2.1).
@@ -40,6 +47,20 @@ public enum AsicVerification {
 
       case .sha512:
         Self.sha512Uri
+      }
+    }
+
+    /// Expected digest byte count for this algorithm.
+    internal var byteCount: Int {
+      switch self {
+      case .sha256:
+        SHA256.byteCount
+
+      case .sha384:
+        SHA384.byteCount
+
+      case .sha512:
+        SHA512.byteCount
       }
     }
 
@@ -75,12 +96,18 @@ public enum AsicVerification {
     }
   }
 
-  /// All extracted fields from one ds:Signature element.
+  /// All extracted fields from one `ds:Signature` element.
   internal struct ParsedSignature: Sendable {
+    internal var signatureElement: XmlElement?
+    internal var signedInfoElement: XmlElement?
+    internal var signatureValueElement: XmlElement?
+    internal var signedPropertiesElement: XmlElement?
+    internal var signedInfoCanonicalization: XmlCanonicalization?
+    internal var parsedSignatureMethod: XmlSignatureMethod?
+    internal var hasStructuralError = false
     internal var signatureMethod: String?
     internal var canonicalizationMethod: String?
-    /// Every `ds:Reference` in `ds:SignedInfo`, incomplete when one
-    /// lacked its URI, digest method or digest value.
+    /// Every `ds:Reference` in `ds:SignedInfo`, incomplete when one lacked required fields.
     internal var references = Collected<ParsedReference>.complete([])
     internal var signedInfoRawXml: String?
     internal var signatureValueId: String?
@@ -88,31 +115,22 @@ public enum AsicVerification {
     internal var signatureValueRawXml: String?
     /// The first `ds:X509Certificate` in the signature's `ds:KeyInfo`.
     internal var signerCertificateDer: Data?
-    /// Every `ds:X509Certificate` in the signature's `ds:KeyInfo`, in
-    /// document order.
+    /// Every `ds:X509Certificate` in the signature's `ds:KeyInfo`, in document order.
     internal var keyInfoCertificates: [Data] = []
     internal var signedPropertiesId: String?
     internal var signedPropertiesRawXml: String?
-    /// Tokens from `xades:SignatureTimeStamp` elements only.
-    internal var signatureTimestampTokens: [Data] = []
-    /// `xades:EncapsulatedX509Certificate` values from the signature's
-    /// `CertificateValues` (EN 319 132-1 clause 5.4.1), including those
-    /// in a XAdES 1.4.1 `TimeStampValidationData`.
+    /// Parsed `xades:SignatureTimeStamp` tokens and their canonical `ds:SignatureValue` inputs.
+    internal var signatureTimestamps: [ParsedSignatureTimestamp] = []
     internal var certificateValues: [Data] = []
-    /// `xades:EncapsulatedOCSPValue` values from its `RevocationValues`
-    /// (EN 319 132-1 clause 5.4.2), likewise.
     internal var ocspValues: [Data] = []
-    /// `xades:EncapsulatedCRLValue` values from its `RevocationValues`,
-    /// likewise.
     internal var crlValues: [Data] = []
-    /// Whether this `ds:Signature` sits inside another one, as a
-    /// `xades:CounterSignature` does (EN 319 132-1 clause 5.2.7).
     internal var isCounterSignature = false
-    /// Each `xades:Cert` of the signing-certificate property, in
-    /// document order (EN 319 132-1 clause 5.2.2), incomplete when one
-    /// lacked its digest method, a decodable digest value, or a
-    /// readable issuer and serial.
     internal var signingCertificates = Collected<SigningCertificateReference>.complete([])
+
+    /// Tokens from `xades:SignatureTimeStamp` elements only.
+    internal var signatureTimestampTokens: [Data] {
+      signatureTimestamps.map(\.token)
+    }
   }
 
   /// Values collected from repeated elements: all of them, or the fact
@@ -124,8 +142,7 @@ public enum AsicVerification {
     /// At least one occurrence could not be read.
     case incomplete
 
-    /// At least one occurrence names an algorithm this verifier does
-    /// not know.
+    /// At least one occurrence names an algorithm this verifier does not know.
     case unsupported
 
     /// Adds one read value; an incomplete collection stays incomplete.
@@ -134,8 +151,7 @@ public enum AsicVerification {
       self = .complete(values + [value])
     }
 
-    /// Records an occurrence that could not be read; an unsupported
-    /// collection stays unsupported.
+    /// Records an occurrence that could not be read; an unsupported collection stays unsupported.
     internal mutating func markIncomplete() {
       guard case .complete = self else { return }
       self = .incomplete
@@ -152,8 +168,7 @@ public enum AsicVerification {
     /// `xades:IssuerSerialV2`: the DER IssuerSerial of RFC 5035.
     case der(Data)
 
-    /// `xades:IssuerSerial`: the issuer name as text and the serial in
-    /// decimal.
+    /// `xades:IssuerSerial`: the issuer name as text and the serial in decimal.
     case text(issuerName: String, serialNumber: String)
   }
 
@@ -168,39 +183,21 @@ public enum AsicVerification {
 
   /// One certificate a signing-certificate property names.
   internal struct SigningCertificateReference: Sendable {
-    /// The property it was read from.
     internal let property: SigningCertificateProperty
-
-    /// The digest method of its CertDigest.
     internal let method: XmlDigestMethod
-
-    /// The certificate digest.
     internal let value: Data
-
-    /// The issuer and serial, when the Cert states them.
     internal let issuerSerial: StatedIssuerSerial?
   }
 
-  /// Prefix of a same-document reference URI, a fragment identifier
-  /// (W3C XML-Signature 1.1 section 4.4.3.2).
+  /// Prefix of a same-document reference URI, a fragment identifier (W3C XML-Signature 1.1 §4.4.3.2).
   internal static let sameDocumentUriPrefix = "#"
 
-  /// Directory prefix for container signature and manifest entries
-  /// (EN 319 162-1 clause 4.4.3.1).
-  private static let metaInfPrefix = "META-INF/"
-
-  /// Lowercase extensions of CMS / CAdES signature entries inside
-  /// `META-INF/` (EN 319 162-1 clause 4.4.3.1).
-  private static let cadesSignatureExtensions = [".p7s", ".p7m", ".p7c"]
-
-  /// Whether the data opens as a ZIP archive, a signature container
-  /// or not.
+  /// Whether the data opens as a ZIP archive, a signature container or not.
   public static func isZipArchive(_ data: Data) -> Bool {
     ZipReader.hasZipSignature(data)
   }
 
-  /// Whether the data is a ZIP archive this verifier reads as an
-  /// ASiC-E or BDOC container.
+  /// Whether the data is a ZIP archive this verifier reads as an ASiC-E or BDOC container.
   public static func isAsicContainer(_ data: Data) -> Bool {
     guard ZipReader.hasZipSignature(data) else { return false }
     return (try? Self.containerEntries(data)) != nil
@@ -214,23 +211,16 @@ public enum AsicVerification {
   ) throws -> DocumentVerification.DocumentReport {
     let entries = try Self.containerEntries(container)
 
-    let xadesSignatureFiles =
+    let xadesSignatureFiles = entries.keys.filter(Self.isXadesSignatureEntry).sorted()
+    let unsupportedEntries =
       entries.keys
-      .filter { key in
-        key.hasPrefix(Self.metaInfPrefix) && key.hasSuffix(".xml")
-          && (key.contains("signature") || key.contains("signatures"))
-      }
-      .sorted()
-
-    let cadesEntries =
-      entries.keys
-      .filter { key in
-        Self.isCadesSignatureEntry(key)
+      .filter { name in
+        Self.isCadesSignatureEntry(name) || Self.isTimestampAssertionEntry(name)
       }
       .sorted()
       .map { _ in DocumentVerification.SignatureEntry.unsupported }
 
-    guard !xadesSignatureFiles.isEmpty || !cadesEntries.isEmpty else {
+    guard !xadesSignatureFiles.isEmpty || !unsupportedEntries.isEmpty else {
       throw DocumentVerification.Failure.noSignatures
     }
 
@@ -247,33 +237,22 @@ public enum AsicVerification {
     )
 
     return DocumentVerification.DocumentReport(
-      signatures: xadesEntries + cadesEntries,
+      signatures: xadesEntries + unsupportedEntries,
       documentTimestamps: []
     )
   }
 
-  /// Recomputes every reference in `ds:SignedInfo`
-  /// (W3C XML-Signature 1.1 section 3.2.1).
-  ///
-  /// Fails closed: a reference this verifier cannot recompute counts
-  /// as a mismatch, never as a match. A data object reference must
-  /// name a carried file and declare no transform; the one
-  /// same-document reference must cover the signature's own
-  /// `xades:SignedProperties` (EN 319 132-1 clause 4.4.2). Every file
-  /// outside `META-INF/` must be referenced (EN 319 162-1
-  /// clause 4.4.3.2).
+  /// Recomputes every reference in `ds:SignedInfo` (W3C XML-Signature 1.1 section 3.2.1).
   internal static func checkDocumentIntegrity(
     parsed: ParsedSignature,
     entries: [String: Data],
     carriedFileNames: Set<String>
   ) -> (documentIntact: Bool, coversWholeDocument: Bool) {
-    var referencedFiles: Set<String> = []
-    var allDigestsMatch = false
-    var references: [ParsedReference] = []
-    if case .complete(let read) = parsed.references {
-      allDigestsMatch = true
-      references = read
+    guard !parsed.hasStructuralError, case .complete(let references) = parsed.references else {
+      return (false, false)
     }
+    var referencedFiles: Set<String> = []
+    var allDigestsMatch = !references.isEmpty
     var signedPropertiesCovered = false
 
     for ref in references {
@@ -287,15 +266,15 @@ public enum AsicVerification {
         continue
       }
 
-      let entryName = ref.uri.removingPercentEncoding ?? ref.uri
-      referencedFiles.insert(entryName)
-
-      guard ref.transforms.isEmpty,
-        let fileContent = entries[entryName],
-        ref.digestMethod.hash(fileContent) == ref.digestValue
+      guard !ref.uri.isEmpty, ref.transformElements.isEmpty,
+        let matched = Self.carriedEntry(namedByUri: ref.uri, in: entries)
       else {
         allDigestsMatch = false
         continue
+      }
+      referencedFiles.insert(matched.name)
+      if ref.digestMethod.hash(matched.content) != ref.digestValue {
+        allDigestsMatch = false
       }
     }
 
@@ -305,39 +284,56 @@ public enum AsicVerification {
     return (documentIntact, allCarriedFilesCovered && documentIntact)
   }
 
-  /// Whether `ref` covers this signature's `xades:SignedProperties`
-  /// and its digest matches.
-  ///
-  /// The reference must carry the SignedProperties `Type`, name the
-  /// element's `Id`, and declare exclusive canonicalisation as its
-  /// one transform, the form `XadesSignature` writes. The element is
-  /// digested as it stands in the document, which equals its
-  /// exclusive canonical form only when it was written in that form;
-  /// any other spelling digests differently and fails. A missing
-  /// element or an unsupported digest method fails too.
+  /// Resolves a relative reference URI against carried container entries.
+  private static func carriedEntry(
+    namedByUri uri: String,
+    in entries: [String: Data]
+  ) -> (name: String, content: Data)? {
+    if uri != AsicContainer.mimetypeEntryName, !uri.hasPrefix(Self.metaInfPrefix),
+      let content = entries[uri]
+    {
+      return (uri, content)
+    }
+    guard let decoded = uri.removingPercentEncoding,
+      decoded != AsicContainer.mimetypeEntryName,
+      !decoded.hasPrefix(Self.metaInfPrefix),
+      let content = entries[decoded]
+    else {
+      return nil
+    }
+    return (decoded, content)
+  }
+
+  /// Whether `ref` covers this signature's `xades:SignedProperties` under XML canonicalisation.
   private static func isSignedPropertiesValid(
     parsed: ParsedSignature,
     ref: ParsedReference
   ) -> Bool {
-    guard ref.type == XadesSignature.signedPropertiesType,
-      ref.transforms == [XadesSignature.canonicalizationExclusive],
+    guard
+      ref.type == XadesSignature.signedPropertiesType,
+      let propertiesElement = parsed.signedPropertiesElement,
       let propertiesId = parsed.signedPropertiesId,
       ref.uri == sameDocumentUriPrefix + propertiesId,
-      let propertiesRaw = parsed.signedPropertiesRawXml,
-      ref.digestMethod.hash(Data(propertiesRaw.utf8)) == ref.digestValue
+      propertiesElement.document.element(withId: propertiesId) == propertiesElement,
+      let canonicalization = Self.signedPropertiesCanonicalization(ref.transformElements),
+      let canonicalBytes = XmlCanonicalizer.canonicalize(
+        propertiesElement, method: canonicalization, omitting: nil)
     else {
       return false
     }
-    return true
+    return ref.digestMethod.hash(canonicalBytes) == ref.digestValue
   }
 
-  /// Whether `entryName` names a CMS / CAdES signature entry under
-  /// `META-INF/` (EN 319 162-1 clause 4.4.3.1).
-  private static func isCadesSignatureEntry(_ entryName: String) -> Bool {
-    guard entryName.hasPrefix(Self.metaInfPrefix) else { return false }
-    let folded = entryName.lowercased()
-    return Self.cadesSignatureExtensions.contains { suffix in
-      folded.hasSuffix(suffix)
+  /// Canonicalisation for a bare-name `#id` reference: comments omitted per XML-DSig 1.1 §4.4.3.3.
+  private static func signedPropertiesCanonicalization(
+    _ transforms: [XmlElement]
+  ) -> XmlCanonicalization? {
+    guard let only = transforms.first else {
+      return .inclusive
     }
+    guard transforms.count == 1, let method = XmlCanonicalization(method: only) else {
+      return nil
+    }
+    return XmlCanonicalization(algorithm: method.algorithm, comments: .omitted)
   }
 }

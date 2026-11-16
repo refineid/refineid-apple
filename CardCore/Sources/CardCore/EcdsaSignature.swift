@@ -23,44 +23,60 @@ public enum EcdsaSignature {
   private static let signatureHalves = 2
 
   /// Re-encodes raw `r || s` (an even-length buffer) as X9.62 DER, or
-  /// nil when the input is empty or odd-length.
+  /// nil when either coordinate is zero, empty, odd-length, or exceeds
+  /// single-byte DER length framing.
   public static func derFromRawConcatenation(_ raw: Data) -> Data? {
     let bytes = Array(raw)
     guard !bytes.isEmpty, bytes.count.isMultiple(of: Self.signatureHalves) else {
       return nil
     }
     let half = bytes.count / Self.signatureHalves
-    let rInteger = derInteger(Array(bytes[0..<half]))
-    let sInteger = derInteger(Array(bytes[half..<bytes.count]))
+    let rInteger = Self.derInteger(Array(bytes[0..<half]))
+    let sInteger = Self.derInteger(Array(bytes[half..<bytes.count]))
+    guard !rInteger.isEmpty, !sInteger.isEmpty else {
+      return nil
+    }
     var body = rInteger
     body.append(contentsOf: sInteger)
+    let sequenceLength = Self.derLength(body.count)
+    guard !sequenceLength.isEmpty else { return nil }
     var out: [UInt8] = [Self.sequenceTag]
-    out.append(contentsOf: derLength(body.count))
+    out.append(contentsOf: sequenceLength)
     out.append(contentsOf: body)
     return Data(out)
   }
 
-  /// Encodes one big-endian magnitude as a DER INTEGER: strip leading
-  /// zeros, then prepend a single zero if the top bit is set (so the
-  /// value stays positive).
+  /// Re-encodes raw `r || s` of exact `coordinateOctets` width per coordinate as X9.62 DER.
+  internal static func derFromRawConcatenation(_ raw: Data, coordinateOctets: Int) -> Data? {
+    guard coordinateOctets > 0, raw.count == coordinateOctets * Self.signatureHalves else {
+      return nil
+    }
+    return Self.derFromRawConcatenation(raw)
+  }
+
+  /// Encodes one non-zero big-endian magnitude as a positive DER INTEGER, or empty when invalid.
   private static func derInteger(_ magnitude: [UInt8]) -> [UInt8] {
     var value = magnitude
     while value.count > 1, value.first == 0 {
       value.removeFirst()
     }
+    guard value != [.zero] else { return [] }
     if let first = value.first, first & Self.highBitMask != 0 {
       value.insert(0, at: 0)
     }
+    let lengthBytes = Self.derLength(value.count)
+    guard !lengthBytes.isEmpty else { return [] }
     var out: [UInt8] = [Self.integerTag]
-    out.append(contentsOf: derLength(value.count))
+    out.append(contentsOf: lengthBytes)
     out.append(contentsOf: value)
     return out
   }
 
-  /// Short- or long-form DER length for a signature-sized value.
+  /// Short- or single-byte long-form DER length, or empty outside `0...255`.
   private static func derLength(_ length: Int) -> [UInt8] {
     let shortFormMaximum = 0x7F
     let oneLengthByteMarker: UInt8 = 0x81
+    guard length >= 0, length <= Int(UInt8.max) else { return [] }
     if length <= shortFormMaximum {
       return [UInt8(length)]
     }

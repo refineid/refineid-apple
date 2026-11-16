@@ -12,6 +12,7 @@ extension DocumentVerification {
     var state: TimestampState { judged.state }
     let rangeStart: Int
     let coveredValues: RevocationValues
+    let coveredCertificates: [Data]
   }
 
   /// What every signature of one PDF is judged with.
@@ -150,11 +151,16 @@ extension DocumentVerification {
     let covering = documentTimestamps.filter { stamp in
       signature.signedSpans.document.count <= stamp.rangeStart
     }
+    let embeddedCertificates = prepared.outcome?.embeddedCertificates ?? []
     let candidates = SignatureCandidates(
       creditedProofs: covering.compactMap(\.state.provenTime),
       archiveTimestamps: covering.map { stamp in
         ArchiveCandidate(
-          state: stamp.state, covered: stamp.coveredValues, validUntil: stamp.judged.validUntil)
+          state: stamp.state,
+          covered: stamp.coveredValues,
+          coveredCertificates: stamp.coveredCertificates + embeddedCertificates,
+          validUntil: stamp.judged.validUntil
+        )
       },
       changesAfterSigning: PdfSignedContentAnalysis.changes(
         document: document,
@@ -181,7 +187,8 @@ extension DocumentVerification {
     found.filter { signature in signature.subFilter == .rfc3161 }
       .sorted { lhs, rhs in lhs.signedSpans.document.count < rhs.signedSpans.document.count }
       .map { signature in
-        DocumentTimestamp(
+        let store = PdfDocumentSecurityStore.material(in: signature.signedSpans.document)
+        return DocumentTimestamp(
           judged: Self.documentTimestampState(
             of: signature,
             evidence: judgement.evidence,
@@ -189,8 +196,8 @@ extension DocumentVerification {
             now: judgement.now
           ),
           rangeStart: signature.signedSpans.contentsOpen,
-          coveredValues: Self.revocationValues(
-            PdfDocumentSecurityStore.material(in: signature.signedSpans.document))
+          coveredValues: Self.revocationValues(store),
+          coveredCertificates: store.certificates
         )
       }
   }

@@ -36,12 +36,36 @@ internal struct SyntheticZipArchive {
     /// The declared CRC-32.
     internal var crc: UInt32
 
+    /// General-purpose bit flags in both headers.
+    internal var flags = UInt16.zero
+
     /// The local header's extra field.
     internal var localExtra = Data()
+
+    /// The central record's extra field.
+    internal var centralExtra = Data()
+
+    /// External file attributes in the central record.
+    internal var externalAttributes = ZipValues.regularFileExternalAttributes
 
     /// The comment length the central record declares, with no
     /// comment bytes written.
     internal var declaredCommentLength = UInt16.zero
+
+    /// An explicit directory entry (`name` must end with `"/"`).
+    internal static func directory(_ name: String) -> Self {
+      Self(
+        name: name,
+        localName: name,
+        payload: Data(),
+        method: ZipValues.methodStored,
+        compressedSize: .zero,
+        uncompressedSize: .zero,
+        crc: .zero,
+        externalAttributes: (ZipValues.unixDirectory << ZipValues.unixModeShift)
+          | ZipValues.dosDirectoryAttribute
+      )
+    }
 
     /// A stored entry whose headers describe `content` truthfully.
     internal static func stored(_ name: String, _ content: Data) -> Self {
@@ -90,7 +114,7 @@ internal struct SyntheticZipArchive {
       let centralName = Data(entry.name.utf8)
       out.append(Self.field(ZipValues.localHeaderSignature))
       out.append(Self.field(ZipValues.versionNeeded))
-      out.append(Self.field(none))
+      out.append(Self.field(entry.flags))
       out.append(Self.field(entry.method))
       out.append(Self.field(none))
       out.append(Self.field(none))
@@ -106,7 +130,7 @@ internal struct SyntheticZipArchive {
       directory.append(Self.field(ZipValues.centralHeaderSignature))
       directory.append(Self.field(ZipValues.versionMadeBy))
       directory.append(Self.field(ZipValues.versionNeeded))
-      directory.append(Self.field(none))
+      directory.append(Self.field(entry.flags))
       directory.append(Self.field(entry.method))
       directory.append(Self.field(none))
       directory.append(Self.field(none))
@@ -114,13 +138,14 @@ internal struct SyntheticZipArchive {
       directory.append(Self.field(entry.compressedSize))
       directory.append(Self.field(entry.uncompressedSize))
       directory.append(Self.field(UInt16(centralName.count)))
-      directory.append(Self.field(none))
+      directory.append(Self.field(UInt16(entry.centralExtra.count)))
       directory.append(Self.field(entry.declaredCommentLength))
       directory.append(Self.field(none))
       directory.append(Self.field(none))
-      directory.append(Self.field(ZipValues.regularFileExternalAttributes))
+      directory.append(Self.field(entry.externalAttributes))
       directory.append(Self.field(offset))
       directory.append(centralName)
+      directory.append(entry.centralExtra)
     }
     let directoryAt = UInt32(out.count)
     out.append(directory)
