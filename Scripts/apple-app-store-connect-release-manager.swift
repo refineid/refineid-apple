@@ -778,7 +778,11 @@ private func inspectReleaseArchive(_ archive: URL) {
     guard importedTypes.contains("org.etsi.asic-e") else {
       releaseFail("org.etsi.asic-e UTI missing on macOS; ASiC-E signing needs it")
     }
-    releaseNote("no document-viewer or BDOC declarations; document verification is gated off")
+    let settingsBundle = layout.appResources.appendingPathComponent("Settings.bundle")
+    guard !releaseFileManager.fileExists(atPath: settingsBundle.path) else {
+      releaseFail("Settings.bundle present on macOS: \(settingsBundle.path)")
+    }
+    releaseNote("no document-viewer, BDOC or Settings.bundle artifacts on macOS")
   }
 
   let readerConfiguration = releaseExtensionConfiguration(at: layout.tokenPlist)
@@ -851,6 +855,10 @@ private func inspectReleaseArchive(_ archive: URL) {
       releaseNote("export compliance answered (non-exempt, code present)")
     } else {
       releaseNote("export compliance answered (exempt from documentation)")
+    }
+    let settingsBundle = layout.appResources.appendingPathComponent("Settings.bundle")
+    guard releaseIsDirectory(settingsBundle) else {
+      releaseFail("Settings.bundle missing from the iOS app: \(settingsBundle.path)")
     }
   }
 
