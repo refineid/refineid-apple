@@ -234,18 +234,25 @@ internal struct NetworkContractTests {
     }
   }
 
-  /// The one local port a Mac opens, which only members of the app group
-  /// reach.
+  /// The one local app-group handoff channel a Mac opens, verified by kernel
+  /// peer audit tokens on both sides.
   ///
-  /// The RAPP token extension hands an operation to the app's Bluetooth
-  /// session through it (decisions 2026-10-22). It compiles in only with
-  /// the remote card, so the MVP Mac opens no port at all.
+  /// The RAPP token extension hands CryptoTokenKit operations to the app's
+  /// held phone session through it (decisions 2026-10-22). Unauthenticated
+  /// `CFMessagePort` APIs are absent across the repository, and the listener
+  /// compiles in only with the remote card so the MVP Mac opens nothing.
   @Test
   internal func localHandoffPortIsTheOnlyOne() throws {
-    let opening = try Self.files(containingAny: ["CFMessagePortCreateLocal"])
-    #expect(opening == ["Sources/App/HeldSessionHandoffPort.swift"])
-    let reaching = try Self.files(containingAny: ["CFMessagePortCreateRemote"])
-    #expect(reaching == ["CardCore/Sources/CardCore/RappHeldSessionHandoff.swift"])
+    let messagePorts = try Self.files(
+      containingAny: ["CFMessagePortCreateLocal", "CFMessagePortCreateRemote"]
+    )
+    #expect(messagePorts.isEmpty)
+    let peerTokens = try Self.files(containingAny: ["LOCAL_PEERTOKEN"])
+    #expect(peerTokens == ["CardCore/Sources/CardCore/RappHeldSessionHandoff+PeerAuth.swift"])
+    let unixSockets = try Self.files(containingAny: ["Darwin.socket(AF_UNIX"])
+    #expect(unixSockets == ["CardCore/Sources/CardCore/RappHeldSessionHandoff+SocketIO.swift"])
+    let serving = try Self.files(containingAny: ["RappHeldSessionHandoff.serve"])
+    #expect(serving == ["Sources/App/HeldSessionHandoffPort.swift"])
     let port = try String(
       contentsOf: Self.root.appending(path: "Sources/App/HeldSessionHandoffPort.swift"),
       encoding: .utf8)

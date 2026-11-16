@@ -38,17 +38,35 @@
       }
     }
 
-    /// Carries an operation the token extension handed over (CC-71).
+    /// Carries a validated client-authentication operation handed over by `RappTokenExtension` (CC-71).
     ///
-    /// This computer holds one session with the phone, and the app holds
-    /// it, over either transport: the operation runs on it, after any
-    /// operation already running there. With none open the app dials one,
-    /// within the dial's back-off, and waits for it within the handoff's
-    /// window; a session over another pairing, one being forgotten, is
-    /// waited out. While remote use is off or a card is in this computer's
-    /// reader, the operation is refused (CC-94, CC-86).
+    /// External handoff requests carry a mandatory 16-byte `pairID` and materialize
+    /// the fixed `"macOS CryptoTokenKit"` display context; wildcard `pairID == nil`
+    /// matching is reserved strictly for in-process `RefineID.app` calls.
     internal func carry(
       _ request: RappHeldSessionHandoff.Request
+    ) async -> RappHeldSessionHandoff.Answer {
+      await carryOperation(pairID: request.pairID, operation: request.operation)
+    }
+
+    /// Runs `operation` for this app on the computer's one session with the
+    /// phone (CC-71), and answers what the phone answered.
+    internal func perform(_ operation: RappRequesterOperation) async throws
+      -> RappRequesterResponse
+    {
+      switch await carryOperation(pairID: nil, operation: operation) {
+      case .response(let response):
+        return response
+
+      case .failed(let error):
+        throw error
+      }
+    }
+
+    /// Waits for a phone session matching `pairID` (or any held pairing when nil) and runs `operation`.
+    private func carryOperation(
+      pairID: Data?,
+      operation: RappRequesterOperation
     ) async -> RappHeldSessionHandoff.Answer {
       guard Self.followsPhone else {
         #if DEBUG
@@ -67,33 +85,18 @@
       let poll = Duration.milliseconds(Self.carryPollMilliseconds)
       while ContinuousClock.now < deadline {
         openHolderSession()
-        if let session = holderSession, request.pairID == nil || request.pairID == session.pairID,
+        if let session = holderSession, pairID == nil || pairID == session.pairID,
           await session.established(within: deadline - .now)
         {
           #if DEBUG
             print("[persistent-token] carrying the extension's operation")
             fflush(stdout)
           #endif
-          return await perform(request.operation, on: session)
+          return await perform(operation, on: session)
         }
         try? await Task.sleep(for: min(poll, deadline - .now))
       }
       return .failed(.peerNotFound)
-    }
-
-    /// Runs `operation` for this app on the computer's one session with the
-    /// phone, as a handed-over operation runs (CC-71), and answers what the
-    /// phone answered.
-    internal func perform(_ operation: RappRequesterOperation) async throws
-      -> RappRequesterResponse
-    {
-      switch await carry(RappHeldSessionHandoff.Request(pairID: nil, operation: operation)) {
-      case .response(let response):
-        return response
-
-      case .failed(let error):
-        throw error
-      }
     }
 
     /// Runs a handed-over operation on `session` and answers its outcome.

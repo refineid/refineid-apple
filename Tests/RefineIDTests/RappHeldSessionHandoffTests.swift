@@ -5,43 +5,19 @@ import Foundation
 import RappEngine
 import Testing
 
-/// What the RAPP token extension hands the app, and what the app answers,
-/// read back at one border (STPA CC-71).
+/// Verifies strict request/answer validation on the RAPP local handoff boundary (STPA CC-71).
 @Suite
 internal struct RappHeldSessionHandoffTests {
   /// A 16-byte pair identifier, as RAPP derives them.
   private static let pairID = Data("pair-identifier!".utf8)
 
-  /// A synthetic digest; the border carries it, the engine checks it.
+  /// A synthetic digest within the CryptoTokenKit digest bound.
   private static let digest = Data("digest to sign".utf8)
 
   /// Synthetic certificate or signature bytes.
   private static let bytes = Data("answer bytes".utf8)
 
-  /// Every operation the extension can hand over.
-  private static var operations: [RappRequesterOperation] {
-    var all: [RappRequesterOperation] = [.readAuthenticationCertificate, .readSignatureCertificate]
-    for keyProfile in RappOperationDriver.KeyProfile.allCases {
-      for algorithm in RappOperationDriver.SignatureAlgorithm.allCases {
-        all.append(
-          .browserAuthentication(
-            displayContext: "macOS CryptoTokenKit", keyProfile: keyProfile, algorithm: algorithm,
-            digest: digest))
-        all.append(
-          .documentSigning(
-            document: RappSigningDocument(name: "contract.pdf", containedFiles: []),
-            keyProfile: keyProfile, algorithm: algorithm, digest: digest))
-        all.append(
-          .documentSigning(
-            document: RappSigningDocument(
-              name: "dossier.asice", containedFiles: ["contract.pdf", "annex.pdf"]),
-            keyProfile: keyProfile, algorithm: algorithm, digest: digest))
-      }
-    }
-    return all
-  }
-
-  /// Every answer the app can give.
+  /// Every answer the app can return over the local handoff channel.
   private static var answers: [RappHeldSessionHandoff.Answer] {
     var all: [RappHeldSessionHandoff.Answer] = [
       .response(.authenticationCertificate(bytes)),
@@ -55,18 +31,37 @@ internal struct RappHeldSessionHandoffTests {
     return all
   }
 
-  @Test("Every operation reads back as itself, with and without a pairing")
-  internal func requestsRoundTrip() throws {
-    for operation in Self.operations {
-      for pair in [Self.pairID, nil] {
-        let request = RappHeldSessionHandoff.Request(pairID: pair, operation: operation)
+  /// Every key-profile and algorithm combination round-trips and enforces `"macOS CryptoTokenKit"`.
+  @Test
+  internal func requestsRoundTripAndEnforceServerDisplayContext() throws {
+    for keyProfile in RappOperationDriver.KeyProfile.allCases {
+      for algorithm in RappOperationDriver.SignatureAlgorithm.allCases {
+        let request = try #require(
+          RappHeldSessionHandoff.Request(
+            pairID: Self.pairID,
+            keyProfile: keyProfile,
+            algorithm: algorithm,
+            digest: Self.digest
+          )
+        )
         let encoded = try #require(request.encoded())
-        #expect(RappHeldSessionHandoff.Request(encoded: encoded) == request)
+        let decoded = try #require(RappHeldSessionHandoff.Request(encoded: encoded))
+        #expect(decoded == request)
+        #expect(
+          decoded.operation
+            == .browserAuthentication(
+              displayContext: RappHeldSessionHandoff.cryptoTokenKitDisplayContext,
+              keyProfile: keyProfile,
+              algorithm: algorithm,
+              digest: Self.digest
+            )
+        )
       }
     }
   }
 
-  @Test("Every answer reads back as itself")
+  /// Every answer variant round-trips cleanly.
+  @Test
   internal func answersRoundTrip() throws {
     for answer in Self.answers {
       let encoded = try #require(answer.encoded())
@@ -74,29 +69,86 @@ internal struct RappHeldSessionHandoffTests {
     }
   }
 
-  @Test("A pair identifier of another length is refused")
-  internal func wrongPairLengthIsRefused() throws {
-    let request = RappHeldSessionHandoff.Request(
-      pairID: Data("short".utf8), operation: .readAuthenticationCertificate)
-    let encoded = try #require(request.encoded())
-    #expect(RappHeldSessionHandoff.Request(encoded: encoded) == nil)
+  /// Missing `pairID`, invalid `pairID` lengths, and empty or oversized digests are rejected.
+  @Test
+  internal func invalidPairIdOrDigestBoundsAreRefused() throws {
+    #expect(
+      RappHeldSessionHandoff.Request(
+        pairID: Data("short".utf8),
+        keyProfile: .ecdsaP256,
+        algorithm: .ecdsaSHA256,
+        digest: Self.digest
+      ) == nil
+    )
+    #expect(
+      RappHeldSessionHandoff.Request(
+        pairID: Self.pairID,
+        keyProfile: .ecdsaP256,
+        algorithm: .ecdsaSHA256,
+        digest: Data()
+      ) == nil
+    )
+    let oversizedDigest = Data(
+      repeating: 1,
+      count: RappHeldSessionHandoff.maximumDigestByteCount + 1
+    )
+    #expect(
+      RappHeldSessionHandoff.Request(
+        pairID: Self.pairID,
+        keyProfile: .ecdsaP256,
+        algorithm: .ecdsaSHA256,
+        digest: oversizedDigest
+      ) == nil
+    )
+
+    let missingPair = try PropertyListSerialization.data(
+      fromPropertyList: [
+        "operation": "browserAuthentication",
+        "keyProfile": "ecdsaP256",
+        "algorithm": "ecdsaSHA256",
+        "digest": Self.digest,
+      ],
+      format: .binary,
+      options: 0
+    )
+    #expect(RappHeldSessionHandoff.Request(encoded: missingPair) == nil)
   }
 
-  @Test("A message that names nothing known is refused")
-  internal func strangersAreRefused() throws {
-    let unknown = try PropertyListSerialization.data(
-      fromPropertyList: ["operation": "signEverything"], format: .binary, options: 0)
-    #expect(RappHeldSessionHandoff.Request(encoded: unknown) == nil)
-    let noDigest = try PropertyListSerialization.data(
+  /// Disallowed operations (`documentSigning`, certificate reads) and spoofed `context` keys fail closed.
+  @Test
+  internal func disallowedOperationsAndInjectedContextKeysAreRefused() throws {
+    let injectedContext = try PropertyListSerialization.data(
       fromPropertyList: [
-        "operation": "browserAuthentication", "context": "site",
-        "keyProfile": "ecdsaP256", "algorithm": "ecdsaSHA256",
+        "operation": "browserAuthentication",
+        "pair": Self.pairID,
+        "context": "https://spoofed.example",
+        "keyProfile": "ecdsaP256",
+        "algorithm": "ecdsaSHA256",
+        "digest": Self.digest,
       ],
-      format: .binary, options: 0)
-    #expect(RappHeldSessionHandoff.Request(encoded: noDigest) == nil)
+      format: .binary,
+      options: 0
+    )
+    #expect(RappHeldSessionHandoff.Request(encoded: injectedContext) == nil)
+
+    let documentSigning = try PropertyListSerialization.data(
+      fromPropertyList: [
+        "operation": "documentSigning",
+        "pair": Self.pairID,
+        "keyProfile": "ecdsaP256",
+        "algorithm": "ecdsaSHA256",
+        "digest": Self.digest,
+      ],
+      format: .binary,
+      options: 0
+    )
+    #expect(RappHeldSessionHandoff.Request(encoded: documentSigning) == nil)
+
     let emptyAnswer = try PropertyListSerialization.data(
       fromPropertyList: ["answer": "response", "response": "signature", "bytes": Data()],
-      format: .binary, options: 0)
+      format: .binary,
+      options: 0
+    )
     #expect(RappHeldSessionHandoff.Answer(encoded: emptyAnswer) == nil)
     #expect(RappHeldSessionHandoff.Answer(encoded: Data("not a list".utf8)) == nil)
   }
