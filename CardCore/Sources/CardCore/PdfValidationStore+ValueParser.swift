@@ -67,10 +67,10 @@ extension PdfValidationStore {
     private static let delimiters = Data("()<>[]{}/%".utf8)
 
     /// The bytes being parsed.
-    private let bytes: Data
+    internal let bytes: Data
 
     /// The next unread byte.
-    private var offset = 0
+    internal var offset = 0
 
     /// Starts at the beginning of `bytes`.
     internal init(_ bytes: Data) {
@@ -111,7 +111,7 @@ extension PdfValidationStore {
     }
 
     /// A PDF token delimiter or whitespace octet.
-    private static func isDelimiter(_ byte: UInt8) -> Bool {
+    internal static func isDelimiter(_ byte: UInt8) -> Bool {
       Self.isWhitespace(byte) || Self.delimiters.contains(byte)
     }
 
@@ -223,7 +223,7 @@ extension PdfValidationStore {
     }
 
     /// A name token, decoded for comparison and retained for copying.
-    private mutating func name() throws -> (decoded: String, raw: Range<Int>) {
+    internal mutating func name() throws -> (decoded: String, raw: Range<Int>) {
       let start = offset
       guard self.consume("/") else {
         throw PdfSigningError.structureUnreadable
@@ -242,7 +242,7 @@ extension PdfValidationStore {
     }
 
     /// One non-delimiter token.
-    private mutating func atom() throws -> Range<Int> {
+    internal mutating func atom() throws -> Range<Int> {
       let start = offset
       while offset < bytes.count, !Self.isDelimiter(bytes[offset]) {
         offset += 1
@@ -300,7 +300,7 @@ extension PdfValidationStore {
     }
 
     /// Skips PDF whitespace and end-of-line comments.
-    private mutating func skipTrivia() {
+    internal mutating func skipTrivia() {
       while offset < bytes.count {
         if Self.isWhitespace(bytes[offset]) {
           offset += 1
@@ -317,14 +317,14 @@ extension PdfValidationStore {
     }
 
     /// Consumes an exact ASCII marker.
-    private mutating func consume(_ marker: String) -> Bool {
+    internal mutating func consume(_ marker: String) -> Bool {
       guard self.has(marker) else { return false }
       offset += marker.utf8.count
       return true
     }
 
     /// Whether an exact ASCII marker is next.
-    private func has(_ marker: String) -> Bool {
+    internal func has(_ marker: String) -> Bool {
       let encoded = Data(marker.utf8)
       guard offset + encoded.count <= bytes.count else { return false }
       return bytes[offset..<(offset + encoded.count)].elementsEqual(encoded)

@@ -16,6 +16,15 @@ extension PdfValidationStore {
     internal let valueRange: Range<Int>
   }
 
+  /// A parsed leading dictionary and whether a stream payload follows it.
+  internal struct LeadingDictionary {
+    /// The leading dictionary syntax.
+    internal let syntax: DictionarySyntax
+
+    /// Whether the `stream` keyword immediately follows the dictionary.
+    internal let hasStream: Bool
+  }
+
   /// A parsed PDF dictionary with byte ranges into its original spelling.
   internal struct DictionarySyntax {
     /// The dictionary's bytes.
@@ -38,6 +47,57 @@ extension PdfValidationStore {
       self.source = bytes
       self.entries = parsed.entries
       self.closingOffset = parsed.closingOffset
+    }
+
+    /// Retains an already-parsed dictionary slice.
+    internal init(
+      source: Data,
+      entries: [DictionaryEntry],
+      closingOffset: Int
+    ) {
+      self.source = source
+      self.entries = entries
+      self.closingOffset = closingOffset
+    }
+
+    /// Parses either a delimited `<< ... >>` dictionary or bare entry
+    /// pairs passed by callers that stripped the outer brackets.
+    internal static func loose(_ text: String) throws -> Self {
+      guard let bytes = text.data(using: .isoLatin1) else {
+        throw PdfSigningError.structureUnreadable
+      }
+      var probe = ValueParser(bytes)
+      probe.skipTrivia()
+      if probe.has("<<") {
+        return try Self(text)
+      }
+      return try Self("<<\n\(text)\n>>")
+    }
+
+    /// Parses the leading dictionary of an indirect object body and
+    /// detects whether the `stream` keyword follows it.
+    internal static func leading(in body: String) -> LeadingDictionary? {
+      guard let bytes = body.data(using: .isoLatin1) else { return nil }
+      var parser = ValueParser(bytes)
+      guard let parsed = try? parser.dictionary() else { return nil }
+      let dictionaryEnd = parser.offset
+      parser.skipTrivia()
+      let hasStream: Bool
+      if parser.offset == bytes.count {
+        hasStream = false
+      } else if let token = try? parser.atom(),
+        Self.text(bytes.subdata(in: token)) == PdfValues.streamKeyword
+      {
+        hasStream = true
+      } else {
+        return nil
+      }
+      let syntax = Self(
+        source: bytes.subdata(in: 0..<dictionaryEnd),
+        entries: parsed.entries,
+        closingOffset: parsed.closingOffset
+      )
+      return LeadingDictionary(syntax: syntax, hasStream: hasStream)
     }
 
     /// Latin-1 preserves each PDF source byte as one scalar.

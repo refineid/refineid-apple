@@ -20,15 +20,18 @@ internal enum PdfValidationStoreGrowth {
   /// Whether the store `body` keeps everything `previous` held.
   internal static func growsOnly(from previous: String, to body: String) -> Bool {
     guard
-      let before = try? PdfValidationStore.DictionarySyntax(PdfTypeEntry.dictionary(of: previous)),
-      let after = try? PdfValidationStore.DictionarySyntax(
-        PdfTypeEntry.dictionary(of: body))
+      let before = PdfTypeEntry.dictionarySyntax(of: previous),
+      let after = PdfTypeEntry.dictionarySyntax(of: body)
     else {
       return false
     }
-    guard changedKeys(from: before, to: after).isSubset(of: storeKeys) else { return false }
+    guard changedKeys(from: before, to: after).isSubset(of: storeKeys) else {
+      return false
+    }
     for key in arrayKeys {
-      guard arrayKeepsEverything(key, from: before, to: after) else { return false }
+      guard arrayKeepsEverything(key, from: before, to: after) else {
+        return false
+      }
     }
     return storeEntriesGrow(from: before, to: after)
   }
@@ -39,9 +42,10 @@ internal enum PdfValidationStoreGrowth {
     from before: PdfValidationStore.DictionarySyntax,
     to after: PdfValidationStore.DictionarySyntax
   ) -> Bool {
-    let kept = PdfObjectReferences.references(in: value(of: key, in: before))
-    let grown = PdfObjectReferences.references(in: value(of: key, in: after))
-    return Set(kept).isSubset(of: Set(grown))
+    let kept = PdfObjectReferences.strictReferences(in: value(of: key, in: before))
+    let grown = PdfObjectReferences.strictReferences(in: value(of: key, in: after))
+    guard kept.isValid, grown.isValid else { return false }
+    return Set(kept.references).isSubset(of: Set(grown.references))
   }
 
   /// Whether every `/VRI` entry the store had is still there, unchanged,

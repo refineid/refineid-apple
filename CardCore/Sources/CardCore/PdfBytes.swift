@@ -24,6 +24,11 @@ internal struct PdfBytes {
     self.bytes = [UInt8](document)
   }
 
+  /// The byte at `position`.
+  internal func byte(at position: Int) -> UInt8 {
+    bytes[position]
+  }
+
   /// Whether the document opens with `prefix`.
   internal func starts(with prefix: String) -> Bool {
     bytes.starts(with: Array(prefix.utf8))
@@ -84,7 +89,8 @@ internal struct PdfBytes {
   }
 
   /// The decimal number starting at `position` and the position just
-  /// past its digits, or nil when there is no digit there.
+  /// past its digits, or nil when there is no digit there or it
+  /// overflows `Int`.
   internal func decimalToken(at position: Int) -> (value: Int, end: Int)? {
     var cursor = position
     var value = 0
@@ -93,9 +99,13 @@ internal struct PdfBytes {
       bytes[cursor] >= UInt8(ascii: "0"),
       bytes[cursor] <= UInt8(ascii: "9")
     {
-      value =
-        value * PdfValues.decimalRadix
-        + Int(bytes[cursor] - UInt8(ascii: "0"))
+      let digit = Int(bytes[cursor] - UInt8(ascii: "0"))
+      let (multiplied, multipliedOverflow) = value.multipliedReportingOverflow(
+        by: PdfValues.decimalRadix
+      )
+      let (added, addedOverflow) = multiplied.addingReportingOverflow(digit)
+      guard !multipliedOverflow, !addedOverflow else { return nil }
+      value = added
       cursor += 1
       sawDigit = true
     }
@@ -117,34 +127,5 @@ internal struct PdfBytes {
   internal func data(in range: Range<Int>) -> Data {
     let clamped = range.clamped(to: 0..<bytes.count)
     return Data(bytes[clamped])
-  }
-
-  /// The balanced `<< >>` dictionary starting at or after `offset`,
-  /// and the position just past its closing marker.
-  internal func balancedDictionary(
-    from offset: Int
-  ) -> (text: String, end: Int)? {
-    guard let start = firstRange(of: "<<", from: offset) else {
-      return nil
-    }
-    var depth = 0
-    var cursor = start.lowerBound
-    while cursor < count {
-      if hasKeyword("<<", at: cursor) {
-        depth += 1
-        cursor += PdfValues.dictionaryMarkerLength
-        continue
-      }
-      if hasKeyword(">>", at: cursor) {
-        depth -= 1
-        cursor += PdfValues.dictionaryMarkerLength
-        if depth == 0 {
-          return (text(in: start.lowerBound..<cursor), cursor)
-        }
-        continue
-      }
-      cursor += 1
-    }
-    return nil
   }
 }

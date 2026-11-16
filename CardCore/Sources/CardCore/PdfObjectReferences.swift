@@ -4,32 +4,39 @@ import Foundation
 
 /// The indirect references an array value carries, in the order written.
 internal enum PdfObjectReferences {
-  /// The `N G R` references in `value`, as `"N G"`.
-  ///
-  /// Anything else in the array - a name, a number, a string, a nested
-  /// array - is not a reference and is left out, so a caller comparing
-  /// two arrays sees the objects they name.
-  internal static func references(in value: String) -> [String] {
-    let tokens = value.split(whereSeparator: \.isWhitespace)
-    var found: [String] = []
-    var index = tokens.startIndex
-    while index < tokens.endIndex {
-      let number = tokens[index]
-      let generation = tokens.index(after: index)
-      let marker = generation < tokens.endIndex ? tokens.index(after: generation) : generation
-      guard
-        number.allSatisfy(\.isNumber),
-        generation < tokens.endIndex,
-        tokens[generation].allSatisfy(\.isNumber),
-        marker < tokens.endIndex,
-        tokens[marker] == "R"
-      else {
-        index = generation
-        continue
-      }
-      found.append("\(number) \(tokens[generation])")
-      index = tokens.index(after: marker)
+  /// The result of parsing a strict reference-only PDF array.
+  internal struct ParsedReferences {
+    /// Whether `value` was either empty or a valid `[ N G R ... ]` array.
+    internal let isValid: Bool
+
+    /// The parsed indirect references, in written order.
+    internal let references: [PdfValidationStore.StoreReference]
+  }
+
+  /// Parses `value` as a reference-only array (treating an empty string
+  /// as an absent empty list).
+  internal static func strictReferences(in value: String) -> ParsedReferences {
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else {
+      return ParsedReferences(isValid: true, references: [])
     }
-    return found
+    guard
+      let parsed = try? PdfValidationStore.ValueParser.referenceArray(
+        in: trimmed
+      )
+    else {
+      return ParsedReferences(isValid: false, references: [])
+    }
+    return ParsedReferences(isValid: true, references: parsed)
+  }
+
+  /// The `N G R` references in `value`, as `"N G"`, when `value` is
+  /// empty or a valid reference array.
+  internal static func references(in value: String) -> [String] {
+    let parsed = Self.strictReferences(in: value)
+    guard parsed.isValid else { return [] }
+    return parsed.references.map { reference in
+      "\(reference.number) \(reference.generation)"
+    }
   }
 }

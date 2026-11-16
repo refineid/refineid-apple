@@ -29,6 +29,13 @@ extension DocumentVerification {
     let changesAfterSigning: [SignedContentChange]
   }
 
+  /// Pre-verified CMS facts for one located signature dictionary.
+  private struct PreparedSignature {
+    let located: PdfSignatureReader.LocatedSignature
+    let profile: CmsSignerVerification.Profile?
+    let outcome: CmsSignerVerification.Outcome?
+  }
+
   /// The revocation values of a document security store.
   private static func revocationValues(_ store: PdfValidationStore.Material) -> RevocationValues {
     RevocationValues(ocspResponses: store.ocspResponses, revocationLists: store.revocationLists)
@@ -45,50 +52,101 @@ extension DocumentVerification {
     anchors: TrustAnchors,
     now: Date
   ) throws -> DocumentReport {
-    let found: [PdfSignatureReader.FoundSignature]
+    let located: [PdfSignatureReader.LocatedSignature]
     do {
-      found = try PdfSignatureReader.signatures(in: document)
+      located = try PdfSignatureReader.locatedSignatures(
+        in: document,
+        maximumByteCount: PdfValues.maximumVerifiedDocumentByteCount
+      )
     } catch let failure as PdfSigningError {
       throw failure == .notAPdf ? Failure.notAPdf : Failure.unreadable
     } catch {
       throw Failure.unreadable
     }
-    // A document timestamp alone signs nothing.
-    guard found.contains(where: { signature in signature.subFilter != .rfc3161 }) else {
+    guard located.contains(where: { item in item.signature.subFilter != .rfc3161 }) else {
       throw Failure.noSignatures
     }
 
     var documentEvidence = ValidationEvidence()
     let store = PdfDocumentSecurityStore.material(in: document)
     documentEvidence.add(store)
-    for signature in found {
-      documentEvidence.add(cms: signature.cms)
+    for item in located {
+      documentEvidence.add(cms: item.signature.cms)
     }
+    let prepared = Self.prepareSignatures(located)
+    let postCandidates = Self.postSignatureCandidates(from: prepared)
     let judgement = PdfJudgement(
       evidence: documentEvidence, anchors: anchors, now: now,
-      storeValues: Self.revocationValues(store))
+      storeValues: Self.revocationValues(store)
+    )
+    let found = located.map(\.signature)
     let documentTimestamps = Self.documentTimestamps(in: found, judgement)
-    let signatures: [SignatureEntry] = found.filter { signature in
-      signature.subFilter != .rfc3161
-    }
-    .map { signature in
-      Self.entry(
-        of: signature, document: document, judgement: judgement,
-        documentTimestamps: documentTimestamps)
-    }
+    let signatures: [SignatureEntry] =
+      prepared
+      .filter { item in item.located.signature.subFilter != .rfc3161 }
+      .map { item in
+        Self.entry(
+          of: item,
+          document: document,
+          judgement: judgement,
+          documentTimestamps: documentTimestamps,
+          postCandidates: postCandidates
+        )
+      }
     return DocumentReport(
       signatures: signatures,
       documentTimestamps: documentTimestamps.map(\.state)
     )
   }
 
+  /// Evaluates `CmsSignerVerification` once per located signature.
+  private static func prepareSignatures(
+    _ located: [PdfSignatureReader.LocatedSignature]
+  ) -> [PreparedSignature] {
+    located.map { item in
+      let profile = Self.profile(ofSubFilter: item.signature.subFilter)
+      let outcome: CmsSignerVerification.Outcome?
+      if let profile, item.signature.endsRevision {
+        outcome = CmsSignerVerification.verify(
+          cms: item.signature.cms,
+          signedOctets: item.signature.signedSpans.signedOctets,
+          profile: profile
+        )
+      } else {
+        outcome = nil
+      }
+      return PreparedSignature(located: item, profile: profile, outcome: outcome)
+    }
+  }
+
+  /// Converts prepared signatures into revision-analysis candidates.
+  private static func postSignatureCandidates(
+    from prepared: [PreparedSignature]
+  ) -> [PdfSignedContentAnalysis.PostSignatureCandidate] {
+    prepared.compactMap { item in
+      guard item.located.signature.endsRevision else { return nil }
+      let verified =
+        item.outcome?.documentIntact == true
+        && item.outcome?.signatureValid == true
+      return PdfSignedContentAnalysis.PostSignatureCandidate(
+        objectNumber: item.located.objectNumber,
+        location: item.located.location,
+        revisionEnd: item.located.signature.signedSpans.document.count,
+        isTimestamp: item.located.signature.subFilter == .rfc3161,
+        isCryptographicallyVerified: verified
+      )
+    }
+  }
+
   /// The row one signature dictionary makes.
   private static func entry(
-    of signature: PdfSignatureReader.FoundSignature,
+    of prepared: PreparedSignature,
     document: Data,
     judgement: PdfJudgement,
-    documentTimestamps: [DocumentTimestamp]
+    documentTimestamps: [DocumentTimestamp],
+    postCandidates: [PdfSignedContentAnalysis.PostSignatureCandidate]
   ) -> SignatureEntry {
+    let signature = prepared.located.signature
     let covering = documentTimestamps.filter { stamp in
       signature.signedSpans.document.count <= stamp.rangeStart
     }
@@ -99,12 +157,15 @@ extension DocumentVerification {
           state: stamp.state, covered: stamp.coveredValues, validUntil: stamp.judged.validUntil)
       },
       changesAfterSigning: PdfSignedContentAnalysis.changes(
-        document: document, signedEnd: signature.signedSpans.document.count)
+        document: document,
+        signedEnd: signature.signedSpans.document.count,
+        candidates: postCandidates
+      )
     )
     guard
-      let profile = Self.profile(ofSubFilter: signature.subFilter),
       signature.endsRevision,
-      let report = Self.report(of: signature, profile: profile, candidates, judgement)
+      let outcome = prepared.outcome,
+      let report = Self.report(of: signature, outcome: outcome, candidates, judgement)
     else {
       return .unsupported
     }
@@ -112,8 +173,7 @@ extension DocumentVerification {
   }
 
   /// Every document timestamp of the found signatures, in document
-  /// order: by where its revision ends, since the reader finds them by
-  /// object number.
+  /// order.
   private static func documentTimestamps(
     in found: [PdfSignatureReader.FoundSignature],
     _ judgement: PdfJudgement
@@ -136,10 +196,6 @@ extension DocumentVerification {
   }
 
   /// What one document timestamp's token was found to be.
-  ///
-  /// The imprint is taken under the token's own messageImprint hash
-  /// algorithm (RFC 3161 section 2.4.2) over the byte ranges; a range
-  /// that does not end a revision cannot be judged and is invalid.
   private static func documentTimestampState(
     of signature: PdfSignatureReader.FoundSignature,
     evidence: ValidationEvidence,
@@ -164,8 +220,9 @@ extension DocumentVerification {
   /// does not judge: PAdES baseline signatures need the ESS binding and
   /// carry no signing-time (EN 319 142-1 clause 6.3); PKCS #7 detached
   /// signatures need neither (EN 319 142-2 clause 4.2.3).
-  private static func profile(ofSubFilter subFilter: PdfSubFilter) -> CmsSignerVerification.Profile?
-  {
+  internal static func profile(
+    ofSubFilter subFilter: PdfSubFilter
+  ) -> CmsSignerVerification.Profile? {
     switch subFilter {
     case .cades:
       CmsSignerVerification.Profile(requiresSigningCertificate: true, forbidsSigningTime: true)
@@ -178,25 +235,15 @@ extension DocumentVerification {
     }
   }
 
-  /// The report of one PDF signature, or nil when its CMS or signer
-  /// cannot be read.
+  /// The report of one PDF signature whose CMS was already verified.
   private static func report(
     of signature: PdfSignatureReader.FoundSignature,
-    profile: CmsSignerVerification.Profile,
+    outcome: CmsSignerVerification.Outcome,
     _ candidates: SignatureCandidates,
     _ judgement: PdfJudgement
   ) -> SignatureReport? {
     let anchors = judgement.anchors
     let now = judgement.now
-    guard
-      let outcome = CmsSignerVerification.verify(
-        cms: signature.cms,
-        signedOctets: signature.signedSpans.signedOctets,
-        profile: profile
-      )
-    else {
-      return nil
-    }
     var evidence = judgement.evidence
     evidence.add(certificates: outcome.embeddedCertificates)
     for token in outcome.timestampTokens {
@@ -230,5 +277,4 @@ extension DocumentVerification {
       now: now
     )
   }
-
 }
