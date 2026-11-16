@@ -525,13 +525,16 @@ private func signApp(
     codesignItem(tokenExecutable, identity: signingIdentity, entitlements: tokenEntitlements)
   }
   if FileManager.default.fileExists(atPath: tokenAppEx.path) {
-    codesignItem(tokenAppEx, identity: signingIdentity)
+    codesignItem(tokenAppEx, identity: signingIdentity, entitlements: tokenEntitlements)
   }
   if FileManager.default.fileExists(atPath: mainExecutable.path) {
     codesignItem(mainExecutable, identity: signingIdentity, entitlements: appEntitlements)
   }
 
-  codesignItem(app, identity: signingIdentity)
+  // Signing a bundle re-signs its main executable, so the entitlements belong
+  // on the bundle as well; signing it without them strips them from the
+  // executable, and a sandboxed app without them cannot reach the card.
+  codesignItem(app, identity: signingIdentity, entitlements: appEntitlements)
 
   let verify = run(
     "/usr/bin/codesign",
@@ -541,6 +544,24 @@ private func signApp(
 
   if verify.failed {
     fail("codesign verification failed for \(app.path):\n\(verify.message)")
+  }
+
+  // A signature that verifies can still carry no entitlements, so check the
+  // ones the app needs to reach the card instead of trusting the verify.
+  let requiredEntitlements = [
+    (mainExecutable, "com.apple.security.app-sandbox"),
+    (tokenExecutable, "com.apple.security.smartcard"),
+  ]
+  for (path, key) in requiredEntitlements {
+    guard FileManager.default.fileExists(atPath: path.path) else { continue }
+    let embedded = run(
+      "/usr/bin/codesign",
+      ["-d", "--entitlements", "-", path.path],
+      directory: app.deletingLastPathComponent()
+    )
+    if !embedded.stdout.contains(key) {
+      fail("\(path.lastPathComponent) is signed without \(key)")
+    }
   }
 
   note("app signed and verified")

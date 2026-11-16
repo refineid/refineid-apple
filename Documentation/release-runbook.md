@@ -64,7 +64,9 @@ drag onto `/Applications` and removing the app is a delete from there.
   app-specific password is used.
 - The direct-download build reuses the App Store entitlement templates with the
   team prefix resolved, so the signed app carries the same capabilities as the
-  Store build.
+  Store build. The entitlements go on the executables and on the bundles,
+  because signing a bundle re-signs its main executable; the builder then reads
+  them back and fails if the app or the extension lost them.
 - This path commits the stamp it built from (`Version.xcconfig` and
   `PKCS11Bridge/Sources/PKCS11Bridge/ModuleVersion.swift`). App Store installs
   continue to stamp and restore `Version.xcconfig`, so no other stamp reaches a

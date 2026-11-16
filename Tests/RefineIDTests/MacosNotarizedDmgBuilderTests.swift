@@ -97,6 +97,24 @@ internal struct MacosNotarizedDmgBuilderTests {
       ))
   }
 
+  @Test("The signed bundles carry the entitlements the app needs")
+  internal func signingCarriesEntitlements() throws {
+    let source = try Self.builderSource()
+    // Signing a bundle re-signs its main executable, so the entitlements must
+    // be passed to the bundle as well as to the executable.
+    #expect(
+      source.contains("codesignItem(app, identity: signingIdentity, entitlements: appEntitlements)")
+    )
+    #expect(
+      source.contains(
+        "codesignItem(tokenAppEx, identity: signingIdentity, entitlements: tokenEntitlements)"
+      ))
+    // A signature that verifies can still carry no entitlements.
+    #expect(source.contains("com.apple.security.app-sandbox"))
+    #expect(source.contains("com.apple.security.smartcard"))
+    #expect(source.contains("is signed without"))
+  }
+
   @Test("The lint gate typechecks the builder and its tests")
   internal func gateCoversTheBuilder() throws {
     let lint = try Self.text("Scripts/lint.sh")
