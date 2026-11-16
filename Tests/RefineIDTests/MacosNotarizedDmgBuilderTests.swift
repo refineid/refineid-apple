@@ -68,7 +68,10 @@ internal struct MacosNotarizedDmgBuilderTests {
     #expect(source.contains(#""tag", "--points-at", "HEAD""#))
     #expect(source.contains(#""cat-file", "-t""#))
     #expect(source.contains("refs/tags/"))
-    #expect(source.contains("uncommitted changes"))
+    #expect(source.contains("uncommitted changes or untracked files"))
+    // Untracked files are part of that check: a source file the commit does not
+    // contain would be compiled into an image its tag cannot reproduce.
+    #expect(!source.contains("--untracked-files=no"))
     #expect(source.contains("does not name this build"))
     #expect(source.contains("not an annotated tag"))
     // The identity is stamped into the app, so the artifact says where it came from.

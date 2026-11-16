@@ -236,11 +236,15 @@ private func sourceIdentity(for tag: String) -> SourceIdentity {
     fail("could not read HEAD as a commit: \(commit)")
   }
 
-  let dirty = gitOutput(["status", "--porcelain", "--untracked-files=no", "--", "."])
+  // Untracked files count: a source file the commit does not contain would be
+  // compiled into an image stamped with a tag that cannot reproduce it. Files
+  // the repository ignores are not reported, so build output does not refuse
+  // the build.
+  let dirty = gitOutput(["status", "--porcelain", "--", "."])
   if !dirty.isEmpty {
     fail(
-      "the working tree has uncommitted changes; an image must come from the commit \(tag) names:\n"
-        + dirty
+      "the working tree has uncommitted changes or untracked files; an image must"
+        + " come from the commit \(tag) names:\n" + dirty
     )
   }
 
