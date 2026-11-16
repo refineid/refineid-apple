@@ -10,10 +10,12 @@
 //      build input is newer than the last recorded build stamp.
 //   2. Sign it with Developer ID Application.
 //   3. Package it into a DMG that installs by dragging onto /Applications.
-//   4. Notarize the DMG with notarytool.
-//   5. Staple the notarization ticket.
-//   6. Validate the stapled ticket.
-//   7. Write a checksum file next to the DMG.
+//   4. Sign the disk image itself with Developer ID Application.
+//   5. Notarize the DMG with notarytool.
+//   6. Staple the notarization ticket.
+//   7. Validate the stapled ticket.
+//   8. Assess the artifact with Gatekeeper.
+//   9. Write a checksum file next to the DMG.
 
 import Foundation
 
@@ -715,6 +717,47 @@ private func preflightNotaryProfile(_ notaryProfile: String, notarytool: String)
   )
 }
 
+/// Signs the disk image itself. Gatekeeper assesses a downloaded DMG before it
+/// is mounted, and that assessment covers the image, not only the app inside
+/// it. The signature must come before notarization: stapling writes the ticket
+/// into the image, and signing afterwards replaces the signature and leaves the
+/// ticket behind.
+private func signDmg(dmg: URL, signingIdentity: String, teamId: String) {
+  note("signing \(dmg.lastPathComponent) with Developer ID Application")
+
+  let result = run(
+    "/usr/bin/codesign",
+    ["--force", "--sign", signingIdentity, "--timestamp", dmg.path],
+    directory: dmg.deletingLastPathComponent()
+  )
+  if result.failed {
+    fail("codesign failed for \(dmg.path):\n\(result.message)")
+  }
+
+  let verify = run(
+    "/usr/bin/codesign",
+    ["--verify", "--strict", "--verbose=2", dmg.path],
+    directory: dmg.deletingLastPathComponent()
+  )
+  if verify.failed {
+    fail("codesign verification failed for \(dmg.path):\n\(verify.message)")
+  }
+
+  // A disk image signed by another team still verifies, and the notary service
+  // accepts it, so read back the team that signed this one.
+  let details = run(
+    "/usr/bin/codesign",
+    ["-dv", "--verbose=2", dmg.path],
+    directory: dmg.deletingLastPathComponent()
+  )
+  let expected = "TeamIdentifier=\(teamId)"
+  if !details.message.contains(expected) {
+    fail("\(dmg.lastPathComponent) is not signed by team \(teamId):\n\(details.message)")
+  }
+
+  note("disk image signed and verified")
+}
+
 private func notarizeDmg(
   dmg: URL,
   notaryProfile: String,
@@ -767,6 +810,27 @@ private func validateDmg(dmg: URL) {
   if result.failed {
     fail("stapler validate failed for \(dmg.path): \(result.message)")
   }
+}
+
+/// Confirms what a user's Mac checks when the image is opened: the signature on
+/// the image plus the stapled ticket. Without the image signature this reports
+/// `no usable signature` however well the app inside is signed.
+private func assessDmg(dmg: URL) {
+  note("assessing \(dmg.lastPathComponent) with Gatekeeper")
+
+  let result = run(
+    "/usr/sbin/spctl",
+    [
+      "-a", "-t", "open", "--context", "context:primary-signature", "-vv", dmg.path,
+    ],
+    directory: dmg.deletingLastPathComponent()
+  )
+
+  if result.failed {
+    fail("Gatekeeper rejected \(dmg.path):\n\(result.message)")
+  }
+
+  note("Gatekeeper accepts \(dmg.lastPathComponent)")
 }
 
 private func writeChecksumFile(for dmg: URL) {
@@ -842,9 +906,11 @@ private func main() {
     volumeName: options.appName,
     overwrite: options.overwrite
   )
+  signDmg(dmg: dmg, signingIdentity: signingIdentity, teamId: teamId)
   notarizeDmg(dmg: dmg, notaryProfile: options.notaryProfile, notarytool: notarytool)
   stapleDmg(dmg: dmg)
   validateDmg(dmg: dmg)
+  assessDmg(dmg: dmg)
   writeChecksumFile(for: dmg)
 
   note("done: \(dmg.path)")

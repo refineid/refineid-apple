@@ -115,6 +115,24 @@ internal struct MacosNotarizedDmgBuilderTests {
     #expect(source.contains("is signed without"))
   }
 
+  @Test("The disk image is signed, then notarized, then assessed")
+  internal func diskImageIsSignedBeforeNotarization() throws {
+    let source = try Self.builderSource()
+    let signed = try #require(source.range(of: "signDmg(dmg: dmg"))
+    let notarized = try #require(source.range(of: "notarizeDmg(dmg: dmg"))
+    let assessed = try #require(source.range(of: "assessDmg(dmg: dmg"))
+    // Stapling writes the ticket into the image, so a signature added later
+    // would replace the signature and discard the ticket.
+    #expect(signed.lowerBound < notarized.lowerBound)
+    #expect(notarized.lowerBound < assessed.lowerBound)
+    // Gatekeeper assesses the image itself, so the signature on the app inside
+    // is not enough, and a signature from another team would still verify.
+    #expect(source.contains(#""TeamIdentifier=\(teamId)""#))
+    #expect(source.contains("context:primary-signature"))
+    let runbook = try Self.text("Documentation/release-runbook.md")
+    #expect(runbook.contains("signs the disk image itself"))
+  }
+
   @Test("The lint gate typechecks the builder and its tests")
   internal func gateCoversTheBuilder() throws {
     let lint = try Self.text("Scripts/lint.sh")

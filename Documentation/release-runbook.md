@@ -35,9 +35,10 @@ not upload to App Store Connect.
 It builds the macOS app, signs nested components inside out with a Developer ID
 Application identity, packages a DMG named
 `RefineID-v<MARKETING_VERSION>.<UTC-HHMM>.dmg` (version from `Version.xcconfig`,
-build time in UTC), submits it for notarization with `notarytool` using a
-keychain profile (default `RefineID-notary`), staples and validates the ticket,
-and writes checksums next to the DMG.
+build time in UTC), signs the disk image itself, notarizes it with `notarytool`
+using a keychain profile (default `RefineID-notary`), staples and validates the
+ticket, assesses the artifact with Gatekeeper, and writes checksums next to the
+DMG.
 
 Stamp `Version.xcconfig` to the intended release/build version before building
 (for example `Scripts/apple-app-store-connect-release-manager.swift stamp`), so
@@ -49,6 +50,14 @@ Details that matter when running it:
 - The DMG holds `RefineID.app` and an `Applications` link, so installing is a
 drag onto `/Applications` and removing the app is a delete from there.
 - The build is arm64 only. There is no universal or Intel artifact.
+- The builder signs the disk image itself, not only the app inside it, so
+  Gatekeeper accepts a downloaded DMG before it is mounted
+  (`spctl -a -t open --context context:primary-signature`). The image signature
+  must precede notarization, because stapling writes the ticket into the image
+  and signing afterwards would replace the signature and discard the ticket.
+  The builder reads the signature's `TeamIdentifier` back and stops if the image
+  is not signed under `DEVELOPMENT_TEAM`, then fails the run unless Gatekeeper
+  accepts the stapled image.
 - The signing team comes from `DEVELOPMENT_TEAM` in `Version.xcconfig`, so the
   build signs under the team the checkout declares. `--team-id` overrides it,
   and an empty value is rejected before any build or signing work.
@@ -417,17 +426,6 @@ and a manual copy.
 This local build is normally Apple Development signed. Call it a "local
 Release build", not a notarized build, App Store candidate, or production
 distribution.
-
-## Direct Developer ID distribution
-
-This repository does not currently define an authoritative Developer ID
-archive, packaging, notarization, stapling, and publication workflow. Do not
-invent one during an App Store release.
-
-If direct distribution becomes a product requirement, add a reviewed script
-that performs Developer ID signing, packaging, `notarytool` submission,
-`stapler` attachment and validation, Gatekeeper assessment, checksumming, and
-artifact publication. Keep that workflow separate from App Store export.
 
 ## Release evidence record
 
