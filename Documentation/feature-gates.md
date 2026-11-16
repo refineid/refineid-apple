@@ -48,10 +48,15 @@ that machine only. There is no other override mechanism.
 | `REFINEID_REMOTE_CARD` | On except macOS, in every macOS configuration | Pairing over RAPP and everything a pairing enables |
 | `FEATURE_CARD_ACTIVATION` | On everywhere | The activation form for factory-fresh cards |
 | `FEATURE_CONTACTLESS` | On | The CAN entry for contactless cards on macOS (iPhone NFC is not gated) |
-| `FEATURE_TIMESTAMP_CONFIG` | On | The Time Stamp Settings pane on macOS |
-| `FEATURE_PDF_STAMP` | On | The visible stamp; off means invisible signatures |
+| `FEATURE_TIMESTAMP_CONFIG` | Off on macOS in every configuration; iOS Settings app keeps the address | The Time Stamp Settings pane on macOS |
+| `FEATURE_PDF_STAMP` | Off on macOS in every configuration; on for iPhone and iPad | The visible stamp; off means invisible signatures |
 | `FEATURE_SCS` | Off, set by no configuration | The loopback HTTPS signing service and its Settings pane |
 | `FEATURE_ORGANIZATION_CARD` | Off, set by no configuration | Organization cards end to end |
+
+The macOS MVP compiles out every Settings pane, so the app has no
+Settings window and no Settings item in its application menu. Its
+signatures ask `http://timestamp.sectigo.com/qualified` and carry no
+visible stamp.
 
 ## What each feature needs
 

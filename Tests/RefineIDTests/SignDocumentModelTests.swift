@@ -90,10 +90,14 @@
               "No handwritten signature; the stamp will show the certificate identity."
           )
       )
-      #expect(
-        model.visibleStamp(on: Data())?.signerCertificate
-          == Self.stampCertificate
-      )
+      #if FEATURE_PDF_STAMP
+        #expect(
+          model.visibleStamp(on: Data())?.signerCertificate
+            == Self.stampCertificate
+        )
+      #else
+        #expect(model.visibleStamp(on: Data()) == nil)
+      #endif
     }
 
     @Test
@@ -172,11 +176,16 @@
         )
       )
 
-      let stamp = try #require(model.visibleStamp(on: Data()))
-      #expect(stamp.signerCertificate == Self.stampCertificate)
-      #expect(stamp.mark.operators.contains("0.7765 0.1569 0.1569 RG"))
-      #expect(!stamp.mark.operators.contains("-45.0000 -6.0000 m"))
+      #expect(model.stampMark() != nil)
       #expect(model.stampFailure == nil)
+      #if FEATURE_PDF_STAMP
+        let stamp = try #require(model.visibleStamp(on: Data()))
+        #expect(stamp.signerCertificate == Self.stampCertificate)
+        #expect(stamp.mark.operators.contains("0.7765 0.1569 0.1569 RG"))
+        #expect(!stamp.mark.operators.contains("-45.0000 -6.0000 m"))
+      #else
+        #expect(model.visibleStamp(on: Data()) == nil)
+      #endif
     }
 
     @Test

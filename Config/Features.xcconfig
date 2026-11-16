@@ -16,7 +16,8 @@
 //       The visible PDF stamp: the CAN-gated mark carrying the
 //       holder's name, SATU and card ink. Off, every signature stays
 //       invisible - the non-rendering signature structures only - and
-//       no stamp UI is offered.
+//       no stamp UI is offered. Off on macOS in every configuration
+//       for the MVP; the iPhone and iPad keep it.
 //
 //   FEATURE_SCS
 //       The loopback HTTPS signing service on macOS and its Settings
@@ -29,15 +30,22 @@
 //       changes the RFC 3161 time-stamp authority signatures ask.
 //       The store beneath stays built either way; with the pane
 //       compiled out nothing writes the key and every signature asks
-//       the shipped service.
+//       the shipped service. Off on macOS in every configuration for
+//       the MVP; the iPhone and iPad keep the Settings-app address.
 //
 // macOS ships local card authentication, management and document signing
 // only (Documentation/decisions.md, 2026-11-14): the remote card over
-// RAPP is gated off until it returns. Every signature is time-stamped
-// by the configured authority, or the qualified Sectigo server
-// (http://timestamp.sectigo.com/qualified) until one is set.
+// RAPP is gated off until it returns. Every macOS signature is
+// time-stamped by the qualified Sectigo server
+// (http://timestamp.sectigo.com/qualified) and carries no visible stamp.
+// The iPhone and iPad keep their configurable authority and stamp.
 
 REFINEID_FEATURES = FEATURE_CONTACTLESS FEATURE_TIMESTAMP_CONFIG FEATURE_PDF_STAMP
+
+// The macOS MVP compiles out every Settings pane: the time-stamp
+// authority is the shipped Sectigo service and signatures are
+// invisible, so no feature needs a Settings window or its menu item.
+REFINEID_FEATURES[sdk=macosx*] = FEATURE_CONTACTLESS
 
 // The local card: this build talks to a card the device itself holds,
 // over its own antenna. On by default, because every shipping iPhone

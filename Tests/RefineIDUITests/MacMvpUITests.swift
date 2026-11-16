@@ -12,11 +12,8 @@
       "sv": "PIN-koder",
     ]
 
-    /// The shipped address the field shows with nothing stored.
-    private static let defaultAddress = "http://timestamp.sectigo.com/qualified"
-
-    /// How long the automatic probe may take to fail.
-    private static let verdictTimeout: TimeInterval = 20
+    /// The prefix a Settings item carries when a pane needs one.
+    private static let settingsItemTitlePrefix = "Settings"
 
     internal func testEnglishLocalCard() {
       checkLocalCard(language: "en")
@@ -57,59 +54,21 @@
           .exists)
     }
 
-    internal func testUnprovenDraftRevertsToStoredAddress() {
+    /// No pane is compiled in, so the app menu carries no Settings item
+    /// and the app has no window for one.
+    internal func testNoSettingsItemWithoutASettingsPane() {
       let app = UITestApp.launch(
-        language: "fi",
         arguments: ["--virtual-card", "absent", "--hide-diagnostics"])
       defer { app.terminate() }
-      openMainWindow(app)
-      app.typeKey(",", modifierFlags: [.command])
-      let field = app.textFields["timestampAuthorityField"].firstMatch
-      XCTAssertTrue(field.waitForExistence(timeout: UITestApp.appearTimeout))
-      let settingsWindow = app.windows.containing(
-        .textField, identifier: "timestampAuthorityField"
-      ).firstMatch
-      let restore = app.buttons["timestampRestoreButton"].firstMatch
-      let badge = app.descendants(matching: .any)["timestampStatusBadge"].firstMatch
-      // A stored address from an earlier run restores first.
-      if field.value as? String != Self.defaultAddress {
-        restore.click()
-        expectation(
-          for: NSPredicate(format: "value == %@", Self.defaultAddress),
-          evaluatedWith: field)
-        waitForExpectations(timeout: UITestApp.appearTimeout)
-      }
-      XCTAssertFalse(restore.exists)
-      // The shipped authority is never probed: past the debounce the
-      // badge still shows untested.
-      sleep(3)
-      XCTAssertEqual(badge.label, "Ei testattu")
-      // A fresh refused port per run: no recorded verdict can answer
-      // for the probe, so the badge proves the automatic test ran.
-      let port = 20_000 + Int(Date().timeIntervalSince1970) % 20_000
-      field.click()
-      app.typeKey("a", modifierFlags: [.command])
-      field.typeText("127.0.0.1:\(port)/tsa")
-      XCTAssertTrue(restore.waitForExistence(timeout: UITestApp.appearTimeout))
-      XCTAssertTrue(badge.waitForExistence(timeout: UITestApp.appearTimeout))
-      expectation(
-        for: NSPredicate(format: "label CONTAINS %@", "Epäonnistui"),
-        evaluatedWith: badge)
-      waitForExpectations(timeout: Self.verdictTimeout)
-      let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-      attachment.name = "timestamp-settings-unproven"
-      attachment.lifetime = .keepAlways
-      add(attachment)
-      // The unproven draft was never stored: reopening shows the default.
-      settingsWindow.buttons[XCUIIdentifierCloseWindow].firstMatch.click()
-      expectation(
-        for: NSPredicate(format: "exists == false"),
-        evaluatedWith: field)
-      waitForExpectations(timeout: UITestApp.appearTimeout)
-      app.typeKey(",", modifierFlags: [.command])
-      XCTAssertTrue(field.waitForExistence(timeout: UITestApp.appearTimeout))
-      XCTAssertEqual(field.value as? String, Self.defaultAddress)
-      XCTAssertFalse(restore.exists)
+      let windowMenu = app.menuBars.menuBarItems.containing(.menuItem, identifier: "RefineID")
+        .firstMatch
+      XCTAssertTrue(windowMenu.waitForExistence(timeout: UITestApp.appearTimeout))
+      windowMenu.click()
+      let settingsItems = app.menuItems.matching(
+        NSPredicate(
+          format: "title BEGINSWITH[c] %@ OR title BEGINSWITH[c] %@",
+          Self.settingsItemTitlePrefix, "Asetukset"))
+      XCTAssertEqual(settingsItems.count, 0)
     }
 
     private func openMainWindow(_ app: XCUIApplication) {
