@@ -1,4 +1,5 @@
-#!/usr/bin/env swift  // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
+#!/usr/bin/env swift
+// Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 // Builds a Developer ID signed, notarized, stapled macOS DMG for direct
 // distribution. This is a direct-download artifact path only. It is separate
