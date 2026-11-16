@@ -36,10 +36,16 @@
     }
 
     #if os(macOS) && REFINEID_REMOTE_CARD
+      /// Follows the switch as its seam asks: the registry is what follows a
+      /// move.
+      internal func remoteUseChanged(_ move: RemoteUseSwitch.Move) {
+        followRemoteUse(move)
+      }
+
       /// Follows the switch: on, the paired phone is followed as at launch,
       /// or the code entry is offered; the holder's click off forgets every
       /// pairing; a stop withdraws and keeps the pairings.
-      internal func remoteUseChanged(_ move: RemoteUseSwitch.Move) {
+      private func followRemoteUse(_ move: RemoteUseSwitch.Move) {
         guard Self.dialsPhones else { return }
         switch move {
         case .forgetting:
@@ -83,7 +89,8 @@
         in vault: RappDeviceVault, store: RemoteUseForgetting.Store
       ) {
         RemoteUseForgetting.request(
-          at: RappPlatformClock().wallMilliseconds(), listing: vault, in: store)
+          at: RappPlatformClock().wallMilliseconds(), listing: VaultPairingVault(vault: vault),
+          in: store)
         phoneThatForgot = nil
         let closing = holderSession?.pairID
         let closes = revokeHolderSession()
@@ -122,7 +129,7 @@
           if let closes, await closes.value, let closing {
             try? RappPairRevocation.revoke(pairID: closing, in: vault, clock: clock)
           }
-          return RemoteUseForgetting.finish(in: vault, store: store, clock: clock)
+          return RemoteUseForgetting.finish(in: VaultPairingVault(vault: vault), store: store)
         }
         pairingDestruction = destruction
         let following = Task { @MainActor [weak self] in
@@ -147,7 +154,13 @@
       /// the row follows what `vault` holds, and the rest of the app learns
       /// the pairings changed.
       private func forgotten(_ outcome: RemoteUseForgetting.Outcome, in vault: RappDeviceVault) {
-        RemoteUseForgetting.report(outcome)
+        #if DEBUG
+          if outcome.failures > 0 {
+            DevErrorLog.report(
+              "remote use off: \(outcome.failures) pairing(s) not settled, kept for the next try",
+              source: .app)
+          }
+        #endif
         refreshPairing(in: vault)
         followRevocationBacklog(in: vault)
         NotificationCenter.default.post(
@@ -293,4 +306,10 @@
       }
     }
   }
+
+  #if os(macOS)
+    extension PersistentTokenRegistry: RemoteUseFollowing {
+      // A move arrives through `remoteUseChanged(_:)` above.
+    }
+  #endif
 #endif

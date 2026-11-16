@@ -48,8 +48,12 @@ internal struct RemoteUseSwitchDecisionTests {
   }
 
   /// The moves the switch reported to the requester.
-  internal final class Moves {
+  internal final class Moves: RemoteUseFollowing {
     internal var value: [RemoteUseSwitch.Move] = []
+
+    internal func remoteUseChanged(_ move: RemoteUseSwitch.Move) {
+      value.append(move)
+    }
   }
 
   /// A switch on recording watches and a recording choice.
@@ -71,10 +75,9 @@ internal struct RemoteUseSwitchDecisionTests {
     let remoteUse = RemoteUseSwitch(
       bluetooth: bluetooth,
       localNetwork: localNetwork,
-      setting: setting
-    ) { move in
-      moves.value.append(move)
-    }
+      setting: setting,
+      follow: moves
+    )
     return Rig(
       remoteUse: remoteUse, bluetooth: bluetooth, localNetwork: localNetwork, setting: setting,
       moves: moves)

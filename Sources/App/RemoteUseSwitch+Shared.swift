@@ -10,10 +10,9 @@
     @MainActor internal static let shared = RemoteUseSwitch(
       bluetooth: BluetoothReadinessWatch(),
       localNetwork: LocalNetworkPermissionWatch(),
-      setting: RemoteUseGateSetting()
-    ) { move in
-      PersistentTokenRegistry.shared.remoteUseChanged(move)
-    }
+      setting: RemoteUseGateSetting(),
+      follow: PersistentTokenRegistry.shared
+    )
   }
 
 #endif

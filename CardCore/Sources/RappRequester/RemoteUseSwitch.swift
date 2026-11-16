@@ -64,7 +64,7 @@ public final class RemoteUseSwitch {
   @ObservationIgnored private let setting: any RemoteUseSetting
 
   /// Tells the requester how the switch moved.
-  @ObservationIgnored private let follow: @MainActor (Move) -> Void
+  @ObservationIgnored private let follow: any RemoteUseFollowing
 
   /// Whether the launch has decided remote use; before it, a suspension that
   /// ends starts nothing.
@@ -94,7 +94,7 @@ public final class RemoteUseSwitch {
     bluetooth: any RemoteUseWatch,
     localNetwork: any RemoteUseWatch,
     setting: any RemoteUseSetting,
-    follow: @escaping @MainActor (Move) -> Void
+    follow: any RemoteUseFollowing
   ) {
     isOn = setting.isEnabled
     bluetoothWatch = bluetooth
@@ -189,7 +189,7 @@ public final class RemoteUseSwitch {
         stopWatches()
       }
     }
-    follow(move)
+    follow.remoteUseChanged(move)
   }
 
   private func startWatches() {
