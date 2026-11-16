@@ -20,7 +20,7 @@
 
 | Domain | Authoritative Specification | Scope & Topic Summary |
 |---|---|---|
-| **macOS App & MVP** | [macos.md](design/macos.md) | Single window, local card reader and document signing only (USB contact and contactless), single plist (`RefineID-Store-Info.plist`), RAPP, SCS, Settings panes, and document verification compiled out. |
+| **macOS App & MVP** | [macos.md](design/macos.md) | Single window, contact card reader and document signing only, single plist (`RefineID-Store-Info.plist`), contactless, RAPP, SCS, Settings panes, and document verification compiled out. |
 | **iPhone & iPad App** | [ios.md](design/ios.md) | Built-in NFC, on-device CAN OCR and manual entry, single plist (`RefineID-iOS-Info.plist`), Remote Access (RAPP) background BLE and Bonjour serving. |
 | **Network & Transport** | [network-contract.md](design/network-contract.md) | Outbound-only traffic (TSA, OCSP/CRL/AIA, LOTL), `SigningNetwork` public IP gate, ATS configuration, zero inbound listeners on macOS. |
 | **PIN & Credentials** | [pin-and-credentials.md](design/pin-and-credentials.md) | Rules #1, #2, and #4, PIN 1 5-try custody floor & recovery, on-device PIN 2 prompt & memory-only pile caching, hardware retry floors & PUK handling, CAN storage. |
@@ -204,47 +204,6 @@ with its `TEST_HOST` following the SDK.
 - `RappPairingSearchMessageTests` asserts each platform's own wording
   for the denied local network and the unreachable phone.
 
-## 2026-11-14 macOS MVP ships the local card only; the remote card is gated off
-
-Maintainer's decision: "I have decided to release macOS version without
-RAPP for now as MVP". The macOS build carries local card
-authentication, management and document signing only; pairing with a
-phone, the remote-use switch, remote signing, and the remote-card
-CryptoTokenKit extension are compiled out. This supersedes the RAPP
-part of the 2026-10-10 entry and the macOS Bluetooth grant of the
-2026-11-08 entry; the iPhone and the iPad keep the remote card.
-
-- `REFINEID_REMOTE_CARD` stays the one gate
-  (`Config/Features.xcconfig`), and macOS sets it in no
-  configuration: the `sdk=macosx*` stanza, including the TestFlight
-  and Release spellings, is empty. The shared code beneath stays
-  built and its RAPP tests keep running; only the Mac-only switch
-  and its tests compile away.
-- The Mac archive embeds no RAPP extension (`platformFilter = ios`
-  on its embed, as the discovery extension already does), the store
-  entitlements grant no Bluetooth, and the macOS plists declare no
-  Bonjour service and no local-network or Bluetooth prompt.
-  Outbound network access stays for timestamps and revocation
-  checks. `inspect-archive` holds the Mac candidate to this shape.
-- Only RAPP uses Bluetooth, so Bluetooth follows the same gate: the
-  CoreBluetooth sources compile out on macOS, the app's seams close
-  behind `REFINEID_REMOTE_CARD`, and `inspect-archive` fails a Mac
-  candidate whose binaries link CoreBluetooth (ITMS-90683). The
-  engine's Bluetooth tests run on the iOS simulator instead.
-- Stored pairings are left exactly as they are; a gated build never
-  browses, dials, or offers the phone's identity, and the identity
-  row asks for the reader where it used to name the switch.
-  Bringing the remote card back is the flag, the embed, the
-  declarations, and the archive policy together.
-- `RappGatingContractTests` holds the gate: a line in `Sources/App`
-  that names the engine, a pairing, the vault or the phone's card is
-  compiled into the macOS build only with the flag over it. Its list of
-  shared sources is empty: the identity row's facts, its lines and its
-  phone views (`RequesterFacts`, `IdentityLine`, `PairedPhoneLine`,
-  `PhoneCardRequest`, `PhoneCardRequestLine`, `IdentityStateView`) now
-  follow the flag too, and the Mac row keeps the card-not-ready,
-  local-holder, reading, insert-card and connect-reader states alone.
-
 ### 2026-11-13 Proven card access number is kept for cards awaiting activation
 
 Maintainer's decision (2026-10-24, #270): on iPhone, once PACE has
@@ -333,6 +292,9 @@ server as configurable option in setting with current one refilled."
   review.
 
 ### 2026-11-08 The Mac App Store build reaches the phone over Bluetooth
+
+Superseded for macOS: the Mac build carries no remote card and no
+Bluetooth; the iPhone and the iPad keep both.
 
 Maintainer's decision: "I want Mac to use bluetooth also, naturally."
 Every macOS configuration now signs the app with
@@ -2272,6 +2234,9 @@ without hints stands for the only pairing, or for an unknown one when several
 are stored.
 
 ### 2026-10-10 RAPP returns to macOS, as a requester that only dials
+
+Superseded for macOS: the remote card is gated off the Mac build
+again. iOS scope is unchanged.
 
 The release owner put the remote card back into the macOS App Store build:
 pairing with a phone that holds the card, document signing through it, and

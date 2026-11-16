@@ -264,9 +264,9 @@ for the intended next action.
 ### macOS scope
 
 The candidate ships local card authentication, activation, PIN management and
-document signing only: the remote card over RAPP is gated off for the MVP
-(decisions 2026-11-14), so `REFINEID_REMOTE_CARD` is set in no macOS
-configuration in `Config/Features.xcconfig`. SCS is in no macOS build;
+document signing only: the remote card over RAPP is gated off, so
+`REFINEID_REMOTE_CARD` is set in no macOS configuration in
+`Config/Features.xcconfig`. SCS is in no macOS build;
 verify a saved SCS opt-in cannot start a listener or request certificate
 trust. The archive carries the local token extension only, with no server
 entitlement, no Bluetooth, and no local-network or Bonjour declarations;

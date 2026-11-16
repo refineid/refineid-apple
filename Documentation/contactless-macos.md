@@ -1,18 +1,20 @@
 # Contactless cards on macOS
 
-How a sealed contactless card becomes a published identity on a Mac,
-and the platform facts the design rests on. The flow is out of the
-first App Store release (`Documentation/decisions.md`, 2026-08-11):
-`FEATURE_CONTACTLESS` is off and the `application-groups` entitlement
-it needs is removed, so no group container is created. This document
-describes the flow as built.
+How a sealed contactless card becomes a published identity, and the
+platform facts the design rests on. The flow is behind
+`FEATURE_CONTACTLESS` (see `feature-gates.md`): off on macOS, on on
+iOS. The iPhone reads contactless cards over NFC; the Mac makes no
+attempt — no detection, no entry, no driver unseal. What follows
+describes the flow with the flag on; restoring it on macOS sets
+`FEATURE_CONTACTLESS` for `macosx*` in `Config/Features.xcconfig`
+and lifts the `!os(macOS)` gates in `CardCore`.
 
 ## The flow
 
 A contactless FINEID card refuses SELECT of its application with
 `6982` until PACE has run (FINEID S1), and PACE needs the card access
-number printed on the card face. On a Mac the token driver runs PACE,
-so the number the holder types in the app has to reach the driver.
+number printed on the card face. The token driver runs PACE, so the
+number the holder types in the app has to reach the driver.
 
 The status window shows one entry row - CAN beside six digit boxes -
 only when the reader's slot proves the card is on a contactless
@@ -36,18 +38,15 @@ application only, and every other caller - the token extension
 included - is handed an empty store. A number written there is
 unreadable exactly where it is needed.
 
-The working channel is the app group container both processes are
-entitled to (`OfferedAccessNumber` in CardCore): the app writes the
-offered number as an owner-only file, the driver reads it during
-unseal, and a refusal marker file flows back the other way for the
-entry row's feedback.
+The working channel is the shared keychain group both processes are
+entitled to (`CardCanOffer` in CardCore): the app offers the number,
+the driver reads it during unseal, and a refusal marker flows back
+the other way for the entry row's feedback.
 
 The offer lives for the app run: a stale one is withdrawn at launch,
 the current one at quit. It deliberately survives the card leaving
 the field - a contactless card leaves between taps, and the offer
-exists to serve the next tap. An earlier version withdrew it on card
-departure, which deleted the number in the moment between lifting the
-card and laying it back, starving the very mint it was typed for.
+exists to serve the next tap.
 
 ## Why the row asks for the card again
 
@@ -75,6 +74,27 @@ sixth digit lands), and the driver latches a refused number by
 fingerprint (`RefusedUnseal`) so re-arrivals of the card do not retry
 it. Entering a different number is what re-arms the attempt.
 
+## The iOS branch
+
+iOS tries the one stored number. Its token extension shares a
+keychain access group with the app and reads the stored number
+itself, so publishing a second copy for it would be pointless:
+`publishToDriver` makes none there. The offer, the per-card
+library, and the refusal marker are the macOS handoff, and the
+iOS branch of the candidates call ignores all three.
+
+## Tests
+
+The offer handoff is tested in `Tests/CardCoreTests`, which runs
+on both platforms: the shared core (offer round-trip, invalid
+offer, access-group shape) runs on macOS, and the
+offer/library/refusal members run on the iOS simulator through
+the simulator-only step of `Scripts/test.sh pr`, asserting the
+iOS shape above. The app-side opening test,
+`Tests/RefineIDTests/CardCanOfferOpeningTests.swift`, keeps its
+contactless candidate cases behind `FEATURE_CONTACTLESS` while
+always verifying the pre-PACE status-word classification.
+
 ## Reading the extension's side
 
 Debug bundles carry their code in `<name>.debug.dylib` beside a
@@ -90,7 +110,11 @@ An organization card (FINEID S4-2) has no card access number. On the
 antenna it answers `6985` to everything but EF.CardAccess until PACE
 has run with PIN 1 or PIN 2 as the password (FINEID S1 v4.0,
 organizational cards, section 2.1), so nothing identifies the card or
-yields its certificates before the holder types a PIN.
+yields its certificates before the holder types a PIN. The antenna
+flow below needs `FEATURE_CONTACTLESS` and
+`FEATURE_ORGANIZATION_CARD` together; with either off, the driver
+refuses the card before any credential is spent and the window keeps
+no slot prompt.
 
 - **Contact first.** A contact read of an organization card leaves its
   certificates and chip serial in `OrganizationPrimeStore`, keyed by the

@@ -10,12 +10,14 @@ import Foundation
 /// Split from `Token` for length alone; this is the half that talks to
 /// the card before a token exists.
 extension Token {
-  /// One number's PACE attempt and what became of it.
-  private enum PaceAttempt {
-    case minted(PublishedIdentity, CardAccessNumber)
-    case refused(any Error)
-    case transportDead(any Error)
-  }
+  #if FEATURE_CONTACTLESS
+    /// One number's PACE attempt and what became of it.
+    private enum PaceAttempt {
+      case minted(PublishedIdentity, CardAccessNumber)
+      case refused(any Error)
+      case transportDead(any Error)
+    }
+  #endif
 
   /// Reads the leaf and (best-effort) issuer certificates in one
   /// exclusive card session, unsealing the card first if it asks to be.
@@ -48,11 +50,16 @@ extension Token {
         TokenLog.info("readIdentity: selecting application")
         try CardOperations(channel: channel).selectFineidApplication()
       } catch CardOperationError.selectRejected(.securityNotSatisfied) {
-        TokenLog.info("readIdentity: application is sealed; unsealing")
-        CardCredentialStore.recordCardAsk(.cardAccessNumber)
-        let (identity, accessNumber) = try Self.unsealed(
-          over: channel, answerToReset: answerToReset)
-        return (identity, .cardAccessNumber(accessNumber))
+        #if FEATURE_CONTACTLESS
+          TokenLog.info("readIdentity: application is sealed; unsealing")
+          CardCredentialStore.recordCardAsk(.cardAccessNumber)
+          let (identity, accessNumber) = try Self.unsealed(
+            over: channel, answerToReset: answerToReset)
+          return (identity, .cardAccessNumber(accessNumber))
+        #else
+          // Without the flag a sealed card is reported, not retried.
+          throw CardOperationError.selectRejected(.securityNotSatisfied)
+        #endif
       } catch CardOperationError.selectRejected(.conditionsNotSatisfied) {
         return try Self.organizationIdentity(answerToReset: answerToReset)
       }
@@ -153,126 +160,134 @@ extension Token {
       "readIdentity: organization card primed for the antenna status=\(stored)")
   }
 
-  /// Runs PACE over an already-open channel and reads through it.
-  ///
-  /// This is the priming flow the app runs on the phone, in the
-  /// extension and without the deadline. A reader powers the card
-  /// continuously, so there is no field to lose and nothing to store
-  /// ahead of time: the certificate is read live, exactly as the contact
-  /// path reads it, and the identity is published from what the card
-  /// just said.
-  ///
-  /// The card access number is the one the holder entered. Absent, this
-  /// stops here with a typed refusal -- a sealed card and no number is
-  /// setup that has not been done, not a fault to keep retrying at.
-  private static func unsealed(
-    over channel: SmartCardChannel,
-    answerToReset: Data?
-  ) throws -> (identity: PublishedIdentity, accessNumber: CardAccessNumber) {
-    // Every stored number, active offer first: a card answers with no
-    // individual identifier before PACE, so one number cannot be
-    // selected for it: the first is tried, and a refusal wipes them
-    // all.
-    let candidates = CardCredentialStore.cardAccessNumberCandidates()
-    guard !candidates.isEmpty else {
-      // The status separates the two faults that look identical here:
-      // nothing stored is setup not done, while a refusal is this
-      // process being unable to read what the app wrote.
-      TokenLog.error(
-        "readIdentity: card is sealed and no card access number is readable "
-          + "(status=\(CardCredentialStore.cardAccessNumberReadStatus()); "
-          + "offer: \(CardCanOffer.missDescription()))"
-      )
-      throw TokenError.primeMissing
-    }
-    // The latch, before any card time is spent: a failed PACE tears the
-    // field, the card re-arrives, and the system asks again with
-    // nothing changed. Numbers this card just refused are skipped; a
-    // fresh number is what earns the card a fresh attempt.
-    let fresh = Self.freshCandidates(candidates, answerToReset: answerToReset)
-    guard !fresh.isEmpty else {
-      TokenLog.info("readIdentity: these numbers were just refused by this card; not retrying yet")
-      CardCredentialStore.recordOfferedNumberRefusal()
-      throw TokenError.unsealAlreadyRefused
-    }
-    // One try: the first CAN the card refuses wipes them all.
-    guard let candidate = fresh.first else { throw TokenError.unsealAlreadyRefused }
-    switch Self.paceAttempt(candidate: candidate, index: 0, total: 1, channel: channel) {
-    case .minted(let identity, let accessNumber):
-      return (identity, accessNumber)
+  #if FEATURE_CONTACTLESS
+    /// Runs PACE over an already-open channel and reads through it.
+    ///
+    /// This is the priming flow the app runs on the phone, in the
+    /// extension and without the deadline. A reader powers the card
+    /// continuously, so there is no field to lose and nothing to store
+    /// ahead of time: the certificate is read live, exactly as the contact
+    /// path reads it, and the identity is published from what the card
+    /// just said.
+    ///
+    /// The card access number is the one the holder entered. Absent, this
+    /// stops here with a typed refusal -- a sealed card and no number is
+    /// setup that has not been done, not a fault to keep retrying at.
+    private static func unsealed(
+      over channel: SmartCardChannel,
+      answerToReset: Data?
+    ) throws -> (identity: PublishedIdentity, accessNumber: CardAccessNumber) {
+      // Every stored number, active offer first: a card answers with no
+      // individual identifier before PACE, so one number cannot be
+      // selected for it: the first is tried, and a refusal wipes them
+      // all.
+      let candidates = CardCredentialStore.cardAccessNumberCandidates()
+      guard !candidates.isEmpty else {
+        // The status separates the two faults that look identical here:
+        // nothing stored is setup not done, while a refusal is this
+        // process being unable to read what the app wrote.
+        TokenLog.error(
+          "readIdentity: card is sealed and no card access number is readable "
+            + "(status=\(CardCredentialStore.cardAccessNumberReadStatus()); "
+            + "offer: \(CardCanOffer.missDescription()))"
+        )
+        throw TokenError.primeMissing
+      }
+      // The latch, before any card time is spent: a failed PACE tears the
+      // field, the card re-arrives, and the system asks again with
+      // nothing changed. Numbers this card just refused are skipped; a
+      // fresh number is what earns the card a fresh attempt.
+      let fresh = Self.freshCandidates(candidates, answerToReset: answerToReset)
+      guard !fresh.isEmpty else {
+        TokenLog.info(
+          "readIdentity: these numbers were just refused by this card; not retrying yet")
+        CardCredentialStore.recordOfferedNumberRefusal()
+        throw TokenError.unsealAlreadyRefused
+      }
+      // One try: the first CAN the card refuses wipes them all.
+      guard let candidate = fresh.first else { throw TokenError.unsealAlreadyRefused }
+      switch Self.paceAttempt(candidate: candidate, index: 0, total: 1, channel: channel) {
+      case .minted(let identity, let accessNumber):
+        return (identity, accessNumber)
 
-    case .refused(let failure):
-      // The card would not open with this CAN: every CAN in memory
-      // goes, and the holder types the one printed on the card.
-      CardCredentialStore.forgetEveryCardAccessNumber()
-      CardCredentialStore.recordOfferedNumberRefusal()
-      TokenLog.error("readIdentity: card refused the CAN; every CAN in memory forgotten")
-      throw failure
+      case .refused(let failure):
+        // The card would not open with this CAN: every CAN in memory
+        // goes, and the holder types the one printed on the card.
+        CardCredentialStore.forgetEveryCardAccessNumber()
+        CardCredentialStore.recordOfferedNumberRefusal()
+        TokenLog.error("readIdentity: card refused the CAN; every CAN in memory forgotten")
+        throw failure
 
-    case .transportDead(let error):
-      // A transport death is not a refusal of this number: the card
-      // stopped answering. Latch and report; nothing is forgotten.
-      if (error as? TokenError) == .activationRequired {
-        TokenLog.error("readIdentity: card requires activation")
-      } else {
-        RefusedUnseal.shared.record(
+      case .transportDead(let error):
+        // A transport death is not a refusal of this number: the card
+        // stopped answering. Latch and report; nothing is forgotten.
+        if (error as? TokenError) == .activationRequired {
+          TokenLog.error("readIdentity: card requires activation")
+        } else {
+          RefusedUnseal.shared.record(
+            fingerprint: CardCredentialStore.fingerprint(canDigits: candidate.digits),
+            answerToReset: answerToReset)
+          TokenLog.error(
+            "readIdentity: transport failed (\(error)); latched against immediate retry")
+        }
+        throw error
+      }
+    }
+  #endif
+
+  #if FEATURE_CONTACTLESS
+    /// Runs PACE for one candidate and reads through it on success.
+    ///
+    /// A mint remembers its number under the card's serial, so the next
+    /// arrival of the same card needs no typing and no retrying.
+    private static func paceAttempt(
+      candidate: CardCanOffer.Candidate,
+      index: Int,
+      total: Int,
+      channel: SmartCardChannel
+    ) -> PaceAttempt {
+      let started = ContinuousClock.now
+      // PACE starts at main-file level, where its read of EF.CardAccess
+      // leaves the card: the card refuses MSE:Set AT with 6985 anywhere
+      // else.
+      do {
+        let keys = try PaceEstablishment(channel: channel)
+          .establish(with: PacePassword(cardAccessNumber: candidate.number)).keys
+        RefusedUnseal.shared.clear()
+        CardCredentialStore.clearOfferedNumberRefusal()
+        let secure = SecureMessagingChannel(wrapping: channel, sessionKeys: keys)
+        TokenLog.info(
+          "readIdentity: PACE ok, candidate \(index + 1)/\(total) "
+            + "ms=\(Self.elapsed(since: started))")
+        let operations = CardOperations(channel: secure)
+        try operations.selectFineidApplication()
+        let identity = try Self.certificates(read: operations)
+        CardCredentialStore.rememberCan(
+          digits: candidate.digits, chipSerial: identity.chipSerial)
+        return .minted(identity, candidate.number)
+      } catch let failure as PaceEstablishment.Failure {
+        TokenLog.error(
+          "readIdentity: candidate \(index + 1)/\(total) refused (\(failure))")
+        return .refused(failure)
+      } catch {
+        return .transportDead(error)
+      }
+    }
+  #endif
+
+  #if FEATURE_CONTACTLESS
+    /// Numbers this card has not just refused.
+    private static func freshCandidates(
+      _ candidates: [CardCanOffer.Candidate],
+      answerToReset: Data?
+    ) -> [CardCanOffer.Candidate] {
+      candidates.filter { candidate in
+        !RefusedUnseal.shared.isRefused(
           fingerprint: CardCredentialStore.fingerprint(canDigits: candidate.digits),
           answerToReset: answerToReset)
-        TokenLog.error("readIdentity: transport failed (\(error)); latched against immediate retry")
       }
-      throw error
     }
-  }
-
-  /// Runs PACE for one candidate and reads through it on success.
-  ///
-  /// A mint remembers its number under the card's serial, so the next
-  /// arrival of the same card needs no typing and no retrying.
-  private static func paceAttempt(
-    candidate: CardCanOffer.Candidate,
-    index: Int,
-    total: Int,
-    channel: SmartCardChannel
-  ) -> PaceAttempt {
-    let started = ContinuousClock.now
-    // PACE starts at main-file level, where its read of EF.CardAccess
-    // leaves the card: the card refuses MSE:Set AT with 6985 anywhere
-    // else.
-    do {
-      let keys = try PaceEstablishment(channel: channel)
-        .establish(with: PacePassword(cardAccessNumber: candidate.number)).keys
-      RefusedUnseal.shared.clear()
-      CardCredentialStore.clearOfferedNumberRefusal()
-      let secure = SecureMessagingChannel(wrapping: channel, sessionKeys: keys)
-      TokenLog.info(
-        "readIdentity: PACE ok, candidate \(index + 1)/\(total) "
-          + "ms=\(Self.elapsed(since: started))")
-      let operations = CardOperations(channel: secure)
-      try operations.selectFineidApplication()
-      let identity = try Self.certificates(read: operations)
-      CardCredentialStore.rememberCan(
-        digits: candidate.digits, chipSerial: identity.chipSerial)
-      return .minted(identity, candidate.number)
-    } catch let failure as PaceEstablishment.Failure {
-      TokenLog.error(
-        "readIdentity: candidate \(index + 1)/\(total) refused (\(failure))")
-      return .refused(failure)
-    } catch {
-      return .transportDead(error)
-    }
-  }
-
-  /// Numbers this card has not just refused.
-  private static func freshCandidates(
-    _ candidates: [CardCanOffer.Candidate],
-    answerToReset: Data?
-  ) -> [CardCanOffer.Candidate] {
-    candidates.filter { candidate in
-      !RefusedUnseal.shared.isRefused(
-        fingerprint: CardCredentialStore.fingerprint(canDigits: candidate.digits),
-        answerToReset: answerToReset)
-    }
-  }
+  #endif
 
   /// Reads the leaf, serial, and the issuer if the card offers one.
   ///

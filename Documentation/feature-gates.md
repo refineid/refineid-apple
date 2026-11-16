@@ -19,18 +19,19 @@ Changing one without the others is a broken gate.
    flag back, never resuscitated dead code. Targets outside Xcode
    (SwiftPM packages) cannot see these flags and gate the same
    split by platform instead. `CardCore` keeps the Bluetooth-driven
-   remote-card types off macOS for that reason, and the consequence is
-   recorded and settled (2026-11-16, #478): a macOS build with
-   `REFINEID_REMOTE_CARD` on does not compile, and the configuration that
-   must stay clean is the local macOS one, flag off everywhere. The release
-   reopens it with the flag, the Mac app's Bluetooth entitlement, and the
-   `!os(macOS)` gate lifted off the Bluetooth types. `RappRequester` carries
-   the phone's decisions on every platform, because leaving them out of
-   macOS is what would make a flag-on macOS build fail there too. No test
-   suite carries the flag either: the switch's decisions and the forgetting
-   run against doubles in the package, and the suites that needed the
-   registry, the browse and the vault together are gone with the Mac
-   requester they tested.
+   remote-card types and the contactless CAN offer-handoff types off macOS
+   for that reason (`!os(macOS)`): a macOS build with
+   `REFINEID_REMOTE_CARD` on does not compile until the release reopens it
+   with the flag, the Mac app's Bluetooth entitlement, and the
+   `!os(macOS)` gate lifted off the Bluetooth types, and re-enabling
+   `FEATURE_CONTACTLESS` on macOS similarly lifts `!os(macOS)` off the
+   `CardCanOffer` and `CardCredentialStore` candidate readers.
+   `RappRequester` carries the phone's decisions on every platform,
+   because leaving them out of macOS is what would make a flag-on macOS
+   build fail there too. No test suite carries the flag either: the
+   switch's decisions and the forgetting run against doubles in the
+   package, and the suites that needed the registry, the browse and the
+   vault together are gone with the Mac requester they tested.
 2. Packaging. `RefineID.xcodeproj/project.pbxproj` assigns
    per-SDK entitlements and Info.plist files and places extensions and
    single-platform resources (`Sources/Settings.bundle`) in copy phases
@@ -54,7 +55,7 @@ that machine only. There is no other override mechanism.
 | `REFINEID_LOCAL_CARD` | On everywhere | Local card authentication, management, document signing |
 | `REFINEID_REMOTE_CARD` | On except macOS, in every macOS configuration | Pairing over RAPP and everything a pairing enables |
 | `FEATURE_CARD_ACTIVATION` | On everywhere | The activation form for factory-fresh cards |
-| `FEATURE_CONTACTLESS` | On | The CAN entry for contactless cards on macOS (iPhone NFC is not gated) |
+| `FEATURE_CONTACTLESS` | Off on macOS in every configuration; on for iOS | The CAN entry and contactless reader path on macOS (iPhone NFC is not gated) |
 | `FEATURE_DOCUMENT_VERIFICATION` | Off on macOS in every configuration; on for iPhone and iPad | Signed document verification UI: the Verify action, sheet, and verify-only drop state on macOS, and the Verify routes on iPhone and iPad; the verifier and trusted-list store beneath stay built and tested on both platforms |
 | `FEATURE_TIMESTAMP_CONFIG` | Off on macOS in every configuration; set for iPhone and iPad, whose Settings app holds the address | The Time Stamp Settings pane on macOS; off, the macOS store ignores a stored address and every signature asks the shipped service |
 | `FEATURE_PDF_STAMP` | Off on macOS in every configuration; on for iPhone and iPad | The visible stamp; off means invisible signatures |
@@ -132,7 +133,7 @@ edit them expecting a behavior change.
 
 - `Scripts/test.sh pr` — lint, package tests, iOS build,
   RefineIDTests on macOS and the iOS simulator, CardCoreTests,
-  simulator Bluetooth tests, DSS gate.
+  simulator Bluetooth and offer-handoff tests, DSS gate.
 - `Scripts/apple-app-store-connect-release-manager.swift
   inspect-archive <path-to-xcarchive>` — every reviewed archive
   gate without uploading or changing App Store state.

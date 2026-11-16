@@ -85,6 +85,11 @@ import Testing
     @Test("Primes synthetic test identity and verifies certificate decoding")
     internal func testSyntheticCertificatePriming() throws {
       PrimeStore.forgetAll()
+      // Priming saves a number and an offer; leave neither behind.
+      defer {
+        CardCanOffer.withdraw()
+        CardCredentialStore.delete(account: CardCredentialStore.cardAccessNumberAccount)
+      }
       let holderName = "DOE JANE 12345678N"
       let can = "123456"
       let chipSerial = try #require(ChipSerial(value: "XA1234567"))
@@ -116,6 +121,11 @@ import Testing
     @Test("Distributes primed test certificate across paired RAPP session")
     internal func testRemoteCertificateDistributionOverRapp() async throws {
       PrimeStore.forgetAll()
+      // Priming saves a number and an offer; leave neither behind.
+      defer {
+        CardCanOffer.withdraw()
+        CardCredentialStore.delete(account: CardCredentialStore.cardAccessNumberAccount)
+      }
       let holderName = "DOE JANE 12345678N"
       let certDER = try MockCardCertificate.makeCertificate(commonName: holderName)
       MockCardCertificate.primeSyntheticIdentity(

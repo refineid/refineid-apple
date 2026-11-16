@@ -14,20 +14,22 @@ import Security
 /// individual identifier before PACE, so the driver tries the first
 /// number, and a card that refuses it wipes the offer and the library.
 public enum CardCanOffer {
-  /// One validated candidate: the digits to spend and their parsed form.
-  public struct Candidate {
-    /// The six digits, for spending and for remembering on success.
-    public let digits: String
+  #if !os(macOS)
+    /// One validated candidate: the digits to spend and their parsed form.
+    public struct Candidate {
+      /// The six digits, for spending and for remembering on success.
+      public let digits: String
 
-    /// The parsed form PACE spends.
-    public let number: CardAccessNumber
+      /// The parsed form PACE spends.
+      public let number: CardAccessNumber
 
-    /// Groups validated digits with their parsed form.
-    public init(digits: String, number: CardAccessNumber) {
-      self.digits = digits
-      self.number = number
+      /// Groups validated digits with their parsed form.
+      public init(digits: String, number: CardAccessNumber) {
+        self.digits = digits
+        self.number = number
+      }
     }
-  }
+  #endif
 
   /// The active offer the driver reads: what the holder just typed, or
   /// the stored number the app selected for the card on the reader.
@@ -44,8 +46,10 @@ public enum CardCanOffer {
   /// What the driver last learnt the card on the antenna needs.
   internal static let askedAccount = "refineid-card-asks"
 
-  /// How many stored numbers one unseal tries at most.
-  internal static let maximumCandidates = 5
+  #if !os(macOS)
+    /// How many stored numbers one unseal tries at most.
+    internal static let maximumCandidates = 5
+  #endif
 
   /// Offers `digits` as the active number, replacing any previous one.
   @discardableResult
@@ -71,15 +75,19 @@ public enum CardCanOffer {
     CardCredentialStore.delete(account: refusalAccount)
   }
 
-  /// Records that the card refused the offer.
-  internal static func recordRefusal() {
-    _ = CardCredentialStore.writeShared("", account: refusalAccount)
-  }
+  #if !os(macOS)
+    /// Records that the card refused the offer.
+    internal static func recordRefusal() {
+      _ = CardCredentialStore.writeShared("", account: refusalAccount)
+    }
+  #endif
 
-  /// Whether the offer stands refused by the card.
-  internal static func refusalRecorded() -> Bool {
-    CardCredentialStore.existsShared(account: refusalAccount)
-  }
+  #if !os(macOS)
+    /// Whether the offer stands refused by the card.
+    internal static func refusalRecorded() -> Bool {
+      CardCredentialStore.existsShared(account: refusalAccount)
+    }
+  #endif
 
   /// Clears the refusal, for an offer that succeeded after all.
   internal static func clearRefusal() {
@@ -91,10 +99,12 @@ public enum CardCanOffer {
     _ = CardCredentialStore.writeShared(ask.rawValue, account: askedAccount)
   }
 
-  /// What the card on the antenna needs, when the driver learnt it.
-  internal static func recordedAsk() -> CardDriverAsk? {
-    CardCredentialStore.readShared(account: askedAccount).flatMap(CardDriverAsk.init(rawValue:))
-  }
+  #if !os(macOS)
+    /// What the card on the antenna needs, when the driver learnt it.
+    internal static func recordedAsk() -> CardDriverAsk? {
+      CardCredentialStore.readShared(account: askedAccount).flatMap(CardDriverAsk.init(rawValue:))
+    }
+  #endif
 
   /// Clears the ask, for a card that left the antenna.
   internal static func clearAsked() {
@@ -110,63 +120,75 @@ public enum CardCanOffer {
     }
   }
 
-  /// Forgets the stored number for the card with this printed serial.
-  public static func forget(printedSerial: String) {
-    CardCredentialStore.deleteShared(account: libraryAccount(printedSerial: printedSerial))
-  }
-
-  /// The printed serials with a stored number, in stable account order.
-  ///
-  /// Serials are printed on the card and safe to display; digits never
-  /// leave the keychain through this call.
-  public static func storedSerials() -> [String] {
-    libraryAccounts().compactMap { account in
-      guard
-        account.hasPrefix(libraryPrefix),
-        account.hasSuffix(librarySuffix)
-      else { return nil }
-      let serial = account.dropFirst(libraryPrefix.count).dropLast(librarySuffix.count)
-      return serial.isEmpty ? nil : String(serial)
+  #if !os(macOS)
+    /// Forgets the stored number for the card with this printed serial.
+    public static func forget(printedSerial: String) {
+      CardCredentialStore.deleteShared(account: libraryAccount(printedSerial: printedSerial))
     }
-  }
+  #endif
 
-  /// Remembers `digits` for the card with this printed serial.
-  internal static func remember(digits: String, printedSerial: String) {
-    guard CardAccessNumber(digits: digits) != nil else { return }
-    _ = CardCredentialStore.writeShared(
-      digits, account: libraryAccount(printedSerial: printedSerial))
-  }
-
-  /// The library account for one printed serial.
-  internal static func libraryAccount(printedSerial: String) -> String {
-    libraryPrefix + printedSerial.lowercased() + librarySuffix
-  }
-
-  /// Every stored number to try, active offer first.
-  ///
-  /// Deduplicated and bounded: a household of cards mints within a few
-  /// attempts, and a wrong number costs only the time its PACE takes.
-  internal static func candidates() -> [Candidate] {
-    var seen = Set<String>()
-    var selected: [Candidate] = []
-    let offered = [offeredDigits()].compactMap(\.self) + libraryDigits()
-    for digits in offered {
-      guard !seen.contains(digits), let number = CardAccessNumber(digits: digits) else {
-        continue
+  #if !os(macOS)
+    /// The printed serials with a stored number, in stable account order.
+    ///
+    /// Serials are printed on the card and safe to display; digits never
+    /// leave the keychain through this call.
+    public static func storedSerials() -> [String] {
+      libraryAccounts().compactMap { account in
+        guard
+          account.hasPrefix(libraryPrefix),
+          account.hasSuffix(librarySuffix)
+        else { return nil }
+        let serial = account.dropFirst(libraryPrefix.count).dropLast(librarySuffix.count)
+        return serial.isEmpty ? nil : String(serial)
       }
-      seen.insert(digits)
-      selected.append(Candidate(digits: digits, number: number))
-      if selected.count == maximumCandidates { break }
     }
-    return selected
-  }
+  #endif
 
-  /// The library numbers, in stable account order.
-  internal static func libraryDigits() -> [String] {
-    libraryAccounts().compactMap { account in
-      CardCredentialStore.readShared(account: account)
+  #if !os(macOS)
+    /// Remembers `digits` for the card with this printed serial.
+    internal static func remember(digits: String, printedSerial: String) {
+      guard CardAccessNumber(digits: digits) != nil else { return }
+      _ = CardCredentialStore.writeShared(
+        digits, account: libraryAccount(printedSerial: printedSerial))
     }
-  }
+  #endif
+
+  #if !os(macOS)
+    /// The library account for one printed serial.
+    internal static func libraryAccount(printedSerial: String) -> String {
+      libraryPrefix + printedSerial.lowercased() + librarySuffix
+    }
+  #endif
+
+  #if !os(macOS)
+    /// Every stored number to try, active offer first.
+    ///
+    /// Deduplicated and bounded: a household of cards mints within a few
+    /// attempts, and a wrong number costs only the time its PACE takes.
+    internal static func candidates() -> [Candidate] {
+      var seen = Set<String>()
+      var selected: [Candidate] = []
+      let offered = [offeredDigits()].compactMap(\.self) + libraryDigits()
+      for digits in offered {
+        guard !seen.contains(digits), let number = CardAccessNumber(digits: digits) else {
+          continue
+        }
+        seen.insert(digits)
+        selected.append(Candidate(digits: digits, number: number))
+        if selected.count == maximumCandidates { break }
+      }
+      return selected
+    }
+  #endif
+
+  #if !os(macOS)
+    /// The library numbers, in stable account order.
+    internal static func libraryDigits() -> [String] {
+      libraryAccounts().compactMap { account in
+        CardCredentialStore.readShared(account: account)
+      }
+    }
+  #endif
 
   /// The library accounts holding stored numbers.
   internal static func libraryAccounts() -> [String] {
@@ -192,15 +214,17 @@ public enum CardCanOffer {
       .sorted()
   }
 
-  /// Where a read that found nothing actually failed: each step of the
-  /// path, never any digits.
-  ///
-  /// For the driver's log. The app and the driver resolve the group
-  /// independently, and a miss on one side of a number the other side
-  /// wrote can only be told apart by asking the failing process itself.
-  public static func missDescription() -> String {
-    let group = CardCredentialStore.sharedKeychainGroup ?? "default"
-    let offered = offeredDigits() != nil
-    return "group=\(group) offered=\(offered) library=\(libraryAccounts().count)"
-  }
+  #if !os(macOS)
+    /// Where a read that found nothing actually failed: each step of the
+    /// path, never any digits.
+    ///
+    /// For the driver's log. The app and the driver resolve the group
+    /// independently, and a miss on one side of a number the other side
+    /// wrote can only be told apart by asking the failing process itself.
+    public static func missDescription() -> String {
+      let group = CardCredentialStore.sharedKeychainGroup ?? "default"
+      let offered = offeredDigits() != nil
+      return "group=\(group) offered=\(offered) library=\(libraryAccounts().count)"
+    }
+  #endif
 }

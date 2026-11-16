@@ -44,8 +44,10 @@
     /// Notices a card waiting to be taken into use, and carries the
     /// model its activation form works through.
     internal let activation = ActivationWatch.shared
-    @State private var offeringNumber = false
-    @State private var hasStoredNumber = false
+    #if FEATURE_CONTACTLESS
+      @State private var offeringNumber = false
+      @State private var hasStoredNumber = false
+    #endif
     @State private var pin2 = ""
     @State private var accessNumber = ""
     @State private var format = SignatureFormat.pades
@@ -113,16 +115,20 @@
         observeActivation()
         seedVirtualRequestIfNeeded()
       }
-      .onChange(of: offeringNumber || awaitingAccessNumber) { _, _ in
-        observeActivation()
-      }
-      .onChange(of: cardPresence.isContactlessCardPresent) { _, present in
-        refreshStoredNumber()
-        if !present {
-          forgetCardAsked()
+      #if FEATURE_CONTACTLESS
+        .onChange(of: offeringNumber || awaitingAccessNumber) { _, _ in
+          observeActivation()
         }
-      }
-      .task(id: watchesCardAsk) { await watchCardAsk() }
+        .onChange(of: cardPresence.isContactlessCardPresent) { _, present in
+          // The entry shows only when nothing is stored or the CAN in
+          // memory just failed.
+          hasStoredNumber = CardCredentialStore.hasStoredNumbers()
+          if !present {
+            forgetCardAsked()
+          }
+        }
+        .task(id: watchesCardAsk) { await watchCardAsk() }
+      #endif
       .onChange(of: activation.defersRemoval) { wasDeferred, isDeferred in
         guard wasDeferred, !isDeferred, availability == .noCard else { return }
         react(to: .noCard)
@@ -133,39 +139,31 @@
       .announcesOutcome(activation.management.notice)
     }
 
-    @ViewBuilder private var statusForm: some View {
-      Form {
-        formBody
-      }
-      .formStyle(.grouped)
-      // A form is a scroll view; one that fits its window stays still.
-      .scrollBounceBehavior(.basedOnSize)
-      .fixedSize(horizontal: false, vertical: true)
-    }
-
-    @ViewBuilder private var formBody: some View {
-      if offeringNumber || awaitingAccessNumber {
-        SealedCardSection(offering: $offeringNumber, tryingStored: hasStoredNumber)
-      } else if asksForCardSlot {
-        cardSlotSection
-      } else if activation.awaitsActivation {
-        activationSection
-      } else if activation.isReading {
-        readingSection
-      } else if shouldShowPairingPrompt {
-        pairingPromptSection
-      } else {
-        readySection
-      }
+    @ViewBuilder internal var formBody: some View {
+      #if FEATURE_CONTACTLESS
+        if offeringNumber || awaitingAccessNumber {
+          SealedCardSection(offering: $offeringNumber, tryingStored: hasStoredNumber)
+        } else if asksForCardSlot {
+          cardSlotSection
+        } else {
+          sharedFormBody
+        }
+      #else
+        sharedFormBody
+      #endif
     }
 
     /// Whether the window shows the ready section and its button bar.
     private var showsReadySection: Bool {
-      !(offeringNumber || awaitingAccessNumber) && !asksForCardSlot
-        && !activation.awaitsActivation && !activation.isReading && !shouldShowPairingPrompt
+      #if FEATURE_CONTACTLESS
+        !(offeringNumber || awaitingAccessNumber) && !asksForCardSlot
+          && !activation.awaitsActivation && !activation.isReading && !shouldShowPairingPrompt
+      #else
+        !activation.awaitsActivation && !activation.isReading && !shouldShowPairingPrompt
+      #endif
     }
 
-    @ViewBuilder private var readySection: some View {
+    @ViewBuilder internal var readySection: some View {
       let controls = documentControls
       statusRow(showsIdentity: controls.showsIdentity)
       if controls.showsDocuments {
@@ -207,32 +205,29 @@
     }
 
     private func observeActivation() {
+      #if FEATURE_CONTACTLESS
+        let paused = offeringNumber || awaitingAccessNumber
+      #else
+        let paused = false
+      #endif
       activation.observe(
         availability: availability,
-        paused: offeringNumber || awaitingAccessNumber,
+        paused: paused,
         identity: model
       )
-    }
-
-    /// Whether a stored number exists to try before asking for one.
-    ///
-    /// Refreshed whenever the card set changes: the entry must only
-    /// appear when nothing is stored or the CAN in memory just failed.
-    private func refreshStoredNumber() {
-      #if FEATURE_CONTACTLESS
-        hasStoredNumber = CardCredentialStore.hasStoredNumbers()
-      #else
-        hasStoredNumber = false
-      #endif
     }
 
     /// Clears what a card took with it, and keeps the stored-number flag
     /// current.
     private func react(to availability: IdentityAvailability) {
-      refreshStoredNumber()
+      #if FEATURE_CONTACTLESS
+        hasStoredNumber = CardCredentialStore.hasStoredNumbers()
+      #endif
       switch availability {
       case .ready:
-        offeringNumber = false
+        #if FEATURE_CONTACTLESS
+          offeringNumber = false
+        #endif
         retryHealth.refreshFromReader()
 
       case .cardWithoutIdentity:

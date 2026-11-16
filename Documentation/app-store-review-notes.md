@@ -54,11 +54,10 @@ PIN changes and resets, retry floor refusal, and qualified signing of
 a dropped or supplied PDF with fictional credentials and no hardware.
 
 The macOS notes describe local authentication, activation, PIN management,
-and document signing only: the remote card is gated off for the MVP
-(decisions 2026-11-14), so the Mac declares no Bluetooth, no
-local-network prompt, and no Bonjour service, and never listens. SCS is
-excluded. Outbound timestamp and revocation requests support archival
-document signatures.
+and document signing only: with the remote card gated off, the Mac
+declares no Bluetooth, no local-network prompt, and no Bonjour service,
+and never listens. SCS is excluded. Outbound timestamp and revocation
+requests support archival document signatures.
 
 ## Where the notes live
 

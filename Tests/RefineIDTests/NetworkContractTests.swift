@@ -7,8 +7,8 @@ import Testing
 ///
 /// New traffic-capable code, a changed Bluetooth declaration, or a
 /// changed ATS shape fails here on purpose: update the contract in
-/// `Documentation/decisions.md` (2026-09-30, 2026-10-09, 2026-10-22,
-/// 2026-11-14) first, then this list.
+/// `Documentation/decisions.md` (2026-09-30, 2026-10-09, 2026-10-22)
+/// first, then this list.
 @Suite
 internal struct NetworkContractTests {
   private static var root: URL {
@@ -253,9 +253,9 @@ internal struct NetworkContractTests {
     #expect(port.contains("REFINEID_REMOTE_CARD"))
   }
 
-  /// Every configuration signs macOS with the store entitlements, and
-  /// with the remote card gated off for the MVP those grant no
-  /// Bluetooth (decisions 2026-11-08, 2026-11-14).
+  /// Every configuration signs macOS with the store entitlements
+  /// (decisions 2026-11-08), which grant no Bluetooth without the
+  /// remote card.
   @Test
   internal func noBluetoothEntitlementWithoutTheRemoteCard() throws {
     let project = try String(
