@@ -4,6 +4,11 @@ import Foundation
 import Security
 
 extension CardCredentialStore {
+  private enum DuplicatePolicy {
+    case replace
+    case preserve
+  }
+
   /// Suffix of the keychain group the app and its extensions share.
   internal static let sharedKeychainGroupSuffix = "fi.refineid.ReFineID"
 
@@ -82,35 +87,12 @@ extension CardCredentialStore {
   /// it exists -- so both that and success count as present, and neither
   /// prompts the holder just to draw a status row.
   internal static func exists(account: String) -> Bool {
-    #if DEBUG
-      if TestCredentialEnvironment.isTestMode {
-        return TestCredentialEnvironment.credentialExists(account: account)
-      }
-    #endif
-    var query = self.query(account: account)
-    query[kSecMatchLimit as String] = kSecMatchLimitOne
-    query[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUISkip
-    let status = SecItemCopyMatching(query as CFDictionary, nil)
-    return status == errSecSuccess || status == errSecInteractionNotAllowed
+    keychainExists(account: account, accessGroup: nil)
   }
 
-  /// Reads a value from the shared group both binaries are entitled to.
-  internal static func readShared(account: String) -> String? {
-    #if DEBUG
-      if TestCredentialEnvironment.isTestMode {
-        return TestCredentialEnvironment.readCredential(account: account)
-      }
-    #endif
-    var query = self.query(account: account, accessGroup: sharedKeychainGroup)
-    query[kSecReturnData as String] = true
-    query[kSecMatchLimit as String] = kSecMatchLimitOne
-    var item: CFTypeRef?
-    guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
-      let data = item as? Data
-    else {
-      return nil
-    }
-    return String(data: data, encoding: .utf8)
+  /// Whether a shared item is present, without authenticating.
+  internal static func existsShared(account: String) -> Bool {
+    keychainExists(account: account, accessGroup: sharedKeychainGroup)
   }
 
   /// Reads a value.
@@ -118,21 +100,12 @@ extension CardCredentialStore {
   /// Nothing in the app calls this to display a value -- it exists so
   /// card setup can use what was entered earlier.
   internal static func read(account: String) -> String? {
-    #if DEBUG
-      if TestCredentialEnvironment.isTestMode {
-        return TestCredentialEnvironment.readCredential(account: account)
-      }
-    #endif
-    var query = self.query(account: account)
-    query[kSecReturnData as String] = true
-    query[kSecMatchLimit as String] = kSecMatchLimitOne
-    var item: CFTypeRef?
-    guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
-      let data = item as? Data
-    else {
-      return nil
-    }
-    return String(data: data, encoding: .utf8)
+    keychainRead(account: account, accessGroup: nil)
+  }
+
+  /// Reads a value from the shared group both binaries are entitled to.
+  internal static func readShared(account: String) -> String? {
+    keychainRead(account: account, accessGroup: sharedKeychainGroup)
   }
 
   /// Writes a value.
@@ -141,31 +114,68 @@ extension CardCredentialStore {
   /// a refusal here is not the holder's fault, and telling them their PIN
   /// is invalid when the store merely could not replace an item sends
   /// them looking in the wrong place.
-  /// Writes a value into the shared group both binaries are entitled to.
-  internal static func writeShared(_ digits: String, account: String) -> OSStatus {
-    guard let data = digits.data(using: .utf8) else { return errSecParam }
-    #if DEBUG
-      if TestCredentialEnvironment.isTestMode {
-        TestCredentialEnvironment.writeCredential(digits, account: account)
-        return errSecSuccess
-      }
-    #endif
-    let coordinates = query(account: account, accessGroup: sharedKeychainGroup)
-    let replacement = [kSecValueData as String: data]
-    let updated = SecItemUpdate(
-      coordinates as CFDictionary,
-      replacement as CFDictionary)
-    if updated == errSecSuccess { return updated }
-    guard updated == errSecItemNotFound else { return updated }
-
-    var insertion = coordinates
-    insertion[kSecValueData as String] = data
-    insertion[kSecAttrAccessible as String] =
-      kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-    return SecItemAdd(insertion as CFDictionary, nil)
+  internal static func write(_ digits: String, account: String) -> OSStatus {
+    keychainWrite(digits, account: account, accessGroup: nil, duplicatePolicy: .replace)
   }
 
-  internal static func write(_ digits: String, account: String) -> OSStatus {
+  /// Writes a value into the shared group both binaries are entitled to.
+  internal static func writeShared(_ digits: String, account: String) -> OSStatus {
+    keychainWrite(
+      digits, account: account, accessGroup: sharedKeychainGroup, duplicatePolicy: .preserve)
+  }
+
+  /// Removes an item.
+  ///
+  /// Deletion does NOT skip the authentication interface: skipping it
+  /// makes a biometrically protected item answer
+  /// `errSecInteractionNotAllowed` and survive, so the add that follows
+  /// fails as `errSecDuplicateItem`.
+  internal static func delete(account: String) {
+    keychainDelete(account: account, accessGroup: nil)
+  }
+
+  /// Removes a shared item.
+  internal static func deleteShared(account: String) {
+    keychainDelete(account: account, accessGroup: sharedKeychainGroup)
+  }
+
+  private static func keychainExists(account: String, accessGroup: String?) -> Bool {
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        return TestCredentialEnvironment.credentialExists(account: account)
+      }
+    #endif
+    var coordinates = query(account: account, accessGroup: accessGroup)
+    coordinates[kSecMatchLimit as String] = kSecMatchLimitOne
+    coordinates[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUISkip
+    let status = SecItemCopyMatching(coordinates as CFDictionary, nil)
+    return status == errSecSuccess || status == errSecInteractionNotAllowed
+  }
+
+  private static func keychainRead(account: String, accessGroup: String?) -> String? {
+    #if DEBUG
+      if TestCredentialEnvironment.isTestMode {
+        return TestCredentialEnvironment.readCredential(account: account)
+      }
+    #endif
+    var coordinates = query(account: account, accessGroup: accessGroup)
+    coordinates[kSecReturnData as String] = true
+    coordinates[kSecMatchLimit as String] = kSecMatchLimitOne
+    var item: CFTypeRef?
+    guard SecItemCopyMatching(coordinates as CFDictionary, &item) == errSecSuccess,
+      let data = item as? Data
+    else {
+      return nil
+    }
+    return String(data: data, encoding: .utf8)
+  }
+
+  private static func keychainWrite(
+    _ digits: String,
+    account: String,
+    accessGroup: String?,
+    duplicatePolicy: DuplicatePolicy
+  ) -> OSStatus {
     guard let data = digits.data(using: .utf8) else { return errSecParam }
     #if DEBUG
       if TestCredentialEnvironment.isTestMode {
@@ -173,66 +183,36 @@ extension CardCredentialStore {
         return errSecSuccess
       }
     #endif
-    let coordinates = query(account: account)
+    let coordinates = query(account: account, accessGroup: accessGroup)
     let replacement = [kSecValueData as String: data]
     let updated = SecItemUpdate(
       coordinates as CFDictionary,
       replacement as CFDictionary)
     if updated == errSecSuccess { return updated }
+    if duplicatePolicy == .preserve, updated != errSecItemNotFound {
+      return updated
+    }
 
     var insertion = coordinates
     insertion[kSecValueData as String] = data
     insertion[kSecAttrAccessible as String] =
       kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
     let added = SecItemAdd(insertion as CFDictionary, nil)
-    if added == errSecDuplicateItem {
+    if duplicatePolicy == .replace, added == errSecDuplicateItem {
       SecItemDelete(coordinates as CFDictionary)
       return SecItemAdd(insertion as CFDictionary, nil)
     }
     return added
   }
 
-  /// Removes an item.
-  ///
-  /// Deletion does NOT skip the authentication interface. Skipping it
-  /// makes a biometrically protected item answer
-  /// `errSecInteractionNotAllowed` and survive, after which the add that
-  /// follows fails as a duplicate and a perfectly good PIN looks
-  /// rejected. Measured: this is exactly why storing PIN1 appeared to do
-  /// nothing while storing the ungated access number worked.
-  internal static func delete(account: String) {
+  private static func keychainDelete(account: String, accessGroup: String?) {
     #if DEBUG
       if TestCredentialEnvironment.isTestMode {
         TestCredentialEnvironment.deleteCredential(account: account)
         return
       }
     #endif
-    SecItemDelete(query(account: account) as CFDictionary)
-  }
-
-  /// Whether a shared item is present, without authenticating.
-  internal static func existsShared(account: String) -> Bool {
-    #if DEBUG
-      if TestCredentialEnvironment.isTestMode {
-        return TestCredentialEnvironment.credentialExists(account: account)
-      }
-    #endif
-    var query = self.query(account: account, accessGroup: sharedKeychainGroup)
-    query[kSecMatchLimit as String] = kSecMatchLimitOne
-    query[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUISkip
-    let status = SecItemCopyMatching(query as CFDictionary, nil)
-    return status == errSecSuccess || status == errSecInteractionNotAllowed
-  }
-
-  /// Removes a shared item.
-  internal static func deleteShared(account: String) {
-    #if DEBUG
-      if TestCredentialEnvironment.isTestMode {
-        TestCredentialEnvironment.deleteCredential(account: account)
-        return
-      }
-    #endif
-    let coordinates = query(account: account, accessGroup: sharedKeychainGroup)
+    let coordinates = query(account: account, accessGroup: accessGroup)
     SecItemDelete(coordinates as CFDictionary)
   }
 }
