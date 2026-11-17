@@ -12,12 +12,33 @@ cd "$(git rev-parse --show-toplevel)"
 updates=$(mktemp)
 trap 'rm -f "$updates"' EXIT
 cat > "$updates"
+
+# Direct pushes to main are blocked by repository rules.
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [ "${remote_ref}" = "refs/heads/main" ]; then
+    cat <<'EOF' >&2
+ERROR: Direct pushes to main are blocked by repository rules.
+Push to a feature branch and open a pull request.
+For non-trivial changes, create a dedicated worktree under ../wt/refineid-apple-<topic>
+(see AGENTS.md and Documentation/process/agent-worktrees.md).
+EOF
+    exit 1
+  fi
+done < "$updates"
+
 scope_status=0
 python3 -B Scripts/DocumentationGate.py push "${1:-origin}" < "$updates" || scope_status=$?
 case "$scope_status" in
   0) exit 0 ;;
-  1) ;; # Code, mixed or unknown scope retains the full gate.
+  1) ;; # Non-documentation change; check whether application tests are required.
   *) exit "$scope_status" ;;
 esac
+
 Scripts/QualityReceipt.py verify-push < "$updates"
-Scripts/test.sh pr
+
+if python3 -B Scripts/ci-change-scope.py --has-application-changes "${1:-origin}" < "$updates"; then
+  Scripts/test.sh pr
+else
+  Scripts/QualityReceipt.py lint-head
+  printf '\nNon-application changes verified: lint and receipt checks passed (application test suite skipped).\n'
+fi

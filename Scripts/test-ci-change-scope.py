@@ -48,6 +48,45 @@ class ChangeScopeTests(unittest.TestCase):
                     scope.main()
                 self.assertEqual(output.getvalue().strip(), expected)
 
+    def test_application_paths(self):
+        for path in (b'Sources/App.swift', b'CardCore/Sources/CardCore/File.swift',
+                     b'PKCS11Bridge/Sources/Bridge.swift', b'Config/Features.xcconfig',
+                     b'RefineID.xcodeproj/project.pbxproj', b'Version.xcconfig',
+                     b'RefineID.xctestplan', b'Tests/RefineIDTests/Tests.swift'):
+            with self.subTest(path=path):
+                self.assertTrue(scope.is_application(path))
+
+    def test_non_application_paths(self):
+        for path in (b'README.md', b'AGENTS.md', b'Metadata/appstore.json',
+                     b'.gitignore', b'.gitattributes', b'Scripts/check.sh',
+                     b'.github/workflows/swift.yml'):
+            with self.subTest(path=path):
+                self.assertFalse(scope.is_application(path))
+
+    def test_push_updates_has_application_changes(self):
+        updates = 'refs/heads/topic 1111111111111111111111111111111111111111 refs/heads/topic 2222222222222222222222222222222222222222\n'
+        with patch.object(scope.subprocess, 'check_output', return_value=b'Sources/App.swift\0'):
+            self.assertTrue(scope.has_application_changes_in_updates(updates))
+
+        with patch.object(scope.subprocess, 'check_output', return_value=b'Metadata/appstore.json\0.gitignore\0'):
+            self.assertFalse(scope.has_application_changes_in_updates(updates))
+
+    def test_cli_has_application_changes_flag(self):
+        updates = 'refs/heads/topic 1111111111111111111111111111111111111111 refs/heads/topic 2222222222222222222222222222222222222222\n'
+        with patch('sys.argv', ['scope', '--has-application-changes', 'origin']), \
+             patch('sys.stdin', io.StringIO(updates)), \
+             patch.object(scope.subprocess, 'check_output', return_value=b'Sources/App.swift\0'):
+            with self.assertRaises(SystemExit) as cm:
+                scope.main()
+            self.assertEqual(cm.exception.code, 0)
+
+        with patch('sys.argv', ['scope', '--has-application-changes', 'origin']), \
+             patch('sys.stdin', io.StringIO(updates)), \
+             patch.object(scope.subprocess, 'check_output', return_value=b'Metadata/appstore.json\0'):
+            with self.assertRaises(SystemExit) as cm:
+                scope.main()
+            self.assertEqual(cm.exception.code, 1)
+
 
 if __name__ == '__main__':
     unittest.main()
