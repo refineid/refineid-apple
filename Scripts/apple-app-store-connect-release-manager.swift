@@ -1,4 +1,5 @@
 #!/usr/bin/env swift
+
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 //
 // Drive the complete Apple release lifecycle in the language this project
@@ -77,11 +78,26 @@ private struct ReleaseProcessResult {
 
 private func releaseFail(_ message: String) -> Never {
   FileHandle.standardError.write(Data("FAIL: \(message)\n".utf8))
+  _ = releaseRestoreStamp()
   exit(1)
 }
 
 private func releaseNote(_ message: String) {
   print("  ok: \(message)")
+}
+
+/// Captured pipe bytes cross reader queues only while holding the lock.
+private final class ReleasePipeBytes: @unchecked Sendable {
+  private let lock = NSLock()
+  private var bytes = Data()
+
+  func store(_ value: Data) {
+    lock.withLock { bytes = value }
+  }
+
+  func load() -> Data {
+    lock.withLock { bytes }
+  }
 }
 
 @discardableResult
@@ -99,8 +115,8 @@ private func releaseRun(
 
   let stdoutPipe = capture ? Pipe() : nil
   let stderrPipe = capture ? Pipe() : nil
-  process.standardOutput = stdoutPipe
-  process.standardError = stderrPipe
+  if let stdoutPipe { process.standardOutput = stdoutPipe }
+  if let stderrPipe { process.standardError = stderrPipe }
 
   do {
     try process.run()
@@ -108,9 +124,23 @@ private func releaseRun(
     releaseFail("could not run \(executable): \(error.localizedDescription)")
   }
 
-  let stdoutData = stdoutPipe?.fileHandleForReading.readDataToEndOfFile() ?? Data()
-  let stderrData = stderrPipe?.fileHandleForReading.readDataToEndOfFile() ?? Data()
+  let stdoutBytes = ReleasePipeBytes()
+  let stderrBytes = ReleasePipeBytes()
+  let readers = DispatchGroup()
+  if let stdoutPipe {
+    DispatchQueue.global().async(group: readers) {
+      stdoutBytes.store(stdoutPipe.fileHandleForReading.readDataToEndOfFile())
+    }
+  }
+  if let stderrPipe {
+    DispatchQueue.global().async(group: readers) {
+      stderrBytes.store(stderrPipe.fileHandleForReading.readDataToEndOfFile())
+    }
+  }
   process.waitUntilExit()
+  readers.wait()
+  let stdoutData = stdoutBytes.load()
+  let stderrData = stderrBytes.load()
 
   let result = ReleaseProcessResult(
     status: process.terminationStatus,
@@ -2330,33 +2360,76 @@ private func releaseStampFiles(marketing: String, build: Int) {
   releaseWrite(module, to: releaseModuleVersion)
 }
 
-/// The two version files as they were before an install stamped them.
-/// An install stamps so every installed build reports the minute it was
-/// built in, and puts both files back on any exit: a stamp is never part
-/// of a feature commit.
-nonisolated(unsafe) private var releaseStampOriginals: [(URL, String)] = []
+/// Install stamps are scoped to the operation and restored before every
+/// controlled exit, including failures and dispatch-delivered signals.
+private let releaseStampLock = NSRecursiveLock()
+private let releaseInterruptedExitStatus: Int32 = 130
+nonisolated(unsafe) private var releaseStampOriginals: [(URL, Data)] = []
+nonisolated(unsafe) private var releaseStampSignals: [DispatchSourceSignal] = []
+nonisolated(unsafe) private var releaseStampSignalHandlers: [(Int32, sig_t?)] = []
 
-private func releaseRestoreStamp() {
-  for (url, text) in releaseStampOriginals {
-    try? text.write(to: url, atomically: true, encoding: .utf8)
+@discardableResult
+private func releaseRestoreStamp() -> Bool {
+  releaseStampLock.lock()
+  defer { releaseStampLock.unlock() }
+  var restored = true
+  for (url, bytes) in releaseStampOriginals {
+    do {
+      try bytes.write(to: url, options: .atomic)
+    } catch {
+      restored = false
+      FileHandle.standardError.write(Data("FAIL: could not restore an install version file\n".utf8))
+    }
   }
   releaseStampOriginals = []
+  for source in releaseStampSignals { source.cancel() }
+  releaseStampSignals = []
+  for (interrupt, handler) in releaseStampSignalHandlers { signal(interrupt, handler) }
+  releaseStampSignalHandlers = []
+  return restored
 }
 
 private func releaseStampForInstall() -> (marketing: String, build: Int) {
+  releaseStampLock.lock()
+  defer { releaseStampLock.unlock() }
   let version = releaseCalendarVersion()
   if releaseStampOriginals.isEmpty {
-    releaseStampOriginals = [
-      (releaseVersionConfig, releaseRead(releaseVersionConfig)),
-      (releaseModuleVersion, releaseRead(releaseModuleVersion)),
-    ]
-    atexit { releaseRestoreStamp() }
+    do {
+      releaseStampOriginals = try [releaseVersionConfig, releaseModuleVersion].map {
+        ($0, try Data(contentsOf: $0))
+      }
+    } catch {
+      releaseFail("could not preserve install version files")
+    }
     for interrupt in [SIGINT, SIGTERM, SIGHUP] {
-      signal(interrupt) { _ in exit(130) }
+      releaseStampSignalHandlers.append((interrupt, signal(interrupt, SIG_IGN)))
+      let source = DispatchSource.makeSignalSource(signal: interrupt, queue: .global())
+      source.setEventHandler {
+        releaseStampLock.lock()
+        guard !releaseStampOriginals.isEmpty else {
+          releaseStampLock.unlock()
+          return
+        }
+        let restored = releaseRestoreStamp()
+        releaseStampLock.unlock()
+        exit(restored ? releaseInterruptedExitStatus : EXIT_FAILURE)
+      }
+      source.resume()
+      releaseStampSignals.append(source)
     }
   }
   releaseStampFiles(marketing: version.marketing, build: version.build)
   return version
+}
+
+private func releaseWithInstallStamp(
+  _ operation: ((marketing: String, build: Int)) -> Void
+) {
+  let version = releaseStampForInstall()
+  defer {
+    if !releaseRestoreStamp() { exit(EXIT_FAILURE) }
+  }
+  operation(version)
 }
 
 /// `stamp`: writes the version for a release cut by hand, and with
@@ -2745,7 +2818,10 @@ private func installMacOS(_ arguments: [String], stamp: Bool = true) {
     installReportRegistrations()
     return
   }
-  if stamp { _ = releaseStampForInstall() }
+  if stamp {
+    releaseWithInstallStamp { _ in installMacOS(arguments, stamp: false) }
+    return
+  }
 
   for directory in [
     installMacDerivedData,
@@ -3055,27 +3131,28 @@ private func installDevices(_ arguments: [String]) {
           + "--no-simulator] [--prime-mock-card]")
     }
   }
-  let version = releaseStampForInstall()
-  print("Installing RefineID \(version.marketing) (\(version.build))")
+  releaseWithInstallStamp { version in
+    print("Installing RefineID \(version.marketing) (\(version.build))")
 
-  var jobs: [() -> Void] = []
-  if mac { jobs.append { installMacOS([], stamp: false) } }
-  if devices {
-    let found = installPhysicalDevices()
-    if found.isEmpty { print("install-devices: no connected iPhone or iPad") }
-    for device in found {
-      jobs.append { installIOS(on: device, version: version, primeMockCard: primeMockCard) }
+    var jobs: [() -> Void] = []
+    if mac { jobs.append { installMacOS([], stamp: false) } }
+    if devices {
+      let found = installPhysicalDevices()
+      if found.isEmpty { print("install-devices: no connected iPhone or iPad") }
+      for device in found {
+        jobs.append { installIOS(on: device, version: version, primeMockCard: primeMockCard) }
+      }
     }
-  }
-  if simulator {
-    if let iPad = installIPadSimulator() {
-      jobs.append { installSimulator(iPad) }
-    } else {
-      print("install-devices: no iPad simulator available")
+    if simulator {
+      if let iPad = installIPadSimulator() {
+        jobs.append { installSimulator(iPad) }
+      } else {
+        print("install-devices: no iPad simulator available")
+      }
     }
+    DispatchQueue.concurrentPerform(iterations: jobs.count) { jobs[$0]() }
+    print("Installed RefineID \(version.marketing) (\(version.build)) on every selected target.")
   }
-  DispatchQueue.concurrentPerform(iterations: jobs.count) { jobs[$0]() }
-  print("Installed RefineID \(version.marketing) (\(version.build)) on every selected target.")
 }
 
 /// `install-nfc-timing`: the NFC card timing sample in Samples/NFCCardTiming.

@@ -21,6 +21,23 @@ private let repositoryRoot = URL(fileURLWithPath: #filePath)
 private let managerPath = "Scripts/apple-app-store-connect-release-manager.swift"
 private let successExitStatus: Int32 = 0
 private let rejectedExitStatus: Int32 = 1
+private let singleCaseCount = 1
+private let interruptedExitStatus: Int32 = 130
+private let commandTimeout: TimeInterval = 120
+private let processGroupLauncher = """
+  import os
+  import sys
+  executable_argument = 1
+  if os.getpgrp() != os.getpid():
+      os.setsid()
+  os.execvp(sys.argv[executable_argument], sys.argv[executable_argument:])
+  """
+private let managerEntryPoint = "\nlet arguments = Array(CommandLine.arguments.dropFirst())\n"
+private let readyMarker = Data("synthetic-signal-ready\n".utf8)
+private let fixtureConfig =
+  "MARKETING_VERSION = synthetic-original\r\nCURRENT_PROJECT_VERSION = synthetic-build\r\n"
+private let fixtureModule =
+  "internal enum ModuleVersion {\r\n  internal static let text = \"synthetic-original\"\r\n}\r\n"
 
 private struct CommandResult {
   let status: Int32
@@ -46,11 +63,12 @@ private func run(
   _ executable: String,
   _ arguments: [String],
   directory: URL,
-  environment: [String: String]? = nil
+  environment: [String: String]? = nil,
+  signalAfterReady: Int32? = nil
 ) -> CommandResult {
   let process = Process()
-  process.executableURL = URL(fileURLWithPath: executable)
-  process.arguments = arguments
+  process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+  process.arguments = ["python3", "-c", processGroupLauncher, executable] + arguments
   process.currentDirectoryURL = directory
   process.standardInput = FileHandle.nullDevice
   if let environment {
@@ -67,7 +85,21 @@ private func run(
     fail("could not start \(executable): \(error.localizedDescription)")
   }
 
-  let data = pipe.fileHandleForReading.readDataToEndOfFile()
+  let timeout = DispatchWorkItem {
+    if process.isRunning { kill(-process.processIdentifier, SIGKILL) }
+  }
+  DispatchQueue.global().asyncAfter(deadline: .now() + commandTimeout, execute: timeout)
+  defer { timeout.cancel() }
+  var data = Data()
+  if let signalAfterReady {
+    while data.range(of: readyMarker) == nil {
+      let bytes = pipe.fileHandleForReading.availableData
+      guard !bytes.isEmpty else { break }
+      data.append(bytes)
+    }
+    if data.range(of: readyMarker) != nil { kill(-process.processIdentifier, signalAfterReady) }
+  }
+  data.append(pipe.fileHandleForReading.readDataToEndOfFile())
   process.waitUntilExit()
 
   return CommandResult(
@@ -257,6 +289,143 @@ private func commandCases() -> [CommandCase] {
   ]
 }
 
+/// The production helpers run unchanged under both Swift execution modes.
+/// The isolated entry point supplies only synthetic commands and version files.
+private let lifecycleDriver = #"""
+  private let lifecycleRepeatCount = 65536
+  private let lifecycleSingleOutputRepeatCount = 1
+  private let lifecycleSemaphoreValue = 0
+  private let lifecycleStdout = "synthetic-stdout\n"
+  private let lifecycleStderr = "synthetic-stderr\n"
+  private let lifecycleEmitter = """
+  import sys
+  _, repetitions, exit_status = sys.argv
+  sys.stdout.write('synthetic-stdout\\n' * int(repetitions))
+  sys.stderr.write('synthetic-stderr\\n' * int(repetitions))
+  sys.exit(int(exit_status))
+  """
+  private let lifecycleMode = CommandLine.arguments.dropFirst().first ?? ""
+  switch lifecycleMode {
+  case "inherit":
+    releaseRun("/usr/bin/env", ["python3", "-c", lifecycleEmitter,
+      String(lifecycleSingleOutputRepeatCount), String(EXIT_SUCCESS)])
+  case "capture":
+    let result = releaseRun(
+      "/usr/bin/env", ["python3", "-c", lifecycleEmitter, String(lifecycleRepeatCount), String(EXIT_SUCCESS)], capture: true)
+    guard result.stdout == String(repeating: lifecycleStdout, count: lifecycleRepeatCount),
+      result.stderr == String(repeating: lifecycleStderr, count: lifecycleRepeatCount)
+    else { releaseFail("synthetic capture mismatch") }
+    print("synthetic-capture-ok")
+  case "capture-failure":
+    releaseRun("/usr/bin/env", ["python3", "-c", lifecycleEmitter,
+      String(lifecycleSingleOutputRepeatCount), String(EXIT_FAILURE)], capture: true)
+  case "stamp-success":
+    releaseWithInstallStamp { version in
+      guard releaseRead(releaseVersionConfig).contains(version.marketing),
+        releaseRead(releaseModuleVersion).contains("\(version.marketing).\(version.build)")
+      else { releaseFail("synthetic stamp did not apply") }
+      print("synthetic-stamp-active")
+    }
+  case "stamp-failure":
+    releaseWithInstallStamp { _ in releaseRun("/usr/bin/false", []) }
+  case "stamp-interrupt":
+    releaseWithInstallStamp { _ in
+      FileHandle.standardOutput.write(Data("synthetic-signal-ready\n".utf8))
+      DispatchSemaphore(value: lifecycleSemaphoreValue).wait()
+    }
+  default:
+    releaseFail("unknown synthetic mode")
+  }
+  """#
+
+private func checkLifecycle(in directory: URL) -> (failures: Int, cases: Int) {
+  let root = directory.appendingPathComponent("lifecycle", isDirectory: true)
+  let scripts = root.appendingPathComponent("Scripts", isDirectory: true)
+  let moduleDirectory = root.appendingPathComponent(
+    "PKCS11Bridge/Sources/PKCS11Bridge", isDirectory: true)
+  let source = scripts.appendingPathComponent("apple-app-store-connect-release-manager.swift")
+  let binary = root.appendingPathComponent("manager")
+  let config = root.appendingPathComponent("Version.xcconfig")
+  let module = moduleDirectory.appendingPathComponent("ModuleVersion.swift")
+  do {
+    try FileManager.default.createDirectory(at: scripts, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: moduleDirectory, withIntermediateDirectories: true)
+    let metadataDirectory = root.appendingPathComponent("Metadata", isDirectory: true)
+    try FileManager.default.createDirectory(
+      at: metadataDirectory, withIntermediateDirectories: true)
+    try Data("{}".utf8).write(to: metadataDirectory.appendingPathComponent("appstore.json"))
+    let production = try String(
+      contentsOf: repositoryRoot.appendingPathComponent(managerPath), encoding: .utf8)
+    guard let entry = production.range(of: managerEntryPoint) else {
+      fail("release manager entry point was not found")
+    }
+    try (String(production[..<entry.lowerBound]) + "\n" + lifecycleDriver).write(
+      to: source, atomically: true, encoding: .utf8)
+  } catch { fail("could not stage lifecycle fixtures") }
+  let compiled = run("/usr/bin/xcrun", ["swiftc", source.path, "-o", binary.path], directory: root)
+  guard compiled.status == successExitStatus else {
+    fail("could not compile lifecycle fixture:\n\(compiled.output)")
+  }
+  let cases: [(String, Int32, String, Int32?)] = [
+    ("inherit", successExitStatus, "synthetic-stdout\n", nil),
+    ("capture", successExitStatus, "synthetic-capture-ok", nil),
+    ("capture-failure", rejectedExitStatus, "FAIL: command failed:", nil),
+    ("stamp-success", successExitStatus, "synthetic-stamp-active", nil),
+    ("stamp-failure", rejectedExitStatus, "FAIL: command failed: /usr/bin/false", nil),
+    ("stamp-interrupt", interruptedExitStatus, "synthetic-signal-ready", SIGINT),
+    ("stamp-interrupt", interruptedExitStatus, "synthetic-signal-ready", SIGTERM),
+    ("stamp-interrupt", interruptedExitStatus, "synthetic-signal-ready", SIGHUP),
+  ]
+  let environment = isolatedEnvironment(home: root, overrides: [:])
+  var failures = 0
+  let executionModes = [false, true]
+  for interpreted in executionModes {
+    for (mode, status, expected, interrupt) in cases {
+      do {
+        try Data(fixtureConfig.utf8).write(to: config)
+        try Data(fixtureModule.utf8).write(to: module)
+      } catch { fail("could not reset lifecycle fixtures") }
+      let executable = interpreted ? "/usr/bin/swift" : binary.path
+      let arguments = interpreted ? [source.path, mode] : [mode]
+      let result = run(
+        executable, arguments, directory: root, environment: environment,
+        signalAfterReady: interrupt)
+      let restored =
+        (try? Data(contentsOf: config)) == Data(fixtureConfig.utf8)
+        && (try? Data(contentsOf: module)) == Data(fixtureModule.utf8)
+      let streams =
+        !["inherit", "capture-failure"].contains(mode)
+        || (result.output.contains("synthetic-stdout\n")
+          && result.output.contains("synthetic-stderr\n"))
+      guard result.status == status, result.output.contains(expected), restored, streams else {
+        failures += 1
+        FileHandle.standardError.write(
+          Data(
+            "FAIL: lifecycle \(mode), interpreter \(interpreted), exit \(result.status), restored \(restored):\n\(result.output)\n"
+              .utf8))
+        continue
+      }
+      print("ok: lifecycle \(mode), interpreter \(interpreted)")
+    }
+  }
+  return (failures, cases.count * executionModes.count)
+}
+
+private func checkScriptEntry(in directory: URL) -> Bool {
+  let result = run(
+    repositoryRoot.appendingPathComponent(managerPath).path,
+    ["--help"], directory: directory,
+    environment: isolatedEnvironment(home: directory, overrides: [:]))
+  guard result.status == successExitStatus,
+    result.output.contains("Usage: Scripts/apple-app-store-connect-release-manager.swift")
+  else {
+    FileHandle.standardError.write(Data("FAIL: executable script entry\n".utf8))
+    return false
+  }
+  print("ok: executable script entry")
+  return true
+}
+
 private func main() {
   let directory = FileManager.default.temporaryDirectory
     .appendingPathComponent("asc-release-manager-tests-\(UUID().uuidString)")
@@ -269,7 +438,10 @@ private func main() {
 
   let binary = compileManager(into: directory)
   let cases = commandCases()
-  var failures = 0
+  let lifecycle = checkLifecycle(in: directory)
+  let caseCount = cases.count + lifecycle.cases + singleCaseCount
+  var failures = lifecycle.failures
+  if !checkScriptEntry(in: directory) { failures += singleCaseCount }
 
   for (index, commandCase) in cases.enumerated() {
     let home = directory.appendingPathComponent("home-\(index)", isDirectory: true)
@@ -319,10 +491,10 @@ private func main() {
   }
 
   if failures > 0 {
-    fail("\(failures) of \(cases.count) release-manager cases failed")
+    fail("\(failures) of \(caseCount) release-manager cases failed")
   }
 
-  print("ok: \(cases.count) release-manager cases")
+  print("ok: \(caseCount) release-manager cases")
 }
 
 main()
