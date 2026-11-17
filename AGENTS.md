@@ -118,6 +118,8 @@
 - If something is not working, it is by default a bug in OUR code (or
   test harness), not a feature of the platform. "Impossible/blocked"
   claims require exchange-level evidence from a clean-slate repro.
+- All tests must have intent, integrity, and impact — trust is the product
+  tests bring (`Documentation/testing-strategy.md`).
 - Always test and verify features with automated tests and end-to-end
   verification before handing over to the user. Never claim features work
   without automated verification.

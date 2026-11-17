@@ -193,6 +193,59 @@ Counts are how often each is cited across this tree.
 - **Does NOT prove:** the form those cues should take.
 - **Source quality:** industry-published (textbook, foundational HCI).
 
+### leveson2012engineering
+
+- **Supports:** the systems-theoretic basis for STPA and for test
+  **intent**: safety and correctness are emergent system properties
+  enforced by controller constraints on interactions, not by testing
+  isolated components against their own implementation assumptions.
+- **Does NOT prove:** that any single hazard analysis is complete, or
+  that passing constraint tests guarantees the absence of unmodeled
+  feedback paths.
+- **Source quality:** peer-reviewed monograph (MIT Press 2012).
+
+### inozemtseva2014coverage
+
+- **Supports:** why raw statement or branch coverage is a poor proxy for
+  trust. Across 31,000 generated test suites for large systems, coverage
+  alone showed low-to-moderate correlation with fault-detection
+  effectiveness once suite size was controlled for.
+- **Does NOT prove:** that unexecuted code is safe. Zero coverage still
+  means zero dynamic verification; high coverage simply is not sufficient
+  evidence of test quality.
+- **Source quality:** peer-reviewed (ICSE 2014).
+
+### schuler2011checked
+
+- **Supports:** test **integrity** through oracle quality (*checked
+  coverage*): only statements whose results actually flow into a test
+  assertion contribute to catching faults. Executing a code path without
+  checking its outcome produces coverage numbers without assurance.
+- **Does NOT prove:** that every assertion checks the right specification
+  property; an assertion that repeats an implementation bug still passes.
+- **Source quality:** peer-reviewed (ICST 2011).
+
+### luo2014flaky
+
+- **Supports:** determinism as a prerequisite for test **integrity** and
+  developer trust. Empirical study of 201 flaky-test fixes showing that
+  async wait races, concurrency, and test-order dependency are the
+  primary causes of non-deterministic failures, and that flaky tests
+  erode confidence in the entire test suite.
+- **Does NOT prove:** that a deterministic test is checking a meaningful
+  requirement.
+- **Source quality:** peer-reviewed (FSE 2014).
+
+### just2014mutants
+
+- **Supports:** test **impact**: tests are effective when their assertions
+  are sensitive to plausible semantic faults (state, boundary, and
+  control transitions) rather than superficial syntactic wiring, shown
+  across 357 real faults in five systems.
+- **Does NOT prove:** that synthetic fault sensitivity covers omitted
+  requirements or specification errors.
+- **Source quality:** peer-reviewed (FSE 2014).
+
 ## Evidence we do not have
 
 Listing what cannot be cited is part of avoiding echo-chamber
