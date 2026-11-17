@@ -260,6 +260,51 @@ class QualityReceiptTests(unittest.TestCase):
         self.assertNotEqual(first, second)
         self.assertNotEqual(second, third)
 
+    def test_shellcheck_changes_invalidate_lint_receipts(self):
+        fake_tool = self.base / "tool"
+        fake_tool.write_text("unchanged tool binary")
+        shellcheck = self.base / "shellcheck"
+        shellcheck.write_text("first shellcheck binary")
+        shellcheck_version = "first shellcheck version"
+        missing_shellcheck = False
+
+        def which(name):
+            if name == "shellcheck":
+                return None if missing_shellcheck else str(shellcheck)
+            return str(fake_tool)
+
+        def output(arguments):
+            if arguments == ["shellcheck", "--version"]:
+                return shellcheck_version
+            if "--find" in arguments:
+                return str(fake_tool)
+            return "unchanged tool version"
+
+        with mock.patch.object(quality_receipt.shutil, "which", side_effect=which):
+            with mock.patch.object(quality_receipt, "command_output", side_effect=output):
+                first = quality_receipt.toolchain_fingerprint()
+                self.assertIsNotNone(first)
+                self.assertEqual(self.run_lint(fingerprint=first), 0)
+                self.assertEqual(self.run_lint(fingerprint=first), 0)
+                self.assertEqual(self.calls(), 1)
+
+                shellcheck.write_text("second shellcheck binary")
+                second = quality_receipt.toolchain_fingerprint()
+                self.assertNotEqual(first, second)
+                self.assertEqual(self.run_lint(fingerprint=second), 0)
+                self.assertEqual(self.calls(), 2)
+
+                shellcheck_version = "second shellcheck version"
+                third = quality_receipt.toolchain_fingerprint()
+                self.assertNotEqual(second, third)
+                self.assertEqual(self.run_lint(fingerprint=third), 0)
+                self.assertEqual(self.calls(), 3)
+
+                missing_shellcheck = True
+                self.assertIsNone(quality_receipt.toolchain_fingerprint())
+                self.assertEqual(self.run_lint(fingerprint=None), 0)
+                self.assertEqual(self.calls(), 4)
+
     def test_toolchain_change_during_lint_is_not_cached_or_reused(self):
         tree = quality_receipt.tree_for(self.repo, "index")
         initial = "toolchain-a"

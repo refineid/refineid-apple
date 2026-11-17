@@ -18,7 +18,7 @@ This document defines the tiered testing, formatting, and release quality gates 
 - **Script**: `Scripts/test.sh commit` (automatically driven by `Scripts/githooks/pre-commit`).
 - **Formatting Tool**: Run `Scripts/format.sh` (or `Scripts/format.sh --staged`) to format modified Swift files in-place using `swift-format`.
 - **Whitespace Check**: `git diff --cached --check` prevents committing trailing whitespace, spaces before tabs, or spurious carriage returns.
-- **Lint Snapshot**: `Scripts/QualityReceipt.py lint-index` materializes Git blobs from the staged tree and runs `Scripts/lint.sh` (swift-format, SwiftLint, `swiftc -typecheck` of every Swift script under `Scripts/`, and the suppression register) in that snapshot. A successful local receipt can skip the same lint run at push when the tree and toolchain still match. Receipts are a local speed optimization, never proof accepted by GitHub.
+- **Lint Snapshot**: `Scripts/QualityReceipt.py lint-index` materializes Git blobs from the staged tree and runs `Scripts/lint.sh` (swift-format, SwiftLint, shellcheck over every shell script and hook, `swiftc -typecheck` of every Swift script under `Scripts/`, and the suppression register) in that snapshot. A successful local receipt can skip the same lint run at push when the tree and toolchain still match. Receipts are a local speed optimization, never proof accepted by GitHub.
 - **Rule**: Diffs must remain focused and minimal. Zero noise diffs or accidental whitespace reformats across unrelated lines. Xcode builds rewrite the string catalogs: commit only the real extracted keys and discard junk diffs (empty keys, stale marks).
 
 ## 2. Push & PR Tier (Functional Verification)
@@ -34,6 +34,8 @@ This document defines the tiered testing, formatting, and release quality gates 
   7. **Independent Validation**: `Scripts/dss-gate.sh` has the EU DSS validator judge what the Swift signers write (see [Independent validation gate](#independent-validation-gate)).
   8. **Checkout Integrity**: Requires every updated push ref to name `HEAD`, rejects dirty trees, and rechecks the commit after all steps.
 
+- **Reading the tier**: each tier is one list of step records in `Scripts/test.sh`. `Scripts/test.sh plan pr` prints those steps with their commands resolved, and `Scripts/lint.sh list` prints the lint gate's resolved files, both without running checks or cleanup. Plans use placeholders for values resolved during execution, including the UI result bundle's timestamp, so repeated inspection has identical output. `Scripts/TestGatePlans.py` checks inspection without side effects, required PR checks, cleanup on real runs, and failure propagation in isolated fixtures; both the commit and PR tiers run it.
+
 ### Independent validation gate
 
 Our own tests check what our code means to write; the gate asks the EU
@@ -46,7 +48,7 @@ saves only a long-term archival signature, so the gate requires:
 | `swift-pades.pdf` | `PAdES-BASELINE-LTA` | `TOTAL_PASSED` | none |
 | `swift-asic-e.asice` | `XAdES-BASELINE-LTA` | `TOTAL_PASSED` | `ASiC-E` |
 
-- **Run**: `Scripts/dss-gate.sh`. Step 9 of `Scripts/test.sh pr` runs it.
+- **Run**: `Scripts/dss-gate.sh`, one step of `Scripts/test.sh pr`.
 - **Export**: `RefineIDTests/DssGateExportTests` stands in only for the
   card, with a generated RSA-2048 key. From the card's answer on it runs
   the app's own stages: `TimestampClient`, `DocumentSigner.longTerm` and
@@ -105,6 +107,7 @@ saves only a long-term archival signature, so the gate requires:
 - **Fast-Loop Headless Testing (Default)**: `RefineID.xctestplan`, the scheme's default test plan, holds `CardCoreTests` and `RefineIDTests` only. Running tests via `xcodebuild test -scheme RefineID` or pressing ⌘U in Xcode executes in-memory unit and integration tests without opening windows, stealing focus, or interrupting workstation tasks.
 - **UI test plan**: `RefineIDUITests.xctestplan` holds `RefineIDUITests`. A UI test runs only through it, by name with `xcodebuild test -scheme RefineID -testPlan RefineIDUITests -destination 'platform=macOS' -only-testing:RefineIDUITests/<class>/<method>`, through `Scripts/test.sh macos-mvp`, or in a VM through `Scripts/test-ui-tart.sh`. UI tests open windows and take the keyboard and mouse: run them only off the workstation's screen.
 - **Gate scope**: the pre-commit hook runs `Scripts/test.sh commit` (lint, no tests) and the pre-push hook runs `Scripts/test.sh pr` (lint, CardCore and PKCS11Bridge package tests, the iOS build, `RefineIDTests` on macOS and on the iOS simulator, and the DSS gate). Neither runs a UI test. The simulator step fails with a named message when no iPhone simulator is installed instead of a parser error.
+- **Host-only checks**: a test whose subject is the host's own tooling, such as the gate scripts in `Scripts/`, is compiled and run on macOS alone: `Process` does not exist on iOS, and those scripts are not on the phone. The invariant is asserted where its subject lives, never on a platform that has none, and the iOS leg still compiles the file, so an iOS-incompatible API fails the PR tier instead of a release. Whole-file `#if os(macOS)` already gates most of this suite for the same reason.
 - **iPad hardware**: a physical iPad cannot be test-driven under the project's Xcode. Build for it and install and launch with `ios-deploy`; never plan a hardware-iPad UI test. Simulator iPad UI tests are unaffected.
 - **Isolated Headless UI Tests with Tart**: When full end-to-end `RefineIDUITests` must be verified locally without screen-stealing, run them inside a headless macOS virtual machine using Tart:
   ```bash

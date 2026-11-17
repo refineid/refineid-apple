@@ -32,6 +32,33 @@ internal struct AppleAppStoreConnectReleaseManagerTests {
     try text(managerPath)
   }
 
+  // The gate scripts are host tooling, and Process does not exist on iOS, so
+  // the plan checks compile for macOS only.
+  #if os(macOS)
+    /// Asks a gate script what it will do and returns the answer.
+    ///
+    /// Both plan modes run no step, so this checks a gate's resolved plan
+    /// rather than the text of the script that builds it.
+    private static func gatePlan(_ script: String, _ arguments: String...) throws -> String {
+      let process = Process()
+      process.executableURL = URL(fileURLWithPath: "/bin/bash")
+      process.arguments = [script] + arguments
+      process.currentDirectoryURL = root
+      let pipe = Pipe()
+      process.standardOutput = pipe
+      process.standardError = pipe
+      try process.run()
+      let data = pipe.fileHandleForReading.readDataToEndOfFile()
+      let answer = try #require(String(bytes: data, encoding: .utf8))
+      process.waitUntilExit()
+      #expect(
+        process.terminationStatus == 0,
+        "\(script) \(arguments.joined(separator: " ")) exited \(process.terminationStatus):\n\(answer)"
+      )
+      return answer
+    }
+  #endif
+
   // MARK: Functions
 
   @Test("Environment, JWT minting, and HTTP requests share one App Store Connect stack")
@@ -60,24 +87,17 @@ internal struct AppleAppStoreConnectReleaseManagerTests {
     #expect(!source.contains("func die("))
   }
 
-  @Test("The lint and PR gates cover the release manager tests")
-  internal func gatesCoverReleaseManagerTests() throws {
-    let lint = try Self.text("Scripts/lint.sh")
-    #expect(
-      lint.contains(
-        #"typecheck "release manager" Scripts/apple-app-store-connect-release-manager.swift"#
-      ))
-    #expect(
-      lint.contains(
-        #"typecheck "release manager tests" Scripts/TestAppleAppStoreConnectReleaseManager.swift"#
-      ))
-    let formatPaths = try #require(
-      lint.components(separatedBy: "format_paths=(").last?
-        .components(separatedBy: ")").first)
-    #expect(!formatPaths.contains(Self.managerPath))
-    #expect(!formatPaths.contains(Self.managerTestsPath))
+  #if os(macOS)
+    @Test("The lint and PR gates cover the release manager tests")
+    internal func gatesCoverReleaseManagerTests() throws {
+      let lint = try Self.gatePlan("Scripts/lint.sh", "list")
+      #expect(lint.contains("typecheck \(Self.managerPath)"))
+      #expect(lint.contains("typecheck \(Self.managerTestsPath)"))
+      #expect(!lint.contains("format \(Self.managerPath)"))
+      #expect(!lint.contains("format \(Self.managerTestsPath)"))
 
-    let gate = try Self.text("Scripts/test.sh")
-    #expect(gate.contains("swift \(Self.managerTestsPath)"))
-  }
+      let gate = try Self.gatePlan("Scripts/test.sh", "plan", "pr")
+      #expect(gate.contains("swift \(Self.managerTestsPath)"))
+    }
+  #endif
 }

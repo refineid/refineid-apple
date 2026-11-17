@@ -162,6 +162,7 @@ def toolchain_fingerprint() -> str | None:
         "python3",
         "swift",
         "swiftlint",
+        "shellcheck",
         "xcrun",
         "xcode-select",
     ):
@@ -186,6 +187,7 @@ def toolchain_fingerprint() -> str | None:
         "swift": command_output(["swift", "--version"]),
         "swift-format": command_output([swift_format_path, "--version"]),
         "swiftlint": command_output(["swiftlint", "version"]),
+        "shellcheck": command_output(["shellcheck", "--version"]),
         "python": command_output([sys.executable, "--version"]),
         "xcodebuild": command_output([xcodebuild_path, "-version"]),
         "developer-directory": command_output(["xcode-select", "-p"]),
