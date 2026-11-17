@@ -11,9 +11,11 @@
   /// of the card is below the retry floor, since the card cannot be used
   /// until that code is reset, and the PIN codes window opens by itself
   /// when the reading says so. With no card in the reader it shows
-  /// nothing.
+  /// nothing; an invisible view holds the primary action slot so the
+  /// window keeps unified toolbar height.
   internal struct PinCodesButton: View {
     private static let pinCodesSymbol = "key.2.on.ring"
+    private static let emptyToolbarSide: CGFloat = 1
 
     @ObservedObject private var cardPresence = CardPresence.shared
     @ObservedObject private var demoMode = DemoMode.shared
@@ -59,6 +61,11 @@
           .accessibilityLabel(Text("PIN Codes"))
           .accessibilityValue(Self.cardValue(needsReset: cardNeedsReset))
           .accessibilityIdentifier("manageCard")
+        } else {
+          Color.clear
+            .frame(width: Self.emptyToolbarSide, height: Self.emptyToolbarSide)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
         }
       }
       .onChange(of: cardNeedsReset, initial: true) { _, needsReset in
