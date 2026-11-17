@@ -69,7 +69,7 @@ refined type validates in its initializer or it does not exist.
 
 ## Swift rules, mechanically enforced
 
-Enforcement is `Scripts/lint.sh` (pre-commit and pre-push). Run that
+Enforcement is `Scripts/lint.py` (pre-commit and pre-push). Run that
 script. `swiftlint lint --enable-all-rules` and SwiftLint `--format` are
 not the gate: the first ignores the carve register, the second fights
 swift-format. swift-format owns layout, SwiftLint (strict, all rules

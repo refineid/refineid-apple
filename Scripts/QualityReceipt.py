@@ -27,7 +27,7 @@ import time
 
 
 RECEIPT_SCHEMA = 1
-RECEIPT_CHECK = "Scripts/lint.sh"
+RECEIPT_CHECK = "Scripts/lint.py"
 RECEIPT_FILE_MODE = 0o600
 CACHE_DIRECTORY_MODE = 0o700
 EXECUTABLE_FILE_MODE = 0o755
@@ -458,7 +458,7 @@ def run_lint(
             extract_snapshot(root, tree, snapshot)
             try:
                 result = subprocess.run(
-                    ["Scripts/lint.sh"],
+                    [sys.executable, "Scripts/lint.py"],
                     cwd=snapshot,
                     env=lint_environment(),
                     check=False,

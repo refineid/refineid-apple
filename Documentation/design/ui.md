@@ -51,7 +51,7 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   Pro Max", since the device already says which system it runs. Until
   Apple grants the user-assigned device name entitlement, iOS reports
   every phone as "iPhone", so an iPhone or iPad sends its model name from
-  the table `Scripts/generate-device-models.sh` writes, or "iPhone" or
+  the table `Scripts/generate-device-models.py` writes, or "iPhone" or
   "iPad" for a model the table lacks. Once the entitlement is in
   `Config/RefineID-iOS.entitlements`, the one switch
   `readsUserAssignedDeviceName` in `RappLocalName` (CardCore) turns on and the

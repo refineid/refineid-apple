@@ -27,3 +27,5 @@ timeline.xctimeline
 xcuserdata/
 .agents/
 Metadata/slack/
+__pycache__/
+*.pyc

@@ -225,7 +225,7 @@ def land_pr(
     if worktree_mode:
         print(f"✓ Worktree ({root.name}) task completed.")
         print("  You can now switch to main in your primary repository, or clean up with:")
-        print("    Scripts/agent-housekeeping.sh --clean")
+        print("    Scripts/agent-housekeeping.py --clean")
     else:
         print("Updating local main...")
         run_cmd(["git", "checkout", "main"], cwd=root)

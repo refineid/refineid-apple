@@ -62,22 +62,22 @@ internal struct AppleAppStoreConnectReleaseManagerTests {
 
   @Test("The lint and PR gates cover the release manager tests")
   internal func gatesCoverReleaseManagerTests() throws {
-    let lint = try Self.text("Scripts/lint.sh")
+    let lint = try Self.text("Scripts/lint.py")
     #expect(
       lint.contains(
-        #"typecheck "release manager" Scripts/apple-app-store-connect-release-manager.swift"#
+        #"("release manager", ["Scripts/apple-app-store-connect-release-manager.swift"])"#
       ))
     #expect(
       lint.contains(
-        #"typecheck "release manager tests" Scripts/TestAppleAppStoreConnectReleaseManager.swift"#
+        #"("release manager tests", ["Scripts/TestAppleAppStoreConnectReleaseManager.swift"])"#
       ))
     let formatPaths = try #require(
-      lint.components(separatedBy: "format_paths=(").last?
-        .components(separatedBy: ")").first)
+      lint.components(separatedBy: "FORMAT_PATHS = [").last?
+        .components(separatedBy: "]").first)
     #expect(!formatPaths.contains(Self.managerPath))
     #expect(!formatPaths.contains(Self.managerTestsPath))
 
-    let gate = try Self.text("Scripts/test.sh")
-    #expect(gate.contains("swift \(Self.managerTestsPath)"))
+    let gate = try Self.text("Scripts/test.py")
+    #expect(gate.contains(Self.managerTestsPath))
   }
 }

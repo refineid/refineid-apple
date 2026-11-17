@@ -164,7 +164,7 @@ electronic signatures need no visual mark for the MVP.
 ### 2026-11-16 The unit suite runs on the iOS simulator as well as macOS
 
 The phone's suites compile only where `REFINEID_REMOTE_CARD` is on,
-which is nowhere on macOS, so no gate ran them. `Scripts/test.sh pr`
+which is nowhere on macOS, so no gate ran them. `Scripts/test.py pr`
 now builds and runs `RefineIDTests` a second time on the iOS simulator:
 the same bundle, hosted by `RefineIDTestHost` built for the simulator,
 with its `TEST_HOST` following the SDK.

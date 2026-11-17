@@ -98,21 +98,23 @@ class QualityReceiptTests(unittest.TestCase):
     def write_linter(self):
         scripts = self.repo / "Scripts"
         scripts.mkdir(exist_ok=True)
-        script = scripts / "lint.sh"
+        script = scripts / "lint.py"
         script.write_text(
-            "#!/bin/bash\n"
-            "set -euo pipefail\n"
-            "printf x >> \"$QUALITY_TEST_COUNTER\"\n"
-            "if ! grep -q '^PASS$' Sources/Probe.swift; then exit 1; fi\n"
-            "if [ \"${QUALITY_TEST_MUTATE:-0}\" = 1 ] "
-            "&& [ ! -e \"$QUALITY_TEST_MARKER\" ]; then\n"
-            "  printf 'FAIL\\n' > \"$QUALITY_TEST_ROOT/Sources/Probe.swift\"\n"
-            "  git -C \"$QUALITY_TEST_ROOT\" add Sources/Probe.swift\n"
-            "  if [ \"${QUALITY_TEST_COMMIT:-0}\" = 1 ]; then\n"
-            "    git -C \"$QUALITY_TEST_ROOT\" commit --quiet -m 'Fixture tree change'\n"
-            "  fi\n"
-            "  touch \"$QUALITY_TEST_MARKER\"\n"
-            "fi\n"
+            "#!/usr/bin/env python3\n"
+            "import os, pathlib, subprocess, sys\n"
+            "counter = os.environ.get('QUALITY_TEST_COUNTER')\n"
+            "if counter:\n"
+            "    with open(counter, 'a') as f: f.write('x')\n"
+            "probe = pathlib.Path('Sources/Probe.swift')\n"
+            "if not probe.exists() or 'PASS' not in probe.read_text():\n"
+            "    sys.exit(1)\n"
+            "if os.environ.get('QUALITY_TEST_MUTATE') == '1' and not pathlib.Path(os.environ['QUALITY_TEST_MARKER']).exists():\n"
+            "    root = pathlib.Path(os.environ['QUALITY_TEST_ROOT'])\n"
+            "    (root / 'Sources/Probe.swift').write_text('FAIL\\n')\n"
+            "    subprocess.run(['git', '-C', str(root), 'add', 'Sources/Probe.swift'], check=True)\n"
+            "    if os.environ.get('QUALITY_TEST_COMMIT') == '1':\n"
+            "        subprocess.run(['git', '-C', str(root), 'commit', '--quiet', '-m', 'Fixture tree change'], check=True)\n"
+            "    pathlib.Path(os.environ['QUALITY_TEST_MARKER']).touch()\n"
         )
         script.chmod(0o755)
 

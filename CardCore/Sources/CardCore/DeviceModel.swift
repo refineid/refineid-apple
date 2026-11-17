@@ -9,7 +9,7 @@ import Foundation
 /// Apple reports the hardware as a machine identifier such as
 /// `iPhone16,2` and publishes no interface for the marketing name; the
 /// names come from the device database Xcode ships, generated into
-/// `DeviceModels` by `Scripts/generate-device-models.sh`, and an
+/// `DeviceModels` by `Scripts/generate-device-models.py`, and an
 /// identifier not listed is shown as it is.
 internal enum DeviceModel {
   /// `iPhone16,2` as `uname` reports it, or the simulated device's

@@ -26,11 +26,11 @@ colliding and keeps the main checkout pristine for integration.
 4. Never copy distribution or release signing credentials: worktrees build debug only;
    store and TestFlight distribution stays in the main checkout via
    `Scripts/apple-app-store-connect-release-manager.swift`.
-5. Run `Scripts/agent-housekeeping.sh` and act on what it reports.
+5. Run `Scripts/agent-housekeeping.py` and act on what it reports.
 
 Swift Package Manager's package download cache lives outside the checkout
 (`~/Library/Caches/org.swift.swiftpm`), and package downloads can be reused
-between worktrees. `Scripts/test.sh` builds into the checkout's own
+between worktrees. `Scripts/test.py` builds into the checkout's own
 `build/DerivedData`, so each worktree keeps its writable DerivedData to
 itself and the builds leave with the worktree.
 
@@ -44,7 +44,7 @@ on pushes or pull requests.
 
 ## Housekeeping
 
-`Scripts/agent-housekeeping.sh` reports every worktree with its branch,
+`Scripts/agent-housekeeping.py` reports every worktree with its branch,
 merge state, dirty files, unpushed commits, activity freshness, and disk use.
 With `--clean` it removes only what is provably done:
 
@@ -61,7 +61,7 @@ resume work or clean up. In particular:
 
 ## Finishing a task
 
-1. Run `Scripts/test.sh pr` in the clean worktree. This includes lint, Swift
+1. Run `Scripts/test.py pr` in the clean worktree. This includes lint, Swift
    package tests for CardCore and PKCS11Bridge, the iOS build, RefineIDTests,
    and CardCoreTests.
 2. Commit on the task branch (subject and body only; strictly no AI attribution trailers)

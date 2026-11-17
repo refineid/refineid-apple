@@ -1,5 +1,5 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
-// Usage: Scripts/render-stamp-samples.sh [output-directory] [rotation-degrees]
+// Usage: Scripts/render-stamp-samples.py [output-directory] [rotation-degrees]
 // Generates standard-font PDFs using the production renderer for visual comparison.
 import AppKit
 import Foundation
