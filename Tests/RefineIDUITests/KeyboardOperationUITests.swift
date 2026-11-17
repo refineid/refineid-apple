@@ -49,14 +49,14 @@ internal final class KeyboardOperationUITests: XCTestCase {
     )
     let app = launchWithFullKeyboardAccess()
     defer { app.terminate() }
-    let management = app.descendants(matching: .button)[UITestIdentifiers.pinManagementButton]
+    let management = app.descendants(matching: .button)[UITestIdentifiers.pinCodesButton]
       .firstMatch
     XCTAssertTrue(
       management.waitForExistence(timeout: UITestApp.appearTimeout) && management.isEnabled,
       "no card present; management window unavailable"
     )
     XCTAssertTrue(
-      focus(app, on: UITestIdentifiers.pinManagementButton),
+      focus(app, on: UITestIdentifiers.pinCodesButton),
       "PIN Management is not reachable by Tab, so it is not reachable without a pointer"
     )
   }
@@ -70,7 +70,7 @@ internal final class KeyboardOperationUITests: XCTestCase {
   internal func testTheChangeFormIsWorkedWithTheKeyboardAlone() throws {
     let app = launchWithFullKeyboardAccess()
     defer { app.terminate() }
-    let management = app.descendants(matching: .button)[UITestIdentifiers.pinManagementButton]
+    let management = app.descendants(matching: .button)[UITestIdentifiers.pinCodesButton]
       .firstMatch
     XCTAssertTrue(
       management.waitForExistence(timeout: UITestApp.appearTimeout) && management.isEnabled,

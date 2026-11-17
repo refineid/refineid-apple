@@ -58,7 +58,8 @@ top, the window shows:
 
 1. The status row, where the app talks to the holder. It shows the
    identity line ("Connect a card reader." when no reader or card is
-   present). When `FEATURE_DOCUMENT_VERIFICATION` is enabled in post-MVP
+   present) and, while a card is in this Mac's reader, the PIN codes
+   key at its right end. When `FEATURE_DOCUMENT_VERIFICATION` is enabled in post-MVP
    builds, the identity line steps aside while documents are waiting and
    no card can sign, returning with the holder's name as soon as a card
    is ready; in the macOS MVP (`FEATURE_DOCUMENT_VERIFICATION` off), the
@@ -68,11 +69,10 @@ top, the window shows:
    a progress indicator ("Signing document…", "Timestamping…", and so on).
    A failure, in plain words, replaces the step at once and is announced;
    until "OK" is pressed it holds the default action and "Sign…" is
-   disabled, so Return cannot sign again unread. After that the row says
-   what the action left: "Signed and saved." ("Signed and saved 3 documents."
-   for a pile) with "Show in Finder", which selects every file written,
-   and any notice beside it. "OK" puts the outcome away, and so does a
-   change to the documents; the row then shows the identity again.
+   disabled, so Return cannot sign again unread. After signing, the row
+   says what the action left: "Signed and saved." ("Signed and saved 3 documents."
+   for a pile) and any notice beside it. The outcome stays briefly and
+   then returns to the identity row (or at once when the documents change).
 2. The document drop area, with the list of waiting documents. In the
    macOS MVP (`FEATURE_DOCUMENT_VERIFICATION` off), the empty drop area
    is shown only while a card can sign (or while documents are already
@@ -281,12 +281,12 @@ the lines are radio buttons (`CardChoiceList`) and none is chosen: the
 holder clicks the card to use. VoiceOver reads each as a radio button
 named by its holder's line, with its selection. Until a card is chosen,
 the PIN 2 field and the access number field take no input, Sign is
-disabled, and the toolbar's PIN codes button is disabled. While a document
+disabled, and the PIN codes button is disabled. While a document
 is being signed or the card read for the stamp, the choice stays as it is.
 
 The chosen card is where every card operation of the window goes
 (`CardSelection`, `ReaderTarget`): document signing, the stamp's card
-read, the attempts read behind the toolbar's keys, and the PIN codes
+read, the attempts read behind the PIN codes key, and the PIN codes
 window's changes and resets. No other reader's card is tried. A card
 awaiting activation is the one the activation form acts on, whatever is
 chosen; two cards awaiting activation leave the form nothing to act on.
@@ -331,7 +331,7 @@ use on.
 
 `PinCodesWindow` holds `CardManagementView` for the card in this Mac's
 reader, the chosen one when there are several: the attempts left, and changing or resetting PIN 1 and PIN 2. The
-toolbar button opens it, while it shows the two keys, and it opens by
+PIN codes key opens it, while it shows the two keys, and it opens by
 itself, once per insertion, when the card's reading says a code is below
 the retry floor; a card already in the reader at launch counts as inserted
 then. It has no Window menu item, opens at launch only for such a card,
@@ -339,7 +339,7 @@ and is not restored. It closes when the card leaves the reader, when
 another card or none is chosen, and when the card turns out to await
 activation.
 
-While a code is below the floor, the two keys in the toolbar are red and
+While a code is below the floor, the two keys are red and
 the window's top section says why the card cannot be used and the way
 back: "RefineID does not use PIN 1 with fewer than 3 attempts left." and
 "Reset PIN 1 with the PUK, or use other software." (the same for PIN

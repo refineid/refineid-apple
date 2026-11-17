@@ -7851,22 +7851,6 @@
         }
       }
     },
-    "Show in Finder": {
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Näytä Finderissa"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Visa i Finder"
-          }
-        }
-      }
-    },
     "Signed and saved %lld documents.": {
       "localizations": {
         "fi": {

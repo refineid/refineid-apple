@@ -205,7 +205,7 @@
 
       let nodes = await Self.inspect(StatusView())
       #expect(nodes.speaks("Connect a card reader."))
-      #expect(!nodes.hasIdentifier("manageCard"))
+      #expect(!nodes.hasIdentifier("pinCodesButton"))
       #expect(!nodes.hasIdentifier("documentDropArea"))
       #expect(!nodes.hasIdentifier("remoteUseSwitch"))
       #expect(!nodes.hasIdentifier("pairingCodeField"))
@@ -223,22 +223,24 @@
           || node.spokenText.contains("ESIMERKKI ERJA")
           || node.spokenText.contains("EXEMPEL EVA")
       }
+      let keyIndex = statusNodes.firstIndex { node in
+        node.identifier == "pinCodesButton" && node.spokenText.contains("PIN Codes")
+      }
       let dropIndex = statusNodes.firstIndex { node in
         node.identifier == "documentDropArea"
           || node.spokenText.contains("Drop documents here to sign them.")
       }
       #expect(holderIndex != nil, "holder identity is spoken")
+      #expect(keyIndex != nil, "PIN Codes key is spoken beside holder identity")
       #expect(dropIndex != nil, "document drop area is spoken")
-      if let holderIndex, let dropIndex {
-        #expect(holderIndex < dropIndex, "holder identity precedes document drop area")
+      if let holderIndex, let keyIndex, let dropIndex {
+        #expect(holderIndex < keyIndex, "holder identity precedes PIN Codes key")
+        #expect(keyIndex < dropIndex, "PIN Codes key precedes document drop area")
       }
       #expect(
         statusNodes.hasIdentifier("signChooseDocument") || statusNodes.speaks("Choose…"),
         "keyboard and VoiceOver file chooser button is reachable"
       )
-
-      let buttonNodes = await Self.inspect(PinCodesButton())
-      #expect(buttonNodes.containsSpokenControl(identifier: "manageCard", spoken: "PIN Codes"))
     }
 
     @Test("Document signing pile and format picker expose queue controls")

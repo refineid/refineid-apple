@@ -248,7 +248,7 @@
       ])
       defer { app.terminate() }
       _ = openStatusWindow(app)
-      let key = app.descendants(matching: .button)[UITestIdentifiers.pinManagementButton].firstMatch
+      let key = app.descendants(matching: .button)[UITestIdentifiers.pinCodesButton].firstMatch
       XCTAssertTrue(
         key.waitForExistence(timeout: UITestApp.appearTimeout),
         "no key beside the holder's name"

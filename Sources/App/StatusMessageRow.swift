@@ -2,16 +2,18 @@
 
 #if os(macOS)
 
-  import AppKit
   import SwiftUI
 
   /// The status row while it speaks about document signing: the step
-  /// with a progress indicator, or the outcome with its actions.
+  /// with a progress indicator, the failure with its acknowledgement,
+  /// or the saved outcome shown briefly before returning to the identity.
   ///
   /// A failure takes the default action for "OK", so Return reads it
   /// away before anything signs again, and every message is announced
   /// as it arrives.
   internal struct StatusMessageRow: View {
+    private static let outcomeDisplaySeconds = 3
+
     internal let message: StatusMessage
 
     /// Acknowledges the outcome, which returns the row to the identity.
@@ -26,6 +28,12 @@
       .accessibilityElement(children: .contain)
       .accessibilityIdentifier("statusMessage")
       .announcesOutcome(Self.spoken(message))
+      .task(id: message) {
+        guard case .outcome = message else { return }
+        try? await Task.sleep(for: .seconds(Self.outcomeDisplaySeconds))
+        guard !Task.isCancelled else { return }
+        acknowledge()
+      }
     }
 
     @ViewBuilder private var content: some View {
@@ -51,22 +59,12 @@
 
     @ViewBuilder private var actions: some View {
       switch message {
-      case .progress:
+      case .progress, .outcome:
         EmptyView()
 
       case .failure:
         Button("OK") { acknowledge() }
           .keyboardShortcut(.defaultAction)
-          .accessibilityIdentifier("statusAcknowledge")
-
-      case .outcome(_, let signed):
-        if !signed.isEmpty {
-          Button("Show in Finder") {
-            NSWorkspace.shared.activateFileViewerSelecting(signed)
-          }
-          .accessibilityIdentifier("statusShowInFinder")
-        }
-        Button("OK") { acknowledge() }
           .accessibilityIdentifier("statusAcknowledge")
       }
     }

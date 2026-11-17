@@ -81,7 +81,7 @@ internal final class LocalizationUITests: XCTestCase {
       app.activate()
       self.applyRegisteredVirtualCard(in: app)
       XCTAssertTrue(
-        app.buttons[UITestIdentifiers.pinManagementButton].waitForExistence(timeout: 10),
+        app.buttons[UITestIdentifiers.pinCodesButton].waitForExistence(timeout: 10),
         "PIN Management is not exposed in \(language)"
       )
       attachScreenshot(app.screenshot(), named: "menu-\(language)")

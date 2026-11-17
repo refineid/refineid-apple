@@ -51,7 +51,7 @@
       XCTAssertFalse(sign.isEnabled, "signing stays closed until a person is named")
 
       for absent in [
-        UITestIdentifiers.pinManagementButton,
+        UITestIdentifiers.pinCodesButton,
         UITestIdentifiers.remoteAccessToggle,
         UITestIdentifiers.cardAccessNumberField,
         UITestIdentifiers.pin1Field,

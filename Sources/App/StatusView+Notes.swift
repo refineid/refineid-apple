@@ -112,30 +112,6 @@
       .accessibilityIdentifier("loginIdentityStatus")
     }
 
-    internal var toolbarBackgroundVisibility: Visibility {
-      #if REFINEID_REMOTE_CARD
-        .automatic
-      #else
-        let demonstration = DemoMode.shared
-        let hasReaderCard =
-          demonstration.isActive
-          ? demonstration.isReaderCardPresent : cardPresence.isReaderCardPresent
-        return hasReaderCard ? .automatic : .hidden
-      #endif
-    }
-
-    /// The toolbar's trailing button.
-    ///
-    /// The remote-use switch where the remote card is on; the PIN codes
-    /// key where the MVP gates it off.
-    @ViewBuilder internal var toolbarButton: some View {
-      #if REFINEID_REMOTE_CARD
-        RemoteUseButton()
-      #else
-        PinCodesButton()
-      #endif
-    }
-
     /// The phone that forgot this computer, when one did, and the way to
     /// pair a phone.
     @ViewBuilder internal var pairingPromptSection: some View {

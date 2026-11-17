@@ -25,7 +25,7 @@
 
     internal func testRevealSwapsToStandardFieldAndBack() {
       let app = UITestApp.launchVirtualCard(scenario: "activated-reader")
-      let key = app.buttons[UITestIdentifiers.pinManagementButton]
+      let key = app.buttons[UITestIdentifiers.pinCodesButton]
       XCTAssertTrue(key.waitForExistence(timeout: Self.appearTimeout))
       key.tap()
 

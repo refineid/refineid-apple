@@ -13,8 +13,8 @@
 /// `Sources/App/CardRegistrationSections.swift`,
 /// `Sources/App/DiagnosticsView.swift`, the setup actions and the
 /// setup authentication prompt under `Sources/App/`, the
-/// card-management sections under `Sources/App/`, the Mac toolbar
-/// buttons `Sources/App/PinCodesButton.swift` and
+/// card-management sections under `Sources/App/`, the Mac PIN codes
+/// button `Sources/App/PinCodesButton.swift` and toolbar button
 /// `Sources/App/RemoteUseButton.swift`, the Mac signing sections and
 /// action bar, and the status message row.
 /// A UI test drives a separate process and cannot share a constant with
@@ -36,9 +36,6 @@ internal enum UITestIdentifiers {
 
   /// The Mac status row while it speaks about document signing.
   internal static let statusMessage = "statusMessage"
-
-  /// The status row's reveal of the signed files in Finder.
-  internal static let statusShowInFinder = "statusShowInFinder"
 
   /// The status row's acknowledgement action.
   internal static let statusAcknowledge = "statusAcknowledge"
@@ -92,8 +89,8 @@ internal enum UITestIdentifiers {
   /// The minting action after its last attempt failed.
   internal static let primeFailed = "primeFailed"
 
-  /// The main window's route into credential management.
-  internal static let pinManagementButton = "manageCard"
+  /// The main window's route into PIN management.
+  internal static let pinCodesButton = "pinCodesButton"
 
   /// The Mac's PIN codes window, which the key beside a local card's
   /// holder opens.

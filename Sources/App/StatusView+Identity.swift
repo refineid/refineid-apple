@@ -21,13 +21,26 @@
 
     /// Whose identity the card or phone offers, or what to attach.
     internal var identityRow: some View {
-      IdentityStateView(
-        availability: availability,
-        warnsUnavailableCard: activation.warnsUnavailableCard
-      )
-      // The card stays the one chosen while it is being used.
-      .disabled(signingModel.working || signingModel.readingStamp)
-      .accessibilityIdentifier("loginIdentityStatus")
+      #if REFINEID_REMOTE_CARD
+        IdentityStateView(
+          availability: availability,
+          warnsUnavailableCard: activation.warnsUnavailableCard
+        )
+        // The card stays the one chosen while it is being used.
+        .disabled(signingModel.working || signingModel.readingStamp)
+        .accessibilityIdentifier("loginIdentityStatus")
+      #else
+        HStack {
+          IdentityStateView(
+            availability: availability,
+            warnsUnavailableCard: activation.warnsUnavailableCard
+          )
+          .accessibilityIdentifier("loginIdentityStatus")
+          PinCodesButton()
+        }
+        // The card stays the one chosen while it is being used.
+        .disabled(signingModel.working || signingModel.readingStamp)
+      #endif
     }
 
     /// What signing has to say, or the identity row when it says
