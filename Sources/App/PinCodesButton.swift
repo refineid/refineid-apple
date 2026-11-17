@@ -15,7 +15,6 @@
   /// window keeps unified toolbar height.
   internal struct PinCodesButton: View {
     private static let pinCodesSymbol = "key.2.on.ring"
-    private static let emptyToolbarSide: CGFloat = 1
 
     @ObservedObject private var cardPresence = CardPresence.shared
     @ObservedObject private var demoMode = DemoMode.shared
@@ -62,8 +61,8 @@
           .accessibilityValue(Self.cardValue(needsReset: cardNeedsReset))
           .accessibilityIdentifier("manageCard")
         } else {
-          Color.clear
-            .frame(width: Self.emptyToolbarSide, height: Self.emptyToolbarSide)
+          Image(systemName: Self.pinCodesSymbol)
+            .hidden()
             .allowsHitTesting(false)
             .accessibilityHidden(true)
         }
