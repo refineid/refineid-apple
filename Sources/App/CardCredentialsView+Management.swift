@@ -15,7 +15,7 @@
         } label: {
           Label("Personal Identification Numbers (PINs)", systemImage: "key")
         }
-        .accessibilityIdentifier("manageCard")
+        .accessibilityIdentifier("pinCodesButton")
       }
     }
   }

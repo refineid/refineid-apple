@@ -4,27 +4,21 @@
 
   import SwiftUI
 
-  /// The key at the right end of the window's toolbar, in the title bar.
+  /// The key beside the local card's identity line.
   ///
   /// While a card is in this Mac's reader it shows two keys, one for each
   /// PIN, and opens the PIN codes window. The keys are red while a code
   /// of the card is below the retry floor, since the card cannot be used
   /// until that code is reset, and the PIN codes window opens by itself
   /// when the reading says so. With no card in the reader it shows
-  /// nothing; an invisible view holds the primary action slot so the
-  /// window keeps unified toolbar height.
+  /// nothing.
   internal struct PinCodesButton: View {
     private static let pinCodesSymbol = "key.2.on.ring"
-    private static let emptyToolbarSide: CGFloat = 1
 
     @ObservedObject private var cardPresence = CardPresence.shared
     @ObservedObject private var demoMode = DemoMode.shared
     @ObservedObject private var retryHealth = CredentialRetryHealth.shared
     private let selection = CardSelection.shared
-    /// Whether the PIN codes window has opened by itself for the card now
-    /// in the reader; it opens once per insertion, so a window the holder
-    /// closed stays closed through later readings of the same card.
-    @State private var openedForCard = false
     @Environment(\.openWindow)
     private var openWindow
 
@@ -55,22 +49,18 @@
               .foregroundStyle(Self.cardStyle(needsReset: cardNeedsReset))
               .replacingSymbol()
           }
+          .buttonStyle(.borderless)
           // The PIN codes belong to one card; with several, to the one chosen.
           .disabled(selection.awaitsChoice)
           .help(Text("PIN Codes"))
           .accessibilityLabel(Text("PIN Codes"))
           .accessibilityValue(Self.cardValue(needsReset: cardNeedsReset))
-          .accessibilityIdentifier("manageCard")
-        } else {
-          Color.clear
-            .frame(width: Self.emptyToolbarSide, height: Self.emptyToolbarSide)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+          .accessibilityIdentifier("pinCodesButton")
         }
       }
       .onChange(of: cardNeedsReset, initial: true) { _, needsReset in
-        if needsReset, !openedForCard {
-          openedForCard = true
+        if needsReset, !retryHealth.openedForCard {
+          retryHealth.openedForCard = true
           openWindow(id: PinCodesWindow.windowID)
         }
       }
@@ -82,7 +72,7 @@
       }
       .onChange(of: readerCardIsPresent) { _, present in
         if !present {
-          openedForCard = false
+          retryHealth.openedForCard = false
         }
       }
     }

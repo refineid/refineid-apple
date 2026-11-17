@@ -65,7 +65,7 @@ internal final class CredentialConfirmationUITests: XCTestCase {
   /// Opens the management window, or skips when no card is present.
   private func management() throws -> XCUIApplication {
     let app = UITestApp.launch()
-    let button = app.buttons[UITestIdentifiers.pinManagementButton]
+    let button = app.buttons[UITestIdentifiers.pinCodesButton]
     try XCTSkipUnless(
       button.waitForExistence(timeout: 2) && button.isEnabled,
       "no card present; management window unavailable"

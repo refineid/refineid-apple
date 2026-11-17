@@ -91,6 +91,11 @@ internal final class CredentialRetryHealth: ObservableObject {
   /// can name the exact counters the color came from.
   @Published internal private(set) var report: CredentialProbeReport?
 
+  /// Whether the PIN codes window has opened by itself for the card now
+  /// in the reader; it opens once per insertion, so a window the holder
+  /// closed stays closed through later readings of the same card.
+  internal var openedForCard = false
+
   private var readerRefresh: Task<Void, Never>?
   private var refreshGeneration = 0
 
@@ -170,6 +175,7 @@ internal final class CredentialRetryHealth: ObservableObject {
 
   internal func clear() {
     cancelReaderRefresh()
+    openedForCard = false
     recovery = nil
     level = nil
     report = nil

@@ -82,7 +82,7 @@
         XCTAssertTrue(button.isEnabled, "\(action) is not offered up front")
       }
       XCTAssertFalse(
-        app.buttons[UITestIdentifiers.pinManagementButton].exists,
+        app.buttons[UITestIdentifiers.pinCodesButton].exists,
         "PIN management is offered before any identity exists")
       XCTAssertFalse(
         app.secureTextFields[UITestIdentifiers.cardAccessNumberField].exists,

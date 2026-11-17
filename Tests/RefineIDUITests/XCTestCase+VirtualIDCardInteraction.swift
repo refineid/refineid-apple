@@ -132,7 +132,7 @@
 
     @MainActor
     internal func openManagement(in app: XCUIApplication) {
-      let key = app.buttons[UITestIdentifiers.pinManagementButton]
+      let key = app.buttons[UITestIdentifiers.pinCodesButton]
       XCTAssertTrue(key.waitForExistence(timeout: UITestApp.appearTimeout))
       key.tap()
       XCTAssertTrue(

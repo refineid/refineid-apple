@@ -38,14 +38,9 @@
       XCTAssertTrue(
         window.staticTexts["Signed and saved."].waitForExistence(
           timeout: UITestApp.appearTimeout))
-      let reveal = window.buttons[UITestIdentifiers.statusShowInFinder].firstMatch
-      XCTAssertTrue(
-        reveal.waitForExistence(timeout: UITestApp.appearTimeout),
-        "the signed file cannot be revealed")
-      let acknowledge = window.buttons[UITestIdentifiers.statusAcknowledge].firstMatch
-      XCTAssertTrue(
-        acknowledge.waitForExistence(timeout: UITestApp.appearTimeout),
-        "the outcome cannot be acknowledged")
+      XCTAssertFalse(
+        window.buttons[UITestIdentifiers.statusAcknowledge].exists,
+        "a saved signature should not require an acknowledgement button")
     }
 
     /// A wrong PIN 2 is refused with the attempts left, and once the

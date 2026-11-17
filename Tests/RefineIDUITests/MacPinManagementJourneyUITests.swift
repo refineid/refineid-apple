@@ -21,7 +21,7 @@
     /// Opens the PIN codes window on the virtual card's holder.
     private func openPinCodes(_ app: XCUIApplication) {
       _ = openStatusWindow(app)
-      let key = app.descendants(matching: .button)[UITestIdentifiers.pinManagementButton]
+      let key = app.descendants(matching: .button)[UITestIdentifiers.pinCodesButton]
         .firstMatch
       XCTAssertTrue(
         key.waitForExistence(timeout: UITestApp.appearTimeout),

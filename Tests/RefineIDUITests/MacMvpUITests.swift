@@ -57,7 +57,7 @@
       XCTAssertFalse(
         app.descendants(matching: .button)[UITestIdentifiers.remoteUseSwitch].firstMatch.exists)
       XCTAssertFalse(
-        app.descendants(matching: .button)[UITestIdentifiers.pinManagementButton].firstMatch
+        app.descendants(matching: .button)[UITestIdentifiers.pinCodesButton].firstMatch
           .exists)
       XCTAssertFalse(app.descendants(matching: .any)["documentDropArea"].firstMatch.exists)
       XCTAssertFalse(app.descendants(matching: .button)["verifyQueuedDocuments"].firstMatch.exists)
@@ -115,7 +115,7 @@
         XCTAssertTrue(window.staticTexts["Drop documents here to sign them."].exists)
       }
       // The key beside the holder's name speaks the window language.
-      let key = app.descendants(matching: .button)[UITestIdentifiers.pinManagementButton]
+      let key = app.descendants(matching: .button)[UITestIdentifiers.pinCodesButton]
         .firstMatch
       XCTAssertTrue(
         key.waitForExistence(timeout: UITestApp.appearTimeout),

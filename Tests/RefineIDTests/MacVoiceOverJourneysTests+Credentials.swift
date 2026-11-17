@@ -82,11 +82,7 @@
       let outcomeNodes = await Self.inspect(
         StatusMessageRow(message: outcome, acknowledge: Self.noOp))
       #expect(outcomeNodes.speaks(StatusMessage.savedSentence(count: SampleCount.twoDocuments)))
-      #expect(
-        outcomeNodes.containsSpokenControl(
-          identifier: "statusShowInFinder", spoken: "Show in Finder")
-      )
-      #expect(outcomeNodes.containsSpokenControl(identifier: "statusAcknowledge", spoken: "OK"))
+      #expect(!outcomeNodes.hasIdentifier("statusAcknowledge"))
 
       let failure = StatusMessage.failure("Signature PIN 2 is incorrect.\n4 attempts remaining.")
       let failureNodes = await Self.inspect(
@@ -270,10 +266,8 @@
       demo.activate(scenario: .activatedReader)
       let readyNodes = await Self.inspect(StatusView(), localeIdentifier: language)
       #expect(readyNodes.speaks(words.dropInvitation), "\(language): \(words.dropInvitation)")
-
-      let buttonNodes = await Self.inspect(PinCodesButton(), localeIdentifier: language)
       #expect(
-        buttonNodes.containsSpokenControl(identifier: "manageCard", spoken: words.pinCodes),
+        readyNodes.containsSpokenControl(identifier: "pinCodesButton", spoken: words.pinCodes),
         "\(language): \(words.pinCodes)"
       )
 

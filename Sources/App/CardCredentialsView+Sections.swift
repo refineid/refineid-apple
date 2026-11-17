@@ -64,7 +64,7 @@ extension CardCredentialsView {
         }
       }
       .tint(.primary)
-      .accessibilityIdentifier("manageCard")
+      .accessibilityIdentifier("pinCodesButton")
       .disabled(!managementAvailable)
     }
 
