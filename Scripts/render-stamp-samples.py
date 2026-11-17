@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import glob
 import os
 from pathlib import Path
 import shutil
@@ -20,8 +19,9 @@ def main() -> None:
     output = Path(sys.argv[1]).expanduser() if len(sys.argv) > 1 else Path.home() / "Desktop"
     output.mkdir(parents=True, exist_ok=True)
 
-    tmp_pdfs = repo_root / "tmp" / "pdfs"
+    tmp_pdfs = repo_root / "build" / "stamp-samples"
     tmp_pdfs.mkdir(parents=True, exist_ok=True)
+    (repo_root / "build" / ".metadata_never_index").touch(exist_ok=True)
 
     binary = tmp_pdfs / "render-stamps"
 

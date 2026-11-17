@@ -36,7 +36,10 @@ def main() -> None:
     vm_name = sys.argv[1] if len(sys.argv) > 1 else "macos-ci"
 
     if not shutil.which("tart"):
-        print("Error: tart is not installed. Install it with: brew install cirruslabs/cli/tart", file=sys.stderr)
+        print(
+            "Error: tart is not installed. Install it with: brew install cirruslabs/cli/tart",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     list_res = subprocess.run(["tart", "list"], capture_output=True, text=True, check=False)
@@ -46,8 +49,10 @@ def main() -> None:
         print("Available Tart VMs:", file=sys.stderr)
         if list_res.stdout:
             print(list_res.stdout, file=sys.stderr)
-        print(f"\nTo pull a pre-configured macOS VM with Xcode:", file=sys.stderr)
-        print(f"  tart pull ghcr.io/cirruslabs/macos-sonoma-xcode:latest {vm_name}\n", file=sys.stderr)
+        print("\nTo pull a pre-configured macOS VM with Xcode:", file=sys.stderr)
+        print(
+            f"  tart pull ghcr.io/cirruslabs/macos-sonoma-xcode:latest {vm_name}\n", file=sys.stderr
+        )
         print("Or clone an existing VM:", file=sys.stderr)
         print(f"  tart clone <source-vm> {vm_name}", file=sys.stderr)
         sys.exit(1)
@@ -72,7 +77,9 @@ def main() -> None:
     print("==> Waiting for VM IP...")
     vm_ip = ""
     for _ in range(30):
-        ip_res = subprocess.run(["tart", "ip", vm_name], capture_output=True, text=True, check=False)
+        ip_res = subprocess.run(
+            ["tart", "ip", vm_name], capture_output=True, text=True, check=False
+        )
         if ip_res.returncode == 0 and ip_res.stdout.strip():
             vm_ip = ip_res.stdout.strip()
             break

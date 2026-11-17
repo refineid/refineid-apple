@@ -7,9 +7,6 @@
 // the token extension both consume it.
 import PackageDescription
 
-// Xcode injects -suppress-warnings on local package products, which
-// conflicts with -warnings-as-errors. App targets already treat warnings
-// as errors. Tests are command-line only, so they keep the flag.
 private let warningsAsErrors: [SwiftSetting] = [
   .treatAllWarnings(as: .error)
 ]
@@ -33,7 +30,8 @@ private let package = Package(
     // conformance corpus and the vectors generated from the reference engine.
     .target(
       name: "RappEngine",
-      path: "Sources/RappEngine"),
+      path: "Sources/RappEngine",
+      swiftSettings: warningsAsErrors),
     // What the requester decides it shows: the identity row's line, the
     // phone's card request, and what the row knows. Decisions only - no
     // views, no strings, no platform API - so both platforms build it and
@@ -41,7 +39,8 @@ private let package = Package(
     .target(
       name: "RappRequester",
       dependencies: ["RappEngine"],
-      path: "Sources/RappRequester"),
+      path: "Sources/RappRequester",
+      swiftSettings: warningsAsErrors),
     // Tests live in the Xcode project's Tests/CardCoreTests bundle target
     // so one scheme runs them locally and in Xcode Cloud.
     // They exercise the public API only.
@@ -58,6 +57,7 @@ private let package = Package(
       resources: [
         .copy("TrustedListSigners")
       ],
+      swiftSettings: warningsAsErrors,
       linkerSettings: [
         .linkedFramework("Security")
       ]),

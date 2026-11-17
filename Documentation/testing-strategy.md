@@ -16,9 +16,9 @@ This document defines the tiered testing, formatting, and release quality gates 
 ## 1. Commit Tier (Local Formatting & Whitespace Control)
 
 - **Script**: `Scripts/test.py commit` (automatically driven by `Scripts/githooks/pre-commit`).
-- **Formatting Tool**: Run `Scripts/format.py` (or `Scripts/format.py --staged`) to format modified Swift files in-place using `swift-format`.
+- **Formatting Tool**: Run `Scripts/format.py` (or `Scripts/format.py --staged`) to format modified Swift files in-place using `swift-format` and Python helper scripts using `ruff format`.
 - **Whitespace Check**: `git diff --cached --check` prevents committing trailing whitespace, spaces before tabs, or spurious carriage returns.
-- **Lint Snapshot**: `Scripts/QualityReceipt.py lint-index` materializes Git blobs from the staged tree and runs `Scripts/lint.py` (swift-format, SwiftLint, `swiftc -typecheck` of every Swift script under `Scripts/`, and the suppression register) in that snapshot. A successful local receipt can skip the same lint run at push when the tree and toolchain still match. Receipts are a local speed optimization, never proof accepted by GitHub.
+- **Lint Snapshot**: `Scripts/QualityReceipt.py lint-index` materializes Git blobs from the staged tree and runs `Scripts/lint.py` (`swift-format`, SwiftLint, `ruff format --check`, `ruff check`, `mypy --strict`, `swiftc -typecheck -warnings-as-errors` of every Swift script under `Scripts/`, and the suppression register) in that snapshot. A successful local receipt can skip the same lint run at push when the tree and toolchain still match. Receipts are a local speed optimization, never proof accepted by GitHub.
 - **Rule**: Diffs must remain focused and minimal. Zero noise diffs or accidental whitespace reformats across unrelated lines. Xcode builds rewrite the string catalogs: commit only the real extracted keys and discard junk diffs (empty keys, stale marks).
 
 ## 2. Push & PR Tier (Functional Verification)
@@ -27,7 +27,7 @@ This document defines the tiered testing, formatting, and release quality gates 
 - **Verification Steps**:
   1. **Gate Tests**: `python3 -B Scripts/TestQualityReceipt.py` checks exact snapshots, tool changes, failures, corrupted receipts, and concurrent callers.
   2. **Lint Gate**: `Scripts/QualityReceipt.py lint-head` runs `Scripts/lint.py` against the clean `HEAD` tree. The receipt includes the tree and the selected toolchain. GitHub build and test verification is manual-only; it is not repeated on pushes or pull requests.
-  3. **Package Tests**: Runs `swift test --package-path CardCore` and `swift test --package-path PKCS11Bridge`.
+  3. **Package Build & Tests**: Runs `swift build --package-path CardCore --scratch-path build/spm/CardCore --build-tests`, `swift test --package-path CardCore --scratch-path build/spm/CardCore`, and `swift test --package-path PKCS11Bridge --scratch-path build/spm/PKCS11Bridge`.
   4. **Multi-Platform Build**: Verifies iOS compilation using the generic iOS destination.
   5. **App Unit Tests**: Executes `RefineIDTests` via `xcodebuild test -scheme RefineID -destination 'platform=macOS' -only-testing:RefineIDTests`.
   6. **Core Tests**: Executes `CardCoreTests` without `RappIntegrationTests`, then `CardCoreTests/RappIntegrationTests` alone, each in its own `xcodebuild test` invocation on macOS. A combined invocation can stall while Xcode finalizes its test record.

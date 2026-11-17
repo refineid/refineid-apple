@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 # Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
-# Drives iPad Safari card authentication logins to card.refineid.fi, suomi.fi, and posti.fi/omaposti.
+# Drives iPad Safari card authentication logins to card.refineid.fi, suomi.fi, and omaposti.
 #
 # Usage:
-#   Scripts/drive-ipad-logins.py [--site <card|suomi|omaposti|all>] [--direct] [--udid <simulator-udid>]
+#   Scripts/drive-ipad-logins.py [--site <card|suomi|omaposti|all>] [--direct] [--udid <udid>]
 
 from __future__ import annotations
 
 import argparse
-from datetime import datetime
-import glob
+import contextlib
+from datetime import UTC, datetime
 import json
 import os
 from pathlib import Path
@@ -45,14 +45,14 @@ def clean_safari(udid: str) -> None:
     print("==> Clearing Safari tabs and state on iPad simulator...")
     subprocess.run(["xcrun", "simctl", "terminate", udid, "com.apple.mobilesafari"], check=False)
 
-    device_safari = Path.home() / f"Library/Developer/CoreSimulator/Devices/{udid}/data/Library/Safari"
+    device_safari = (
+        Path.home() / f"Library/Developer/CoreSimulator/Devices/{udid}/data/Library/Safari"
+    )
     if device_safari.is_dir():
         for pattern in ["SafariTabs.db*", "BrowserState.db*", "CloudTabs.db*"]:
             for match in device_safari.glob(pattern):
-                try:
+                with contextlib.suppress(OSError):
                     match.unlink(missing_ok=True)
-                except OSError:
-                    pass
 
     container_res = subprocess.run(
         ["xcrun", "simctl", "get_app_container", udid, "com.apple.mobilesafari", "data"],
@@ -78,7 +78,7 @@ def run_direct_login(udid: str, target_url: str, site_name: str) -> None:
     print(f"==> Direct opening Safari on iPad simulator to: {target_url} ({site_name})")
     subprocess.run(["xcrun", "simctl", "openurl", udid, target_url], check=False)
     time.sleep(4)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).isoformat(timespec="seconds")
     screenshot_path = f"/tmp/ipad_login_{site_name}_{timestamp}.png"
     subprocess.run(["xcrun", "simctl", "io", udid, "screenshot", screenshot_path], check=False)
     print(f"==> Captured screenshot: {screenshot_path}")
@@ -137,7 +137,10 @@ def main() -> None:
     repo_root = Path(__file__).resolve().parent.parent
 
     parser = argparse.ArgumentParser(
-        description="Drives iPad Safari card authentication logins to card.refineid.fi, suomi.fi, and posti.fi/omaposti."
+        description=(
+            "Drives iPad Safari card authentication logins to card.refineid.fi, "
+            "suomi.fi, and posti.fi/omaposti."
+        )
     )
     parser.add_argument(
         "--site",
@@ -174,7 +177,11 @@ def main() -> None:
     if booted_res.returncode == 0:
         for line in booted_res.stdout.splitlines():
             if "iPad" not in line:
-                match = re.search(r"[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}", line, re.I)
+                match = re.search(
+                    r"[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}",
+                    line,
+                    re.IGNORECASE,
+                )
                 if match:
                     subprocess.run(["xcrun", "simctl", "shutdown", match.group(0)], check=False)
 

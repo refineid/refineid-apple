@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -78,9 +77,7 @@ def check_commits_ahead(root: Path, branch: str, base_remote: str = "origin") ->
     )
     commits = [c.strip() for c in res.stdout.splitlines() if c.strip()]
     if not commits:
-        raise LandPRError(
-            f"No commits on branch '{branch}' ahead of {base_remote}/main to land."
-        )
+        raise LandPRError(f"No commits on branch '{branch}' ahead of {base_remote}/main to land.")
     return commits
 
 
@@ -115,24 +112,34 @@ def extract_pr_metadata(root: Path, base_remote: str = "origin") -> tuple[str, s
 
 def check_gh_cli() -> None:
     if not shutil.which("gh"):
-        raise LandPRError(
-            "GitHub CLI (gh) is required but not installed or not found in PATH."
-        )
-    res = subprocess.run(["gh", "auth", "status"], capture_output=True, text=True)
+        raise LandPRError("GitHub CLI (gh) is required but not installed or not found in PATH.")
+    res = subprocess.run(["gh", "auth", "status"], capture_output=True, text=True, check=False)
     if res.returncode != 0:
         raise LandPRError(
             f"GitHub CLI is not authenticated. Run 'gh auth login' first.\n{res.stderr.strip()}"
         )
 
 
-def find_existing_pr(root: Path, branch: str) -> dict[str, str] | None:
+def find_existing_pr(root: Path, branch: str) -> dict[str, object] | None:
     res = run_cmd(
-        ["gh", "pr", "list", "--head", branch, "--base", "main", "--state", "open", "--json", "number,url,title"],
+        [
+            "gh",
+            "pr",
+            "list",
+            "--head",
+            branch,
+            "--base",
+            "main",
+            "--state",
+            "open",
+            "--json",
+            "number,url,title",
+        ],
         cwd=root,
     )
     try:
         prs = json.loads(res.stdout)
-        if prs and isinstance(prs, list):
+        if prs and isinstance(prs, list) and isinstance(prs[0], dict):
             return prs[0]
     except json.JSONDecodeError:
         pass
@@ -159,7 +166,8 @@ def land_pr(
 
     if branch == "main":
         raise LandPRError(
-            "Cannot land directly from 'main'. Work in a feature branch or worktree under ../wt/refineid-apple-<topic>\n"
+            "Cannot land directly from 'main'. Work in a feature branch or worktree "
+            "under ../wt/refineid-apple-<topic>\n"
             "(see AGENTS.md and Documentation/process/agent-worktrees.md)."
         )
 
@@ -168,7 +176,7 @@ def land_pr(
     check_gh_cli()
 
     default_title, default_body = extract_pr_metadata(root, base_remote=remote)
-    pr_title = title if title else default_title
+    pr_title = title or default_title
     pr_body = body if body is not None else default_body
 
     print(f"Branch:  {branch}")
@@ -189,16 +197,22 @@ def land_pr(
     existing_pr = find_existing_pr(root, branch)
     if existing_pr:
         pr_number = str(existing_pr["number"])
-        pr_url = existing_pr.get("url", f"#{pr_number}")
+        pr_url = str(existing_pr.get("url", f"#{pr_number}"))
         print(f"Found existing open PR #{pr_number}: {pr_url}")
     else:
         print("Creating Pull Request...")
         cmd = [
-            "gh", "pr", "create",
-            "--head", branch,
-            "--base", "main",
-            "--title", pr_title,
-            "--body", pr_body,
+            "gh",
+            "pr",
+            "create",
+            "--head",
+            branch,
+            "--base",
+            "main",
+            "--title",
+            pr_title,
+            "--body",
+            pr_body,
         ]
         res = run_cmd(cmd, cwd=root)
         pr_url = res.stdout.strip()

@@ -12,6 +12,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+import contextlib
 import fcntl
 import hashlib
 import json
@@ -24,7 +26,6 @@ import subprocess
 import sys
 import tempfile
 import time
-
 
 RECEIPT_SCHEMA = 1
 RECEIPT_CHECK = "Scripts/lint.py"
@@ -78,9 +79,7 @@ class GateError(Exception):
     pass
 
 
-def git(
-    root: Path, *arguments: str, timeout: float = DEFAULT_GIT_TIMEOUT_SECONDS
-) -> str:
+def git(root: Path, *arguments: str, timeout: float = DEFAULT_GIT_TIMEOUT_SECONDS) -> str:
     try:
         return subprocess.check_output(
             ["git", *arguments],
@@ -90,12 +89,10 @@ def git(
             timeout=timeout,
         ).strip()
     except subprocess.TimeoutExpired:
-        raise GateError(f"git {' '.join(arguments)} timed out after {timeout}s")
+        raise GateError(f"git {' '.join(arguments)} timed out after {timeout}s") from None
 
 
-def acquire_lock(
-    descriptor: int, timeout: float = DEFAULT_LOCK_TIMEOUT_SECONDS
-) -> bool:
+def acquire_lock(descriptor: int, timeout: float = DEFAULT_LOCK_TIMEOUT_SECONDS) -> bool:
     start = time.monotonic()
     while True:
         try:
@@ -108,11 +105,7 @@ def acquire_lock(
 
 
 def lint_environment() -> dict[str, str]:
-    return {
-        name: value
-        for name, value in os.environ.items()
-        if not name.startswith("GIT_")
-    }
+    return {name: value for name, value in os.environ.items() if not name.startswith("GIT_")}
 
 
 def tree_for(root: Path, mode: str) -> str:
@@ -155,11 +148,13 @@ def command_output(
 
 
 def toolchain_fingerprint() -> str | None:
-    tools = {}
+    tools: dict[str, dict[str, str] | None] = {}
     for name in (
         "bash",
         "git",
+        "mypy",
         "python3",
+        "ruff",
         "swift",
         "swiftlint",
         "xcrun",
@@ -183,18 +178,16 @@ def toolchain_fingerprint() -> str | None:
 
     versions = {
         "git": command_output(["git", "--version"]),
+        "mypy": command_output(["mypy", "--version"]),
+        "ruff": command_output(["ruff", "--version"]),
         "swift": command_output(["swift", "--version"]),
         "swift-format": command_output([swift_format_path, "--version"]),
         "swiftlint": command_output(["swiftlint", "version"]),
         "python": command_output([sys.executable, "--version"]),
         "xcodebuild": command_output([xcodebuild_path, "-version"]),
         "developer-directory": command_output(["xcode-select", "-p"]),
-        "macos-sdk-path": command_output(
-            ["xcrun", "--sdk", "macosx", "--show-sdk-path"]
-        ),
-        "macos-sdk-version": command_output(
-            ["xcrun", "--sdk", "macosx", "--show-sdk-version"]
-        ),
+        "macos-sdk-path": command_output(["xcrun", "--sdk", "macosx", "--show-sdk-path"]),
+        "macos-sdk-version": command_output(["xcrun", "--sdk", "macosx", "--show-sdk-version"]),
     }
     if any(value is None for value in versions.values()):
         return None
@@ -203,9 +196,7 @@ def toolchain_fingerprint() -> str | None:
         "platform": platform.platform(),
         "tools": tools,
         "versions": versions,
-        "environment": {
-            name: os.environ.get(name, "") for name in TOOLCHAIN_ENVIRONMENT
-        },
+        "environment": {name: os.environ.get(name, "") for name in TOOLCHAIN_ENVIRONMENT},
     }
     canonical = json.dumps(material, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
@@ -228,18 +219,22 @@ def cache_directory() -> Path | None:
             return None
         for component in directory.relative_to(home).parts:
             current = current / component
-            try:
+            with contextlib.suppress(FileExistsError):
                 current.mkdir(mode=CACHE_DIRECTORY_MODE)
-            except FileExistsError:
-                pass
             metadata = current.lstat()
             if not stat.S_ISDIR(metadata.st_mode):
                 return None
             if metadata.st_uid != os.getuid():
                 return None
-            if current in (directory.parent, directory) and metadata.st_mode & PRIVATE_PERMISSION_MASK:
+            if (
+                current in (directory.parent, directory)
+                and metadata.st_mode & PRIVATE_PERMISSION_MASK
+            ):
                 return None
-            if current not in (directory.parent, directory) and metadata.st_mode & SHARED_WRITE_PERMISSION_MASK:
+            if (
+                current not in (directory.parent, directory)
+                and metadata.st_mode & SHARED_WRITE_PERMISSION_MASK
+            ):
                 return None
     except OSError:
         return None
@@ -286,10 +281,8 @@ def install_receipt(path: Path, expected: dict[str, object]) -> None:
             os.fsync(receipt_file.fileno())
         os.replace(temporary_path, path)
     finally:
-        try:
+        with contextlib.suppress(FileNotFoundError):
             temporary_path.unlink()
-        except FileNotFoundError:
-            pass
 
 
 def extract_snapshot(root: Path, tree: str, destination: Path) -> None:
@@ -300,7 +293,7 @@ def extract_snapshot(root: Path, tree: str, destination: Path) -> None:
             timeout=DEFAULT_GIT_TIMEOUT_SECONDS,
         )
     except subprocess.TimeoutExpired:
-        raise GateError("git ls-tree timed out")
+        raise GateError("git ls-tree timed out") from None
     blobs = []
     for entry in entries.split(b"\0"):
         if not entry:
@@ -313,15 +306,11 @@ def extract_snapshot(root: Path, tree: str, destination: Path) -> None:
         ):
             raise GateError("lint snapshot contains a symlink or submodule")
         relative = PurePosixPath(os.fsdecode(raw_path))
-        if relative.is_absolute() or any(
-            part in ("", ".", "..") for part in relative.parts
-        ):
+        if relative.is_absolute() or any(part in ("", ".", "..") for part in relative.parts):
             raise GateError("unsafe path in staged tree")
         blobs.append((relative, mode, object_id))
 
-    object_ids = b"".join(
-        object_id.encode("ascii") + b"\n" for _, _, object_id in blobs
-    )
+    object_ids = b"".join(object_id.encode("ascii") + b"\n" for _, _, object_id in blobs)
     try:
         contents = subprocess.check_output(
             ["git", "cat-file", "--batch"],
@@ -330,20 +319,20 @@ def extract_snapshot(root: Path, tree: str, destination: Path) -> None:
             timeout=DEFAULT_GIT_TIMEOUT_SECONDS,
         )
     except subprocess.TimeoutExpired:
-        raise GateError("git cat-file timed out")
+        raise GateError("git cat-file timed out") from None
     offset = 0
     for relative, mode, object_id in blobs:
         header_end = contents.find(b"\n", offset)
         if header_end < 0:
             raise GateError("incomplete staged tree blob stream")
-        header = contents[offset:header_end].split()
+        blob_header = contents[offset:header_end].split()
         if (
-            len(header) != GIT_BLOB_HEADER_FIELD_COUNT
-            or header[0].decode("ascii") != object_id
-            or header[1] != GIT_BLOB_TYPE
+            len(blob_header) != GIT_BLOB_HEADER_FIELD_COUNT
+            or blob_header[0].decode("ascii") != object_id
+            or blob_header[1] != GIT_BLOB_TYPE
         ):
             raise GateError("unexpected staged tree blob")
-        size = int(header[2])
+        size = int(blob_header[2])
         content_start = header_end + GIT_HEADER_SEPARATOR_SIZE
         content_end = content_start + size
         if (
@@ -358,9 +347,7 @@ def extract_snapshot(root: Path, tree: str, destination: Path) -> None:
             output.write(contents[content_start:content_end])
         os.chmod(
             target,
-            EXECUTABLE_FILE_MODE
-            if mode == GIT_EXECUTABLE_FILE_MODE
-            else REGULAR_FILE_MODE,
+            EXECUTABLE_FILE_MODE if mode == GIT_EXECUTABLE_FILE_MODE else REGULAR_FILE_MODE,
         )
         offset = content_end + GIT_BLOB_SEPARATOR_SIZE
     if offset != len(contents):
@@ -394,7 +381,7 @@ def run_lint(
     tree: str,
     fingerprint: str | None,
     tree_guard: str | None = None,
-    fingerprint_supplier=None,
+    fingerprint_supplier: Callable[[], str | None] | None = None,
 ) -> int:
     cache = cache_directory() if fingerprint is not None else None
     receipt = None
@@ -411,9 +398,7 @@ def run_lint(
     if cache is not None and fingerprint is not None:
         expected = expected_receipt(tree, fingerprint)
         key = hashlib.sha256(
-            json.dumps(expected, sort_keys=True, separators=(",", ":")).encode(
-                "utf-8"
-            )
+            json.dumps(expected, sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()
         receipt = cache / f"{key}.json"
         lock_path = cache / f"{key}.lock"
@@ -421,27 +406,26 @@ def run_lint(
             flags = os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
             lock_descriptor = os.open(lock_path, flags, RECEIPT_FILE_MODE)
             metadata = os.fstat(lock_descriptor)
-            if not stat.S_ISREG(metadata.st_mode) or metadata.st_mode & PRIVATE_PERMISSION_MASK:
+            if (
+                not stat.S_ISREG(metadata.st_mode)
+                or metadata.st_mode & PRIVATE_PERMISSION_MASK
+                or not acquire_lock(lock_descriptor)
+            ):
                 os.close(lock_descriptor)
                 lock_descriptor = None
                 receipt = None
-            elif not acquire_lock(lock_descriptor):
-                os.close(lock_descriptor)
-                lock_descriptor = None
-                receipt = None
-            else:
-                if receipt_is_valid(receipt, expected):
-                    if not tree_still_matches(root, tree, tree_guard) or not fingerprint_matches():
-                        fcntl.flock(lock_descriptor, fcntl.LOCK_UN)
-                        os.close(lock_descriptor)
-                        lock_descriptor = None
-                        print("Checked tree or toolchain changed during lint.", file=sys.stderr)
-                        return 1
+            elif receipt_is_valid(receipt, expected):
+                if not tree_still_matches(root, tree, tree_guard) or not fingerprint_matches():
                     fcntl.flock(lock_descriptor, fcntl.LOCK_UN)
                     os.close(lock_descriptor)
                     lock_descriptor = None
-                    print("Lint receipt hit for exact tree and toolchain.")
-                    return 0
+                    print("Checked tree or toolchain changed during lint.", file=sys.stderr)
+                    return 1
+                fcntl.flock(lock_descriptor, fcntl.LOCK_UN)
+                os.close(lock_descriptor)
+                lock_descriptor = None
+                print("Lint receipt hit for exact tree and toolchain.")
+                return 0
         except OSError:
             if lock_descriptor is not None:
                 os.close(lock_descriptor)
@@ -476,10 +460,8 @@ def run_lint(
             print("Checked tree or toolchain changed while lint was running.", file=sys.stderr)
             return 1
         if receipt is not None and fingerprint is not None:
-            try:
+            with contextlib.suppress(OSError):
                 install_receipt(receipt, expected_receipt(tree, fingerprint))
-            except OSError:
-                pass
         return 0
     except (OSError, subprocess.CalledProcessError, GateError) as error:
         if isinstance(error, GateError):
@@ -501,7 +483,7 @@ def require_clean_head(root: Path) -> None:
             timeout=DEFAULT_GIT_TIMEOUT_SECONDS,
         )
     except subprocess.TimeoutExpired:
-        raise GateError("git ls-files timed out")
+        raise GateError("git ls-files timed out") from None
     for entry in indexed.split(b"\0"):
         if not entry:
             continue

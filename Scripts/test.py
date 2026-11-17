@@ -4,19 +4,20 @@
 # Tiered test and quality gate runner for RefineID.
 #
 # Usage:
-#   Scripts/test.py           # default: runs PR tier (lint, package tests, iOS build, app and core unit tests)
+#   Scripts/test.py           # default: runs PR tier
 #   Scripts/test.py commit    # fast pre-commit tier (whitespace check + lint)
-#   Scripts/test.py pr        # PR / pre-push tier (lint, package tests, iOS build, RefineIDTests on macOS and iOS, CardCoreTests, DSS gate)
+#   Scripts/test.py pr        # PR / pre-push tier (lint, package tests, iOS build, unit tests, DSS)
 #   Scripts/test.py nfc-signing # retained-field lifecycle and PACE regression tests
 #   Scripts/test.py macos-mvp # localized local-card UI checks
 
 from __future__ import annotations
 
 import atexit
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 
@@ -62,23 +63,32 @@ lsregister = Path(
 )
 
 
+def hide_build_from_spotlight() -> None:
+    build_dir = derived_data.parent
+    build_dir.mkdir(parents=True, exist_ok=True)
+    (build_dir / ".metadata_never_index").touch(exist_ok=True)
+
+
 def unregister_gate_builds() -> None:
     products = derived_data / "Build" / "Products"
-    if not products.is_dir() or not lsregister.is_file():
+    if not products.is_dir():
         return
     for root, dirs, _ in os.walk(products):
         rel_depth = len(Path(root).relative_to(products).parts)
         if rel_depth >= 2:
             dirs.clear()
             continue
-        for d in dirs:
+        for d in list(dirs):
             if d.endswith(".app"):
                 app_path = Path(root) / d
-                subprocess.run(
-                    [str(lsregister), "-u", str(app_path)],
-                    capture_output=True,
-                    check=False,
-                )
+                if lsregister.is_file():
+                    subprocess.run(
+                        [str(lsregister), "-u", str(app_path)],
+                        capture_output=True,
+                        check=False,
+                    )
+                shutil.rmtree(app_path, ignore_errors=True)
+                dirs.remove(d)
 
 
 atexit.register(unregister_gate_builds)
@@ -177,15 +187,43 @@ def main() -> None:
             "Lint gate failed.",
         )
 
+        hide_build_from_spotlight()
+
         step("3. Running CardCore package tests")
         run_command(
-            ["swift", "test", "--package-path", "CardCore"],
+            [
+                "swift",
+                "build",
+                "--package-path",
+                "CardCore",
+                "--scratch-path",
+                "build/spm/CardCore",
+                "--build-tests",
+            ],
+            "CardCore package build failed.",
+        )
+        run_command(
+            [
+                "swift",
+                "test",
+                "--package-path",
+                "CardCore",
+                "--scratch-path",
+                "build/spm/CardCore",
+            ],
             "CardCore package tests failed.",
         )
 
         step("4. Running PKCS11Bridge package tests")
         run_command(
-            ["swift", "test", "--package-path", "PKCS11Bridge"],
+            [
+                "swift",
+                "test",
+                "--package-path",
+                "PKCS11Bridge",
+                "--scratch-path",
+                "build/spm/PKCS11Bridge",
+            ],
             "PKCS11Bridge package tests failed.",
         )
 
@@ -328,6 +366,7 @@ def main() -> None:
         )
 
     elif mode == "nfc-signing":
+        hide_build_from_spotlight()
         step("Testing retained NFC field lifecycle and PACE")
         run_command(
             [
@@ -354,8 +393,9 @@ def main() -> None:
         )
 
     elif mode == "macos-mvp":
+        hide_build_from_spotlight()
         step("Checking the macOS MVP user interface")
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        timestamp = datetime.now(UTC).isoformat(timespec="seconds")
         result_path = f"build/macos-mvp-ui-{timestamp}.xcresult"
         run_command(
             [

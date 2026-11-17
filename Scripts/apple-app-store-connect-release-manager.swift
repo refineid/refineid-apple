@@ -2498,7 +2498,8 @@ private func releaseSigningArguments() -> [String] {
 
 private let installMacName = "RefineID.app"
 private let installMacTarget = URL(fileURLWithPath: "/Applications/RefineID.app")
-private let installMacDerivedData = URL(fileURLWithPath: "/tmp/refineid-macos-install")
+private let installMacDerivedData = releaseRepositoryRoot.appendingPathComponent(
+  "build/install-macos")
 private let installLSRegister =
   "/System/Library/Frameworks/CoreServices.framework/Frameworks/"
   + "LaunchServices.framework/Support/lsregister"
@@ -2568,11 +2569,11 @@ private func installUnregister(_ bundle: URL) {
   }
 }
 
-/// Every macOS copy outside /Applications is a competing CryptoTokenKit
-/// driver registration; the system picks one silently, not necessarily the
-/// one being edited. iOS build products carry no Contents/MacOS and are
-/// only unregistered: Launch Services still lets them claim the identifier,
-/// and a claimant without a macOS icon draws nothing in the Dock.
+/// Every copy outside /Applications is a competing CryptoTokenKit driver or
+/// Launch Services registration; the system picks one silently, and an
+/// iOS or simulator bundle claiming the identifier without a macOS icon draws
+/// nothing in the Dock. Active parallel device and simulator install scratch
+/// roots are spared until their own install step removes them.
 private func installRemoveStrayCopies(keeping built: URL) {
   var candidates = Set<String>()
   let spotlight = releaseRun(
@@ -2580,13 +2581,28 @@ private func installRemoveStrayCopies(keeping built: URL) {
   for line in spotlight.stdout.split(separator: "\n") where line.hasSuffix("/\(installMacName)") {
     candidates.insert(String(line))
   }
-  let roots = [
+  let worktrees =
+    releaseRun(
+      "/usr/bin/git", ["worktree", "list", "--porcelain"],
+      currentDirectory: releaseRepositoryRoot, capture: true, allowFailure: true
+    ).stdout.split(separator: "\n")
+    .filter { $0.hasPrefix("worktree ") }
+    .map { String($0.dropFirst("worktree ".count)) }
+  var roots = [
     "/tmp", "/private/tmp",
     releaseFileManager.homeDirectoryForCurrentUser.path + "/Library/Developer/Xcode/DerivedData",
     releaseRepositoryRoot.appendingPathComponent("build").path,
     releaseRepositoryRoot.appendingPathComponent("derivedData").path,
   ]
-  for root in roots where releaseIsDirectory(URL(fileURLWithPath: root)) {
+  for worktree in worktrees {
+    let buildRoot = URL(fileURLWithPath: worktree).appendingPathComponent("build")
+    if releaseIsDirectory(buildRoot) {
+      installHideFromSpotlight(buildRoot)
+      roots.append(buildRoot.path)
+    }
+    roots.append(URL(fileURLWithPath: worktree).appendingPathComponent("derivedData").path)
+  }
+  for root in Set(roots).sorted() where releaseIsDirectory(URL(fileURLWithPath: root)) {
     // Deep enough for a build nested in a scratch directory, which is
     // already nine levels down.
     let found = releaseRun(
@@ -2601,22 +2617,26 @@ private func installRemoveStrayCopies(keeping built: URL) {
   for line in hidden.stdout.split(separator: "\n") { candidates.insert(String(line)) }
 
   let keep = built.resolvingSymlinksInPath().path
+  let activeScratchPrefixes = [
+    releaseRepositoryRoot.appendingPathComponent("build/install-ios-").path,
+    releaseRepositoryRoot.appendingPathComponent("build/install-ipad-sim/").path,
+    "/tmp/refineid-ios-", "/private/tmp/refineid-ios-",
+    "/tmp/refineid-ipad-sim/", "/private/tmp/refineid-ipad-sim/",
+  ]
   var removed = 0
   for path in candidates.sorted() {
     let stray = URL(fileURLWithPath: path)
+    let resolved = stray.resolvingSymlinksInPath().path
     guard path != installMacTarget.path, !path.contains(".xcarchive/"),
-      stray.resolvingSymlinksInPath().path != keep
+      resolved != keep,
+      !activeScratchPrefixes.contains(where: { path.hasPrefix($0) || resolved.hasPrefix($0) })
     else { continue }
     installUnregister(stray)
-    guard releaseIsDirectory(stray.appendingPathComponent("Contents/MacOS")) else {
-      installNote("install-macos", "unregistered non-macOS copy: \(path)")
-      continue
-    }
-    installNote("install-macos", "removing stray macOS copy: \(path)")
+    installNote("install-macos", "removing stray copy: \(path)")
     try? releaseFileManager.removeItem(at: stray)
     removed += 1
   }
-  if removed == 0 { installNote("install-macos", "no stray macOS copies found") }
+  if removed == 0 { installNote("install-macos", "no stray copies found") }
 }
 
 /// Build trees older than a week in the temporary directory, which are
@@ -2868,6 +2888,7 @@ private func installMacOS(_ arguments: [String], stamp: Bool = true) {
   } catch {
     releaseFail("could not copy into \(installMacTarget.path): \(error.localizedDescription)")
   }
+  try? releaseFileManager.removeItem(at: built)
   installVerifySignature(installMacTarget, scope: "install-macos")
 
   // Registered directly: launching the app only so the system notices the
@@ -3007,7 +3028,9 @@ private func installIOS(
 ) {
   let scope = "install-ios \(device.name)"
   let configuration = "Profile"
-  let derivedData = URL(fileURLWithPath: "/tmp/refineid-ios-\(device.udid)")
+  let derivedData = releaseRepositoryRoot.appendingPathComponent("build/install-ios-\(device.udid)")
+  installHideFromSpotlight(releaseRepositoryRoot.appendingPathComponent("build"))
+  installHideFromSpotlight(derivedData)
   installNote(scope, "building RefineID \(version.marketing) (\(version.build)), \(configuration)")
   releaseRun(
     "/usr/bin/xcodebuild",
@@ -3032,6 +3055,8 @@ private func installIOS(
     "/usr/bin/xcrun",
     ["devicectl", "device", "install", "app", "--device", device.identifier, app.path],
     capture: true)
+  installUnregister(app)
+  try? releaseFileManager.removeItem(at: app)
   installNote(scope, "installed RefineID \(version.marketing) (\(version.build))")
   installLaunch(
     "fi.refineid.ReFineID", on: device, scope: scope,
@@ -3057,7 +3082,9 @@ private func installIPadSimulator() -> String? {
 
 private func installSimulator(_ simulator: String) {
   let scope = "install-simulator"
-  let derivedData = URL(fileURLWithPath: "/tmp/refineid-ipad-sim")
+  let derivedData = releaseRepositoryRoot.appendingPathComponent("build/install-ipad-sim")
+  installHideFromSpotlight(releaseRepositoryRoot.appendingPathComponent("build"))
+  installHideFromSpotlight(derivedData)
   installNote(scope, "building Debug for iPad simulator \(simulator)")
   releaseRun(
     "/usr/bin/xcrun", ["simctl", "boot", simulator], capture: true, allowFailure: true)
@@ -3076,13 +3103,12 @@ private func installSimulator(_ simulator: String) {
       "build",
     ],
     currentDirectory: releaseRepositoryRoot)
+  let app = derivedData.appendingPathComponent("Build/Products/Debug-iphonesimulator/RefineID.app")
   releaseRun(
     "/usr/bin/xcrun",
-    [
-      "simctl", "install", simulator,
-      derivedData.appendingPathComponent("Build/Products/Debug-iphonesimulator/RefineID.app")
-        .path,
-    ])
+    ["simctl", "install", simulator, app.path])
+  installUnregister(app)
+  try? releaseFileManager.removeItem(at: app)
   releaseRun(
     "/usr/bin/xcrun",
     ["simctl", "launch", "--terminate-running-process", simulator, "fi.refineid.ReFineID"],
@@ -3164,7 +3190,9 @@ private func installNFCTiming(_ arguments: [String]) {
   let scope = "install-nfc-timing"
   let device = installResolveDevice(arguments.first, scope: scope)
   let sample = releaseRepositoryRoot.appendingPathComponent("Samples/NFCCardTiming")
-  let derivedData = URL(fileURLWithPath: "/tmp/refineid-nfc-card-timing")
+  let derivedData = releaseRepositoryRoot.appendingPathComponent("build/install-nfc-card-timing")
+  installHideFromSpotlight(releaseRepositoryRoot.appendingPathComponent("build"))
+  installHideFromSpotlight(derivedData)
   releaseRun("/usr/bin/env", ["xcodegen", "generate", "--quiet"], currentDirectory: sample)
   installNote(scope, "building NFCCardTiming (Release) for \(device.name)")
   releaseRun(
@@ -3202,7 +3230,8 @@ private func installPKCS11(_ arguments: [String]) {
   let names = ["librefineid_pkcs11.dylib", "librefineid_pkcs11_sign.dylib"]
   let superseded = ["librefineid_pkcs11_signing.dylib"]
   let package = releaseRepositoryRoot.appendingPathComponent("PKCS11Bridge")
-  let built = package.appendingPathComponent(".build/release/libPKCS11Bridge.dylib")
+  let scratch = releaseRepositoryRoot.appendingPathComponent("build/spm/PKCS11Bridge")
+  let built = scratch.appendingPathComponent("release/libPKCS11Bridge.dylib")
   let primary = installDirectory.appendingPathComponent(names[0])
   let writable = releaseFileManager.isWritableFile(atPath: installDirectory.path)
 
@@ -3245,14 +3274,17 @@ private func installPKCS11(_ arguments: [String]) {
     releaseFail("usage: install-pkcs11 [--check]")
   }
 
+  installHideFromSpotlight(releaseRepositoryRoot.appendingPathComponent("build"))
   installNote(scope, "building release")
-  releaseRun("/usr/bin/swift", ["build", "-c", "release"], currentDirectory: package)
+  releaseRun(
+    "/usr/bin/swift", ["build", "-c", "release", "--scratch-path", scratch.path],
+    currentDirectory: package)
   guard releaseFileManager.fileExists(atPath: built.path) else {
     releaseFail("build produced no \(built.path)")
   }
   for name in names {
     let target = installDirectory.appendingPathComponent(name)
-    let staged = package.appendingPathComponent(".build/release/\(name)")
+    let staged = scratch.appendingPathComponent("release/\(name)")
     try? releaseFileManager.removeItem(at: staged)
     do {
       try releaseFileManager.copyItem(at: built, to: staged)

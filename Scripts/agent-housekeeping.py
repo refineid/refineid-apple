@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import time
@@ -42,25 +43,25 @@ def get_cmd_output(cmd: list[str], cwd: Path | None = None) -> str:
 
 def merged_by(branch: str, repo_root: Path) -> str:
     # 1. Ancestry
-    res = subprocess.run(
+    ancestry_res = subprocess.run(
         ["git", "merge-base", "--is-ancestor", branch, "main"],
         cwd=repo_root,
         capture_output=True,
         check=False,
     )
-    if res.returncode == 0:
+    if ancestry_res.returncode == 0:
         return "ancestry"
 
     # 2. Patch (cherry)
-    res = subprocess.run(
+    cherry_res = subprocess.run(
         ["git", "cherry", "main", branch],
         cwd=repo_root,
         capture_output=True,
         text=True,
         check=False,
     )
-    if res.returncode == 0 and res.stdout.strip():
-        lines = res.stdout.strip().splitlines()
+    if cherry_res.returncode == 0 and cherry_res.stdout.strip():
+        lines = cherry_res.stdout.strip().splitlines()
         if not any(line.startswith("+") for line in lines):
             return "patch"
 
@@ -124,9 +125,13 @@ def merged_by(branch: str, repo_root: Path) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Report agent worktree health, and with --clean remove only what is provably done."
+        description=(
+            "Report agent worktree health, and with --clean remove only what is provably done."
+        )
     )
-    parser.add_argument("--clean", action="store_true", help="Remove merged, clean, and pushed worktrees")
+    parser.add_argument(
+        "--clean", action="store_true", help="Remove merged, clean, and pushed worktrees"
+    )
     args = parser.parse_args()
 
     toplevel = get_cmd_output(["git", "rev-parse", "--show-toplevel"])
@@ -169,12 +174,12 @@ def main() -> None:
 
     for sec in sections:
         item: dict[str, str] = {}
-        for l in sec:
-            if l.startswith("worktree "):
-                item["worktree"] = l[len("worktree ") :]
-            elif l.startswith("branch "):
-                item["branch"] = l[len("branch ") :]
-            elif l == "bare":
+        for entry_line in sec:
+            if entry_line.startswith("worktree "):
+                item["worktree"] = entry_line[len("worktree ") :]
+            elif entry_line.startswith("branch "):
+                item["branch"] = entry_line[len("branch ") :]
+            elif entry_line == "bare":
                 item["bare"] = "1"
         if "worktree" in item:
             wt_p = Path(item["worktree"]).resolve()
@@ -190,7 +195,9 @@ def main() -> None:
 
     for item in worktrees:
         wt_path = Path(item["worktree"]).resolve()
-        branch_name = get_cmd_output(["git", "-C", str(wt_path), "rev-parse", "--abbrev-ref", "HEAD"])
+        branch_name = get_cmd_output(
+            ["git", "-C", str(wt_path), "rev-parse", "--abbrev-ref", "HEAD"]
+        )
         if not branch_name:
             print(f"--- {wt_path}")
             print("  verdict: REVIEW (not a readable checkout)")
@@ -213,16 +220,33 @@ def main() -> None:
 
         upstream_ok = (
             subprocess.run(
-                ["git", "-C", str(wt_path), "rev-parse", "--abbrev-ref", f"{branch_name}@{{upstream}}"],
+                [
+                    "git",
+                    "-C",
+                    str(wt_path),
+                    "rev-parse",
+                    "--abbrev-ref",
+                    f"{branch_name}@{{upstream}}",
+                ],
                 capture_output=True,
                 check=False,
             ).returncode
             == 0
         )
         if upstream_ok:
-            unpushed = get_cmd_output(
-                ["git", "-C", str(wt_path), "rev-list", "--count", f"{branch_name}@{{upstream}}..{branch_name}"]
-            ) or "?"
+            unpushed = (
+                get_cmd_output(
+                    [
+                        "git",
+                        "-C",
+                        str(wt_path),
+                        "rev-list",
+                        "--count",
+                        f"{branch_name}@{{upstream}}..{branch_name}",
+                    ]
+                )
+                or "?"
+            )
         elif merged_test:
             unpushed = "0"
         else:
@@ -242,9 +266,7 @@ def main() -> None:
                 last_commit_time = int(commit_time_str) if commit_time_str else 0
             except ValueError:
                 last_commit_time = 0
-            latest_subject = get_cmd_output(
-                ["git", "-C", str(wt_path), "log", "-1", "--format=%s"]
-            )
+            latest_subject = get_cmd_output(["git", "-C", str(wt_path), "log", "-1", "--format=%s"])
         else:
             latest_subject = "(no commits on branch yet)"
 
@@ -267,6 +289,11 @@ def main() -> None:
             print(f"  latest: {latest_subject}")
 
         if activity.startswith("fresh") or dirty == "yes":
+            if args.clean and activity.startswith("stale"):
+                stale_dd = wt_path / "build" / "DerivedData"
+                if stale_dd.is_dir():
+                    shutil.rmtree(stale_dd, ignore_errors=True)
+                    print(f"  cleaned: removed stale {stale_dd}")
             print("  verdict: KEEP (live claim)")
         elif merged_test and dirty == "no" and unpushed == "0":
             if args.clean:
@@ -276,8 +303,21 @@ def main() -> None:
             else:
                 print("  verdict: REMOVE (rerun with --clean)")
         else:
+            if args.clean and activity.startswith("stale"):
+                stale_dd = wt_path / "build" / "DerivedData"
+                if stale_dd.is_dir():
+                    shutil.rmtree(stale_dd, ignore_errors=True)
+                    print(f"  cleaned: removed stale {stale_dd}")
             print("  verdict: REVIEW (needs an owner decision)")
         print()
+
+    if args.clean:
+        xcode_dd = Path.home() / "Library" / "Developer" / "Xcode" / "DerivedData"
+        if xcode_dd.is_dir():
+            for entry in sorted(xcode_dd.glob("RefineID-*")):
+                if entry.is_dir():
+                    shutil.rmtree(entry, ignore_errors=True)
+                    print(f"cleaned: removed stale Xcode DerivedData {entry}")
 
 
 if __name__ == "__main__":

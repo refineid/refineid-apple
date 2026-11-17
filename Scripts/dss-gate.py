@@ -31,10 +31,11 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+from typing import NoReturn
 import urllib.request
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     print(f"dss-gate: {message}", file=sys.stderr)
     sys.exit(1)
 
@@ -119,8 +120,8 @@ def main() -> None:
     jars: list[Path] = []
 
     with open(lock_file, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
+        for raw_line in f:
+            line = raw_line.strip()
             if not line or line.startswith("#"):
                 continue
             parts = line.split()
@@ -156,6 +157,7 @@ def main() -> None:
     if classes_dir.exists():
         shutil.rmtree(classes_dir)
     classes_dir.mkdir(parents=True, exist_ok=True)
+    (repo_root / "build" / ".metadata_never_index").touch(exist_ok=True)
 
     javac_cmd = [
         str(jdk_bin / "javac"),
@@ -251,7 +253,8 @@ def main() -> None:
             print(f"{file_name}: {expected} TOTAL_PASSED, container {container}")
         else:
             print(
-                f"{file_name}: required {expected} TOTAL_PASSED in container {container}; DSS reports\n{report}",
+                f"{file_name}: required {expected} TOTAL_PASSED in container {container}; "
+                f"DSS reports\n{report}",
                 file=sys.stderr,
             )
             failed = True
