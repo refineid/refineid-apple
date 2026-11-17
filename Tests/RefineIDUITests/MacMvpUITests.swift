@@ -67,6 +67,10 @@
           .exists)
       XCTAssertFalse(app.descendants(matching: .any)["documentDropArea"].firstMatch.exists)
       XCTAssertFalse(app.descendants(matching: .button)["verifyQueuedDocuments"].firstMatch.exists)
+      let attachment = XCTAttachment(screenshot: window.screenshot())
+      attachment.name = "window-no-card"
+      attachment.lifetime = .keepAlways
+      add(attachment)
     }
 
     /// No pane is compiled in, so the application menu carries no

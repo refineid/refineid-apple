@@ -112,6 +112,18 @@
       .accessibilityIdentifier("loginIdentityStatus")
     }
 
+    internal var toolbarBackgroundVisibility: Visibility {
+      #if REFINEID_REMOTE_CARD
+        .automatic
+      #else
+        let demonstration = DemoMode.shared
+        let hasReaderCard =
+          demonstration.isActive
+          ? demonstration.isReaderCardPresent : cardPresence.isReaderCardPresent
+        return hasReaderCard ? .automatic : .hidden
+      #endif
+    }
+
     /// The toolbar's trailing button.
     ///
     /// The remote-use switch where the remote card is on; the PIN codes

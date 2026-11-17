@@ -91,6 +91,7 @@
           ToolbarItem(placement: .primaryAction) {
             toolbarButton
           }
+          .sharedBackgroundVisibility(toolbarBackgroundVisibility)
         }
       }
       .task {
