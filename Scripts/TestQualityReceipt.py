@@ -5,11 +5,14 @@
 #
 # Verify exact-tree lint receipts with an isolated Git repository and fake linter.
 
+from __future__ import annotations
+
+from collections.abc import Mapping
 import contextlib
-import importlib.util
 import io
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -17,14 +20,9 @@ import threading
 import unittest
 from unittest import mock
 
+import QualityReceipt as quality_receipt
+
 sys.dont_write_bytecode = True
-
-
-SCRIPT = Path(__file__).with_name("QualityReceipt.py")
-SPEC = importlib.util.spec_from_file_location("quality_receipt", SCRIPT)
-quality_receipt = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(quality_receipt)
-
 
 FIXTURE_GIT_ENVIRONMENT = {
     "GIT_AUTHOR_NAME",
@@ -34,8 +32,8 @@ FIXTURE_GIT_ENVIRONMENT = {
 }
 
 
-def fixture_environment(environment=None):
-    source = os.environ if environment is None else environment
+def fixture_environment(environment: Mapping[str, str] | None = None) -> dict[str, str]:
+    source: Mapping[str, str] = os.environ if environment is None else environment
     return {
         name: value
         for name, value in source.items()
@@ -43,7 +41,7 @@ def fixture_environment(environment=None):
     }
 
 
-def git(root, *arguments):
+def git(root: Path, *arguments: str) -> str:
     return subprocess.check_output(
         ["git", *arguments],
         cwd=root,
@@ -54,7 +52,7 @@ def git(root, *arguments):
 
 
 class QualityReceiptTests(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.base = Path(self.temporary.name)
@@ -84,18 +82,14 @@ class QualityReceiptTests(unittest.TestCase):
         (self.repo / ".swift-format").write_text("initial config\n")
         git(self.repo, "add", ".")
         git(self.repo, "commit", "--quiet", "-m", "Initial quality fixture")
-        self.environment_patch = mock.patch.dict(
-            os.environ, self.environment, clear=True
-        )
+        self.environment_patch = mock.patch.dict(os.environ, self.environment, clear=True)
         self.environment_patch.start()
         self.addCleanup(self.environment_patch.stop)
-        self.home_patch = mock.patch.object(
-            quality_receipt.Path, "home", return_value=self.home
-        )
+        self.home_patch = mock.patch.object(Path, "home", return_value=self.home)
         self.home_patch.start()
         self.addCleanup(self.home_patch.stop)
 
-    def write_linter(self):
+    def write_linter(self) -> None:
         scripts = self.repo / "Scripts"
         scripts.mkdir(exist_ok=True)
         script = scripts / "lint.py"
@@ -108,38 +102,43 @@ class QualityReceiptTests(unittest.TestCase):
             "probe = pathlib.Path('Sources/Probe.swift')\n"
             "if not probe.exists() or 'PASS' not in probe.read_text():\n"
             "    sys.exit(1)\n"
-            "if os.environ.get('QUALITY_TEST_MUTATE') == '1' and not pathlib.Path(os.environ['QUALITY_TEST_MARKER']).exists():\n"
+            "marker = pathlib.Path(os.environ.get('QUALITY_TEST_MARKER', ''))\n"
+            "if os.environ.get('QUALITY_TEST_MUTATE') == '1' and not marker.exists():\n"
             "    root = pathlib.Path(os.environ['QUALITY_TEST_ROOT'])\n"
             "    (root / 'Sources/Probe.swift').write_text('FAIL\\n')\n"
-            "    subprocess.run(['git', '-C', str(root), 'add', 'Sources/Probe.swift'], check=True)\n"
+            "    git_cmd = ['git', '-C', str(root)]\n"
+            "    subprocess.run([*git_cmd, 'add', 'Sources/Probe.swift'], check=True)\n"
             "    if os.environ.get('QUALITY_TEST_COMMIT') == '1':\n"
-            "        subprocess.run(['git', '-C', str(root), 'commit', '--quiet', '-m', 'Fixture tree change'], check=True)\n"
-            "    pathlib.Path(os.environ['QUALITY_TEST_MARKER']).touch()\n"
+            "        msg = 'Fixture tree change'\n"
+            "        subprocess.run([*git_cmd, 'commit', '--quiet', '-m', msg], check=True)\n"
+            "    marker.touch()\n"
         )
         script.chmod(0o755)
 
-    def run_lint(self, tree=None, fingerprint="toolchain-a", guard="index"):
-        tree = tree or quality_receipt.tree_for(self.repo, "index")
+    def run_lint(
+        self,
+        tree: str | None = None,
+        fingerprint: str | None = "toolchain-a",
+        guard: str | None = "index",
+    ) -> int:
+        resolved_tree = tree or quality_receipt.tree_for(self.repo, "index")
         with contextlib.redirect_stdout(io.StringIO()):
             return quality_receipt.run_lint(
-                self.repo, tree, fingerprint, tree_guard=guard
+                self.repo,
+                resolved_tree,
+                fingerprint,
+                tree_guard=guard,
             )
 
-    def calls(self):
+    def calls(self) -> int:
         return len(self.counter.read_text()) if self.counter.exists() else 0
 
-    def receipts(self):
+    def receipts(self) -> list[Path]:
         return list(
-            (
-                self.home
-                / "Library"
-                / "Caches"
-                / "RefineID"
-                / "QualityReceipts"
-            ).glob("*.json")
+            (self.home / "Library" / "Caches" / "RefineID" / "QualityReceipts").glob("*.json")
         )
 
-    def test_exact_tree_hit_and_staged_snapshot_resist_unstaged_laundering(self):
+    def test_exact_tree_hit_and_staged_snapshot_resist_unstaged_laundering(self) -> None:
         source = self.repo / "Sources" / "Probe.swift"
         source.write_text("FAIL\n")
         git(self.repo, "add", "Sources/Probe.swift")
@@ -161,7 +160,7 @@ class QualityReceiptTests(unittest.TestCase):
         self.assertEqual(self.run_lint(staged_tree), 0)
         self.assertEqual(self.calls(), 2)
 
-    def test_export_attributes_cannot_hide_staged_lint_inputs(self):
+    def test_export_attributes_cannot_hide_staged_lint_inputs(self) -> None:
         source = self.repo / "Sources" / "Probe.swift"
         attributes = self.repo / ".gitattributes"
         attributes.write_text("Sources/Probe.swift export-ignore\n")
@@ -175,7 +174,7 @@ class QualityReceiptTests(unittest.TestCase):
         self.assertEqual(quality_receipt.tree_for(self.repo, "index"), staged_tree)
         self.assertEqual(self.calls(), 1)
 
-    def test_inherited_git_index_cannot_redirect_fixture_commands(self):
+    def test_inherited_git_index_cannot_redirect_fixture_commands(self) -> None:
         sentinel = self.base / "sentinel"
         sentinel.mkdir()
         sentinel_environment = {
@@ -220,7 +219,7 @@ class QualityReceiptTests(unittest.TestCase):
         self.assertEqual(git(sentinel, "write-tree"), sentinel_tree)
         self.assertEqual(sentinel_index.read_bytes(), original_index)
 
-    def test_source_configuration_and_toolchain_changes_miss(self):
+    def test_source_configuration_and_toolchain_changes_miss(self) -> None:
         tree = quality_receipt.tree_for(self.repo, "index")
         self.assertEqual(self.run_lint(tree), 0)
 
@@ -240,29 +239,29 @@ class QualityReceiptTests(unittest.TestCase):
         self.assertEqual(self.run_lint(source_tree, "toolchain-b"), 0)
         self.assertEqual(self.calls(), 4)
 
-    def test_tool_fingerprint_tracks_binary_and_selected_environment(self):
+    def test_tool_fingerprint_tracks_binary_and_selected_environment(self) -> None:
         fake_tool = self.base / "tool"
         fake_tool.write_text("first tool binary")
-        with mock.patch.object(quality_receipt.shutil, "which", return_value=str(fake_tool)):
-            with mock.patch.object(
+        with (
+            mock.patch.object(shutil, "which", return_value=str(fake_tool)),
+            mock.patch.object(
                 quality_receipt,
                 "command_output",
                 side_effect=lambda arguments: (
-                    str(fake_tool)
-                    if "--find" in arguments
-                    else "stable version"
+                    str(fake_tool) if "--find" in arguments else "stable version"
                 ),
-            ):
-                first = quality_receipt.toolchain_fingerprint()
-                fake_tool.write_text("second tool binary")
-                second = quality_receipt.toolchain_fingerprint()
-                with mock.patch.dict(os.environ, {"SDKROOT": "alternate-sdk"}):
-                    third = quality_receipt.toolchain_fingerprint()
+            ),
+        ):
+            first = quality_receipt.toolchain_fingerprint()
+            fake_tool.write_text("second tool binary")
+            second = quality_receipt.toolchain_fingerprint()
+            with mock.patch.dict(os.environ, {"SDKROOT": "alternate-sdk"}):
+                third = quality_receipt.toolchain_fingerprint()
 
         self.assertNotEqual(first, second)
         self.assertNotEqual(second, third)
 
-    def test_toolchain_change_during_lint_is_not_cached_or_reused(self):
+    def test_toolchain_change_during_lint_is_not_cached_or_reused(self) -> None:
         tree = quality_receipt.tree_for(self.repo, "index")
         initial = "toolchain-a"
         with mock.patch.object(
@@ -299,7 +298,7 @@ class QualityReceiptTests(unittest.TestCase):
             )
         self.assertEqual(self.calls(), 2)
 
-    def test_failed_lint_never_writes_a_receipt(self):
+    def test_failed_lint_never_writes_a_receipt(self) -> None:
         source = self.repo / "Sources" / "Probe.swift"
         source.write_text("FAIL\n")
         git(self.repo, "add", "Sources/Probe.swift")
@@ -310,7 +309,7 @@ class QualityReceiptTests(unittest.TestCase):
         self.assertEqual(self.calls(), 2)
         self.assertEqual(self.receipts(), [])
 
-    def test_corrupt_and_symlink_receipts_are_cache_misses(self):
+    def test_corrupt_and_symlink_receipts_are_cache_misses(self) -> None:
         tree = quality_receipt.tree_for(self.repo, "index")
         self.assertEqual(self.run_lint(tree), 0)
         receipt = self.receipts()[0]
@@ -329,7 +328,7 @@ class QualityReceiptTests(unittest.TestCase):
         self.assertTrue(receipt.is_file())
         self.assertFalse(receipt.is_symlink())
 
-    def test_index_change_during_lint_fails_without_receipt(self):
+    def test_index_change_during_lint_fails_without_receipt(self) -> None:
         tree = quality_receipt.tree_for(self.repo, "index")
         with mock.patch.dict(
             os.environ,
@@ -343,23 +342,21 @@ class QualityReceiptTests(unittest.TestCase):
         self.assertNotEqual(quality_receipt.tree_for(self.repo, "index"), tree)
         self.assertEqual(self.receipts(), [])
 
-    def test_index_change_during_receipt_hit_is_rejected(self):
+    def test_index_change_during_receipt_hit_is_rejected(self) -> None:
         tree = quality_receipt.tree_for(self.repo, "index")
         self.assertEqual(self.run_lint(tree), 0)
         source = self.repo / "Sources" / "Probe.swift"
 
-        def change_index(*_arguments):
+        def change_index(*_arguments: object) -> bool:
             source.write_text("FAIL\n")
             git(self.repo, "add", "Sources/Probe.swift")
             return True
 
-        with mock.patch.object(
-            quality_receipt, "receipt_is_valid", side_effect=change_index
-        ):
+        with mock.patch.object(quality_receipt, "receipt_is_valid", side_effect=change_index):
             self.assertNotEqual(self.run_lint(tree), 0)
         self.assertEqual(self.calls(), 1)
 
-    def test_head_change_during_lint_fails_without_receipt(self):
+    def test_head_change_during_lint_fails_without_receipt(self) -> None:
         tree = quality_receipt.tree_for(self.repo, "head")
         with mock.patch.dict(
             os.environ,
@@ -370,12 +367,10 @@ class QualityReceiptTests(unittest.TestCase):
                 "QUALITY_TEST_COMMIT": "1",
             },
         ):
-            self.assertNotEqual(
-                self.run_lint(tree, guard="head"), 0
-            )
+            self.assertNotEqual(self.run_lint(tree, guard="head"), 0)
         self.assertEqual(self.receipts(), [])
 
-    def test_push_rejects_hidden_worktree_changes(self):
+    def test_push_rejects_hidden_worktree_changes(self) -> None:
         source = self.repo / "Sources" / "Probe.swift"
         for flag, reset_flag in (
             ("--assume-unchanged", "--no-assume-unchanged"),
@@ -393,12 +388,12 @@ class QualityReceiptTests(unittest.TestCase):
                 source.write_text("PASS\n")
                 git(self.repo, "update-index", reset_flag, "Sources/Probe.swift")
 
-    def test_concurrent_callers_write_one_atomic_receipt(self):
+    def test_concurrent_callers_write_one_atomic_receipt(self) -> None:
         tree = quality_receipt.tree_for(self.repo, "index")
         barrier = threading.Barrier(3)
-        results = []
+        results: list[int] = []
 
-        def invoke():
+        def invoke() -> None:
             barrier.wait()
             results.append(self.run_lint(tree))
 
@@ -415,7 +410,7 @@ class QualityReceiptTests(unittest.TestCase):
         self.assertEqual(self.run_lint(tree), 0)
         self.assertEqual(self.calls(), 1)
 
-    def test_push_ref_updates_check_local_commit_and_clean_tree(self):
+    def test_push_ref_updates_check_local_commit_and_clean_tree(self) -> None:
         (self.repo / ".swift-format").write_text("next config\n")
         git(self.repo, "add", ".swift-format")
         git(self.repo, "commit", "--quiet", "-m", "Second quality fixture")
@@ -433,15 +428,15 @@ class QualityReceiptTests(unittest.TestCase):
             with mock.patch.object(sys, "stdin", io.StringIO(update)):
                 quality_receipt.verify_push(self.repo)
 
-        with mock.patch.object(
-            sys,
-            "stdin",
-            io.StringIO(
-                f"refs/heads/old {previous} refs/heads/old {previous}\n"
+        with (
+            mock.patch.object(
+                sys,
+                "stdin",
+                io.StringIO(f"refs/heads/old {previous} refs/heads/old {previous}\n"),
             ),
+            self.assertRaises(quality_receipt.GateError),
         ):
-            with self.assertRaises(quality_receipt.GateError):
-                quality_receipt.verify_push(self.repo)
+            quality_receipt.verify_push(self.repo)
 
         with mock.patch.object(
             sys, "stdin", io.StringIO(f"refs/heads/main {head} refs/heads/main {head}\n")
@@ -450,22 +445,22 @@ class QualityReceiptTests(unittest.TestCase):
             with self.assertRaises(quality_receipt.GateError):
                 quality_receipt.verify_push(self.repo)
 
-    def test_verify_push_rejects_interactive_tty_without_input(self):
+    def test_verify_push_rejects_interactive_tty_without_input(self) -> None:
         with mock.patch.object(sys.stdin, "isatty", return_value=True):
             with self.assertRaises(quality_receipt.GateError) as ctx:
                 quality_receipt.verify_push(self.repo)
             self.assertIn("stdin", str(ctx.exception))
 
-    def test_git_timeout_raises_gate_error(self):
+    def test_git_timeout_raises_gate_error(self) -> None:
         with self.assertRaises(quality_receipt.GateError) as ctx:
             quality_receipt.git(self.repo, "status", timeout=0.00001)
         self.assertIn("timed out", str(ctx.exception))
 
-    def test_command_output_timeout_returns_none(self):
+    def test_command_output_timeout_returns_none(self) -> None:
         result = quality_receipt.command_output(["sleep", "1"], timeout=0.00001)
         self.assertIsNone(result)
 
-    def test_lock_timeout_falls_back_gracefully_without_hanging(self):
+    def test_lock_timeout_falls_back_gracefully_without_hanging(self) -> None:
         tree = quality_receipt.tree_for(self.repo, "index")
         with mock.patch.object(quality_receipt, "acquire_lock", return_value=False):
             self.assertEqual(self.run_lint(tree), 0)

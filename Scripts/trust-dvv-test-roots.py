@@ -97,14 +97,15 @@ def install() -> None:
             actual = sha256_of_bytes(cert_bytes)
             if actual != expected:
                 fail(
-                    f'"{name}" from {url} does not match DVV\'s published SHA-256; nothing installed.'
+                    f'"{name}" from {url} does not match DVV\'s published SHA-256; '
+                    "nothing installed."
                 )
 
             dest = tmp_path / f"{file_stem}.der"
             dest.write_bytes(cert_bytes)
             downloaded[file_stem] = dest
 
-        for file_stem, name in ROOTS:
+        for file_stem, _name in ROOTS:
             cert_file = downloaded[file_stem]
             cmd = [
                 "sudo",
@@ -161,7 +162,7 @@ def remove_named(name: str, is_root: bool, tmp_path: Path) -> None:
             for block in blocks[1:]:
                 lines = block.splitlines()
                 block_hash = lines[0].strip()
-                pem_lines = [l for l in lines[1:] if not l.startswith("SHA")]
+                pem_lines = [entry for entry in lines[1:] if not entry.startswith("SHA")]
                 pem_text = "\n".join(pem_lines).strip() + "\n"
                 root_pem = tmp_path / f"root-{block_hash}.pem"
                 root_pem.write_text(pem_text, encoding="utf-8")

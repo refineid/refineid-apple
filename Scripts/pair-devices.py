@@ -23,7 +23,11 @@ def find_booted_ipad_udid() -> str:
         )
         for line in res.stdout.splitlines():
             if "ipad" in line.lower() and "booted" in line.lower():
-                match = re.search(r"[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}", line, re.I)
+                match = re.search(
+                    r"[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}",
+                    line,
+                    re.IGNORECASE,
+                )
                 if match:
                     return match.group(0)
     except OSError:
@@ -59,7 +63,8 @@ def main() -> None:
 
     if not ipad_udid:
         print(
-            "Error: No booted iPad simulator found. Start an iPad simulator first or set IPAD_UDID.",
+            "Error: No booted iPad simulator found. "
+            "Start an iPad simulator first or set IPAD_UDID.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -71,7 +76,10 @@ def main() -> None:
         )
         sys.exit(1)
 
-    print(f"==> Driving automated pairing between iPhone ({iphone_udid}) and iPad simulator ({ipad_udid})...")
+    print(
+        f"==> Driving automated pairing between iPhone ({iphone_udid}) "
+        f"and iPad simulator ({ipad_udid})..."
+    )
     offer_log.unlink(missing_ok=True)
 
     # 1. Terminate running instances
@@ -79,7 +87,6 @@ def main() -> None:
 
     # 2. The iPhone holds the card, so it shows the code (RAPP v26.11.8 section 3).
     print("==> Showing a pairing code on the iPhone...")
-    log_file = open(offer_log, "w", encoding="utf-8")
     devicectl_cmd = [
         "xcrun",
         "devicectl",
@@ -93,53 +100,53 @@ def main() -> None:
         "fi.refineid.ReFineID",
         "--offer-remote-reader",
     ]
-    custodian_proc = subprocess.Popen(
-        devicectl_cmd,
-        stdout=log_file,
-        stderr=subprocess.STDOUT,
-    )
+    with offer_log.open("w", encoding="utf-8") as log_file:
+        custodian_proc = subprocess.Popen(
+            devicectl_cmd,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+        )
 
-    code = ""
-    for _ in range(60):
-        if offer_log.is_file():
-            content = offer_log.read_text(encoding="utf-8", errors="replace")
-            for line in content.splitlines():
-                if "offer-remote-reader: offer " in line:
-                    tokens = line.split()
-                    if len(tokens) >= 3:
-                        code = tokens[2]
-                        break
-            if code:
-                break
-        time.sleep(0.5)
+        code = ""
+        for _ in range(60):
+            if offer_log.is_file():
+                content = offer_log.read_text(encoding="utf-8", errors="replace")
+                for line in content.splitlines():
+                    if "offer-remote-reader: offer " in line:
+                        tokens = line.split()
+                        if len(tokens) >= 3:
+                            code = tokens[2]
+                            break
+                if code:
+                    break
+            time.sleep(0.5)
 
-    if not code:
-        print("Error: Failed to obtain the pairing code from the iPhone.", file=sys.stderr)
-        if offer_log.is_file():
-            print(offer_log.read_text(encoding="utf-8", errors="replace"), file=sys.stderr)
-        custodian_proc.kill()
-        sys.exit(1)
+        if not code:
+            print("Error: Failed to obtain the pairing code from the iPhone.", file=sys.stderr)
+            if offer_log.is_file():
+                print(offer_log.read_text(encoding="utf-8", errors="replace"), file=sys.stderr)
+            custodian_proc.kill()
+            sys.exit(1)
 
-    # 3. The iPad requester types the code.
-    print("==> Typing the pairing code on the iPad simulator...")
-    env = os.environ.copy()
-    env["SIMCTL_CHILD_REFINEID_PAIR_OFFER"] = code
-    subprocess.run(
-        [
-            "xcrun",
-            "simctl",
-            "launch",
-            "--console",
-            ipad_udid,
-            "fi.refineid.ReFineID",
-            "--pair-with-offer",
-        ],
-        env=env,
-        check=False,
-    )
+        # 3. The iPad requester types the code.
+        print("==> Typing the pairing code on the iPad simulator...")
+        env = os.environ.copy()
+        env["SIMCTL_CHILD_REFINEID_PAIR_OFFER"] = code
+        subprocess.run(
+            [
+                "xcrun",
+                "simctl",
+                "launch",
+                "--console",
+                ipad_udid,
+                "fi.refineid.ReFineID",
+                "--pair-with-offer",
+            ],
+            env=env,
+            check=False,
+        )
 
-    custodian_proc.wait()
-    log_file.close()
+        custodian_proc.wait()
     print("==> Pairing ceremony completed between iPhone and iPad.")
 
 

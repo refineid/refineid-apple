@@ -83,7 +83,7 @@
     /// no longer serve any card for the rest of it (§8.4 item 5); the
     /// pairing stays.
     public func closeCardUnavailable() async {
-      await closeWithNotice(.cardUnavailable)
+      _ = await closeWithNotice(.cardUnavailable)
     }
 
     /// Sends this endpoint's close carrying `reason` on an open session and
