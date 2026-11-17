@@ -32,6 +32,33 @@ internal struct MacosNotarizedDmgBuilderTests {
     try text(builderPath)
   }
 
+  // The gate scripts are host tooling, and Process does not exist on iOS, so
+  // the plan checks compile for macOS only.
+  #if os(macOS)
+    /// Asks a gate script what it will do and returns the answer.
+    ///
+    /// Both plan modes run no step, so this checks a gate's resolved plan
+    /// rather than the text of the script that builds it.
+    private static func gatePlan(_ script: String, _ arguments: String...) throws -> String {
+      let process = Process()
+      process.executableURL = URL(fileURLWithPath: "/bin/bash")
+      process.arguments = [script] + arguments
+      process.currentDirectoryURL = root
+      let pipe = Pipe()
+      process.standardOutput = pipe
+      process.standardError = pipe
+      try process.run()
+      let data = pipe.fileHandleForReading.readDataToEndOfFile()
+      let answer = try #require(String(bytes: data, encoding: .utf8))
+      process.waitUntilExit()
+      #expect(
+        process.terminationStatus == 0,
+        "\(script) \(arguments.joined(separator: " ")) exited \(process.terminationStatus):\n\(answer)"
+      )
+      return answer
+    }
+  #endif
+
   // MARK: Functions
 
   @Test("Notarization credentials are the App Store Connect API key")
@@ -172,33 +199,26 @@ internal struct MacosNotarizedDmgBuilderTests {
     #expect(runbook.contains("older artifacts"))
   }
 
-  @Test("The lint gate typechecks the builder and its tests")
-  internal func gateCoversTheBuilder() throws {
-    let lint = try Self.text("Scripts/lint.sh")
-    #expect(
-      lint.contains(
-        #"typecheck "macOS notarized DMG builder" Scripts/macos-notarized-dmg-builder.swift"#
-      ))
-    #expect(
-      lint.contains(
-        #"typecheck "macOS notarized DMG builder tests" Scripts/TestMacosNotarizedDmgBuilder.swift"#
-      ))
-    // Both files stay outside the swift-format run: the formatter joins a
-    // license comment onto the line above it, which would turn the shebang
-    // into an interpreter line carrying arguments.
-    let formatPaths = try #require(
-      lint.components(separatedBy: "format_paths=(").last?
-        .components(separatedBy: ")").first)
-    #expect(!formatPaths.contains(Self.builderPath))
-    #expect(!formatPaths.contains(Self.builderTestsPath))
-  }
+  #if os(macOS)
+    @Test("The lint gate typechecks the builder and its tests")
+    internal func gateCoversTheBuilder() throws {
+      let lint = try Self.gatePlan("Scripts/lint.sh", "list")
+      #expect(lint.contains("typecheck \(Self.builderPath)"))
+      #expect(lint.contains("typecheck \(Self.builderTestsPath)"))
+      // Both files stay outside the swift-format run: the formatter joins a
+      // license comment onto the line above it, which would turn the shebang
+      // into an interpreter line carrying arguments.
+      #expect(!lint.contains("format \(Self.builderPath)"))
+      #expect(!lint.contains("format \(Self.builderTestsPath)"))
+    }
 
-  @Test("The PR gate runs the builder command-line tests")
-  internal func prGateRunsTheBuilderTests() throws {
-    let gate = try Self.text("Scripts/test.sh")
-    #expect(gate.contains("swift \(Self.builderTestsPath)"))
-    #expect(gate.contains("direct-download DMG builder command-line tests"))
-  }
+    @Test("The PR gate runs the builder command-line tests")
+    internal func prGateRunsTheBuilderTests() throws {
+      let gate = try Self.gatePlan("Scripts/test.sh", "plan", "pr")
+      #expect(gate.contains("swift \(Self.builderTestsPath)"))
+      #expect(gate.contains("direct-download DMG builder command-line tests"))
+    }
+  #endif
 
   @Test("The runbook names both release CLIs and the artifact scope")
   internal func runbookNamesBothEntryPoints() throws {

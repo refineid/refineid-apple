@@ -32,7 +32,7 @@ xcrun devicectl device process launch \
 CUSTODIAN_PID=$!
 
 CODE=""
-for i in $(seq 1 60); do
+for _ in $(seq 1 60); do
   if grep -q "offer-remote-reader: offer " "$OFFER_LOG" 2>/dev/null; then
     CODE=$(grep "offer-remote-reader: offer " "$OFFER_LOG" | head -n 1 | awk '{print $3}')
     break

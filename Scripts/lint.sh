@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 #
-# Usage: Scripts/lint.sh
+# Usage:
+#   Scripts/lint.sh                     # the gate
+#   Scripts/lint.sh list                # print the resolved gate, run nothing
+#   Scripts/lint.sh regenerate-register
 #
 # The lint gate, and the only SwiftLint invocation the pre-commit and
 # pre-push hooks run. Run this script. Do not run:
@@ -16,6 +19,7 @@
 # Gate:
 # - swift-format owns layout
 # - SwiftLint owns defects (strict, carve register, baseline)
+# - shellcheck owns every shell script under Scripts/ and every git hook
 # - swiftc typechecks the standalone scripts under Scripts/, which no
 #   scheme or package compiles
 # - typing-discipline custom rules live in .swiftlint.yml
@@ -36,10 +40,15 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 mode="${1:-check}"
-if [ "${mode}" != "check" ] && [ "${mode}" != "regenerate-register" ]; then
-  printf 'usage: %s [check|regenerate-register]\n' "$0" >&2
-  exit 2
-fi
+list=0
+case "${mode}" in
+  check | regenerate-register) ;;
+  list) list=1 ;;
+  *)
+    printf 'usage: %s [check|list|regenerate-register]\n' "$0" >&2
+    exit 2
+    ;;
+esac
 
 fail() {
   local name=$1
@@ -60,21 +69,45 @@ format_paths=(
   Scripts/PaceCurveBenchmark.swift
 )
 
-format_log=$(
-  swift format lint --strict --recursive "${format_paths[@]}" 2>&1
-) || fail "swift-format" "${format_log}"
+if [[ ${list} -eq 1 ]]; then
+  for path in "${format_paths[@]}"; do
+    printf 'format %s\n' "${path}"
+  done
+else
+  format_log=$(
+    swift format lint --strict --recursive "${format_paths[@]}" 2>&1
+  ) || fail "swift-format" "${format_log}"
 
-# The baseline records the structural debt (type ordering, file splits,
-# magic numbers) present when the gate was raised. New findings fail;
-# paying debt down rewrites the baseline.
-swiftlint_log=$(
-  swiftlint lint --quiet --baseline .swiftlint-baseline.json 2>&1
-) || fail "swiftlint" "${swiftlint_log}"
+  # The baseline records the structural debt (type ordering, file splits,
+  # magic numbers) present when the gate was raised. New findings fail;
+  # paying debt down rewrites the baseline.
+  swiftlint_log=$(
+    swiftlint lint --quiet --baseline .swiftlint-baseline.json 2>&1
+  ) || fail "swiftlint" "${swiftlint_log}"
+fi
+
+# The hooks carry no .sh suffix, so they are found by path.
+shell_sources=()
+while IFS= read -r path; do
+  shell_sources+=("${path}")
+done < <(find Scripts -type f \( -name '*.sh' -o -path 'Scripts/githooks/*' \) | sort)
+
+if [[ ${list} -eq 1 ]]; then
+  for path in "${shell_sources[@]}"; do
+    printf 'shellcheck %s\n' "${path}"
+  done
+elif ! command -v shellcheck >/dev/null 2>&1; then
+  fail "shellcheck" "shellcheck is not installed; install it with: brew install shellcheck"
+else
+  shellcheck_log=$(shellcheck "${shell_sources[@]}" 2>&1) \
+    || fail "shellcheck" "${shellcheck_log}"
+fi
 
 # A script that `swift` runs is typechecked alone. A script compiled
 # into the CardCore module is typechecked with the CardCore sources it
 # uses. Every Swift file under Scripts/ must appear in one call.
-macos_sdk=$(xcrun --show-sdk-path --sdk macosx)
+# The SDK is asked for only when a typecheck runs, so `list` needs no Xcode.
+macos_sdk=""
 typechecked_scripts=()
 
 typecheck() {
@@ -86,6 +119,15 @@ typecheck() {
       Scripts/*) typechecked_scripts+=("${path}") ;;
     esac
   done
+  if [[ ${list} -eq 1 ]]; then
+    for path in "$@"; do
+      printf 'typecheck %s\n' "${path}"
+    done
+    return 0
+  fi
+  if [[ -z ${macos_sdk} ]]; then
+    macos_sdk=$(xcrun --show-sdk-path --sdk macosx)
+  fi
   local log
   log=$(swiftc -typecheck -sdk "${macos_sdk}" "$@" 2>&1) || fail "typecheck ${name}" "${log}"
 }
@@ -126,6 +168,10 @@ untypechecked=$(
 )
 if [[ -n ${untypechecked} ]]; then
   fail "typecheck" "not typechecked (add a typecheck call to Scripts/lint.sh):"$'\n'"${untypechecked}"
+fi
+
+if [[ ${list} -eq 1 ]]; then
+  exit 0
 fi
 
 register_path="Scripts/lint-suppression-register.json"
