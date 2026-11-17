@@ -28,12 +28,19 @@ internal struct CredentialOutcomeText: View {
       emphasized(color: .orange)
 
     case .success:
-      Text(message)
-        .foregroundStyle(.green)
-        .bold()
-        .multilineTextAlignment(.center)
-        .frame(maxWidth: .infinity, alignment: .center)
-        .textSelection(.enabled)
+      VStack {
+        Text(message)
+      }
+      .foregroundStyle(.green)
+      .bold()
+      .multilineTextAlignment(.center)
+      .frame(maxWidth: .infinity, alignment: .center)
+      .accessibilityElement(children: .combine)
+      // The combined element speaks the whole message: without the
+      // label the eye alone reads whether the card obeyed (see below
+      // for why the label sits on the container).
+      .accessibilityLabel(message)
+      .textSelection(.enabled)
     }
   }
 
@@ -44,21 +51,25 @@ internal struct CredentialOutcomeText: View {
       maxSplits: 1,
       omittingEmptySubsequences: false)
 
-    Group {
+    VStack(spacing: Layout.spacing) {
       if lines.count == Layout.twoLineCount {
-        VStack(spacing: Layout.spacing) {
-          Text(String(lines[0]))
-            .fontWeight(.semibold)
-          Text(String(lines[1]))
-        }
-        .multilineTextAlignment(.center)
-        .frame(maxWidth: .infinity, alignment: .center)
+        Text(String(lines[0]))
+          .fontWeight(.semibold)
+        Text(String(lines[1]))
       } else {
         Text(message)
       }
     }
+    .multilineTextAlignment(.center)
+    .frame(maxWidth: .infinity, alignment: .center)
     .foregroundStyle(color)
     .accessibilityElement(children: .combine)
+    // The combined element speaks the whole message: without the
+    // label the row shows its words to the eye alone. The label sits
+    // on the combined container, never on a bare Text: a Text that
+    // carries its own content as its label resolves the label through
+    // itself and recurses the stack away.
+    .accessibilityLabel(message)
     .textSelection(.enabled)
   }
 }
