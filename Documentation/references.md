@@ -225,6 +225,28 @@ Counts are how often each is cited across this tree.
   property; an assertion that repeats an implementation bug still passes.
 - **Source quality:** peer-reviewed (ICST 2011).
 
+### zhang2015assertions
+
+- **Supports:** test **integrity** through assertion density and
+  specificity: empirical study showing that the number and strength of
+  assertions in a test suite strongly correlate with fault-detection
+  effectiveness, even when controlling for code coverage.
+- **Does NOT prove:** that adding redundant assertions on the same
+  trivial value improves fault detection.
+- **Source quality:** peer-reviewed (ESEC/FSE 2015).
+
+### knight1986experimental
+
+- **Supports:** both the value and the limit of independent
+  implementations and external oracles (`Scripts/dss-gate.py` with EU
+  DSS, and the Swift and Rust RAPP engines). Cross-checking distinct
+  implementations catches implementation-local defects, while shared
+  specification ambiguities can still induce correlated errors across
+  independent implementations.
+- **Does NOT prove:** that two agreeing implementations prove a
+  specification is complete or free of design flaws.
+- **Source quality:** peer-reviewed (IEEE TSE 1986).
+
 ### luo2014flaky
 
 - **Supports:** determinism as a prerequisite for test **integrity** and

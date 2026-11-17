@@ -4,13 +4,18 @@ This document defines the testing philosophy and the tiered verification and rel
 
 ## Philosophy: Intent, Integrity, Impact
 
-Trust is the product tests bring. A test suite does not exist to produce green checkmarks or inflate line coverage ([inozemtseva2014coverage](references.md#inozemtseva2014coverage)); it exists to earn justified confidence that the system's invariants, safety constraints, and user promises hold. A test that passes when an invariant is broken, or fails when nothing is wrong, destroys trust instead of producing it.
+Trust is the product tests bring. Every test must have **intent**, **integrity**, and **impact**, grounded in empirical software verification and systems safety research:
 
-Every test must have three properties:
-
-- **Intent**: A test knows *why* it exists. It verifies a requirement, specification predicate, safety constraint ([leveson2012engineering](references.md#leveson2012engineering)), or observable behavior rather than mirroring how the code is currently written. Each test has a single, clear reason to fail so a failure names the broken invariant directly.
-- **Integrity**: A test tells the truth. Executing code without a strict, truthful oracle proves nothing ([schuler2011checked](references.md#schuler2011checked)). A test exercises real behavior, judges the outcome against an honest specification or independent oracle, and is deterministic across runs so failures are never dismissed as noise ([luo2014flaky](references.md#luo2014flaky)). Lowering an expectation or mocking away the boundary under test to make a test pass is a defect, not a fix.
-- **Impact**: A test guards something that matters if broken ([just2014mutants](references.md#just2014mutants)). It earns its existence by catching plausible faults that would compromise security, corrupt data, violate protocol rules, or strand a user. Tautological tests that only confirm mocks or trivial wiring add maintenance weight and false confidence without adding trust.
+1. **Integrity — Oracle Strength, Checked Coverage, and Determinism**
+   - **Coverage without strong assertions is hollow:** Inozemtseva and Holmes ([inozemtseva2014coverage](references.md#inozemtseva2014coverage)) and Schuler and Zeller ([schuler2011checked](references.md#schuler2011checked)) showed that executing code paths correlates poorly with catching faults unless those paths flow into strict assertions (*checked coverage*). Zhang and Mesbah ([zhang2015assertions](references.md#zhang2015assertions)) confirmed that assertion density and specificity—not raw line execution—drive fault detection.
+   - **Flakiness destroys trust:** Luo et al. ([luo2014flaky](references.md#luo2014flaky)) showed that non-deterministic tests train engineers to distrust and ignore failures.
+   - **Independent oracles expose implementation assumptions:** Validating outputs with an independent implementation (`Scripts/dss-gate.py` with EU DSS, and shared conformance vectors across Swift and Rust) catches single-implementation habits, while recognizing that shared specification blind spots still require specification review ([knight1986experimental](references.md#knight1986experimental)).
+2. **Intent — Specification Traceability & Hazard Constraints**
+   - In STPA ([leveson2012engineering](references.md#leveson2012engineering)), testing code against its own structure only proves the code matches itself. A test has intent when it verifies a specification predicate, protocol vector, or STPA controller constraint (`CC-n`)—stating what must hold or never happen independent of how the function is written, with a single clear reason to fail.
+3. **Impact — Fault Coupling & Consequence**
+   - Just et al. ([just2014mutants](references.md#just2014mutants)) showed that effective tests are coupled to plausible semantic faults at state transitions and boundaries, whereas tautological tests (asserting mocks or trivial wiring) add maintenance cost with near-zero fault sensitivity.
+4. **Trust — Calibrated Assurance**
+   - In high-assurance engineering, the output of verification is justified confidence (assurance): a passing suite means the guarded invariants hold, and a failing test means a real invariant broke.
 
 ## Overview of Tiers
 
