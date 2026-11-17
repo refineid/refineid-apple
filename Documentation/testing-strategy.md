@@ -1,6 +1,16 @@
 # Testing and Verification Strategy
 
-This document defines the tiered testing, formatting, and release quality gates for RefineID.
+This document defines the testing philosophy and the tiered verification and release quality gates for RefineID.
+
+## Philosophy: Intent, Integrity, Impact
+
+Trust is the product tests bring. A test suite does not exist to produce green checkmarks or inflate line coverage ([inozemtseva2014coverage](references.md#inozemtseva2014coverage)); it exists to earn justified confidence that the system's invariants, safety constraints, and user promises hold. A test that passes when an invariant is broken, or fails when nothing is wrong, destroys trust instead of producing it.
+
+Every test must have three properties:
+
+- **Intent**: A test knows *why* it exists. It verifies a requirement, specification predicate, safety constraint ([leveson2012engineering](references.md#leveson2012engineering)), or observable behavior rather than mirroring how the code is currently written. Each test has a single, clear reason to fail so a failure names the broken invariant directly.
+- **Integrity**: A test tells the truth. Executing code without a strict, truthful oracle proves nothing ([schuler2011checked](references.md#schuler2011checked)). A test exercises real behavior, judges the outcome against an honest specification or independent oracle, and is deterministic across runs so failures are never dismissed as noise ([luo2014flaky](references.md#luo2014flaky)). Lowering an expectation or mocking away the boundary under test to make a test pass is a defect, not a fix.
+- **Impact**: A test guards something that matters if broken ([just2014mutants](references.md#just2014mutants)). It earns its existence by catching plausible faults that would compromise security, corrupt data, violate protocol rules, or strand a user. Tautological tests that only confirm mocks or trivial wiring add maintenance weight and false confidence without adding trust.
 
 ## Overview of Tiers
 
