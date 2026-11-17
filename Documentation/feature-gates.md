@@ -131,7 +131,7 @@ edit them expecting a behavior change.
 
 ## Verification
 
-- `Scripts/test.sh pr` — lint, package tests, iOS build,
+- `Scripts/test.py pr` — lint, package tests, iOS build,
   RefineIDTests on macOS and the iOS simulator, CardCoreTests,
   simulator Bluetooth and offer-handoff tests, DSS gate.
 - `Scripts/apple-app-store-connect-release-manager.swift

@@ -89,7 +89,7 @@ The offer handoff is tested in `Tests/CardCoreTests`, which runs
 on both platforms: the shared core (offer round-trip, invalid
 offer, access-group shape) runs on macOS, and the
 offer/library/refusal members run on the iOS simulator through
-the simulator-only step of `Scripts/test.sh pr`, asserting the
+the simulator-only step of `Scripts/test.py pr`, asserting the
 iOS shape above. The app-side opening test,
 `Tests/RefineIDTests/CardCanOfferOpeningTests.swift`, keeps its
 contactless candidate cases behind `FEATURE_CONTACTLESS` while

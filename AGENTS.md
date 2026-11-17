@@ -60,18 +60,18 @@
   exchange wins and is cited as observation, not spec.
 - The quality gates are mandatory git hooks, not suggestions. Activate
   once per clone: `git config core.hooksPath Scripts/githooks`. Pre-commit
-  and pre-push run `Scripts/lint.sh`; `commit-msg` enforces subject and body
+  and pre-push run `Scripts/lint.py`; `commit-msg` enforces subject and body
   only with zero trailers. Never commit or push with `--no-verify`, never
   disable or work around a gate to land a change, and never leave hooks
   uninstalled. Fix findings instead of dodging them.
 - Agents build into temporary or worktree-local derived-data paths
-  (`Scripts/test.sh` uses `build/DerivedData` and unregisters its app
+  (`Scripts/test.py` uses `build/DerivedData` and unregisters its app
   bundles on exit), and `install-macos` purges every stale Launch Services
   registration of the app's bundle identifiers
   (`purge-stale-registrations` does it alone); after every install macOS
   local-network privacy follows only `/Applications/RefineID.app`.
 - A signing format is done only when the EU DSS validator reports the
-  release level for what the Swift signer writes: `Scripts/dss-gate.sh`,
+  release level for what the Swift signer writes: `Scripts/dss-gate.py`,
   step 9 of the pre-push tier (`Documentation/testing-strategy.md`).
 - UI tests live in their own test plan, `RefineIDUITests.xctestplan`, and
   run only off the workstation's screen; the default plan and the hook
@@ -92,13 +92,13 @@
 - Never put a git worktree under `/tmp`. It is cleared on reboot and takes the
   branch's only checkout with it.
 - One task, one worktree, one branch (`<topic>`), one pull request per branch.
-  Run `Scripts/agent-housekeeping.sh` when starting and keep the house clean.
+  Run `Scripts/agent-housekeeping.py` when starting and keep the house clean.
   Merge the pull request after mandatory local verification and any distinct
   required remote checks pass, then remove the worktree and branch
   and fast-forward `main`. Full workflow:
   `Documentation/process/agent-worktrees.md`.
 - Clean worktrees at the start and end of every task: run
-  `Scripts/agent-housekeeping.sh --clean` before creating your worktree
+  `Scripts/agent-housekeeping.py --clean` before creating your worktree
   and again before finishing. It removes only worktrees whose branch is
   merged into main, whose tree is clean, that hold no unpushed commits,
   and that have been idle for over a day; everything else is left alone.

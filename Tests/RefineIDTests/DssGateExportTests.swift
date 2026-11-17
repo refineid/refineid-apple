@@ -12,7 +12,7 @@
 
   /// Signs a PDF and an ASiC-E container through the production stages
   /// that decide their level, against the synthetic authorities, and
-  /// exports them for the EU DSS validator (`Scripts/dss-gate.sh`).
+  /// exports them for the EU DSS validator (`Scripts/dss-gate.py`).
   ///
   /// The card is the only stand-in: a generated RSA-2048 key signs what
   /// the card would sign. From the card's answer on, the code is the
@@ -22,7 +22,7 @@
   /// files reach is for DSS to say, not this test.
   internal final class DssGateExportTests: XCTestCase {
     /// Where the files go: the test host's temporary directory, which
-    /// `Scripts/dss-gate.sh` reads.
+    /// `Scripts/dss-gate.py` reads.
     private static var exportDirectory: URL {
       FileManager.default.temporaryDirectory.appending(
         path: "RefineIDDssGate", directoryHint: .isDirectory

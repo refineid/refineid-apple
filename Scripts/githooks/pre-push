@@ -1,44 +1,82 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
 # Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
-
+#
 # Refuses any push with unformatted code, compilation failures, or failing unit tests.
-# The gate is Scripts/test.sh pr. `git commit --no-verify` does not skip this.
+# The gate is Scripts/test.py pr. `git commit --no-verify` does not skip this.
 #
 # Activate once per clone:
 #   git config core.hooksPath Scripts/githooks
 
-set -euo pipefail
-cd "$(git rev-parse --show-toplevel)"
-updates=$(mktemp)
-trap 'rm -f "$updates"' EXIT
-cat > "$updates"
+import subprocess
+import sys
 
-# Direct pushes to main are blocked by repository rules.
-while read -r local_ref local_sha remote_ref remote_sha; do
-  if [ "${remote_ref}" = "refs/heads/main" ]; then
-    cat <<'EOF' >&2
-ERROR: Direct pushes to main are blocked by repository rules.
-Push to a feature branch and open a pull request.
-For non-trivial changes, create a dedicated worktree under ../wt/refineid-apple-<topic>
-(see AGENTS.md and Documentation/process/agent-worktrees.md).
-EOF
-    exit 1
-  fi
-done < "$updates"
 
-scope_status=0
-python3 -B Scripts/DocumentationGate.py push "${1:-origin}" < "$updates" || scope_status=$?
-case "$scope_status" in
-  0) exit 0 ;;
-  1) ;; # Non-documentation change; check whether application tests are required.
-  *) exit "$scope_status" ;;
-esac
+def main():
+    root = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"], text=True
+    ).strip()
+    updates = sys.stdin.read()
 
-Scripts/QualityReceipt.py verify-push < "$updates"
+    # Direct pushes to main are blocked by repository rules.
+    for line in updates.splitlines():
+        fields = line.strip().split()
+        if len(fields) == 4 and fields[2] == "refs/heads/main":
+            print(
+                "ERROR: Direct pushes to main are blocked by repository rules.\n"
+                "Push to a feature branch and open a pull request.\n"
+                "For non-trivial changes, create a dedicated worktree under ../wt/refineid-apple-<topic>\n"
+                "(see AGENTS.md and Documentation/process/agent-worktrees.md).",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
-if python3 -B Scripts/ci-change-scope.py --has-application-changes "${1:-origin}" < "$updates"; then
-  Scripts/test.sh pr
-else
-  Scripts/QualityReceipt.py lint-head
-  printf '\nNon-application changes verified: lint and receipt checks passed (application test suite skipped).\n'
-fi
+    remote = sys.argv[1] if len(sys.argv) > 1 else "origin"
+    doc_proc = subprocess.run(
+        [sys.executable, "-B", "Scripts/DocumentationGate.py", "push", remote],
+        input=updates,
+        text=True,
+        cwd=root,
+    )
+    if doc_proc.returncode in (0, 2):
+        sys.exit(doc_proc.returncode)
+
+    subprocess.run(
+        [sys.executable, "-B", "Scripts/QualityReceipt.py", "verify-push"],
+        input=updates,
+        text=True,
+        cwd=root,
+        check=True,
+    )
+
+    scope_proc = subprocess.run(
+        [
+            sys.executable,
+            "-B",
+            "Scripts/ci-change-scope.py",
+            "--has-application-changes",
+            remote,
+        ],
+        input=updates,
+        text=True,
+        cwd=root,
+    )
+    if scope_proc.returncode == 0:
+        res = subprocess.run(
+            [sys.executable, "-B", "Scripts/test.py", "pr"],
+            cwd=root,
+        )
+        sys.exit(res.returncode)
+    else:
+        subprocess.run(
+            [sys.executable, "-B", "Scripts/QualityReceipt.py", "lint-head"],
+            cwd=root,
+            check=True,
+        )
+        print(
+            "\nNon-application changes verified: lint and receipt checks passed (application test suite skipped)."
+        )
+        sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()

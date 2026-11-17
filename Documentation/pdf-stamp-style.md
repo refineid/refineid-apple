@@ -27,9 +27,9 @@ The PDF signature, rather than the visible stamp, supplies that verification.
 - FI center: TARKASTA / ASIAKIRJAN / SÄHKÖINEN / ALLEKIRJOITUS; SV above, EN below.
 - SV center: KONTROLLERA / DOKUMENTETS / ELEKTRONISKA / SIGNATUR; FI above, EN below.
 
-Run `Scripts/render-stamp-samples.sh` to produce three randomly tilted PNGs on
+Run `Scripts/render-stamp-samples.py` to produce three randomly tilted PNGs on
 the Desktop from production vector operators using Apple's PDFKit. Filenames
 end in `-tilted.png`, preserving upright reference samples. Pass an output
 directory and a fixed angle from 5 to 15 for repeatable examples, such as
-`Scripts/render-stamp-samples.sh ~/Desktop 10`. The temporary PDFs stay under
+`Scripts/render-stamp-samples.py ~/Desktop 10`. The temporary PDFs stay under
 `tmp/pdfs/`.

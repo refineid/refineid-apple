@@ -5,7 +5,7 @@ messaging counters never cross field loss. A replacement field establishes PACE
 again. Discovery holds remain passive until signing claims them; pending-sign
 mints start preparation immediately.
 
-Run `Scripts/test.sh nfc-signing` for the deterministic retained-field and PACE
+Run `Scripts/test.py nfc-signing` for the deterministic retained-field and PACE
 suite. The tests cover slot loss during early and sign-triggered preparation,
 waiter notification before transport completion, exactly-once cleanup, late
 worker completion, fresh preparation on replacement, stale timers, and rejection

@@ -57,7 +57,7 @@ class DocumentationGateTests(unittest.TestCase):
         self.assertEqual(self.gate().returncode, 0)
 
     def test_mixed_unknown_and_executable_are_strict(self):
-        for path in ['source.swift', 'unknown.md', 'Documentation/protocol/spec.md', 'Scripts/check.sh']:
+        for path in ['source.swift', 'unknown.md', 'Documentation/protocol/spec.md', 'Scripts/check.py']:
             with self.subTest(path=path):
                 self.git('reset', '--hard', self.base)
                 self.git('clean', '-fdq')

@@ -6,7 +6,7 @@
 # dss-asic-xades, dss-utils-apache-commons, dss-crl-parser-x509crl and
 # slf4j-nop. Each line is the jar's SHA-256 and its coordinates; the
 # jar is fetched from repo1.maven.org/maven2 by its coordinates and
-# refused unless its SHA-256 matches. Scripts/dss-gate.sh reads it.
+# refused unless its SHA-256 matches. Scripts/dss-gate.py reads it.
 # The pins are those of refineid-core's tools/dss-gate/dss.lock, and
 # DssGate.java is a byte-identical copy of its DssGate.java; the two
 # repositories move to a new DSS release together.

@@ -67,7 +67,7 @@ devices (iPhone).
 
 ## 5. Automated Test Orchestration
 
-- `Scripts/pair-devices.sh` automates the offer and acceptance ceremony between
+- `Scripts/pair-devices.py` automates the offer and acceptance ceremony between
   the iPad simulator and physical iPhone test harness.
 - `refineid-android/scripts/test-pairing-e2e.sh` automates the cross-platform
   pairing test between macOS (`--offer-remote-reader`) and attached Android

@@ -1,16 +1,32 @@
-#!/bin/sh
+#!/usr/bin/env python3
 # Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 #
 # Rule: no commit trailers (especially Co-authored-by: AI).
 # Subject + body only.
 
-set -eu
+import re
+import sys
+from pathlib import Path
 
-msg="$1"
-if grep -qiE '^(Co-authored-by|Signed-off-by|Reviewed-by|Acked-by|Tested-by|Reported-by):' "$msg" \
-    || grep -qi 'Generated with \[Claude Code\]' "$msg"; then
-    echo "commit-msg: GOLDEN RULE — commit trailers forbidden." >&2
-    echo "No Co-authored-by for any AI." >&2
-    echo "Subject + body only. Disable IDE --trailer injection." >&2
-    exit 1
-fi
+TRAILER_PATTERN = re.compile(
+    r"^(Co-authored-by|Signed-off-by|Reviewed-by|Acked-by|Tested-by|Reported-by):|Generated with \[Claude Code\]",
+    re.IGNORECASE,
+)
+
+
+def main():
+    if len(sys.argv) < 2:
+        sys.exit(0)
+    msg_path = Path(sys.argv[1])
+    if not msg_path.is_file():
+        sys.exit(0)
+    for line in msg_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if TRAILER_PATTERN.search(line.strip()):
+            print("commit-msg: GOLDEN RULE — commit trailers forbidden.", file=sys.stderr)
+            print("No Co-authored-by for any AI.", file=sys.stderr)
+            print("Subject + body only. Disable IDE --trailer injection.", file=sys.stderr)
+            sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

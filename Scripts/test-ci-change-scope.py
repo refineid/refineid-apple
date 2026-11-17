@@ -25,7 +25,7 @@ class ChangeScopeTests(unittest.TestCase):
                 self.assertTrue(scope.is_documentation(path))
 
     def test_executable_and_unknown_paths_require_full_checks(self):
-        for path in (b'Sources/App.swift', b'Scripts/release.sh',
+        for path in (b'Sources/App.swift', b'Scripts/release.py',
                      b'.github/workflows/swift.yml', b'Documentation/tool.swift',
                      b'Metadata/appstore.json', b'CardCore/README.md',
                      b'Documentation/source.swift\nREADME.md'):
@@ -58,7 +58,7 @@ class ChangeScopeTests(unittest.TestCase):
 
     def test_non_application_paths(self):
         for path in (b'README.md', b'AGENTS.md', b'Metadata/appstore.json',
-                     b'.gitignore', b'.gitattributes', b'Scripts/check.sh',
+                     b'.gitignore', b'.gitattributes', b'Scripts/check.py',
                      b'.github/workflows/swift.yml'):
             with self.subTest(path=path):
                 self.assertFalse(scope.is_application(path))
