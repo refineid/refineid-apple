@@ -93,9 +93,11 @@
 
     /// Audits the window the app opens with.
     internal func testMainWindowPassesTheAudit() throws {
-      let app = UITestApp.launch()
+      let app = UITestApp.launch(arguments: ["--virtual-card", "absent", "--hide-diagnostics"])
+      defer { app.terminate() }
+      let window = openStatusWindow(app)
       attachScreenshot(app.screenshot(), named: "01-main-window")
-      try audit(app, window: "status")
+      try audit(app, subject: window, named: "status")
     }
 
     /// Audits the same window at the largest text size the system offers.
@@ -106,11 +108,15 @@
     /// where a fixed height or a rigid frame stops being invisible.
     internal func testTheMainWindowPassesTheAuditAtTheLargestTextSize() throws {
       let app = UITestApp.launch(arguments: [
+        "--virtual-card", "activated-reader",
+        "--hide-diagnostics",
         "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
         "-NSPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
       ])
+      defer { app.terminate() }
+      let window = openStatusWindow(app)
       attachScreenshot(app.screenshot(), named: "05-main-window-largest-text")
-      try audit(app, window: "status")
+      try audit(app, subject: window, named: "status")
     }
 
     /// Runs the audit and reports what it found.
@@ -163,14 +169,20 @@
     /// sections exist only beside a card, so without one there is no
     /// pile to audit.
     internal func testTheDocumentPilePassesTheAudit() throws {
-      let app = UITestApp.launch(arguments: ["--seed-document-pile"])
-      let pile = app.windows["status"].staticTexts["Agreement.pdf"]
-      try XCTSkipUnless(
-        pile.waitForExistence(timeout: 10),
-        "no card present; the window shows no documents without one"
+      let app = UITestApp.launch(arguments: [
+        "--virtual-card", "activated-reader",
+        "--seed-document-pile",
+        "--hide-diagnostics",
+      ])
+      defer { app.terminate() }
+      let window = openStatusWindow(app)
+      let pile = window.staticTexts["Agreement.pdf"]
+      XCTAssertTrue(
+        pile.waitForExistence(timeout: UITestApp.appearTimeout),
+        "seeded document pile did not appear"
       )
       attachScreenshot(app.screenshot(), named: "03-document-pile")
-      try audit(app, window: "status")
+      try audit(app, subject: window, named: "status")
     }
 
     #if REFINEID_REMOTE_CARD
@@ -210,13 +222,19 @@
     /// factory-fresh card in the reader: a card activates once in its
     /// life, so a debug launch argument forces the screen instead.
     internal func testTheActivationTakeoverPassesTheAudit() throws {
-      let app = UITestApp.launch(arguments: ["--preview-activation"])
+      let app = UITestApp.launch(arguments: [
+        "--virtual-card", "factory-fresh-reader",
+        "--preview-activation",
+        "--hide-diagnostics",
+      ])
+      defer { app.terminate() }
+      let window = openStatusWindow(app)
       let activate = app.buttons[UITestIdentifiers.managementActivate]
       XCTAssertTrue(
-        activate.waitForExistence(timeout: 10), "the takeover did not appear"
+        activate.waitForExistence(timeout: UITestApp.appearTimeout), "the takeover did not appear"
       )
       attachScreenshot(app.screenshot(), named: "04-activation-takeover")
-      try audit(app, window: "status")
+      try audit(app, subject: window, named: "status")
     }
 
     /// Audits the PIN codes window, where every task spends something
@@ -225,9 +243,12 @@
     /// The window opens from the key beside the holder's name, so a
     /// virtual card stands in the reader.
     internal func testPinCodesWindowPassesTheAudit() throws {
-      let app = UITestApp.launch(arguments: ["--virtual-card", "activated-reader"])
-      app.activate()
-      let key = app.windows["status"].buttons[UITestIdentifiers.pinManagementButton]
+      let app = UITestApp.launch(arguments: [
+        "--virtual-card", "activated-reader", "--hide-diagnostics",
+      ])
+      defer { app.terminate() }
+      _ = openStatusWindow(app)
+      let key = app.descendants(matching: .button)[UITestIdentifiers.pinManagementButton].firstMatch
       XCTAssertTrue(
         key.waitForExistence(timeout: UITestApp.appearTimeout),
         "no key beside the holder's name"

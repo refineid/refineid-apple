@@ -35,6 +35,7 @@
           } isTargeted: { targeted in
             isTargeted = targeted
           }
+          .accessibilityElement(children: .contain)
           .accessibilityLabel(dropAccessibilityLabel)
           .accessibilityValue(StatusView.pileValue(signing.queued))
           .accessibilityIdentifier("documentDropArea")

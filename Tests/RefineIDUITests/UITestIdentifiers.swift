@@ -13,9 +13,10 @@
 /// `Sources/App/CardRegistrationSections.swift`,
 /// `Sources/App/DiagnosticsView.swift`, the setup actions and the
 /// setup authentication prompt under `Sources/App/`, the
-/// card-management sections under `Sources/App/`, and the Mac toolbar
+/// card-management sections under `Sources/App/`, the Mac toolbar
 /// buttons `Sources/App/PinCodesButton.swift` and
-/// `Sources/App/RemoteUseButton.swift`.
+/// `Sources/App/RemoteUseButton.swift`, the Mac signing sections and
+/// action bar, and the status message row.
 /// A UI test drives a separate process and cannot share a constant with
 /// it, so this is the register that keeps the two sides honest.
 
@@ -23,6 +24,39 @@ internal enum UITestIdentifiers {
   /// The Mac toolbar's remote-use switch, present only with the remote
   /// card; the macOS MVP gates it off.
   internal static let remoteUseSwitch = "remoteUseSwitch"
+
+  /// The Mac signing PIN 2 field.
+  internal static let signPin2 = "signPin2"
+
+  /// The Mac Sign button in the window's button bar.
+  internal static let signDocument = "signDocument"
+
+  /// The Mac Verify button in the window's button bar.
+  internal static let verifyQueuedDocuments = "verifyQueuedDocuments"
+
+  /// The Mac status row while it speaks about document signing.
+  internal static let statusMessage = "statusMessage"
+
+  /// The status row's reveal of the signed files in Finder.
+  internal static let statusShowInFinder = "statusShowInFinder"
+
+  /// The status row's acknowledgement action.
+  internal static let statusAcknowledge = "statusAcknowledge"
+
+  /// The Mac PIN 1 change Current, New and Repeat fields.
+  internal static let managementChangePin1Current = "managementChangePIN1Current"
+  internal static let managementChangePin1New = "managementChangePIN1New"
+  internal static let managementChangePin1Repeat = "managementChangePIN1Repeat"
+
+  /// The Mac card-activation entry, PIN 1, and PIN 2 fields.
+  internal static let managementActivationEntry = "managementActivationEntry"
+  internal static let managementActivationPin1 = "managementActivationPin1"
+  internal static let managementActivationPin1Repeat = "managementActivationPin1Repeat"
+  internal static let managementActivationPin2 = "managementActivationPin2"
+  internal static let managementActivationPin2Repeat = "managementActivationPin2Repeat"
+
+  /// The toggle in the virtual-card editor that supplies a pending signing document.
+  internal static let virtualCardSigningPending = "virtualCardSigningPending"
 
   /// The setup action that opens the authentication prompt.
   internal static let setupAuthenticate = "setupAuthenticate"

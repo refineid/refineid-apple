@@ -45,13 +45,7 @@
         "--virtual-card", "absent", "--hide-diagnostics", UITestApp.remoteUseOnArgument,
       ])
       defer { app.terminate() }
-      let windowMenu = app.menuBars.menuBarItems.containing(.menuItem, identifier: "RefineID")
-        .firstMatch
-      XCTAssertTrue(windowMenu.waitForExistence(timeout: UITestApp.appearTimeout))
-      windowMenu.click()
-      app.menuItems["RefineID"].click()
-      let window = app.windows.firstMatch
-      XCTAssertTrue(window.waitForExistence(timeout: UITestApp.appearTimeout))
+      let window = openStatusWindow(app)
       // With no card and no remote card, the row asks for a reader:
       // no pairing field, no switch, and no key.
       let identity = app.descendants(matching: .any)["loginIdentityStatus"].firstMatch
@@ -99,28 +93,12 @@
       }
     }
 
-    private func openMainWindow(_ app: XCUIApplication) {
-      let windowMenu = app.menuBars.menuBarItems.containing(.menuItem, identifier: "RefineID")
-        .firstMatch
-      XCTAssertTrue(windowMenu.waitForExistence(timeout: UITestApp.appearTimeout))
-      windowMenu.click()
-      app.menuItems["RefineID"].click()
-      let window = app.windows.firstMatch
-      XCTAssertTrue(window.waitForExistence(timeout: UITestApp.appearTimeout))
-    }
-
     private func checkLocalCard(language: String) {
       let app = UITestApp.launch(
         language: language,
         arguments: ["--virtual-card", "activated-reader", "--hide-diagnostics"])
       defer { app.terminate() }
-      let windowMenu = app.menuBars.menuBarItems.containing(.menuItem, identifier: "RefineID")
-        .firstMatch
-      XCTAssertTrue(windowMenu.waitForExistence(timeout: UITestApp.appearTimeout))
-      windowMenu.click()
-      app.menuItems["RefineID"].click()
-      let window = app.windows.firstMatch
-      XCTAssertTrue(window.waitForExistence(timeout: UITestApp.appearTimeout))
+      let window = openStatusWindow(app)
       XCTAssertEqual(window.title, "RefineID")
       let identity = app.descendants(matching: .any)["loginIdentityStatus"].firstMatch
       XCTAssertTrue(identity.waitForExistence(timeout: UITestApp.appearTimeout))

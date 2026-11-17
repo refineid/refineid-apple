@@ -48,9 +48,11 @@ internal final class KeyboardOperationUITests: XCTestCase {
       """
     )
     let app = launchWithFullKeyboardAccess()
-    let management = app.buttons[UITestIdentifiers.pinManagementButton]
-    try XCTSkipUnless(
-      management.waitForExistence(timeout: 2) && management.isEnabled,
+    defer { app.terminate() }
+    let management = app.descendants(matching: .button)[UITestIdentifiers.pinManagementButton]
+      .firstMatch
+    XCTAssertTrue(
+      management.waitForExistence(timeout: UITestApp.appearTimeout) && management.isEnabled,
       "no card present; management window unavailable"
     )
     XCTAssertTrue(
@@ -67,9 +69,11 @@ internal final class KeyboardOperationUITests: XCTestCase {
   /// keyboard user actually takes through it.
   internal func testTheChangeFormIsWorkedWithTheKeyboardAlone() throws {
     let app = launchWithFullKeyboardAccess()
-    let management = app.buttons[UITestIdentifiers.pinManagementButton]
-    try XCTSkipUnless(
-      management.waitForExistence(timeout: 2) && management.isEnabled,
+    defer { app.terminate() }
+    let management = app.descendants(matching: .button)[UITestIdentifiers.pinManagementButton]
+      .firstMatch
+    XCTAssertTrue(
+      management.waitForExistence(timeout: UITestApp.appearTimeout) && management.isEnabled,
       "no card present; management window unavailable"
     )
     management.click()
@@ -106,9 +110,15 @@ internal final class KeyboardOperationUITests: XCTestCase {
     )
   }
 
-  /// Launches the app in a stated language, as every test here does.
+  /// Launches the app with a virtual reader card and opens the status window.
   private func launchWithFullKeyboardAccess() -> XCUIApplication {
-    UITestApp.launch()
+    let app = UITestApp.launch(arguments: [
+      "--virtual-card", "activated-reader", "--hide-diagnostics",
+    ])
+    #if os(macOS)
+      _ = openStatusWindow(app)
+    #endif
+    return app
   }
 
   /// Waits for the named control to hold keyboard focus on its own,

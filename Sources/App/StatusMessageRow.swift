@@ -23,6 +23,7 @@
         Spacer()
         actions
       }
+      .accessibilityElement(children: .contain)
       .accessibilityIdentifier("statusMessage")
       .announcesOutcome(Self.spoken(message))
     }
