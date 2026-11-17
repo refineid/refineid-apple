@@ -2405,7 +2405,13 @@ private func releaseStampForInstall() -> (marketing: String, build: Int) {
       releaseStampSignalHandlers.append((interrupt, signal(interrupt, SIG_IGN)))
       let source = DispatchSource.makeSignalSource(signal: interrupt, queue: .global())
       source.setEventHandler {
+        releaseStampLock.lock()
+        guard !releaseStampOriginals.isEmpty else {
+          releaseStampLock.unlock()
+          return
+        }
         let restored = releaseRestoreStamp()
+        releaseStampLock.unlock()
         exit(restored ? releaseInterruptedExitStatus : EXIT_FAILURE)
       }
       source.resume()

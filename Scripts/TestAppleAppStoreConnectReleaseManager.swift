@@ -24,6 +24,14 @@ private let rejectedExitStatus: Int32 = 1
 private let singleCaseCount = 1
 private let interruptedExitStatus: Int32 = 130
 private let commandTimeout: TimeInterval = 120
+private let processGroupLauncher = """
+  import os
+  import sys
+  executable_argument = 1
+  if os.getpgrp() != os.getpid():
+      os.setsid()
+  os.execvp(sys.argv[executable_argument], sys.argv[executable_argument:])
+  """
 private let managerEntryPoint = "\nlet arguments = Array(CommandLine.arguments.dropFirst())\n"
 private let readyMarker = Data("synthetic-signal-ready\n".utf8)
 private let fixtureConfig =
@@ -59,8 +67,8 @@ private func run(
   signalAfterReady: Int32? = nil
 ) -> CommandResult {
   let process = Process()
-  process.executableURL = URL(fileURLWithPath: executable)
-  process.arguments = arguments
+  process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+  process.arguments = ["python3", "-c", processGroupLauncher, executable] + arguments
   process.currentDirectoryURL = directory
   process.standardInput = FileHandle.nullDevice
   if let environment {
@@ -78,7 +86,7 @@ private func run(
   }
 
   let timeout = DispatchWorkItem {
-    if process.isRunning { kill(process.processIdentifier, SIGKILL) }
+    if process.isRunning { kill(-process.processIdentifier, SIGKILL) }
   }
   DispatchQueue.global().asyncAfter(deadline: .now() + commandTimeout, execute: timeout)
   defer { timeout.cancel() }
@@ -89,7 +97,7 @@ private func run(
       guard !bytes.isEmpty else { break }
       data.append(bytes)
     }
-    if data.range(of: readyMarker) != nil { kill(process.processIdentifier, signalAfterReady) }
+    if data.range(of: readyMarker) != nil { kill(-process.processIdentifier, signalAfterReady) }
   }
   data.append(pipe.fileHandleForReading.readDataToEndOfFile())
   process.waitUntilExit()
