@@ -2,7 +2,11 @@
 
 #if os(macOS) && DEBUG
   @testable import CardCore
+  import CryptoKit
   import Foundation
+  #if canImport(RappEngine)
+    @testable import RappEngine
+  #endif
   import Security
   import Testing
 
@@ -25,6 +29,39 @@
     private static func plant(_ service: String, in vault: RappDeviceVault) {
       vault.testKeychain.fileKeychain[service, default: [:]][account] = [:]
     }
+
+    #if canImport(RappEngine)
+      private static func plantPair(
+        vault: RappDeviceVault,
+        createdAt: UInt64,
+        forgottenAt: UInt64? = nil,
+        storageConfirmed: Bool = true
+      ) throws -> Data {
+        let priv = Curve25519.Signing.PrivateKey()
+        let remote = Curve25519.Signing.PrivateKey().publicKey.rawRepresentation
+        let pair: RappPairRecord
+        if storageConfirmed {
+          pair = try PairRecordFixture.makePairRecord(
+            localStaticPrivate: priv.rawRepresentation,
+            localStaticPublic: priv.publicKey.rawRepresentation,
+            localRole: .proxy,
+            remotePublicKey: remote,
+            createdAtMilliseconds: createdAt)
+        } else {
+          pair = try PairRecordFixture.makeUnconfirmedPairRecord(
+            localStaticPrivate: priv.rawRepresentation,
+            localStaticPublic: priv.publicKey.rawRepresentation,
+            localRole: .proxy,
+            remotePublicKey: remote)
+        }
+        let plantedPairID = pair.metadata().pairId
+        try pair.persistDeviceOnly(vault: vault)
+        if let forgottenAt {
+          _ = try pair.forget(vault: vault, forgottenAtMs: forgottenAt)
+        }
+        return plantedPairID
+      }
+    #endif
 
     @Test("Every item of the namespace leaves the file keychain and nothing else does")
     internal func sweepDeletesTheNamespaceOnly() throws {
@@ -91,6 +128,57 @@
         _ = try vault.pairIsGone(pairID: Self.pairID)
       }
     }
+
+    #if canImport(RappEngine)
+      @Test("Sweeping the namespace with excludingRevocationNotices retains unexpired notices")
+      internal func sweepingExcludingRevocationNoticesRetainsUnexpiredNotices() throws {
+        let (vault, prefix) = Self.makeVault()
+        let nowMs = RappPlatformClock().wallMilliseconds()
+        let thirtyTwoDays = UInt64(32 * 24 * 60 * 60 * 1_000)
+        let thirtyOneDays = UInt64(31 * 24 * 60 * 60 * 1_000)
+
+        // 1. Unexpired revocation notice (forgotten 10s ago)
+        let noticeID = try Self.plantPair(
+          vault: vault, createdAt: nowMs - 10_000, forgottenAt: nowMs - 10_000)
+        // 2. Expired notice (created 32 days ago, forgotten 31 days ago)
+        let expiredID = try Self.plantPair(
+          vault: vault, createdAt: nowMs - thirtyTwoDays, forgottenAt: nowMs - thirtyOneDays)
+        // 3. Active pair (not forgotten)
+        let activeID = try Self.plantPair(vault: vault, createdAt: nowMs - 10_000)
+        // 4. Unconfirmed pair (even if marked forgotten, unconfirmed pairings are not retained)
+        let unconfID = try Self.plantPair(
+          vault: vault, createdAt: nowMs - 10_000, forgottenAt: nowMs - 10_000,
+          storageConfirmed: false)
+
+        // 5. Selection and non-pair service items
+        try vault.selectPair(pairID: noticeID)
+        Self.plant("\(prefix).credentials", in: vault)
+
+        // Sweeping with excludingRevocationNotices: true
+        let deleted = try vault.deleteServiceNamespace(prefix, excludingRevocationNotices: true)
+        #expect(deleted >= 4)
+
+        // Selection is wiped
+        #expect(try vault.selectedPairID() == nil)
+        // Non-pair service is wiped
+        #expect(vault.testKeychain.fileKeychainCoordinates(prefix: "\(prefix).credentials").isEmpty)
+        // Active pair is wiped
+        #expect(try vault.loadPair(pairID: activeID) == nil)
+        // Expired notice is wiped
+        #expect(try vault.loadPair(pairID: expiredID) == nil)
+        // Unconfirmed pair is wiped
+        #expect(try vault.loadPair(pairID: unconfID) == nil)
+
+        // Unexpired revocation notice is retained
+        #expect(try vault.loadPair(pairID: noticeID) != nil)
+        let loaded = try RappPairRecord.loadFromVault(pairId: noticeID, vault: vault)
+        #expect(loaded.metadata().forgottenAtMs != nil)
+
+        // Subsequent full sweep without exclusions deletes the notice as well
+        _ = try vault.deleteServiceNamespace(prefix, excludingRevocationNotices: false)
+        #expect(try vault.loadPair(pairID: noticeID) == nil)
+      }
+    #endif
   }
 
 #endif
