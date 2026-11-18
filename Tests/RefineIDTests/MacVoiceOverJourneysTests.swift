@@ -295,7 +295,8 @@
       let mixedFormatNodes = await Self.inspect(
         SignatureFormatRow(documents: [firstDocument, nonPdfDocument], format: .constant(.asice))
       )
-      #expect(mixedFormatNodes.containsFormatControl(isEnabled: false))
+      #expect(!mixedFormatNodes.containsFormatControl(isEnabled: true))
+      #expect(!mixedFormatNodes.containsFormatControl(isEnabled: false))
     }
   }
 

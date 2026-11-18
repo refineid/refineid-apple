@@ -32,15 +32,16 @@
     }
 
     internal var body: some View {
-      // The shapes, by the format each file takes: PDF (PAdES) or
-      // ASiC-E, the `.asice` file.
-      Picker("Format", selection: $format) {
-        Text("PDF")
-          .tag(SignatureFormat.pades)
-        Text("ASiC-E").tag(SignatureFormat.asice)
+      if everyOneAPdf {
+        // The shapes, by the format each file takes: PDF (PAdES) or
+        // ASiC-E, the `.asice` file.
+        Picker("Format", selection: $format) {
+          Text("PDF")
+            .tag(SignatureFormat.pades)
+          Text("ASiC-E").tag(SignatureFormat.asice)
+        }
+        .accessibilityIdentifier("signatureFormat")
       }
-      .disabled(!everyOneAPdf)
-      .accessibilityIdentifier("signatureFormat")
     }
   }
 
