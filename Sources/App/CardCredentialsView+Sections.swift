@@ -57,7 +57,7 @@ extension CardCredentialsView {
         MenuRow(String(localized: "Personal Identification Numbers (PINs)")) {
           CredentialRetryHealthKey(
             level: retryHealth.level,
-            systemName: "key.2.on.ring",
+            systemName: "key.2.on.ring.fill",
             routeAvailable: managementAvailable)
         } trailing: {
           DisclosureChevron()

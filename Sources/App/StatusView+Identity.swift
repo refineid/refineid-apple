@@ -26,6 +26,7 @@
           availability: availability,
           warnsUnavailableCard: activation.warnsUnavailableCard
         )
+        .frame(minHeight: statusRowHeight)
         // The card stays the one chosen while it is being used.
         .disabled(signingModel.working || signingModel.readingStamp)
         .accessibilityIdentifier("loginIdentityStatus")
@@ -38,6 +39,7 @@
           .accessibilityIdentifier("loginIdentityStatus")
           PinCodesButton()
         }
+        .frame(minHeight: statusRowHeight)
         // The card stays the one chosen while it is being used.
         .disabled(signingModel.working || signingModel.readingStamp)
       #endif
@@ -49,6 +51,7 @@
     internal func statusRow(showsIdentity: Bool) -> some View {
       if let message = StatusMessage(signingModel) {
         StatusMessageRow(message: message) { signingModel.acknowledgeOutcome() }
+          .frame(minHeight: statusRowHeight)
       } else if showsIdentity {
         identityRow
       }

@@ -109,6 +109,7 @@
         availability: .cardWithoutIdentity,
         warnsUnavailableCard: ActivationWatch.shared.warnsUnavailableCard
       )
+      .frame(minHeight: statusRowHeight)
       .accessibilityIdentifier("loginIdentityStatus")
     }
 
