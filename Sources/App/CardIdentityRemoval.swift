@@ -45,24 +45,57 @@ internal enum CardIdentityRemoval {
   /// Access turns off as well; turning it back on starts a new pairing.
   #if REFINEID_REMOTE_CARD
     private static func removeAllRemoteConfiguration() async -> ConfigurationRemoval {
-      #if os(iOS)
-        RemoteAccessServing.setEnabled(false)
-      #endif
       defer {
         NotificationCenter.default.post(
           name: RappPairingModel.pairingsDidChangeNotification, object: nil)
       }
       let vault = RappDeviceVault()
       let catalog = RappPairCatalog(vault: vault)
-      if let pairs = try? await catalog.activePairs() {
-        for pair in pairs {
-          try? await catalog.revoke(pairID: pair.pairID)
-        }
-      }
+      let pairs = (try? await catalog.activePairs()) ?? []
+      await endRemoteSessionsAndForgetPairs(pairs: pairs, catalog: catalog)
       try? vault.clearSelectedPair()
-      return await Task.detached(priority: .userInitiated) {
+      return await deleteNamespaceExcludingNotices()
+    }
+
+    private static func endRemoteSessionsAndForgetPairs(
+      pairs: [RappPairingCoordinator.PairSummary],
+      catalog: RappPairCatalog
+    ) async {
+      #if os(macOS)
+        let closing = PersistentTokenRegistry.shared.holderSession?.pairID
+        let closes = PersistentTokenRegistry.shared.revokeHolderSession()
+        let told = await closes?.value ?? false
+        if told, let closing {
+          _ = try? await catalog.revoke(pairID: closing)
+        }
+        for pair in pairs where !told || pair.pairID != closing {
+          _ = try? await catalog.forget(pairID: pair.pairID)
+        }
+        PersistentTokenRegistry.withdrawPublishedIdentity()
+      #elseif os(iOS)
+        #if REFINEID_LOCAL_CARD
+          for pair in pairs {
+            let told = await PhonePersistentTokenRelay.shared.closeForRevocation(
+              pairID: pair.pairID)
+            if told {
+              _ = try? await catalog.revoke(pairID: pair.pairID)
+            } else {
+              _ = try? await catalog.forget(pairID: pair.pairID)
+            }
+          }
+        #else
+          for pair in pairs {
+            _ = try? await catalog.forget(pairID: pair.pairID)
+          }
+        #endif
+        RemoteAccessServing.setEnabled(false)
+      #endif
+    }
+
+    private static func deleteNamespaceExcludingNotices() async -> ConfigurationRemoval {
+      await Task.detached(priority: .userInitiated) {
         do {
-          _ = try RappDeviceVault().deleteServiceNamespace()
+          _ = try RappDeviceVault().deleteServiceNamespace(excludingRevocationNotices: true)
           return ConfigurationRemoval(succeeded: true, failures: [])
         } catch RappDeviceVault.Failure.unavailable(let status) {
           return ConfigurationRemoval(
