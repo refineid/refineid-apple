@@ -59,6 +59,7 @@
               RoundedRectangle(cornerRadius: Self.boxCornerRadius).stroke(
                 Color.secondary.opacity(Self.boxBorderOpacity), lineWidth: Self.boxBorderWidth))
         }
+        .listRowBackground(Color.clear)
         // The card stays the one chosen while it is being used.
         .disabled(signingModel.working || signingModel.readingStamp)
       #endif
