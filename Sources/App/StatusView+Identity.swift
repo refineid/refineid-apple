@@ -46,7 +46,6 @@
           .accessibilityIdentifier("loginIdentityStatus")
           .padding(.horizontal, Self.identityBoxPaddingHorizontal)
           .frame(maxWidth: .infinity, minHeight: statusRowHeight, alignment: .leading)
-          .background(Color(nsColor: NSColor.controlBackgroundColor))
           .clipShape(RoundedRectangle(cornerRadius: Self.boxCornerRadius))
           .overlay(
             RoundedRectangle(cornerRadius: Self.boxCornerRadius).stroke(
@@ -55,14 +54,11 @@
           PinCodesButton()
             .padding(.horizontal, Self.pinCodesBoxPaddingHorizontal)
             .frame(minHeight: statusRowHeight)
-            .background(Color(nsColor: NSColor.controlBackgroundColor))
             .clipShape(RoundedRectangle(cornerRadius: Self.boxCornerRadius))
             .overlay(
               RoundedRectangle(cornerRadius: Self.boxCornerRadius).stroke(
                 Color.secondary.opacity(Self.boxBorderOpacity), lineWidth: Self.boxBorderWidth))
         }
-        .listRowBackground(Color.clear)
-        .listRowInsets(EdgeInsets())
         // The card stays the one chosen while it is being used.
         .disabled(signingModel.working || signingModel.readingStamp)
       #endif
