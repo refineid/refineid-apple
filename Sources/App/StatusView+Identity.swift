@@ -7,6 +7,13 @@
   /// The status row of the ready window: where the app talks to the
   /// holder about signing, and otherwise whose identity is offered.
   extension StatusView {
+    private static let identityBoxSpacing: CGFloat = 12
+    private static let identityBoxPaddingHorizontal: CGFloat = 8
+    private static let pinCodesBoxPaddingHorizontal: CGFloat = 12
+    private static let boxCornerRadius: CGFloat = 6
+    private static let boxBorderWidth: CGFloat = 1
+    private static let boxBorderOpacity: Double = 0.2
+
     /// Which document controls the window shows now.
     internal var documentControls: StatusDocumentControls {
       StatusDocumentControls(
@@ -31,15 +38,31 @@
         .disabled(signingModel.working || signingModel.readingStamp)
         .accessibilityIdentifier("loginIdentityStatus")
       #else
-        HStack {
+        HStack(spacing: Self.identityBoxSpacing) {
           IdentityStateView(
             availability: availability,
             warnsUnavailableCard: activation.warnsUnavailableCard
           )
           .accessibilityIdentifier("loginIdentityStatus")
+          .padding(.horizontal, Self.identityBoxPaddingHorizontal)
+          .frame(maxWidth: .infinity, minHeight: statusRowHeight, alignment: .leading)
+          .background(Color(nsColor: NSColor.controlBackgroundColor))
+          .clipShape(RoundedRectangle(cornerRadius: Self.boxCornerRadius))
+          .overlay(
+            RoundedRectangle(cornerRadius: Self.boxCornerRadius).stroke(
+              Color.secondary.opacity(Self.boxBorderOpacity), lineWidth: Self.boxBorderWidth))
+
           PinCodesButton()
+            .padding(.horizontal, Self.pinCodesBoxPaddingHorizontal)
+            .frame(minHeight: statusRowHeight)
+            .background(Color(nsColor: NSColor.controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: Self.boxCornerRadius))
+            .overlay(
+              RoundedRectangle(cornerRadius: Self.boxCornerRadius).stroke(
+                Color.secondary.opacity(Self.boxBorderOpacity), lineWidth: Self.boxBorderWidth))
         }
-        .frame(minHeight: statusRowHeight)
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets())
         // The card stays the one chosen while it is being used.
         .disabled(signingModel.working || signingModel.readingStamp)
       #endif

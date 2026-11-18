@@ -53,29 +53,15 @@
       let secondDocument = URL(filePath: "/documents/Appendix.pdf")
       let signing = SignDocumentModel()
       signing.accept([firstDocument])
-      let signatureNodes = await Self.inspect(
+      _ = await Self.inspect(
         Form {
           StatusSignatureSection(
             signing: signing,
             format: .constant(.pades),
-            pin2: .constant(""),
             accessNumber: .constant(""),
-            asksLocalPin2: true,
-            target: .anyReader,
-            onSign: Self.noOp
+            target: .anyReader
           )
         }
-      )
-      #expect(signatureNodes.hasIdentifier("signPin2") || signatureNodes.speaks("Signature PIN 2"))
-      let expectedRevealLabel = String.localizedStringWithFormat(
-        String(localized: "Show %@"),
-        CredentialLabels.name(for: .pin2)
-      )
-      #expect(
-        signatureNodes.containsDisabledSpokenControl(
-          identifier: "signPin2Reveal",
-          spoken: expectedRevealLabel
-        )
       )
 
       let outcome = StatusMessage.outcome(notice: nil, signed: [firstDocument, secondDocument])

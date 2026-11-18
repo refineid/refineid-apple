@@ -53,7 +53,6 @@
       @State private var offeringNumber = false
       @State private var hasStoredNumber = false
     #endif
-    @State private var pin2 = ""
     @State private var accessNumber = ""
     @State private var format = SignatureFormat.pades
 
@@ -67,7 +66,6 @@
       availability == .ready
         && !selection.awaitsChoice
         && signing.pending != nil
-        && (!asksLocalPin2 || Self.isEntryComplete(pin2))
         && !signing.working
         // Not while the card is being read for the stamp: it is one
         // card, and asking it to sign mid-read is asking it to be in
@@ -180,8 +178,8 @@
       }
       if controls.offersSigning {
         StatusSignatureSection(
-          signing: signing, format: $format, pin2: $pin2, accessNumber: $accessNumber,
-          asksLocalPin2: asksLocalPin2, target: selection.target, onSign: sign)
+          signing: signing, format: $format, accessNumber: $accessNumber,
+          target: selection.target)
       }
     }
 
@@ -247,7 +245,6 @@
         guard !activation.defersRemoval, !signing.working else { return }
         retryHealth.clear()
         signing.cardRemoved()
-        pin2 = ""
         accessNumber = ""
       // The offered access number deliberately survives this state:
       // a contactless card leaves the field between taps, and the
@@ -269,7 +266,6 @@
       guard !urls.isEmpty else { return false }
       signing.accept(urls)
       format = Self.sharedFormat(for: signing.queued)
-      pin2 = ""
       return true
     }
 
@@ -293,9 +289,13 @@
       let documents = signing.queued
       let several = documents.count > 1
       let separately = several && format == .pades
-      let entry = Self.isEntryComplete(pin2) ? pin2 : ""
-      if asksLocalPin2, entry.isEmpty { return }
-      pin2 = ""
+      let entry: String
+      if asksLocalPin2 {
+        guard let entered = promptForPin2() else { return }
+        entry = entered
+      } else {
+        entry = ""
+      }
       let number = accessNumber
       let chosenFormat = format
       #if DEBUG
