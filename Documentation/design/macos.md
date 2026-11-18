@@ -211,7 +211,7 @@ The button's symbol shows the state:
 | On, no session with the phone | `key.radiowaves.forward` | secondary |
 | On, a session with the phone open | `key.radiowaves.forward` | green |
 | On, blocked: this Mac's Bluetooth is off or not allowed, or the local network is not allowed | `key.radiowaves.forward` | orange |
-| A card in this Mac's reader | `key.2.on.ring`, one key for each PIN | secondary |
+| A card in this Mac's reader | `key.2.on.ring.fill`, one key for each PIN | primary |
 
 While a card is in this Mac's reader the button opens the PIN codes window
 instead, under the name "PIN Codes", and the two keys tell the holder

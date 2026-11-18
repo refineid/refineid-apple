@@ -29,6 +29,11 @@
     @ScaledMetric(relativeTo: .body)
     private var minimumWidth: CGFloat = 560
 
+    /// The height of the status row, tall enough for the PIN codes key
+    /// so the row keeps one height whether a card is in the reader or not.
+    @ScaledMetric(relativeTo: .body)
+    internal var statusRowHeight: CGFloat = 26.5
+
     internal let model = LoginIdentityModel.shared
     @ObservedObject internal var retryHealth = CredentialRetryHealth.shared
     @ObservedObject internal var cardPresence = CardPresence.shared

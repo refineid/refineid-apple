@@ -13,7 +13,7 @@
   /// when the reading says so. With no card in the reader it shows
   /// nothing.
   internal struct PinCodesButton: View {
-    private static let pinCodesSymbol = "key.2.on.ring"
+    private static let pinCodesSymbol = "key.2.on.ring.fill"
 
     @ObservedObject private var cardPresence = CardPresence.shared
     @ObservedObject private var demoMode = DemoMode.shared
@@ -46,10 +46,11 @@
             openWindow(id: PinCodesWindow.windowID)
           } label: {
             Image(systemName: Self.pinCodesSymbol)
+              .font(.title2)
               .foregroundStyle(Self.cardStyle(needsReset: cardNeedsReset))
               .replacingSymbol()
           }
-          .buttonStyle(.borderless)
+          .buttonStyle(.plain)
           // The PIN codes belong to one card; with several, to the one chosen.
           .disabled(selection.awaitsChoice)
           .help(Text("PIN Codes"))
@@ -78,7 +79,7 @@
     }
 
     private static func cardStyle(needsReset: Bool) -> AnyShapeStyle {
-      needsReset ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary)
+      needsReset ? AnyShapeStyle(.red) : AnyShapeStyle(.primary)
     }
 
     private static func cardValue(needsReset: Bool) -> Text {
