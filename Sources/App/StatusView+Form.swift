@@ -6,7 +6,7 @@
 
   extension StatusView {
     private static let formInset: CGFloat = 20
-    private static let readySpacing: CGFloat = 10
+    internal static let readySpacing: CGFloat = 10
 
     @ViewBuilder internal var statusForm: some View {
       if (showsReadySection && signingModel.queued.isEmpty && signingModel.pending == nil)

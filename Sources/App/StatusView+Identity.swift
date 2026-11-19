@@ -8,7 +8,6 @@
   /// The status row of the ready window: where the app talks to the
   /// holder about signing, and otherwise whose identity is offered.
   extension StatusView {
-    private static let identityBoxSpacing: CGFloat = 12
     private static let identityBoxPaddingHorizontal: CGFloat = 10
     private static let pinCodesBoxPaddingHorizontal: CGFloat = 12
     private static let boxCornerRadius: CGFloat = 10
@@ -38,7 +37,7 @@
         .disabled(signingModel.working || signingModel.readingStamp)
         .accessibilityIdentifier("loginIdentityStatus")
       #else
-        HStack(spacing: Self.identityBoxSpacing) {
+        HStack(spacing: Self.readySpacing) {
           identityBox(for: availability)
 
           PinCodesButton()
@@ -46,7 +45,7 @@
             .frame(minHeight: statusRowHeight)
             .clipShape(RoundedRectangle(cornerRadius: Self.boxCornerRadius))
             .overlay(
-              RoundedRectangle(cornerRadius: Self.boxCornerRadius).stroke(
+              RoundedRectangle(cornerRadius: Self.boxCornerRadius).strokeBorder(
                 Color.secondary, lineWidth: Self.boxBorderWidth))
         }
         // The card stays the one chosen while it is being used.
