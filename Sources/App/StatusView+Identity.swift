@@ -55,8 +55,16 @@
     }
 
     internal func identityBox(for state: IdentityAvailability) -> some View {
-      IdentityStateView(availability: state, warnsUnavailableCard: activation.warnsUnavailableCard)
+      statusBox {
+        IdentityStateView(
+          availability: state, warnsUnavailableCard: activation.warnsUnavailableCard
+        )
         .accessibilityIdentifier("loginIdentityStatus")
+      }
+    }
+
+    private func statusBox<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+      content()
         .padding(.horizontal, Self.identityBoxPaddingHorizontal)
         .frame(maxWidth: .infinity, minHeight: statusRowHeight, alignment: .leading)
         .overlay {
@@ -71,8 +79,9 @@
     @ViewBuilder
     internal func statusRow(showsIdentity: Bool) -> some View {
       if let message = StatusMessage(signingModel) {
-        StatusMessageRow(message: message) { signingModel.acknowledgeOutcome() }
-          .frame(minHeight: statusRowHeight)
+        statusBox {
+          StatusMessageRow(message: message) { signingModel.acknowledgeOutcome() }
+        }
       } else if showsIdentity {
         identityRow
       }
