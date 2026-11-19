@@ -99,9 +99,17 @@ Both `Config/RefineID-Store-Info.plist` (macOS) and
   domain allowlists impossible.
 - Because `NSAllowsArbitraryLoads = true` permits arbitrary loads at runtime,
   the explicit `NSExceptionDomains` entry for `timestamp.sectigo.com` has no
-  additional runtime effect. It is declared deliberately in the plists as
-  documentation for App Store Review transparency and static analysis audits,
-  and is verified by `NetworkContractTests.applicationPlistsMatchTheContract`.
+  additional runtime effect. It names the one fixed cleartext dependency for
+  static analysis audits and is verified by
+  `NetworkContractTests.applicationPlistsMatchTheContract`.
+- Apple requires a justification for `NSAllowsArbitraryLoads` during App
+  Review, and App Review reads the version's notes, not the property list:
+  comments do not survive plist compilation. The justification is therefore
+  the platform's `review.notes` in `Metadata/appstore.json`, which the
+  release manager's `review-contact` pushes; the macOS notes carry it. The
+  plist comments are the in-repository copy of the same rationale. The
+  notes stay within App Store Connect's 4000-character field and
+  `AppStoreReviewNotesTests` pins the text.
 - Outbound transport security is actively enforced at runtime by
   `SigningNetwork`'s public IP gate, scheme restrictions, HTTP IP pinning,
   redirect re-vetting, and cryptographic verification of CMS structures,
