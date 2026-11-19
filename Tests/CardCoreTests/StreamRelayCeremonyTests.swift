@@ -20,20 +20,45 @@ private let fixturePairingCode = "246813"
   internal struct StreamRelayCeremonyTests {
     // MARK: Static Properties
 
-    private static let attempts = 150
-    private static let pause = Duration.milliseconds(100)
+    private static let readyTimeout = Duration.seconds(30)
     private static let streamProfile = rappStreamProfileName()
     private static let profiles = rappCredentialProfiles()
 
     // MARK: Static Functions
 
     /// Waits for the listener to bind a port that can actually be dialled.
+    ///
+    /// Uses the listener's own readiness signal rather than sampling its
+    /// port. A wait that never becomes ready reports the listener's last
+    /// state with the failure, so a stall names what was missing.
     private static func boundPort(of listener: StreamRelayListener) async throws -> UInt16 {
-      for _ in 0..<attempts {
-        if let port = listener.port, port != 0 { return port }
-        try await Task.sleep(for: pause)
+      try await withThrowingTaskGroup(of: UInt16.self) { group in
+        group.addTask { try await listener.readyPort() }
+        group.addTask {
+          try await Task.sleep(for: Self.readyTimeout)
+          Issue.record("the listener never became ready: state=\(listener.state)")
+          throw StreamRelayTestFailure.noFrame
+        }
+        do {
+          guard let port = try await group.next() else {
+            Issue.record("the listener never became ready: state=\(listener.state)")
+            throw StreamRelayTestFailure.noFrame
+          }
+          group.cancelAll()
+          _ = try? await group.next()
+          return port
+        } catch {
+          group.cancelAll()
+          _ = try? await group.next()
+          if error is CancellationError {
+            throw error
+          }
+          if !(error is StreamRelayTestFailure) {
+            Issue.record("the listener never became ready: state=\(listener.state)")
+          }
+          throw error
+        }
       }
-      throw StreamRelayTestFailure.noFrame
     }
 
     /// Answers with the pairing that resulted.

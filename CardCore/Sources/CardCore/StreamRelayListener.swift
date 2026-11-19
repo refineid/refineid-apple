@@ -36,6 +36,8 @@ import Foundation
     private var isEnding = false
     private var lastState = "not started"
     private var publishedName: String?
+    /// Answers callers waiting for the platform to report ready.
+    private let readiness = StreamRelayReadiness()
 
     /// What the listener last reported, for a caller diagnosing a dialer
     /// that cannot reach it.
@@ -95,6 +97,13 @@ import Foundation
       let record = Self.record(txtRecord)
       queue.async { self.publish(displayName: displayName, txtRecord: record) }
     }
+
+    /// The port this bound, once the platform reports it listening.
+    ///
+    /// Suspends until the listener reaches `ready` and answers with the
+    /// bound port, or throws when it fails instead. Uses the listener's
+    /// own state signal rather than sampling `port`.
+    public func readyPort() async throws -> UInt16 { try await readiness.wait() }
 
     /// Replaces the published discovery attributes under the same name,
     /// such as when rotating hints move to a new window.
@@ -196,9 +205,15 @@ import Foundation
       made.stateUpdateHandler = { [weak self] state in
         guard let self else { return }
         let description = String(describing: state)
-        queue.async { self.lastState = description }
-        guard case .failed = state else { return }
-        queue.async { self.finish(.unreachable) }
+        queue.async {
+          self.lastState = description
+          if case .ready = state {
+            self.readiness.noteReady(port: self.listener?.port?.rawValue)
+          } else if case .failed = state {
+            self.readiness.noteFailed()
+            self.finish(.unreachable)
+          }
+        }
       }
       listener = made
       made.start(queue: queue)
@@ -305,6 +320,7 @@ import Foundation
       #endif
       guard !isFinished else { return }
       isFinished = true
+      readiness.fail(error)
       let open = connection
       connection = nil
       open?.cancel()

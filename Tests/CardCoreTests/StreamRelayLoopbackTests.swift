@@ -173,4 +173,23 @@ internal struct StreamRelayLoopbackTests {
     let sawPresent = await box.contains(true)
     #expect(!sawPresent, "presence with empty name matched an advertiser")
   }
+
+  /// A wait for readiness ends when the listener stops before it is ready.
+  @Test
+  internal func readyPortThrowsWhenCancelledBeforeReady() async {
+    let listener = StreamRelayListener { _ in
+      // readiness probe only
+    }
+    // Never started, so readiness can only end by cancellation.
+    let waiting = Task { try await listener.readyPort() }
+    listener.cancel()
+    do {
+      _ = try await waiting.value
+      Issue.record("readyPort succeeded after the listener stopped")
+    } catch let error as StreamRelayTransportError {
+      #expect(error == .cancelled, "readyPort threw \(error), not the stop")
+    } catch {
+      Issue.record("readyPort threw \(error), not the channel ending")
+    }
+  }
 }
