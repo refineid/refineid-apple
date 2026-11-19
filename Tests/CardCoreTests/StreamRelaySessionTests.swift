@@ -3,12 +3,13 @@
 import CardCore
 import Foundation
 import Network
-import XCTest
+import Testing
 
 /// Drives `StreamRelaySession` against a localhost `NWListener` double,
 /// proving the length-prefixed framing, preamble-first ordering, EOF
 /// handling, and generation guarding of the stream transport.
-internal final class StreamRelaySessionTests: XCTestCase {
+@Suite(.serialized)
+internal final class StreamRelaySessionTests {
   private static let eventTimeout: TimeInterval = 10
   private static let quietWindowMilliseconds = 300
   private static let preamble = Data("test-stream-preamble".utf8)
@@ -58,19 +59,21 @@ internal final class StreamRelaySessionTests: XCTestCase {
     return port
   }
 
+  @Test
   internal func testPreambleFirstThenEchoedFrames() async throws {
     let listenerFrames = RecordedLog<Data>()
     let events = RecordedLog<StreamRelayEvent>()
-    let preambleSeen = expectation(description: "listener read the preamble first")
-    let applicationFrameSeen = expectation(description: "listener read the sent frame")
-    let connected = expectation(description: "session reported connected")
-    let echoReceived = expectation(description: "session received the echoed frame")
+    let preambleSeen = TestEvent(description: "listener read the preamble first")
+    let applicationFrameSeen = TestEvent(description: "listener read the sent frame")
+    let connected = TestEvent(description: "session reported connected")
+    let echoReceived = TestEvent(description: "session received the echoed frame")
 
     let listener = try LoopbackStreamListener(script: .echoFramesAfterFirst) { frame in
       let count = listenerFrames.append(frame)
-      if count == 1 { preambleSeen.fulfill() }
-      if count == 2 { applicationFrameSeen.fulfill() }
+      if count == 1 { preambleSeen.signal() }
+      if count == 2 { applicationFrameSeen.signal() }
     }
+    defer { listener.stop() }
     let port = try await listener.start()
 
     let session = StreamRelaySession(
@@ -80,43 +83,46 @@ internal final class StreamRelaySessionTests: XCTestCase {
       events.append(event)
       switch event {
       case .connected:
-        connected.fulfill()
+        connected.signal()
 
       case .frame:
-        echoReceived.fulfill()
+        echoReceived.signal()
 
       case .closed:
         break
       }
     }
+    defer { session.cancel() }
     session.start()
 
-    await fulfillment(of: [connected, preambleSeen], timeout: Self.eventTimeout)
+    await TestEvent.wait(for: [connected, preambleSeen], timeout: Self.eventTimeout)
     try await session.send(Self.applicationFrame)
-    await fulfillment(
-      of: [applicationFrameSeen, echoReceived],
+    await TestEvent.wait(
+      for: [applicationFrameSeen, echoReceived],
       timeout: Self.eventTimeout
     )
 
-    XCTAssertEqual(listenerFrames.values, [Self.preamble, Self.applicationFrame])
+    #expect((listenerFrames.values) == ([Self.preamble, Self.applicationFrame]))
     let receivedFrames: [Data] = events.values.compactMap { event in
       guard case .frame(let payload) = event else { return nil }
       return payload
     }
-    XCTAssertEqual(receivedFrames, [Self.applicationFrame])
+    #expect((receivedFrames) == ([Self.applicationFrame]))
 
     session.cancel()
     listener.stop()
   }
 
+  @Test
   internal func testListenerCloseReportsDisconnected() async throws {
     let listenerFrames = RecordedLog<Data>()
     let events = RecordedLog<StreamRelayEvent>()
-    let closed = expectation(description: "session reported closed")
+    let closed = TestEvent(description: "session reported closed")
 
     let listener = try LoopbackStreamListener(script: .closeAfterFirstFrame) { frame in
       listenerFrames.append(frame)
     }
+    defer { listener.stop() }
     let port = try await listener.start()
     let session = StreamRelaySession(
       endpointLiterals: ["127.0.0.1:\(port)"],
@@ -124,29 +130,32 @@ internal final class StreamRelaySessionTests: XCTestCase {
     ) { event in
       events.append(event)
       guard case .closed = event else { return }
-      closed.fulfill()
+      closed.signal()
     }
+    defer { session.cancel() }
     session.start()
 
-    await fulfillment(of: [closed], timeout: Self.eventTimeout)
+    await TestEvent.wait(for: [closed], timeout: Self.eventTimeout)
     guard case .closed(let error)? = events.values.last else {
-      XCTFail("Expected a closed event")
+      Issue.record("Expected a closed event")
       return
     }
-    XCTAssertEqual(error, .disconnected)
+    #expect((error) == (.disconnected))
     listener.stop()
   }
 
+  @Test
   internal func testZeroLengthPrefixReportsMalformedFrame() async throws {
     let listenerFrames = RecordedLog<Data>()
     let events = RecordedLog<StreamRelayEvent>()
-    let closed = expectation(description: "session reported closed")
+    let closed = TestEvent(description: "session reported closed")
 
     let listener = try LoopbackStreamListener(
       script: .zeroLengthPrefixAfterFirstFrame
     ) { frame in
       listenerFrames.append(frame)
     }
+    defer { listener.stop() }
     let port = try await listener.start()
     let session = StreamRelaySession(
       endpointLiterals: ["127.0.0.1:\(port)"],
@@ -154,28 +163,30 @@ internal final class StreamRelaySessionTests: XCTestCase {
     ) { event in
       events.append(event)
       guard case .closed = event else { return }
-      closed.fulfill()
+      closed.signal()
     }
+    defer { session.cancel() }
     session.start()
 
-    await fulfillment(of: [closed], timeout: Self.eventTimeout)
+    await TestEvent.wait(for: [closed], timeout: Self.eventTimeout)
     guard case .closed(let error)? = events.values.last else {
-      XCTFail("Expected a closed event")
+      Issue.record("Expected a closed event")
       return
     }
-    XCTAssertEqual(error, .malformedFrame)
+    #expect((error) == (.malformedFrame))
     listener.stop()
   }
 
+  @Test
   internal func testDialsEndpointsInOrderPastDeadEndpoint() async throws {
     let listenerFrames = RecordedLog<Data>()
-    let preambleSeen = expectation(description: "listener read the preamble")
-    let connected = expectation(description: "session reported connected")
+    let preambleSeen = TestEvent(description: "listener read the preamble")
+    let connected = TestEvent(description: "session reported connected")
 
     let deadPort = try await Self.vacatedLoopbackPort()
     let listener = try LoopbackStreamListener(script: .echoFramesAfterFirst) { frame in
       let count = listenerFrames.append(frame)
-      if count == 1 { preambleSeen.fulfill() }
+      if count == 1 { preambleSeen.signal() }
     }
     let livePort = try await listener.start()
 
@@ -188,19 +199,21 @@ internal final class StreamRelaySessionTests: XCTestCase {
       preamble: Self.preamble
     ) { event in
       guard case .connected = event else { return }
-      connected.fulfill()
+      connected.signal()
     }
+    defer { session.cancel() }
     session.start()
 
-    await fulfillment(of: [connected, preambleSeen], timeout: Self.eventTimeout)
-    XCTAssertEqual(listenerFrames.values, [Self.preamble])
+    await TestEvent.wait(for: [connected, preambleSeen], timeout: Self.eventTimeout)
+    #expect((listenerFrames.values) == ([Self.preamble]))
     session.cancel()
     listener.stop()
   }
 
+  @Test
   internal func testExhaustedEndpointsReportUnreachable() async throws {
     let events = RecordedLog<StreamRelayEvent>()
-    let closed = expectation(description: "session reported closed")
+    let closed = TestEvent(description: "session reported closed")
 
     let deadPort = try await Self.vacatedLoopbackPort()
     let session = StreamRelaySession(
@@ -209,27 +222,30 @@ internal final class StreamRelaySessionTests: XCTestCase {
     ) { event in
       events.append(event)
       guard case .closed = event else { return }
-      closed.fulfill()
+      closed.signal()
     }
+    defer { session.cancel() }
     session.start()
 
-    await fulfillment(of: [closed], timeout: Self.eventTimeout)
+    await TestEvent.wait(for: [closed], timeout: Self.eventTimeout)
     guard case .closed(let error)? = events.values.last else {
-      XCTFail("Expected a closed event")
+      Issue.record("Expected a closed event")
       return
     }
-    XCTAssertEqual(error, .unreachable)
+    #expect((error) == (.unreachable))
   }
 
+  @Test
   internal func testCancelReportsClosedOnceAndDropsLaterFrames() async throws {
     let listenerFrames = RecordedLog<Data>()
     let events = RecordedLog<StreamRelayEvent>()
-    let connected = expectation(description: "session reported connected")
-    let closed = expectation(description: "session reported closed")
+    let connected = TestEvent(description: "session reported connected")
+    let closed = TestEvent(description: "session reported closed")
 
     let listener = try LoopbackStreamListener(script: .echoFramesAfterFirst) { frame in
       listenerFrames.append(frame)
     }
+    defer { listener.stop() }
     let port = try await listener.start()
     let session = StreamRelaySession(
       endpointLiterals: ["127.0.0.1:\(port)"],
@@ -238,35 +254,36 @@ internal final class StreamRelaySessionTests: XCTestCase {
       events.append(event)
       switch event {
       case .connected:
-        connected.fulfill()
+        connected.signal()
 
       case .closed:
-        closed.fulfill()
+        closed.signal()
 
       case .frame:
         break
       }
     }
+    defer { session.cancel() }
     session.start()
-    await fulfillment(of: [connected], timeout: Self.eventTimeout)
+    await TestEvent.wait(for: [connected], timeout: Self.eventTimeout)
 
     session.cancel()
-    await fulfillment(of: [closed], timeout: Self.eventTimeout)
+    await TestEvent.wait(for: [closed], timeout: Self.eventTimeout)
     let countAtClose = events.values.count
     guard case .closed(let error)? = events.values.last else {
-      XCTFail("Expected a closed event")
+      Issue.record("Expected a closed event")
       return
     }
-    XCTAssertEqual(error, .cancelled)
+    #expect((error) == (.cancelled))
 
     listener.sendFrameToPeer(Self.applicationFrame)
     try await Task.sleep(for: .milliseconds(Self.quietWindowMilliseconds))
-    XCTAssertEqual(events.values.count, countAtClose)
+    #expect((events.values.count) == (countAtClose))
     let closedEventCount = events.values.count { event in
       guard case .closed = event else { return false }
       return true
     }
-    XCTAssertEqual(closedEventCount, 1)
+    #expect((closedEventCount) == (1))
     listener.stop()
   }
 }

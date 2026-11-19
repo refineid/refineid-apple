@@ -4,7 +4,7 @@
 
   import CryptoKit
   import Foundation
-  import XCTest
+  import Testing
 
   @testable import CardCore
   @testable import RefineIDTestHost
@@ -13,7 +13,8 @@
   /// material written under it carries its signer's whole path: a
   /// release build refuses one whose authority is outside the evidence,
   /// and a development build keeps the B-LT document.
-  internal final class DocumentSignerArchiveTests: XCTestCase {
+  @Suite(.serialized, DssGateFixtureScope())
+  internal final class DocumentSignerArchiveTests {
     /// The nonce the test's own signature timestamp echoes.
     private static let timestampNonce = Data("document archive test nonce".utf8)
 
@@ -29,6 +30,7 @@
     /// The post-card signature and its timestamp, the stage before the
     /// validation material; the timestamp comes from the evidence's
     /// own authority without a network exchange.
+
     private static func timestamped(
       _ authorities: DssGateAuthorities
     ) throws -> (
@@ -88,73 +90,137 @@
       }
     }
 
-    override internal func setUp() async throws {
-      try await super.setUp()
-      let first = try DssGateAuthorities.make()
-      evidenceAuthorities = first
-      archiveAuthorities = try DssGateAuthorities.make()
-      DssGateUrlProtocol.authorities = first
-      DssGateUrlProtocol.timestampAuthorities = nil
-      DssGateSessionHook.toggle()
-      TrustRootsCache.shared.reset()
-      TrustRootsCache.shared.register(first.caCertificate)
-    }
-
-    override internal func tearDown() async throws {
-      DssGateSessionHook.toggle()
-      DssGateUrlProtocol.authorities = nil
-      DssGateUrlProtocol.timestampAuthorities = nil
-      TrustRootsCache.shared.reset()
-      try await super.tearDown()
-    }
-
     /// A release build refuses a document timestamp whose authority's
     /// chain is not in the evidence it covers.
+    private func withFixture(_ operation: () async throws -> Void) async throws {
+      let primary = try DssGateAuthorities.make()
+      let archive = try DssGateAuthorities.make()
+      evidenceAuthorities = primary
+      archiveAuthorities = archive
+      defer {
+        evidenceAuthorities = nil
+        archiveAuthorities = nil
+      }
+      try await DssGateSessionHook.withFixture(authorities: primary, performing: operation)
+    }
+
+    @Test
     internal func testReleaseRefusesAnArchiveAuthorityOutsideTheDss() async throws {
-      let covered = try XCTUnwrap(evidenceAuthorities)
-      let archive = try XCTUnwrap(archiveAuthorities)
-      let stage = try Self.timestamped(covered)
-      DssGateUrlProtocol.timestampAuthorities = archive
-      let firstAnchor = covered.timestampCaCertificate
-      let secondAnchor = archive.timestampCaCertificate
-      do {
-        _ = try await Self.withSyntheticTimestampEnvironment(
-          anchors: { _ in [firstAnchor, secondAnchor] },
-          operation: {
-            try await DocumentSigner.longTerm(
-              stage.signature,
-              signerCertificate: covered.holderCertificate,
-              timestampTokens: [stage.token],
-              policy: .longTermOnly
-            )
+      try await withFixture {
+        let covered = try #require(evidenceAuthorities)
+        let archive = try #require(archiveAuthorities)
+        let stage = try Self.timestamped(covered)
+        DssGateUrlProtocol.timestampAuthorities = archive
+        let firstAnchor = covered.timestampCaCertificate
+        let secondAnchor = archive.timestampCaCertificate
+        do {
+          _ = try await Self.withSyntheticTimestampEnvironment(
+            anchors: { _ in [firstAnchor, secondAnchor] },
+            operation: {
+              try await DocumentSigner.longTerm(
+                stage.signature,
+                signerCertificate: covered.holderCertificate,
+                timestampTokens: [stage.token],
+                policy: .longTermOnly
+              )
+            }
+          )
+          Issue.record("Expected the uncovered archive timestamp to be refused")
+        } catch let failure as DocumentSigner.Failure {
+          guard case .archiveTimestampUncovered = failure else {
+            Issue.record("Expected archiveTimestampUncovered but got \(failure)")
+            return
           }
-        )
-        XCTFail("Expected the uncovered archive timestamp to be refused")
-      } catch let failure as DocumentSigner.Failure {
-        guard case .archiveTimestampUncovered = failure else {
-          XCTFail("Expected archiveTimestampUncovered but got \(failure)")
-          return
         }
+
       }
     }
 
     /// A rotated signer under the evidence's own timestamp authority is
     /// not covered: its certificate is outside the evidence even though
     /// it chains to an authority inside it.
+    @Test
     internal func testRotatedSignerUnderTheSameAuthorityIsRefused() async throws {
-      let covered = try XCTUnwrap(evidenceAuthorities)
-      let rotated = try DebugTimestampAuthority.make(
-        issuerKey: covered.timestampCaKey,
-        issuerName: DebugTimestampAuthority.encodedName(
-          DssGateAuthorities.timestampCaCommonName
-        ),
-        additionalExtensions: []
-      )
-      let stage = try Self.timestamped(covered)
-      DssGateUrlProtocol.timestampAuthorities = covered.answeringTimestamps(with: rotated)
-      let anchor = covered.timestampCaCertificate
-      do {
-        _ = try await Self.withSyntheticTimestampEnvironment(
+      try await withFixture {
+        let covered = try #require(evidenceAuthorities)
+        let rotated = try DebugTimestampAuthority.make(
+          issuerKey: covered.timestampCaKey,
+          issuerName: DebugTimestampAuthority.encodedName(
+            DssGateAuthorities.timestampCaCommonName
+          ),
+          additionalExtensions: []
+        )
+        let stage = try Self.timestamped(covered)
+        DssGateUrlProtocol.timestampAuthorities = covered.answeringTimestamps(with: rotated)
+        let anchor = covered.timestampCaCertificate
+        do {
+          _ = try await Self.withSyntheticTimestampEnvironment(
+            anchors: { _ in [anchor] },
+            operation: {
+              try await DocumentSigner.longTerm(
+                stage.signature,
+                signerCertificate: covered.holderCertificate,
+                timestampTokens: [stage.token],
+                policy: .longTermOnly
+              )
+            }
+          )
+          Issue.record("Expected the rotated archive signer to be refused")
+        } catch let failure as DocumentSigner.Failure {
+          guard case .archiveTimestampUncovered = failure else {
+            Issue.record("Expected archiveTimestampUncovered but got \(failure)")
+            return
+          }
+        }
+
+      }
+    }
+
+    /// A development build keeps the B-LT document and names its level
+    /// when the archive timestamp's authority is outside the evidence.
+    @Test
+    internal func testDevelopmentKeepsLongTermForAnUncoveredArchiveAuthority() async throws {
+      try await withFixture {
+        let covered = try #require(evidenceAuthorities)
+        let archive = try #require(archiveAuthorities)
+        let stage = try Self.timestamped(covered)
+        DssGateUrlProtocol.timestampAuthorities = archive
+        let firstAnchor = covered.timestampCaCertificate
+        let secondAnchor = archive.timestampCaCertificate
+        let product = try await Self.withSyntheticTimestampEnvironment(
+          anchors: { _ in [firstAnchor, secondAnchor] },
+          operation: {
+            try await DocumentSigner.longTerm(
+              stage.signature,
+              signerCertificate: covered.holderCertificate,
+              timestampTokens: [stage.token],
+              policy: .highestReached
+            )
+          }
+        )
+        let shortfall = try #require(product.completion.shortfall)
+        #expect(
+          (shortfall)
+            == (BelowLongTermSignature(format: .pades, level: .longTerm, cause: .archiveTimestamp)))
+        #expect((shortfall.nameMarker) == (Self.developmentLongTermMarker))
+        #expect((shortfall.levelName) == ("PAdES B-LT"))
+        let bytes = String(bytes: product.bytes, encoding: .isoLatin1) ?? ""
+        #expect((bytes.contains("/Type /DSS")))
+        #expect(!(bytes.contains("/Type /DocTimeStamp")))
+
+      }
+    }
+
+    /// The same stage reaches the archival level when the evidence
+    /// covers the authority that answers.
+    @Test
+    internal func testCoveredArchiveAuthorityIsAccepted() async throws {
+      try await withFixture {
+        let covered = try #require(evidenceAuthorities)
+        let stage = try Self.timestamped(covered)
+        DssGateUrlProtocol.timestampAuthorities = covered
+        let anchor = covered.timestampCaCertificate
+        let product = try await Self.withSyntheticTimestampEnvironment(
           anchors: { _ in [anchor] },
           operation: {
             try await DocumentSigner.longTerm(
@@ -165,69 +231,13 @@
             )
           }
         )
-        XCTFail("Expected the rotated archive signer to be refused")
-      } catch let failure as DocumentSigner.Failure {
-        guard case .archiveTimestampUncovered = failure else {
-          XCTFail("Expected archiveTimestampUncovered but got \(failure)")
-          return
-        }
+        #expect((product.completion) == (.archival))
+        let bytes = String(bytes: product.bytes, encoding: .isoLatin1) ?? ""
+        #expect((bytes.contains("/Type /DocTimeStamp")))
+
       }
     }
 
-    /// A development build keeps the B-LT document and names its level
-    /// when the archive timestamp's authority is outside the evidence.
-    internal func testDevelopmentKeepsLongTermForAnUncoveredArchiveAuthority() async throws {
-      let covered = try XCTUnwrap(evidenceAuthorities)
-      let archive = try XCTUnwrap(archiveAuthorities)
-      let stage = try Self.timestamped(covered)
-      DssGateUrlProtocol.timestampAuthorities = archive
-      let firstAnchor = covered.timestampCaCertificate
-      let secondAnchor = archive.timestampCaCertificate
-      let product = try await Self.withSyntheticTimestampEnvironment(
-        anchors: { _ in [firstAnchor, secondAnchor] },
-        operation: {
-          try await DocumentSigner.longTerm(
-            stage.signature,
-            signerCertificate: covered.holderCertificate,
-            timestampTokens: [stage.token],
-            policy: .highestReached
-          )
-        }
-      )
-      let shortfall = try XCTUnwrap(product.completion.shortfall)
-      XCTAssertEqual(
-        shortfall,
-        BelowLongTermSignature(format: .pades, level: .longTerm, cause: .archiveTimestamp)
-      )
-      XCTAssertEqual(shortfall.nameMarker, Self.developmentLongTermMarker)
-      XCTAssertEqual(shortfall.levelName, "PAdES B-LT")
-      let bytes = String(bytes: product.bytes, encoding: .isoLatin1) ?? ""
-      XCTAssertTrue(bytes.contains("/Type /DSS"))
-      XCTAssertFalse(bytes.contains("/Type /DocTimeStamp"))
-    }
-
-    /// The same stage reaches the archival level when the evidence
-    /// covers the authority that answers.
-    internal func testCoveredArchiveAuthorityIsAccepted() async throws {
-      let covered = try XCTUnwrap(evidenceAuthorities)
-      let stage = try Self.timestamped(covered)
-      DssGateUrlProtocol.timestampAuthorities = covered
-      let anchor = covered.timestampCaCertificate
-      let product = try await Self.withSyntheticTimestampEnvironment(
-        anchors: { _ in [anchor] },
-        operation: {
-          try await DocumentSigner.longTerm(
-            stage.signature,
-            signerCertificate: covered.holderCertificate,
-            timestampTokens: [stage.token],
-            policy: .longTermOnly
-          )
-        }
-      )
-      XCTAssertEqual(product.completion, .archival)
-      let bytes = String(bytes: product.bytes, encoding: .isoLatin1) ?? ""
-      XCTAssertTrue(bytes.contains("/Type /DocTimeStamp"))
-    }
   }
 
 #endif

@@ -1,9 +1,11 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 import CardCore
-import XCTest
+import Testing
 
-internal final class VirtualIDCardSigningTests: XCTestCase {
+@Suite(.serialized)
+internal final class VirtualIDCardSigningTests {
+  @Test
   internal func testQualifiedSignatureSuccessRestoresPIN2Allowance() async {
     var state = VirtualIDCard.Scenario.registeredNearField.snapshot
     state.card.pin2.attemptsRemaining = 3
@@ -13,11 +15,12 @@ internal final class VirtualIDCardSigningTests: XCTestCase {
       pin2: state.card.pin2.value)
     let latest = await card.inspect()
 
-    XCTAssertEqual(result, .success)
-    XCTAssertEqual(latest.card.pin2.attemptsRemaining, 5)
-    XCTAssertFalse(latest.device.pendingSigningRequest)
+    expectState(result == .success, sourceLocation: #_sourceLocation)
+    #expect(latest.card.pin2.attemptsRemaining == 5, sourceLocation: #_sourceLocation)
+    expectState(!latest.device.pendingSigningRequest, sourceLocation: #_sourceLocation)
   }
 
+  @Test
   internal func testInvalidSignatureEntriesNeverReachTheCard() async {
     let invalid = ["", "123", "1234567890123", "12a456"]
     for entry in invalid {
@@ -26,13 +29,14 @@ internal final class VirtualIDCardSigningTests: XCTestCase {
       let card = VirtualIDCard(snapshot: state)
 
       let result = await card.authorizeQualifiedSignature(pin2: entry)
-      XCTAssertEqual(result, .invalidEntry)
+      expectState(result == .invalidEntry, sourceLocation: #_sourceLocation)
       let latest = await card.inspect()
-      XCTAssertEqual(latest.card.pin2.attemptsRemaining, 4)
-      XCTAssertFalse(latest.device.pendingSigningRequest)
+      #expect(latest.card.pin2.attemptsRemaining == 4, sourceLocation: #_sourceLocation)
+      expectState(!latest.device.pendingSigningRequest, sourceLocation: #_sourceLocation)
     }
   }
 
+  @Test
   internal func testQualifiedSignatureNeverSpendsLastTwoAttempts() async {
     for remaining: UInt8 in 0...2 {
       var state = VirtualIDCard.Scenario.registeredNearField.snapshot
@@ -43,16 +47,16 @@ internal final class VirtualIDCardSigningTests: XCTestCase {
       let latest = await card.inspect()
 
       if remaining == 0 {
-        XCTAssertEqual(result, .blocked)
+        expectState(result == .blocked, sourceLocation: #_sourceLocation)
       } else {
-        XCTAssertEqual(
-          result,
-          .refusedLowAttempts(remaining: remaining))
+        expectState(
+          result == (.refusedLowAttempts(remaining: remaining)), sourceLocation: #_sourceLocation)
       }
-      XCTAssertEqual(latest.card.pin2.attemptsRemaining, remaining)
+      #expect(latest.card.pin2.attemptsRemaining == remaining, sourceLocation: #_sourceLocation)
     }
   }
 
+  @Test
   internal func testWrongSignaturePINConsumesExactlyOneEligibleAttempt() async {
     for remaining: UInt8 in 3...5 {
       var state = VirtualIDCard.Scenario.registeredNearField.snapshot
@@ -62,13 +66,13 @@ internal final class VirtualIDCardSigningTests: XCTestCase {
       let result = await card.authorizeQualifiedSignature(pin2: "000000")
       let latest = await card.inspect()
 
-      XCTAssertEqual(result, .rejected(remaining: remaining - 1))
-      XCTAssertEqual(
-        latest.card.pin2.attemptsRemaining,
-        remaining - 1)
+      expectState(result == (.rejected(remaining: remaining - 1)), sourceLocation: #_sourceLocation)
+      #expect(
+        latest.card.pin2.attemptsRemaining == (remaining - 1), sourceLocation: #_sourceLocation)
     }
   }
 
+  @Test
   internal func testSignatureCertificateAndFaultsFailWithoutGuessing() async {
     for certificate in VirtualIDCard.CertificateState.allCases
     where certificate != .valid {
@@ -77,10 +81,10 @@ internal final class VirtualIDCardSigningTests: XCTestCase {
       let card = VirtualIDCard(snapshot: unavailable)
       let result = await card.authorizeQualifiedSignature(
         pin2: unavailable.card.pin2.value)
-      XCTAssertEqual(result, .certificateUnavailable)
+      expectState(result == .certificateUnavailable, sourceLocation: #_sourceLocation)
       let latest = await card.inspect()
-      XCTAssertEqual(latest.card.pin2.attemptsRemaining, 5)
-      XCTAssertFalse(latest.device.pendingSigningRequest)
+      #expect(latest.card.pin2.attemptsRemaining == 5, sourceLocation: #_sourceLocation)
+      expectState(!latest.device.pendingSigningRequest, sourceLocation: #_sourceLocation)
     }
 
     var interrupted = VirtualIDCard.Scenario.registeredNearField.snapshot
@@ -89,14 +93,14 @@ internal final class VirtualIDCardSigningTests: XCTestCase {
     let interruptedCard = VirtualIDCard(snapshot: interrupted)
     let interruptedResult = await interruptedCard.authorizeQualifiedSignature(
       pin2: interrupted.card.pin2.value)
-    XCTAssertEqual(
-      interruptedResult,
-      .transportFailure(.connectionLost))
+    expectState(
+      interruptedResult == (.transportFailure(.connectionLost)), sourceLocation: #_sourceLocation)
     let latest = await interruptedCard.inspect()
-    XCTAssertEqual(latest.card.pin2.attemptsRemaining, 5)
-    XCTAssertFalse(latest.device.pendingSigningRequest)
+    #expect(latest.card.pin2.attemptsRemaining == 5, sourceLocation: #_sourceLocation)
+    expectState(!latest.device.pendingSigningRequest, sourceLocation: #_sourceLocation)
   }
 
+  @Test
   internal func testUnreachableCardsAndPreCommandFaultSpendNothing() async {
     var states: [VirtualIDCard.Snapshot] = []
     var absent = VirtualIDCard.Scenario.registeredNearField.snapshot
@@ -116,12 +120,12 @@ internal final class VirtualIDCardSigningTests: XCTestCase {
         case .transportFailure = await card.authorizeQualifiedSignature(
           pin2: state.card.pin2.value)
       else {
-        XCTFail("unreachable virtual card did not fail at its boundary")
+        Issue.record("unreachable virtual card did not fail at its boundary")
         continue
       }
       let latest = await card.inspect()
-      XCTAssertEqual(latest.card.pin2.attemptsRemaining, 5)
-      XCTAssertFalse(latest.device.pendingSigningRequest)
+      #expect(latest.card.pin2.attemptsRemaining == 5, sourceLocation: #_sourceLocation)
+      expectState(!latest.device.pendingSigningRequest, sourceLocation: #_sourceLocation)
     }
   }
 }

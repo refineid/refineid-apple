@@ -1,11 +1,12 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 import Foundation
-import XCTest
+import Testing
 
 @testable import RefineIDTestHost
 
-internal final class CardSetupStateMachineTests: XCTestCase {
+@Suite(.serialized)
+internal final class CardSetupStateMachineTests {
   private func loadGrammar() throws -> ParsedGrammar {
     let repositoryRoot = URL(fileURLWithPath: #filePath)
       .deletingLastPathComponent()
@@ -19,35 +20,34 @@ internal final class CardSetupStateMachineTests: XCTestCase {
     let delegate = GrammarParserDelegate()
     parser?.delegate = delegate
 
-    XCTAssertEqual(
-      parser?.parse(), true, parser?.parserError?.localizedDescription ?? "SCXML parse failed")
-    XCTAssertTrue(delegate.errors.isEmpty, delegate.errors.joined(separator: "\n"))
+    #expect(
+      (parser?.parse()) == (true), parser?.parserError?.localizedDescription ?? "SCXML parse failed"
+    )
+    #expect((delegate.errors.isEmpty), delegate.errors.joined(separator: "\n"))
 
     return ParsedGrammar(
-      initialState: try XCTUnwrap(delegate.initialState),
+      initialState: try #require(delegate.initialState),
       states: delegate.states,
       transitions: delegate.transitions
     )
   }
 
+  @Test
   internal func testSwiftTransitionTableExactlyMatchesCanonicalSCXML() throws {
     let grammar = try loadGrammar()
 
-    XCTAssertEqual(grammar.initialState, CardSetupStateMachine.initialState)
-    XCTAssertEqual(grammar.states, Set(CardSetupStateMachine.State.allCases))
-    XCTAssertEqual(
-      grammar.transitions.count,
-      Set(grammar.transitions).count,
-      "SCXML contains duplicate transitions"
-    )
-    XCTAssertEqual(
-      CardSetupStateMachine.transitions.count,
-      Set(CardSetupStateMachine.transitions).count,
-      "Swift contains duplicate transitions"
-    )
-    XCTAssertEqual(Set(grammar.transitions), Set(CardSetupStateMachine.transitions))
+    #expect((grammar.initialState) == (CardSetupStateMachine.initialState))
+    #expect((grammar.states) == (Set(CardSetupStateMachine.State.allCases)))
+    #expect(
+      (grammar.transitions.count) == (Set(grammar.transitions).count),
+      "SCXML contains duplicate transitions")
+    #expect(
+      (CardSetupStateMachine.transitions.count) == (Set(CardSetupStateMachine.transitions).count),
+      "Swift contains duplicate transitions")
+    #expect((Set(grammar.transitions)) == (Set(CardSetupStateMachine.transitions)))
   }
 
+  @Test
   internal func testEveryStateEventPairMatchesGrammarTransitionOrRejection() throws {
     let grammar = try loadGrammar()
     let transitions = Dictionary(grouping: grammar.transitions) { transition in
@@ -57,22 +57,23 @@ internal final class CardSetupStateMachineTests: XCTestCase {
     for state in CardSetupStateMachine.State.allCases {
       for event in CardSetupStateMachine.Event.allCases {
         let expected = transitions[StateEvent(state: state, event: event), default: []]
-        XCTAssertLessThanOrEqual(expected.count, 1, "Grammar is ambiguous for \(state), \(event)")
+        #expect((expected.count) <= (1), "Grammar is ambiguous for \(state), \(event)")
 
         switch (expected.first, CardSetupStateMachine.reduce(state: state, event: event)) {
         case (.some(let transition), .transitioned(let target)):
-          XCTAssertEqual(target, transition.target, "Mismatch for \(state), \(event)")
+          #expect((target) == (transition.target), "Mismatch for \(state), \(event)")
 
         case (.none, .rejected):
           break
 
         default:
-          XCTFail("Grammar/reducer disagreement for \(state), \(event)")
+          Issue.record("Grammar/reducer disagreement for \(state), \(event)")
         }
       }
     }
   }
 
+  @Test
   internal func testEveryDeclaredStateIsReachableFromInitialState() {
     var reached: Set<CardSetupStateMachine.State> = [CardSetupStateMachine.initialState]
     var frontier = Array(reached)
@@ -85,9 +86,10 @@ internal final class CardSetupStateMachineTests: XCTestCase {
       }
     }
 
-    XCTAssertEqual(reached, Set(CardSetupStateMachine.State.allCases))
+    #expect((reached) == (Set(CardSetupStateMachine.State.allCases)))
   }
 
+  @Test
   internal func testClassificationStatesHandleEveryCardOutcome() {
     let outcomes: Set<CardSetupStateMachine.Event> = [
       .classificationActivated,
@@ -107,10 +109,11 @@ internal final class CardSetupStateMachineTests: XCTestCase {
           .filter { $0.source == state }
           .map(\.event)
       )
-      XCTAssertEqual(handled, outcomes, "Incomplete classification outcomes for \(state)")
+      #expect((handled) == (outcomes), "Incomplete classification outcomes for \(state)")
     }
   }
 
+  @Test
   internal func testCardOutcomeRoutesRespectPurpose() {
     assertTransition(.classifyingBrowser, .classificationActivated, .registeringBrowser)
     assertTransition(.classifyingManagementHome, .classificationActivated, .pinManagementHome)
@@ -127,6 +130,7 @@ internal final class CardSetupStateMachineTests: XCTestCase {
       .classifyingManagementIdentity, .classificationActivationRequired, .activationIdentity)
   }
 
+  @Test
   internal func testDestinationDismissalPreservesIdentityOrigin() {
     assertTransition(.activationHome, .destinationDismissed, .home)
     assertTransition(.activationIdentity, .destinationDismissed, .identityHome)
@@ -136,6 +140,7 @@ internal final class CardSetupStateMachineTests: XCTestCase {
     assertTransition(.documentSigningIdentity, .destinationDismissed, .identityHome)
   }
 
+  @Test
   internal func testDestinationProjectionIsCompleteAndUnambiguous() {
     let expected: [CardSetupStateMachine.State: CardSetupStateMachine.Destination] = [
       .activationHome: .activation,
@@ -147,10 +152,11 @@ internal final class CardSetupStateMachineTests: XCTestCase {
     ]
 
     for state in CardSetupStateMachine.State.allCases {
-      XCTAssertEqual(state.destination, expected[state], "Unexpected destination for \(state)")
+      #expect((state.destination) == (expected[state]), "Unexpected destination for \(state)")
     }
   }
 
+  @Test
   internal func testIdentityOriginSurvivesEveryManagementClassificationFailure() {
     assertTransition(
       .classifyingManagementIdentity,
@@ -166,14 +172,10 @@ internal final class CardSetupStateMachineTests: XCTestCase {
     _ source: CardSetupStateMachine.State,
     _ event: CardSetupStateMachine.Event,
     _ target: CardSetupStateMachine.State,
-    file: StaticString = #filePath,
-    line: UInt = #line
+    sourceLocation: SourceLocation = #_sourceLocation
   ) {
-    XCTAssertEqual(
-      CardSetupStateMachine.reduce(state: source, event: event),
-      .transitioned(target: target),
-      file: file,
-      line: line
-    )
+    #expect(
+      (CardSetupStateMachine.reduce(state: source, event: event))
+        == (.transitioned(target: target)), sourceLocation: sourceLocation)
   }
 }

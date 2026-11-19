@@ -4,13 +4,14 @@ import CardCore
 import CryptoKit
 import Foundation
 import RappEngine
-import XCTest
+import Testing
 
 /// Proves that session discovery publishes nothing stable, that rotating
 /// hints and withdrawals name only their own pairing, and that a dial is
 /// routed only by routing its pairing's keys produce (RAPP v26.11.8
 /// §2.2.1, §4.3 and §4.5).
-internal final class StreamSessionDiscoveryTests: XCTestCase {
+@Suite(.serialized)
+internal final class StreamSessionDiscoveryTests {
   /// The two halves of one pairing, plus the requester half of another.
   private struct Pairing {
     let custodian: RappPairRecord
@@ -47,52 +48,55 @@ internal final class StreamSessionDiscoveryTests: XCTestCase {
       lastUsedMs: 0)
   }
 
+  @Test
   internal func testEphemeralNamesAreRandom() {
     let first = StreamRendezvousName.ephemeralName()
     let second = StreamRendezvousName.ephemeralName()
-    XCTAssertNotNil(first.range(of: Self.ephemeralNamePattern, options: .regularExpression))
-    XCTAssertNotEqual(first, second)
+    #expect((first.range(of: Self.ephemeralNamePattern, options: .regularExpression)) != nil)
+    #expect((first) != (second))
   }
 
+  @Test
   internal func testSessionRecordCarriesOnlyHints() throws {
     let pair = try Self.pairing()
     let record = StreamRendezvousName.sessionRecord(
       candidates: [try Self.candidate(pair.custodian, at: Self.instant)])
-    XCTAssertEqual(record["v"], "1")
-    XCTAssertEqual(record["mode"], "session")
-    XCTAssertEqual(record["hints"]?.count, Self.hintHexLength)
-    XCTAssertEqual(Set(record.keys), ["v", "mode", "hints"])
+    #expect((record["v"]) == ("1"))
+    #expect((record["mode"]) == ("session"))
+    #expect((record["hints"]?.count) == (Self.hintHexLength))
+    #expect((Set(record.keys)) == (["v", "mode", "hints"]))
   }
 
+  @Test
   internal func testHintsNameOnlyTheirOwnPairingWithinAdjacentWindows() throws {
     let pair = try Self.pairing()
     let other = try Self.pairing()
     let window = TimeInterval(StreamRendezvousName.hintEpochSeconds)
     let record = StreamRendezvousName.sessionRecord(
       candidates: [try Self.candidate(pair.custodian, at: Self.instant)])
-    XCTAssertTrue(
-      StreamRendezvousName.sessionRecord(record, holds: pair.requester, at: Self.instant))
-    XCTAssertTrue(
-      StreamRendezvousName.sessionRecord(
-        record, holds: pair.requester, at: Self.instant.addingTimeInterval(window)))
-    XCTAssertFalse(
-      StreamRendezvousName.sessionRecord(
-        record, holds: pair.requester, at: Self.instant.addingTimeInterval(2 * window)))
-    XCTAssertFalse(
-      StreamRendezvousName.sessionRecord(record, holds: other.requester, at: Self.instant))
-    XCTAssertFalse(
-      StreamRendezvousName.sessionRecord(
-        StreamRendezvousName.pairingAttributes, holds: pair.requester, at: Self.instant))
+    #expect((StreamRendezvousName.sessionRecord(record, holds: pair.requester, at: Self.instant)))
+    #expect(
+      (StreamRendezvousName.sessionRecord(
+        record, holds: pair.requester, at: Self.instant.addingTimeInterval(window))))
+    #expect(
+      !(StreamRendezvousName.sessionRecord(
+        record, holds: pair.requester, at: Self.instant.addingTimeInterval(2 * window))))
+    #expect(!(StreamRendezvousName.sessionRecord(record, holds: other.requester, at: Self.instant)))
+    #expect(
+      !(StreamRendezvousName.sessionRecord(
+        StreamRendezvousName.pairingAttributes, holds: pair.requester, at: Self.instant)))
   }
 
+  @Test
   internal func testAtMostFourHintsArePublished() throws {
     let candidates = try (0..<6).map { _ in
       try Self.candidate(Self.pairing().custodian, at: Self.instant)
     }
     let record = StreamRendezvousName.sessionRecord(candidates: candidates)
-    XCTAssertEqual(record["hints"]?.split(separator: ",").count, 4)
+    #expect((record["hints"]?.split(separator: ",").count) == (4))
   }
 
+  @Test
   internal func testFreshRoutingReachesOnlyItsPairingOnce() throws {
     let pair = try Self.pairing()
     let other = try Self.pairing()
@@ -101,43 +105,43 @@ internal final class StreamSessionDiscoveryTests: XCTestCase {
     let records = [other.custodian, pair.custodian]
     let first = try pair.requester.sessionPreamble(transportProfile: profile)
     let second = try pair.requester.sessionPreamble(transportProfile: profile)
-    XCTAssertNotEqual(first, second, "every dial draws fresh routing")
-    XCTAssertEqual(
-      router.route(transportProfile: profile, preamble: first, records: records),
-      .session(index: 1))
-    XCTAssertEqual(
-      router.route(transportProfile: profile, preamble: first, records: records), .refuse,
+    #expect((first) != (second), "every dial draws fresh routing")
+    #expect(
+      (router.route(transportProfile: profile, preamble: first, records: records))
+        == (.session(index: 1)))
+    #expect(
+      (router.route(transportProfile: profile, preamble: first, records: records)) == (.refuse),
       "a replayed preamble is refused")
-    XCTAssertEqual(
-      router.route(transportProfile: profile, preamble: second, records: [other.custodian]),
-      .refuse)
-    XCTAssertEqual(
-      router.route(transportProfile: profile, preamble: Data("noise".utf8), records: records),
-      .refuse)
-    XCTAssertEqual(
-      router.route(
+    #expect(
+      (router.route(transportProfile: profile, preamble: second, records: [other.custodian]))
+        == (.refuse))
+    #expect(
+      (router.route(transportProfile: profile, preamble: Data("noise".utf8), records: records))
+        == (.refuse))
+    #expect(
+      (router.route(
         transportProfile: profile,
-        preamble: try rappPairingPreamble(transportProfile: profile), records: records),
-      .pairing)
+        preamble: try rappPairingPreamble(transportProfile: profile), records: records))
+        == (.pairing))
   }
 
+  @Test
   internal func testWithdrawalNamesItsPairingOnItsInstanceOnly() throws {
     let pair = try Self.pairing()
     let other = try Self.pairing()
     let time = StreamRendezvousName.unixTime(Self.instant)
     let hint = try pair.custodian.withdrawalHint(instance: Self.instance, unixTimeSeconds: time)
-    let record = try XCTUnwrap(
-      StreamRendezvousName.withdrawnRecord(
-        candidates: [RappAnnouncementCandidate(hint: hint, lastUsedMs: 0)]))
-    XCTAssertEqual(record["withdrawn"]?.split(separator: ",").count, 8)
-    XCTAssertTrue(
-      StreamRendezvousName.withdrawnRecord(
-        record, instance: Self.instance, withdraws: pair.requester, at: Self.instant))
-    XCTAssertFalse(
-      StreamRendezvousName.withdrawnRecord(
-        record, instance: "refineid-b3d90e15", withdraws: pair.requester, at: Self.instant))
-    XCTAssertFalse(
-      StreamRendezvousName.withdrawnRecord(
-        record, instance: Self.instance, withdraws: other.requester, at: Self.instant))
+    let record = StreamRendezvousName.withdrawnRecord(
+      candidates: [RappAnnouncementCandidate(hint: hint, lastUsedMs: 0)])
+    #expect((record["withdrawn"]?.split(separator: ",").count) == (8))
+    #expect(
+      (StreamRendezvousName.withdrawnRecord(
+        record, instance: Self.instance, withdraws: pair.requester, at: Self.instant)))
+    #expect(
+      !(StreamRendezvousName.withdrawnRecord(
+        record, instance: "refineid-b3d90e15", withdraws: pair.requester, at: Self.instant)))
+    #expect(
+      !(StreamRendezvousName.withdrawnRecord(
+        record, instance: Self.instance, withdraws: other.requester, at: Self.instant)))
   }
 }

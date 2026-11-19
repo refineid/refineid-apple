@@ -4,7 +4,7 @@
   import Testing
 
   /// Serializes suites that register and reset the same test certificate store.
-  @Suite("Shared certificate cache", .serialized)
+  @Suite("Shared certificate cache", .serialized, DssGateFixtureScope())
   internal enum SharedCertificateCacheTests {
     // The nested suites share TestCredentialEnvironment's CA persistence state.
   }

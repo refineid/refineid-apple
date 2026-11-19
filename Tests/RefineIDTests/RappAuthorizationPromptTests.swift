@@ -2,50 +2,57 @@
 
 #if REFINEID_REMOTE_CARD
 
-  import XCTest
+  import Testing
 
   @testable import RefineIDTestHost
 
   /// The phone's PIN prompt names the act in its title and, in one sentence,
   /// the computer that asks and the documents a signature covers.
-  internal final class RappAuthorizationPromptTests: XCTestCase {
+  @Suite(.serialized)
+  internal final class RappAuthorizationPromptTests {
     private static let computer = "Office computer"
     private static let document = "contract.pdf"
     private static let secondDocument = "appendix.pdf"
 
+    @Test
     internal func testAuthenticationNamesTheComputer() {
-      XCTAssertEqual(
-        RappAuthorizationPrompt.authenticationTitle, String(localized: "Authentication"))
-      XCTAssertEqual(
-        RappAuthorizationPrompt.authenticationMessage(computer: Self.computer),
-        String(localized: "\(Self.computer) asks you to authenticate."))
+      #expect(
+        (RappAuthorizationPrompt.authenticationTitle) == (String(localized: "Authentication")))
+      #expect(
+        (RappAuthorizationPrompt.authenticationMessage(computer: Self.computer))
+          == (String(localized: "\(Self.computer) asks you to authenticate.")))
     }
 
+    @Test
     internal func testSignatureNamesTheComputerAndTheDocument() {
-      XCTAssertEqual(RappAuthorizationPrompt.signatureTitle, String(localized: "Signature"))
-      XCTAssertEqual(
-        RappAuthorizationPrompt.signatureMessage(
-          computer: Self.computer, documents: [Self.document]),
-        String(localized: "\(Self.computer) asks you to sign \(Self.document)."))
+      #expect((RappAuthorizationPrompt.signatureTitle) == (String(localized: "Signature")))
+      #expect(
+        (RappAuthorizationPrompt.signatureMessage(
+          computer: Self.computer, documents: [Self.document]))
+          == (String(localized: "\(Self.computer) asks you to sign \(Self.document).")))
     }
 
+    @Test
     internal func testABatchNamesEveryDocumentInOrder() throws {
       let message = RappAuthorizationPrompt.signatureMessage(
         computer: Self.computer, documents: [Self.document, Self.secondDocument])
       let named = ListFormatter.localizedString(byJoining: [Self.document, Self.secondDocument])
-      XCTAssertEqual(
-        message, String(localized: "\(Self.computer) asks you to sign the documents \(named)."))
-      let first = try XCTUnwrap(message.range(of: Self.document))
-      let second = try XCTUnwrap(message.range(of: Self.secondDocument))
-      XCTAssertLessThan(first.lowerBound, second.lowerBound)
+      #expect(
+        (message)
+          == (String(localized: "\(Self.computer) asks you to sign the documents \(named).")))
+      let first = try #require(message.range(of: Self.document))
+      let second = try #require(message.range(of: Self.secondDocument))
+      #expect((first.lowerBound) < (second.lowerBound))
     }
 
+    @Test
     internal func testASignatureWithoutADocumentNamesOnlyTheComputer() {
-      XCTAssertEqual(
-        RappAuthorizationPrompt.signatureMessage(computer: Self.computer, documents: []),
-        String(localized: "\(Self.computer) asks you to sign."))
+      #expect(
+        (RappAuthorizationPrompt.signatureMessage(computer: Self.computer, documents: []))
+          == (String(localized: "\(Self.computer) asks you to sign.")))
     }
 
+    @Test
     internal func testEveryPromptStringIsTranslated() throws {
       let catalog = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
@@ -53,7 +60,7 @@
         .deletingLastPathComponent()
         .appending(path: "Sources/App/Localizable.xcstrings")
       let json = try JSONSerialization.jsonObject(with: try Data(contentsOf: catalog))
-      let strings = try XCTUnwrap((json as? [String: Any])?["strings"] as? [String: Any])
+      let strings = try #require((json as? [String: Any])?["strings"] as? [String: Any])
       let expected: [String: [String: String]] = [
         "Authentication": ["fi": "Tunnistautuminen", "sv": "Identifiering"],
         "%@ asks you to authenticate.": [
@@ -73,12 +80,12 @@
         ],
       ]
       for (key, translations) in expected {
-        let entry = try XCTUnwrap(strings[key] as? [String: Any], key)
-        let localizations = try XCTUnwrap(entry["localizations"] as? [String: Any], key)
+        let entry = try #require(strings[key] as? [String: Any], key)
+        let localizations = try #require(entry["localizations"] as? [String: Any], key)
         for (language, value) in translations {
-          let localization = try XCTUnwrap(localizations[language] as? [String: Any], key)
-          let unit = try XCTUnwrap(localization["stringUnit"] as? [String: Any], key)
-          XCTAssertEqual(unit["value"] as? String, value, "\(key) \(language)")
+          let localization = try #require(localizations[language] as? [String: Any], key)
+          let unit = try #require(localization["stringUnit"] as? [String: Any], key)
+          #expect((unit["value"] as? String) == (value), "\(key) \(language)")
         }
       }
     }

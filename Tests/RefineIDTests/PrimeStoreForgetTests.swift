@@ -9,7 +9,7 @@
   @testable import CardCore
 
   /// Forgetting one card by its chip serial.
-  @Suite(.serialized)
+  @Suite(.serialized, DssGateFixtureScope())
   internal struct PrimeStoreForgetTests {
     /// Access number of the forgotten card.
     private static let forgottenAccessNumber = "123456"

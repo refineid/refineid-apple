@@ -10,7 +10,7 @@
 
   /// The qualified signature certificate cached in a prime by the first
   /// signature that reads it.
-  @Suite(.serialized)
+  @Suite(.serialized, DssGateFixtureScope())
   internal struct PrimeStoreSignatureCertificateTests {
     /// Access number of the primed card.
     private static let primedAccessNumber = "123456"

@@ -2,17 +2,19 @@
 
 #if REFINEID_REMOTE_CARD
 
-  import XCTest
+  import Testing
 
   @testable import RefineIDTestHost
 
   /// The pairing row starts unpaired unless a launch pretends otherwise.
-  internal final class PretendPairedTests: XCTestCase {
+  @Suite(.serialized)
+  internal final class PretendPairedTests {
     @MainActor
+    @Test
     internal func testPretendPairingStartsAbsent() {
       let model = RappPairingModel()
-      XCTAssertFalse(model.pretendPaired)
-      XCTAssertFalse(model.hasActivePairs)
+      #expect(!(model.pretendPaired))
+      #expect(!(model.hasActivePairs))
     }
   }
 #endif

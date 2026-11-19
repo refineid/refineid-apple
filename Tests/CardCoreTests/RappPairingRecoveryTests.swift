@@ -1,7 +1,7 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 import Foundation
-import XCTest
+import Testing
 
 @testable import CardCore
 
@@ -13,7 +13,8 @@ private let misreadPairingCode = "246814"
 #if canImport(RappEngine)
   import RappEngine
 
-  internal final class RappPairingRecoveryTests: XCTestCase {
+  @Suite(.serialized)
+  internal final class RappPairingRecoveryTests {
     private actor RecordingTransport: RappFrameTransport {
       private var frames: [Data] = []
       private var closes = 0
@@ -38,6 +39,7 @@ private let misreadPairingCode = "246814"
     private static let reconnectSpacingNanoseconds: UInt64 = 600_000_000
     /// More misread codes than any per-offer count would admit.
     private static let misreadAttempts = 4
+    private static let busyRestorationCount = 2
 
     private func makeCustodian(
       transport: RecordingTransport
@@ -60,15 +62,14 @@ private let misreadPairingCode = "246814"
       code: String, offer: RecordingTransport
     ) async throws -> RappPairingBridge {
       let served = await offer.snapshot().frames
-      let encodedOffer = try XCTUnwrap(served.first)
+      let encodedOffer = try #require(served.first)
       let bridge = try RappPairingBridge.bootstrapOffer(
         bootstrap: encodedOffer,
         transportProfile: Self.transportProfile,
         pairingCode: code,
         startedAtMonotonicMs: RappPlatformClock().monotonicMilliseconds())
       try bridge.beginCpace(
-        candidateId: try XCTUnwrap(
-          rappCandidateIdentifier(transportProfile: Self.transportProfile)),
+        candidateId: try #require(rappCandidateIdentifier(transportProfile: Self.transportProfile)),
         randomBytes64: Data(repeating: 0x11, count: Self.cpaceRandomByteCount),
         nowMonotonicMs: RappPlatformClock().monotonicMilliseconds())
       return bridge
@@ -76,18 +77,18 @@ private let misreadPairingCode = "246814"
 
     private func collect(
       _ coordinator: RappPairingCoordinator,
-      restored: XCTestExpectation,
-      closed: XCTestExpectation? = nil
+      restored: TestEvent,
+      closed: TestEvent? = nil
     ) -> Task<RappPairingCoordinator.CloseReason?, Never> {
       let events = coordinator.events
       return Task {
         for await event in events {
           switch event {
           case .offerRestored:
-            restored.fulfill()
+            restored.signal()
 
           case .closed(let reason):
-            closed?.fulfill()
+            closed?.signal()
             return reason
 
           case .keyConfirmed, .paired, .peerIntroduced:
@@ -98,81 +99,93 @@ private let misreadPairingCode = "246814"
       }
     }
 
+    @Test
     internal func testCustodianKeepsItsOfferAfterAnInvalidFirstMessage() async throws {
-      let restored = expectation(description: "offer restored")
+      let restored = TestEvent(description: "offer restored")
       let firstTransport = RecordingTransport()
       let custodian = try await makeCustodian(transport: firstTransport)
       let collector = collect(custodian, restored: restored)
+      defer { collector.cancel() }
 
       await custodian.transportConnected()
       await custodian.receive(Data(count: 32))
-      await fulfillment(of: [restored], timeout: 2)
+      await TestEvent.wait(for: [restored], timeout: 2)
       let firstSnapshot = await firstTransport.snapshot()
-      XCTAssertEqual(firstSnapshot.frames.count, 1)
-      XCTAssertEqual(firstSnapshot.closeCount, 1)
+      #expect((firstSnapshot.frames.count) == (1))
+      #expect((firstSnapshot.closeCount) == (1))
 
       try await Task.sleep(nanoseconds: Self.reconnectSpacingNanoseconds)
       let replacement = RecordingTransport()
       let replaced = await custodian.attach(replacement, transportProfile: Self.transportProfile)
-      XCTAssertTrue(replaced)
+      #expect((replaced))
       await custodian.transportConnected()
       let requester = try await makeRequesterBridge(code: fixturePairingCode, offer: replacement)
       await custodian.receive(
         try requester.writeCpaceFrame(nowMonotonicMs: RappPlatformClock().monotonicMilliseconds()))
       let replacementSnapshot = await replacement.snapshot()
-      XCTAssertEqual(replacementSnapshot.frames.count, 2)
-      XCTAssertEqual(replacementSnapshot.frames.first, firstSnapshot.frames.first)
+      #expect((replacementSnapshot.frames.count) == (2))
+      expectState(
+        replacementSnapshot.frames.first == firstSnapshot.frames.first,
+        sourceLocation: #_sourceLocation)
       await custodian.close()
       collector.cancel()
     }
 
+    @Test
     internal func testCustodianServesTheOfferOnceItConnects() async throws {
       let transport = RecordingTransport()
       let custodian = try await makeCustodian(transport: transport)
       await custodian.transportConnected()
       let frames = await transport.snapshot().frames
-      XCTAssertEqual(frames.count, 1)
-      let offer = try XCTUnwrap(frames.first)
-      XCTAssertNoThrow(
+      #expect((frames.count) == (1))
+      let offer = try #require(frames.first)
+      #expect(throws: Never.self) {
         try RappPairingBridge.bootstrapOffer(
           bootstrap: offer, transportProfile: Self.transportProfile,
           pairingCode: fixturePairingCode,
-          startedAtMonotonicMs: RappPlatformClock().monotonicMilliseconds()))
+          startedAtMonotonicMs: RappPlatformClock().monotonicMilliseconds())
+      }
       await custodian.close()
     }
 
+    @Test
     internal func testASecondConnectionWithinTheSpacingIsAnsweredBusy() async throws {
-      let restored = expectation(description: "offer restored after each connection")
-      restored.expectedFulfillmentCount = 2
+      let restored = TestEvent(
+        description: "offer restored after each connection",
+        expectedCount: Self.busyRestorationCount)
       let first = RecordingTransport()
       let custodian = try await makeCustodian(transport: first)
       let collector = collect(custodian, restored: restored)
+      defer { collector.cancel() }
 
       await custodian.transportConnected()
       await custodian.receive(Data(count: 32))
       let second = RecordingTransport()
       let replaced = await custodian.attach(second, transportProfile: Self.transportProfile)
-      XCTAssertTrue(replaced)
+      #expect((replaced))
       await custodian.transportConnected()
 
       let refused = await second.snapshot()
-      XCTAssertEqual(refused.frames.count, 1)
-      XCTAssertEqual(refused.closeCount, 1)
-      let busy = try XCTUnwrap(refused.frames.first)
+      #expect((refused.frames.count) == (1))
+      #expect((refused.closeCount) == (1))
+      let busy = try #require(refused.frames.first)
       let wait = try rappPairingBusyRetryAfterMs(busy)
-      XCTAssertGreaterThan(wait, 0)
-      XCTAssertLessThanOrEqual(wait, RappPreAuthenticationLimiter.minimumSpacingMilliseconds)
-      await fulfillment(of: [restored], timeout: 2)
+      #expect((wait) > (0))
+      #expect((wait) <= (RappPreAuthenticationLimiter.minimumSpacingMilliseconds))
+      await TestEvent.wait(for: [restored], timeout: 2)
       await custodian.close()
       collector.cancel()
     }
 
+    @Test
     internal func testMisreadCodesKeepTheOffer() async throws {
-      let restored = expectation(description: "offer restored after each failed attempt")
-      restored.expectedFulfillmentCount = Self.misreadAttempts
+      let restored = TestEvent(
+        description: "offer restored after each failed attempt", expectedCount: Self.misreadAttempts
+      )
       let firstTransport = RecordingTransport()
       let custodian = try await makeCustodian(transport: firstTransport)
       let collector = collect(custodian, restored: restored)
+      defer { collector.cancel() }
 
       for attempt in 1...Self.misreadAttempts {
         var transport = firstTransport
@@ -180,7 +193,7 @@ private let misreadPairingCode = "246814"
           try await Task.sleep(nanoseconds: Self.reconnectSpacingNanoseconds)
           transport = RecordingTransport()
           let replaced = await custodian.attach(transport, transportProfile: Self.transportProfile)
-          XCTAssertTrue(replaced)
+          #expect((replaced))
         }
         await custodian.transportConnected()
         let requester = try await makeRequesterBridge(code: misreadPairingCode, offer: transport)
@@ -191,10 +204,10 @@ private let misreadPairingCode = "246814"
         await custodian.transportClosed()
       }
 
-      await fulfillment(of: [restored], timeout: 2)
+      await TestEvent.wait(for: [restored], timeout: 2)
       await custodian.close()
       let reason = await collector.value
-      XCTAssertEqual(reason, .localRequest)
+      #expect((reason) == (.localRequest))
     }
   }
 #endif

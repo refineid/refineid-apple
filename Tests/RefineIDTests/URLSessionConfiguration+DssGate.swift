@@ -12,8 +12,10 @@
     @objc
     internal dynamic class func dssGateEphemeral() -> URLSessionConfiguration {
       let configuration = Self.dssGateEphemeral()
-      configuration.protocolClasses =
-        [DssGateUrlProtocol.self] + (configuration.protocolClasses ?? [])
+      if DssGateSessionHook.isFixtureActive {
+        configuration.protocolClasses =
+          [DssGateUrlProtocol.self] + (configuration.protocolClasses ?? [])
+      }
       return configuration
     }
   }
