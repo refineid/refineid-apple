@@ -159,7 +159,7 @@
       }
     }
 
-    /// Temporary refusal backs off to one minute and keeps trying.
+    /// Temporary refusal backs off and succeeds within the attempt budget.
     @Test
     internal func transientFailureRetriesUntilSuccess() async throws {
       var attempts = 0
@@ -167,7 +167,7 @@
 
       let answer = try await TimestampClient.withTransientRetry {
         attempts += 1
-        if attempts <= 8 {
+        if attempts <= 4 {
           throw SigningNetwork.Failure.httpStatus(429)
         }
         return "timestamp"
@@ -176,10 +176,37 @@
       }
 
       #expect(answer == "timestamp")
-      #expect(attempts == 9)
-      #expect(
-        delays == [1, 2, 4, 8, 16, 32, 60, 60].map { .seconds($0) }
-      )
+      #expect(attempts == 5)
+      #expect(delays == [1, 2, 4, 8].map { .seconds($0) })
+    }
+
+    /// A down authority is reported after the attempt budget, not retried forever.
+    @Test
+    internal func transientFailureGivesUpAfterMaximumAttempts() async {
+      var attempts = 0
+      var delays: [Duration] = []
+
+      await #expect(throws: SigningNetwork.Failure.httpStatus(503)) {
+        _ = try await TimestampClient.withTransientRetry {
+          attempts += 1
+          throw SigningNetwork.Failure.httpStatus(503)
+        } wait: { delay in
+          delays.append(delay)
+        }
+      }
+
+      #expect(attempts == TimestampClient.maximumAuthorityAttempts)
+      #expect(delays.count == TimestampClient.maximumAuthorityAttempts - 1)
+      #expect(delays == [1, 2, 4, 8].map { .seconds($0) })
+    }
+
+    /// The backoff doubles from one second and caps at one minute.
+    @Test
+    internal func retryDelayCapsAtOneMinute() {
+      let schedule = [(1, 1), (2, 2), (3, 4), (4, 8), (5, 16), (6, 32), (7, 60), (100, 60)]
+      for (failures, seconds) in schedule {
+        #expect(TimestampClient.retryDelay(after: failures) == .seconds(seconds))
+      }
     }
 
     /// Authentication failure is returned without another attempt or wait.

@@ -101,6 +101,9 @@ internal enum TimestampClient {
   /// Exponent at which the one-second progression reaches its cap.
   private static let maximumRetryExponent = 6
 
+  /// Attempts before a temporarily failing authority is reported silent.
+  internal static let maximumAuthorityAttempts = 5
+
   /// Active per-document timestamp session shared by stages of one signature.
   @TaskLocal internal static var documentSession: TimestampThrottle.DocumentSession?
 
@@ -288,7 +291,7 @@ internal enum TimestampClient {
     return compact
   }
 
-  /// Repeats the authority after temporary failures until it answers.
+  /// Repeats the authority after temporary failures, then reports it silent.
   private static func withTransientRetry<T>(
     operation: () async throws -> T
   ) async throws -> T {
@@ -311,6 +314,9 @@ internal enum TimestampClient {
           throw error
         }
         failureCount += 1
+        guard failureCount < Self.maximumAuthorityAttempts else {
+          throw error
+        }
         try await wait(Self.retryDelay(after: failureCount))
       }
     }
