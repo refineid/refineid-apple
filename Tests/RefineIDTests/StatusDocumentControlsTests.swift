@@ -173,15 +173,15 @@
       #expect(controls.actions == [.verify, .sign])
     }
 
-    /// Sign stays held back until a failure in the status row is read.
+    /// A visible refusal permits an explicit retry with a ready card.
     @Test
-    internal func signWaitsUntilAFailureIsAcknowledged() {
+    internal func signCanRetryWhileAFailureIsVisible() {
       let failing = Self.controls(
         .ready, queued: Self.documents, signing: false, failureShown: true)
       let read = Self.controls(.ready, queued: Self.documents, signing: false)
 
-      #expect(failing.awaitsAcknowledgement)
-      #expect(!failing.allowsSigning(cardReady: true))
+      #expect(failing.failureIsVisible)
+      #expect(failing.allowsSigning(cardReady: true))
       #expect(read.allowsSigning(cardReady: true))
       #expect(!read.allowsSigning(cardReady: false))
     }

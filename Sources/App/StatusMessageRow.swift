@@ -15,6 +15,7 @@
     private static let outcomeDisplaySeconds = 3
 
     internal let message: StatusMessage
+    internal var requiresAcknowledgement = false
 
     /// Acknowledges the outcome, which returns the row to the identity.
     internal let acknowledge: () -> Void
@@ -23,7 +24,7 @@
       HStack {
         content
         Spacer()
-        actions
+        if requiresAcknowledgement { actions }
       }
       .accessibilityElement(children: .contain)
       .accessibilityIdentifier("statusMessage")

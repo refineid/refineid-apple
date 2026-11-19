@@ -47,7 +47,7 @@
 
     /// Whether a failure waits in the status row to be read: Sign is
     /// held back and "OK" takes the default action until it is.
-    internal let awaitsAcknowledgement: Bool
+    internal let failureIsVisible: Bool
 
     /// Whether there is anything for the buttons to act on: a listed
     /// document, or a signature or card read under way.
@@ -87,13 +87,13 @@
       verifyEnabled =
         offersVerification
         && QueuedDocumentVerification.isAvailable(queued: queued, signing: working)
-      awaitsAcknowledgement = failureShown
+      failureIsVisible = failureShown
       hasWork = !queued.isEmpty || working || readingStamp
     }
 
     /// Whether Sign can run, given that the card side is ready.
     internal func allowsSigning(cardReady: Bool) -> Bool {
-      cardReady && offersSigning && !awaitsAcknowledgement
+      cardReady && offersSigning
     }
   }
 

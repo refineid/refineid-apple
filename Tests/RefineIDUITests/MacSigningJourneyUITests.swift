@@ -60,11 +60,7 @@
       XCTAssertFalse(
         window.sheets.firstMatch.waitForExistence(timeout: Self.panelWaitSeconds),
         "a refused signature asked where to save")
-      let acknowledge = window.buttons["OK"].firstMatch
-      XCTAssertTrue(
-        acknowledge.waitForExistence(timeout: UITestApp.appearTimeout),
-        "no OK button to acknowledge the refusal")
-      acknowledge.click()
+      XCTAssertFalse(window.buttons[UITestIdentifiers.statusAcknowledge].exists)
       confirmSavePanel(
         afterSigningWith: Self.pin2, in: app, window: window)
       XCTAssertTrue(
