@@ -68,13 +68,14 @@ The rules every RefineID screen follows, on the Mac, iPhone and iPad.
   take the eIDAS term (Regulation (EU) No 910/2014 Article 22):
   *EU:n luotetut luettelot*, in Swedish *EU:s förteckningar över
   betrodda tjänsteleverantörer*, in English *EU trusted lists*.
-  The choice between signing a PDF in place and wrapping the documents
-  with their signatures reads "Kirjekuoreen (ASiC-E)" in Finnish, beside
-  "Yksittäin (PDF)": the holder puts the documents in one envelope and
-  signs it, the way one says *laitetaan asiakirjat kirjekuoreen*. The
-  essive *kuorena*, *paketti*, *säiliö* and *kontti* are not used for it;
-  Estonian user text calls the same thing *ümbrik*, and the technical
-  word stays in engineering prose.
+  The choice between signing a PDF in place and gathering the documents
+  with their signatures in one file reads "Kuoreen (ASiC-E)" in Finnish,
+  beside "Yksittäin (PDF)": the documents go into one cover and the holder
+  signs that. The word is *kuori* in the illative, not the essive
+  *kuorena*, and not *kirjekuori*: a paper envelope is a physical object
+  and does not name a file. *Paketti*, *säiliö* and *kontti* are not used
+  for it either. Estonian user text calls the same thing *ümbrik*, and the
+  technical word stays in engineering prose.
 - **PIN names.** The codes take DVV's names: the basic PIN is PIN 1
   and the signature PIN is PIN 2. Every user-facing name of a PIN, in
   a field label, a heading, a button or a message, is the full name
