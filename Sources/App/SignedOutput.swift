@@ -15,6 +15,7 @@
   /// panel is a sheet on the status window.
   @MainActor
   internal enum SignedOutput {
+    private static let screenMargin: CGFloat = 12
     private static let preferredSavePanelWidth: CGFloat = 640
 
     /// Asks for the file one signature is written to.
@@ -88,9 +89,12 @@
 
     private static func widen(_ panel: NSSavePanel) {
       var frame = panel.frame
-      let availableWidth = panel.screen?.visibleFrame.width ?? preferredSavePanelWidth
-      let width = max(frame.width, min(preferredSavePanelWidth, availableWidth))
-      frame.origin.x -= (width - frame.width) * CGFloat(UnitPoint.center.x)
+      guard let screen = panel.sheetParent?.screen ?? panel.screen else { return }
+      let bounds = screen.visibleFrame.insetBy(dx: screenMargin, dy: .zero)
+      let limit = min(bounds.width, panel.sheetParent?.frame.width ?? bounds.width)
+      let width = min(limit, max(frame.width, preferredSavePanelWidth))
+      frame.origin.x = max(
+        bounds.minX, min(frame.midX - width * UnitPoint.center.x, bounds.maxX - width))
       frame.size.width = width
       panel.setFrame(frame, display: true)
     }

@@ -63,6 +63,7 @@
           }
         }
         .frame(height: rowsHeight.map { min($0, maximumListHeight) })
+        .frame(maxHeight: maximumListHeight)
         .accessibilityLabel("Documents to sign")
         footer
       }
