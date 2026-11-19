@@ -56,6 +56,33 @@ extension SigningNetwork {
     case headStartElapsed
   }
 
+  /// What one finished attempt means for the race.
+  private enum Decision {
+    /// The unvalidated attempt waits to be started.
+    case startPlain
+
+    /// The race goes on.
+    case keep
+
+    /// This answer ends the race.
+    case answer(Data, ValidatedOutcome)
+
+    /// This failure ends the race.
+    case refuse(Error)
+  }
+
+  /// The race's running state.
+  private struct RaceState {
+    /// Whether the unvalidated attempt has been started.
+    var plainStarted = false
+
+    /// The unvalidated attempt's failure, if it has one.
+    var plainFailure: Error?
+
+    /// The validated attempt's resolution failure, if it had one.
+    var validatedFailure: Error?
+  }
+
   /// Seconds the resolver is remembered as failing validation.
   private static let validationMemorySeconds: Int64 = 600
 
@@ -88,7 +115,17 @@ extension SigningNetwork {
     validated: @escaping @Sendable () async throws -> Data,
     plain: @escaping @Sendable () async throws -> Data
   ) async throws -> (data: Data, outcome: ValidatedOutcome) {
-    try await withThrowingTaskGroup(of: Attempt.self) { group in
+    let plainAttempt: @Sendable () async -> Attempt = {
+      do {
+        return .plain(.success(try await plain()))
+      } catch {
+        return .plain(.failure(error))
+      }
+    }
+    // The group lives in this body for its whole life: a child is added
+    // directly, never through a reference another scope holds across a
+    // suspension, and every child is awaited before the group ends.
+    return try await withThrowingTaskGroup(of: Attempt.self) { group in
       group.addTask {
         do {
           return .validated(.success(try await validated()))
@@ -100,55 +137,58 @@ extension SigningNetwork {
         try? await Task.sleep(for: headStart)
         return .headStartElapsed
       }
-      return try await Self.winner(of: &group, plain: plain)
-    }
-  }
+      var state = RaceState()
+      while let attempt = try await group.next() {
+        switch Self.decision(for: attempt, state: &state) {
+        case .startPlain:
+          group.addTask { await plainAttempt() }
 
-  /// The first success among the raced attempts, or the failure that
-  /// says most about why there was none.
-  private static func winner(
-    of group: inout ThrowingTaskGroup<Attempt, Error>,
-    plain: @escaping @Sendable () async throws -> Data
-  ) async throws -> (data: Data, outcome: ValidatedOutcome) {
-    var plainStarted = false
-    var plainFailure: Error?
-    var validatedFailure: Error?
-    func startPlain() {
-      guard !plainStarted else { return }
-      plainStarted = true
-      group.addTask {
-        do {
-          return .plain(.success(try await plain()))
-        } catch {
-          return .plain(.failure(error))
-        }
-      }
-    }
-    while let attempt = try await group.next() {
-      switch attempt {
-      case .headStartElapsed:
-        startPlain()
+        case .keep:
+          continue
 
-      case .validated(.success(let data)):
-        group.cancelAll()
-        return (data, .validated)
+        case .answer(let data, let outcome):
+          group.cancelAll()
+          return (data, outcome)
 
-      case .plain(.success(let data)):
-        group.cancelAll()
-        return (data, .plain)
-
-      case .validated(.failure(let error)):
-        guard Self.isResolutionFailure(error) else {
+        case .refuse(let error):
           group.cancelAll()
           throw error
         }
-        validatedFailure = error
-        startPlain()
-
-      case .plain(.failure(let error)):
-        plainFailure = error
       }
+      throw state.plainFailure ?? state.validatedFailure ?? Failure.unusableBody
     }
-    throw plainFailure ?? validatedFailure ?? Failure.unusableBody
+  }
+
+  /// What `attempt` means for `state`.
+  ///
+  /// Pure: it reads the attempt and moves the state on, and takes no
+  /// part in the group, so the group is driven from one scope alone.
+  private static func decision(
+    for attempt: Attempt,
+    state: inout RaceState
+  ) -> Decision {
+    switch attempt {
+    case .headStartElapsed:
+      guard !state.plainStarted else { return .keep }
+      state.plainStarted = true
+      return .startPlain
+
+    case .validated(.success(let data)):
+      return .answer(data, .validated)
+
+    case .plain(.success(let data)):
+      return .answer(data, .plain)
+
+    case .validated(.failure(let error)):
+      guard Self.isResolutionFailure(error) else { return .refuse(error) }
+      state.validatedFailure = error
+      guard !state.plainStarted else { return .keep }
+      state.plainStarted = true
+      return .startPlain
+
+    case .plain(.failure(let error)):
+      state.plainFailure = error
+      return .keep
+    }
   }
 }

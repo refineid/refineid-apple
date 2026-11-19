@@ -12,6 +12,8 @@
 		6D0000000000000000000004 /* CardCore in Frameworks */ = {isa = PBXBuildFile; productRef = AD0000000000000000000002 /* CardCore */; };
 		CE0000000000000000000004 /* RappRequester in Frameworks */ = {isa = PBXBuildFile; productRef = AD0000000000000000000009 /* RappRequester */; };
 		BD0000000000000000000009 /* RappRequester in Frameworks */ = {isa = PBXBuildFile; productRef = AD0000000000000000000008 /* RappRequester */; };
+		BD000000000000000000000A /* RappEngine in Frameworks */ = {isa = PBXBuildFile; productRef = AD000000000000000000000A /* RappEngine */; };
+		6D000000000000000000000F /* RappEngine in Frameworks */ = {isa = PBXBuildFile; productRef = AD000000000000000000000B /* RappEngine */; };
 		6D000000000000000000000D /* RappRequester in Frameworks */ = {isa = PBXBuildFile; productRef = AD0000000000000000000007 /* RappRequester */; };
 		6D0000000000000000000005 /* CardCore in Frameworks */ = {isa = PBXBuildFile; productRef = AD0000000000000000000003 /* CardCore */; };
 		6D0000000000000000000006 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2D0000000000000000000008 /* PrivacyInfo.xcprivacy */; };
@@ -204,6 +206,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				6D0000000000000000000008 /* CardCore in Frameworks */,
+				6D000000000000000000000F /* RappEngine in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -222,6 +225,7 @@
 			files = (
 				BD0000000000000000000008 /* CardCore in Frameworks */,
 				BD0000000000000000000009 /* RappRequester in Frameworks */,
+				BD000000000000000000000A /* RappEngine in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -406,6 +410,7 @@
 			name = CardCoreTests;
 			packageProductDependencies = (
 				AD0000000000000000000004 /* CardCore */,
+				AD000000000000000000000B /* RappEngine */,
 			);
 			productName = CardCoreTests;
 			productReference = 2D0000000000000000000009 /* CardCoreTests.xctest */;
@@ -496,6 +501,7 @@
 			packageProductDependencies = (
 				AD0000000000000000000006 /* CardCore */,
 				AD0000000000000000000008 /* RappRequester */,
+				AD000000000000000000000A /* RappEngine */,
 			);
 			productName = RefineIDTests;
 			productReference = BD0000000000000000000001 /* RefineIDTests.xctest */;
@@ -2126,6 +2132,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = AD0000000000000000000001 /* XCLocalSwiftPackageReference "CardCore" */;
 			productName = RappRequester;
+		};
+		AD000000000000000000000A /* RappEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AD0000000000000000000001 /* XCLocalSwiftPackageReference "CardCore" */;
+			productName = RappEngine;
+		};
+		AD000000000000000000000B /* RappEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AD0000000000000000000001 /* XCLocalSwiftPackageReference "CardCore" */;
+			productName = RappEngine;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

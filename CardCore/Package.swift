@@ -21,6 +21,7 @@ private let package = Package(
   products: [
     .library(name: "CardCore", targets: ["CardCore"]),
     .library(name: "RappRequester", targets: ["RappRequester"]),
+    .library(name: "RappEngine", targets: ["RappEngine"]),
   ],
   targets: [
     // The RAPP protocol engine in Swift: deterministic CBOR, the envelope
