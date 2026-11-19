@@ -63,9 +63,8 @@ extension TrustedListStore {
   /// The bytes of each location that arrives, a few at a time.
   ///
   /// Every worker is added before the group is drained, and each one
-  /// walks its own slice in order: no child is added while the group is
-  /// being consumed, so no child completes into a group whose context
-  /// the runtime has already released.
+  /// walks its own slice in order, so every add happens before the first
+  /// await on the group.
   nonisolated private static func fetchNational(
     _ locations: [String],
     _ dependencies: Dependencies
