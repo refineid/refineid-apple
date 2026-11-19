@@ -21,7 +21,7 @@
   /// they dropped it on should be the one that signs it.
   internal struct StatusView: View {
     private static let spacing: CGFloat = 14
-    private static let padding: CGFloat = 24
+    internal static let padding: CGFloat = 24
 
     /// The narrowest the window may be, which grows with the text
     /// inside it so a larger size widens the window instead of
@@ -182,7 +182,7 @@
         StatusActionBar(
           signing: signing, controls: documentControls, canSign: canSign, onSign: { sign() }
         )
-        .padding(.top, Self.readySpacing)
+        .padding(.top, Self.centeredActionTopPadding)
       }
     }
 

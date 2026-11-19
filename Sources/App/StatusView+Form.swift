@@ -8,6 +8,13 @@
     private static let formInset: CGFloat = 20
     internal static let readySpacing: CGFloat = 10
 
+    private static let actionGapCount: CGFloat = 2
+    private static let actionGapAdjustment = (padding + formInset) / actionGapCount - readySpacing
+
+    internal static var centeredActionTopPadding: CGFloat {
+      readySpacing + actionGapAdjustment
+    }
+
     @ViewBuilder internal var statusForm: some View {
       if showsReadySection || showsStandaloneReading {
         VStack(spacing: Self.readySpacing) {
@@ -18,7 +25,11 @@
             readySection
           }
         }
-        .padding(Self.formInset)
+        .padding([.horizontal, .top], Self.formInset)
+        .padding(
+          .bottom,
+          showsReadySection && !documentControls.actions.isEmpty
+            ? Self.formInset - Self.actionGapAdjustment : Self.formInset)
       } else {
         groupedForm
       }
