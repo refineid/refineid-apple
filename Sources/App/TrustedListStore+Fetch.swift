@@ -64,7 +64,8 @@ extension TrustedListStore {
   ///
   /// Every worker is added before the group is drained, and each one
   /// walks its own slice in order, so every add happens before the first
-  /// await on the group.
+  /// await on the group. A worker the caller cancels stops without
+  /// recording its stop as a fetch failure.
   nonisolated private static func fetchNational(
     _ locations: [String],
     _ dependencies: Dependencies
@@ -80,9 +81,11 @@ extension TrustedListStore {
         group.addTask {
           var fetched: [String: Data] = [:]
           for location in slice {
+            if Task.isCancelled { break }
             do {
               fetched[location] = try await dependencies.fetch(location)
             } catch {
+              guard !Task.isCancelled else { break }
               Self.reportFetchFailure(location, error)
             }
           }

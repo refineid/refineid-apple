@@ -58,7 +58,7 @@ extension SigningNetwork {
 
   /// What one finished attempt means for the race.
   private enum Decision {
-    /// The unvalidated attempt waits to be started.
+    /// Start the unvalidated attempt.
     case startPlain
 
     /// The race goes on.
@@ -141,6 +141,7 @@ extension SigningNetwork {
       while let attempt = try await group.next() {
         switch Self.decision(for: attempt, state: &state) {
         case .startPlain:
+          guard !Task.isCancelled else { throw CancellationError() }
           group.addTask { await plainAttempt() }
 
         case .keep:

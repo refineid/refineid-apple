@@ -305,8 +305,8 @@ internal final class PersistentTokenDriver: TKTokenDriver,
   /// Every message a peer sent that the protocol refuses shows among the
   /// development errors, named by its type and the rule it broke.
   ///
-  /// Only a build that serves the remote card refuses messages, so only
-  /// that build installs a receiver.
+  /// A development build that serves the remote card compiles this
+  /// receiver, so no other build records refusals.
   private func reportRefusedMessages() {
     RappRefusalLog.install { line in
       DevErrorLog.report("message refused: \(line)", source: .rappTokenExtension)
