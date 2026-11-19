@@ -78,10 +78,6 @@
     internal var body: some View {
       VStack(alignment: .leading, spacing: Self.spacing) {
         statusForm
-        if showsReadySection, !documentControls.actions.isEmpty {
-          StatusActionBar(
-            signing: signing, controls: documentControls, canSign: canSign, onSign: { sign() })
-        }
         if demoMode.isActive {
           CardSetupFooter(isDemonstration: true)
         }
@@ -165,23 +161,24 @@
       }
     #endif
 
-    internal var idleDocumentArea: some View {
-      StatusDocumentSection(
-        signing: signing, format: $format, offersSigning: documentControls.offersSigning,
-        onChoose: choose, onAccept: accept)
-    }
-
     @ViewBuilder internal var readySection: some View {
       let controls = documentControls
       if controls.showsDocuments {
         StatusDocumentSection(
           signing: signing, format: $format, offersSigning: controls.offersSigning,
-          onChoose: choose, onAccept: accept)
+          onChoose: choose, onAccept: accept
+        )
+        .padding(Self.readySpacing)
+        .overlay { panelOutline }
       }
       if controls.offersSigning {
         StatusSignatureSection(
           signing: signing, format: $format, accessNumber: $accessNumber,
           target: selection.target)
+      }
+      if !controls.actions.isEmpty {
+        StatusActionBar(
+          signing: signing, controls: documentControls, canSign: canSign, onSign: { sign() })
       }
     }
 

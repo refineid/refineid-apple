@@ -9,28 +9,16 @@
     internal static let readySpacing: CGFloat = 10
 
     @ViewBuilder internal var statusForm: some View {
-      if (showsReadySection && signingModel.queued.isEmpty && signingModel.pending == nil)
-        || showsStandaloneReading
-      {
+      if showsReadySection || showsStandaloneReading {
         VStack(spacing: Self.readySpacing) {
           if showsStandaloneReading {
             identityBox(for: .cardWithoutIdentity)
           } else {
             statusRow(showsIdentity: documentControls.showsIdentity)
-          }
-          if documentControls.showsDocuments, !showsStandaloneReading {
-            idleDocumentArea
-              .padding(Self.readySpacing)
-              .overlay { panelOutline }
+            readySection
           }
         }
         .padding(Self.formInset)
-      } else if showsReadySection {
-        VStack(spacing: Self.readySpacing) {
-          statusRow(showsIdentity: documentControls.showsIdentity)
-            .padding(.horizontal, Self.formInset)
-          groupedForm
-        }
       } else {
         groupedForm
       }
@@ -52,7 +40,7 @@
       return activation.isReading && !activation.awaitsActivation
     }
 
-    private var panelOutline: some View {
+    internal var panelOutline: some View {
       RoundedRectangle(cornerRadius: Self.readySpacing).strokeBorder(.secondary)
         .allowsHitTesting(false)
     }
@@ -75,8 +63,6 @@
         readingSection
       } else if shouldShowPairingPrompt {
         pairingPromptSection
-      } else {
-        readySection
       }
     }
   }
