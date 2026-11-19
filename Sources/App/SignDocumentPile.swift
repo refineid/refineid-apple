@@ -43,6 +43,8 @@
     @ScaledMetric(relativeTo: .body)
     private var maximumListHeight: CGFloat = 132
 
+    @State private var rowsHeight: CGFloat?
+
     internal var body: some View {
       VStack(alignment: .leading, spacing: 0) {
         ScrollView {
@@ -54,8 +56,13 @@
               row(for: document)
             }
           }
+          .onGeometryChange(for: CGFloat.self) { geometry in
+            geometry.size.height
+          } action: { height in
+            rowsHeight = height
+          }
         }
-        .frame(maxHeight: maximumListHeight)
+        .frame(height: rowsHeight.map { min($0, maximumListHeight) })
         .accessibilityLabel("Documents to sign")
         footer
       }

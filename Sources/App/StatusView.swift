@@ -82,6 +82,8 @@
           CardSetupFooter(isDemonstration: true)
         }
       }
+      .fixedSize(horizontal: false, vertical: true)
+      .windowResizeAnchor(.top)
       .padding(Self.padding)
       .frame(minWidth: minimumWidth, alignment: .leading)
       #if REFINEID_REMOTE_CARD
