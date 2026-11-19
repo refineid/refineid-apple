@@ -66,6 +66,59 @@
       #expect(StatusMessage(signing) == nil)
     }
 
+    /// A new action clears the previous failure before its first step,
+    /// keeping the waiting documents for that action.
+    @Test
+    internal func aNewActionClearsThePreviousFailureBeforeItsFirstStep() {
+      let signing = SignDocumentModel()
+      signing.accept([Self.document])
+      signing.fail(message: Self.failure)
+      #expect(StatusMessage(signing) == .failure(Self.failure))
+
+      signing.beginAction()
+      #expect(StatusMessage(signing) == nil)
+      #expect(signing.queued == [Self.document])
+      #expect(signing.pending == Self.document)
+    }
+
+    /// Clearing an old failure resumes the signature waiting for its
+    /// acknowledgement, even before the new action starts a document.
+    @Test
+    internal func aNewActionResumesThePreviousFailureAcknowledgement() async {
+      let signing = SignDocumentModel()
+      await withCheckedContinuation { continuation in
+        signing.acknowledgement = continuation
+        signing.fail(message: Self.failure)
+
+        signing.beginAction()
+        #expect(signing.acknowledgement == nil)
+
+        // Release a continuation left behind after reporting the
+        // failure, so the regression cannot leave this test waiting.
+        if signing.acknowledgement != nil {
+          signing.releaseAcknowledgement()
+        }
+      }
+      #expect(StatusMessage(signing) == nil)
+    }
+
+    /// The previous notice and saved files belong to their completed
+    /// action, not the next one.
+    @Test
+    internal func aNewActionClearsThePreviousNoticeAndSavedFiles() {
+      let signing = SignDocumentModel()
+      signing.accept([Self.document])
+      signing.complete(with: Self.signedFile)
+      signing.setNotice(Self.notice)
+      #expect(StatusMessage(signing) == .outcome(notice: Self.notice, signed: [Self.signedFile]))
+      #expect(signing.lastActionSignedSomething)
+
+      signing.beginAction()
+      #expect(StatusMessage(signing) == nil)
+      #expect(signing.queued == [Self.document])
+      #expect(!signing.lastActionSignedSomething)
+    }
+
     /// The saved file is reported until acknowledged or the pile
     /// changes.
     @Test

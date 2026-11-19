@@ -96,6 +96,9 @@
     internal func beginAction() {
       lastActionSignedSomething = false
       signedFiles = []
+      failure = nil
+      releaseAcknowledgement()
+      notice = nil
     }
 
     /// Empties the pile once its documents are signed, keeping the
