@@ -226,9 +226,10 @@
             .foregroundStyle(.secondary)
         #else
           // The remote card is gated off, so no switch offers itself
-          // from the top right corner: the row asks for a reader.
+          // from the top right corner: the row asks for a reader, in the
+          // same primary color as asking for the card in it.
           Text("Connect a card reader.")
-            .foregroundStyle(.secondary)
+            .foregroundStyle(.primary)
         #endif
 
       case .insertCard:
