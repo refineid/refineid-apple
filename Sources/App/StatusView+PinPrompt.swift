@@ -14,7 +14,6 @@
     internal func promptForPin2() -> String? {
       let alert = NSAlert()
       alert.messageText = CredentialLabels.entryPrompt(for: .pin2, bundle: .main)
-      alert.informativeText = String(localized: "Enter PIN 2 to sign the document.", bundle: .main)
       let field = NSSecureTextField(
         frame: NSRect(
           x: 0, y: 0, width: Self.pinPromptFieldWidth, height: Self.pinPromptFieldHeight)
