@@ -166,7 +166,11 @@
     /// time the card is touched.
     internal static func progressNote(_ signing: SignDocumentModel) -> String? {
       if signing.working {
-        return signing.phase?.note ?? String(localized: "Signing document…")
+        let step = signing.phase?.note ?? String(localized: "Signing document…")
+        if signing.signingPile, let source = signing.pending {
+          return "\(step) \(source.lastPathComponent)"
+        }
+        return step
       }
       if signing.readingStamp {
         return String(localized: "Reading the card…")
