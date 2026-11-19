@@ -288,7 +288,7 @@ internal final class PersistentTokenDriver: TKTokenDriver,
   override internal init() {
     super.init()
     delegate = self
-    #if DEBUG
+    #if DEBUG && REFINEID_REMOTE_CARD
       reportRefusedMessages()
     #endif
   }
@@ -301,9 +301,12 @@ internal final class PersistentTokenDriver: TKTokenDriver,
   }
 }
 
-#if DEBUG
+#if DEBUG && REFINEID_REMOTE_CARD
   /// Every message a peer sent that the protocol refuses shows among the
   /// development errors, named by its type and the rule it broke.
+  ///
+  /// Only a build that serves the remote card refuses messages, so only
+  /// that build installs a receiver.
   private func reportRefusedMessages() {
     RappRefusalLog.install { line in
       DevErrorLog.report("message refused: \(line)", source: .rappTokenExtension)

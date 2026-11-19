@@ -61,33 +61,41 @@ extension TrustedListStore {
   }
 
   /// The bytes of each location that arrives, a few at a time.
+  ///
+  /// Every worker is added before the group is drained, and each one
+  /// walks its own slice in order: no child is added while the group is
+  /// being consumed, so no child completes into a group whose context
+  /// the runtime has already released.
   nonisolated private static func fetchNational(
     _ locations: [String],
     _ dependencies: Dependencies
   ) async -> [String: Data] {
-    var fetched: [String: Data] = [:]
-    await withTaskGroup(of: (String, Data?).self) { group in
-      var pending = locations[...]
-      func startNext() {
-        guard let location = pending.popFirst() else { return }
+    guard !locations.isEmpty else { return [:] }
+    let workerCount = min(Self.concurrentFetches, locations.count)
+    var slices = Array(repeating: [String](), count: workerCount)
+    for (offset, location) in locations.enumerated() {
+      slices[offset % workerCount].append(location)
+    }
+    return await withTaskGroup(of: [String: Data].self) { group in
+      for slice in slices {
         group.addTask {
-          do {
-            return (location, try await dependencies.fetch(location))
-          } catch {
-            Self.reportFetchFailure(location, error)
-            return (location, nil)
+          var fetched: [String: Data] = [:]
+          for location in slice {
+            do {
+              fetched[location] = try await dependencies.fetch(location)
+            } catch {
+              Self.reportFetchFailure(location, error)
+            }
           }
+          return fetched
         }
       }
-      for _ in 0..<Self.concurrentFetches {
-        startNext()
+      var fetched: [String: Data] = [:]
+      for await slice in group {
+        fetched.merge(slice) { first, _ in first }
       }
-      for await (location, bytes) in group {
-        if let bytes { fetched[location] = bytes }
-        startNext()
-      }
+      return fetched
     }
-    return fetched
   }
 
   /// Reports one fetch or read failure in a development build: what
