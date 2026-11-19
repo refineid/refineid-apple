@@ -20,20 +20,50 @@ private let fixturePairingCode = "246813"
   internal struct StreamRelayCeremonyTests {
     // MARK: Static Properties
 
-    private static let attempts = 150
-    private static let pause = Duration.milliseconds(100)
+    private static let readyTimeout = Duration.seconds(30)
+    /// The stall probe's wait, long enough to prove the timeout fires.
+    private static let stallTimeout = Duration.milliseconds(10)
     private static let streamProfile = rappStreamProfileName()
     private static let profiles = rappCredentialProfiles()
 
     // MARK: Static Functions
 
     /// Waits for the listener to bind a port that can actually be dialled.
-    private static func boundPort(of listener: StreamRelayListener) async throws -> UInt16 {
-      for _ in 0..<attempts {
-        if let port = listener.port, port != 0 { return port }
-        try await Task.sleep(for: pause)
+    ///
+    /// Uses the listener's own readiness signal rather than sampling its
+    /// port. A wait that never becomes ready throws naming the listener's
+    /// last state, so a stall says what was missing. The timeout stops the
+    /// listener, which ends the readiness wait: suspending on cancellation
+    /// alone would strand it.
+    private static func boundPort(
+      of listener: StreamRelayListener, timeout: Duration = Self.readyTimeout
+    ) async throws -> UInt16 {
+      try await withThrowingTaskGroup(of: UInt16.self) { group in
+        group.addTask { try await listener.readyPort() }
+        group.addTask {
+          try await Task.sleep(for: timeout)
+          listener.cancel()
+          throw StreamRelayTestFailure.listenerNeverReady(state: listener.state)
+        }
+        do {
+          guard let port = try await group.next() else {
+            throw StreamRelayTestFailure.listenerNeverReady(state: listener.state)
+          }
+          group.cancelAll()
+          _ = try? await group.next()
+          return port
+        } catch {
+          group.cancelAll()
+          _ = try? await group.next()
+          if error is CancellationError {
+            throw error
+          }
+          if error is StreamRelayTestFailure {
+            throw error
+          }
+          throw StreamRelayTestFailure.listenerNeverReady(state: listener.state)
+        }
       }
-      throw StreamRelayTestFailure.noFrame
     }
 
     /// Answers with the pairing that resulted.
@@ -188,6 +218,25 @@ private let fixturePairingCode = "246813"
       #expect(
         try vaults.proxy.activePairIDs().contains(made.proxy.pairID),
         "the holder kept no record of the pairing it made")
+    }
+
+    /// A listener that never reports ready fails naming its last state.
+    @Test
+    internal func aListenerThatNeverReportsReadyNamesItsState() async {
+      let listener = StreamRelayListener { _ in
+        // stall probe only
+      }
+      // Never started, so the short wait can only end by its timeout.
+      do {
+        _ = try await Self.boundPort(of: listener, timeout: Self.stallTimeout)
+        Issue.record("boundPort succeeded on a listener that never became ready")
+      } catch let failure as StreamRelayTestFailure {
+        #expect(
+          failure == .listenerNeverReady(state: "not started"),
+          "boundPort threw \(failure), not the stall")
+      } catch {
+        Issue.record("boundPort threw \(error), not the stall")
+      }
     }
   }
 #endif
