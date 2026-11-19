@@ -62,8 +62,8 @@
       panel.directoryURL = first.deletingLastPathComponent()
       panel.message =
         together
-        ? String(localized: "Where to keep the signed ASiC-E file.")
-        : String(localized: "Where to keep the signed document.")
+        ? String(localized: "Where should the signed ASiC-E file be saved?")
+        : String(localized: "Where should the signed document be saved?")
       panel.prompt = String(localized: "Save")
       let response = await Self.run(panel) {
         widen(panel)
@@ -109,7 +109,7 @@
       panel.canCreateDirectories = true
       panel.allowsMultipleSelection = false
       panel.directoryURL = origin
-      panel.message = String(localized: "Where to keep the signed documents.")
+      panel.message = String(localized: "Where should the signed documents be saved?")
       panel.prompt = String(localized: "Save")
       guard await Self.run(panel, presented: nil) == .OK else { return nil }
       return panel.url
