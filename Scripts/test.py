@@ -100,11 +100,24 @@ def run_command(cmd: list[str], err_msg: str, env: dict[str, str] | None = None)
         fail(err_msg)
 
 
+def check_testing_tools() -> None:
+    for script in ("TestRunAppleTests.py", "TestCheckTestFrameworks.py", "TestTartUITests.py"):
+        run_command(
+            [sys.executable, "-B", f"Scripts/{script}"], "Testing-tool regression checks failed."
+        )
+    run_command(
+        [sys.executable, "-B", "Scripts/CheckTestFrameworks.py"], "Test framework policy failed."
+    )
+
+
 def main() -> None:
     repo_root = Path(__file__).resolve().parent.parent
     os.chdir(repo_root)
 
     mode = sys.argv[1] if len(sys.argv) > 1 else "pr"
+
+    if mode in {"commit", "pr"}:
+        check_testing_tools()
 
     if mode == "commit":
         run_command(
@@ -247,8 +260,8 @@ def main() -> None:
         step("6. Running unit test suite (RefineIDTests on macOS)")
         run_command(
             [
-                "xcodebuild",
-                "test",
+                sys.executable,
+                "Scripts/RunAppleTests.py",
                 "-derivedDataPath",
                 str(derived_data),
                 "-scheme",
@@ -265,8 +278,8 @@ def main() -> None:
         sim_name = find_first_iphone_simulator()
         run_command(
             [
-                "xcodebuild",
-                "test",
+                sys.executable,
+                "Scripts/RunAppleTests.py",
                 "-derivedDataPath",
                 str(derived_data),
                 "-scheme",
@@ -282,8 +295,8 @@ def main() -> None:
         step("8. Running core test suite (CardCoreTests on macOS, without RAPP integration)")
         run_command(
             [
-                "xcodebuild",
-                "test",
+                sys.executable,
+                "Scripts/RunAppleTests.py",
                 "-derivedDataPath",
                 str(derived_data),
                 "-scheme",
@@ -300,8 +313,8 @@ def main() -> None:
         step("9. Running RAPP integration tests (CardCoreTests/RappIntegrationTests on macOS)")
         run_command(
             [
-                "xcodebuild",
-                "test",
+                sys.executable,
+                "Scripts/RunAppleTests.py",
                 "-derivedDataPath",
                 str(derived_data),
                 "-scheme",
@@ -317,8 +330,8 @@ def main() -> None:
         step("10. Running simulator-only engine tests on iOS (Bluetooth-gated, offer handoff)")
         run_command(
             [
-                "xcodebuild",
-                "test",
+                sys.executable,
+                "Scripts/RunAppleTests.py",
                 "-derivedDataPath",
                 str(derived_data),
                 "-scheme",
@@ -370,8 +383,8 @@ def main() -> None:
         step("Testing retained NFC field lifecycle and PACE")
         run_command(
             [
-                "xcodebuild",
-                "test",
+                sys.executable,
+                "Scripts/RunAppleTests.py",
                 "-derivedDataPath",
                 str(derived_data),
                 "-scheme",
@@ -393,14 +406,20 @@ def main() -> None:
         )
 
     elif mode == "macos-mvp":
+        if os.environ.get("REFINEID_UI_TEST_GUEST") != "tart":
+            run_command(
+                [sys.executable, "Scripts/test-ui-tart.py", "macos-ci", "macos-mvp"],
+                "Headless macOS MVP UI checks failed.",
+            )
+            return
         hide_build_from_spotlight()
         step("Checking the macOS MVP user interface")
         timestamp = datetime.now(UTC).isoformat(timespec="seconds")
         result_path = f"build/macos-mvp-ui-{timestamp}.xcresult"
         run_command(
             [
-                "xcodebuild",
-                "test",
+                sys.executable,
+                "Scripts/RunAppleTests.py",
                 "-derivedDataPath",
                 str(derived_data),
                 "-scheme",
