@@ -2,17 +2,17 @@
 
 #if os(macOS)
 
+  import RappRequester
   import SwiftUI
 
   /// The status row of the ready window: where the app talks to the
   /// holder about signing, and otherwise whose identity is offered.
   extension StatusView {
     private static let identityBoxSpacing: CGFloat = 12
-    private static let identityBoxPaddingHorizontal: CGFloat = 8
+    private static let identityBoxPaddingHorizontal: CGFloat = 10
     private static let pinCodesBoxPaddingHorizontal: CGFloat = 12
-    private static let boxCornerRadius: CGFloat = 6
+    private static let boxCornerRadius: CGFloat = 10
     private static let boxBorderWidth: CGFloat = 1
-    private static let boxBorderOpacity: Double = 0.2
 
     /// Which document controls the window shows now.
     internal var documentControls: StatusDocumentControls {
@@ -39,17 +39,7 @@
         .accessibilityIdentifier("loginIdentityStatus")
       #else
         HStack(spacing: Self.identityBoxSpacing) {
-          IdentityStateView(
-            availability: availability,
-            warnsUnavailableCard: activation.warnsUnavailableCard
-          )
-          .accessibilityIdentifier("loginIdentityStatus")
-          .padding(.horizontal, Self.identityBoxPaddingHorizontal)
-          .frame(maxWidth: .infinity, minHeight: statusRowHeight, alignment: .leading)
-          .clipShape(RoundedRectangle(cornerRadius: Self.boxCornerRadius))
-          .overlay(
-            RoundedRectangle(cornerRadius: Self.boxCornerRadius).stroke(
-              Color.secondary.opacity(Self.boxBorderOpacity), lineWidth: Self.boxBorderWidth))
+          identityBox(for: availability)
 
           PinCodesButton()
             .padding(.horizontal, Self.pinCodesBoxPaddingHorizontal)
@@ -57,12 +47,23 @@
             .clipShape(RoundedRectangle(cornerRadius: Self.boxCornerRadius))
             .overlay(
               RoundedRectangle(cornerRadius: Self.boxCornerRadius).stroke(
-                Color.secondary.opacity(Self.boxBorderOpacity), lineWidth: Self.boxBorderWidth))
+                Color.secondary, lineWidth: Self.boxBorderWidth))
         }
-        .listRowBackground(Color.clear)
         // The card stays the one chosen while it is being used.
         .disabled(signingModel.working || signingModel.readingStamp)
       #endif
+    }
+
+    internal func identityBox(for state: IdentityAvailability) -> some View {
+      IdentityStateView(availability: state, warnsUnavailableCard: activation.warnsUnavailableCard)
+        .accessibilityIdentifier("loginIdentityStatus")
+        .padding(.horizontal, Self.identityBoxPaddingHorizontal)
+        .frame(maxWidth: .infinity, minHeight: statusRowHeight, alignment: .leading)
+        .overlay {
+          RoundedRectangle(cornerRadius: Self.boxCornerRadius)
+            .strokeBorder(.secondary, lineWidth: Self.boxBorderWidth)
+            .allowsHitTesting(false)
+        }
     }
 
     /// What signing has to say, or the identity row when it says

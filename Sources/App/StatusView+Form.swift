@@ -5,12 +5,63 @@
   import SwiftUI
 
   extension StatusView {
+    private static let formInset: CGFloat = 20
+    private static let readySpacing: CGFloat = 10
+
     @ViewBuilder internal var statusForm: some View {
+      if (showsReadySection && signingModel.queued.isEmpty && signingModel.pending == nil)
+        || showsStandaloneReading
+      {
+        VStack(spacing: Self.readySpacing) {
+          if showsStandaloneReading {
+            identityBox(for: .cardWithoutIdentity)
+          } else {
+            statusRow(showsIdentity: documentControls.showsIdentity)
+          }
+          if documentControls.showsDocuments, !showsStandaloneReading {
+            idleDocumentArea
+              .padding(Self.readySpacing)
+              .overlay { panelOutline }
+          }
+        }
+        .padding(Self.formInset)
+      } else if showsReadySection {
+        VStack(spacing: Self.readySpacing) {
+          statusRow(showsIdentity: documentControls.showsIdentity)
+            .padding(.horizontal, Self.formInset)
+          groupedForm
+        }
+      } else {
+        groupedForm
+      }
+    }
+
+    internal var showsReadySection: Bool {
+      #if FEATURE_CONTACTLESS
+        !showsContactlessEntry
+          && !activation.awaitsActivation && !activation.isReading && !shouldShowPairingPrompt
+      #else
+        !activation.awaitsActivation && !activation.isReading && !shouldShowPairingPrompt
+      #endif
+    }
+
+    internal var showsStandaloneReading: Bool {
+      #if FEATURE_CONTACTLESS
+        if showsContactlessEntry { return false }
+      #endif
+      return activation.isReading && !activation.awaitsActivation
+    }
+
+    private var panelOutline: some View {
+      RoundedRectangle(cornerRadius: Self.readySpacing).strokeBorder(.secondary)
+        .allowsHitTesting(false)
+    }
+
+    private var groupedForm: some View {
       Form {
         formBody
       }
       .formStyle(.grouped)
-      // A form is a scroll view; one that fits its window stays still.
       .scrollBounceBehavior(.basedOnSize)
       .fixedSize(horizontal: false, vertical: true)
     }

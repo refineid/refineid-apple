@@ -14,6 +14,8 @@
   /// Neither reads the window's own state, so both live here and leave
   /// the view itself to the parts that do.
   extension StatusView {
+    private static let groupedRowVerticalInsets: CGFloat = 20
+
     /// What the identity row and the offered features key on.
     ///
     /// Reads two observed facts - the token's publication and the
@@ -109,7 +111,7 @@
         availability: .cardWithoutIdentity,
         warnsUnavailableCard: ActivationWatch.shared.warnsUnavailableCard
       )
-      .frame(minHeight: statusRowHeight)
+      .frame(minHeight: statusRowHeight - Self.groupedRowVerticalInsets)
       .accessibilityIdentifier("loginIdentityStatus")
     }
 

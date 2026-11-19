@@ -178,7 +178,7 @@
 
     private var readingLine: some View {
       Text("Reading information…")
-        .foregroundStyle(.secondary)
+        .foregroundStyle(.primary)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -233,7 +233,7 @@
 
       case .insertCard:
         Text("Insert the card into the reader.")
-          .foregroundStyle(.secondary)
+          .foregroundStyle(.primary)
 
       #if REFINEID_REMOTE_CARD
         case .paired(let lead):

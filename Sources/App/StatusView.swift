@@ -32,7 +32,7 @@
     /// The height of the status row, tall enough for the PIN codes key
     /// so the row keeps one height whether a card is in the reader or not.
     @ScaledMetric(relativeTo: .body)
-    internal var statusRowHeight: CGFloat = 26.5
+    internal var statusRowHeight: CGFloat = 45
 
     internal let model = LoginIdentityModel.shared
     @ObservedObject internal var retryHealth = CredentialRetryHealth.shared
@@ -159,18 +159,20 @@
     }
 
     /// Whether the window shows the ready section and its button bar.
-    private var showsReadySection: Bool {
-      #if FEATURE_CONTACTLESS
-        !(offeringNumber || awaitingAccessNumber) && !asksForCardSlot
-          && !activation.awaitsActivation && !activation.isReading && !shouldShowPairingPrompt
-      #else
-        !activation.awaitsActivation && !activation.isReading && !shouldShowPairingPrompt
-      #endif
+    #if FEATURE_CONTACTLESS
+      internal var showsContactlessEntry: Bool {
+        offeringNumber || awaitingAccessNumber || asksForCardSlot
+      }
+    #endif
+
+    internal var idleDocumentArea: some View {
+      StatusDocumentSection(
+        signing: signing, format: $format, offersSigning: documentControls.offersSigning,
+        onChoose: choose, onAccept: accept)
     }
 
     @ViewBuilder internal var readySection: some View {
       let controls = documentControls
-      statusRow(showsIdentity: controls.showsIdentity)
       if controls.showsDocuments {
         StatusDocumentSection(
           signing: signing, format: $format, offersSigning: controls.offersSigning,
