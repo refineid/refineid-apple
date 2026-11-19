@@ -180,7 +180,9 @@
       }
       if !controls.actions.isEmpty {
         StatusActionBar(
-          signing: signing, controls: documentControls, canSign: canSign, onSign: { sign() })
+          signing: signing, controls: documentControls, canSign: canSign, onSign: { sign() }
+        )
+        .padding(.top, Self.readySpacing)
       }
     }
 
