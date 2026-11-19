@@ -22,6 +22,12 @@
             identityBox(for: .cardWithoutIdentity)
           } else {
             statusRow(showsIdentity: documentControls.showsIdentity)
+          }
+          if showsStandaloneReading ? !signingModel.queued.isEmpty : documentControls.showsDocuments
+          {
+            documentSection
+          }
+          if showsReadySection {
             readySection
           }
         }

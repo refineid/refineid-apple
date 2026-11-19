@@ -163,16 +163,17 @@
       }
     #endif
 
+    internal var documentSection: some View {
+      StatusDocumentSection(
+        signing: signing, format: $format, offersSigning: documentControls.offersSigning,
+        onChoose: choose, onAccept: accept
+      )
+      .padding(Self.readySpacing)
+      .overlay { panelOutline }
+    }
+
     @ViewBuilder internal var readySection: some View {
       let controls = documentControls
-      if controls.showsDocuments {
-        StatusDocumentSection(
-          signing: signing, format: $format, offersSigning: controls.offersSigning,
-          onChoose: choose, onAccept: accept
-        )
-        .padding(Self.readySpacing)
-        .overlay { panelOutline }
-      }
       if controls.offersSigning {
         StatusSignatureSection(
           signing: signing, format: $format, accessNumber: $accessNumber,
