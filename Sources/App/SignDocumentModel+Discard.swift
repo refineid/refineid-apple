@@ -7,48 +7,6 @@
   /// A finished signature stays in memory until it is written or the
   /// holder forgets it.
   extension SignDocumentModel {
-    /// What the alert after a cancelled save panel speaks of.
-    internal enum UnsavedSignature: Equatable, Sendable {
-      /// One signed file.
-      case one
-
-      /// Several signed files of a pile.
-      case several
-
-      /// The alert's title.
-      internal var title: String {
-        switch self {
-        case .one:
-          String(localized: "The signed file has not been saved.")
-
-        case .several:
-          String(localized: "The signed files have not been saved.")
-        }
-      }
-
-      /// The default button, which opens the panel again.
-      internal var saveTitle: String {
-        switch self {
-        case .one:
-          String(localized: "Save the file")
-
-        case .several:
-          String(localized: "Save the files")
-        }
-      }
-
-      /// The destructive button, which drops the signature.
-      internal var forgetTitle: String {
-        switch self {
-        case .one:
-          String(localized: "Forget the signature")
-
-        case .several:
-          String(localized: "Forget the signatures")
-        }
-      }
-    }
-
     /// Whether `candidate` names the same file as one of `originals`,
     /// through symbolic links and in either letter case.
     nonisolated internal static func isOriginal(_ candidate: URL, among originals: [URL]) -> Bool {
@@ -79,7 +37,7 @@
     /// Asks `choose` for a place and writes `finished` there; answers
     /// whether it was written.
     ///
-    /// A cancelled panel raises the unsaved-signature alert. A place
+    /// Cancelling discards the signed output. A place
     /// that is one of `originals`, or a write that fails, shows its
     /// failure and asks again. Each request proposes the name last
     /// typed.
@@ -93,10 +51,7 @@
       while true {
         let answer = await choose(finished, typedName)
         typedName = answer.typedName
-        guard let destination = answer.destination else {
-          if await forgets(.one) { return false }
-          continue
-        }
+        guard let destination = answer.destination else { return false }
         guard !Self.isOriginal(destination, among: originals) else {
           await failAndWait(refusal)
           continue
@@ -111,39 +66,6 @@
         complete(with: destination)
         return true
       }
-    }
-
-    /// Asks `choose` for a folder until it names one, or until the
-    /// holder forgets the signatures after cancelling.
-    internal func askedFolder(choose: FolderChoice) async -> URL? {
-      while true {
-        if let folder = await choose() { return folder }
-        if await forgets(.several) { return nil }
-      }
-    }
-
-    /// Raises the unsaved-signature alert and waits for the holder's
-    /// answer; true forgets the signature.
-    private func forgets(_ subject: UnsavedSignature) async -> Bool {
-      await withCheckedContinuation { continuation in
-        unsavedAnswer?.resume(returning: false)
-        unsavedAnswer = continuation
-        unsaved = subject
-      }
-    }
-
-    /// The holder's answer to `unsaved`.
-    internal func answerUnsaved(forget: Bool) {
-      let answer = unsavedAnswer
-      unsavedAnswer = nil
-      unsaved = nil
-      answer?.resume(returning: forget)
-    }
-
-    /// The alert went away without an answer: the default, which
-    /// opens the panel again.
-    internal func dismissUnsaved() {
-      answerUnsaved(forget: false)
     }
 
     /// Shows `message` as the failure alert and waits until it is

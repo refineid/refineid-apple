@@ -169,7 +169,7 @@
     /// A file already in the folder is never overwritten; that
     /// document is reported. Any other failed write is shown and the
     /// folder is asked again for the documents still unwritten. A
-    /// declined folder, once the holder forgets the signatures, leaves
+    /// declined folder discards unwritten signatures and leaves
     /// only the refusals.
     private func save(
       _ signatures: [URL: SignedDocument],
@@ -181,7 +181,7 @@
       var failures = refusals
       var written: Set<URL> = []
       var unwritten = documents.filter { signatures[$0] != nil }
-      while !unwritten.isEmpty, let folder = await askedFolder(choose: choose) {
+      while !unwritten.isEmpty, let folder = await choose() {
         var retry: [URL] = []
         var lastError: String?
         for source in unwritten {

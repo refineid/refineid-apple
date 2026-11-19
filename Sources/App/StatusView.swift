@@ -135,7 +135,6 @@
         react(to: .noCard)
       }
       .onDisappear { activation.stop() }
-      .asksAboutUnsaved(for: signing)
       .announcesOutcome(activation.management.failure)
       .announcesOutcome(activation.management.notice)
     }
