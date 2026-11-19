@@ -85,7 +85,7 @@
     internal func testSigningScreenIsLocalizedInFinnish() {
       assertSigningLocalization(
         language: "fi",
-        labels: ["Allekirjoitustapa", "Yksittäin (PDF)", "Kirjekuoreen (ASiC-E)"])
+        labels: ["Allekirjoitustapa", "Yksittäin (PDF)", "Kuoreen (ASiC-E)"])
     }
 
     internal func testSigningScreenIsLocalizedInSwedish() {
