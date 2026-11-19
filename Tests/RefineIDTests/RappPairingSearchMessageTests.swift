@@ -3,6 +3,7 @@
 #if REFINEID_REMOTE_CARD
 
   import CardCore
+  import Foundation
   import Testing
 
   @testable import RefineIDTestHost
