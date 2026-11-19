@@ -65,7 +65,7 @@
       for (language, expected) in [("fi", finnish), ("sv", swedish)] {
         let localization = try #require(localizations[language] as? [String: Any])
         let unit = try #require(localization["stringUnit"] as? [String: Any])
-        #expect((unit["value"] as? String) == (expected), language)
+        #expect((unit["value"] as? String) == (expected), "\(language)")
       }
     }
 
