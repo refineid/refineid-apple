@@ -109,8 +109,6 @@ internal final class StreamRelaySessionTests {
     }
     #expect((receivedFrames) == ([Self.applicationFrame]))
 
-    session.cancel()
-    listener.stop()
   }
 
   @Test
@@ -141,7 +139,6 @@ internal final class StreamRelaySessionTests {
       return
     }
     #expect((error) == (.disconnected))
-    listener.stop()
   }
 
   @Test
@@ -174,7 +171,6 @@ internal final class StreamRelaySessionTests {
       return
     }
     #expect((error) == (.malformedFrame))
-    listener.stop()
   }
 
   @Test
@@ -206,8 +202,6 @@ internal final class StreamRelaySessionTests {
 
     await TestEvent.wait(for: [connected, preambleSeen], timeout: Self.eventTimeout)
     #expect((listenerFrames.values) == ([Self.preamble]))
-    session.cancel()
-    listener.stop()
   }
 
   @Test
@@ -263,11 +257,15 @@ internal final class StreamRelaySessionTests {
         break
       }
     }
-    defer { session.cancel() }
+    var didCancel = false
+    defer {
+      if !didCancel { session.cancel() }
+    }
     session.start()
     await TestEvent.wait(for: [connected], timeout: Self.eventTimeout)
 
     session.cancel()
+    didCancel = true
     await TestEvent.wait(for: [closed], timeout: Self.eventTimeout)
     let countAtClose = events.values.count
     guard case .closed(let error)? = events.values.last else {
@@ -284,6 +282,5 @@ internal final class StreamRelaySessionTests {
       return true
     }
     #expect((closedEventCount) == (1))
-    listener.stop()
   }
 }

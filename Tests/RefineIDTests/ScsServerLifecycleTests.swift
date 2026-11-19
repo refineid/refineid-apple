@@ -30,6 +30,8 @@
         }
       }
 
+      private static let versionRequest = "GET /version HTTP/1.1\r\nHost: 127.0.0.1:53952\r\n\r\n"
+
       private static func ephemeralTcpParameters() -> NWParameters? {
         let parameters = NWParameters.tcp
         parameters.allowLocalEndpointReuse = false
@@ -98,7 +100,8 @@
             // Status assertions live in testIdleReadTimeoutAndPortConflictSurfaceCleanly.
           }
         )
-        defer { stop(server, releasing: backend) }
+        var cleanup: (() -> Void)? = { stop(server, releasing: backend) }
+        defer { cleanup?() }
         server.start()
         await TestEvent.wait(for: [ready], timeout: 5)
         let port = try #require(server.localPort)
@@ -114,10 +117,7 @@
         )
         #expect((backend.signEntered.wait(timeout: .now() + 5)) == (.success))
 
-        let versionAnswer = try await exchangeOverTcp(
-          port: port,
-          request: "GET /version HTTP/1.1\r\nHost: 127.0.0.1:53952\r\n\r\n"
-        )
+        let versionAnswer = try await exchangeOverTcp(port: port, request: Self.versionRequest)
         #expect((versionAnswer.contains("HTTP/1.1 200 OK")))
         let secondSignAnswer = try await exchangeOverTcp(
           port: port,
@@ -125,7 +125,8 @@
         )
         #expect((secondSignAnswer.contains("\"reasonCode\":403")))
 
-        stop(server, releasing: backend)
+        cleanup?()
+        cleanup = nil
         await TestEvent.wait(for: [tokenCancelled, stopped], timeout: 5)
         #expect((server.localPort) == nil)
       }

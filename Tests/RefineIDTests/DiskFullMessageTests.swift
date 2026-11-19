@@ -70,7 +70,7 @@
         for (language, value) in expected {
           let localization = try #require(localizations[language] as? [String: Any])
           let unit = try #require(localization["stringUnit"] as? [String: Any])
-          #expect((unit["value"] as? String) == (value + suffix), language)
+          #expect((unit["value"] as? String) == (value + suffix), "\(language)")
         }
       }
     }
@@ -122,7 +122,7 @@
       for (language, value) in expected {
         let localization = try #require(localizations[language] as? [String: Any])
         let unit = try #require(localization["stringUnit"] as? [String: Any])
-        #expect((unit["value"] as? String) == (value), language)
+        #expect((unit["value"] as? String) == (value), "\(language)")
       }
     }
   }

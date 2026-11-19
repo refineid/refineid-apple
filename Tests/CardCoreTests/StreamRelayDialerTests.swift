@@ -50,7 +50,5 @@ internal final class StreamRelayDialerTests {
     #expect((connectedCount) == (Self.singleConnectionCount))
     #expect((listenerFrames.values) == ([Self.preamble]))
 
-    session.cancel()
-    listener.stop()
   }
 }

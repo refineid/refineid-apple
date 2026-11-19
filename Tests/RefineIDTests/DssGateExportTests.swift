@@ -282,19 +282,20 @@
       ]
       for (name, document) in documents {
         let report = try DocumentVerification.verify(document: document, anchors: anchors)
-        #expect((report.signatures.count) == (1), name)
+        #expect((report.signatures.count) == (1), "\(name)")
         guard case .judged(let signature) = report.signatures.first else {
           Issue.record("\(name): the signature was not judged")
           continue
         }
-        #expect((signature.isValid), name)
-        #expect((signature.chainVerified), name)
-        #expect((signature.level) == (.longTermArchival), name)
-        let validUntil = try #require(signature.archiveValidUntil, name)
-        #expect((validUntil) > (Date()), name)
-        let proof = try #require(signature.proofOfExistence, name)
-        let archive = try #require(signature.archiveTimestamps.compactMap(\.provenTime).max(), name)
-        #expect((archive.date) >= (proof), name)
+        #expect((signature.isValid), "\(name)")
+        #expect((signature.chainVerified), "\(name)")
+        #expect((signature.level) == (.longTermArchival), "\(name)")
+        let validUntil = try #require(signature.archiveValidUntil, "\(name)")
+        #expect((validUntil) > (Date()), "\(name)")
+        let proof = try #require(signature.proofOfExistence, "\(name)")
+        let archive = try #require(
+          signature.archiveTimestamps.compactMap(\.provenTime).max(), "\(name)")
+        #expect((archive.date) >= (proof), "\(name)")
         guard case .good = signature.revocation else {
           Issue.record("\(name): the carried validation data did not answer the path")
           continue

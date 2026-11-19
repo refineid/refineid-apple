@@ -20,10 +20,11 @@ internal final class CardSetupStateMachineTests {
     let delegate = GrammarParserDelegate()
     parser?.delegate = delegate
 
-    #expect(
-      (parser?.parse()) == (true), parser?.parserError?.localizedDescription ?? "SCXML parse failed"
-    )
-    #expect((delegate.errors.isEmpty), delegate.errors.joined(separator: "\n"))
+    let parsed = parser?.parse()
+    let parseFailure = parser?.parserError?.localizedDescription ?? "SCXML parse failed"
+    #expect(parsed == true, "\(parseFailure)")
+    let grammarErrors = delegate.errors.joined(separator: "\n")
+    #expect(delegate.errors.isEmpty, "\(grammarErrors)")
 
     return ParsedGrammar(
       initialState: try #require(delegate.initialState),
