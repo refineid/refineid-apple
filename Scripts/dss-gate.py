@@ -197,8 +197,8 @@ def main() -> None:
 
     print("=== Exporting the Swift signers' documents ===")
     xcode_cmd = [
-        "xcodebuild",
-        "test",
+        sys.executable,
+        "Scripts/RunAppleTests.py",
         "-derivedDataPath",
         str(derived_data),
         "-scheme",
