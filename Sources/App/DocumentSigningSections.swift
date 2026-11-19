@@ -89,9 +89,9 @@
       if inputs.count == 1, inputs.first?.isPDF == true {
         Section(text("signing.format", "Signing method")) {
           Picker(selection: $format) {
-            Text(text("format.pades", "Separately (PDF)"))
+            Text("PDF")
               .tag(SignatureFormat.pades)
-            Text(text("format.asice", "As a package (ASiC-E)"))
+            Text("ASiC-E")
               .tag(SignatureFormat.asice)
           } label: {
             EmptyView()
