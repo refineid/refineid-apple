@@ -5,12 +5,68 @@
   import SwiftUI
 
   extension StatusView {
+    private static let formInset: CGFloat = 20
+    internal static let readySpacing: CGFloat = 10
+
+    private static let actionGapCount: CGFloat = 2
+    private static let actionGapAdjustment = (padding + formInset) / actionGapCount - readySpacing
+
+    internal static var centeredActionTopPadding: CGFloat {
+      readySpacing + actionGapAdjustment
+    }
+
     @ViewBuilder internal var statusForm: some View {
+      if showsReadySection || showsStandaloneReading {
+        VStack(spacing: Self.readySpacing) {
+          if showsStandaloneReading {
+            identityBox(for: .cardWithoutIdentity)
+          } else {
+            statusRow(showsIdentity: documentControls.showsIdentity)
+          }
+          if showsStandaloneReading ? !signingModel.queued.isEmpty : documentControls.showsDocuments
+          {
+            documentSection
+          }
+          if showsReadySection {
+            readySection
+          }
+        }
+        .padding([.horizontal, .top], Self.formInset)
+        .padding(
+          .bottom,
+          showsReadySection && !documentControls.actions.isEmpty
+            ? Self.formInset - Self.actionGapAdjustment : Self.formInset)
+      } else {
+        groupedForm
+      }
+    }
+
+    internal var showsReadySection: Bool {
+      #if FEATURE_CONTACTLESS
+        !showsContactlessEntry
+          && !activation.awaitsActivation && !activation.isReading && !shouldShowPairingPrompt
+      #else
+        !activation.awaitsActivation && !activation.isReading && !shouldShowPairingPrompt
+      #endif
+    }
+
+    internal var showsStandaloneReading: Bool {
+      #if FEATURE_CONTACTLESS
+        if showsContactlessEntry { return false }
+      #endif
+      return activation.isReading && !activation.awaitsActivation
+    }
+
+    internal var panelOutline: some View {
+      RoundedRectangle(cornerRadius: Self.readySpacing).strokeBorder(.secondary)
+        .allowsHitTesting(false)
+    }
+
+    private var groupedForm: some View {
       Form {
         formBody
       }
       .formStyle(.grouped)
-      // A form is a scroll view; one that fits its window stays still.
       .scrollBounceBehavior(.basedOnSize)
       .fixedSize(horizontal: false, vertical: true)
     }
@@ -24,8 +80,6 @@
         readingSection
       } else if shouldShowPairingPrompt {
         pairingPromptSection
-      } else {
-        readySection
       }
     }
   }

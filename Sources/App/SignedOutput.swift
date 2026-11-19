@@ -4,6 +4,7 @@
 
   import AppKit
   import Foundation
+  import SwiftUI
 
   /// Where signed documents are written.
   ///
@@ -14,6 +15,9 @@
   /// panel is a sheet on the status window.
   @MainActor
   internal enum SignedOutput {
+    private static let screenMargin: CGFloat = 12
+    private static let preferredSavePanelWidth: CGFloat = 640
+
     /// Asks for the file one signature is written to.
     ///
     /// A container covering a set is proposed the default stem and the
@@ -59,10 +63,11 @@
       panel.directoryURL = first.deletingLastPathComponent()
       panel.message =
         together
-        ? String(localized: "Where to keep the signed ASiC-E file.")
-        : String(localized: "Where to keep the signed document.")
+        ? String(localized: "Where should the signed ASiC-E file be saved?")
+        : String(localized: "Where should the signed document be saved?")
       panel.prompt = String(localized: "Save")
       let response = await Self.run(panel) {
+        widen(panel)
         // The panel selects the whole name before its extension; a
         // proposed container name selects the default stem alone, so
         // typing replaces it and keeps the suffix.
@@ -82,6 +87,21 @@
       )
     }
 
+    private static func widen(_ panel: NSSavePanel) {
+      var frame = panel.frame
+      guard let screen = panel.sheetParent?.screen ?? panel.screen else { return }
+      let bounds = screen.visibleFrame.insetBy(dx: screenMargin, dy: .zero)
+      let parent = panel.sheetParent?.frame
+      let available = parent.map { bounds.intersection($0) } ?? bounds
+      let width = min(available.width, preferredSavePanelWidth)
+      guard width > frame.width else { return }
+      let center = parent?.midX ?? frame.midX
+      frame.origin.x = max(
+        available.minX, min(center - width * UnitPoint.center.x, available.maxX - width))
+      frame.size.width = width
+      panel.setFrame(frame, display: true)
+    }
+
     /// Asks for the folder a batch is written to, starting beside the
     /// first document.
     internal static func chooseFolder(startingAt origin: URL?) async -> URL? {
@@ -96,7 +116,7 @@
       panel.canCreateDirectories = true
       panel.allowsMultipleSelection = false
       panel.directoryURL = origin
-      panel.message = String(localized: "Where to keep the signed documents.")
+      panel.message = String(localized: "Where should the signed documents be saved?")
       panel.prompt = String(localized: "Save")
       guard await Self.run(panel, presented: nil) == .OK else { return nil }
       return panel.url

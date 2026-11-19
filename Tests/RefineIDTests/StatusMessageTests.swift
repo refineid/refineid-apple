@@ -37,6 +37,23 @@
       #expect(StatusMessage(signing) == nil)
     }
 
+    @Test
+    internal func batchTimestampingNamesTheCurrentDocument() {
+      let signing = SignDocumentModel()
+      let documents = [Self.document, Self.other]
+      signing.accept(documents)
+      _ = signing.beginSigning()
+      signing.beginPile()
+      signing.show(.timestamp)
+      for source in documents {
+        signing.focus(on: source)
+        let label = DocumentSigningPhase.timestamp.note.trimmingCharacters(
+          in: CharacterSet(charactersIn: ".\u{2026}"))
+        let expected = "\(label): \(source.lastPathComponent)..."
+        #expect(StatusMessage(signing) == .progress(expected))
+      }
+    }
+
     /// A failure stays in the row until acknowledged.
     @Test
     internal func aFailureStaysUntilAcknowledged() {

@@ -14,6 +14,8 @@
   /// Neither reads the window's own state, so both live here and leave
   /// the view itself to the parts that do.
   extension StatusView {
+    private static let groupedRowVerticalInsets: CGFloat = 20
+
     /// What the identity row and the offered features key on.
     ///
     /// Reads two observed facts - the token's publication and the
@@ -109,7 +111,7 @@
         availability: .cardWithoutIdentity,
         warnsUnavailableCard: ActivationWatch.shared.warnsUnavailableCard
       )
-      .frame(minHeight: statusRowHeight)
+      .frame(minHeight: statusRowHeight - Self.groupedRowVerticalInsets)
       .accessibilityIdentifier("loginIdentityStatus")
     }
 
@@ -164,7 +166,12 @@
     /// time the card is touched.
     internal static func progressNote(_ signing: SignDocumentModel) -> String? {
       if signing.working {
-        return signing.phase?.note ?? String(localized: "Signing document…")
+        let step = signing.phase?.note ?? String(localized: "Signing document…")
+        if signing.signingPile, let source = signing.pending {
+          let label = step.reversed().drop(while: { $0 == "." || $0 == "\u{2026}" }).reversed()
+          return "\(String(label)): \(source.lastPathComponent)..."
+        }
+        return step
       }
       if signing.readingStamp {
         return String(localized: "Reading the card…")

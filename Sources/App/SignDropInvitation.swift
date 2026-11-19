@@ -41,7 +41,7 @@
           )
           .accessibilityHidden(true)
         invitation
-          .foregroundStyle(.secondary)
+          .foregroundStyle(.primary)
         Button("Choose…", action: choose)
           .buttonStyle(.link)
           .accessibilityIdentifier("signChooseDocument")

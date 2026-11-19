@@ -6799,50 +6799,50 @@
         }
       }
     },
-    "Where to keep the signed document.": {
+    "Where should the signed document be saved?": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mihin allekirjoitettu asiakirja tallennetaan."
+            "value": "Mihin allekirjoitettu asiakirja tallennetaan?"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Var det undertecknade dokumentet ska sparas."
+            "value": "Var ska det undertecknade dokumentet sparas?"
           }
         }
       }
     },
-    "Where to keep the signed documents.": {
+    "Where should the signed documents be saved?": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mihin allekirjoitetut asiakirjat tallennetaan."
+            "value": "Mihin allekirjoitetut asiakirjat tallennetaan?"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Var de undertecknade dokumenten ska sparas."
+            "value": "Var ska de undertecknade dokumenten sparas?"
           }
         }
       }
     },
-    "Where to keep the signed ASiC-E file.": {
+    "Where should the signed ASiC-E file be saved?": {
       "localizations": {
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mihin allekirjoitettu ASiC-E-tiedosto tallennetaan."
+            "value": "Mihin allekirjoitettu ASiC-E-tiedosto tallennetaan?"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Var den undertecknade ASiC-E-filen ska sparas."
+            "value": "Var ska den undertecknade ASiC-E-filen sparas?"
           }
         }
       }

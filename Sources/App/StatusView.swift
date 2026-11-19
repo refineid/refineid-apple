@@ -21,7 +21,7 @@
   /// they dropped it on should be the one that signs it.
   internal struct StatusView: View {
     private static let spacing: CGFloat = 14
-    private static let padding: CGFloat = 24
+    internal static let padding: CGFloat = 24
 
     /// The narrowest the window may be, which grows with the text
     /// inside it so a larger size widens the window instead of
@@ -32,7 +32,7 @@
     /// The height of the status row, tall enough for the PIN codes key
     /// so the row keeps one height whether a card is in the reader or not.
     @ScaledMetric(relativeTo: .body)
-    internal var statusRowHeight: CGFloat = 26.5
+    internal var statusRowHeight: CGFloat = 45
 
     internal let model = LoginIdentityModel.shared
     @ObservedObject internal var retryHealth = CredentialRetryHealth.shared
@@ -78,14 +78,12 @@
     internal var body: some View {
       VStack(alignment: .leading, spacing: Self.spacing) {
         statusForm
-        if showsReadySection, !documentControls.actions.isEmpty {
-          StatusActionBar(
-            signing: signing, controls: documentControls, canSign: canSign, onSign: { sign() })
-        }
         if demoMode.isActive {
           CardSetupFooter(isDemonstration: true)
         }
       }
+      .fixedSize(horizontal: false, vertical: true)
+      .windowResizeAnchor(.top)
       .padding(Self.padding)
       .frame(minWidth: minimumWidth, alignment: .leading)
       #if REFINEID_REMOTE_CARD
@@ -159,27 +157,33 @@
     }
 
     /// Whether the window shows the ready section and its button bar.
-    private var showsReadySection: Bool {
-      #if FEATURE_CONTACTLESS
-        !(offeringNumber || awaitingAccessNumber) && !asksForCardSlot
-          && !activation.awaitsActivation && !activation.isReading && !shouldShowPairingPrompt
-      #else
-        !activation.awaitsActivation && !activation.isReading && !shouldShowPairingPrompt
-      #endif
+    #if FEATURE_CONTACTLESS
+      internal var showsContactlessEntry: Bool {
+        offeringNumber || awaitingAccessNumber || asksForCardSlot
+      }
+    #endif
+
+    internal var documentSection: some View {
+      StatusDocumentSection(
+        signing: signing, format: $format, offersSigning: documentControls.offersSigning,
+        onChoose: choose, onAccept: accept
+      )
+      .padding(Self.readySpacing)
+      .overlay { panelOutline }
     }
 
     @ViewBuilder internal var readySection: some View {
       let controls = documentControls
-      statusRow(showsIdentity: controls.showsIdentity)
-      if controls.showsDocuments {
-        StatusDocumentSection(
-          signing: signing, format: $format, offersSigning: controls.offersSigning,
-          onChoose: choose, onAccept: accept)
-      }
       if controls.offersSigning {
         StatusSignatureSection(
           signing: signing, format: $format, accessNumber: $accessNumber,
           target: selection.target)
+      }
+      if !controls.actions.isEmpty {
+        StatusActionBar(
+          signing: signing, controls: documentControls, canSign: canSign, onSign: { sign() }
+        )
+        .padding(.top, Self.centeredActionTopPadding)
       }
     }
 
