@@ -10,7 +10,7 @@
   extension StatusView {
     private static let identityBoxPaddingHorizontal: CGFloat = 10
     private static let pinCodesBoxPaddingHorizontal: CGFloat = 12
-    private static let identityToKeySpacing: CGFloat = 9
+    private static let identityToKeySpacing: CGFloat = 3
     private static let boxCornerRadius: CGFloat = 10
     private static let boxBorderWidth: CGFloat = 1
 
