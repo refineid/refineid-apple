@@ -5,12 +5,11 @@
   import SwiftUI
 
   /// The status row while it speaks about document signing: the step
-  /// with a progress indicator, the failure with its acknowledgement,
+  /// with a progress indicator, a failure,
   /// or the saved outcome shown briefly before returning to the identity.
   ///
-  /// A failure takes the default action for "OK", so Return reads it
-  /// away before anything signs again, and every message is announced
-  /// as it arrives.
+  /// Only a suspended save operation needs an acknowledgement button.
+  /// Each new status message is announced.
   internal struct StatusMessageRow: View {
     private static let outcomeDisplaySeconds = 3
 

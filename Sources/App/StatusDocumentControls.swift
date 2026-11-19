@@ -45,8 +45,7 @@
     /// Whether the Verify button can run.
     internal let verifyEnabled: Bool
 
-    /// Whether a failure waits in the status row to be read: Sign is
-    /// held back and "OK" takes the default action until it is.
+    /// A visible failure removes the default shortcut from Sign.
     internal let failureIsVisible: Bool
 
     /// Whether there is anything for the buttons to act on: a listed

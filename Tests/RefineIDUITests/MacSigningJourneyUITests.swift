@@ -9,8 +9,8 @@
   /// A requested signature seeds the pile with the fictional document,
   /// the holder types PIN 2 and signs, the save panel is answered, and
   /// the window names what became of the signature. A wrong PIN 2 is
-  /// refused in words with the attempts left, and after acknowledging
-  /// the refusal the next signature with the right one still succeeds.
+  /// refused in words with the attempts left, and retrying with the
+  /// right one succeeds.
   /// No live card and no pre-placed file: the virtual card holds PIN 2 123456.
   @MainActor
   internal final class MacSigningJourneyUITests: XCTestCase {
@@ -43,9 +43,8 @@
         "a saved signature should not require an acknowledgement button")
     }
 
-    /// A wrong PIN 2 is refused with the attempts left, and once the
-    /// refusal is acknowledged the next signature with the right one
-    /// succeeds.
+    /// A wrong PIN 2 is refused with the attempts left, and the next explicit
+    /// signing attempt with the right one succeeds.
     internal func testWrongPin2RefusesThenRightPin2Signs() {
       let app = UITestApp.launch(arguments: Self.signingArguments)
       defer { app.terminate() }
