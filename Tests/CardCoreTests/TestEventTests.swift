@@ -42,6 +42,30 @@ internal struct TestEventTests {
   }
 
   @Test
+  internal func groupWithAMissingEventRecordsFailureAndReturnsForCleanup() async {
+    let delivered = TestEvent(description: "delivered group event")
+    let missing = TestEvent(description: "missing group event")
+    delivered.signal()
+    var completed = true
+    await withKnownIssue("One awaited event is missing and must record a failure.") {
+      completed = await TestEvent.wait(
+        for: [delivered, missing],
+        timeout: Self.missingDeadline
+      )
+    }
+    #expect(!completed)
+  }
+
+  @Test
+  internal func groupWaitAcceptsEventsDeliveredInAnyOrder() async {
+    let first = TestEvent(description: "first group event")
+    let second = TestEvent(description: "second group event")
+    second.signal()
+    first.signal()
+    #expect(await TestEvent.wait(for: [first, second], timeout: Self.eventDeadline))
+  }
+
+  @Test
   internal func excessEventsRecordFailureAfterTheWaitReturns() async {
     let event = TestEvent(description: "single event")
     event.signal()

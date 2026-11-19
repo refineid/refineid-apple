@@ -6,6 +6,9 @@ import Synchronization
 import Testing
 
 /// Buffers callback events and records missing or excess delivery without skipping cleanup.
+///
+/// One `wait(for:timeout:)` covers the whole awaited group with a single deadline,
+/// so the failure path never multiplies its budget by the number of events.
 internal final class TestEvent: Sendable {
   private struct Timeout: Error {}
 
@@ -29,6 +32,7 @@ internal final class TestEvent: Sendable {
     self.description = description
   }
 
+  /// Waits for every listed event under one shared deadline.
   @discardableResult
   internal static func wait(for events: [TestEvent], timeout: TimeInterval) async -> Bool {
     do {
@@ -41,6 +45,8 @@ internal final class TestEvent: Sendable {
     }
   }
 
+  /// Races one deadline task against the group, so the timeout is spent once
+  /// regardless of how many events the caller awaits.
   private static func waitForDelivery(of events: [TestEvent], timeout: TimeInterval) async throws {
     try await withThrowingTaskGroup(of: Void.self) { tasks in
       tasks.addTask {
