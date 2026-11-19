@@ -170,6 +170,10 @@ subject.
 
 ## Record deferred findings
 
+- An issue nobody can start on now carries the `deferred` or `blocked`
+  label, and a comment naming what ends that state. An unlabeled issue
+  is actionable. The two states and their exits are defined in
+  `Documentation/process/issue-states.md`.
 - The front agent files a GitHub issue in the owning repository for each
   confirmed, actionable defect or quality gap that cannot reasonably be
   fixed within the current task. Filing these issues is authorized; do not
