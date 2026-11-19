@@ -108,8 +108,9 @@ Both `Config/RefineID-Store-Info.plist` (macOS) and
   the platform's `review.notes` in `Metadata/appstore.json`, which the
   release manager's `review-contact` pushes; the macOS notes carry it. The
   plist comments are the in-repository copy of the same rationale. The
-  notes stay within App Store Connect's 4000-character field and
-  `AppStoreReviewNotesTests` pins the text.
+  notes stay within App Store Connect's 4000-character field, and
+  `AppStoreReviewNotesTests` guards the required ATS phrases and the
+  field limit.
 - Outbound transport security is actively enforced at runtime by
   `SigningNetwork`'s public IP gate, scheme restrictions, HTTP IP pinning,
   redirect re-vetting, and cryptographic verification of CMS structures,
