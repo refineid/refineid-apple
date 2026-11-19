@@ -63,6 +63,7 @@ import CoreGraphics
 import CryptoKit
 import Foundation
 import ImageIO
+import AppKit
 
 // MARK: - Local release engineering
 
@@ -1800,10 +1801,20 @@ private func storeShowsContent(_ image: CGImage, pixels: Data) -> Bool {
   }
 }
 
+/// Whether a copy that shows a window is the frontmost application. Only
+/// a key window draws its controls live, so an inactive frame is never kept.
+private func storeIsFrontmost(_ pid: pid_t) -> Bool {
+  NSWorkspace.shared.frontmostApplication?.processIdentifier == pid
+}
+
 /// Captures until the screen shows content and holds still, so no image is
 /// taken of a launch screen, mid-animation, or before its content arrived.
-/// Answers why it failed, or nil.
-private func storeSettledCapture(to destination: URL, capture: (URL) -> Void) -> String? {
+/// A named Mac copy is brought forward before every attempt and must stay
+/// frontmost for its frame to count. Answers why it failed, or nil.
+private func storeSettledCapture(
+  to destination: URL, frontmost pid: pid_t? = nil, activate: () -> Void = {},
+  capture: (URL) -> Void
+) -> String? {
   let scratch = releaseFileManager.temporaryDirectory
     .appendingPathComponent("refineid-store-\(UUID().uuidString)")
   do {
@@ -1815,7 +1826,13 @@ private func storeSettledCapture(to destination: URL, capture: (URL) -> Void) ->
   var previous: Data?
   var still = 0
   for attempt in 0..<storeSettleAttempts {
+    activate()
     Thread.sleep(forTimeInterval: storeSettleInterval)
+    guard pid.map(storeIsFrontmost) ?? true else {
+      previous = nil
+      still = 0
+      continue
+    }
     let file = scratch.appendingPathComponent("\(attempt).png")
     capture(file)
     guard let image = storeImage(file), let data = image.dataProvider?.data,
@@ -1907,6 +1924,8 @@ private func storeCaptureMacWindow(app: URL, arguments: [String], to destination
   guard let window = storeWaitForWindow(of: pid) else { return "the built copy showed no window" }
   if let failure = storeSettledCapture(
     to: destination,
+    frontmost: pid,
+    activate: { releaseRun("/usr/bin/open", ["-a", app.path, "--args"] + arguments) },
     capture: { file in
       releaseRun("/usr/sbin/screencapture", ["-x", "-l\(window.id)", file.path])
     })

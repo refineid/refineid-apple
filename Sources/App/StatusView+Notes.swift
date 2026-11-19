@@ -186,8 +186,11 @@
 
     /// Creates or returns the demonstration PDF document URL.
     internal static func demoDocumentURL() -> URL {
-      let tempDir = FileManager.default.temporaryDirectory
-      let demoDocURL = tempDir.appendingPathComponent("Review document.pdf")
+      let name = String(
+        localized: "demo.document", defaultValue: "Review document.pdf",
+        table: "DocumentSigning")
+      let demoDocURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(name)
       if !FileManager.default.fileExists(atPath: demoDocURL.path) {
         let pdfData = Data("%PDF-1.4\n% Virtual demonstration document\n%%EOF".utf8)
         try? pdfData.write(to: demoDocURL, options: .atomic)
