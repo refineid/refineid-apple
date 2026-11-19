@@ -40,6 +40,7 @@
             .tag(SignatureFormat.pades)
           Text("ASiC-E").tag(SignatureFormat.asice)
         }
+        .labelsHidden()
         .accessibilityIdentifier("signatureFormat")
       }
     }
