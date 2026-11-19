@@ -91,10 +91,13 @@
       var frame = panel.frame
       guard let screen = panel.sheetParent?.screen ?? panel.screen else { return }
       let bounds = screen.visibleFrame.insetBy(dx: screenMargin, dy: .zero)
-      let limit = min(bounds.width, panel.sheetParent?.frame.width ?? bounds.width)
-      let width = min(limit, max(frame.width, preferredSavePanelWidth))
+      let parent = panel.sheetParent?.frame
+      let available = parent.map { bounds.intersection($0) } ?? bounds
+      let width = min(available.width, preferredSavePanelWidth)
+      guard width > frame.width else { return }
+      let center = parent?.midX ?? frame.midX
       frame.origin.x = max(
-        bounds.minX, min(frame.midX - width * UnitPoint.center.x, bounds.maxX - width))
+        available.minX, min(center - width * UnitPoint.center.x, available.maxX - width))
       frame.size.width = width
       panel.setFrame(frame, display: true)
     }
