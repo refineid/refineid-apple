@@ -1309,52 +1309,6 @@
         }
       }
     },
-    "format.asice" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "As a package (ASiC-E)"
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kuoreen (ASiC-E)"
-          }
-        },
-        "sv" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Som paket (ASiC-E)"
-          }
-        }
-      }
-    },
-    "format.pades" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Separately (PDF)"
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Yksittäin (PDF)"
-          }
-        },
-        "sv" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Separat (PDF)"
-          }
-        }
-      }
-    },
     "output.multiple" : {
       "localizations" : {
         "en" : {
