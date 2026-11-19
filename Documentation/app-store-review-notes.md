@@ -5,6 +5,10 @@ reviews, and the evidence kept ready for reviewer questions. Reviewers
 have no Finnish identity card, so the notes must explain what the app
 is and what they can exercise without one.
 
+Review proceeds without hardware. No card, reader, or PIN for a review
+card is provided to Apple, so the Virtual ID Card is the review path on
+both platforms.
+
 ## What the first submission taught
 
 The iOS submission of 26.8.12 (135) was rejected under guideline
@@ -74,14 +78,21 @@ went stale, so the text is not repeated: read it there.
   macOS app's entitlements in every configuration. With the remote card
   gated off for the MVP the Mac carries no Bluetooth; it never listens,
   so no server entitlement.
-- ATS rationale: comments above `NSAppTransportSecurity` in both
-  application plists (`Config/RefineID-Store-Info.plist`,
-  `Config/RefineID-iOS-Info.plist`). Every binary makes network
-  requests when signing a document: the time-stamp authority and
-  revocation endpoints an archival signature needs.
+- ATS rationale: App Review reads the version's notes in App Store
+  Connect, which carry `review.notes` from `Metadata/appstore.json`; the
+  macOS notes hold the justification. The comments above
+  `NSAppTransportSecurity` in both application plists
+  (`Config/RefineID-Store-Info.plist`,
+  `Config/RefineID-iOS-Info.plist`) hold the same rationale inside the
+  repository; comments do not survive plist compilation, so they are
+  not part of what the reviewer receives. Every binary makes network
+  requests when signing a document: the time-stamp authority, the
+  revocation endpoints an archival signature needs, and the EU trusted
+  lists that anchor it.
 
-## Open decisions
+## Open item
 
-- Whether to provision a dedicated non-production card and reader
-  for the review team; any review PIN stays out of source, issues,
-  logs, and recordings.
+- The iPhone `review.notes` do not yet carry the ATS justification; the
+  macOS notes carry the MVP's. Adding it means trimming iPhone notes
+  that are already near the field limit, so it waits for an iPhone
+  submission.
