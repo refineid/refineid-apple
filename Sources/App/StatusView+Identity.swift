@@ -10,6 +10,7 @@
   extension StatusView {
     private static let identityBoxPaddingHorizontal: CGFloat = 10
     private static let pinCodesBoxPaddingHorizontal: CGFloat = 12
+    private static let identityToKeySpacing: CGFloat = 9
     private static let boxCornerRadius: CGFloat = 10
     private static let boxBorderWidth: CGFloat = 1
 
@@ -37,7 +38,7 @@
         .disabled(signingModel.working || signingModel.readingStamp)
         .accessibilityIdentifier("loginIdentityStatus")
       #else
-        HStack(spacing: Self.readySpacing) {
+        HStack(spacing: Self.identityToKeySpacing) {
           identityBox(for: availability)
 
           PinCodesButton()
