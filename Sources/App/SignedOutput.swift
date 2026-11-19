@@ -4,6 +4,7 @@
 
   import AppKit
   import Foundation
+  import SwiftUI
 
   /// Where signed documents are written.
   ///
@@ -14,6 +15,8 @@
   /// panel is a sheet on the status window.
   @MainActor
   internal enum SignedOutput {
+    private static let preferredSavePanelWidth: CGFloat = 640
+
     /// Asks for the file one signature is written to.
     ///
     /// A container covering a set is proposed the default stem and the
@@ -63,6 +66,7 @@
         : String(localized: "Where to keep the signed document.")
       panel.prompt = String(localized: "Save")
       let response = await Self.run(panel) {
+        widen(panel)
         // The panel selects the whole name before its extension; a
         // proposed container name selects the default stem alone, so
         // typing replaces it and keeps the suffix.
@@ -80,6 +84,15 @@
             from: chosen, at: instant, marker: signed.nameMarker) : chosen,
         typedName: typed
       )
+    }
+
+    private static func widen(_ panel: NSSavePanel) {
+      var frame = panel.frame
+      let availableWidth = panel.screen?.visibleFrame.width ?? preferredSavePanelWidth
+      let width = max(frame.width, min(preferredSavePanelWidth, availableWidth))
+      frame.origin.x -= (width - frame.width) * CGFloat(UnitPoint.center.x)
+      frame.size.width = width
+      panel.setFrame(frame, display: true)
     }
 
     /// Asks for the folder a batch is written to, starting beside the
