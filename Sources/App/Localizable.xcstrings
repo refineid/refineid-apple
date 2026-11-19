@@ -255,40 +255,6 @@
         }
       }
     },
-    "Forget the signature": {
-      "extractionState": "manual",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unohda allekirjoitus"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Glöm signaturen"
-          }
-        }
-      }
-    },
-    "Forget the signatures": {
-      "extractionState": "manual",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unohda allekirjoitukset"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Glöm signaturerna"
-          }
-        }
-      }
-    },
     "Login website": {
       "localizations": {
         "en": {
@@ -575,40 +541,6 @@
         }
       }
     },
-    "Save the file": {
-      "extractionState": "manual",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tallenna tiedosto"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Spara filen"
-          }
-        }
-      }
-    },
-    "Save the files": {
-      "extractionState": "manual",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tallenna tiedostot"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Spara filerna"
-          }
-        }
-      }
-    },
     "The Basic PIN 1 retry counter could not be read; nothing was sent.": {
       "localizations": {
         "fi": {
@@ -779,40 +711,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Koden har fel antal siffror."
-          }
-        }
-      }
-    },
-    "The signed file has not been saved.": {
-      "extractionState": "manual",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Allekirjoitettua tiedostoa ei ole tallennettu."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Den undertecknade filen har inte sparats."
-          }
-        }
-      }
-    },
-    "The signed files have not been saved.": {
-      "extractionState": "manual",
-      "localizations": {
-        "fi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Allekirjoitettuja tiedostoja ei ole tallennettu."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "De undertecknade filerna har inte sparats."
           }
         }
       }

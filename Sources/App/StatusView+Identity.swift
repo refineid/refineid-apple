@@ -80,7 +80,9 @@
     internal func statusRow(showsIdentity: Bool) -> some View {
       if let message = StatusMessage(signingModel) {
         statusBox {
-          StatusMessageRow(message: message) { signingModel.acknowledgeOutcome() }
+          StatusMessageRow(
+            message: message, requiresAcknowledgement: signingModel.acknowledgement != nil
+          ) { signingModel.acknowledgeOutcome() }
         }
       } else if showsIdentity {
         identityRow

@@ -46,13 +46,6 @@
       signingPile ? nil : failure
     }
 
-    /// The finished signature a cancelled save panel left unwritten,
-    /// while the holder is asked what becomes of it.
-    internal var unsaved: UnsavedSignature?
-
-    /// Resumes the signature waiting on `unsaved`.
-    @ObservationIgnored internal var unsavedAnswer: CheckedContinuation<Bool, Never>?
-
     /// Resumes the signature waiting on its failure alert.
     @ObservationIgnored internal var acknowledgement: CheckedContinuation<Void, Never>?
 

@@ -422,13 +422,8 @@ then does the save panel open, as a sheet on the window, with the prompt
 Save and the final name in the field. A pile of PDFs asks for its folder
 once, after every document is signed.
 
-The signed file stays in memory until it is written or the holder forgets
-it. Cancelling the panel raises one alert, "The signed file has not been
-saved." ("The signed files have not been saved." for a pile), with no
-message: "Save the file" ("Save the files") is the default and opens the
-panel again with the name last typed, and "Forget the signature" ("Forget
-the signatures") drops it. Dismissing the alert without an answer counts
-as the default. A place that is one of the originals, matched through
+Cancelling the save or folder panel discards the unwritten signatures immediately.
+Files already saved remain on disk. A place that is one of the originals, matched through
 symbolic links and in either letter case, shows "The signed document
 cannot replace the original." and the panel opens again; so does a write
 that fails, with its error. In a pile, a file already in the chosen folder

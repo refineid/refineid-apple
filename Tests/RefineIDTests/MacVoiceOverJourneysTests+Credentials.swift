@@ -75,7 +75,7 @@
         StatusMessageRow(message: failure, acknowledge: Self.noOp))
       #expect(failureNodes.speaks("Signature PIN 2 is incorrect."))
       #expect(failureNodes.speaks("4 attempts remaining."))
-      #expect(failureNodes.containsSpokenControl(identifier: "statusAcknowledge", spoken: "OK"))
+      #expect(!failureNodes.hasIdentifier("statusAcknowledge"))
     }
 
     @Test("Card activation takeover exposes headers, secret fields, and Activate Card action")

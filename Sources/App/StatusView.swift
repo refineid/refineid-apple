@@ -71,8 +71,6 @@
         // card, and asking it to sign mid-read is asking it to be in
         // two places.
         && !signing.readingStamp
-        // Not until a failure in the status row has been read.
-        && signing.unacknowledgedFailure == nil
     }
 
     internal var body: some View {
@@ -137,7 +135,6 @@
         react(to: .noCard)
       }
       .onDisappear { activation.stop() }
-      .asksAboutUnsaved(for: signing)
       .announcesOutcome(activation.management.failure)
       .announcesOutcome(activation.management.notice)
     }

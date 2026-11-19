@@ -107,38 +107,7 @@
 
     @Test
     @MainActor
-    internal func savingAfterCancelOffersTheSameSignatureUnderTheTypedName() async throws {
-      DemoMode.shared.activate(scenario: .activatedReader)
-      defer { DemoMode.shared.deactivate() }
-      let scene = try Self.scene(["Agreement.pdf"])
-      defer { scene.remove() }
-      let destination = scene.folder.appendingPathComponent("Typed.pdf")
-      let panel = FilePanel(answers: [
-        Self.cancelled(typing: "Typed.pdf"), Self.chosen(destination),
-      ])
-
-      let task = Self.signing(scene, panel: panel)
-      #expect(await Self.settle { scene.signing.unsaved != nil })
-      #expect(scene.signing.unsaved == .one)
-      #expect(scene.signing.working)
-      scene.signing.answerUnsaved(forget: false)
-      await task.value
-
-      #expect(panel.offered.count == 2)
-      let first = try #require(panel.offered.first)
-      let second = try #require(panel.offered.last)
-      #expect(first.typedName == nil)
-      #expect(second.typedName == "Typed.pdf")
-      #expect(first.signed.bytes == second.signed.bytes)
-      #expect(first.signed.bestSignatureTime == second.signed.bestSignatureTime)
-      #expect(scene.signing.unsaved == nil)
-      #expect(scene.signing.signedFiles == [destination])
-      #expect(FileManager.default.fileExists(atPath: destination.path))
-    }
-
-    @Test
-    @MainActor
-    internal func forgettingAfterCancelWritesNothing() async throws {
+    internal func cancellingSaveWritesNothing() async throws {
       DemoMode.shared.activate(scenario: .activatedReader)
       defer { DemoMode.shared.deactivate() }
       let scene = try Self.scene(["Agreement.pdf"])
@@ -147,36 +116,14 @@
       let panel = FilePanel(answers: [Self.cancelled(typing: nil), Self.chosen(destination)])
 
       let task = Self.signing(scene, panel: panel)
-      #expect(await Self.settle { scene.signing.unsaved != nil })
-      scene.signing.answerUnsaved(forget: true)
       await task.value
 
       #expect(panel.offered.count == 1)
-      #expect(scene.signing.unsaved == nil)
       #expect(scene.signing.failure == nil)
       #expect(scene.signing.signedFiles.isEmpty)
       #expect(scene.signing.pending == scene.sources.first)
       #expect(!scene.signing.working)
       #expect(!FileManager.default.fileExists(atPath: destination.path))
-    }
-
-    @Test
-    @MainActor
-    internal func dismissingTheAlertCountsAsSaving() async throws {
-      DemoMode.shared.activate(scenario: .activatedReader)
-      defer { DemoMode.shared.deactivate() }
-      let scene = try Self.scene(["Agreement.pdf"])
-      defer { scene.remove() }
-      let destination = scene.folder.appendingPathComponent("Kept.pdf")
-      let panel = FilePanel(answers: [Self.cancelled(typing: nil), Self.chosen(destination)])
-
-      let task = Self.signing(scene, panel: panel)
-      #expect(await Self.settle { scene.signing.unsaved != nil })
-      scene.signing.dismissUnsaved()
-      await task.value
-
-      #expect(panel.offered.count == 2)
-      #expect(scene.signing.signedFiles == [destination])
     }
 
     /// A place that is the original under another letter case is
@@ -233,7 +180,7 @@
 
     @Test
     @MainActor
-    internal func aContainerKeptAfterCancelIsWritten() async throws {
+    internal func cancellingContainerSaveWritesNothing() async throws {
       DemoMode.shared.activate(scenario: .activatedReader)
       defer { DemoMode.shared.deactivate() }
       let scene = try Self.scene(["Ledger.ods", "Notes.txt"])
@@ -246,14 +193,11 @@
           panel.choose(signed, typedName: typedName)
         }
       }
-      #expect(await Self.settle { scene.signing.unsaved != nil })
-      #expect(scene.signing.unsaved == .one)
-      scene.signing.answerUnsaved(forget: false)
       await task.value
 
-      #expect(panel.offered.count == 2)
-      #expect(panel.offered.last?.typedName == "Pile")
-      #expect(scene.signing.signedFiles == [destination])
+      #expect(panel.offered.count == 1)
+      #expect(scene.signing.signedFiles.isEmpty)
+      #expect(!FileManager.default.fileExists(atPath: destination.path))
     }
 
     @Test
@@ -293,7 +237,7 @@
 
     @Test
     @MainActor
-    internal func aPileKeptAfterCancelAsksForItsFolderAgain() async throws {
+    internal func cancellingTheBatchFolderDiscardsUnwrittenFiles() async throws {
       DemoMode.shared.activate(scenario: .activatedReader)
       defer { DemoMode.shared.deactivate() }
       let scene = try Self.scene(["First.pdf", "Second.pdf"])
@@ -309,14 +253,11 @@
           answers.isEmpty ? nil : answers.removeFirst()
         }
       }
-      #expect(await Self.settle { scene.signing.unsaved != nil })
-      #expect(scene.signing.unsaved == .several)
-      scene.signing.answerUnsaved(forget: false)
       await task.value
 
-      #expect(answers.isEmpty)
-      #expect(try FileManager.default.contentsOfDirectory(atPath: output.path).count == 2)
-      #expect(scene.signing.batchOutcomes.count == 2)
+      #expect(answers == [output])
+      #expect(try FileManager.default.contentsOfDirectory(atPath: output.path).isEmpty)
+      #expect(scene.signing.batchOutcomes.isEmpty)
       #expect(scene.signing.failure == nil)
     }
 
