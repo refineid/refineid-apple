@@ -1,7 +1,8 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 import CardCore
-import XCTest
+import Foundation
+import Testing
 
 @testable import RefineIDTestHost
 
@@ -9,7 +10,8 @@ import XCTest
 /// and failure is a localized sentence, and a composed message is one
 /// translated format around a translated reason.
 @MainActor
-internal final class CardManagementOutcomeMessageTests: XCTestCase {
+@Suite(.serialized)
+internal final class CardManagementOutcomeMessageTests {
   private static func model() -> CardManagementModel {
     CardManagementModel(
       transport: .reader,
@@ -28,57 +30,63 @@ internal final class CardManagementOutcomeMessageTests: XCTestCase {
       .deletingLastPathComponent()
       .appending(path: "Sources/App/Localizable.xcstrings")
     let json = try JSONSerialization.jsonObject(with: try Data(contentsOf: catalog))
-    let strings = try XCTUnwrap((json as? [String: Any])?["strings"] as? [String: Any])
-    let entry = try XCTUnwrap(strings[key] as? [String: Any])
-    let localizations = try XCTUnwrap(entry["localizations"] as? [String: Any])
+    let strings = try #require((json as? [String: Any])?["strings"] as? [String: Any])
+    let entry = try #require(strings[key] as? [String: Any])
+    let localizations = try #require(entry["localizations"] as? [String: Any])
     for (language, expected) in [("fi", finnish), ("sv", swedish)] {
-      let localization = try XCTUnwrap(localizations[language] as? [String: Any])
-      let unit = try XCTUnwrap(localization["stringUnit"] as? [String: Any])
-      XCTAssertEqual(unit["value"] as? String, expected, language)
+      let localization = try #require(localizations[language] as? [String: Any])
+      let unit = try #require(localization["stringUnit"] as? [String: Any])
+      #expect((unit["value"] as? String) == (expected), "\(language)")
     }
   }
 
+  @Test
   internal func testAnActivationThatSetBothPinsSaysSo() {
     let model = Self.model()
     let report = CardMaintenance.ActivationReport(
       scheme: .activationCodeIsPuk, pin1: .success, pin2: .success)
-    XCTAssertTrue(model.describe(report))
-    XCTAssertEqual(
-      model.notice, String(localized: "Card activated: Basic PIN 1 and Signature PIN 2 are set."))
-    XCTAssertNil(model.failure)
+    #expect((model.describe(report)))
+    #expect(
+      (model.notice)
+        == (String(localized: "Card activated: Basic PIN 1 and Signature PIN 2 are set.")))
+    #expect((model.failure) == nil)
   }
 
+  @Test
   internal func testAPartialActivationWrapsTheReason() throws {
     let model = Self.model()
-    let remaining = try XCTUnwrap(RetryCount(attemptsRemaining: 4))
+    let remaining = try #require(RetryCount(attemptsRemaining: 4))
     let report = CardMaintenance.ActivationReport(
       scheme: .presetActivationPin, pin1: .success, pin2: .rejected(remaining: remaining))
-    XCTAssertFalse(model.describe(report))
+    #expect(!(model.describe(report)))
     let reason = CredentialOutcomeMessage.rejection(.activationPin, remaining: remaining)
-    XCTAssertEqual(
-      model.failure,
-      String(localized: "Basic PIN 1 was set, but Signature PIN 2 was not: \(reason)"))
+    #expect(
+      (model.failure)
+        == (String(localized: "Basic PIN 1 was set, but Signature PIN 2 was not: \(reason)")))
   }
 
+  @Test
   internal func testAnUnreadableCounterNamesTheEntry() {
     let message = Self.model().message(
       for: .floorRefused(.refuseUnreadable), presenting: .activationCode, spending: .puk)
-    XCTAssertEqual(
-      message,
-      String(localized: "The activation PIN retry counter could not be read; nothing was sent."))
+    #expect(
+      (message)
+        == (String(
+          localized: "The activation PIN retry counter could not be read; nothing was sent.")))
   }
 
+  @Test
   internal func testAPukTheCardAnsweredBlockedIsReportedAsTheCardsAnswer() throws {
     // The floor passes a PUK at no tries left to the card; only the
     // card's own answer says the PUK is blocked, and the way back is
     // the issuer, never a claim that the PUK was unusable.
     let message = Self.model().message(for: .pinBlocked, presenting: .puk, spending: .puk)
-    XCTAssertEqual(message, CredentialOutcomeMessage.blocked(.puk))
-    XCTAssertEqual(
-      message,
-      String(localized: "The card answered that the PUK is blocked.")
-        + "\n"
-        + String(localized: "Software cannot reset a PUK; contact the card issuer."))
+    #expect((message) == (CredentialOutcomeMessage.blocked(.puk)))
+    #expect(
+      (message)
+        == (String(localized: "The card answered that the PUK is blocked.")
+          + "\n"
+          + String(localized: "Software cannot reset a PUK; contact the card issuer.")))
     try Self.assertTranslations(
       of: "The card answered that the PUK is blocked.",
       finnish: "Kortti vastasi, että PUK on lukittu.",
@@ -89,6 +97,7 @@ internal final class CardManagementOutcomeMessageTests: XCTestCase {
       swedish: "Programvara kan inte återställa en PUK-kod; kontakta kortutfärdaren.")
   }
 
+  @Test
   internal func testActivationSuccessIsSaidInEveryLanguage() throws {
     try Self.assertTranslations(
       of: "Card activated: Basic PIN 1 and Signature PIN 2 are set.",
@@ -96,6 +105,7 @@ internal final class CardManagementOutcomeMessageTests: XCTestCase {
       swedish: "Kortet aktiverat: grund PIN 1 och signaturkod 2 har angetts.")
   }
 
+  @Test
   internal func testActivationEntryNamesAreSaidInEveryLanguage() throws {
     try Self.assertTranslations(
       of: "The activation PIN retry counter could not be read; nothing was sent.",

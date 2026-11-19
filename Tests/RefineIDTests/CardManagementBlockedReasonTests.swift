@@ -1,14 +1,15 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 import CardCore
-import XCTest
+import Testing
 
 @testable import RefineIDTestHost
 
 /// A form whose entries are all valid either can go to the card or says
 /// why it cannot; the form's button and its stated reason never disagree.
 @MainActor
-internal final class CardManagementBlockedReasonTests: XCTestCase {
+@Suite(.serialized)
+internal final class CardManagementBlockedReasonTests {
   private static let roles: [CredentialRole] = [.pin1, .pin2, .puk]
   private static let lastTry: UInt8 = 1
   private static let noTries: UInt8 = 0
@@ -33,18 +34,19 @@ internal final class CardManagementBlockedReasonTests: XCTestCase {
   }
 
   private static func remaining(_ attempts: UInt8) throws -> RetryProbeOutcome {
-    .remaining(try XCTUnwrap(RetryCount(attemptsRemaining: attempts)))
+    .remaining(try #require(RetryCount(attemptsRemaining: attempts)))
   }
 
   private func assertAgree(_ outcome: RetryProbeOutcome, proceeds: Bool) {
     let model = Self.model(outcome)
     for role in Self.roles {
-      XCTAssertEqual(model.allowsCredentialOperation(spending: role), proceeds)
+      #expect((model.allowsCredentialOperation(spending: role)) == (proceeds))
       let reason = model.blockedReason(presenting: PresentedCredential(role), spending: role)
-      XCTAssertEqual(reason == nil, proceeds)
+      #expect((reason == nil) == (proceeds))
     }
   }
 
+  @Test
   internal func testEveryReadingEitherProceedsOrSaysWhy() throws {
     assertAgree(try Self.remaining(RetryCount.pristineAllowance), proceeds: true)
     assertAgree(try Self.remaining(RetryFloor.minimumAttemptsToProceed), proceeds: true)
@@ -58,25 +60,28 @@ internal final class CardManagementBlockedReasonTests: XCTestCase {
     assertAgree(.other(StatusWord.conditionsNotSatisfied.encoded), proceeds: false)
   }
 
+  @Test
   internal func testAnUnreadableCounterIsNamedInFull() {
     let model = Self.model(.other(StatusWord.conditionsNotSatisfied.encoded))
-    XCTAssertEqual(
-      model.blockedReason(presenting: .pin1, spending: .pin1),
-      PresentedCredential.pin1.unreadableCounterMessage)
-    XCTAssertEqual(
-      model.blockedReason(presenting: .puk, spending: .puk),
-      PresentedCredential.puk.unreadableCounterMessage)
+    #expect(
+      (model.blockedReason(presenting: .pin1, spending: .pin1))
+        == (PresentedCredential.pin1.unreadableCounterMessage))
+    #expect(
+      (model.blockedReason(presenting: .puk, spending: .puk))
+        == (PresentedCredential.puk.unreadableCounterMessage))
   }
 
+  @Test
   internal func testAPukReportedVerifiedHasNoCountAndSaysSo() {
     let model = Self.model(.verified)
-    XCTAssertFalse(model.allowsCredentialOperation(spending: .puk))
-    XCTAssertEqual(
-      model.blockedReason(presenting: .puk, spending: .puk),
-      PresentedCredential.puk.unreadableCounterMessage)
-    XCTAssertNil(model.blockedReason(presenting: .pin1, spending: .pin1))
+    #expect(!(model.allowsCredentialOperation(spending: .puk)))
+    #expect(
+      (model.blockedReason(presenting: .puk, spending: .puk))
+        == (PresentedCredential.puk.unreadableCounterMessage))
+    #expect((model.blockedReason(presenting: .pin1, spending: .pin1)) == nil)
   }
 
+  @Test
   internal func testAnActivationIsJudgedOnThePukItsCodeIs() throws {
     let model = CardManagementModel(
       transport: .reader,
@@ -95,9 +100,10 @@ internal final class CardManagementBlockedReasonTests: XCTestCase {
         activation: .organization,
         pinLengths: nil),
       preservingOutcome: false)
-    XCTAssertNotNil(model.activationBlockedReason)
+    #expect((model.activationBlockedReason) != nil)
   }
 
+  @Test
   internal func testNoReadingYetLeavesTheFormToTheFreshProbe() {
     let model = CardManagementModel(
       transport: .reader,
@@ -107,6 +113,6 @@ internal final class CardManagementBlockedReasonTests: XCTestCase {
       activationNeeds: nil,
       pinLengths: nil
     )
-    XCTAssertNil(model.blockedReason(presenting: .puk, spending: .puk))
+    #expect((model.blockedReason(presenting: .puk, spending: .puk)) == nil)
   }
 }

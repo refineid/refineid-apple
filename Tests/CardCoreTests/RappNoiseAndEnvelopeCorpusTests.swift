@@ -2,10 +2,11 @@
 
 import CryptoKit
 import Foundation
-import XCTest
+import Testing
 
 /// Wire version hashed into every prologue (specification Section 6).
-internal final class RappNoiseAndEnvelopeCorpusTests: XCTestCase {
+@Suite(.serialized)
+internal final class RappNoiseAndEnvelopeCorpusTests {
   /// The malformed envelopes the corpus pins.
   private static let rejectedEnvelopeVectorCount = 10
 
@@ -19,16 +20,12 @@ internal final class RappNoiseAndEnvelopeCorpusTests: XCTestCase {
       rawRepresentation: decodeHex(vector.testOnlyResponderStaticPrivateHex)
     )
 
-    XCTAssertEqual(
-      encodeHex(initiatorPrivate.publicKey.rawRepresentation),
-      vector.initiatorStaticPublicHex,
-      vector.name
-    )
-    XCTAssertEqual(
-      encodeHex(responderPrivate.publicKey.rawRepresentation),
-      vector.responderStaticPublicHex,
-      vector.name
-    )
+    #expect(
+      (encodeHex(initiatorPrivate.publicKey.rawRepresentation))
+        == (vector.initiatorStaticPublicHex), "\(vector.name)")
+    #expect(
+      (encodeHex(responderPrivate.publicKey.rawRepresentation))
+        == (vector.responderStaticPublicHex), "\(vector.name)")
   }
 
   private func checkPrologue(
@@ -46,11 +43,11 @@ internal final class RappNoiseAndEnvelopeCorpusTests: XCTestCase {
           encodeUnsigned(RappNoiseAndEnvelopeCorpusSupport.wire.patch),
         ]),
         encodeText(RappNoiseAndEnvelopeCorpusSupport.pairingOfferSuite),
-        encodeBytes(decodeHex(try XCTUnwrap(vector.offerHashHex))),
+        encodeBytes(decodeHex(try #require(vector.offerHashHex))),
         encodeText(vector.transportProfile),
       ])
       expectedMessageLengths = [48, 96, 64]
-      XCTAssertEqual(decodeHex(try XCTUnwrap(vector.testOnlyPairingSecretHex)).count, 32)
+      #expect((decodeHex(try #require(vector.testOnlyPairingSecretHex)).count) == (32))
 
     case RappNoiseAndEnvelopeCorpusSupport.sessionSuite:
       expectedPrologue = encodeArray([
@@ -62,71 +59,66 @@ internal final class RappNoiseAndEnvelopeCorpusTests: XCTestCase {
         ]),
         encodeText(vector.suite),
         encodeBytes(decodeHex(vector.pairIDHex)),
-        encodeBytes(decodeHex(try XCTUnwrap(vector.grantsHashHex))),
+        encodeBytes(decodeHex(try #require(vector.grantsHashHex))),
         encodeText(vector.transportProfile),
       ])
       expectedMessageLengths = [48, 48]
 
     default:
-      XCTFail("Unknown Noise suite: \(vector.name)")
+      Issue.record("Unknown Noise suite: \(vector.name)")
       return
     }
 
-    XCTAssertEqual(encodeHex(expectedPrologue), vector.prologueHex, vector.name)
-    XCTAssertEqual(
-      vector.messagesHex.map { decodeHex($0).count }, expectedMessageLengths, vector.name)
-    XCTAssertTrue(vector.messagesHex.allSatisfy { !decodeHex($0).isEmpty }, vector.name)
+    #expect((encodeHex(expectedPrologue)) == (vector.prologueHex), "\(vector.name)")
+    #expect(
+      (vector.messagesHex.map { decodeHex($0).count }) == (expectedMessageLengths), "\(vector.name)"
+    )
+    #expect((vector.messagesHex.allSatisfy { !decodeHex($0).isEmpty }), "\(vector.name)")
   }
 
+  @Test
   internal func testFixedNoiseInputsProloguesAndIdentifiers() throws {
     let corpus = try loadCorpus()
-    XCTAssertEqual(corpus.noiseHandshake.count, 4)
-    XCTAssertEqual(
-      Set(corpus.noiseHandshake.map(\.transportProfile)),
-      ["fi.refineid.rapp.ble", "fi.refineid.stream"])
+    #expect((corpus.noiseHandshake.count) == (4))
+    #expect(
+      (Set(corpus.noiseHandshake.map(\.transportProfile)))
+        == (["fi.refineid.rapp.ble", "fi.refineid.stream"]))
 
     for vector in corpus.noiseHandshake {
       try checkStaticKeys(vector)
       try checkPrologue(vector)
 
       let handshakeHash = decodeHex(vector.handshakeHashHex)
-      XCTAssertEqual(handshakeHash.count, 64, vector.name)
-      XCTAssertEqual(
-        deriveIdentifier(
+      #expect((handshakeHash.count) == (64), "\(vector.name)")
+      #expect(
+        (deriveIdentifier(
           domain: RappNoiseAndEnvelopeCorpusSupport.sessionIdentifierLabel,
-          handshakeHash: handshakeHash),
-        vector.sessionIDHex,
-        vector.name
-      )
+          handshakeHash: handshakeHash)) == (vector.sessionIDHex), "\(vector.name)")
       if vector.suite == RappNoiseAndEnvelopeCorpusSupport.pairingSuite {
-        XCTAssertEqual(
-          deriveIdentifier(
+        #expect(
+          (deriveIdentifier(
             domain: RappNoiseAndEnvelopeCorpusSupport.pairIdentifierLabel,
-            handshakeHash: handshakeHash),
-          vector.pairIDHex,
-          vector.name
-        )
+            handshakeHash: handshakeHash)) == (vector.pairIDHex), "\(vector.name)")
       }
 
-      XCTAssertEqual(decodeHex(vector.testOnlyInitiatorEphemeralPrivateHex).count, 32)
-      XCTAssertEqual(decodeHex(vector.testOnlyResponderEphemeralPrivateHex).count, 32)
+      #expect((decodeHex(vector.testOnlyInitiatorEphemeralPrivateHex).count) == (32))
+      #expect((decodeHex(vector.testOnlyResponderEphemeralPrivateHex).count) == (32))
     }
   }
 
+  @Test
   internal func testMalformedEnvelopesMatchIndependentSwiftDecoder() throws {
     let corpus = try loadCorpus()
-    XCTAssertEqual(corpus.rejectedEnvelope.count, Self.rejectedEnvelopeVectorCount)
+    #expect((corpus.rejectedEnvelope.count) == (Self.rejectedEnvelopeVectorCount))
 
     for vector in corpus.rejectedEnvelope {
       let encoded = decodeHex(vector.canonicalCBORHex)
       var decoder = RappNoiseAndEnvelopeCorpusSupport.BoundedCBORDecoder(data: encoded)
       let value = try decoder.decode(depth: 0)
-      XCTAssertTrue(decoder.isAtEnd, "Trailing bytes in \(vector.name)")
-      XCTAssertEqual(
-        RappNoiseAndEnvelopeCorpusSupport.validateEnvelope(value),
-        vector.error,
-        vector.name
-      )
+      #expect((decoder.isAtEnd), "Trailing bytes in \(vector.name)")
+      #expect(
+        (RappNoiseAndEnvelopeCorpusSupport.validateEnvelope(value)) == (vector.error),
+        "\(vector.name)")
     }
   }
 

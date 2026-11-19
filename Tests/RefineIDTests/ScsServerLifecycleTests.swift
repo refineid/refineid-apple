@@ -5,12 +5,13 @@
   import Foundation
   import Network
   import Synchronization
-  import XCTest
+  import Testing
 
   @testable import RefineIDTestHost
 
   @MainActor
-  internal final class ScsServerLifecycleTests: XCTestCase {
+  @Suite(.serialized)
+  internal final class ScsServerLifecycleTests {
     #if FEATURE_SCS
       private final class BlockingSignBackend: ScsSigningBackend, @unchecked Sendable {
         let signEntered = DispatchSemaphore(value: 0)
@@ -28,6 +29,8 @@
           return Data(repeating: 0xAA, count: 64)
         }
       }
+
+      private static let versionRequest = "GET /version HTTP/1.1\r\nHost: 127.0.0.1:53952\r\n\r\n"
 
       private static func ephemeralTcpParameters() -> NWParameters? {
         let parameters = NWParameters.tcp
@@ -71,17 +74,18 @@
         )
       }
 
+      @Test
       internal func testVersionStaysResponsiveWhileSignBlocksAndStopCancelsPrompt() async throws {
-        let ready = expectation(description: "Listener ready")
-        let stopped = expectation(description: "Listener stopped")
-        let tokenCancelled = expectation(description: "Prompt cancellation token fired")
+        let ready = TestEvent(description: "Listener ready")
+        let stopped = TestEvent(description: "Listener stopped")
+        let tokenCancelled = TestEvent(description: "Prompt cancellation token fired")
         let backend = BlockingSignBackend()
         let server = ScsServer(
           limits: ScsServerLimits(
             maximumConnections: 4, readTimeoutSeconds: 5, signTimeoutSeconds: 30),
           backend: backend,
           cardCancellationHook: { token, work in
-            _ = token.installAbort { tokenCancelled.fulfill() }
+            _ = token.installAbort { tokenCancelled.signal() }
             return work()
           },
           resetBackendHook: {
@@ -89,16 +93,18 @@
           },
           makeParameters: Self.ephemeralTcpParameters,
           observeState: { state in
-            if case .ready = state { ready.fulfill() }
-            if case .cancelled = state { stopped.fulfill() }
+            if case .ready = state { ready.signal() }
+            if case .cancelled = state { stopped.signal() }
           },
           onStatusFailure: { _ in
             // Status assertions live in testIdleReadTimeoutAndPortConflictSurfaceCleanly.
           }
         )
+        var cleanup: (() -> Void)? = { stop(server, releasing: backend) }
+        defer { cleanup?() }
         server.start()
-        await fulfillment(of: [ready], timeout: 5)
-        let port = try XCTUnwrap(server.localPort)
+        await TestEvent.wait(for: [ready], timeout: 5)
+        let port = try #require(server.localPort)
         let fullSign = Self.sampleQualifiedSignRequest()
         let signClient = NWConnection(host: "127.0.0.1", port: port, using: .tcp)
         defer { signClient.cancel() }
@@ -109,27 +115,25 @@
             // Request stays blocked inside signQueue until stop().
           }
         )
-        XCTAssertEqual(backend.signEntered.wait(timeout: .now() + 5), .success)
+        #expect((backend.signEntered.wait(timeout: .now() + 5)) == (.success))
 
-        let versionAnswer = try await exchangeOverTcp(
-          port: port,
-          request: "GET /version HTTP/1.1\r\nHost: 127.0.0.1:53952\r\n\r\n"
-        )
-        XCTAssertTrue(versionAnswer.contains("HTTP/1.1 200 OK"))
+        let versionAnswer = try await exchangeOverTcp(port: port, request: Self.versionRequest)
+        #expect((versionAnswer.contains("HTTP/1.1 200 OK")))
         let secondSignAnswer = try await exchangeOverTcp(
           port: port,
           request: String(bytes: fullSign, encoding: .utf8) ?? ""
         )
-        XCTAssertTrue(secondSignAnswer.contains("\"reasonCode\":403"))
+        #expect((secondSignAnswer.contains("\"reasonCode\":403")))
 
-        server.stop()
-        backend.releaseSign.signal()
-        await fulfillment(of: [tokenCancelled, stopped], timeout: 5)
-        XCTAssertNil(server.localPort)
+        cleanup?()
+        cleanup = nil
+        await TestEvent.wait(for: [tokenCancelled, stopped], timeout: 5)
+        #expect((server.localPort) == nil)
       }
 
+      @Test
       internal func testIdleReadTimeoutAndPortConflictSurfaceCleanly() async throws {
-        let ready = expectation(description: "Listener ready")
+        let ready = TestEvent(description: "Listener ready")
         let server = ScsServer(
           limits: ScsServerLimits(
             maximumConnections: 2, readTimeoutSeconds: 0.2, signTimeoutSeconds: 5),
@@ -140,38 +144,43 @@
           },
           makeParameters: Self.ephemeralTcpParameters,
           observeState: { state in
-            if case .ready = state { ready.fulfill() }
+            if case .ready = state { ready.signal() }
           },
           onStatusFailure: { _ in
             // Primary listener binds on an unused ephemeral port.
           }
         )
-        server.start()
-        await fulfillment(of: [ready], timeout: 5)
-        let occupiedPort = try XCTUnwrap(server.localPort)
         defer { server.stop() }
+        server.start()
+        await TestEvent.wait(for: [ready], timeout: 5)
+        let occupiedPort = try #require(server.localPort)
 
         await assertIdleConnectionTimesOut(on: occupiedPort)
         await assertPortSquatReportsFailure(on: occupiedPort)
       }
 
+      private func stop(_ server: ScsServer, releasing backend: BlockingSignBackend) {
+        server.stop()
+        backend.releaseSign.signal()
+      }
+
       private func assertIdleConnectionTimesOut(on port: NWEndpoint.Port) async {
-        let idleClosed = expectation(description: "Idle client closed by read timeout")
+        let idleClosed = TestEvent(description: "Idle client closed by read timeout")
         let idleClient = NWConnection(host: "127.0.0.1", port: port, using: .tcp)
         defer { idleClient.cancel() }
         idleClient.stateUpdateHandler = { state in
           if case .ready = state {
             idleClient.receive(minimumIncompleteLength: 1, maximumLength: 16) { _, _, eof, err in
-              if eof || err != nil { idleClosed.fulfill() }
+              if eof || err != nil { idleClosed.signal() }
             }
           }
         }
         idleClient.start(queue: .global())
-        await fulfillment(of: [idleClosed], timeout: 5)
+        await TestEvent.wait(for: [idleClosed], timeout: 5)
       }
 
       private func assertPortSquatReportsFailure(on occupiedPort: NWEndpoint.Port) async {
-        let conflictReported = expectation(description: "Port squat status failure reported")
+        let conflictReported = TestEvent(description: "Port squat status failure reported")
         let reported = Mutex<String?>(nil)
         let conflicting = ScsServer(
           limits: .standard,
@@ -196,13 +205,13 @@
               slot = message
               return true
             }
-            if first { conflictReported.fulfill() }
+            if first { conflictReported.signal() }
           }
         )
         conflicting.start()
         defer { conflicting.stop() }
-        await fulfillment(of: [conflictReported], timeout: 5)
-        XCTAssertNotNil(reported.withLock { $0 })
+        await TestEvent.wait(for: [conflictReported], timeout: 5)
+        #expect((reported.withLock { $0 }) != nil)
       }
 
       private func exchangeOverTcp(port: NWEndpoint.Port, request: String) async throws -> String {
@@ -230,11 +239,12 @@
         }
       }
     #else
+      @Test
       internal func testScsAppImplementationIsCompiledOutByDefault() {
-        XCTAssertNil(NSClassFromString("RefineIDTestHost.ScsServer"))
-        XCTAssertNil(NSClassFromString("RefineIDTestHost.ScsService"))
-        XCTAssertNil(NSClassFromString("RefineID.ScsServer"))
-        XCTAssertNil(NSClassFromString("RefineID.ScsService"))
+        #expect((NSClassFromString("RefineIDTestHost.ScsServer")) == nil)
+        #expect((NSClassFromString("RefineIDTestHost.ScsService")) == nil)
+        #expect((NSClassFromString("RefineID.ScsServer")) == nil)
+        #expect((NSClassFromString("RefineID.ScsService")) == nil)
       }
     #endif
   }

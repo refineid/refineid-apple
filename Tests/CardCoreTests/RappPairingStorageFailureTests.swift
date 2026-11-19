@@ -1,7 +1,7 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 import Foundation
-import XCTest
+import Testing
 
 @testable import CardCore
 
@@ -14,7 +14,8 @@ private let fixturePairingCode = "246813"
   /// A custodian that stored its record and then hears nonsense instead of
   /// the peer's `pairing.stored` revokes the record (RAPP v26.11.8 §4.3
   /// item 4).
-  internal final class RappPairingStorageFailureTests: XCTestCase {
+  @Suite(.serialized)
+  internal final class RappPairingStorageFailureTests {
     private actor RecordingTransport: RappFrameTransport {
       private var frames: [Data] = []
 
@@ -48,8 +49,8 @@ private let fixturePairingCode = "246813"
       -> Data
     {
       let frames = await transport.snapshot()
-      XCTAssertEqual(frames.count, count)
-      return try XCTUnwrap(frames.last)
+      #expect((frames.count) == (count))
+      return try #require(frames.last)
     }
 
     /// Runs the ceremony as the requester until the custodian has stored
@@ -65,8 +66,7 @@ private let fixturePairingCode = "246813"
         bootstrap: offer, transportProfile: Self.transportProfile,
         pairingCode: fixturePairingCode, startedAtMonotonicMs: now)
       try requester.beginCpace(
-        candidateId: try XCTUnwrap(
-          rappCandidateIdentifier(transportProfile: Self.transportProfile)),
+        candidateId: try #require(rappCandidateIdentifier(transportProfile: Self.transportProfile)),
         randomBytes64: try RappPlatformEntropy().cpaceRandom(),
         nowMonotonicMs: now)
 
@@ -83,7 +83,7 @@ private let fixturePairingCode = "246813"
         try requester.sendHello(
           displayName: TestDisplayNames.requester, platform: "macOS", nowMonotonicMs: now))
       let answered = await transport.snapshot()
-      XCTAssertEqual(answered.count, 5)
+      #expect((answered.count) == (5))
       _ = try requester.receiveHello(bytes: answered[3], nowMonotonicMs: now)
       let granted = try requester.receiveConfirmation(bytes: answered[4], nowMonotonicMs: now)
       await custodian.receive(
@@ -91,6 +91,7 @@ private let fixturePairingCode = "246813"
       return requester
     }
 
+    @Test
     internal func testNonsenseInsteadOfPeerStorageRevokesTheStoredRecord() async throws {
       let vault = RappDeviceVault(
         accessGroup: nil, servicePrefix: "fi.refineid.test.storage.\(UUID().uuidString)")
@@ -105,13 +106,13 @@ private let fixturePairingCode = "246813"
           platform: "iOS",
           vault: vault),
         transport: transport)
-      let ended = expectation(description: "the attempt ended")
+      let ended = TestEvent(description: "the attempt ended")
       let events = custodian.events
       let collector = Task {
         for await event in events {
           if case .paired = event { continue }
           if case .peerIntroduced = event { continue }
-          ended.fulfill()
+          ended.signal()
           return
         }
       }
@@ -122,13 +123,14 @@ private let fixturePairingCode = "246813"
       // The custodian has stored its record and told the peer.
       _ = try await lastFrame(transport, expecting: 6)
       let stored = try vault.activePairIDs()
-      XCTAssertEqual(stored.count, 1)
-      let pairID = try XCTUnwrap(stored.first)
+      #expect((stored.count) == (1))
+      let pairID = try #require(stored.first)
 
       await custodian.receive(Data("not a pairing.stored frame".utf8))
-      await fulfillment(of: [ended], timeout: 2)
-      XCTAssertEqual(try vault.activePairIDs(), [])
-      XCTAssertNil(try vault.loadPair(pairID: pairID))
+      await TestEvent.wait(for: [ended], timeout: 2)
+      expectState({ try vault.activePairIDs().isEmpty }, sourceLocation: #_sourceLocation)
+      expectState(
+        { try vault.loadPair(pairID: pairID) == nil }, sourceLocation: #_sourceLocation)
       await custodian.close()
     }
 
@@ -136,6 +138,7 @@ private let fixturePairingCode = "246813"
     /// keeps nothing and reports the keychain's status.
     ///
     /// RAPP v26.11.8 §4.3 item 4.
+    @Test
     internal func testARefusedWriteAbortsInsteadOfConfirming() async throws {
       for status in [errSecAuthFailed, errSecMissingEntitlement, errSecIO] {
         let vault = RappDeviceVault(
@@ -143,29 +146,32 @@ private let fixturePairingCode = "246813"
         vault.testKeychain.refusal = { $0 == .add ? status : nil }
         let ended = try await runCeremony(vault: vault)
 
-        XCTAssertEqual(ended.reason, .persistenceFailure(status: status))
-        XCTAssertEqual(try vault.activePairIDs(), [])
+        #expect((ended.reason) == (.persistenceFailure(status: status)))
+        expectState({ try vault.activePairIDs().isEmpty }, sourceLocation: #_sourceLocation)
         // The sixth frame is the abort: no `pairing.stored` was sent, and
         // the requester's storage exchange refuses it as a confirmation.
-        XCTAssertEqual(ended.frames.count, 6)
+        #expect((ended.frames.count) == (6))
         _ = try ended.requester.buildPairRecord(createdAtMs: 0, nowMonotonicMs: now)
-        XCTAssertThrowsError(
-          try ended.requester.receiveStored(bytes: ended.frames[5], nowMonotonicMs: now))
+        #expect(throws: (any Error).self) {
+          try ended.requester.receiveStored(bytes: ended.frames[5], nowMonotonicMs: now)
+        }
       }
     }
 
     /// A disk full stays its own reason, and a refused write leaves no
     /// record behind.
+    @Test
     internal func testAFullKeychainEndsOutOfSpace() async throws {
       let vault = RappDeviceVault(
         accessGroup: nil, servicePrefix: "fi.refineid.test.storage.\(UUID().uuidString)")
       vault.testKeychain.refusal = { $0 == .add ? errSecDiskFull : nil }
       let ended = try await runCeremony(vault: vault)
-      XCTAssertEqual(ended.reason, .outOfSpace)
-      XCTAssertEqual(try vault.activePairIDs(), [])
+      #expect((ended.reason) == (.outOfSpace))
+      expectState({ try vault.activePairIDs().isEmpty }, sourceLocation: #_sourceLocation)
     }
 
     /// A keychain that takes the record lets the ceremony confirm it.
+    @Test
     internal func testAStoredWriteConfirms() async throws {
       let vault = RappDeviceVault(
         accessGroup: nil, servicePrefix: "fi.refineid.test.storage.\(UUID().uuidString)")
@@ -173,8 +179,8 @@ private let fixturePairingCode = "246813"
       let custodian = try await makeCustodian(vault: vault, transport: transport)
       try await driveToStorage(custodian, transport: transport)
       let frames = await transport.snapshot()
-      XCTAssertEqual(frames.count, 6)
-      XCTAssertEqual(try vault.activePairIDs().count, 1)
+      #expect((frames.count) == (6))
+      #expect((try vault.activePairIDs().count) == (1))
       await custodian.close()
     }
 

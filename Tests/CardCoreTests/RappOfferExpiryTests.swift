@@ -3,15 +3,17 @@
 import CardCore
 import Foundation
 import RappEngine
-import XCTest
+import Testing
 
 /// An offer lives five minutes from its creation (RAPP v26.11.8 §3.3 item 7).
-internal final class RappOfferExpiryTests: XCTestCase {
+@Suite(.serialized)
+internal final class RappOfferExpiryTests {
   private static let startedAt: UInt64 = 1_000
   private static let offerLifetime = rappOfferTtlMs()
 
+  @Test
   internal func testOfferExpiresAtItsMonotonicDeadline() throws {
-    XCTAssertNoThrow(try begin(at: Self.startedAt + Self.offerLifetime - 1))
+    #expect(throws: Never.self) { try begin(at: Self.startedAt + Self.offerLifetime - 1) }
     assertOfferExpired { try begin(at: Self.startedAt + Self.offerLifetime) }
   }
 
@@ -25,21 +27,17 @@ internal final class RappOfferExpiryTests: XCTestCase {
       startedAtMonotonicMs: Self.startedAt
     )
     try bridge.beginCpace(
-      candidateId: try XCTUnwrap(rappCandidateIdentifier(transportProfile: transportProfile)),
+      candidateId: try #require(rappCandidateIdentifier(transportProfile: transportProfile)),
       randomBytes64: try RappPlatformEntropy().cpaceRandom(),
       nowMonotonicMs: now)
   }
 
   private func assertOfferExpired(
-    file: StaticString = #filePath,
-    line: UInt = #line,
+    sourceLocation: SourceLocation = #_sourceLocation,
     _ operation: () throws -> Void
   ) {
-    XCTAssertThrowsError(try operation(), file: file, line: line) { error in
-      guard case RappBindingError.OfferExpired = error else {
-        XCTFail("Expected OfferExpired, got \(error)", file: file, line: line)
-        return
-      }
+    #expect(throws: RappBindingError.OfferExpired, sourceLocation: sourceLocation) {
+      try operation()
     }
   }
 }

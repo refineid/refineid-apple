@@ -1,32 +1,38 @@
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 import CardCore
-import XCTest
+import Testing
 
 /// Retry counts at or below this refuse without spending an attempt.
 internal let lowAttemptRefusalCeiling: UInt8 = 2
 
-internal final class VirtualIDCardTests: XCTestCase {
+@Suite(.serialized)
+internal final class VirtualIDCardTests {
+  @Test
   internal func testWrongCardAccessNumberDoesNotConfigureDevice() async {
     let card = VirtualIDCard(scenario: .activatedNearField)
 
     let result = await card.connect(cardAccessNumber: "000000")
     let state = await card.inspect()
 
-    XCTAssertEqual(result, .incorrectCardAccessNumber)
-    XCTAssertNil(state.device.connectedCardAccessNumber)
-    XCTAssertNil(state.device.storedCardAccessNumber)
+    expectState(result == .incorrectCardAccessNumber, sourceLocation: #_sourceLocation)
+    expectState(state.device.connectedCardAccessNumber == nil, sourceLocation: #_sourceLocation)
+    expectState(state.device.storedCardAccessNumber == nil, sourceLocation: #_sourceLocation)
   }
 
+  @Test
   internal func testActivatedCardStoresValidatedCardAccessNumber() async {
     let card = VirtualIDCard(scenario: .activatedNearField)
+    let expectedAccessNumber = (await card.inspect()).card.cardAccessNumber
 
     _ = await card.connect(cardAccessNumber: "123456")
     let state = await card.inspect()
 
-    XCTAssertEqual(state.device.storedCardAccessNumber, "123456")
+    expectState(
+      state.device.storedCardAccessNumber == expectedAccessNumber, sourceLocation: #_sourceLocation)
   }
 
+  @Test
   internal func testConnectionClassificationDoesNotReadCertificates() async {
     var state = VirtualIDCard.Scenario.factoryFreshNearField.snapshot
     state.card.authenticationCertificate = .missing
@@ -36,43 +42,56 @@ internal final class VirtualIDCardTests: XCTestCase {
     let result = await card.connect(cardAccessNumber: "123456")
 
     guard case .connected(let connected) = result else {
-      XCTFail("connection classification depended on a certificate")
+      Issue.record("connection classification depended on a certificate")
       return
     }
-    XCTAssertTrue(connected.card.pin1.isFactoryValue)
-    XCTAssertTrue(connected.card.pin2.isFactoryValue)
+    #expect(connected.card.pin1.isFactoryValue, sourceLocation: #_sourceLocation)
+    #expect(connected.card.pin2.isFactoryValue, sourceLocation: #_sourceLocation)
   }
 
+  @Test
   internal func testFactoryCardStoresCardAccessNumberWhenConnected() async {
     let card = VirtualIDCard(scenario: .factoryFreshNearField)
+    let expectedAccessNumber = (await card.inspect()).card.cardAccessNumber
 
     _ = await card.connect(cardAccessNumber: "123456")
     let state = await card.inspect()
 
-    XCTAssertEqual(state.device.connectedCardAccessNumber, "123456")
-    XCTAssertEqual(state.device.storedCardAccessNumber, "123456")
+    expectState(
+      state.device.connectedCardAccessNumber == expectedAccessNumber,
+      sourceLocation: #_sourceLocation)
+    expectState(
+      state.device.storedCardAccessNumber == expectedAccessNumber, sourceLocation: #_sourceLocation)
   }
 
+  @Test
   internal func testSubsequentWrongCardAccessNumberClearsStoredCardAccessNumber() async {
     let card = VirtualIDCard(scenario: .factoryFreshNearField)
+    let expectedAccessNumber = (await card.inspect()).card.cardAccessNumber
 
     let firstConnect = await card.connect(cardAccessNumber: "123456")
     guard case .connected = firstConnect else {
-      XCTFail("initial connect failed")
+      Issue.record("initial connect failed")
       return
     }
     let connectedState = await card.inspect()
-    XCTAssertEqual(connectedState.device.storedCardAccessNumber, "123456")
+    expectState(
+      connectedState.device.storedCardAccessNumber == expectedAccessNumber,
+      sourceLocation: #_sourceLocation)
 
     let mismatchConnect = await card.connect(cardAccessNumber: "000000")
-    XCTAssertEqual(mismatchConnect, .incorrectCardAccessNumber)
+    expectState(mismatchConnect == .incorrectCardAccessNumber, sourceLocation: #_sourceLocation)
     let mismatchState = await card.inspect()
-    XCTAssertNil(mismatchState.device.connectedCardAccessNumber)
-    XCTAssertNil(mismatchState.device.storedCardAccessNumber)
+    expectState(
+      mismatchState.device.connectedCardAccessNumber == nil, sourceLocation: #_sourceLocation)
+    expectState(
+      mismatchState.device.storedCardAccessNumber == nil, sourceLocation: #_sourceLocation)
   }
 
+  @Test
   internal func testActivationChangesBothFactoryCredentialsIndependently() async {
     let card = VirtualIDCard(scenario: .factoryFreshNearField)
+    let expectedAccessNumber = (await card.inspect()).card.cardAccessNumber
     _ = await card.connect(cardAccessNumber: "123456")
 
     let result = await card.activate(
@@ -81,13 +100,16 @@ internal final class VirtualIDCardTests: XCTestCase {
         newPIN1: "4567",
         newPIN2: "654321"))
 
-    XCTAssertEqual(result.pin1, .success)
-    XCTAssertEqual(result.pin2, .success)
-    XCTAssertFalse(result.snapshot.card.pin1.isFactoryValue)
-    XCTAssertFalse(result.snapshot.card.pin2.isFactoryValue)
-    XCTAssertEqual(result.snapshot.device.storedCardAccessNumber, "123456")
+    expectState(result.pin1 == .success, sourceLocation: #_sourceLocation)
+    expectState(result.pin2 == .success, sourceLocation: #_sourceLocation)
+    #expect(!result.snapshot.card.pin1.isFactoryValue, sourceLocation: #_sourceLocation)
+    #expect(!result.snapshot.card.pin2.isFactoryValue, sourceLocation: #_sourceLocation)
+    expectState(
+      result.snapshot.device.storedCardAccessNumber == expectedAccessNumber,
+      sourceLocation: #_sourceLocation)
   }
 
+  @Test
   internal func testLostReplyAfterPIN1LeavesOnlyPIN2InFactoryState() async {
     var scenario = VirtualIDCard.Scenario.factoryFreshNearField.snapshot
     scenario.faults =
@@ -101,15 +123,16 @@ internal final class VirtualIDCardTests: XCTestCase {
         newPIN1: "4567",
         newPIN2: "654321"))
 
-    XCTAssertEqual(
-      result.pin1,
-      .transportFailure(.connectionLost))
-    XCTAssertFalse(result.snapshot.card.pin1.isFactoryValue)
-    XCTAssertTrue(result.snapshot.card.pin2.isFactoryValue)
+    expectState(
+      result.pin1 == (.transportFailure(.connectionLost)), sourceLocation: #_sourceLocation)
+    #expect(!result.snapshot.card.pin1.isFactoryValue, sourceLocation: #_sourceLocation)
+    #expect(result.snapshot.card.pin2.isFactoryValue, sourceLocation: #_sourceLocation)
   }
 
+  @Test
   internal func testPartialActivationContinuesWithOnlyPIN2() async {
     let card = VirtualIDCard(scenario: .partialActivationNearField)
+    let expectedAccessNumber = (await card.inspect()).card.cardAccessNumber
     _ = await card.connect(cardAccessNumber: "123456")
 
     let result = await card.activate(
@@ -118,13 +141,16 @@ internal final class VirtualIDCardTests: XCTestCase {
         newPIN1: nil,
         newPIN2: "654321"))
 
-    XCTAssertEqual(result.pin1, .alreadyActivated)
-    XCTAssertEqual(result.pin2, .success)
-    XCTAssertFalse(result.snapshot.card.pin1.isFactoryValue)
-    XCTAssertFalse(result.snapshot.card.pin2.isFactoryValue)
-    XCTAssertEqual(result.snapshot.device.storedCardAccessNumber, "123456")
+    expectState(result.pin1 == .alreadyActivated, sourceLocation: #_sourceLocation)
+    expectState(result.pin2 == .success, sourceLocation: #_sourceLocation)
+    #expect(!result.snapshot.card.pin1.isFactoryValue, sourceLocation: #_sourceLocation)
+    #expect(!result.snapshot.card.pin2.isFactoryValue, sourceLocation: #_sourceLocation)
+    expectState(
+      result.snapshot.device.storedCardAccessNumber == expectedAccessNumber,
+      sourceLocation: #_sourceLocation)
   }
 
+  @Test
   internal func testNonDigitActivationEntryDoesNotSpendAttempt() async {
     let card = VirtualIDCard(scenario: .factoryFreshNearField)
     _ = await card.connect(cardAccessNumber: "123456")
@@ -135,34 +161,37 @@ internal final class VirtualIDCardTests: XCTestCase {
         newPIN1: "4567",
         newPIN2: "654321"))
 
-    XCTAssertEqual(result.pin1, .invalidEntry)
-    XCTAssertEqual(
-      result.snapshot.card.pin1.attemptsRemaining,
-      RetryCount.pristineAllowance)
+    expectState(result.pin1 == .invalidEntry, sourceLocation: #_sourceLocation)
+    #expect(
+      result.snapshot.card.pin1.attemptsRemaining == RetryCount.pristineAllowance,
+      sourceLocation: #_sourceLocation)
   }
 
+  @Test
   internal func testWrongPINDecrementsOnlyItsOwnCounter() async {
     let card = VirtualIDCard(scenario: .activatedNearField)
     _ = await card.connect(cardAccessNumber: "123456")
 
     let result = await card.changePIN1(current: "0000", new: "9876")
 
-    XCTAssertEqual(result.outcome, .rejected(remaining: 4))
-    XCTAssertEqual(result.snapshot.card.pin1.attemptsRemaining, 4)
-    XCTAssertEqual(
-      result.snapshot.card.pin2.attemptsRemaining,
-      RetryCount.pristineAllowance)
+    #expect(result.outcome == (.rejected(remaining: 4)), sourceLocation: #_sourceLocation)
+    #expect(result.snapshot.card.pin1.attemptsRemaining == 4, sourceLocation: #_sourceLocation)
+    #expect(
+      result.snapshot.card.pin2.attemptsRemaining == RetryCount.pristineAllowance,
+      sourceLocation: #_sourceLocation)
   }
 
+  @Test
   internal func testLastTwoAttemptsAreNeverSpent() async {
     let card = VirtualIDCard(scenario: .pin1RecoveryReader)
 
     let result = await card.changePIN1(current: "0000", new: "9876")
 
-    XCTAssertEqual(result.outcome, .refusedLowAttempts(remaining: 2))
-    XCTAssertEqual(result.snapshot.card.pin1.attemptsRemaining, 2)
+    #expect(result.outcome == (.refusedLowAttempts(remaining: 2)), sourceLocation: #_sourceLocation)
+    #expect(result.snapshot.card.pin1.attemptsRemaining == 2, sourceLocation: #_sourceLocation)
   }
 
+  @Test
   internal func testPIN1RetryFloorMatrix() async {
     for attempts in UInt8(0)...RetryCount.pristineAllowance {
       var state = VirtualIDCard.Scenario.activatedReader.snapshot
@@ -173,66 +202,72 @@ internal final class VirtualIDCardTests: XCTestCase {
 
       switch attempts {
       case 0:
-        XCTAssertEqual(result.outcome, .blocked)
-        XCTAssertEqual(result.snapshot.card.pin1.attemptsRemaining, 0)
+        #expect(result.outcome == .blocked, sourceLocation: #_sourceLocation)
+        #expect(result.snapshot.card.pin1.attemptsRemaining == 0, sourceLocation: #_sourceLocation)
 
       case 1...lowAttemptRefusalCeiling:
-        XCTAssertEqual(
-          result.outcome,
-          .refusedLowAttempts(remaining: attempts))
-        XCTAssertEqual(
-          result.snapshot.card.pin1.attemptsRemaining,
-          attempts)
+        #expect(
+          result.outcome == (.refusedLowAttempts(remaining: attempts)),
+          sourceLocation: #_sourceLocation)
+        #expect(
+          result.snapshot.card.pin1.attemptsRemaining == attempts, sourceLocation: #_sourceLocation)
 
       default:
-        XCTAssertEqual(
-          result.outcome,
-          .rejected(remaining: attempts - 1))
-        XCTAssertEqual(
-          result.snapshot.card.pin1.attemptsRemaining,
-          attempts - 1)
+        #expect(
+          result.outcome == (.rejected(remaining: attempts - 1)), sourceLocation: #_sourceLocation)
+        #expect(
+          result.snapshot.card.pin1.attemptsRemaining == (attempts - 1),
+          sourceLocation: #_sourceLocation)
       }
     }
   }
 
-  internal func testSafePUKCanResetBlockedPIN() async {
+  @Test
+  internal func testSafePUKCanResetBlockedPIN() async throws {
     var state = VirtualIDCard.Scenario.activatedReader.snapshot
     state.card.pin1.attemptsRemaining = 0
+    let replacementEntry = try Self.changedPin1(from: state.card.pin1.value)
     let card = VirtualIDCard(snapshot: state)
 
-    let result = await card.resetPIN1(puk: "12345678", new: "9876")
+    let result = await card.resetPIN1(puk: state.card.puk.value, new: replacementEntry)
 
-    XCTAssertEqual(result.outcome, .success)
-    XCTAssertEqual(
-      result.snapshot.card.pin1.attemptsRemaining,
-      RetryCount.pristineAllowance)
-    XCTAssertEqual(result.snapshot.card.pin1.value, "9876")
+    #expect(result.outcome == .success, sourceLocation: #_sourceLocation)
+    #expect(
+      result.snapshot.card.pin1.attemptsRemaining == RetryCount.pristineAllowance,
+      sourceLocation: #_sourceLocation)
+    expectState(
+      result.snapshot.card.pin1.value == replacementEntry, sourceLocation: #_sourceLocation)
   }
 
+  @Test
   internal func testPUKFloorRefusesResetWithoutChangingCard() async {
     let card = VirtualIDCard(scenario: .pukRecoveryRefusedReader)
 
     let result = await card.resetPIN1(puk: "12345678", new: "9876")
 
-    XCTAssertEqual(result.outcome, .refusedLowAttempts(remaining: 2))
-    XCTAssertEqual(result.snapshot.card.pin1.attemptsRemaining, 0)
-    XCTAssertEqual(result.snapshot.card.puk.attemptsRemaining, 2)
+    #expect(result.outcome == (.refusedLowAttempts(remaining: 2)), sourceLocation: #_sourceLocation)
+    #expect(result.snapshot.card.pin1.attemptsRemaining == 0, sourceLocation: #_sourceLocation)
+    #expect(result.snapshot.card.puk.attemptsRemaining == 2, sourceLocation: #_sourceLocation)
   }
 
-  internal func testFaultBeforeCommandDoesNotMutateCredential() async {
+  @Test
+  internal func testFaultBeforeCommandDoesNotMutateCredential() async throws {
     var state = VirtualIDCard.Scenario.activatedReader.snapshot
     state.faults =
       VirtualIDCard.FaultPreset.cardRemovedDuringPINChange.faults
+    let replacementEntry = try Self.changedPin1(from: state.card.pin1.value)
     let card = VirtualIDCard(snapshot: state)
 
-    let result = await card.changePIN1(current: "1234", new: "9876")
+    let result = await card.changePIN1(current: state.card.pin1.value, new: replacementEntry)
 
-    XCTAssertEqual(result.outcome, .transportFailure(.cardRemoved))
-    XCTAssertEqual(result.snapshot.card.pin1.value, "1234")
-    XCTAssertFalse(result.snapshot.card.cardPresent)
+    #expect(result.outcome == (.transportFailure(.cardRemoved)), sourceLocation: #_sourceLocation)
+    expectState(
+      result.snapshot.card.pin1.value == state.card.pin1.value, sourceLocation: #_sourceLocation)
+    #expect(!result.snapshot.card.cardPresent, sourceLocation: #_sourceLocation)
   }
 
-  internal func testFaultAfterCommandPreservesCardMutation() async {
+  @Test
+  internal func testFaultAfterCommandPreservesCardMutation() async throws {
     var state = VirtualIDCard.Scenario.activatedReader.snapshot
     state.faults = [
       VirtualIDCard.Fault(
@@ -240,14 +275,16 @@ internal final class VirtualIDCardTests: XCTestCase {
         phase: .afterCardExecution,
         effect: .timeout)
     ]
+    let replacementEntry = try Self.changedPin1(from: state.card.pin1.value)
     let card = VirtualIDCard(snapshot: state)
 
-    let result = await card.changePIN1(current: "1234", new: "9876")
+    let result = await card.changePIN1(current: state.card.pin1.value, new: replacementEntry)
 
-    XCTAssertEqual(result.outcome, .transportFailure(.timeout))
-    XCTAssertEqual(result.snapshot.card.pin1.value, "9876")
-    XCTAssertEqual(
-      result.snapshot.card.pin1.attemptsRemaining,
-      RetryCount.pristineAllowance)
+    #expect(result.outcome == (.transportFailure(.timeout)), sourceLocation: #_sourceLocation)
+    expectState(
+      result.snapshot.card.pin1.value == replacementEntry, sourceLocation: #_sourceLocation)
+    #expect(
+      result.snapshot.card.pin1.attemptsRemaining == RetryCount.pristineAllowance,
+      sourceLocation: #_sourceLocation)
   }
 }

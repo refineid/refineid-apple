@@ -3,7 +3,8 @@
 #if REFINEID_REMOTE_CARD
 
   import CardCore
-  import XCTest
+  import Foundation
+  import Testing
 
   @testable import RefineIDTestHost
 
@@ -12,7 +13,8 @@
   /// that tried none says no phone in pairing mode was found (RAPP v26.11.8
   /// §4.2, "Trying Each Custodian in Pairing Mode" item 6), unless it found
   /// phones it could not reach.
-  internal final class RappPairingSearchMessageTests: XCTestCase {
+  @Suite(.serialized)
+  internal final class RappPairingSearchMessageTests {
     private typealias Reason = RappPairingSearch<PairingEndpoint>.CloseReason
 
     private static let notAccepted = String(localized: "The pairing code was not accepted.")
@@ -57,63 +59,70 @@
         .deletingLastPathComponent()
         .appending(path: "Sources/App/Localizable.xcstrings")
       let json = try JSONSerialization.jsonObject(with: try Data(contentsOf: catalog))
-      let strings = try XCTUnwrap((json as? [String: Any])?["strings"] as? [String: Any])
-      let entry = try XCTUnwrap(strings[key] as? [String: Any])
-      let localizations = try XCTUnwrap(entry["localizations"] as? [String: Any])
+      let strings = try #require((json as? [String: Any])?["strings"] as? [String: Any])
+      let entry = try #require(strings[key] as? [String: Any])
+      let localizations = try #require(entry["localizations"] as? [String: Any])
       for (language, expected) in [("fi", finnish), ("sv", swedish)] {
-        let localization = try XCTUnwrap(localizations[language] as? [String: Any])
-        let unit = try XCTUnwrap(localization["stringUnit"] as? [String: Any])
-        XCTAssertEqual(unit["value"] as? String, expected, language)
+        let localization = try #require(localizations[language] as? [String: Any])
+        let unit = try #require(localization["stringUnit"] as? [String: Any])
+        #expect((unit["value"] as? String) == (expected), "\(language)")
       }
     }
 
+    @Test
     internal func testOnlyEveryRefusalIsAWrongCode() {
-      XCTAssertEqual(RappPairingModel.failure(for: Reason.notAccepted)?.message, Self.notAccepted)
+      #expect((RappPairingModel.failure(for: Reason.notAccepted)?.message) == (Self.notAccepted))
       let others: [Reason] = [
         .noneInPairingMode, .ceremonyEnded(.transportFailure), .ceremonyEnded(.protocolFailure),
       ]
       for reason in others {
-        XCTAssertNotEqual(
-          RappPairingModel.failure(for: reason)?.message, Self.notAccepted, "\(reason)")
+        #expect((RappPairingModel.failure(for: reason)?.message) != (Self.notAccepted), "\(reason)")
       }
     }
 
+    @Test
     internal func testASearchThatTriedNoPhoneSaysNoneWasFound() {
-      XCTAssertEqual(
-        RappPairingModel.failure(for: Reason.noneInPairingMode)?.message,
-        String(localized: "No phone in pairing mode was found."))
+      #expect(
+        (RappPairingModel.failure(for: Reason.noneInPairingMode)?.message)
+          == (String(localized: "No phone in pairing mode was found.")))
     }
 
+    @Test
     internal func testAPhoneFoundButUnreachedIsNotCalledMissing() {
       let missing = String(localized: "No phone in pairing mode was found.")
-      XCTAssertEqual(RappPairingModel.failure(for: Reason.unreachable), .unreachable)
-      XCTAssertNotEqual(RappPairingModel.Failure.unreachable.message, missing)
-      XCTAssertEqual(RappPairingModel.failure(for: Reason.localNetworkDenied), .localNetworkDenied)
+      #expect((RappPairingModel.failure(for: Reason.unreachable)) == (.unreachable))
+      #expect((RappPairingModel.Failure.unreachable.message) != (missing))
+      #expect((RappPairingModel.failure(for: Reason.localNetworkDenied)) == (.localNetworkDenied))
       let denied = RappPairingModel.Failure.localNetworkDenied.message
-      XCTAssertNotEqual(denied, missing)
-      XCTAssertEqual(denied, Self.localNetworkDeniedMessage)
+      #expect((denied) != (missing))
+      #expect((denied) == (Self.localNetworkDeniedMessage))
     }
 
+    @Test
     internal func testAnUnreachedPhoneSaysWhatToCheck() {
-      XCTAssertEqual(RappPairingModel.Failure.unreachable.message, Self.unreachableMessage)
+      #expect((RappPairingModel.Failure.unreachable.message) == (Self.unreachableMessage))
     }
 
+    @Test
     internal func testOnlyNetworkFailuresOfferTheSettings() {
-      XCTAssertTrue(RappPairingModel.Failure.localNetworkDenied.opensNetworkSettings)
-      XCTAssertTrue(RappPairingModel.Failure.unreachable.opensNetworkSettings)
-      XCTAssertFalse(RappPairingModel.Failure.reported(Self.notAccepted).opensNetworkSettings)
+      #expect((RappPairingModel.Failure.localNetworkDenied.opensNetworkSettings))
+      #expect((RappPairingModel.Failure.unreachable.opensNetworkSettings))
+      #expect(!(RappPairingModel.Failure.reported(Self.notAccepted).opensNetworkSettings))
     }
 
+    @Test
     internal func testALocalCloseShowsNothing() {
-      XCTAssertNil(RappPairingModel.failure(for: Reason.localRequest))
+      #expect((RappPairingModel.failure(for: Reason.localRequest)) == nil)
     }
 
+    @Test
     internal func testAFailureAfterTheCodeWasTakenEndsThePairing() {
-      XCTAssertEqual(
-        RappPairingModel.failure(for: Reason.ceremonyEnded(.attemptTimedOut))?.message,
-        String(localized: "Pairing ended before it was completed."))
+      #expect(
+        (RappPairingModel.failure(for: Reason.ceremonyEnded(.attemptTimedOut))?.message)
+          == (String(localized: "Pairing ended before it was completed.")))
     }
 
+    @Test
     internal func testNoneFoundIsSaidInEveryLanguage() throws {
       try Self.assertTranslations(
         of: "No phone in pairing mode was found.",
@@ -121,6 +130,7 @@
         swedish: "Ingen telefon i parkopplingsläge hittades.")
     }
 
+    @Test
     internal func testLocalNetworkDenialIsSaidInEveryLanguage() throws {
       try Self.assertTranslations(
         of: """
