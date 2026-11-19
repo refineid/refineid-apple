@@ -81,11 +81,11 @@
         ],
       ]
       for (key, translations) in expected {
-        let entry = try #require(strings[key] as? [String: Any], key)
-        let localizations = try #require(entry["localizations"] as? [String: Any], key)
+        let entry = try #require(strings[key] as? [String: Any], "\(key)")
+        let localizations = try #require(entry["localizations"] as? [String: Any], "\(key)")
         for (language, value) in translations {
-          let localization = try #require(localizations[language] as? [String: Any], key)
-          let unit = try #require(localization["stringUnit"] as? [String: Any], key)
+          let localization = try #require(localizations[language] as? [String: Any], "\(key)")
+          let unit = try #require(localization["stringUnit"] as? [String: Any], "\(key)")
           #expect((unit["value"] as? String) == (value), "\(key) \(language)")
         }
       }
