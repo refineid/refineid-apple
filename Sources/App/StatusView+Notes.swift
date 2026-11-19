@@ -168,7 +168,8 @@
       if signing.working {
         let step = signing.phase?.note ?? String(localized: "Signing document…")
         if signing.signingPile, let source = signing.pending {
-          return "\(step) \(source.lastPathComponent)"
+          let label = step.reversed().drop(while: { $0 == "." || $0 == "\u{2026}" }).reversed()
+          return "\(String(label)): \(source.lastPathComponent)..."
         }
         return step
       }

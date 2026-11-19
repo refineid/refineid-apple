@@ -47,7 +47,9 @@
       signing.show(.timestamp)
       for source in documents {
         signing.focus(on: source)
-        let expected = "\(DocumentSigningPhase.timestamp.note) \(source.lastPathComponent)"
+        let label = DocumentSigningPhase.timestamp.note.trimmingCharacters(
+          in: CharacterSet(charactersIn: ".\u{2026}"))
+        let expected = "\(label): \(source.lastPathComponent)..."
         #expect(StatusMessage(signing) == .progress(expected))
       }
     }
