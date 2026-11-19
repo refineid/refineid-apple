@@ -4,6 +4,7 @@
 
   import AppKit
   import Foundation
+  import SwiftUI
 
   /// Where signed documents are written.
   ///
@@ -40,7 +41,7 @@
       #endif
       let together = documents.count > 1
       let instant = signed.bestSignatureTime
-      let panel = makeSavePanel()
+      let panel = NSSavePanel()
       panel.allowedContentTypes = format.allowedContentTypes
       let defaultStem = String(
         localized: "output.multiple",
@@ -65,6 +66,7 @@
         : String(localized: "Where should the signed document be saved?")
       panel.prompt = String(localized: "Save")
       let response = await Self.run(panel) {
+        widen(panel)
         // The panel selects the whole name before its extension; a
         // proposed container name selects the default stem alone, so
         // typing replaces it and keeps the suffix.
@@ -84,12 +86,13 @@
       )
     }
 
-    private static func makeSavePanel() -> NSSavePanel {
-      let panel = NSSavePanel()
-      // AppKit takes the accessory width into account when laying out the native fields.
-      panel.accessoryView = NSView(
-        frame: NSRect(x: .zero, y: .zero, width: preferredSavePanelWidth, height: .zero))
-      return panel
+    private static func widen(_ panel: NSSavePanel) {
+      var frame = panel.frame
+      let availableWidth = panel.screen?.visibleFrame.width ?? preferredSavePanelWidth
+      let width = max(frame.width, min(preferredSavePanelWidth, availableWidth))
+      frame.origin.x -= (width - frame.width) * CGFloat(UnitPoint.center.x)
+      frame.size.width = width
+      panel.setFrame(frame, display: true)
     }
 
     /// Asks for the folder a batch is written to, starting beside the
