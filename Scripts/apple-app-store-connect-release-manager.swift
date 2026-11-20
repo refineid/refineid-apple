@@ -41,6 +41,7 @@
 //   apple-app-store-connect-release-manager.swift app-id
 //   apple-app-store-connect-release-manager.swift state
 //   apple-app-store-connect-release-manager.swift builds <ios|macos>
+//   apple-app-store-connect-release-manager.swift version <ios|macos> <versionString>
 //   apple-app-store-connect-release-manager.swift distribute <ios|macos> [group]
 //   apple-app-store-connect-release-manager.swift add-tester <email> [group]
 //   apple-app-store-connect-release-manager.swift invite <email>
@@ -53,6 +54,7 @@
 //       Updates App Store version assets. TestFlight invitations use screenshots
 //       from the latest approved version in Ready for Distribution.
 //       See Documentation/release-runbook.md for screenshot visibility rules.
+//   apple-app-store-connect-release-manager.swift beta-info
 //   apple-app-store-connect-release-manager.swift age-rating
 //   apple-app-store-connect-release-manager.swift export-compliance <ios|macos>
 //   apple-app-store-connect-release-manager.swift pricing
@@ -3702,6 +3704,72 @@ func reviewContact(_ platformName: String, _ version: String) {
   print("review contact set for \(platformName) \(version)")
 }
 
+// Prints a version's identifier, its state and the build attached to it,
+// so a release record reads those facts from the platform instead of
+// assembling them by hand.
+func versionReport(_ platformName: String, _ version: String) {
+  let platform = apiPlatform(platformName)
+  guard let found = findVersion(platform) else {
+    releaseFail("no version for \(platformName)")
+  }
+  guard found.version == version else {
+    releaseFail("the \(platformName) version is \(found.version), not \(version)")
+  }
+  let response = api("GET", "/v1/appStoreVersions/\(found.id)?include=build")
+  let versionAttributes =
+    ((response["data"] as? [String: Any])?["attributes"] as? [String: Any]) ?? [:]
+  let state = versionAttributes["appStoreState"] as? String ?? "unknown"
+  print("\(platformName) \(found.version) [\(found.id)] \(state)")
+  guard
+    let build = (response["included"] as? [[String: Any]])?
+      .first(where: { $0["type"] as? String == "builds" }),
+    let number = (build["attributes"] as? [String: Any])?["version"] as? String
+  else {
+    print("  build: none")
+    return
+  }
+  let buildAttributes = build["attributes"] as? [String: Any] ?? [:]
+  let processing = buildAttributes["processingState"] as? String ?? "unknown"
+  let expired = (buildAttributes["expired"] as? Bool ?? false) ? " expired" : ""
+  print("  build: \(number) \(processing)\(expired) [\(build["id"] as? String ?? "none")]")
+}
+
+// Sets the TestFlight beta app description of every locale from
+// Metadata/appstore.json: the text an invitation and the build's TestFlight
+// page show about the app, which is app-level and shared by both platforms.
+func pushBetaInfo() {
+  let existing = existingLocalizations("/v1/apps/\(appID())/betaAppLocalizations?limit=50")
+  for locale in localizations.keys.sorted() {
+    let entry = localizations[locale] as? [String: Any] ?? [:]
+    guard
+      let text = entry["betaDescription"] as? String,
+      !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    else {
+      releaseFail("betaDescription is missing in \(locale) in Metadata/appstore.json")
+    }
+    if let id = existing[locale] {
+      api(
+        "PATCH", "/v1/betaAppLocalizations/\(id)",
+        body: [
+          "data": [
+            "type": "betaAppLocalizations", "id": id, "attributes": ["description": text],
+          ]
+        ])
+    } else {
+      api(
+        "POST", "/v1/betaAppLocalizations",
+        body: [
+          "data": [
+            "type": "betaAppLocalizations",
+            "attributes": ["locale": locale, "description": text],
+            "relationships": ["app": ["data": ["type": "apps", "id": appID()]]],
+          ]
+        ])
+    }
+    print("  beta description (\(locale)): set")
+  }
+}
+
 // Sets the age rating to 4+: every content category at its lowest and
 // no unrestricted web access. The declaration is app-level, carried by
 // the app info record and shared across platforms.
@@ -3733,6 +3801,7 @@ func pushAgeRating() {
     "messagingAndChat": false,
     "parentalControls": false,
     "userGeneratedContent": false,
+    "socialMedia": false,
   ]
   api(
     "PATCH", "/v1/ageRatingDeclarations/\(id)",
@@ -4373,6 +4442,7 @@ case ("api", 3):
 case ("app-id", 0): print(appID())
 case ("state", 0): state()
 case ("builds", 1): builds(rest[0])
+case ("version", 2): versionReport(rest[0], rest[1])
 case ("distribute", 1): distribute(rest[0], "Beta")
 case ("distribute", 2): distribute(rest[0], rest[1])
 case ("distribute", 3): distribute(rest[0], rest[1], rest[2])
@@ -4387,6 +4457,7 @@ case ("metadata", 2): pushMetadata(rest[0], rest[1])
 case ("app-info", 0): pushAppInfo()
 case ("review-contact", 2): reviewContact(rest[0], rest[1])
 case ("screenshots", 2): pushScreenshots(rest[0], rest[1])
+case ("beta-info", 0): pushBetaInfo()
 case ("age-rating", 0): pushAgeRating()
 case ("export-compliance", 1): pushExportCompliance(rest[0])
 case ("pricing", 0): pushPricing()
