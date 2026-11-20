@@ -356,9 +356,11 @@ record for RAPP and its applications.
   than the one that wrote it, unless the change is eligible for
   self-review. The first review uses `muse exec --model
   muse-spark-1.3-contributor`; work written in that family is reviewed
-  by another family instead. A second model, from a different family
-  than the author and the strongest another headless CLI offers that
-  day, reviews protocol, cryptography and state-machine changes.
+  by another family instead. Protocol, cryptography and state-machine
+  changes gain a second review from a family other than the author's:
+  `agy --model claude-opus-4-6-thinking`, or the strongest model a
+  headless CLI offers that day when that one is unavailable or comes
+  from the author's own family.
 - Run the reviewer in a sandbox and plan mode, from an empty directory,
   with the diff pasted into the prompt and no tool use. Frame the request as
   a code review from the project's author.
