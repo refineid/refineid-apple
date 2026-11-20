@@ -191,6 +191,7 @@ class RunnerTests(unittest.TestCase):
                     "a watched process that exits is not reported as exited",
                 )
         finally:
+            process.kill()
             process.wait()
 
     def test_wait_reports_a_process_that_ended_before_the_watch(self) -> None:
