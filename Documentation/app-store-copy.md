@@ -1,6 +1,6 @@
 # App Store copy
 
-Status: the store copy exactly as `Metadata/appstore.json` carries it, which
+Status: the store-visible copy as `Metadata/appstore.json` carries it, which
 `Scripts/apple-app-store-connect-release-manager.swift metadata` pushes. If
 the two differ, the JSON is what the store shows, and the difference is a
 bug in this file.
@@ -19,17 +19,23 @@ Character limits:
 RefineID (all languages)
 
 ## Subtitle (<=30 characters)
-- English: `Authenticate and sign`
-- Suomi: `Tunnistaudu ja allekirjoita`
-- Svenska: `Identifiera och underteckna`
+- en (English): `Authenticate and sign`
+- fi (Suomi): `Tunnistaudu ja allekirjoita`
+- sv (Svenska): `Identifiera och underteckna`
 
 ## Promotional text (<=170 characters)
-- English: `Authenticate and sign with your identity card.`
-- Suomi: `Tunnistaudu ja allekirjoita henkilökortilla.`
-- Svenska: `Identifiera dig och underteckna med identitetskortet.`
+- en (English)
+  - `macos`: `Authenticate and sign with your identity card.`
+  - `ios`: `Authenticate and sign with your identity card.`
+- fi (Suomi)
+  - `macos`: `Tunnistaudu ja allekirjoita henkilökortilla.`
+  - `ios`: `Tunnistaudu ja allekirjoita henkilökortilla.`
+- sv (Svenska)
+  - `macos`: `Identifiera dig och underteckna med identitetskortet.`
+  - `ios`: `Identifiera dig och underteckna med identitetskortet.`
 
-Each platform carries its own field; the macOS and iOS texts are the same
-today, and the JSON keys both.
+Each platform carries its own promotional text field. Both are quoted, so a
+divergence would show.
 
 ## Beta app description (TestFlight, app-level, both platforms)
 
@@ -86,13 +92,13 @@ RefineID är öppen källkod.
 • Förbättrad dokumenthantering
 ```
 
-One string per localization, shared by both platforms, written only when a
-live version exists.
+One string per localization, shared by both platforms; the manager writes it
+only when a live version exists.
 
 ## iOS description
 
 Platform versions carry their own description in App Store Connect. This one
-names the iPhone and its wireless reader.
+names the phone and its wireless reader.
 
 ### English
 
@@ -135,10 +141,8 @@ Du kan även använda telefonen trådlöst som kortläsare.
 
 ## macOS description
 
-The Mac release works with a card and a reader: it names no wireless phone
-reader, because remote use through a phone is not part of it. It also makes
-no claim about which readers are "compatible", which says nothing a buyer
-can act on: a card either fits the reader or it does not.
+The Mac release names no wireless phone reader: remote use through a phone is
+not part of this release.
 
 ### English
 
@@ -180,9 +184,9 @@ Sätt identitetskortet i en USB-kortläsare och logga in på e-tjänster direkt 
 ```
 
 ## Keywords
-- English: `identity card`
-- Suomi: `henkilökortti`
-- Svenska: `identitetskort`
+- en (English): `identity card`
+- fi (Suomi): `henkilökortti`
+- sv (Svenska): `identitetskort`
 
 ## App Store Connect fields
 
