@@ -357,10 +357,11 @@ record for RAPP and its applications.
   self-review. The first review uses `muse exec --model
   muse-spark-1.3-contributor`; work written in that family is reviewed
   by another family instead. Protocol, cryptography and state-machine
-  changes gain a second review from a family other than the author's:
-  `agy --model claude-opus-4-6-thinking`, or the strongest model a
-  headless CLI offers that day when that one is unavailable or comes
-  from the author's own family.
+  changes gain a second review from a family other than the author's.
+  Always installed are `agy` and `opencode`; `codex` and `claude` join
+  them when present. Take them in that order at the strongest model each
+  offers -- `agy` at `claude-opus-4-6-thinking` -- and stop at the first
+  whose family differs from the author's.
 - Run the reviewer in a sandbox and plan mode, from an empty directory,
   with the diff pasted into the prompt and no tool use. Frame the request as
   a code review from the project's author.
