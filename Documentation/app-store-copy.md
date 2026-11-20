@@ -1,9 +1,12 @@
 # App Store copy
 
-Status: reconciled with `Metadata/appstore.json`, 2026-08-16. The JSON is
-what `Scripts/apple-app-store-connect-release-manager.swift metadata`
-pushes; this file explains and mirrors it. If the two differ, the JSON
-is what the store shows, and the difference is a bug in this file.
+Status: the store-visible copy as `Metadata/appstore.json` carries it, which
+`Scripts/apple-app-store-connect-release-manager.swift metadata` pushes. If
+the two differ, the JSON is what the store shows, and the difference is a
+bug in this file.
+
+The quoted copy keeps the characters the store receives, so the Finnish and
+Swedish text carries its accents and the bullets stay bullets.
 
 Character limits:
  * name 30
@@ -16,117 +19,174 @@ Character limits:
 RefineID (all languages)
 
 ## Subtitle (<=30 characters)
-
-- en: `Use your identity card online`
-- fi: `Käytä henkilökorttia verkossa`
-- sv: `Använd identitetskortet online`
+- en (English): `Authenticate and sign`
+- fi (Suomi): `Tunnistaudu ja allekirjoita`
+- sv (Svenska): `Identifiera och underteckna`
 
 ## Promotional text (<=170 characters)
+- en (English)
+  - `macos`: `Authenticate and sign with your identity card.`
+  - `ios`: `Authenticate and sign with your identity card.`
+- fi (Suomi)
+  - `macos`: `Tunnistaudu ja allekirjoita henkilökortilla.`
+  - `ios`: `Tunnistaudu ja allekirjoita henkilökortilla.`
+- sv (Svenska)
+  - `macos`: `Identifiera dig och underteckna med identitetskortet.`
+  - `ios`: `Identifiera dig och underteckna med identitetskortet.`
 
-- en: `Log in to services with your identity card and sign documents.`
-- fi: `Kirjaudu palveluihin henkilökortilla ja allekirjoita asiakirjoja.`
-- sv: `Logga in på tjänster med ditt identitetskort och underteckna dokument.`
-
-The macOS and iOS promotional texts are the same: both platforms sign
-documents since 26.8.16.
+Each platform carries its own promotional text field. Both are quoted, so a
+divergence would show.
 
 ## Beta app description (TestFlight, app-level, both platforms)
 
-- en: `RefineID brings the Finnish identity card to your Mac and iPhone.`
+### English
 
-  `Attach a USB smart-card reader, insert your identity card, and sign in to
-  e-services directly in Safari with the certificate on your card.`
+```text
+RefineID brings the Finnish identity card to your Mac and iPhone.
 
-  `RefineID is open source.`
-- fi: `RefineID tuo suomalaisen henkilökortin Maciin ja iPhoneen.`
+Attach a USB smart-card reader, insert your identity card, and sign in to e-services directly in Safari with the certificate on your card.
 
-  `Liitä USB-kortinlukija, aseta henkilökortti lukijaan ja kirjaudu
-  sähköisiin palveluihin suoraan Safarissa kortillasi.`
+RefineID is open source.
+```
 
-  `RefineID on avointa lähdekoodia.`
-- sv: `RefineID tar det finländska identitetskortet till Mac och iPhone.`
+### Suomi
 
-  `Anslut en USB-kortläsare, sätt i ditt identitetskort och logga in på
-  e-tjänster direkt i Safari med certifikatet på ditt kort.`
+```text
+RefineID tuo suomalaisen henkilökortin Maciin ja iPhoneen.
 
-  `RefineID är öppen källkod.`
+Liitä USB-kortinlukija, aseta henkilökortti lukijaan ja kirjaudu sähköisiin palveluihin suoraan Safarissa kortillasi.
+
+RefineID on avointa lähdekoodia.
+```
+
+### Svenska
+
+```text
+RefineID tar det finländska identitetskortet till Mac och iPhone.
+
+Anslut en USB-kortläsare, sätt i ditt identitetskort och logga in på e-tjänster direkt i Safari med certifikatet på ditt kort.
+
+RefineID är öppen källkod.
+```
+
+## Release notes (What's New)
+
+### English
+
+```text
+• Card activation and PIN code management
+• Improved document handling
+```
+
+### Suomi
+
+```text
+• Kortin aktivointi ja tunnuslukujen hallinta
+• Parannettu asiakirjojen käsittely
+```
+
+### Svenska
+
+```text
+• Aktivering av kort och hantering av koder
+• Förbättrad dokumenthantering
+```
+
+One string per localization, shared by both platforms; the manager writes it
+only when a live version exists.
 
 ## iOS description
 
+Platform versions carry their own description in App Store Connect. This one
+names the phone and its wireless reader.
+
 ### English
 
-RefineID brings the Finnish identity card to iPhone.
+```text
+Identity card reader and signing tool.
 
-Read your card with a USB-C smart-card reader, or wirelessly on iPhone,
-then sign in to e-services directly in Safari with the certificate on
-your card. Pick a PDF in RefineID to sign it with a qualified signature.
+You can also use your phone wirelessly as a card reader.
 
-RefineID is open source: github.com/refineid/refineid-apple
+• Sign in to online services: Authenticate to e-services.
+• Sign and verify documents: Create a qualified electronic signature and verify signed documents.
+• Card and certificate management: Card activation and PIN code management.
+• Privacy: No ads or tracking, open source: github.com/refineid
+```
 
 ### Suomi
 
-RefineID tuo suomalaisen henkilökortin iPhoneen.
+```text
+Henkilökortinlukija ja allekirjoitustyökalu.
 
-Lue korttisi USB-C-kortinlukijalla, tai iPhonessa langattomasti, ja
-kirjaudu sähköisiin palveluihin suoraan Safarissa kortin varmenteella.
-Valitse PDF RefineID:ssä ja allekirjoita se hyväksytyllä sähköisellä
-allekirjoituksella.
+Voit käyttää myös puhelinta langattomasti kortinlukijana.
 
-RefineID on avointa lähdekoodia: github.com/refineid/refineid-apple
+• Kirjaudu verkkopalveluihin: Tunnistaudu sähköisiin asiointipalveluihin.
+• Allekirjoita ja tarkasta asiakirjoja: Tee asiakirjoihin hyväksytty sähköinen allekirjoitus ja tarkasta allekirjoitukset.
+• Kortin ja varmenteiden hallinta: Kortin aktivointi ja tunnuslukujen hallinta.
+• Yksityisyys: Ei mainoksia tai seurantaa, avointa lähdekoodia: github.com/refineid
+```
 
 ### Svenska
 
-RefineID tar det finländska identitetskortet till iPhone.
+```text
+Identitetskortläsare och underskriftsverktyg.
 
-Läs kortet med en USB-C-kortläsare, eller trådlöst på iPhone, och logga
-in på e-tjänster direkt i Safari med kortets certifikat. Välj en PDF i
-RefineID för att underteckna den med en kvalificerad elektronisk
-underskrift.
+Du kan även använda telefonen trådlöst som kortläsare.
 
-RefineID är öppen källkod: github.com/refineid/refineid-apple
+• Logga in på e-tjänster: Identifiera dig i e-tjänster.
+• Underteckna och granska dokument: Skapa en kvalificerad elektronisk underskrift och granska dokument.
+• Hantering av kort och certifikat: Aktivering av kort och hantering av koder.
+• Integritet: Ingen reklam eller spårning, öppen källkod: github.com/refineid
+```
 
 ## macOS description
 
-Platform versions carry their own description in App Store Connect; the
-iOS text above names the iPhone and its readers, so the Mac release
-needs this one. Same rules: 4000 characters, en/fi/sv.
+The Mac release names no wireless phone reader: remote use through a phone is
+not part of this release.
 
 ### English
 
-A reader for the Finnish identity card.
+```text
+Identity card reader and signing tool.
 
-Insert your identity card into a USB smart-card reader and sign in to
-e-services directly in Safari with the certificate on your card. Drop a
-PDF on RefineID to sign it with a qualified signature.
+Insert your identity card into a USB smart-card reader and sign in to e-services directly in Safari with the certificate on your card.
 
-RefineID is open source: github.com/refineid/refineid-apple
+• Sign in to online services: Authenticate to e-services.
+• Sign documents: Create a qualified electronic signature.
+• Card and certificate management: Card activation and PIN code management.
+• Privacy: No ads or tracking, open source: github.com/refineid
+```
 
 ### Suomi
 
-Suomalaisen henkilökortin lukija.
+```text
+Henkilökortinlukija ja allekirjoitustyökalu.
 
-Aseta henkilökortti USB-kortinlukijaan ja kirjaudu sähköisiin
-palveluihin suoraan Safarissa kortin varmenteella. Pudota PDF
-RefineID:hen ja allekirjoita se hyväksytyllä sähköisellä
-allekirjoituksella.
+Aseta henkilökortti USB-kortinlukijaan ja kirjaudu sähköisiin palveluihin suoraan Safarissa kortin varmenteella.
 
-RefineID on avointa lähdekoodia: github.com/refineid/refineid-apple
+• Kirjaudu verkkopalveluihin: Tunnistaudu sähköisiin asiointipalveluihin.
+• Allekirjoita asiakirjoja: Tee asiakirjoihin hyväksytty sähköinen allekirjoitus.
+• Kortin ja varmenteiden hallinta: Kortin aktivointi ja tunnuslukujen hallinta.
+• Yksityisyys: Ei mainoksia tai seurantaa, avointa lähdekoodia: github.com/refineid
+```
 
 ### Svenska
 
-En läsare för det finländska identitetskortet.
+```text
+Identitetskortläsare och underskriftsverktyg.
 
-Sätt identitetskortet i en USB-kortläsare och logga in på e-tjänster
-direkt i Safari med kortets certifikat. Släpp en PDF på RefineID för
-att underteckna den med en kvalificerad elektronisk underskrift.
+Sätt identitetskortet i en USB-kortläsare och logga in på e-tjänster direkt i Safari med kortets certifikat.
 
-RefineID är öppen källkod: github.com/refineid/refineid-apple
+• Logga in på e-tjänster: Identifiera dig i e-tjänster.
+• Underteckna dokument: Skapa en kvalificerad elektronisk underskrift.
+• Hantering av kort och certifikat: Aktivering av kort och hantering av koder.
+• Integritet: Ingen reklam eller spårning, öppen källkod: github.com/refineid
+```
 
 ## Keywords
-
-- en: `identity card`
-- fi: `henkilökortti`
-- sv: `identitetskort`
+- en (English): `identity card`
+- fi (Suomi): `henkilökortti`
+- sv (Svenska): `identitetskort`
 
 ## App Store Connect fields
 
