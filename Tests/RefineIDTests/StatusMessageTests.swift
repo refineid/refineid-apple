@@ -19,6 +19,9 @@
     private static let otherSigned = URL(filePath: "/documents/other - signed.pdf")
     private static let notice = "The signature stays below the long-term archival level."
     private static let pileSize = 2
+    private static let refusal = "The signed file cannot replace the document."
+    private static let signedBytes = Data("signed".utf8)
+    private static let waitRounds = 10_000
 
     /// A signature in flight speaks its step in the row, as the step
     /// moves on.
@@ -83,23 +86,47 @@
 
     /// Clearing an old failure resumes the signature waiting for its
     /// acknowledgement, even before the new action starts a document.
-    @Test
-    internal func aNewActionResumesThePreviousFailureAcknowledgement() async {
+    @Test(.timeLimit(.minutes(1)))
+    internal func aNewActionResumesThePreviousFailureAcknowledgement() async throws {
       let signing = SignDocumentModel()
-      await withCheckedContinuation { continuation in
-        signing.acknowledgement = continuation
-        signing.fail(message: Self.failure)
+      async let waiting: Void = signing.failAndWait(Self.failure)
+      try await untilFailureIsWaiting(signing)
+      #expect(StatusMessage(signing) == .failure(Self.failure))
 
-        signing.beginAction()
-        #expect(signing.acknowledgement == nil)
-
-        // Release a continuation left behind after reporting the
-        // failure, so the regression cannot leave this test waiting.
-        if signing.acknowledgement != nil {
-          signing.releaseAcknowledgement()
-        }
-      }
+      signing.beginAction()
+      await waiting
       #expect(StatusMessage(signing) == nil)
+    }
+
+    /// A retry after the acknowledgement signs the pending document and
+    /// lands the file where the panel said.
+    @Test(.timeLimit(.minutes(1)))
+    internal func aRetryAfterAcknowledgementSignsThePendingDocument() async throws {
+      let signing = SignDocumentModel()
+      signing.accept([Self.document])
+      let folder = FileManager.default.temporaryDirectory
+        .appending(path: UUID().uuidString, directoryHint: .isDirectory)
+      try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+      defer { try? FileManager.default.removeItem(at: folder) }
+      let destination = folder.appending(path: Self.signedFile.lastPathComponent)
+      let finished = SignedDocument(untimestamped: Self.signedBytes, clock: Date())
+      var answers = [
+        SignDocumentModel.PlaceAnswer(destination: Self.document, typedName: nil),
+        SignDocumentModel.PlaceAnswer(destination: destination, typedName: nil),
+      ]
+      async let saving: Bool = signing.save(
+        finished,
+        originals: [Self.document],
+        refusal: Self.refusal,
+        choose: { _, _ in answers.removeFirst() })
+
+      try await untilFailureIsWaiting(signing)
+      #expect(StatusMessage(signing) == .failure(Self.refusal))
+
+      signing.acknowledgeFailure()
+      #expect(await saving)
+      #expect(signing.signedFiles == [destination])
+      #expect(try Data(contentsOf: destination) == finished.bytes)
     }
 
     /// The previous notice and saved files belong to their completed
@@ -190,6 +217,19 @@
 
       signing.beginAction()
       #expect(StatusMessage(signing) == nil, "a new action starts with nothing saved")
+    }
+
+    /// Yields until the model holds a signature waiting on its failure
+    /// alert, so the test acts on a waiter rather than on its absence.
+    private func untilFailureIsWaiting(_ signing: SignDocumentModel) async throws {
+      var rounds = 0
+      while signing.acknowledgement == nil, rounds < Self.waitRounds {
+        await Task.yield()
+        rounds += 1
+      }
+      try #require(
+        signing.acknowledgement != nil,
+        "the model never held a signature waiting on its failure alert")
     }
   }
 
