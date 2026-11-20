@@ -37,7 +37,7 @@
       },
       "whatsNew": "• Card activation and PIN code management\n• Improved document handling",
       "description": {
-        "macos": "Identity card reader and signing tool.\n\nConnect a compatible smart-card reader to your Mac.\n\n• Sign in to online services: Authenticate to e-services.\n• Sign documents: Create a qualified electronic signature.\n• Card and certificate management: Card activation and PIN code management.\n• Privacy: No ads or tracking, open source: github.com/refineid",
+        "macos": "Identity card reader and signing tool.\n\nInsert your identity card into a USB smart-card reader and sign in to e-services directly in Safari with the certificate on your card.\n\n• Sign in to online services: Authenticate to e-services.\n• Sign documents: Create a qualified electronic signature.\n• Card and certificate management: Card activation and PIN code management.\n• Privacy: No ads or tracking, open source: github.com/refineid",
         "ios": "Identity card reader and signing tool.\n\nYou can also use your phone wirelessly as a card reader.\n\n• Sign in to online services: Authenticate to e-services.\n• Sign and verify documents: Create a qualified electronic signature and verify signed documents.\n• Card and certificate management: Card activation and PIN code management.\n• Privacy: No ads or tracking, open source: github.com/refineid"
       },
       "whatToTest": {
@@ -56,7 +56,7 @@
       },
       "whatsNew": "• Kortin aktivointi ja tunnuslukujen hallinta\n• Parannettu asiakirjojen käsittely",
       "description": {
-        "macos": "Henkilökortinlukija ja allekirjoitustyökalu.\n\nLiitä yhteensopiva kortinlukija Maciin.\n\n• Kirjaudu verkkopalveluihin: Tunnistaudu sähköisiin asiointipalveluihin.\n• Allekirjoita asiakirjoja: Tee asiakirjoihin hyväksytty sähköinen allekirjoitus.\n• Kortin ja varmenteiden hallinta: Kortin aktivointi ja tunnuslukujen hallinta.\n• Yksityisyys: Ei mainoksia tai seurantaa, avointa lähdekoodia: github.com/refineid",
+        "macos": "Henkilökortinlukija ja allekirjoitustyökalu.\n\nAseta henkilökortti USB-kortinlukijaan ja kirjaudu sähköisiin palveluihin suoraan Safarissa kortin varmenteella.\n\n• Kirjaudu verkkopalveluihin: Tunnistaudu sähköisiin asiointipalveluihin.\n• Allekirjoita asiakirjoja: Tee asiakirjoihin hyväksytty sähköinen allekirjoitus.\n• Kortin ja varmenteiden hallinta: Kortin aktivointi ja tunnuslukujen hallinta.\n• Yksityisyys: Ei mainoksia tai seurantaa, avointa lähdekoodia: github.com/refineid",
         "ios": "Henkilökortinlukija ja allekirjoitustyökalu.\n\nVoit käyttää myös puhelinta langattomasti kortinlukijana.\n\n• Kirjaudu verkkopalveluihin: Tunnistaudu sähköisiin asiointipalveluihin.\n• Allekirjoita ja tarkasta asiakirjoja: Tee asiakirjoihin hyväksytty sähköinen allekirjoitus ja tarkasta allekirjoitukset.\n• Kortin ja varmenteiden hallinta: Kortin aktivointi ja tunnuslukujen hallinta.\n• Yksityisyys: Ei mainoksia tai seurantaa, avointa lähdekoodia: github.com/refineid"
       },
       "whatToTest": {
@@ -75,7 +75,7 @@
       },
       "whatsNew": "• Aktivering av kort och hantering av koder\n• Förbättrad dokumenthantering",
       "description": {
-        "macos": "Identitetskortläsare och underskriftsverktyg.\n\nAnslut en kompatibel kortläsare till din Mac.\n\n• Logga in på e-tjänster: Identifiera dig i e-tjänster.\n• Underteckna dokument: Skapa en kvalificerad elektronisk underskrift.\n• Hantering av kort och certifikat: Aktivering av kort och hantering av koder.\n• Integritet: Ingen reklam eller spårning, öppen källkod: github.com/refineid",
+        "macos": "Identitetskortläsare och underskriftsverktyg.\n\nSätt identitetskortet i en USB-kortläsare och logga in på e-tjänster direkt i Safari med kortets certifikat.\n\n• Logga in på e-tjänster: Identifiera dig i e-tjänster.\n• Underteckna dokument: Skapa en kvalificerad elektronisk underskrift.\n• Hantering av kort och certifikat: Aktivering av kort och hantering av koder.\n• Integritet: Ingen reklam eller spårning, öppen källkod: github.com/refineid",
         "ios": "Identitetskortläsare och underskriftsverktyg.\n\nDu kan även använda telefonen trådlöst som kortläsare.\n\n• Logga in på e-tjänster: Identifiera dig i e-tjänster.\n• Underteckna och granska dokument: Skapa en kvalificerad elektronisk underskrift och granska dokument.\n• Hantering av kort och certifikat: Aktivering av kort och hantering av koder.\n• Integritet: Ingen reklam eller spårning, öppen källkod: github.com/refineid"
       },
       "whatToTest": {
