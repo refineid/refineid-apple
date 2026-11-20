@@ -380,7 +380,12 @@ Scripts/apple-app-store-connect-release-manager.swift age-rating
 Scripts/apple-app-store-connect-release-manager.swift export-compliance macos
 Scripts/apple-app-store-connect-release-manager.swift pricing
 Scripts/apple-app-store-connect-release-manager.swift attach-build macos "$VERSION" "$BUILD"
+Scripts/apple-app-store-connect-release-manager.swift version macos "$VERSION"
 ```
+
+`version` prints the version identifier, its state, and the number, processing
+state and identifier of the build attached to it. Read the release record from
+that output rather than from an ad-hoc API query.
 
 Review App Store Connect after these commands. Confirm the exact build,
 localizations, screenshots, privacy information, age rating, pricing,
