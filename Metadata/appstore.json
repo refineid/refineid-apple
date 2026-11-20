@@ -43,7 +43,8 @@
       "whatToTest": {
         "ios": "• Set up a card over NFC: check that the app keeps the CAN and retries after a missed scan. Check that an incorrect CAN returns to entry and Cancel stops scanning.\n• Check the shorter QR reader title in English, Finnish and Swedish.\n• Sign and verify documents, and use the card from a paired iPad.",
         "macos": "Mac App Store candidate for 26.11.20.\n• Connect a USB smart card reader, insert your identity card, then activate the card and manage PIN codes.\n• Sign a PDF or ASiC document, and sign in to e-services in Safari with the card. Signing now completes on a first run with an empty trusted-list cache.\n• Remote use through a phone is not part of this release."
-      }
+      },
+      "betaDescription": "RefineID brings the Finnish identity card to your Mac and iPhone.\n\nAttach a USB smart-card reader, insert your identity card, and sign in to e-services directly in Safari with the certificate on your card.\n\nRefineID is open source."
     },
     "fi": {
       "subtitle": "Tunnistaudu ja allekirjoita",
@@ -61,7 +62,8 @@
       "whatToTest": {
         "ios": "• Ota kortti käyttöön NFC:llä: tarkista, että sovellus säilyttää CAN-koodin ja yrittää uudelleen, jos lukeminen ei onnistu. Väärän CAN-koodin pitää palauttaa koodin syöttöön ja Peruuta-painikkeen lopettaa lukeminen.\n• Tarkista QR-lukijan lyhyt otsikko suomeksi, ruotsiksi ja englanniksi.\n• Allekirjoita ja tarkista asiakirjoja sekä käytä korttia yhdistetystä iPadista.",
         "macos": "Mac App Store -julkaisuehdokas 26.11.20.\n• Liitä USB-kortinlukija, aseta henkilökortti lukijaan ja aktivoi kortti sekä hallitse tunnuslukuja.\n• Allekirjoita PDF- tai ASiC-asiakirja ja kirjaudu verkkopalveluihin Safarissa kortilla. Allekirjoitus valmistuu nyt myös ensimmäisellä kerralla, kun luotettujen luetteloiden välimuisti on tyhjä.\n• Etäkäyttö puhelimen kautta ei sisälly tähän julkaisuun."
-      }
+      },
+      "betaDescription": "RefineID tuo suomalaisen henkilökortin Maciin ja iPhoneen.\n\nLiitä USB-kortinlukija, aseta henkilökortti lukijaan ja kirjaudu sähköisiin palveluihin suoraan Safarissa kortillasi.\n\nRefineID on avointa lähdekoodia."
     },
     "sv": {
       "subtitle": "Identifiera och underteckna",
@@ -79,7 +81,8 @@
       "whatToTest": {
         "ios": "• Ställ in kortet med NFC: kontrollera att appen behåller CAN-koden och försöker igen om läsningen misslyckas. Kontrollera att fel CAN öppnar inmatningen och att Avbryt stoppar läsningen.\n• Kontrollera QR-läsarens kortare rubrik på engelska, finska och svenska.\n• Underteckna och granska dokument och använd kortet från en parkopplad iPad.",
         "macos": "Mac App Store-kandidat för 26.11.20.\n• Anslut en USB-kortläsare, sätt in ditt identitetskort och aktivera kortet samt hantera koder.\n• Underteckna ett PDF- eller ASiC-dokument och logga in på e-tjänster i Safari med kortet. Undertecknandet slutförs nu även första gången cachen med betrodda listor är tom.\n• Fjärråtkomst via telefon ingår inte i den här versionen."
-      }
+      },
+      "betaDescription": "RefineID tar det finländska identitetskortet till Mac och iPhone.\n\nAnslut en USB-kortläsare, sätt i ditt identitetskort och logga in på e-tjänster direkt i Safari med certifikatet på ditt kort.\n\nRefineID är öppen källkod."
     }
   }
 }

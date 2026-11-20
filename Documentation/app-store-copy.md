@@ -30,6 +30,27 @@ RefineID (all languages)
 The macOS and iOS promotional texts are the same: both platforms sign
 documents since 26.8.16.
 
+## Beta app description (TestFlight, app-level, both platforms)
+
+- en: `RefineID brings the Finnish identity card to your Mac and iPhone.`
+
+  `Attach a USB smart-card reader, insert your identity card, and sign in to
+  e-services directly in Safari with the certificate on your card.`
+
+  `RefineID is open source.`
+- fi: `RefineID tuo suomalaisen henkilökortin Maciin ja iPhoneen.`
+
+  `Liitä USB-kortinlukija, aseta henkilökortti lukijaan ja kirjaudu
+  sähköisiin palveluihin suoraan Safarissa kortillasi.`
+
+  `RefineID on avointa lähdekoodia.`
+- sv: `RefineID tar det finländska identitetskortet till Mac och iPhone.`
+
+  `Anslut en USB-kortläsare, sätt i ditt identitetskort och logga in på
+  e-tjänster direkt i Safari med certifikatet på ditt kort.`
+
+  `RefineID är öppen källkod.`
+
 ## iOS description
 
 ### English

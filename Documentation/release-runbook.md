@@ -376,6 +376,7 @@ Scripts/apple-app-store-connect-release-manager.swift review-contact macos "$VER
 # Generate/refresh screenshots if needed:
 # Scripts/apple-app-store-connect-release-manager.swift capture-screenshots
 Scripts/apple-app-store-connect-release-manager.swift screenshots macos "$VERSION"
+Scripts/apple-app-store-connect-release-manager.swift beta-info
 Scripts/apple-app-store-connect-release-manager.swift age-rating
 Scripts/apple-app-store-connect-release-manager.swift export-compliance macos
 Scripts/apple-app-store-connect-release-manager.swift pricing
@@ -429,9 +430,13 @@ Versions release automatically on App Review approval (owner decision
 
 1. Confirm the released build matches the recorded source commit, version,
    build, and hardware evidence.
-2. Create the final release tag with owner approval. Do not use
-   `stamp --tag`; its current tag command is for the iOS channel
-   naming scheme.
+2. Create the release tag with owner approval, annotated and naming the
+   channel and the build it was cut from:
+   `v<MARKETING_VERSION>-beta.<CURRENT_PROJECT_VERSION>` for the TestFlight
+   candidate (`v26.11.20-beta.658`) and `v<MARKETING_VERSION>` for the App
+   Store release. Annotated only; the message names the app, version and
+   build. Do not use `stamp --tag`; its current tag command is for the iOS
+   channel naming scheme.
 3. Record the release outcome and UTC time in `Documentation/releases/`.
 4. Monitor review messages, crash reports, TestFlight/App Store feedback, and
    security reports.
