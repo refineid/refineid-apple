@@ -14,6 +14,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 import contextlib
 from dataclasses import dataclass
+from enum import Enum
 import os
 from pathlib import Path
 import select
@@ -111,12 +112,21 @@ class SignalEvents:
         os.close(self.writer)
 
 
+class ProcessOutcome(Enum):
+    """What waiting on tracked processes concluded."""
+
+    EXITED = "exited"
+    TIMED_OUT = "timed_out"
+    NOT_TRACKED = "not_tracked"
+
+
 class ProcessEvents:
     """Track process exit notifications without sampling process state."""
 
     def __init__(self, cancellation: SignalEvents | None = None) -> None:
         self.queue = select.kqueue()
         self.pending: set[int] = set()
+        self.exited: set[int] = set()
         self.cancellation = cancellation
         if cancellation is not None:
             event = select.kevent(
@@ -133,6 +143,7 @@ class ProcessEvents:
     def add(self, pid: int) -> None:
         if pid in self.pending:
             return
+        self.exited.discard(pid)
         event = select.kevent(
             pid,
             filter=select.KQ_FILTER_PROC,
@@ -142,13 +153,16 @@ class ProcessEvents:
         try:
             self.queue.control([event], NO_EVENTS, NO_WAIT_SECONDS)
         except ProcessLookupError:
+            self.exited.add(pid)
             return
         self.pending.add(pid)
 
-    def wait(self, timeout: float) -> bool:
+    def wait(self, timeout: float) -> ProcessOutcome:
         return self.wait_for(None, timeout)
 
-    def wait_for(self, pid: int | None, timeout: float) -> bool:
+    def wait_for(self, pid: int | None, timeout: float) -> ProcessOutcome:
+        if pid is not None and pid not in self.pending:
+            return ProcessOutcome.EXITED if pid in self.exited else ProcessOutcome.NOT_TRACKED
         deadline = time.monotonic() + timeout
         if self.cancellation is not None:
             self.cancellation.raise_if_requested()
@@ -156,14 +170,15 @@ class ProcessEvents:
             remaining = max(NO_WAIT_SECONDS, deadline - time.monotonic())
             events = self.queue.control(None, len(self.pending), remaining)
             if not events:
-                return False
+                return ProcessOutcome.TIMED_OUT
             for event in events:
                 if event.filter == select.KQ_FILTER_PROC:
                     self.pending.discard(event.ident)
+                    self.exited.add(event.ident)
                 elif self.cancellation is not None:
                     os.read(self.cancellation.reader, SIGNAL_READ_BUFFER_BYTES)
                     self.cancellation.raise_if_requested()
-        return True
+        return ProcessOutcome.EXITED
 
 
 def process_snapshot() -> tuple[ProcessRecord, ...]:
@@ -267,7 +282,7 @@ def cleanup(
         survey_succeeded = (
             signal_external_records(records, process.pid, signal.SIGTERM) and survey_succeeded
         )
-        if events.wait(grace):
+        if events.wait(grace) is ProcessOutcome.EXITED:
             process.wait()
             return survey_succeeded and ownership_is_clear(process.pid, products, preexisting)
         try:
@@ -284,7 +299,7 @@ def cleanup(
         survey_succeeded = (
             signal_external_records(remaining, process.pid, signal.SIGKILL) and survey_succeeded
         )
-        complete = events.wait(grace)
+        complete = events.wait(grace) is ProcessOutcome.EXITED
         if process.pid not in events.pending:
             process.wait()
         return (
@@ -317,7 +332,7 @@ def supervise(
             process = subprocess.Popen(command, start_new_session=True)
             with ProcessEvents(cancellation) as events:
                 events.add(process.pid)
-                if events.wait(timeout):
+                if events.wait(timeout) is ProcessOutcome.EXITED:
                     completed_normally = True
                 else:
                     print(

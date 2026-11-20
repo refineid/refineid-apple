@@ -104,8 +104,10 @@ class RunnerTests(unittest.TestCase):
     def finish(self, process: subprocess.Popen[bytes]) -> tuple[int, str, str]:
         with runner.ProcessEvents() as events:
             events.add(process.pid)
-            self.assertTrue(
-                events.wait(EVENT_TIMEOUT_SECONDS), "synthetic supervisor did not finish"
+            self.assertIs(
+                events.wait(EVENT_TIMEOUT_SECONDS),
+                runner.ProcessOutcome.EXITED,
+                "synthetic supervisor did not finish",
             )
         status = process.wait()
         return status, read_available(process.stdout), read_available(process.stderr)
@@ -155,8 +157,10 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("exceeded its deadline", stderr)
         self.assertNotIn(str(self.root), stderr)
         self.assertNotIn("fixture.py", stderr)
-        self.assertTrue(
-            descendants.wait(EVENT_TIMEOUT_SECONDS), "owned descendants survived timeout"
+        self.assertIs(
+            descendants.wait(EVENT_TIMEOUT_SECONDS),
+            runner.ProcessOutcome.EXITED,
+            "owned descendants survived timeout",
         )
 
     def test_cancellation_reaps_owned_processes(self) -> None:
@@ -169,10 +173,59 @@ class RunnerTests(unittest.TestCase):
                 status, _, stderr = self.finish(process)
                 self.assertEqual(status, runner.SIGNAL_EXIT_STATUS_BASE + signum)
                 self.assertIn("interruption requested", stderr)
-                self.assertTrue(
+                self.assertIs(
                     descendants.wait(EVENT_TIMEOUT_SECONDS),
+                    runner.ProcessOutcome.EXITED,
                     "owned descendants survived cancellation",
                 )
+
+    def test_wait_reports_a_watched_process_that_exits(self) -> None:
+        process = subprocess.Popen([sys.executable, "-c", HOST_WAIT_SOURCE])
+        try:
+            with runner.ProcessEvents() as events:
+                events.add(process.pid)
+                process.kill()
+                self.assertIs(
+                    events.wait_for(process.pid, EVENT_TIMEOUT_SECONDS),
+                    runner.ProcessOutcome.EXITED,
+                    "a watched process that exits is not reported as exited",
+                )
+        finally:
+            process.kill()
+            process.wait()
+
+    def test_wait_reports_a_process_that_ended_before_the_watch(self) -> None:
+        process = subprocess.Popen([sys.executable, "-c", "pass"])
+        process.wait()
+        with runner.ProcessEvents() as events:
+            events.add(process.pid)
+            self.assertIs(
+                events.wait_for(process.pid, EVENT_TIMEOUT_SECONDS),
+                runner.ProcessOutcome.EXITED,
+                "a process that had ended is not reported as exited",
+            )
+
+    def test_wait_reports_a_process_that_outlives_the_wait(self) -> None:
+        process = subprocess.Popen([sys.executable, "-c", HOST_WAIT_SOURCE])
+        try:
+            with runner.ProcessEvents() as events:
+                events.add(process.pid)
+                self.assertIs(
+                    events.wait_for(process.pid, TEST_GRACE_SECONDS),
+                    runner.ProcessOutcome.TIMED_OUT,
+                    "a process that outlived the wait is not reported as timed out",
+                )
+        finally:
+            process.kill()
+            process.wait()
+
+    def test_wait_reports_a_process_it_never_tracked(self) -> None:
+        with runner.ProcessEvents() as events:
+            self.assertIs(
+                events.wait_for(os.getpid(), TEST_GRACE_SECONDS),
+                runner.ProcessOutcome.NOT_TRACKED,
+                "a process the watch never added is not reported as untracked",
+            )
 
     def test_preserves_unrelated_process(self) -> None:
         sleeper = subprocess.Popen([sys.executable, "-c", "import signal; signal.pause()"])
@@ -213,7 +266,11 @@ class RunnerTests(unittest.TestCase):
                     events.add(record.pid)
                 status, _, _ = self.finish(process)
                 self.assertEqual(status, runner.TIMEOUT_EXIT_STATUS)
-                self.assertTrue(events.wait(EVENT_TIMEOUT_SECONDS), "owned products host survived")
+                self.assertIs(
+                    events.wait(EVENT_TIMEOUT_SECONDS),
+                    runner.ProcessOutcome.EXITED,
+                    "owned products host survived",
+                )
             os.kill(existing.pid, SIGNAL_EXISTENCE_CHECK)
         finally:
             existing.terminate()

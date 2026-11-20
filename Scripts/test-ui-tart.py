@@ -112,8 +112,11 @@ def run_tart_tests(vm_name: str, scope: str, root: Path) -> int:
                 processes.append(ready)
                 events.add(ready.pid)
                 print("Waiting for the UI test guest agent.", flush=True)
-                if not events.wait_for(
-                    ready.pid, VM_READY_TIMEOUT_SECONDS + TART_COMMAND_ALLOWANCE_SECONDS
+                if (
+                    events.wait_for(
+                        ready.pid, VM_READY_TIMEOUT_SECONDS + TART_COMMAND_ALLOWANCE_SECONDS
+                    )
+                    is not runner.ProcessOutcome.EXITED
                 ):
                     print(
                         "UI test setup failed: the guest agent exceeded its readiness deadline.",
@@ -167,8 +170,11 @@ def run_tart_tests(vm_name: str, scope: str, root: Path) -> int:
                 )
                 processes.append(tests)
                 events.add(tests.pid)
-                if not events.wait_for(
-                    tests.pid, runner.DEFAULT_TIMEOUT_SECONDS + GUEST_CLEANUP_ALLOWANCE_SECONDS
+                if (
+                    events.wait_for(
+                        tests.pid, runner.DEFAULT_TIMEOUT_SECONDS + GUEST_CLEANUP_ALLOWANCE_SECONDS
+                    )
+                    is not runner.ProcessOutcome.EXITED
                 ):
                     print(
                         "UI test runner failed: guest invocation exceeded its deadline.",

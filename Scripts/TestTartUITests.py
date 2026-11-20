@@ -143,8 +143,10 @@ class TartLifecycleTests(unittest.TestCase):
     def finish(self, process: subprocess.Popen[bytes]) -> tuple[int, str, str]:
         with runner.ProcessEvents() as events:
             events.add(process.pid)
-            self.assertTrue(
-                events.wait(EVENT_TIMEOUT_SECONDS), "synthetic Tart workflow did not finish"
+            self.assertIs(
+                events.wait(EVENT_TIMEOUT_SECONDS),
+                runner.ProcessOutcome.EXITED,
+                "synthetic Tart workflow did not finish",
             )
         status = process.wait()
         return status, available_output(process.stdout), available_output(process.stderr)
@@ -198,7 +200,11 @@ class TartLifecycleTests(unittest.TestCase):
         self.assertEqual(status, runner.FAILURE_EXIT_STATUS)
         self.assertIn("did not become ready", stderr)
         self.assertNotIn("exec", {record["command"] for record in self.records()})
-        self.assertTrue(owned.wait(EVENT_TIMEOUT_SECONDS), "owned VM survived readiness failure")
+        self.assertIs(
+            owned.wait(EVENT_TIMEOUT_SECONDS),
+            runner.ProcessOutcome.EXITED,
+            "owned VM survived readiness failure",
+        )
 
     def test_guest_test_failure_preserves_exit_status(self) -> None:
         status, _, _ = self.finish(self.start("test-failure"))
@@ -216,8 +222,10 @@ class TartLifecycleTests(unittest.TestCase):
                 status, _, stderr = self.finish(process)
                 self.assertEqual(status, runner.SIGNAL_EXIT_STATUS_BASE + signum)
                 self.assertIn("interruption requested", stderr)
-                self.assertTrue(
-                    owned.wait(EVENT_TIMEOUT_SECONDS), "owned Tart process survived cancellation"
+                self.assertIs(
+                    owned.wait(EVENT_TIMEOUT_SECONDS),
+                    runner.ProcessOutcome.EXITED,
+                    "owned Tart process survived cancellation",
                 )
 
     def test_unrelated_process_survives_cleanup(self) -> None:
