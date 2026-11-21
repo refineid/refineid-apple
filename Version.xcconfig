@@ -45,8 +45,9 @@ MACOSX_DEPLOYMENT_TARGET = 26.0
 // slot or a USB reader, and an iPad on 26 reads a USB reader or
 // requests over RAPP. The store offers the iOS build to iPhones
 // only, through the NFC device requirement no iPad satisfies.
-// The archive inspector holds a candidate to these numbers, so a
-// wrongly cut artifact fails before it is uploaded.
+// The archive inspector holds a candidate to the deployment
+// targets and the device family below, so a wrongly cut artifact
+// fails before it is uploaded.
 IPHONEOS_DEPLOYMENT_TARGET[config=TestFlight] = 26.0
 IPHONEOS_DEPLOYMENT_TARGET[config=Release] = 26.0
 
