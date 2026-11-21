@@ -3600,10 +3600,13 @@ private func appInfoID() -> String {
   return id
 }
 
-// Sets the primary category and each locale's subtitle from the JSON.
-// Both live on the app info record, not on a version.
+// Sets the primary category and each locale's name and subtitle from the
+// JSON. All live on the app info record, not on a version.
 func pushAppInfo() {
   let infoID = appInfoID()
+  guard let name = metadata["name"] as? String, !name.isEmpty else {
+    releaseFail("name is missing in Metadata/appstore.json")
+  }
   let category = metadata["primaryCategory"] as? String ?? "UTILITIES"
   api(
     "PATCH", "/v1/appInfos/\(infoID)",
@@ -3626,7 +3629,7 @@ func pushAppInfo() {
   for locale in localizations.keys.sorted() {
     let entry = localizations[locale] as? [String: Any] ?? [:]
     guard let subtitle = entry["subtitle"] as? String else { continue }
-    var attributes: [String: Any] = ["subtitle": subtitle]
+    var attributes: [String: Any] = ["name": name, "subtitle": subtitle]
     if let policy = entry["privacyPolicyUrl"] as? String {
       attributes["privacyPolicyUrl"] = policy
     }
@@ -3639,7 +3642,7 @@ func pushAppInfo() {
             "attributes": attributes,
           ]
         ])
-      print("  \(locale): subtitle and privacy policy updated")
+      print("  \(locale): name, subtitle and privacy policy updated")
     } else {
       attributes["locale"] = locale
       api(
@@ -3655,7 +3658,7 @@ func pushAppInfo() {
             ],
           ]
         ])
-      print("  \(locale): subtitle and privacy policy created")
+      print("  \(locale): name, subtitle and privacy policy created")
     }
   }
 }
