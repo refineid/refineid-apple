@@ -54,6 +54,12 @@
 //       Updates App Store version assets. TestFlight invitations use screenshots
 //       from the latest approved version in Ready for Distribution.
 //       See Documentation/release-runbook.md for screenshot visibility rules.
+//   apple-app-store-connect-release-manager.swift asset-library
+//       Lists every image and video the app's asset library holds with the
+//       placements that still show it, so unused assets can be told apart.
+//   apple-app-store-connect-release-manager.swift prune-assets [--dry-run]
+//       Unplaces assets from versions the store has left behind, then deletes
+//       the assets that leaves unplaced.
 //   apple-app-store-connect-release-manager.swift beta-info
 //   apple-app-store-connect-release-manager.swift age-rating
 //   apple-app-store-connect-release-manager.swift export-compliance <ios|macos>
@@ -3371,7 +3377,8 @@ private func printReleaseManagerUsage() {
           Distribute a processed TestFlight build; internal groups need no beta review.
       get, api, app-id, state, builds, add-tester, remove-tester, invite
       ensure-version, attach-build, metadata, app-info, review-contact
-      screenshots, age-rating, export-compliance, pricing, submissions, submit
+      screenshots, asset-library, prune-assets [--dry-run], age-rating,
+      export-compliance, pricing, submissions, submit
 
     Screenshot visibility:
       screenshots updates App Store version assets, not beta build assets.
@@ -4089,6 +4096,241 @@ func uploadScreenshot(setID: String, file: URL) {
   print("    \(file.lastPathComponent)")
 }
 
+// MARK: - App Store asset library
+
+/// How many assets one library listing returns at most.
+private let assetLibraryPageLimit = 200
+
+/// How many localizations or placements one relationship listing returns.
+private let assetRelationshipPageLimit = 50
+
+/// How many pages of one collection are followed before giving up, so a
+/// repeated next link cannot loop forever.
+private let assetLibraryMaximumPages = 50
+
+/// An HTTP 404: the resource is gone, which is what a delete wanted.
+private let httpNotFoundStatus = 404
+
+/// Every library collection with the names its paths and report use.
+private let assetLibraryKinds = [
+  (collection: "Images", noun: "Image", list: "images", resource: "appAssetLibraryImages"),
+  (collection: "Videos", noun: "Video", list: "videos", resource: "appAssetLibraryVideos"),
+]
+
+/// The version states a prune may clear: only a version the store has
+/// replaced, which never returns to submission. A rejected version keeps
+/// its placements because the same record is fixed and resubmitted, and
+/// every other state is a page the store shows or is about to show.
+private let leftBehindVersionStates: Set<String> = ["REPLACED_WITH_NEW_VERSION"]
+
+/// The asset states that are still becoming something. An asset uploading
+/// or processing has no placements yet, and deleting it would cut a run
+/// short, so it is left alone.
+private let inFlightAssetStates: Set<String> = [
+  "AWAITING_UPLOAD",
+  "UPLOAD_COMPLETE",
+  "PROCESSING",
+]
+
+/// One asset in the library with the placements that keep it visible.
+private struct LibraryAsset {
+  let collection: String
+  let noun: String
+  let id: String
+  let name: String
+  let state: String
+  let placements: [[String: Any]]
+}
+
+// The app's one asset library: the container every uploaded image and
+// video lives in, wherever it is placed.
+private func assetLibraryID() -> String {
+  let response = api("GET", "/v1/apps/\(appID())/assetLibrary")
+  guard let id = (response["data"] as? [String: Any])?["id"] as? String else {
+    releaseFail("the app has no asset library")
+  }
+  return id
+}
+
+// Every entry of a paginated collection, following links.next.
+private func everyPage(_ path: String) -> [[String: Any]] {
+  var entries: [[String: Any]] = []
+  var next: String? = path
+  var pages = 0
+  while let page = next, !page.isEmpty {
+    guard pages < assetLibraryMaximumPages else {
+      releaseFail("more than \(assetLibraryMaximumPages) pages at \(path)")
+    }
+    let response = api("GET", page)
+    entries += dataArray(response)
+    next = (response["links"] as? [String: Any])?["next"] as? String
+    pages += 1
+  }
+  return entries
+}
+
+// The placements that put one asset on an App Store surface.
+private func assetPlacements(_ collection: String, _ id: String) -> [[String: Any]] {
+  everyPage(
+    "/v1/appAssetLibrary\(collection)/\(id)/placements?limit=\(assetRelationshipPageLimit)"
+      + "&include=appStoreVersionLocalization"
+      + "&fields[appStoreVersionLocalizations]=locale")
+}
+
+// Every image and video the library holds, each with its placements.
+private func libraryAssets(_ library: String) -> [LibraryAsset] {
+  var assets: [LibraryAsset] = []
+  for (collection, noun, list, resource) in assetLibraryKinds {
+    let path =
+      "/v1/appAssetLibraries/\(library)/\(list)?limit=\(assetLibraryPageLimit)"
+      + "&fields[\(resource)]=referenceName,state,fileName,specId"
+    for entry in everyPage(path) {
+      guard let id = entry["id"] as? String else { continue }
+      let attributes = entry["attributes"] as? [String: Any] ?? [:]
+      let name =
+        (attributes["referenceName"] as? String)
+        ?? (attributes["fileName"] as? String) ?? "-"
+      assets.append(
+        LibraryAsset(
+          collection: collection, noun: noun, id: id, name: name,
+          state: attributes["state"] as? String ?? "-",
+          placements: assetPlacements(collection, id)))
+    }
+  }
+  return assets
+}
+
+// The App Store version localization a placement points at, or nil when
+// it targets a custom product page, an in-app event or a treatment.
+private func placementLocalization(_ placement: [String: Any]) -> String? {
+  let relationships = placement["relationships"] as? [String: Any]
+  let localization = relationships?["appStoreVersionLocalization"] as? [String: Any]
+  return (localization?["data"] as? [String: Any])?["id"] as? String
+}
+
+// A DELETE whose outcome is the answer, not an error: 404 and a store
+// that refuses a locked placement both mean the resource stays as it was.
+// Anything else - an expired token, a rate limit, a server fault - ends
+// the run, so a partial prune is never reported as a finished one.
+private func deleteResource(_ path: String) -> Bool {
+  let response = apiResponse("DELETE", path)
+  if httpSuccessStatusRange.contains(response.status) {
+    return true
+  }
+  if response.status == httpNotFoundStatus {
+    print("    already gone: \(path)")
+    return true
+  }
+  let codes = apiErrorCodes(response.body)
+  if codes.contains(where: { $0.hasPrefix("STATE_ERROR") }) {
+    print("    the store keeps \(path) (\(codes.joined(separator: ",")))")
+    return false
+  }
+  releaseFail("HTTP \(response.status) on DELETE \(path): \(response.text)")
+}
+
+// Prints every asset the library holds and the surface each placement
+// reaches, so the keep rule can be checked before anything is removed.
+func assetLibrary() {
+  let library = assetLibraryID()
+  let leftBehind = leftBehindLocalizations()
+  let assets = libraryAssets(library)
+  print("asset library \(library): \(assets.count) assets")
+  for asset in assets {
+    guard !asset.placements.isEmpty else {
+      print("  \(asset.noun)  \(asset.state)  \(asset.name)  unused")
+      continue
+    }
+    let targets = asset.placements.map { placement -> String in
+      let attributes = placement["attributes"] as? [String: Any] ?? [:]
+      let type = attributes["placementType"] as? String ?? "-"
+      guard let target = placementLocalization(placement) else {
+        return "\(type) other surface"
+      }
+      return leftBehind.contains(target) ? "\(type) \(target) replaced" : "\(type) \(target) shown"
+    }
+    print("  \(asset.noun)  \(asset.state)  \(asset.name)  \(targets.joined(separator: ", "))")
+  }
+}
+
+// The localizations whose version the store has left behind: a refused
+// submission or a replaced version. Every other version keeps its
+// placements, including one this code cannot read and any state added
+// after it was written.
+private func leftBehindLocalizations() -> Set<String> {
+  var leftBehind: Set<String> = []
+  var read = 0
+  for platform in platforms.values {
+    let versions = everyPage(
+      "/v1/apps/\(appID())/appStoreVersions?filter[platform]=\(platform)"
+        + "&limit=\(assetRelationshipPageLimit)&fields[appStoreVersions]=versionString,appStoreState")
+    read += versions.count
+    for version in versions {
+      guard let versionID = version["id"] as? String,
+        let attributes = version["attributes"] as? [String: Any],
+        let state = attributes["appStoreState"] as? String,
+        leftBehindVersionStates.contains(state)
+      else { continue }
+      for entry in everyPage(
+        "/v1/appStoreVersions/\(versionID)/appStoreVersionLocalizations"
+          + "?limit=\(assetRelationshipPageLimit)")
+      {
+        if let id = entry["id"] as? String { leftBehind.insert(id) }
+      }
+    }
+  }
+  print("versions read: \(read), \(leftBehind.count) localizations the store replaced")
+  return leftBehind
+}
+
+// Removes what the library no longer shows: the placements that point at
+// a version the store has left behind, then the images and videos those
+// leave unplaced. An asset is deleted only when no placement remains, and
+// a store refusal is printed rather than hidden. Dry run prints the same
+// targets and counts without deleting.
+func pruneAssets(_ dryRun: Bool) {
+  let library = assetLibraryID()
+  let leftBehind = leftBehindLocalizations()
+  var placements = 0
+  var assets = 0
+  var kept = 0
+  for asset in libraryAssets(library) {
+    var remaining = asset.placements.count
+    for placement in asset.placements {
+      guard let id = placement["id"] as? String,
+        let target = placementLocalization(placement),
+        leftBehind.contains(target)
+      else { continue }
+      if dryRun {
+        print("  would delete placement \(id) on \(target)")
+        placements += 1
+        remaining -= 1
+      } else if deleteResource("/v1/appAssetLibraryPlacements/\(id)") {
+        placements += 1
+        remaining -= 1
+      } else {
+        kept += 1
+      }
+    }
+    guard remaining == 0 else { continue }
+    guard !inFlightAssetStates.contains(asset.state) else {
+      print("  \(asset.noun.lowercased()) \(asset.id) is \(asset.state.lowercased()); kept")
+      continue
+    }
+    if dryRun {
+      print("  would delete \(asset.noun.lowercased()) \(asset.id) (\(asset.name))")
+      assets += 1
+    } else if deleteResource("/v1/appAssetLibrary\(asset.collection)/\(asset.id)") {
+      assets += 1
+    } else {
+      kept += 1
+    }
+  }
+  print(
+    "\(dryRun ? "would remove" : "removed") \(assets) assets and \(placements) placements;"
+      + " \(kept) the store kept")
+}
+
 // Whether a display type belongs to a platform.
 //
 // The locale folders hold every platform's shots side by side, and a
@@ -4460,6 +4702,9 @@ case ("metadata", 2): pushMetadata(rest[0], rest[1])
 case ("app-info", 0): pushAppInfo()
 case ("review-contact", 2): reviewContact(rest[0], rest[1])
 case ("screenshots", 2): pushScreenshots(rest[0], rest[1])
+case ("asset-library", 0): assetLibrary()
+case ("prune-assets", 0): pruneAssets(false)
+case ("prune-assets", 1) where rest[0] == "--dry-run": pruneAssets(true)
 case ("beta-info", 0): pushBetaInfo()
 case ("age-rating", 0): pushAgeRating()
 case ("export-compliance", 1): pushExportCompliance(rest[0])
