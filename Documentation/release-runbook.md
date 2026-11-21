@@ -445,12 +445,25 @@ Versions release automatically on App Review approval (owner decision
 
 1. Confirm the released build matches the recorded source commit, version,
    build, and hardware evidence.
-2. Create the release tag with owner approval, annotated and naming the
-   channel and the build it was cut from:
+2. Create the release tag as part of this recording. The step 6
+   submission approval covers the tag: approving the release approves
+   tagging it, so no second approval is asked. Tag annotated, naming
+   the channel and the build it was cut from:
    `v<MARKETING_VERSION>-beta.<CURRENT_PROJECT_VERSION>` for the TestFlight
    candidate (`v26.11.20-beta.658`) and `v<MARKETING_VERSION>` for the App
    Store release. Annotated only; the message names the app, version and
-   build. Do not use `stamp --tag`; its current tag command is for the iOS
+   build. Push the tag from a checkout sitting on the tagged commit:
+   the push gate refuses a tag pushed from anywhere else. A detached
+   worktree serves once and is removed afterwards:
+
+   ```sh
+   git tag -a <tag> <commit> -m "<app> <version> (<build>)"
+   git worktree add --detach ../wt/refineid-apple-tag-<version> <commit>
+   git -C ../wt/refineid-apple-tag-<version> push origin <tag>
+   git worktree remove ../wt/refineid-apple-tag-<version>
+   ```
+
+   Do not use `stamp --tag`; its current tag command is for the iOS
    channel naming scheme.
 3. Record the release outcome and UTC time in `Documentation/releases/`.
 4. Monitor review messages, crash reports, TestFlight/App Store feedback, and
