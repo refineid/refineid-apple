@@ -457,6 +457,7 @@ Versions release automatically on App Review approval (owner decision
    worktree serves once and is removed afterwards:
 
    ```sh
+   git tag -a <tag> <commit> -m "<app> <version> (<build>)"
    git worktree add --detach ../wt/refineid-apple-tag-<version> <commit>
    git -C ../wt/refineid-apple-tag-<version> push origin <tag>
    git worktree remove ../wt/refineid-apple-tag-<version>
