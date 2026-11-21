@@ -77,11 +77,13 @@ is offered today: the iOS build currently declares the NFC device
 requirement, which no iPad satisfies, so the store offers it to
 iPhones only.
 
-The iPad will carry no card slot of its own. It will act as a
-requester: it will send signing and authentication requests to the
-card held by an iPhone over the RAPP remote card, the phone will
-perform each operation and return the result, and no PIN will ever
-leave the phone, under the same custody rules as every requester.
+The iPad will have no built-in NFC slot. It will read cards in a
+local USB-C reader, which the owner has tested, and it will also
+act as a requester: it will send signing and authentication
+requests to the card held by an iPhone over the RAPP remote card,
+the phone will perform each operation and return the result, and
+no PIN will ever leave the phone, under the same custody rules as
+every requester.
 Shipping it includes at least a build without the NFC device
 requirement, iPad store screenshots, and review notes that name
 the phone-as-reader topology.
