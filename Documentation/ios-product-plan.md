@@ -73,12 +73,15 @@ the end-to-end device result and the decision to stop deferring NFC.
 ## 7. iPad ships later as a requester
 
 The owner will release an iPad version with a new version. No iPad
-is offered today: the iOS build requires the NFC slot, which no
-iPad has, so the store offers it to iPhones only.
+is offered today: the iOS build currently declares the NFC device
+requirement, which no iPad satisfies, so the store offers it to
+iPhones only.
 
-The iPad carries no card slot of its own. It acts as a requester:
-it borrows the card held by an iPhone over the RAPP remote card,
-and setup, prompts and signatures stay on the phone under the same
-custody rules as every requester. Shipping it means a build
-without the NFC device requirement, iPad store screenshots, and
-review notes that name the phone-as-reader topology.
+The iPad will carry no card slot of its own. It will act as a
+requester: it will send signing and authentication requests to the
+card held by an iPhone over the RAPP remote card, the phone will
+perform each operation and return the result, and no PIN will ever
+leave the phone, under the same custody rules as every requester.
+Shipping it includes at least a build without the NFC device
+requirement, iPad store screenshots, and review notes that name
+the phone-as-reader topology.
