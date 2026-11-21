@@ -69,3 +69,19 @@ setup and authentication end to end.
 `Documentation/card-transports.md` records the architecture and measured
 constraints. The 2026-07-28 entry in `Documentation/decisions.md` records
 the end-to-end device result and the decision to stop deferring NFC.
+
+## 7. iPad ships later as a requester
+
+The owner will release an iPad version with a new version. No iPad
+is offered today: the iOS build currently declares the NFC device
+requirement, which no iPad satisfies, so the store offers it to
+iPhones only.
+
+The iPad will carry no card slot of its own. It will act as a
+requester: it will send signing and authentication requests to the
+card held by an iPhone over the RAPP remote card, the phone will
+perform each operation and return the result, and no PIN will ever
+leave the phone, under the same custody rules as every requester.
+Shipping it includes at least a build without the NFC device
+requirement, iPad store screenshots, and review notes that name
+the phone-as-reader topology.
