@@ -384,14 +384,16 @@ Scripts/apple-app-store-connect-release-manager.swift attach-build macos "$VERSI
 Scripts/apple-app-store-connect-release-manager.swift version macos "$VERSION"
 ```
 
-`screenshots` ends by pruning the app's asset library: it removes placements on
-versions the store has left behind, then the images and videos nothing places
-any more. The library keeps every upload forever otherwise, and the App Store
-Connect asset page fills with copies no surface shows. `prune-assets` does that
-alone, `prune-assets --dry-run` prints the plan without deleting, and
-`asset-library` lists what the library holds with the placements behind each
-asset. Deleting a placement the store has locked returns `STATE_ERROR` and is
-printed, not retried.
+`prune-assets` removes what the app's asset library no longer shows: the
+placements that point at a version the store has left behind, then the images
+and videos those leave unplaced, which is where an account-wide library grows
+without limit. A placement on a version the store shows, has in review, holds
+on preorder or is rolling out in phases is never removed, an image is deleted
+only once no placement uses it, and a refusal from the store is printed rather
+than retried. `prune-assets --dry-run` prints the same targets without
+deleting, and `asset-library` lists every asset with the surface each
+placement reaches. It is a separate step from `screenshots`, so a cleanup
+cannot fail an upload that already succeeded.
 
 `version` prints the version identifier, its state, and the number, processing
 state and identifier of the build attached to it. Read the release record from
