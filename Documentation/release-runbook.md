@@ -386,7 +386,9 @@ Scripts/apple-app-store-connect-release-manager.swift version macos "$VERSION"
 
 `version` prints the version identifier, its state, and the number, processing
 state and identifier of the build attached to it. Read the release record from
-that output rather than from an ad-hoc API query.
+that output rather than from an ad-hoc API query. `app-info` sets the store
+name from the top-level `name` in `Metadata/appstore.json`; the name ships
+with the version under preparation.
 
 Review App Store Connect after these commands. Confirm the exact build,
 localizations, screenshots, privacy information, age rating, pricing,

@@ -16,7 +16,9 @@ Character limits:
 
 ## Name
 
-RefineID (all languages)
+RefineID (all languages). Carried as the top-level `name` in
+`Metadata/appstore.json` and pushed by
+`Scripts/apple-app-store-connect-release-manager.swift app-info`.
 
 ## Subtitle (<=30 characters)
 - en (English): `Authenticate and sign`
