@@ -4114,15 +4114,19 @@ private let assetLibraryKinds = [
   (collection: "Videos", noun: "Video", list: "videos", resource: "appAssetLibraryVideos"),
 ]
 
-/// The version states whose page no store surface shows: a refused
-/// submission, or a version the store replaced. Anything else keeps its
-/// placements, so a live page, a draft, a preorder and a phased release
-/// are never touched by a prune.
-private let leftBehindVersionStates: Set<String> = [
-  "DEVELOPER_REJECTED",
-  "METADATA_REJECTED",
-  "REJECTED",
-  "REPLACED_WITH_NEW_VERSION",
+/// The version states a prune may clear: only a version the store has
+/// replaced, which never returns to submission. A rejected version keeps
+/// its placements because the same record is fixed and resubmitted, and
+/// every other state is a page the store shows or is about to show.
+private let leftBehindVersionStates: Set<String> = ["REPLACED_WITH_NEW_VERSION"]
+
+/// The asset states that are still becoming something. An asset uploading
+/// or processing has no placements yet, and deleting it would cut a run
+/// short, so it is left alone.
+private let inFlightAssetStates: Set<String> = [
+  "AWAITING_UPLOAD",
+  "UPLOAD_COMPLETE",
+  "PROCESSING",
 ]
 
 /// One asset in the library with the placements that keep it visible.
@@ -4207,7 +4211,11 @@ private func placementLocalization(_ placement: [String: Any]) -> String? {
 // the run, so a partial prune is never reported as a finished one.
 private func deleteResource(_ path: String) -> Bool {
   let response = apiResponse("DELETE", path)
-  if httpSuccessStatusRange.contains(response.status) || response.status == httpNotFoundStatus {
+  if httpSuccessStatusRange.contains(response.status) {
+    return true
+  }
+  if response.status == httpNotFoundStatus {
+    print("    already gone: \(path)")
     return true
   }
   let codes = apiErrorCodes(response.body)
@@ -4222,6 +4230,7 @@ private func deleteResource(_ path: String) -> Bool {
 // reaches, so the keep rule can be checked before anything is removed.
 func assetLibrary() {
   let library = assetLibraryID()
+  let leftBehind = leftBehindLocalizations()
   let assets = libraryAssets(library)
   print("asset library \(library): \(assets.count) assets")
   for asset in assets {
@@ -4232,7 +4241,10 @@ func assetLibrary() {
     let targets = asset.placements.map { placement -> String in
       let attributes = placement["attributes"] as? [String: Any] ?? [:]
       let type = attributes["placementType"] as? String ?? "-"
-      return "\(type) \(placementLocalization(placement) ?? "elsewhere")"
+      guard let target = placementLocalization(placement) else {
+        return "\(type) other surface"
+      }
+      return leftBehind.contains(target) ? "\(type) \(target) replaced" : "\(type) \(target) shown"
     }
     print("  \(asset.noun)  \(asset.state)  \(asset.name)  \(targets.joined(separator: ", "))")
   }
@@ -4244,10 +4256,12 @@ func assetLibrary() {
 // after it was written.
 private func leftBehindLocalizations() -> Set<String> {
   var leftBehind: Set<String> = []
+  var read = 0
   for platform in platforms.values {
     let versions = everyPage(
       "/v1/apps/\(appID())/appStoreVersions?filter[platform]=\(platform)"
         + "&limit=\(assetRelationshipPageLimit)&fields[appStoreVersions]=versionString,appStoreState")
+    read += versions.count
     for version in versions {
       guard let versionID = version["id"] as? String,
         let attributes = version["attributes"] as? [String: Any],
@@ -4262,6 +4276,7 @@ private func leftBehindLocalizations() -> Set<String> {
       }
     }
   }
+  print("versions read: \(read), \(leftBehind.count) localizations the store replaced")
   return leftBehind
 }
 
@@ -4295,6 +4310,10 @@ func pruneAssets(_ dryRun: Bool) {
       }
     }
     guard remaining == 0 else { continue }
+    guard !inFlightAssetStates.contains(asset.state) else {
+      print("  \(asset.noun.lowercased()) \(asset.id) is \(asset.state.lowercased()); kept")
+      continue
+    }
     if dryRun {
       print("  would delete \(asset.noun.lowercased()) \(asset.id) (\(asset.name))")
       assets += 1

@@ -385,14 +385,16 @@ Scripts/apple-app-store-connect-release-manager.swift version macos "$VERSION"
 ```
 
 `prune-assets` removes what the app's asset library no longer shows: the
-placements that point at a version the store has left behind, then the images
-and videos those leave unplaced, which is where an account-wide library grows
-without limit. A placement on a version the store shows, has in review, holds
-on preorder or is rolling out in phases is never removed, an image is deleted
-only once no placement uses it, and a refusal from the store is printed rather
-than retried. `prune-assets --dry-run` prints the same targets without
-deleting, and `asset-library` lists every asset with the surface each
-placement reaches. It is a separate step from `screenshots`, so a cleanup
+placements that point at a version the store has replaced, then the images and
+videos those leave unplaced, which is where the library grows without limit.
+A rejected version keeps its placements because it is resubmitted, and a
+version the store shows, has in review, holds on preorder or is rolling out in
+phases is never touched. An image is deleted only once no placement uses it and
+only when it has finished uploading, and a refusal from the store is printed
+rather than retried. `prune-assets --dry-run` prints the same targets, though
+only a real run learns which of them the store allows. `asset-library` lists
+every asset and marks each placement as `shown` or `replaced`, which is the
+keep rule itself. Pruning is a separate step from `screenshots`, so a cleanup
 cannot fail an upload that already succeeded.
 
 `version` prints the version identifier, its state, and the number, processing
