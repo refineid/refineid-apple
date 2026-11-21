@@ -54,6 +54,12 @@
 //       Updates App Store version assets. TestFlight invitations use screenshots
 //       from the latest approved version in Ready for Distribution.
 //       See Documentation/release-runbook.md for screenshot visibility rules.
+//   apple-app-store-connect-release-manager.swift asset-library
+//       Lists every image and video the app's asset library holds with the
+//       placements that still show it, so unused assets can be told apart.
+//   apple-app-store-connect-release-manager.swift prune-assets [--dry-run]
+//       Unplaces assets from versions the store has left behind, then deletes
+//       the assets that leaves unplaced.
 //   apple-app-store-connect-release-manager.swift beta-info
 //   apple-app-store-connect-release-manager.swift age-rating
 //   apple-app-store-connect-release-manager.swift export-compliance <ios|macos>
@@ -3371,7 +3377,8 @@ private func printReleaseManagerUsage() {
           Distribute a processed TestFlight build; internal groups need no beta review.
       get, api, app-id, state, builds, add-tester, remove-tester, invite
       ensure-version, attach-build, metadata, app-info, review-contact
-      screenshots, age-rating, export-compliance, pricing, submissions, submit
+      screenshots, asset-library, prune-assets, age-rating, export-compliance
+      pricing, submissions, submit
 
     Screenshot visibility:
       screenshots updates App Store version assets, not beta build assets.
@@ -4086,6 +4093,194 @@ func uploadScreenshot(setID: String, file: URL) {
   print("    \(file.lastPathComponent)")
 }
 
+// MARK: - App Store asset library
+
+/// How many assets one library listing returns at most.
+private let assetLibraryPageLimit = 200
+
+// The library's image and video collections, and the resource name its
+// placement and delete paths use.
+private let assetLibraryKinds = [("Images", "images"), ("Videos", "videos")]
+
+/// One asset in the library with the placements that keep it visible.
+private struct LibraryAsset {
+  let kind: String
+  let id: String
+  let name: String
+  let state: String
+  let placements: [[String: Any]]
+}
+
+// The app's one asset library: the container every uploaded image and
+// video lives in, wherever it is placed.
+private func assetLibraryID() -> String {
+  let response = api("GET", "/v1/apps/\(appID())/assetLibrary")
+  guard let id = (response["data"] as? [String: Any])?["id"] as? String else {
+    releaseFail("the app has no asset library")
+  }
+  return id
+}
+
+// Every entry of a paginated collection, following links.next.
+private func everyPage(_ path: String) -> [[String: Any]] {
+  var entries: [[String: Any]] = []
+  var next: String? = path
+  while let page = next, !page.isEmpty {
+    let response = api("GET", page)
+    entries += dataArray(response)
+    next = (response["links"] as? [String: Any])?["next"] as? String
+  }
+  return entries
+}
+
+// The placements that put one asset on an App Store surface.
+private func assetPlacements(_ kind: String, _ id: String) -> [[String: Any]] {
+  everyPage(
+    "/v1/appAssetLibrary\(kind)/\(id)/placements?limit=\(assetLibraryPageLimit)"
+      + "&fields[appAssetLibraryPlacements]=placementType,state"
+      + "&include=appStoreVersionLocalization&fields[appStoreVersionLocalizations]=locale")
+}
+
+// Every image and video the library holds, each with its placements.
+private func libraryAssets(_ library: String) -> [LibraryAsset] {
+  var assets: [LibraryAsset] = []
+  for (kind, collection) in assetLibraryKinds {
+    let path =
+      "/v1/appAssetLibraries/\(library)/\(collection)?limit=\(assetLibraryPageLimit)"
+      + "&fields[appAssetLibrary\(kind)]=referenceName,state,fileName,specId"
+    for entry in everyPage(path) {
+      guard let id = entry["id"] as? String else { continue }
+      let attributes = entry["attributes"] as? [String: Any] ?? [:]
+      let name =
+        (attributes["referenceName"] as? String)
+        ?? (attributes["fileName"] as? String) ?? "-"
+      assets.append(
+        LibraryAsset(
+          kind: kind, id: id, name: name,
+          state: attributes["state"] as? String ?? "-",
+          placements: assetPlacements(kind, id)))
+    }
+  }
+  return assets
+}
+
+// The App Store version localization a placement points at, or nil when
+// it targets a custom product page, an in-app event or a treatment.
+private func placementLocalization(_ placement: [String: Any]) -> String? {
+  let relationships = placement["relationships"] as? [String: Any]
+  let localization = relationships?["appStoreVersionLocalization"] as? [String: Any]
+  return (localization?["data"] as? [String: Any])?["id"] as? String
+}
+
+// A DELETE that reports a refusal instead of ending the run: a placement
+// on a version the store has locked cannot be removed, and that is a
+// finding to print rather than a reason to leave every later asset alone.
+private func deleteResource(_ path: String) -> Bool {
+  let response = apiResponse("DELETE", path)
+  if httpSuccessStatusRange.contains(response.status) { return true }
+  print("    refused \(path): \(apiErrorCodes(response.body).joined(separator: ","))")
+  return false
+}
+
+// Prints what the library holds and what still places each asset. An
+// asset with no placement is on no surface: it is only taking space.
+func assetLibrary() {
+  let library = assetLibraryID()
+  let assets = libraryAssets(library)
+  print("asset library \(library): \(assets.count) assets")
+  for asset in assets {
+    let usage =
+      asset.placements.isEmpty
+      ? "unused"
+      : "\(asset.placements.count) placements"
+    print("  \(asset.kind.dropLast())  \(asset.state)  \(asset.name)  \(usage)")
+  }
+}
+
+/// The version states whose page the store still shows or is about to
+/// show. Their placements are never removed: a live page without its
+/// screenshots is a worse outcome than an asset kept too long.
+private let storeVisibleVersionStates: Set<String> = [
+  "READY_FOR_SALE", "PREORDER_READY_FOR_SALE", "PENDING_DEVELOPER_RELEASE",
+  "PENDING_APPLE_RELEASE", "PROCESSING_FOR_APP_STORE", "IN_REVIEW",
+  "WAITING_FOR_REVIEW", "PENDING_CONTRACT",
+]
+
+// The localizations a store surface still shows: every version on sale or
+// under review, and the newest version of each platform, which is the one
+// being prepared. Replaced versions and rejected drafts are not here.
+private func keptVersionLocalizations() -> Set<String> {
+  var kept: Set<String> = []
+  for platform in platforms.values {
+    let path =
+      "/v1/apps/\(appID())/appStoreVersions?filter[platform]=\(platform)"
+      + "&limit=\(assetLibraryPageLimit)&fields[appStoreVersions]=versionString,appStoreState,createdDate"
+    let versions = dataArray(api("GET", path))
+    let created = { (version: [String: Any]) -> String in
+      (version["attributes"] as? [String: Any])?["createdDate"] as? String ?? ""
+    }
+    guard let newest = versions.max(by: { created($0) < created($1) }),
+      let newestID = newest["id"] as? String
+    else { continue }
+    for version in versions {
+      guard let versionID = version["id"] as? String else { continue }
+      let state =
+        (version["attributes"] as? [String: Any])?["appStoreState"] as? String ?? ""
+      guard versionID == newestID || storeVisibleVersionStates.contains(state) else {
+        continue
+      }
+      for entry in everyPage(
+        "/v1/appStoreVersions/\(versionID)/appStoreVersionLocalizations?limit=\(assetLibraryPageLimit)")
+      {
+        if let id = entry["id"] as? String { kept.insert(id) }
+      }
+    }
+  }
+  return kept
+}
+
+// Removes what no current store surface shows: placements on versions
+// the store has left behind, then the assets those leave unplaced.
+// Custom product pages, in-app events and experiment treatments keep
+// theirs, and a refusal is reported rather than hidden.
+func pruneAssets(_ dryRun: Bool) {
+  let library = assetLibraryID()
+  let kept = keptVersionLocalizations()
+  var removedPlacements = 0
+  var removedAssets = 0
+  var refused = 0
+  for asset in libraryAssets(library) {
+    var remaining = asset.placements.count
+    for placement in asset.placements {
+      guard let id = placement["id"] as? String,
+        let target = placementLocalization(placement),
+        !kept.contains(target)
+      else { continue }
+      if dryRun {
+        print("  would unplace \(asset.id) from localization \(target)")
+        remaining -= 1
+      } else if deleteResource("/v1/appAssetLibraryPlacements/\(id)") {
+        removedPlacements += 1
+        remaining -= 1
+      } else {
+        refused += 1
+      }
+    }
+    guard remaining == 0 else { continue }
+    if dryRun {
+      print("  would delete \(asset.kind.dropLast().lowercased()) \(asset.id) (\(asset.name))")
+      removedAssets += 1
+    } else if deleteResource("/v1/appAssetLibrary\(asset.kind)/\(asset.id)") {
+      removedAssets += 1
+    } else {
+      refused += 1
+    }
+  }
+  print(
+    "\(dryRun ? "would remove" : "removed") \(removedAssets) assets and"
+      + " \(removedPlacements) placements; \(refused) refused by the API")
+}
+
 // Whether a display type belongs to a platform.
 //
 // The locale folders hold every platform's shots side by side, and a
@@ -4132,6 +4327,8 @@ func pushScreenshots(_ platformName: String, _ version: String) {
       for shot in shots { uploadScreenshot(setID: setID, file: shot) }
     }
   }
+  print("Pruning assets no store surface shows any more...")
+  pruneAssets(false)
 }
 
 // The platform's recent builds with their TestFlight readiness: a build
@@ -4457,6 +4654,8 @@ case ("metadata", 2): pushMetadata(rest[0], rest[1])
 case ("app-info", 0): pushAppInfo()
 case ("review-contact", 2): reviewContact(rest[0], rest[1])
 case ("screenshots", 2): pushScreenshots(rest[0], rest[1])
+case ("asset-library", 0): assetLibrary()
+case ("prune-assets", _): pruneAssets(rest.contains("--dry-run"))
 case ("beta-info", 0): pushBetaInfo()
 case ("age-rating", 0): pushAgeRating()
 case ("export-compliance", 1): pushExportCompliance(rest[0])

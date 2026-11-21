@@ -384,6 +384,15 @@ Scripts/apple-app-store-connect-release-manager.swift attach-build macos "$VERSI
 Scripts/apple-app-store-connect-release-manager.swift version macos "$VERSION"
 ```
 
+`screenshots` ends by pruning the app's asset library: it removes placements on
+versions the store has left behind, then the images and videos nothing places
+any more. The library keeps every upload forever otherwise, and the App Store
+Connect asset page fills with copies no surface shows. `prune-assets` does that
+alone, `prune-assets --dry-run` prints the plan without deleting, and
+`asset-library` lists what the library holds with the placements behind each
+asset. Deleting a placement the store has locked returns `STATE_ERROR` and is
+printed, not retried.
+
 `version` prints the version identifier, its state, and the number, processing
 state and identifier of the build attached to it. Read the release record from
 that output rather than from an ad-hoc API query.
