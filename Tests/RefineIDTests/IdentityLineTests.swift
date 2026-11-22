@@ -62,6 +62,45 @@ internal struct IdentityLineTests {
         facts.cardPresent = true
       },
       line: .reading),
+    Case(
+      name: "a card only on the reader's antenna asks for the contact slot",
+      facts: with { facts in
+        facts.availability = .cardWithoutIdentity
+        facts.readerConnected = true
+        facts.cardPresent = true
+        facts.cardOnReaderAntenna = true
+      },
+      line: .cardOnReaderAntenna),
+    Case(
+      name: "the antenna's card outranks the settle warning",
+      facts: with { facts in
+        facts.availability = .cardWithoutIdentity
+        facts.readerConnected = true
+        facts.cardPresent = true
+        facts.cardOnReaderAntenna = true
+        facts.warnsUnavailableCard = true
+      },
+      line: .cardOnReaderAntenna),
+    Case(
+      name: "a ready holder outranks the antenna presentation",
+      facts: with { facts in
+        facts.availability = .ready
+        facts.readerConnected = true
+        facts.cardPresent = true
+        facts.cardOnReaderAntenna = true
+      },
+      line: .localHolder),
+    Case(
+      name: "an antenna fact without a present card changes nothing",
+      facts: with { $0.cardOnReaderAntenna = true }, line: .connectReader),
+    Case(
+      name: "an antenna fact with no card does not outrank the empty reader",
+      facts: with { facts in
+        facts.availability = .cardWithoutIdentity
+        facts.readerConnected = true
+        facts.cardOnReaderAntenna = true
+      },
+      line: .insertCard),
   ]
 
   private static func with(_ change: (inout RequesterFacts) -> Void) -> RequesterFacts {

@@ -64,6 +64,15 @@ internal struct IdentityLineRemoteUseTests {
       },
       line: .reading),
     Case(
+      name: "a card only on the reader's antenna asks for the contact slot",
+      facts: with { facts in
+        facts.availability = .cardWithoutIdentity
+        facts.readerConnected = true
+        facts.cardPresent = true
+        facts.cardOnReaderAntenna = true
+      },
+      line: .cardOnReaderAntenna),
+    Case(
       name: "a denied local network is not shown",
       facts: with { $0.localNetworkDenied = true }, line: .connectReader),
   ]
@@ -78,6 +87,19 @@ internal struct IdentityLineRemoteUseTests {
   @Test(arguments: cases)
   internal func derivesTheLine(_ testCase: Case) {
     #expect(IdentityLine.derive(testCase.facts) == testCase.line)
+  }
+
+  /// A phone's holder outranks a stale antenna fact from a card that is
+  /// no longer present.
+  @Test
+  internal func aPhoneHolderOutranksAStaleAntennaFact() {
+    let facts = Self.with { facts in
+      facts.remoteUse = true
+      facts.availability = .ready
+      facts.phonePaired = true
+      facts.cardOnReaderAntenna = true
+    }
+    #expect(IdentityLine.derive(facts) == .paired(.holder))
   }
 
   /// Turning remote use on brings the pairing prompt beside an empty

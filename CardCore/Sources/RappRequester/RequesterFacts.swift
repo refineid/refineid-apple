@@ -20,6 +20,14 @@ public struct RequesterFacts: Equatable, Sendable {
   /// A card is in a reader attached to this computer.
   public var cardPresent: Bool
 
+  /// A reader sees the card only through its contactless interface.
+  ///
+  /// The Mac reads cards through their contacts. A dual-interface reader's
+  /// antenna can see a card inserted in the contact slot, so the row asks
+  /// for the card in the slot instead of waiting for a token that cannot
+  /// come.
+  public var cardOnReaderAntenna = false
+
   /// The holder has remote use on (hierarchy specification §5.2).
   public var remoteUse = false
 

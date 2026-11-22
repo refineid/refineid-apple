@@ -40,6 +40,18 @@ internal final class CardPresence: ObservableObject {
   /// card I/O must wait for this separate fact.
   @Published internal private(set) var isReaderCardReady = false
 
+  #if os(macOS) && !FEATURE_CONTACTLESS
+    /// Whether a reader sees its card only through its contactless
+    /// interface, in a build that cannot read one.
+    ///
+    /// The Mac reads cards through their contacts. A dual-interface reader
+    /// can see a card inserted in the contact slot through its antenna, and
+    /// the row asks for the card in the slot instead of waiting for a token
+    /// that cannot come. A valid contact slot clears this: the card is then
+    /// being read the way the Mac reads cards.
+    @Published internal private(set) var isReaderCardOnlyOnAntenna = false
+  #endif
+
   /// Whether the first live slot inventory has replaced presentation
   /// hints supplied by the view that opened card management.
   @Published internal private(set) var hasCompletedInitialScan = false
@@ -151,6 +163,9 @@ internal final class CardPresence: ObservableObject {
       CardTransport.transport(forSlotNamed: name) == .reader
         && slot.state == .validCard
     }
+    #if os(macOS) && !FEATURE_CONTACTLESS
+      syncReaderAntennaPresence(from: occupied)
+    #endif
     // The reader's attachment is settled before a departing card is
     // reported, so a reader unplugged with its card in it reaches the
     // requester as one word: no card, no reader.
@@ -184,6 +199,33 @@ internal final class CardPresence: ObservableObject {
       }
     #endif
   }
+
+  #if os(macOS) && !FEATURE_CONTACTLESS
+    /// Follows whether a reader sees its card only through its antenna in
+    /// a build that cannot read a contactless card.
+    ///
+    /// A valid contact slot clears the state: the card is then being read
+    /// the way the Mac reads cards. A probing contact slot keeps the row
+    /// reading rather than asking for a card that may already be seated.
+    private func syncReaderAntennaPresence(from occupied: [String: TKSmartCardSlot]) {
+      let readerSlots = occupied.filter { name, _ in
+        CardTransport.transport(forSlotNamed: name) == .reader
+      }
+      let hasContactCard = readerSlots.contains { _, slot in
+        slot.state == .validCard
+          && slot.atr.map { !AnswerToReset.indicatesContactlessInterface(bytes: $0.bytes) } ?? false
+      }
+      let hasAntennaCard = readerSlots.contains { _, slot in
+        slot.state == .validCard
+          && slot.atr.map { AnswerToReset.indicatesContactlessInterface(bytes: $0.bytes) } ?? false
+      }
+      let isProbing = readerSlots.contains { _, slot in slot.state == .probing }
+      let onlyAntenna = hasAntennaCard && !hasContactCard && !isProbing
+      if onlyAntenna != isReaderCardOnlyOnAntenna {
+        isReaderCardOnlyOnAntenna = onlyAntenna
+      }
+    }
+  #endif
 
   #if FEATURE_CONTACTLESS
     /// Follows whether any occupied slot is a contactless interface,

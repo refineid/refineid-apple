@@ -4541,6 +4541,22 @@
         }
       }
     },
+    "Push the card fully into the reader's contact slot.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Työnnä kortti kokonaan lukijan korttipaikkaan."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tryck in kortet helt i läsarens kortplats."
+          }
+        }
+      }
+    },
     "Put the card in the reader's card slot.": {
       "localizations": {
         "fi": {
