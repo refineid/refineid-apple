@@ -82,7 +82,8 @@ line above before looking at the wire or the server:
 **Symptom.** A card is in the reader's contact slot, the app shows no
 identity, and the log says `selectRejected(securityNotSatisfied)` on a
 reader slot. `system_profiler SPSmartCardsDataType` shows that slot with
-an ATR beginning `3B 8F 80 01`.
+an ATR that `AnswerToReset` classifies as contactless; the observed one
+begins `3B 8F 80 01`.
 
 **Cause.** A dual-interface reader's antenna can see a card inserted in
 the contact slot. The card stays sealed on that interface (`6982`), and a

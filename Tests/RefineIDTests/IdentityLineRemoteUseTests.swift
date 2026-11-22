@@ -89,6 +89,19 @@ internal struct IdentityLineRemoteUseTests {
     #expect(IdentityLine.derive(testCase.facts) == testCase.line)
   }
 
+  /// A phone's holder outranks a stale antenna fact from a card that is
+  /// no longer present.
+  @Test
+  internal func aPhoneHolderOutranksAStaleAntennaFact() {
+    let facts = Self.with { facts in
+      facts.remoteUse = true
+      facts.availability = .ready
+      facts.phonePaired = true
+      facts.cardOnReaderAntenna = true
+    }
+    #expect(IdentityLine.derive(facts) == .paired(.holder))
+  }
+
   /// Turning remote use on brings the pairing prompt beside an empty
   /// reader, and a pairing whose phone offers no card yet shows it too.
   @Test

@@ -93,6 +93,14 @@ internal struct IdentityLineTests {
     Case(
       name: "an antenna fact without a present card changes nothing",
       facts: with { $0.cardOnReaderAntenna = true }, line: .connectReader),
+    Case(
+      name: "an antenna fact with no card does not outrank the empty reader",
+      facts: with { facts in
+        facts.availability = .cardWithoutIdentity
+        facts.readerConnected = true
+        facts.cardOnReaderAntenna = true
+      },
+      line: .insertCard),
   ]
 
   private static func with(_ change: (inout RequesterFacts) -> Void) -> RequesterFacts {

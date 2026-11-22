@@ -163,19 +163,17 @@
         known.phoneJustPaired = registry.phoneJustPaired
         known.localNetworkDenied = localNetworkDenied
         known.phoneCardStatus = registry.holderCardStatus
-        known.cardOnReaderAntenna = cardPresence.isReaderCardOnlyOnAntenna
-        return known
+        return withReaderAntenna(known)
       #else
         // With the remote card compiled out no phone can be paired, so the
         // row speaks only of the card in this Mac's reader.
-        var known = RequesterFacts(
+        let known = RequesterFacts(
           availability: availability,
           warnsUnavailableCard: warnsUnavailableCard,
           readerConnected: cardPresence.isReaderConnected,
           cardPresent: cardPresence.isCardPresent
         )
-        known.cardOnReaderAntenna = cardPresence.isReaderCardOnlyOnAntenna
-        return known
+        return withReaderAntenna(known)
       #endif
     }
 
@@ -267,6 +265,18 @@
           readingLine
       #endif
       }
+    }
+
+    /// Adds the Mac's antenna-only fact in a build that cannot read a
+    /// contactless card.
+    private func withReaderAntenna(_ facts: RequesterFacts) -> RequesterFacts {
+      #if FEATURE_CONTACTLESS
+        return facts
+      #else
+        var known = facts
+        known.cardOnReaderAntenna = cardPresence.isReaderCardOnlyOnAntenna
+        return known
+      #endif
     }
 
     /// Follows one availability and reads the name when ready.

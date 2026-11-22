@@ -40,9 +40,9 @@ internal final class CardPresence: ObservableObject {
   /// card I/O must wait for this separate fact.
   @Published internal private(set) var isReaderCardReady = false
 
-  #if os(macOS)
+  #if os(macOS) && !FEATURE_CONTACTLESS
     /// Whether a reader sees its card only through its contactless
-    /// interface.
+    /// interface, in a build that cannot read one.
     ///
     /// The Mac reads cards through their contacts. A dual-interface reader
     /// can see a card inserted in the contact slot through its antenna, and
@@ -163,7 +163,7 @@ internal final class CardPresence: ObservableObject {
       CardTransport.transport(forSlotNamed: name) == .reader
         && slot.state == .validCard
     }
-    #if os(macOS)
+    #if os(macOS) && !FEATURE_CONTACTLESS
       syncReaderAntennaPresence(from: occupied)
     #endif
     // The reader's attachment is settled before a departing card is
@@ -200,8 +200,9 @@ internal final class CardPresence: ObservableObject {
     #endif
   }
 
-  #if os(macOS)
-    /// Follows whether a reader sees its card only through its antenna.
+  #if os(macOS) && !FEATURE_CONTACTLESS
+    /// Follows whether a reader sees its card only through its antenna in
+    /// a build that cannot read a contactless card.
     ///
     /// A valid contact slot clears the state: the card is then being read
     /// the way the Mac reads cards. A probing contact slot keeps the row
