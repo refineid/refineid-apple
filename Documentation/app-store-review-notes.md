@@ -79,8 +79,8 @@ went stale, so the text is not repeated: read it there.
   gated off for the MVP the Mac carries no Bluetooth; it never listens,
   so no server entitlement.
 - ATS rationale: App Review reads the version's notes in App Store
-  Connect, which carry `review.notes` from `Metadata/appstore.json`; the
-  macOS notes hold the justification. The comments above
+  Connect, which carry `review.notes` from `Metadata/appstore.json`; both
+  platform notes hold the justification. The comments above
   `NSAppTransportSecurity` in both application plists
   (`Config/RefineID-Store-Info.plist`,
   `Config/RefineID-iOS-Info.plist`) hold the same rationale inside the
@@ -89,10 +89,3 @@ went stale, so the text is not repeated: read it there.
   requests when signing a document: the time-stamp authority, the
   revocation endpoints an archival signature needs, and the EU trusted
   lists that anchor it.
-
-## Open item
-
-- The iPhone `review.notes` do not yet carry the ATS justification; the
-  macOS notes carry the MVP's. Adding it means trimming iPhone notes
-  that are already near the field limit, so it waits for an iPhone
-  submission.
