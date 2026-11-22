@@ -1,4 +1,6 @@
-#!/usr/bin/env swift  // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
+#!/usr/bin/env swift
+
+// Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 // Generate App Store marketing screenshots for RefineID macOS and iOS.
 //
 // Composes marketing screenshots with zero alpha channel,

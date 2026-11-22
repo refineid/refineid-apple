@@ -230,7 +230,8 @@ private func gitOutput(_ arguments: [String]) -> String {
   return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
 }
 
-/// Confirms the tag really is the build's input: it must point at HEAD, the tree must be clean, and the tag must be annotated.
+/// Confirms the tag really is the build's input: it must point at HEAD, the tree must be clean,
+/// and the tag must be annotated.
 ///
 /// A lightweight tag records no cutter and no message, and can be moved without
 /// a trace, so it is refused.

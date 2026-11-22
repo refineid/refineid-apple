@@ -1,4 +1,5 @@
 #!/usr/bin/env swift
+
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 // Automates testing of CryptoTokenKit client-certificate authentication against
 // Finnish identification and test sites (card.refineid.fi, suomi.fi, etc.).
@@ -42,7 +43,7 @@ final class ClientCertificateDelegate: NSObject, URLSessionDelegate, URLSessionT
       var trust: SecTrust?
       let policy = SecPolicyCreateBasicX509()
       if SecTrustCreateWithCertificates(certificate, policy, &trust) == errSecSuccess,
-        let trust = trust
+        let trust
       {
         if let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate] {
           certs = chain
@@ -78,12 +79,12 @@ func findCardIdentity() -> (SecIdentity, SecCertificate, String)? {
     SecIdentityCopyCertificate(id, &cert)
     guard let cert else { continue }
     let subject = (SecCertificateCopySubjectSummary(cert) as String?) ?? ""
-    if !subject.contains("Developer")
-      && !subject.contains("Distribution")
-      && !subject.contains("Apple")
-      && !subject.contains("localhost")
-      && !subject.contains("127.0.0.1")
-      && !subject.isEmpty
+    if !subject.contains("Developer"),
+      !subject.contains("Distribution"),
+      !subject.contains("Apple"),
+      !subject.contains("localhost"),
+      !subject.contains("127.0.0.1"),
+      !subject.isEmpty
     {
       return (id, cert, subject)
     }
@@ -109,9 +110,10 @@ func runTest(target: TestTarget, identity: SecIdentity, certificate: SecCertific
 
   var request = URLRequest(url: target.url)
   request.httpMethod = "GET"
-  request.setValue(
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
-    forHTTPHeaderField: "User-Agent")
+  let userAgent =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 "
+    + "(KHTML, like Gecko) Version/18.0 Safari/605.1.15"
+  request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
 
   let startTime = Date()
   do {

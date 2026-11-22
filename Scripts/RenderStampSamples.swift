@@ -5,15 +5,35 @@ import AppKit
 import Foundation
 import PDFKit
 
+enum RenderError: LocalizedError {
+  case invalidRotation(Double)
+  case renderFailed(String)
+
+  var errorDescription: String? {
+    switch self {
+    case .invalidRotation(let angle):
+      return "Invalid rotation angle \(angle) degrees."
+    case .renderFailed(let reason):
+      return "Failed to render stamp: \(reason)"
+    }
+  }
+}
+
 @main
 enum RenderStampSamples {
   static func main() throws {
+    guard CommandLine.arguments.count > 1 else {
+      FileHandle.standardError.write(
+        Data("Usage: Scripts/render-stamp-samples.py [output-directory] [rotation-degrees]\n".utf8)
+      )
+      exit(2)
+    }
     let destination = CommandLine.arguments[1]
     let requestedAngle = CommandLine.arguments.count > 2 ? Double(CommandLine.arguments[2]) : nil
     if CommandLine.arguments.count > 2,
       requestedAngle.map({ PdfStampRenderer.rotationDegreesRange.contains($0) }) != true
     {
-      throw CocoaError(.validationMissingMandatoryProperty)
+      throw RenderError.invalidRotation(requestedAngle ?? 0)
     }
     for language in ["en", "fi", "sv"] {
       let angle = requestedAngle ?? Double.random(in: PdfStampRenderer.rotationDegreesRange)
@@ -24,7 +44,8 @@ enum RenderStampSamples {
       let objects = [
         "<< /Type /Catalog /Pages 2 0 R >>",
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 144 144] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 144 144] "
+          + "/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
         "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>",
         "<< /Length \(operators.utf8.count) >>\nstream\n\(operators)endstream",
       ]
@@ -42,7 +63,7 @@ enum RenderStampSamples {
       try data.write(
         to: URL(fileURLWithPath: "\(destination)/signature-stamp-\(language)-tilted.pdf"))
       guard let document = PDFDocument(data: data), let page = document.page(at: 0) else {
-        throw CocoaError(.fileReadCorruptFile)
+        throw RenderError.renderFailed("PDF generation failed for \(language)")
       }
       guard
         let bitmap = NSBitmapImageRep(
@@ -52,7 +73,7 @@ enum RenderStampSamples {
         ),
         let context = NSGraphicsContext(bitmapImageRep: bitmap)
       else {
-        throw CocoaError(.fileReadCorruptFile)
+        throw RenderError.renderFailed("Bitmap context allocation failed")
       }
       NSGraphicsContext.saveGraphicsState()
       NSGraphicsContext.current = context
@@ -62,7 +83,7 @@ enum RenderStampSamples {
       page.draw(with: .mediaBox, to: context.cgContext)
       NSGraphicsContext.restoreGraphicsState()
       guard let pngData = bitmap.representation(using: .png, properties: [:]) else {
-        throw CocoaError(.fileReadCorruptFile)
+        throw RenderError.renderFailed("PNG representation encoding failed")
       }
       try pngData.write(
         to: URL(fileURLWithPath: "\(destination)/signature-stamp-\(language)-tilted.png")

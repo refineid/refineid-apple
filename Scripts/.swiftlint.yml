@@ -1,13 +1,13 @@
-# SwiftLint configuration for standalone executable scripts under Scripts/.
-#
+parent_config: ../.swiftlint.yml
+
 # Standalone CLI scripts are single-file tools run directly (e.g. via `#!/usr/bin/env swift`),
 # not library framework modules. Architectural module rules (such as explicit ACL, single
-# declaration per file, strict file length, and file header on line 1) are disabled here,
-# while all core defect, type safety, and formatting gates remain strictly enforced.
+# declaration per file, strict file length, and file header on line 1) and script-specific
+# syntax differences are disabled here, while all core defect, type safety, and formatting
+# gates remain strictly enforced from the root configuration.
 
 disabled_rules:
   - anonymous_argument_in_multiline_closure
-  - contains_over_range_nil_comparison
   - cyclomatic_complexity
   - discouraged_default_parameter
   - discouraged_optional_collection
@@ -17,7 +17,6 @@ disabled_rules:
   - file_header
   - file_length
   - file_types_order
-  - for_where
   - function_body_length
   - function_parameter_count
   - identifier_name
@@ -32,11 +31,6 @@ disabled_rules:
   - one_declaration_per_file
   - optional_data_string_conversion
   - prefer_condition_list
-  - prefer_key_path
-  - prefer_zero_over_explicit_init
-  - shorthand_optional_binding
-  - sorted_enum_cases
   - switch_case_on_newline
   - unneeded_escaping
   - unused_parameter
-  - variable_shadowing

@@ -381,10 +381,9 @@ private func releaseTeamIdentifier(of url: URL) -> String {
     capture: true,
     allowFailure: true
   )
-  for line in result.combinedOutput.split(whereSeparator: \.isNewline) {
-    if line.hasPrefix("TeamIdentifier=") {
-      return String(line.dropFirst("TeamIdentifier=".count))
-    }
+  for line in result.combinedOutput.split(whereSeparator: \.isNewline)
+  where line.hasPrefix("TeamIdentifier=") {
+    return String(line.dropFirst("TeamIdentifier=".count))
   }
   releaseFail("could not read the team identifier from \(url.path)")
 }
@@ -532,7 +531,10 @@ private func inspectReleaseArchive(_ archive: URL) {
   )
 
   let forbiddenStrings =
-    #"refineid-token-extension\.log|Uniffi callback interface .*handle missing in uniffiFree|\[(persistent-relay|persistent-token)\]|^(sign|session|discovery|mintFromPrime|createToken|supports|beginAuth|unseal|reader|prime): |^--(diagnostics|trace|reset-card-state|set-can|forget-can|prime)$"#
+    #"refineid-token-extension\.log|Uniffi callback interface .*handle missing in uniffiFree|"#
+    + #"\[(persistent-relay|persistent-token)\]|"#
+    + #"^(sign|session|discovery|mintFromPrime|createToken|supports|beginAuth|unseal|reader|prime): |"#
+    + #"^--(diagnostics|trace|reset-card-state|set-can|forget-can|prime)$"#
   for executable in executables {
     let output = releaseRun(
       "/usr/bin/strings",
@@ -1535,15 +1537,14 @@ private func releaseCandidate(_ arguments: [String]) {
     let exportOptions = outputRoot.appendingPathComponent(
       "ExportOptions-\(platform.rawValue).plist"
     )
-    for disposable in [archive, exportDirectory, exportOptions] {
-      if releaseFileManager.fileExists(atPath: disposable.path) {
-        do {
-          try releaseFileManager.removeItem(at: disposable)
-        } catch {
-          releaseFail(
-            "could not remove \(disposable.path): \(error.localizedDescription)"
-          )
-        }
+    for disposable in [archive, exportDirectory, exportOptions]
+    where releaseFileManager.fileExists(atPath: disposable.path) {
+      do {
+        try releaseFileManager.removeItem(at: disposable)
+      } catch {
+        releaseFail(
+          "could not remove \(disposable.path): \(error.localizedDescription)"
+        )
       }
     }
 
@@ -1658,9 +1659,9 @@ private struct StoreSimulator {
 /// A platform in the store: its display type, the size App Store Connect
 /// takes for it, and its screens in store order.
 private enum StorePlatform: String, CaseIterable {
-  case macos
   case ios
   case ipad
+  case macos
 
   var displayType: String {
     switch self {
@@ -2966,13 +2967,12 @@ private func installMacOS(_ arguments: [String], stamp: Bool = true) {
   // Registered directly: launching the app only so the system notices the
   // extensions put a window on screen and took it away on every install.
   var registered = false
-  for plugIn in installPlugIns(of: installMacTarget) {
-    if releaseRun("/usr/bin/pluginkit", ["-a", plugIn.path], capture: true, allowFailure: true)
-      .status == 0
-    {
-      installNote("install-macos", "extension registered: \(plugIn.lastPathComponent)")
-      registered = true
-    }
+  for plugIn in installPlugIns(of: installMacTarget)
+  where releaseRun("/usr/bin/pluginkit", ["-a", plugIn.path], capture: true, allowFailure: true)
+    .status == 0
+  {
+    installNote("install-macos", "extension registered: \(plugIn.lastPathComponent)")
+    registered = true
   }
   if !registered {
     installNote("install-macos", "pluginkit refused; launching the app once so the system sees it")
@@ -3152,7 +3152,7 @@ private func installIPadSimulator() -> String? {
       as? [String: Any],
     let runtimes = root["devices"] as? [String: [[String: Any]]]
   else { return nil }
-  let iPads = runtimes.filter { $0.key.contains("iOS") }.values.flatMap { $0 }
+  let iPads = runtimes.filter { $0.key.contains("iOS") }.values.flatMap(\.self)
     .filter { ($0["name"] as? String ?? "").contains("iPad") }
   let preferred =
     iPads.first { ($0["name"] as? String ?? "").contains("iPad Pro 13-inch") } ?? iPads.first
@@ -4098,7 +4098,7 @@ func screenshotSet(localizationID: String, displayType: String) -> String {
   }), let id = match["id"] as? String {
     setID = id
     for shot in dataArray(api("GET", "/v1/appScreenshotSets/\(setID)/appScreenshots")) {
-      if let id = shot["id"] as? String { api("DELETE", "/v1/appScreenshots/\(id)") }
+      if let shotID = shot["id"] as? String { api("DELETE", "/v1/appScreenshots/\(shotID)") }
     }
   } else {
     let created = api(
@@ -4448,9 +4448,9 @@ func pushScreenshots(_ platformName: String, _ version: String) {
 // is testable once it processes to VALID, and reaches external testers
 // once its beta review is APPROVED. Internal testers need only VALID.
 func builds(_ platformName: String) {
-  let platform = apiPlatform(platformName)
+  let targetPlatform = apiPlatform(platformName)
   let path =
-    "/v1/builds?filter[app]=\(appID())&filter[preReleaseVersion.platform]=\(platform)"
+    "/v1/builds?filter[app]=\(appID())&filter[preReleaseVersion.platform]=\(targetPlatform)"
     + "&sort=-uploadedDate&limit=10&include=preReleaseVersion,betaAppReviewSubmission"
     + "&fields[builds]=version,processingState,expired,preReleaseVersion,betaAppReviewSubmission"
     + "&fields[preReleaseVersions]=version&fields[betaAppReviewSubmissions]=betaReviewState"
@@ -4490,10 +4490,10 @@ func builds(_ platformName: String) {
 // External testers need beta review; internal testers need only a valid build.
 // App Store build attachment is a separate command.
 func distribute(_ platformName: String, _ groupName: String, _ candidateID: String? = nil) {
-  let platform = apiPlatform(platformName)
+  let targetPlatform = apiPlatform(platformName)
   let buildsPath =
     "/v1/builds?filter[app]=\(appID())"
-    + "&filter[preReleaseVersion.platform]=\(platform)&sort=-uploadedDate&limit=100"
+    + "&filter[preReleaseVersion.platform]=\(targetPlatform)&sort=-uploadedDate&limit=100"
   let candidates = dataArray(api("GET", buildsPath))
   let selected =
     candidateID.map { id in candidates.first { $0["id"] as? String == id } }
@@ -4687,20 +4687,20 @@ func state() {
     + "versionString,platform,appStoreState,build&include=build"
     + "&fields[builds]=version&limit=50"
   let response = api("GET", path)
-  var builds: [String: String] = [:]
+  var buildVersions: [String: String] = [:]
   for entry in (response["included"] as? [[String: Any]] ?? [])
   where entry["type"] as? String == "builds" {
     if let id = entry["id"] as? String, let attributes = entry["attributes"] as? [String: Any],
       let version = attributes["version"] as? String
     {
-      builds[id] = version
+      buildVersions[id] = version
     }
   }
   for version in dataArray(response) {
     let attributes = version["attributes"] as? [String: Any] ?? [:]
     let relationship = (version["relationships"] as? [String: Any])?["build"] as? [String: Any]
     let buildID = (relationship?["data"] as? [String: Any])?["id"] as? String
-    let build = buildID.flatMap { builds[$0] } ?? "-"
+    let build = buildID.flatMap { buildVersions[$0] } ?? "-"
     print(
       String(
         format: "  %@ %@ %@ build=%@",

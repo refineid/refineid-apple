@@ -1,4 +1,6 @@
-#!/usr/bin/env swift  // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
+#!/usr/bin/env swift
+
+// Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 // Usage: swift Scripts/TestMacosNotarizedDmgBuilder.swift
 //
