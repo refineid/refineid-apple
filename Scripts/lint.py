@@ -36,7 +36,7 @@ FORMAT_PATHS = [
     "PKCS11Bridge/Sources",
     "PKCS11Bridge/Tests",
     "PKCS11Bridge/Package.swift",
-    "Scripts/PaceCurveBenchmark.swift",
+    "Scripts",
 ]
 
 TYPECHECK_TARGETS: list[tuple[str, list[str]]] = [

@@ -1,5 +1,4 @@
-#!/usr/bin/env swift
-// Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
+#!/usr/bin/env swift  // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 // Usage: swift Scripts/TestAppleAppStoreConnectReleaseManager.swift
 //
@@ -290,6 +289,7 @@ private func commandCases() -> [CommandCase] {
 }
 
 /// The production helpers run unchanged under both Swift execution modes.
+///
 /// The isolated entry point supplies only synthetic commands and version files.
 private let lifecycleDriver = #"""
   private let lifecycleRepeatCount = 65536

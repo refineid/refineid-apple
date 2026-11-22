@@ -6,7 +6,7 @@ import Foundation
 import PDFKit
 
 @main
-struct RenderStampSamples {
+enum RenderStampSamples {
   static func main() throws {
     let destination = CommandLine.arguments[1]
     let requestedAngle = CommandLine.arguments.count > 2 ? Double(CommandLine.arguments[2]) : nil
@@ -44,12 +44,16 @@ struct RenderStampSamples {
       guard let document = PDFDocument(data: data), let page = document.page(at: 0) else {
         throw CocoaError(.fileReadCorruptFile)
       }
-      let bitmap = NSBitmapImageRep(
-        bitmapDataPlanes: nil, pixelsWide: 1200, pixelsHigh: 1200, bitsPerSample: 8,
-        samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
-        bytesPerRow: 0, bitsPerPixel: 0
-      )!
-      let context = NSGraphicsContext(bitmapImageRep: bitmap)!
+      guard
+        let bitmap = NSBitmapImageRep(
+          bitmapDataPlanes: nil, pixelsWide: 1200, pixelsHigh: 1200, bitsPerSample: 8,
+          samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+          bytesPerRow: 0, bitsPerPixel: 0
+        ),
+        let context = NSGraphicsContext(bitmapImageRep: bitmap)
+      else {
+        throw CocoaError(.fileReadCorruptFile)
+      }
       NSGraphicsContext.saveGraphicsState()
       NSGraphicsContext.current = context
       context.cgContext.setFillColor(NSColor.white.cgColor)
@@ -57,7 +61,10 @@ struct RenderStampSamples {
       context.cgContext.scaleBy(x: 1200 / 144, y: 1200 / 144)
       page.draw(with: .mediaBox, to: context.cgContext)
       NSGraphicsContext.restoreGraphicsState()
-      try bitmap.representation(using: .png, properties: [:])!.write(
+      guard let pngData = bitmap.representation(using: .png, properties: [:]) else {
+        throw CocoaError(.fileReadCorruptFile)
+      }
+      try pngData.write(
         to: URL(fileURLWithPath: "\(destination)/signature-stamp-\(language)-tilted.png")
       )
     }

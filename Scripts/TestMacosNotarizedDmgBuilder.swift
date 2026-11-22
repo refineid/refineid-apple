@@ -1,5 +1,4 @@
-#!/usr/bin/env swift
-// Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
+#!/usr/bin/env swift  // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 // Usage: swift Scripts/TestMacosNotarizedDmgBuilder.swift
 //
@@ -24,8 +23,9 @@ private let builderPath = "Scripts/macos-notarized-dmg-builder.swift"
 private let rejectedExitStatus: Int32 = 1
 
 /// A notarization profile that is not empty, so a case reaches the tag check
-/// instead of stopping at the credential check. Nothing is looked up: the tag
-/// check runs before any keychain or network work.
+/// instead of stopping at the credential check.
+///
+/// Nothing is looked up: the tag check runs before any keychain or network work.
 private let configuredProfile = "RefineID-notary"
 
 private struct CommandResult {

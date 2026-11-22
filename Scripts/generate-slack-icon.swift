@@ -1,5 +1,4 @@
 #!/usr/bin/env swift  // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
-
 // Generate RefineID Slack Workspace Icons matching official Slack Guidelines:
 //   - Canvas: Exactly 4000 x 4000 pixels (Slack maximum high-resolution asset)
 //   - Background: Solid statutory Finnish flag blue (sRGB #134483, SDK 827/1993)
@@ -22,8 +21,10 @@ let canvasSize: CGFloat = 4000.0
 // Finnish Law Blue sRGB #134483 per Valtioneuvoston päätös Suomen lipun väreistä (SDK 827/1993)
 let lawBlueHex = "#134483"
 let lawBlueRGB: (CGFloat, CGFloat, CGFloat) = (19.0 / 255.0, 68.0 / 255.0, 131.0 / 255.0)
-let topGradientRGB: (CGFloat, CGFloat, CGFloat) = (31.0 / 255.0, 90.0 / 255.0, 166.0 / 255.0)  // #1F5AA6
-let botGradientRGB: (CGFloat, CGFloat, CGFloat) = (16.0 / 255.0, 60.0 / 255.0, 118.0 / 255.0)  // #103C76
+// #1F5AA6
+let topGradientRGB: (CGFloat, CGFloat, CGFloat) = (31.0 / 255.0, 90.0 / 255.0, 166.0 / 255.0)
+// #103C76
+let botGradientRGB: (CGFloat, CGFloat, CGFloat) = (16.0 / 255.0, 60.0 / 255.0, 118.0 / 255.0)
 
 let cardFillHex = "#FFFFFF"
 let chipBaseHex = "#D9B96B"
