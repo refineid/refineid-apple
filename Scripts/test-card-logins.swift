@@ -1,6 +1,6 @@
 #!/usr/bin/env swift
-// Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
+// Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 // Automates testing of CryptoTokenKit client-certificate authentication against
 // Finnish identification and test sites (card.refineid.fi, suomi.fi, etc.).
 //
@@ -42,7 +42,9 @@ final class ClientCertificateDelegate: NSObject, URLSessionDelegate, URLSessionT
       var certs: [SecCertificate] = [certificate]
       var trust: SecTrust?
       let policy = SecPolicyCreateBasicX509()
-      if SecTrustCreateWithCertificates(certificate, policy, &trust) == errSecSuccess, let trust = trust {
+      if SecTrustCreateWithCertificates(certificate, policy, &trust) == errSecSuccess,
+        let trust
+      {
         if let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate] {
           certs = chain
         }
@@ -77,12 +79,12 @@ func findCardIdentity() -> (SecIdentity, SecCertificate, String)? {
     SecIdentityCopyCertificate(id, &cert)
     guard let cert else { continue }
     let subject = (SecCertificateCopySubjectSummary(cert) as String?) ?? ""
-    if !subject.contains("Developer")
-      && !subject.contains("Distribution")
-      && !subject.contains("Apple")
-      && !subject.contains("localhost")
-      && !subject.contains("127.0.0.1")
-      && !subject.isEmpty
+    if !subject.contains("Developer"),
+      !subject.contains("Distribution"),
+      !subject.contains("Apple"),
+      !subject.contains("localhost"),
+      !subject.contains("127.0.0.1"),
+      !subject.isEmpty
     {
       return (id, cert, subject)
     }
@@ -91,12 +93,15 @@ func findCardIdentity() -> (SecIdentity, SecCertificate, String)? {
   return nil
 }
 
-func runTest(target: TestTarget, identity: SecIdentity, certificate: SecCertificate, verbose: Bool) async -> Bool {
+func runTest(target: TestTarget, identity: SecIdentity, certificate: SecCertificate, verbose: Bool)
+  async -> Bool
+{
   print("\n------------------------------------------------------------")
   print("Testing: \(target.name) (\(target.url))")
   print("------------------------------------------------------------")
 
-  let delegate = ClientCertificateDelegate(identity: identity, certificate: certificate, verbose: verbose)
+  let delegate = ClientCertificateDelegate(
+    identity: identity, certificate: certificate, verbose: verbose)
   let config = URLSessionConfiguration.ephemeral
   config.timeoutIntervalForRequest = 30
   config.timeoutIntervalForResource = 60
@@ -105,7 +110,10 @@ func runTest(target: TestTarget, identity: SecIdentity, certificate: SecCertific
 
   var request = URLRequest(url: target.url)
   request.httpMethod = "GET"
-  request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
+  let userAgent =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 "
+    + "(KHTML, like Gecko) Version/18.0 Safari/605.1.15"
+  request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
 
   let startTime = Date()
   do {
@@ -113,7 +121,9 @@ func runTest(target: TestTarget, identity: SecIdentity, certificate: SecCertific
     let elapsed = String(format: "%.2f", Date().timeIntervalSince(startTime))
     if let httpResponse = response as? HTTPURLResponse {
       print("  Status Code: \(httpResponse.statusCode)")
-      print("  Challenge Handshake: \(delegate.challengeReceived ? "YES (mTLS executed)" : "No challenge requested")")
+      print(
+        "  Challenge Handshake: \(delegate.challengeReceived ? "YES (mTLS executed)" : "No challenge requested")"
+      )
       print("  Response Size: \(data.count) bytes")
       print("  Elapsed Time: \(elapsed)s")
       if verbose {
@@ -128,7 +138,9 @@ func runTest(target: TestTarget, identity: SecIdentity, certificate: SecCertific
   } catch {
     let elapsed = String(format: "%.2f", Date().timeIntervalSince(startTime))
     print("  Failed after \(elapsed)s: \(error.localizedDescription)")
-    print("  Challenge Handshake: \(delegate.challengeReceived ? "YES (failed during sign)" : "No challenge requested")")
+    print(
+      "  Challenge Handshake: \(delegate.challengeReceived ? "YES (failed during sign)" : "No challenge requested")"
+    )
     print("  Result: FAILED")
     return false
   }
@@ -147,6 +159,16 @@ func main() async {
 
   print("Found Card Identity: \(subject)")
 
+  guard
+    let cardAuthURL = URL(string: "https://card.refineid.fi"),
+    let suomiFiURL = URL(string: "https://tunnistus.suomi.fi")
+  else {
+    print("Error: invalid target URLs")
+    exit(1)
+  }
+  let cardTarget = TestTarget(name: "RefineID Card Auth", url: cardAuthURL)
+  let suomiTarget = TestTarget(name: "Suomi.fi Identification", url: suomiFiURL)
+
   var targets: [TestTarget] = []
   let args = CommandLine.arguments
 
@@ -159,25 +181,24 @@ func main() async {
     let site = args[siteIndex + 1]
     switch site {
     case "card":
-      targets.append(TestTarget(name: "RefineID Card Auth", url: URL(string: "https://card.refineid.fi")!))
+      targets.append(cardTarget)
     case "suomi":
-      targets.append(TestTarget(name: "Suomi.fi Identification", url: URL(string: "https://tunnistus.suomi.fi")!))
+      targets.append(suomiTarget)
     case "all":
-      targets.append(TestTarget(name: "RefineID Card Auth", url: URL(string: "https://card.refineid.fi")!))
-      targets.append(TestTarget(name: "Suomi.fi Identification", url: URL(string: "https://tunnistus.suomi.fi")!))
+      targets.append(contentsOf: [cardTarget, suomiTarget])
     default:
       if let customURL = URL(string: site) {
         targets.append(TestTarget(name: "Custom Target", url: customURL))
       }
     }
   } else {
-    targets.append(TestTarget(name: "RefineID Card Auth", url: URL(string: "https://card.refineid.fi")!))
-    targets.append(TestTarget(name: "Suomi.fi Identification", url: URL(string: "https://tunnistus.suomi.fi")!))
+    targets.append(contentsOf: [cardTarget, suomiTarget])
   }
 
   var passCount = 0
   for target in targets {
-    let success = await runTest(target: target, identity: identity, certificate: cert, verbose: verbose)
+    let success = await runTest(
+      target: target, identity: identity, certificate: cert, verbose: verbose)
     if success { passCount += 1 }
   }
 

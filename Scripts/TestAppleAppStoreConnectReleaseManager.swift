@@ -1,4 +1,5 @@
 #!/usr/bin/env swift
+
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 
 // Usage: swift Scripts/TestAppleAppStoreConnectReleaseManager.swift
@@ -92,12 +93,12 @@ private func run(
   defer { timeout.cancel() }
   var data = Data()
   if let signalAfterReady {
-    while data.range(of: readyMarker) == nil {
+    while !data.contains(readyMarker) {
       let bytes = pipe.fileHandleForReading.availableData
       guard !bytes.isEmpty else { break }
       data.append(bytes)
     }
-    if data.range(of: readyMarker) != nil { kill(-process.processIdentifier, signalAfterReady) }
+    if data.contains(readyMarker) { kill(-process.processIdentifier, signalAfterReady) }
   }
   data.append(pipe.fileHandleForReading.readDataToEndOfFile())
   process.waitUntilExit()
@@ -290,6 +291,7 @@ private func commandCases() -> [CommandCase] {
 }
 
 /// The production helpers run unchanged under both Swift execution modes.
+///
 /// The isolated entry point supplies only synthetic commands and version files.
 private let lifecycleDriver = #"""
   private let lifecycleRepeatCount = 65536

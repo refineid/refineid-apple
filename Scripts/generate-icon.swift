@@ -30,7 +30,13 @@ let iconBundle = repoRoot.appendingPathComponent("Sources/App/AppIcon.icon", isD
 let iconAssets = iconBundle.appendingPathComponent("Assets", isDirectory: true)
 // Recreate the assets directory so a retired layer can never linger.
 try? FileManager.default.removeItem(at: iconAssets)
-try! FileManager.default.createDirectory(at: iconAssets, withIntermediateDirectories: true)
+do {
+  try FileManager.default.createDirectory(at: iconAssets, withIntermediateDirectories: true)
+} catch {
+  FileHandle.standardError.write(
+    Data("failed to create directory \(iconAssets.path): \(error)\n".utf8))
+  exit(1)
+}
 
 // ---------------------------------------------------------------- palette
 // Background: the law blue, applied as the .icon automatic-gradient fill
@@ -54,7 +60,7 @@ let chipEngraveWidth = 6
 let cardWidth = 700
 let cardHeight = 440
 let cardCornerRadius = 45
-let cardX = (canvas - cardWidth) / 2   // 162
+let cardX = (canvas - cardWidth) / 2  // 162
 let cardY = (canvas - cardHeight) / 2  // 292
 
 // Chip pad, upper-left on the card (Icon Composer nudges the whole chip
@@ -64,36 +70,39 @@ let chipHeight = 120
 let chipCornerRadius = 35
 let chipX = 240
 let chipY = 520
-let chipLeft = chipX                 // 240
-let chipRight = chipX + chipWidth    // 390
-let chipBottom = chipY               // 520  (y-up: the pad's lower edge)
-let chipTop = chipY + chipHeight     // 640  (the pad's upper edge)
-let cx = chipX + chipWidth / 2       // 315  the vertical mirror axis
-let cy = chipY + chipHeight / 2      // 580  the horizontal mirror axis
+let chipLeft = chipX  // 240
+let chipRight = chipX + chipWidth  // 390
+let chipBottom = chipY  // 520  (y-up: the pad's lower edge)
+let chipTop = chipY + chipHeight  // 640  (the pad's upper edge)
+let cx = chipX + chipWidth / 2  // 315  the vertical mirror axis
+let cy = chipY + chipHeight / 2  // 580  the horizontal mirror axis
 
 // Engraving offsets from the centre (cx, cy). Everything is drawn as
 // cx +/- <x-offset> and cy +/- <y-offset>, so both halves are identical.
-let bandGap = 30      // the two horizontal band lines sit at cy +/- bandGap
-let ringRadius = 30   // the central contact ring (touches both band lines)
-let domeOuterX = 40   // a corner dome arc leaves its band line here
-let domeCtrlX = 30    // the dome arc's quadratic control point
-let domeInnerX = 10   // and the dome arc meets the card edge here
+let bandGap = 30  // the two horizontal band lines sit at cy +/- bandGap
+let ringRadius = 30  // the central contact ring (touches both band lines)
+let domeOuterX = 40  // a corner dome arc leaves its band line here
+let domeCtrlX = 30  // the dome arc's quadratic control point
+let domeInnerX = 10  // and the dome arc meets the card edge here
 // Each index dot is centred in its band zone (between a band line at
 // cy +/- bandGap and the card edge at cy +/- chipHeight/2), so this is
 // derived, not rounded: (30 + 60) / 2 = 45, i.e. cy +/- 45.
 let dotGap = (bandGap + chipHeight / 2) / 2
 let dotRadius = 5
 
-let bandTop = cy + bandGap       // 610
-let bandBottom = cy - bandGap    // 550
+let bandTop = cy + bandGap  // 610
+let bandBottom = cy - bandGap  // 550
 
 let chipIconOffsetX = 35
 let chipIconOffsetY = 75
 
 // ---------------------------------------------------------------- helpers
-func roundedRect(x: Int, y: Int, width: Int, height: Int, radius: Int, _ attributes: String) -> String {
+func roundedRect(x: Int, y: Int, width: Int, height: Int, radius: Int, _ attributes: String)
+  -> String
+{
   let tail = attributes.isEmpty ? "" : " " + attributes
-  return "<rect x=\"\(x)\" y=\"\(y)\" width=\"\(width)\" height=\"\(height)\" rx=\"\(radius)\"\(tail)/>"
+  return
+    "<rect x=\"\(x)\" y=\"\(y)\" width=\"\(width)\" height=\"\(height)\" rx=\"\(radius)\"\(tail)/>"
 }
 
 func circle(cx: Int, cy: Int, radius: Int, fill: String) -> String {
@@ -112,7 +121,16 @@ func layer(_ body: [String]) -> String {
 }
 
 func write(_ content: String, to url: URL) {
-  try! content.data(using: .utf8)!.write(to: url)
+  guard let data = content.data(using: .utf8) else {
+    FileHandle.standardError.write(Data("failed to encode UTF-8 content for \(url.path)\n".utf8))
+    exit(1)
+  }
+  do {
+    try data.write(to: url)
+  } catch {
+    FileHandle.standardError.write(Data("failed to write \(url.path): \(error)\n".utf8))
+    exit(1)
+  }
   print("wrote \(url.path)")
 }
 
@@ -151,12 +169,16 @@ let engravingFeatures: [(label: String, path: String)] = [
 write(
   layer([
     "\t<!-- the card body -->",
-    "\t" + roundedRect(x: cardX, y: cardY, width: cardWidth, height: cardHeight, radius: cardCornerRadius, "fill=\"\(flatCard)\""),
+    "\t"
+      + roundedRect(
+        x: cardX, y: cardY, width: cardWidth, height: cardHeight, radius: cardCornerRadius,
+        "fill=\"\(flatCard)\""),
   ]),
   to: iconAssets.appendingPathComponent("layer-card.svg")
 )
 
-let chipPad = roundedRect(x: chipX, y: chipY, width: chipWidth, height: chipHeight, radius: chipCornerRadius, "")
+let chipPad = roundedRect(
+  x: chipX, y: chipY, width: chipWidth, height: chipHeight, radius: chipCornerRadius, "")
 var chipBody = [
   "\t<defs>",
   "\t\t<clipPath id=\"pad\">",
@@ -164,7 +186,10 @@ var chipBody = [
   "\t\t</clipPath>",
   "\t</defs>",
   "\t<!-- gold contact pad -->",
-  "\t" + roundedRect(x: chipX, y: chipY, width: chipWidth, height: chipHeight, radius: chipCornerRadius, "fill=\"\(flatChip)\""),
+  "\t"
+    + roundedRect(
+      x: chipX, y: chipY, width: chipWidth, height: chipHeight, radius: chipCornerRadius,
+      "fill=\"\(flatChip)\""),
   "\t<g clip-path=\"url(#pad)\" fill=\"none\" stroke=\"\(chipEngraveColor)\" stroke-width=\"\(chipEngraveWidth)\">",
 ]
 for feature in engravingFeatures {
@@ -181,51 +206,50 @@ write(layer(chipBody), to: iconAssets.appendingPathComponent("layer-chip.svg"))
 
 // ---------------------------------------------------------------- .icon
 let iconJson = """
-{
-  "fill" : {
-    "automatic-gradient" : "extended-srgb:0.07451,0.26667,0.51373,1.00000"
-  },
-  "groups" : [
-    {
-      "layers" : [
-        {
-          "glass" : true,
-          "hidden" : false,
-          "image-name" : "layer-chip.svg",
-          "name" : "chip",
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
-              \(chipIconOffsetX),
-              \(chipIconOffsetY)
-            ]
+  {
+    "fill" : {
+      "automatic-gradient" : "extended-srgb:0.07451,0.26667,0.51373,1.00000"
+    },
+    "groups" : [
+      {
+        "layers" : [
+          {
+            "glass" : true,
+            "hidden" : false,
+            "image-name" : "layer-chip.svg",
+            "name" : "chip",
+            "position" : {
+              "scale" : 1,
+              "translation-in-points" : [
+                \(chipIconOffsetX),
+                \(chipIconOffsetY)
+              ]
+            }
+          },
+          {
+            "glass" : true,
+            "hidden" : false,
+            "image-name" : "layer-card.svg",
+            "name" : "card"
           }
+        ],
+        "shadow" : {
+          "kind" : "neutral",
+          "opacity" : 0.5
         },
-        {
-          "glass" : true,
-          "hidden" : false,
-          "image-name" : "layer-card.svg",
-          "name" : "card"
+        "translucency" : {
+          "enabled" : true,
+          "value" : 0.5
         }
-      ],
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.5
-      },
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.5
       }
+    ],
+    "supported-platforms" : {
+      "squares" : "shared"
     }
-  ],
-  "supported-platforms" : {
-    "squares" : "shared"
   }
-}
-"""
+  """
 // Byte-identical with Icon Composer's save: trim the multi-line
 // template's trailing newline, which the canonical file lacks.
 let canonicalJson = iconJson.hasSuffix("\n") ? String(iconJson.dropLast()) : iconJson
-try! canonicalJson.data(using: .utf8)!.write(to: iconBundle.appendingPathComponent("icon.json"))
-print("wrote \(iconBundle.appendingPathComponent("icon.json").path)")
+write(canonicalJson, to: iconBundle.appendingPathComponent("icon.json"))
 print("wrote \(iconBundle.path)")

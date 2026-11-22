@@ -1,0 +1,36 @@
+parent_config: ../.swiftlint.yml
+
+# Standalone CLI scripts are single-file tools run directly (e.g. via `#!/usr/bin/env swift`),
+# not library framework modules. Architectural module rules (such as explicit ACL, single
+# declaration per file, strict file length, and file header on line 1) and script-specific
+# syntax differences are disabled here, while all core defect, type safety, and formatting
+# gates remain strictly enforced from the root configuration.
+
+disabled_rules:
+  - anonymous_argument_in_multiline_closure
+  - cyclomatic_complexity
+  - discouraged_default_parameter
+  - discouraged_optional_collection
+  - explicit_acl
+  - explicit_enum_raw_value
+  - explicit_top_level_acl
+  - file_header
+  - file_length
+  - file_types_order
+  - function_body_length
+  - function_parameter_count
+  - identifier_name
+  - large_tuple
+  - legacy_objc_type
+  - line_length
+  - multiline_function_chains
+  - multiline_parameters
+  - no_empty_block
+  - no_magic_numbers
+  - number_separator
+  - one_declaration_per_file
+  - optional_data_string_conversion
+  - prefer_condition_list
+  - switch_case_on_newline
+  - unneeded_escaping
+  - unused_parameter

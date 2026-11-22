@@ -316,6 +316,5 @@ excluded:
   - "**/.swiftpm"
   - "DerivedData"
   - "derivedData"
-  - "Scripts"
   - "build"
   - "Worktrees"

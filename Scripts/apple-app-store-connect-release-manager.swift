@@ -67,11 +67,11 @@
 //   apple-app-store-connect-release-manager.swift submissions
 //   apple-app-store-connect-release-manager.swift submit <ios|macos> <versionString>
 
+import AppKit
 import CoreGraphics
 import CryptoKit
 import Foundation
 import ImageIO
-import AppKit
 
 // MARK: - Local release engineering
 
@@ -381,10 +381,9 @@ private func releaseTeamIdentifier(of url: URL) -> String {
     capture: true,
     allowFailure: true
   )
-  for line in result.combinedOutput.split(whereSeparator: \.isNewline) {
-    if line.hasPrefix("TeamIdentifier=") {
-      return String(line.dropFirst("TeamIdentifier=".count))
-    }
+  for line in result.combinedOutput.split(whereSeparator: \.isNewline)
+  where line.hasPrefix("TeamIdentifier=") {
+    return String(line.dropFirst("TeamIdentifier=".count))
   }
   releaseFail("could not read the team identifier from \(url.path)")
 }
@@ -532,7 +531,10 @@ private func inspectReleaseArchive(_ archive: URL) {
   )
 
   let forbiddenStrings =
-    #"refineid-token-extension\.log|Uniffi callback interface .*handle missing in uniffiFree|\[(persistent-relay|persistent-token)\]|^(sign|session|discovery|mintFromPrime|createToken|supports|beginAuth|unseal|reader|prime): |^--(diagnostics|trace|reset-card-state|set-can|forget-can|prime)$"#
+    #"refineid-token-extension\.log|Uniffi callback interface .*handle missing in uniffiFree|"#
+    + #"\[(persistent-relay|persistent-token)\]|"#
+    + #"^(sign|session|discovery|mintFromPrime|createToken|supports|beginAuth|unseal|reader|prime): |"#
+    + #"^--(diagnostics|trace|reset-card-state|set-can|forget-can|prime)$"#
   for executable in executables {
     let output = releaseRun(
       "/usr/bin/strings",
@@ -682,7 +684,8 @@ private func inspectReleaseArchive(_ archive: URL) {
     if layout.hasRapp {
       let rappEntitlements = releaseEntitlements(of: layout.rappBundle)
       guard appEntitlements["com.apple.security.network.client"] as? Bool == true else {
-        releaseFail("\(layout.app.path): missing RAPP entitlement com.apple.security.network.client")
+        releaseFail(
+          "\(layout.app.path): missing RAPP entitlement com.apple.security.network.client")
       }
       guard rappEntitlements["com.apple.security.network.client"] as? Bool == true else {
         releaseFail(
@@ -1050,13 +1053,16 @@ private func releasePrivateKeyPath(
   if let configured = environment["ASC_PRIVATE_KEY_PATH"], !configured.isEmpty {
     return releaseExpandHome(configured, home: homeDirectory.path)
   }
-  return homeDirectory
+  return
+    homeDirectory
     .appendingPathComponent(".appstoreconnect/private_keys/AuthKey_\(keyID).p8")
     .path
 }
 
 /// The credentials when the environment carries a complete set, nil
-/// otherwise. Profile assurance wants them even on a local export;
+/// otherwise.
+///
+/// Profile assurance wants them even on a local export;
 /// only an upload or store call hard-requires them.
 private func releaseUploadCredentialsIfAvailable() -> ReleaseUploadCredentials? {
   let environment = releaseEnvironment()
@@ -1097,7 +1103,9 @@ nonisolated(unsafe) private var cachedAPIToken:
   (credentials: ReleaseUploadCredentials, token: String, expiresAt: Int)?
 
 /// A 20-minute ES256 token for the team API key, minted with CryptoKit and
-/// reused across calls in this invocation until its refresh margin. The .p8 is
+/// reused across calls in this invocation until its refresh margin.
+///
+/// The .p8 is
 /// a PKCS#8 P-256 private key; CryptoKit's raw signature is r||s, which is the
 /// ES256 JWS form.
 private func releaseAPIToken(_ credentials: ReleaseUploadCredentials) -> String {
@@ -1163,6 +1171,7 @@ private struct ReleaseAPIResponse {
 
 /// One synchronous App Store Connect API call: its HTTP status, raw bytes,
 /// parsed JSON body (empty when the response body is empty), and UTF-8 text.
+///
 /// Brackets in query parameters (filter[bundleId]) are percent-encoded.
 private func apiResponse(
   _ method: String,
@@ -1219,6 +1228,7 @@ private func apiResponse(
 }
 
 /// One synchronous App Store Connect API call. Returns the parsed body, or
+///
 /// fails the run with the API's own error on any non-2xx response.
 @discardableResult
 private func api(
@@ -1527,15 +1537,14 @@ private func releaseCandidate(_ arguments: [String]) {
     let exportOptions = outputRoot.appendingPathComponent(
       "ExportOptions-\(platform.rawValue).plist"
     )
-    for disposable in [archive, exportDirectory, exportOptions] {
-      if releaseFileManager.fileExists(atPath: disposable.path) {
-        do {
-          try releaseFileManager.removeItem(at: disposable)
-        } catch {
-          releaseFail(
-            "could not remove \(disposable.path): \(error.localizedDescription)"
-          )
-        }
+    for disposable in [archive, exportDirectory, exportOptions]
+    where releaseFileManager.fileExists(atPath: disposable.path) {
+      do {
+        try releaseFileManager.removeItem(at: disposable)
+      } catch {
+        releaseFail(
+          "could not remove \(disposable.path): \(error.localizedDescription)"
+        )
       }
     }
 
@@ -1603,7 +1612,9 @@ private func releaseCandidate(_ arguments: [String]) {
 // MARK: - App Store screenshots
 
 /// One store locale: the folder App Store Connect reads, and the language
-/// and region the app is captured in. A raw capture is named by its
+/// and region the app is captured in.
+///
+/// A raw capture is named by its
 /// language.
 private struct StoreLocale {
   let folder: String
@@ -1618,7 +1629,9 @@ private let storeLocales = [
 ]
 
 /// One screen the store shows: the raw capture it is composed from, and
-/// the demonstration state the app is launched into for it. Every state
+/// the demonstration state the app is launched into for it.
+///
+/// Every state
 /// is a virtual card, so no capture reads a real card or a real holder.
 private struct StoreScreen {
   let asset: String
@@ -1634,7 +1647,9 @@ private struct StorePixelSize: Equatable, CustomStringConvertible {
 }
 
 /// The simulator one platform is captured on, found by its name and
-/// created when missing. Its own device, so a capture never touches the
+/// created when missing.
+///
+/// Its own device, so a capture never touches the
 /// simulators used for testing.
 private struct StoreSimulator {
   let name: String
@@ -1644,9 +1659,9 @@ private struct StoreSimulator {
 /// A platform in the store: its display type, the size App Store Connect
 /// takes for it, and its screens in store order.
 private enum StorePlatform: String, CaseIterable {
-  case macos
   case ios
   case ipad
+  case macos
 
   var displayType: String {
     switch self {
@@ -1727,7 +1742,9 @@ private let storeStillCaptures = 3
 private let storeSettleAttempts = 30
 
 /// A capture shows content once anything differs between its top and
-/// bottom tenths: a launch screen is one colour there. Every eighth pixel
+/// bottom tenths: a launch screen is one colour there.
+///
+/// Every eighth pixel
 /// of every eighth row is looked at.
 private let storeContentBandDivisor = 10
 private let storeContentSampleStride = 8
@@ -1798,7 +1815,8 @@ private func storeShowsContent(_ image: CGImage, pixels: Data) -> Bool {
   let pixelStride = storeContentSampleStride * bytesPerPixel
   return pixels.withUnsafeBytes { bytes in
     let reference = band * image.bytesPerRow
-    for row in stride(from: reference, to: (image.height - band) * image.bytesPerRow, by: rowStride) {
+    for row in stride(from: reference, to: (image.height - band) * image.bytesPerRow, by: rowStride)
+    {
       for offset in stride(from: row, to: row + image.width * bytesPerPixel, by: pixelStride) {
         for byte in 0..<bytesPerPixel where bytes[offset + byte] != bytes[reference + byte] {
           return true
@@ -1810,6 +1828,7 @@ private func storeShowsContent(_ image: CGImage, pixels: Data) -> Bool {
 }
 
 /// Whether a copy that shows a window is the frontmost application. Only
+///
 /// a key window draws its controls live, so an inactive frame is never kept.
 private func storeIsFrontmost(_ pid: pid_t) -> Bool {
   NSWorkspace.shared.frontmostApplication?.processIdentifier == pid
@@ -1817,6 +1836,7 @@ private func storeIsFrontmost(_ pid: pid_t) -> Bool {
 
 /// Captures until the screen shows content and holds still, so no image is
 /// taken of a launch screen, mid-animation, or before its content arrived.
+///
 /// A named Mac copy is brought forward before every attempt and must stay
 /// frontmost for its frame to count. Answers why it failed, or nil.
 private func storeSettledCapture(
@@ -1911,6 +1931,7 @@ private func storeStop(_ pid: pid_t) {
 }
 
 /// Captures the status window of one launch of the built copy. Answers
+///
 /// why it failed, or nil.
 ///
 /// Every launch carries a virtual card, so the copy holds no card session
@@ -2010,7 +2031,8 @@ private func storeSimulatorListing() -> [[String: Any]] {
 
 /// The newest iOS runtime that runs a device type.
 private func storeRuntime(for deviceType: String) -> String {
-  let listing = releaseRun("/usr/bin/xcrun", ["simctl", "list", "runtimes", "--json"], capture: true)
+  let listing = releaseRun(
+    "/usr/bin/xcrun", ["simctl", "list", "runtimes", "--json"], capture: true)
   guard
     let root = try? JSONSerialization.jsonObject(with: Data(listing.stdout.utf8))
       as? [String: Any],
@@ -2064,7 +2086,9 @@ private func storePrepareSimulator(_ udid: String) {
 }
 
 /// Sets the simulator's language and region, which format the status
-/// bar's time, and puts the status bar in place. The status bar reads them
+/// bar's time, and puts the status bar in place.
+///
+/// The status bar reads them
 /// once per boot, so the simulator restarts in between.
 private func storeSetSimulatorLocale(_ udid: String, _ locale: StoreLocale) {
   for write in [
@@ -2080,7 +2104,9 @@ private func storeSetSimulatorLocale(_ udid: String, _ locale: StoreLocale) {
     "/usr/bin/xcrun", ["simctl", "status_bar", udid, "override"] + storeStatusBar, capture: true)
 }
 
-/// Captures one screen on a simulator. Answers why it failed, or nil.
+/// Captures one screen on a simulator.
+///
+/// Answers why it failed, or nil.
 private func storeCaptureSimulatorScreen(
   _ udid: String, platform: StorePlatform, arguments: [String], to destination: URL
 ) -> String? {
@@ -2177,7 +2203,9 @@ private let storeInkThreshold = 60
 
 /// Paints over everything in the left half of an iPad status bar after the
 /// time with the bar's own colour: the date, which would date the
-/// screenshot, and the app's name. The time and the indicators stay.
+/// screenshot, and the app's name.
+///
+/// The time and the indicators stay.
 /// Answers why it failed, or nil.
 private func storeRemoveIPadDate(_ url: URL) -> String? {
   let channels = 4
@@ -2220,7 +2248,8 @@ private func storeRemoveIPadDate(_ url: URL) -> String? {
       x: timeEnd + storeIPadTimeGap, y: height - storeIPadStatusBarHeight,
       width: width / 2 - timeEnd - storeIPadTimeGap, height: storeIPadStatusBarHeight))
   guard let patched = context.makeImage(),
-    let destination = CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil)
+    let destination = CGImageDestinationCreateWithURL(
+      url as CFURL, "public.png" as CFString, 1, nil)
   else { return "could not write \(url.lastPathComponent)" }
   CGImageDestinationAddImage(destination, patched, nil)
   return CGImageDestinationFinalize(destination) ? nil : "could not write \(url.lastPathComponent)"
@@ -2307,12 +2336,14 @@ private func releaseCaptureScreenshots(_ arguments: [String]) {
 // MARK: - Version stamp
 
 /// The calendar version of a build cut now: YY.M.D and the UTC time of
-/// day as HHMM, hour times one hundred plus the minute. UTC, so it is
+/// day as HHMM, hour times one hundred plus the minute.
+///
+/// UTC, so it is
 /// monotonic across machines and never repeats an hour at the
 /// daylight-saving fall-back.
 private func releaseCalendarVersion() -> (marketing: String, build: Int) {
   var calendar = Calendar(identifier: .gregorian)
-  calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+  calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
   let components = calendar.dateComponents(
     [.year, .month, .day, .hour, .minute],
     from: Date()
@@ -2461,6 +2492,7 @@ private func releaseWithInstallStamp(
 
 /// `stamp`: writes the version for a release cut by hand, and with
 /// `--tag <channel>` tags the current commit once the stamp is committed.
+///
 /// Tagging is opt-in: a stamp only sets a build number, a tag asserts a
 /// commit is a release for a named channel.
 private func releaseStamp(_ arguments: [String]) {
@@ -2539,7 +2571,9 @@ private func installNote(_ scope: String, _ message: String) {
 }
 
 /// Refuses anything the system will not launch: a broken seal, or a
-/// certificate revoked since the bundle was signed. A revoked certificate
+/// certificate revoked since the bundle was signed.
+///
+/// A revoked certificate
 /// does not merely warn: launchd refuses to spawn the token extension
 /// (POSIX 163), ctkd reports no token driver for a good card, and Safari
 /// is never offered an identity, which looks exactly like an app bug.
@@ -2571,6 +2605,7 @@ private func installVerifySignature(_ bundle: URL, scope: String) {
 }
 
 /// Build products are not documents. Left indexed, every configuration of
+///
 /// every checkout answers a search for the app by name. The marker goes in
 /// before the build, because a tree is indexed as it is written.
 private func installHideFromSpotlight(_ directory: URL) {
@@ -2599,7 +2634,9 @@ private func installUnregister(_ bundle: URL) {
 /// Every copy outside /Applications is a competing CryptoTokenKit driver or
 /// Launch Services registration; the system picks one silently, and an
 /// iOS or simulator bundle claiming the identifier without a macOS icon draws
-/// nothing in the Dock. Active parallel device and simulator install scratch
+/// nothing in the Dock.
+///
+/// Active parallel device and simulator install scratch
 /// roots are spared until their own install step removes them.
 private func installRemoveStrayCopies(keeping built: URL) {
   var candidates = Set<String>()
@@ -2667,7 +2704,9 @@ private func installRemoveStrayCopies(keeping built: URL) {
 }
 
 /// Build trees older than a week in the temporary directory, which are
-/// scratch and not history. Age is the only evidence a tree is nobody's;
+/// scratch and not history.
+///
+/// Age is the only evidence a tree is nobody's;
 /// the tree this run uses and every git worktree are spared.
 private func installRemoveStaleBuildTrees(sparing current: URL) {
   let worktrees = Set(
@@ -2696,11 +2735,13 @@ private func installRemoveStaleBuildTrees(sparing current: URL) {
 }
 
 /// Ends every macOS RefineID process so the bundle can be replaced. Only
+///
 /// the macOS layout has Contents/MacOS, so a simulator install is spared.
 private func installKillMacApp() {
   let pattern = "/RefineID.app/Contents/MacOS/RefineID"
-  guard releaseRun("/usr/bin/pgrep", ["-f", pattern], capture: true, allowFailure: true).status
-    == 0
+  guard
+    releaseRun("/usr/bin/pgrep", ["-f", pattern], capture: true, allowFailure: true).status
+      == 0
   else { return }
   installNote("install-macos", "killing the running macOS app")
   releaseRun("/usr/bin/pkill", ["-KILL", "-f", pattern], capture: true, allowFailure: true)
@@ -2735,7 +2776,9 @@ private let installTokenRemintSeconds = 25
 
 /// CryptoTokenKit mints a reader card's token once per physical insertion
 /// (Documentation/card-transports.md), so a card left in the reader across
-/// a driver replacement keeps no token. The per-user token watcher reads
+/// a driver replacement keeps no token.
+///
+/// The per-user token watcher reads
 /// the slots afresh when it starts: ending it lets launchd start it on the
 /// next request, and it mints the card with the new driver.
 private func installRemintInsertedCard() {
@@ -2766,12 +2809,12 @@ private func installReportRegistrations() {
 private let installBundleIdentifier = "fi.refineid.ReFineID"
 
 /// Every Launch Services record of the app or one of its extensions whose
-/// bundle lies outside /Applications/RefineID.app, read from
-/// `lsregister -dump`. A record lists `path:` before `identifier:`; the
-/// path carries a trailing ` (0x...)` record reference. Local-network
-/// privacy resolves the app's executable through these records, so a
-/// leftover build product with the same identifier denies the installed
-/// copy its local network access.
+/// bundle lies outside /Applications/RefineID.app, read from `lsregister -dump`.
+///
+/// A record lists `path:` before `identifier:`; the path carries a trailing
+/// ` (0x...)` record reference. Local-network privacy resolves the app's
+/// executable through these records, so a leftover build product with the same
+/// identifier denies the installed copy its local network access.
 private func installStaleRegistrations() -> [String] {
   guard releaseFileManager.isExecutableFile(atPath: installLSRegister) else { return [] }
   let dump = releaseRun(installLSRegister, ["-dump"], capture: true, allowFailure: true)
@@ -2805,7 +2848,9 @@ private func installStaleRegistrations() -> [String] {
 }
 
 /// Unregisters every stale record, then registers the installed copy
-/// again so it is the only one Launch Services resolves. Files are left
+/// again so it is the only one Launch Services resolves.
+///
+/// Files are left
 /// where they are.
 private func installPurgeStaleRegistrations(scope: String, dryRun: Bool) {
   let stale = installStaleRegistrations()
@@ -2838,6 +2883,7 @@ private func installPurgeStaleRegistrationsCommand(_ arguments: [String]) {
 
 /// `install-macos`: builds, verifies and installs RefineID into
 /// /Applications, the only place a copy may live, then launches it.
+///
 /// The signature is checked before anything is replaced, so a bad
 /// certificate leaves the working copy in place.
 private func installMacOS(_ arguments: [String], stamp: Bool = true) {
@@ -2921,13 +2967,12 @@ private func installMacOS(_ arguments: [String], stamp: Bool = true) {
   // Registered directly: launching the app only so the system notices the
   // extensions put a window on screen and took it away on every install.
   var registered = false
-  for plugIn in installPlugIns(of: installMacTarget) {
-    if releaseRun("/usr/bin/pluginkit", ["-a", plugIn.path], capture: true, allowFailure: true)
-      .status == 0
-    {
-      installNote("install-macos", "extension registered: \(plugIn.lastPathComponent)")
-      registered = true
-    }
+  for plugIn in installPlugIns(of: installMacTarget)
+  where releaseRun("/usr/bin/pluginkit", ["-a", plugIn.path], capture: true, allowFailure: true)
+    .status == 0
+  {
+    installNote("install-macos", "extension registered: \(plugIn.lastPathComponent)")
+    registered = true
   }
   if !registered {
     installNote("install-macos", "pluginkit refused; launching the app once so the system sees it")
@@ -3002,6 +3047,7 @@ private func installResolveDevice(_ requested: String?, scope: String) -> Instal
 }
 
 /// Launches an installed app. A locked device cannot launch anything, and
+///
 /// that leaves a good install, so it is reported, not failed.
 private func installLaunch(
   _ bundleID: String, on device: InstallDevice, scope: String, arguments: [String] = []
@@ -3024,7 +3070,9 @@ private func installLaunch(
 
 /// Where this install is built from, for the development title: the
 /// branch and commit when the checkout is not a clean main, empty when
-/// it is. The install's own version stamp is not a change. A store
+/// it is.
+///
+/// The install's own version stamp is not a change. A store
 /// build never carries it.
 private func installSourceTag() -> String {
   let branch = releaseRun(
@@ -3048,7 +3096,9 @@ private func installSourceTag() -> String {
 }
 
 /// Builds the optimized diagnostic configuration for one device, installs
-/// and launches it. The version goes on the command line, which wins over
+/// and launches it.
+///
+/// The version goes on the command line, which wins over
 /// Version.xcconfig, so the device build edits no file.
 private func installIOS(
   on device: InstallDevice, version: (marketing: String, build: Int), primeMockCard: Bool
@@ -3076,7 +3126,8 @@ private func installIOS(
       "build",
     ] + releaseSigningArguments(),
     currentDirectory: releaseRepositoryRoot)
-  let app = derivedData.appendingPathComponent("Build/Products/\(configuration)-iphoneos/RefineID.app")
+  let app = derivedData.appendingPathComponent(
+    "Build/Products/\(configuration)-iphoneos/RefineID.app")
   releaseRun("/usr/bin/codesign", ["--verify", "--deep", "--strict", app.path])
   releaseRun(
     "/usr/bin/xcrun",
@@ -3096,11 +3147,12 @@ private func installIPadSimulator() -> String? {
   let listing = releaseRun(
     "/usr/bin/xcrun", ["simctl", "list", "devices", "available", "--json"], capture: true,
     allowFailure: true)
-  guard let root = try? JSONSerialization.jsonObject(with: Data(listing.stdout.utf8))
-    as? [String: Any],
+  guard
+    let root = try? JSONSerialization.jsonObject(with: Data(listing.stdout.utf8))
+      as? [String: Any],
     let runtimes = root["devices"] as? [String: [[String: Any]]]
   else { return nil }
-  let iPads = runtimes.filter { $0.key.contains("iOS") }.values.flatMap { $0 }
+  let iPads = runtimes.filter { $0.key.contains("iOS") }.values.flatMap(\.self)
     .filter { ($0["name"] as? String ?? "").contains("iPad") }
   let preferred =
     iPads.first { ($0["name"] as? String ?? "").contains("iPad Pro 13-inch") } ?? iPads.first
@@ -3164,7 +3216,9 @@ private func installIOSCommand(_ arguments: [String]) {
 }
 
 /// `install-devices`: this Mac, every connected iPhone and iPad, and the
-/// iPad simulator, all on one version, built side by side. Run after a
+/// iPad simulator, all on one version, built side by side.
+///
+/// Run after a
 /// feature commit so every machine that can run the app matches the tree.
 private func installDevices(_ arguments: [String]) {
   var mac = true
@@ -3209,6 +3263,7 @@ private func installDevices(_ arguments: [String]) {
 }
 
 /// `install-nfc-timing`: the NFC card timing sample in Samples/NFCCardTiming.
+///
 /// Its project is generated from project.yml, so the YAML stays the source.
 private func installNFCTiming(_ arguments: [String]) {
   guard arguments.count <= 1 else {
@@ -3247,7 +3302,9 @@ private func installNFCTiming(_ arguments: [String]) {
 
 /// `install-pkcs11`: builds the PKCS#11 bridge and installs it to
 /// /usr/local/lib, inside ssh-agent's default provider allowlist; /usr/lib
-/// is sealed by SIP. The same binary is installed under two names, since
+/// is sealed by SIP.
+///
+/// The same binary is installed under two names, since
 /// the module behaves as authentication-only or full by the name it is
 /// loaded under. Each copy gets its installed path as install name and an
 /// ad-hoc signature, because install_name_tool invalidates the build's.
@@ -3279,7 +3336,8 @@ private func installPKCS11(_ arguments: [String]) {
       print(keys.stdout)
       installNote(scope, "card keys listed")
     } else {
-      installNote(scope, "no card keys listed; insert the card and run: ssh-keygen -D \(primary.path)")
+      installNote(
+        scope, "no card keys listed; insert the card and run: ssh-keygen -D \(primary.path)")
     }
   }
 
@@ -3321,7 +3379,9 @@ private func installPKCS11(_ arguments: [String]) {
     releaseRun("/usr/bin/install_name_tool", ["-id", target.path, staged.path])
     releaseRun("/usr/bin/codesign", ["--force", "--sign", "-", staged.path], capture: true)
     releaseRun("/usr/bin/codesign", ["--verify", staged.path])
-    if !writable { releaseRun("/usr/bin/sudo", ["/usr/bin/install", "-d", "-m", "0755", installDirectory.path]) }
+    if !writable {
+      releaseRun("/usr/bin/sudo", ["/usr/bin/install", "-d", "-m", "0755", installDirectory.path])
+    }
     privileged("/usr/bin/install", ["-m", "0755", staged.path, target.path])
     installNote(scope, "installed: \(target.path)")
   }
@@ -3335,7 +3395,8 @@ private func installPKCS11(_ arguments: [String]) {
   installNote(scope, "done. ssh usage: ssh -o PKCS11Provider=\(primary.path) user@host")
   installNote(
     scope,
-    "signing consumers (SunPKCS11/DSS) load: \(installDirectory.appendingPathComponent(names[1]).path)")
+    "signing consumers (SunPKCS11/DSS) load: \(installDirectory.appendingPathComponent(names[1]).path)"
+  )
 }
 
 private func printReleaseManagerUsage() {
@@ -4037,7 +4098,7 @@ func screenshotSet(localizationID: String, displayType: String) -> String {
   }), let id = match["id"] as? String {
     setID = id
     for shot in dataArray(api("GET", "/v1/appScreenshotSets/\(setID)/appScreenshots")) {
-      if let id = shot["id"] as? String { api("DELETE", "/v1/appScreenshots/\(id)") }
+      if let shotID = shot["id"] as? String { api("DELETE", "/v1/appScreenshots/\(shotID)") }
     }
   } else {
     let created = api(
@@ -4118,12 +4179,15 @@ private let assetLibraryKinds = [
 ]
 
 /// The version states a prune may clear: only a version the store has
-/// replaced, which never returns to submission. A rejected version keeps
+/// replaced, which never returns to submission.
+///
+/// A rejected version keeps
 /// its placements because the same record is fixed and resubmitted, and
 /// every other state is a page the store shows or is about to show.
 private let leftBehindVersionStates: Set<String> = ["REPLACED_WITH_NEW_VERSION"]
 
 /// The asset states that are still becoming something. An asset uploading
+///
 /// or processing has no placements yet, and deleting it would cut a run
 /// short, so it is left alone.
 private let inFlightAssetStates: Set<String> = [
@@ -4263,7 +4327,8 @@ private func leftBehindLocalizations() -> Set<String> {
   for platform in platforms.values {
     let versions = everyPage(
       "/v1/apps/\(appID())/appStoreVersions?filter[platform]=\(platform)"
-        + "&limit=\(assetRelationshipPageLimit)&fields[appStoreVersions]=versionString,appStoreState")
+        + "&limit=\(assetRelationshipPageLimit)&fields[appStoreVersions]=versionString,appStoreState"
+    )
     read += versions.count
     for version in versions {
       guard let versionID = version["id"] as? String,
@@ -4383,9 +4448,9 @@ func pushScreenshots(_ platformName: String, _ version: String) {
 // is testable once it processes to VALID, and reaches external testers
 // once its beta review is APPROVED. Internal testers need only VALID.
 func builds(_ platformName: String) {
-  let platform = apiPlatform(platformName)
+  let targetPlatform = apiPlatform(platformName)
   let path =
-    "/v1/builds?filter[app]=\(appID())&filter[preReleaseVersion.platform]=\(platform)"
+    "/v1/builds?filter[app]=\(appID())&filter[preReleaseVersion.platform]=\(targetPlatform)"
     + "&sort=-uploadedDate&limit=10&include=preReleaseVersion,betaAppReviewSubmission"
     + "&fields[builds]=version,processingState,expired,preReleaseVersion,betaAppReviewSubmission"
     + "&fields[preReleaseVersions]=version&fields[betaAppReviewSubmissions]=betaReviewState"
@@ -4425,12 +4490,13 @@ func builds(_ platformName: String) {
 // External testers need beta review; internal testers need only a valid build.
 // App Store build attachment is a separate command.
 func distribute(_ platformName: String, _ groupName: String, _ candidateID: String? = nil) {
-  let platform = apiPlatform(platformName)
+  let targetPlatform = apiPlatform(platformName)
   let buildsPath =
     "/v1/builds?filter[app]=\(appID())"
-    + "&filter[preReleaseVersion.platform]=\(platform)&sort=-uploadedDate&limit=100"
+    + "&filter[preReleaseVersion.platform]=\(targetPlatform)&sort=-uploadedDate&limit=100"
   let candidates = dataArray(api("GET", buildsPath))
-  let selected = candidateID.map { id in candidates.first { $0["id"] as? String == id } }
+  let selected =
+    candidateID.map { id in candidates.first { $0["id"] as? String == id } }
     ?? candidates.first
   guard let build = selected, let buildID = build["id"] as? String
   else { releaseFail("no \(platformName) build to distribute") }
@@ -4621,20 +4687,20 @@ func state() {
     + "versionString,platform,appStoreState,build&include=build"
     + "&fields[builds]=version&limit=50"
   let response = api("GET", path)
-  var builds: [String: String] = [:]
+  var buildVersions: [String: String] = [:]
   for entry in (response["included"] as? [[String: Any]] ?? [])
   where entry["type"] as? String == "builds" {
     if let id = entry["id"] as? String, let attributes = entry["attributes"] as? [String: Any],
       let version = attributes["version"] as? String
     {
-      builds[id] = version
+      buildVersions[id] = version
     }
   }
   for version in dataArray(response) {
     let attributes = version["attributes"] as? [String: Any] ?? [:]
     let relationship = (version["relationships"] as? [String: Any])?["build"] as? [String: Any]
     let buildID = (relationship?["data"] as? [String: Any])?["id"] as? String
-    let build = buildID.flatMap { builds[$0] } ?? "-"
+    let build = buildID.flatMap { buildVersions[$0] } ?? "-"
     print(
       String(
         format: "  %@ %@ %@ build=%@",

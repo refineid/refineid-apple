@@ -1,5 +1,6 @@
-#!/usr/bin/env swift  // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
+#!/usr/bin/env swift
 
+// Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 // Generate RefineID Slack Workspace Icons matching official Slack Guidelines:
 //   - Canvas: Exactly 4000 x 4000 pixels (Slack maximum high-resolution asset)
 //   - Background: Solid statutory Finnish flag blue (sRGB #134483, SDK 827/1993)
@@ -22,8 +23,10 @@ let canvasSize: CGFloat = 4000.0
 // Finnish Law Blue sRGB #134483 per Valtioneuvoston päätös Suomen lipun väreistä (SDK 827/1993)
 let lawBlueHex = "#134483"
 let lawBlueRGB: (CGFloat, CGFloat, CGFloat) = (19.0 / 255.0, 68.0 / 255.0, 131.0 / 255.0)
-let topGradientRGB: (CGFloat, CGFloat, CGFloat) = (31.0 / 255.0, 90.0 / 255.0, 166.0 / 255.0)  // #1F5AA6
-let botGradientRGB: (CGFloat, CGFloat, CGFloat) = (16.0 / 255.0, 60.0 / 255.0, 118.0 / 255.0)  // #103C76
+// #1F5AA6
+let topGradientRGB: (CGFloat, CGFloat, CGFloat) = (31.0 / 255.0, 90.0 / 255.0, 166.0 / 255.0)
+// #103C76
+let botGradientRGB: (CGFloat, CGFloat, CGFloat) = (16.0 / 255.0, 60.0 / 255.0, 118.0 / 255.0)
 
 let cardFillHex = "#FFFFFF"
 let chipBaseHex = "#D9B96B"
@@ -103,7 +106,7 @@ func renderSlackIconPNG(isGradient: Bool) -> Data {
     let colors = [topColor, botColor] as CFArray
     let gradient = makeGradient(colors: colors, locations: [0.0, 1.0])
     ctx.drawLinearGradient(
-      gradient, start: CGPoint(x: 0, y: canvasSize), end: CGPoint(x: 0, y: 0), options: [])
+      gradient, start: CGPoint(x: 0, y: canvasSize), end: .zero, options: [])
   } else {
     let lawBlue = srgb(lawBlueRGB.0, lawBlueRGB.1, lawBlueRGB.2, 1.0)
     ctx.setFillColor(lawBlue)
@@ -323,7 +326,8 @@ func generateSlackIconSVG(isGradient: Bool) -> String {
             <!-- Short verticals joining card edge to ring -->
             <path d="M 315 640 V 610 M 315 550 V 520"/>
             <!-- Four corner dome arcs -->
-            <path d="M 275 610 Q 285 640 305 640 M 355 610 Q 345 640 325 640 M 275 550 Q 285 520 305 520 M 355 550 Q 345 520 325 520"/>
+            <path d="M 275 610 Q 285 640 305 640 M 355 610 Q 345 640 325 640" />
+            <path d="M 275 550 Q 285 520 305 520 M 355 550 Q 345 520 325 520" />
             <!-- Mid contact lines -->
             <path d="M 240 580 H 285 M 345 580 H 390"/>
             <!-- Pad rim stroke -->

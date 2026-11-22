@@ -1,8 +1,4 @@
-#!/usr/bin/env swift
-// Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
-
-// Builds a Developer ID signed, notarized, stapled macOS DMG for direct
-// distribution. This is a direct-download artifact path only. It is separate
+#!/usr/bin/env swift  // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.  // Builds a Developer ID signed, notarized, stapled macOS DMG for direct  // distribution. This is a direct-download artifact path only. It is separate
 // from the App Store release manager and does not upload to App Store Connect.
 //
 // The build's input is the annotated release tag, not a time stamp: the tree
@@ -35,15 +31,17 @@ private let valuedArgumentWidth = 2
 private let buildStampFileName = "build-input-stamp"
 private let buildSourceFileName = "build-source-stamp"
 
-/// The channel a direct-download image carries. This path publishes the
-/// development build on bob.refineid.fi; the App Store artifact is a different
-/// build of the same source, uploaded as a beta or a release candidate. The
-/// channel is part of the tag and of the file name, so it cannot be forgotten
-/// on the command line and a store image cannot be published here by mistake.
+/// The channel a direct-download image carries.
+///
+/// This path publishes the development build on bob.refineid.fi; the App Store artifact
+/// is a different build of the same source, uploaded as a beta or a release candidate. The
+/// channel is part of the tag and of the file name, so it cannot be forgotten on the command
+/// line and a store image cannot be published here by mistake.
 private let releaseChannel = "dev"
 
-/// The committed release configuration: the marketing version and the team
-/// the app signs with. Both are public and belong to the checkout.
+/// The committed release configuration: the marketing version and the team the app signs with.
+///
+/// Both are public and belong to the checkout.
 private func versionConfigPath() -> URL {
   repositoryRoot.appendingPathComponent("Version.xcconfig")
 }
@@ -152,7 +150,9 @@ private func resolveNotarytool() -> String {
   fail("could not find notarytool; select an Xcode installation with xcode-select")
 }
 
-/// Reads a key from `Version.xcconfig`. Returns nil when the key is absent or
+/// Reads a key from `Version.xcconfig`.
+///
+/// Returns nil when the key is absent or
 /// empty.
 private func xcconfigValue(_ key: String) -> String? {
   guard let contents = try? String(contentsOf: versionConfigPath(), encoding: .utf8) else {
@@ -206,10 +206,11 @@ private func dmgFileName(appName: String, tag: String) -> String {
   "\(appName)-\(tag).dmg"
 }
 
-/// The identity of the build: the annotated tag it was cut from and the commit
-/// that tag names. Both are stamped into the app and carried by the file name,
-/// so a published image can be traced to its source without trusting an
-/// argument that could disagree with it.
+/// The identity of the build: the annotated tag it was cut from and the commit that tag names.
+///
+/// Both are stamped into the app and carried by the file name, so a published
+/// image can be traced to its source without trusting an argument that could
+/// disagree with it.
 private struct SourceIdentity {
   let tag: String
   let commit: String
@@ -217,8 +218,10 @@ private struct SourceIdentity {
   var buildSource: String { "\(tag)@\(commit)" }
 }
 
-/// Runs git in the checkout. A git that refuses is an error: a source check
-/// that cannot read the repository must stop the run, not pass it.
+/// Runs git in the checkout.
+///
+/// A git that refuses is an error: a source check that cannot read the repository
+/// must stop the run, not pass it.
 private func gitOutput(_ arguments: [String]) -> String {
   let result = run("/usr/bin/git", arguments, directory: repositoryRoot)
   if result.failed {
@@ -227,9 +230,11 @@ private func gitOutput(_ arguments: [String]) -> String {
   return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
 }
 
-/// Confirms the tag really is the build's input: it must point at HEAD, the tree
-/// must be clean, and the tag must be annotated. A lightweight tag records no
-/// cutter and no message, and can be moved without a trace, so it is refused.
+/// Confirms the tag really is the build's input: it must point at HEAD, the tree must be clean,
+/// and the tag must be annotated.
+///
+/// A lightweight tag records no cutter and no message, and can be moved without
+/// a trace, so it is refused.
 private func sourceIdentity(for tag: String) -> SourceIdentity {
   let commit = gitOutput(["rev-parse", "HEAD"])
   guard commit.count == fingerprintHexDigitCount else {
@@ -413,9 +418,11 @@ private func recordedBuildInputDate(derivedData: URL) -> Date? {
   return Date(timeIntervalSince1970: seconds)
 }
 
-/// The source identity of the cached app. A tag does not change any build
-/// input's modification time, so this record, not the input stamp, decides
-/// whether a cached app still belongs to the tag being built.
+/// The source identity of the cached app.
+///
+/// A tag does not change any build input's modification time, so this record,
+/// not the input stamp, decides whether a cached app still belongs to the tag
+/// being built.
 private func recordedBuildSource(derivedData: URL) -> String? {
   let stampFile = derivedData.appendingPathComponent(buildSourceFileName)
   guard let text = try? String(contentsOf: stampFile, encoding: .utf8) else { return nil }
@@ -844,11 +851,12 @@ private func preflightNotaryProfile(_ notaryProfile: String, notarytool: String)
   )
 }
 
-/// Signs the disk image itself. Gatekeeper assesses a downloaded DMG before it
-/// is mounted, and that assessment covers the image, not only the app inside
-/// it. The signature must come before notarization: stapling writes the ticket
-/// into the image, and signing afterwards replaces the signature and leaves the
-/// ticket behind.
+/// Signs the disk image itself.
+///
+/// Gatekeeper assesses a downloaded DMG before it is mounted, and that assessment
+/// covers the image, not only the app inside it. The signature must come before notarization:
+/// stapling writes the ticket into the image, and signing afterwards replaces the signature
+/// and leaves the ticket behind.
 private func signDmg(dmg: URL, signingIdentity: String, teamId: String) {
   note("signing \(dmg.lastPathComponent) with Developer ID Application")
 
@@ -939,8 +947,9 @@ private func validateDmg(dmg: URL) {
   }
 }
 
-/// Confirms what a user's Mac checks when the image is opened: the signature on
-/// the image plus the stapled ticket. Without the image signature this reports
+/// Confirms what a user's Mac checks when the image is opened: the signature on the image plus the stapled ticket.
+///
+/// Without the image signature this reports
 /// `no usable signature` however well the app inside is signed.
 private func assessDmg(dmg: URL) {
   note("assessing \(dmg.lastPathComponent) with Gatekeeper")
@@ -993,9 +1002,11 @@ private func writeChecksumFile(for dmg: URL) {
   note("wrote \(checksumFile)")
 }
 
-/// Removes the artifacts this run supersedes. The output directory is where a
-/// person picks the image to publish, so it holds the newest DMG and its
-/// checksum only; an older file beside them is the one taken by mistake.
+/// Removes the artifacts this run supersedes.
+///
+/// The output directory is where a person picks the image to publish, so it
+/// holds the newest DMG and its checksum only; an older file beside them is the
+/// one taken by mistake.
 private func pruneSupersededArtifacts(in directory: URL, keeping dmg: URL) {
   let kept: Set<String> = [dmg.lastPathComponent, dmg.lastPathComponent + ".checksums"]
   guard let entries = try? FileManager.default.contentsOfDirectory(atPath: directory.path) else {
