@@ -243,6 +243,7 @@ every other change is a change of colour.
 | Card in this Mac's reader, name not read yet | "Reading information…" |
 | Card in this Mac's reader | *HOLDER NAME* |
 | Card in this Mac's reader, no token for it after a while | "Remove the card from the reader for a moment." in orange |
+| Card a reader sees only through its antenna (macOS has no contactless reading) | "Push the card fully into the reader's contact slot." in orange |
 | Paired phone, its identity offered | "*HOLDER NAME* (via phone)" |
 | Paired phone, its card reader empty | "Insert the card into the phone's card reader." |
 | Remote use on, macOS denies the local network, no phone paired or none offering an identity | "macOS is blocking RefineID from the local network. Allow it in System Settings › Privacy & Security › Local Network." in red, with an "Open Settings" button |
@@ -265,7 +266,9 @@ asks afresh and redials, so the line clears itself with no retry control.
 
 A card inserted into this Mac's reader shows "Reading information…" in the
 secondary text color until its token is published and the holder's name
-is read, which takes a second or two.
+is read, which takes a second or two. A dual-interface reader can see a
+card inserted in the contact slot through its antenna; because this build
+has no contactless reading, that card asks for the contact slot instead.
 
 ### Two or more cards
 

@@ -77,6 +77,26 @@ line above before looking at the wire or the server:
     log show --predicate 'process == "ctkd"' --last 10m --style compact \
       | grep -iE "no token driver|failed to start|other version"
 
+## The reader sees the card through its antenna, not its contacts
+
+**Symptom.** A card is in the reader's contact slot, the app shows no
+identity, and the log says `selectRejected(securityNotSatisfied)` on a
+reader slot. `system_profiler SPSmartCardsDataType` shows that slot with
+an ATR beginning `3B 8F 80 01`.
+
+**Cause.** A dual-interface reader's antenna can see a card inserted in
+the contact slot. The card stays sealed on that interface (`6982`), and a
+macOS build has no contactless reading, so the driver refuses it. The
+contact chip is not making contact, so the card is never read the way
+the Mac reads cards.
+
+**What to do.** Push the card fully into the contact slot, chip toward
+the contacts, and clean the chip. Try another card in the reader and the
+same card in another reader. The contact interface answers with the
+card's own ATR, not the synthesized `3B 8F 80 01` prefix. The identity
+row says "Push the card fully into the reader's contact slot." while
+only the antenna sees the card.
+
 ## The system asks about a card only when it arrives
 
 **Symptom.** A card access number is entered while the card is already in

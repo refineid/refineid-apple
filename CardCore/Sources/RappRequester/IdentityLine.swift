@@ -17,6 +17,10 @@ public enum IdentityLine: Equatable, Sendable {
   /// enough to warn; the PIN codes stay one click away.
   case cardNotReady
 
+  /// "Push the card fully into the reader's contact slot.": a reader sees the
+  /// card only through its antenna, which this build cannot open.
+  case cardOnReaderAntenna
+
   /// "Connecting to <phone>...": the phone its user has just paired, until
   /// its first card status or the redial window.
   case connectingToPairedPhone(String)
@@ -74,6 +78,9 @@ public enum IdentityLine: Equatable, Sendable {
         return .localHolder
 
       case .cardWithoutIdentity, .noCard:
+        if facts.cardOnReaderAntenna {
+          return .cardOnReaderAntenna
+        }
         return facts.warnsUnavailableCard ? .cardNotReady : .reading
       }
     }

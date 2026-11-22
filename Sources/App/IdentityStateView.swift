@@ -163,16 +163,19 @@
         known.phoneJustPaired = registry.phoneJustPaired
         known.localNetworkDenied = localNetworkDenied
         known.phoneCardStatus = registry.holderCardStatus
+        known.cardOnReaderAntenna = cardPresence.isReaderCardOnlyOnAntenna
         return known
       #else
         // With the remote card compiled out no phone can be paired, so the
         // row speaks only of the card in this Mac's reader.
-        return RequesterFacts(
+        var known = RequesterFacts(
           availability: availability,
           warnsUnavailableCard: warnsUnavailableCard,
           readerConnected: cardPresence.isReaderConnected,
           cardPresent: cardPresence.isCardPresent
         )
+        known.cardOnReaderAntenna = cardPresence.isReaderCardOnlyOnAntenna
+        return known
       #endif
     }
 
@@ -217,6 +220,11 @@
 
       case .cardNotReady:
         Text("Remove the card from the reader for a moment.")
+          .foregroundStyle(.orange)
+          .frame(maxWidth: .infinity, alignment: .leading)
+
+      case .cardOnReaderAntenna:
+        Text("Push the card fully into the reader's contact slot.")
           .foregroundStyle(.orange)
           .frame(maxWidth: .infinity, alignment: .leading)
 

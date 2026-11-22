@@ -64,6 +64,15 @@ internal struct IdentityLineRemoteUseTests {
       },
       line: .reading),
     Case(
+      name: "a card only on the reader's antenna asks for the contact slot",
+      facts: with { facts in
+        facts.availability = .cardWithoutIdentity
+        facts.readerConnected = true
+        facts.cardPresent = true
+        facts.cardOnReaderAntenna = true
+      },
+      line: .cardOnReaderAntenna),
+    Case(
       name: "a denied local network is not shown",
       facts: with { $0.localNetworkDenied = true }, line: .connectReader),
   ]
