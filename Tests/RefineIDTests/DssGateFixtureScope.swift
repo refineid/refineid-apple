@@ -6,24 +6,66 @@
 
   /// Serializes suites that change shared test-host fixtures.
   internal struct DssGateFixtureScope: SuiteTrait, TestScoping {
-    private actor Access {
-      private var occupied = false
-      private var waiters: [CheckedContinuation<Void, Never>] = []
+    internal actor Access {
+      private static let waiterIDStep: UInt64 = 1
 
-      func acquire() async {
-        if occupied {
-          await withCheckedContinuation { waiters.append($0) }
-        } else {
+      private var occupied = false
+      private var nextWaiterID: UInt64 = 0
+      private var waiters:
+        [(waiterID: UInt64, continuation: CheckedContinuation<Void, any Error>)] =
+          []
+
+      internal var queuedWaiterCount: Int {
+        waiters.count
+      }
+
+      internal func acquire() async throws {
+        try Task.checkCancellation()
+        if !occupied {
           occupied = true
+          return
+        }
+        nextWaiterID &+= Self.waiterIDStep
+        let waiterID = nextWaiterID
+        try await withTaskCancellationHandler {
+          try await self.waitForTurn(waiterID: waiterID)
+        } onCancel: {
+          Task { await self.cancelWaiter(waiterID: waiterID) }
+        }
+        if Task.isCancelled {
+          release()
+          throw CancellationError()
         }
       }
 
-      func release() {
+      private func waitForTurn(waiterID: UInt64) async throws {
+        try await withCheckedThrowingContinuation {
+          (continuation: CheckedContinuation<Void, any Error>) in
+          if Task.isCancelled {
+            continuation.resume(throwing: CancellationError())
+          } else if !occupied {
+            occupied = true
+            continuation.resume()
+          } else {
+            waiters.append((waiterID: waiterID, continuation: continuation))
+          }
+        }
+      }
+
+      internal func release() {
         if waiters.isEmpty {
           occupied = false
         } else {
-          waiters.removeFirst().resume()
+          waiters.removeFirst().continuation.resume()
         }
+      }
+
+      private func cancelWaiter(waiterID: UInt64) {
+        guard let index = waiters.firstIndex(where: { $0.waiterID == waiterID }) else {
+          return
+        }
+        let waiter = waiters.remove(at: index)
+        waiter.continuation.resume(throwing: CancellationError())
       }
     }
 
@@ -39,7 +81,7 @@
     internal func provideScope(
       for _: Test, testCase _: Test.Case?, performing function: @Sendable () async throws -> Void
     ) async throws {
-      await Self.access.acquire()
+      try await Self.access.acquire()
       do {
         try await Self.$hasOwnership.withValue(true) {
           try await function()
