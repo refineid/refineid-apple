@@ -92,10 +92,12 @@
         draft = trimmed
         return
       }
-      guard
-        let target = TimestampAuthorityStore.resolvedRequestAddress(draft),
-        target != TimestampAuthorityStore.defaultAuthority
-      else {
+      guard let target = TimestampAuthorityStore.resolvedRequestAddress(draft) else {
+        verification = nil
+        return
+      }
+      if target == TimestampAuthorityStore.defaultAuthority {
+        TimestampAuthorityStore.restoreDefaults(in: defaults)
         verification = nil
         return
       }
