@@ -400,6 +400,35 @@ class RunnerTests(unittest.TestCase):
             with self.subTest(options=options), self.assertRaises(ValueError):
                 runner.command_for_arguments(options, self.root)
 
+    def test_compiler_warnings_fail_even_when_process_exits_zero(self) -> None:
+        samples = (
+            (
+                "Tests/CardCoreTests/Example.swift:32:32: warning: "
+                "capture of non-Sendable [#SendableClosureCaptures]"
+            ),
+            (
+                "macro expansion #expect:2:6: warning: "
+                "call to main actor-isolated static method [#ActorIsolatedCall]"
+            ),
+            "<unknown>:0: warning: compiler driver warning",
+            "clang: warning: unused argument",
+            "ld: warning: ignoring duplicate libraries",
+        )
+        for sample in samples:
+            with self.subTest(warning=sample):
+                source = f"import sys; print({sample!r}, file=sys.stderr)"
+                status, _, stderr = self.finish(self.start(source))
+                self.assertEqual(status, runner.FAILURE_EXIT_STATUS)
+                self.assertIn("compiler warning detected", stderr)
+
+    def test_xcode_runtime_dvt_assertion_warning_is_not_treated_as_compiler_warning(self) -> None:
+        source = (
+            "import sys; print('2026-11-23 xcodebuild: DVTAssertions: "
+            "Warning in IDEFrameworks/IDELaunchSession.m:395', file=sys.stderr)"
+        )
+        status, _, _ = self.finish(self.start(source))
+        self.assertEqual(status, runner.SUCCESS_EXIT_STATUS)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -20,6 +20,9 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import threading
+
+import RunAppleTests as apple_runner
 
 
 def step(title: str) -> None:
@@ -94,10 +97,50 @@ def unregister_gate_builds() -> None:
 atexit.register(unregister_gate_builds)
 
 
-def run_command(cmd: list[str], err_msg: str, env: dict[str, str] | None = None) -> None:
-    res = subprocess.run(cmd, env=env, check=False)
-    if res.returncode != 0:
+def run_command(
+    cmd: list[str],
+    err_msg: str,
+    env: dict[str, str] | None = None,
+    *,
+    deny_warnings: bool = False,
+) -> None:
+    if not deny_warnings:
+        res = subprocess.run(cmd, env=env, check=False)
+        if res.returncode != 0:
+            fail(err_msg)
+        return
+
+    warning_detected = threading.Event()
+    process = subprocess.Popen(
+        cmd,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    threads: list[threading.Thread] = []
+    if process.stdout is not None:
+        out_thread = threading.Thread(
+            target=apple_runner.forward_and_scan,
+            args=(process.stdout, sys.stdout.buffer, warning_detected),
+            daemon=True,
+        )
+        out_thread.start()
+        threads.append(out_thread)
+    if process.stderr is not None:
+        err_thread = threading.Thread(
+            target=apple_runner.forward_and_scan,
+            args=(process.stderr, sys.stderr.buffer, warning_detected),
+            daemon=True,
+        )
+        err_thread.start()
+        threads.append(err_thread)
+    returncode = process.wait()
+    for thread in threads:
+        thread.join(timeout=apple_runner.TERMINATION_GRACE_SECONDS)
+    if returncode != 0:
         fail(err_msg)
+    if warning_detected.is_set():
+        fail(f"{err_msg} (compiler warning detected)")
 
 
 def check_testing_tools() -> None:
@@ -214,6 +257,7 @@ def main() -> None:
                 "--build-tests",
             ],
             "CardCore package build failed.",
+            deny_warnings=True,
         )
         run_command(
             [
@@ -225,6 +269,7 @@ def main() -> None:
                 "build/spm/CardCore",
             ],
             "CardCore package tests failed.",
+            deny_warnings=True,
         )
 
         step("4. Running PKCS11Bridge package tests")
@@ -238,6 +283,7 @@ def main() -> None:
                 "build/spm/PKCS11Bridge",
             ],
             "PKCS11Bridge package tests failed.",
+            deny_warnings=True,
         )
 
         step("5. Verifying iOS compilation")
@@ -255,6 +301,7 @@ def main() -> None:
                 "CODE_SIGNING_ALLOWED=NO",
             ],
             "iOS build failed. Check for platform-conditional compilation issues.",
+            deny_warnings=True,
         )
 
         step("6. Running unit test suite (RefineIDTests on macOS)")
