@@ -84,7 +84,7 @@ internal struct VerifyTrustedListsSection: View {
   /// A fetch failed, and no lists are stored or the stored ones are
   /// stale. A failed refresh while current lists are stored changes
   /// nothing the user sees.
-  internal static func needsAttention(failed: Bool, stored: Bool, stale: Bool) -> Bool {
+  nonisolated internal static func needsAttention(failed: Bool, stored: Bool, stale: Bool) -> Bool {
     failed && (!stored || stale)
   }
 }

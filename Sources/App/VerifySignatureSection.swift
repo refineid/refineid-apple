@@ -9,7 +9,7 @@ import SwiftUI
 /// The signer's name appears here and nowhere else.
 internal struct VerifySignatureSection: View {
   /// The resolution of certificate and policy times, one second.
-  private static let expiryResolution: TimeInterval = 1
+  nonisolated private static let expiryResolution: TimeInterval = 1
 
   private static var header: some View {
     Text(VerifyText.text("verify.signature", "Signature"))
@@ -90,7 +90,9 @@ internal struct VerifySignatureSection: View {
 
   /// The archive timestamp row: the latest anchored time, a claimed
   /// time marked unproven, or a failed token.
-  private static func archiveValue(_ stamps: [TimestampState]) -> VerifyDocumentRowValue {
+  nonisolated private static func archiveValue(
+    _ stamps: [TimestampState]
+  ) -> VerifyDocumentRowValue {
     if let latest = stamps.compactMap(\.provenTime).max() {
       return VerifyDocumentRowValue(text: VerifyText.formatted(latest.date), indicator: .holds)
     }
@@ -105,11 +107,11 @@ internal struct VerifySignatureSection: View {
   /// One that holds says nothing new to the holder: the signing time is shown
   /// once, and the long-term validity row carries the archival check.
   /// One that is unproven or fails is shown, so the problem is seen.
-  internal static func showsArchiveRow(_ stamps: [TimestampState]) -> Bool {
+  nonisolated internal static func showsArchiveRow(_ stamps: [TimestampState]) -> Bool {
     !stamps.isEmpty && archiveValue(stamps).indicator != .holds
   }
 
-  private static func unprovenValue(_ claimed: Date) -> VerifyDocumentRowValue {
+  nonisolated private static func unprovenValue(_ claimed: Date) -> VerifyDocumentRowValue {
     VerifyDocumentRowValue(
       text: VerifyText.formatted(claimed),
       secondaryText: VerifyText.text("verify.timestampUnproven", "Unproven")
@@ -120,7 +122,7 @@ internal struct VerifySignatureSection: View {
   /// before `validUntil`, since at that instant itself DSS already
   /// counts the archive timestamp expired, so an end of midnight UTC is
   /// shown as the day before.
-  internal static func lastVerifiableDay(before validUntil: Date) -> Date {
+  nonisolated internal static func lastVerifiableDay(before validUntil: Date) -> Date {
     validUntil.addingTimeInterval(-Self.expiryResolution)
   }
 
@@ -131,7 +133,7 @@ internal struct VerifySignatureSection: View {
   /// archive timestamp once that instant has passed; and that the
   /// validity could not be determined when there is no date. The other
   /// levels say what the document lacks.
-  internal static func levelValue(
+  nonisolated internal static func levelValue(
     _ level: SignatureLevel,
     validUntil: Date?,
     now: Date

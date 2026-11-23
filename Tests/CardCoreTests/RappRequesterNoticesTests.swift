@@ -21,7 +21,7 @@
     /// this thread's are counted.
     private func names(postedBy post: () -> Void) -> [Notification.Name] {
       let heard = Heard()
-      let poster = Thread.current
+      let posterID = ObjectIdentifier(Thread.current)
       let watched = [
         RappRequesterNotices.cardNeeded, RappRequesterNotices.unlockNeeded,
         RappRequesterNotices.cardWaitEnded,
@@ -29,7 +29,7 @@
       ]
       let observers = watched.map { name in
         NotificationCenter.default.addObserver(forName: name, object: nil, queue: nil) { _ in
-          if Thread.current == poster {
+          if ObjectIdentifier(Thread.current) == posterID {
             heard.names.append(name)
           }
         }
