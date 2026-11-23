@@ -71,11 +71,18 @@ private let package = Package(
       swiftSettings: warningsAsErrors),
     // Objective-C, because catching an Objective-C exception is a
     // thing only Objective-C can do.
-    .target(name: "ObjCExceptionGuard"),
+    .target(
+      name: "ObjCExceptionGuard",
+      cSettings: [
+        .unsafeFlags(["-Werror"])
+      ]),
     // C, because the PCSC module is marked unimportable from Swift
     // while its C interface remains fully supported.
     .target(
       name: "PcscCardReset",
+      cSettings: [
+        .unsafeFlags(["-Werror"])
+      ],
       linkerSettings: [
         .linkedFramework("PCSC", .when(platforms: [.macOS]))
       ]),

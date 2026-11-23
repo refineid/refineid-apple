@@ -5,8 +5,10 @@
 Usage: python3 Scripts/RunAppleTests.py <xcodebuild test arguments>
 
 The command is always xcodebuild test. Derived data must remain inside this
-checkout. Test output is inherited; supervisor errors contain no arguments,
-process identifiers, device identifiers, or captured test output.
+checkout. Test output is streamed to stdout/stderr unchanged and scanned for
+compiler or linker warnings so downgraded warnings fail like errors; supervisor
+errors contain no arguments, process identifiers, device identifiers, or
+captured test output.
 """
 
 from __future__ import annotations
@@ -17,11 +19,14 @@ from dataclasses import dataclass
 from enum import Enum
 import os
 from pathlib import Path
+import re
 import select
 import signal
 import subprocess
 import sys
+import threading
 import time
+from typing import IO
 
 SUCCESS_EXIT_STATUS = 0
 FAILURE_EXIT_STATUS = 1
@@ -34,6 +39,7 @@ DEFAULT_TIMEOUT_SECONDS = DEFAULT_TIMEOUT_MINUTES * SECONDS_PER_MINUTE
 TERMINATION_GRACE_SECONDS = 10
 PROGRAM_ARGUMENT_START = 1
 SIGNAL_READ_BUFFER_BYTES = 4096
+STREAM_READ_BUFFER_BYTES = 8192
 NO_EVENTS = 0
 NO_WAIT_SECONDS = 0
 PROCESS_ROW_SPLIT_LIMIT = 3
@@ -46,6 +52,12 @@ PS = "/bin/ps"
 DEFAULT_DERIVED_DATA = "build/DerivedData"
 DERIVED_DATA_OPTION = "-derivedDataPath"
 TEST_ACTION = "test"
+COMPILER_WARNING_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"^[^:\n]+\.(?:swift|c|m|mm|h|hpp):\d+:\d+:\s+warning:"),
+    re.compile(r"^<unknown>:\d+:\s+warning:"),
+    re.compile(r"^macro expansion [^:]+:\d+:\d+:\s+warning:"),
+    re.compile(r"^(?:clang|swiftc?|ld):\s+warning:"),
+)
 OTHER_ACTIONS = frozenset(
     {
         "build",
@@ -311,6 +323,46 @@ def exit_status(status: int) -> int:
     return SIGNAL_EXIT_STATUS_BASE - status if status < SUCCESS_EXIT_STATUS else status
 
 
+def has_compiler_warning(line: str) -> bool:
+    """Return True if a build/test output line is a compiler or linker warning."""
+    return any(pattern.search(line) is not None for pattern in COMPILER_WARNING_PATTERNS)
+
+
+def forward_and_scan(
+    source: IO[bytes], target: IO[bytes], warning_detected: threading.Event
+) -> None:
+    """Stream bytes live from `source` to `target` while scanning complete lines."""
+    fd = source.fileno()
+    pending = bytearray()
+    try:
+        while True:
+            try:
+                chunk = os.read(fd, STREAM_READ_BUFFER_BYTES)
+            except OSError:
+                break
+            if not chunk:
+                break
+            with contextlib.suppress(OSError):
+                target.write(chunk)
+                target.flush()
+            pending.extend(chunk)
+            while True:
+                newline = pending.find(b"\n")
+                if newline < 0:
+                    break
+                line = bytes(pending[:newline]).decode("utf-8", errors="replace").rstrip("\r")
+                del pending[: newline + 1]
+                if has_compiler_warning(line):
+                    warning_detected.set()
+        if pending:
+            line = bytes(pending).decode("utf-8", errors="replace").rstrip("\r")
+            if has_compiler_warning(line):
+                warning_detected.set()
+    finally:
+        with contextlib.suppress(OSError):
+            source.close()
+
+
 def supervise(
     command: Sequence[str],
     derived_data: Path,
@@ -322,6 +374,8 @@ def supervise(
     if not products.is_relative_to(derived_data):
         raise ValueError("build products must remain inside derived data")
     process = None
+    stream_threads: list[threading.Thread] = []
+    warning_detected = threading.Event()
     status = FAILURE_EXIT_STATUS
     completed_normally = False
     cleaned_up = True
@@ -329,7 +383,28 @@ def supervise(
         try:
             baseline = {record.pid: record.executable for record in process_snapshot()}
             cancellation.raise_if_requested()
-            process = subprocess.Popen(command, start_new_session=True)
+            process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                start_new_session=True,
+            )
+            if process.stdout is not None:
+                out_thread = threading.Thread(
+                    target=forward_and_scan,
+                    args=(process.stdout, sys.stdout.buffer, warning_detected),
+                    daemon=True,
+                )
+                out_thread.start()
+                stream_threads.append(out_thread)
+            if process.stderr is not None:
+                err_thread = threading.Thread(
+                    target=forward_and_scan,
+                    args=(process.stderr, sys.stderr.buffer, warning_detected),
+                    daemon=True,
+                )
+                err_thread.start()
+                stream_threads.append(err_thread)
             with ProcessEvents(cancellation) as events:
                 events.add(process.pid)
                 if events.wait(timeout) is ProcessOutcome.EXITED:
@@ -357,6 +432,8 @@ def supervise(
                             file=sys.stderr,
                         )
             finally:
+                for thread in stream_threads:
+                    thread.join(timeout=grace)
                 for signum, handler in previous.items():
                     signal.signal(signum, handler)
     if completed_normally and process is not None:
@@ -366,6 +443,12 @@ def supervise(
             else FAILURE_EXIT_STATUS
         )
         if not cleaned_up and status == SUCCESS_EXIT_STATUS:
+            status = FAILURE_EXIT_STATUS
+        if warning_detected.is_set() and status == SUCCESS_EXIT_STATUS:
+            print(
+                "Apple test runner failed: compiler warning detected.",
+                file=sys.stderr,
+            )
             status = FAILURE_EXIT_STATUS
     return status
 
