@@ -125,6 +125,48 @@
       )
       #expect(!model.testing)
     }
+
+    /// Typing the shipped default clears any stored custom URL immediately.
+    @Test
+    internal func typingTheDefaultAuthorityClearsAStoredCustomUrl() async throws {
+      let defaults = try Self.freshDefaults()
+      TimestampAuthorityStore.store("http://stored.example/tsa", in: defaults)
+      let log = TimestampSettingsProbeDoubles.CallLog()
+      let model = TimestampSettingsModel(
+        defaults: defaults,
+        prober: { target in await log.record(target) },
+        autoTestDelay: .milliseconds(20)
+      )
+      model.draft = TimestampAuthorityStore.defaultAuthority
+      model.draftChanged()
+      #expect(TimestampAuthorityStore.configured(in: defaults) == nil)
+      #expect(
+        TimestampAuthorityStore.load(from: defaults) == TimestampAuthorityStore.defaultAuthority
+      )
+      #expect(model.verification == nil)
+      model.dismissPane()
+      #expect(model.draft == TimestampAuthorityStore.defaultAuthority)
+      let targets = await log.targets
+      #expect(targets.isEmpty)
+    }
+
+    /// Typing the bare shipped address without http:// also clears a stored custom URL.
+    @Test
+    internal func typingTheBareDefaultAddressClearsAStoredCustomUrl() throws {
+      let defaults = try Self.freshDefaults()
+      TimestampAuthorityStore.store("http://stored.example/tsa", in: defaults)
+      let model = TimestampSettingsModel(
+        defaults: defaults,
+        prober: { _ in try await Task.sleep(for: .milliseconds(1)) },
+        autoTestDelay: .seconds(30)
+      )
+      model.draft = TimestampAuthorityStore.defaultAddress
+      model.draftChanged()
+      #expect(TimestampAuthorityStore.configured(in: defaults) == nil)
+      #expect(
+        TimestampAuthorityStore.load(from: defaults) == TimestampAuthorityStore.defaultAuthority
+      )
+    }
   }
 
 #endif
