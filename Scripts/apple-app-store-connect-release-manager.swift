@@ -3775,16 +3775,34 @@ func reviewContact(_ platformName: String, _ version: String) {
   print("review contact set for \(platformName) \(version)")
 }
 
+// The id and version string of any version matching `version` on `platform`,
+// regardless of state (including live READY_FOR_SALE versions), or nil.
+// Read-only reporting commands use this; editing commands keep using
+// `findVersion` so released versions are never modified.
+private func findAnyVersion(_ platform: String, _ version: String) -> (
+  id: String, version: String
+)? {
+  let path =
+    "/v1/apps/\(appID())/appStoreVersions?filter[platform]=\(platform)"
+    + "&limit=50&fields[appStoreVersions]=versionString"
+  for entry in everyPage(path) {
+    guard let id = entry["id"] as? String,
+      let attributes = entry["attributes"] as? [String: Any],
+      let versionString = attributes["versionString"] as? String,
+      versionString == version
+    else { continue }
+    return (id, versionString)
+  }
+  return nil
+}
+
 // Prints a version's identifier, its state and the build attached to it,
 // so a release record reads those facts from the platform instead of
-// assembling them by hand.
+// assembling them by hand. Works for any version state, including live.
 func versionReport(_ platformName: String, _ version: String) {
   let platform = apiPlatform(platformName)
-  guard let found = findVersion(platform) else {
-    releaseFail("no version for \(platformName)")
-  }
-  guard found.version == version else {
-    releaseFail("the \(platformName) version is \(found.version), not \(version)")
+  guard let found = findAnyVersion(platform, version) else {
+    releaseFail("no \(platformName) version \(version)")
   }
   let response = api("GET", "/v1/appStoreVersions/\(found.id)?include=build")
   let versionAttributes =
