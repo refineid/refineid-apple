@@ -7,8 +7,8 @@ import Testing
 ///
 /// Apple requires a justification for `NSAllowsArbitraryLoads`, and App
 /// Review reads the version's review notes, not a property list comment:
-/// comments do not survive plist compilation. The macOS notes carry the
-/// MVP's justification.
+/// comments do not survive plist compilation. Both platform notes carry
+/// the justification.
 @Suite
 internal struct AppStoreReviewNotesTests {
   private static var root: URL {
@@ -44,16 +44,29 @@ internal struct AppStoreReviewNotesTests {
     return try #require(review["notes"] as? [String: Any])
   }
 
-  /// The macOS notes name the ATS key, the fixed authority, and every
-  /// source an archival signature fetches from.
+  /// The notes of one platform name the ATS key, the fixed authority, and
+  /// every source a signature fetches from.
+  private static func expectJustification(for platform: String, named name: String) throws {
+    let notes = try Self.reviewNotes()
+    let text = try #require(notes[platform] as? String)
+    #expect(
+      text.contains(timestampAuthorityURL),
+      "the \(name) notes lost the fixed authority")
+    for phrase in justificationPhrases {
+      #expect(text.contains(phrase), "the \(name) notes lost \(phrase)")
+    }
+  }
+
+  /// The macOS notes justify the open ATS.
   @Test
   internal func macOSNotesJustifyTheOpenATS() throws {
-    let notes = try Self.reviewNotes()
-    let macOS = try #require(notes["macos"] as? String)
-    #expect(macOS.contains(Self.timestampAuthorityURL))
-    for phrase in Self.justificationPhrases {
-      #expect(macOS.contains(phrase), "the macOS notes lost \(phrase)")
-    }
+    try Self.expectJustification(for: "macos", named: "macOS")
+  }
+
+  /// The iPhone notes justify the open ATS.
+  @Test
+  internal func iOSNotesJustifyTheOpenATS() throws {
+    try Self.expectJustification(for: "ios", named: "iPhone")
   }
 
   /// Neither platform's notes exceed the field App Store Connect accepts.
