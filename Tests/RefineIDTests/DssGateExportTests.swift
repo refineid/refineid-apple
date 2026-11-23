@@ -2,9 +2,7 @@
 
 #if DEBUG && os(macOS)
 
-  import CryptoKit
   import Foundation
-  import Security
   import Testing
 
   @testable import CardCore
@@ -30,104 +28,8 @@
       )
     }
 
-    private static let containedFileName = "terms.txt"
-    private static let containedFileText = "Terms agreed under the DSS gate."
     private static let testDigestByteCount = 48
     private static let testDigestPattern: UInt8 = 0x42
-
-    /// The PDF as `DocumentSigner.sign` finishes it after the card.
-
-    private static func signedPdf(_ authorities: DssGateAuthorities) async throws -> Data {
-      let placeholder = try PdfIncrementalSigner.prepare(
-        TimestampedPdfFixture.minimalPdf,
-        revision: .signature(
-          PdfIncrementalSigner.SignatureClaim(signedAt: Date(), reason: nil, location: nil)
-        )
-      )
-      let attributes = QualifiedDocumentCms.signedAttributes(
-        byteRangeDigest: placeholder.digest(QualifiedDocumentCms.signingDigestAlgorithm),
-        signerCertificate: authorities.holderCertificate
-      )
-      let signature = try Self.cardSignature(
-        Data(SHA384.hash(data: attributes)),
-        key: authorities.holderKey,
-        algorithm: .rsaSignatureDigestPKCS1v15SHA384
-      )
-      return try await TimestampClient.forOneDocument {
-        let token = try await TimestampClient.token(
-          over: QualifiedDocumentCms.signatureTimestampDigest(signatureValue: signature)
-        )
-        let timestamped = try DocumentSigner.TimestampedSignature.verified(
-          DocumentSigner.TimestampedSignatureInput(
-            placeholder: placeholder,
-            signedAttributes: attributes,
-            signatureValue: signature,
-            signerProfile: .rsa2048,
-            signerCertificate: authorities.holderCertificate
-          ),
-          timestampTokens: [token]
-        )
-        return try await DocumentSigner.longTerm(
-          timestamped,
-          signerCertificate: authorities.holderCertificate,
-          timestampTokens: [token],
-          policy: .longTermOnly
-        ).bytes
-      }
-    }
-
-    /// The container as `AsicSigner.sign` finishes it after the card.
-    private static func signedContainer(
-      _ authorities: DssGateAuthorities
-    ) async throws -> Data {
-      let objects = [
-        AsicSigner.dataObject(
-          Data(Self.containedFileText.utf8), named: Self.containedFileName
-        )
-      ]
-      let plan = try #require(
-        XadesSignature.plan(
-          objects: objects,
-          certificate: authorities.holderCertificate,
-          profile: .rsa2048,
-          signedAt: Date()
-        ))
-      let wire = try Self.cardSignature(
-        plan.signedInfo,
-        key: authorities.holderKey,
-        algorithm: .rsaSignatureMessagePKCS1v15SHA384
-      )
-      let xmlSignature = try #require(CardKeyProfile.rsa2048.xmlSignature(fromWire: wire))
-      return try await AsicSigner.evidenced(
-        plan: plan,
-        xmlSignature: xmlSignature,
-        certificate: authorities.holderCertificate,
-        objects: objects,
-        completion: AsicSigner.Completion(sources: .live, policy: .longTermOnly)
-      ).bytes
-    }
-
-    /// What the card answers: one RSA PKCS #1 signature.
-    private static func cardSignature(
-      _ value: Data,
-      key: SecKey,
-      algorithm: SecKeyAlgorithm
-    ) throws -> Data {
-      try DebugTimestampAuthority.sign(value, key: key, algorithm: algorithm)
-    }
-
-    /// Runs `operation` with synthetic anchors and zero inter-document sleep
-    /// against the in-memory gate responder.
-    private static func withSyntheticTimestampEnvironment<Value>(
-      anchors: @escaping @Sendable (Date) -> [Data],
-      operation: () async throws -> Value
-    ) async rethrows -> Value {
-      try await TimestampClient.$throttle.withValue(TimestampThrottle(spacing: .zero)) {
-        try await TimestampClient.$anchorResolver.withValue(anchors) {
-          try await operation()
-        }
-      }
-    }
 
     /// Writes `swift-pades.pdf`, `swift-asic-e.asice` and the anchors
     /// DSS is to trust.
@@ -137,7 +39,7 @@
       try await DssGateSessionHook.withFixture(authorities: DssGateAuthorities.make()) {
         let authorities = try #require(DssGateUrlProtocol.authorities)
         let tsCaCertificate = authorities.timestampCaCertificate
-        try await Self.withSyntheticTimestampEnvironment(
+        try await DssGateExportFixture.withSyntheticTimestampEnvironment(
           anchors: { _ in [tsCaCertificate] },
           operation: {
             let directory = Self.exportDirectory
@@ -148,10 +50,14 @@
             try authorities.timestampCaCertificate.write(
               to: directory.appending(path: "anchor-tsa.der")
             )
-            let pdf = try await Self.signedPdf(authorities)
+            let pdf = try await DssGateExportFixture.signedPdf(authorities)
             try pdf.write(to: directory.appending(path: "swift-pades.pdf"))
-            let container = try await Self.signedContainer(authorities)
+            let container = try await DssGateExportFixture.signedContainer(authorities)
             try container.write(to: directory.appending(path: "swift-asic-e.asice"))
+            let intercepted = Set(DssGateUrlProtocol.interceptedAddresses)
+            #expect(intercepted.contains(TimestampClient.authority(in: .standard)))
+            #expect(intercepted.contains(DssGateAuthorities.revocationListAddress))
+            #expect(intercepted.contains(DssGateAuthorities.timestampRevocationListAddress))
             print("DSS gate export: \(directory.path)")
           }
         )
@@ -166,11 +72,16 @@
         let authorities = try #require(DssGateUrlProtocol.authorities)
         let digest = Data(repeating: Self.testDigestPattern, count: Self.testDigestByteCount)
         let tsCaCertificate = authorities.timestampCaCertificate
-        let verified = try await Self.withSyntheticTimestampEnvironment(
+        let verified = try await DssGateExportFixture.withSyntheticTimestampEnvironment(
           anchors: { _ in [tsCaCertificate] },
           operation: {
             try await TimestampClient.token(over: digest)
           }
+        )
+        #expect(
+          DssGateUrlProtocol.interceptedAddresses.contains(
+            TimestampClient.authority(in: .standard)
+          )
         )
         #expect((verified.signerCertificate) == (authorities.timestampAuthority.certificate))
         #expect((verified.trustedCertificate) == (authorities.timestampCaCertificate))
@@ -192,7 +103,7 @@
         let digest = Data(repeating: Self.testDigestPattern, count: Self.testDigestByteCount)
         let caCertificate = authorities.caCertificate
         do {
-          _ = try await Self.withSyntheticTimestampEnvironment(
+          _ = try await DssGateExportFixture.withSyntheticTimestampEnvironment(
             anchors: { _ in [caCertificate] },
             operation: {
               try await TimestampClient.token(over: digest)
@@ -219,7 +130,7 @@
       try await DssGateSessionHook.withFixture(authorities: DssGateAuthorities.make()) {
         let authorities = try #require(DssGateUrlProtocol.authorities)
         let tsCaCertificate = authorities.timestampCaCertificate
-        try await Self.withSyntheticTimestampEnvironment(
+        try await DssGateExportFixture.withSyntheticTimestampEnvironment(
           anchors: { _ in [tsCaCertificate] },
           operation: {
             try await self.assertDocumentsReadAtLongTermArchival(authorities: authorities)
@@ -247,10 +158,10 @@
         let resolver: @Sendable (Date) -> [Data] = { _ in [tsCaCertificate] }
         try await TimestampClient.$throttle.withValue(throttle) {
           try await TimestampClient.$anchorResolver.withValue(resolver) {
-            _ = try await Self.signedPdf(authorities)
+            _ = try await DssGateExportFixture.signedPdf(authorities)
             #expect((clock.sleeps.isEmpty))
 
-            _ = try await Self.signedContainer(authorities)
+            _ = try await DssGateExportFixture.signedContainer(authorities)
             #expect((clock.sleeps) == ([TimestampThrottle.minimumDocumentSpacing]))
 
             try await TimestampClient.probe(TimestampClient.authority(in: .standard))
@@ -277,8 +188,8 @@
         listsValidUntil: nil
       )
       let documents = [
-        ("swift-pades.pdf", try await Self.signedPdf(authorities)),
-        ("swift-asic-e.asice", try await Self.signedContainer(authorities)),
+        ("swift-pades.pdf", try await DssGateExportFixture.signedPdf(authorities)),
+        ("swift-asic-e.asice", try await DssGateExportFixture.signedContainer(authorities)),
       ]
       for (name, document) in documents {
         let report = try DocumentVerification.verify(document: document, anchors: anchors)

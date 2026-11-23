@@ -3,11 +3,17 @@
 
 #if DEBUG && os(macOS)
   import Foundation
+  import os
   import Testing
+
+  @testable import RefineIDTestHost
 
   @Suite(.serialized, DssGateFixtureScope())
   internal struct DssGateFixtureLifetimeTests {
     private enum Expected: Error, Equatable { case fixtureBodyFinished }
+
+    private static let syntheticRacePayload = Data("synthetic".utf8)
+    private static let raceHeadStartSeconds = 60
 
     private static func isSynthetic(_ configuration: URLSessionConfiguration) -> Bool {
       configuration.protocolClasses?.contains { protocolClass in
@@ -44,6 +50,38 @@
         #expect(!unrelatedWasSynthetic)
         #expect(Self.isSynthetic(URLSessionConfiguration.ephemeral))
       }
+    }
+
+    @Test
+    internal func signingNetworkRacePropagatesFixtureToBothStructuredChildren() async throws {
+      let authorities = try DssGateAuthorities.make()
+      let observed = OSAllocatedUnfairLock<(validated: Bool, plain: Bool)>(
+        initialState: (validated: false, plain: false)
+      )
+      try await DssGateSessionHook.withFixture(authorities: authorities) {
+        let answer = try await SigningNetwork.firstAnswer(
+          headStart: .seconds(Self.raceHeadStartSeconds),
+          validated: {
+            let synthetic = Self.isSynthetic(
+              SigningNetwork.validatedSessionConfiguration(validating: true)
+            )
+            observed.withLock { $0.validated = synthetic }
+            throw NSError(domain: NSURLErrorDomain, code: NSURLErrorCannotFindHost)
+          },
+          plain: {
+            let synthetic = Self.isSynthetic(
+              SigningNetwork.validatedSessionConfiguration(validating: false)
+            )
+            observed.withLock { $0.plain = synthetic }
+            return Self.syntheticRacePayload
+          }
+        )
+        #expect(answer.outcome == .plain)
+        #expect(answer.data == Self.syntheticRacePayload)
+      }
+      let results = observed.withLock { $0 }
+      #expect(results.validated)
+      #expect(results.plain)
     }
   }
 #endif
