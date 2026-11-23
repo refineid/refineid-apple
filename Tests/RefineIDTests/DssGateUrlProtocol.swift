@@ -3,6 +3,7 @@
 #if DEBUG && os(macOS)
 
   import Foundation
+  import os
 
   @testable import RefineIDTestHost
 
@@ -20,10 +21,22 @@
     /// needs an authority other than the one publishing the evidence.
     nonisolated(unsafe) internal static var timestampAuthorities: DssGateAuthorities?
 
+    private static let recordedAddresses = OSAllocatedUnfairLock<[String]>(initialState: [])
+
+    /// Request URLs intercepted by this protocol during the active fixture.
+    internal static var interceptedAddresses: [String] {
+      Self.recordedAddresses.withLock { $0 }
+    }
+
     private static let okStatus = 200
     private static let notFoundStatus = 404
     private static let httpVersion = "HTTP/1.1"
     private static let readChunk = 4_096
+
+    /// Clears recorded request URLs between fixtures.
+    internal static func resetInterceptedAddresses() {
+      Self.recordedAddresses.withLock { $0.removeAll() }
+    }
 
     override internal static func canInit(with request: URLRequest) -> Bool {
       guard Self.authorities != nil, let host = request.url?.host else { return false }
@@ -69,8 +82,12 @@
     }
 
     override internal func startLoading() {
+      let address = request.url?.absoluteString ?? ""
+      if !address.isEmpty {
+        Self.recordedAddresses.withLock { $0.append(address) }
+      }
       let answer = Self.answer(
-        to: request.url?.absoluteString ?? "",
+        to: address,
         body: Self.body(of: request)
       )
       guard let url = request.url,
