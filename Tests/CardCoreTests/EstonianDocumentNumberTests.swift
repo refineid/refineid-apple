@@ -6,50 +6,66 @@ import Testing
 @testable import CardCore
 
 /// Estonian document-number parsing, `BinaryReadAssembler` empty-EOF retry,
-/// and three-try `Pin1Retention` / `PinAdmission` tests.
+/// three-try `Pin1Retention` / `PinAdmission`, ATR hints, `PrimedIdentity`
+/// serialization, and Estonian X.509 `DistinguishedName` tests.
 @Suite
 internal struct EstonianDocumentNumberTests {
-  private static let syntheticDocNumber = "AA0000001"
-  private static let syntheticDocNumberHex = "414130303030303031"
-  private static let estonianAllowance: UInt8 = 3
-  private static let belowFloorAttempts: UInt8 = 2
+  private static let estonianAllowance = EstonianEidValues.pinRetryLimit
+  private static let belowFloorAttempts = EstonianEidValues.pinRetryLimit - 1
   private static let lastTryAttempts: UInt8 = 1
+  private static let longFormSingleByteLength: UInt8 = DerValues.longFormMask | 1
 
   @Test
   internal func documentNumberParsesValidAsciiAndTlvForms() throws {
-    let ascii = try #require(DocumentNumber(asciiBytes: Data(Self.syntheticDocNumber.utf8)))
-    #expect(ascii.value == Self.syntheticDocNumber)
+    let docBytes = Data(EstonianEidTestFixture.syntheticDocNumber2025.utf8)
+    let ascii = try #require(DocumentNumber(asciiBytes: docBytes))
+    #expect(ascii.value == EstonianEidTestFixture.syntheticDocNumber2025)
 
     let octetTlv = try #require(
-      DocumentNumber(tlvBytes: WireHex.data("0409" + Self.syntheticDocNumberHex))
+      DocumentNumber(
+        tlvBytes: DerEncoder.tlv(EstonianEidValues.documentNumberTagOctetString, docBytes)
+      )
     )
-    #expect(octetTlv.value == Self.syntheticDocNumber)
+    #expect(octetTlv.value == EstonianEidTestFixture.syntheticDocNumber2025)
 
     let app26Tlv = try #require(
-      DocumentNumber(tlvBytes: WireHex.data("5A09" + Self.syntheticDocNumberHex))
+      DocumentNumber(
+        tlvBytes: DerEncoder.tlv(EstonianEidValues.documentNumberTagApplication26, docBytes)
+      )
     )
-    #expect(app26Tlv.value == Self.syntheticDocNumber)
+    #expect(app26Tlv.value == EstonianEidTestFixture.syntheticDocNumber2025)
 
     let printed = PrintedSerial(documentNumber: ascii)
-    #expect(printed.value == Self.syntheticDocNumber)
+    #expect(printed.value == EstonianEidTestFixture.syntheticDocNumber2025)
     #expect(TokenInstanceID(printedSerial: printed).value == "refineid-card-aa0000001")
   }
 
   @Test
   internal func documentNumberRejectsMalformedInputs() {
+    let docBytes = Data(EstonianEidTestFixture.syntheticDocNumber2025.utf8)
+    let wrongTag = DerValues.tagNull
+    let longFormTlv =
+      Data([
+        EstonianEidValues.documentNumberTagOctetString,
+        Self.longFormSingleByteLength,
+        UInt8(docBytes.count),
+      ]) + docBytes
+    let trailingByteTlv =
+      DerEncoder.tlv(EstonianEidValues.documentNumberTagOctetString, docBytes)
+      + Data([FineidValues.pinPadByte])
+
     #expect(DocumentNumber(asciiBytes: Data("aa0000001".utf8)) == nil)
     #expect(DocumentNumber(asciiBytes: Data("AA000001".utf8)) == nil)
     #expect(DocumentNumber(asciiBytes: Data("A10000001".utf8)) == nil)
     #expect(DocumentNumber(asciiBytes: Data("AA00000010".utf8)) == nil)
-    #expect(DocumentNumber(tlvBytes: WireHex.data("0509" + Self.syntheticDocNumberHex)) == nil)
-    #expect(DocumentNumber(tlvBytes: WireHex.data("048109" + Self.syntheticDocNumberHex)) == nil)
-    #expect(
-      DocumentNumber(tlvBytes: WireHex.data("0409" + Self.syntheticDocNumberHex + "00")) == nil
-    )
+    #expect(DocumentNumber(tlvBytes: DerEncoder.tlv(wrongTag, docBytes)) == nil)
+    #expect(DocumentNumber(tlvBytes: longFormTlv) == nil)
+    #expect(DocumentNumber(tlvBytes: trailingByteTlv) == nil)
   }
 
   @Test
   internal func binaryReadAssemblerRetriesOnceOnEmptyEndOfFile() throws {
+    let docBytes = Data(EstonianEidTestFixture.syntheticDocNumber2025.utf8)
     var assembler = BinaryReadAssembler(
       mode: .toEndOfFile,
       expectedLength: DocumentNumber.probeReadCap
@@ -59,16 +75,15 @@ internal struct EstonianDocumentNumberTests {
       expectedLength: try #require(ExpectedResponseLength(count: DocumentNumber.probeReadCap))
     )
     #expect(assembler.nextStep == .transmit(firstRead))
-    assembler.accept(try #require(ResponseApdu(raw: WireHex.data("6282"))))
+    assembler.accept(try EstonianEidTestFixture.responseApdu(Data(), status: .endOfFile))
+
     let retryRead = CommandApdu.readBinary(
       offset: try #require(ReadOffset(value: .zero)),
       expectedLength: try #require(ExpectedResponseLength(count: ExpectedResponseLength.maximum))
     )
     #expect(assembler.nextStep == .transmit(retryRead))
-    assembler.accept(
-      try #require(ResponseApdu(raw: WireHex.data(Self.syntheticDocNumberHex + "9000")))
-    )
-    #expect(assembler.nextStep == .complete(Data(Self.syntheticDocNumber.utf8)))
+    assembler.accept(try EstonianEidTestFixture.responseApdu(docBytes, status: .success))
+    #expect(assembler.nextStep == .complete(docBytes))
   }
 
   @Test
@@ -77,8 +92,8 @@ internal struct EstonianDocumentNumberTests {
       mode: .toEndOfFile,
       expectedLength: DocumentNumber.probeReadCap
     )
-    assembler.accept(try #require(ResponseApdu(raw: WireHex.data("6282"))))
-    assembler.accept(try #require(ResponseApdu(raw: WireHex.data("6282"))))
+    assembler.accept(try EstonianEidTestFixture.responseApdu(Data(), status: .endOfFile))
+    assembler.accept(try EstonianEidTestFixture.responseApdu(Data(), status: .endOfFile))
     #expect(assembler.nextStep == .failed(.emptyFile))
   }
 
@@ -88,29 +103,29 @@ internal struct EstonianDocumentNumberTests {
       mode: .toEndOfFile,
       expectedLength: DocumentNumber.probeReadCap
     )
-    capped.accept(try #require(ResponseApdu(raw: WireHex.data("6282"))))
-    let oversized = String(repeating: "41", count: DocumentNumber.probeReadCap + 1)
-    capped.accept(try #require(ResponseApdu(raw: WireHex.data(oversized + "9000"))))
+    capped.accept(try EstonianEidTestFixture.responseApdu(Data(), status: .endOfFile))
+    let oversized = Data(repeating: UInt8(ascii: "A"), count: DocumentNumber.probeReadCap + 1)
+    capped.accept(try EstonianEidTestFixture.responseApdu(oversized, status: .success))
     #expect(capped.nextStep == .failed(.oversizedChunk))
 
     var midFile = BinaryReadAssembler(mode: .toEndOfFile, expectedLength: nil)
-    let firstChunk = String(repeating: "42", count: ReadChunkLength.plain.count)
-    midFile.accept(try #require(ResponseApdu(raw: WireHex.data(firstChunk + "9000"))))
-    midFile.accept(try #require(ResponseApdu(raw: WireHex.data("6282"))))
-    #expect(midFile.nextStep == .complete(WireHex.data(firstChunk)))
+    let firstChunk = Data(repeating: UInt8(ascii: "B"), count: ReadChunkLength.plain.count)
+    midFile.accept(try EstonianEidTestFixture.responseApdu(firstChunk, status: .success))
+    midFile.accept(try EstonianEidTestFixture.responseApdu(Data(), status: .endOfFile))
+    #expect(midFile.nextStep == .complete(firstChunk))
   }
 
   @Test
   internal func primedIdentityRoundTripsEstonian2025And2018Json() throws {
     let documentNumber = try #require(
-      DocumentNumber(asciiBytes: Data(Self.syntheticDocNumber.utf8))
+      DocumentNumber(asciiBytes: Data(EstonianEidTestFixture.syntheticDocNumber2025.utf8))
     )
     let printed = PrintedSerial(documentNumber: documentNumber)
     let est2025Chip = try #require(ChipSerial(value: "0123456789ABCDEF"))
     let prime2025 = try #require(
       PrimedIdentity(
-        can: "123456",
-        certificate: WireHex.data("3004AABBCCDD"),
+        can: EstonianEidTestFixture.syntheticCan,
+        certificate: EstonianEidTestFixture.syntheticAuthCertDer,
         issuer: nil,
         chipSerial: est2025Chip,
         activationCheck: .passed,
@@ -126,8 +141,8 @@ internal struct EstonianDocumentNumberTests {
 
     let prime2018 = try #require(
       PrimedIdentity(
-        can: "123456",
-        certificate: WireHex.data("300411223344"),
+        can: EstonianEidTestFixture.syntheticCan,
+        certificate: EstonianEidTestFixture.syntheticSignCertDer,
         issuer: nil,
         chipSerial: ChipSerial(documentNumber: documentNumber),
         activationCheck: .passed,
@@ -181,9 +196,13 @@ internal struct EstonianDocumentNumberTests {
 
   @Test
   internal func answerToResetDetectsEstonian2018MarkersOnly() {
-    let syntheticV8 = WireHex.data("3B0080233F5365494400")
-    let syntheticCosmoX = WireHex.data("3B0080233F546549443200")
-    let syntheticOther = WireHex.data("3B008046494E45494400")
+    let syntheticV8 = EstonianEidTestFixture.atr(
+      historicalBytes: EstonianEidValues.legacyCosmoV8Marker
+    )
+    let syntheticCosmoX = EstonianEidTestFixture.atr(
+      historicalBytes: EstonianEidValues.legacyCosmoXMarker
+    )
+    let syntheticOther = EstonianEidTestFixture.atr(historicalBytes: Array("FINEID".utf8))
 
     #expect(AnswerToReset.indicatesEstonian2018(bytes: syntheticV8))
     #expect(AnswerToReset.indicatesEstonian2018(bytes: syntheticCosmoX))

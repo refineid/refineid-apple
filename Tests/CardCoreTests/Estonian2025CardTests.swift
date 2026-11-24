@@ -9,114 +9,67 @@ import Testing
 /// directory discovery, signing, and credential management tests.
 @Suite
 internal struct Estonian2025CardTests {
-  private static let syntheticDocNumber = "AA0000001"
-  private static let syntheticDocNumberHex = "414130303030303031"
-  private static let estonianAllowance = EstonianEidValues.pinRetryLimit
-  private static let p384RawSignatureLength = 96
-
-  /// PKCS#15 private-key directory (`EF.PrKD`, FID `5034`).
-  private static let privateKeyDirectoryFileHex = "5034"
-  /// PKCS#15 certificate directory (`EF.CD`, FID `5037`).
-  private static let certificateDirectoryFileHex = "5037"
-  /// Synthetic re-keyed EstEID 2025 authentication certificate EF under `ADF1`
-  /// (distinct from the initial default `EF.3411` to prove dynamic discovery).
-  private static let rekeyedAuthCertificateFileHex = "3412"
-  /// Synthetic re-keyed EstEID 2025 qualified-signature certificate EF under `ADF2`
-  /// (distinct from the initial default `EF.3421` to prove dynamic discovery).
-  private static let rekeyedSignCertificateFileHex = "3422"
-  /// Synthetic re-keyed authentication private-key reference (distinct from default `01`).
-  private static let rekeyedAuthKeyRef: UInt8 = 2
-  /// Synthetic re-keyed qualified-signature private-key reference (distinct from default `05`).
-  private static let rekeyedSignKeyRef: UInt8 = 6
-
-  /// EF.OD pointing to EF.5034 (PrKD), EF.5037 (CD), and EF.5006 (AOD).
-  private static let sampleObjectDirectory =
-    "A00A300804063F005015" + privateKeyDirectoryFileHex
-    + "A40A300804063F005015" + certificateDirectoryFileHex
-    + "A80A300804063F0050155006"
-
-  /// EF.CD pointing to re-keyed auth cert (`ADF1/3412`) and sign cert (`ADF2/3422`).
-  private static let sampleCertificateDirectory =
-    "301B30060C04417574683003040101A10C300A300804063F00ADF1" + rekeyedAuthCertificateFileHex
-    + "301B30060C045369676E3003040102A10C300A300804063F00ADF2" + rekeyedSignCertificateFileHex
-
-  /// EF.PrKD with auth key ref `02` (`sign`, bit 2 = `20`) and sign key ref `06`
-  /// (`nonRepudiation`, bit 9 = `0040`).
-  private static let samplePrivateKeyDirectory =
-    "301430060C0441757468300A04010103020020020102"
-    + "301530060C045369676E300B0401020303000040020106"
-
-  internal static func padZero12Hex(_ digits: String) -> String {
-    let raw = digits.utf8.map { String(format: "%02X", $0) }.joined()
-    let padCount = max(0, Pin1.maximumDigitCount - digits.count)
-    return raw + String(repeating: "00", count: padCount)
-  }
-
-  private static func fileId(_ hex: String) -> FileIdentifier {
-    let bytes = Array(WireHex.data(hex))
-    return FileIdentifier(value: UInt16(bytes[0]) << UInt8.bitWidth | UInt16(bytes[1]))
-  }
-
-  private static func estonian2025AodHex() -> String {
-    let aodBytes = AuthenticationObjectFixture.file([
-      AuthenticationObjectFixture.citizen(
-        reference: EstonianEidValues.pin1Reference2025,
-        minimum: Pin1.minimumDigitCount
-      ).encoded,
-      AuthenticationObjectFixture.citizen(
-        reference: EstonianEidValues.pin2Reference2025,
-        minimum: EstonianEidValues.pin2MinimumDigitCount
-      ).encoded,
-      AuthenticationObjectFixture.citizen(
-        reference: EstonianEidValues.pukReference2025,
-        minimum: Puk.minimumDigitCount
-      ).encoded,
-    ])
-    return aodBytes.map { String(format: "%02X", $0) }.joined()
-  }
+  internal static let estonianAllowance = EstonianEidValues.pinRetryLimit
+  private static let binaryChipSerial = Data([.zero, .max, .zero, .max])
+  private static let binaryChipSerialHex: String =
+    binaryChipSerial
+    .map { byte in String(format: "%02X", byte) }
+    .joined()
 
   @Test
   internal func pkcs15DirectoryParsesAuthObjectsPathsAndKeyUsage() {
     let locations = Pkcs15Directory.locations(
-      fromObjectDirectory: WireHex.data(Self.sampleObjectDirectory)
+      fromObjectDirectory: EstonianEidTestFixture.objectDirectory()
     )
     #expect(locations.authObjects == .estonian2025Aod)
-    #expect(locations.certificates == Self.fileId(Self.certificateDirectoryFileHex))
-    #expect(locations.privateKeys == Self.fileId(Self.privateKeyDirectoryFileHex))
+    #expect(locations.certificates == EstonianEidTestFixture.certificateDirectoryFile)
+    #expect(locations.privateKeys == EstonianEidTestFixture.privateKeyDirectoryFile)
 
     let certs = Pkcs15Directory.certificates(
-      fromDirectory: WireHex.data(Self.sampleCertificateDirectory)
+      fromDirectory: EstonianEidTestFixture.certificateDirectory()
     )
     #expect(certs.count == 2)
     #expect(
-      certs[0].path == [.estonianAwpDirectory, Self.fileId(Self.rekeyedAuthCertificateFileHex)]
+      certs[0].path == [.estonianAwpDirectory, EstonianEidTestFixture.rekeyedAuthCertFile]
     )
     #expect(
-      certs[1].path == [.estonianQscdDirectory, Self.fileId(Self.rekeyedSignCertificateFileHex)]
+      certs[1].path == [.estonianQscdDirectory, EstonianEidTestFixture.rekeyedSignCertFile]
     )
 
     let keys = Pkcs15Directory.privateKeys(
-      fromDirectory: WireHex.data(Self.samplePrivateKeyDirectory)
+      fromDirectory: EstonianEidTestFixture.privateKeyDirectory()
     )
     #expect(keys.count == 2)
     #expect(keys[0].usage == .sign)
-    #expect(keys[0].keyReference == Self.rekeyedAuthKeyRef)
+    #expect(keys[0].keyReference == EstonianEidTestFixture.rekeyedAuthKeyRef)
     #expect(keys[1].usage == .nonRepudiation)
-    #expect(keys[1].keyReference == Self.rekeyedSignKeyRef)
+    #expect(keys[1].keyReference == EstonianEidTestFixture.rekeyedSignKeyRef)
   }
 
   @Test
   internal func pin2ProbeFirstStillResolvesEstonian2025ViaPin1() throws {
     let three = try #require(RetryCount(attemptsRemaining: Self.estonianAllowance))
-    let channel = ScriptedChannel([
-      ("0020001100", "6A88"),
-      ("0020000300", "6A88"),
-      ("0020008100", "63C3"),
-      ("0020008200", "63C3"),
+    let threeRemaining = try EstonianEidTestFixture.remaining(Self.estonianAllowance)
+    let channel = TypedScriptedChannel([
+      (
+        CommandApdu.readRetryCounter(role: .pin1, references: .citizen).encoded,
+        EstonianEidTestFixture.status(.referenceDataNotFound)
+      ),
+      (
+        CommandApdu.readRetryCounter(role: .pin1, references: .organization).encoded,
+        EstonianEidTestFixture.status(.referenceDataNotFound)
+      ),
+      (
+        CommandApdu.readRetryCounter(role: .pin1, references: .estonian2025).encoded,
+        EstonianEidTestFixture.status(threeRemaining)
+      ),
+      (
+        CommandApdu.readRetryCounter(role: .pin2, references: .estonian2025).encoded,
+        EstonianEidTestFixture.status(threeRemaining)
+      ),
     ])
     let operations = CardOperations(channel: channel)
-    let pin2Outcome = try operations.probeRetryCounter(role: .pin2)
-    #expect(pin2Outcome == .remaining(three))
+    #expect(try operations.probeRetryCounter(role: .pin2) == .remaining(three))
     #expect(operations.resolvedNumbering == .estonian2025)
     #expect(operations.pristineRetryAllowance == Self.estonianAllowance)
     #expect(channel.isExhausted)
@@ -124,141 +77,145 @@ internal struct Estonian2025CardTests {
 
   @Test
   internal func estonian2025IdentitySerialsSeparateChipSerialAndDocumentNumber() throws {
-    // 8-byte binary chip serial rendered as 16 uppercase hex characters in EF.TokenInfo.
-    let tokenInfo = "300D02010004080123456789ABCDEF"
-    let channel = ScriptedChannel([
-      ("0020001100", "6A88"),
-      ("0020000300", "6A88"),
-      ("0020008100", "63C3"),
-      ("00A4020C025032", "9000"),
-      ("00B0000080", tokenInfo + "9000"),
-      ("00A4040C0CA000000063504B43532D3135", "9000"),
-      ("00A4080C04DFDD5007", "9000"),
-      ("00B000000A", "6282"),
-      ("00B0000000", Self.syntheticDocNumberHex + "9000"),
-      ("00A4040C0CA000000063504B43532D3135", "9000"),
+    let threeRemaining = try EstonianEidTestFixture.remaining(Self.estonianAllowance)
+    let tokenInfo = EstonianEidTestFixture.tokenInfo(serialBytes: Self.binaryChipSerial)
+    let docBytes = Data(EstonianEidTestFixture.syntheticDocNumber2025.utf8)
+    let selectDocPath = try #require(
+      CommandApdu.selectByPath([.estonianDocumentDataDirectory, .estonianDocumentNumberPlain])
+    )
+    let plainRead = try EstonianEidTestFixture.readBinary(
+      offset: .zero, count: ReadChunkLength.plain.count
+    )
+    let capRead = try EstonianEidTestFixture.readBinary(
+      offset: .zero, count: DocumentNumber.probeReadCap
+    )
+    let maxRead = try EstonianEidTestFixture.readBinary(
+      offset: .zero, count: ExpectedResponseLength.maximum
+    )
+    let success = EstonianEidTestFixture.status(.success)
+    let channel = TypedScriptedChannel([
+      (
+        CommandApdu.readRetryCounter(role: .pin1, references: .citizen).encoded,
+        EstonianEidTestFixture.status(.referenceDataNotFound)
+      ),
+      (
+        CommandApdu.readRetryCounter(role: .pin1, references: .organization).encoded,
+        EstonianEidTestFixture.status(.referenceDataNotFound)
+      ),
+      (
+        CommandApdu.readRetryCounter(role: .pin1, references: .estonian2025).encoded,
+        EstonianEidTestFixture.status(threeRemaining)
+      ),
+      (EstonianEidTestFixture.selectEf(.tokenInfo), success),
+      (plainRead, EstonianEidTestFixture.response(tokenInfo, status: .success)),
+      (EstonianEidTestFixture.selectApp, success),
+      (selectDocPath.encoded, success),
+      (capRead, EstonianEidTestFixture.status(.endOfFile)),
+      (maxRead, EstonianEidTestFixture.response(docBytes, status: .success)),
+      (EstonianEidTestFixture.selectApp, success),
     ])
     let serials = try CardOperations(channel: channel).readCardIdentitySerials()
-    #expect(serials.chipSerial.value == "0123456789ABCDEF")
-    #expect(serials.printedSerial.value == Self.syntheticDocNumber)
+    #expect(serials.chipSerial.value == Self.binaryChipSerialHex)
+    #expect(serials.printedSerial.value == EstonianEidTestFixture.syntheticDocNumber2025)
     #expect(
       TokenInstanceID(printedSerial: serials.printedSerial).value == "refineid-card-aa0000001")
     #expect(channel.isExhausted)
   }
 
   @Test
-  internal func estonian2025DiscoversRekeyedCertificatesAndPinLengths() throws {
-    let authDer = "3004AABBCCDD"
-    let signDer = "3004EEFF0011"
-    let channel = ScriptedChannel([
-      ("00A4040C0CA000000063504B43532D3135", "9000"),
-      ("00A4020C025031", "9000"),
-      ("00B0000080", Self.sampleObjectDirectory + "9000"),
-      ("00A4020C025037", "9000"),
-      ("00B0000080", Self.sampleCertificateDirectory + "9000"),
-      ("00A4020C025034", "9000"),
-      ("00B0000080", Self.samplePrivateKeyDirectory + "9000"),
-      ("00A4080C04ADF1" + Self.rekeyedAuthCertificateFileHex, "9000"),
-      ("00B0000080", authDer + "9000"),
-      ("00A4040C0CA000000063504B43532D3135", "9000"),
-      ("00A4040C0CA000000063504B43532D3135", "9000"),
-      ("00A4080C04ADF2" + Self.rekeyedSignCertificateFileHex, "9000"),
-      ("00B0000080", signDer + "9000"),
-      ("00A4040C0CA000000063504B43532D3135", "9000"),
-      ("00A4040C0CA000000063504B43532D3135", "9000"),
-      ("00A4020C025006", "9000"),
-      ("00B0000080", Self.estonian2025AodHex() + "9000"),
+  internal func estonian2025DiscoversRekeyedCertificates() throws {
+    let success = EstonianEidTestFixture.status(.success)
+    let plainRead = try EstonianEidTestFixture.readBinary(
+      offset: .zero, count: ReadChunkLength.plain.count
+    )
+    let authPath = try #require(
+      CommandApdu.selectByPath([.estonianAwpDirectory, EstonianEidTestFixture.rekeyedAuthCertFile])
+    )
+    let signPath = try #require(
+      CommandApdu.selectByPath([.estonianQscdDirectory, EstonianEidTestFixture.rekeyedSignCertFile])
+    )
+    let authResponse = EstonianEidTestFixture.response(
+      EstonianEidTestFixture.syntheticAuthCertDer, status: .success
+    )
+    let signResponse = EstonianEidTestFixture.response(
+      EstonianEidTestFixture.syntheticSignCertDer, status: .success
+    )
+    var script: [(Data, Data)] = [(EstonianEidTestFixture.selectApp, success)]
+    script.append(
+      contentsOf: EstonianEidTestFixture.estonian2025DiscoveryExchanges(plainRead: plainRead))
+    script.append(contentsOf: [
+      (authPath.encoded, success), (plainRead, authResponse),
+      (EstonianEidTestFixture.selectApp, success),
+      (EstonianEidTestFixture.selectApp, success),
+      (signPath.encoded, success), (plainRead, signResponse),
+      (EstonianEidTestFixture.selectApp, success),
     ])
+    let channel = TypedScriptedChannel(script)
     let operations = CardOperations(channel: channel, numbering: .estonian2025)
-    #expect(try operations.readCertificate(.authentication) == WireHex.data(authDer))
-    #expect(try operations.readCertificate(.qualifiedSignature) == WireHex.data(signDer))
+    #expect(
+      try operations.readCertificate(.authentication) == EstonianEidTestFixture.syntheticAuthCertDer
+    )
+    #expect(
+      try operations.readCertificate(.qualifiedSignature)
+        == EstonianEidTestFixture.syntheticSignCertDer
+    )
     #expect(throws: CardOperationError.selectRejected(.fileNotFound)) {
       _ = try operations.readCertificate(.issuing)
     }
+    #expect(channel.isExhausted)
+  }
 
+  @Test
+  internal func estonian2025ReadsPinLengthsFromAod() throws {
+    let success = EstonianEidTestFixture.status(.success)
+    let plainRead = try EstonianEidTestFixture.readBinary(
+      offset: .zero, count: ReadChunkLength.plain.count
+    )
+    var script: [(Data, Data)] = [(EstonianEidTestFixture.selectApp, success)]
+    script.append(
+      contentsOf: EstonianEidTestFixture.estonian2025DiscoveryExchanges(plainRead: plainRead))
+    script.append(contentsOf: [
+      (EstonianEidTestFixture.selectEf(.estonian2025Aod), success),
+      (
+        plainRead,
+        EstonianEidTestFixture.response(EstonianEidTestFixture.estonian2025Aod(), status: .success)
+      ),
+    ])
+    let channel = TypedScriptedChannel(script)
+    let operations = CardOperations(channel: channel, numbering: .estonian2025)
     let lengths = try operations.readCardPinLengths()
-    #expect(
-      lengths.pin1.accepted
-        == PasswordLengthRange(minimum: Pin1.minimumDigitCount, maximum: Pin1.maximumDigitCount)
-    )
-    #expect(
-      lengths.pin2.accepted
-        == PasswordLengthRange(
-          minimum: EstonianEidValues.pin2MinimumDigitCount,
-          maximum: Pin2.maximumDigitCount
-        )
-    )
-    #expect(
-      lengths.puk.accepted
-        == PasswordLengthRange(minimum: Puk.minimumDigitCount, maximum: Puk.maximumDigitCount)
-    )
+    EstonianEidTestFixture.expectStandardEstonianPinLengths(lengths)
     #expect(channel.isExhausted)
   }
 
   @Test
   internal func estonian2025SignsWithDiscoveredRekeyedKeyReferences() throws {
-    let digestHex = String(repeating: "42", count: EstonianEidValues.p384DigestLength)
-    let signatureHex = String(repeating: "7A", count: Self.p384RawSignatureLength)
-    let channel = ScriptedChannel([
-      ("00A4020C025031", "9000"),
-      ("00B0000080", Self.sampleObjectDirectory + "9000"),
-      ("00A4020C025037", "9000"),
-      ("00B0000080", Self.sampleCertificateDirectory + "9000"),
-      ("00A4020C025034", "9000"),
-      ("00B0000080", Self.samplePrivateKeyDirectory + "9000"),
-      ("002000810C" + Self.padZero12Hex("1234"), "9000"),
-      ("002241B606800154840102", "9000"),
-      ("002A90A0329030" + digestHex, "9000"),
-      ("002A9E9A60", signatureHex + "9000"),
-      ("002000820C" + Self.padZero12Hex("12345"), "9000"),
-      ("002241B606800154840106", "9000"),
-      ("002A90A0329030" + digestHex, "9000"),
-      ("002A9E9A60", signatureHex + "9000"),
-    ])
+    let digest = Data(repeating: UInt8(ascii: "H"), count: EstonianEidValues.p384DigestLength)
+    let algorithm = SigningAlgorithm(hash: .sha384, scheme: .ecdsa)
+    let sigLength = try #require(
+      ExpectedResponseLength(count: EstonianEidTestFixture.p384RawSignatureLength)
+    )
+    let channel = TypedScriptedChannel(
+      try Self.estonian2025SigningScript(digest: digest, algorithm: algorithm, sigLength: sigLength)
+    )
     let operations = CardOperations(channel: channel, numbering: .estonian2025)
-    guard let pin1 = Pin1(digits: "1234"), let pin2 = Pin2(digits: "12345") else {
+    guard
+      let pin1 = Pin1(digits: EstonianEidTestFixture.samplePin1),
+      let pin2 = Pin2(digits: EstonianEidTestFixture.samplePin2)
+    else {
       Issue.record("synthetic PIN failed to construct")
       return
     }
     try operations.verifyPin1(pin1.consumeForSingleTransmission())
     let authSig = try operations.computeAuthenticationSignature(
-      overDigest: WireHex.data(digestHex),
-      algorithm: SigningAlgorithm(hash: .sha384, scheme: .ecdsa),
-      expectedSignatureLength: ExpectedResponseLength(count: Self.p384RawSignatureLength)
+      overDigest: digest, algorithm: algorithm, expectedSignatureLength: sigLength
     )
-    #expect(authSig == WireHex.data(signatureHex))
-
+    #expect(authSig == EstonianEidTestFixture.syntheticSignatureBytes)
     try operations.verifyPin2(pin2.consumeForSingleTransmission())
     let signSig = try operations.computeQualifiedSignature(
-      overDigest: WireHex.data(digestHex),
-      algorithm: SigningAlgorithm(hash: .sha384, scheme: .ecdsa),
-      expectedSignatureLength: ExpectedResponseLength(count: Self.p384RawSignatureLength)
+      overDigest: digest, algorithm: algorithm, expectedSignatureLength: sigLength
     )
-    #expect(signSig == WireHex.data(signatureHex))
-    #expect(channel.isExhausted)
-  }
-
-  @Test
-  internal func estonian2025ProbeCredentialsAndActivationMatchThreeTryAllowance() throws {
-    let three = try #require(RetryCount(attemptsRemaining: Self.estonianAllowance))
-    let channel = ScriptedChannel([
-      ("0020001100", "6A88"),
-      ("0020000300", "6A88"),
-      ("0020008100", "63C3"),
-      ("0020008200", "63C3"),
-      ("00CB00FF05A00383018300", "DF2104030A0AFF9000"),
-    ])
-    let operations = CardOperations(channel: channel)
-    let report = try operations.probeCredentials()
-    #expect(report.pin1 == .remaining(three))
-    #expect(report.pin2 == .remaining(three))
-    #expect(report.puk == .remaining(three))
-    #expect(report.pristineAllowance == Self.estonianAllowance)
-    #expect(operations.activationClassification() == .estonian)
-    #expect(
-      operations.activationNeeds(scheme: .presetActivationPin)
-        == CardActivationNeeds(pin1: false, pin2: false)
-    )
+    #expect(signSig == EstonianEidTestFixture.syntheticSignatureBytes)
     #expect(channel.isExhausted)
   }
 }
