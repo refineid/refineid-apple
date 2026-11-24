@@ -37,6 +37,7 @@ extension CardOperations {
       transmission,
       references: references
     )
+    referenceMemo.probedRetryCounters[.pin1] = nil
     let raw = try channel.transmit(command.intoTransportPayload())
     guard let response = ResponseApdu(raw: raw) else {
       throw CardOperationError.malformedResponse
@@ -83,6 +84,7 @@ extension CardOperations {
       transmission,
       references: references
     )
+    referenceMemo.probedRetryCounters[.pin2] = nil
     let raw = try channel.transmit(command.intoTransportPayload())
     guard let response = ResponseApdu(raw: raw) else {
       throw CardOperationError.malformedResponse

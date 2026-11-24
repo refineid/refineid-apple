@@ -138,36 +138,57 @@ internal enum CardMaintenance {
     let operations = CardOperations(channel: channel)
     do {
       try operations.selectCardApplication()
-      if operations.resolvedNumbering == .estonian2018 {
-        _ = try operations.readChipSerial()
-      }
-      return operations
     } catch {
-      guard
-        let cardAccessNumber,
-        let offered = CardAccessNumber(digits: cardAccessNumber)
-      else {
-        throw ConnectionFailure.wrongCardAccessNumber
-      }
-      let prefersEstonian2018 = operations.resolvedNumbering == .estonian2018
+      return try openConnectionViaPace(
+        over: channel,
+        cardAccessNumber: cardAccessNumber,
+        prefersEstonian2018: false
+      )
+    }
+    if operations.resolvedNumbering == .estonian2018 {
       do {
-        let (_, secureOperations) = try CardOperations.openCanSecureChannel(
+        _ = try operations.readChipSerial()
+      } catch let error where CardOperationError.requiresCanPace(error) {
+        return try openConnectionViaPace(
           over: channel,
-          accessNumber: offered,
-          prefersEstonian2018: prefersEstonian2018,
-          diagnostic: nil
+          cardAccessNumber: cardAccessNumber,
+          prefersEstonian2018: true
         )
-        return secureOperations
-      } catch PaceEstablishment.Failure.authenticationTokenMismatch {
-        throw ConnectionFailure.wrongCardAccessNumber
-      } catch PaceEstablishment.Failure.cardRejected(.authenticationFailed) {
-        // A card may reject the terminal's final PACE token with
-        // 6300 instead of returning its own token for local comparison.
-        // Both outcomes mean the CAN-derived session keys did not match.
-        throw ConnectionFailure.wrongCardAccessNumber
       } catch {
         throw ConnectionFailure.failed
       }
+    }
+    return operations
+  }
+
+  private static func openConnectionViaPace(
+    over channel: SmartCardChannel,
+    cardAccessNumber: String?,
+    prefersEstonian2018: Bool
+  ) throws -> CardOperations {
+    guard
+      let cardAccessNumber,
+      let offered = CardAccessNumber(digits: cardAccessNumber)
+    else {
+      throw ConnectionFailure.wrongCardAccessNumber
+    }
+    do {
+      let (_, secureOperations) = try CardOperations.openCanSecureChannel(
+        over: channel,
+        accessNumber: offered,
+        prefersEstonian2018: prefersEstonian2018,
+        diagnostic: nil
+      )
+      return secureOperations
+    } catch PaceEstablishment.Failure.authenticationTokenMismatch {
+      throw ConnectionFailure.wrongCardAccessNumber
+    } catch PaceEstablishment.Failure.cardRejected(.authenticationFailed) {
+      // A card may reject the terminal's final PACE token with
+      // 6300 instead of returning its own token for local comparison.
+      // Both outcomes mean the CAN-derived session keys did not match.
+      throw ConnectionFailure.wrongCardAccessNumber
+    } catch {
+      throw ConnectionFailure.failed
     }
   }
 

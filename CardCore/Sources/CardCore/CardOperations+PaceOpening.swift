@@ -26,12 +26,38 @@ extension CardOperations {
     diagnostic: (@Sendable (String) -> Void)?
   ) throws -> (keys: PaceSessionKeys, operations: CardOperations) {
     if prefersEstonian2018 {
-      return try openEstonian2018CanSecureChannel(
-        over: channel,
-        accessNumber: accessNumber,
-        diagnostic: diagnostic
-      )
+      do {
+        return try openEstonian2018CanSecureChannel(
+          over: channel,
+          accessNumber: accessNumber,
+          alreadySelectedAid: nil,
+          diagnostic: diagnostic
+        )
+      } catch CardOperationError.selectRejected(.fileNotFound) {
+        try? CardOperations(channel: channel).selectMainFile()
+        return try openStandardCanSecureChannel(
+          over: channel,
+          accessNumber: accessNumber,
+          diagnostic: diagnostic
+        )
+      }
     }
+    return try openStandardCanSecureChannel(
+      over: channel,
+      accessNumber: accessNumber,
+      diagnostic: diagnostic
+    )
+  }
+
+  /// Opens PACE at the main file and selects the PKCS#15 application inside SM,
+  /// falling back to the EstEID 2018 IAS-ECC root only if the card actually
+  /// responds to an EstEID 2018 AID.
+  @preconcurrency
+  private static func openStandardCanSecureChannel(
+    over channel: any CardChannel,
+    accessNumber: CardAccessNumber,
+    diagnostic: (@Sendable (String) -> Void)?
+  ) throws -> (keys: PaceSessionKeys, operations: CardOperations) {
     let keys = try PaceEstablishment(
       channel: channel,
       diagnostic: diagnostic
@@ -39,15 +65,12 @@ extension CardOperations {
     let secure = SecureMessagingChannel(wrapping: channel, sessionKeys: keys)
     let secureOperations = CardOperations(channel: secure)
     do {
-      try secureOperations.selectCardApplication()
+      try secureOperations.selectPkcs15Application()
       return (keys, secureOperations)
-    } catch CardOperationError.selectRejected(.securityNotSatisfied),
-      CardOperationError.selectRejected(.smDataObjectsIncorrect),
-      CardOperationError.selectRejected(.fileNotFound)
-    {
+    } catch let originalError where isEstonian2018SelectMismatch(originalError) {
       let plain = CardOperations(channel: channel)
       guard (try? plain.selectEstonian2018Application()) != nil else {
-        throw CardOperationError.selectRejected(.fileNotFound)
+        throw originalError
       }
       return try openEstonian2018CanSecureChannel(
         over: channel,
@@ -58,11 +81,27 @@ extension CardOperations {
     }
   }
 
+  private static func isEstonian2018SelectMismatch(_ error: any Error) -> Bool {
+    if error is SecureMessagingChannel.Failure {
+      return true
+    }
+    guard let cardError = error as? CardOperationError else { return false }
+    switch cardError {
+    case .selectRejected(.fileNotFound),
+      .selectRejected(.securityNotSatisfied),
+      .selectRejected(.smDataObjectsIncorrect):
+      return true
+
+    default:
+      return false
+    }
+  }
+
   /// Opens a CAN-authenticated PACE channel inside an EstEID 2018 IAS-ECC root.
   private static func openEstonian2018CanSecureChannel(
     over channel: any CardChannel,
     accessNumber: CardAccessNumber,
-    alreadySelectedAid: ApplicationIdentifier? = nil,
+    alreadySelectedAid: ApplicationIdentifier?,
     diagnostic: (@Sendable (String) -> Void)?
   ) throws -> (keys: PaceSessionKeys, operations: CardOperations) {
     let selectedAid: ApplicationIdentifier?

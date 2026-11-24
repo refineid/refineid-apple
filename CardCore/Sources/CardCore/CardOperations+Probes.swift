@@ -38,10 +38,10 @@ extension CardOperations {
 
   private static func isRecognizedProbeOutcome(_ outcome: RetryProbeOutcome) -> Bool {
     switch outcome {
-    case .invalidated, .locked, .noInformation, .remaining, .verified:
+    case .invalidated, .locked, .remaining, .verified:
       true
 
-    case .other:
+    case .noInformation, .other:
       false
     }
   }

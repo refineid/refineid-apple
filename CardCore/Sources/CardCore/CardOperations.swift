@@ -81,6 +81,15 @@ public struct CardOperations {
     referenceMemo.resolved = .organization
   }
 
+  /// Selects the PKCS#15 eID application (`A000000063504B43532D3135`) alone,
+  /// without falling back to EstEID 2018 IAS-ECC root AIDs.
+  internal func selectPkcs15Application() throws {
+    let response = try transmit(.selectApplication(.fineidApplication))
+    guard response.statusWord == .success else {
+      throw CardOperationError.selectRejected(response.statusWord)
+    }
+  }
+
   /// Selects a supported eID application on the card.
   ///
   /// Tries the PKCS#15 eID AID (`A000000063504B43532D3135`, shared by FINEID
@@ -199,7 +208,9 @@ public struct CardOperations {
       }
     }
     if slot == .authentication || slot == .qualifiedSignature,
-      lastRejection == .fileNotFound
+      lastRejection == .fileNotFound,
+      referenceMemo.resolved == .estonian2025
+        || (referenceMemo.resolved == nil && (try? resolveCredentialReferences()) == .estonian2025)
     {
       return try readEstonian2025Certificate(slot)
     }

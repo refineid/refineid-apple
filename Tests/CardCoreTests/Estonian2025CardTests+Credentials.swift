@@ -51,4 +51,25 @@ extension Estonian2025CardTests {
     )
     #expect(channel.isExhausted)
   }
+
+  @Test
+  internal func estonian2018DocumentNumberRethrowsSecurityNotSatisfiedImmediately() {
+    let channel = ScriptedChannel([
+      ("00A4000C", "9000"),
+      ("00A4020C02D003", "6982"),
+      ("00A4000C02D003", "6982"),
+    ])
+    let operations = CardOperations(channel: channel, numbering: .estonian2018)
+    #expect(throws: CardOperationError.selectRejected(.securityNotSatisfied)) {
+      _ = try operations.readEstonian2018DocumentNumber()
+    }
+    #expect(channel.isExhausted)
+  }
+
+  @Test
+  internal func selectByPathRejectsEmptyAndOversizedPaths() {
+    #expect(CommandApdu.selectByPath([]) == nil)
+    let oversized = Array(repeating: FileIdentifier.estonianAwpDirectory, count: 128)
+    #expect(CommandApdu.selectByPath(oversized) == nil)
+  }
 }

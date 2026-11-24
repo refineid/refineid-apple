@@ -92,7 +92,14 @@ extension CardOperations {
     expectedSignatureLength: ExpectedResponseLength?
   ) throws -> Data {
     if referenceMemo.resolved == .estonian2018 {
-      return try computeEstonian2018Signature(overDigest: digest, key: key)
+      return try computeEstonian2018Signature(
+        overDigest: digest,
+        algorithm: algorithm,
+        key: key
+      )
+    }
+    if referenceMemo.resolved == .estonian2025, !referenceMemo.attemptedDirectoryDiscovery {
+      discoverEstonian2025Directory()
     }
     let selected = try transmit(
       .selectSigningEnvironment(
@@ -128,8 +135,12 @@ extension CardOperations {
   /// just verified), runs `MSE:SET DST`, and signs with `PSO:CDS`.
   private func computeEstonian2018Signature(
     overDigest digest: Data,
+    algorithm: SigningAlgorithm,
     key: CardSigningKey
   ) throws -> Data {
+    guard algorithm.scheme == .ecdsa else {
+      throw CardOperationError.signRejected(.conditionsNotSatisfied)
+    }
     let normalized = Self.estonian2018Digest(digest)
     switch key {
     case .authentication:

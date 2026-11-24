@@ -41,7 +41,7 @@ extension CardOperations {
         printedSerial: PrintedSerial(documentNumber: documentNumber)
       )
     }
-    let numbering = try? resolveCredentialReferences()
+    let numbering = try resolveCredentialReferences()
     let chipSerial = try readChipSerial()
     if numbering == .estonian2025 {
       let documentNumber = try readEstonian2025DocumentNumber()
@@ -50,14 +50,10 @@ extension CardOperations {
         printedSerial: PrintedSerial(documentNumber: documentNumber)
       )
     }
-    if let printed = PrintedSerial(chipSerial: chipSerial) {
-      return CardIdentitySerials(chipSerial: chipSerial, printedSerial: printed)
+    guard let printed = PrintedSerial(chipSerial: chipSerial) else {
+      throw CardOperationError.tokenInfoMalformed
     }
-    let documentNumber = try readEstonian2025DocumentNumber()
-    return CardIdentitySerials(
-      chipSerial: chipSerial,
-      printedSerial: PrintedSerial(documentNumber: documentNumber)
-    )
+    return CardIdentitySerials(chipSerial: chipSerial, printedSerial: printed)
   }
 
   /// Reads the plain-ASCII PD7 document number from `DF.DD / EF.5007` inside
@@ -71,7 +67,7 @@ extension CardOperations {
       chunkLength: channel.readChunkLength
     )
     let raw = try drive(&assembler)
-    try? selectCardApplication()
+    try selectCardApplication()
     guard let documentNumber = DocumentNumber(asciiBytes: raw) else {
       throw CardOperationError.tokenInfoMalformed
     }
@@ -88,6 +84,9 @@ extension CardOperations {
         return parsed
       }
     } catch let error as CardOperationError {
+      if CardOperationError.requiresCanPace(error) {
+        throw error
+      }
       switch error {
       case .sessionUnavailable, .exchangeUnanswered:
         throw error
@@ -135,15 +134,15 @@ extension CardOperations {
   }
 
   /// Discovers EstEID 2025 certificate paths, key references, and EF.AOD from
-  /// `EF.OD` (`5031`), memoizing the result for this session.
+  /// `EF.OD` (`5031`), memoizing the result for this session once `EF.OD` reads.
   internal func discoverEstonian2025Directory() {
     guard !referenceMemo.attemptedDirectoryDiscovery else { return }
-    referenceMemo.attemptedDirectoryDiscovery = true
     guard
       let odfData = try? readElementaryFile(.objectDirectory, expectedLength: nil)
     else {
       return
     }
+    referenceMemo.attemptedDirectoryDiscovery = true
     let locations = Pkcs15Directory.locations(fromObjectDirectory: odfData)
     referenceMemo.discoveredAodFile = locations.authObjects
     let certificates: [Pkcs15Directory.Certificate]
@@ -167,7 +166,8 @@ extension CardOperations {
   }
 
   /// Reads an EstEID 2025 certificate via its discovered PKCS#15 path, falling
-  /// back to the documented default `ADF1:3411` / `ADF2:3421` paths.
+  /// back to the documented default `ADF1:3411` / `ADF2:3421` paths, and
+  /// restores the eID application directory before returning.
   internal func readEstonian2025Certificate(_ slot: CertificateSlot) throws -> Data {
     try selectCardApplication()
     discoverEstonian2025Directory()
@@ -176,7 +176,9 @@ extension CardOperations {
       ? [.estonianAwpDirectory, .estonian2025AuthCertificate]
       : [.estonianQscdDirectory, .estonian2025SignatureCertificate]
     let path = referenceMemo.discoveredCertificatePaths[slot] ?? defaultPath
-    return try readSingleDerObject(atPath: path)
+    let certificate = try readSingleDerObject(atPath: path)
+    try selectCardApplication()
+    return certificate
   }
 
   /// Reads an EstEID 2018 certificate from `MF / ADF1 / 3401(3402)` or
@@ -221,7 +223,10 @@ extension CardOperations {
   /// Selects `path` inside the currently active eID application, trying
   /// path-from-MF (`00 A4 08 0C`) first and stepping DF-by-DF as fallback.
   internal func selectPath(_ path: [FileIdentifier]) throws {
-    guard let file = path.last else {
+    guard
+      let file = path.last,
+      path.count <= Pkcs15Directory.maximumPathDepth
+    else {
       throw CardOperationError.selectRejected(.fileNotFound)
     }
     if path.count == 1 {
@@ -231,9 +236,11 @@ extension CardOperations {
       ])
       return
     }
-    let byPath = try transmit(.selectByPath(path))
-    if byPath.statusWord == .success {
-      return
+    if let byPathCommand = CommandApdu.selectByPath(path) {
+      let byPath = try transmit(byPathCommand)
+      if byPath.statusWord == .success {
+        return
+      }
     }
     for directory in path.dropLast() {
       try selectChildDirectory(directory)
@@ -248,20 +255,32 @@ extension CardOperations {
     _ entries: [Pkcs15Inventory.Entry],
     keys: [Pkcs15Directory.PrivateKey]
   ) {
-    for key in keys {
-      if key.usage.contains(.nonRepudiation), let ref = key.keyReference {
-        referenceMemo.discoveredKeyReferences[.qualifiedSignature] = ref
-      } else if key.usage.contains(.sign), let ref = key.keyReference {
-        referenceMemo.discoveredKeyReferences[.authentication] = ref
-      }
-    }
     for entry in entries {
       if let key = entry.key {
         if key.usage.contains(.nonRepudiation) {
           referenceMemo.discoveredCertificatePaths[.qualifiedSignature] = entry.certificate.path
+          if let ref = key.keyReference {
+            referenceMemo.discoveredKeyReferences[.qualifiedSignature] = ref
+          }
         } else if key.usage.contains(.sign) {
           referenceMemo.discoveredCertificatePaths[.authentication] = entry.certificate.path
+          if let ref = key.keyReference {
+            referenceMemo.discoveredKeyReferences[.authentication] = ref
+          }
         }
+      }
+    }
+    for key in keys {
+      if key.usage.contains(.nonRepudiation),
+        referenceMemo.discoveredKeyReferences[.qualifiedSignature] == nil,
+        let ref = key.keyReference
+      {
+        referenceMemo.discoveredKeyReferences[.qualifiedSignature] = ref
+      } else if key.usage.contains(.sign),
+        referenceMemo.discoveredKeyReferences[.authentication] == nil,
+        let ref = key.keyReference
+      {
+        referenceMemo.discoveredKeyReferences[.authentication] = ref
       }
     }
   }

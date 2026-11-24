@@ -98,7 +98,8 @@ public struct AnswerToReset: Equatable, Sendable {
   /// Routing hint only for selecting the IAS-ECC root AID before PACE on
   /// NFC; never a trust or identity assertion.
   public static func indicatesEstonian2018(bytes: Data) -> Bool {
-    bytes.contains(EstonianEidValues.legacyCosmoV8Marker)
-      || bytes.contains(EstonianEidValues.legacyCosmoXMarker)
+    let searchSpace = Self(bytes: bytes).map { Data($0.historicalBytes) } ?? bytes
+    return searchSpace.contains(EstonianEidValues.legacyCosmoV8Marker)
+      || searchSpace.contains(EstonianEidValues.legacyCosmoXMarker)
   }
 }

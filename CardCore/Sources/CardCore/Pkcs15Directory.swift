@@ -97,6 +97,9 @@ public enum Pkcs15Directory {
     public let privateKeys: FileIdentifier?
   }
 
+  /// Maximum number of file-identifier segments accepted in one PKCS#15 path.
+  internal static let maximumPathDepth = 8
+
   /// Bytes in a file identifier.
   private static let fileIdentifierOctets = 2
 
@@ -262,7 +265,8 @@ public enum Pkcs15Directory {
     let bytes = Array(path)
     guard
       !bytes.isEmpty,
-      bytes.count.isMultiple(of: Self.fileIdentifierOctets)
+      bytes.count.isMultiple(of: Self.fileIdentifierOctets),
+      bytes.count <= Self.maximumPathDepth * Self.fileIdentifierOctets
     else {
       return []
     }

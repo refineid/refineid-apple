@@ -83,6 +83,66 @@ internal struct EstonianDocumentNumberTests {
   }
 
   @Test
+  internal func binaryReadAssemblerEnforcesCapOnRetryAndCompletesMidFileEof() throws {
+    var capped = BinaryReadAssembler(
+      mode: .toEndOfFile,
+      expectedLength: DocumentNumber.probeReadCap
+    )
+    capped.accept(try #require(ResponseApdu(raw: WireHex.data("6282"))))
+    let oversized = String(repeating: "41", count: DocumentNumber.probeReadCap + 1)
+    capped.accept(try #require(ResponseApdu(raw: WireHex.data(oversized + "9000"))))
+    #expect(capped.nextStep == .failed(.oversizedChunk))
+
+    var midFile = BinaryReadAssembler(mode: .toEndOfFile, expectedLength: nil)
+    let firstChunk = String(repeating: "42", count: ReadChunkLength.plain.count)
+    midFile.accept(try #require(ResponseApdu(raw: WireHex.data(firstChunk + "9000"))))
+    midFile.accept(try #require(ResponseApdu(raw: WireHex.data("6282"))))
+    #expect(midFile.nextStep == .complete(WireHex.data(firstChunk)))
+  }
+
+  @Test
+  internal func primedIdentityRoundTripsEstonian2025And2018Json() throws {
+    let documentNumber = try #require(
+      DocumentNumber(asciiBytes: Data(Self.syntheticDocNumber.utf8))
+    )
+    let printed = PrintedSerial(documentNumber: documentNumber)
+    let est2025Chip = try #require(ChipSerial(value: "0123456789ABCDEF"))
+    let prime2025 = try #require(
+      PrimedIdentity(
+        can: "123456",
+        certificate: WireHex.data("3004AABBCCDD"),
+        issuer: nil,
+        chipSerial: est2025Chip,
+        activationCheck: .passed,
+        printedSerial: printed,
+        cardNumbering: .estonian2025
+      )
+    )
+    let decoded2025 = try JSONDecoder().decode(
+      PrimedIdentity.self, from: JSONEncoder().encode(prime2025)
+    )
+    #expect(decoded2025 == prime2025)
+    #expect(decoded2025.resolvedPrintedSerial == printed)
+
+    let prime2018 = try #require(
+      PrimedIdentity(
+        can: "123456",
+        certificate: WireHex.data("300411223344"),
+        issuer: nil,
+        chipSerial: ChipSerial(documentNumber: documentNumber),
+        activationCheck: .passed,
+        printedSerial: printed,
+        cardNumbering: .estonian2018
+      )
+    )
+    let decoded2018 = try JSONDecoder().decode(
+      PrimedIdentity.self, from: JSONEncoder().encode(prime2018)
+    )
+    #expect(decoded2018 == prime2018)
+    #expect(decoded2018.resolvedPrintedSerial == printed)
+  }
+
+  @Test
   internal func threeTryPristineAllowanceControlsPin1RetentionAndAdmission() throws {
     let three = try #require(RetryCount(attemptsRemaining: Self.estonianAllowance))
     let two = try #require(RetryCount(attemptsRemaining: Self.belowFloorAttempts))

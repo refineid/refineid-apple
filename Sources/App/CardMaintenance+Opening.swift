@@ -187,8 +187,12 @@ extension CardMaintenance {
     switch kind {
     case .personal:
       #if FEATURE_CONTACTLESS
-        let prefersEstonian2018 =
-          PrimeStore.storedIdentities().first?.cardNumbering == .estonian2018
+        let offered = offeredAccessNumber(opener.cardAccessNumber)
+        let matchingPrime =
+          offered.flatMap { candidate in
+            PrimeStore.storedIdentities().first { $0.can == candidate.digits }
+          } ?? PrimeStore.storedIdentities().first
+        let prefersEstonian2018 = matchingPrime?.cardNumbering == .estonian2018
         if !prefersEstonian2018 {
           try? CardOperations(channel: channel).selectMainFile()
         }

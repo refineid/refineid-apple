@@ -17,18 +17,25 @@ extension CommandApdu {
     )
   }
 
-  /// SELECT by path from the main file or application root
-  /// (`00 A4 08 0C Lc <path>`), as used by EstEID 2025 for `ADF1:3411`,
-  /// `ADF2:3421`, and `DFDD:5007` (ISO 7816-4 section 11.1.1; GED24035
-  /// section 8.5).
-  public static func selectByPath(_ path: [FileIdentifier]) -> Self {
+  /// SELECT by path from the main file or application root (`00 A4 08 0C Lc <path>`).
+  ///
+  /// Used by EstEID 2025 for `ADF1:3411`, `ADF2:3421`, and `DFDD:5007`
+  /// (ISO 7816-4 section 11.1.1; GED24035 section 8.5). Returns nil if `path`
+  /// is empty or exceeds short-APDU Lc.
+  public static func selectByPath(_ path: [FileIdentifier]) -> Self? {
     let pathBytes = path.flatMap(\.bytes)
+    guard
+      !pathBytes.isEmpty,
+      let length = UInt8(exactly: pathBytes.count)
+    else {
+      return nil
+    }
     var bytes: [UInt8] = [
       Iso7816Values.classInterindustry,
       Iso7816Values.insSelect,
       Iso7816Values.selectByPathFromMfP1,
       Iso7816Values.selectNoResponseP2,
-      UInt8(pathBytes.count),
+      length,
     ]
     bytes.append(contentsOf: pathBytes)
     return Self(encoded: Data(bytes))

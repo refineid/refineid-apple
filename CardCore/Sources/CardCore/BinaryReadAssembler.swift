@@ -103,14 +103,20 @@ public struct BinaryReadAssembler: Equatable, Sendable {
     }
     let wasRetry = useMaximumLengthOnce
     useMaximumLengthOnce = false
-    let want = wasRetry ? ExpectedResponseLength.maximum : min(cap - offset, chunkLength.count)
-    if endOfFile, response.payload.isEmpty, !retriedEndOfFile, want < ExpectedResponseLength.maximum
+    let remainingCap = cap - offset
+    let want = wasRetry ? ExpectedResponseLength.maximum : min(remainingCap, chunkLength.count)
+    if endOfFile,
+      response.payload.isEmpty,
+      collected.isEmpty,
+      !retriedEndOfFile,
+      want < ExpectedResponseLength.maximum
     {
       retriedEndOfFile = true
       useMaximumLengthOnce = true
       return
     }
-    guard response.payload.count <= want else {
+    let maximumAccepted = wasRetry ? min(want, remainingCap) : want
+    guard response.payload.count <= maximumAccepted else {
       terminal = .failed(.oversizedChunk)
       return
     }

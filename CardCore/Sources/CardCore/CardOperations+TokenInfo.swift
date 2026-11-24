@@ -65,29 +65,28 @@ extension CardOperations {
       return ChipSerial(documentNumber: documentNumber)
     }
     do {
-      let selected = try transmit(.selectElementaryFile(.tokenInfo))
-      guard selected.statusWord == .success else {
-        throw CardOperationError.selectRejected(selected.statusWord)
-      }
-      var assembler = BinaryReadAssembler(
-        mode: .singleDerObject,
-        chunkLength: channel.readChunkLength
-      )
-      let content = try drive(&assembler)
-      guard let serial = TokenInfoFile.serial(fromContent: content) else {
-        throw CardOperationError.tokenInfoMalformed
-      }
-      return serial
-    } catch let error as CardOperationError {
-      switch error {
-      case .selectRejected(.fileNotFound), .tokenInfoMalformed:
-        guard referenceMemo.resolved == .estonian2025 else { throw error }
-        let documentNumber = try readEstonian2025DocumentNumber()
-        return ChipSerial(documentNumber: documentNumber)
-
-      default:
-        throw error
-      }
+      return try readTokenInfoChipSerial()
+    } catch CardOperationError.selectRejected(.fileNotFound)
+      where referenceMemo.resolved == .estonian2025
+    {
+      try selectCardApplication()
+      return try readTokenInfoChipSerial()
     }
+  }
+
+  private func readTokenInfoChipSerial() throws -> ChipSerial {
+    let selected = try transmit(.selectElementaryFile(.tokenInfo))
+    guard selected.statusWord == .success else {
+      throw CardOperationError.selectRejected(selected.statusWord)
+    }
+    var assembler = BinaryReadAssembler(
+      mode: .singleDerObject,
+      chunkLength: channel.readChunkLength
+    )
+    let content = try drive(&assembler)
+    guard let serial = TokenInfoFile.serial(fromContent: content) else {
+      throw CardOperationError.tokenInfoMalformed
+    }
+    return serial
   }
 }
