@@ -43,7 +43,7 @@ internal enum ReaderSignature {
       operations = try Self.unsealed(
         channel,
         with: unsealing.accessNumber,
-        prefersEstonian2018: token.cardNumbering == .estonian2018
+        cardNumbering: token.cardNumbering
       )
     } catch PaceEstablishment.Failure.authenticationTokenMismatch {
       token.revokeAutomaticIdentityAfterCanRejection()
@@ -70,14 +70,16 @@ internal enum ReaderSignature {
   internal static func unsealed(
     _ channel: SmartCardChannel,
     with accessNumber: CardAccessNumber?,
-    prefersEstonian2018: Bool
+    cardNumbering: CredentialReferenceSet?
   ) throws -> CardOperations {
-    guard let accessNumber else { return CardOperations(channel: channel) }
+    guard let accessNumber else {
+      return CardOperations(channel: channel, numbering: cardNumbering)
+    }
     let started = ContinuousClock.now
     let (_, operations) = try CardOperations.openCanSecureChannel(
       over: channel,
       accessNumber: accessNumber,
-      prefersEstonian2018: prefersEstonian2018,
+      prefersEstonian2018: cardNumbering == .estonian2018,
       diagnostic: nil
     )
     TokenLog.info(

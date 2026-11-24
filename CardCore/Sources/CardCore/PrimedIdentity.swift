@@ -67,7 +67,11 @@ public struct PrimedIdentity: Codable, Equatable, Sendable {
 
   /// The printed serial to publish this card's CryptoTokenKit token under.
   public var resolvedPrintedSerial: PrintedSerial? {
-    printedSerial ?? PrintedSerial(chipSerial: chipSerial)
+    if let printedSerial {
+      return printedSerial
+    }
+    guard cardNumbering != .estonian2025 else { return nil }
+    return PrintedSerial(chipSerial: chipSerial)
   }
 
   /// Refuses anything that could not have come from a real prime.

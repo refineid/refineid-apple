@@ -47,7 +47,7 @@ internal enum QualifiedSignature {
         operations: try ReaderSignature.unsealed(
           access.channel,
           with: access.unsealing.accessNumber,
-          prefersEstonian2018: token.cardNumbering == .estonian2018
+          cardNumbering: token.cardNumbering
         ),
         enteredPin: enteredPin,
         request: request,

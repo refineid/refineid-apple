@@ -172,10 +172,7 @@ internal struct CardStatusSnapshot: Equatable, Sendable {
           return .sealed
         }
         let sealedStatus = RetryProbeOutcome.other(StatusWord.securityNotSatisfied.encoded)
-        if report.pin1 == sealedStatus
-          || report.pin2 == sealedStatus
-          || report.puk == sealedStatus
-        {
+        if report.pin1 == sealedStatus {
           return .sealed
         }
         // Best effort, and after the counters: a card that will not name

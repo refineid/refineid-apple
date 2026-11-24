@@ -60,6 +60,12 @@ extension CardOperations {
   /// the EstEID 2025 eID application and leaves the eID application selected.
   public func readEstonian2025DocumentNumber() throws -> DocumentNumber {
     try selectCardApplication()
+    var restoredApplication = false
+    defer {
+      if !restoredApplication {
+        try? selectCardApplication()
+      }
+    }
     try selectPath([.estonianDocumentDataDirectory, .estonianDocumentNumberPlain])
     var assembler = BinaryReadAssembler(
       mode: .toEndOfFile,
@@ -68,6 +74,7 @@ extension CardOperations {
     )
     let raw = try drive(&assembler)
     try selectCardApplication()
+    restoredApplication = true
     guard let documentNumber = DocumentNumber(asciiBytes: raw) else {
       throw CardOperationError.tokenInfoMalformed
     }
@@ -170,6 +177,12 @@ extension CardOperations {
   /// restores the eID application directory before returning.
   internal func readEstonian2025Certificate(_ slot: CertificateSlot) throws -> Data {
     try selectCardApplication()
+    var restoredApplication = false
+    defer {
+      if !restoredApplication {
+        try? selectCardApplication()
+      }
+    }
     discoverEstonian2025Directory()
     let defaultPath: [FileIdentifier] =
       slot == .authentication
@@ -178,6 +191,7 @@ extension CardOperations {
     let path = referenceMemo.discoveredCertificatePaths[slot] ?? defaultPath
     let certificate = try readSingleDerObject(atPath: path)
     try selectCardApplication()
+    restoredApplication = true
     return certificate
   }
 
