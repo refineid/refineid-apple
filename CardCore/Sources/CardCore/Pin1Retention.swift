@@ -12,11 +12,17 @@
 /// decides whether an attempt may be sent at all; this decides only whether
 /// its PIN may be kept afterwards.
 public enum Pin1Retention {
-  /// True when the probe permits holding PIN 1 for this card.
+  /// True when the probe permits holding PIN 1 for a FINEID five-try card.
   public static func permitsHolding(after probe: RetryProbeOutcome) -> Bool {
+    permitsHolding(after: probe, allowance: RetryCount.pristineAllowance)
+  }
+
+  /// True when the probe permits holding PIN 1 for a card whose full retry
+  /// allowance is `allowance` (five on FINEID, three on Estonian eID).
+  public static func permitsHolding(after probe: RetryProbeOutcome, allowance: UInt8) -> Bool {
     switch probe {
     case .remaining(let count):
-      count.isPristine
+      count.isPristine(allowance: allowance)
 
     case .verified:
       true

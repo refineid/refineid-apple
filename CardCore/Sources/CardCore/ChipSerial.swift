@@ -34,6 +34,12 @@ public struct ChipSerial: Codable, Equatable, Hashable, Sendable {
     self.value = value
   }
 
+  /// Builds a chip serial from a validated Estonian ``DocumentNumber`` for
+  /// cards whose PKCS#15 TokenInfo carries no separate chip serial.
+  public init(documentNumber: DocumentNumber) {
+    self.value = documentNumber.value
+  }
+
   /// Decodes a stored serial through the same checks as ``init(value:)``;
   /// a malformed value fails decoding.
   public init(from decoder: any Decoder) throws {

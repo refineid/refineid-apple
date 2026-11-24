@@ -80,7 +80,7 @@
     internal func keepAlive(_ channel: RappHeldCardChannel) async -> Bool {
       await Task.detached(priority: .utility) {
         do {
-          try channel.operations.selectFineidApplication()
+          try channel.operations.selectCardApplication()
           return true
         } catch  where CardOperationError.refusesBeforePace(error) {
           return true

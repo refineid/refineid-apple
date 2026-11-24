@@ -102,7 +102,9 @@ extension PrimeStore {
         issuer: item.identity.issuerDER,
         chipSerial: item.identity.chipSerial,
         activationCheck: item.identity.activationCheck,
-        signatureCertificate: der
+        signatureCertificate: der,
+        printedSerial: item.identity.printedSerial,
+        cardNumbering: item.identity.cardNumbering
       )
     else { return false }
     guard let payload = try? JSONEncoder().encode(updated) else { return false }

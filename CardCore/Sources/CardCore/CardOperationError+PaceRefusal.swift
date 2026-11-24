@@ -15,4 +15,19 @@ extension CardOperationError {
       false
     }
   }
+
+  /// Whether `error` is the card answering `6982` (security status not
+  /// satisfied) to a select or a read: a personal card on the contactless
+  /// interface (FINEID, EstEID 2025, or EstEID 2018) requiring PACE with
+  /// its card access number.
+  public static func requiresCanPace(_ error: any Error) -> Bool {
+    switch error {
+    case Self.selectRejected(.securityNotSatisfied),
+      Self.readFailed(.unexpectedStatus(.securityNotSatisfied)):
+      true
+
+    default:
+      false
+    }
+  }
 }

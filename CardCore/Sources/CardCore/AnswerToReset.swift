@@ -91,4 +91,15 @@ public struct AnswerToReset: Equatable, Sendable {
         byte & expectation.1 == expectation.0
       }
   }
+
+  /// Whether `bytes` carries an EstEID 2018 (Cosmo v8 or Cosmo X)
+  /// historical-bytes marker (ID1 Developer Guide 2025 sections 5.2-5.3).
+  ///
+  /// Routing hint only for selecting the IAS-ECC root AID before PACE on
+  /// NFC; never a trust or identity assertion.
+  public static func indicatesEstonian2018(bytes: Data) -> Bool {
+    let searchSpace = Self(bytes: bytes).map { Data($0.historicalBytes) } ?? bytes
+    return searchSpace.contains(EstonianEidValues.legacyCosmoV8Marker)
+      || searchSpace.contains(EstonianEidValues.legacyCosmoXMarker)
+  }
 }

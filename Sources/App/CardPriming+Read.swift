@@ -25,9 +25,10 @@
       _ execution: HoldExecution,
       store: @escaping StorePersonalIdentity
     ) throws -> HoldRead {
-      let sheet = execution.sheet
-      let isRecovery = execution.isRecovery
-      let waitBudget = Self.responseWait(for: execution.entry.kind, isRecovery: isRecovery)
+      let waitBudget = Self.responseWait(
+        for: execution.entry.kind,
+        isRecovery: execution.isRecovery
+      )
       return try execution.session.withCardSession(waits: waitBudget) { channel in
         switch execution.entry.kind {
         case .personal:
@@ -35,8 +36,10 @@
             throw Failure.wrongCardAccessNumber
           }
           return try Self.readPersonal(
-            channel: channel, proven: proven, sheet: sheet,
-            isRecovery: isRecovery, store: store)
+            channel: channel,
+            proven: proven,
+            execution: execution,
+            store: store)
 
         case .organization:
           guard let pin1 = execution.entry.organizationPin1() else {
@@ -59,24 +62,26 @@
     private static func readPersonal(
       channel: SmartCardChannel,
       proven: ProvenAccessNumber,
-      sheet: NearFieldSheet,
-      isRecovery: Bool,
+      execution: HoldExecution,
       store: @escaping StorePersonalIdentity
     ) throws -> HoldRead {
-      let keys = try Self.establishPace(
+      let prefersEstonian2018 = AnswerToReset.indicatesEstonian2018(
+        bytes: execution.session.answerToReset
+      )
+      let secureOperations = try Self.establishPace(
         channel: channel,
         accessNumber: proven.value,
-        sheet: sheet,
-        isRecovery: isRecovery)
+        prefersEstonian2018: prefersEstonian2018,
+        sheet: execution.sheet,
+        isRecovery: execution.isRecovery)
       OperationPhaseTrace.mark("priming-pace-done")
       let saved = CardCredentialStore.save(cardAccessNumber: proven.digits)
       guard saved == errSecSuccess else { throw Self.storeFailure(saved) }
       let payload: Payload
       do {
         payload = try Self.readSecuredPayload(
-          operations: CardOperations(
-            channel: SecureMessagingChannel(wrapping: channel, sessionKeys: keys)),
-          sheet: sheet,
+          operations: secureOperations,
+          sheet: execution.sheet,
           store: { identity in try store(identity, proven) })
       } catch SmartCardChannel.TransportError.responseTimedOut,
         CardOperationError.exchangeUnanswered,
@@ -94,20 +99,13 @@
     private static func establishPace(
       channel: SmartCardChannel,
       accessNumber: CardAccessNumber,
+      prefersEstonian2018: Bool,
       sheet: NearFieldSheet,
       isRecovery: Bool
-    ) throws -> PaceSessionKeys {
-      // PACE runs from the main file. The card was discovered by
-      // selecting an application, and MSE:Set AT from an applet context
-      // is answered 6985, so the main file is made current on the plain
-      // channel before the first PACE command.
-      //
-      // Best effort on purpose: card generations differ in which SELECT
-      // variant they acknowledge, and one that refuses both may still be
-      // at the main file. PACE itself is the authoritative check --
-      // its first command is the one that has to be accepted -- so a
-      // refused reposition is not turned into a failure here.
-      try? CardOperations(channel: channel).selectMainFile()
+    ) throws -> CardOperations {
+      if !prefersEstonian2018 {
+        try? CardOperations(channel: channel).selectMainFile()
+      }
       if isRecovery {
         sheet.startRecovery()
       }
@@ -116,9 +114,12 @@
       }
       OperationPhaseTrace.mark("priming-pace-begin")
       do {
-        return try PaceEstablishment(channel: channel).establish(
-          with: PacePassword(cardAccessNumber: accessNumber)
-        ).keys
+        return try CardOperations.openCanSecureChannel(
+          over: channel,
+          accessNumber: accessNumber,
+          prefersEstonian2018: prefersEstonian2018,
+          diagnostic: nil
+        ).operations
       } catch SmartCardChannel.TransportError.responseTimedOut {
         OperationPhaseTrace.mark("priming-pace-timed-out")
         throw Failure.secureChannelTimedOut
@@ -127,7 +128,7 @@
       {
         // PACE is the access number's proof: the session keys derive
         // from it, so a card that will not agree is a card these
-        // digits do not describe. A FINEID card may answer with 6300.
+        // digits do not describe. A card may answer with 6300.
         throw Failure.wrongCardAccessNumber
       }
     }

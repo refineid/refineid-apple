@@ -139,7 +139,7 @@ extension HeldCardSessionTests {
       #expect(!held.isAvailable)
       #expect(channel.sessionEndCount == 0)
       #expect(throws: CardOperationError.sessionUnavailable) {
-        try CardOperations(channel: lease.channel).selectFineidApplication()
+        try CardOperations(channel: lease.channel).selectCardApplication()
       }
       _ = lease
     }

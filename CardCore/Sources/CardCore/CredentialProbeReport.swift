@@ -8,8 +8,12 @@ public struct CredentialProbeReport: Equatable, Sendable {
   /// PIN2 probe outcome (VERIFY probe form).
   public let pin2: RetryProbeOutcome
 
-  /// PUK probe outcome (GET DATA PIN-container form).
+  /// PUK probe outcome (GET DATA PIN-container form or VERIFY status probe).
   public let puk: RetryProbeOutcome
+
+  /// Full retry allowance of untouched credentials on the probed card
+  /// (five on FINEID, three on Estonian eID).
+  public let pristineAllowance: UInt8
 
   /// The typed retry state, available only when all three probes
   /// returned counters.
@@ -27,14 +31,32 @@ public struct CredentialProbeReport: Equatable, Sendable {
     return CredentialRetryState(pin1: pin1Count, pin2: pin2Count, puk: pukCount)
   }
 
-  /// Groups one simultaneous probe of the three credentials.
+  /// Groups one simultaneous probe of the three credentials under the FINEID
+  /// five-try allowance.
   public init(
     pin1: RetryProbeOutcome,
     pin2: RetryProbeOutcome,
     puk: RetryProbeOutcome
   ) {
+    self.init(
+      pin1: pin1,
+      pin2: pin2,
+      puk: puk,
+      pristineAllowance: RetryCount.pristineAllowance
+    )
+  }
+
+  /// Groups one simultaneous probe of the three credentials with the card's
+  /// full retry allowance.
+  public init(
+    pin1: RetryProbeOutcome,
+    pin2: RetryProbeOutcome,
+    puk: RetryProbeOutcome,
+    pristineAllowance: UInt8
+  ) {
     self.pin1 = pin1
     self.pin2 = pin2
     self.puk = puk
+    self.pristineAllowance = pristineAllowance
   }
 }

@@ -36,6 +36,16 @@ extension CardOperations {
     }
   }
 
+  private static func isRecognizedProbeOutcome(_ outcome: RetryProbeOutcome) -> Bool {
+    switch outcome {
+    case .invalidated, .locked, .remaining, .verified:
+      true
+
+    case .noInformation, .other:
+      false
+    }
+  }
+
   /// Asks the card which credential reference numbering it uses, once
   /// per session; later calls answer from memory without a command.
   ///
@@ -93,54 +103,57 @@ extension CardOperations {
   /// that one credential. Authentication never calls this method: it
   /// probes PIN1 alone, before VERIFY PIN1.
   public func probeCredentials(includingPuk: Bool = true) throws -> CredentialProbeReport {
-    CredentialProbeReport(
-      pin1: try probeRetryCounter(role: .pin1),
-      pin2: try probeRetryCounter(role: .pin2),
-      puk: includingPuk ? try probeRetryCounter(role: .puk) : .noInformation
+    let pin1 = try probeRetryCounter(role: .pin1)
+    let pin2 = try probeRetryCounter(role: .pin2)
+    let puk = includingPuk ? try probeRetryCounter(role: .puk) : .noInformation
+    return CredentialProbeReport(
+      pin1: pin1,
+      pin2: pin2,
+      puk: puk,
+      pristineAllowance: pristineRetryAllowance
     )
   }
 
-  /// The VERIFY status probe under the session's numbering, resolving
-  /// it on the way when it is not yet known.
+  /// The VERIFY status probe under the session's numbering.
+  ///
+  /// Always resolves the numbering through PIN 1 first so a PIN 2 probe on an
+  /// unresolved session can never mistake EstEID 2025's `82` PIN 2 reference
+  /// for FINEID's identical `82` reference.
   private func probePinRetryCounter(role: CredentialRole) throws -> RetryProbeOutcome {
-    if let known = referenceMemo.resolved {
-      let response = try transmit(.readRetryCounter(role: role, references: known))
-      return sealedReading(of: role, after: response.statusWord)
-        ?? Self.classify(response.statusWord)
+    let numbering = try resolveCredentialReferences()
+    if let cached = referenceMemo.probedRetryCounters[role] {
+      return cached
     }
-    let citizen = try transmit(.readRetryCounter(role: role, references: .citizen))
-    if let sealed = sealedReading(of: role, after: citizen.statusWord) {
-      return sealed
+    if numbering == .estonian2018 {
+      try selectEstonian2018Root()
+      if role == .pin2 {
+        try selectChildDirectory(.estonianQscdDirectory)
+      }
+      let response = try transmit(.readRetryCounter(role: role, references: .estonian2018))
+      return Self.classify(response.statusWord)
     }
-    guard citizen.statusWord == .referenceDataNotFound else {
-      referenceMemo.resolved = .citizen
-      return Self.classify(citizen.statusWord)
-    }
-    let organization = try transmit(
-      .readRetryCounter(role: role, references: .organization)
-    )
-    let outcome = Self.classify(organization.statusWord)
-    switch outcome {
-    case .other:
-      referenceMemo.resolved = .citizen
-
-    case .invalidated, .locked, .noInformation, .remaining, .verified:
-      referenceMemo.resolved = .organization
-    }
-    return outcome
+    let response = try transmit(.readRetryCounter(role: role, references: numbering))
+    return sealedReading(of: role, after: response.statusWord)
+      ?? Self.classify(response.statusWord)
   }
 
   /// The PUK counter, from whichever surface this card has.
   ///
-  /// The citizen card exposes it only through the GET DATA
-  /// PIN-container (S1 v4.2 §3.15). The organization card has no such
-  /// container; its PIN PUK security data object answers the plain
-  /// VERIFY status probe instead (S4-2 v4.0 §4.3.2), so an unresolved
-  /// session that gets no recognisable container answer falls back to
-  /// that probe.
+  /// FINEID citizen cards and EstEID 2025 expose it through the GET DATA
+  /// PIN-container (`83`). EstEID 2018 exposes it through a plain VERIFY
+  /// status probe (`02`) under MF. FINEID organization cards expose it
+  /// through a plain VERIFY status probe (`12`).
   private func probePukRetryCounter() throws -> RetryProbeOutcome {
+    if referenceMemo.resolved == .estonian2018 {
+      try selectEstonian2018Root()
+      let response = try transmit(.readRetryCounter(role: .puk, references: .estonian2018))
+      return Self.classify(response.statusWord)
+    }
     if referenceMemo.resolved != .organization {
-      let response = try transmit(.readCredentialAttributes(role: .puk))
+      let references = referenceMemo.resolved ?? .citizen
+      let response = try transmit(
+        .readCredentialAttributes(role: .puk, references: references)
+      )
       if response.statusWord == .success {
         guard
           let counter = CredentialAttributes.retryCounter(
@@ -163,8 +176,8 @@ extension CardOperations {
       ?? Self.classify(response.statusWord)
   }
 
-  /// One citizen probe, and a second organization probe only when the
-  /// citizen reference is absent.
+  /// Resolves the card's PIN numbering by probing PIN 1 across FINEID citizen
+  /// (`11`), FINEID organization (`03`), and EstEID 2025 (`81`).
   private func probeReferenceNumbering() throws -> CredentialReferenceSet {
     let citizen = try transmit(.readRetryCounter(role: .pin1, references: .citizen))
     if let sealed = sealedReading(of: .pin1, after: citizen.statusWord) {
@@ -179,14 +192,20 @@ extension CardOperations {
     let organization = try transmit(
       .readRetryCounter(role: .pin1, references: .organization)
     )
-    let outcome = Self.classify(organization.statusWord)
-    referenceMemo.probedRetryCounters[.pin1] = outcome
-    switch outcome {
-    case .invalidated, .locked, .noInformation, .remaining, .verified:
+    let organizationOutcome = Self.classify(organization.statusWord)
+    if Self.isRecognizedProbeOutcome(organizationOutcome) {
+      referenceMemo.probedRetryCounters[.pin1] = organizationOutcome
       return .organization
-
-    case .other:
-      return .citizen
     }
+    let estonian2025 = try transmit(
+      .readRetryCounter(role: .pin1, references: .estonian2025)
+    )
+    let estonianOutcome = Self.classify(estonian2025.statusWord)
+    if Self.isRecognizedProbeOutcome(estonianOutcome) {
+      referenceMemo.probedRetryCounters[.pin1] = estonianOutcome
+      return .estonian2025
+    }
+    referenceMemo.probedRetryCounters[.pin1] = organizationOutcome
+    return .citizen
   }
 }

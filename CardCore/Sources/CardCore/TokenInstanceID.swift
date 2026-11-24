@@ -18,11 +18,16 @@ public struct TokenInstanceID: Equatable, Hashable, Sendable {
   /// The public CryptoTokenKit instance ID.
   public let value: String
 
+  /// Builds the instance ID from a validated printed serial or document number.
+  public init(printedSerial: PrintedSerial) {
+    self.value = Self.prefix + printedSerial.value.lowercased()
+  }
+
   /// Builds the instance ID from a supported FINEID chip serial.
   public init?(chipSerial: ChipSerial) {
     guard let printed = PrintedSerial(chipSerial: chipSerial) else {
       return nil
     }
-    self.value = Self.prefix + printed.value.lowercased()
+    self.init(printedSerial: printed)
   }
 }

@@ -78,7 +78,7 @@ public struct CardPinLengths: Equatable, Sendable {
     pin2 = CredentialLengths(
       listed: listing(.pin2),
       capacity: pinCapacity,
-      fallback: Self.range(Self.fineidPin2MinimumDigitCount, Pin2.maximumDigitCount))
+      fallback: Self.range(numbering.fallbackPin2MinimumDigitCount, Pin2.maximumDigitCount))
     puk = CredentialLengths(
       listed: listing(.puk),
       capacity: pukCapacity,

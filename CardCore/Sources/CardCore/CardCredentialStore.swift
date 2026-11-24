@@ -282,7 +282,9 @@ public enum CardCredentialStore {
       issuer: Data?,
       chipSerial: ChipSerial,
       activationCheck: PrimedIdentity.ActivationCheck,
-      signatureCertificate: Data? = nil
+      signatureCertificate: Data? = nil,
+      printedSerial: PrintedSerial? = nil,
+      cardNumbering: CredentialReferenceSet? = nil
     ) -> PrimedIdentity? {
       guard let digits = read(account: cardAccessNumberAccount) else {
         return nil
@@ -293,7 +295,9 @@ public enum CardCredentialStore {
         issuer: issuer,
         chipSerial: chipSerial,
         activationCheck: activationCheck,
-        signatureCertificate: signatureCertificate)
+        signatureCertificate: signatureCertificate,
+        printedSerial: printedSerial,
+        cardNumbering: cardNumbering)
     }
   #endif
 

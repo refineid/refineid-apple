@@ -73,6 +73,71 @@ public struct FileIdentifier: Equatable, Sendable {
     value: FineidValues.fileIdEsignDirectory
   )
 
+  /// DF.AWP (`ADF1`): authentication directory on Estonian eID cards.
+  public static let estonianAwpDirectory = Self(
+    value: EstonianEidValues.fileIdAwpDirectory
+  )
+
+  /// DF.QSCD (`ADF2`): qualified signature directory on Estonian eID cards.
+  public static let estonianQscdDirectory = Self(
+    value: EstonianEidValues.fileIdQscdDirectory
+  )
+
+  /// DF.DocumentData (`DFDD`): personal-data directory inside the EstEID 2025 eID application.
+  public static let estonianDocumentDataDirectory = Self(
+    value: EstonianEidValues.fileIdDocumentDataDirectory
+  )
+
+  /// DF.5000: personal-data directory under MF on EstEID 2018.
+  public static let estonianLegacyPersonalDataDirectory = Self(
+    value: EstonianEidValues.fileIdLegacyPersonalDataDirectory
+  )
+
+  /// EF.5007: plain-ASCII PD7 document number on Estonian eID cards.
+  public static let estonianDocumentNumberPlain = Self(
+    value: EstonianEidValues.fileIdDocumentNumberPlain
+  )
+
+  /// EF.D003: DER-TLV document number under MF on EstEID 2018.
+  public static let estonianDocumentNumberTlv = Self(
+    value: EstonianEidValues.fileIdDocumentNumberTlv
+  )
+
+  /// EF.5006: EstEID 2025 default EF.AOD.
+  public static let estonian2025Aod = Self(
+    value: EstonianEidValues.fileIdEstonian2025Aod
+  )
+
+  /// EF.3411: EstEID 2025 default authentication certificate under ADF1.
+  public static let estonian2025AuthCertificate = Self(
+    value: EstonianEidValues.fileIdEstonian2025AuthCertificate
+  )
+
+  /// EF.3421: EstEID 2025 default qualified-signature certificate under ADF2.
+  public static let estonian2025SignatureCertificate = Self(
+    value: EstonianEidValues.fileIdEstonian2025SignatureCertificate
+  )
+
+  /// EF.3401: EstEID 2018 primary authentication certificate under ADF1.
+  public static let estonian2018AuthCertificate = Self(
+    value: EstonianEidValues.fileIdEstonian2018AuthCertificate
+  )
+
+  /// EF.3402: EstEID 2018 re-keyed authentication certificate under ADF1.
+  public static let estonian2018SecondAuthCertificate = Self(
+    value: EstonianEidValues.fileIdEstonian2018SecondAuthCertificate
+  )
+
+  /// EF.341F: EstEID 2018 primary qualified-signature certificate under ADF2.
+  public static let estonian2018SignatureCertificate = Self(
+    value: EstonianEidValues.fileIdEstonian2018SignatureCertificate
+  )
+
+  /// EF.341E: EstEID 2018 re-keyed qualified-signature certificate under ADF2.
+  public static let estonian2018SecondSignatureCertificate = Self(
+    value: EstonianEidValues.fileIdEstonian2018AltSignCertificate
+  )
+
   /// The identifier as a 16-bit value.
   public let value: UInt16
 

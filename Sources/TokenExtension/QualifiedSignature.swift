@@ -44,7 +44,11 @@ internal enum QualifiedSignature {
     }
     do {
       return try performSign(
-        channel: try ReaderSignature.unsealed(access.channel, with: access.unsealing.accessNumber),
+        operations: try ReaderSignature.unsealed(
+          access.channel,
+          with: access.unsealing.accessNumber,
+          cardNumbering: token.cardNumbering
+        ),
         enteredPin: enteredPin,
         request: request,
         signPublicKey: signPublicKey,
@@ -64,14 +68,13 @@ internal enum QualifiedSignature {
   ///
   /// Fully synchronous, on ctkd's thread, like the PIN1 flow.
   private static func performSign(
-    channel: any CardChannel,
+    operations: CardOperations,
     enteredPin: String?,
     request: SignRequest,
     signPublicKey: SecKey,
     token: Token
   ) throws -> Data {
-    let operations = CardOperations(channel: channel)
-    try operations.selectFineidApplication()
+    try operations.selectCardApplication()
     let serial = try Self.probePin2AndReadSerial(operations)
 
     // PIN2 comes from the prompt or not at all: no cache exists to

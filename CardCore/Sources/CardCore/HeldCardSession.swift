@@ -32,16 +32,20 @@ public final class HeldCardSession: @unchecked Sendable {
   public final class PreparedChannelLease {
     /// The established secure channel ready for card operations.
     public let channel: SecureMessagingChannel
+    /// The credential reference numbering resolved while preparing the channel, if known.
+    public let cardNumbering: CredentialReferenceSet?
     private let operationLock: NSLock
     private let onRelease: (@Sendable () -> Void)?
 
     /// Creates a lease holding exclusive access to the secure channel.
     internal init(
       channel: SecureMessagingChannel,
+      cardNumbering: CredentialReferenceSet?,
       operationLock: NSLock,
       onRelease: (@Sendable () -> Void)?
     ) {
       self.channel = channel
+      self.cardNumbering = cardNumbering
       self.operationLock = operationLock
       self.onRelease = onRelease
     }
@@ -56,8 +60,8 @@ public final class HeldCardSession: @unchecked Sendable {
   internal enum PreparationState {
     case idle
     case running
-    case ready(SecureMessagingChannel)
-    case leased(SecureMessagingChannel)
+    case ready(SecureMessagingChannel, CredentialReferenceSet?)
+    case leased(SecureMessagingChannel, CredentialReferenceSet?)
     case failed(any Error)
   }
 
@@ -348,8 +352,10 @@ public final class HeldCardSession: @unchecked Sendable {
   /// Restores preparation to ready when a lease ends.
   internal func finishLease(generation leasedGeneration: UInt64) {
     condition.lock()
-    if generation == leasedGeneration, !ended, case .leased(let secure) = preparation {
-      preparation = .ready(secure)
+    if generation == leasedGeneration, !ended,
+      case .leased(let secure, let numbering) = preparation
+    {
+      preparation = .ready(secure, numbering)
       condition.broadcast()
     }
     condition.unlock()

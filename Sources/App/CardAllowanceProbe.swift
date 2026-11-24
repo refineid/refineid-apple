@@ -47,7 +47,7 @@
       let carried = UncheckedCard(smartCard)
       let readings = try? SmartCardChannel(carried.card).withSession { channel in
         let operations = CardOperations(channel: channel)
-        try operations.selectFineidApplication()
+        try operations.selectCardApplication()
         return [
           ("PIN 1", CredentialRole.pin1),
           ("PIN 2", CredentialRole.pin2),

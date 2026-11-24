@@ -206,7 +206,9 @@ public enum PrimeStore {
       issuer: stored.issuerDER,
       chipSerial: stored.chipSerial,
       activationCheck: stored.activationCheck,
-      signatureCertificate: stored.signatureCertDER)
+      signatureCertificate: stored.signatureCertDER,
+      printedSerial: stored.printedSerial,
+      cardNumbering: stored.cardNumbering)
   }
 
   /// Removes the primed identity for one card.

@@ -65,9 +65,18 @@ internal struct FieldSignature {
     // Claim the channel for this powered field, preparing it if the hold was
     // passive. A lease serializes the secure-messaging counter across signatures.
     do {
-      let lease = try token.heldSession.preparedChannel(accessNumber: accessNumber)
+      let lease = try token.heldSession.preparedChannel(
+        accessNumber: accessNumber,
+        prefersEstonian2018: token.cardNumbering == .estonian2018
+      )
       defer { _ = lease.channel }
-      return try sign(in: lease.channel, pin1: pin1, origin: origin, request: request)
+      return try sign(
+        in: lease.channel,
+        numbering: lease.cardNumbering ?? token.cardNumbering,
+        pin1: pin1,
+        origin: origin,
+        request: request
+      )
     } catch PaceEstablishment.Failure.authenticationTokenMismatch {
       token.revokeAutomaticIdentityAfterCanRejection()
       throw TokenError.primeMissing
@@ -79,27 +88,14 @@ internal struct FieldSignature {
 
   /// The PIN1 retry floor, VERIFY PIN1 and the on-card signature, inside
   /// the PACE channel.
-  ///
-  /// Nothing here reads what the prime already knows. The authentication
-  /// certificate and the chip serial are public, unchanging and stored
-  /// by the prime; re-reading either costs more than the field has left,
-  /// and that read was measured dying part way through - not re-reading
-  /// them is what turned an intermittent signature into a reliable one.
-  /// The certificate is present as the token's cached leaf public key,
-  /// which checks the signature below; the serial is present as the
-  /// token's chip serial, which PIN 1 memory and the rejected-PIN memory
-  /// bind to.
-  ///
-  /// A probe that does not permit holding (``Pin1Retention``) drops the
-  /// accepted value; a value reused from it is then not sent, and the
-  /// holder is asked instead.
   private func sign(
     in channel: SecureMessagingChannel,
+    numbering: CredentialReferenceSet?,
     pin1: consuming Pin1,
     origin: AuthorizedPin1.Origin,
     request: SignRequest
   ) throws -> Data {
-    let operations = CardOperations(channel: channel)
+    let operations = CardOperations(channel: channel, numbering: numbering)
     let serial = token.chipSerial
     let fingerprint = pin1.fingerprint(boundTo: serial)
     if CredentialMemory.rejectedPins.isKnownRejected(fingerprint) {
@@ -107,7 +103,12 @@ internal struct FieldSignature {
     }
     let probe = try admit(operations, origin: origin)
     let acceptance = Pin1Memory.shared.acceptance(
-      of: pin1, serial: serial, after: probe, owner: token.pin1Owner)
+      of: pin1,
+      serial: serial,
+      after: probe,
+      pristineAllowance: operations.pristineRetryAllowance,
+      owner: token.pin1Owner
+    )
     do {
       try operations.verifyPin1(pin1.consumeForSingleTransmission())
     } catch CardOperationError.pinRejected {

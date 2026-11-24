@@ -220,34 +220,31 @@ internal enum ValidationMaterialCollector {
     return selected
   }
 
-  /// Collects complete evidence using the live signing environment.
-  internal static func collect(
-    signerCertificate: Data,
-    timestampTokens: [TimestampTokenVerifier.VerifiedToken]
-  ) async throws -> PdfValidationStore.Material {
-    try await Self.collect(
-      signerCertificate: signerCertificate,
-      timestampTokens: timestampTokens,
-      dependencies: .live,
-      signerTrustCertificates: Self.signerAnchors(for: signerCertificate)
-    )
-  }
-
-  /// The certificates that may end the signer's path: the cached
-  /// issuing certificate the card supplied for it, or none.
-  ///
-  /// Read without network, so a signer with no anchor is known before
-  /// the card is asked to sign.
-  internal static func signerAnchors(for signerCertificate: Data) -> Set<Data> {
-    IssuerCertificate.der(matching: signerCertificate).map { Set([$0]) } ?? []
-  }
-
   /// Collects complete evidence for the card signer and each verified TSA.
   internal static func collect(
     signerCertificate: Data,
     timestampTokens: [TimestampTokenVerifier.VerifiedToken],
     dependencies: Dependencies,
     signerTrustCertificates: Set<Data>
+  ) async throws -> PdfValidationStore.Material {
+    try await Self.collect(
+      signerCertificate: signerCertificate,
+      timestampTokens: timestampTokens,
+      dependencies: dependencies,
+      signerTrustCertificates: signerTrustCertificates,
+      signerCandidates: []
+    )
+  }
+
+  /// Collects complete evidence with explicit pre-seeded signer-path issuer
+  /// candidates (used by the live path to supply verified EU Trusted List
+  /// issuers without altering the 4-argument test contract).
+  internal static func collect(
+    signerCertificate: Data,
+    timestampTokens: [TimestampTokenVerifier.VerifiedToken],
+    dependencies: Dependencies,
+    signerTrustCertificates: Set<Data>,
+    signerCandidates: [Data]
   ) async throws -> PdfValidationStore.Material {
     let evidenceTime = dependencies.now()
     let starts = Self.orderedChainStarts(
@@ -260,6 +257,9 @@ internal enum ValidationMaterialCollector {
     collection.addCandidate(signerCertificate)
     if let issuer = IssuerCertificate.der(matching: signerCertificate) {
       collection.addCandidate(issuer)
+    }
+    for candidate in signerCandidates {
+      collection.addCandidate(candidate)
     }
     for token in timestampTokens {
       for certificate in token.verifiedCertificateChain {

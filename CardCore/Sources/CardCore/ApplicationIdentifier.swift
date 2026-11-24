@@ -26,6 +26,17 @@ public struct ApplicationIdentifier: Equatable, Sendable {
     FineidValues.esignAidHexDigits
   )
 
+  /// EstEID 2018 (Cosmo v8.1 / v8.2) IAS-ECC root application AID.
+  public static let estonian2018Application: Self = constant(
+    EstonianEidValues.legacyRootAidHexDigits
+  )
+
+  /// EstEID 2018 v2 (Cosmo X) IAS-ECC root application AID
+  /// (ID1 Developer Guide 2025 section 6).
+  public static let estonian2018V2Application: Self = constant(
+    EstonianEidValues.legacyCosmoXRootAidHexDigits
+  )
+
   /// The validated AID bytes, read by the command encoder.
   internal let bytes: [UInt8]
 

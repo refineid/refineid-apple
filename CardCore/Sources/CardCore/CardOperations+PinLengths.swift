@@ -15,14 +15,31 @@ extension CardOperations {
   /// only when the card session itself fails.
   public func readCardPinLengths() throws -> CardPinLengths {
     let numbering = try resolveCredentialReferences()
+    if numbering == .estonian2018 {
+      // IDEMIA IAS-ECC EF.AOD encodes the padded 12-byte stored length as both
+      // minLength and maxLength (ID1 Developer Guide 2025 section 8.1), so the
+      // card family's documented 4-12 / 5-12 / 8-12 bounds govern input validation.
+      return CardPinLengths.notListed(numbering: .estonian2018)
+    }
     let directory: AuthenticationObjectDirectory?
     do {
-      try selectFineidApplication()
-      let content = try readElementaryFile(.authenticationObjectDirectory, expectedLength: nil)
+      try selectCardApplication()
+      let content = try readAuthenticationObjectDirectoryBytes(for: numbering)
       directory = AuthenticationObjectDirectory.parse(content)
     } catch CardOperationError.selectRejected, CardOperationError.readFailed {
       directory = nil
     }
     return CardPinLengths.mapping(directory, numbering: numbering)
+  }
+
+  private func readAuthenticationObjectDirectoryBytes(
+    for numbering: CredentialReferenceSet
+  ) throws -> Data {
+    if numbering == .estonian2025 {
+      discoverEstonian2025Directory()
+      let file = referenceMemo.discoveredAodFile ?? .estonian2025Aod
+      return try readElementaryFile(file, expectedLength: nil)
+    }
+    return try readElementaryFile(.authenticationObjectDirectory, expectedLength: nil)
   }
 }

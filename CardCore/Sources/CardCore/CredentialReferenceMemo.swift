@@ -19,4 +19,19 @@ internal final class CredentialReferenceMemo {
 
   /// The PACE suite password states are read under, once per session.
   internal var passwordStateSuite: PaceInfo?
+
+  /// The IAS-ECC root AID that answered on an EstEID 2018 card (Cosmo v8 or Cosmo X).
+  internal var estonian2018Aid: ApplicationIdentifier?
+
+  /// Live PKCS#15 certificate paths discovered from EF.OD / EF.CD / EF.PrKD, once per session.
+  internal var discoveredCertificatePaths: [CertificateSlot: [FileIdentifier]] = [:]
+
+  /// Live PKCS#15 key references discovered from EF.PrKD, once per session.
+  internal var discoveredKeyReferences: [CardSigningKey: UInt8] = [:]
+
+  /// Whether PKCS#15 directory discovery has already been attempted in this session.
+  internal var attemptedDirectoryDiscovery = false
+
+  /// The EF.AOD file identifier discovered from EF.OD, when present.
+  internal var discoveredAodFile: FileIdentifier?
 }

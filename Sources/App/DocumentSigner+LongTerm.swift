@@ -109,12 +109,30 @@ extension DocumentSigner {
 
   /// The build's refusal of a signer certificate, judged before PIN 2
   /// is presented; nil when signing may go on.
+  internal static func signerRefusal(_ certificate: Data) -> ValidationMaterialCollector.Failure? {
+    Self.signerRefusal(certificate, additionalAnchors: [])
+  }
+
+  /// The build's refusal of a signer certificate, combining card-cached
+  /// `EF.4336` with verified EU Trusted List issuing certificates.
   internal static func signerRefusal(
-    _ certificate: Data
+    _ certificate: Data,
+    additionalAnchors: Set<Data>
   ) -> ValidationMaterialCollector.Failure? {
     SignatureLevelPolicy.forBuild.signerRefusal(
-      anchors: ValidationMaterialCollector.signerAnchors(for: certificate)
+      anchors: ValidationMaterialCollector.signerAnchors(
+        for: certificate,
+        additionalAnchors: additionalAnchors,
+        at: Date()
+      )
     )
+  }
+
+  /// Fetches currently valid EU Trusted List certificate-issuing anchors for
+  /// pre-PIN2 signer-anchor checks.
+  internal static func fetchTrustedListIssuingAnchors() async -> Set<Data> {
+    let trustedLists = try? await TrustedListStore.shared.signingAnchors().get()
+    return Set(trustedLists?.certificates(for: .certificateIssuing, at: Date()) ?? [])
   }
 
   /// The archive timestamp over the finished file, accepted only when

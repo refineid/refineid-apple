@@ -194,7 +194,8 @@ internal final class CredentialRetryHealth: ObservableObject {
     }
 
     let attempts = [pin1, pin2, puk]
-    guard attempts.allSatisfy({ $0 <= RetryCount.pristineAllowance }) else {
+    let pristine = report.pristineAllowance
+    guard attempts.allSatisfy({ $0 <= pristine }) else {
       recovery = nil
       level = nil
       self.report = nil
@@ -204,7 +205,7 @@ internal final class CredentialRetryHealth: ObservableObject {
     recovery = Self.recovery(pin1: pin1, pin2: pin2, puk: puk)
     if attempts.contains(where: { $0 <= RetryThreshold.lowAttempts }) {
       level = .critical
-    } else if attempts.allSatisfy({ $0 == RetryCount.pristineAllowance }) {
+    } else if attempts.allSatisfy({ $0 == pristine }) {
       level = .pristine
     } else {
       level = .warning

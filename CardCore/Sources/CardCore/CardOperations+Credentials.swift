@@ -28,10 +28,16 @@ extension CardOperations {
   /// floor.
   public func verifyPin1(_ transmission: consuming Pin1Transmission) throws {
     let references = try resolveCredentialReferences()
+    if references == .estonian2018 {
+      try selectEstonian2018Root()
+    } else if references == .estonian2025 {
+      discoverEstonian2025Directory()
+    }
     let command = CredentialBearingCommand.verifyPin1(
       transmission,
       references: references
     )
+    referenceMemo.probedRetryCounters[.pin1] = nil
     let raw = try channel.transmit(command.intoTransportPayload())
     guard let response = ResponseApdu(raw: raw) else {
       throw CardOperationError.malformedResponse
@@ -69,10 +75,16 @@ extension CardOperations {
   /// cleared the retry floor.
   public func verifyPin2(_ transmission: consuming Pin2Transmission) throws {
     let references = try resolveCredentialReferences()
+    if references == .estonian2018 {
+      try enterPin2Directory(references)
+    } else if references == .estonian2025 {
+      discoverEstonian2025Directory()
+    }
     let command = CredentialBearingCommand.verifyPin2(
       transmission,
       references: references
     )
+    referenceMemo.probedRetryCounters[.pin2] = nil
     let raw = try channel.transmit(command.intoTransportPayload())
     guard let response = ResponseApdu(raw: raw) else {
       throw CardOperationError.malformedResponse
@@ -118,6 +130,9 @@ extension CardOperations {
     try lengths.check(.pin1, digitCount: current.store.bytes.count)
     try lengths.check(.pin1, digitCount: new.store.bytes.count)
     let references = lengths.numbering
+    if references == .estonian2018 {
+      try selectEstonian2018Root()
+    }
     try performCredentialUpdate(
       CredentialBearingCommand.changePin1(
         current: current,
@@ -175,7 +190,7 @@ extension CardOperations {
     try lengths.check(.pin1, digitCount: new.store.bytes.count)
     let references = lengths.numbering
     switch references {
-    case .citizen:
+    case .citizen, .estonian2025:
       try performCredentialUpdate(
         CredentialBearingCommand.unblockPin1(
           puk: puk,
@@ -184,8 +199,21 @@ extension CardOperations {
         )
       )
 
+    case .estonian2018:
+      try selectEstonian2018Root()
+      try performTwoStepUnblock(
+        verify: CredentialBearingCommand.verifyUnblockCredential(
+          puk,
+          references: references
+        ),
+        reset: CredentialBearingCommand.resetPin1AfterVerifiedUnblock(
+          new: new,
+          references: references
+        )
+      )
+
     case .organization:
-      try performOrganizationUnblock(
+      try performTwoStepUnblock(
         verify: CredentialBearingCommand.verifyUnblockCredential(
           puk,
           references: references
@@ -211,7 +239,7 @@ extension CardOperations {
     try lengths.check(.pin2, digitCount: new.store.bytes.count)
     let references = lengths.numbering
     switch references {
-    case .citizen:
+    case .citizen, .estonian2025:
       try performCredentialUpdate(
         CredentialBearingCommand.unblockPin2(
           puk: puk,
@@ -220,9 +248,23 @@ extension CardOperations {
         )
       )
 
+    case .estonian2018:
+      try selectEstonian2018Root()
+      let verify = CredentialBearingCommand.verifyUnblockCredential(
+        puk,
+        references: references
+      )
+      let reset = CredentialBearingCommand.resetPin2AfterVerifiedUnblock(
+        new: new,
+        references: references
+      )
+      try performCredentialUpdate(verify)
+      try selectChildDirectory(.estonianQscdDirectory)
+      try performCredentialUpdate(reset)
+
     case .organization:
       try enterPin2Directory(references)
-      try performOrganizationUnblock(
+      try performTwoStepUnblock(
         verify: CredentialBearingCommand.verifyUnblockCredential(
           puk,
           references: references
@@ -263,24 +305,25 @@ extension CardOperations {
     )
   }
 
-  /// Makes DF.ESIGN current on the organization card.
-  ///
-  /// PIN 2's reference is local there (FINEID S4-2 v4.0 section 4.2). The
-  /// citizen card has no such directory.
+  /// Makes the PIN 2 directory current when PIN 2 lives in a dedicated DF
+  /// (`DF.ESIGN` on FINEID organization cards, `MF / ADF2` on EstEID 2018).
   private func enterPin2Directory(_ references: CredentialReferenceSet) throws {
-    guard references == .organization else { return }
-    try selectEsignDirectory()
+    switch references {
+    case .organization:
+      try selectEsignDirectory()
+
+    case .estonian2018:
+      try selectEstonian2018Root()
+      try selectChildDirectory(.estonianQscdDirectory)
+
+    case .citizen, .estonian2025:
+      return
+    }
   }
 
-  /// Sends the organization card's two-command unblock in order,
-  /// stopping at the first refused answer: only an accepted unblock
-  /// credential lets the reset go out.
-  ///
-  /// Both commands were built - and their transmissions consumed -
-  /// before anything reached the card, keeping the one-entry-one-
-  /// command chain linear; a `verify` refusal simply drops the unsent
-  /// reset command.
-  private func performOrganizationUnblock(
+  /// Sends a two-command unblock (`VERIFY PUK`, then `RESET RETRY COUNTER`)
+  /// in order, stopping at the first refused answer.
+  private func performTwoStepUnblock(
     verify: consuming CredentialBearingCommand,
     reset: consuming CredentialBearingCommand
   ) throws {

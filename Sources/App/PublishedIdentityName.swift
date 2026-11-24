@@ -76,7 +76,7 @@
           do {
             return try SmartCardChannel(smartCard).withSession { channel in
               let operations = CardOperations(channel: channel)
-              try operations.selectFineidApplication()
+              try operations.selectCardApplication()
               let certDER = try operations.readCertificate(.authentication)
               return DistinguishedName.holderLine(fromCertificate: certDER)
             }

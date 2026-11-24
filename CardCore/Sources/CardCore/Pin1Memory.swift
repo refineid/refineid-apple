@@ -173,7 +173,19 @@ public final class Pin1Memory: Sendable {
   /// holding, and returns whether holding is permitted.
   @discardableResult
   public func retain(after probe: RetryProbeOutcome, serial: ChipSerial) -> Bool {
-    guard Pin1Retention.permitsHolding(after: probe) else {
+    retain(after: probe, serial: serial, pristineAllowance: RetryCount.pristineAllowance)
+  }
+
+  /// Applies ``Pin1Retention`` under the card's `pristineAllowance`: drops
+  /// this card's accepted value when the probe forbids holding, and returns
+  /// whether holding is permitted.
+  @discardableResult
+  public func retain(
+    after probe: RetryProbeOutcome,
+    serial: ChipSerial,
+    pristineAllowance: UInt8
+  ) -> Bool {
+    guard Pin1Retention.permitsHolding(after: probe, allowance: pristineAllowance) else {
       clearAccepted(serial: serial)
       return false
     }
@@ -188,7 +200,27 @@ public final class Pin1Memory: Sendable {
     after probe: RetryProbeOutcome,
     owner: Owner
   ) -> Acceptance? {
-    guard Pin1Retention.permitsHolding(after: probe) else { return nil }
+    acceptance(
+      of: pin,
+      serial: serial,
+      after: probe,
+      pristineAllowance: RetryCount.pristineAllowance,
+      owner: owner
+    )
+  }
+
+  /// Copies `pin` for acceptance by `owner` after VERIFY under the card's
+  /// `pristineAllowance`, or nil when the probe before it forbids holding.
+  public func acceptance(
+    of pin: borrowing Pin1,
+    serial: ChipSerial,
+    after probe: RetryProbeOutcome,
+    pristineAllowance: UInt8,
+    owner: Owner
+  ) -> Acceptance? {
+    guard Pin1Retention.permitsHolding(after: probe, allowance: pristineAllowance) else {
+      return nil
+    }
     return Acceptance(serial: serial, digits: pin.cachedCopy(), owner: owner)
   }
 
@@ -207,7 +239,17 @@ public final class Pin1Memory: Sendable {
   /// permits holding (``Pin1Retention``); otherwise drops this card's
   /// candidate.
   public func commit(_ acceptance: Acceptance, after probe: RetryProbeOutcome) {
-    guard Pin1Retention.permitsHolding(after: probe) else {
+    commit(acceptance, after: probe, pristineAllowance: RetryCount.pristineAllowance)
+  }
+
+  /// Holds the value as accepted once the card accepted it under
+  /// `pristineAllowance`, or drops this card's candidate when holding is forbidden.
+  public func commit(
+    _ acceptance: Acceptance,
+    after probe: RetryProbeOutcome,
+    pristineAllowance: UInt8
+  ) {
+    guard Pin1Retention.permitsHolding(after: probe, allowance: pristineAllowance) else {
       clearCandidate(serial: acceptance.serial)
       return
     }

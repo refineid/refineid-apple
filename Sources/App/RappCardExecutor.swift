@@ -90,6 +90,7 @@
     internal struct BrowserAuthenticationOutcome: Sendable, Equatable {
       internal let outcome: Outcome
       internal let preVerifyProbe: RetryProbeOutcome?
+      internal let pristineAllowance: UInt8
       internal let authenticatedCard: RappCertificateFingerprint?
 
       /// How this authentication settles ``HeldPin1`` for `card`.
@@ -103,11 +104,15 @@
             return .accepted(
               entry,
               preVerifyProbe: preVerifyProbe ?? .noInformation,
-              card: authenticatedCard
+              card: authenticatedCard,
+              pristineAllowance: pristineAllowance
             )
 
           case .heldPin1:
-            return .probed(preVerifyProbe ?? .noInformation)
+            return .probed(
+              preVerifyProbe ?? .noInformation,
+              pristineAllowance: pristineAllowance
+            )
 
           case .pin2:
             return .unchanged
@@ -126,49 +131,17 @@
           .refusedBeforeCredentialTransmit(.retryFloor(.pin1, _)),
           .refusedBeforeCredentialTransmit(.credentialBlocked(.pin1)),
           .refusedBeforeCredentialTransmit(.credentialInvalidated(.pin1)):
-          return .probed(preVerifyProbe ?? .noInformation)
+          return .probed(
+            preVerifyProbe ?? .noInformation,
+            pristineAllowance: pristineAllowance
+          )
 
         default:
           if let probe = preVerifyProbe {
-            return .probed(probe)
+            return .probed(probe, pristineAllowance: pristineAllowance)
           }
           return .unchanged
         }
-      }
-    }
-
-    /// Collects the pre-VERIFY PIN 1 probe and authenticated card identity
-    /// observed during one browser authentication, while clearing
-    /// ``HeldPin1`` immediately on any non-pristine probe or refusal.
-    internal final class Pin1ProbeObserver: Sendable {
-      private let recorded = OSAllocatedUnfairLock<
-        (card: RappCertificateFingerprint?, probe: RetryProbeOutcome?)
-      >(initialState: (card: nil, probe: nil))
-
-      internal var authenticatedCard: RappCertificateFingerprint? {
-        recorded.withLock { $0.card }
-      }
-
-      internal var preVerifyProbe: RetryProbeOutcome? {
-        recorded.withLock { $0.probe }
-      }
-
-      internal func recordCard(_ certificateDER: Data) {
-        let card = RappCertificateFingerprint(certificate: certificateDER)
-        recorded.withLock { $0.card = card }
-      }
-
-      internal func recordProbe(_ probe: RetryProbeOutcome) {
-        HeldPin1.shared.retain(after: probe)
-        recorded.withLock { state in
-          if state.probe == nil || !Pin1Retention.permitsHolding(after: probe) {
-            state.probe = probe
-          }
-        }
-      }
-
-      internal func clearHeld() {
-        HeldPin1.shared.clear()
       }
     }
 

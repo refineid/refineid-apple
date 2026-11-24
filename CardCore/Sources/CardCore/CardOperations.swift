@@ -38,11 +38,31 @@ public struct CardOperations {
   /// card's password states are read over (``credentialsAfterChannel()``).
   internal let plainChannel: (any CardChannel)?
 
+  /// Full retry allowance of untouched credentials on the resolved card,
+  /// defaulting to the FINEID five-try allowance before resolution.
+  public var pristineRetryAllowance: UInt8 {
+    referenceMemo.resolved?.pristineRetryAllowance ?? RetryCount.pristineAllowance
+  }
+
+  /// The credential reference numbering resolved in this session, if known.
+  public var resolvedNumbering: CredentialReferenceSet? {
+    referenceMemo.resolved
+  }
+
   /// Wraps one exclusive session's transport.
   public init(channel: any CardChannel) {
     self.channel = channel
     self.channelPin = nil
     self.plainChannel = nil
+  }
+
+  /// Wraps one exclusive session's transport with an already-known numbering
+  /// (for example, a primed EstEID 2018 card opened over NFC PACE).
+  public init(channel: any CardChannel, numbering: CredentialReferenceSet?) {
+    self.channel = channel
+    self.channelPin = nil
+    self.plainChannel = nil
+    referenceMemo.resolved = numbering
   }
 
   /// Wraps a secure channel PACE opened with an organization card's PIN.
@@ -61,17 +81,36 @@ public struct CardOperations {
     referenceMemo.resolved = .organization
   }
 
-  /// Selects the FINEID eID application; the card's DF becomes current.
-  ///
-  /// Success is also the "supported card" signal: an absent application
-  /// answers `fileNotFound`.
-  public func selectFineidApplication() throws {
-    let response = try transmit(
-      .selectApplication(.fineidApplication)
-    )
+  /// Selects the PKCS#15 eID application (`A000000063504B43532D3135`) alone,
+  /// without falling back to EstEID 2018 IAS-ECC root AIDs.
+  internal func selectPkcs15Application() throws {
+    let response = try transmit(.selectApplication(.fineidApplication))
     guard response.statusWord == .success else {
       throw CardOperationError.selectRejected(response.statusWord)
     }
+  }
+
+  /// Selects a supported eID application on the card.
+  ///
+  /// Tries the PKCS#15 eID AID (`A000000063504B43532D3135`, shared by FINEID
+  /// and EstEID 2025) first. Only when the card answers `fileNotFound` does
+  /// it try the EstEID 2018 IAS-ECC root AIDs (Cosmo v8 and Cosmo X),
+  /// recording `.estonian2018` in the session memo when one answers.
+  public func selectCardApplication() throws {
+    if referenceMemo.resolved == .estonian2018 {
+      try selectEstonian2018Root()
+      return
+    }
+    let response = try transmit(
+      .selectApplication(.fineidApplication)
+    )
+    if response.statusWord == .success {
+      return
+    }
+    guard response.statusWord == .fileNotFound else {
+      throw CardOperationError.selectRejected(response.statusWord)
+    }
+    try selectEstonian2018Application()
   }
 
   /// Selects and reads one EF under the current DF to its end.
@@ -144,6 +183,18 @@ public struct CardOperations {
   /// answers its last failure, so callers can treat it as "not
   /// provisioned".
   public func readCertificate(_ slot: CertificateSlot) throws -> Data {
+    if referenceMemo.resolved == .estonian2018 {
+      return try readEstonian2018Certificate(slot)
+    }
+    if referenceMemo.resolved == .estonian2025 {
+      switch slot {
+      case .authentication, .qualifiedSignature:
+        return try readEstonian2025Certificate(slot)
+
+      case .issuing, .root, .secondAuthentication, .secondQualifiedSignature:
+        throw CardOperationError.selectRejected(.fileNotFound)
+      }
+    }
     var lastRejection = StatusWord.other(0)
     var lastReadFailure: BinaryReadFailure?
     for location in slot.locations {
@@ -155,6 +206,13 @@ public struct CardOperations {
       } catch CardOperationError.readFailed(let failure) {
         lastReadFailure = failure
       }
+    }
+    if slot == .authentication || slot == .qualifiedSignature,
+      lastRejection == .fileNotFound,
+      referenceMemo.resolved == .estonian2025
+        || (referenceMemo.resolved == nil && (try? resolveCredentialReferences()) == .estonian2025)
+    {
+      return try readEstonian2025Certificate(slot)
     }
     if let lastReadFailure {
       throw CardOperationError.readFailed(lastReadFailure)
@@ -177,7 +235,7 @@ public struct CardOperations {
   private func navigate(to directory: CertificateDirectory) throws {
     switch directory {
     case .pkcs15Application:
-      try selectFineidApplication()
+      try selectCardApplication()
 
     case .mainFile:
       try selectMainFile()
@@ -223,7 +281,9 @@ public struct CardOperations {
   /// suite from it, and leaves the card at the main file, where PACE
   /// starts.
   public func readCardAccess() throws -> CardAccess {
-    try? selectMainFile()
+    if referenceMemo.resolved != .estonian2018 {
+      try? selectMainFile()
+    }
     return try CardAccess.parse(try readSelectedFile(.cardAccess))
   }
 
@@ -233,7 +293,7 @@ public struct CardOperations {
   /// DER-declared length (not the padded file end) is required: the
   /// card refuses a READ BINARY that overruns the file, so a whole-file
   /// read truncates the certificate.
-  private func readSelectedFile(_ file: FileIdentifier) throws -> Data {
+  internal func readSelectedFile(_ file: FileIdentifier) throws -> Data {
     try selectFirstThatSucceeds([
       .selectElementaryFile(file),
       .selectFile(file, selectionP1: Iso7816Values.selectByFileIdP1),
@@ -246,7 +306,7 @@ public struct CardOperations {
   }
 
   /// Drives an assembler to completion over the transport.
-  private func drive(_ assembler: inout BinaryReadAssembler) throws -> Data {
+  internal func drive(_ assembler: inout BinaryReadAssembler) throws -> Data {
     while case .transmit(let command) = assembler.nextStep {
       assembler.accept(try transmit(command))
     }
@@ -274,75 +334,6 @@ public struct CardOperations {
       lastStatus = response.statusWord
     }
     throw CardOperationError.selectRejected(lastStatus)
-  }
-
-  /// Reads one credential's usage allowances, counter-safe.
-  ///
-  /// The same GET DATA container the retry probe uses, read for the
-  /// other numbers in it: whether the card limits how many times this
-  /// credential may be used, and - for the PUK - how many unblocks it
-  /// has left.
-  public func readAllowances(role: CredentialRole) throws -> CredentialAllowances? {
-    let response = try transmit(.readCredentialAttributes(role: role))
-    guard response.statusWord == .success else { return nil }
-    return CredentialAttributes.allowances(fromResponseBody: response.payload)
-  }
-
-  /// Reads a PIN's changed-since-manufacture record, counter-safe
-  /// (the GET DATA PIN-container form, S1 v4.2 §3.15.3).
-  ///
-  /// The record decides whether a PIN awaits activation under both
-  /// S4-1 §4.6 schemes. Any refusal answers `unreadable` rather than
-  /// throwing: no decision may turn an unreadable record into
-  /// permission.
-  public func readPinChangeRecord(role: CredentialRole) throws -> PinChangeRecord {
-    let response = try transmit(.readCredentialAttributes(role: role))
-    guard response.statusWord == .success else {
-      return .unreadable
-    }
-    return CredentialAttributes.pinChangeRecord(fromResponseBody: response.payload)
-  }
-
-  /// Reads the full hardware serial from EF.TokenInfo.
-  ///
-  /// Reads the single DER object (the PKCS#15 TokenInfo SEQUENCE), not to
-  /// the padded file end: a whole-file read pulls trailing padding that
-  /// the card either refuses (overrun) or that defeats the DER parse -
-  /// exactly the failure the certificate reads already avoid.
-  /// What EF.TokenInfo says the card is, for the status screen.
-  ///
-  /// Best effort by nature: the fields are optional in PKCS#15, so a
-  /// card that says nothing about itself is normal and answers nil.
-  public func readTokenDescription() throws -> String? {
-    let selected = try transmit(.selectElementaryFile(.tokenInfo))
-    guard selected.statusWord == .success else {
-      throw CardOperationError.selectRejected(selected.statusWord)
-    }
-    var assembler = BinaryReadAssembler(
-      mode: .singleDerObject,
-      chunkLength: channel.readChunkLength
-    )
-    return TokenInfoFile.description(fromContent: try drive(&assembler))
-  }
-
-  /// Reads the card's full hardware serial from EF.TokenInfo.
-  ///
-  /// The serial is what a cached PIN is bound to, so it is read fresh in
-  /// the same session that will spend the PIN.
-  public func readChipSerial() throws -> ChipSerial {
-    let selected = try transmit(.selectElementaryFile(.tokenInfo))
-    guard selected.statusWord == .success else {
-      throw CardOperationError.selectRejected(selected.statusWord)
-    }
-    var assembler = BinaryReadAssembler(
-      mode: .singleDerObject,
-      chunkLength: channel.readChunkLength
-    )
-    let content = try drive(&assembler)
-    guard let serial = TokenInfoFile.serial(fromContent: content) else {
-      throw CardOperationError.tokenInfoMalformed
-    }
-    return serial
   }
 
   /// Sends one idempotent command and runs the T=0 `61xx` GET RESPONSE

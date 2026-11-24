@@ -7,22 +7,25 @@ import Testing
 @Suite
 internal struct CardOperationsTests {
   @Test
-  internal func selectFineidApplicationSucceeds() throws {
+  internal func selectCardApplicationSucceeds() throws {
     let channel = ScriptedChannel([
       ("00A4040C0CA000000063504B43532D3135", "9000")
     ])
-    try CardOperations(channel: channel).selectFineidApplication()
+    try CardOperations(channel: channel).selectCardApplication()
     #expect(channel.isExhausted)
   }
 
   @Test
   internal func unsupportedCardRejectsTheSelect() {
     let channel = ScriptedChannel([
-      ("00A4040C0CA000000063504B43532D3135", "6A82")
+      ("00A4040C0CA000000063504B43532D3135", "6A82"),
+      ("00A4040C10A000000077010800070000FE00000100", "6A82"),
+      ("00A4040C10A000000077030C60000000FE00000500", "6A82"),
     ])
     #expect(throws: CardOperationError.selectRejected(.fileNotFound)) {
-      try CardOperations(channel: channel).selectFineidApplication()
+      try CardOperations(channel: channel).selectCardApplication()
     }
+    #expect(channel.isExhausted)
   }
 
   @Test
