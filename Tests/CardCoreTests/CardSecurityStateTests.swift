@@ -10,7 +10,7 @@ internal struct CardSecurityStateTests {
   internal func signingFailsWithSecurityNotSatisfiedIfPin1WasNotVerified() throws {
     let mock = StatefulSmartCardMock()
     let operations = CardOperations(channel: mock)
-    try operations.selectFineidApplication()
+    try operations.selectCardApplication()
 
     let digest = Data(repeating: 0xAA, count: 32)
     let algorithm = SigningAlgorithm(hash: .sha256, scheme: .ecdsa)
@@ -29,7 +29,7 @@ internal struct CardSecurityStateTests {
   internal func signingSucceedsAfterPin1Verification() throws {
     let mock = StatefulSmartCardMock()
     let operations = CardOperations(channel: mock)
-    try operations.selectFineidApplication()
+    try operations.selectCardApplication()
 
     guard let pin1 = Pin1(digits: "1234") else {
       Issue.record("Failed to construct Pin1")
@@ -54,7 +54,7 @@ internal struct CardSecurityStateTests {
   internal func applicationSelectionInvalidatesPreviousPin1Authentication() throws {
     let mock = StatefulSmartCardMock()
     let operations = CardOperations(channel: mock)
-    try operations.selectFineidApplication()
+    try operations.selectCardApplication()
 
     // 1. Verify and sign successfully
     guard let pin1 = Pin1(digits: "1234") else {
@@ -73,7 +73,7 @@ internal struct CardSecurityStateTests {
     #expect(mock.computeSignatureCount == 1)
 
     // 2. Next operation re-selects application/DF
-    try operations.selectFineidApplication()
+    try operations.selectCardApplication()
     #expect(!mock.isPin1Authenticated)
 
     // 3. Attempting to sign without re-verification must fail with securityNotSatisfied
@@ -112,7 +112,7 @@ internal struct CardSecurityStateTests {
 
     // Burst request 1:
     let ops1 = CardOperations(channel: mock)
-    try ops1.selectFineidApplication()
+    try ops1.selectCardApplication()
     guard let pin1First = Pin1(digits: "1234") else {
       Issue.record("Failed to construct Pin1")
       return
@@ -127,7 +127,7 @@ internal struct CardSecurityStateTests {
 
     // Burst request 2 (consecutive request in same hold, selecting application again):
     let ops2 = CardOperations(channel: mock)
-    try ops2.selectFineidApplication()
+    try ops2.selectCardApplication()
     guard let pin1Second = Pin1(digits: "1234") else {
       Issue.record("Failed to construct Pin1")
       return

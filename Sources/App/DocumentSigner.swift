@@ -218,9 +218,13 @@ internal enum DocumentSigner {
       throw Failure.card(.invalidEntry)
     }
     Self.report(.card)
+    let target = CardMaintenance.QualifiedTarget(
+      expectedCertificate: stamp?.signerCertificate,
+      additionalSignerAnchors: await Self.fetchTrustedListIssuingAnchors()
+    )
     let answer = await CardMaintenance.qualifiedSignature(
       pin2: pin2,
-      expectedCertificate: stamp?.signerCertificate,
+      target: target,
       transport: access.transport,
       cardAccessNumber: access.cardAccessNumber
     ) { certificate in
@@ -228,6 +232,13 @@ internal enum DocumentSigner {
         byteRangeDigest: digest, signerCertificate: certificate
       )
     }
+    return try Self.cardMaterial(from: answer, prepared: prepared)
+  }
+
+  private static func cardMaterial(
+    from answer: CardMaintenance.QualifiedAnswer,
+    prepared: PdfSignaturePlaceholder
+  ) throws -> CardMaterial {
     switch answer {
     case .signerCertificateMismatch:
       throw Failure.stampSignerChanged

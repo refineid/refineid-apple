@@ -213,9 +213,9 @@ public struct CredentialBearingCommand: ~Copyable {
     var blockTotal = 0
     for credential in credentials {
       var block = credential.bytes
-      if references == .citizen {
+      if let padByte = references.pinPadByte {
         while block.count < FineidValues.pinStoredLength {
-          block.append(FineidValues.pinPadByte)
+          block.append(padByte)
         }
       }
       blockTotal += block.count

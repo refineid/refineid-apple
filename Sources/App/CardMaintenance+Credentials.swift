@@ -327,9 +327,10 @@ extension CardMaintenance {
       case .puk:
         snapshot.report?.puk
       }
+    let expectedPristine = snapshot.report?.pristineAllowance ?? RetryCount.pristineAllowance
     return switch outcome {
     case .remaining(let count):
-      count.attemptsRemaining == RetryCount.pristineAllowance
+      count.attemptsRemaining == expectedPristine
 
     case .verified:
       true

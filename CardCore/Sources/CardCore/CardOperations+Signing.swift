@@ -12,6 +12,22 @@ import Foundation
 /// card has no external-hash PSO:HASH - the digest rides inline in
 /// PSO:CDS (Idemia organizational cards specification §6.6.2.3).
 extension CardOperations {
+  /// Normalizes a digest to EstEID 2018's 48-byte P-384 input width.
+  ///
+  /// Left-pads shorter digests (such as SHA-256) with zeros, and takes the
+  /// leftmost 48 bytes of longer digests (such as SHA-512) per ID1 Developer
+  /// Guide 2025 section 9.5.1.
+  internal static func estonian2018Digest(_ digest: Data) -> Data {
+    let targetLength = EstonianEidValues.p384DigestLength
+    if digest.count == targetLength {
+      return digest
+    }
+    if digest.count < targetLength {
+      return Data(repeating: 0, count: targetLength - digest.count) + digest
+    }
+    return Data(digest.prefix(targetLength))
+  }
+
   /// Computes an authentication signature over `digest` with the
   /// PIN1-gated key.
   ///
@@ -75,6 +91,9 @@ extension CardOperations {
     key: CardSigningKey,
     expectedSignatureLength: ExpectedResponseLength?
   ) throws -> Data {
+    if referenceMemo.resolved == .estonian2018 {
+      return try computeEstonian2018Signature(overDigest: digest, key: key)
+    }
     let selected = try transmit(
       .selectSigningEnvironment(
         algorithm: algorithm, keyReference: keyReference(for: key))
@@ -100,26 +119,71 @@ extension CardOperations {
     return signed.payload
   }
 
+  /// EstEID 2018 signing over a 48-byte P-384 digest (ID1 Developer Guide 2025
+  /// sections 9.5.1 and 9.6).
+  ///
+  /// Authentication selects `MF -> ADF1` (preserving global PIN 1 verification),
+  /// runs `MSE:SET AT`, and signs with `INTERNAL AUTHENTICATE`. Qualified
+  /// signing runs inside the already-selected `ADF2` (where local PIN 2 was
+  /// just verified), runs `MSE:SET DST`, and signs with `PSO:CDS`.
+  private func computeEstonian2018Signature(
+    overDigest digest: Data,
+    key: CardSigningKey
+  ) throws -> Data {
+    let normalized = Self.estonian2018Digest(digest)
+    switch key {
+    case .authentication:
+      try selectEstonian2018Root()
+      try selectChildDirectory(.estonianAwpDirectory)
+      let selected = try transmit(.selectEstonian2018AuthenticationEnvironment())
+      guard selected.statusWord == .success else {
+        throw CardOperationError.signRejected(selected.statusWord)
+      }
+      let signed = try transmitSignature(.internalAuthenticate(overDigest: normalized))
+      guard signed.statusWord == .success else {
+        throw CardOperationError.signRejected(signed.statusWord)
+      }
+      return signed.payload
+
+    case .qualifiedSignature:
+      let selected = try transmit(.selectEstonian2018SigningEnvironment())
+      guard selected.statusWord == .success else {
+        throw CardOperationError.signRejected(selected.statusWord)
+      }
+      let signed = try transmitSignature(.computeSignature(overDigest: normalized))
+      guard signed.statusWord == .success else {
+        throw CardOperationError.signRejected(signed.statusWord)
+      }
+      return signed.payload
+    }
+  }
+
   /// The key reference the session's numbering names `key` by.
   ///
-  /// The organization card's qualified key is local to DF.ESIGN, and
-  /// a local security-data-object reference carries bit 8 over the
-  /// object number (IAS-ECC v1.0.1 §4.4); its global form names no
-  /// key and the signature answers `6A88`. Every other key keeps its
-  /// own reference.
+  /// - FINEID organization qualified key: local key `82` in `DF.ESIGN`.
+  /// - EstEID 2025: live `EF.PrKD` key reference (defaults `01` / `05`).
+  /// - FINEID citizen: `01` / `02`.
   private func keyReference(for key: CardSigningKey) -> UInt8 {
-    guard
-      referenceMemo.resolved == .organization,
-      key == .qualifiedSignature
-    else {
+    switch referenceMemo.resolved {
+    case .organization where key == .qualifiedSignature:
+      return FineidValues.organizationQualifiedKeyReference
+
+    case .estonian2025:
+      if let discovered = referenceMemo.discoveredKeyReferences[key] {
+        return discovered
+      }
+      return key == .authentication
+        ? EstonianEidValues.defaultAuthKeyReference2025
+        : EstonianEidValues.defaultQualifiedKeyReference2025
+
+    default:
       return key.reference
     }
-    return FineidValues.organizationQualifiedKeyReference
   }
 
   /// The one PSO:CDS this session's chain ends with: empty-bodied over
-  /// the loaded hash on the citizen card, the digest inline on the
-  /// organization card, with the exact `Le` whenever the response fits
+  /// the loaded hash on the citizen card and EstEID 2025, the digest inline on
+  /// the organization card, with the exact `Le` whenever the response fits
   /// a short APDU.
   private func signatureCommand(
     overDigest digest: Data,
@@ -138,20 +202,30 @@ extension CardOperations {
   /// Diagnostic sibling of `computeAuthenticationSignature` that records
   /// each command's status word instead of throwing at the first
   /// non-`9000`, so a probe can isolate which step a card rejects.
-  ///
-  /// Returns the raw signature when the chain completes, plus the
-  /// `(command, statusWord)` of every command sent. Follows the same
-  /// resolved-numbering chain selection as the throwing variant, so an
-  /// organization card's trace has no PSO:HASH step. Not on the shipping
-  /// token path - that uses the throwing variant above.
   public func computeAuthenticationSignatureTraced(
     overDigest digest: Data,
     algorithm: SigningAlgorithm,
     expectedSignatureLength: ExpectedResponseLength?
   ) throws -> (raw: Data?, steps: [(command: String, statusWord: UInt16)]) {
     var steps: [(command: String, statusWord: UInt16)] = []
+    if referenceMemo.resolved == .estonian2018 {
+      try selectEstonian2018Root()
+      try selectChildDirectory(.estonianAwpDirectory)
+      let selected = try transmit(.selectEstonian2018AuthenticationEnvironment())
+      steps.append((command: "MSE:SET AT", statusWord: selected.statusWord.encoded))
+      guard selected.statusWord == .success else { return (nil, steps) }
+      let signed = try transmitSignature(
+        .internalAuthenticate(overDigest: Self.estonian2018Digest(digest))
+      )
+      steps.append((command: "INTERNAL AUTHENTICATE", statusWord: signed.statusWord.encoded))
+      guard signed.statusWord == .success else { return (nil, steps) }
+      return (signed.payload, steps)
+    }
     let selected = try transmit(
-      .selectSigningEnvironment(algorithm: algorithm, key: .authentication)
+      .selectSigningEnvironment(
+        algorithm: algorithm,
+        keyReference: keyReference(for: .authentication)
+      )
     )
     steps.append((command: "MSE:SET", statusWord: selected.statusWord.encoded))
     guard selected.statusWord == .success else { return (nil, steps) }

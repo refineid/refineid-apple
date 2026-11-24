@@ -92,7 +92,7 @@ extension OrganizationCardOpening {
       throw error
     }
     records.memory.retain(after: opened.pinState, serial: serial)
-    try opened.operations.selectFineidApplication()
+    try opened.operations.selectCardApplication()
     return Pin1Opening(opened: opened, acceptance: acceptance)
   }
 

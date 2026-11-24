@@ -43,6 +43,7 @@ internal struct CredentialReferenceResolutionTests {
     let channel = ScriptedChannel([
       ("0020001100", "6A88"),
       ("0020000300", "6A86"),
+      ("0020008100", "6A88"),
     ])
     let operations = CardOperations(channel: channel)
     #expect(try operations.resolveCredentialReferences() == .citizen)

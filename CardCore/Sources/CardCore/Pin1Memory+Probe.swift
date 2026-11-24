@@ -29,7 +29,10 @@ extension Pin1Memory {
     spending: PinAdmission.Spending
   ) throws -> RetryProbeOutcome {
     let probe = try probeCounter(operations, serial: serial)
-    let mayHold = Pin1Retention.permitsHolding(after: probe)
+    let mayHold = Pin1Retention.permitsHolding(
+      after: probe,
+      allowance: operations.pristineRetryAllowance
+    )
     let verdict = RetryFloor.evaluate(probeOutcome: probe)
     guard verdict == .proceed else {
       throw ProbeRefusal.retryFloor(verdict, probe)
@@ -40,7 +43,7 @@ extension Pin1Memory {
     return probe
   }
 
-  /// Selects the FINEID application, confirms `serial`, reads the PIN 1
+  /// Selects the card eID application, confirms `serial`, reads the PIN 1
   /// counter on a reader, applies ``Pin1Retention``, and checks the retry
   /// floor.
   ///
@@ -53,7 +56,7 @@ extension Pin1Memory {
   ) throws -> RetryProbeOutcome {
     let cardSerial: ChipSerial
     do {
-      try operations.selectFineidApplication()
+      try operations.selectCardApplication()
       cardSerial = try operations.readChipSerial()
     } catch {
       clearAccepted(serial: serial)
@@ -82,7 +85,11 @@ extension Pin1Memory {
       clearAccepted(serial: serial)
       throw error
     }
-    retain(after: outcome, serial: serial)
+    retain(
+      after: outcome,
+      serial: serial,
+      pristineAllowance: operations.pristineRetryAllowance
+    )
     return outcome
   }
 }

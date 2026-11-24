@@ -20,6 +20,7 @@ import SwiftUI
     internal struct AttemptsReading {
       internal let name: String
       internal let outcome: RetryProbeOutcome
+      internal let pristineAllowance: UInt8
     }
 
     private enum AttemptsLayout {
@@ -36,20 +37,30 @@ import SwiftUI
     internal static func readingsBelowFull(
       _ report: CredentialProbeReport
     ) -> [AttemptsReading] {
-      [
-        AttemptsReading(name: CredentialLabels.name(for: .pin1), outcome: report.pin1),
-        AttemptsReading(name: CredentialLabels.name(for: .pin2), outcome: report.pin2),
-        AttemptsReading(name: "PUK", outcome: report.puk),
+      let allowance = report.pristineAllowance
+      return [
+        AttemptsReading(
+          name: CredentialLabels.name(for: .pin1),
+          outcome: report.pin1,
+          pristineAllowance: allowance),
+        AttemptsReading(
+          name: CredentialLabels.name(for: .pin2),
+          outcome: report.pin2,
+          pristineAllowance: allowance),
+        AttemptsReading(name: "PUK", outcome: report.puk, pristineAllowance: allowance),
       ]
-      .filter { !isFull($0.outcome) }
+      .filter { !isFull($0.outcome, pristineAllowance: $0.pristineAllowance) }
     }
 
     /// A counter at its full allowance, or a PIN verified this session,
     /// which the card has reset to full.
-    private static func isFull(_ outcome: RetryProbeOutcome) -> Bool {
+    private static func isFull(
+      _ outcome: RetryProbeOutcome,
+      pristineAllowance: UInt8
+    ) -> Bool {
       switch outcome {
       case .remaining(let count):
-        !count.isBlocked && count.attemptsRemaining >= RetryCount.pristineAllowance
+        !count.isBlocked && count.attemptsRemaining >= pristineAllowance
 
       case .verified:
         true
@@ -61,14 +72,17 @@ import SwiftUI
 
     /// The marker beside each count, so the band is never carried by
     /// colour alone.
-    private static func attemptsSymbol(_ outcome: RetryProbeOutcome?) -> String {
+    private static func attemptsSymbol(
+      _ outcome: RetryProbeOutcome?,
+      pristineAllowance: UInt8
+    ) -> String {
       switch outcome {
       case .remaining(let count):
         if count.isBlocked {
           "arrow.counterclockwise.circle.fill"
         } else if count.attemptsRemaining < RetryFloor.minimumAttemptsToProceed {
           "xmark.octagon.fill"
-        } else if count.attemptsRemaining < RetryCount.pristineAllowance {
+        } else if count.attemptsRemaining < pristineAllowance {
           "exclamationmark.triangle.fill"
         } else {
           "checkmark.circle.fill"
@@ -118,10 +132,13 @@ import SwiftUI
     }
 
     /// One probe outcome as a short cell, counted against a full card.
-    private static func attemptsText(_ outcome: RetryProbeOutcome?) -> String {
+    private static func attemptsText(
+      _ outcome: RetryProbeOutcome?,
+      pristineAllowance: UInt8
+    ) -> String {
       switch outcome {
       case .remaining(let count):
-        "\(count.attemptsRemaining)/\(RetryCount.pristineAllowance)"
+        "\(count.attemptsRemaining)/\(pristineAllowance)"
 
       case .verified:
         String(localized: "verified")
@@ -143,14 +160,17 @@ import SwiftUI
     /// Full is green, short of full is orange, refused is red, and
     /// blocked is blue - blocked being the one state that is not a
     /// warning but an instruction: the PUK undoes it.
-    private static func attemptsColor(_ outcome: RetryProbeOutcome?) -> Color {
+    private static func attemptsColor(
+      _ outcome: RetryProbeOutcome?,
+      pristineAllowance: UInt8
+    ) -> Color {
       switch outcome {
       case .remaining(let count):
         if count.isBlocked {
           .blue
         } else if count.attemptsRemaining < RetryFloor.minimumAttemptsToProceed {
           .red
-        } else if count.attemptsRemaining < RetryCount.pristineAllowance {
+        } else if count.attemptsRemaining < pristineAllowance {
           .orange
         } else {
           .green
@@ -179,7 +199,11 @@ import SwiftUI
         Text("Attempts left:")
           .foregroundStyle(.secondary)
         ForEach(readings, id: \.name) { reading in
-          attemptsEntry(reading.name, reading.outcome)
+          attemptsEntry(
+            reading.name,
+            reading.outcome,
+            pristineAllowance: reading.pristineAllowance
+          )
         }
         Spacer()
       }
@@ -195,14 +219,15 @@ import SwiftUI
     @ViewBuilder
     internal func attemptsEntry(
       _ name: String,
-      _ outcome: RetryProbeOutcome?
+      _ outcome: RetryProbeOutcome?,
+      pristineAllowance: UInt8
     ) -> some View {
       HStack(spacing: AttemptsLayout.rowSymbolSpacing) {
-        Text("\(name) \(Self.attemptsText(outcome))")
+        Text("\(name) \(Self.attemptsText(outcome, pristineAllowance: pristineAllowance))")
           .monospacedDigit()
-        Image(systemName: Self.attemptsSymbol(outcome))
+        Image(systemName: Self.attemptsSymbol(outcome, pristineAllowance: pristineAllowance))
       }
-      .foregroundStyle(Self.attemptsColor(outcome))
+      .foregroundStyle(Self.attemptsColor(outcome, pristineAllowance: pristineAllowance))
       .accessibilityElement(children: .combine)
       .accessibilityLabel(name)
       .accessibilityValue(Self.attemptsSpoken(outcome))

@@ -59,7 +59,7 @@
       do {
         return try SmartCardChannel(smartCard).withSession { channel in
           let operations = CardOperations(channel: channel)
-          try operations.selectFineidApplication()
+          try operations.selectCardApplication()
           lines.append("select application: OK")
           let leaf = try operations.readCertificate(.authentication)
           lines.append("read leaf EF.4331: \(leaf.count) bytes")

@@ -60,8 +60,14 @@ internal enum Iso7816Values {
   /// PERFORM SECURITY OPERATION instruction (FINEID S1 v4.2 §3.8).
   internal static let insPerformSecurityOperation: UInt8 = 0x2A
 
+  /// INTERNAL AUTHENTICATE instruction (ISO/IEC 7816-4 §11.5.2; ID1 Developer Guide 2025 §9.6).
+  internal static let insInternalAuthenticate: UInt8 = 0x88
+
   /// MSE P1: SET for computation and deciphering (S1 v4.2 §3.6.2).
   internal static let mseSetP1: UInt8 = 0x41
+
+  /// MSE P2: Authentication Template (ISO/IEC 7816-4; ID1 Developer Guide 2025 §9.6).
+  internal static let mseAuthenticationTemplateP2: UInt8 = 0xA4
 
   /// MSE P2: Digital Signature Template (S1 v4.2 §3.6.2 Table 5).
   internal static let mseDigitalSignatureTemplateP2: UInt8 = 0xB6
@@ -132,6 +138,9 @@ internal enum Iso7816Values {
 
   /// SELECT P1: select a child DF under the current DF (7816-4).
   internal static let selectChildDfP1: UInt8 = 0x01
+
+  /// SELECT P1: select by path from the master file / application root (7816-4 §11.1.1; GED24035 §8.5).
+  internal static let selectByPathFromMfP1: UInt8 = 0x08
 
   /// SELECT P2: first-or-only occurrence, return no FCI.
   internal static let selectByAidNoFciP2: UInt8 = 0x0C

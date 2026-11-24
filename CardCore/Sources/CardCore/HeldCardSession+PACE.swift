@@ -7,10 +7,27 @@ import Foundation
 #endif
 
 extension HeldCardSession {
+  // MARK: Nested Types
+
+  private struct PreparationStart {
+    let channel: any HeldCardChannel
+    let generation: UInt64
+    let shouldStartHere: Bool
+  }
+
   // MARK: Functions
 
   /// Starts PACE immediately on a worker, ahead of Safari's sign call.
   public func startPACE(with accessNumber: CardAccessNumber) {
+    startPACE(with: accessNumber, prefersEstonian2018: false)
+  }
+
+  /// Starts PACE immediately on a worker, selecting EstEID 2018 IAS-ECC root
+  /// first when `prefersEstonian2018` is true.
+  public func startPACE(
+    with accessNumber: CardAccessNumber,
+    prefersEstonian2018: Bool
+  ) {
     condition.lock()
     guard let plain = channel, !ended, case .idle = preparation else {
       condition.unlock()
@@ -25,7 +42,12 @@ extension HeldCardSession {
       Self.logger.trace("pace: early preparation started")
     #endif
     DispatchQueue.global(qos: .userInitiated).async { [self] in
-      finishPACE(with: accessNumber, channel: plain, generation: preparingGeneration)
+      finishPACE(
+        with: accessNumber,
+        prefersEstonian2018: prefersEstonian2018,
+        channel: plain,
+        generation: preparingGeneration
+      )
     }
   }
 
@@ -36,32 +58,61 @@ extension HeldCardSession {
   public func preparedChannel(
     accessNumber: CardAccessNumber
   ) throws -> PreparedChannelLease {
+    try preparedChannel(accessNumber: accessNumber, prefersEstonian2018: false)
+  }
+
+  /// Leases the exact secure channel prepared for this field, preferring
+  /// EstEID 2018 IAS-ECC root when `prefersEstonian2018` is true.
+  public func preparedChannel(
+    accessNumber: CardAccessNumber,
+    prefersEstonian2018: Bool
+  ) throws -> PreparedChannelLease {
     cancelActivityTimeout()
-    var prepareHere = false
+    let start = try beginPreparationIfIdle()
+    if start.shouldStartHere {
+      recordLifecycle("PACE started on sign generation=\(start.generation)")
+      DispatchQueue.global(qos: .userInitiated).async { [self] in
+        finishPACE(
+          with: accessNumber,
+          prefersEstonian2018: prefersEstonian2018,
+          channel: start.channel,
+          generation: start.generation
+        )
+      }
+    }
+    let deadline = Date().addingTimeInterval(preparationWait)
+    let finalState = try claimPreparedChannel(deadline: deadline, generation: start.generation)
+    return try finishClaimingLease(finalState, generation: start.generation)
+  }
+
+  private func beginPreparationIfIdle() throws -> PreparationStart {
     condition.lock()
+    defer { condition.unlock() }
     guard let plain = channel, !ended else {
-      condition.unlock()
       throw CardOperationError.sessionUnavailable
     }
     let preparingGeneration = generation
     if case .idle = preparation {
       preparation = .running
-      prepareHere = true
+      return PreparationStart(
+        channel: plain,
+        generation: preparingGeneration,
+        shouldStartHere: true
+      )
     }
-    condition.unlock()
+    return PreparationStart(
+      channel: plain,
+      generation: preparingGeneration,
+      shouldStartHere: false
+    )
+  }
 
-    if prepareHere {
-      recordLifecycle("PACE started on sign generation=\(preparingGeneration)")
-      DispatchQueue.global(qos: .userInitiated).async { [self] in
-        finishPACE(with: accessNumber, channel: plain, generation: preparingGeneration)
-      }
-    }
-
-    let deadline = Date().addingTimeInterval(preparationWait)
-    let finalState = try claimPreparedChannel(deadline: deadline, generation: preparingGeneration)
-
+  private func finishClaimingLease(
+    _ finalState: PreparationState,
+    generation preparingGeneration: UInt64
+  ) throws -> PreparedChannelLease {
     switch finalState {
-    case .ready(let secure):
+    case .ready(let secure, let numbering):
       operationLock.lock()
       condition.lock()
       let valid = !ended && generation == preparingGeneration
@@ -74,7 +125,11 @@ extension HeldCardSession {
       #if DEBUG && canImport(OSLog)
         Self.logger.trace("pace: prepared channel reused")
       #endif
-      return PreparedChannelLease(channel: secure, operationLock: operationLock) { [weak self] in
+      return PreparedChannelLease(
+        channel: secure,
+        cardNumbering: numbering,
+        operationLock: operationLock
+      ) { [weak self] in
         self?.finishLease(generation: preparingGeneration)
       }
 
@@ -109,56 +164,46 @@ extension HeldCardSession {
       throw CardOperationError.sessionUnavailable
     }
     let finalState = preparation
-    if case .ready(let secure) = finalState {
-      preparation = .leased(secure)
+    if case .ready(let secure, let numbering) = finalState {
+      preparation = .leased(secure, numbering)
     }
     condition.unlock()
     return finalState
   }
 
-  /// Establishes keys and selects the FINEID application over the secure channel.
+  /// Establishes keys and selects the card's eID application over the secure channel.
   private func establishPACE(
     channel: any CardChannel,
-    accessNumber: CardAccessNumber
-  ) throws -> SecureMessagingChannel {
-    let keys = try PaceEstablishment(
-      channel: channel,
+    accessNumber: CardAccessNumber,
+    prefersEstonian2018: Bool
+  ) throws -> (SecureMessagingChannel, CredentialReferenceSet?) {
+    let (_, operations) = try CardOperations.openCanSecureChannel(
+      over: channel,
+      accessNumber: accessNumber,
+      prefersEstonian2018: prefersEstonian2018,
       diagnostic: { [self] event in
         recordLifecycle(event)
       }
-    ).establish(with: PacePassword(cardAccessNumber: accessNumber)).keys
-    let secure = SecureMessagingChannel(wrapping: channel, sessionKeys: keys)
-    try CardOperations(channel: secure).selectFineidApplication()
-    return secure
+    )
+    guard let secure = operations.channel as? SecureMessagingChannel else {
+      throw CardOperationError.sessionUnavailable
+    }
+    return (secure, operations.resolvedNumbering)
   }
 
   /// Establishes and selects the application on the retained session.
   internal func finishPACE(
     with accessNumber: CardAccessNumber,
+    prefersEstonian2018: Bool,
     channel plain: any HeldCardChannel,
     generation expectedGeneration: UInt64
   ) {
-
-    let result: Result<SecureMessagingChannel, any Error>
-    operationLock.lock()
-    do {
-      condition.lock()
-      let valid = !ended && generation == expectedGeneration
-      condition.unlock()
-      guard valid else { throw CardOperationError.sessionUnavailable }
-      let guarded = HeldSessionChannel(
-        channel: plain,
-        isAvailable: { [self] in
-          condition.lock()
-          defer { condition.unlock() }
-          return !ended && generation == expectedGeneration
-        })
-      result = .success(try establishPACE(channel: guarded, accessNumber: accessNumber))
-    } catch {
-      result = .failure(error)
-    }
-    operationLock.unlock()
-
+    let result = runLockedPaceEstablishment(
+      with: accessNumber,
+      prefersEstonian2018: prefersEstonian2018,
+      channel: plain,
+      generation: expectedGeneration
+    )
     var shouldReleaseAfterFailure = false
     condition.lock()
     guard !ended, generation == expectedGeneration else {
@@ -167,8 +212,8 @@ extension HeldCardSession {
       return
     }
     switch result {
-    case .success(let secure):
-      preparation = .ready(secure)
+    case .success(let (secure, numbering)):
+      preparation = .ready(secure, numbering)
       recordLifecycle("PACE ready generation=\(expectedGeneration)")
       if activityTimeoutDeferred {
         activityTimeoutDeferred = false
@@ -188,6 +233,38 @@ extension HeldCardSession {
 
     if shouldReleaseAfterFailure {
       release(reason: .preparationFailed)
+    }
+  }
+
+  private func runLockedPaceEstablishment(
+    with accessNumber: CardAccessNumber,
+    prefersEstonian2018: Bool,
+    channel plain: any HeldCardChannel,
+    generation expectedGeneration: UInt64
+  ) -> Result<(SecureMessagingChannel, CredentialReferenceSet?), any Error> {
+    operationLock.lock()
+    defer { operationLock.unlock() }
+    do {
+      condition.lock()
+      let valid = !ended && generation == expectedGeneration
+      condition.unlock()
+      guard valid else { throw CardOperationError.sessionUnavailable }
+      let guarded = HeldSessionChannel(
+        channel: plain,
+        isAvailable: { [self] in
+          condition.lock()
+          defer { condition.unlock() }
+          return !ended && generation == expectedGeneration
+        })
+      return .success(
+        try establishPACE(
+          channel: guarded,
+          accessNumber: accessNumber,
+          prefersEstonian2018: prefersEstonian2018
+        )
+      )
+    } catch {
+      return .failure(error)
     }
   }
 

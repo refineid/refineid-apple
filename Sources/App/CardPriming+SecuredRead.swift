@@ -29,6 +29,12 @@
       /// Chip serial retained for exact reconstruction.
       internal let chipSerial: ChipSerial
 
+      /// Printed serial or document number used to build ``instance``.
+      internal let printedSerial: PrintedSerial
+
+      /// Credential reference numbering observed on the live card.
+      internal let cardNumbering: CredentialReferenceSet?
+
       /// Proof that the live card did not report a factory activation state.
       internal let activationCheck: PrimedIdentity.ActivationCheck
     }
@@ -83,10 +89,8 @@
         certificate: certificate,
         operations: operations
       )
-      let serial = try operations.readChipSerial()
-      guard let instance = TokenInstanceID(chipSerial: serial) else {
-        throw Failure.unidentifiedCard
-      }
+      let serials = try operations.readCardIdentitySerials()
+      let instance = TokenInstanceID(printedSerial: serials.printedSerial)
       guard SecCertificateCreateWithData(nil, certificate as CFData) != nil else {
         throw Failure.certificateUnreadable
       }
@@ -99,7 +103,9 @@
         instance: instance,
         certificate: certificate,
         issuer: issuer,
-        chipSerial: serial,
+        chipSerial: serials.chipSerial,
+        printedSerial: serials.printedSerial,
+        cardNumbering: operations.resolvedNumbering,
         activationCheck: activationCheck)
     }
 

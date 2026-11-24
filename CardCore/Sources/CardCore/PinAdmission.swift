@@ -37,8 +37,23 @@ public enum PinAdmission: Equatable, Sendable {
     case heldPin1
   }
 
-  /// Decides from one fresh probe of the credential the PIN is checked as.
+  /// Decides from one fresh probe of the credential the PIN is checked as,
+  /// under the FINEID five-try pristine allowance.
   public init(probe: RetryProbeOutcome, spending: Spending) {
+    self.init(
+      probe: probe,
+      spending: spending,
+      pristineAllowance: RetryCount.pristineAllowance
+    )
+  }
+
+  /// Decides from one fresh probe of the credential the PIN is checked as,
+  /// under the card's `pristineAllowance`.
+  public init(
+    probe: RetryProbeOutcome,
+    spending: Spending,
+    pristineAllowance: UInt8
+  ) {
     switch probe {
     case .locked:
       self = spending == .entered ? .proceed : .credentialBlocked
@@ -53,7 +68,9 @@ public enum PinAdmission: Equatable, Sendable {
       let verdict = RetryFloor.evaluate(probeOutcome: probe)
       if verdict != .proceed {
         self = .retryFloor(verdict)
-      } else if spending == .heldPin1, !Pin1Retention.permitsHolding(after: probe) {
+      } else if spending == .heldPin1,
+        !Pin1Retention.permitsHolding(after: probe, allowance: pristineAllowance)
+      {
         self = .heldPin1Unconfirmed
       } else {
         self = .proceed

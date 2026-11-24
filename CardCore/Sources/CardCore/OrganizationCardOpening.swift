@@ -38,7 +38,7 @@ public enum OrganizationCardOpening {
       password: PacePassword(pin1: pin, spending: spending),
       role: .pin1)
     onPinState?(opened.pinState)
-    try opened.operations.selectFineidApplication()
+    try opened.operations.selectCardApplication()
     return opened
   }
 

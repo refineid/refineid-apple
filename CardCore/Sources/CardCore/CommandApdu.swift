@@ -110,19 +110,28 @@ public struct CommandApdu: Equatable, Sendable {
     )
   }
 
-  /// The side-effect-free retry-counter probe (FINEID S1 v4.2 §3.5.1.1).
+  /// The side-effect-free retry-counter probe (FINEID S1 v4.2 §3.5.1.1;
+  /// GED24035 §7.5.1.1; ID1 Developer Guide 2025 §9.3.1).
   ///
-  /// VERIFY with `Lc=00` and no data: the card answers `63Cx` with the
+  /// VERIFY with no credential data: the card answers `63Cx` with the
   /// remaining attempts in the counter nibble and no attempt is
-  /// consumed. This is the reading the retry floor requires immediately
-  /// before every PIN-bearing command. An absent reference answers
-  /// `referenceDataNotFound`, still without touching any counter, which
-  /// is what makes this probe the reference-numbering resolver too.
+  /// consumed. EstEID 2018 IAS-ECC takes the 4-byte Case 1 form
+  /// (`00 20 00 <ref>`); Thales and FINEID cards take `Lc=00`.
   public static func readRetryCounter(
     role: CredentialRole,
     references: CredentialReferenceSet
   ) -> Self {
-    Self(
+    if references == .estonian2018 {
+      return Self(
+        encoded: Data([
+          Iso7816Values.classInterindustry,
+          Iso7816Values.insVerify,
+          Iso7816Values.verifyModeP1,
+          references.reference(for: role),
+        ])
+      )
+    }
+    return Self(
       encoded: Data([
         Iso7816Values.classInterindustry,
         Iso7816Values.insVerify,
@@ -340,29 +349,5 @@ public struct CommandApdu: Equatable, Sendable {
       parameter2: Iso7816Values.psoComputeSignatureP2,
       data: Data(bytes[dataStart..<dataEnd]),
       expectedLength: 0)
-  }
-
-  /// The counter-safe PIN-container query (FINEID S1 v4.2 §3.15.2).
-  ///
-  /// GET DATA `00 CB 00 FF 05 A0 03 83 01 ref 00`: reads the PIN
-  /// container's attributes without presenting a credential and without
-  /// touching any counter. This is how the PUK retry counter is read -
-  /// the PUK has no side-effect-free VERIFY probe.
-  public static func readCredentialAttributes(role: CredentialRole) -> Self {
-    Self(
-      encoded: Data([
-        Iso7816Values.classInterindustry,
-        Iso7816Values.insGetData,
-        FineidValues.pinContainerP1,
-        FineidValues.pinContainerP2,
-        FineidValues.pinContainerRequestLength,
-        FineidValues.pinContainerTemplateTag,
-        FineidValues.pinContainerTemplateLength,
-        FineidValues.pinReferenceTag,
-        FineidValues.pinReferenceLength,
-        FineidValues.reference(for: role),
-        0,
-      ])
-    )
   }
 }

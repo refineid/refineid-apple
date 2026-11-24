@@ -151,8 +151,26 @@ public enum DistinguishedName {
     return true
   }
 
-  /// Removes a trailing SATU / PEUIN or specimen identifier from a common name.
+  private static func commaSeparatedSegments(in common: String) -> [String] {
+    common
+      .split(separator: ",")
+      .map { segment in segment.trimmingCharacters(in: .whitespaces) }
+      .filter { !$0.isEmpty }
+  }
+
+  /// Removes a trailing SATU / PEUIN, Estonian personal code, or specimen
+  /// identifier from a common name.
+  ///
+  /// Estonian certificates format CN as `SURNAME,GIVENNAME,3XXXXXXXXXX`;
+  /// when comma-separated segments end in an identifier token, the identifier
+  /// is dropped and the remaining name segments are joined with spaces.
   private static func cleanedCommonName(_ common: String) -> String {
+    if common.contains(",") {
+      let segments = Self.commaSeparatedSegments(in: common)
+      if segments.count > 1, let last = segments.last, Self.isIdentifierToken(Substring(last)) {
+        return segments.dropLast().joined(separator: " ")
+      }
+    }
     let parts = common.split(separator: " ")
     guard parts.count > 1, let last = parts.last else { return common }
     if Self.isIdentifierToken(last) {
@@ -168,13 +186,20 @@ public enum DistinguishedName {
     return Self.holderLine(inName: facts.subjectName)
   }
 
-  /// The holder's identifier (SATU / PEUIN) from a certificate's subject, or trailing identifier in common name.
+  /// The holder's identifier (SATU / PEUIN / Estonian personal code) from a
+  /// certificate's subject, or trailing identifier in common name.
   public static func identifier(fromCertificate der: Data) -> String? {
     guard let facts = CertificateFacts(der: der) else { return nil }
     if let serial = Self.identifier(inName: facts.subjectName) {
       return serial
     }
     if let common = Self.commonName(inName: facts.subjectName) {
+      if common.contains(",") {
+        let segments = Self.commaSeparatedSegments(in: common)
+        if segments.count > 1, let last = segments.last, Self.isIdentifierToken(Substring(last)) {
+          return last
+        }
+      }
       let parts = common.split(separator: " ")
       if parts.count > 1, let last = parts.last, Self.isIdentifierToken(last) {
         return String(last)

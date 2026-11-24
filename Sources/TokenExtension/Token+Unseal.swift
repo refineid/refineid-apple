@@ -46,34 +46,55 @@ extension Token {
     TokenLog.info("readIdentity: opening session")
     let answerToReset = smartCard.slot.atr?.bytes
     return try SmartCardChannel(smartCard, waits: .readerMint).withSession { channel in
-      do {
-        TokenLog.info("readIdentity: selecting application")
-        try CardOperations(channel: channel).selectFineidApplication()
-      } catch CardOperationError.selectRejected(.securityNotSatisfied) {
-        #if FEATURE_CONTACTLESS
-          TokenLog.info("readIdentity: application is sealed; unsealing")
-          CardCredentialStore.recordCardAsk(.cardAccessNumber)
-          let (identity, accessNumber) = try Self.unsealed(
-            over: channel, answerToReset: answerToReset)
-          return (identity, .cardAccessNumber(accessNumber))
-        #else
-          // Without the flag a sealed card is reported, not retried.
-          throw CardOperationError.selectRejected(.securityNotSatisfied)
-        #endif
-      } catch CardOperationError.selectRejected(.conditionsNotSatisfied) {
-        return try Self.organizationIdentity(answerToReset: answerToReset)
-      }
-      let operations = CardOperations(channel: channel)
-      let identity: PublishedIdentity
-      do {
-        identity = try Self.certificates(read: operations)
-      } catch let failure where CardOperationError.refusesBeforePace(failure) {
-        return try Self.organizationIdentity(answerToReset: answerToReset)
-      }
-      try Self.refuseUnsupportedOrganization(operations: operations)
-      Self.primeOrganizationCard(identity, operations: operations, answerToReset: answerToReset)
-      return (identity, .plain)
+      try Self.readIdentityInSession(channel: channel, answerToReset: answerToReset)
     }
+  }
+
+  private static func readIdentityInSession(
+    channel: SmartCardChannel,
+    answerToReset: Data?
+  ) throws -> (identity: PublishedIdentity, unsealing: CardUnsealing) {
+    let operations = CardOperations(channel: channel)
+    do {
+      TokenLog.info("readIdentity: selecting application")
+      try operations.selectCardApplication()
+    } catch CardOperationError.selectRejected(.securityNotSatisfied) {
+      #if FEATURE_CONTACTLESS
+        TokenLog.info("readIdentity: application is sealed; unsealing")
+        CardCredentialStore.recordCardAsk(.cardAccessNumber)
+        let (identity, accessNumber) = try Self.unsealed(
+          over: channel,
+          answerToReset: answerToReset,
+          prefersEstonian2018: false)
+        return (identity, .cardAccessNumber(accessNumber))
+      #else
+        // Without the flag a sealed card is reported, not retried.
+        throw CardOperationError.selectRejected(.securityNotSatisfied)
+      #endif
+    } catch CardOperationError.selectRejected(.conditionsNotSatisfied) {
+      return try Self.organizationIdentity(answerToReset: answerToReset)
+    }
+    let identity: PublishedIdentity
+    do {
+      identity = try Self.certificates(read: operations)
+    } catch let failure where CardOperationError.requiresCanPace(failure) {
+      #if FEATURE_CONTACTLESS
+        TokenLog.info("readIdentity: card files are sealed; unsealing")
+        CardCredentialStore.recordCardAsk(.cardAccessNumber)
+        let (unsealedIdentity, accessNumber) = try Self.unsealed(
+          over: channel,
+          answerToReset: answerToReset,
+          prefersEstonian2018: operations.resolvedNumbering == .estonian2018)
+        return (unsealedIdentity, .cardAccessNumber(accessNumber))
+      #else
+        throw failure
+      #endif
+    } catch let failure where CardOperationError.refusesBeforePace(failure) {
+      return try Self.organizationIdentity(answerToReset: answerToReset)
+    }
+    try Self.refuseUnsupportedOrganization(operations: operations)
+    Self.primeOrganizationCard(identity, operations: operations, answerToReset: answerToReset)
+    return (identity, .plain)
   }
 
   /// Refuses an organization card read in the clear when this build
@@ -119,11 +140,16 @@ extension Token {
     }
     TokenLog.info("readIdentity: organization card on the antenna; publishing its prime")
     CardCredentialStore.clearCardAsk()
+    guard let printedSerial = PrintedSerial(chipSerial: prime.chipSerial) else {
+      throw TokenError.primeMissing
+    }
     let identity = PublishedIdentity(
       leafDER: prime.certificateDER,
       issuerDER: prime.issuerDER,
       signLeafDER: prime.signatureCertificateDER,
-      chipSerial: prime.chipSerial
+      chipSerial: prime.chipSerial,
+      printedSerial: printedSerial,
+      cardNumbering: .organization
     )
     return (identity, .organizationPin)
   }
@@ -175,7 +201,8 @@ extension Token {
     /// setup that has not been done, not a fault to keep retrying at.
     private static func unsealed(
       over channel: SmartCardChannel,
-      answerToReset: Data?
+      answerToReset: Data?,
+      prefersEstonian2018: Bool
     ) throws -> (identity: PublishedIdentity, accessNumber: CardAccessNumber) {
       // Every stored number, active offer first: a card answers with no
       // individual identifier before PACE, so one number cannot be
@@ -206,7 +233,16 @@ extension Token {
       }
       // One try: the first CAN the card refuses wipes them all.
       guard let candidate = fresh.first else { throw TokenError.unsealAlreadyRefused }
-      switch Self.paceAttempt(candidate: candidate, index: 0, total: 1, channel: channel) {
+      let estonian2018Hint =
+        prefersEstonian2018
+        || answerToReset.map(AnswerToReset.indicatesEstonian2018(bytes:)) == true
+      switch Self.paceAttempt(
+        candidate: candidate,
+        index: 0,
+        total: 1,
+        channel: channel,
+        prefersEstonian2018: estonian2018Hint
+      ) {
       case .minted(let identity, let accessNumber):
         return (identity, accessNumber)
 
@@ -244,23 +280,22 @@ extension Token {
       candidate: CardCanOffer.Candidate,
       index: Int,
       total: Int,
-      channel: SmartCardChannel
+      channel: SmartCardChannel,
+      prefersEstonian2018: Bool
     ) -> PaceAttempt {
       let started = ContinuousClock.now
-      // PACE starts at main-file level, where its read of EF.CardAccess
-      // leaves the card: the card refuses MSE:Set AT with 6985 anywhere
-      // else.
       do {
-        let keys = try PaceEstablishment(channel: channel)
-          .establish(with: PacePassword(cardAccessNumber: candidate.number)).keys
+        let (_, operations) = try CardOperations.openCanSecureChannel(
+          over: channel,
+          accessNumber: candidate.number,
+          prefersEstonian2018: prefersEstonian2018,
+          diagnostic: nil
+        )
         RefusedUnseal.shared.clear()
         CardCredentialStore.clearOfferedNumberRefusal()
-        let secure = SecureMessagingChannel(wrapping: channel, sessionKeys: keys)
         TokenLog.info(
           "readIdentity: PACE ok, candidate \(index + 1)/\(total) "
             + "ms=\(Self.elapsed(since: started))")
-        let operations = CardOperations(channel: secure)
-        try operations.selectFineidApplication()
         let identity = try Self.certificates(read: operations)
         CardCredentialStore.rememberCan(
           digits: candidate.digits, chipSerial: identity.chipSerial)
@@ -297,12 +332,12 @@ extension Token {
   private static func certificates(
     read operations: CardOperations
   ) throws -> PublishedIdentity {
-    TokenLog.info("readIdentity: reading leaf EF.4331")
+    TokenLog.info("readIdentity: reading authentication leaf")
     let leaf = try operations.readCertificate(.authentication)
     try Self.requireActivatedCard(leaf, operations: operations)
-    TokenLog.info("readIdentity: leaf \(leaf.count) bytes; reading chip serial")
-    let serial = try operations.readChipSerial()
-    TokenLog.info("readIdentity: chip serial read; resolving issuer")
+    TokenLog.info("readIdentity: leaf \(leaf.count) bytes; reading identity serials")
+    let serials = try operations.readCardIdentitySerials()
+    TokenLog.info("readIdentity: identity serials read; resolving issuer")
     let issuer = TrustRootsCache.shared.issuer(
       for: leaf,
       cardIssuer: { try? operations.readCertificate(.issuing) },
@@ -317,13 +352,17 @@ extension Token {
     let signLeaf =
       (try? operations.readCertificate(.qualifiedSignature))
       ?? (try? operations.readCertificate(.secondQualifiedSignature))
-    reportInventory(read: operations)
+    if operations.resolvedNumbering != .estonian2018 {
+      reportInventory(read: operations)
+    }
     TokenLog.info("readIdentity: sign leaf \(signLeaf?.count ?? -1) bytes")
     return PublishedIdentity(
       leafDER: leaf,
       issuerDER: issuer,
       signLeafDER: signLeaf,
-      chipSerial: serial
+      chipSerial: serials.chipSerial,
+      printedSerial: serials.printedSerial,
+      cardNumbering: operations.resolvedNumbering
     )
   }
 
@@ -347,39 +386,6 @@ extension Token {
         "readIdentity: activation required pin1=\(needs.pin1) pin2=\(needs.pin2)"
       )
       throw TokenError.activationRequired
-    }
-  }
-
-  /// Records what the card's own directories say it carries.
-  ///
-  /// Nothing is published from this yet: it is the inventory the fixed
-  /// slots cannot see, read to learn each key's reference before any
-  /// identity is built from it.
-  private static func reportInventory(read operations: CardOperations) {
-    let entries: [Pkcs15Inventory.Entry]
-    do {
-      entries = try operations.readPkcs15Inventory()
-    } catch {
-      TokenLog.info("readIdentity: PKCS#15 inventory unreadable (\(error))")
-      return
-    }
-    TokenLog.info("readIdentity: PKCS#15 inventory lists \(entries.count) certificates")
-    for entry in entries {
-      let identifierHex = entry.certificate.identifier
-        .map { byte in
-          String(format: "%02X", byte)
-        }
-        .joined()
-      let keyReferenceHex =
-        entry.key?.keyReference.map { byte in
-          String(format: "%02X", byte)
-        } ?? "none"
-      TokenLog.info(
-        "readIdentity: inventory entry file=\(entry.certificate.file) "
-          + "id=\(identifierHex) "
-          + "key=\(entry.key != nil) "
-          + "keyReference=\(keyReferenceHex)"
-      )
     }
   }
 

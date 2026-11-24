@@ -155,7 +155,7 @@ internal struct CardStatusSnapshot: Equatable, Sendable {
       return try SmartCardChannel(smartCard).withSession { channel in
         let operations = CardOperations(channel: channel)
         do {
-          try operations.selectFineidApplication()
+          try operations.selectCardApplication()
         } catch CardOperationError.selectRejected(.securityNotSatisfied) {
           // The contactless answer, and the only one that means "ask me
           // again inside a secure channel". Probing further would cost a
@@ -165,7 +165,12 @@ internal struct CardStatusSnapshot: Equatable, Sendable {
         } catch CardOperationError.selectRejected {
           return .unsupported
         }
-        let report = try operations.probeCredentials()
+        let report: CredentialProbeReport
+        do {
+          report = try operations.probeCredentials()
+        } catch let error where CardOperationError.requiresCanPace(error) {
+          return .sealed
+        }
         // Best effort, and after the counters: a card that will not name
         // itself is still a card, and this must not cost the reading
         // that matters.

@@ -101,33 +101,79 @@ extension CardMaintenance {
     let channelPin = opener.channelPin
     let operations = CardOperations(channel: channel)
     do {
-      try operations.selectFineidApplication()
+      try operations.selectCardApplication()
       // The card's answer tells, not its answer to reset: the phone's own
       // antenna reports an organization card's answer without the prefix
       // a reader synthesizes for a contactless card (observed on
       // hardware). A card in the clear answers the read; one that waits
-      // for PACE with a PIN answers 6985.
+      // for PACE with a PIN answers 6985; an EstEID 2018 card on a
+      // contactless reader answers 6982 until PACE with CAN.
       guard let channelPin else {
-        return openedUnlessUnsupportedOrganization(operations)
+        return openUnpinnedReaderChannel(
+          over: channel,
+          operations: operations,
+          cardAccessNumber: cardAccessNumber
+        )
       }
       do {
         _ = try operations.readChipSerial()
         return openedUnlessUnsupportedOrganization(operations)
-      } catch  where CardOperationError.refusesBeforePace(error) {
+      } catch let error where CardOperationError.requiresCanPace(error) {
+        #if FEATURE_CONTACTLESS
+          return canOpenedOperations(
+            over: channel,
+            cardAccessNumber: cardAccessNumber,
+            prefersEstonian2018: operations.resolvedNumbering == .estonian2018
+          )
+        #else
+          return .unavailable
+        #endif
+      } catch let error where CardOperationError.refusesBeforePace(error) {
         return pinOpenedUnlessUnsupported(over: channel, pin: channelPin)
       } catch {
         return .unavailable
       }
-    } catch  where CardOperationError.refusesBeforePace(error) {
+    } catch let error where CardOperationError.refusesBeforePace(error) {
       guard let channelPin else { return .unavailable }
       return pinOpenedUnlessUnsupported(over: channel, pin: channelPin)
     } catch {
       #if FEATURE_CONTACTLESS
-        return canOpenedOperations(over: channel, cardAccessNumber: cardAccessNumber)
+        return canOpenedOperations(
+          over: channel,
+          cardAccessNumber: cardAccessNumber,
+          prefersEstonian2018: false
+        )
       #else
         return .unavailable
       #endif
     }
+  }
+
+  /// Opens a reader channel when no PIN opener was supplied, unsealing
+  /// contactless EstEID 2018 cards via CAN PACE when file reads refuse.
+  private static func openUnpinnedReaderChannel(
+    over channel: any CardChannel,
+    operations: CardOperations,
+    cardAccessNumber: String?
+  ) -> Opening {
+    if operations.resolvedNumbering == .estonian2018 {
+      do {
+        _ = try operations.readChipSerial()
+      } catch let error where CardOperationError.requiresCanPace(error) {
+        #if FEATURE_CONTACTLESS
+          return canOpenedOperations(
+            over: channel,
+            cardAccessNumber: cardAccessNumber,
+            prefersEstonian2018: true
+          )
+        #else
+          return .unavailable
+        #endif
+      } catch {
+        return .unavailable
+      }
+    }
+    return openedUnlessUnsupportedOrganization(operations)
   }
 
   /// Opens the phone's antenna using only the selected credential kind.
@@ -141,8 +187,16 @@ extension CardMaintenance {
     switch kind {
     case .personal:
       #if FEATURE_CONTACTLESS
-        try? CardOperations(channel: channel).selectMainFile()
-        return canOpenedOperations(over: channel, cardAccessNumber: opener.cardAccessNumber)
+        let prefersEstonian2018 =
+          PrimeStore.storedIdentities().first?.cardNumbering == .estonian2018
+        if !prefersEstonian2018 {
+          try? CardOperations(channel: channel).selectMainFile()
+        }
+        return canOpenedOperations(
+          over: channel,
+          cardAccessNumber: opener.cardAccessNumber,
+          prefersEstonian2018: prefersEstonian2018
+        )
       #else
         return .unavailable
       #endif
@@ -159,13 +213,6 @@ extension CardMaintenance {
 
   #if FEATURE_CONTACTLESS
     /// The card access number a citizen card on an antenna is opened with.
-    ///
-    /// The one the operation offers; else the first of the numbers the
-    /// token driver tries, the app's own and the per-card library the
-    /// driver fills as cards open (``CardCredentialStore/cardAccessNumberCandidates()``),
-    /// so the window opens a card with the number its login used; else the
-    /// one a prime holds. A card answers with no identifier before PACE, so
-    /// the first is tried, and a refusal forgets them all.
     internal static func offeredAccessNumber(_ digits: String?) -> CardCanOffer.Candidate? {
       if let digits, let number = CardAccessNumber(digits: digits) {
         return CardCanOffer.Candidate(digits: digits, number: number)
@@ -185,13 +232,18 @@ extension CardMaintenance {
     /// PACE with the card access number ``offeredAccessNumber(_:)`` names.
     private static func canOpenedOperations(
       over channel: any CardChannel,
-      cardAccessNumber: String?
+      cardAccessNumber: String?,
+      prefersEstonian2018: Bool
     ) -> Opening {
       guard let offered = offeredAccessNumber(cardAccessNumber) else { return .unavailable }
-      let keys: PaceSessionKeys
       do {
-        keys = try PaceEstablishment(channel: channel)
-          .establish(with: PacePassword(cardAccessNumber: offered.number)).keys
+        let (_, secureOperations) = try CardOperations.openCanSecureChannel(
+          over: channel,
+          accessNumber: offered.number,
+          prefersEstonian2018: prefersEstonian2018,
+          diagnostic: nil
+        )
+        return .opened(secureOperations)
       } catch PaceEstablishment.Failure.authenticationTokenMismatch {
         CardCredentialStore.forgetEveryCardAccessNumber()
         return .unavailable
@@ -201,12 +253,6 @@ extension CardMaintenance {
       } catch {
         return .unavailable
       }
-      let secure = SecureMessagingChannel(wrapping: channel, sessionKeys: keys)
-      let secureOperations = CardOperations(channel: secure)
-      guard (try? secureOperations.selectFineidApplication()) != nil else {
-        return .unavailable
-      }
-      return .opened(secureOperations)
     }
   #endif
 
@@ -269,7 +315,7 @@ extension CardMaintenance {
     // PIN 2's service is DF.ESIGN and the PUK's is a reset that selects
     // what it needs, both from the main file where PACE leaves the card;
     // PIN 1's is the application.
-    guard role != .pin1 || (try? operations.selectFineidApplication()) != nil else {
+    guard role != .pin1 || (try? operations.selectCardApplication()) != nil else {
       return .refused(.failed, plain)
     }
     return .opened(operations)

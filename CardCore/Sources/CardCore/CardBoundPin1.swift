@@ -62,7 +62,14 @@ public struct CardBoundPin1<Card: Equatable & Sendable>: Sendable {
     /// holding.
     @discardableResult
     public func retain(after probe: RetryProbeOutcome) -> Bool {
-      state.withLock { $0.bound.retain(after: probe) }
+      retain(after: probe, pristineAllowance: RetryCount.pristineAllowance)
+    }
+
+    /// Applies ``Pin1Retention`` under the card's `pristineAllowance`,
+    /// forgetting the held value immediately when `probe` forbids holding.
+    @discardableResult
+    public func retain(after probe: RetryProbeOutcome, pristineAllowance: UInt8) -> Bool {
+      state.withLock { $0.bound.retain(after: probe, pristineAllowance: pristineAllowance) }
     }
 
     /// Settles the held value after one PIN 1 operation.
@@ -93,8 +100,13 @@ public struct CardBoundPin1<Card: Equatable & Sendable>: Sendable {
 
   /// What one PIN 1 operation settles on the held value.
   public enum Settlement: Sendable {
-    /// The card accepted a typed `pin1` for `card` after `preVerifyProbe`.
-    case accepted(Pin1Entry, preVerifyProbe: RetryProbeOutcome, card: Card?)
+    /// The card accepted a typed `pin1` for `card` after `preVerifyProbe`
+    /// under the card's `pristineAllowance`.
+    case accepted(
+      Pin1Entry,
+      preVerifyProbe: RetryProbeOutcome,
+      card: Card?,
+      pristineAllowance: UInt8 = RetryCount.pristineAllowance)
 
     /// No card was reached before any counter read; nothing new is held.
     case cardUnavailable
@@ -102,8 +114,9 @@ public struct CardBoundPin1<Card: Equatable & Sendable>: Sendable {
     /// The card refused PIN 1, or a pre-VERIFY counter read failed.
     case clear
 
-    /// A pre-VERIFY counter read reported `RetryProbeOutcome`.
-    case probed(RetryProbeOutcome)
+    /// A pre-VERIFY counter read reported `RetryProbeOutcome` under
+    /// `pristineAllowance`.
+    case probed(RetryProbeOutcome, pristineAllowance: UInt8 = RetryCount.pristineAllowance)
 
     /// No counter or credential refusal changed what is held.
     case unchanged
@@ -153,7 +166,15 @@ public struct CardBoundPin1<Card: Equatable & Sendable>: Sendable {
   /// returns whether holding is permitted.
   @discardableResult
   public mutating func retain(after probe: RetryProbeOutcome) -> Bool {
-    guard Pin1Retention.permitsHolding(after: probe) else {
+    retain(after: probe, pristineAllowance: RetryCount.pristineAllowance)
+  }
+
+  /// Applies ``Pin1Retention`` under the card's `pristineAllowance`: forgets
+  /// the held value when `probe` forbids holding, and returns whether holding
+  /// is permitted.
+  @discardableResult
+  public mutating func retain(after probe: RetryProbeOutcome, pristineAllowance: UInt8) -> Bool {
+    guard Pin1Retention.permitsHolding(after: probe, allowance: pristineAllowance) else {
       clear()
       return false
     }
@@ -163,8 +184,8 @@ public struct CardBoundPin1<Card: Equatable & Sendable>: Sendable {
   /// Settles the held value after one PIN 1 operation.
   public mutating func settle(_ settlement: Settlement) {
     switch settlement {
-    case .accepted(let pin1, let preVerifyProbe, let card):
-      guard retain(after: preVerifyProbe), let card else {
+    case .accepted(let pin1, let preVerifyProbe, let card, let pristineAllowance):
+      guard retain(after: preVerifyProbe, pristineAllowance: pristineAllowance), let card else {
         clear()
         return
       }
@@ -176,8 +197,8 @@ public struct CardBoundPin1<Card: Equatable & Sendable>: Sendable {
     case .clear:
       clear()
 
-    case .probed(let probe):
-      retain(after: probe)
+    case .probed(let probe, let pristineAllowance):
+      retain(after: probe, pristineAllowance: pristineAllowance)
     }
   }
 

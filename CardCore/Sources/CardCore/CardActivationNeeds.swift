@@ -20,8 +20,15 @@ public struct CardActivationNeeds: Equatable, Sendable {
 
 extension CardOperations {
   /// Reads both PINs' activation state without changing either counter.
+  ///
+  /// Estonian eID cards do not use FINEID issuance-letter activation, so they
+  /// report no pending activation here; PIN 2 first-use changes on EstEID 2025
+  /// go through standard PIN change instead.
   public func activationNeeds(scheme: ActivationScheme) -> CardActivationNeeds {
-    CardActivationNeeds(
+    if referenceMemo.resolved?.isEstonian == true {
+      return CardActivationNeeds(pin1: false, pin2: false)
+    }
+    return CardActivationNeeds(
       pin1: pinAwaitsActivation(scheme: scheme, role: .pin1),
       pin2: pinAwaitsActivation(scheme: scheme, role: .pin2)
     )

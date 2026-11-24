@@ -14,6 +14,9 @@ public enum ActivationClassification: Hashable, Sendable {
   /// A citizen card under the scheme its certificate dates.
   case citizen(ActivationScheme)
 
+  /// An Estonian eID card, which does not use FINEID issuance-letter activation.
+  case estonian
+
   /// An organization card: §4.6.1 under the organization numbering.
   case organization
 
@@ -22,6 +25,9 @@ public enum ActivationClassification: Hashable, Sendable {
     switch self {
     case .citizen(let scheme):
       scheme
+
+    case .estonian:
+      .presetActivationPin
 
     case .organization:
       .activationCodeIsPuk
@@ -40,6 +46,9 @@ public enum ActivationClassification: Hashable, Sendable {
     switch numbering {
     case .organization:
       .organization
+
+    case .estonian2018, .estonian2025:
+      .estonian
 
     case .citizen:
       authenticationCertificateDER
@@ -63,7 +72,7 @@ extension CardOperations {
     }
     let certificate: Data?
     switch numbering {
-    case .organization:
+    case .organization, .estonian2018, .estonian2025:
       certificate = nil
 
     case .citizen:

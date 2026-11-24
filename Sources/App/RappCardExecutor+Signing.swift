@@ -27,6 +27,7 @@
       return BrowserAuthenticationOutcome(
         outcome: outcome,
         preVerifyProbe: observer.preVerifyProbe,
+        pristineAllowance: observer.pristineAllowance,
         authenticatedCard: observer.authenticatedCard
       )
     }
@@ -91,12 +92,18 @@
         || operations.probedRetryCounter(role: params.role) == nil
       {
         let evaluation = evaluateRetryFloor(operations: operations, pin: params.pin)
-        observer?.recordProbe(evaluation.probe)
+        observer?.recordProbe(
+          evaluation.probe,
+          pristineAllowance: operations.pristineRetryAllowance
+        )
         if let refusal = evaluation.refusal {
           return .refusedBeforeCredentialTransmit(refusal)
         }
       } else if let cached = operations.probedRetryCounter(role: params.role) {
-        observer?.recordProbe(cached)
+        observer?.recordProbe(
+          cached,
+          pristineAllowance: operations.pristineRetryAllowance
+        )
       }
 
       if let verificationOutcome = verifyCredential(
@@ -131,7 +138,11 @@
       } catch {
         return (.noInformation, .retryFloor(role, .refuseUnreadable))
       }
-      switch PinAdmission(probe: probe, spending: pin.spending) {
+      switch PinAdmission(
+        probe: probe,
+        spending: pin.spending,
+        pristineAllowance: operations.pristineRetryAllowance
+      ) {
       case .proceed:
         return (probe, nil)
 

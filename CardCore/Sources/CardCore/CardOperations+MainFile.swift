@@ -20,6 +20,10 @@ extension CardOperations {
   /// final: the card is left where it is, from where EF.CardAccess is
   /// still selected and read.
   public func selectMainFile() throws {
+    if referenceMemo.resolved == .estonian2018 {
+      try selectEstonian2018Root()
+      return
+    }
     let byFileId = try transmit(
       .selectFile(.mainFile, selectionP1: Iso7816Values.selectByFileIdP1))
     if byFileId.statusWord == .success {

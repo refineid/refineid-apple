@@ -43,7 +43,10 @@ extension Token {
       "field: token=\(tokenID) hold=\(heldSession.diagnosticIdentifier) channel=\(channel.channelID) "
         + "pendingSign=\(isPendingSign)")
     if isPendingSign, let accessNumber = unsealing.accessNumber {
-      heldSession.startPACE(with: accessNumber)
+      heldSession.startPACE(
+        with: accessNumber,
+        prefersEstonian2018: cardNumbering == .estonian2018
+      )
     }
     if !isPendingSign {
       TokenLog.trace("field: discovery hold; PACE deferred until sign token=\(tokenID)")

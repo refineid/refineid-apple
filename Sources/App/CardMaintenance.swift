@@ -137,7 +137,10 @@ internal enum CardMaintenance {
   ) throws -> CardOperations {
     let operations = CardOperations(channel: channel)
     do {
-      try operations.selectFineidApplication()
+      try operations.selectCardApplication()
+      if operations.resolvedNumbering == .estonian2018 {
+        _ = try operations.readChipSerial()
+      }
       return operations
     } catch {
       guard
@@ -146,26 +149,25 @@ internal enum CardMaintenance {
       else {
         throw ConnectionFailure.wrongCardAccessNumber
       }
-      let keys: PaceSessionKeys
+      let prefersEstonian2018 = operations.resolvedNumbering == .estonian2018
       do {
-        keys = try PaceEstablishment(channel: channel)
-          .establish(with: PacePassword(cardAccessNumber: offered)).keys
+        let (_, secureOperations) = try CardOperations.openCanSecureChannel(
+          over: channel,
+          accessNumber: offered,
+          prefersEstonian2018: prefersEstonian2018,
+          diagnostic: nil
+        )
+        return secureOperations
       } catch PaceEstablishment.Failure.authenticationTokenMismatch {
         throw ConnectionFailure.wrongCardAccessNumber
       } catch PaceEstablishment.Failure.cardRejected(.authenticationFailed) {
-        // A FINEID card may reject the terminal's final PACE token with
+        // A card may reject the terminal's final PACE token with
         // 6300 instead of returning its own token for local comparison.
         // Both outcomes mean the CAN-derived session keys did not match.
         throw ConnectionFailure.wrongCardAccessNumber
       } catch {
         throw ConnectionFailure.failed
       }
-      let secure = SecureMessagingChannel(wrapping: channel, sessionKeys: keys)
-      let secureOperations = CardOperations(channel: secure)
-      guard (try? secureOperations.selectFineidApplication()) != nil else {
-        throw ConnectionFailure.failed
-      }
-      return secureOperations
     }
   }
 

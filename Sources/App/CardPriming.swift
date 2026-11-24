@@ -325,7 +325,9 @@
           issuer: identity.issuer,
           chipSerial: identity.chipSerial,
           activationCheck: identity.activationCheck,
-          signatureCertificate: signatureCertificate)
+          signatureCertificate: signatureCertificate,
+          printedSerial: identity.printedSerial,
+          cardNumbering: identity.cardNumbering)
       else {
         throw Failure.primeNotStored
       }

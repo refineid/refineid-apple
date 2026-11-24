@@ -7,7 +7,7 @@ import Foundation
 /// This is distinct from ``ChipSerial``. The chip serial is the security
 /// binding for PIN memory and rejected credentials; the printed form is the
 /// human-auditable part of the CryptoTokenKit ``TokenInstanceID``.
-public struct PrintedSerial: Equatable, Hashable, Sendable {
+public struct PrintedSerial: Codable, Equatable, Hashable, Sendable {
   /// Both supported FINEID generations print nine serial characters.
   private static let length = 9
 
@@ -54,10 +54,35 @@ public struct PrintedSerial: Equatable, Hashable, Sendable {
     return nil
   }
 
+  /// Builds a printed serial from a validated Estonian ``DocumentNumber``.
+  public init(documentNumber: DocumentNumber) {
+    self.value = documentNumber.value
+  }
+
+  /// Decodes a stored printed serial, validating its nine-character ASCII shape.
+  public init(from decoder: any Decoder) throws {
+    let container = try decoder.singleValueContainer()
+    let text = try container.decode(String.self)
+    guard
+      text.utf8.count == Self.length,
+      text.utf8.allSatisfy(Self.isAsciiAlphanumeric)
+    else {
+      throw DecodingError.dataCorruptedError(
+        in: container, debugDescription: "Not a printed serial")
+    }
+    self.value = text
+  }
+
   /// Token identifiers accept only the card format's ASCII letters and digits.
   private static func isAsciiAlphanumeric(_ byte: UInt8) -> Bool {
     Self.asciiUppercase.contains(byte)
       || Self.asciiLowercase.contains(byte)
       || Self.asciiDigits.contains(byte)
+  }
+
+  /// Encodes the printed serial as its single string value.
+  public func encode(to encoder: any Encoder) throws {
+    var container = encoder.singleValueContainer()
+    try container.encode(value)
   }
 }

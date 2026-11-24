@@ -38,11 +38,24 @@ extension CardMaintenance {
     case signed(QualifiedProduct)
   }
 
+  /// Certificate expectations carried into one qualified signing session.
+  internal struct QualifiedTarget: Sendable {
+    internal let expectedCertificate: Data?
+    internal let additionalSignerAnchors: Set<Data>
+  }
+
   /// Certificate material selected before a PIN is spent.
   private struct QualifiedIdentity {
     let certificate: Data
     let publicKey: SecKey
     let profile: CardKeyProfile
+  }
+
+  /// Certificate expectations carried into the exclusive signing session.
+  private struct QualifiedContext {
+    let cachedCertificate: Data?
+    let expectedCertificate: Data?
+    let additionalSignerAnchors: Set<Data>
   }
 
   /// Reads the qualified certificate, verifies PIN2 and signs the
@@ -56,7 +69,7 @@ extension CardMaintenance {
   /// without a signature.
   internal static func qualifiedSignature(
     pin2: String,
-    expectedCertificate: Data?,
+    target: QualifiedTarget,
     transport: Transport,
     cardAccessNumber: String?,
     contentBuilder: @escaping @Sendable (Data) -> Data
@@ -67,6 +80,11 @@ extension CardMaintenance {
     let cached = primedAccessNumber.flatMap { accessNumber in
       PrimeStore.signatureCertificate(cardAccessNumber: accessNumber)
     }
+    let context = QualifiedContext(
+      cachedCertificate: cached,
+      expectedCertificate: target.expectedCertificate,
+      additionalSignerAnchors: target.additionalSignerAnchors
+    )
     let result = await onCard(
       transport: transport,
       opener: .pin(.pin2(pin2), cardAccessNumber: cardAccessNumber) { outcome, _ in
@@ -78,8 +96,7 @@ extension CardMaintenance {
       Self.qualifiedInSession(
         operations,
         pin2: pin2,
-        cachedCertificate: cached,
-        expectedCertificate: expectedCertificate,
+        context: context,
         builder: contentBuilder
       )
     }
@@ -120,26 +137,28 @@ extension CardMaintenance {
   private static func qualifiedInSession(
     _ operations: CardOperations,
     pin2: String,
-    cachedCertificate: Data?,
-    expectedCertificate: Data?,
+    context: QualifiedContext,
     builder: (Data) -> Data
   ) -> QualifiedAnswer {
     let openedByPin2 = operations.channelPin == .pin2
     if !openedByPin2, let refusal = Self.floorRefusal(operations) {
       return refusal
     }
-    guard let identity = Self.qualifiedIdentity(cachedCertificate, operations) else {
+    guard let identity = Self.qualifiedIdentity(context.cachedCertificate, operations) else {
       return .refused(.failed)
     }
     Self.cacheCardAuthorities(for: identity.certificate, operations: operations)
     guard
       Self.qualifiedCertificate(
-        identity.certificate, matches: expectedCertificate
+        identity.certificate, matches: context.expectedCertificate
       )
     else {
       return .signerCertificateMismatch
     }
-    if let refusal = DocumentSigner.signerRefusal(identity.certificate) {
+    if let refusal = DocumentSigner.signerRefusal(
+      identity.certificate,
+      additionalAnchors: context.additionalSignerAnchors
+    ) {
       return .longTermUnavailable(refusal)
     }
     if let refusal = Self.authorization(operations, pin2: pin2, openedByPin2: openedByPin2) {

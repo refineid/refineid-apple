@@ -22,7 +22,14 @@ internal struct PublishedIdentity {
 
   /// Chip serial read from the same card session.
   ///
-  /// The public token identifier is derived from its printed form; the
-  /// complete value remains the card-bound security identity.
+  /// The complete value remains the card-bound security identity for PIN 1
+  /// memory and rejected-PIN latches.
   internal let chipSerial: ChipSerial
+
+  /// Printed serial or document number read from the same card session, used
+  /// to build the public CryptoTokenKit ``TokenInstanceID``.
+  internal let printedSerial: PrintedSerial
+
+  /// Credential reference numbering observed for this card, when known.
+  internal let cardNumbering: CredentialReferenceSet?
 }

@@ -34,10 +34,7 @@ extension Token {
       throw TokenError.certificateUnreadable
     }
     let (profile, publicKey) = try Self.validatedSigningKey(in: leaf)
-    guard let instanceID = TokenInstanceID(chipSerial: identity.chipSerial) else {
-      TokenLog.error("Token.init: chip serial has no supported printed form")
-      throw TokenError.unsupportedKeyProfile
-    }
+    let instanceID = TokenInstanceID(printedSerial: identity.printedSerial)
     let sign = Self.validatedQualifiedMaterial(fromDER: identity.signLeafDER)
     return ReaderTokenMaterial(
       identity: identity,
@@ -86,17 +83,20 @@ extension Token {
       TokenLog.trace("Token.init(primed): stored chip serial is not this card's")
       throw TokenError.primeMissing
     }
-    guard let instanceID = TokenInstanceID(chipSerial: chipSerial) else {
-      TokenLog.trace("Token.init(primed): chip serial has no supported printed form")
+    guard let printedSerial = primed.resolvedPrintedSerial else {
+      TokenLog.trace("Token.init(primed): prime carries no supported printed serial")
       throw TokenError.primeMissing
     }
+    let instanceID = TokenInstanceID(printedSerial: printedSerial)
     return PrimedTokenMaterial(
       unsealing: .cardAccessNumber(accessNumber),
       identity: PublishedIdentity(
         leafDER: primed.certDER,
         issuerDER: primed.issuerDER,
         signLeafDER: nil,
-        chipSerial: chipSerial
+        chipSerial: chipSerial,
+        printedSerial: printedSerial,
+        cardNumbering: primed.cardNumbering
       ),
       leaf: leaf,
       profile: profile,
@@ -121,17 +121,20 @@ extension Token {
       throw TokenError.certificateUnreadable
     }
     let (profile, publicKey) = try Self.validatedSigningKey(in: leaf)
-    guard let instanceID = TokenInstanceID(chipSerial: prime.chipSerial) else {
+    guard let printedSerial = PrintedSerial(chipSerial: prime.chipSerial) else {
       TokenLog.trace("Token.init(organization): chip serial has no supported printed form")
       throw TokenError.primeMissing
     }
+    let instanceID = TokenInstanceID(printedSerial: printedSerial)
     return PrimedTokenMaterial(
       unsealing: .organizationPin,
       identity: PublishedIdentity(
         leafDER: prime.certificateDER,
         issuerDER: prime.issuerDER,
         signLeafDER: nil,
-        chipSerial: prime.chipSerial
+        chipSerial: prime.chipSerial,
+        printedSerial: printedSerial,
+        cardNumbering: .organization
       ),
       leaf: leaf,
       profile: profile,

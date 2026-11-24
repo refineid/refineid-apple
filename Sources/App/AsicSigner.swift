@@ -111,9 +111,13 @@ internal enum AsicSigner {
     }
     let signedAt = Date()
     DocumentSigner.report(.card)
+    let target = CardMaintenance.QualifiedTarget(
+      expectedCertificate: nil,
+      additionalSignerAnchors: await DocumentSigner.fetchTrustedListIssuingAnchors()
+    )
     let answer = await CardMaintenance.qualifiedSignature(
       pin2: pin2,
-      expectedCertificate: nil,
+      target: target,
       transport: transport,
       cardAccessNumber: cardAccessNumber
     ) { certificate in

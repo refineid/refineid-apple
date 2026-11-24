@@ -11,8 +11,17 @@ internal enum Pkcs15Values {
   /// Context tag of the certificates entry in EF.ODF, PKCS#15 [4].
   internal static let certificatesTag: UInt8 = 0xA4
 
+  /// Context tag of the authObjects entry in EF.ODF, PKCS#15 [8].
+  internal static let authObjectsTag: UInt8 = 0xA8
+
   /// Context tag of an object's type attributes, PKCS#15 [1].
   internal static let typeAttributesTag: UInt8 = 0xA1
+
+  /// ASN.1 `KeyUsageFlags` bit mask for `sign` (bit 2, first content octet after unused-bits byte).
+  internal static let keyUsageSignBitMask: UInt8 = 0x20
+
+  /// ASN.1 `KeyUsageFlags` bit mask for `nonRepudiation` (bit 9, second content octet after unused-bits byte).
+  internal static let keyUsageNonRepudiationBitMask: UInt8 = 0x40
 
   /// Mask and value identifying any context-specific constructed tag,
   /// which is how an object entry of an unnamed class appears.

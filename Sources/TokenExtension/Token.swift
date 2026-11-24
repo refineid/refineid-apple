@@ -73,14 +73,10 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
   internal let interface: CardInterface
 
   /// The card's chip serial, which PIN 1 memory and rejected-PIN memory bind to.
-  ///
-  /// Read from the card on a reader, taken from the prime on the phone's
-  /// antenna.
-  /// Cached for the same reason as the certificate: it is public, it
-  /// cannot change, and re-reading it costs more than the field has left
-  /// - that read was measured dying part way through, which is a login
-  /// lost for nothing.
   internal let chipSerial: ChipSerial
+
+  /// The card's credential reference numbering observed at mint time, if known.
+  internal let cardNumbering: CredentialReferenceSet?
 
   /// The CryptoTokenKit instance ID `ctkd` knows this token by.
   ///
@@ -143,6 +139,7 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
       self.interface = .steadyField
     }
     self.chipSerial = material.identity.chipSerial
+    self.cardNumbering = material.identity.cardNumbering
     self.instanceID = material.instanceID
     self.smartCard = smartCard
     super.init(
@@ -201,6 +198,7 @@ internal final class Token: TKSmartCardToken, TKTokenDelegate {
     self.unsealing = material.unsealing
     self.interface = .fieldWithDeadline
     self.chipSerial = material.serial
+    self.cardNumbering = material.identity.cardNumbering
     self.instanceID = material.instanceID
     self.smartCard = smartCard
     super.init(

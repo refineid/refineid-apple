@@ -52,11 +52,23 @@ public struct PrimedIdentity: Codable, Equatable, Sendable {
   /// The card's chip serial.
   public let chipSerial: ChipSerial
 
+  /// The card's printed serial or document number, when distinct from or not
+  /// derivable from ``chipSerial`` (such as EstEID 2025 binary chip serials).
+  public let printedSerial: PrintedSerial?
+
+  /// The card's credential reference numbering observed during priming, when known.
+  public let cardNumbering: CredentialReferenceSet?
+
   /// Proof that no PIN awaiting activation blocked this prime.
   public let activationCheck: ActivationCheck
 
   /// The DER signature certificate read from the card, when cached.
   public let signatureCertDER: Data?
+
+  /// The printed serial to publish this card's CryptoTokenKit token under.
+  public var resolvedPrintedSerial: PrintedSerial? {
+    printedSerial ?? PrintedSerial(chipSerial: chipSerial)
+  }
 
   /// Refuses anything that could not have come from a real prime.
   ///
@@ -72,7 +84,9 @@ public struct PrimedIdentity: Codable, Equatable, Sendable {
     issuer: Data?,
     chipSerial: ChipSerial,
     activationCheck: ActivationCheck,
-    signatureCertificate: Data? = nil
+    signatureCertificate: Data? = nil,
+    printedSerial: PrintedSerial? = nil,
+    cardNumbering: CredentialReferenceSet? = nil
   ) {
     guard CardAccessNumber(digits: can) != nil else { return nil }
     guard !certificate.isEmpty else { return nil }
@@ -80,6 +94,8 @@ public struct PrimedIdentity: Codable, Equatable, Sendable {
     self.certDER = certificate
     self.issuerDER = issuer
     self.chipSerial = chipSerial
+    self.printedSerial = printedSerial
+    self.cardNumbering = cardNumbering
     self.activationCheck = activationCheck
     self.signatureCertDER = signatureCertificate
   }

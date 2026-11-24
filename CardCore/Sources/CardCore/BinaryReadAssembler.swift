@@ -41,6 +41,8 @@ public struct BinaryReadAssembler: Equatable, Sendable {
   private var collected: Data
   private var offset: Int
   private var cap: Int
+  private var retriedEndOfFile = false
+  private var useMaximumLengthOnce = false
   private var terminal: BinaryReadStep?
 
   /// The next thing to do: transmit, or a terminal completion/failure.
@@ -48,7 +50,10 @@ public struct BinaryReadAssembler: Equatable, Sendable {
     if let terminal {
       return terminal
     }
-    let want = min(cap - offset, chunkLength.count)
+    let want =
+      useMaximumLengthOnce
+      ? ExpectedResponseLength.maximum
+      : min(cap - offset, chunkLength.count)
     guard
       let readOffset = ReadOffset(value: UInt16(offset)),
       let expected = ExpectedResponseLength(count: want)
@@ -96,7 +101,15 @@ public struct BinaryReadAssembler: Equatable, Sendable {
       terminal = .failed(.unexpectedStatus(response.statusWord))
       return
     }
-    let want = min(cap - offset, chunkLength.count)
+    let wasRetry = useMaximumLengthOnce
+    useMaximumLengthOnce = false
+    let want = wasRetry ? ExpectedResponseLength.maximum : min(cap - offset, chunkLength.count)
+    if endOfFile, response.payload.isEmpty, !retriedEndOfFile, want < ExpectedResponseLength.maximum
+    {
+      retriedEndOfFile = true
+      useMaximumLengthOnce = true
+      return
+    }
     guard response.payload.count <= want else {
       terminal = .failed(.oversizedChunk)
       return

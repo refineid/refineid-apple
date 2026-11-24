@@ -110,7 +110,7 @@ internal struct CredentialOperationConfirmation: ViewModifier {
     report: CredentialProbeReport?
   ) -> String? {
     let minimum = Int(RetryFloor.minimumAttemptsToProceed)
-    let pristine = Int(RetryCount.pristineAllowance)
+    let pristine = Int(report?.pristineAllowance ?? RetryCount.pristineAllowance)
     guard
       let remaining = operation.spends.flatMap({ role in
         Self.remaining(for: role, in: report)

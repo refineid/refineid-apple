@@ -13,9 +13,11 @@ public struct RetryCount: Equatable, Sendable {
   /// domain.
   public static let maximumPlausible: UInt8 = 15
 
-  /// The full retry allowance of an untouched credential on supported
-  /// cards: five attempts.
+  /// The full retry allowance of an untouched credential on FINEID cards: five attempts.
   public static let pristineAllowance: UInt8 = 5
+
+  /// The full retry allowance of an untouched credential on Estonian eID cards: three attempts.
+  public static let estonianPristineAllowance: UInt8 = EstonianEidValues.pinRetryLimit
 
   /// The point at which a credential is one mistake from blocking.
   ///
@@ -26,9 +28,9 @@ public struct RetryCount: Equatable, Sendable {
   /// The validated number of attempts remaining.
   public let attemptsRemaining: UInt8
 
-  /// True when this credential retains its full allowance.
+  /// True when this credential retains the FINEID five-attempt allowance.
   public var isPristine: Bool {
-    attemptsRemaining == Self.pristineAllowance
+    isPristine(allowance: Self.pristineAllowance)
   }
 
   /// Zero attempts remaining: the credential is blocked.
@@ -40,5 +42,10 @@ public struct RetryCount: Equatable, Sendable {
   public init?(attemptsRemaining: UInt8) {
     guard attemptsRemaining <= Self.maximumPlausible else { return nil }
     self.attemptsRemaining = attemptsRemaining
+  }
+
+  /// True when this credential retains its card-specific full allowance.
+  public func isPristine(allowance: UInt8) -> Bool {
+    attemptsRemaining == allowance
   }
 }

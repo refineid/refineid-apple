@@ -141,7 +141,8 @@ extension DocumentSigner {
       }
       // Judged before the phone is asked, so its PIN 2 prompt never
       // appears for a signature this build would refuse.
-      if let refusal = Self.signerRefusal(certificate) {
+      let additionalAnchors = await Self.fetchTrustedListIssuingAnchors()
+      if let refusal = Self.signerRefusal(certificate, additionalAnchors: additionalAnchors) {
         throw Failure.validation(refusal)
       }
       do {

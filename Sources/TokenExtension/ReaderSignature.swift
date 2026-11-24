@@ -38,9 +38,13 @@ internal enum ReaderSignature {
       return try OrganizationSignature.authenticate(
         on: channel, enteredPin: enteredPin, request: request, token: token)
     }
-    let unsealedChannel: any CardChannel
+    let operations: CardOperations
     do {
-      unsealedChannel = try Self.unsealed(channel, with: unsealing.accessNumber)
+      operations = try Self.unsealed(
+        channel,
+        with: unsealing.accessNumber,
+        prefersEstonian2018: token.cardNumbering == .estonian2018
+      )
     } catch PaceEstablishment.Failure.authenticationTokenMismatch {
       token.revokeAutomaticIdentityAfterCanRejection()
       throw TokenError.primeMissing
@@ -52,33 +56,35 @@ internal enum ReaderSignature {
       throw error
     }
     return try Self.performSign(
-      channel: unsealedChannel,
+      operations: operations,
       enteredPin: enteredPin,
       request: request,
       token: token
     )
   }
 
-  /// The channel to work in: the plain one for a contact card, or a
-  /// secure-messaging one for a card on an antenna.
+  /// The card session to work in: a plain one for a contact card, or a
+  /// PACE-secured one for a card on an antenna.
   ///
-  /// PACE starts at main-file level, where its read of EF.CardAccess
-  /// leaves the card: the card refuses MSE:Set AT with 6985 anywhere
-  /// else. Internal, not private: ``QualifiedSignature`` unseals the same
-  /// way.
+  /// Internal, not private: ``QualifiedSignature`` unseals the same way.
   internal static func unsealed(
     _ channel: SmartCardChannel,
-    with accessNumber: CardAccessNumber?
-  ) throws -> any CardChannel {
-    guard let accessNumber else { return channel }
+    with accessNumber: CardAccessNumber?,
+    prefersEstonian2018: Bool
+  ) throws -> CardOperations {
+    guard let accessNumber else { return CardOperations(channel: channel) }
     let started = ContinuousClock.now
-    let keys = try PaceEstablishment(channel: channel)
-      .establish(with: PacePassword(cardAccessNumber: accessNumber)).keys
+    let (_, operations) = try CardOperations.openCanSecureChannel(
+      over: channel,
+      accessNumber: accessNumber,
+      prefersEstonian2018: prefersEstonian2018,
+      diagnostic: nil
+    )
     TokenLog.info(
       "sign: PACE ok ms="
         + TraceTiming.milliseconds(started.duration(to: ContinuousClock.now))
     )
-    return SecureMessagingChannel(wrapping: channel, sessionKeys: keys)
+    return operations
   }
 
   /// The PIN to spend: freshly entered, or reused from the card-bound
@@ -110,12 +116,11 @@ internal enum ReaderSignature {
   /// is a blocking device, so the whole chain runs straight through with no
   /// `Task`/`await` (the async bridge hung here). Mirrors the reference.
   private static func performSign(
-    channel: any CardChannel,
+    operations: CardOperations,
     enteredPin: String?,
     request: SignRequest,
     token: Token
   ) throws -> Data {
-    let operations = CardOperations(channel: channel)
     let serial = token.chipSerial
     let pin1Outcome = try Self.probePin1OfTokenCard(operations, token: token)
 
@@ -158,7 +163,12 @@ internal enum ReaderSignature {
     }
 
     let signature = try Self.checkedWireSignature(from: raw, request: request, token: token)
-    Self.rememberOnSuccess(enteredPin: enteredPin, token: token, probe: pin1Outcome)
+    Self.rememberOnSuccess(
+      enteredPin: enteredPin,
+      token: token,
+      probe: pin1Outcome,
+      pristineAllowance: operations.pristineRetryAllowance
+    )
     return signature
   }
 
@@ -250,17 +260,23 @@ internal enum ReaderSignature {
 
   /// Remembers a freshly entered PIN only after the card accepted it, and
   /// only when the probe before it permits holding
-  /// (``Pin1Memory/acceptance(of:serial:after:owner:)``).
+  /// (``Pin1Memory/acceptance(of:serial:after:pristineAllowance:owner:)``).
   internal static func rememberOnSuccess(
     enteredPin: String?,
     token: Token,
-    probe: RetryProbeOutcome
+    probe: RetryProbeOutcome,
+    pristineAllowance: UInt8
   ) {
     guard
       let entered = enteredPin,
       let accepted = Pin1(digits: entered),
       let acceptance = Pin1Memory.shared.acceptance(
-        of: accepted, serial: token.chipSerial, after: probe, owner: token.pin1Owner)
+        of: accepted,
+        serial: token.chipSerial,
+        after: probe,
+        pristineAllowance: pristineAllowance,
+        owner: token.pin1Owner
+      )
     else {
       return
     }
