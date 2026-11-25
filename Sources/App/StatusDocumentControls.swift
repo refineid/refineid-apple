@@ -82,7 +82,8 @@
       let signingOffered = (availability != .noCard && signingAvailable) || working || readingStamp
       offersSigning = signingOffered
       self.offersVerification = offersVerification
-      showsIdentity = !offersVerification || signingOffered || queued.isEmpty
+      showsIdentity =
+        !offersVerification || availability != .noCard || signingOffered || queued.isEmpty
       showsDocuments = offersVerification || signingOffered || !queued.isEmpty
       verifyEnabled =
         offersVerification

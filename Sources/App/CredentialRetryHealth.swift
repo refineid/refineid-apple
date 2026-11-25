@@ -152,7 +152,6 @@ internal final class CredentialRetryHealth: ObservableObject {
     cancelReaderRefresh()
     level = nil
     report = nil
-    pin2RequiresChangeBeforeSigning = false
     let generation = refreshGeneration
     readerRefresh = Task { [weak self] in
       let freshReport = await CardMaintenance.credentialReport(
@@ -187,7 +186,12 @@ internal final class CredentialRetryHealth: ObservableObject {
     pin2RequiresChangeBeforeSigning = false
   }
 
+  internal func markPin2RequiresChangeBeforeSigning() {
+    pin2RequiresChangeBeforeSigning = true
+  }
+
   private func apply(_ report: CredentialProbeReport?) {
+    pin2RequiresChangeBeforeSigning = report?.pin2RequiresChangeBeforeSigning ?? false
     guard let report,
       let pin1 = Self.attempts(report.pin1),
       let pin2 = Self.attempts(report.pin2),
@@ -196,7 +200,6 @@ internal final class CredentialRetryHealth: ObservableObject {
       recovery = nil
       level = nil
       self.report = nil
-      pin2RequiresChangeBeforeSigning = false
       return
     }
 
@@ -206,11 +209,9 @@ internal final class CredentialRetryHealth: ObservableObject {
       recovery = nil
       level = nil
       self.report = nil
-      pin2RequiresChangeBeforeSigning = false
       return
     }
     self.report = report
-    pin2RequiresChangeBeforeSigning = report.pin2RequiresChangeBeforeSigning
     recovery = Self.recovery(pin1: pin1, pin2: pin2, puk: puk)
     if attempts.contains(where: { $0 <= RetryThreshold.lowAttempts }) {
       level = .critical

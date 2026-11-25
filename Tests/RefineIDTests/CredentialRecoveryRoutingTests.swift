@@ -12,7 +12,7 @@ import Testing
 /// other-software guidance once the PUK is at one or two tries. A PUK
 /// at no tries left removes no reset: the card answers it itself.
 @MainActor
-@Suite
+@Suite(.serialized)
 internal struct CredentialRecoveryRoutingTests {
   private static let blocked: UInt8 = .zero
   private static let full = RetryCount.pristineAllowance

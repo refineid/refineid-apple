@@ -206,6 +206,7 @@
         availability: .ready, queued: Self.documents, signing: false, readingCard: false,
         failureShown: false, offersVerification: true, signingAvailable: false
       )
+      #expect(verifyAndSign.showsIdentity)
       #expect(!verifyAndSign.offersSigning)
       #expect(!verifyAndSign.allowsSigning(cardReady: true))
       #expect(verifyAndSign.verifyEnabled)

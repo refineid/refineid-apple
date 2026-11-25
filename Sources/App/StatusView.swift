@@ -121,9 +121,10 @@
         react(to: .noCard)
       }
       .onChange(of: signingBlockedByInitialPin2) { _, blocked in
-        if blocked, !StatusDocumentControls.defaultOffersVerification, !signing.working {
-          signing.clear()
-        }
+        let canClear =
+          blocked && !StatusDocumentControls.defaultOffersVerification
+          && !signing.working && !signing.readingStamp
+        if canClear { signing.clear() }
       }
       .onDisappear { activation.stop() }
       .announcesOutcome(activation.management.failure)
@@ -255,9 +256,8 @@
     /// would otherwise leave PAdES chosen for a set that cannot take
     /// it, and the card would be asked before the spreadsheet refused.
     private func accept(_ urls: [URL]) -> Bool {
-      guard !urls.isEmpty else { return false }
-      let controls = documentControls
-      guard controls.offersSigning || controls.offersVerification else { return false }
+      guard !urls.isEmpty, !signingBlockedByInitialPin2 || documentControls.offersVerification
+      else { return false }
       signing.accept(urls)
       format = Self.sharedFormat(for: signing.queued)
       return true

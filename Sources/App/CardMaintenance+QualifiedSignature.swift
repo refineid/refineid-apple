@@ -162,6 +162,9 @@ extension CardMaintenance {
       return .longTermUnavailable(refusal)
     }
     if !openedByPin2, (try? operations.requiresPin2ChangeBeforeSigning()) == true {
+      Task { @MainActor in
+        CredentialRetryHealth.shared.markPin2RequiresChangeBeforeSigning()
+      }
       return .refused(.pin2ChangeRequired)
     }
     if let refusal = Self.authorization(operations, pin2: pin2, openedByPin2: openedByPin2) {
@@ -195,7 +198,11 @@ extension CardMaintenance {
       )
     } catch CardOperationError.signRejected(.conditionsNotSatisfied)
       where operations.resolvedNumbering == .estonian2025
+      && (try? operations.requiresPin2ChangeBeforeSigning()) == true
     {
+      Task { @MainActor in
+        CredentialRetryHealth.shared.markPin2RequiresChangeBeforeSigning()
+      }
       return .refused(.pin2ChangeRequired)
     } catch {
       return .refused(.failed)
