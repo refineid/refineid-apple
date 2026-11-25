@@ -26,10 +26,7 @@
               signingBlockedByInitialPin2,
               StatusMessage(signingModel) == nil
             {
-              Text("Change PIN 2 so you can sign documents.")
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityIdentifier("pin2ChangeRequiredNotice")
+              pin2ChangeNotice
             }
           }
           if showsStandaloneReading ? !signingModel.queued.isEmpty : documentControls.showsDocuments
@@ -69,6 +66,16 @@
     internal var panelOutline: some View {
       RoundedRectangle(cornerRadius: Self.readySpacing).strokeBorder(.secondary)
         .allowsHitTesting(false)
+    }
+
+    internal var pin2ChangeNotice: some View {
+      Text("Change PIN 2 so you can sign documents.")
+        .foregroundStyle(.orange)
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity, minHeight: StatusDocumentSection.dropHeight)
+        .padding(Self.readySpacing)
+        .overlay { panelOutline }
+        .accessibilityIdentifier("pin2ChangeRequiredNotice")
     }
 
     private var groupedForm: some View {

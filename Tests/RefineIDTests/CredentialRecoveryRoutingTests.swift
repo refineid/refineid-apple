@@ -139,4 +139,42 @@ internal struct CredentialRecoveryRoutingTests {
       ) == .changePin1
     )
   }
+
+  #if os(macOS)
+    @Test
+    internal func pinCodesAutoOpensForUnchangedInitialPin2UnlessCardUnchosen() {
+      #expect(
+        PinCodesButton.opensAutomatically(
+          readerCardIsPresent: true,
+          awaitsChoice: false,
+          level: .pristine,
+          pin2RequiresChange: true
+        )
+      )
+      #expect(
+        !PinCodesButton.opensAutomatically(
+          readerCardIsPresent: true,
+          awaitsChoice: true,
+          level: .pristine,
+          pin2RequiresChange: true
+        )
+      )
+      #expect(
+        !PinCodesButton.opensAutomatically(
+          readerCardIsPresent: true,
+          awaitsChoice: false,
+          level: .pristine,
+          pin2RequiresChange: false
+        )
+      )
+      #expect(
+        !PinCodesButton.opensAutomatically(
+          readerCardIsPresent: false,
+          awaitsChoice: false,
+          level: .critical,
+          pin2RequiresChange: true
+        )
+      )
+    }
+  #endif
 }

@@ -7,7 +7,7 @@
 
   /// The documents to sign: dropped or chosen from the file dialog.
   internal struct StatusDocumentSection: View {
-    private static let dropHeight: CGFloat = 96
+    internal static let dropHeight: CGFloat = 96
     private static let dropCornerRadius: CGFloat = 10
     private static let dropBorderWidth: CGFloat = 2
 

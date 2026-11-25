@@ -121,7 +121,7 @@ internal struct CredentialChangeSection: View {
     // PIN a second and a half after the window opened put the digits
     // nowhere, so a keyboard user had to find the first field with a
     // pointer before the keyboard did anything at all.
-    .task {
+    .task(id: credential) {
       // A yield past the window becoming key: assigning focus as the
       // form appears, and declaring it with `defaultFocus`, were both
       // measured leaving every field empty, so a PIN typed a second

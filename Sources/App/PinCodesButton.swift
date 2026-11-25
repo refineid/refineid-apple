@@ -36,6 +36,21 @@
       readerCardIsPresent && retryHealth.level == .critical
     }
 
+    /// Whether the card's initial PIN 2 must be changed before signing.
+    private var cardNeedsPin2Change: Bool {
+      readerCardIsPresent && retryHealth.pin2RequiresChangeBeforeSigning
+    }
+
+    /// Whether the card needs the PIN codes window opened automatically.
+    private var opensPinCodesAutomatically: Bool {
+      Self.opensAutomatically(
+        readerCardIsPresent: readerCardIsPresent,
+        awaitsChoice: selection.awaitsChoice,
+        level: retryHealth.level,
+        pin2RequiresChange: retryHealth.pin2RequiresChangeBeforeSigning
+      )
+    }
+
     internal var body: some View {
       // The observers sit outside the card branch: they must see the
       // insertion that mounts the key, and the removal that takes it
@@ -47,7 +62,10 @@
           } label: {
             Image(systemName: Self.pinCodesSymbol)
               .font(.title2)
-              .foregroundStyle(Self.cardStyle(needsReset: cardNeedsReset))
+              .foregroundStyle(
+                Self.cardStyle(
+                  needsReset: cardNeedsReset, needsPin2Change: cardNeedsPin2Change)
+              )
               .replacingSymbol()
           }
           .buttonStyle(.plain)
@@ -55,12 +73,15 @@
           .disabled(selection.awaitsChoice)
           .help(Text("PIN Codes"))
           .accessibilityLabel(Text("PIN Codes"))
-          .accessibilityValue(Self.cardValue(needsReset: cardNeedsReset))
+          .accessibilityValue(
+            Self.cardValue(
+              needsReset: cardNeedsReset, needsPin2Change: cardNeedsPin2Change)
+          )
           .accessibilityIdentifier("pinCodesButton")
         }
       }
-      .onChange(of: cardNeedsReset, initial: true) { _, needsReset in
-        if needsReset, !retryHealth.openedForCard {
+      .onChange(of: opensPinCodesAutomatically, initial: true) { _, opensAutomatically in
+        if opensAutomatically, !retryHealth.openedForCard {
           retryHealth.openedForCard = true
           openWindow(id: PinCodesWindow.windowID)
         }
@@ -78,12 +99,34 @@
       }
     }
 
-    private static func cardStyle(needsReset: Bool) -> AnyShapeStyle {
-      needsReset ? AnyShapeStyle(.red) : AnyShapeStyle(.primary)
+    internal static func opensAutomatically(
+      readerCardIsPresent: Bool,
+      awaitsChoice: Bool,
+      level: CredentialRetryHealth.Level?,
+      pin2RequiresChange: Bool
+    ) -> Bool {
+      guard readerCardIsPresent, !awaitsChoice else { return false }
+      return level == .critical || pin2RequiresChange
     }
 
-    private static func cardValue(needsReset: Bool) -> Text {
-      needsReset ? Text("A PIN code needs a reset") : Text(verbatim: "")
+    internal static func cardStyle(needsReset: Bool, needsPin2Change: Bool) -> AnyShapeStyle {
+      if needsReset {
+        return AnyShapeStyle(.red)
+      }
+      if needsPin2Change {
+        return AnyShapeStyle(.orange)
+      }
+      return AnyShapeStyle(.primary)
+    }
+
+    internal static func cardValue(needsReset: Bool, needsPin2Change: Bool) -> Text {
+      if needsReset {
+        return Text("A PIN code needs a reset")
+      }
+      if needsPin2Change {
+        return Text("Change PIN 2 so you can sign documents.")
+      }
+      return Text(verbatim: "")
     }
   }
 
