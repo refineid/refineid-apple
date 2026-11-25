@@ -16,10 +16,16 @@
   /// Starts as `.unknown` and never prompts unless Safari explicitly reports
   /// `isEnabled == false`, so test hosts and non-Estonian cards never show a
   /// spurious warning.
+  ///
+  /// Uses the Swift `async` overload `stateOfSafariExtension(withIdentifier:)`
+  /// instead of the completion-handler overload because Apple's Objective-C
+  /// header marks the completion block `NS_SWIFT_UI_ACTOR` even though
+  /// `SafariServices` invokes it on its background XPC queue, which triggers a
+  /// Swift 6 main-actor isolation trap (`_dispatch_assert_queue_fail`).
   @MainActor
   @Observable
   internal final class SafariWebEidExtensionStatus {
-    internal typealias StateQuery = @MainActor (@escaping @MainActor (State) -> Void) -> Void
+    internal typealias StateQuery = @MainActor () async -> State
     internal typealias PreferencesOpener = @MainActor () -> Void
 
     internal enum State: Equatable {
@@ -52,6 +58,7 @@
 
     internal private(set) var state: State = .unknown
 
+    @ObservationIgnored internal private(set) var refreshTask: Task<Void, Never>?
     @ObservationIgnored private var generation: UInt64 = 0
     @ObservationIgnored private let queryState: StateQuery
     @ObservationIgnored private let openExtensionPreferences: PreferencesOpener
@@ -96,30 +103,22 @@
       ) && extensionState == .disabled
     }
 
-    private static func liveStateQuery(_ completion: @escaping @MainActor (State) -> Void) {
-      SFSafariExtensionManager.getStateOfSafariExtension(
-        withIdentifier: extensionBundleIdentifier
-      ) { state, error in
-        let resolved: State =
-          if error != nil {
-            .unknown
-          } else if let state {
-            state.isEnabled ? .enabled : .disabled
-          } else {
-            .unknown
-          }
-        Task { @MainActor in
-          completion(resolved)
-        }
+    internal static func liveStateQuery() async -> State {
+      do {
+        let extensionState = try await SFSafariExtensionManager.stateOfSafariExtension(
+          withIdentifier: extensionBundleIdentifier
+        )
+        return extensionState.isEnabled ? .enabled : .disabled
+      } catch {
+        return .unknown
       }
     }
 
     private static func livePreferencesOpener() {
       SFSafariApplication.showPreferencesForExtension(
-        withIdentifier: extensionBundleIdentifier
-      ) { _ in
-        // Safari reports errors only when it cannot open Settings; nothing actionable here.
-      }
+        withIdentifier: extensionBundleIdentifier,
+        completionHandler: nil
+      )
     }
 
     internal func sync(eligible: Bool) {
@@ -131,15 +130,22 @@
     }
 
     internal func refresh() {
+      refreshTask?.cancel()
       generation &+= 1
       let requestGeneration = generation
-      queryState { [weak self] resolved in
-        guard let self, generation == requestGeneration else { return }
+      let query = queryState
+      refreshTask = Task { @MainActor [weak self] in
+        guard !Task.isCancelled else { return }
+        let resolved = await query()
+        guard let self, !Task.isCancelled, generation == requestGeneration else { return }
         state = resolved
+        refreshTask = nil
       }
     }
 
     internal func reset() {
+      refreshTask?.cancel()
+      refreshTask = nil
       generation &+= 1
       state = .unknown
     }
