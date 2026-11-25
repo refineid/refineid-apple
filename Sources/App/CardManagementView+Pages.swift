@@ -154,9 +154,11 @@ extension CardManagementView {
     switch task {
     case .changePin1:
       CredentialChangeSection(model: model, credential: .pin1, lengths: lengths)
+        .id(task)
 
     case .changePin2:
       CredentialChangeSection(model: model, credential: .pin2, lengths: lengths)
+        .id(task)
 
     case .resetPin1:
       CredentialUnblockSection(model: model, target: .pin1, lengths: lengths)

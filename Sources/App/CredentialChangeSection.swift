@@ -46,6 +46,10 @@ internal struct CredentialChangeSection: View {
   @State private var repeated = ""
   @State private var pending: CredentialOperationConfirmation.Operation?
   @FocusState private var focus: Field?
+  #if os(macOS)
+    @Environment(\.controlActiveState)
+    private var controlActiveState
+  #endif
 
   /// The role this section changes, as the card names it.
   private var role: CredentialRole {
@@ -121,17 +125,24 @@ internal struct CredentialChangeSection: View {
     // PIN a second and a half after the window opened put the digits
     // nowhere, so a keyboard user had to find the first field with a
     // pointer before the keyboard did anything at all.
-    .task {
-      // A yield past the window becoming key: assigning focus as the
-      // form appears, and declaring it with `defaultFocus`, were both
-      // measured leaving every field empty, so a PIN typed a second
-      // after the window opened went nowhere and the keyboard could
-      // not start the operation at all.
-      #if os(macOS)
+    #if os(macOS)
+      .task(id: controlActiveState) {
+        // A yield past the window becoming key: assigning focus as the
+        // form appears, and declaring it with `defaultFocus`, were both
+        // measured leaving every field empty, so a PIN typed a second
+        // after the window opened went nowhere and the keyboard could
+        // not start the operation at all.
+        guard controlActiveState == .key, focus == nil else { return }
         await InitialFieldFocus.settle()
-      #endif
-      focus = .current
-    }
+        guard !Task.isCancelled, focus == nil else { return }
+        focus = .current
+      }
+    #else
+      .task(id: credential) {
+        guard !Task.isCancelled else { return }
+        focus = .current
+      }
+    #endif
     .confirmCredentialOperation(
       $pending,
       report: model.report,
