@@ -1,5 +1,4 @@
-#!/usr/bin/env swift  // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.  // Builds a Developer ID signed, notarized, stapled macOS DMG for direct  // distribution. This is a direct-download artifact path only. It is separate
-// from the App Store release manager and does not upload to App Store Connect.
+#!/usr/bin/env swift  // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.  // Builds a Developer ID signed, notarized, stapled macOS DMG for direct  // distribution. This is a direct-download artifact path only. It is separate  // from the App Store release manager and does not upload to App Store Connect.
 //
 // The build's input is the annotated release tag, not a time stamp: the tree
 // must be the commit the tag names, and that tag and commit are stamped into
@@ -630,12 +629,17 @@ private func signApp(
     templatePath: "Config/TokenExtension.entitlements",
     teamId: teamId
   )
+  let safariEntitlements = resolvedEntitlements(
+    templatePath: "Config/SafariExtension.entitlements",
+    teamId: teamId
+  )
   let appEntitlements = resolvedEntitlements(
     templatePath: "Config/RefineID-Store.entitlements",
     teamId: teamId
   )
   defer {
     if let tokenEntitlements { try? FileManager.default.removeItem(at: tokenEntitlements) }
+    if let safariEntitlements { try? FileManager.default.removeItem(at: safariEntitlements) }
     if let appEntitlements { try? FileManager.default.removeItem(at: appEntitlements) }
   }
 
@@ -644,6 +648,9 @@ private func signApp(
     app.appendingPathComponent(
       "Contents/PlugIns/RefineIDTokenExtension.appex/Contents/Resources/CardCore_CardCore.bundle"
     ),
+    app.appendingPathComponent(
+      "Contents/PlugIns/RefineIDSafariExtension.appex/Contents/Resources/CardCore_CardCore.bundle"
+    ),
     app.appendingPathComponent("Contents/Resources/CardCore_CardCore.bundle"),
   ].filter { FileManager.default.fileExists(atPath: $0.path) }
 
@@ -651,6 +658,10 @@ private func signApp(
     "Contents/PlugIns/RefineIDTokenExtension.appex/Contents/MacOS/RefineIDTokenExtension"
   )
   let tokenAppEx = app.appendingPathComponent("Contents/PlugIns/RefineIDTokenExtension.appex")
+  let safariExecutable = app.appendingPathComponent(
+    "Contents/PlugIns/RefineIDSafariExtension.appex/Contents/MacOS/RefineIDSafariExtension"
+  )
+  let safariAppEx = app.appendingPathComponent("Contents/PlugIns/RefineIDSafariExtension.appex")
   let mainExecutable = app.appendingPathComponent("Contents/MacOS/RefineID")
 
   for bundle in nestedBundles {
@@ -662,6 +673,12 @@ private func signApp(
   }
   if FileManager.default.fileExists(atPath: tokenAppEx.path) {
     codesignItem(tokenAppEx, identity: signingIdentity, entitlements: tokenEntitlements)
+  }
+  if FileManager.default.fileExists(atPath: safariExecutable.path) {
+    codesignItem(safariExecutable, identity: signingIdentity, entitlements: safariEntitlements)
+  }
+  if FileManager.default.fileExists(atPath: safariAppEx.path) {
+    codesignItem(safariAppEx, identity: signingIdentity, entitlements: safariEntitlements)
   }
   if FileManager.default.fileExists(atPath: mainExecutable.path) {
     codesignItem(mainExecutable, identity: signingIdentity, entitlements: appEntitlements)
@@ -687,6 +704,8 @@ private func signApp(
   let requiredEntitlements = [
     (mainExecutable, "com.apple.security.app-sandbox"),
     (tokenExecutable, "com.apple.security.smartcard"),
+    (safariExecutable, "com.apple.security.app-sandbox"),
+    (safariExecutable, "com.apple.security.application-groups"),
   ]
   for (path, key) in requiredEntitlements {
     guard FileManager.default.fileExists(atPath: path.path) else { continue }

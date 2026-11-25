@@ -1,0 +1,10 @@
+{
+  "extension_name": {
+    "message": "RefineID Web eID",
+    "description": "Namn på Safari-tillägget"
+  },
+  "extension_description": {
+    "message": "Logga in och underteckna dokument på Web eID-webbplatser med ditt identitetskort i RefineID.",
+    "description": "Beskrivning av Safari-tillägget"
+  }
+}

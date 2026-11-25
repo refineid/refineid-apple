@@ -1,0 +1,10 @@
+{
+  "extension_name": {
+    "message": "RefineID Web eID",
+    "description": "Safari laienduse nimi"
+  },
+  "extension_description": {
+    "message": "Logi sisse ja allkirjasta dokumente Web eID veebilehtedel oma ID-kaardiga RefineID abil.",
+    "description": "Safari laienduse kirjeldus"
+  }
+}
