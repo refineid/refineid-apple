@@ -24,8 +24,13 @@
 
     /// Whether the Safari Web eID extension launched the app purely to show a
     /// Web eID prompt, so the main status window should stay closed.
+    ///
+    /// Checks the shared App Group bridge in addition to launch arguments
+    /// because macOS App Sandbox drops `NSWorkspace.OpenConfiguration.arguments`
+    /// from sandboxed app extensions.
     internal static let isWebEidLaunch =
       ProcessInfo.processInfo.arguments.contains(WebEidValues.webEidLaunchArgument)
+      || WebEidBridgeStore.shared.hasPendingUnexpiredRequest()
 
     /// Whether the main status window should remain hidden at launch.
     internal static var suppressesStatusWindow: Bool {

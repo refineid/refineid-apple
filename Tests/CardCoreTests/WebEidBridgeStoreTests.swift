@@ -52,6 +52,7 @@ internal struct WebEidBridgeStoreTests {
 
     #expect(store.writeRequest(older))
     #expect(store.writeRequest(newer))
+    #expect(store.hasPendingUnexpiredRequest(now: now))
 
     let firstFile = tempDir.appendingPathComponent("\(older.nonce.uuidString).request.json")
     let attributes = try FileManager.default.attributesOfItem(atPath: firstFile.path)
@@ -61,6 +62,7 @@ internal struct WebEidBridgeStoreTests {
     #expect(store.takeOldestPendingRequest(now: now) == older)
     #expect(store.takeOldestPendingRequest(now: now) == newer)
     #expect(store.takeOldestPendingRequest(now: now) == nil)
+    #expect(!store.hasPendingUnexpiredRequest(now: now))
 
     let response = WebEidBridgeResponse(
       nonce: older.nonce,
