@@ -83,7 +83,7 @@ public enum WebEidCommand: Codable, Equatable, Sendable {
     let validLength =
       WebEidValues.minimumChallengeNonceLength...WebEidValues.maximumChallengeNonceLength
     guard
-      validLength.contains(nonce.count),
+      validLength.contains(nonce.utf8.count),
       nonce.unicodeScalars.allSatisfy(\.isASCII)
     else {
       throw WebEidError(

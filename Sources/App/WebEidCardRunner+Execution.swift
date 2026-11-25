@@ -8,16 +8,25 @@
   /// Interactive Web eID card command execution (authentication, signing
   /// certificate export, and qualified signing).
   extension WebEidCardRunner {
+    /// Expected card identity pinned when the holder confirmed the prompt.
+    internal struct ExpectedCardIdentity: Sendable {
+      internal let chipSerial: ChipSerial
+      internal let certificateDER: Data
+    }
+
     /// Verifies PIN 1, signs the Web eID authentication digest, and locally
     /// verifies the resulting raw signature before returning the token payload.
     internal static func executeAuthenticate(
       origin: WebEidOrigin,
       challengeNonce: String,
       pin1: String,
-      expectedChipSerial: ChipSerial
+      expectedIdentity: ExpectedCardIdentity
     ) async -> Result<WebEidResponsePayload, WebEidCardFailure> {
       guard Pin1(digits: pin1) != nil else {
         return .failure(.invalidPinEntry)
+      }
+      guard !Task.isCancelled else {
+        return .failure(.cardError)
       }
       let answer: Result<WebEidResponsePayload, WebEidCardFailure>? =
         await CardMaintenance.onReader { operations in
@@ -26,7 +35,7 @@
             origin: origin,
             challengeNonce: challengeNonce,
             pinDigits: pin1,
-            expectedChipSerial: expectedChipSerial
+            expectedIdentity: expectedIdentity
           )
         }
       return answer ?? .failure(.noCard)
@@ -35,13 +44,16 @@
     /// Reads the qualified signing certificate and its advertised Web eID
     /// signature algorithms after the holder grants consent.
     internal static func executeGetSigningCertificate(
-      expectedChipSerial: ChipSerial
+      expectedIdentity: ExpectedCardIdentity
     ) async -> Result<WebEidResponsePayload, WebEidCardFailure> {
+      guard !Task.isCancelled else {
+        return .failure(.cardError)
+      }
       let answer: Result<WebEidResponsePayload, WebEidCardFailure>? =
         await CardMaintenance.onReader { operations in
           getSigningCertificateInSession(
             operations,
-            expectedChipSerial: expectedChipSerial
+            expectedIdentity: expectedIdentity
           )
         }
       return answer ?? .failure(.noCard)
@@ -56,6 +68,9 @@
     ) async -> Result<WebEidResponsePayload, WebEidCardFailure> {
       guard Pin2(digits: pin2) != nil else {
         return .failure(.invalidPinEntry)
+      }
+      guard !Task.isCancelled else {
+        return .failure(.cardError)
       }
       let answer: Result<WebEidResponsePayload, WebEidCardFailure>? =
         await CardMaintenance.onReader { operations in
@@ -74,16 +89,20 @@
       origin: WebEidOrigin,
       challengeNonce: String,
       pinDigits: String,
-      expectedChipSerial: ChipSerial
+      expectedIdentity: ExpectedCardIdentity
     ) -> Result<WebEidResponsePayload, WebEidCardFailure> {
       guard let pin = Pin1(digits: pinDigits) else {
         return .failure(.invalidPinEntry)
       }
-      guard let serial = try? operations.readChipSerial(), serial == expectedChipSerial else {
+      guard let serial = try? operations.readChipSerial(), serial == expectedIdentity.chipSerial
+      else {
         return .failure(.certificateMismatch)
       }
       guard let resolved = readResolvedCertificate(operations, signing: false) else {
         return .failure(.certificateUnavailable)
+      }
+      guard resolved.der == expectedIdentity.certificateDER else {
+        return .failure(.certificateMismatch)
       }
       if let floorFailure = checkRetryFloor(operations, role: .pin1) {
         return .failure(floorFailure)
@@ -147,13 +166,17 @@
 
     private static func getSigningCertificateInSession(
       _ operations: CardOperations,
-      expectedChipSerial: ChipSerial
+      expectedIdentity: ExpectedCardIdentity
     ) -> Result<WebEidResponsePayload, WebEidCardFailure> {
-      guard let serial = try? operations.readChipSerial(), serial == expectedChipSerial else {
+      guard let serial = try? operations.readChipSerial(), serial == expectedIdentity.chipSerial
+      else {
         return .failure(.certificateMismatch)
       }
       guard let resolved = readResolvedCertificate(operations, signing: true) else {
         return .failure(.certificateUnavailable)
+      }
+      guard resolved.der == expectedIdentity.certificateDER else {
+        return .failure(.certificateMismatch)
       }
       return .success(
         .getSigningCertificate(
@@ -183,7 +206,13 @@
       guard resolved.der == request.certificateDER else {
         return .failure(.certificateMismatch)
       }
-      guard (try? operations.requiresPin2ChangeBeforeSigning()) != true else {
+      let requiresChange: Bool
+      do {
+        requiresChange = try operations.requiresPin2ChangeBeforeSigning()
+      } catch {
+        return .failure(.cardError)
+      }
+      if requiresChange {
         Task { @MainActor in
           CredentialRetryHealth.shared.markPin2RequiresChangeBeforeSigning()
         }

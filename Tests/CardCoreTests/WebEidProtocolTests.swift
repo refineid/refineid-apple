@@ -18,8 +18,8 @@ internal struct WebEidProtocolTests {
     static let appVersion = "26.11.25"
     static let nonceCharacter: Character = "A"
     static let nonAsciiCharacter: Character = "ä"
-    static let sampleByteValue: UInt8 = 0x30
-    static let tamperMask: UInt8 = 0xFF
+    static let sampleByteValue = UInt8(ascii: "0")
+    static let tamperMask = UInt8.max
     static let certificatePlaceholderLength = 4
     static let p256KeyBitSize = 256
     static let p384KeyBitSize = 384
@@ -35,6 +35,11 @@ internal struct WebEidProtocolTests {
       repeating: Self.nonceCharacter,
       count: WebEidValues.maximumChallengeNonceLength + 1
     )
+    static let crlfOversizedChallengeNonce =
+      String(
+        repeating: Self.nonceCharacter,
+        count: WebEidValues.maximumChallengeNonceLength - 1
+      ) + "\r\n"
     static let nonAsciiChallengeNonce =
       String(
         repeating: Self.nonceCharacter,
@@ -135,6 +140,7 @@ internal struct WebEidProtocolTests {
     let invalidNonces = [
       Fixtures.shortChallengeNonce,
       Fixtures.oversizedChallengeNonce,
+      Fixtures.crlfOversizedChallengeNonce,
       Fixtures.nonAsciiChallengeNonce,
     ]
     for nonce in invalidNonces {

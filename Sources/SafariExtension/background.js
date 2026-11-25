@@ -52,7 +52,17 @@
   }
 
   async function handleStatus(message) {
-    const reply = await sendNative({ command: "status" });
+    let reply;
+    try {
+      reply = await sendNative({ command: "status" });
+    } catch (_error) {
+      return makeFailure(
+        "web-eid:status",
+        "ERR_WEBEID_NATIVE_UNAVAILABLE",
+        "RefineID native helper is unavailable",
+        { extension: EXTENSION_VERSION, library: message.libraryVersion }
+      );
+    }
     if (!reply || typeof reply.version !== "string") {
       return makeFailure(
         "web-eid:status",

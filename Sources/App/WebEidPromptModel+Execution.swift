@@ -3,12 +3,17 @@
 #if os(macOS)
 
   import CardCore
+  import Foundation
 
   /// Card inspection, command submission, and failure mapping for
   /// ``WebEidPromptModel``.
   extension WebEidPromptModel {
     internal func submit() {
       guard canSubmit, case .ready(let preview) = cardState else { return }
+      guard Date() < expiresAt else {
+        expireTimeout()
+        return
+      }
       let enteredPin = pinDigits
       pinDigits = ""
       errorMessage = nil
@@ -17,8 +22,16 @@
       activeTask = Task { [weak self] in
         guard let self else { return }
         let result = await runCommand(preview: preview, pin: enteredPin)
-        guard !Task.isCancelled else { return }
         isSubmitting = false
+        if let deferredError = deferredTerminationError {
+          deferredTerminationError = nil
+          finish(.failure(deferredError))
+          return
+        }
+        guard Date() < expiresAt else {
+          expireTimeout()
+          return
+        }
         handleExecutionResult(result)
       }
     }
@@ -77,29 +90,33 @@
       preview: WebEidCardPreview,
       pin: String
     ) async -> Result<WebEidResponsePayload, WebEidCardFailure> {
+      let identity = WebEidCardRunner.ExpectedCardIdentity(
+        chipSerial: preview.chipSerial,
+        certificateDER: preview.certificateDER
+      )
       switch command {
       case .authenticate(let origin, let challengeNonce, _):
-        await WebEidCardRunner.executeAuthenticate(
+        return await WebEidCardRunner.executeAuthenticate(
           origin: origin,
           challengeNonce: challengeNonce,
           pin1: pin,
-          expectedChipSerial: preview.chipSerial
+          expectedIdentity: identity
         )
 
       case .getSigningCertificate:
-        await WebEidCardRunner.executeGetSigningCertificate(
-          expectedChipSerial: preview.chipSerial
+        return await WebEidCardRunner.executeGetSigningCertificate(
+          expectedIdentity: identity
         )
 
       case .sign(let request):
-        await WebEidCardRunner.executeSign(
+        return await WebEidCardRunner.executeSign(
           request: request,
           pin2: pin,
           expectedChipSerial: preview.chipSerial
         )
 
       case .status:
-        .failure(.cardError)
+        return .failure(.cardError)
       }
     }
 

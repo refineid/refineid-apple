@@ -24,16 +24,18 @@
     // MARK: Properties
 
     internal let command: WebEidCommand
+    internal let expiresAt: Date
     internal var pinDigits = ""
     internal var cardState: CardState = .loading
     internal var isSubmitting = false
     internal var errorMessage: String?
     internal var isOperationBlocked = false
 
+    @ObservationIgnored internal var deferredTerminationError: WebEidError?
+    @ObservationIgnored internal var activeTask: Task<Void, Never>?
     @ObservationIgnored private var completion:
       ((Result<WebEidResponsePayload, WebEidError>) -> Void)?
     @ObservationIgnored private var presenceCancellables: Set<AnyCancellable> = []
-    @ObservationIgnored internal var activeTask: Task<Void, Never>?
 
     // MARK: Computed Properties
 
@@ -120,9 +122,11 @@
 
     internal init(
       command: WebEidCommand,
+      expiresAt: Date,
       completion: @escaping (Result<WebEidResponsePayload, WebEidError>) -> Void
     ) {
       self.command = command
+      self.expiresAt = expiresAt
       self.completion = completion
       observeCardPresence()
       reloadCard()
@@ -139,19 +143,27 @@
     }
 
     internal func cancel() {
-      finish(
-        .failure(
-          WebEidError(code: .userCancelled, message: "User cancelled the Web eID request")
-        )
+      let error = WebEidError(
+        code: .userCancelled,
+        message: "User cancelled the Web eID request"
       )
+      if isSubmitting {
+        deferredTerminationError = error
+        return
+      }
+      finish(.failure(error))
     }
 
     internal func expireTimeout() {
-      finish(
-        .failure(
-          WebEidError(code: .userTimeout, message: "Web eID user interaction timed out")
-        )
+      let error = WebEidError(
+        code: .userTimeout,
+        message: "Web eID user interaction timed out"
       )
+      if isSubmitting {
+        deferredTerminationError = error
+        return
+      }
+      finish(.failure(error))
     }
 
     internal func reloadCard() {

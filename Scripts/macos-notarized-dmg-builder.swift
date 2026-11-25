@@ -1,4 +1,8 @@
-#!/usr/bin/env swift  // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.  // Builds a Developer ID signed, notarized, stapled macOS DMG for direct  // distribution. This is a direct-download artifact path only. It is separate  // from the App Store release manager and does not upload to App Store Connect.
+#!/usr/bin/env swift
+// Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
+// Builds a Developer ID signed, notarized, stapled macOS DMG for direct
+// distribution. This is a direct-download artifact path only. It is separate
+// from the App Store release manager and does not upload to App Store Connect.
 //
 // The build's input is the annotated release tag, not a time stamp: the tree
 // must be the commit the tag names, and that tag and commit are stamped into
@@ -674,12 +678,14 @@ private func signApp(
   if FileManager.default.fileExists(atPath: tokenAppEx.path) {
     codesignItem(tokenAppEx, identity: signingIdentity, entitlements: tokenEntitlements)
   }
-  if FileManager.default.fileExists(atPath: safariExecutable.path) {
-    codesignItem(safariExecutable, identity: signingIdentity, entitlements: safariEntitlements)
+  guard FileManager.default.fileExists(atPath: safariExecutable.path) else {
+    fail("missing Safari extension executable: \(safariExecutable.path)")
   }
-  if FileManager.default.fileExists(atPath: safariAppEx.path) {
-    codesignItem(safariAppEx, identity: signingIdentity, entitlements: safariEntitlements)
+  codesignItem(safariExecutable, identity: signingIdentity, entitlements: safariEntitlements)
+  guard FileManager.default.fileExists(atPath: safariAppEx.path) else {
+    fail("missing Safari extension bundle: \(safariAppEx.path)")
   }
+  codesignItem(safariAppEx, identity: signingIdentity, entitlements: safariEntitlements)
   if FileManager.default.fileExists(atPath: mainExecutable.path) {
     codesignItem(mainExecutable, identity: signingIdentity, entitlements: appEntitlements)
   }
@@ -708,7 +714,9 @@ private func signApp(
     (safariExecutable, "com.apple.security.application-groups"),
   ]
   for (path, key) in requiredEntitlements {
-    guard FileManager.default.fileExists(atPath: path.path) else { continue }
+    guard FileManager.default.fileExists(atPath: path.path) else {
+      fail("required executable missing during entitlement verification: \(path.path)")
+    }
     let embedded = run(
       "/usr/bin/codesign",
       ["-d", "--entitlements", "-", path.path],

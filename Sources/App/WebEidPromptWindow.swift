@@ -58,6 +58,10 @@
       window.close()
     }
 
+    internal func windowShouldClose(_: NSWindow) -> Bool {
+      !model.isSubmitting
+    }
+
     internal func windowWillClose(_: Notification) {
       guard !dismissedProgrammatically else { return }
       model.cancel()

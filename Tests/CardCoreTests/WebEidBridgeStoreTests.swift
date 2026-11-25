@@ -14,6 +14,8 @@ internal struct WebEidBridgeStoreTests {
     static let permissionsMask = 0o777
     static let olderRequestOffsetSeconds: TimeInterval = -10
     static let newerRequestOffsetSeconds: TimeInterval = -2
+    static let activeLifetimeSeconds: TimeInterval = 120
+    static let expiredOffsetSeconds: TimeInterval = -1
   }
 
   // MARK: Static Functions
@@ -34,19 +36,22 @@ internal struct WebEidBridgeStoreTests {
 
     let store = WebEidBridgeStore(directory: tempDir)
     let now = Date()
+    let expiresAt = now.addingTimeInterval(Fixtures.activeLifetimeSeconds)
     let older = WebEidBridgeRequest(
       nonce: UUID(),
       createdAt: now.addingTimeInterval(Fixtures.olderRequestOffsetSeconds),
+      expiresAt: expiresAt,
       command: .status
     )
     let newer = WebEidBridgeRequest(
       nonce: UUID(),
       createdAt: now.addingTimeInterval(Fixtures.newerRequestOffsetSeconds),
+      expiresAt: expiresAt,
       command: .status
     )
 
-    #expect(store.writeRequest(newer))
     #expect(store.writeRequest(older))
+    #expect(store.writeRequest(newer))
 
     let firstFile = tempDir.appendingPathComponent("\(older.nonce.uuidString).request.json")
     let attributes = try FileManager.default.attributesOfItem(atPath: firstFile.path)
@@ -64,8 +69,32 @@ internal struct WebEidBridgeStoreTests {
     #expect(store.writeResponse(response))
     #expect(store.takeResponse(nonce: older.nonce) == response)
     #expect(store.takeResponse(nonce: older.nonce) == nil)
+  }
 
-    let stale = WebEidBridgeRequest(nonce: UUID(), createdAt: now, command: .status)
+  @Test("Bridge drops expired requests and sweeps stale entries")
+  internal func bridgeStoreDropsExpiredAndSweepsStale() throws {
+    let tempDir = try Self.makeTempBridgeDirectory()
+    defer { try? FileManager.default.removeItem(at: tempDir) }
+
+    let store = WebEidBridgeStore(directory: tempDir)
+    let now = Date()
+    let expiresAt = now.addingTimeInterval(Fixtures.activeLifetimeSeconds)
+
+    let expired = WebEidBridgeRequest(
+      nonce: UUID(),
+      createdAt: now.addingTimeInterval(Fixtures.olderRequestOffsetSeconds),
+      expiresAt: now.addingTimeInterval(Fixtures.expiredOffsetSeconds),
+      command: .status
+    )
+    #expect(store.writeRequest(expired))
+    #expect(store.takeOldestPendingRequest(now: now) == nil)
+
+    let stale = WebEidBridgeRequest(
+      nonce: UUID(),
+      createdAt: now,
+      expiresAt: expiresAt,
+      command: .status
+    )
     #expect(store.writeRequest(stale))
     let futureNow = now.addingTimeInterval(
       WebEidValues.staleBridgeFileAgeSeconds + Fixtures.staleMarginSeconds

@@ -135,6 +135,7 @@
           model.cancel()
         }
         .keyboardShortcut(.cancelAction)
+        .disabled(model.isSubmitting)
 
         Button {
           model.submit()

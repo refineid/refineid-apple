@@ -499,8 +499,7 @@ private func inspectReleaseArchive(_ archive: URL) {
   } catch {
     releaseFail("could not inspect \(layout.plugins.path): \(error.localizedDescription)")
   }
-  let expectedPluginCount =
-    1 + (layout.hasRapp ? 1 : 0) + (layout.hasDiscovery ? 1 : 0) + (layout.hasSafari ? 1 : 0)
+  let expectedPluginCount = extensions.count
   guard pluginCount == expectedPluginCount else {
     releaseFail("expected \(expectedPluginCount) plug-in(s), found \(pluginCount)")
   }

@@ -140,8 +140,16 @@
       let verdict =
         probe.map(RetryFloor.evaluate(probeOutcome:))
         ?? (role == nil ? .proceed : .refuseUnreadable)
-      let requiresPin2Change =
-        usesSigningCertificate && ((try? operations.requiresPin2ChangeBeforeSigning()) ?? false)
+      let requiresPin2Change: Bool
+      if usesSigningCertificate {
+        do {
+          requiresPin2Change = try operations.requiresPin2ChangeBeforeSigning()
+        } catch {
+          return .failure(.cardError)
+        }
+      } else {
+        requiresPin2Change = false
+      }
       if requiresPin2Change {
         Task { @MainActor in
           CredentialRetryHealth.shared.markPin2RequiresChangeBeforeSigning()

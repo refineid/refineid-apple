@@ -14,13 +14,18 @@ public struct WebEidBridgeRequest: Codable, Equatable, Sendable {
   /// Timestamp at which the extension enqueued the request.
   public let createdAt: Date
 
+  /// Absolute deadline after which the request is expired and must not be
+  /// executed or answered.
+  public let expiresAt: Date
+
   /// Validated Web eID command to execute.
   public let command: WebEidCommand
 
-  /// Creates a bridge request envelope.
-  public init(nonce: UUID, createdAt: Date, command: WebEidCommand) {
+  /// Creates a bridge request envelope with an explicit deadline.
+  public init(nonce: UUID, createdAt: Date, expiresAt: Date, command: WebEidCommand) {
     self.nonce = nonce
     self.createdAt = createdAt
+    self.expiresAt = expiresAt
     self.command = command
   }
 }
