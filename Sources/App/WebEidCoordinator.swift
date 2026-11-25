@@ -2,13 +2,14 @@
 
 #if os(macOS)
 
+  import AppKit
   import CardCore
   import Foundation
   import notify
 
   /// Receives Web eID requests written by `RefineIDSafariExtension` into the
-  /// shared App Group bridge, presents one interactive prompt at a time, and
-  /// delivers the signed response or error back to Safari.
+  /// shared App Group bridge, runs one interactive native macOS alert ceremony
+  /// at a time, and delivers the signed response or error back to Safari.
   @MainActor
   internal final class WebEidCoordinator {
     // MARK: Nested Types
@@ -24,13 +25,12 @@
 
     // MARK: Properties
 
+    internal var activeCancelled = false
+
     private let store = WebEidBridgeStore.shared
     private var notificationToken: Int32 = Constants.uninitializedToken
     private var activeNonce: UUID?
-    private var activeExpiresAt: Date?
-    private var activeModel: WebEidPromptModel?
-    private var activeWindow: WebEidPromptWindow?
-    private var timeoutTask: Task<Void, Never>?
+    private var activeTask: Task<Void, Never>?
     private var fallbackPollTask: Task<Void, Never>?
     private var started = false
 
@@ -63,10 +63,18 @@
       drainPendingRequests()
     }
 
-    /// Cancels any active Web eID prompt immediately (for example on app quit)
+    /// Cancels any active Web eID ceremony immediately (for example on app quit)
     /// so Safari receives `ERR_WEBEID_USER_CANCELLED` rather than hanging.
     internal func cancelActiveRequest() {
-      activeModel?.cancel()
+      guard activeNonce != nil else { return }
+      activeCancelled = true
+      NSApp.abortModal()
+    }
+
+    internal func deliver(_ response: WebEidBridgeResponse, expiresAt: Date) {
+      guard Date() < expiresAt else { return }
+      _ = store.writeResponse(response)
+      notify_post(WebEidValues.responseNotification)
     }
 
     private func startFallbackPolling() {
@@ -88,8 +96,7 @@
     }
 
     private func handle(_ request: WebEidBridgeRequest) {
-      let now = Date()
-      guard request.expiresAt > now else { return }
+      guard request.expiresAt > Date() else { return }
       if case .status = request.command {
         deliver(
           WebEidBridgeResponse(
@@ -113,43 +120,28 @@
         )
         return
       }
-      presentPrompt(for: request)
+      beginCeremony(for: request)
     }
 
-    private func presentPrompt(for request: WebEidBridgeRequest) {
+    private func beginCeremony(for request: WebEidBridgeRequest) {
       activeNonce = request.nonce
-      activeExpiresAt = request.expiresAt
-      let model = WebEidPromptModel(
-        command: request.command,
-        expiresAt: request.expiresAt
-      ) { [weak self] result in
-        self?.finishActiveRequest(nonce: request.nonce, result: result)
+      activeCancelled = false
+      activeTask = Task { [weak self] in
+        guard let self else { return }
+        let result = await runCeremony(for: request)
+        finishActiveRequest(nonce: request.nonce, expiresAt: request.expiresAt, result: result)
       }
-      let window = WebEidPromptWindow(model: model)
-      activeModel = model
-      activeWindow = window
-      let remainingSeconds = max(0, request.expiresAt.timeIntervalSinceNow)
-      timeoutTask = Task { [weak self] in
-        try? await Task.sleep(for: .seconds(remainingSeconds))
-        guard !Task.isCancelled else { return }
-        self?.activeModel?.expireTimeout()
-      }
-      window.present()
     }
 
     private func finishActiveRequest(
       nonce: UUID,
+      expiresAt: Date,
       result: Result<WebEidResponsePayload, WebEidError>
     ) {
       guard activeNonce == nonce else { return }
-      let expiresAt = activeExpiresAt ?? .distantPast
-      timeoutTask?.cancel()
-      timeoutTask = nil
-      activeWindow?.closeProgrammatically()
-      activeWindow = nil
-      activeModel = nil
       activeNonce = nil
-      activeExpiresAt = nil
+      activeCancelled = false
+      activeTask = nil
       let response: WebEidBridgeResponse =
         switch result {
         case .success(let payload):
@@ -160,12 +152,6 @@
         }
       deliver(response, expiresAt: expiresAt)
       drainPendingRequests()
-    }
-
-    private func deliver(_ response: WebEidBridgeResponse, expiresAt: Date) {
-      guard Date() < expiresAt else { return }
-      _ = store.writeResponse(response)
-      notify_post(WebEidValues.responseNotification)
     }
   }
 
