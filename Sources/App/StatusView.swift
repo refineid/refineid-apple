@@ -126,6 +126,7 @@
           && !signing.working && !signing.readingStamp
         if canClear { signing.clear() }
       }
+      .modifier(safariExtensionObserver)
       .onDisappear { activation.stop() }
       .announcesOutcome(activation.management.failure)
       .announcesOutcome(activation.management.notice)
@@ -230,6 +231,7 @@
 
       case .cardWithoutIdentity:
         retryHealth.clear()
+        safariExtensionStatus.reset()
 
       case .noCard:
         // A CCID protocol reset can publish this between T=Any and its
@@ -237,6 +239,7 @@
         // card operation itself has ended.
         guard !activation.defersRemoval, !signing.working else { return }
         retryHealth.clear()
+        safariExtensionStatus.reset()
         signing.cardRemoved()
         accessNumber = ""
       // The offered access number deliberately survives this state:

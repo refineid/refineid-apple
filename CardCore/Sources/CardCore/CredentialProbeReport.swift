@@ -20,6 +20,9 @@ public struct CredentialProbeReport: Equatable, Sendable {
   /// and 8.3.4).
   public let pin2RequiresChangeBeforeSigning: Bool
 
+  /// Whether the probed card is an Estonian eID card (`estonian2018` or `estonian2025`).
+  public let isEstonianCard: Bool
+
   /// The typed retry state, available only when all three probes
   /// returned counters.
   ///
@@ -48,7 +51,8 @@ public struct CredentialProbeReport: Equatable, Sendable {
       pin2: pin2,
       puk: puk,
       pristineAllowance: RetryCount.pristineAllowance,
-      pin2RequiresChangeBeforeSigning: false
+      pin2RequiresChangeBeforeSigning: false,
+      isEstonianCard: false
     )
   }
 
@@ -59,12 +63,14 @@ public struct CredentialProbeReport: Equatable, Sendable {
     pin2: RetryProbeOutcome,
     puk: RetryProbeOutcome,
     pristineAllowance: UInt8,
-    pin2RequiresChangeBeforeSigning: Bool = false
+    pin2RequiresChangeBeforeSigning: Bool = false,
+    isEstonianCard: Bool = false
   ) {
     self.pin1 = pin1
     self.pin2 = pin2
     self.puk = puk
     self.pristineAllowance = pristineAllowance
     self.pin2RequiresChangeBeforeSigning = pin2RequiresChangeBeforeSigning
+    self.isEstonianCard = isEstonianCard
   }
 }
