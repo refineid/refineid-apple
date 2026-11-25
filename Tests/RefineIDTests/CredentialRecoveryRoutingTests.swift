@@ -168,6 +168,22 @@ internal struct CredentialRecoveryRoutingTests {
         )
       )
       #expect(
+        PinCodesButton.opensAutomatically(
+          readerCardIsPresent: true,
+          awaitsChoice: false,
+          level: nil,
+          pin2RequiresChange: true
+        )
+      )
+      #expect(
+        !PinCodesButton.opensAutomatically(
+          readerCardIsPresent: true,
+          awaitsChoice: true,
+          level: .critical,
+          pin2RequiresChange: false
+        )
+      )
+      #expect(
         !PinCodesButton.opensAutomatically(
           readerCardIsPresent: false,
           awaitsChoice: false,

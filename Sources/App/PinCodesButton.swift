@@ -33,12 +33,12 @@
 
     /// Whether a code of the card in the reader is below the retry floor.
     private var cardNeedsReset: Bool {
-      readerCardIsPresent && retryHealth.level == .critical
+      readerCardIsPresent && !selection.awaitsChoice && retryHealth.level == .critical
     }
 
     /// Whether the card's initial PIN 2 must be changed before signing.
     private var cardNeedsPin2Change: Bool {
-      readerCardIsPresent && retryHealth.pin2RequiresChangeBeforeSigning
+      readerCardIsPresent && !selection.awaitsChoice && retryHealth.pin2RequiresChangeBeforeSigning
     }
 
     /// Whether the card needs the PIN codes window opened automatically.
@@ -87,8 +87,10 @@
         }
       }
       .onChange(of: selection.target) {
-        // The keys show the attempts of the card now used.
-        if readerCardIsPresent {
+        // The keys show the attempts of the card now used; clear any stale
+        // state from the previous target before probing the newly selected one.
+        retryHealth.clear()
+        if readerCardIsPresent, !selection.awaitsChoice {
           retryHealth.refreshFromReader()
         }
       }
