@@ -159,12 +159,19 @@
     }
 
     private func launchContainingApp() {
+      let running = NSRunningApplication.runningApplications(
+        withBundleIdentifier: WebEidValues.containingAppBundleIdentifier
+      )
+      if running.contains(where: { !$0.isTerminated }) {
+        return
+      }
       guard let appURL = Self.containingAppURL() else {
         Self.logger.error("web-eid: containing RefineID.app URL could not be resolved")
         return
       }
       let configuration = NSWorkspace.OpenConfiguration()
-      configuration.activates = true
+      configuration.activates = false
+      configuration.arguments = [WebEidValues.webEidLaunchArgument]
       NSWorkspace.shared.openApplication(at: appURL, configuration: configuration) { _, error in
         if let error {
           Self.logger.error(

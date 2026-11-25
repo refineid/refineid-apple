@@ -60,6 +60,48 @@
       }
     }
 
+    internal static func pinPromptTitle(
+      for role: CredentialRole,
+      numbering: CredentialReferenceSet
+    ) -> String {
+      if isEstonian(numbering) {
+        switch role {
+        case .pin1:
+          return String(localized: "Enter PIN 1")
+
+        case .pin2:
+          return String(localized: "Enter PIN 2")
+
+        case .puk:
+          return CredentialLabels.entryPrompt(for: .puk, bundle: .main)
+        }
+      }
+      return CredentialLabels.entryPrompt(for: role, bundle: .main)
+    }
+
+    internal static func pinFieldPlaceholder(
+      for role: CredentialRole,
+      numbering: CredentialReferenceSet
+    ) -> String {
+      if isEstonian(numbering) {
+        switch role {
+        case .pin1:
+          return "PIN 1"
+
+        case .pin2:
+          return "PIN 2"
+
+        case .puk:
+          return CredentialLabels.name(for: .puk)
+        }
+      }
+      return CredentialLabels.name(for: role)
+    }
+
+    private static func isEstonian(_ numbering: CredentialReferenceSet) -> Bool {
+      numbering == .estonian2018 || numbering == .estonian2025
+    }
+
     internal static func confirmTitle(for command: WebEidCommand) -> String {
       switch command {
       case .authenticate:

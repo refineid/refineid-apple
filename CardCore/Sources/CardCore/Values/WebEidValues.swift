@@ -44,6 +44,13 @@ public enum WebEidValues {
   /// Shared App Group identifier linking RefineID and its Safari Web Extension.
   public static let appGroupIdentifier = "group.fi.refineid.RefineID"
 
+  /// Bundle identifier of the containing macOS RefineID application.
+  public static let containingAppBundleIdentifier = "fi.refineid.ReFineID"
+
+  /// Launch argument passed when Safari wakes RefineID purely for Web eID so
+  /// the main status window stays suppressed.
+  public static let webEidLaunchArgument = "--web-eid-bridge"
+
   /// Subdirectory name inside the App Group container for Web eID IPC files.
   public static let bridgeDirectoryName = "WebEidBridge"
 

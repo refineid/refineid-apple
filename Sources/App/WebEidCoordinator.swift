@@ -22,6 +22,16 @@
 
     internal static let shared = WebEidCoordinator()
 
+    /// Whether the Safari Web eID extension launched the app purely to show a
+    /// Web eID prompt, so the main status window should stay closed.
+    internal static let isWebEidLaunch =
+      ProcessInfo.processInfo.arguments.contains(WebEidValues.webEidLaunchArgument)
+
+    /// Whether the main status window should remain hidden at launch.
+    internal static var suppressesStatusWindow: Bool {
+      RefineIDApp.hostsUnitTests || isWebEidLaunch
+    }
+
     // MARK: Properties
 
     internal var activeCancelled = false
