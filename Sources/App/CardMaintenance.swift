@@ -42,6 +42,7 @@ internal enum CardMaintenance {
     case invalidated
     case invalidEntry
     case noCard
+    case pin2ChangeRequired
     case pinBlocked
     case rejected(remaining: RetryCount)
     case success

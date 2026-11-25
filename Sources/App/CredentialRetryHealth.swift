@@ -91,6 +91,10 @@ internal final class CredentialRetryHealth: ObservableObject {
   /// can name the exact counters the color came from.
   @Published internal private(set) var report: CredentialProbeReport?
 
+  /// Whether the card enforces changing its initial PIN 2 before signing
+  /// is allowed (EstEID 2025, GED24035 sections 3.1 and 8.3.4).
+  @Published internal private(set) var pin2RequiresChangeBeforeSigning = false
+
   /// Whether the PIN codes window has opened by itself for the card now
   /// in the reader; it opens once per insertion, so a window the holder
   /// closed stays closed through later readings of the same card.
@@ -179,9 +183,15 @@ internal final class CredentialRetryHealth: ObservableObject {
     recovery = nil
     level = nil
     report = nil
+    pin2RequiresChangeBeforeSigning = false
+  }
+
+  internal func markPin2RequiresChangeBeforeSigning() {
+    pin2RequiresChangeBeforeSigning = true
   }
 
   private func apply(_ report: CredentialProbeReport?) {
+    pin2RequiresChangeBeforeSigning = report?.pin2RequiresChangeBeforeSigning ?? false
     guard let report,
       let pin1 = Self.attempts(report.pin1),
       let pin2 = Self.attempts(report.pin2),

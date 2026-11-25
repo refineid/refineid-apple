@@ -22,6 +22,15 @@
             identityBox(for: .cardWithoutIdentity)
           } else {
             statusRow(showsIdentity: documentControls.showsIdentity)
+            if documentControls.showsIdentity,
+              signingBlockedByInitialPin2,
+              StatusMessage(signingModel) == nil
+            {
+              Text("Change PIN 2 so you can sign documents.")
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("pin2ChangeRequiredNotice")
+            }
           }
           if showsStandaloneReading ? !signingModel.queued.isEmpty : documentControls.showsDocuments
           {

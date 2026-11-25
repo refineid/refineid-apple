@@ -106,11 +106,15 @@ extension CardOperations {
     let pin1 = try probeRetryCounter(role: .pin1)
     let pin2 = try probeRetryCounter(role: .pin2)
     let puk = includingPuk ? try probeRetryCounter(role: .puk) : .noInformation
+    let pin2RequiresChange =
+      referenceMemo.resolved == .estonian2025
+      && (try? readPinChangeRecord(role: .pin2)) == .unchanged
     return CredentialProbeReport(
       pin1: pin1,
       pin2: pin2,
       puk: puk,
-      pristineAllowance: pristineRetryAllowance
+      pristineAllowance: pristineRetryAllowance,
+      pin2RequiresChangeBeforeSigning: pin2RequiresChange
     )
   }
 

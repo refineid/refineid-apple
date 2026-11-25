@@ -44,7 +44,7 @@
     @State private var signing = SignDocumentModel()
 
     /// The cards in this Mac's readers and the one the holder chose.
-    private let selection = CardSelection.shared
+    internal let selection = CardSelection.shared
 
     /// Notices a card waiting to be taken into use, and carries the
     /// model its activation form works through.
@@ -58,20 +58,6 @@
 
     /// The signing state, readable by the split-out outcome section.
     internal var signingModel: SignDocumentModel { signing }
-
-    /// Ready when a document is waiting and PIN 2 has been entered for
-    /// it: PIN 2 is asked for every signature or batch and kept no longer
-    /// (RAPP v26.11.8 §11 item 2).
-    private var canSign: Bool {
-      availability == .ready
-        && !selection.awaitsChoice
-        && signing.pending != nil
-        && !signing.working
-        // Not while the card is being read for the stamp: it is one
-        // card, and asking it to sign mid-read is asking it to be in
-        // two places.
-        && !signing.readingStamp
-    }
 
     internal var body: some View {
       VStack(alignment: .leading, spacing: Self.spacing) {
@@ -133,6 +119,12 @@
       .onChange(of: activation.defersRemoval) { wasDeferred, isDeferred in
         guard wasDeferred, !isDeferred, availability == .noCard else { return }
         react(to: .noCard)
+      }
+      .onChange(of: signingBlockedByInitialPin2) { _, blocked in
+        let canClear =
+          blocked && !StatusDocumentControls.defaultOffersVerification
+          && !signing.working && !signing.readingStamp
+        if canClear { signing.clear() }
       }
       .onDisappear { activation.stop() }
       .announcesOutcome(activation.management.failure)
@@ -264,7 +256,8 @@
     /// would otherwise leave PAdES chosen for a set that cannot take
     /// it, and the card would be asked before the spreadsheet refused.
     private func accept(_ urls: [URL]) -> Bool {
-      guard !urls.isEmpty else { return false }
+      guard !urls.isEmpty, !signingBlockedByInitialPin2 || documentControls.offersVerification
+      else { return false }
       signing.accept(urls)
       format = Self.sharedFormat(for: signing.queued)
       return true

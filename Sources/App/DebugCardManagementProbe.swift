@@ -204,33 +204,36 @@
     }
 
     private static func name(_ outcome: CardMaintenance.Outcome) -> String {
+      if case .rejected(let remaining) = outcome {
+        return "rejected with \(remaining.attemptsRemaining) attempts remaining"
+      }
+      if case .floorRefused = outcome {
+        return "refused by retry floor"
+      }
       switch outcome {
       case .success:
-        "succeeded"
+        return "succeeded"
 
       case .alreadyActivated:
-        "already activated"
-
-      case .failed:
-        "failed"
-
-      case .floorRefused:
-        "refused by retry floor"
+        return "already activated"
 
       case .invalidated:
-        "invalidated"
+        return "invalidated"
 
       case .invalidEntry:
-        "invalid local entry"
+        return "invalid local entry"
 
       case .noCard:
-        "no card"
+        return "no card"
+
+      case .pin2ChangeRequired:
+        return "PIN 2 change required"
 
       case .pinBlocked:
-        "blocked"
+        return "blocked"
 
-      case .rejected(let remaining):
-        "rejected with \(remaining.attemptsRemaining) attempts remaining"
+      case .failed, .floorRefused, .rejected:
+        return "failed"
       }
     }
   }

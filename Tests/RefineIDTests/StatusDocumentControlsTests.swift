@@ -26,7 +26,7 @@
       StatusDocumentControls(
         availability: availability, queued: queued, signing: working,
         readingCard: readingCard, failureShown: failureShown,
-        offersVerification: offersVerification)
+        offersVerification: offersVerification, signingAvailable: true)
     }
 
     /// The default verification gate matches this build's compile flag.
@@ -35,7 +35,8 @@
       let controls = StatusDocumentControls(
         availability: .ready, queued: Self.documents, signing: false,
         readingCard: false, failureShown: false,
-        offersVerification: StatusDocumentControls.defaultOffersVerification)
+        offersVerification: StatusDocumentControls.defaultOffersVerification,
+        signingAvailable: true)
       #if FEATURE_DOCUMENT_VERIFICATION
         #expect(StatusDocumentControls.defaultOffersVerification)
         #expect(controls.offersVerification)
@@ -184,6 +185,32 @@
       #expect(failing.allowsSigning(cardReady: true))
       #expect(read.allowsSigning(cardReady: true))
       #expect(!read.allowsSigning(cardReady: false))
+    }
+
+    /// When signing is unavailable (for example EstEID 2025 initial PIN 2
+    /// awaiting change), signing controls and the signing-only drop area stay
+    /// hidden while verification stays available when compiled in.
+    @Test
+    internal func signingUnavailableBlocksSigningAndHidesSigningDropArea() {
+      let signOnly = StatusDocumentControls(
+        availability: .ready, queued: [], signing: false, readingCard: false,
+        failureShown: false, offersVerification: false, signingAvailable: false
+      )
+      #expect(signOnly.showsIdentity)
+      #expect(!signOnly.showsDocuments)
+      #expect(!signOnly.offersSigning)
+      #expect(!signOnly.allowsSigning(cardReady: true))
+      #expect(signOnly.actions.isEmpty)
+
+      let verifyAndSign = StatusDocumentControls(
+        availability: .ready, queued: Self.documents, signing: false, readingCard: false,
+        failureShown: false, offersVerification: true, signingAvailable: false
+      )
+      #expect(verifyAndSign.showsIdentity)
+      #expect(!verifyAndSign.offersSigning)
+      #expect(!verifyAndSign.allowsSigning(cardReady: true))
+      #expect(verifyAndSign.verifyEnabled)
+      #expect(verifyAndSign.actions == [.verify])
     }
   }
 

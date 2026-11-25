@@ -12,7 +12,7 @@ import Testing
 /// other-software guidance once the PUK is at one or two tries. A PUK
 /// at no tries left removes no reset: the card answers it itself.
 @MainActor
-@Suite
+@Suite(.serialized)
 internal struct CredentialRecoveryRoutingTests {
   private static let blocked: UInt8 = .zero
   private static let full = RetryCount.pristineAllowance
@@ -80,7 +80,8 @@ internal struct CredentialRecoveryRoutingTests {
     defer { health.clear() }
     health.update(CredentialProbeReport(pin1: .locked, pin2: .locked, puk: .remaining(puk)))
     #expect(health.recovery == .resetBothPins)
-    #expect(CardManagementView.initialTask(for: health.recovery) == .resetPin1)
+    #expect(
+      CardManagementView.initialTask(for: health.recovery, pin2RequiresChange: false) == .resetPin1)
   }
 
   @Test
@@ -90,6 +91,52 @@ internal struct CredentialRecoveryRoutingTests {
     health.update(CredentialProbeReport(pin1: .locked, pin2: .locked, puk: .locked))
     #expect(health.level == .critical)
     #expect(health.recovery == .resetBothPins)
-    #expect(CardManagementView.initialTask(for: health.recovery) == .resetPin1)
+    #expect(
+      CardManagementView.initialTask(for: health.recovery, pin2RequiresChange: false) == .resetPin1)
+  }
+
+  @Test
+  internal func unchangedInitialPin2RoutesPinCodesToChangePin2() throws {
+    let estonianAllowance = CredentialReferenceSet.estonian2025.pristineRetryAllowance
+    let three = try #require(RetryCount(attemptsRemaining: estonianAllowance))
+    let health = CredentialRetryHealth.shared
+    defer { health.clear() }
+    health.update(
+      CredentialProbeReport(
+        pin1: .remaining(three),
+        pin2: .remaining(three),
+        puk: .remaining(three),
+        pristineAllowance: estonianAllowance,
+        pin2RequiresChangeBeforeSigning: true
+      )
+    )
+    #expect(health.level == .pristine)
+    #expect(health.recovery == nil)
+    #expect(health.pin2RequiresChangeBeforeSigning)
+    #expect(
+      CardManagementView.initialTask(
+        for: health.recovery,
+        pin2RequiresChange: health.pin2RequiresChangeBeforeSigning
+      ) == .changePin2
+    )
+    #expect(
+      CardManagementView.initialTask(for: .resetPin1, pin2RequiresChange: true) == .resetPin1
+    )
+    health.update(
+      CredentialProbeReport(
+        pin1: .remaining(three),
+        pin2: .remaining(three),
+        puk: .remaining(three),
+        pristineAllowance: estonianAllowance,
+        pin2RequiresChangeBeforeSigning: false
+      )
+    )
+    #expect(!health.pin2RequiresChangeBeforeSigning)
+    #expect(
+      CardManagementView.initialTask(
+        for: health.recovery,
+        pin2RequiresChange: health.pin2RequiresChangeBeforeSigning
+      ) == .changePin1
+    )
   }
 }

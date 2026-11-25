@@ -129,13 +129,23 @@ extension CardManagementModel {
     case .rejected(let remaining):
       CredentialOutcomeMessage.rejection(presenting, remaining: remaining)
 
+    case .pin2ChangeRequired, .invalidated, .alreadyActivated, .failed:
+      cardStateMessage(for: outcome)
+    }
+  }
+
+  private func cardStateMessage(for outcome: CardMaintenance.Outcome) -> String {
+    switch outcome {
+    case .pin2ChangeRequired:
+      String(localized: "Change PIN 2 so you can sign documents.")
+
     case .invalidated:
       String(localized: "The credential slot is invalidated.")
 
     case .alreadyActivated:
       String(localized: "This card looks activated already.")
 
-    case .failed:
+    default:
       String(localized: "The card operation did not complete.")
     }
   }

@@ -80,6 +80,13 @@ extension Estonian2025CardTests {
           status: .success
         )
       ),
+      (
+        CommandApdu.readCredentialAttributes(role: .pin2, references: .estonian2025).encoded,
+        EstonianEidTestFixture.response(
+          EstonianEidTestFixture.pinChangedFlagResponse(changed: true),
+          status: .success
+        )
+      ),
     ])
     let operations = CardOperations(channel: channel)
     let report = try operations.probeCredentials()
@@ -87,11 +94,51 @@ extension Estonian2025CardTests {
     #expect(report.pin2 == .remaining(three))
     #expect(report.puk == .remaining(three))
     #expect(report.pristineAllowance == Self.estonianAllowance)
+    #expect(!report.pin2RequiresChangeBeforeSigning)
     #expect(operations.activationClassification() == .estonian)
     #expect(
       operations.activationNeeds(scheme: .presetActivationPin)
         == CardActivationNeeds(pin1: false, pin2: false)
     )
+    #expect(channel.isExhausted)
+  }
+
+  @Test
+  internal func estonian2025DetectsUnchangedInitialPin2BeforeSigning() throws {
+    let threeRemaining = try EstonianEidTestFixture.remaining(Self.estonianAllowance)
+    let unchangedAttributes = EstonianEidTestFixture.response(
+      EstonianEidTestFixture.pinChangedFlagResponse(changed: false),
+      status: .success
+    )
+    let channel = TypedScriptedChannel([
+      (
+        CommandApdu.readRetryCounter(role: .pin1, references: .estonian2025).encoded,
+        EstonianEidTestFixture.status(threeRemaining)
+      ),
+      (
+        CommandApdu.readRetryCounter(role: .pin2, references: .estonian2025).encoded,
+        EstonianEidTestFixture.status(threeRemaining)
+      ),
+      (
+        CommandApdu.readCredentialAttributes(role: .puk, references: .estonian2025).encoded,
+        EstonianEidTestFixture.response(
+          EstonianEidTestFixture.pinAttributesResponse(attemptsRemaining: Self.estonianAllowance),
+          status: .success
+        )
+      ),
+      (
+        CommandApdu.readCredentialAttributes(role: .pin2, references: .estonian2025).encoded,
+        unchangedAttributes
+      ),
+      (
+        CommandApdu.readCredentialAttributes(role: .pin2, references: .estonian2025).encoded,
+        unchangedAttributes
+      ),
+    ])
+    let operations = CardOperations(channel: channel, numbering: .estonian2025)
+    let report = try operations.probeCredentials()
+    #expect(report.pin2RequiresChangeBeforeSigning)
+    #expect(try operations.requiresPin2ChangeBeforeSigning())
     #expect(channel.isExhausted)
   }
 

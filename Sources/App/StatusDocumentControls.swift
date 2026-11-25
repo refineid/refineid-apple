@@ -76,12 +76,14 @@
       signing working: Bool,
       readingCard readingStamp: Bool,
       failureShown: Bool,
-      offersVerification: Bool
+      offersVerification: Bool,
+      signingAvailable: Bool
     ) {
-      let signingOffered = availability != .noCard || working || readingStamp
+      let signingOffered = (availability != .noCard && signingAvailable) || working || readingStamp
       offersSigning = signingOffered
       self.offersVerification = offersVerification
-      showsIdentity = !offersVerification || signingOffered || queued.isEmpty
+      showsIdentity =
+        !offersVerification || availability != .noCard || signingOffered || queued.isEmpty
       showsDocuments = offersVerification || signingOffered || !queued.isEmpty
       verifyEnabled =
         offersVerification

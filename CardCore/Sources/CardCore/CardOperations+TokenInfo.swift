@@ -35,6 +35,16 @@ extension CardOperations {
     return CredentialAttributes.pinChangeRecord(fromResponseBody: response.payload)
   }
 
+  /// Whether the card enforces changing its initial PIN 2 before the signature
+  /// key can be used and PIN 2 is still unchanged (EstEID 2025, GED24035
+  /// sections 3.1, 7.8.1, and 8.3.4).
+  public func requiresPin2ChangeBeforeSigning() throws -> Bool {
+    guard (try resolveCredentialReferences()) == .estonian2025 else {
+      return false
+    }
+    return (try readPinChangeRecord(role: .pin2)) == .unchanged
+  }
+
   /// What `EF.TokenInfo` says the card is, for the status screen.
   ///
   /// Best effort by nature: the fields are optional in PKCS#15, so a

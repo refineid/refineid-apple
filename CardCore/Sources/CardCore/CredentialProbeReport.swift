@@ -15,6 +15,11 @@ public struct CredentialProbeReport: Equatable, Sendable {
   /// (five on FINEID, three on Estonian eID).
   public let pristineAllowance: UInt8
 
+  /// Whether PIN 2 still holds its initial value and must be changed before
+  /// the signature key can be used (EstEID 2025, GED24035 sections 3.1, 7.8.1,
+  /// and 8.3.4).
+  public let pin2RequiresChangeBeforeSigning: Bool
+
   /// The typed retry state, available only when all three probes
   /// returned counters.
   ///
@@ -42,7 +47,8 @@ public struct CredentialProbeReport: Equatable, Sendable {
       pin1: pin1,
       pin2: pin2,
       puk: puk,
-      pristineAllowance: RetryCount.pristineAllowance
+      pristineAllowance: RetryCount.pristineAllowance,
+      pin2RequiresChangeBeforeSigning: false
     )
   }
 
@@ -52,11 +58,13 @@ public struct CredentialProbeReport: Equatable, Sendable {
     pin1: RetryProbeOutcome,
     pin2: RetryProbeOutcome,
     puk: RetryProbeOutcome,
-    pristineAllowance: UInt8
+    pristineAllowance: UInt8,
+    pin2RequiresChangeBeforeSigning: Bool = false
   ) {
     self.pin1 = pin1
     self.pin2 = pin2
     self.puk = puk
     self.pristineAllowance = pristineAllowance
+    self.pin2RequiresChangeBeforeSigning = pin2RequiresChangeBeforeSigning
   }
 }
