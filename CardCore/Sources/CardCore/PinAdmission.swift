@@ -3,7 +3,7 @@
 /// Whether the card's counter lets a signature send its PIN, decided from
 /// the probe that precedes the PIN-bearing command.
 ///
-/// The retry floor (``RetryFloor``) refuses a PIN at one or two attempts
+/// The retry floor (``RetryFloor``) refuses a PIN at one attempt
 /// left and at an unreadable counter, and lets an entered PIN through
 /// otherwise: at no tries left or blocked the card answers for itself and
 /// spends nothing. A held PIN 1 is narrower: it is sent only while the

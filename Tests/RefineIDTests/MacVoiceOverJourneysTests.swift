@@ -26,7 +26,7 @@
     internal enum SampleCount {
       internal static let pristineRetries: UInt8 = 5
       internal static let reducedRetries: UInt8 = 4
-      internal static let lowRetries: UInt8 = 2
+      internal static let lowRetries: UInt8 = 1
       internal static let blockedRetries: UInt8 = 0
       internal static let singleDocument = 1
       internal static let twoDocuments = 2

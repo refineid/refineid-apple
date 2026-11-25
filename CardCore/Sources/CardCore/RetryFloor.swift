@@ -4,22 +4,23 @@
 /// side-effect-free, and this rule decides whether the operation may proceed.
 ///
 /// One rule for PIN 1, PIN 2, the PUK and the activation PIN: a command
-/// that could spend a try is refused at one or two attempts left and at an
-/// unreadable counter, and sent otherwise. RefineID never spends an attempt
-/// that could block the card. At no tries left or blocked the command goes
-/// to the card: it answers for itself and spends nothing, and the software
-/// cannot know which code the holder has in hand, so it does not close a
-/// recovery the card would allow. A PUK reported verified carries no count
-/// of the try a wrong PUK would spend, so it reads as unreadable
-/// (`evaluate(probeOutcome:presenting:)`). Each operation judges the
-/// credential it presents, so a reset presents the PUK and is judged on the
-/// PUK's counter whatever the PIN it resets shows.
+/// that could spend a try is refused at one attempt left (the last
+/// attempt) and at an unreadable counter, and sent otherwise. RefineID
+/// never spends the last attempt on any card. At no tries left or blocked
+/// the command goes to the card: it answers for itself and spends nothing,
+/// and the software cannot know which code the holder has in hand, so it
+/// does not close a recovery the card would allow. A PUK reported verified
+/// carries no count of the try a wrong PUK would spend, so it reads as
+/// unreadable (`evaluate(probeOutcome:presenting:)`). Each operation judges
+/// the credential it presents, so a reset presents the PUK and is judged
+/// on the PUK's counter whatever the PIN it resets shows.
 public enum RetryFloor {
   private enum Constants {
-    static let minimumAttemptsToProceed: UInt8 = 3
+    static let minimumAttemptsToProceed: UInt8 = 2
   }
 
-  /// An operation proceeds only when at least this many attempts remain.
+  /// A non-blocked operation proceeds only when at least this many attempts remain
+  /// (zero/blocked still proceeds so the card answers truthfully without spending a try).
   public static let minimumAttemptsToProceed: UInt8 = Constants.minimumAttemptsToProceed
 
   /// Decides from one fresh reading.

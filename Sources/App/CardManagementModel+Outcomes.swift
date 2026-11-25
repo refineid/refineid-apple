@@ -118,16 +118,25 @@ extension CardManagementModel {
       unreadableCardMessage
 
     case .pinBlocked:
-      CredentialOutcomeMessage.blocked(role)
+      CredentialOutcomeMessage.blocked(role, numbering: pinLengths?.numbering)
 
     case .floorRefused(.refuseUnreadable):
       presenting.unreadableCounterMessage
 
     case .floorRefused(let verdict):
-      CredentialOutcomeMessage.floorRefusal(role: role, verdict: verdict, remaining: nil)
+      CredentialOutcomeMessage.floorRefusal(
+        role: role,
+        verdict: verdict,
+        remaining: nil,
+        numbering: pinLengths?.numbering
+      )
 
     case .rejected(let remaining):
-      CredentialOutcomeMessage.rejection(presenting, remaining: remaining)
+      CredentialOutcomeMessage.rejection(
+        presenting,
+        remaining: remaining,
+        numbering: pinLengths?.numbering
+      )
 
     case .pin2ChangeRequired, .invalidated, .alreadyActivated, .failed:
       cardStateMessage(for: outcome)

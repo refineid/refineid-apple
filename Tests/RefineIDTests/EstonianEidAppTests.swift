@@ -12,13 +12,15 @@ import Testing
 @Suite(.serialized, SharedDemoStateScope())
 internal struct EstonianEidAppTests {
   private static let estonianAllowance: UInt8 = 3
-  private static let belowFloorAttempts: UInt8 = 2
+  private static let warningAttempts: UInt8 = 2
+  private static let lastAttempt: UInt8 = 1
   private static let aboveEstonianAllowance: UInt8 = 4
 
   @Test
-  internal func threeTryCardIsPristineAtThreeAndCriticalAtTwo() throws {
+  internal func threeTryCardIsPristineAtThreeWarningAtTwoAndCriticalAtOne() throws {
     let three = try #require(RetryCount(attemptsRemaining: Self.estonianAllowance))
-    let two = try #require(RetryCount(attemptsRemaining: Self.belowFloorAttempts))
+    let two = try #require(RetryCount(attemptsRemaining: Self.warningAttempts))
+    let one = try #require(RetryCount(attemptsRemaining: Self.lastAttempt))
     let four = try #require(RetryCount(attemptsRemaining: Self.aboveEstonianAllowance))
     let health = CredentialRetryHealth.shared
     defer { health.clear() }
@@ -42,7 +44,19 @@ internal struct EstonianEidAppTests {
         pristineAllowance: Self.estonianAllowance
       )
     )
+    #expect(health.level == .warning)
+    #expect(health.recovery == nil)
+
+    health.update(
+      CredentialProbeReport(
+        pin1: .remaining(one),
+        pin2: .remaining(three),
+        puk: .remaining(three),
+        pristineAllowance: Self.estonianAllowance
+      )
+    )
     #expect(health.level == .critical)
+    #expect(health.recovery == .resetPin1)
 
     health.update(
       CredentialProbeReport(
@@ -55,11 +69,39 @@ internal struct EstonianEidAppTests {
     #expect(health.level == nil)
   }
 
+  @Test
+  internal func estonianOutcomeMessagesUsePin1AndPin2Wording() throws {
+    let one = try #require(RetryCount(attemptsRemaining: Self.lastAttempt))
+    let two = try #require(RetryCount(attemptsRemaining: Self.warningAttempts))
+
+    let refusal = CredentialOutcomeMessage.floorRefusal(
+      role: .pin1,
+      verdict: .refuseLowAttempts,
+      remaining: one,
+      numbering: .estonian2025
+    )
+    #expect(refusal.contains("PIN 1"))
+    #expect(!refusal.contains("Basic PIN 1"))
+    #expect(!refusal.contains("Perustunnusluku"))
+
+    let rejection = CredentialOutcomeMessage.rejection(
+      .pin1,
+      remaining: two,
+      numbering: .estonian2025
+    )
+    #expect(rejection.contains("PIN 1"))
+    #expect(!rejection.contains("Basic PIN 1"))
+
+    let blocked = CredentialOutcomeMessage.blocked(.pin2, numbering: .estonian2018)
+    #expect(blocked.contains("PIN 2"))
+    #expect(!blocked.contains("Signature PIN 2"))
+  }
+
   #if os(macOS)
     @Test
     internal func readingsBelowFullHidesFullThreeTryCountersAndMarksAllowance() throws {
       let three = try #require(RetryCount(attemptsRemaining: Self.estonianAllowance))
-      let two = try #require(RetryCount(attemptsRemaining: Self.belowFloorAttempts))
+      let two = try #require(RetryCount(attemptsRemaining: Self.warningAttempts))
 
       let fullReport = CredentialProbeReport(
         pin1: .remaining(three),

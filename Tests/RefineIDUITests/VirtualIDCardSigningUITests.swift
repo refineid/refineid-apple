@@ -45,12 +45,12 @@
     }
 
     internal func testSignatureRetryFloorIsEnforcedThroughGUI() {
-      let app = signingApp(pin2Attempts: 2)
+      let app = signingApp(pin2Attempts: 1)
 
       fillSecure(UITestIdentifiers.signingPIN2, with: "123456", in: app)
       app.buttons[UITestIdentifiers.signingCommit].tap()
       assertSigningMessage(contains: "Operation refused", in: app)
-      assertPIN2Attempts(2, in: app)
+      assertPIN2Attempts(1, in: app)
     }
 
     internal func testMissingSignatureCertificateFailsThroughGUI() {

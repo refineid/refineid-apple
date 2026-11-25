@@ -19,11 +19,11 @@ public struct RetryCount: Equatable, Sendable {
   /// The full retry allowance of an untouched credential on Estonian eID cards: three attempts.
   public static let estonianPristineAllowance: UInt8 = EstonianEidValues.pinRetryLimit
 
-  /// The point at which a credential is one mistake from blocking.
+  /// The point at which a credential is one mistake from blocking: the last attempt.
   ///
   /// Operations refuse to spend attempts at or below this, and
   /// presentation names a recovery route instead of a count.
-  public static let lowAttemptCeiling: UInt8 = 2
+  public static let lowAttemptCeiling: UInt8 = 1
 
   /// The validated number of attempts remaining.
   public let attemptsRemaining: UInt8

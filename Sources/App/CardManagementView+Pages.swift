@@ -49,27 +49,28 @@ extension CardManagementView {
     model: CardManagementModel
   ) -> some View {
     if model.failure == nil, model.notice == nil {
+      let numbering = model.pinLengths?.numbering
       switch retryHealth.recovery {
       case .resetPin1:
         Section {
           CredentialOutcomeText(
-            message: CredentialOutcomeMessage.recoveryGuidance(for: .pin1),
+            message: CredentialOutcomeMessage.recoveryGuidance(for: .pin1, numbering: numbering),
             tone: .notice)
         }
 
       case .resetPin2:
         Section {
           CredentialOutcomeText(
-            message: CredentialOutcomeMessage.recoveryGuidance(for: .pin2),
+            message: CredentialOutcomeMessage.recoveryGuidance(for: .pin2, numbering: numbering),
             tone: .notice)
         }
 
       case .resetBothPins:
         Section {
           CredentialOutcomeText(
-            message: CredentialOutcomeMessage.recoveryGuidance(for: .pin1)
+            message: CredentialOutcomeMessage.recoveryGuidance(for: .pin1, numbering: numbering)
               + "\n"
-              + CredentialOutcomeMessage.recoveryGuidance(for: .pin2),
+              + CredentialOutcomeMessage.recoveryGuidance(for: .pin2, numbering: numbering),
             tone: .notice)
         }
 

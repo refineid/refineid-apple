@@ -13,17 +13,15 @@ import Testing
 @Suite
 internal struct RetryFloorPolicyTests {
   @Test
-  internal func theFloorProceedsOnlyAtThreeOrMoreAttempts() throws {
-    // Three or more: room to be wrong and try again.
-    for remaining in [UInt8(3), 4, 5] {
+  internal func theFloorProceedsOnlyAtTwoOrMoreAttempts() throws {
+    // Two or more: room to be wrong without blocking the card.
+    for remaining in [UInt8(2), 3, 4, 5] {
       let count = try #require(RetryCount(attemptsRemaining: remaining))
       #expect(RetryFloor.evaluate(freshReading: count) == .proceed)
     }
-    // One or two: refused. Never spend a near-last attempt.
-    for remaining in [UInt8(1), 2] {
-      let count = try #require(RetryCount(attemptsRemaining: remaining))
-      #expect(RetryFloor.evaluate(freshReading: count) == .refuseLowAttempts)
-    }
+    // One: refused. Never spend the last attempt on any card.
+    let lastAttempt = try #require(RetryCount(attemptsRemaining: 1))
+    #expect(RetryFloor.evaluate(freshReading: lastAttempt) == .refuseLowAttempts)
     // Zero: blocked. The command goes to the card, which answers itself.
     let blocked = try #require(RetryCount(attemptsRemaining: 0))
     #expect(RetryFloor.evaluate(freshReading: blocked) == .proceed)
@@ -59,22 +57,20 @@ internal struct RetryFloorPolicyTests {
 
   @Test
   internal func everyCredentialTakesTheOneRule() throws {
-    // One or two tries left and an unreadable counter refuse; none left
-    // and blocked go to the card, which answers for itself and spends
-    // nothing, and the software cannot tell which code is in the holder's
-    // hand, so it must not close a recovery the card would allow.
+    // One try left (the last attempt) and an unreadable counter refuse;
+    // none left and blocked go to the card, which answers for itself and
+    // spends nothing, and the software cannot tell which code is in the
+    // holder's hand, so it must not close a recovery the card would allow.
     let none = try #require(RetryCount(attemptsRemaining: 0))
+    let lastAttempt = try #require(RetryCount(attemptsRemaining: 1))
     for role in [CredentialRole.pin1, .pin2, .puk] {
       #expect(RetryFloor.evaluate(probeOutcome: .remaining(none), presenting: role) == .proceed)
       #expect(RetryFloor.evaluate(probeOutcome: .locked, presenting: role) == .proceed)
       #expect(RetryFloor.evaluate(probeOutcome: .invalidated, presenting: role) == .proceed)
-      for remaining in [UInt8(1), 2] {
-        let count = try #require(RetryCount(attemptsRemaining: remaining))
-        #expect(
-          RetryFloor.evaluate(probeOutcome: .remaining(count), presenting: role)
-            == .refuseLowAttempts)
-      }
-      for remaining in [UInt8(3), 4, 5] {
+      #expect(
+        RetryFloor.evaluate(probeOutcome: .remaining(lastAttempt), presenting: role)
+          == .refuseLowAttempts)
+      for remaining in [UInt8(2), 3, 4, 5] {
         let count = try #require(RetryCount(attemptsRemaining: remaining))
         #expect(RetryFloor.evaluate(probeOutcome: .remaining(count), presenting: role) == .proceed)
       }
@@ -99,7 +95,7 @@ internal struct RetryFloorPolicyTests {
     // permits an unblock, whatever the blocked PIN says; a PIN2 near
     // its limit refuses a signature while PIN1 is untouched.
     let blocked = try #require(RetryCount(attemptsRemaining: 0))
-    let low = try #require(RetryCount(attemptsRemaining: 2))
+    let low = try #require(RetryCount(attemptsRemaining: RetryCount.lowAttemptCeiling))
     let healthy = try #require(RetryCount(attemptsRemaining: 5))
     let state = CredentialRetryState(pin1: blocked, pin2: low, puk: healthy)
     #expect(RetryFloor.evaluate(freshReading: state.pin1) == .proceed)

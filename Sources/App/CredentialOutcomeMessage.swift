@@ -13,52 +13,57 @@ internal enum CredentialOutcomeMessage {
     _ credential: PresentedCredential,
     remaining: RetryCount
   ) -> String {
-    incorrect(credential)
-      + "\n"
-      + String(
-        localized: "You have \(remaining.attemptsRemaining) attempts remaining.")
+    rejection(credential, remaining: remaining, numbering: nil)
+  }
+
+  internal static func rejection(
+    _ credential: PresentedCredential,
+    remaining: RetryCount,
+    numbering: CredentialReferenceSet?
+  ) -> String {
+    let remainingSentence =
+      if remaining.attemptsRemaining == 1 {
+        String(localized: "You have 1 attempt remaining.")
+      } else {
+        String(localized: "You have \(remaining.attemptsRemaining) attempts remaining.")
+      }
+    return incorrect(credential, numbering: numbering) + "\n" + remainingSentence
   }
 
   /// A retry-floor refusal: the credential that was not presented and
   /// the way back.
   ///
-  /// A PIN at one or two attempts is reset with the PUK, which the floor
+  /// A PIN on its last attempt is reset with the PUK, which the floor
   /// judges on its own counter. `remaining` is the exact count when the
   /// card supplied it. A blocked PIN is not a refusal: its command went to
-  /// the card, and ``blocked(_:)`` words the answer.
+  /// the card, and ``blocked(_:numbering:)`` words the answer.
   internal static func floorRefusal(
     role: CredentialRole,
     verdict: RetryFloorVerdict,
     remaining: RetryCount?
   ) -> String {
+    floorRefusal(role: role, verdict: verdict, remaining: remaining, numbering: nil)
+  }
+
+  internal static func floorRefusal(
+    role: CredentialRole,
+    verdict: RetryFloorVerdict,
+    remaining: RetryCount?,
+    numbering: CredentialReferenceSet?
+  ) -> String {
     switch verdict {
     case .refuseLowAttempts:
       guard role != .puk else { return otherSoftwareRecovery() }
-      let detail =
-        switch (role, remaining?.attemptsRemaining) {
-        case (.puk, _):
-          preconditionFailure("PUK is the recovery credential, not a reset target")
-
-        case (.pin1, .some(1)):
-          String(localized: "Only 1 attempt remains for Basic PIN 1.")
-
-        case (.pin2, .some(1)):
-          String(localized: "Only 1 attempt remains for Signature PIN 2.")
-
-        case (.pin1, .some(let count)):
-          String(localized: "Only \(count) attempts remain for Basic PIN 1.")
-
-        case (.pin2, .some(let count)):
-          String(localized: "Only \(count) attempts remain for Signature PIN 2.")
-
-        case (_, .none):
-          String(localized: "RefineID does not use either of the last two attempts.")
-        }
+      let detail = lowAttemptDetail(
+        role: role,
+        remaining: remaining?.attemptsRemaining,
+        estonian: isEstonian(numbering)
+      )
       return String(localized: "Operation refused.")
         + "\n"
         + detail
         + "\n"
-        + resetWithPuk(role)
+        + resetWithPuk(role, numbering: numbering)
 
     case .refuseUnreadable, .proceed:
       return String(localized: "The operation was not sent.")
@@ -68,44 +73,71 @@ internal enum CredentialOutcomeMessage {
   /// A blocked credential and the way back: the PUK for a PIN, the
   /// issuer for a PUK the card itself has answered blocked.
   internal static func blocked(_ role: CredentialRole) -> String {
-    switch role {
-    case .pin1:
-      String(localized: "Basic PIN 1 is blocked.") + "\n" + resetWithPuk(role)
+    blocked(role, numbering: nil)
+  }
 
-    case .pin2:
-      String(localized: "Signature PIN 2 is blocked.") + "\n" + resetWithPuk(role)
+  internal static func blocked(
+    _ role: CredentialRole,
+    numbering: CredentialReferenceSet?
+  ) -> String {
+    let estonian = isEstonian(numbering)
+    switch (role, estonian) {
+    case (.pin1, true):
+      return String(localized: "PIN 1 is blocked.")
+        + "\n"
+        + resetWithPuk(role, numbering: numbering)
 
-    case .puk:
-      pukBlockedByCard()
+    case (.pin2, true):
+      return String(localized: "PIN 2 is blocked.")
+        + "\n"
+        + resetWithPuk(role, numbering: numbering)
+
+    case (.pin1, false):
+      return String(localized: "Basic PIN 1 is blocked.")
+        + "\n"
+        + resetWithPuk(role, numbering: numbering)
+
+    case (.pin2, false):
+      return String(localized: "Signature PIN 2 is blocked.")
+        + "\n"
+        + resetWithPuk(role, numbering: numbering)
+
+    case (.puk, _):
+      return pukBlockedByCard()
     }
   }
 
   internal static func recoveryGuidance(for role: CredentialRole) -> String {
-    switch role {
-    case .pin1:
-      String(localized: "RefineID does not use Basic PIN 1 with fewer than 3 attempts left.")
+    recoveryGuidance(for: role, numbering: nil)
+  }
+
+  internal static func recoveryGuidance(
+    for role: CredentialRole,
+    numbering: CredentialReferenceSet?
+  ) -> String {
+    let estonian = isEstonian(numbering)
+    switch (role, estonian) {
+    case (.pin1, true):
+      return String(localized: "RefineID does not use PIN 1 on the last attempt.")
+        + "\n"
+        + String(localized: "Reset PIN 1 with the PUK, or use other software.")
+
+    case (.pin2, true):
+      return String(localized: "RefineID does not use PIN 2 on the last attempt.")
+        + "\n"
+        + String(localized: "Reset PIN 2 with the PUK, or use other software.")
+
+    case (.pin1, false):
+      return String(localized: "RefineID does not use Basic PIN 1 on the last attempt.")
         + "\n"
         + String(localized: "Reset Basic PIN 1 with the PUK, or use other software.")
 
-    case .pin2:
-      String(localized: "RefineID does not use Signature PIN 2 with fewer than 3 attempts left.")
+    case (.pin2, false):
+      return String(localized: "RefineID does not use Signature PIN 2 on the last attempt.")
         + "\n"
         + String(localized: "Reset Signature PIN 2 with the PUK, or use other software.")
 
-    case .puk:
-      preconditionFailure("PUK is the recovery credential, not a reset target")
-    }
-  }
-
-  private static func resetWithPuk(_ role: CredentialRole) -> String {
-    switch role {
-    case .pin1:
-      String(localized: "Reset Basic PIN 1 with your PUK.")
-
-    case .pin2:
-      String(localized: "Reset Signature PIN 2 with your PUK.")
-
-    case .puk:
+    case (.puk, _):
       preconditionFailure("PUK is the recovery credential, not a reset target")
     }
   }
@@ -113,8 +145,7 @@ internal enum CredentialOutcomeMessage {
   internal static func otherSoftwareRecovery() -> String {
     String(localized: "Use other software to recover the card.")
       + "\n"
-      + String(
-        localized: "RefineID will not use either of the final two PUK attempts.")
+      + String(localized: "RefineID does not use the last PUK attempt.")
   }
 
   /// The card's own answer to a PUK: nothing was spent, and no software
@@ -126,18 +157,110 @@ internal enum CredentialOutcomeMessage {
   }
 
   internal static func incorrect(_ credential: PresentedCredential) -> String {
-    switch credential {
-    case .pin1:
-      String(localized: "Basic PIN 1 is incorrect.")
+    incorrect(credential, numbering: nil)
+  }
 
-    case .pin2:
-      String(localized: "Signature PIN 2 is incorrect.")
+  internal static func incorrect(
+    _ credential: PresentedCredential,
+    numbering: CredentialReferenceSet?
+  ) -> String {
+    let estonian = isEstonian(numbering)
+    switch (credential, estonian) {
+    case (.pin1, true):
+      return String(localized: "PIN 1 is incorrect.")
 
-    case .puk:
-      String(localized: "PUK is incorrect.")
+    case (.pin2, true):
+      return String(localized: "PIN 2 is incorrect.")
 
-    case .activationCode, .activationPin:
-      String(localized: "Activation PIN is incorrect.")
+    case (.pin1, false):
+      return String(localized: "Basic PIN 1 is incorrect.")
+
+    case (.pin2, false):
+      return String(localized: "Signature PIN 2 is incorrect.")
+
+    case (.puk, _):
+      return String(localized: "PUK is incorrect.")
+
+    case (.activationCode, _), (.activationPin, _):
+      return String(localized: "Activation PIN is incorrect.")
     }
+  }
+
+  private static func lowAttemptDetail(
+    role: CredentialRole,
+    remaining: UInt8?,
+    estonian: Bool
+  ) -> String {
+    guard let count = remaining else {
+      return String(localized: "RefineID does not use the last attempt.")
+    }
+    return estonian
+      ? estonianLowAttemptDetail(role: role, count: count)
+      : defaultLowAttemptDetail(role: role, count: count)
+  }
+
+  private static func estonianLowAttemptDetail(role: CredentialRole, count: UInt8) -> String {
+    switch (role, count) {
+    case (.pin1, 1):
+      String(localized: "Only 1 attempt remains for PIN 1.")
+
+    case (.pin2, 1):
+      String(localized: "Only 1 attempt remains for PIN 2.")
+
+    case (.pin1, _):
+      String(localized: "Only \(count) attempts remain for PIN 1.")
+
+    case (.pin2, _):
+      String(localized: "Only \(count) attempts remain for PIN 2.")
+
+    case (.puk, _):
+      preconditionFailure("PUK is the recovery credential, not a reset target")
+    }
+  }
+
+  private static func defaultLowAttemptDetail(role: CredentialRole, count: UInt8) -> String {
+    switch (role, count) {
+    case (.pin1, 1):
+      String(localized: "Only 1 attempt remains for Basic PIN 1.")
+
+    case (.pin2, 1):
+      String(localized: "Only 1 attempt remains for Signature PIN 2.")
+
+    case (.pin1, _):
+      String(localized: "Only \(count) attempts remain for Basic PIN 1.")
+
+    case (.pin2, _):
+      String(localized: "Only \(count) attempts remain for Signature PIN 2.")
+
+    case (.puk, _):
+      preconditionFailure("PUK is the recovery credential, not a reset target")
+    }
+  }
+
+  private static func resetWithPuk(
+    _ role: CredentialRole,
+    numbering: CredentialReferenceSet?
+  ) -> String {
+    let estonian = isEstonian(numbering)
+    switch (role, estonian) {
+    case (.pin1, true):
+      return String(localized: "Reset PIN 1 with your PUK.")
+
+    case (.pin2, true):
+      return String(localized: "Reset PIN 2 with your PUK.")
+
+    case (.pin1, false):
+      return String(localized: "Reset Basic PIN 1 with your PUK.")
+
+    case (.pin2, false):
+      return String(localized: "Reset Signature PIN 2 with your PUK.")
+
+    case (.puk, _):
+      preconditionFailure("PUK is the recovery credential, not a reset target")
+    }
+  }
+
+  private static func isEstonian(_ numbering: CredentialReferenceSet?) -> Bool {
+    numbering == .estonian2018 || numbering == .estonian2025
   }
 }

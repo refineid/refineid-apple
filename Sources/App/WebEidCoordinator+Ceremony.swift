@@ -98,7 +98,12 @@
       )
       guard !activeCancelled else { return .failure(Self.cancelledError) }
       guard Date() < request.expiresAt else { return .failure(Self.timeoutError) }
-      return handleExecution(execution, request: request, retryMessage: &retryMessage)
+      return handleExecution(
+        execution,
+        request: request,
+        numbering: preview.pinLengths.numbering,
+        retryMessage: &retryMessage
+      )
     }
 
     private func requestApproval(
@@ -166,11 +171,12 @@
         return .wrongCard
       }
       if preview.pin2RequiresChangeBeforeSigning, Self.requiredRole(for: command) == .pin2 {
-        return .blockingMessage(String(localized: "Change PIN 2 to sign documents."))
+        return .blockingMessage(String(localized: "Change PIN 2 so you can sign documents."))
       }
       guard let role = Self.requiredRole(for: command) else { return nil }
+      let numbering = preview.pinLengths.numbering
       if case .locked = preview.retryProbe {
-        return .blockingMessage(CredentialOutcomeMessage.blocked(role))
+        return .blockingMessage(CredentialOutcomeMessage.blocked(role, numbering: numbering))
       }
       if preview.retryFloorVerdict != .proceed {
         let remaining: RetryCount? =
@@ -179,7 +185,8 @@
           CredentialOutcomeMessage.floorRefusal(
             role: role,
             verdict: preview.retryFloorVerdict,
-            remaining: remaining
+            remaining: remaining,
+            numbering: numbering
           )
         )
       }
@@ -249,6 +256,7 @@
     private func handleExecution(
       _ execution: Result<WebEidResponsePayload, WebEidCardFailure>,
       request: WebEidBridgeRequest,
+      numbering: CredentialReferenceSet,
       retryMessage: inout String?
     ) -> Result<WebEidResponsePayload, WebEidError>? {
       switch execution {
@@ -256,13 +264,19 @@
         return .success(payload)
 
       case .failure(let failure):
-        return handleExecutionFailure(failure, request: request, retryMessage: &retryMessage)
+        return handleExecutionFailure(
+          failure,
+          request: request,
+          numbering: numbering,
+          retryMessage: &retryMessage
+        )
       }
     }
 
     private func handleExecutionFailure(
       _ failure: WebEidCardFailure,
       request: WebEidBridgeRequest,
+      numbering: CredentialReferenceSet,
       retryMessage: inout String?
     ) -> Result<WebEidResponsePayload, WebEidError>? {
       let role = Self.requiredRole(for: request.command) ?? .pin1
@@ -271,25 +285,33 @@
         return handlePinRejected(
           role: role,
           remaining: remaining,
+          numbering: numbering,
           request: request,
           retryMessage: &retryMessage
         )
 
       case .pinBlocked:
-        showBlocking(CredentialOutcomeMessage.blocked(role), request: request)
+        showBlocking(
+          CredentialOutcomeMessage.blocked(role, numbering: numbering),
+          request: request
+        )
         return .failure(Self.cancelledError)
 
       case .retryFloorRefused(let verdict, let remaining):
         let message = CredentialOutcomeMessage.floorRefusal(
           role: role,
           verdict: verdict,
-          remaining: remaining
+          remaining: remaining,
+          numbering: numbering
         )
         showBlocking(message, request: request)
         return .failure(Self.cancelledError)
 
       case .pin2RequiresChangeBeforeSigning:
-        showBlocking(String(localized: "Change PIN 2 to sign documents."), request: request)
+        showBlocking(
+          String(localized: "Change PIN 2 so you can sign documents."),
+          request: request
+        )
         return .failure(Self.cancelledError)
 
       case .invalidated:
@@ -314,18 +336,24 @@
     private func handlePinRejected(
       role: CredentialRole,
       remaining: RetryCount,
+      numbering: CredentialReferenceSet,
       request: WebEidBridgeRequest,
       retryMessage: inout String?
     ) -> Result<WebEidResponsePayload, WebEidError>? {
       let presented: PresentedCredential = role == .pin2 ? .pin2 : .pin1
       if RetryFloor.evaluate(freshReading: remaining) == .proceed {
-        retryMessage = CredentialOutcomeMessage.rejection(presented, remaining: remaining)
+        retryMessage = CredentialOutcomeMessage.rejection(
+          presented,
+          remaining: remaining,
+          numbering: numbering
+        )
         return nil
       }
       let message = CredentialOutcomeMessage.floorRefusal(
         role: role,
         verdict: .refuseLowAttempts,
-        remaining: remaining
+        remaining: remaining,
+        numbering: numbering
       )
       showBlocking(message, request: request)
       return .failure(Self.cancelledError)

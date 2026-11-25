@@ -4,7 +4,7 @@ import CardCore
 import Testing
 
 /// Retry counts at or below this refuse without spending an attempt.
-internal let lowAttemptRefusalCeiling: UInt8 = 2
+internal let lowAttemptRefusalCeiling: UInt8 = RetryCount.lowAttemptCeiling
 
 @Suite(.serialized)
 internal final class VirtualIDCardTests {
@@ -182,13 +182,17 @@ internal final class VirtualIDCardTests {
   }
 
   @Test
-  internal func testLastTwoAttemptsAreNeverSpent() async {
+  internal func testLastAttemptIsNeverSpent() async {
     let card = VirtualIDCard(scenario: .pin1RecoveryReader)
 
     let result = await card.changePIN1(current: "0000", new: "9876")
 
-    #expect(result.outcome == (.refusedLowAttempts(remaining: 2)), sourceLocation: #_sourceLocation)
-    #expect(result.snapshot.card.pin1.attemptsRemaining == 2, sourceLocation: #_sourceLocation)
+    #expect(
+      result.outcome == (.refusedLowAttempts(remaining: RetryCount.lowAttemptCeiling)),
+      sourceLocation: #_sourceLocation)
+    #expect(
+      result.snapshot.card.pin1.attemptsRemaining == RetryCount.lowAttemptCeiling,
+      sourceLocation: #_sourceLocation)
   }
 
   @Test
@@ -245,9 +249,13 @@ internal final class VirtualIDCardTests {
 
     let result = await card.resetPIN1(puk: "12345678", new: "9876")
 
-    #expect(result.outcome == (.refusedLowAttempts(remaining: 2)), sourceLocation: #_sourceLocation)
+    #expect(
+      result.outcome == (.refusedLowAttempts(remaining: RetryCount.lowAttemptCeiling)),
+      sourceLocation: #_sourceLocation)
     #expect(result.snapshot.card.pin1.attemptsRemaining == 0, sourceLocation: #_sourceLocation)
-    #expect(result.snapshot.card.puk.attemptsRemaining == 2, sourceLocation: #_sourceLocation)
+    #expect(
+      result.snapshot.card.puk.attemptsRemaining == RetryCount.lowAttemptCeiling,
+      sourceLocation: #_sourceLocation)
   }
 
   @Test

@@ -13,7 +13,7 @@ public enum RetryFloorVerdict: Equatable, Sendable {
   /// and spends nothing.
   case proceed
 
-  /// One or two attempts remain: refuse before prompting for or sending
+  /// Only the last attempt remains: refuse before prompting for or sending
   /// any credential. RefineID never consumes a near-last attempt.
   case refuseLowAttempts
 
