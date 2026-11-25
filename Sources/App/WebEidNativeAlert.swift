@@ -45,7 +45,8 @@
 
     /// Context describing one native PIN prompt.
     internal struct PinPrompt {
-      internal let role: CredentialRole
+      internal let title: String
+      internal let fieldPlaceholder: String
       internal let origin: String
       internal let holderName: String
       internal let retryMessage: String?
@@ -112,13 +113,13 @@
       isCancelled: () -> Bool
     ) -> PinOutcome {
       let alert = NSAlert()
-      alert.messageText = CredentialLabels.entryPrompt(for: prompt.role, bundle: .main)
+      alert.messageText = prompt.title
       alert.informativeText = formatDetails(
         origin: prompt.origin,
         holderName: prompt.holderName,
         extraMessage: prompt.retryMessage
       )
-      let field = makePinField(for: prompt.role)
+      let field = makePinField(placeholder: prompt.fieldPlaceholder)
       alert.accessoryView = field
       let confirmButton = alert.addButton(withTitle: prompt.confirmTitle)
       confirmButton.isEnabled = false
@@ -223,11 +224,11 @@
       )
     }
 
-    private static func makePinField(for role: CredentialRole) -> NSSecureTextField {
+    private static func makePinField(placeholder: String) -> NSSecureTextField {
       let field = NSSecureTextField(
         frame: NSRect(x: 0, y: 0, width: Layout.fieldWidth, height: Layout.fieldHeight)
       )
-      field.placeholderString = CredentialLabels.name(for: role)
+      field.placeholderString = placeholder
       field.usesSingleLineMode = true
       return field
     }

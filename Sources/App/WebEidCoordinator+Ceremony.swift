@@ -107,8 +107,10 @@
       retryMessage: String?
     ) -> PromptApproval {
       if let role = Self.requiredRole(for: request.command) {
+        let numbering = preview.pinLengths.numbering
         let prompt = WebEidNativeAlert.PinPrompt(
-          role: role,
+          title: Self.pinPromptTitle(for: role, numbering: numbering),
+          fieldPlaceholder: Self.pinFieldPlaceholder(for: role, numbering: numbering),
           origin: Self.originText(for: request.command),
           holderName: preview.holderName,
           retryMessage: retryMessage,

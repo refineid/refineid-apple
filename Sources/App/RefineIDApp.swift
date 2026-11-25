@@ -102,7 +102,7 @@ internal struct RefineIDApp: App {
       }
       .defaultSize(width: StatusLayout.windowWidth, height: StatusLayout.windowHeight)
       .windowResizability(.contentSize)
-      .defaultLaunchBehavior(Self.hostsUnitTests ? .suppressed : .presented)
+      .defaultLaunchBehavior(WebEidCoordinator.suppressesStatusWindow ? .suppressed : .presented)
       // No help book ships, so the Help menu it would open does not
       // belong. Replacing the group with nothing leaves the menu with
       // no item, and MainMenuPruner removes the empty shell. About is

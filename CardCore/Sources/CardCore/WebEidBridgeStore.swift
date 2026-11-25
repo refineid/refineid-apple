@@ -99,6 +99,29 @@ public struct WebEidBridgeStore: Sendable {
     _ = Darwin.unlink(fileURL.path)
   }
 
+  /// Returns whether at least one unexpired request file is currently waiting
+  /// in the bridge directory without consuming it.
+  public func hasPendingUnexpiredRequest(now: Date = Date()) -> Bool {
+    guard let directory else { return false }
+    let files =
+      (try? FileManager.default.contentsOfDirectory(
+        at: directory,
+        includingPropertiesForKeys: nil,
+        options: [.skipsHiddenFiles]
+      )) ?? []
+    for file in files where file.lastPathComponent.hasSuffix(Self.requestSuffix) {
+      guard
+        let data = Self.readRegularFileNoFollow(at: file),
+        let request = try? JSONDecoder().decode(WebEidBridgeRequest.self, from: data),
+        request.expiresAt > now
+      else {
+        continue
+      }
+      return true
+    }
+    return false
+  }
+
   /// Atomically claims and deletes the oldest unexpired pending request, or
   /// returns nil if none wait.
   public func takeOldestPendingRequest(now: Date = Date()) -> WebEidBridgeRequest? {

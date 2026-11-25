@@ -8374,6 +8374,50 @@
           }
         }
       }
+    },
+    "Enter PIN 1": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter PIN 1"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Syötä PIN 1"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ange PIN 1"
+          }
+        }
+      }
+    },
+    "Enter PIN 2": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter PIN 2"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Syötä PIN 2"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ange PIN 2"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

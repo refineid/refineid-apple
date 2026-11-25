@@ -53,8 +53,10 @@
     }
 
     internal func applicationDidFinishLaunching(_: Notification) {
-      WebEidCoordinator.shared.start()
-      if LoginItem.isLoginLaunch(NSAppleEventManager.shared().currentAppleEvent) {
+      let isSilentLaunch =
+        WebEidCoordinator.isWebEidLaunch
+        || LoginItem.isLoginLaunch(NSAppleEventManager.shared().currentAppleEvent)
+      if isSilentLaunch {
         for window in NSApp.windows
         where window.identifier?.rawValue == RefineIDApp.statusWindowID {
           window.close()
@@ -64,6 +66,7 @@
           SealedCardSection.withdrawOfferedNumber()
         #endif
       }
+      WebEidCoordinator.shared.start()
       LoginItem.registerIfDue()
     }
   }
